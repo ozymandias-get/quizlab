@@ -164,7 +164,18 @@ quizlab-reader/
 └── package.json            # Dependencies (includes @google/gemini-cli)
 ```
 
-## 🛡️ Security & Privacy
+## 📚 Documentation
+
+Comprehensive documentation is available to help you understand and contribute to the project:
+
+* **[CONTRIBUTING.md](CONTRIBUTING.md)** - Developer guide with setup instructions, architecture overview, and common development tasks
+* **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed technical architecture explaining how QuizLab Reader works under the hood
+* **[docs/FEATURES.md](docs/FEATURES.md)** - In-depth feature documentation with use cases, workflows, and examples
+* **Source Code Comments** - JSDoc comments in key files explaining complex logic
+
+Whether you're a user curious about features or a developer wanting to contribute, these docs have you covered!
+
+---
 
 This project is **100% Open Source**. You can inspect every line of code here on GitHub.
 
@@ -176,13 +187,18 @@ This project is **100% Open Source**. You can inspect every line of code here on
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) guide to get started.
+
+**Quick Start for Contributors:**
 
 1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Clone your fork: `git clone https://github.com/your-username/quizlab.git`
+3. Install dependencies: `npm install`
+4. Read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions
+5. Make your changes and test thoroughly
+6. Submit a Pull Request
+
+For architecture details and technical overview, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 

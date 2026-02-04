@@ -164,7 +164,18 @@ quizlab-reader/
 └── package.json            # Bağımlılıklar (@google/gemini-cli dahil)
 ```
 
-## 🛡️ Güvenlik ve Gizlilik
+## 📚 Dokümantasyon
+
+Projeyi anlamanıza ve katkıda bulunmanıza yardımcı olacak kapsamlı dokümantasyon mevcuttur:
+
+* **[CONTRIBUTING.md](CONTRIBUTING.md)** - Kurulum talimatları, mimari genel bakış ve yaygın geliştirme görevleri içeren geliştirici rehberi (Türkçe ve İngilizce)
+* **[ARCHITECTURE.md](ARCHITECTURE.md)** - QuizLab Reader'ın nasıl çalıştığını açıklayan detaylı teknik mimari (Türkçe ve İngilizce)
+* **[docs/FEATURES.md](docs/FEATURES.md)** - Kullanım durumları, iş akışları ve örneklerle derinlemesine özellik dokümantasyonu (Türkçe ve İngilizce)
+* **Kaynak Kod Yorumları** - Karmaşık mantığı açıklayan JSDoc yorumları içeren ana dosyalar
+
+İster özellikleri merak eden bir kullanıcı olun, ister katkıda bulunmak isteyen bir geliştirici, bu dokümantasyonlar size yardımcı olacaktır!
+
+---
 
 Bu proje **%100 Açık Kaynak** kodludur. Tüm kodları bu sayfadan inceleyebilirsiniz.
 
@@ -176,13 +187,18 @@ Bu proje **%100 Açık Kaynak** kodludur. Tüm kodları bu sayfadan inceleyebili
 
 ## 🤝 Katkıda Bulunma
 
-Katkılarınızı bekliyoruz! Lütfen bir Pull Request göndermekten çekinmeyin.
+Katkılarınızı bekliyoruz! Başlamak için lütfen [CONTRIBUTING.md](CONTRIBUTING.md) rehberini okuyun.
 
-1. Fork'layın
-2. Branch oluşturun (`git checkout -b ozellik/YeniOzellik`)
-3. Commit yapın (`git commit -m 'Yeni özellik eklendi'`)
-4. Push'layın (`git push origin ozellik/YeniOzellik`)
-5. Pull Request açın
+**Katkıda Bulunanlar için Hızlı Başlangıç:**
+
+1. Projeyi Fork'layın
+2. Fork'unuzu klonlayın: `git clone https://github.com/kullanici-adiniz/quizlab.git`
+3. Bağımlılıkları yükleyin: `npm install`
+4. Detaylı kurulum talimatları için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasını okuyun
+5. Değişikliklerinizi yapın ve kapsamlı test edin
+6. Pull Request gönderin
+
+Mimari detaylar ve teknik genel bakış için [ARCHITECTURE.md](ARCHITECTURE.md) dosyasına bakın.
 
 ---
 
