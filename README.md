@@ -1,12 +1,14 @@
 # QuizLab Reader 📚✨
 
-[![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg)](README_TR.md) ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+[![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg)](README_TR.md) ![Version](https://img.shields.io/badge/version-1.0.3-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 
 > **🇹🇷 [Türkçe Dokümantasyon için Tıklayın](README_TR.md)**
 
-**QuizLab Reader**, is a next-generation study tool designed to supercharge your learning workflow by merging a powerful **PDF Reader** with an embedded **AI Assistant**.
+**QuizLab Reader** is a next-generation study tool designed to supercharge your learning workflow. It seamlessly merges a professional **PDF Reader** with an embedded **AI Assistant**.
 
-It features a unique split-screen architecture that bridges the gap between static documents and dynamic AI models. Unlike typical wrappers, QuizLab Reader uses **Google's Gemini CLI** for native quiz generation and a **DOM-injection "Magic Selector"** engine to integrate *any* web-based chatbot (ChatGPT, Claude, DeepSeek) without needing API keys.
+> **The AI-Powered PDF Reader that turns your documents into interactive quizzes.** 📚✨
+
+Unlike typical wrappers, QuizLab Reader features **Native Gemini Integration** (generating quizzes directly from your notes via CLI) and a revolutionary **"Magic Selector"** engine that lets you integrate *any* web-based chatbot (ChatGPT, Claude, DeepSeek) into your study session—no API keys required.
 
 ![App Overview](docs/images/app-overview.png)
 *Split-screen interface: Your PDF on the left, your AI assistant on the right.*

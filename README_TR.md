@@ -1,12 +1,14 @@
 # QuizLab Reader 📚✨
 
-[![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md) ![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-blue.svg) ![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md) ![Sürüm](https://img.shields.io/badge/sürüm-1.0.3-blue.svg) ![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 
 > **🇺🇸 [Click here for English Documentation](README.md)**
 
-**QuizLab Reader**, PDF okuma deneyimini gelişmiş **Yapay Zeka** yetenekleriyle birleştiren, öğrenciler ve araştırmacılar için tasarlanmış modern bir masaüstü uygulamasıdır.
+**QuizLab Reader**, öğrenme sürecinizi süper şarj etmek için tasarlanmış yeni nesil bir çalışma aracıdır. Güçlü bir **PDF Okuyucu** ile gömülü bir **AI Asistanı** tek ekranda birleştirir.
+  
+> **PDF dokümanlarınızı saniyeler içinde interaktif sınavlara dönüştüren yapay zeka destekli okuyucu.** 📚✨
 
-Sıradan uygulamaların aksine, QuizLab karmaşık API anahtarlarıyla uğraşmanızı gerektirmez. Doğrudan **Google Gemini CLI** entegrasyonu ile yerel bir sınav oluşturucu sunar ve benzersiz **"Sihirli Seçici" (Magic Selector)** teknolojisi sayesinde tarayıcı tabanlı *herhangi bir* yapay zekayı (ChatGPT, Claude, DeepSeek) uygulamanın bir parçası gibi kullanmanıza olanak tanır.
+Sıradan uygulamaların aksine, QuizLab karmaşık API anahtarlarıyla uğraşmanızı gerektirmez. Doğrudan **Google Gemini CLI** entegrasyonu ile yerel bir sınav oluşturucu sunar ve devrim niteliğindeki **"Sihirli Seçici" (Magic Selector)** teknolojisi sayesinde tarayıcı tabanlı *herhangi bir* yapay zekayı (ChatGPT, Claude, DeepSeek) ders çalışma arkadaşınıza dönüştürür.
 
 ![Uygulama Genel Görünüm](docs/images/app-overview.png)
 *Çift panelli arayüz: Solda PDF dokümanınız, sağda dilediğiniz yapay zeka asistanı.*
