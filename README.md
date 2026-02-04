@@ -162,7 +162,7 @@ This project is **100% Open Source**. You can inspect every line of code here on
 * **Virus Scan:** Every release is built from clean code. However, since we don't have an expensive "Code Signing Certificate" yet, Windows SmartScreen might flag the installer.
   * *If you see a warning: Click "More Info" -> "Run Anyway".*
 
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-Clean-brightgreen)](https://www.virustotal.com/) *(Feel free to upload the installer to VirusTotal yourself)*
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-Clean-brightgreen)](https://www.virustotal.com/gui/file/d78216b97311a074f2e92f0aae1c25c5a73780593855db370a92424d2268cebf/detection) *(Latest scan report - v1.0.3)*
 
 ## 🤝 Contributing
 

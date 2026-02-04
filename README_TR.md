@@ -162,7 +162,7 @@ Bu proje **%100 Açık Kaynak** kodludur. Tüm kodları bu sayfadan inceleyebili
 * **Antivirüs Taraması:** Derlenen her sürüm temizdir. Ancak "Kod İmzalama Sertifikası" (Code Signing) çok pahalı olduğu için Windows SmartScreen uyarı verebilir.
   * *Uyarı alırsanız: "Ek Bilgi" -> "Yine de Çalıştır" seçeneğini kullanabilirsiniz.*
 
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-Temiz-brightgreen)](https://www.virustotal.com/) *(Lütfen son sürümü indirip kendiniz de taratabilirsiniz)*
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-Temiz-brightgreen)](https://www.virustotal.com/gui/file/d78216b97311a074f2e92f0aae1c25c5a73780593855db370a92424d2268cebf/detection) *(Son sürüm tarama raporu - v1.0.3)*
 
 ## 🤝 Katkıda Bulunma
 
