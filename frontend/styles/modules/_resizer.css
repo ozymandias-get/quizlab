@@ -1,0 +1,31 @@
+/* ============================================
+   RESIZER STYLES - Panel boyutlandırıcı
+   ============================================ */
+
+.resizer {
+  width: 20px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 40px;
+  background: rgba(87, 83, 78, 0.3);
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.resizer:hover::after,
+.resizer.dragging::after {
+  background: rgba(212, 165, 116, 0.6);
+  height: 60px;
+}

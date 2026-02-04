@@ -1,0 +1,110 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.1)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [windows-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install ImageMagick
+        run: choco install imagemagick -y
+        shell: pwsh
+
+      - name: Convert PNG to ICO
+        run: |
+          magick convert resources/icon.png -define icon:auto-resize=256,128,64,48,32,16 resources/icon.ico
+          if (Test-Path resources/icon.ico) { Write-Host "Icon converted successfully" } else { Write-Host "Icon conversion failed"; exit 1 }
+        shell: pwsh
+
+      - name: Install dependencies
+        run: npm ci --ignore-optional
+        env:
+          npm_config_canvas_binary_host_mirror: "https://example.com/fake"
+
+      - name: Build Vite
+        run: npx vite build
+
+      - name: Build Electron
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List release files
+        run: Get-ChildItem -Path release -Recurse
+        shell: pwsh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.yml
+            release/latest.yml
+          if-no-files-found: warn
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List downloaded files
+        run: ls -la artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/*.exe
+            artifacts/*.yml
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## 📥 Download
+            
+            **Windows:** Download the `.exe` file below and run the installer.
+            
+            ## ✨ What's New
+            - Multi-language support (EN, TR, ZH, HI, ES, AR)
+            - Auto-update system
+            - Settings panel with language selection
+            - NSIS installer with setup wizard
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

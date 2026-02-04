@@ -1,0 +1,100 @@
+/* ============================================
+   NEW FLOATING HUB - Premium Circular Menu
+   ============================================ */
+
+.floating-bar {
+  position: relative;
+  display: flex;
+  overflow: visible; /* Butonların dışarı taşması (shadows) için */
+  
+  /* Modern Hub Aesthetic */
+  background: rgba(10, 10, 12, var(--bar-alpha, 0.9));
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  
+  transition: 
+    width 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.5s ease;
+  
+  transform: scale(var(--bar-scale, 1));
+}
+
+.floating-bar--expanded {
+  box-shadow: 
+    0 30px 80px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(59, 130, 246, 0.05); /* Very subtle ambient blue glow when open */
+}
+
+/* Base Buttons */
+.floating-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.floating-btn--selected {
+  background: var(--brand-color, #3b82f6) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px var(--brand-glow, rgba(59, 130, 246, 0.3));
+}
+
+.floating-btn svg {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.3s ease;
+}
+
+.floating-btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* Tooltip Labels */
+.floating-btn__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 8px;
+}
+
+/* Compact specific */
+.floating-bar--compact .floating-btn {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+
+/* Dragging Hint (Handled in JS mostly, but some CSS for cursor) */
+[drag-active="true"] {
+  cursor: grabbing !important;
+}
+
+.floating-bar:active {
+  cursor: grabbing;
+}

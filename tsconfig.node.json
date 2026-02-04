@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "composite": true,
+        "target": "ES2020",
+        "module": "CommonJS",
+        "moduleResolution": "Node",
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "allowJs": false,
+        "strict": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "esModuleInterop": true,
+        "outDir": "dist-electron",
+        "rootDir": "backend"
+    },
+    "include": [
+        "backend/**/*"
+    ]
+}

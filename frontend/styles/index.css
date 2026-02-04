@@ -1,0 +1,27 @@
+/* ============================================
+   MAIN STYLESHEET
+   Tüm modüler CSS dosyalarını içe aktarır
+   
+   NOT: @import ifadeleri dosyanın en başında olmalı!
+   ============================================ */
+
+/* CSS MODULES - Modüler dosya importları (ÖNCELİKLİ) */
+@import './modules/_fonts.css';       /* Font tanımlamaları - EN ÖNCE */
+@import './modules/_base.css';
+@import './modules/_splash.css';       /* Welcome Screen Stilleri */
+@import './modules/_glass-panel.css';
+@import './modules/_buttons.css';
+@import './modules/_floating-bar.css';
+@import './modules/_pdf-viewer.css';
+@import './modules/_resizer.css';
+@import './modules/_animations.css';
+@import './modules/_aesthetic-loader.css';
+@import './modules/_screenshot.css';
+@import './modules/_backgrounds.css';
+@import './modules/_quiz.css';
+@import './modules/_utilities.css';
+
+/* Tailwind directives - İmportlardan SONRA */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

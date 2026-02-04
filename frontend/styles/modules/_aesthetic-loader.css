@@ -1,0 +1,198 @@
+/* ============================================
+   AESTHETIC LOADER - Premium Loading Screen
+   ============================================ */
+
+.aesthetic-loader {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(10, 10, 10, 0.8) 0%, rgba(5, 5, 5, 0.95) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    overflow: hidden;
+    animation: loaderFadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes loaderFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Background Dynamic Glow */
+.aesthetic-loader__bg-glow {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle at center, var(--brand-color) 0%, transparent 70%);
+    opacity: 0.05;
+    filter: blur(80px);
+    animation: bgGlowFloat 8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes bgGlowFloat {
+    0%, 100% { transform: translate(-5%, -5%) scale(1); }
+    50% { transform: translate(5%, 5%) scale(1.1); }
+}
+
+/* Content Layout */
+.aesthetic-loader__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    z-index: 1;
+}
+
+/* Icon & Rings */
+.aesthetic-loader__icon-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.aesthetic-loader__icon {
+    width: 64px;
+    height: 64px;
+    z-index: 5;
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+.aesthetic-loader__icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes iconPulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 1; }
+}
+
+.aesthetic-loader__icon-glow {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: var(--brand-color);
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.3;
+    animation: iconGlowPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconGlowPulse {
+    0%, 100% { transform: scale(1); opacity: 0.2; }
+    50% { transform: scale(1.4); opacity: 0.4; }
+}
+
+/* Rotating Rings */
+.aesthetic-loader__ring {
+    position: absolute;
+    border: 2px solid transparent;
+    border-top-color: var(--brand-color);
+    border-radius: 50%;
+    opacity: 0.3;
+}
+
+.aesthetic-loader__ring--1 {
+    width: 100%;
+    height: 100%;
+    animation: ringRotate 3s linear infinite;
+}
+
+.aesthetic-loader__ring--2 {
+    width: 80%;
+    height: 80%;
+    border-top-color: transparent;
+    border-bottom-color: var(--brand-color);
+    animation: ringRotate 2s linear infinite reverse;
+    opacity: 0.15;
+}
+
+@keyframes ringRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Text Branding */
+.aesthetic-loader__text-wrapper {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.aesthetic-loader__title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.02em;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    animation: titleSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes titleSlideUp {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.aesthetic-loader__status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    opacity: 0.5;
+}
+
+.aesthetic-loader__dot {
+    width: 6px;
+    height: 6px;
+    background: var(--brand-color);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--brand-color);
+    animation: dotPulse 1.5s infinite;
+}
+
+@keyframes dotPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.5); opacity: 1; }
+}
+
+.aesthetic-loader__status-text {
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: white;
+}
+
+/* Bottom Progress Bar */
+.aesthetic-loader__progress-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.aesthetic-loader__progress-bar {
+    height: 100%;
+    background: var(--brand-color);
+    box-shadow: 0 -2px 10px var(--brand-color);
+    animation: progressBarAnim 2s ease-in-out infinite;
+    width: 0;
+}
+
+@keyframes progressBarAnim {
+    0% { width: 0%; left: 0%; }
+    50% { width: 50%; left: 25%; }
+    100% { width: 0%; left: 100%; }
+}

@@ -1,0 +1,52 @@
+/* ============================================
+   BASE STYLES - Temel stiller
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #0c0a09;
+  color: #fafaf9;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* GPU Hızlandırma */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Donanım ivmesi için genel optimizasyon */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    /* Metin render kalitesi */
+    text-rendering: optimizeLegibility;
+}
+
+/* Metin seçme rengi - Dinamik olarak değiştirilebilir */
+::selection {
+  background-color: var(--selection-color, rgba(99, 102, 241, 0.4));
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: var(--selection-color, rgba(99, 102, 241, 0.4));
+  color: #ffffff;
+}
+
+/* Custom Font */
+.font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+}

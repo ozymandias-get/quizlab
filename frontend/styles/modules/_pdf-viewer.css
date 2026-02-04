@@ -1,0 +1,129 @@
+/* ============================================
+   PDF TOOLBAR STYLES
+   ============================================ */
+
+/* Alt toolbar - PDF altında */
+.pdf-bottom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: linear-gradient(180deg, rgba(28, 25, 23, 0.4) 0%, rgba(12, 10, 9, 0.6) 100%);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0 0 1.5rem 1.5rem;
+}
+
+.pdf-bottom-toolbar .btn-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+
+.pdf-bottom-toolbar .btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   PDF VIEWER CUSTOM STYLES
+   ============================================ */
+
+.pdf-viewer-container {
+  background: transparent;
+  border-radius: 1.5rem 1.5rem 0 0;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* PDF içeriği - scroll pozisyonunu koru */
+.pdf-viewer-container > * {
+  position: relative;
+}
+
+/* React PDF Viewer Dark Theme Overrides */
+.pdf-viewer-container .rpv-core__viewer {
+  background-color: transparent !important;
+  height: 100% !important;
+}
+
+/* PDF sayfası - Resim gibi organik ve yumuşak boyutlanma için akıllı stiller */
+.pdf-viewer-container .rpv-core__inner-page {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width, height;
+}
+
+.pdf-viewer-container .rpv-core__canvas-layer,
+.pdf-viewer-container .rpv-core__text-layer,
+.pdf-viewer-container .rpv-core__annotation-layer {
+  /* Katmanlarda 'all' geçişi yapmak PDF.js'in iç hesaplamalarını (scale-factor) bozar. */
+  transition: opacity 0.3s ease;
+}
+
+.pdf-viewer-container .rpv-core__canvas-layer canvas {
+  display: block;
+}
+
+/* Yükleme spinner'ını ve arka planı güzelleştir */
+.pdf-viewer-container .rpv-core__loader {
+  background: transparent !important;
+}
+
+.pdf-viewer-container .rpv-core__inner-pages {
+  background-color: transparent !important;
+}
+
+.pdf-viewer-container .rpv-core__inner-pages {
+  background-color: transparent !important;
+}
+
+.pdf-viewer-container .rpv-core__text-layer {
+  color: transparent !important;
+}
+
+/* Premium Text Selection - Dinamik olarak değiştirilebilir */
+.pdf-viewer-container .rpv-core__text-layer span::selection {
+  background-color: var(--selection-color, rgba(99, 102, 241, 0.45)) !important;
+  color: transparent !important;
+}
+
+/* Firefox için */
+.pdf-viewer-container .rpv-core__text-layer span::-moz-selection {
+  background-color: var(--selection-color, rgba(99, 102, 241, 0.45)) !important;
+  color: transparent !important;
+}
+
+/* Text layer span'ları için ek stil */
+.pdf-viewer-container .rpv-core__text-layer span {
+  transition: background-color 0.1s ease;
+}
+
+/* Toolbar button overrides */
+.pdf-viewer-container .rpv-core__minimal-button {
+  color: #a8a29e !important;
+}
+
+.pdf-viewer-container .rpv-core__minimal-button:hover {
+  background-color: rgba(68, 64, 60, 0.5) !important;
+  color: #fafaf9 !important;
+}
+
+/* Scrollbar styling */
+.pdf-viewer-container ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pdf-viewer-container ::-webkit-scrollbar-track {
+  background: #1c1917;
+}
+
+.pdf-viewer-container ::-webkit-scrollbar-thumb {
+  background: rgba(87, 83, 78, 0.5);
+  border-radius: 4px;
+}
+
+.pdf-viewer-container ::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 113, 108, 0.6);
+}

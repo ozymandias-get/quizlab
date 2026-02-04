@@ -1,0 +1,47 @@
+/* ============================================
+   APPLICATION BACKGROUNDS
+   ============================================ */
+
+.app-background {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    pointer-events: none;
+    transition: background-color 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-noise {
+    display: none; /* Pixelation sorununu tamamen kökten çözmek için kaldırıldı */
+}
+
+/* Frosted glass layer for background depth */
+.glass-overlay {
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur(50px) saturate(140%);
+    -webkit-backdrop-filter: blur(50px) saturate(140%);
+    background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.2) 100%);
+    z-index: 3;
+    pointer-events: none;
+}
+
+/* Animated Gradient System */
+.animated-bg {
+    position: absolute;
+    inset: 0;
+    background: #08070b;
+    overflow: hidden;
+}
+
+.bg-blob {
+    position: absolute;
+    width: 80vw;
+    height: 80vw;
+    max-width: 1200px;
+    max-height: 1200px;
+    filter: blur(150px);
+    opacity: 0.4;
+    mix-blend-mode: screen;
+    will-change: transform, border-radius;
+    pointer-events: none;
+}

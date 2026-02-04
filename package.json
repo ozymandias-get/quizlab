@@ -1,0 +1,149 @@
+{
+  "name": "quizlab-reader",
+  "version": "3.1.0",
+  "description": "QuizLab-inspired split screen Electron app with PDF viewer and AI assistant",
+  "main": "dist-electron/main/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ozymandias-get/Quizlab-Reader.git"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "npm run build:backend && wait-on http://localhost:5173 && electron .",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
+    "build:backend": "tsc -p tsconfig.node.json",
+    "build": "npm run build:backend && tsc && vite build",
+    "build:win": "vite build && electron-builder --win",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:linux": "vite build && electron-builder --linux",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.quizlab.reader",
+    "productName": "Quizlab Reader",
+    "copyright": "Copyright © 2026 Quizlab Reader",
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "resources/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": "resources/",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/@google/gemini-cli/**/*",
+      "node_modules/.bin/gemini*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.ico",
+      "publisherName": "Quizlab Reader",
+      "artifactName": "QuizlabReader-Setup-${version}.${ext}",
+      "signAndEditExecutable": false,
+      "forceCodeSigning": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerHeaderIcon": "resources/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Quizlab Reader",
+      "include": "installer/installer.nsh",
+      "installerLanguages": [
+        "en_US",
+        "tr_TR"
+      ],
+      "language": "1033",
+      "warningsAsErrors": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "resources/icon.png",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "resources/icon.png",
+      "category": "Office"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "ozymandias-get",
+      "repo": "Quizlab-Reader",
+      "releaseType": "release"
+    },
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "pdf-viewer",
+    "ai-assistant",
+    "study-tool"
+  ],
+  "author": "ozymandias-get",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.2.0",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^40.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-devtools-installer": "^4.0.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.0.10",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "@google/gemini-cli": "^0.26.0",
+    "@headlessui/react": "^2.2.9",
+    "@react-pdf-viewer/core": "^3.12.0",
+    "@react-pdf-viewer/page-navigation": "^3.12.0",
+    "@react-pdf-viewer/scroll-mode": "^3.12.0",
+    "@react-pdf-viewer/search": "^3.12.0",
+    "@react-pdf-viewer/zoom": "^3.12.0",
+    "cross-fetch": "^4.1.0",
+    "dompurify": "^3.3.1",
+    "framer-motion": "^12.28.1",
+    "lucide-react": "^0.563.0",
+    "pdfjs-dist": "^3.11.174",
+    "react": "^18.2.0",
+    "react-colorful": "^5.6.1",
+    "react-dom": "^18.2.0",
+    "styled-components": "^6.3.8"
+  }
+}
