@@ -1,41 +1,37 @@
 # QuizLab Reader 📚✨
 
-![Version](https://img.shields.io/badge/version-3.1.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+[![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg)](README_TR.md) ![Version](https://img.shields.io/badge/version-3.1.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 
-**QuizLab Reader**, is a next-generation study tool designed to supercharge your learning workflow. It seamlessly combines a powerful **PDF Reader** with an embedded **AI Assistant** in a split-screen interface, allowing you to read, summarize, and generate quizzes from your study materials instantly.
+> **🇹🇷 [Türkçe Dokümantasyon için Tıklayın](README_TR.md)**
 
-Unlike standard split-screen setups, QuizLab Reader features a **"Magic Selector"** engine that allows you to integrate *any* web-based AI chatbot (ChatGPT, Claude, DeepSeek, etc.) alongside your documents, enabling specialized workflows like "PDF-to-Quiz" generation using Google's Gemini models.
+**QuizLab Reader**, is a next-generation study tool designed to supercharge your learning workflow by merging a powerful **PDF Reader** with an embedded **AI Assistant**.
+
+It features a unique split-screen architecture that bridges the gap between static documents and dynamic AI models. Unlike typical wrappers, QuizLab Reader uses **Google's Gemini CLI** for native quiz generation and a **DOM-injection "Magic Selector"** engine to integrate *any* web-based chatbot (ChatGPT, Claude, DeepSeek) without needing API keys.
 
 ---
 
 ## 🚀 Key Features
 
-### 📖 Professional PDF Reader
+### 🧠 Native Gemini Integration (CLI Based)
 
-* **Split-Screen Interface:** Content on the left, intelligence on the right.
-* **Advanced Navigation:** Thumbnail resizing, chapter detection, and smooth scrolling.
-* **Smart Interactions:** Select text in your PDF and instantly send it to the AI with a single click.
-* **Screenshot Tool:** Capture specific diagrams or text blocks to analyze visually.
+* **No API Keys Required:** Uses the official `@google/gemini-cli` package. Simply log in with your Google Account via the terminal popup, and you're ready to go.
+* **AI Quiz Generator:** The app extracts text from your PDF, sends it to Gemini Pro via CLI, and generates comprehensive quizzes with detailed explanations.
+* **Context-Aware:** Identify chapters and key concepts automatically to create focused study materials.
 
-### 🧠 Universal AI Integration & "Magic Selector"
+### 🪄 The "Magic Selector" Engine
 
-* **Bring Your Own AI:** Don't get locked into one model. Use the built-in browser to load ChatGPT, Claude, DeepSeek, or any other web-based AI.
-* **Magic Selector Technology:** Visually select the "Input" box and "Send" button on *any* website to enable deep integration. The app "learns" how to talk to that website.
-* **Pre-defined Prompts:** Access a library of optimized prompts for summarizing, explaining, or translating text.
+* **Universal AI Support:** Don't be limited to one provider. Use the built-in Chromium browser to load **ChatGPT**, **Claude**, **DeepSeek**, or **Perplexity**.
+* **Visual DOM Mapping:** Use the "Magic Wand" tool to visually click on the *Input Box* and *Send Button* of any website.
+* **Auto-Injection:** Once mapped, the app can programmatically inject selected text from your PDF into the chatbot and trigger responses, creating a seamless "Read & Ask" workflow.
 
-### 📝 AI Quiz Generator (Powered by Gemini)
+### 📖 Advanced PDF Reflow & Tools
 
-* **Instant Quizzes:** Turn any PDF chapter into a comprehensive quiz in seconds.
-* **Detailed Analytics:** Get instant grading, explanations for wrong answers, and performance tracking.
-* **Custom Difficulty:** Choose from Easy, Medium, or Hard difficulty levels.
-* **Focus Mode:** Tell the AI to focus specifically on certain topics (e.g., "Cardiology" or "Quantum Mechanics").
-* *(Requires Google Gemini API Key via integrated CLI)*
-
-### 🎨 Modern & Customizable UI
-
-* **Aesthetic Design:** Glassmorphism effects, smooth animations, and a sleek dark/light mode.
-* **Customizable Layouts:** Swap panels, resize the split view, or collapse the sidebar.
-* **Internationalization:** Full support for English 🇺🇸 and Turkish 🇹🇷 languages.
+* **Split-Screen Interface:** Resizable panels with "Swap" functionality.
+* **Smart Text Selection:** Selecting text in the PDF populates a floating toolbar to instantly:
+  * Summarize via AI
+  * Translate
+  * Explain Complex Terms
+* **Screenshot-to-Prompt:** Capture a region of the PDF (e.g., a diagram) and paste it directly into the AI chat for visual analysis.
 
 ---
 
@@ -44,7 +40,8 @@ Unlike standard split-screen setups, QuizLab Reader features a **"Magic Selector
 ### Prerequisites
 
 * Node.js (v18 or higher)
-* NPM or Yarn
+* Git
+* A Google Account (for Gemini features)
 
 ### Development Setup
 
@@ -61,56 +58,46 @@ Unlike standard split-screen setups, QuizLab Reader features a **"Magic Selector
     npm install
     ```
 
+    *Note: This will also install the `@google/gemini-cli` package required for quiz generation.*
+
 3. **Run in Development Mode**
 
     ```bash
     npm run dev
     ```
 
-    *This runs both the React frontend (Vite) and the Electron backend concurrently.*
+    *This runs three processes concurrently: The Vite dev server, the Electron main process, and the Tailwind compiler.*
 
 ### Building for Production
 
-To create an executable file (reducer/installer) for your OS:
+To create an executable installer/app image:
 
-* **Windows:** `npm run build:win`
-* **macOS:** `npm run build:mac`
-* **Linux:** `npm run build:linux`
-
-Artifacts will be generated in the `release/` directory.
+* **Windows:** `npm run build:win` (Produces `.exe` in `release/` folder)
+* **macOS:** `npm run build:mac` (Produces `.dmg`)
+* **Linux:** `npm run build:linux` (Produces `.AppImage`)
 
 ---
 
 ## 🎮 How to Use
 
-### 1. The Magic Selector (Connecting an AI)
+### 1. Connecting Google Gemini (for Quizzes)
 
-1. Open the **AI Panel** on the right.
-2. Navigate to your favorite AI website (e.g., chatgpt.com).
-3. Click the **Magic Wand** icon in the toolbar.
-4. Follow the on-screen guide:
-    * **Click** the text input box on the page.
-    * **Click** the send button on the page.
-5. Done! Now, any text you select in the PDF can be sent directly to this AI.
+The app uses the **Gemini Developer CLI**. You do not need to paste an API Key.
 
-### 2. Generating a Quiz
+1. Go to the **Settings** or **Quiz** tab.
+2. Click **"Login with Google"**.
+3. A terminal window will open. Follow the link, authorize the application, and copy the verification code.
+4. Paste the code back into the terminal.
+5. Status will change to **"Connected"**, enabling unlimited quiz generation based on your account quotas.
 
-1. Open a PDF document.
-2. Click the **"Quiz"** tab in the bottom bar.
-3. Authenticate with your Google Account (for Gemini CLI) if prompted.
-4. Select a **Difficulty** and optionally enter a **Focus Topic**.
-5. Click **"Generate Quiz"**. The AI will read your document and prepare a test for you.
+### 2. Setting up the Magic Selector (for Chat)
 
----
-
-## 🏗 Tech Stack
-
-* **Core:** [Electron](https://www.electronjs.org/) + [React](https://reactjs.org/)
-* **Build Tool:** [Vite](https://vitejs.dev/)
-* **Language:** [TypeScript](https://www.typescriptlang.org/)
-* **Styling:** [TailwindCSS](https://tailwindcss.com/) + CSS Modules
-* **PDF Engine:** [React PDF Viewer](https://react-pdf-viewer.dev/) / PDF.js
-* **AI Bridge:** Google Gemini CLI + Custom DOM Automation
+1. Open the right-hand **AI Panel**.
+2. Navigate to a chat site (e.g., `chatgpt.com`).
+3. Click the **Magic Wand 🪄** icon in the bottom toolbar.
+4. **Step 1:** Click on the text input area of the website.
+5. **Step 2:** Click on the "Send" button of the website.
+6. The app now "knows" this website. Any text selected in your PDF can be sent here automatically.
 
 ---
 
@@ -120,22 +107,18 @@ Artifacts will be generated in the `release/` directory.
 quizlab-reader/
 ├── backend/                 # Electron Main Process
 │   ├── main/               # Main process entry points (IPC, window management)
-│   └── preload/            # Preload scripts (Bridging Node.js and Browser)
+│   └── preload/            # Preload scripts (Secure bridge between Node & UI)
 ├── frontend/                # React Renderer Process
-│   ├── components/         # Reusable UI components (PDF Viewer, AI Panel, etc.)
-│   ├── context/            # Global state management (Context API)
-│   ├── hooks/              # Custom React hooks
-│   ├── locales/            # i18n translation files (en.json, tr.json)
-│   ├── styles/             # Global styles and CSS modules
-│   ├── utils/              # Helper functions (File system, formatting)
-│   └── main.tsx            # App entry point
-├── resources/               # Static assets for Electron build (icons)
-├── installer/               # NSIS installer configuration
-├── release/                 # Build artifacts (executables generate here)
-├── .github/                 # GitHub workflows (CI/CD)
-├── tailwind.config.js       # TailwindCSS configuration
-├── vite.config.ts           # Vite bundler configuration
-└── package.json            # Project dependencies and scripts
+│   ├── components/         #
+│   │   ├── pdf/            # Custom PDF Viewer implementation
+│   │   ├── QuizModule/     # Gemini CLI integration & Quiz UI
+│   │   └── ...
+│   ├── hooks/              # Custom hooks (useAiSender, usePdfSelection)
+│   ├── locales/            # i18n JSON files (en, tr)
+│   └── styles/             # Tailwind & CSS Modules
+├── resources/               # Static assets (icons, tray images)
+├── installer/               # NSIS installer configuration for Windows
+└── package.json            # Dependencies (includes @google/gemini-cli)
 ```
 
 ## 🤝 Contributing
