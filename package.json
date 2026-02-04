@@ -2,7 +2,7 @@
   "name": "quizlab-reader",
   "version": "1.0.1",
   "description": "QuizLab-inspired split screen Electron app with PDF viewer and AI assistant",
-  "main": "dist-electron/main/index.js",
+  "main": "dist/electron/main/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/ozymandias-get/quizlab.git"
@@ -13,10 +13,10 @@
     "dev:electron": "npm run build:backend && wait-on http://localhost:5173 && electron .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "build:backend": "tsc -p tsconfig.node.json",
-    "build": "npm run build:backend && tsc && vite build",
-    "build:win": "vite build && electron-builder --win",
-    "build:mac": "vite build && electron-builder --mac",
-    "build:linux": "vite build && electron-builder --linux",
+    "build": "tsc && vite build && npm run build:backend",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux",
     "preview": "vite preview"
   },
   "build": {
@@ -29,7 +29,6 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*",
       "resources/**/*"
     ],
     "extraResources": [
