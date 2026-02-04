@@ -1,6 +1,6 @@
 # QuizLab Reader 📚✨
 
-[![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md) ![Sürüm](https://img.shields.io/badge/sürüm-3.1.0-blue.svg) ![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](README.md) ![Sürüm](https://img.shields.io/badge/sürüm-1.0.0-blue.svg) ![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 
 > **🇺🇸 [Click here for English Documentation](README.md)**
 
