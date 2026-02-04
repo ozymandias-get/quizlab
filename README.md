@@ -8,30 +8,61 @@
 
 It features a unique split-screen architecture that bridges the gap between static documents and dynamic AI models. Unlike typical wrappers, QuizLab Reader uses **Google's Gemini CLI** for native quiz generation and a **DOM-injection "Magic Selector"** engine to integrate *any* web-based chatbot (ChatGPT, Claude, DeepSeek) without needing API keys.
 
+![App Overview](docs/images/app-overview.png)
+*Split-screen interface: Your PDF on the left, your AI assistant on the right.*
+
 ---
 
 ## 🚀 Key Features
 
-### 🧠 Native Gemini Integration (CLI Based)
+### 🧠 Native Gemini Integration & Quiz Module
 
-* **No API Keys Required:** Uses the official `@google/gemini-cli` package. Simply log in with your Google Account via the terminal popup, and you're ready to go.
-* **AI Quiz Generator:** The app extracts text from your PDF, sends it to Gemini Pro via CLI, and generates comprehensive quizzes with detailed explanations.
-* **Context-Aware:** Identify chapters and key concepts automatically to create focused study materials.
+Generate comprehensive quizzes from your PDFs in seconds using the Google Gemini CLI.
+
+| Quiz Settings | Gameplay Interface | Detailed Results |
+| :---: | :---: | :---: |
+| ![Quiz Config](docs/images/quiz-creation.png) | ![Quiz Mode](docs/images/quiz-gameplay.png) | ![results](docs/images/quiz-results.png) |
+| *Select difficulty and question count* | *Interactive quiz interface* | *Scoring and correct/incorrect analysis* |
 
 ### 🪄 The "Magic Selector" Engine
 
-* **Universal AI Support:** Don't be limited to one provider. Use the built-in Chromium browser to load **ChatGPT**, **Claude**, **DeepSeek**, or **Perplexity**.
-* **Visual DOM Mapping:** Use the "Magic Wand" tool to visually click on the *Input Box* and *Send Button* of any website.
-* **Auto-Injection:** Once mapped, the app can programmatically inject selected text from your PDF into the chatbot and trigger responses, creating a seamless "Read & Ask" workflow.
+Maximize your "Read & Ask" workflow flexibility.
+
+![AI Integration](docs/images/ai-integration.png)
+*Select text in the PDF and click "Send to AI". Your chosen AI (ChatGPT, Claude, etc.) responds instantly.*
 
 ### 📖 Advanced PDF Reflow & Tools
 
 * **Split-Screen Interface:** Resizable panels with "Swap" functionality.
-* **Smart Text Selection:** Selecting text in the PDF populates a floating toolbar to instantly:
-  * Summarize via AI
-  * Translate
-  * Explain Complex Terms
+* **Smart Text Selection:** Selecting text in the PDF populates a floating toolbar to instantly Summarize, Translate, or Explain.
 * **Screenshot-to-Prompt:** Capture a region of the PDF (e.g., a diagram) and paste it directly into the AI chat for visual analysis.
+
+## 🏗 Tech Stack
+
+Built with a cutting-edge stack for performance and maintainability:
+
+* **Core:**
+  * [Electron](https://www.electronjs.org/): Cross-platform desktop runtime
+  * [React 18](https://reactjs.org/): Component-based UI library
+  * [TypeScript](https://www.typescriptlang.org/): Static typing for robust code
+  * [Vite](https://vitejs.dev/): Next-generation frontend tooling
+
+* **UI & Styling:**
+  * [TailwindCSS](https://tailwindcss.com/): Rapid UI development
+  * [Framer Motion](https://www.framer.com/motion/): Production-ready animation library
+  * [Lucide React](https://lucide.dev/): Beautiful & consistent icons
+  * [Headless UI](https://headlessui.com/): Unstyled, fully accessible UI components
+
+* **PDF Engine:**
+  * [@react-pdf-viewer](https://react-pdf-viewer.dev/): Professional PDF viewing components
+  * [PDF.js](https://mozilla.github.io/pdf.js/): Core PDF parsing standard
+
+* **AI & Logic:**
+  * **Google Gemini CLI:** Native integration via `@google/gemini-cli`
+  * **Custom DOM Injector:** Proprietary "Magic Selector" engine for web automation
+
+* **Build System:**
+  * [Electron Builder](https://www.electron.build/): Multi-platform installer generation (NSIS, DMG, AppImage)
 
 ---
 

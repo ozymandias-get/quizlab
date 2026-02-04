@@ -8,30 +8,61 @@
 
 Sıradan uygulamaların aksine, QuizLab karmaşık API anahtarlarıyla uğraşmanızı gerektirmez. Doğrudan **Google Gemini CLI** entegrasyonu ile yerel bir sınav oluşturucu sunar ve benzersiz **"Sihirli Seçici" (Magic Selector)** teknolojisi sayesinde tarayıcı tabanlı *herhangi bir* yapay zekayı (ChatGPT, Claude, DeepSeek) uygulamanın bir parçası gibi kullanmanıza olanak tanır.
 
+![Uygulama Genel Görünüm](docs/images/app-overview.png)
+*Çift panelli arayüz: Solda PDF dokümanınız, sağda dilediğiniz yapay zeka asistanı.*
+
 ---
 
 ## 🚀 Temel Özellikler
 
-### 🧠 Yerel Gemini Entegrasyonu (CLI Tabanlı)
+### 🧠 Yerel Gemini Entegrasyonu ve Sınav Modülü
 
-* **API Anahtarı Gerekmez:** Resmi `@google/gemini-cli` paketini kullanır. Terminal üzerinden Google Hesabınızla bir kez giriş yapmanız yeterlidir.
-* **Otomatik Sınav (Quiz) Oluşturucu:** PDF'inizdeki metinleri analiz eder, konuları ayırır ve Gemini Pro modelini kullanarak size özel sınavlar, boşluk doldurma testleri veya doğru/yanlış soruları hazırlar.
-* **Limitsiz Öğrenme:** Kendi Google hesabınızın kotalarını kullanır, üçüncü parti servislere bağımlı değildir.
+Google Gemini CLI kullanarak PDF'lerinizden saniyeler içinde zenginleştirilmiş sınavlar oluşturun.
 
-### � "Sihirli Seçici" (Magic Selector) Teknolojisi
+| Sınav Ayarları | Soru Çözme Arayüzü | Detaylı Sonuçlar |
+| :---: | :---: | :---: |
+| ![Quiz Ayarları](docs/images/quiz-creation.png) | ![Quiz Modu](docs/images/quiz-gameplay.png) | ![Quiz Sonuçları](docs/images/quiz-results.png) |
+| *Zorluk seviyesi ve soru sayısı seçimi* | *İnteraktif soru çözme ekranı* | *Puanlama ve doğru/yanlış analizi* |
 
-* **Evrensel AI Desteği:** Tek bir modele sıkışıp kalmayın. Dahili tarayıcıda **ChatGPT**, **Claude**, **Perplexity** veya kurumsal AI araçlarını açın.
-* **Görsel DOM Eşleştirme:** "Sihirli Değnek" aracını kullanarak, web sitesindeki yazı yazma kutusunu ve gönder butonunu görsel olarak seçin.
-* **Otomatik Enjeksiyon:** Eşleştirme yapıldıktan sonra, PDF üzerinde seçtiğiniz herhangi bir metin otomatik olarak bu kutuya yazılır ve gönderilir. "Oku ve Sor" iş akışı kesintisiz hale gelir.
+### 🪄 "Sihirli Seçici" (Magic Selector) ile Kesintisiz Entegrasyon
+
+"Oku ve Sor" iş akışını en üst düzeye çıkarın.
+
+![AI Entegrasyonu](docs/images/ai-integration.png)
+*PDF üzerinden metni seçin ve "Send to AI" butonuna tıklayın. Seçtiğiniz yapay zeka (ChatGPT, Claude vb.) anında yanıtlasın.*
 
 ### 📖 Gelişmiş PDF ve Çalışma Araçları
 
-* **Bölünmüş Ekran (Split-Screen):** Sol panelde ders notlarınız, sağ panelde yapay zeka asistanınız. Paneller yer değiştirebilir ve boyutlandırılabilir.
-* **Akıllı Bağlam Menüsü:** Metin seçtiğinizde açılan menü ile anında:
-  * Özet Çıkar
-  * Çeviri Yap
-  * Kavram Açıkla
-* **Ekran Görüntüsü Analizi:** PDF'teki bir grafiği veya formülü kesip, anında yapay zekaya görsel olarak sorabilirsiniz.
+* **Bölünmüş Ekran (Split-Screen):** Sol panelde ders notlarınız, sağ panelde yapay zeka asistanınız.
+* **Akıllı Bağlam Menüsü:** Metin seçtiğinizde açılan menü ile anında Özet Çıkar, Çeviri Yap veya Kavram Açıkla.
+* **Ekran Görüntüsü Analizi:** PDF'teki bir grafiği kesip, anında yapay zekaya görsel olarak sorabilirsiniz.
+
+## 🏗 Teknoloji Yığını
+
+Uygulama, performans ve modülerlik için en modern teknolojilerle geliştirilmiştir:
+
+* **Çekirdek (Core):**
+  * [Electron](https://www.electronjs.org/): Masaüstü entegrasyonu (IPC, Shell)
+  * [React 18](https://reactjs.org/): Kullanıcı arayüzü
+  * [TypeScript](https://www.typescriptlang.org/): Tip güvenliği ve ölçeklenebilirlik
+  * [Vite](https://vitejs.dev/): Ultra hızlı geliştirme sunucusu ve bundler
+
+* **Arayüz & Tasarım (UI/UX):**
+  * [TailwindCSS](https://tailwindcss.com/): Utility-first CSS framework
+  * [Framer Motion](https://www.framer.com/motion/): Akıcı animasyonlar ve geçişler
+  * [Lucide React](https://lucide.dev/): Modern ve tutarlı ikon seti
+  * [Headless UI](https://headlessui.com/): Erişilebilir UI bileşenleri
+
+* **PDF Motoru:**
+  * [@react-pdf-viewer](https://react-pdf-viewer.dev/): Yüksek performanslı PDF görüntüleme
+  * [PDF.js](https://mozilla.github.io/pdf.js/): PDF okuma ve işleme altyapısı
+
+* **Yapay Zeka & Entegrasyon:**
+  * **Google Gemini CLI:** `@google/gemini-cli` ile yerel quiz üretimi
+  * **DOM Otomasyonu:** "Sihirli Seçici" için özel geliştirilmiş DOM enjeksiyon motoru
+
+* **Paketleme & Dağıtım:**
+  * [Electron Builder](https://www.electron.build/): Windows, macOS ve Linux için installer oluşturma
 
 ---
 
