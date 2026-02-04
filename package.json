@@ -5,7 +5,7 @@
   "main": "dist-electron/main/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ozymandias-get/Quizlab-Reader.git"
+    "url": "https://github.com/ozymandias-get/quizlab.git"
   },
   "scripts": {
     "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
@@ -96,7 +96,7 @@
     "publish": {
       "provider": "github",
       "owner": "ozymandias-get",
-      "repo": "Quizlab-Reader",
+      "repo": "quizlab",
       "releaseType": "release"
     },
     "npmRebuild": false,
