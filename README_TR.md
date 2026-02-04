@@ -154,6 +154,16 @@ quizlab-reader/
 └── package.json            # Bağımlılıklar (@google/gemini-cli dahil)
 ```
 
+## 🛡️ Güvenlik ve Gizlilik
+
+Bu proje **%100 Açık Kaynak** kodludur. Tüm kodları bu sayfadan inceleyebilirsiniz.
+
+* **Veri Gizliliği:** Hiçbir veriniz sunucularımızda saklanmaz. PDF işleme ve AI sorguları tamamen sizin bilgisayarınızda ve kendi Google/OpenAI hesabınız üzerinden gerçekleşir.
+* **Antivirüs Taraması:** Derlenen her sürüm temizdir. Ancak "Kod İmzalama Sertifikası" (Code Signing) çok pahalı olduğu için Windows SmartScreen uyarı verebilir.
+  * *Uyarı alırsanız: "Ek Bilgi" -> "Yine de Çalıştır" seçeneğini kullanabilirsiniz.*
+
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-Temiz-brightgreen)](https://www.virustotal.com/) *(Lütfen son sürümü indirip kendiniz de taratabilirsiniz)*
+
 ## 🤝 Katkıda Bulunma
 
 Katkılarınızı bekliyoruz! Lütfen bir Pull Request göndermekten çekinmeyin.

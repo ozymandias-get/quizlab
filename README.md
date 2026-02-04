@@ -154,6 +154,16 @@ quizlab-reader/
 └── package.json            # Dependencies (includes @google/gemini-cli)
 ```
 
+## 🛡️ Security & Privacy
+
+This project is **100% Open Source**. You can inspect every line of code here on GitHub.
+
+* **Data Privacy:** No data is stored on our servers. All PDF processing and AI queries happen locally on your machine via your own Google/OpenAI accounts.
+* **Virus Scan:** Every release is built from clean code. However, since we don't have an expensive "Code Signing Certificate" yet, Windows SmartScreen might flag the installer.
+  * *If you see a warning: Click "More Info" -> "Run Anyway".*
+
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-Clean-brightgreen)](https://www.virustotal.com/) *(Feel free to upload the installer to VirusTotal yourself)*
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
