@@ -29,16 +29,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install ImageMagick
-        run: choco install imagemagick -y
-        shell: pwsh
-
-      - name: Convert PNG to ICO
-        run: |
-          magick convert resources/icon.png -define icon:auto-resize=256,128,64,48,32,16 resources/icon.ico
-          if (Test-Path resources/icon.ico) { Write-Host "Icon converted successfully" } else { Write-Host "Icon conversion failed"; exit 1 }
-        shell: pwsh
-
       - name: Install dependencies
         run: npm ci --ignore-optional
         env:
@@ -48,7 +38,7 @@ jobs:
         run: npx vite build
 
       - name: Build Electron
-        run: npx electron-builder --win --publish never
+        run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -101,10 +91,10 @@ jobs:
             
             **Windows:** Download the `.exe` file below and run the installer.
             
-            ## ✨ What's New
-            - Multi-language support (EN, TR, ZH, HI, ES, AR)
-            - Auto-update system
-            - Settings panel with language selection
-            - NSIS installer with setup wizard
+            ## ✨ Features
+            - **Google Gemini Integration (CLI)**
+            - **Magic Selector** for Universal AI Chat
+            - **Multi-language support (EN, TR)**
+            - **Dual-Pane PDF Reader**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
