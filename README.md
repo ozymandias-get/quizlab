@@ -21,10 +21,20 @@ Unlike typical wrappers, QuizLab Reader features **Native Gemini Integration** (
 
 Generate comprehensive quizzes from your PDFs in seconds using the Google Gemini CLI.
 
-| Quiz Settings | Gameplay Interface | Detailed Results |
-| :---: | :---: | :---: |
-| ![Quiz Config](docs/images/quiz-creation.png) | ![Quiz Mode](docs/images/quiz-gameplay.png) | ![results](docs/images/quiz-results.png) |
-| *Select difficulty and question count* | *Interactive quiz interface* | *Scoring and correct/incorrect analysis* |
+### 1. Quiz Settings
+
+![Quiz Config](docs/images/quiz-creation.png)
+*Customize difficulty, question count, and topics.*
+
+### 2. Gameplay Interface
+
+![Quiz Mode](docs/images/quiz-gameplay.png)
+*Distraction-free interactive quiz environment.*
+
+### 3. Detailed Results
+
+![results](docs/images/quiz-results.png)
+*Comprehensive scoring and correct/incorrect answer analysis.*
 
 ### 🪄 The "Magic Selector" Engine
 

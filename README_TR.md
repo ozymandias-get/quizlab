@@ -21,10 +21,20 @@ Sıradan uygulamaların aksine, QuizLab karmaşık API anahtarlarıyla uğraşma
 
 Google Gemini CLI kullanarak PDF'lerinizden saniyeler içinde zenginleştirilmiş sınavlar oluşturun.
 
-| Sınav Ayarları | Soru Çözme Arayüzü | Detaylı Sonuçlar |
-| :---: | :---: | :---: |
-| ![Quiz Ayarları](docs/images/quiz-creation.png) | ![Quiz Modu](docs/images/quiz-gameplay.png) | ![Quiz Sonuçları](docs/images/quiz-results.png) |
-| *Zorluk seviyesi ve soru sayısı seçimi* | *İnteraktif soru çözme ekranı* | *Puanlama ve doğru/yanlış analizi* |
+### 1. Sınav Ayarları
+
+![Quiz Ayarları](docs/images/quiz-creation.png)
+*Zorluk seviyesi, soru sayısı ve konu seçimini dilediğiniz gibi yapın.*
+
+### 2. Soru Çözme Arayüzü
+
+![Quiz Modu](docs/images/quiz-gameplay.png)
+*Dikkatinizi dağıtmayacak şekilde tasarlanmış interaktif soru ekranı.*
+
+### 3. Detaylı Sonuçlar
+
+![Quiz Sonuçları](docs/images/quiz-results.png)
+*Sınav sonunda detaylı puanlama ve doğru/yanlış analizi.*
 
 ### 🪄 "Sihirli Seçici" (Magic Selector) ile Kesintisiz Entegrasyon
 
