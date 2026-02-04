@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "QuizLab-inspired split screen Electron app with PDF viewer and AI assistant",
   "main": "dist/electron/main/index.js",
   "repository": {
