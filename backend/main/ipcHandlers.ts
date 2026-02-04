@@ -22,9 +22,30 @@ type AddCustomAiInput = { name: string; url: string }
 
 const getCustomPlatformsPath = () => path.join(app.getPath('userData'), 'ai_custom_platforms.json')
 
+/**
+ * Registers all general IPC handlers for communication between renderer and main process.
+ * 
+ * This function sets up handlers for:
+ * - Screen capture (full page and region)
+ * - Clipboard operations
+ * - External link opening
+ * - AI configuration management (Magic Selector settings)
+ * - Custom AI platform management
+ * - Automation script generation
+ * 
+ * All handlers use `ipcMain.handle()` which returns a Promise to the renderer.
+ */
 export function registerGeneralHandlers() {
     const { IPC_CHANNELS, SCREENSHOT_TYPES } = APP_CONFIG
 
+    /**
+     * Captures a screenshot of the current window or a specific region.
+     * 
+     * @param rect - Optional rectangle defining the capture region. If omitted, captures the full page.
+     * @returns Base64 encoded data URL of the captured image, or null if capture fails.
+     * 
+     * Used by: Screenshot tool, diagram capture feature
+     */
     ipcMain.handle(IPC_CHANNELS.CAPTURE_SCREEN, async (event, rect?: Electron.Rectangle) => {
         try {
             const win = BrowserWindow.fromWebContents(event.sender)
@@ -109,6 +130,20 @@ export function registerGeneralHandlers() {
         menu.popup({ window: win })
     })
 
+    /**
+     * Saves Magic Selector configuration for a specific AI platform.
+     * 
+     * This stores the CSS selectors that the app uses to interact with an AI website:
+     * - Input field selector (where to type text)
+     * - Send button selector (what to click to submit)
+     * - Optional wait selector (element to wait for before considering the page ready)
+     * 
+     * @param hostname - The hostname of the AI website (e.g., "chat.openai.com")
+     * @param config - The selector configuration object
+     * @returns true if save succeeds, false otherwise
+     * 
+     * Storage: Saved to userData directory as 'ai_custom_selectors.json'
+     */
     ipcMain.handle(IPC_CHANNELS.SAVE_AI_CONFIG, async (event, hostname: string, config: AiSelectorConfig) => {
         try {
             const configPath = path.join(app.getPath('userData'), 'ai_custom_selectors.json')
@@ -174,6 +209,24 @@ export function registerGeneralHandlers() {
         }
     })
 
+    /**
+     * Adds a custom AI platform to the registry.
+     * 
+     * This allows users to add AI websites that aren't pre-configured in the app.
+     * The function:
+     * 1. Generates a unique ID for the platform
+     * 2. Creates a platform object with default settings
+     * 3. Checks if the URL matches any inactive platforms to restore their icon
+     * 4. Saves to the custom platforms file
+     * 
+     * @param platformData - Object with name and url for the new platform
+     * @returns Object with success status, generated ID, and platform details
+     * 
+     * Storage: Saved to userData directory as 'ai_custom_platforms.json'
+     * 
+     * Example:
+     * addCustomAi({ name: "My Local LLM", url: "http://localhost:8080" })
+     */
     ipcMain.handle(IPC_CHANNELS.ADD_CUSTOM_AI, async (event, platformData: AddCustomAiInput) => {
         try {
             const configPath = getCustomPlatformsPath()
@@ -255,6 +308,27 @@ export function registerGeneralHandlers() {
         }
     })
 
+    /**
+     * Generates JavaScript code for automating interactions with AI websites.
+     * 
+     * This is the core of the Magic Selector feature. It generates scripts that:
+     * - Focus on input fields
+     * - Click send buttons
+     * - Auto-fill and submit text
+     * - Show the element picker UI
+     * 
+     * @param action - The type of script to generate
+     * @param args - Additional arguments specific to each action type
+     * @returns Generated JavaScript code as a string, or null if action is invalid
+     * 
+     * Actions:
+     * - 'generateFocusScript': Creates code to focus an input field
+     * - 'generateClickSendScript': Creates code to click the send button
+     * - 'generateAutoSendScript': Creates code to fill text and submit
+     * - 'generatePickerScript': Creates the UI for selecting elements on the page
+     * 
+     * The generated code is executed in the webview using executeJavaScript()
+     */
     ipcMain.handle(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, (event, action: string, ...args: unknown[]) => {
         try {
             switch (action) {

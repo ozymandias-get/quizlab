@@ -4,6 +4,72 @@ import { safeWebviewPaste } from '../utils/webviewUtils'
 import { usePrompts } from './usePrompts'
 import type { WebviewController } from '../types/webview'
 
+/**
+ * useAiSender Hook
+ * 
+ * Core hook for the "Magic Selector" feature. Handles sending text and images to AI platforms.
+ * 
+ * This hook is the implementation of QuizLab's revolutionary AI integration system.
+ * Instead of using expensive API keys, it automates interactions with AI websites by:
+ * 
+ * 1. **Text Injection**: Finds the input field using saved CSS selectors and injects text
+ * 2. **Auto-Submit**: Optionally clicks the send button to submit the query
+ * 3. **Image Pasting**: Copies images to clipboard and pastes them into the AI chat
+ * 4. **Prompt Templates**: Prepends custom prompts (e.g., "Explain this:", "Summarize:")
+ * 
+ * **How It Works:**
+ * 
+ * Setup Phase (done once per AI website):
+ * - User uses Magic Selector to click on input field → saves its CSS selector
+ * - User clicks on send button → saves its CSS selector
+ * - Configuration saved to local storage
+ * 
+ * Usage Phase:
+ * - User selects text in PDF and clicks "Send to AI"
+ * - This hook loads the saved selectors for the current AI site
+ * - Generates JavaScript code to find those elements
+ * - Executes the code in the webview using executeJavaScript()
+ * - The AI website processes it as if the user typed it manually
+ * 
+ * **Key Features:**
+ * 
+ * - **Config Caching**: Avoids re-fetching selectors on every send
+ * - **Custom Selectors**: Falls back to custom user-defined selectors if available
+ * - **Prompt System**: Automatically prepends action-specific prompts
+ * - **Domain Validation**: Ensures user is on the correct AI website before sending
+ * - **Error Handling**: Graceful fallbacks for various failure scenarios
+ * - **Image Support**: Handles screenshot-to-AI workflow via clipboard
+ * 
+ * @param webviewRef - Reference to the webview element containing the AI website
+ * @param currentAI - ID of the currently active AI platform (e.g., "chatgpt", "claude")
+ * @param autoSend - Whether to automatically click send after injecting text
+ * @param aiRegistry - Registry of all AI platforms with their default configurations
+ * 
+ * @returns Object with sendTextToAI and sendImageToAI functions
+ * 
+ * @example
+ * ```typescript
+ * const { sendTextToAI, sendImageToAI } = useAiSender(
+ *   webviewRef,
+ *   "chatgpt",
+ *   true, // auto-send enabled
+ *   aiRegistry
+ * );
+ * 
+ * // Send text
+ * const result = await sendTextToAI("Explain quantum computing");
+ * if (result.success) {
+ *   console.log("Text sent successfully");
+ * }
+ * 
+ * // Send image
+ * const imageResult = await sendImageToAI(screenshotDataUrl);
+ * if (imageResult.success) {
+ *   console.log("Image sent successfully");
+ * }
+ * ```
+ */
+
 // Define interfaces for config
 interface AiConfig {
     input?: string | null;
