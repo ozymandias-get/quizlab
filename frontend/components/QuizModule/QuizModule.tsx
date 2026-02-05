@@ -99,7 +99,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
             prevInitialNameRef.current = initialPdfName
 
             if (pathChanged) setPdfPath(initialPdfPath)
-            setPdfFileName(initialPdfName || t?.('quiz_pdf_file_default') || 'PDF Dosyası')
+            setPdfFileName(initialPdfName || t('quiz_pdf_file_default'))
 
             if (pathChanged) setIsDemoMode(false)
         }
@@ -115,7 +115,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
     const handleLoadPdf = useCallback(async () => {
         const api = window.electronAPI
         if (!api?.selectPdf) {
-            setError(t?.('error_api_unavailable') || 'PDF API kullanılamıyor')
+            setError(t('error_api_unavailable'))
             return
         }
 
@@ -123,7 +123,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
         setError(null)
 
         try {
-            const result = await api.selectPdf({ filterName: t?.('quiz_filter_name') || 'PDF Dosyaları' })
+            const result = await api.selectPdf({ filterName: t('quiz_filter_name') })
 
             if (!isMountedRef.current) return
 
@@ -136,11 +136,11 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
 
             // Store path - PDF will be sent directly to Gemini API
             setPdfPath(result.path)
-            setPdfFileName(result.name || t?.('quiz_pdf_file_default') || 'PDF Dosyası')
+            setPdfFileName(result.name || t('quiz_pdf_file_default'))
         } catch (err: unknown) {
             if (!isMountedRef.current) return
             console.error('[QuizModule] PDF load error:', err)
-            const message = err instanceof Error ? err.message : t?.('error_pdf_load') || 'PDF seçilemedi'
+            const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('error_pdf_load')
             setError(message)
         } finally {
             if (isMountedRef.current) {
@@ -196,7 +196,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
         const targetIsDemo = typeof mode === 'boolean' ? mode : isDemoMode
 
         if (!targetIsDemo && !pdfPath) {
-            setError(t?.('quiz_no_pdf') || 'PDF dosyası seçilmedi')
+            setError(t('quiz_no_pdf'))
             return
         }
 
@@ -205,8 +205,8 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
 
         try {
             setLoadingMessage(targetIsDemo
-                ? (t?.('quiz_demo_loading') || 'Demo sınav hazırlanıyor...')
-                : (t?.('quiz_generating') || 'Sorular oluşturuluyor...')
+                ? t('quiz_demo_loading')
+                : t('quiz_generating')
             )
             setStep(QuizStep.GENERATING)
             setError(null)
@@ -240,7 +240,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
             // Only show error if this is still the active request
             if (currentRequestId === requestIdRef.current) {
                 console.error('[QuizModule] Generation error:', err)
-                const message = err instanceof Error ? err.message : t?.('quiz_error') || 'Sınav oluşturulamadı'
+                const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('quiz_error')
                 setError(message)
                 setStep(QuizStep.CONFIG)
             }
@@ -314,7 +314,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
         const currentRequestId = ++requestIdRef.current
 
         try {
-            setLoadingMessage(t?.('quiz_remedial') || 'Eksik konular için sorular hazırlanıyor...')
+            setLoadingMessage(t('quiz_remedial'))
             setStep(QuizStep.GENERATING)
 
             const questions = await generateQuizQuestions(
@@ -344,7 +344,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
             if (!isMountedRef.current) return
 
             if (currentRequestId === requestIdRef.current) {
-                const message = err instanceof Error ? err.message : t?.('quiz_error') || 'Sınav oluşturulamadı'
+                const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('quiz_error')
                 setError(message)
                 setStep(QuizStep.RESULTS)
             }
@@ -369,8 +369,8 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
                         <Brain className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-white/90">{t?.('quiz_title') || 'Quiz Oluştur'}</h2>
-                        <p className="text-xs text-white/40">{pdfFileName || t?.('quiz_subtitle') || 'PDF içeriğinden sorular üret'}</p>
+                        <h2 className="text-lg font-bold text-white/90">{t('quiz_title')}</h2>
+                        <p className="text-xs text-white/40">{pdfFileName || t('quiz_subtitle')}</p>
                     </div>
                 </div>
 
@@ -439,15 +439,15 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
                                 <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-500/10 border border-emerald-500/20 flex items-center justify-center">
                                     <Zap className="w-10 h-10 text-emerald-400" />
                                 </div>
-                                <h2 className="text-2xl font-bold text-white mb-2">{t?.('quiz_ready') || 'Sınav Hazır!'}</h2>
+                                <h2 className="text-2xl font-bold text-white mb-2">{t('quiz_ready')}</h2>
                                 <p className="text-white/50 mb-8">
-                                    {quizState.questions.length} {t?.('quiz_ready_count') || 'soru hazırlandı'}
+                                    {quizState.questions.length} {t('quiz_ready_count')}
                                 </p>
                                 <button
                                     onClick={handleStartActiveQuiz}
                                     className="px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-lg shadow-xl shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-105 transition-all"
                                 >
-                                    {t?.('quiz_start') || 'Sınava Başla'}
+                                    {t('quiz_start')}
                                 </button>
                             </div>
                         </motion.div>

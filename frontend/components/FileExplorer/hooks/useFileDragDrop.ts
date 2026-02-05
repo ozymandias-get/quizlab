@@ -88,11 +88,11 @@ export function useFileDragDrop(item: FileSystemItem, onDragComplete?: () => voi
                 const filesToAdd: FileInput[] = pdfFiles.map((f) => {
                     const fileWithPath = f as File & { path?: string }
                     return {
-                    name: f.name,
-                    path: fileWithPath.path || null,
-                    size: f.size,
-                    streamUrl: null
-                }
+                        name: f.name,
+                        path: fileWithPath.path || null,
+                        size: f.size,
+                        streamUrl: null
+                    }
                 })
                 addFiles(filesToAdd, targetId)
             }

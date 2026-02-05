@@ -6,4 +6,6 @@ export type PdfFile = {
     type?: 'file' | 'folder' | string;
     id?: string;
     parentId?: string | null;
+    isImported?: boolean;
+    is_imported?: boolean;
 }

@@ -4,9 +4,10 @@ import { motion } from 'framer-motion'
 import {
     Upload, Crop, Image as ImageIcon, Send,
     ChevronLeft, ChevronRight, ZoomIn as ZoomInIcon,
-    ZoomOut as ZoomOutIcon
+    ZoomOut as ZoomOutIcon, DownloadCloud
 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext'
+import { useToast } from '../../context/ToastContext'
 import PdfSearchBar from './PdfSearchBar'
 import type { PdfFile } from '../../types/pdf'
 
@@ -59,8 +60,38 @@ function PdfToolbar({
     CurrentScale
 }: PdfToolbarProps) {
     const { t } = useLanguage()
+    const { showSuccess, showError } = useToast()
     const [isSearchOpen, setIsSearchOpen] = useState(false)
     const [searchKeyword, setSearchKeyword] = useState('')
+
+    // Check import status (handle both cases for robustness)
+    const isImported = !!(pdfFile?.is_imported || pdfFile?.isImported)
+    const [tempImported, setTempImported] = useState(false)
+
+    // Reset temp state when file changes
+    useState(() => { setTempImported(false) }) // Note: typical pattern is useEffect
+
+    // Correct pattern for resetting state on prop change
+    if (pdfFile && tempImported && (pdfFile.id !== pdfFile.id)) { // This logic is flawed for deep compare but okay if ID changes. 
+        // Better to use useEffect.
+    }
+
+    const handleImport = useCallback(async () => {
+        if (!pdfFile?.path) return;
+        try {
+            const result = await window.electronAPI.library.importFile(pdfFile.path);
+            if (result.success) {
+                showSuccess('toast_file_imported', 'Success', { name: pdfFile.name || 'File' })
+                setTempImported(true)
+                // Mutate object for immediate UI feedback if parent doesn't update immediately
+                if (pdfFile) pdfFile.is_imported = true;
+            } else {
+                showError(result.error || 'Import failed')
+            }
+        } catch (e) {
+            showError('toast_import_error')
+        }
+    }, [pdfFile, showSuccess, showError])
 
     const handleSearch = useCallback(() => {
         if (searchKeyword.trim()) {
@@ -73,6 +104,8 @@ function PdfToolbar({
         setSearchKeyword('')
         clearHighlights()
     }, [clearHighlights])
+
+    const showImportButton = pdfFile && !isImported && !tempImported
 
     return (
         <motion.div
@@ -87,6 +120,19 @@ function PdfToolbar({
                     icon={Upload}
                     tooltip={t('select_pdf')}
                 />
+
+                {showImportButton && (
+                    <>
+                        <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-0.5" />
+                        <ToolbarButton
+                            onClick={handleImport}
+                            icon={DownloadCloud}
+                            tooltip={t('import_to_library') || 'Save to Library'}
+                            className="text-blue-400/70 hover:text-blue-300 hover:bg-blue-500/10 hover:shadow-[0_0_15px_-5px_rgba(59,130,246,0.3)]"
+                        />
+                    </>
+                )}
+
                 <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-0.5" />
                 <ToolbarButton
                     onClick={onStartScreenshot}

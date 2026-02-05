@@ -21,3 +21,7 @@ npm-debug.log*
 # Local env
 .env
 .env.local
+
+# AI Configuration (Local only)
+.agent/
+.gemini/

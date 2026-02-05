@@ -210,8 +210,7 @@ export function buildQuizPrompt(params: QuizPromptParams, pdfPath: string, outpu
         const medicalStyleMapping = t.medicalStyles
         const validStyles = style
             .filter(s => s !== 'MIXED')
-            // Using keyof typeof assertion to make TS happy since we know the keys match
-            .filter(s => (s as string) in medicalStyleMapping)
+            .filter(s => medicalStyleMapping.hasOwnProperty(s))
             .map(s => `- ${medicalStyleMapping[s as keyof typeof medicalStyleMapping]}`)
             .join('\n')
 

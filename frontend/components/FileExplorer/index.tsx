@@ -28,7 +28,7 @@ interface FileExplorerProps {
 const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, className = '' }) => {
     const {
         addFolder,
-        addFile,
+        importFile,
         addFiles,
         deleteItem,
         getItemById,
@@ -55,7 +55,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ onFileSelect, className = '
         cancelDelete
     } = useFileExplorerActions({
         addFolder,
-        addFile,
+        importFile,
         deleteItem,
         clearAll,
         getItemById,

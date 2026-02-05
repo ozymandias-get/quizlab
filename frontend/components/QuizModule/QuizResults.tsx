@@ -67,10 +67,10 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
 
     // Grade based on score
     const getGradeInfo = () => {
-        if (stats.percentage >= 90) return { text: t?.('quiz_grade_perfect') || 'Mükemmel!', colorClass: 'emerald' }
-        if (stats.percentage >= 70) return { text: t?.('quiz_grade_good') || 'İyi!', colorClass: 'green' }
-        if (stats.percentage >= 50) return { text: t?.('quiz_grade_average') || 'Orta', colorClass: 'amber' }
-        return { text: t?.('quiz_grade_poor') || 'Geliştirilmeli', colorClass: 'red' }
+        if (stats.percentage >= 90) return { text: t('quiz_grade_perfect'), colorClass: 'emerald' }
+        if (stats.percentage >= 70) return { text: t('quiz_grade_good'), colorClass: 'green' }
+        if (stats.percentage >= 50) return { text: t('quiz_grade_average'), colorClass: 'amber' }
+        return { text: t('quiz_grade_poor'), colorClass: 'red' }
     }
 
     const grade = getGradeInfo()
@@ -249,10 +249,10 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                                 {grade.text}
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-1">
-                                {stats.correct} / {stats.total} {t?.('quiz_correct_label') || 'Doğru'}
+                                {stats.correct} / {stats.total} {t('quiz_correct_label')}
                             </h2>
                             <p className="text-white/50 text-sm">
-                                {t?.(`difficulty_${settings?.difficulty?.toLowerCase()}`) || settings?.difficulty || 'Orta'} {t?.('quiz_completed_at') || 'zorluk seviyesinde tamamlandı'}
+                                {t(`difficulty_${settings?.difficulty?.toLowerCase()}`)} {t('quiz_completed_at')}
                             </p>
                         </div>
 
@@ -261,24 +261,24 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                             <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
                                 <CheckCircle className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
                                 <span className="text-lg font-bold text-white block">{stats.correct}</span>
-                                <span className="text-xs text-white/40">{t?.('quiz_correct_label') || 'Doğru'}</span>
+                                <span className="text-xs text-white/40">{t('quiz_correct_label')}</span>
                             </div>
                             <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
                                 <XCircle className="w-5 h-5 text-red-400 mx-auto mb-1" />
                                 <span className="text-lg font-bold text-white block">{stats.wrong}</span>
-                                <span className="text-xs text-white/40">{t?.('quiz_wrong_label') || 'Yanlış'}</span>
+                                <span className="text-xs text-white/40">{t('quiz_wrong_label')}</span>
                             </div>
                             {stats.empty > 0 && (
                                 <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
                                     <AlertCircle className="w-5 h-5 text-stone-400 mx-auto mb-1" />
                                     <span className="text-lg font-bold text-white block">{stats.empty}</span>
-                                    <span className="text-xs text-white/40">{t?.('quiz_empty_label') || 'Boş'}</span>
+                                    <span className="text-xs text-white/40">{t('quiz_empty_label')}</span>
                                 </div>
                             )}
                             <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
                                 <Clock className="w-5 h-5 text-amber-400 mx-auto mb-1" />
                                 <span className="text-lg font-bold text-white block">{stats.timeStr}</span>
-                                <span className="text-xs text-white/40">{t?.('quiz_duration') || 'Süre'}</span>
+                                <span className="text-xs text-white/40">{t('quiz_duration')}</span>
                             </div>
                         </div>
                     </div>
@@ -291,7 +291,7 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                         className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
                     >
                         <RotateCcw className="w-5 h-5" />
-                        {t?.('quiz_restart') || 'Yeniden Başla'}
+                        {t('quiz_restart')}
                     </button>
 
                     <button
@@ -299,7 +299,7 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                         className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
                     >
                         <RefreshCw className="w-5 h-5" />
-                        {t?.('quiz_regenerate') || 'Yeni Sorular'}
+                        {t('quiz_regenerate')}
                     </button>
 
                     {hasIncorrectOrEmpty && (
@@ -308,7 +308,7 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                             className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 hover:scale-[1.02] transition-all"
                         >
                             <TrendingUp className="w-5 h-5" />
-                            {t?.('quiz_retry_mistakes') || 'Hataları Tekrarla'}
+                            {t('quiz_retry_mistakes')}
                         </button>
                     )}
                 </div>
@@ -317,7 +317,7 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                 <div className="space-y-3">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <BookOpen className="w-5 h-5 text-amber-400 gpu-layer" />
-                        {t?.('quiz_review') || 'Soru Değerlendirmesi'}
+                        {t('quiz_review')}
                     </h3>
 
                     {quizState.questions.map((q, idx) => {
@@ -408,7 +408,7 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                                                 {/* Explanation */}
                                                 {q.explanation && (
                                                     <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                                                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">{t?.('quiz_explanation') || 'Açıklama'}</p>
+                                                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">{t('quiz_explanation')}</p>
                                                         <div
                                                             className="text-sm text-white/70 leading-relaxed"
                                                             dangerouslySetInnerHTML={{ __html: formatQuizText(q.explanation) }}

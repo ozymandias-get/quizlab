@@ -56,10 +56,17 @@ export type CustomAiInput = { name: string; url: string }
 export type CustomAiResult = { success: boolean; id?: string; platform?: AiPlatform; error?: string }
 
 export type DifficultyType = 'EASY' | 'MEDIUM' | 'HARD'
-export type ModelTypeEnum = 'gemini-2.5-flash' | 'gemini-2.5-flash-lite' | 'gemini-3-flash-preview' | 'gemini-3-pro-preview'
+export type ModelTypeEnum =
+    | 'gemini-2.5-flash'
+    | 'gemini-2.5-flash-lite'
+    | 'gemini-3-flash-preview'
+    | 'gemini-3-pro-preview'
+    | 'gemini-2.0-flash'
+    | 'gemini-1.5-flash'
+    | 'gemini-1.5-pro'
 export type QuestionStyleEnum = 'CLASSIC' | 'NEGATIVE' | 'STATEMENT' | 'ORDERING' | 'FILL_BLANK' | 'REASONING' | 'MATCHING' | 'MIXED'
 
-export type QuizSettings = { questionCount: number; difficulty: DifficultyType; model: ModelTypeEnum; style: QuestionStyleEnum[]; focusTopic: string; cliPath?: string }
+export type QuizSettings = { questionCount: number; difficulty: DifficultyType; model: string; style: QuestionStyleEnum[]; focusTopic: string; cliPath?: string }
 export type QuizGenerateResult =
     | { success: true; data: unknown[]; count?: number }
     | { success: false; error: string }
@@ -113,6 +120,21 @@ declare global {
             deleteAllAiConfigs: () => Promise<boolean>;
             addCustomAi: (data: CustomAiInput) => Promise<CustomAiResult>;
             deleteCustomAi: (id: string) => Promise<boolean>;
+
+            // Library Management (New v1.0)
+            library: {
+                getFileSystem: () => Promise<Array<any>>; // Define strict type if possible, usually TreeNode[]
+                createFolder: (name: string, parentId: string | null) => Promise<any>;
+                deleteItem: (id: string) => Promise<boolean>;
+                importFile: (sourcePath: string, folderId?: string | null) => Promise<{ success: boolean; file?: any; error?: string }>;
+                moveItem: (id: string, newParentId: string | null) => Promise<boolean>;
+                search: (query: string) => Promise<any[]>;
+
+                // Notes
+                getNotes: (fileId: string) => Promise<any[]>;
+                saveNote: (params: any) => Promise<any>;
+                deleteNote: (id: string) => Promise<boolean>;
+            };
 
             // Quiz Generation API
             quiz: {

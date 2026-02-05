@@ -9,6 +9,8 @@ import os from 'os'
 import { randomBytes } from 'crypto'
 import { spawn } from 'child_process' // Used for login terminal
 import { APP_CONFIG } from '../../main/constants'
+import { ConfigManager } from '../../managers/ConfigManager'
+import { getQuizSettingsPath } from '../../main/handlers/helpers'
 import { buildQuizPrompt, type QuizPromptParams } from './promptBuilder'
 import { getGeminiCliPath, findGeminiCliPath, executeGeminiCli, generateOutputFilePath } from './geminiService'
 
@@ -45,13 +47,6 @@ interface GeminiSettingsFile {
     [key: string]: unknown;
 }
 
-// Default settings file path
-const getQuizSettingsPath = () => path.join(app.getPath('userData'), 'quiz_settings.json')
-
-// Security Constants
-const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024 // 50MB limit
-const ALLOWED_EXTENSIONS = ['.pdf']
-
 // Default settings
 const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
     model: 'gemini-2.5-flash',
@@ -62,6 +57,10 @@ const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
     style: ['MIXED'],
     focusTopic: ''
 }
+
+// Security Constants
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024 // 50MB limit
+const ALLOWED_EXTENSIONS = ['.pdf']
 
 /**
  * SECURITY: Validate PDF path is within allowed directories
@@ -84,22 +83,14 @@ function isPathAllowed(pdfPath: string): boolean {
             return false
         }
 
-        // Get allowed directories
-        // RELAXED SECURITY: Allow any valid absolute path on the system
-        // The user explicitly selects the file via dialog, so we trust reasonable paths.
-        // We still reject obviously malicious paths (null bytes) handled above.
-
         // Ensure path is absolute
         if (!path.isAbsolute(resolvedPath)) {
             return false
         }
 
-        // Just check if it looks like a valid path structure (basic check)
-        // Access permissions will be handled by fs.stat later
         return true
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        console.error('[QuizCLI] Path validation error:', message)
+        console.error('[QuizCLI] Path validation error:', error)
         return false
     }
 }
@@ -111,27 +102,22 @@ function isPathAllowed(pdfPath: string): boolean {
  */
 async function validatePdfFile(filePath: string): Promise<{ valid: boolean; error?: string }> {
     try {
-        // Check extension
         const ext = path.extname(filePath).toLowerCase()
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            return { valid: false, error: 'Sadece PDF dosyaları desteklenir' }
+            return { valid: false, error: 'error_only_pdf_supported' }
         }
 
-        // Check file exists and get stats
         const stats = await fs.stat(filePath)
-
         if (!stats.isFile()) {
-            return { valid: false, error: 'Geçerli bir dosya değil' }
+            return { valid: false, error: 'error_not_valid_file' }
         }
 
-        // Check file size
         if (stats.size > MAX_PDF_SIZE_BYTES) {
-            const sizeMB = Math.round(stats.size / 1024 / 1024)
-            return { valid: false, error: `Dosya çok büyük (${sizeMB}MB). Maksimum 50MB desteklenir.` }
+            return { valid: false, error: 'error_file_too_large' }
         }
 
         if (stats.size === 0) {
-            return { valid: false, error: 'Dosya boş' }
+            return { valid: false, error: 'error_file_empty' }
         }
 
         // Basic PDF header check (magic bytes)
@@ -144,12 +130,12 @@ async function validatePdfFile(filePath: string): Promise<{ valid: boolean; erro
         }
 
         if (buffer.toString() !== '%PDF-') {
-            return { valid: false, error: 'Geçerli bir PDF dosyası değil' }
+            return { valid: false, error: 'error_invalid_pdf' }
         }
 
         return { valid: true }
     } catch (error) {
-        return { valid: false, error: 'Dosya doğrulanamadı' }
+        return { valid: false, error: 'error_file_validation_failed' }
     }
 }
 
@@ -160,12 +146,9 @@ function generateSecureTempName(extension: string): string {
     const token = randomBytes(16).toString('hex')
     return `context_${token}.${extension}`
 }
-
-/**
- * Register Quiz CLI IPC handlers
- */
 function registerQuizHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
+    const settingsManager = new ConfigManager<QuizSettings>(getQuizSettingsPath())
 
     // Get CLI path (for settings display)
     ipcMain.handle(IPC_CHANNELS.GET_GEMINI_CLI_PATH, async () => {
@@ -182,7 +165,7 @@ function registerQuizHandlers() {
         const cliPath = await findGeminiCliPath()
 
         if (!cliPath) {
-            return { success: false, error: 'Gemini CLI bulunamadı. Lütfen global olarak yükleyin: npm install -g @google/gemini-cli' }
+            return { success: false, error: 'error_terminal_not_found' }
         }
 
         try {
@@ -239,7 +222,7 @@ function registerQuizHandlers() {
             // SECURITY: Don't expose detailed error info
             const message = err instanceof Error ? err.message : String(err)
             console.error('[QuizCLI] Failed to open login terminal:', message)
-            return { success: false, error: 'Terminal açılamadı' }
+            return { success: false, error: 'error_terminal_open_failed' }
         }
     })
 
@@ -308,87 +291,60 @@ function registerQuizHandlers() {
             // SECURITY: Don't expose detailed error info
             const message = err instanceof Error ? err.message : String(err)
             console.error('[QuizCLI] Logout failed:', message)
-            return { success: false, error: 'Çıkış yapılamadı' }
+            return { success: false, error: 'error_logout_failed' }
         }
     })
 
     // Get quiz settings
     ipcMain.handle(IPC_CHANNELS.GET_QUIZ_SETTINGS, async () => {
-        try {
-            const settingsPath = getQuizSettingsPath()
-            const data = await fs.readFile(settingsPath, 'utf8')
-            const settings = { ...DEFAULT_QUIZ_SETTINGS, ...JSON.parse(data) }
-            settings.cliPath = getGeminiCliPath()
-            return settings
-        } catch (e) {
-            return { ...DEFAULT_QUIZ_SETTINGS, cliPath: getGeminiCliPath() }
-        }
+        const stored = await settingsManager.read()
+        const merged = { ...DEFAULT_QUIZ_SETTINGS, ...stored }
+        merged.cliPath = getGeminiCliPath()
+        return merged
     })
 
     // Save quiz settings
     ipcMain.handle(IPC_CHANNELS.SAVE_QUIZ_SETTINGS, async (event, settings: Partial<QuizSettings>) => {
-        try {
-            const settingsPath = getQuizSettingsPath()
-
-            // Mevcut ayarları oku
-            let currentSettings = { ...DEFAULT_QUIZ_SETTINGS }
-            try {
-                const data = await fs.readFile(settingsPath, 'utf8')
-                currentSettings = { ...DEFAULT_QUIZ_SETTINGS, ...JSON.parse(data) }
-            } catch (e) { }
-
+        return settingsManager.update((current) => {
             const incoming = settings || {}
+            const merged = { ...DEFAULT_QUIZ_SETTINGS, ...current }
 
-            // Güvenli bir şekilde birleştir (Sadece beklenen alanları al)
-            const safeSettings = {
-                ...currentSettings,
-                // AI Model Ayarları
-                model: typeof incoming.model === 'string' ? incoming.model : currentSettings.model,
+            return {
+                ...merged,
+                model: typeof incoming.model === 'string' ? incoming.model : merged.model,
                 maxOutputTokens: Number.isFinite(Number(incoming.maxOutputTokens))
                     ? Number(incoming.maxOutputTokens)
-                    : currentSettings.maxOutputTokens,
+                    : merged.maxOutputTokens,
                 temperature: Number.isFinite(Number(incoming.temperature))
                     ? Number(incoming.temperature)
-                    : currentSettings.temperature,
-
-                // Quiz Tercihleri (Artık kalıcı!)
+                    : merged.temperature,
                 questionCount: Number.isFinite(Number(incoming.questionCount))
                     ? Math.min(Math.max(Number(incoming.questionCount), 1), 30)
-                    : currentSettings.questionCount,
-                difficulty: typeof incoming.difficulty === 'string' ? incoming.difficulty : currentSettings.difficulty,
-                style: Array.isArray(incoming.style) ? incoming.style : currentSettings.style,
-                focusTopic: typeof incoming.focusTopic === 'string' ? incoming.focusTopic : currentSettings.focusTopic
+                    : merged.questionCount,
+                difficulty: typeof incoming.difficulty === 'string' ? incoming.difficulty : merged.difficulty,
+                style: Array.isArray(incoming.style) ? incoming.style : merged.style,
+                focusTopic: typeof incoming.focusTopic === 'string' ? incoming.focusTopic : merged.focusTopic
             }
-
-            await fs.writeFile(settingsPath, JSON.stringify(safeSettings, null, 2))
-            return true
-        } catch (error) {
-            console.error('[QuizCLI] Failed to save settings:', error)
-            return false
-        }
+        })
     })
 
     // Generate quiz via CLI
     ipcMain.handle(IPC_CHANNELS.GENERATE_QUIZ_CLI, async (event, params: QuizGenerateParams) => {
         try {
-            // Load settings
-            let settings = DEFAULT_QUIZ_SETTINGS
-            try {
-                const data = await fs.readFile(getQuizSettingsPath(), 'utf8')
-                settings = { ...DEFAULT_QUIZ_SETTINGS, ...(JSON.parse(data) as Partial<QuizSettings>) }
-            } catch (e) { }
+            // Load settings using manager (leverages cache)
+            const settings = await settingsManager.read()
 
             const safeParams = (params && typeof params === 'object') ? params : {}
-            const { type = 'quiz', pdfPath, ...quizParams } = safeParams as QuizGenerateParams
+            const { pdfPath, ...quizParams } = safeParams as QuizGenerateParams
 
             if (!pdfPath || typeof pdfPath !== 'string') {
-                throw new Error('PDF dosyası seçilmedi')
+                throw new Error('error_no_pdf_selected')
             }
 
             // SECURITY: Validate path is allowed (prevents path traversal)
             if (!isPathAllowed(pdfPath)) {
                 console.warn('[QuizCLI] Rejected path outside allowed directories')
-                throw new Error('Bu konumdan dosya yüklenemez')
+                throw new Error('error_restricted_location')
             }
 
             // SECURITY: Validate PDF file (extension, size, magic bytes)
@@ -399,9 +355,6 @@ function registerQuizHandlers() {
 
             // Define working directory as system temp directory to avoid permission issues
             const workDir = os.tmpdir()
-
-            // Build prompt based on type
-            let prompt: string
 
             // SECURITY: Create a temporary safe copy with secure random name
             const safePdfName = generateSecureTempName('pdf')
@@ -414,10 +367,10 @@ function registerQuizHandlers() {
                 // Generate output file path in temp dir
                 const outputFilePath = generateOutputFilePath(workDir)
 
-                prompt = buildQuizPrompt(quizParams, safePdfPath, outputFilePath)
+                const prompt = buildQuizPrompt(quizParams, safePdfPath, outputFilePath)
 
-                // Use model from params (frontend) or default
-                const model = typeof quizParams.model === 'string' ? quizParams.model : DEFAULT_QUIZ_SETTINGS.model
+                // Use model from params (frontend) or settings
+                const model = typeof quizParams.model === 'string' ? quizParams.model : settings.model
 
                 // Execute CLI from temp directory
                 const result = await executeGeminiCli(prompt, {
@@ -428,7 +381,7 @@ function registerQuizHandlers() {
 
                 // SECURITY: Validate response format
                 if (!Array.isArray(result)) {
-                    throw new Error('Gemini CLI geçersiz format döndü. Lütfen tekrar deneyin.')
+                    throw new Error('error_ai_response_invalid')
                 }
 
                 return {
@@ -440,14 +393,12 @@ function registerQuizHandlers() {
                 // Cleanup temp pdf
                 await fs.unlink(safePdfPath).catch(() => { })
             }
-
-
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error)
             console.error('[QuizCLI] Generation failed:', message)
             return {
                 success: false,
-                error: message || 'Quiz oluşturma başarısız'
+                error: message || 'error_quiz_gen_failed'
             }
         }
     })
@@ -455,15 +406,11 @@ function registerQuizHandlers() {
     // Ask AI Assistant (General Chat/Context)
     ipcMain.handle(IPC_CHANNELS.ASK_AI, async (event, params: { question: string; context?: string; history?: unknown[] }) => {
         try {
-            const { question, context, history } = params
-            if (!question) throw new Error('Soru boş olamaz')
+            const { question, context } = params
+            if (!question) throw new Error('error_invalid_input')
 
-            // Load settings for model selection
-            let settings = DEFAULT_QUIZ_SETTINGS
-            try {
-                const data = await fs.readFile(getQuizSettingsPath(), 'utf8')
-                settings = { ...DEFAULT_QUIZ_SETTINGS, ...(JSON.parse(data) as Partial<QuizSettings>) }
-            } catch (e) { }
+            // Load settings using manager
+            const settings = await settingsManager.read()
 
             const workDir = os.tmpdir()
             const outputFilePath = generateOutputFilePath(workDir)

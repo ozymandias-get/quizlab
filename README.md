@@ -49,6 +49,10 @@ Maximize your "Read & Ask" workflow flexibility.
 * **Smart Text Selection:** Selecting text in the PDF populates a floating toolbar to instantly Summarize, Translate, or Explain.
 * **Screenshot-to-Prompt:** Capture a region of the PDF (e.g., a diagram) and paste it directly into the AI chat for visual analysis.
 
+### 🗄️ Local Database & Library Management
+
+Organize your documents with folders, take persistent notes, and manage your study library using a robust SQLite-based local database.
+
 ## 🏗 Tech Stack
 
 Built with a cutting-edge stack for performance and maintainability:
@@ -147,21 +151,211 @@ The app uses the **Gemini Developer CLI**. You do not need to paste an API Key.
 ## 📂 Project Structure
 
 ```bash
-quizlab-reader/
-├── backend/                 # Electron Main Process
-│   ├── main/               # Main process entry points (IPC, window management)
-│   └── preload/            # Preload scripts (Secure bridge between Node & UI)
-├── frontend/                # React Renderer Process
-│   ├── components/         #
-│   │   ├── pdf/            # Custom PDF Viewer implementation
-│   │   ├── QuizModule/     # Gemini CLI integration & Quiz UI
-│   │   └── ...
-│   ├── hooks/              # Custom hooks (useAiSender, usePdfSelection)
-│   ├── locales/            # i18n JSON files (en, tr)
-│   └── styles/             # Tailwind & CSS Modules
-├── resources/               # Static assets (icons, tray images)
-├── installer/               # NSIS installer configuration for Windows
-└── package.json            # Dependencies (includes @google/gemini-cli)
+quizlab/
+├── .github/                     # GitHub Actions and configurations
+├── backend/                     # Electron Main Process
+│   ├── main/                    # Main process logic
+│   │   ├── handlers/            # IPC Handlers for various modules
+│   │   │   ├── aiConfigHandlers.ts
+│   │   │   ├── aiRegistryHandlers.ts
+│   │   │   ├── automationHandlers.ts
+│   │   │   ├── helpers.ts
+│   │   │   ├── index.ts
+│   │   │   ├── libraryHandlers.ts
+│   │   │   ├── pdfHandlers.ts
+│   │   │   ├── screenshotHandlers.ts
+│   │   │   └── systemHandlers.ts
+│   │   ├── constants.ts
+│   │   ├── index.ts
+│   │   ├── ipcHandlers.ts
+│   │   ├── pdfProtocol.ts
+│   │   ├── updater.ts
+│   │   └── windowManager.ts
+│   ├── managers/                # Business logic managers
+│   │   ├── database/            # Database repositories and schema
+│   │   │   ├── FileRepository.ts
+│   │   │   ├── FolderRepository.ts
+│   │   │   ├── NoteRepository.ts
+│   │   │   └── SchemaManager.ts
+│   │   ├── ConfigManager.ts
+│   │   └── DatabaseManager.ts
+│   ├── modules/                 # Functional modules
+│   │   ├── ai/                  # AI platform integrations
+│   │   │   ├── platforms/
+│   │   │   │   ├── chatgpt.ts
+│   │   │   │   ├── claude.ts
+│   │   │   │   ├── deepseek.ts
+│   │   │   │   └── qwen.ts
+│   │   │   └── aiManager.ts
+│   │   ├── automation/          # Browser automation logic
+│   │   │   ├── automationScripts.ts
+│   │   │   └── userElementPicker.ts
+│   │   └── quiz/                # Quiz generation logic
+│   │       ├── geminiService.ts
+│   │       ├── promptBuilder.ts
+│   │       └── quizCliHandler.ts
+│   └── preload/                 # Electron preload scripts
+│       └── index.ts
+├── docs/                        # Documentation and screenshots
+│   └── images/
+│       ├── ai-integration.png
+│       ├── app-overview.png
+│       ├── quiz-creation.png
+│       ├── quiz-gameplay.png
+│       └── quiz-results.png
+├── frontend/                    # React Renderer Process
+│   ├── __tests__/               # Frontend tests
+│   │   └── AiWebview.test.ts
+│   ├── api/                     # API client definitions
+│   │   └── quizApi.ts
+│   ├── assets/                  # Frontend assets
+│   │   └── icon.png
+│   ├── components/              # UI Components
+│   │   ├── BottomBar/           # Application bottom toolbar
+│   │   │   ├── AIItem.tsx
+│   │   │   ├── CenterHub.tsx
+│   │   │   ├── ModelsPanel.tsx
+│   │   │   ├── SettingsLoadingSpinner.tsx
+│   │   │   ├── ToolButton.tsx
+│   │   │   ├── ToolsPanel.tsx
+│   │   │   ├── animations.ts
+│   │   │   └── index.tsx
+│   │   ├── FileExplorer/        # Library file explorer
+│   │   │   ├── hooks/
+│   │   │   │   ├── useExternalDragDrop.ts
+│   │   │   │   ├── useFileDragDrop.ts
+│   │   │   │   └── useFileExplorerActions.ts
+│   │   │   ├── icons/
+│   │   │   │   └── FileExplorerIcons.tsx
+│   │   │   ├── DeleteConfirmModal.tsx
+│   │   │   ├── DropOverlay.tsx
+│   │   │   ├── EmptyState.tsx
+│   │   │   ├── NewFolderInput.tsx
+│   │   │   ├── TreeItem.tsx
+│   │   │   └── index.tsx
+│   │   ├── pdf/                 # PDF viewer and tools
+│   │   │   ├── hooks/
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── usePdfContextMenu.ts
+│   │   │   │   ├── usePdfNavigation.ts
+│   │   │   │   ├── usePdfPlugins.ts
+│   │   │   │   ├── usePdfScreenshot.ts
+│   │   │   │   └── usePdfTextSelection.ts
+│   │   │   ├── PdfPlaceholder.tsx
+│   │   │   ├── PdfSearchBar.tsx
+│   │   │   ├── PdfToolbar.tsx
+│   │   │   ├── PdfViewer.tsx
+│   │   │   └── index.ts
+│   │   ├── QuizModule/          # Quiz game and configuration
+│   │   │   ├── QuizActive.tsx
+│   │   │   ├── QuizConfigPanel.tsx
+│   │   │   ├── QuizGenerating.tsx
+│   │   │   ├── QuizModule.tsx
+│   │   │   ├── QuizResults.tsx
+│   │   │   └── index.ts
+│   │   ├── SplashScreen/        # App startup screen
+│   │   │   └── index.tsx
+│   │   ├── Toast/               # Notification system
+│   │   │   ├── ToastContainer.tsx
+│   │   │   └── ToastItem.tsx
+│   │   ├── AestheticLoader.tsx
+│   │   ├── AiWebview.tsx
+│   │   ├── AppBackground.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── FloatingButton.tsx
+│   │   ├── Icons.tsx
+│   │   ├── LeftPanel.tsx
+│   │   ├── ScreenshotTool.tsx
+│   │   ├── SettingsModal.tsx
+│   │   ├── UpdateBanner.tsx
+│   │   └── UsageAssistant.tsx
+│   ├── constants/               # Global constants
+│   │   ├── appConstants.ts
+│   │   ├── appearance.ts
+│   │   ├── prompts.ts
+│   │   ├── storageKeys.ts
+│   │   └── translations.ts
+│   ├── context/                 # React Context providers
+│   │   ├── AiContext.tsx
+│   │   ├── AppToolContext.tsx
+│   │   ├── AppearanceContext.tsx
+│   │   ├── FileContext.tsx
+│   │   ├── LanguageContext.tsx
+│   │   ├── NavigationContext.tsx
+│   │   ├── ToastContext.tsx
+│   │   ├── UpdateContext.tsx
+│   │   └── index.ts
+│   ├── hooks/                   # Custom React hooks
+│   │   ├── webview/
+│   │   │   └── useWebviewLifecycle.ts
+│   │   ├── index.ts
+│   │   ├── useAiSender.ts
+│   │   ├── useElementPicker.ts
+│   │   ├── useLocalStorage.ts
+│   │   ├── useOnlineStatus.ts
+│   │   ├── usePanelResize.ts
+│   │   ├── usePdfSelection.ts
+│   │   ├── usePrompts.ts
+│   │   ├── useScreenshot.ts
+│   │   └── useSettings.ts
+│   ├── locales/                 # Internationalization files
+│   │   ├── en.json
+│   │   └── tr.json
+│   ├── public/                  # Static assets for renderer
+│   │   ├── icon.png
+│   │   ├── logo.png
+│   │   └── splash.html
+│   ├── styles/                  # Styling files
+│   │   ├── modules/
+│   │   │   ├── _aesthetic-loader.css
+│   │   │   ├── _animations.css
+│   │   │   ├── _backgrounds.css
+│   │   │   ├── _base.css
+│   │   │   ├── _buttons.css
+│   │   │   ├── _floating-bar.css
+│   │   │   ├── _fonts.css
+│   │   │   ├── _glass-panel.css
+│   │   │   ├── _pdf-viewer.css
+│   │   │   ├── _quiz.css
+│   │   │   ├── _resizer.css
+│   │   │   ├── _screenshot.css
+│   │   │   ├── _splash.css
+│   │   │   └── _utilities.css
+│   │   └── index.css
+│   ├── types/                   # TypeScript type definitions
+│   │   ├── global.d.ts
+│   │   ├── pdf.ts
+│   │   ├── vitest.d.ts
+│   │   └── webview.ts
+│   ├── utils/                   # Shared utility functions
+│   │   ├── automation/
+│   │   │   ├── domHelpers.ts
+│   │   │   ├── styles.ts
+│   │   │   └── uiTemplates.ts
+│   │   ├── fileUtils.ts
+│   │   ├── logger.ts
+│   │   ├── uiUtils.ts
+│   │   └── webviewUtils.ts
+│   ├── App.tsx
+│   ├── index.html
+│   ├── main.tsx
+│   └── vite-env.d.ts
+├── installer/                   # Installer configuration
+│   └── installer.nsh
+├── resources/                   # Platform-specific resources
+│   ├── icon.ico
+│   └── icon.png
+├── .gitignore
+├── LICENSE
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── README.md
+├── README_TR.md
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
 ```
 
 ## 🛡️ Security & Privacy

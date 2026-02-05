@@ -1,0 +1,8 @@
+export { registerScreenshotHandlers } from './screenshotHandlers'
+export { registerSystemHandlers } from './systemHandlers'
+export { registerPdfHandlers } from './pdfHandlers'
+export { registerAiConfigHandlers } from './aiConfigHandlers'
+export { registerAiRegistryHandlers } from './aiRegistryHandlers'
+export { registerAutomationHandlers } from './automationHandlers'
+export { registerLibraryHandlers } from './libraryHandlers'
+export { getCustomPlatformsPath, getAiConfigPath } from './helpers'

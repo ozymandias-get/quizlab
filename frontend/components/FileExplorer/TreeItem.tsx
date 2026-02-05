@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, memo } from 'react'
+import { ExternalLink } from 'lucide-react'
 import { useFileSystem } from '../../context/FileContext'
 import type { FileSystemItem } from '../../context/FileContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -120,8 +121,12 @@ const TreeItem: React.FC<TreeItemProps> = ({
                             ? isDragOver ? 'text-amber-200' : 'text-stone-200'
                             : 'text-stone-300 group-hover:text-rose-200'
                         }
+                        ${!isFolder && !item.isImported && !item.is_imported ? 'italic text-stone-400' : ''}
                     `}>
                         {item.name}
+                        {!isFolder && !item.isImported && !item.is_imported && (
+                            <ExternalLink className="inline-block w-3 h-3 ml-2 text-stone-500" />
+                        )}
                     </span>
                     {!isFolder && item.size && (
                         <span className="text-[10px] text-stone-500 font-medium font-mono">

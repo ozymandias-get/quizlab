@@ -12,9 +12,14 @@
         "strictNullChecks": true,
         "esModuleInterop": true,
         "outDir": "dist/electron",
-        "rootDir": "backend"
+        "rootDir": ".",
+        "lib": [
+            "ES2020",
+            "DOM"
+        ]
     },
     "include": [
-        "backend/**/*"
+        "backend/**/*",
+        "frontend/utils/automation/**/*"
     ]
 }

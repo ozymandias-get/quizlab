@@ -17,7 +17,10 @@ export const ModelType = {
     FLASH_2_5: 'gemini-2.5-flash',
     LITE_2_5: 'gemini-2.5-flash-lite',
     FLASH_3_0: 'gemini-3-flash-preview',
-    PRO_3_0: 'gemini-3-pro-preview'
+    PRO_3_0: 'gemini-3-pro-preview',
+    FLASH_2_0: 'gemini-2.0-flash',
+    FLASH_1_5: 'gemini-1.5-flash',
+    PRO_1_5: 'gemini-1.5-pro'
 } as const
 
 export type ModelTypeEnum = typeof ModelType[keyof typeof ModelType]
@@ -38,7 +41,7 @@ export type QuestionStyleEnum = typeof QuestionStyle[keyof typeof QuestionStyle]
 export interface QuizSettings {
     questionCount: number;
     difficulty: DifficultyType;
-    model: ModelTypeEnum;
+    model: string;
     style: QuestionStyleEnum[];
     focusTopic: string;
 }
@@ -47,7 +50,7 @@ export interface QuizSettings {
 export const DEFAULT_SETTINGS: QuizSettings = {
     questionCount: 10,
     difficulty: Difficulty.MEDIUM,
-    model: ModelType.FLASH_3_0,
+    model: ModelType.FLASH_2_5,
     style: [QuestionStyle.MIXED],
     focusTopic: ''
 }

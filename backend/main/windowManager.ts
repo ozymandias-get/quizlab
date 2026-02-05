@@ -3,8 +3,8 @@
  */
 import { BrowserWindow, dialog, session, app, screen } from 'electron'
 import path from 'path'
-import fs from 'fs'
 import { APP_CONFIG } from './constants'
+import { ConfigManager } from '../managers/ConfigManager'
 
 export const isDev = !app.isPackaged
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
@@ -22,30 +22,30 @@ const getAppPath = (...parts: string[]) => {
 // WINDOW STATE PERSISTENCE
 // ============================================
 
-function getDefaultWindowState() {
+interface WindowState {
+    width: number;
+    height: number;
+    x?: number;
+    y?: number;
+    isMaximized: boolean;
+}
+
+const windowStateManager = new ConfigManager<WindowState>(windowStateFile)
+
+function getDefaultWindowState(): WindowState {
     return {
         width: APP_CONFIG.WINDOW.DEFAULT_WIDTH,
         height: APP_CONFIG.WINDOW.DEFAULT_HEIGHT,
-        x: undefined as number | undefined,
-        y: undefined as number | undefined,
         isMaximized: false
     }
 }
 
-function loadWindowState() {
-    try {
-        if (fs.existsSync(windowStateFile)) {
-            const data = fs.readFileSync(windowStateFile, 'utf-8')
-            return data ? JSON.parse(data) : getDefaultWindowState()
-        }
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        console.warn('[WindowState] Load error:', message)
-    }
-    return getDefaultWindowState()
+async function loadWindowState(): Promise<WindowState> {
+    const stored = await windowStateManager.read()
+    return { ...getDefaultWindowState(), ...stored }
 }
 
-function saveWindowState(window: BrowserWindow | null) {
+async function saveWindowState(window: BrowserWindow | null) {
     try {
         if (!window || window.isDestroyed()) return
 
@@ -53,18 +53,15 @@ function saveWindowState(window: BrowserWindow | null) {
         // Use normalBounds if maximized to restore to proper size
         const bounds = isMaximized && window.getNormalBounds ? window.getNormalBounds() : window.getBounds()
 
-        const state = {
+        await windowStateManager.write({
             width: bounds.width,
             height: bounds.height,
             x: bounds.x,
             y: bounds.y,
             isMaximized
-        }
-
-        fs.writeFileSync(windowStateFile, JSON.stringify(state, null, 2))
+        })
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        console.warn('[WindowState] Save error:', message)
+        console.warn('[WindowState] Save error:', error)
     }
 }
 
@@ -77,8 +74,8 @@ export function getMainWindow() {
     return mainWindow
 }
 
-export function createWindow() {
-    const windowState = loadWindowState()
+export async function createWindow() {
+    const windowState = await loadWindowState()
 
     // Monitor positioning
     if (windowState.x !== undefined && windowState.y !== undefined) {

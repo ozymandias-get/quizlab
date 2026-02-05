@@ -8,7 +8,7 @@ export const APP_CONFIG = {
     },
     GITHUB: {
         OWNER: 'ozymandias-get',
-        REPO: 'Quizlab-Reader'
+        REPO: 'quizlab'
     },
     CHROME_USER_AGENT: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome || '122.0.0.0'} Safari/537.36`,
     WINDOW: {
@@ -20,6 +20,7 @@ export const APP_CONFIG = {
     IPC_CHANNELS: {
         SELECT_PDF: 'select-pdf',
         GET_PDF_STREAM_URL: 'get-pdf-stream-url',
+        PDF_REGISTER_PATH: 'pdf:register-path',
         CAPTURE_SCREEN: 'capture-screen',
         COPY_IMAGE: 'copy-image-to-clipboard',
         OPEN_EXTERNAL: 'open-external',
@@ -49,7 +50,24 @@ export const APP_CONFIG = {
         GET_GEMINI_CLI_PATH: 'get-gemini-cli-path',
         OPEN_GEMINI_LOGIN: 'open-gemini-login',
         CHECK_GEMINI_AUTH: 'check-gemini-auth',
-        GEMINI_LOGOUT: 'gemini-logout'
+        GEMINI_LOGOUT: 'gemini-logout',
+
+        // Library Management
+        DB_GET_FILE_SYSTEM: 'db:get-file-system',
+        DB_CREATE_FOLDER: 'db:create-folder',
+        DB_DELETE_ITEM: 'db:delete-item',
+        DB_MOVE_ITEM: 'db:move-item',
+        DB_SEARCH_LIBRARY: 'db:search-library',
+        FILE_IMPORT: 'file:import',
+
+        // Note Management
+        DB_GET_NOTES: 'db:get-notes',
+        DB_SAVE_NOTE: 'db:save-note',
+        DB_DELETE_NOTE: 'db:delete-note',
+
+        // Keep these if needed for internal or granular use, or map them
+        LIBRARY_ADD_FILE: 'library-add-file', // Still needed for transient add?
+        LIBRARY_GET_FOLDER_PATH: 'library-get-folder-path'
     },
     SCREENSHOT_TYPES: {
         FULL: 'full-page',

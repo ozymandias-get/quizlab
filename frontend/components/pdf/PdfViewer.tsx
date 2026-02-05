@@ -1,4 +1,4 @@
-import { useRef, memo, CSSProperties } from 'react'
+import { useRef, useState, memo, CSSProperties } from 'react'
 import { useAi } from '../../context/AiContext'
 import { useAppTools } from '../../context/AppToolContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -47,6 +47,7 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT }: PdfViewe
 
     // Local state
     const containerRef = useRef<HTMLDivElement>(null)
+    const [scaleFactor, setScaleFactor] = useState(1)
 
     // Derived state
     const pdfUrl = pdfFile?.streamUrl
@@ -97,7 +98,7 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT }: PdfViewe
             <div
                 ref={containerRef}
                 className="flex-1 overflow-hidden pdf-viewer-container h-full min-h-0 relative flex flex-col"
-                style={{ '--scale-factor': '1' } as CSSProperties}
+                style={{ '--scale-factor': scaleFactor } as CSSProperties}
                 onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
                     // Ctrl+wheel zoom'u tamamen devre dışı bırak
                     // Sadece UI üzerindeki +/- butonlarıyla zoom yapılabilir
@@ -114,6 +115,7 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT }: PdfViewe
                     scrollMode={ScrollMode.Page}
                     onPageChange={handlePageChange}
                     onDocumentLoad={handleDocumentLoad}
+                    onZoom={(e) => setScaleFactor(e.scale)}
                     renderError={(error: LoadError) => (
                         <div className="flex items-center justify-center h-full text-red-500 p-8 text-center bg-stone-950/50 backdrop-blur-sm">
                             <p>{t('pdf_load_error')}: {error.message || t('error_unknown_error')}</p>

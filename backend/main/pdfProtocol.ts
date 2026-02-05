@@ -4,6 +4,7 @@ import fs from 'fs'
 import { Readable } from 'stream'
 import crypto from 'crypto'
 import { APP_CONFIG } from './constants'
+import { ConfigManager } from '../managers/ConfigManager'
 
 // Registry to map unique IDs to local file paths
 interface PDFData {
@@ -11,6 +12,11 @@ interface PDFData {
     createdAt: number;
 }
 const pdfRegistry = new Map<string, PDFData>()
+
+// Allowlist persists paths user has intentionally opened
+type AllowListMap = Record<string, boolean>
+const ALLOWLIST_FILE = path.join(app.getPath('userData'), 'pdf-allowlist.json')
+const allowListManager = new ConfigManager<AllowListMap>(ALLOWLIST_FILE)
 
 // Cleanup constants
 const MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24 hours
@@ -30,11 +36,9 @@ function generateId() {
  */
 function runCleanup() {
     const now = Date.now()
-    let removed = 0
     for (const [id, data] of pdfRegistry.entries()) {
         if (now - data.createdAt > MAX_AGE_MS) {
             pdfRegistry.delete(id)
-            removed++
         }
     }
 }
@@ -65,17 +69,12 @@ export function registerPdfProtocol() {
             const pdfId = url.host
             const pdfData = pdfRegistry.get(pdfId)
 
-            if (!pdfData) {
-                return new Response('Forbidden', { status: 403 })
-            }
+            if (!pdfData) return new Response('Forbidden', { status: 403 })
 
             const filePath = pdfData.path
-            if (!fs.existsSync(filePath)) {
-                return new Response('Not Found', { status: 404 })
-            }
+            if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
 
             const stats = await fs.promises.stat(filePath)
-
             const nodeStream = fs.createReadStream(filePath, { highWaterMark: 128 * 1024 })
             const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
 
@@ -99,37 +98,17 @@ export function registerPdfProtocol() {
 // IPC HANDLERS
 // ============================================
 
-export function registerPdfHandlers() {
+export function registerPdfProtocolHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
 
-    // Allowlist Manager
-    // Load persisted allowlist to support rehydration between sessions
-    let allowedPaths = new Set<string>()
-    const ALLOWLIST_FILE = path.join(app.getPath('userData'), 'pdf-allowlist.json')
-
-    try {
-        if (fs.existsSync(ALLOWLIST_FILE)) {
-            const data = JSON.parse(fs.readFileSync(ALLOWLIST_FILE, 'utf8'))
-            if (Array.isArray(data)) {
-                allowedPaths = new Set(data)
-            }
-        }
-    } catch (e) {
-        console.error('[PDFProtocol] Failed to load allowlist:', e)
+    const addToAllowlist = async (filePath: string) => {
+        const normalized = path.normalize(filePath)
+        await allowListManager.setItem(normalized, true)
     }
 
-    const addToAllowlist = (filePath: string) => {
-        try {
-            const normalized = path.normalize(filePath)
-            allowedPaths.add(normalized)
-            fs.writeFileSync(ALLOWLIST_FILE, JSON.stringify([...allowedPaths]))
-        } catch (e) {
-            console.error('[PDFProtocol] Failed to save allowlist:', e)
-        }
-    }
-
-    const isAllowed = (filePath: string) => {
-        return allowedPaths.has(path.normalize(filePath))
+    const isAllowed = async (filePath: string) => {
+        const allowed = await allowListManager.read()
+        return !!allowed[path.normalize(filePath)]
     }
 
     // Select PDF via dialog
@@ -147,7 +126,7 @@ export function registerPdfHandlers() {
             const stats = await fs.promises.stat(filePath)
 
             // SECURITY: Add to allowlist
-            addToAllowlist(filePath)
+            await addToAllowlist(filePath)
 
             const id = generateId()
             pdfRegistry.set(id, { path: filePath, createdAt: Date.now() })
@@ -174,7 +153,7 @@ export function registerPdfHandlers() {
 
             // IMPORTANT: Only allow paths that user previously selected OR explicit allows
             // This prevents renderer from requesting arbitrary system files
-            if (!isAllowed(normalizedPath)) {
+            if (!(await isAllowed(normalizedPath))) {
                 console.warn('[PDFProtocol] Security Warning: Unauthorized PDF access attempt:', normalizedPath)
                 return null
             }
@@ -189,15 +168,16 @@ export function registerPdfHandlers() {
         }
         return null
     })
+
     // Register PDF path locally (e.g. from drag & drop)
-    ipcMain.handle('pdf:register-path', async (event, filePath) => {
+    ipcMain.handle(IPC_CHANNELS.PDF_REGISTER_PATH, async (event, filePath) => {
         if (!filePath) return null
         try {
             const stats = await fs.promises.stat(filePath)
             if (path.extname(filePath).toLowerCase() !== '.pdf') return null
 
             // Allow this path
-            addToAllowlist(filePath)
+            await addToAllowlist(filePath)
 
             const id = generateId()
             pdfRegistry.set(id, { path: filePath, createdAt: Date.now() })

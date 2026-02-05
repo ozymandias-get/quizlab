@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react'
 import { validateFileName } from '../../../utils/fileUtils'
-import type { FileInput, FileSystemItem } from '../../../context/FileContext'
+import type { FileSystemItem } from '../../../context/FileContext'
 import type { PdfSelection } from '../../../types/global'
 
 interface UseFileExplorerActionsProps {
-    addFolder: (name: string, parentId: string | null | undefined) => FileSystemItem | null;
-    addFile: (file: FileInput, parentId: string | null) => void;
-    deleteItem: (id: string) => void;
+    addFolder: (name: string, parentId: string | null | undefined) => Promise<FileSystemItem | null>;
+    importFile: (path: string) => Promise<boolean>;
+    deleteItem: (id: string) => Promise<boolean>;
     clearAll: () => void;
     getItemById: (id: string) => FileSystemItem | undefined;
     showError: (key: string, title?: string, params?: Record<string, string>) => void;
@@ -26,7 +26,7 @@ interface DeleteModalState {
  */
 export function useFileExplorerActions({
     addFolder,
-    addFile,
+    importFile,
     deleteItem,
     clearAll,
     getItemById,
@@ -46,7 +46,7 @@ export function useFileExplorerActions({
 
     // ===== Folder Actions =====
 
-    const handleAddFolder = useCallback(() => {
+    const handleAddFolder = useCallback(async () => {
         const validation = validateFileName(newFolderName)
 
         if (!validation.valid || !validation.name) {
@@ -55,7 +55,7 @@ export function useFileExplorerActions({
         }
 
         const parentId = addingToFolderId // might be null or string
-        const result = addFolder(validation.name, parentId)
+        const result = await addFolder(validation.name, parentId)
 
         if (result) {
             setNewFolderName('')
@@ -84,16 +84,22 @@ export function useFileExplorerActions({
 
         try {
             const result: PdfSelection | null = await api.selectPdf({ filterName: t('pdf_documents') })
-            // Robust check for result object and its properties
-            if (result && (result.path || result.streamUrl)) {
-                addFile(result, null)
+
+            // Eğer dosya seçildiyse DİREKT olarak kütüphaneye import et (Kalıcı Ekleme)
+            if (result && result.path) {
+                const success = await importFile(result.path)
+                if (success) {
+                    showSuccess('toast_file_imported', undefined, { name: result.name || 'document' })
+                } else {
+                    showError('toast_import_error')
+                }
             }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Unknown'
             console.error('[FileExplorer] PDF Selection Error:', error)
             showError('toast_pdf_load_error', undefined, { error: message })
         }
-    }, [addFile, showError, t])
+    }, [importFile, showSuccess, showError, t])
 
     // ===== Delete Actions =====
 
@@ -121,6 +127,22 @@ export function useFileExplorerActions({
         setDeleteModal({ isOpen: false, type: 'single', itemId: null, itemName: '' })
     }, [])
 
+    const handleImportItem = useCallback(async (id: string) => {
+        const item = getItemById(id);
+        if (!item || !item.path) return;
+
+        try {
+            const success = await importFile(item.path);
+            if (success) {
+                showSuccess('toast_file_imported', undefined, { name: item.name });
+            } else {
+                showError('toast_import_error');
+            }
+        } catch (e) {
+            showError('toast_import_error');
+        }
+    }, [getItemById, importFile, showSuccess, showError]);
+
     return {
         // State
         addingToFolderId,
@@ -134,6 +156,7 @@ export function useFileExplorerActions({
         initiateAddFolder,
         handleAddPdf,
         handleDeleteItem,
+        handleImportItem, // Exported
         handleClearAllClick,
         confirmDelete,
         cancelDelete

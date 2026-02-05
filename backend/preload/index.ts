@@ -78,6 +78,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addCustomAi: (data: CustomAiInput): Promise<CustomAiResult> => ipcRenderer.invoke('add-custom-ai', data),
     deleteCustomAi: (id: string): Promise<boolean> => ipcRenderer.invoke('delete-custom-ai', id),
 
+    // Library Management (New v1.0)
+    library: {
+        getFileSystem: () => ipcRenderer.invoke('db:get-file-system'),
+        createFolder: (name: string, parentId: string | null) => ipcRenderer.invoke('db:create-folder', name, parentId),
+        deleteItem: (id: string) => ipcRenderer.invoke('db:delete-item', id),
+        importFile: (sourcePath: string, folderId: string | null = null) => ipcRenderer.invoke('file:import', sourcePath, folderId),
+        moveItem: (id: string, newParentId: string | null) => ipcRenderer.invoke('db:move-item', id, newParentId),
+        search: (query: string) => ipcRenderer.invoke('db:search-library', query),
+
+        // Notes
+        getNotes: (fileId: string) => ipcRenderer.invoke('db:get-notes', fileId),
+        saveNote: (params: any) => ipcRenderer.invoke('db:save-note', params),
+        deleteNote: (id: string) => ipcRenderer.invoke('db:delete-note', id)
+    },
+
     // Quiz Generation API
     quiz: {
         generate: (params: Record<string, unknown>): Promise<QuizGenerateResult> => ipcRenderer.invoke('generate-quiz-cli', params),

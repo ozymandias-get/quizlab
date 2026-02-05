@@ -43,10 +43,13 @@ const styleIcons: Record<string, LucideIcon> = {
 
 // Model info helper
 const getModelConfigs = (t: (key: string) => string) => [
-    { type: ModelType.PRO_3_0, label: t('model_pro_3_0') || '3.0 Pro', icon: Brain, desc: t?.('quiz_ai_smartest') || 'En Akıllı', color: 'from-purple-400 to-pink-500' },
-    { type: ModelType.FLASH_3_0, label: t('model_flash_3_0') || '3.0 Flash', icon: Zap, desc: t?.('quiz_ai_fastest') || 'Ultra Hızlı', color: 'from-yellow-400 to-orange-500' },
-    { type: ModelType.FLASH_2_5, label: t('model_flash_2_5') || '2.5 Flash', icon: Zap, desc: t?.('quiz_ai_balanced') || 'Dengeli', color: 'from-cyan-400 to-blue-500' },
-    { type: ModelType.LITE_2_5, label: t('model_lite_2_5') || '2.5 Lite', icon: Rabbit, desc: t?.('quiz_ai_economical') || 'Ekonomik', color: 'from-green-400 to-emerald-500' }
+    { type: ModelType.PRO_3_0, label: t('model_pro_3_0'), icon: Brain, desc: t('quiz_ai_smartest'), color: 'from-purple-400 to-pink-500' },
+    { type: ModelType.FLASH_3_0, label: t('model_flash_3_0'), icon: Zap, desc: t('quiz_ai_fastest'), color: 'from-yellow-400 to-orange-500' },
+    { type: ModelType.FLASH_2_5, label: t('model_flash_2_5'), icon: Zap, desc: t('quiz_ai_balanced'), color: 'from-cyan-400 to-blue-500' },
+    { type: ModelType.LITE_2_5, label: t('model_lite_2_5'), icon: Rabbit, desc: t('quiz_ai_economical'), color: 'from-green-400 to-emerald-500' },
+    { type: ModelType.FLASH_2_0, label: t('model_flash_2_0'), icon: Zap, desc: t('quiz_ai_newest'), color: 'from-indigo-400 to-blue-600' },
+    { type: ModelType.PRO_1_5, label: t('model_pro_1_5'), icon: Brain, desc: t('quiz_ai_legacy_pro'), color: 'from-red-400 to-rose-600' },
+    { type: ModelType.FLASH_1_5, label: t('model_flash_1_5'), icon: Zap, desc: t('quiz_ai_legacy_flash'), color: 'from-gray-400 to-slate-600' }
 ]
 
 function QuizConfigPanel({
@@ -107,17 +110,17 @@ function QuizConfigPanel({
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className={`text-sm font-bold ${hasPdf ? 'text-emerald-400' : isDemoMode ? 'text-blue-400' : 'text-stone-400'}`}>
-                                {isLoadingPdf ? t?.('quiz_pdf_loading') || 'PDF Yükleniyor...' :
-                                    hasPdf ? t?.('quiz_pdf_ready') || 'PDF Hazır' :
-                                        isDemoMode ? t?.('quiz_demo_active') || 'Demo Modu Aktif' :
-                                            t?.('quiz_pdf_select') || 'PDF Seçin'}
+                                {isLoadingPdf ? t('quiz_pdf_loading') :
+                                    hasPdf ? t('quiz_pdf_ready') :
+                                        isDemoMode ? t('quiz_demo_active') :
+                                            t('quiz_pdf_select')}
                             </p>
                             <p className="text-xs text-white/40 truncate mt-0.5">
                                 {hasPdf
-                                    ? `${fileName || t?.('quiz_pdf_file') || 'Dosya'} • Gemini AI`
+                                    ? `${fileName || t('quiz_pdf_file')} • Gemini AI`
                                     : isDemoMode
-                                        ? t?.('quiz_demo_desc') || 'Yapay zeka tarafından üretilen örnek sorular'
-                                        : t?.('quiz_pdf_upload_desc') || 'Quiz oluşturmak için bir PDF dosyası yükleyin'
+                                        ? t('quiz_demo_desc')
+                                        : t('quiz_pdf_upload_desc')
                                 }
                             </p>
                         </div>
@@ -136,7 +139,7 @@ function QuizConfigPanel({
                             ) : (
                                 <Upload className="w-4 h-4" />
                             )}
-                            {hasPdf ? t?.('quiz_pdf_change') || 'Değiştir' : t?.('quiz_pdf_select') || 'PDF Seç'}
+                            {hasPdf ? t('quiz_pdf_change') : t('quiz_pdf_select')}
                         </motion.button>
                     </div>
                 </motion.div>
@@ -151,11 +154,11 @@ function QuizConfigPanel({
                             className="quiz-glass-card p-4 flex items-start gap-3 border-l-4 border-indigo-500"
                         >
                             <div className="p-2.5 bg-indigo-500/20 rounded-xl text-indigo-400 shrink-0">
-                                < Wand2 className="w-5 h-5" />
+                                <Wand2 className="w-5 h-5" />
                             </div>
                             <div>
-                                <h4 className="text-sm font-bold text-indigo-300 mb-1">{t?.('quiz_regen_mode') || 'Yeniden Oluşturma Modu'}</h4>
-                                <p className="text-xs text-indigo-400/70">{t?.('quiz_regen_desc') || 'Önceki sorulardan farklı yeni sorular üretilecek.'}</p>
+                                <h4 className="text-sm font-bold text-indigo-300 mb-1">{t('quiz_regen_mode')}</h4>
+                                <p className="text-xs text-indigo-400/70">{t('quiz_regen_desc')}</p>
                             </div>
                         </motion.div>
                     )}
@@ -165,7 +168,7 @@ function QuizConfigPanel({
                 <div className="quiz-glass-card p-5">
                     <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 block flex items-center gap-2">
                         <Brain className="w-3.5 h-3.5" />
-                        {t?.('quiz_ai_model') || 'AI Model'}
+                        {t('quiz_ai_model')}
                     </label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {models.map((m) => {
@@ -197,7 +200,7 @@ function QuizConfigPanel({
                     {/* Difficulty */}
                     <div className="quiz-glass-card p-5">
                         <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 block">
-                            {t?.('quiz_difficulty') || 'Zorluk'}
+                            {t('quiz_difficulty')}
                         </label>
                         <div className="quiz-difficulty-track">
                             {(Object.values(Difficulty) as DifficultyType[]).map((diff) => (
@@ -207,7 +210,7 @@ function QuizConfigPanel({
                                     whileTap={{ scale: 0.95 }}
                                     className={`quiz-difficulty-btn ${settings.difficulty === diff ? 'selected text-white' : 'text-white/40 hover:text-white/60'}`}
                                 >
-                                    {t(`difficulty_${diff.toLowerCase()}`) || diff}
+                                    {t(`difficulty_${diff.toLowerCase()}`)}
                                 </motion.button>
                             ))}
                         </div>
@@ -217,7 +220,7 @@ function QuizConfigPanel({
                     <div className="quiz-glass-card p-5">
                         <div className="flex justify-between items-center mb-4">
                             <label className="text-xs font-bold text-white/50 uppercase tracking-widest">
-                                {t?.('quiz_question_count') || 'Soru Sayısı'}
+                                {t('quiz_question_count')}
                             </label>
                             <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
                                 {settings.questionCount}
@@ -243,7 +246,7 @@ function QuizConfigPanel({
                 <div className="quiz-glass-card p-5">
                     <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 block flex items-center gap-2">
                         <Layers className="w-3.5 h-3.5" />
-                        {t?.('quiz_style') || 'Soru Tipleri'}
+                        {t('quiz_style')}
                     </label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                         {(Object.values(QuestionStyle) as QuestionStyleEnum[]).map((style) => {
@@ -284,7 +287,7 @@ function QuizConfigPanel({
                                 >
                                     <IconComp className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-400' : 'text-white/40'}`} />
                                     <span className={`text-xs font-bold truncate ${isSelected ? 'text-amber-300' : 'text-white/50'}`}>
-                                        {t(styleKey) || style}
+                                        {t(styleKey)}
                                     </span>
                                 </motion.button>
                             )
@@ -306,8 +309,8 @@ function QuizConfigPanel({
                                 <Microscope className="w-4 h-4" />
                             </div>
                             <div className="text-left">
-                                <span className="font-bold text-sm text-white/80 block">{t?.('quiz_focus') || 'Odak Konusu'}</span>
-                                <span className="text-xs text-white/40">{t?.('quiz_focus_desc') || 'Belirli bir konuya odaklanın'}</span>
+                                <span className="font-bold text-sm text-white/80 block">{t('quiz_focus')}</span>
+                                <span className="text-xs text-white/40">{t('quiz_focus_desc')}</span>
                             </div>
                         </div>
                         <motion.div
@@ -330,13 +333,13 @@ function QuizConfigPanel({
                                 <div className="p-5 pt-0 border-t border-white/5">
                                     <input
                                         type="text"
-                                        placeholder={t?.('quiz_focus_placeholder') || 'örn: Kardiyovasküler sistem, Farmakoloji...'}
+                                        placeholder={t('quiz_focus_placeholder')}
                                         value={settings.focusTopic || ''}
                                         onChange={(e) => setSettings(s => ({ ...s, focusTopic: e.target.value }))}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-amber-500/40 focus:bg-white/10 transition-all"
                                     />
                                     <p className="text-xs text-white/40 mt-3 px-1">
-                                        {t?.('quiz_focus_hint') || 'Belirli bir konuya odaklanmak için yazın. Boş bırakılırsa tüm içerik kullanılır.'}
+                                        {t('quiz_focus_hint')}
                                     </p>
                                 </div>
                             </motion.div>
@@ -352,7 +355,7 @@ function QuizConfigPanel({
                     whileTap={canStart ? { scale: 0.98 } : {}}
                     className={`quiz-primary-btn w-full md:w-auto ${!canStart ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    {t?.('quiz_create') || 'Sınav Oluştur'}
+                    {t('quiz_create')}
                     <Play className="w-5 h-5" fill="currentColor" />
                 </motion.button>
             </div>
@@ -360,7 +363,7 @@ function QuizConfigPanel({
             {/* Disclaimer */}
             <div className="flex items-center justify-center gap-2 text-xs text-amber-500/60 font-medium uppercase tracking-wider pt-2">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                <span>{t?.('quiz_disclaimer') || 'Yapay zeka oluşturur; doğruluğunu kontrol edin'}</span>
+                <span>{t('quiz_disclaimer')}</span>
             </div>
             {/* Demo Button (Developer Mode) */}
             {onStartDemo && (
@@ -369,7 +372,7 @@ function QuizConfigPanel({
                         onClick={onStartDemo}
                         className="text-xs font-bold text-white/20 hover:text-white/50 uppercase tracking-widest transition-colors"
                     >
-                        • {t?.('quiz_demo_start') || 'Demo Sınav Başlat'} •
+                        • {t('quiz_demo_start')} •
                     </button>
                 </div>
             )}

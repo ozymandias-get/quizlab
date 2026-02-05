@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo, useEffect, useRef } from 'react'
-import { useLocalStorage } from '../hooks/useLocalStorage'
-import { useLanguage } from './LanguageContext'
+// import { useLanguage } from './LanguageContext'
 import { validateFileName } from '../utils/fileUtils'
-import { generateId } from '../utils/uiUtils'
 
 export interface FileSystemItem {
     id: string;
@@ -11,8 +9,13 @@ export interface FileSystemItem {
     parentId: string | null;
     path?: string | null;
     size?: number | null;
-    streamUrl?: string | null;
+    streamUrl?: string | null; // Ephemeral
     error?: boolean;
+    createdAt?: string;
+    isImported?: boolean;
+    is_imported?: boolean;
+    original_path?: string;
+    children?: FileSystemItem[]; // If returned nested from backend
 }
 
 export type FileInput = {
@@ -25,180 +28,186 @@ export type FileInput = {
 
 interface FileContextType {
     fileSystem: FileSystemItem[];
-    addFolder: (name: string, parentId?: string | null) => FileSystemItem | null;
-    addFile: (fileObj: FileInput, parentId?: string | null) => FileSystemItem;
-    addFiles: (filesArray: FileInput[], parentId?: string | null) => FileSystemItem[];
-    moveItem: (itemId: string, newParentId: string | null) => boolean;
-    deleteItem: (itemId: string) => boolean;
+    addFolder: (name: string, parentId?: string | null) => Promise<FileSystemItem | null>;
+    addFile: (fileObj: FileInput, parentId?: string | null) => void;
+    addFiles: (files: FileInput[], parentId?: string | null) => void;
+    importFile: (sourcePath: string) => Promise<boolean>;
+    deleteItem: (itemId: string) => Promise<boolean>;
+    refreshFileSystem: () => Promise<void>;
     getChildren: (parentId?: string | null) => FileSystemItem[];
     getRootItems: () => FileSystemItem[];
     getItemById: (id: string) => FileSystemItem | undefined;
     getItemPath: (itemId: string) => FileSystemItem[];
+    moveItem: (itemId: string, newParentId: string | null) => Promise<boolean>;
     clearAll: () => void;
 }
 
-const REHYDRATION_BATCH_SIZE = 5
 const FileContext = createContext<FileContextType | null>(null)
 
 /**
- * FileProvider - Manages the virtual file system state
+ * FileProvider - Manages the file system state via Backend IPC
  */
 export function FileProvider({ children }: { children: React.ReactNode }) {
-    const [fileSystem, setFileSystem] = useLocalStorage<FileSystemItem[]>('quizlab-filesystem', [])
-    const { t } = useLanguage()
+    const [fileSystem, setFileSystem] = React.useState<FileSystemItem[]>([])
+    // const { t } = useLanguage()
 
-    // PDF Stream URL Re-hydration
-    // Since local-pdf:// IDs are session-based, they must be refreshed on app start
-    const rehydrationAttempted = useRef(false)
+    // We use a simple refresh trigger to reload data
+    const refreshFileSystem = useCallback(async () => {
+        try {
+            const items = await window.electronAPI.library.getFileSystem();
 
-    useEffect(() => {
-        // If we already attempted rehydration, don't run again
-        if (rehydrationAttempted.current) return
+            // Backend returns a nested tree structure (folders have 'children' array).
+            // To maintain compatibility with the frontend's existing "flat list with ID references" logic (mostly used by childrenMap),
+            // we should flatten this tree into a single array of items.
 
-        // If fileSystem is empty, wait until it's populated (e.g. from localStorage)
-        // Note: If the user has 0 files, this will simply wait until they add one,
-        // which triggers a harmless check. The main goal is to catch the case where 
-        // localStorage loads JUST after the initial render.
-        if (fileSystem.length === 0) return
+            const flatList: FileSystemItem[] = [];
 
-        let isMounted = true
-        rehydrationAttempted.current = true
+            const traverse = (nodes: any[]) => {
+                for (const node of nodes) {
+                    const item: FileSystemItem = {
+                        id: node.id,
+                        name: node.name,
+                        type: node.type,
+                        parentId: node.parentId, // Backend should return this, if not we track it during traversal or rely on node prop
+                        path: node.path,
+                        size: node.size,
+                        isImported: node.isImported,
+                        createdAt: node.createdAt
+                        // streamUrl: handled separately or on demand
+                    };
+                    flatList.push(item);
 
-        const rehydrateFiles = async () => {
-            const api = window.electronAPI
-            if (!api) return
-
-            const fileIds = new Set(fileSystem.map(i => i.id))
-            const filesToRehydrate = fileSystem.filter(i => i.type === 'file' && i.path)
-
-            if (!filesToRehydrate.length) return
-
-            const updates = new Map<string, Partial<FileSystemItem>>()
-
-            // Process in batches to avoid overwhelming the IPC channel
-            for (let i = 0; i < filesToRehydrate.length; i += REHYDRATION_BATCH_SIZE) {
-                if (!isMounted) return
-
-                const batch = filesToRehydrate.slice(i, i + REHYDRATION_BATCH_SIZE)
-                await Promise.all(batch.map(async (file) => {
-                    try {
-                        const result = await api.getPdfStreamUrl(file.path!)
-                        updates.set(file.id, {
-                            streamUrl: result?.streamUrl || null,
-                            error: !result?.streamUrl
-                        })
-                    } catch (err) {
-                        updates.set(file.id, { error: true })
+                    if (node.children && node.children.length > 0) {
+                        traverse(node.children);
                     }
-                }))
+                }
+            };
+
+            if (Array.isArray(items)) {
+                traverse(items);
             }
 
-            if (isMounted && updates.size > 0) {
-                setFileSystem(current =>
-                    current.map(item =>
-                        fileIds.has(item.id) && updates.has(item.id)
-                            ? { ...item, ...updates.get(item.id) }
-                            : item
-                    )
-                )
-            }
+            setFileSystem(flatList);
+        } catch (error) {
+            console.error("Failed to load file system:", error);
         }
+    }, []);
 
-        rehydrateFiles()
-        return () => { isMounted = false }
-    }, [fileSystem, setFileSystem])
+    // Initial Load
+    useEffect(() => {
+        refreshFileSystem();
+    }, [refreshFileSystem]);
 
     // ===== Helpers =====
 
     const findItem = useCallback((id: string) => fileSystem.find(i => i.id === id), [fileSystem])
 
-    const isDescendant = useCallback((parentId: string | null, targetId: string, items: FileSystemItem[]) => {
-        if (!parentId || parentId === targetId) return true
-        let currentParentId: string | null | undefined = parentId
-
-        while (currentParentId) {
-            if (currentParentId === targetId) return true
-            const parent: FileSystemItem | undefined = items.find(i => i.id === currentParentId)
-            currentParentId = parent?.parentId
-        }
-        return false
-    }, [])
-
-    const internalCreateFile = useCallback((f: FileInput, parentId: string | null): FileSystemItem => {
-        const validation = validateFileName(f.name)
-        return {
-            id: generateId(),
-            name: validation.valid && validation.name ? validation.name : t('untitled_file'),
-            type: 'file',
-            parentId,
-            path: typeof f.path === 'string' ? f.path : null,
-            size: typeof f.size === 'number' ? f.size : null,
-            streamUrl: typeof f.streamUrl === 'string' ? f.streamUrl : null
-        }
-    }, [t])
-
     // ===== Mutations =====
 
-    const addFolder = useCallback((name: string, parentId: string | null = null) => {
+    const addFolder = useCallback(async (name: string, parentId: string | null = null) => {
         const validation = validateFileName(name)
-        if (!validation.valid) return null
+        if (!validation.valid) return null;
 
-        const newFolder: FileSystemItem = { id: generateId(), name: validation.name!, type: 'folder', parentId }
-        setFileSystem(prev => [...prev, newFolder])
-        return newFolder
-    }, [setFileSystem])
+        try {
+            const newFolder = await window.electronAPI.library.createFolder(validation.name!, parentId);
+            await refreshFileSystem();
+            return newFolder;
+        } catch (e) {
+            console.error("Add folder failed", e);
+            return null;
+        }
+    }, [refreshFileSystem])
 
     const addFile = useCallback((fileObj: FileInput, parentId: string | null = null) => {
-        const newFile = internalCreateFile(fileObj, parentId)
-        setFileSystem(prev => [...prev, newFile])
-        return newFile
-    }, [setFileSystem, internalCreateFile])
+        // Transient add for drag & drop preview
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const tempItem: FileSystemItem = {
+            id: tempId,
+            name: fileObj.name,
+            type: 'file',
+            parentId: parentId || null,
+            path: fileObj.path || null,
+            size: fileObj.size,
+            streamUrl: fileObj.streamUrl,
+            error: false,
+            createdAt: new Date().toISOString(),
+            isImported: false, // Not yet imported
+            // isTransient: true // Optional, if we want to style it differently
+        };
 
-    const addFiles = useCallback((filesArray: FileInput[], parentId: string | null = null) => {
-        const newFiles = filesArray.map(f => internalCreateFile(f, parentId))
-        setFileSystem(prev => [...prev, ...newFiles])
-        return newFiles
-    }, [setFileSystem, internalCreateFile])
+        setFileSystem(prev => [...prev, tempItem]);
+    }, []);
 
+    const addFiles = useCallback((files: FileInput[], parentId: string | null = null) => {
+        // Bulk add for drag & drop
+        const newItems: FileSystemItem[] = files.map(fileObj => ({
+            id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            name: fileObj.name,
+            type: 'file', // Explicitly cast to 'file'
+            parentId: parentId || null,
+            path: fileObj.path || null,
+            size: fileObj.size,
+            streamUrl: fileObj.streamUrl,
+            error: false,
+            createdAt: new Date().toISOString(),
+            isImported: false
+        }));
 
-    const moveItem = useCallback((itemId: string, newParentId: string | null) => {
-        setFileSystem(prev => {
-            if (itemId === newParentId) return prev
-            const item = prev.find(i => i.id === itemId)
-            if (!item || (item.type === 'folder' && newParentId && isDescendant(newParentId, itemId, prev))) {
-                return prev
+        setFileSystem(prev => [...prev, ...newItems]);
+    }, []);
+
+    const importFile = useCallback(async (sourcePath: string) => {
+        try {
+            const result = await window.electronAPI.library.importFile(sourcePath);
+            if (result.success) {
+                await refreshFileSystem();
+                return true;
             }
-            return prev.map(i => i.id === itemId ? { ...i, parentId: newParentId } : i)
-        })
-        return true
-    }, [setFileSystem, isDescendant])
+            return false;
+        } catch (e) {
+            console.error("Import failed", e);
+            return false;
+        }
+    }, [refreshFileSystem]);
 
-    const deleteItem = useCallback((itemId: string) => {
-        setFileSystem(prev => {
-            const childMap = new Map<string, string[]>()
-            prev.forEach(item => {
-                if (item.parentId) {
-                    if (!childMap.has(item.parentId)) childMap.set(item.parentId, [])
-                    childMap.get(item.parentId)!.push(item.id)
-                }
-            })
 
-            const idsToDelete = new Set<string>()
-            const queue = [itemId]
+    const deleteItem = useCallback(async (itemId: string) => {
+        // Handle transient/temp items locally
+        if (itemId.startsWith('temp_')) {
+            setFileSystem(prev => prev.filter(i => i.id !== itemId));
+            return true;
+        }
 
-            while (queue.length > 0) {
-                const currentId = queue.shift()!
-                idsToDelete.add(currentId)
-                const children = childMap.get(currentId) || []
-                children.forEach(childId => queue.push(childId))
+        try {
+            // Backend now auto-detects type, so we only pass ID
+            const success = await window.electronAPI.library.deleteItem(itemId);
+            if (success) {
+                await refreshFileSystem();
+                return true;
             }
+            return false;
+        } catch (e) {
+            console.error("Delete failed", e);
+            return false;
+        }
+    }, [refreshFileSystem])
 
-            return prev.filter(i => !idsToDelete.has(i.id))
-        })
-        return true
-    }, [setFileSystem])
+    const moveItem = useCallback(async (itemId: string, newParentId: string | null) => {
+        if (itemId.startsWith('temp_')) return false; // Cannot move temps
 
-    const clearAll = useCallback(() => setFileSystem([]), [setFileSystem])
+        try {
+            const success = await window.electronAPI.library.moveItem(itemId, newParentId);
+            if (success) {
+                await refreshFileSystem();
+                return true;
+            }
+            return false;
+        } catch (e) {
+            console.error("Move failed", e);
+            return false;
+        }
+    }, [refreshFileSystem]);
+
 
     // ===== Optimization: Child Lookup Map =====
     // We use a ref to store the previous map to enable stable array references
@@ -214,15 +223,12 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
             nextMap.get(pid)!.push(item)
         })
 
-        // 2. Diff with previous map to preserve stable references for unchanged folders
+        // 2. Diff with previous map
         const prevMap = prevChildrenMapRef.current
         const finalMap = new Map<string, FileSystemItem[]>()
 
-        // Iterate over all keys in the new map (and potential old keys if needed, but we only care about current data)
         for (const [key, newChildren] of nextMap.entries()) {
             const oldChildren = prevMap.get(key)
-
-            // Check if arrays are identical (same length, same item references)
             let isSame = false
             if (oldChildren && oldChildren.length === newChildren.length) {
                 isSame = true
@@ -233,8 +239,6 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
                     }
                 }
             }
-
-            // Reuse old array instance if identical
             finalMap.set(key, (isSame && oldChildren) ? oldChildren : newChildren)
         }
 
@@ -269,14 +273,16 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         addFolder,
         addFile,
         addFiles,
-        moveItem,
         deleteItem,
+        importFile,
+        refreshFileSystem,
         getChildren,
         getRootItems,
         getItemById: findItem,
         getItemPath,
-        clearAll
-    }), [fileSystem, addFolder, addFile, addFiles, moveItem, deleteItem, getChildren, getRootItems, findItem, getItemPath, clearAll])
+        moveItem,
+        clearAll: () => setFileSystem([])
+    }), [fileSystem, addFolder, addFile, addFiles, deleteItem, importFile, refreshFileSystem, getChildren, getRootItems, findItem, getItemPath, moveItem])
 
     return <FileContext.Provider value={contextValue}>{children}</FileContext.Provider>
 }
@@ -287,4 +293,4 @@ export function useFileSystem() {
     return context
 }
 
-export default FileContext
+

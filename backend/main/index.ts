@@ -5,7 +5,7 @@ import { app, BrowserWindow, dialog } from 'electron'
 import {
     registerPdfScheme,
     registerPdfProtocol,
-    registerPdfHandlers,
+    registerPdfProtocolHandlers,
     startPdfCleanupInterval,
     stopPdfCleanupInterval,
     clearAllPdfPaths
@@ -69,7 +69,7 @@ async function initializeApp() {
 
     // 2. Protocols and Handlers
     registerPdfProtocol()
-    registerPdfHandlers()
+    registerPdfProtocolHandlers()
     registerGeneralHandlers()
     registerQuizHandlers()
 
@@ -77,7 +77,7 @@ async function initializeApp() {
     startPdfCleanupInterval()
 
     // 4. Create main window
-    createWindow()
+    await createWindow()
 
     // Init update system
     initUpdater()
@@ -85,9 +85,9 @@ async function initializeApp() {
 
 app.whenReady().then(initializeApp)
 
-app.on('activate', () => {
+app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-        const mw = createWindow()
+        const mw = await createWindow()
         mw?.show()
     }
 })

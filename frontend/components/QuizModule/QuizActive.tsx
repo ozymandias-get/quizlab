@@ -155,7 +155,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                     {/* Answered indicator */}
                     <div className="hidden md:flex items-center gap-1.5 text-xs text-white/40">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{answeredCount} {t?.('quiz_answered') || 'yanıtlandı'}</span>
+                        <span>{answeredCount} {t('quiz_answered')}</span>
                     </div>
                 </div>
 
@@ -189,7 +189,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                                 <Sparkles className="w-4 h-4 text-amber-400" />
                             </div>
                             <span className="text-xs font-bold text-white/40 uppercase tracking-widest">
-                                {t?.('quiz_question') || 'Soru'} {quizState.currentQuestionIndex + 1}
+                                {t('quiz_question')} {quizState.currentQuestionIndex + 1}
                             </span>
                         </div>
 
@@ -256,7 +256,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                                 className="quiz-nav-btn"
                             >
                                 <ChevronLeft className="w-5 h-5" />
-                                <span className="hidden sm:inline">{t?.('quiz_back') || 'Geri'}</span>
+                                <span className="hidden sm:inline">{t('quiz_back')}</span>
                             </motion.button>
 
                             {/* Clear Selection */}
@@ -268,7 +268,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                                 className="quiz-clear-btn"
                             >
                                 <Eraser className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t?.('quiz_clear') || 'Temizle'}</span>
+                                <span className="hidden sm:inline">{t('quiz_clear')}</span>
                             </motion.button>
 
                             {/* Next / Finish */}
@@ -278,7 +278,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                                 whileTap={{ scale: 0.97 }}
                                 className={isLast ? 'quiz-finish-btn' : 'quiz-next-btn'}
                             >
-                                <span>{isLast ? (t?.('quiz_finish') || 'Bitir') : (t?.('quiz_next') || 'İleri')}</span>
+                                <span>{isLast ? t('quiz_finish') : t('quiz_next')}</span>
                                 {isLast ? <CheckCircle className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                             </motion.button>
                         </div>
