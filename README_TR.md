@@ -1,5 +1,6 @@
 ﻿# 🧪 QuizLab Reader
 
+<!-- markdownlint-disable MD033 -->
 <div align="center">
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg?style=flat-square)](README.md)
@@ -13,6 +14,7 @@
 [Özellikler](#-ana-özellikler) • [Kurulum](#-hızlı-başlangıç) • [Yapı](#-proje-yapısı) • [Teknoloji](#-teknoloji-yığını)
 
 </div>
+<!-- markdownlint-enable MD033 -->
 
 ---
 

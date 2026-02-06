@@ -1,5 +1,6 @@
 ﻿# 🧪 QuizLab Reader
 
+<!-- markdownlint-disable MD033 -->
 <div align="center">
 
 [![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg?style=flat-square)](README_TR.md)
@@ -13,6 +14,7 @@
 [Features](#-core-features) • [Installation](#-quick-start) • [Structure](#-project-structure) • [Tech Stack](#-tech-stack)
 
 </div>
+<!-- markdownlint-enable MD033 -->
 
 ---
 
@@ -53,7 +55,7 @@ Your data belongs to you. Organize files, manage folders, and keep rich-text not
 Built with a performance-first, modern architecture:
 
 | Category | Technology |
-|----------|------------|
+| :--- | :--- |
 | **Core** | ![Electron](https://img.shields.io/badge/Electron-40-2F3241?style=flat-square&logo=electron) ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react) |
 | **Language** | ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript) |
 | **Styling** | ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-06B6D4?style=flat-square&logo=tailwindcss) |
