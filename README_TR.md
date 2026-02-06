@@ -40,6 +40,10 @@ Pasif okumayı aktif öğrenmeye dönüştürün.
 - **Özelleştirilebilir:** Zorluk seviyesini, soru sayısını ve odak konularını ayarlayın.
 - **İnteraktif:** Quizleri çözün ve sonuçlarınızı takip edin.
 
+![Quiz Ayarlari](docs/images/quiz-creation.png)
+![Quiz Modu](docs/images/quiz-gameplay.png)
+![Quiz Sonuclari](docs/images/quiz-results.png)
+
 ### 🪄 Magic Selector (Sihirli Seçici)
 
 *Herhangi* bir web tabanlı yapay zekayı (ChatGPT, Claude, Gemini vb.) API anahtarı olmadan entegre edin. Uygulamaya giriş kutusunu bir kez öğretin, sonrasında içeriği otomatik yapıştırmaya hazırsınız.

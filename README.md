@@ -40,6 +40,10 @@ Transform passive reading into active recall.
 - **Customizable:** Set difficulty, question count, and focus topics.
 - **Interactive:** Play through quizzes and track your results.
 
+![Quiz Config](docs/images/quiz-creation.png)
+![Quiz Mode](docs/images/quiz-gameplay.png)
+![Quiz Results](docs/images/quiz-results.png)
+
 ### 🪄 Magic Selector
 
 Integrate *any* web-based AI (ChatGPT, Claude, Gemini, etc.) without API keys. Train the app once to recognize the input box, and you're ready to auto-paste content.
