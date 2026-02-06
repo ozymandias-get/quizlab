@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' blob: https://cdnjs.cloudflare.com https://unpkg.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; frame-src *; child-src * blob:; worker-src 'self' blob:; img-src 'self' data: blob:; connect-src 'self' blob:;">
+    <title>QuizLab Reader</title>
+    <link rel="icon" type="image/png" href="/icon.png">
+
+    <!-- 
+        FONT LOADING STRATEGY
+        =====================
+        1. preconnect: DNS lookup'ı önceden yap
+        2. preload: Kritik fontları hemen yükle (Inter 400, 500)
+        3. display=swap: Font yüklenene kadar sistem fontunu kullan (FOIT önleme)
+        4. Async loading: Stylesheet'i render-blocking olmadan yükle
+    -->
+
+    <!-- Preconnect - DNS lookup'ı erkenden başlat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Preload critical fonts (Inter 400 ve 500 - en çok kullanılan) -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
+
+    <!-- Google Fonts - Non-blocking load with media hack -->
+    <!-- Önce print olarak yükle (non-blocking), sonra all'a çevir -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap"
+        media="print" onload="this.media='all'">
+
+    <!-- Fallback for browsers without JS -->
+    <noscript>
+        <link rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap">
+    </noscript>
+</head>
+
+<body class="font-sans bg-stone-950 text-stone-100 h-screen overflow-hidden">
+    <div id="root"></div>
+    <script type="module" src="/app/main.tsx"></script>
+</body>
+
+</html>

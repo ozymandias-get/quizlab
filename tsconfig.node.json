@@ -11,6 +11,24 @@
         "noImplicitAny": true,
         "strictNullChecks": true,
         "esModuleInterop": true,
+        "baseUrl": ".",
+        "paths": {
+            "@shared/*": [
+                "./shared/*"
+            ],
+            "@electron/*": [
+                "./electron/*"
+            ],
+            "@src/*": [
+                "./src/*"
+            ],
+            "@ui/*": [
+                "./src/components/ui/*"
+            ],
+            "@features/*": [
+                "./src/features/*"
+            ]
+        },
         "outDir": "dist/electron",
         "rootDir": ".",
         "lib": [
@@ -19,7 +37,8 @@
         ]
     },
     "include": [
-        "backend/**/*",
-        "frontend/utils/automation/**/*"
+        "electron/**/*",
+        "shared/**/*",
+        "src/utils/automation/**/*"
     ]
 }
