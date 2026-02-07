@@ -1,4 +1,3 @@
-﻿import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { LanguageProvider } from './providers/LanguageContext'
@@ -12,25 +11,24 @@ import { FileProvider } from './providers/FileContext'
 import '@src/styles/index.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <React.StrictMode>
-        <LanguageProvider>
-            <ToastProvider>
-                <AiProvider>
-                    <AppToolProvider>
-                        <AppearanceProvider>
-                            <NavigationProvider>
-                                <UpdateProvider>
-                                    <FileProvider>
-                                        <App />
-                                    </FileProvider>
-                                </UpdateProvider>
-                            </NavigationProvider>
-                        </AppearanceProvider>
-                    </AppToolProvider>
-                </AiProvider>
-            </ToastProvider>
-        </LanguageProvider>
-    </React.StrictMode>
+    <LanguageProvider>
+        <ToastProvider>
+            <AiProvider>
+                <AppToolProvider>
+                    <AppearanceProvider>
+                        <NavigationProvider>
+                            <UpdateProvider>
+                                <FileProvider>
+                                    <App />
+                                </FileProvider>
+                            </UpdateProvider>
+                        </NavigationProvider>
+                    </AppearanceProvider>
+                </AppToolProvider>
+            </AiProvider>
+        </ToastProvider>
+    </LanguageProvider>
 )
+
 
 

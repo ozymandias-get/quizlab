@@ -241,7 +241,10 @@ export function useAiSender(
 
                 if (promptScript) {
                     if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
-                    await webview.executeJavaScript(promptScript)
+                    const promptResult = await webview.executeJavaScript(promptScript) as { success?: boolean; error?: string } | boolean | null
+                    if (promptResult === false || (typeof promptResult === 'object' && promptResult?.success === false)) {
+                        return { success: false, error: (typeof promptResult === 'object' && promptResult?.error) ? promptResult.error : 'script_failed' }
+                    }
                     return { success: true, mode: autoSend ? 'auto_click_with_prompt' : 'paste_and_prompt' }
                 }
             }

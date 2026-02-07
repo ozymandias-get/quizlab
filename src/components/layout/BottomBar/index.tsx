@@ -19,6 +19,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
     const [isOpen, setIsOpen] = useState(false)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [isAnimating, setIsAnimating] = useState(false)
+    const [isWindowResizing, setIsWindowResizing] = useState(false)
 
     // Refs
     const barRef = useRef<HTMLDivElement>(null)
@@ -27,6 +28,8 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
     const isDragging = useRef(false)
     const lastDragTime = useRef(0)
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const resizeRafRef = useRef<number | null>(null)
     // Layout thrashing prevention: Cache bar dimensions
     const barDimensions = useRef({ width: 400, height: 60 })
 
@@ -70,7 +73,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
         return () => document.removeEventListener('mousedown', handler)
     }, [isOpen, isTourActive])
 
-    // Update dimensions on mount and resize
+    // Update dimensions on mount and resize (rAF throttled)
     useEffect(() => {
         const updateDimensions = () => {
             if (barRef.current) {
@@ -82,15 +85,37 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
             }
         }
 
+        const handleResize = () => {
+            setIsWindowResizing(true)
+
+            if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current)
+            resizeTimeoutRef.current = setTimeout(() => {
+                setIsWindowResizing(false)
+                resizeTimeoutRef.current = null
+            }, 140)
+
+            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current)
+            resizeRafRef.current = requestAnimationFrame(() => {
+                updateDimensions()
+                resizeRafRef.current = null
+            })
+        }
+
         updateDimensions()
-        window.addEventListener('resize', updateDimensions)
-        return () => window.removeEventListener('resize', updateDimensions)
+        window.addEventListener('resize', handleResize, { passive: true })
+        return () => {
+            window.removeEventListener('resize', handleResize)
+            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current)
+            if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current)
+        }
     }, [])
 
     // Cleanup timeouts on unmount
     useEffect(() => {
         return () => {
             if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
+            if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current)
+            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current)
         }
     }, [])
 
@@ -166,10 +191,10 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
             rgba(28, 28, 32, ${bottomBarOpacity}) 0%, 
             rgba(20, 20, 24, ${bottomBarOpacity}) 50%,
             rgba(16, 16, 18, ${bottomBarOpacity}) 100%)`,
-        backdropFilter: 'blur(12px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(12px) saturate(150%)',
+        backdropFilter: isWindowResizing ? 'none' : 'blur(12px) saturate(150%)',
+        WebkitBackdropFilter: isWindowResizing ? 'none' : 'blur(12px) saturate(150%)',
         border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: `
+        boxShadow: isWindowResizing ? '0 10px 22px -10px rgba(0,0,0,0.45)' : `
             0 20px 40px -10px rgba(0,0,0,0.5),
             0 8px 16px -6px rgba(0,0,0,0.35),
             inset 0 1px 0 rgba(255,255,255,0.08),
@@ -177,8 +202,8 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
         `,
         borderRadius: 18,
         transform: 'translateZ(0)',
-        willChange: 'width, opacity, height'
-    }), [bottomBarOpacity])
+        willChange: isWindowResizing ? 'auto' : 'transform, opacity'
+    }), [bottomBarOpacity, isWindowResizing])
 
     const hubStyle = useMemo<React.CSSProperties>(() => ({
         ...panelStyle,

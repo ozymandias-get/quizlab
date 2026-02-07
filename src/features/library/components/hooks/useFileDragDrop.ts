@@ -72,7 +72,7 @@ export function useFileDragDrop(item: FileSystemItem, onDragComplete?: () => voi
         setIsDragOver(false)
     }, [])
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
+    const handleDrop = useCallback(async (e: React.DragEvent) => {
         e.preventDefault()
         e.stopPropagation()
         setIsDragOver(false)
@@ -107,7 +107,10 @@ export function useFileDragDrop(item: FileSystemItem, onDragComplete?: () => voi
             const data = JSON.parse(jsonData) as DragData
             if (!data?.id || data.id === item.id || data.parentId === targetId) return
 
-            moveItem(data.id, targetId ?? null)
+            const moved = await moveItem(data.id, targetId ?? null)
+            if (!moved) {
+                console.warn('[FileDragDrop] Move operation failed:', data.id, '->', targetId)
+            }
         } catch (error) {
             console.error('Drop error:', error)
         }

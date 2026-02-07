@@ -7,7 +7,7 @@ interface UseFileExplorerActionsProps {
     addFolder: (name: string, parentId: string | null | undefined) => Promise<FileSystemItem | null>;
     importFile: (path: string) => Promise<boolean>;
     deleteItem: (id: string) => Promise<boolean>;
-    clearAll: () => void;
+    clearAll: () => Promise<boolean>;
     getItemById: (id: string) => FileSystemItem | undefined;
     showError: (key: string, title?: string, params?: Record<string, string>) => void;
     showSuccess: (key: string, title?: string, params?: Record<string, string>) => void;
@@ -114,14 +114,25 @@ export function useFileExplorerActions({
         setDeleteModal({ isOpen: true, type: 'all', itemId: null, itemName: t('all_files') })
     }, [t])
 
-    const confirmDelete = useCallback(() => {
-        if (deleteModal.type === 'all') {
-            clearAll()
-        } else if (deleteModal.itemId) {
-            deleteItem(deleteModal.itemId)
+    const confirmDelete = useCallback(async () => {
+        try {
+            let success = true
+            if (deleteModal.type === 'all') {
+                success = await clearAll()
+            } else if (deleteModal.itemId) {
+                success = await deleteItem(deleteModal.itemId)
+            }
+
+            if (!success) {
+                showError('delete_failed')
+            }
+        } catch (e) {
+            console.error('[FileExplorer] Delete operation failed:', e)
+            showError('delete_failed')
+        } finally {
+            setDeleteModal({ isOpen: false, type: 'single', itemId: null, itemName: '' })
         }
-        setDeleteModal({ isOpen: false, type: 'single', itemId: null, itemName: '' })
-    }, [deleteItem, clearAll, deleteModal])
+    }, [deleteItem, clearAll, deleteModal, showError])
 
     const cancelDelete = useCallback(() => {
         setDeleteModal({ isOpen: false, type: 'single', itemId: null, itemName: '' })

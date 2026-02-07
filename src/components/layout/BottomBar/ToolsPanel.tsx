@@ -33,7 +33,7 @@ export const ToolsPanel = memo(({
     const { isPickerActive, togglePicker } = useAppTools()
 
     return (
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && (
                 <motion.div
                     variants={bottomBarLayout === 'vertical' ? panelVariantsVertical : panelVariantsHorizontal}

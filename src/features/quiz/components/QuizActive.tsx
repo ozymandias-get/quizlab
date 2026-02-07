@@ -2,7 +2,7 @@
  * QuizActive - Active Quiz View
  * Premium Glass Morphism Design
  */
-import React, { useMemo, useEffect, useState } from 'react'
+import React, { useMemo, useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CheckCircle, Eraser, Clock, Sparkles } from 'lucide-react'
 import { formatQuizText } from '@src/utils/uiUtils'
@@ -49,12 +49,21 @@ const slideVariants = {
     })
 }
 
+function isTypingElement(element: Element | null): boolean {
+    if (!(element instanceof HTMLElement)) return false
+    const tag = element.tagName.toLowerCase()
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || element.isContentEditable
+}
+
 function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection, onFinish, t }: QuizActiveProps) {
-    const currentQ = quizState.questions[quizState.currentQuestionIndex]
-    const isFirst = quizState.currentQuestionIndex === 0
-    const isLast = quizState.currentQuestionIndex === quizState.questions.length - 1
+    const { questions, currentQuestionIndex, userAnswers, startTime } = quizState
+    const totalQuestions = questions.length
+    const questionNumber = currentQuestionIndex + 1
+    const currentQ = questions[currentQuestionIndex] as Question | undefined
+    const isFirst = currentQuestionIndex === 0
+    const isLast = currentQuestionIndex === totalQuestions - 1
     // Use optional chaining for safety before early return
-    const selectedAnswer = quizState.userAnswers[currentQ?.id]
+    const selectedAnswer = currentQ ? userAnswers[currentQ.id] : undefined
 
     // Memoize formatted content to prevent re-calculation on every timer tick
     const formattedContent = useMemo(() => {
@@ -65,24 +74,32 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
         }
     }, [currentQ])
 
-    // Live timer - must be called before any conditional returns (React hooks rule)
+    // Live timer - based on Date.now() diff for accuracy
     const [elapsedTime, setElapsedTime] = useState('00:00')
 
     useEffect(() => {
-        if (!quizState.startTime) return
+        if (!startTime) {
+            setElapsedTime('00:00')
+            return
+        }
 
-        const interval = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - quizState.startTime!) / 1000)
+        const updateElapsedTime = () => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000)
             const mins = Math.floor(elapsed / 60).toString().padStart(2, '0')
             const secs = (elapsed % 60).toString().padStart(2, '0')
             setElapsedTime(`${mins}:${secs}`)
+        }
+
+        updateElapsedTime()
+        const interval = setInterval(() => {
+            updateElapsedTime()
         }, 1000)
 
         return () => clearInterval(interval)
-    }, [quizState.startTime])
+    }, [startTime])
 
     // Handle answer toggle - safe functional update to prevent stale state
-    const handleAnswerToggle = (optionIndex: number) => {
+    const handleAnswerToggle = useCallback((optionIndex: number) => {
         if (!currentQ) return // Safety check
 
         setQuizState(prev => {
@@ -100,22 +117,71 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                 userAnswers: newAnswers
             }
         })
-    }
+    }, [currentQ, setQuizState])
 
     // Navigate questions
-    const navigateQuestion = (direction: number) => {
-        const newIndex = quizState.currentQuestionIndex + direction
-        if (newIndex >= 0 && newIndex < quizState.questions.length) {
+    const navigateQuestion = useCallback((direction: number) => {
+        const newIndex = currentQuestionIndex + direction
+        if (newIndex >= 0 && newIndex < totalQuestions) {
             setSlideDirection(direction)
             setQuizState(prev => ({ ...prev, currentQuestionIndex: newIndex }))
         }
-    }
+    }, [currentQuestionIndex, totalQuestions, setQuizState, setSlideDirection])
+
+    // Keep index valid when question set changes dynamically
+    useEffect(() => {
+        if (totalQuestions === 0) {
+            if (currentQuestionIndex !== 0) {
+                setQuizState(prev => {
+                    if (prev.currentQuestionIndex === 0) return prev
+                    return { ...prev, currentQuestionIndex: 0 }
+                })
+            }
+            return
+        }
+
+        const clampedIndex = Math.min(Math.max(currentQuestionIndex, 0), totalQuestions - 1)
+        if (clampedIndex !== currentQuestionIndex) {
+            setQuizState(prev => {
+                if (prev.currentQuestionIndex === clampedIndex) return prev
+                return { ...prev, currentQuestionIndex: clampedIndex }
+            })
+        }
+    }, [currentQuestionIndex, totalQuestions, setQuizState])
+
+    // Keyboard Navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.defaultPrevented) return
+            if (e.altKey || e.ctrlKey || e.metaKey) return
+            if (e.repeat) return
+            if (isTypingElement(document.activeElement)) return
+
+            if (e.key === 'ArrowRight') {
+                if (isLast) return // Optional: could trigger finish on Enter but let's stick to arrows for nav
+                e.preventDefault()
+                navigateQuestion(1)
+            } else if (e.key === 'ArrowLeft') {
+                if (isFirst) return
+                e.preventDefault()
+                navigateQuestion(-1)
+            }
+        }
+        
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [navigateQuestion, isLast, isFirst])
 
     // Calculate progress
-    const progress = ((quizState.currentQuestionIndex + 1) / quizState.questions.length) * 100
-    const answeredCount = Object.keys(quizState.userAnswers).length
+    const progress = totalQuestions > 0 ? ((currentQuestionIndex + 1) / totalQuestions) * 100 : 0
+    const optionHtmlList = formattedContent.options
+    const answeredCount = useMemo(() => {
+        return questions.reduce((count, q) => {
+            return userAnswers[q.id] !== undefined ? count + 1 : count
+        }, 0)
+    }, [questions, userAnswers])
 
-    // Early return AFTER all hooks are called (React hooks rule: hooks must be called in same order)
+    // Early return AFTER all hooks are called
     if (!currentQ) return null
 
     return (
@@ -136,10 +202,10 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                     {/* Question Counter */}
                     <div className="quiz-counter-badge">
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
-                            {quizState.currentQuestionIndex + 1}
+                            {questionNumber}
                         </span>
                         <span className="text-white/30 mx-1.5">/</span>
-                        <span className="text-white/60">{quizState.questions.length}</span>
+                        <span className="text-white/60">{questions.length}</span>
                     </div>
 
                     {/* Progress bar */}
@@ -189,7 +255,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                                 <Sparkles className="w-4 h-4 text-amber-400" />
                             </div>
                             <span className="text-xs font-bold text-white/40 uppercase tracking-widest">
-                                {t('quiz_question')} {quizState.currentQuestionIndex + 1}
+                                {t('quiz_question')} {questionNumber}
                             </span>
                         </div>
 
@@ -205,7 +271,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
 
                             {/* Options */}
                             <div className="space-y-3 mt-6">
-                                {(currentQ.options || []).map((_, idx) => {
+                                {optionHtmlList.map((optionHtml, idx) => {
                                     const isSelected = selectedAnswer === idx
                                     return (
                                         <motion.button
@@ -226,7 +292,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                                             {/* Option Text */}
                                             <div
                                                 className={`text-sm md:text-base leading-relaxed pt-0.5 flex-1 ${isSelected ? 'text-white font-medium' : 'text-white/70'}`}
-                                                dangerouslySetInnerHTML={{ __html: formattedContent.options[idx] }}
+                                                dangerouslySetInnerHTML={{ __html: optionHtml }}
                                             />
 
                                             {/* Selected indicator */}

@@ -39,7 +39,7 @@ interface FileContextType {
     getItemById: (id: string) => FileSystemItem | undefined;
     getItemPath: (itemId: string) => FileSystemItem[];
     moveItem: (itemId: string, newParentId: string | null) => Promise<boolean>;
-    clearAll: () => void;
+    clearAll: () => Promise<boolean>;
 }
 
 const FileContext = createContext<FileContextType | null>(null)
@@ -268,6 +268,30 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         return path
     }, [findItem])
 
+    const clearAll = useCallback(async (): Promise<boolean> => {
+        const persistentItems = fileSystem.filter(item => !item.id.startsWith('temp_'))
+
+        if (persistentItems.length > 0) {
+            const persistentIds = new Set(persistentItems.map(item => item.id))
+            const rootPersistentItems = persistentItems.filter(item =>
+                !item.parentId || !persistentIds.has(item.parentId)
+            )
+
+            const results = await Promise.allSettled(
+                rootPersistentItems.map(item => window.electronAPI.library.deleteItem(item.id))
+            )
+
+            const hasFailure = results.some(result =>
+                result.status === 'rejected' || (result.status === 'fulfilled' && result.value !== true)
+            )
+            await refreshFileSystem()
+            return !hasFailure
+        }
+
+        setFileSystem([])
+        return true
+    }, [fileSystem, refreshFileSystem])
+
     const contextValue = useMemo(() => ({
         fileSystem,
         addFolder,
@@ -281,8 +305,8 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         getItemById: findItem,
         getItemPath,
         moveItem,
-        clearAll: () => setFileSystem([])
-    }), [fileSystem, addFolder, addFile, addFiles, deleteItem, importFile, refreshFileSystem, getChildren, getRootItems, findItem, getItemPath, moveItem])
+        clearAll
+    }), [fileSystem, addFolder, addFile, addFiles, deleteItem, importFile, refreshFileSystem, getChildren, getRootItems, findItem, getItemPath, moveItem, clearAll])
 
     return <FileContext.Provider value={contextValue}>{children}</FileContext.Provider>
 }

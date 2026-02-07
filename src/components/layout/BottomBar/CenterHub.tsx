@@ -36,14 +36,11 @@ export const CenterHub = memo(({ handleHubPointerUp, isOpen, hubStyle }: CenterH
 
             {/* Subtle glow when closed */}
             {!isOpen && (
-                <motion.div
-                    animate={{
-                        opacity: [0.3, 0.5, 0.3],
-                    }}
-                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                <div
                     className="absolute inset-0 rounded-[18px] pointer-events-none"
                     style={{
                         boxShadow: '0 0 16px -4px rgba(255,255,255,0.1)',
+                        opacity: 0.35
                     }}
                 />
             )}

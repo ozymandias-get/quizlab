@@ -1,5 +1,5 @@
 import React, { memo } from 'react'
-import { motion, Easing } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 export interface ToolButtonProps {
     isActive?: boolean;
@@ -11,18 +11,14 @@ export interface ToolButtonProps {
 }
 
 // Memoized Tool Button - Sharp & Clear
-export const ToolButton = memo(({ isActive, activeColor, onClick, title, children, delay = 0 }: ToolButtonProps) => (
+export const ToolButton = memo(({ isActive, activeColor, onClick, title, children, delay: _delay = 0 }: ToolButtonProps) => (
     <motion.button
-        initial={{ opacity: 0, scale: 0.8, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.8, y: 8 }}
-        transition={{ duration: 0.25, delay, ease: [0.16, 1, 0.3, 1] as Easing }}
         whileHover={{
-            scale: 1.1,
-            y: -2,
-            transition: { type: "spring", stiffness: 450, damping: 25 }
+            scale: 1.05,
+            y: -1,
+            transition: { type: "spring", stiffness: 380, damping: 28 }
         }}
-        whileTap={{ scale: 0.92 }}
+        whileTap={{ scale: 0.96 }}
         onClick={onClick}
         title={title}
         className="relative p-2.5 rounded-xl transition-all duration-150"

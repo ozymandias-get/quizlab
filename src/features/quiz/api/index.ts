@@ -121,7 +121,7 @@ export async function generateQuizQuestions(
         difficulty: settings.difficulty || 'MEDIUM',
         style: settings.style || ['MIXED'],
         focusTopic: settings.focusTopic || '',
-        model: settings.model || 'gemini-3-flash-preview',
+        model: settings.model || DEFAULT_SETTINGS.model,
         language
     }
 

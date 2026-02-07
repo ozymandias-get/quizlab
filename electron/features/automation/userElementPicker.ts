@@ -6,9 +6,9 @@
  * manuel olarak seçmesini sağlayacak mantığı içerir.
  */
 
-import { pickerStyles } from '@src/utils/automation/styles';
-import { getElementInfo, generateRobustSelector } from '@src/utils/automation/domHelpers';
-import { getStepHtml, getHintHtml, type TranslationMap } from '@src/utils/automation/uiTemplates';
+import { pickerStyles } from '../../../src/utils/automation/styles';
+import { getElementInfo, generateRobustSelector } from '../../../src/utils/automation/domHelpers';
+import { getStepHtml, getHintHtml, type TranslationMap } from '../../../src/utils/automation/uiTemplates';
 
 /**
  * Webview içine enjekte edilecek "Picker" scripti.
@@ -19,7 +19,6 @@ import { getStepHtml, getHintHtml, type TranslationMap } from '@src/utils/automa
 export const generatePickerScript = (translations: TranslationMap = {}): string => {
     return `
     (function() {
-        const DEBUG_PREFIX = '[AI-Picker]';
         const TRANSLATIONS = ${JSON.stringify(translations)};
         
         // Temizlik: Önceki picker kalıntılarını temizle
@@ -96,19 +95,26 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         // --- EVENT HANDLERS ---
         let lastHovered = null;
 
-        const onMouseOver = (e) => {
-            // Sadece adım 1 ve 3'te hover aktif
-            if (step !== 'input' && step !== 'submit') return;
-            if (step === 'done') return;
-            e.stopPropagation();
+        const normalizeTarget = (rawTarget) => {
+            if (!(rawTarget instanceof Element)) return null;
+            let target = rawTarget;
 
-            let target = e.target;
-            
             // SVG/PATH Düzeltmesi
             if (['svg', 'path', 'rect', 'polygon'].includes(target.tagName.toLowerCase())) {
                 const btn = target.closest('button, [role="button"], a');
                 if (btn) target = btn;
             }
+
+            return target;
+        };
+
+        const onMouseOver = (e) => {
+            // Sadece adım 1 ve 3'te hover aktif
+            if (step !== 'input' && step !== 'submit') return;
+            if (step === 'done') return;
+            e.stopPropagation();
+            const target = normalizeTarget(e.target);
+            if (!target) return;
 
             if (lastHovered === target) return;
 
@@ -151,8 +157,7 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             labelBox.innerHTML = labelText;
             labelBox.style.background = labelBg;
             labelBox.style.display = 'block';
-            labelBox.style.top = (e.clientY + 20) + 'px';
-            labelBox.style.left = (e.clientX + 15) + 'px';
+            positionLabelBox(e.clientX, e.clientY);
             
             // Ana paneli güncelle
             updateInfoBox(info);
@@ -165,12 +170,23 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             if (window._aiPickerRaf) cancelAnimationFrame(window._aiPickerRaf);
             
             window._aiPickerRaf = requestAnimationFrame(() => {
-                labelBox.style.top = (e.clientY + 20) + 'px';
-                labelBox.style.left = (e.clientX + 15) + 'px';
+                positionLabelBox(e.clientX, e.clientY);
             });
         };
+
+        const positionLabelBox = (clientX, clientY) => {
+            const offsetX = 15;
+            const offsetY = 20;
+            const margin = 8;
+            const maxLeft = window.innerWidth - labelBox.offsetWidth - margin;
+            const maxTop = window.innerHeight - labelBox.offsetHeight - margin;
+            const left = Math.min(Math.max(clientX + offsetX, margin), Math.max(margin, maxLeft));
+            const top = Math.min(Math.max(clientY + offsetY, margin), Math.max(margin, maxTop));
+            labelBox.style.left = left + 'px';
+            labelBox.style.top = top + 'px';
+        };
         
-        const onMouseOut = (e) => {
+        const onMouseOut = () => {
             if (step === 'typing') return;
             // Clear any pending RAF
             if (window._aiPickerRaf) cancelAnimationFrame(window._aiPickerRaf);
@@ -185,16 +201,10 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             e.preventDefault();
             e.stopPropagation();
 
-            let target = e.target;
-
-            // SVG/PATH Düzeltmesi
-            if (['svg', 'path', 'rect', 'polygon'].includes(target.tagName.toLowerCase())) {
-                const btn = target.closest('button, [role="button"], a');
-                if (btn) target = btn;
-            }
+            const target = normalizeTarget(e.target);
+            if (!target) return;
 
             const selector = generateRobustSelector(target);
-            const info = getElementInfo(target);
             // Element selected
 
             // Görsel onay
@@ -235,16 +245,31 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             }
         };
 
+        const onKeyDown = (e) => {
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            cleanup();
+            console.info('__AI_PICKER_CANCELLED__');
+        };
+
         document.addEventListener('mouseover', onMouseOver, true);
         document.addEventListener('mousemove', onMouseMove, true);
         document.addEventListener('mouseout', onMouseOut, true);
         document.addEventListener('click', onClick, true);
+        document.addEventListener('keydown', onKeyDown, true);
 
         const cleanup = () => {
             document.removeEventListener('mouseover', onMouseOver, true);
             document.removeEventListener('mousemove', onMouseMove, true);
             document.removeEventListener('mouseout', onMouseOut, true);
             document.removeEventListener('click', onClick, true);
+            document.removeEventListener('keydown', onKeyDown, true);
+            if (window._aiPickerRaf) {
+                cancelAnimationFrame(window._aiPickerRaf);
+                delete window._aiPickerRaf;
+            }
             if (lastHovered) {
                 lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
             }

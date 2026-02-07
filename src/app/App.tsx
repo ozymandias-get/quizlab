@@ -1,10 +1,11 @@
-﻿import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { AnimatePresence, motion, LayoutGroup, Easing } from 'framer-motion'
 import AiWebview from '@src/features/ai/components/AiWebview'
 import BottomBar from '@src/components/layout/BottomBar'
 import FloatingButton from '@ui/FloatingButton'
 import ScreenshotTool from '@ui/ScreenshotTool'
 import UpdateBanner from '@ui/UpdateBanner'
+import AestheticLoader from '@src/components/ui/AestheticLoader'
 import LeftPanel from '@src/components/layout/LeftPanel'
 import AppBackground from '@src/components/layout/AppBackground'
 import ToastContainer from '@ui/Toast/ToastContainer'
@@ -60,11 +61,33 @@ const App: React.FC = () => {
     const [isBarHovered, setIsBarHovered] = useState<boolean>(false)
     const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState<boolean>(true)
     const [isQuizMode, setIsQuizMode] = useState<boolean>(false) // Quiz Mode toggle
+    const [isWebviewMounted, setIsWebviewMounted] = useState<boolean>(false)
 
+    useEffect(() => {
+        let cancelled = false
+        const browserWindow = window as Window & {
+            requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+            cancelIdleCallback?: (handle: number) => void;
+        }
 
+        const mountWebview = () => {
+            if (!cancelled) setIsWebviewMounted(true)
+        }
 
+        if (browserWindow.requestIdleCallback) {
+            const idleId = browserWindow.requestIdleCallback(mountWebview, { timeout: 300 })
+            return () => {
+                cancelled = true
+                browserWindow.cancelIdleCallback?.(idleId)
+            }
+        }
 
-
+        const timeoutId = globalThis.setTimeout(mountWebview, 120)
+        return () => {
+            cancelled = true
+            globalThis.clearTimeout(timeoutId)
+        }
+    }, [])
     const handleTextSelection = useCallback((text: string, position: { top: number; left: number } | null) => {
         setSelectedText(text)
         setSelectionPosition(position)
@@ -210,12 +233,12 @@ const App: React.FC = () => {
                 />
 
                 {/* Main Content Area with AnimatePresence for Quiz transition */}
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="wait" initial={false}>
                     {!isQuizMode ? (
                         /* Normal Mode - Two Panels */
                         <motion.main
                             key="main-panels"
-                            initial="hidden"
+                            initial={false}
                             animate="visible"
                             exit="hidden"
                             variants={containerVariants}
@@ -259,10 +282,14 @@ const App: React.FC = () => {
                                 className="glass-panel flex-1 min-w-[350px] flex flex-col overflow-hidden relative"
                                 style={gpuAcceleratedStyle}
                             >
-                                <AiWebview
-                                    isResizing={isResizing}
-                                    isBarHovered={isBarHovered}
-                                />
+                                {isWebviewMounted ? (
+                                    <AiWebview
+                                        isResizing={isResizing}
+                                        isBarHovered={isBarHovered}
+                                    />
+                                ) : (
+                                    <AestheticLoader />
+                                )}
                             </motion.div>
                         </motion.main>
                     ) : (
@@ -271,7 +298,7 @@ const App: React.FC = () => {
                             key="quiz-panel"
                             className="h-screen w-screen p-5"
                             variants={quizPanelVariants}
-                            initial="initial"
+                            initial={false}
                             animate="animate"
                             exit="exit"
                             style={gpuAcceleratedStyle}

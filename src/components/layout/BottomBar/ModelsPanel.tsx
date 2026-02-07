@@ -22,7 +22,7 @@ export const ModelsPanel = memo(({ isOpen, bottomBarLayout, panelStyle, showOnly
     const aiModels = enabledModels
 
     return (
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && (
                 <motion.div
                     variants={bottomBarLayout === 'vertical' ? panelVariantsVertical : panelVariantsHorizontal}

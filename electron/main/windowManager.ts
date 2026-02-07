@@ -7,6 +7,7 @@ import { APP_CONFIG } from './constants'
 import { ConfigManager } from '../core/ConfigManager'
 
 export const isDev = !app.isPackaged
+const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 
 /**
@@ -32,6 +33,47 @@ interface WindowState {
 
 const windowStateManager = new ConfigManager<WindowState>(windowStateFile)
 
+function toFiniteNumber(value: unknown, fallback: number): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function toOptionalFiniteNumber(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function clampWindowStateToDisplay(windowState: WindowState) {
+    if (windowState.x === undefined || windowState.y === undefined) return
+
+    const display = screen.getDisplayMatching(windowState as Electron.Rectangle)
+    if (!display) {
+        windowState.x = undefined
+        windowState.y = undefined
+        return
+    }
+
+    const { workArea } = display
+
+    // Ensure width/height fits in workArea
+    if (windowState.width > workArea.width) windowState.width = workArea.width
+    if (windowState.height > workArea.height) windowState.height = workArea.height
+
+    // Check X bounds
+    if (windowState.x + windowState.width > workArea.x + workArea.width) {
+        windowState.x = workArea.x + workArea.width - windowState.width
+    }
+    if (windowState.x < workArea.x) {
+        windowState.x = workArea.x
+    }
+
+    // Check Y bounds
+    if (windowState.y + windowState.height > workArea.y + workArea.height) {
+        windowState.y = workArea.y + workArea.height - windowState.height
+    }
+    if (windowState.y < workArea.y) {
+        windowState.y = workArea.y
+    }
+}
+
 function getDefaultWindowState(): WindowState {
     return {
         width: APP_CONFIG.WINDOW.DEFAULT_WIDTH,
@@ -42,7 +84,16 @@ function getDefaultWindowState(): WindowState {
 
 async function loadWindowState(): Promise<WindowState> {
     const stored = await windowStateManager.read()
-    return { ...getDefaultWindowState(), ...stored }
+    const defaults = getDefaultWindowState()
+    const merged = { ...defaults, ...stored }
+
+    return {
+        width: toFiniteNumber(merged.width, defaults.width),
+        height: toFiniteNumber(merged.height, defaults.height),
+        x: toOptionalFiniteNumber(merged.x),
+        y: toOptionalFiniteNumber(merged.y),
+        isMaximized: typeof merged.isMaximized === 'boolean' ? merged.isMaximized : defaults.isMaximized
+    }
 }
 
 async function saveWindowState(window: BrowserWindow | null) {
@@ -76,38 +127,9 @@ export function getMainWindow() {
 
 export async function createWindow() {
     const windowState = await loadWindowState()
-
-    // Monitor positioning
-    if (windowState.x !== undefined && windowState.y !== undefined) {
-        const display = screen.getDisplayMatching(windowState as Electron.Rectangle)
-
-        if (display) {
-            const { workArea } = display
-
-            // Ensure width/height fits in workArea
-            if (windowState.width > workArea.width) windowState.width = workArea.width
-            if (windowState.height > workArea.height) windowState.height = workArea.height
-
-            // Check X bounds
-            if (windowState.x + windowState.width > workArea.x + workArea.width) {
-                windowState.x = workArea.x + workArea.width - windowState.width
-            }
-            if (windowState.x < workArea.x) {
-                windowState.x = workArea.x
-            }
-
-            // Check Y bounds
-            if (windowState.y + windowState.height > workArea.y + workArea.height) {
-                windowState.y = workArea.y + workArea.height - windowState.height
-            }
-            if (windowState.y < workArea.y) {
-                windowState.y = workArea.y
-            }
-        } else {
-            windowState.x = undefined
-            windowState.y = undefined
-        }
-    }
+    windowState.width = Math.max(APP_CONFIG.WINDOW.MIN_WIDTH, windowState.width)
+    windowState.height = Math.max(APP_CONFIG.WINDOW.MIN_HEIGHT, windowState.height)
+    clampWindowStateToDisplay(windowState)
 
     const iconPath = getAppPath(isDev ? '../../resources' : 'resources', `icon.${process.platform === 'win32' ? 'ico' : 'png'}`)
 
@@ -133,16 +155,15 @@ export async function createWindow() {
         }
     })
 
-    if (!isDev) {
-        mainWindow.setMenu(null)
-    } else {
+    if (isDev) {
         mainWindow.loadURL('http://localhost:5173')
-        mainWindow.webContents.openDevTools()
-    }
-
-    if (!isDev) {
+        if (shouldOpenDevToolsOnStart) {
+            mainWindow.webContents.openDevTools({ mode: 'detach' })
+        }
+    } else {
+        mainWindow.setMenu(null)
         const indexPath = path.join(app.getAppPath(), 'dist', 'index.html')
-        mainWindow.loadFile(indexPath).catch(err => {
+        mainWindow.loadFile(indexPath).catch(() => {
             dialog.showErrorBox('Load Error', `Index not found: ${indexPath}`)
         })
     }
@@ -180,7 +201,7 @@ function setupSessions() {
             callback({ requestHeaders: details.requestHeaders })
         })
 
-        aiSession.setPermissionRequestHandler((webContents, permission, callback) => {
+        aiSession.setPermissionRequestHandler((_webContents, permission, callback) => {
             const allowed = ['notifications', 'media', 'geolocation']
             callback(allowed.includes(permission))
         })
