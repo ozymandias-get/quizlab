@@ -1,4 +1,4 @@
-﻿import { useRef, useState, memo, CSSProperties } from 'react'
+﻿import { useRef, useState, memo, CSSProperties, useEffect } from 'react'
 import { useAi } from '@src/app/providers/AiContext'
 import { useAppTools } from '@src/app/providers/AppToolContext'
 import { useLanguage } from '@src/app/providers/LanguageContext'
@@ -31,6 +31,9 @@ interface PdfViewerProps {
     onSelectPdf: () => void;
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
     t?: (key: string) => string;
+    initialPage?: number;
+    onResumePdf?: () => void;
+    lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
 }
 
 /**
@@ -39,7 +42,7 @@ interface PdfViewerProps {
  * Virtualization is enabled by default in react-pdf-viewer, but 
  * optimized here with Worker and stable plugin references.
  */
-function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT }: PdfViewerProps) {
+function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, lastReadingInfo }: PdfViewerProps) {
     const { autoSend, toggleAutoSend, sendImageToAI } = useAi()
     const { startScreenshot } = useAppTools()
     const { t: contextT } = useLanguage()
@@ -88,9 +91,20 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT }: PdfViewe
 
     usePdfContextMenu(containerRef, t)
 
+    // initialPage belirtilmişse, doküman yüklendiginde o sayfaya atla
+    const initialPageApplied = useRef(false)
+    useEffect(() => {
+        if (initialPage && initialPage > 1 && totalPages > 0 && !initialPageApplied.current) {
+            // 0-indexed
+            const targetPage = Math.min(initialPage - 1, totalPages - 1)
+            jumpToPageRef.current(targetPage)
+            initialPageApplied.current = true
+        }
+    }, [initialPage, totalPages, jumpToPageRef])
+
     // === RENDER ===
     if (!pdfUrl) {
-        return <PdfPlaceholder onSelectPdf={onSelectPdf} />
+        return <PdfPlaceholder onSelectPdf={onSelectPdf} onResumePdf={onResumePdf} lastReadingInfo={lastReadingInfo} />
     }
 
     return (

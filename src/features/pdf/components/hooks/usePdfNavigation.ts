@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { RefObject, MutableRefObject } from 'react'
+import { STORAGE_KEYS } from '@src/constants/storageKeys'
 
 /**
  * PDF sayfa navigasyonunu ve mouse wheel (kaydırma) event'lerini yöneten custom hook.
@@ -96,12 +97,33 @@ export function usePdfNavigation({ containerRef, jumpToPageRef }: UsePdfNavigati
 
     // Sayfa değişikliğini izle (Viewer'dan gelen event)
     const handlePageChange = useCallback((e: PageChangeEvent) => {
-        setCurrentPage(e.currentPage + 1)
+        const newPage = e.currentPage + 1
+        setCurrentPage(newPage)
+
+        // Son okunan sayfayı localStorage'a kaydet
+        try {
+            const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
+            if (stored) {
+                const data = JSON.parse(stored)
+                data.page = newPage
+                localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(data))
+            }
+        } catch { /* ignore */ }
     }, [])
 
-    // PDF yüklendiğinde toplam sayfa sayısını al
+    // PDF yüklendiğinde toplam sayfa sayısını al ve localStorage'a kaydet
     const handleDocumentLoad = useCallback((e: DocumentLoadEvent) => {
         setTotalPages(e.doc.numPages)
+
+        // totalPages bilgisini localStorage'a kaydet
+        try {
+            const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
+            if (stored) {
+                const data = JSON.parse(stored)
+                data.totalPages = e.doc.numPages
+                localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(data))
+            }
+        } catch { /* ignore */ }
     }, [])
 
     // Butonlar için manuel navigasyon fonksiyonları

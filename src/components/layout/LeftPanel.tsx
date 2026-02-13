@@ -16,6 +16,9 @@ interface LeftPanelProps {
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
     width: number;
     t: (key: string) => string;
+    onResumePdf?: () => void;
+    lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
+    initialPage?: number;
 }
 
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
@@ -41,7 +44,10 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     onPdfDrop,
     pdfFile,
     onSelectPdf,
-    onTextSelection
+    onTextSelection,
+    onResumePdf,
+    lastReadingInfo,
+    initialPage
 }) => {
     const { t } = useLanguage()
 
@@ -80,6 +86,9 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                                         onSelectPdf={onSelectPdf}
                                         onTextSelection={onTextSelection}
                                         t={t}
+                                        initialPage={initialPage}
+                                        onResumePdf={onResumePdf}
+                                        lastReadingInfo={lastReadingInfo}
                                     />
                                 </ErrorBoundary>
                             </div>

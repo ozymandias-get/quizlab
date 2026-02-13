@@ -1,6 +1,7 @@
 ﻿import { useState, useCallback, useRef } from 'react'
 import { useToast, useLanguage } from '@src/app/providers'
 import type { PdfFile } from '@shared/types'
+import { STORAGE_KEYS } from '@src/constants/storageKeys'
 
 export const usePdfSelection = () => {
     const { showError, showSuccess } = useToast()
@@ -28,6 +29,14 @@ export const usePdfSelection = () => {
             // Only update if this is still the latest request
             if (currentRequestId === lastLoadRequestId.current && result) {
                 setPdfFile(result)
+                // Son okunan PDF bilgisini kaydet
+                try {
+                    localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify({
+                        name: result.name,
+                        path: result.path,
+                        page: 1
+                    }))
+                } catch { /* ignore */ }
             }
         } catch (error) {
             if (currentRequestId === lastLoadRequestId.current) {
@@ -59,6 +68,14 @@ export const usePdfSelection = () => {
             if (result) {
                 setPdfFile(result)
                 showSuccess('toast_opened', undefined, { fileName: result.name })
+                // Son okunan PDF bilgisini kaydet
+                try {
+                    localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify({
+                        name: result.name,
+                        path: result.path || filePath,
+                        page: 1
+                    }))
+                } catch { /* ignore */ }
             }
         } catch (error) {
             console.error('[usePdfSelection] Drop Error:', error)
@@ -66,11 +83,63 @@ export const usePdfSelection = () => {
         }
     }, [showError, showSuccess])
 
+    /**
+     * Resume last PDF reading session
+     * Reads saved info from localStorage and re-opens the PDF at the saved page
+     */
+    const resumeLastPdf = useCallback(async () => {
+        const api = window.electronAPI
+        if (!api?.registerPdfPath) {
+            showError('toast_api_unavailable')
+            return
+        }
+
+        try {
+            const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
+            if (!stored) return
+
+            const data = JSON.parse(stored)
+            if (!data.path) return
+
+            const result = await api.registerPdfPath(data.path)
+            if (result) {
+                setPdfFile(result)
+                // Update stored info with fresh streamUrl
+                localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify({
+                    ...data,
+                    page: data.page || 1
+                }))
+            }
+        } catch (error) {
+            console.error('[usePdfSelection] Resume Error:', error)
+            // PDF artık mevcut değilse kayıtlı bilgiyi sil
+            localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
+            showError('error_pdf_load')
+        }
+    }, [showError])
+
+    /**
+     * Get last reading info from localStorage (for display purposes)
+     */
+    const getLastReadingInfo = useCallback((): { name: string; page: number; totalPages: number; path: string } | null => {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
+            if (!stored) return null
+            const data = JSON.parse(stored)
+            if (!data.path || !data.name) return null
+            return { name: data.name, page: data.page || 1, totalPages: data.totalPages || 0, path: data.path }
+        } catch {
+            return null
+        }
+    }, [])
+
     return {
         pdfFile,
         setPdfFile,
         handleSelectPdf,
-        handlePdfDrop
+        handlePdfDrop,
+        resumeLastPdf,
+        getLastReadingInfo
     }
 }
 

@@ -3,12 +3,15 @@ import { useLanguage } from '@src/app/providers/LanguageContext'
 
 interface PdfPlaceholderProps {
     onSelectPdf: () => void;
+    onResumePdf?: () => void;
+    lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
 }
 
 /**
  * PDF yüklü olmadığında gösterilen placeholder bileşeni
+ * Eğer daha önce bir PDF okunmuşsa "Kaldığın Yerden Devam Et" butonu gösterir
  */
-function PdfPlaceholder({ onSelectPdf }: PdfPlaceholderProps) {
+function PdfPlaceholder({ onSelectPdf, onResumePdf, lastReadingInfo }: PdfPlaceholderProps) {
     const { t } = useLanguage()
 
     return (
@@ -44,9 +47,49 @@ function PdfPlaceholder({ onSelectPdf }: PdfPlaceholderProps) {
                 </svg>
                 <span>{t('select_pdf')}</span>
             </button>
+
+            {/* Kaldığın Yerden Devam Et Butonu */}
+            {lastReadingInfo && onResumePdf && (
+                <button
+                    className="group flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm text-stone-300 text-sm transition-all duration-300 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-400 hover:shadow-lg hover:shadow-amber-500/5 hover:-translate-y-0.5"
+                    onClick={onResumePdf}
+                    title={`${lastReadingInfo.name} — ${t('page')} ${lastReadingInfo.page}${lastReadingInfo.totalPages ? ` / ${lastReadingInfo.totalPages}` : ''}`}
+                >
+                    {/* Bookmark / Play icon */}
+                    <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="text-amber-500/70 group-hover:text-amber-400 transition-colors flex-shrink-0"
+                    >
+                        <path
+                            d="M5 5C5 3.89543 5.89543 3 7 3H17C18.1046 3 19 3.89543 19 5V21L12 17.5L5 21V5Z"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                        <path
+                            d="M10 10L14 12.5L10 15V10Z"
+                            fill="currentColor"
+                            stroke="currentColor"
+                            strokeWidth="0.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                    <div className="flex flex-col items-start gap-0.5 min-w-0">
+                        <span className="font-medium text-xs">{t('resume_reading')}</span>
+                        <span className="text-[11px] text-stone-500 group-hover:text-amber-500/60 transition-colors truncate max-w-[260px]">
+                            {lastReadingInfo.name} — {t('page')} {lastReadingInfo.page}{lastReadingInfo.totalPages ? ` / ${lastReadingInfo.totalPages}` : ''}
+                        </span>
+                    </div>
+                </button>
+            )}
         </div>
     )
 }
 
 export default memo(PdfPlaceholder)
-

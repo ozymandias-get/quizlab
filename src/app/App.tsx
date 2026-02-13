@@ -53,7 +53,11 @@ const App: React.FC = () => {
     })
 
     // PDF Selection Hook
-    const { pdfFile, handleSelectPdf, handlePdfDrop } = usePdfSelection()
+    const { pdfFile, handleSelectPdf, handlePdfDrop, resumeLastPdf, getLastReadingInfo } = usePdfSelection()
+
+    // Last reading info for resume button
+    const lastReadingInfo = getLastReadingInfo()
+    const [initialPage, setInitialPage] = React.useState<number | undefined>(undefined)
 
     // Local State
     const [selectedText, setSelectedText] = useState<string>('')
@@ -271,6 +275,14 @@ const App: React.FC = () => {
                                     pdfFile={pdfFile}
                                     onSelectPdf={handleSelectPdf}
                                     onTextSelection={handleTextSelection}
+                                    onResumePdf={async () => {
+                                        if (lastReadingInfo) {
+                                            setInitialPage(lastReadingInfo.page)
+                                            await resumeLastPdf()
+                                        }
+                                    }}
+                                    lastReadingInfo={lastReadingInfo}
+                                    initialPage={initialPage}
                                 />
                             </motion.div>
 

@@ -79,7 +79,11 @@ export const STORAGE_KEYS = {
     CUSTOM_PROMPTS: 'customPrompts',
 
     /** Seçili Prompt ID (string | null) */
-    SELECTED_PROMPT_ID: 'selectedPromptId'
+    SELECTED_PROMPT_ID: 'selectedPromptId',
+
+    // Son Okuma Durumu
+    /** Son okunan PDF dosya bilgisi ve sayfa numarası (JSON: {name, path, page, streamUrl}) */
+    LAST_PDF_READING: 'lastPdfReading'
 } as const
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS]
