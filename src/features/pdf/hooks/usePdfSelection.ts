@@ -1,14 +1,10 @@
 ﻿import { useState, useCallback, useRef } from 'react'
-import { useToast, useLanguage, useNavigation } from '@src/app/providers'
-import { APP_CONSTANTS } from '@src/constants/appConstants'
+import { useToast, useLanguage } from '@src/app/providers'
 import type { PdfFile } from '@shared/types'
-
-const { LEFT_PANEL_TABS } = APP_CONSTANTS
 
 export const usePdfSelection = () => {
     const { showError, showSuccess } = useToast()
     const { t } = useLanguage()
-    const { setLeftPanelTab } = useNavigation()
 
     const [pdfFile, setPdfFile] = useState<PdfFile | null>(null)
 
@@ -32,7 +28,6 @@ export const usePdfSelection = () => {
             // Only update if this is still the latest request
             if (currentRequestId === lastLoadRequestId.current && result) {
                 setPdfFile(result)
-                setLeftPanelTab(LEFT_PANEL_TABS.VIEWER)
             }
         } catch (error) {
             if (currentRequestId === lastLoadRequestId.current) {
@@ -41,54 +36,41 @@ export const usePdfSelection = () => {
                 showError('toast_pdf_load_error', undefined, { error: message })
             }
         }
-    }, [showError, t, setLeftPanelTab])
+    }, [showError, t])
 
     /**
-     * File selection from the Explorer sidebar
+     * Handle PDF file drop
      */
-    const handleFileSelect = useCallback(async (file: PdfFile) => {
-        if (file.type !== 'file') return
-
-        const currentRequestId = ++lastLoadRequestId.current
+    const handlePdfDrop = useCallback(async (file: File) => {
         const api = window.electronAPI
+        if (!api?.registerPdfPath) return
 
-        // 1. Refresh stream URL if possible (session safety)
-        if (file.path && api?.getPdfStreamUrl) {
-            try {
-                const result = await api.getPdfStreamUrl(file.path)
-
-                // Check race condition before updating
-                if (currentRequestId !== lastLoadRequestId.current) return
-
-                if (result?.streamUrl) {
-                    setPdfFile({ ...file, streamUrl: result.streamUrl })
-                    setLeftPanelTab(LEFT_PANEL_TABS.VIEWER)
-                    showSuccess('toast_opened', undefined, { fileName: file.name || 'document.pdf' })
-                    return
-                }
-            } catch (error) {
-                console.error('[usePdfSelection] PDF Refresh Error:', error)
-            }
+        // Check if it's a PDF
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            showError('error_invalid_pdf')
+            return
         }
 
-        // Check race condition again before fallback
-        if (currentRequestId !== lastLoadRequestId.current) return
+        const filePath = (file as any).path
+        if (!filePath) return
 
-        // 2. Fallback: Use existing streamUrl
-        if (file.streamUrl) {
-            setPdfFile(file)
-            setLeftPanelTab(LEFT_PANEL_TABS.VIEWER)
-            showSuccess('toast_opened', undefined, { fileName: file.name || 'document.pdf' })
-        } else {
+        try {
+            const result = await api.registerPdfPath(filePath)
+            if (result) {
+                setPdfFile(result)
+                showSuccess('toast_opened', undefined, { fileName: result.name })
+            }
+        } catch (error) {
+            console.error('[usePdfSelection] Drop Error:', error)
             showError('error_pdf_load')
         }
-    }, [showSuccess, showError, setLeftPanelTab])
+    }, [showError, showSuccess])
 
     return {
         pdfFile,
         setPdfFile,
         handleSelectPdf,
-        handleFileSelect
+        handlePdfDrop
     }
 }
 

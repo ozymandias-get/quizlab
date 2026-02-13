@@ -94,20 +94,7 @@ declare global {
             addCustomAi: (data: CustomAiInput) => Promise<CustomAiResult>;
             deleteCustomAi: (id: string) => Promise<boolean>;
 
-            // Library Management (New v1.0)
-            library: {
-                getFileSystem: () => Promise<Array<any>>; // Define strict type if possible, usually TreeNode[]
-                createFolder: (name: string, parentId: string | null) => Promise<any>;
-                deleteItem: (id: string) => Promise<boolean>;
-                importFile: (sourcePath: string, folderId?: string | null) => Promise<{ success: boolean; file?: any; error?: string }>;
-                moveItem: (id: string, newParentId: string | null) => Promise<boolean>;
-                search: (query: string) => Promise<any[]>;
 
-                // Notes
-                getNotes: (fileId: string) => Promise<any[]>;
-                saveNote: (params: any) => Promise<any>;
-                deleteNote: (id: string) => Promise<boolean>;
-            };
 
             // Quiz Generation API
             quiz: {

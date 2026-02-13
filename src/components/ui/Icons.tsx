@@ -20,11 +20,7 @@ export const SettingsIcon = ({ className = "w-5 h-5", strokeWidth = 2 }) => (
     </svg>
 );
 
-export const ExplorerIcon = ({ className = "w-4 h-4" }) => (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-        <path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z" />
-    </svg>
-);
+
 
 export const ViewerIcon = ({ className = "w-4 h-4" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

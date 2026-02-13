@@ -14,7 +14,7 @@ import { QuizModule } from '@src/features/quiz/components'
 
 
 // Context & Constants
-import { useAi, useAppTools, useUpdate, useAppearance, useNavigation, useLanguage } from './providers'
+import { useAi, useAppTools, useUpdate, useAppearance, useLanguage } from './providers'
 
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
 
@@ -35,7 +35,7 @@ const App: React.FC = () => {
     const { isScreenshotMode, handleCapture, closeScreenshot } = useAppTools()
     const { updateAvailable, updateInfo } = useUpdate()
     const { isLayoutSwapped, isTourActive, setIsTourActive } = useAppearance()
-    const { leftPanelTab, setLeftPanelTab } = useNavigation()
+
 
     // Panel resize hook
     const {
@@ -53,7 +53,7 @@ const App: React.FC = () => {
     })
 
     // PDF Selection Hook
-    const { pdfFile, handleSelectPdf, handleFileSelect } = usePdfSelection()
+    const { pdfFile, handleSelectPdf, handlePdfDrop } = usePdfSelection()
 
     // Local State
     const [selectedText, setSelectedText] = useState<string>('')
@@ -218,7 +218,16 @@ const App: React.FC = () => {
 
     return (
         <LayoutGroup>
-            <div className="h-screen w-screen overflow-hidden relative animate-app-enter">
+            <div
+                className="h-screen w-screen overflow-hidden relative animate-app-enter"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                    e.preventDefault()
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        handlePdfDrop(e.dataTransfer.files[0])
+                    }
+                }}
+            >
                 <AppBackground />
 
                 {/* Global Toast Notifications */}
@@ -257,10 +266,8 @@ const App: React.FC = () => {
                             >
                                 <LeftPanel
                                     width={100}
-                                    activeTab={leftPanelTab}
-                                    onTabChange={setLeftPanelTab}
                                     t={t}
-                                    onFileSelect={handleFileSelect}
+                                    onPdfDrop={handlePdfDrop}
                                     pdfFile={pdfFile}
                                     onSelectPdf={handleSelectPdf}
                                     onTextSelection={handleTextSelection}

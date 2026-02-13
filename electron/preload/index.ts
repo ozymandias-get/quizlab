@@ -76,19 +76,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteCustomAi: (id: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id),
 
     // Library Management (New v1.0)
-    library: {
-        getFileSystem: () => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_FILE_SYSTEM),
-        createFolder: (name: string, parentId: string | null) => ipcRenderer.invoke(IPC_CHANNELS.DB_CREATE_FOLDER, name, parentId),
-        deleteItem: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_DELETE_ITEM, id),
-        importFile: (sourcePath: string, folderId: string | null = null) => ipcRenderer.invoke(IPC_CHANNELS.FILE_IMPORT, sourcePath, folderId),
-        moveItem: (id: string, newParentId: string | null) => ipcRenderer.invoke(IPC_CHANNELS.DB_MOVE_ITEM, id, newParentId),
-        search: (query: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_SEARCH_LIBRARY, query),
 
-        // Notes
-        getNotes: (fileId: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_NOTES, fileId),
-        saveNote: (params: unknown) => ipcRenderer.invoke(IPC_CHANNELS.DB_SAVE_NOTE, params),
-        deleteNote: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_DELETE_NOTE, id)
-    },
 
     // Quiz Generation API
     quiz: {

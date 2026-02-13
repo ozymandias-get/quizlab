@@ -126,7 +126,7 @@ function QuizGenerating({ message, t }: QuizGeneratingProps) {
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 mb-2">
                         <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
                         <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
-                            {t?.('quiz_gen_title') || 'AI Üretiyor'}
+                            {t('quiz_gen_title')}
                         </span>
                     </div>
 
@@ -140,14 +140,14 @@ function QuizGenerating({ message, t }: QuizGeneratingProps) {
                                 exit={{ y: -20, opacity: 0 }}
                                 className="text-xl font-bold text-white absolute inset-0 flex items-center justify-center"
                             >
-                                {t ? t(LOADING_STEPS[currentStep].text) : LOADING_STEPS[currentStep].text}
+                                {t(LOADING_STEPS[currentStep].text)}
                             </motion.h3>
                         </AnimatePresence>
                     </div>
 
                     {/* Subtitle / Message */}
                     <p className="text-sm text-white/40 max-w-xs mx-auto leading-relaxed">
-                        {message || t?.('quiz_gen_desc') || 'Your quiz is being prepared, please wait.'}
+                        {message || t('quiz_gen_desc')}
                     </p>
 
                     {/* Progress Bar */}

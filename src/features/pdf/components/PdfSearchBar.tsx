@@ -120,7 +120,7 @@ function PdfSearchBar({
                                 {t('reading_now') === 'reading_now' ? 'READING' : t('reading_now')}
                             </span>
                             <span className="text-xs font-medium text-white/70 truncate leading-tight group-hover:text-white/90 transition-colors duration-300 block w-full">
-                                {fileName || 'PDF Document'}
+                                {fileName || t('pdf_document')}
                             </span>
                         </div>
 

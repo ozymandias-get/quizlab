@@ -8,7 +8,7 @@
 [![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 
-**Masaüstü Çalışma Kokpiti**  
+**En Kapsamlı Masaüstü Çalışma Kokpiti**  
 *PDF Okuyun, Yapay Zeka ile Sohbet Edin ve Tek Bir Akışta Quizler Oluşturun.*
 
 [Özellikler](#-ana-özellikler) • [Kurulum](#-hızlı-başlangıç) • [Yapı](#-proje-yapısı) • [Teknoloji](#-teknoloji-yığını)
@@ -28,7 +28,7 @@ Sekmeler arasında kaybolmaya son. Ders kitabınızdaki metni seçin, anında ya
 
 ## ✨ Ana Özellikler
 
-### 📚 AI + PDF Bölünmüş Çalışma Alanı
+### 📚 Yapay Zeka + PDF Bölünmüş Çalışma Alanı
 
 Solda okuyun, sağda anlayın. Hızlı bağlam aktarımı ile seçtiğiniz metni anında yapay zekaya gönderebilirsiniz.
 
@@ -48,9 +48,6 @@ Pasif okumayı aktif öğrenmeye dönüştürün.
 
 *Herhangi* bir web tabanlı yapay zekayı (ChatGPT, Claude, Gemini vb.) API anahtarı olmadan entegre edin. Uygulamaya giriş kutusunu bir kez öğretin, sonrasında içeriği otomatik yapıştırmaya hazırsınız.
 
-### 📂 Yerel Kütüphane & Notlar
-
-Verileriniz size aittir. Dosyaları düzenleyin, klasörleri yönetin ve zengin metin notlarınızı özel veritabanı yönetimi ile yerel olarak saklayın.
 
 ---
 
@@ -64,7 +61,6 @@ Performans odaklı, modern bir mimari ile geliştirildi:
 | **Dil** | ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript) |
 | **Stil** | ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-06B6D4?style=flat-square&logo=tailwindcss) |
 | **Derleme** | ![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite) ![Electron Builder](https://img.shields.io/badge/Electron_Builder-gray?style=flat-square) |
-| **Veri** | ![SQLite](https://img.shields.io/badge/SQLite-Better--SQLite3-003B57?style=flat-square&logo=sqlite) |
 | **PDF** | React PDF Viewer + PDF.js |
 
 ---
@@ -115,14 +111,13 @@ QuizLab, ölçeklenebilir **Özellik Tabanlı (Feature-Based) Mimari** izler. Ko
 quizlab/
 ├── electron/                 # Ana Süreç (Backend)
 │   ├── core/
-│   │   ├── database/         # SQLite şeması & migrasyonları
 │   │   ├── ConfigManager.ts
-│   │   ├── DatabaseManager.ts
+│   │   ├── helpers.ts
+│   │   ├── systemHandlers.ts
 │   │   └── updater.ts
 │   ├── features/             # Özelliğe özgü Main işleyicileri
 │   │   ├── ai/
 │   │   ├── automation/
-│   │   ├── library/
 │   │   ├── pdf/
 │   │   ├── quiz/
 │   │   └── screenshot/
@@ -144,7 +139,6 @@ quizlab/
 │   ├── features/             # Özelliğe özgü UI uygulamaları
 │   │   ├── ai/
 │   │   ├── automation/
-│   │   ├── library/
 │   │   ├── pdf/
 │   │   ├── quiz/
 │   │   ├── screenshot/
@@ -159,7 +153,7 @@ quizlab/
 └── vite.config.mts
 ```
 
-### Path Aliasları
+### Dosya Yolu Kısaltmaları
 
 - `@src/*` ➡️ `src/*`
 - `@electron/*` ➡️ `electron/*`
@@ -173,7 +167,7 @@ quizlab/
 
 - **Yerel-Öncelikli:** Zorunlu bulut backend yok. Dosyalarınız cihazınızda kalır.
 - **Açık Kaynak:** Tamamen denetlenebilir kod tabanı.
-- **Doğrudan Kimlik Doğrulama:** AI etkileşimleri doğrudan kendi sağlayıcı oturumlarınız üzerinden gerçekleşir.
+- **Doğrudan Kimlik Doğrulama:** Yapay zeka etkileşimleri doğrudan kendi sağlayıcı oturumlarınız üzerinden gerçekleşir.
 
 ## 📄 Lisans
 

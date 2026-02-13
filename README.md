@@ -48,9 +48,6 @@ Transform passive reading into active recall.
 
 Integrate *any* web-based AI (ChatGPT, Claude, Gemini, etc.) without API keys. Train the app once to recognize the input box, and you're ready to auto-paste content.
 
-### 📂 Local Library & Notes
-
-Your data belongs to you. Organize files, manage folders, and keep rich-text notes stored locally with specific database management.
 
 ---
 
@@ -64,7 +61,6 @@ Built with a performance-first, modern architecture:
 | **Language** | ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript) |
 | **Styling** | ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-06B6D4?style=flat-square&logo=tailwindcss) |
 | **Build** | ![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite) ![Electron Builder](https://img.shields.io/badge/Electron_Builder-gray?style=flat-square) |
-| **Data** | ![SQLite](https://img.shields.io/badge/SQLite-Better--SQLite3-003B57?style=flat-square&logo=sqlite) |
 | **PDF** | React PDF Viewer + PDF.js |
 
 ---
@@ -115,14 +111,13 @@ QuizLab follows a scalable **Feature-Based Architecture**. Code is organized by 
 quizlab/
 ├── electron/                 # Main Process (Backend)
 │   ├── core/
-│   │   ├── database/         # SQLite schema & migrations
 │   │   ├── ConfigManager.ts
-│   │   ├── DatabaseManager.ts
+│   │   ├── helpers.ts
+│   │   ├── systemHandlers.ts
 │   │   └── updater.ts
 │   ├── features/             # Feature-specific Main handlers
 │   │   ├── ai/
 │   │   ├── automation/
-│   │   ├── library/
 │   │   ├── pdf/
 │   │   ├── quiz/
 │   │   └── screenshot/
@@ -144,7 +139,6 @@ quizlab/
 │   ├── features/             # Feature-specific UI implementations
 │   │   ├── ai/
 │   │   ├── automation/
-│   │   ├── library/
 │   │   ├── pdf/
 │   │   ├── quiz/
 │   │   ├── screenshot/

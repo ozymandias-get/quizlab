@@ -18,8 +18,7 @@ export const STORAGE_KEYS = {
     /** Sol panelin genişlik yüzdesi (number) */
     LEFT_PANEL_WIDTH: 'leftPanelWidth',
 
-    /** Aktif panel sekmesi (string: 'explorer' | 'viewer') */
-    LEFT_PANEL_TAB: 'leftPanelTab',
+
 
     // AI Ayarları
     /** Son seçilen AI platformu (string: 'chatgpt' vb.) */

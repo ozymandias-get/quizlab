@@ -10,10 +10,7 @@ export const APP_CONSTANTS = {
     UPDATE_CHECK_INTERVAL: 1000 * 60 * 60 * 24, // 24 hours
 
     // UI Constants
-    LEFT_PANEL_TABS: {
-        EXPLORER: 'explorer',
-        VIEWER: 'viewer'
-    },
+    // LEFT_PANEL_TABS removed
 
     // IPC Channels (Sync with main process constants.js)
     IPC_CHANNELS: {

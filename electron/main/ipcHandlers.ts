@@ -4,7 +4,6 @@ import { registerPdfHandlers } from '../features/pdf/pdfHandlers'
 import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers'
-import { registerLibraryHandlers } from '../features/library/libraryHandlers'
 import { registerQuizHandlers } from '../features/quiz/quizCliHandler'
 
 export function registerGeneralHandlers() {
@@ -14,7 +13,6 @@ export function registerGeneralHandlers() {
     registerAiConfigHandlers()
     registerAiRegistryHandlers()
     registerAutomationHandlers()
-    registerLibraryHandlers()
 }
 
 export { registerQuizHandlers }

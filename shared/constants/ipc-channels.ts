@@ -31,22 +31,5 @@ export const IPC_CHANNELS = {
     GET_GEMINI_CLI_PATH: 'get-gemini-cli-path',
     OPEN_GEMINI_LOGIN: 'open-gemini-login',
     CHECK_GEMINI_AUTH: 'check-gemini-auth',
-    GEMINI_LOGOUT: 'gemini-logout',
-
-    // Library Management
-    DB_GET_FILE_SYSTEM: 'db:get-file-system',
-    DB_CREATE_FOLDER: 'db:create-folder',
-    DB_DELETE_ITEM: 'db:delete-item',
-    DB_MOVE_ITEM: 'db:move-item',
-    DB_SEARCH_LIBRARY: 'db:search-library',
-    FILE_IMPORT: 'file:import',
-
-    // Note Management
-    DB_GET_NOTES: 'db:get-notes',
-    DB_SAVE_NOTE: 'db:save-note',
-    DB_DELETE_NOTE: 'db:delete-note',
-
-    // Keep these if needed for internal or granular use, or map them
-    LIBRARY_ADD_FILE: 'library-add-file', // Still needed for transient add?
-    LIBRARY_GET_FOLDER_PATH: 'library-get-folder-path'
+    GEMINI_LOGOUT: 'gemini-logout'
 }

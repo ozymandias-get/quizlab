@@ -29,7 +29,7 @@ const RandomBlob = memo(React.forwardRef<HTMLDivElement, RandomBlobProps>(({ col
 
     useEffect(() => {
         let isMounted = true
-        let timeoutId: NodeJS.Timeout | null = null
+        let timeoutId: ReturnType<typeof setTimeout> | null = null
 
         const updateTarget = () => {
             if (!isMounted) return
@@ -54,6 +54,7 @@ const RandomBlob = memo(React.forwardRef<HTMLDivElement, RandomBlobProps>(({ col
             }
 
             // Set next random target more frequently
+            // Use window.setTimeout to avoid NodeJS.Timeout type issues in browser environment if types are mixed
             timeoutId = setTimeout(updateTarget, 10000 + Math.random() * 10000)
         }
 

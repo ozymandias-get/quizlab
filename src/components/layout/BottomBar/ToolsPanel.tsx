@@ -1,13 +1,10 @@
 ﻿import React, { memo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { SettingsIcon, ExplorerIcon, MagicWandIcon, SwapIcon } from '@src/components/ui/Icons'
+import { SettingsIcon, MagicWandIcon, SwapIcon } from '@src/components/ui/Icons'
 import { Brain } from 'lucide-react'
-import { useLanguage, useNavigation, useAppTools } from '@src/app/providers'
-import { APP_CONSTANTS } from '@src/constants/appConstants'
+import { useLanguage, useAppTools } from '@src/app/providers'
 import { ToolButton } from './ToolButton'
 import { panelVariantsHorizontal, panelVariantsVertical, panelTransition } from './animations'
-
-const { LEFT_PANEL_TABS } = APP_CONSTANTS
 
 interface ToolsPanelProps {
     isOpen: boolean;
@@ -29,7 +26,7 @@ export const ToolsPanel = memo(({
     onToggleQuizMode
 }: ToolsPanelProps) => {
     const { t } = useLanguage()
-    const { leftPanelTab, setLeftPanelTab } = useNavigation()
+
     const { isPickerActive, togglePicker } = useAppTools()
 
     return (
@@ -77,15 +74,6 @@ export const ToolsPanel = memo(({
                                 <MagicWandIcon className="w-5 h-5" />
                             </ToolButton>
                         </div>
-                        <ToolButton
-                            delay={0.09}
-                            isActive={leftPanelTab === LEFT_PANEL_TABS.EXPLORER}
-                            activeColor="rgba(245,158,11,0.4)"
-                            onClick={() => setLeftPanelTab(leftPanelTab === LEFT_PANEL_TABS.EXPLORER ? LEFT_PANEL_TABS.VIEWER : LEFT_PANEL_TABS.EXPLORER)}
-                            title={t('explorer')}
-                        >
-                            <ExplorerIcon className="w-5 h-5" />
-                        </ToolButton>
 
                         {/* Quiz Mode Button */}
                         <div id="tool-btn-quiz">
