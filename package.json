@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "QuizLab-inspired split screen Electron app with PDF viewer and AI assistant",
   "main": "dist/electron/electron/main/index.js",
   "repository": {
@@ -99,8 +99,7 @@
       "releaseType": "release"
     },
     "npmRebuild": false,
-    "nodeGypRebuild": false,
-    "buildDependenciesFromSource": false
+    "nodeGypRebuild": false
   },
   "keywords": [
     "electron",
@@ -119,7 +118,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.2",
-    "electron": "^40.0.0",
+    "electron": "^33.0.0",
     "electron-builder": "^24.13.3",
     "electron-devtools-installer": "^4.0.0",
     "postcss": "^8.4.32",
