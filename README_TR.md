@@ -4,7 +4,7 @@
 <div align="center">
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg?style=flat-square)](README.md)
-[![Sürüm](https://img.shields.io/badge/sürüm-1.1.3-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Sürüm](https://img.shields.io/badge/sürüm-1.1.4-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 

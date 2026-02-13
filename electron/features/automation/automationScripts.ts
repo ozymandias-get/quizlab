@@ -51,21 +51,28 @@ const COMMON_HELPERS = `
         if (!el) return false;
         const style = window.getComputedStyle(el);
         const isVisible = el.offsetWidth > 0 && el.offsetHeight > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-        if (el.disabled || el.getAttribute('aria-disabled') === 'true') return false;
+        
+        // Disabled Check
+        if (el.disabled) return false;
+        if (el.getAttribute('disabled') !== null) return false;
+        if (el.getAttribute('aria-disabled') === 'true') return false;
+        
+        // Class-based Disabled Check (common in frameworks)
         const hasDisabledClass = Array.from(el.classList).some(cls => {
             const lower = cls.toLowerCase();
             return lower.includes('disabled') || lower.includes('inactive');
         });
+        
         return isVisible && !hasDisabledClass;
     };
 `;
 
 export const generateFocusScript = (config: AutomationConfig): string => {
-    const inputSelector = config.input || config.waitFor;
+    const inputSelector = JSON.stringify(config.input || config.waitFor || '');
     return `
     (async function() {
         ${COMMON_HELPERS}
-        const el = findElement('${inputSelector}');
+        const el = findElement(${inputSelector});
         if (el) {
             el.focus();
             triggerLifecycleEvents(el);
@@ -77,8 +84,8 @@ export const generateFocusScript = (config: AutomationConfig): string => {
 }
 
 export const generateAutoSendScript = (config: AutomationConfig, text: string, shouldSubmit: boolean = true): string => {
-    const inputSelector = config.input;
-    const buttonSelector = config.button;
+    const inputSelector = JSON.stringify(config.input || '');
+    const buttonSelector = JSON.stringify(config.button || '');
     const submitMode = config.submitMode || 'click';
     const safeText = JSON.stringify(text);
 
@@ -132,7 +139,8 @@ export const generateAutoSendScript = (config: AutomationConfig, text: string, s
             let success = false;
 
             if (mode === 'click' || mode === 'mixed') {
-                const btn = await waitForElement('${buttonSelector}', 3000, true);
+                // Wait for button to be truly INTERACTIVE (e.g. not disabled while uploading)
+                const btn = await waitForElement(${buttonSelector}, 15000, true);
                 if (btn) { btn.click(); success = true; }
             }
 
@@ -149,7 +157,7 @@ export const generateAutoSendScript = (config: AutomationConfig, text: string, s
         };
 
         try {
-            const inputEl = await waitForElement('${inputSelector}');
+            const inputEl = await waitForElement(${inputSelector});
             if (!inputEl) return { success: false, error: 'input_not_found' };
 
             await setInputValue(inputEl, ${safeText});
@@ -166,32 +174,35 @@ export const generateAutoSendScript = (config: AutomationConfig, text: string, s
 }
 
 export const generateClickSendScript = (config: AutomationConfig): string => {
-    const buttonSelector = config.button;
+    const inputSelector = JSON.stringify(config.input || '');
+    const buttonSelector = JSON.stringify(config.button || '');
     const submitMode = config.submitMode || 'click';
 
     return `
     (async function() {
         ${COMMON_HELPERS}
 
+        const waitForElement = async (selector, timeout = 10000, mustBeInteractive = false) => {
+            const start = Date.now();
+            while (Date.now() - start < timeout) {
+                const el = findElement(selector);
+                if (el && (!mustBeInteractive || isReadyForInteraction(el))) return el;
+                await wait(250);
+            }
+            return null;
+        };
+
         const performSubmit = async () => {
             const mode = '${submitMode}';
             let success = false;
 
             if (mode === 'click' || mode === 'mixed') { 
-                const btn = await new Promise(async (resolve) => {
-                    const start = Date.now();
-                    while (Date.now() - start < 5000) { 
-                        const el = findElement('${buttonSelector}');
-                        if (isReadyForInteraction(el)) { resolve(el); return; }
-                        await wait(200);
-                    }
-                    resolve(null);
-                });
+                const btn = await waitForElement(${buttonSelector}, 15000, true);
                 if (btn) { btn.click(); success = true; }
             }
 
             if (!success && (mode === 'enter_key' || mode === 'mixed')) {
-                const inputEl = findElement('${config.input}');
+                const inputEl = findElement(${inputSelector});
                 if (inputEl) {
                     inputEl.focus();
                     const eventParams = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true, composed: true };

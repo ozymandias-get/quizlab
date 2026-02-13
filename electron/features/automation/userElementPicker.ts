@@ -19,6 +19,12 @@ import { getStepHtml, getHintHtml, type TranslationMap } from '../../../src/util
 export const generatePickerScript = (translations: TranslationMap = {}): string => {
     return `
     (function() {
+        // Capture original console to avoid overridden methods
+        const safeConsole = {
+            info: (window.console && window.console.info) ? window.console.info.bind(window.console) : function(){},
+            error: (window.console && window.console.error) ? window.console.error.bind(window.console) : function(){}
+        };
+
         const TRANSLATIONS = ${JSON.stringify(translations)};
         
         // Temizlik: Önceki picker kalıntılarını temizle
@@ -53,26 +59,33 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         });
 
         const updateInfoBox = (hoveredInfo) => {
-            const { html: stepHtml, color: statusColor } = getStepHtml(step, TRANSLATIONS);
-            const hintHtml = getHintHtml(step, hoveredInfo, TRANSLATIONS);
-            
-            infoBox.innerHTML = stepHtml + hintHtml;
-            infoBox.style.borderTop = '3px solid ' + statusColor;
-            
-            // "Devam Et" butonuna event listener ekle
-            if (step === 'typing') {
-                const nextBtn = document.getElementById('_ai_picker_next_btn');
-                if (nextBtn) {
-                    nextBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        step = 'submit';
-                        updateInfoBox(null);
-                    };
+            try {
+                const { html: stepHtml, color: statusColor } = getStepHtml(step, TRANSLATIONS);
+                const hintHtml = getHintHtml(step, hoveredInfo, TRANSLATIONS);
+                
+                infoBox.innerHTML = stepHtml + hintHtml;
+                infoBox.style.borderTop = '3px solid ' + statusColor;
+                
+                // "Devam Et" butonuna event listener ekle
+                if (step === 'typing') {
+                    const nextBtn = document.getElementById('_ai_picker_next_btn');
+                    if (nextBtn) {
+                        nextBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            step = 'submit';
+                            updateInfoBox(null);
+                        };
+                    }
                 }
+            } catch (e) {
+                safeConsole.error('Helper UI update error', e);
             }
         };
-        document.body.appendChild(infoBox);
-        updateInfoBox(null);
+        
+        if (document.body) {
+            document.body.appendChild(infoBox);
+            updateInfoBox(null);
+        }
 
         // 2. Element Etiketi (Mouse Yanında - daha küçük)
         const labelBox = document.createElement('div');
@@ -85,22 +98,24 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             border: '1px solid rgba(255,255,255,0.1)',
             maxWidth: '200px', whiteSpace: 'nowrap'
         });
-        document.body.appendChild(labelBox);
+        if (document.body) document.body.appendChild(labelBox);
 
         // --- STYLES ---
         const style = document.createElement('style');
         style.textContent = \`${pickerStyles}\`;
-        document.head.appendChild(style);
+        if (document.head) document.head.appendChild(style);
 
         // --- EVENT HANDLERS ---
         let lastHovered = null;
 
         const normalizeTarget = (rawTarget) => {
-            if (!(rawTarget instanceof Element)) return null;
+            if (!rawTarget) return null;
+            if (rawTarget.nodeType !== 1) return null; // Element node check
             let target = rawTarget;
 
             // SVG/PATH Düzeltmesi
-            if (['svg', 'path', 'rect', 'polygon'].includes(target.tagName.toLowerCase())) {
+            const tagName = target.tagName ? target.tagName.toLowerCase() : '';
+            if (['svg', 'path', 'rect', 'polygon'].includes(tagName)) {
                 const btn = target.closest('button, [role="button"], a');
                 if (btn) target = btn;
             }
@@ -113,54 +128,58 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             if (step !== 'input' && step !== 'submit') return;
             if (step === 'done') return;
             e.stopPropagation();
-            const target = normalizeTarget(e.target);
-            if (!target) return;
+            try {
+                const target = normalizeTarget(e.target);
+                if (!target) return;
 
-            if (lastHovered === target) return;
+                if (lastHovered === target) return;
 
-            // Temizle
-            if (lastHovered && lastHovered !== selectedInputElement) {
-                lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
-            }
-            
-            lastHovered = target;
-            
-            // Element bilgisini al
-            const info = getElementInfo(target);
-            
-            // Adıma göre uygunluğu belirle
-            const isGoodChoice = (step === 'input' && info.category === 'input') || 
-                                (step === 'submit' && info.category === 'button');
-            const isMediumChoice = (step === 'input' && target.isContentEditable) ||
-                                   (step === 'submit' && (info.category === 'container' || info.tag === 'a'));
-            
-            // Hover sınıfını ekle
-            let cls;
-            let labelBg;
-            if (isGoodChoice || info.confidence === 'high') {
-                cls = '_ai-picker-hover-good';
-                labelBg = '#22c55e';
-            } else if (isMediumChoice || info.confidence === 'medium') {
-                cls = '_ai-picker-hover-medium';
-                labelBg = '#f59e0b';
-            } else {
-                cls = '_ai-picker-hover-low';
-                labelBg = '#ef4444';
-            }
-            
-            if (target !== selectedInputElement) {
-                target.classList.add(cls);
-            }
+                // Temizle
+                if (lastHovered && lastHovered !== selectedInputElement) {
+                    lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
+                }
+                
+                lastHovered = target;
+                
+                // Element bilgisini al
+                const info = getElementInfo(target);
+                
+                // Adıma göre uygunluğu belirle
+                const isGoodChoice = (step === 'input' && info.category === 'input') || 
+                                    (step === 'submit' && info.category === 'button');
+                const isMediumChoice = (step === 'input' && target.isContentEditable) ||
+                                    (step === 'submit' && (info.category === 'container' || info.tag === 'a'));
+                
+                // Hover sınıfını ekle
+                let cls;
+                let labelBg;
+                if (isGoodChoice || info.confidence === 'high') {
+                    cls = '_ai-picker-hover-good';
+                    labelBg = '#22c55e';
+                } else if (isMediumChoice || info.confidence === 'medium') {
+                    cls = '_ai-picker-hover-medium';
+                    labelBg = '#f59e0b';
+                } else {
+                    cls = '_ai-picker-hover-low';
+                    labelBg = '#ef4444';
+                }
+                
+                if (target !== selectedInputElement) {
+                    target.classList.add(cls);
+                }
 
-            // Etiketi güncelle
-            const labelText = (info.labelKey && TRANSLATIONS[info.labelKey]) ? TRANSLATIONS[info.labelKey] : info.labelEN;
-            labelBox.innerHTML = labelText;
-            labelBox.style.background = labelBg;
-            labelBox.style.display = 'block';
-            positionLabelBox(e.clientX, e.clientY);
-            
-            // Ana paneli güncelle
-            updateInfoBox(info);
+                // Etiketi güncelle
+                const labelText = (info.labelKey && TRANSLATIONS[info.labelKey]) ? TRANSLATIONS[info.labelKey] : info.labelEN;
+                labelBox.innerHTML = labelText;
+                labelBox.style.background = labelBg;
+                labelBox.style.display = 'block';
+                positionLabelBox(e.clientX, e.clientY);
+                
+                // Ana paneli güncelle
+                updateInfoBox(info);
+            } catch (err) {
+                // Ignore hover errors
+            }
         };
 
         const onMouseMove = (e) => {
@@ -204,17 +223,26 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             const target = normalizeTarget(e.target);
             if (!target) return;
 
-            const selector = generateRobustSelector(target);
+            let selector = null;
+            try {
+                selector = generateRobustSelector(target);
+            } catch (err) {
+                safeConsole.error('Selector generation failed', err);
+                return;
+            }
+
             // Element selected
 
             // Görsel onay
-            const flashColor = step === 'input' ? '#60a5fa' : '#4ade80';
-            target.style.transition = 'all 0.3s ease';
-            target.style.boxShadow = '0 0 30px ' + flashColor;
+            try {
+                const flashColor = step === 'input' ? '#60a5fa' : '#4ade80';
+                target.style.transition = 'all 0.3s ease';
+                target.style.boxShadow = '0 0 30px ' + flashColor;
 
-            setTimeout(() => {
-                target.style.boxShadow = '';
-            }, 300);
+                setTimeout(() => {
+                    if (target) target.style.boxShadow = '';
+                }, 300);
+            } catch (err) {}
 
             // ADIM 1: Input seçildi
             if (step === 'input') {
@@ -236,12 +264,20 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                 
                 // Temizlik ve sonuç
                 setTimeout(() => {
-                    if (selectedInputElement) {
-                        selectedInputElement.classList.remove('_ai-picker-selected');
-                    }
+                    try {
+                        if (selectedInputElement) {
+                            selectedInputElement.classList.remove('_ai-picker-selected');
+                        }
+                    } catch (e) {}
+
                     cleanup();
-                    console.info('__AI_PICKER_RESULT__' + JSON.stringify(selectionData));
-                }, 800);
+                    
+                    try {
+                        safeConsole.info('__AI_PICKER_RESULT__' + JSON.stringify(selectionData));
+                    } catch (e) {
+                        safeConsole.error('Picker result error', e);
+                    }
+                }, 500);
             }
         };
 
@@ -251,7 +287,7 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             e.stopPropagation();
 
             cleanup();
-            console.info('__AI_PICKER_CANCELLED__');
+            safeConsole.info('__AI_PICKER_CANCELLED__');
         };
 
         document.addEventListener('mouseover', onMouseOver, true);
@@ -261,25 +297,33 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         document.addEventListener('keydown', onKeyDown, true);
 
         const cleanup = () => {
-            document.removeEventListener('mouseover', onMouseOver, true);
-            document.removeEventListener('mousemove', onMouseMove, true);
-            document.removeEventListener('mouseout', onMouseOut, true);
-            document.removeEventListener('click', onClick, true);
-            document.removeEventListener('keydown', onKeyDown, true);
-            if (window._aiPickerRaf) {
-                cancelAnimationFrame(window._aiPickerRaf);
-                delete window._aiPickerRaf;
+            try {
+                document.removeEventListener('mouseover', onMouseOver, true);
+                document.removeEventListener('mousemove', onMouseMove, true);
+                document.removeEventListener('mouseout', onMouseOut, true);
+                document.removeEventListener('click', onClick, true);
+                document.removeEventListener('keydown', onKeyDown, true);
+                if (window._aiPickerRaf) {
+                    cancelAnimationFrame(window._aiPickerRaf);
+                    delete window._aiPickerRaf;
+                }
+                if (lastHovered) {
+                    try {
+                        lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
+                    } catch(e){}
+                }
+                if (selectedInputElement) {
+                    try {
+                        selectedInputElement.classList.remove('_ai-picker-selected');
+                    } catch(e){}
+                }
+                if (infoBox && infoBox.parentNode) infoBox.parentNode.removeChild(infoBox);
+                if (labelBox && labelBox.parentNode) labelBox.parentNode.removeChild(labelBox);
+                if (style && style.parentNode) style.parentNode.removeChild(style);
+                delete window._aiPickerCleanup;
+            } catch (e) {
+                safeConsole.error('Cleanup error', e);
             }
-            if (lastHovered) {
-                lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
-            }
-            if (selectedInputElement) {
-                selectedInputElement.classList.remove('_ai-picker-selected');
-            }
-            infoBox.remove();
-            labelBox.remove();
-            style.remove();
-            delete window._aiPickerCleanup;
         };
 
         window._aiPickerCleanup = cleanup;
