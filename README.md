@@ -4,7 +4,7 @@
 <div align="center">
 
 [![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg?style=flat-square)](README_TR.md)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Version](https://img.shields.io/badge/version-1.1.3-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 
@@ -76,6 +76,10 @@ Built with a performance-first, modern architecture:
 - **Node.js 18+**
 - **npm**
 - **Google Account** (Required only for Gemini CLI quiz generation features)
+- **Gemini CLI** (Required for quiz generation features):
+  ```bash
+  npm install -g @google/gemini-cli
+  ```
 
 ### Installation
 
