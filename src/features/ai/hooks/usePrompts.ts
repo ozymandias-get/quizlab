@@ -1,4 +1,5 @@
 ﻿import { useMemo, useCallback } from 'react'
+import { useLanguage } from '@src/app/providers'
 import { useLocalStorage, useLocalStorageString } from '@src/hooks/useLocalStorage'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
 import { DEFAULT_PROMPTS, IPrompt } from '@src/constants/prompts'
@@ -23,16 +24,18 @@ interface UsePromptsReturn {
  * Centralizes logic for fetching, adding, deleting and selecting prompts.
  */
 export function usePrompts(): UsePromptsReturn {
+    const { language } = useLanguage()
     const [customPrompts, setCustomPrompts] = useLocalStorage<IPrompt[]>(STORAGE_KEYS.CUSTOM_PROMPTS, [])
     const [selectedPromptId, setSelectedPromptId] = useLocalStorageString(STORAGE_KEYS.SELECTED_PROMPT_ID, '')
 
     // Combine default and custom prompts
     const allPrompts = useMemo<Prompt[]>(() => {
+        const filteredDefaults = DEFAULT_PROMPTS.filter(p => p.id.endsWith(`_${language}`))
         return [
-            ...DEFAULT_PROMPTS.map(p => ({ ...p, isDefault: true })),
+            ...filteredDefaults.map(p => ({ ...p, isDefault: true })),
             ...customPrompts.map((p: IPrompt) => ({ ...p, isDefault: false }))
         ]
-    }, [customPrompts])
+    }, [customPrompts, language])
 
     // Get the currently selected prompt text
     const activePrompt = useMemo<Prompt | null>(() => {
