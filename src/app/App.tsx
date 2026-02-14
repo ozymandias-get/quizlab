@@ -34,7 +34,10 @@ const App: React.FC = () => {
     const { sendTextToAI } = useAi()
     const { isScreenshotMode, handleCapture, closeScreenshot } = useAppTools()
     const { updateAvailable, updateInfo } = useUpdate()
-    const { isLayoutSwapped, isTourActive, setIsTourActive } = useAppearance()
+    const { isLayoutSwapped, isTourActive, setIsTourActive, bottomBarScale } = useAppearance()
+
+    const clampedBarScale = Math.min(1.3, Math.max(0.7, bottomBarScale))
+    const resizerShellWidth = Math.round(48 * clampedBarScale)
 
 
     // Panel resize hook
@@ -49,7 +52,8 @@ const App: React.FC = () => {
         minLeft: 300,
         minRight: 400,
         storageKey: STORAGE_KEYS.LEFT_PANEL_WIDTH,
-        isReversed: isLayoutSwapped
+        isReversed: isLayoutSwapped,
+        resizerWidth: resizerShellWidth
     })
 
     // PDF Selection Hook
@@ -286,14 +290,20 @@ const App: React.FC = () => {
                                 />
                             </motion.div>
 
-                            {/* Resizer */}
+                            {/* Hub Resizer — BottomBar integrated in the center */}
                             <motion.div
                                 ref={resizerRef as React.RefObject<HTMLDivElement>}
-                                className="resizer"
-                                onMouseDown={handleMouseDown}
                                 variants={resizerVariants}
+                                className="h-full flex-shrink-0"
                                 style={gpuAcceleratedStyle}
-                            />
+                            >
+                                <BottomBar
+                                    onHoverChange={setIsBarHovered}
+                                    isQuizMode={isQuizMode}
+                                    onToggleQuizMode={() => setIsQuizMode(prev => !prev)}
+                                    onMouseDown={handleMouseDown}
+                                />
+                            </motion.div>
 
                             {/* Right Panel (AI Webview) */}
                             <motion.div
@@ -331,11 +341,6 @@ const App: React.FC = () => {
                     )}
                 </AnimatePresence>
 
-                <BottomBar
-                    onHoverChange={setIsBarHovered}
-                    isQuizMode={isQuizMode}
-                    onToggleQuizMode={() => setIsQuizMode(prev => !prev)}
-                />
 
                 {selectedText && selectionPosition && (
                     <FloatingButton

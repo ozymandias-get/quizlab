@@ -82,7 +82,9 @@ export const AIItem = memo<AIItemProps>(function AIItem({
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
             color: 'rgba(255,255,255,0.55)',
             textShadow: 'none',
-            willChange: 'transform'
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+            backfaceVisibility: 'hidden' as const,
         }
     }, [isSelected, isBeingDragged, safeColor, isHovered])
 
@@ -138,21 +140,29 @@ export const AIItem = memo<AIItemProps>(function AIItem({
                 scale: isBeingDragged ? 1.05 : 1,
                 zIndex: isBeingDragged ? 50 : 1
             }}
-            transition={{ duration: 0.18 }}
-            whileDrag={{ scale: 1.1, cursor: 'grabbing' }}
+            transition={{
+                duration: 0.2,
+                type: 'spring',
+                stiffness: 350,
+                damping: 25,
+            }}
+            whileDrag={{ scale: 1.12, cursor: 'grabbing' }}
             className="relative cursor-grab active:cursor-grabbing"
-            style={{ filter: isBeingDragged ? `drop-shadow(0 0 15px ${safeColor}80)` : 'none' }}
+            style={{
+                filter: isBeingDragged ? `drop-shadow(0 0 18px ${safeColor}90)` : 'none',
+                transform: 'translateZ(0)',
+            }}
         >
             <motion.button
                 onHoverStart={() => setIsHovered(true)}
                 onHoverEnd={() => setIsHovered(false)}
                 whileHover={{
-                    scale: 1.06,
-                    y: -1,
-                    transition: { type: "spring", stiffness: 380, damping: 28 }
+                    scale: 1.08,
+                    y: -2,
+                    transition: { type: "spring", stiffness: 420, damping: 22, mass: 0.6 }
                 }}
-                whileTap={{ scale: 0.96 }}
-                className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[42px] h-[42px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
+                whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
+                className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
                 style={buttonStyle}
                 onClick={handleClick}
                 title={site?.displayName || modelKey}
@@ -171,10 +181,21 @@ export const AIItem = memo<AIItemProps>(function AIItem({
 
                 {isSelected && (
                     <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-white"
-                        style={{ boxShadow: `0 0 6px ${safeColor}` }}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{
+                            scale: [1, 1.3, 1],
+                            opacity: [0.9, 1, 0.9],
+                        }}
+                        transition={{
+                            scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+                            opacity: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+                        }}
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+                        style={{
+                            background: safeColor,
+                            boxShadow: `0 0 8px ${safeColor}, 0 0 16px ${safeColor}60`,
+                            transform: 'translateZ(0)',
+                        }}
                     />
                 )}
             </motion.button>

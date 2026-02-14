@@ -6,12 +6,13 @@
    ============================================ */
 
 /* CSS MODULES - Modüler dosya importları (ÖNCELİKLİ) */
-@import './modules/_fonts.css';       /* Font tanımlamaları - EN ÖNCE */
+@import './modules/_fonts.css';
+/* Font tanımlamaları - EN ÖNCE */
 @import './modules/_base.css';
-@import './modules/_splash.css';       /* Welcome Screen Stilleri */
+@import './modules/_splash.css';
+/* Welcome Screen Stilleri */
 @import './modules/_glass-panel.css';
 @import './modules/_buttons.css';
-@import './modules/_floating-bar.css';
 @import './modules/_pdf-viewer.css';
 @import './modules/_resizer.css';
 @import './modules/_animations.css';

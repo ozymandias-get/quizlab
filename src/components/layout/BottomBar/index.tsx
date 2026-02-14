@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useMemo, memo, Suspense, lazy } from 'react'
-import { motion, PanInfo } from 'framer-motion'
+import { createPortal } from 'react-dom'
+
 import { useAppearance } from '@src/app/providers'
 import { CenterHub } from './CenterHub'
 import { ToolsPanel } from './ToolsPanel'
@@ -13,33 +14,22 @@ interface BottomBarProps {
     onHoverChange?: (isHovering: boolean) => void;
     isQuizMode: boolean;
     onToggleQuizMode: () => void;
+    onMouseDown?: (e: React.MouseEvent) => void;
 }
 
-function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarProps) {
+function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }: BottomBarProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [isAnimating, setIsAnimating] = useState(false)
-    const [isWindowResizing, setIsWindowResizing] = useState(false)
 
     // Refs
     const barRef = useRef<HTMLDivElement>(null)
-    const constraintsRef = useRef<HTMLDivElement>(null)
-    const dragStartPosition = useRef({ x: 0, y: 0 })
-    const isDragging = useRef(false)
-    const lastDragTime = useRef(0)
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const resizeRafRef = useRef<number | null>(null)
-    // Layout thrashing prevention: Cache bar dimensions
-    const barDimensions = useRef({ width: 400, height: 60 })
 
     const {
         bottomBarOpacity,
         bottomBarScale,
-        floatingBarPos,
-        setFloatingBarPos,
         showOnlyIcons,
-        bottomBarLayout,
         toggleLayoutSwap,
         isTourActive
     } = useAppearance()
@@ -54,16 +44,15 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
     // Preload settings modal (Prefetch)
     useEffect(() => {
         const timer = setTimeout(() => {
-            // Sadece modülü indirip cache'lemesi için çağırıyoruz
             import('@src/features/settings/components/SettingsModal')
                 .catch(err => console.error('Error prefetching SettingsModal:', err))
         }, 1500)
         return () => clearTimeout(timer)
     }, [])
 
-    // Click outside handler - Tur sırasında devre dışı
+    // Click outside handler - Tur sırasında ve settings açıkken devre dışı
     useEffect(() => {
-        if (!isOpen || isTourActive) return
+        if (!isOpen || isTourActive || isSettingsOpen) return
         const handler = (e: MouseEvent) => {
             if (barRef.current && !barRef.current.contains(e.target as Node)) {
                 setIsOpen(false)
@@ -71,92 +60,18 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
         }
         document.addEventListener('mousedown', handler)
         return () => document.removeEventListener('mousedown', handler)
-    }, [isOpen, isTourActive])
-
-    // Update dimensions on mount and resize (rAF throttled)
-    useEffect(() => {
-        const updateDimensions = () => {
-            if (barRef.current) {
-                const rect = barRef.current.getBoundingClientRect()
-                barDimensions.current = {
-                    width: rect.width || 400,
-                    height: rect.height || 60
-                }
-            }
-        }
-
-        const handleResize = () => {
-            setIsWindowResizing(true)
-
-            if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current)
-            resizeTimeoutRef.current = setTimeout(() => {
-                setIsWindowResizing(false)
-                resizeTimeoutRef.current = null
-            }, 140)
-
-            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current)
-            resizeRafRef.current = requestAnimationFrame(() => {
-                updateDimensions()
-                resizeRafRef.current = null
-            })
-        }
-
-        updateDimensions()
-        window.addEventListener('resize', handleResize, { passive: true })
-        return () => {
-            window.removeEventListener('resize', handleResize)
-            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current)
-            if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current)
-        }
-    }, [])
+    }, [isOpen, isTourActive, isSettingsOpen])
 
     // Cleanup timeouts on unmount
     useEffect(() => {
         return () => {
             if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
-            if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current)
-            if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current)
         }
-    }, [])
-
-    // Drag Logic
-    const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        const proposedX = floatingBarPos.x + info.offset.x
-        const proposedY = floatingBarPos.y + info.offset.y
-
-        const { width: barWidth, height: barHeight } = barDimensions.current
-        const margin = 12
-
-        // X Axis Boundaries
-        const xLimit = (window.innerWidth - barWidth) / 2 - margin
-        const clampedX = Math.min(Math.max(proposedX, -xLimit), xLimit)
-
-        // Y Axis Boundaries
-        const minY = -(window.innerHeight - 24 - barHeight) + margin
-        const maxY = 24 - margin
-        const clampedY = Math.min(Math.max(proposedY, minY), maxY)
-
-        setFloatingBarPos({
-            x: clampedX,
-            y: clampedY
-        })
-
-        if (isDragging.current) {
-            lastDragTime.current = Date.now()
-        }
-        isDragging.current = false
-    }, [floatingBarPos, setFloatingBarPos])
-
-    const handlePointerDown = useCallback((e: React.PointerEvent) => {
-        if (e.button !== 0) return
-        dragStartPosition.current = { x: e.clientX, y: e.clientY }
-        isDragging.current = false
     }, [])
 
     // Toggle Logic
     const handleToggle = useCallback((e?: React.MouseEvent) => {
-        const timeSinceDrag = Date.now() - lastDragTime.current
-        if (isDragging.current || isAnimating || timeSinceDrag < 150) {
+        if (isAnimating) {
             e?.stopPropagation()
             return
         }
@@ -168,118 +83,181 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode }: BottomBarPro
         animationTimeoutRef.current = setTimeout(() => setIsAnimating(false), 400)
     }, [isAnimating])
 
-    // Hub Interaction Handler
-    const handleHubPointerUp = useCallback((e: React.PointerEvent) => {
-        const dx = Math.abs(e.clientX - dragStartPosition.current.x)
-        const dy = Math.abs(e.clientY - dragStartPosition.current.y)
+    // Track pointer start for distinguishing click vs drag
+    const pointerStart = useRef({ x: 0, y: 0 })
 
+    const handleHubPointerDown = useCallback((e: React.PointerEvent) => {
+        pointerStart.current = { x: e.clientX, y: e.clientY }
+    }, [])
+
+    const handleHubPointerUp = useCallback((e: React.PointerEvent) => {
+        const dx = Math.abs(e.clientX - pointerStart.current.x)
+        const dy = Math.abs(e.clientY - pointerStart.current.y)
+
+        // If movement was tiny, it's a click → toggle the menu
         if (dx < 5 && dy < 5) {
             handleToggle(e as unknown as React.MouseEvent)
         }
-
-        if (dx > 3 || dy > 3) {
-            isDragging.current = true
-        }
     }, [handleToggle])
 
-    const handleSettingsClick = useCallback(() => setIsSettingsOpen(true), [])
-    const handleSettingsClose = useCallback(() => setIsSettingsOpen(false), [])
+    // When hub is closed, mouse down on the hub also triggers resize
+    const handleHubMouseDown = useCallback((e: React.MouseEvent) => {
+        if (!isOpen) {
+            onMouseDown?.(e)
+        }
+    }, [isOpen, onMouseDown])
 
-    // Memoized panel style
+    const handleSettingsClick = useCallback(() => {
+        setIsSettingsOpen(true)
+    }, [])
+
+    const handleSettingsClose = useCallback(() => {
+        setIsSettingsOpen(false)
+    }, [])
+
+    // Resizer area mouse down — pass through to parent for panel resize
+    const handleResizerMouseDown = useCallback((e: React.MouseEvent) => {
+        onMouseDown?.(e)
+    }, [onMouseDown])
+
+    const clampedOpacity = useMemo(() => Math.min(1, Math.max(0.1, bottomBarOpacity)), [bottomBarOpacity])
+    const clampedScale = useMemo(() => Math.min(1.3, Math.max(0.7, bottomBarScale)), [bottomBarScale])
+    const scaledShellWidth = useMemo(() => Math.round(48 * clampedScale), [clampedScale])
+
+    const shellStyle = useMemo<React.CSSProperties>(() => ({
+        '--bar-opacity-factor': clampedOpacity,
+        '--bar-scale-factor': clampedScale,
+        width: scaledShellWidth,
+        minWidth: scaledShellWidth,
+        maxWidth: scaledShellWidth,
+        flexBasis: scaledShellWidth,
+    } as React.CSSProperties), [clampedOpacity, clampedScale, scaledShellWidth])
+
+    const stackStyle = useMemo<React.CSSProperties>(() => ({
+        zIndex: 50,
+        width: 48,
+        minWidth: 48,
+        transform: `translateZ(0) scale(${clampedScale})`,
+        transformOrigin: 'center',
+        willChange: 'transform',
+    }), [clampedScale])
+
+    // Memoized panel style — segmented glass capsules between the two main panels
     const panelStyle = useMemo<React.CSSProperties>(() => ({
-        background: `linear-gradient(165deg, 
-            rgba(28, 28, 32, ${bottomBarOpacity}) 0%, 
-            rgba(20, 20, 24, ${bottomBarOpacity}) 50%,
-            rgba(16, 16, 18, ${bottomBarOpacity}) 100%)`,
-        backdropFilter: isWindowResizing ? 'none' : 'blur(12px) saturate(150%)',
-        WebkitBackdropFilter: isWindowResizing ? 'none' : 'blur(12px) saturate(150%)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: isWindowResizing ? '0 10px 22px -10px rgba(0,0,0,0.45)' : `
-            0 20px 40px -10px rgba(0,0,0,0.5),
-            0 8px 16px -6px rgba(0,0,0,0.35),
-            inset 0 1px 0 rgba(255,255,255,0.08),
-            inset 0 -1px 0 rgba(0,0,0,0.15)
+        background: `linear-gradient(165deg,
+            rgba(30, 30, 36, ${Math.min(0.92, 0.12 + (clampedOpacity * 0.76))}) 0%,
+            rgba(19, 19, 24, ${Math.min(0.95, 0.1 + (clampedOpacity * 0.8))}) 58%,
+            rgba(12, 12, 16, ${Math.min(0.98, 0.12 + (clampedOpacity * 0.82))}) 100%)`,
+        backdropFilter: 'blur(24px) saturate(190%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(190%)',
+        border: `1px solid rgba(255, 255, 255, ${0.03 + (clampedOpacity * 0.09)})`,
+        boxShadow: `
+            0 24px 45px -28px rgba(0,0,0,${0.52 + (clampedOpacity * 0.38)}),
+            0 0 0 1px rgba(0,0,0,${0.18 + (clampedOpacity * 0.34)}),
+            inset 0 1px 0 rgba(255,255,255,${0.05 + (clampedOpacity * 0.12)}),
+            inset 0 -12px 24px -22px rgba(148,163,184,${0.08 + (clampedOpacity * 0.22)})
         `,
-        borderRadius: 18,
+        borderRadius: 14,
         transform: 'translateZ(0)',
-        willChange: isWindowResizing ? 'auto' : 'transform, opacity'
-    }), [bottomBarOpacity, isWindowResizing])
+        willChange: 'transform, opacity',
+        backfaceVisibility: 'hidden' as const,
+    }), [clampedOpacity])
 
     const hubStyle = useMemo<React.CSSProperties>(() => ({
         ...panelStyle,
+        width: '100%',
+        height: 48,
+        borderRadius: 12,
+        padding: 0,
+        // Open state: center capsule gets stronger depth and accent light
+        // Closed state: Matches panels perfectly
+        background: isOpen
+            ? `linear-gradient(145deg,
+                rgba(40, 40, 48, ${Math.min(0.96, 0.18 + (clampedOpacity * 0.74))}) 0%,
+                rgba(24, 24, 30, ${Math.min(0.98, 0.22 + (clampedOpacity * 0.74))}) 55%,
+                rgba(14, 14, 18, ${Math.min(0.99, 0.24 + (clampedOpacity * 0.74))}) 100%)`
+            : panelStyle.background,
         boxShadow: isOpen
             ? `
-                0 0 30px -8px rgba(255,255,255,0.15),
-                0 20px 40px -10px rgba(0,0,0,0.5),
-                inset 0 1px 0 rgba(255,255,255,0.12),
-                inset 0 -1px 0 rgba(0,0,0,0.15)
+                0 18px 34px -24px rgba(0,0,0,${0.56 + (clampedOpacity * 0.38)}),
+                0 0 32px -16px rgba(56,189,248,${0.08 + (clampedOpacity * 0.3)}),
+                0 0 24px -14px rgba(251,191,36,${0.08 + (clampedOpacity * 0.22)}),
+                inset 0 0 0 1px rgba(255,255,255,${0.07 + (clampedOpacity * 0.17)}),
+                inset 0 1px 0 rgba(255,255,255,${0.08 + (clampedOpacity * 0.14)})
             `
             : panelStyle.boxShadow,
-        border: isOpen ? '1px solid rgba(255,255,255,0.15)' : panelStyle.border,
+        border: isOpen
+            ? `1px solid rgba(255,255,255,${0.05 + (clampedOpacity * 0.12)})`
+            : panelStyle.border,
         willChange: 'transform',
-        width: 'auto',
-        opacity: 1
-    }), [panelStyle, isOpen])
+        opacity: 1,
+        backfaceVisibility: 'hidden' as const,
+    }), [panelStyle, isOpen, clampedOpacity])
 
     return (
         <>
-            <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-50">
-                <motion.div
-                    drag
-                    dragConstraints={constraintsRef}
-                    dragElastic={0.05}
-                    dragMomentum={false}
-                    onDragEnd={handleDragEnd}
-                    onPointerDown={handlePointerDown}
-                    initial={floatingBarPos}
-                    animate={floatingBarPos}
-                    className="absolute pointer-events-auto left-1/2 bottom-6"
-                    style={{ transform: 'translateX(-50%)' }}
-                >
-                    <div
-                        ref={barRef}
-                        className="relative"
-                        style={{ transform: `scale(${bottomBarScale})`, transformOrigin: 'center' }}
-                        onMouseEnter={() => onHoverChange?.(true)}
-                        onMouseLeave={() => onHoverChange?.(false)}
-                    >
-                        {/* CENTER HUB */}
+            {/* Full-height container in the resizer area */}
+            <div
+                ref={barRef}
+                className={`resizer-hub-container bottom-bar-shell ${isOpen ? 'resizer-hub-container--open' : ''}`}
+                style={shellStyle}
+                onMouseEnter={() => onHoverChange?.(true)}
+                onMouseLeave={() => onHoverChange?.(false)}
+            >
+                {/* Top resizer drag area */}
+                <div
+                    className="resizer-drag-area"
+                    onMouseDown={handleResizerMouseDown}
+                />
+
+                {/* Hub + Panels Zone - w-full ensures perfect centering */}
+                <div className="bottom-bar-stack relative flex flex-col items-center w-full" style={stackStyle}>
+                    {/* TOOLS PANEL — opens upward */}
+                    <ToolsPanel
+                        isOpen={isOpen}
+                        panelStyle={panelStyle}
+                        handleSettingsClick={handleSettingsClick}
+                        toggleLayoutSwap={toggleLayoutSwap}
+                        isQuizMode={isQuizMode}
+                        onToggleQuizMode={onToggleQuizMode}
+                    />
+
+                    {/* CENTER HUB */}
+                    <div onPointerDown={handleHubPointerDown} className="w-full">
                         <CenterHub
                             handleHubPointerUp={handleHubPointerUp}
+                            onMouseDown={handleHubMouseDown}
                             isOpen={isOpen}
                             hubStyle={hubStyle}
                         />
-
-                        {/* LEFT PANEL - TOOLS */}
-                        <ToolsPanel
-                            isOpen={isOpen}
-                            bottomBarLayout={bottomBarLayout as 'horizontal' | 'vertical'}
-                            panelStyle={panelStyle}
-                            handleSettingsClick={handleSettingsClick}
-                            toggleLayoutSwap={toggleLayoutSwap}
-                            isQuizMode={isQuizMode}
-                            onToggleQuizMode={onToggleQuizMode}
-                        />
-
-                        {/* RIGHT PANEL - AI MODELS */}
-                        <ModelsPanel
-                            isOpen={isOpen}
-                            bottomBarLayout={bottomBarLayout as 'horizontal' | 'vertical'}
-                            panelStyle={panelStyle}
-                            showOnlyIcons={showOnlyIcons}
-                        />
                     </div>
-                </motion.div>
+
+                    {/* MODELS PANEL — opens downward */}
+                    <ModelsPanel
+                        isOpen={isOpen}
+                        panelStyle={panelStyle}
+                        showOnlyIcons={showOnlyIcons}
+                    />
+                </div>
+
+                {/* Bottom resizer drag area */}
+                <div
+                    className="resizer-drag-area"
+                    onMouseDown={handleResizerMouseDown}
+                />
             </div>
 
-            <Suspense fallback={<SettingsLoadingSpinner />}>
-                {isSettingsOpen && (
-                    <SettingsModal isOpen={isSettingsOpen} onClose={handleSettingsClose} />
-                )}
-            </Suspense>
+            {/* SettingsModal — rendered via Portal to escape the resizer container */}
+            {createPortal(
+                <Suspense fallback={<SettingsLoadingSpinner />}>
+                    {isSettingsOpen && (
+                        <SettingsModal isOpen={isSettingsOpen} onClose={handleSettingsClose} />
+                    )}
+                </Suspense>,
+                document.body
+            )}
         </>
     )
 }
 
 export default memo(BottomBar)
-

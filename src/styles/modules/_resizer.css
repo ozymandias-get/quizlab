@@ -1,31 +1,119 @@
 /* ============================================
-   RESIZER STYLES - Panel boyutlandırıcı
+   RESIZER + HUB CONTAINER
+   Hub sits in the center, aligned with panels
    ============================================ */
 
-.resizer {
-  width: 20px;
-  cursor: col-resize;
-  background: transparent;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
+.resizer-hub-container {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 100%;
+  flex-shrink: 0;
+  z-index: 40;
+  isolation: isolate;
+  /* GPU acceleration */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
-.resizer::after {
+@keyframes resizerAuraFlow {
+  0%,
+  100% {
+    opacity: 0.5;
+    filter: blur(10px) saturate(110%);
+    transform: translateZ(0) scaleY(1);
+  }
+
+  50% {
+    opacity: 0.78;
+    filter: blur(11px) saturate(130%);
+    transform: translateZ(0) scaleY(1.04);
+  }
+}
+
+.resizer-hub-container::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 4px;
-  height: 40px;
-  background: rgba(87, 83, 78, 0.3);
-  border-radius: 2px;
-  transition: all 0.2s ease;
+  inset: 10% 5px;
+  border-radius: 999px;
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(56, 189, 248, 0.09) 35%,
+      rgba(251, 191, 36, 0.08) 65%,
+      rgba(255, 255, 255, 0.04) 100%);
+  filter: blur(10px);
+  opacity: calc(0.08 + (var(--bar-opacity-factor, 0.7) * 0.72));
+  animation: resizerAuraFlow 6.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
-.resizer:hover::after,
-.resizer.dragging::after {
-  background: rgba(212, 165, 116, 0.6);
-  height: 60px;
+.resizer-hub-container > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Drag Areas (Top & Bottom of hub) ──────────── */
+.resizer-drag-area {
+  flex: 1;
+  width: 100%;
+  cursor: col-resize;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* When hub is open, disable resize on drag areas */
+.resizer-hub-container--open .resizer-drag-area {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ─── Vertical Guide Line ───────────────────────── */
+.resizer-drag-area::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom,
+      transparent,
+      rgba(148, 163, 184, calc(0.06 + (var(--bar-opacity-factor, 0.7) * 0.18))) 20%,
+      rgba(56, 189, 248, calc(0.07 + (var(--bar-opacity-factor, 0.7) * 0.2))) 50%,
+      rgba(148, 163, 184, calc(0.06 + (var(--bar-opacity-factor, 0.7) * 0.18))) 80%,
+      transparent);
+  border-radius: 1px;
+  transform: translateX(-50%) translateZ(0);
+  transition: all 0.3s ease;
+}
+
+.resizer-drag-area:hover::after {
+  width: 2px;
+  background: linear-gradient(to bottom,
+      transparent,
+      rgba(56, 189, 248, calc(0.1 + (var(--bar-opacity-factor, 0.7) * 0.28))) 20%,
+      rgba(251, 191, 36, calc(0.1 + (var(--bar-opacity-factor, 0.7) * 0.28))) 50%,
+      rgba(56, 189, 248, calc(0.1 + (var(--bar-opacity-factor, 0.7) * 0.28))) 80%,
+      transparent);
+}
+
+/* ─── Dragging State ────────────────────────────── */
+.dragging .resizer-drag-area::after,
+.resizer-hub-container.dragging .resizer-drag-area::after {
+  width: 2px;
+  background: linear-gradient(to bottom,
+      transparent,
+      rgba(56, 189, 248, calc(0.14 + (var(--bar-opacity-factor, 0.7) * 0.34))) 15%,
+      rgba(251, 191, 36, calc(0.14 + (var(--bar-opacity-factor, 0.7) * 0.42))) 50%,
+      rgba(56, 189, 248, calc(0.14 + (var(--bar-opacity-factor, 0.7) * 0.34))) 85%,
+      transparent);
+}
+
+/* ─── Open State: Hide drag lines ───────────────── */
+.resizer-hub-container--open .resizer-drag-area::after {
+  opacity: 0;
 }

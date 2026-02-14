@@ -36,23 +36,12 @@ export const STORAGE_KEYS = {
     /** Sadece ikonları göster (boolean) */
     SHOW_ONLY_ICONS: 'showOnlyIcons',
 
-    /** Alt bar konumu (string: 'bottom' | 'top' | 'left' | 'right') */
-    BOTTOM_BAR_POSITION: 'bottomBarPosition',
-
-    /** Alt bar hizalaması (string: 'start' | 'center' | 'end') */
-    BOTTOM_BAR_ALIGNMENT: 'bottomBarAlignment',
-
     /** Alt bar şeffaflığı (number: 0.1 - 1.0) */
     BOTTOM_BAR_OPACITY: 'bottomBarOpacity',
 
     /** Alt bar boyutu/ölçeği (number: 0.8 - 1.5) */
     BOTTOM_BAR_SCALE: 'bottomBarScale',
 
-    /** Alt bar yerleşim düzeni (string: 'horizontal' | 'vertical') */
-    BOTTOM_BAR_LAYOUT: 'bottomBarLayout',
-
-    /** Serbest sürüklenebilir bar konumu (JSON: {x, y}) */
-    FLOATING_BAR_POS: 'floatingBarPos',
 
     /** Pencere düzeni değiştirildi mi (boolean) - Sol ve Sağ panel yer değişimi */
     IS_LAYOUT_SWAPPED: 'isLayoutSwapped',

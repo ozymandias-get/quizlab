@@ -2,16 +2,15 @@
 import { AnimatePresence, motion, Reorder } from 'framer-motion'
 import { useAi } from '@src/app/providers'
 import { AIItem } from './AIItem'
-import { panelVariantsHorizontal, panelVariantsVertical, panelTransition } from './animations'
+import { panelVariantsVertical, panelTransition } from './animations'
 
 interface ModelsPanelProps {
     isOpen: boolean;
-    bottomBarLayout: 'horizontal' | 'vertical';
     panelStyle: React.CSSProperties;
     showOnlyIcons: boolean;
 }
 
-export const ModelsPanel = memo(({ isOpen, bottomBarLayout, panelStyle, showOnlyIcons }: ModelsPanelProps) => {
+export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPanelProps) => {
     const { currentAI, setCurrentAI, enabledModels, setEnabledModels, aiSites } = useAi()
     const [activeDragItem, setActiveDragItem] = useState<string | null>(null)
 
@@ -25,30 +24,41 @@ export const ModelsPanel = memo(({ isOpen, bottomBarLayout, panelStyle, showOnly
         <AnimatePresence initial={false}>
             {isOpen && (
                 <motion.div
-                    variants={bottomBarLayout === 'vertical' ? panelVariantsVertical : panelVariantsHorizontal}
+                    variants={panelVariantsVertical}
                     initial="hidden"
                     animate="visible"
                     exit="exit"
                     transition={panelTransition}
-                    className={bottomBarLayout === 'vertical'
-                        ? "absolute top-full mt-3 left-0 overflow-hidden w-[52px]"
-                        : "absolute left-full ml-3 top-0 overflow-hidden h-[52px]"
-                    }
+                    className="bottom-bar-panel bottom-bar-panel--models absolute top-full mt-1.5 left-0 w-full overflow-hidden"
                     style={panelStyle}
                     id="bottom-bar-models-list"
                 >
-                    <div className={bottomBarLayout === 'vertical'
-                        ? "flex flex-col items-center gap-1 py-3 w-full"
-                        : "flex items-center gap-1 px-3 h-full"
-                    }>
+                    <motion.div
+                        className="flex flex-col items-center gap-2 py-3 w-full"
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        variants={{
+                            hidden: {},
+                            visible: {
+                                transition: {
+                                    staggerChildren: 0.04,
+                                    delayChildren: 0.1,
+                                }
+                            },
+                            exit: {
+                                transition: {
+                                    staggerChildren: 0.025,
+                                    staggerDirection: -1,
+                                }
+                            }
+                        }}
+                    >
                         <Reorder.Group
-                            axis={bottomBarLayout === 'vertical' ? 'y' : 'x'}
+                            axis="y"
                             values={aiModels}
                             onReorder={handleReorder}
-                            className={bottomBarLayout === 'vertical'
-                                ? "flex flex-col items-center gap-1"
-                                : "flex items-center gap-1"
-                            }
+                            className="flex flex-col items-center gap-1"
                         >
                             {aiModels.map((modelKey, index) => {
                                 const site = aiSites[modelKey]
@@ -63,12 +73,12 @@ export const ModelsPanel = memo(({ isOpen, bottomBarLayout, panelStyle, showOnly
                                         setActiveDragItem={setActiveDragItem}
                                         activeDragItem={activeDragItem}
                                         showOnlyIcons={showOnlyIcons}
-                                        animationDelay={0.03 + (index * 0.02)}
+                                        animationDelay={0.03 + (index * 0.03)}
                                     />
                                 )
                             })}
                         </Reorder.Group>
-                    </div>
+                    </motion.div>
                 </motion.div>
             )}
         </AnimatePresence>
@@ -76,4 +86,3 @@ export const ModelsPanel = memo(({ isOpen, bottomBarLayout, panelStyle, showOnly
 })
 
 ModelsPanel.displayName = 'ModelsPanel'
-

@@ -1,47 +1,10 @@
-﻿import React, { useMemo } from 'react'
+﻿import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Switch, RadioGroup, Radio, Field, Label, Description } from '@headlessui/react'
+import { Switch, Field, Label, Description } from '@headlessui/react'
 import { useAppearance, useLanguage } from '@src/app/providers'
-import { EyeIcon } from '@src/components/ui/Icons'
-import { BOTTOM_BAR_LAYOUTS } from '@src/constants/appearance'
+import { EyeIcon, PaletteIcon, SliderIcon, SelectionIcon, ShuffleIcon } from '@src/components/ui/Icons'
+
 import ColorPicker from './ColorPicker'
-
-interface IconProps {
-    className?: string;
-}
-
-// Icon components
-const LayoutIcon = ({ className }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-        <line x1="3" y1="9" x2="21" y2="9" />
-        <line x1="9" y1="21" x2="9" y2="9" />
-    </svg>
-)
-
-const PaletteIcon = ({ className }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="13.5" cy="6.5" r="2.5" />
-        <circle cx="17.5" cy="10.5" r="2.5" />
-        <circle cx="8.5" cy="7.5" r="2.5" />
-        <circle cx="6.5" cy="12.5" r="2.5" />
-        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z" />
-    </svg>
-)
-
-const SliderIcon = ({ className }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="4" y1="21" x2="4" y2="14" />
-        <line x1="4" y1="10" x2="4" y2="3" />
-        <line x1="12" y1="21" x2="12" y2="12" />
-        <line x1="12" y1="8" x2="12" y2="3" />
-        <line x1="20" y1="21" x2="20" y2="16" />
-        <line x1="20" y1="12" x2="20" y2="3" />
-        <line x1="1" y1="14" x2="7" y2="14" />
-        <line x1="9" y1="8" x2="15" y2="8" />
-        <line x1="17" y1="16" x2="23" y2="16" />
-    </svg>
-)
 
 /**
  * Görünüm (Appearance) Ayarları Sekmesi - Premium Redesign
@@ -54,8 +17,7 @@ const AppearanceTab = React.memo(() => {
         setBottomBarOpacity,
         bottomBarScale,
         setBottomBarScale,
-        bottomBarLayout,
-        setBottomBarLayout,
+
         bgType,
         setBgType,
         bgSolidColor,
@@ -70,10 +32,7 @@ const AppearanceTab = React.memo(() => {
 
     const { t } = useLanguage()
 
-    const layouts = useMemo(() => [
-        { id: BOTTOM_BAR_LAYOUTS.HORIZONTAL, label: t('layout_horizontal') },
-        { id: BOTTOM_BAR_LAYOUTS.VERTICAL, label: t('layout_vertical') }
-    ], [t])
+
 
     return (
         <div className="space-y-6">
@@ -156,55 +115,7 @@ const AppearanceTab = React.memo(() => {
                 </Field>
             </motion.div>
 
-            {/* Layout Section Updated */}
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="p-5 rounded-[20px] bg-white/[0.02] border border-white/[0.05] space-y-5"
-            >
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-white/[0.04] text-white/30 border border-white/[0.06]">
-                        <LayoutIcon className="w-4 h-4" />
-                    </div>
-                    <div className="space-y-0.5">
-                        <h3 className="text-sm font-bold text-white/90">{t('bar_layout')}</h3>
-                        <p className="text-[10px] text-white/30 uppercase tracking-widest">{t('bar_drag_hint')}</p>
-                    </div>
-                </div>
 
-                <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-1">{t('bar_layout_direction')}</span>
-                    <RadioGroup value={bottomBarLayout} onChange={setBottomBarLayout} className="grid grid-cols-2 gap-2">
-                        {layouts.map((layout) => (
-                            <Radio
-                                key={layout.id}
-                                value={layout.id}
-                                className={({ checked }) => `
-                                    relative flex items-center justify-center p-3 rounded-xl border text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all duration-300
-                                    ${checked
-                                        ? 'bg-white/[0.1] text-white border-white/30 shadow-lg'
-                                        : 'bg-white/[0.02] border-white/[0.05] text-white/40 hover:bg-white/[0.04] hover:text-white/60'
-                                    }
-                                `}
-                            >
-                                {({ checked }) => (
-                                    <>
-                                        {layout.label}
-                                        {checked && (
-                                            <motion.div
-                                                initial={{ scale: 0 }}
-                                                animate={{ scale: 1 }}
-                                                className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-400"
-                                            />
-                                        )}
-                                    </>
-                                )}
-                            </Radio>
-                        ))}
-                    </RadioGroup>
-                </div>
-            </motion.div>
 
             {/* Scale & Opacity Section */}
             <motion.div
@@ -313,11 +224,8 @@ const AppearanceTab = React.memo(() => {
             >
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-white/[0.04] text-white/30 border border-white/[0.06]">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 3L5.26 14.74A2 2 0 0 0 5 16.14V21h4.86a2 2 0 0 0 1.4-.59L23 8.68a2 2 0 0 0 0-2.83l-3.17-3.17a2 2 0 0 0-2.83 0z" />
-                            <path d="M21 7l-4-4" />
-                            <circle cx="7" cy="17" r="3" />
-                        </svg>
+                        <SelectionIcon className="w-4 h-4" />
+
                     </div>
                     <div className="space-y-0.5">
                         <h3 className="text-sm font-bold text-white/90">{t('selection_color_settings')}</h3>
@@ -412,9 +320,7 @@ const AppearanceTab = React.memo(() => {
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={`p-2 rounded-lg transition-all ${bgRandomMode ? 'bg-white/[0.1] text-white' : 'bg-white/[0.03] text-white/30'}`}>
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
+                                        <ShuffleIcon className="w-4 h-4" />
                                     </div>
                                     <div>
                                         <Label className={`text-xs font-bold ${bgRandomMode ? 'text-white' : 'text-white/50'}`}>

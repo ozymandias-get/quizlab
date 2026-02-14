@@ -256,28 +256,35 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             } 
             // ADIM 3: Submit seçildi
             else if (step === 'submit') {
-                selectionData.button = selector;
-                step = 'done';
-                target.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
-                labelBox.style.display = 'none';
-                updateInfoBox(null);
-                
-                // Temizlik ve sonuç
-                setTimeout(() => {
-                    try {
-                        if (selectedInputElement) {
-                            selectedInputElement.classList.remove('_ai-picker-selected');
-                        }
-                    } catch (e) {}
-
-                    cleanup();
+                try {
+                    selectionData.button = selector;
+                    step = 'done';
                     
-                    try {
-                        safeConsole.info('__AI_PICKER_RESULT__' + JSON.stringify(selectionData));
-                    } catch (e) {
-                        safeConsole.error('Picker result error', e);
-                    }
-                }, 500);
+                    target.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
+                    labelBox.style.display = 'none';
+                    updateInfoBox(null);
+                    
+                    // Temizlik ve sonuç
+                    setTimeout(() => {
+                        try {
+                            if (selectedInputElement) {
+                                selectedInputElement.classList.remove('_ai-picker-selected');
+                            }
+                        } catch (e) {}
+
+                        // Store result in global variable for polling
+                        window._aiPickerResult = JSON.parse(JSON.stringify(selectionData));
+                        
+                        // Also try console for backwards compat
+                        try { console.log('__AI_PICKER_RESULT__' + JSON.stringify(selectionData)); } catch (e) {}
+                        
+                        // Delay cleanup to allow polling to pick up the result
+                        setTimeout(() => { cleanup(); }, 300);
+                    }, 500);
+                } catch (err) {
+                    safeConsole.error('Submit step error', err);
+                    cleanup(); // Fail safe
+                }
             }
         };
 
@@ -286,8 +293,8 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             e.preventDefault();
             e.stopPropagation();
 
+            window._aiPickerCancelled = true;
             cleanup();
-            safeConsole.info('__AI_PICKER_CANCELLED__');
         };
 
         document.addEventListener('mouseover', onMouseOver, true);

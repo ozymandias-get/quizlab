@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef, RefObject } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 
-// Resizer element width in pixels
-const RESIZER_WIDTH = 6
+// Default resizer width in pixels (matches .resizer-hub-container base width)
+const DEFAULT_RESIZER_WIDTH = 48
 
 interface UsePanelResizeOptions {
     initialWidth?: number;
@@ -10,6 +10,7 @@ interface UsePanelResizeOptions {
     minRight?: number;
     storageKey: string;
     isReversed?: boolean;
+    resizerWidth?: number;
 }
 
 interface UsePanelResizeReturn {
@@ -47,7 +48,8 @@ export function usePanelResize({
     minLeft = 300,
     minRight = 400,
     storageKey, // Zorunlu - STORAGE_KEYS'den geçirilmeli
-    isReversed = false // Panel sağa yaslı ise true olmalı
+    isReversed = false, // Panel sağa yaslı ise true olmalı
+    resizerWidth = DEFAULT_RESIZER_WIDTH
 }: UsePanelResizeOptions): UsePanelResizeReturn {
     // Final genişlik değeri (localStorage ile senkronize)
     const [leftPanelWidth, setLeftPanelWidth] = useLocalStorage<number>(storageKey, initialWidth)
@@ -95,6 +97,8 @@ export function usePanelResize({
 
     // Mouse move ve mouse up event listener'ları
     useEffect(() => {
+        const effectiveResizerWidth = Math.max(28, resizerWidth)
+
         // requestAnimationFrame ile throttle edilmiş DOM güncellemesi
         const updatePanelWidth = (percentage: number) => {
             if (leftPanelRef.current) {
@@ -111,9 +115,8 @@ export function usePanelResize({
 
             // Resizer genişliğini hesaba katarak panel genişliğini hesapla
             if (isReversed) {
-                // Resize bar (6px) hesaba katılıyor
                 // Mouse sağdan ne kadar uzak? 
-                newWidthPx = containerWidth - e.clientX - (RESIZER_WIDTH / 2)
+                newWidthPx = containerWidth - e.clientX - (effectiveResizerWidth / 2)
             } else {
                 newWidthPx = e.clientX
             }
@@ -121,7 +124,7 @@ export function usePanelResize({
             // Limitleri kontrol et (Min sol ve min sağ panel genişlikleri)
             // isReversed ise minLeft aslında "Min Resizable Panel Width" (Right Panel)
             // minRight ise "Min Flex Panel Width" (Left Panel)
-            const maxAllowedWidth = containerWidth - minRight - RESIZER_WIDTH
+            const maxAllowedWidth = containerWidth - minRight - effectiveResizerWidth
 
             if (newWidthPx >= minLeft && newWidthPx <= maxAllowedWidth) {
                 const percentage = (newWidthPx / containerWidth) * 100
@@ -185,7 +188,7 @@ export function usePanelResize({
                 cancelAnimationFrame(rafIdRef.current)
             }
         }
-    }, [minLeft, minRight, setLeftPanelWidth, isReversed]) // isResizing bağımlılığı KALDIRILDI - artık ref kullanıyoruz
+    }, [minLeft, minRight, setLeftPanelWidth, isReversed, resizerWidth]) // isResizing bağımlılığı KALDIRILDI - artık ref kullanıyoruz
 
     return {
         leftPanelWidth,

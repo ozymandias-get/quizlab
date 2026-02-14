@@ -24,6 +24,7 @@ export function registerAiRegistryHandlers() {
             let newPlatform: AiPlatform = {
                 id,
                 name: platformData.name,
+                displayName: platformData.name,
                 url: platformData.url,
                 icon: 'globe',
                 selectors: { input: null, button: null, waitFor: null },

@@ -1,52 +1,48 @@
 ﻿import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import { MagicWandIcon } from '@src/components/ui/Icons'
+import { hubIconVariants, hubIconTransition } from './animations'
 
 interface CenterHubProps {
     handleHubPointerUp: (e: React.PointerEvent) => void;
+    onMouseDown?: (e: React.MouseEvent) => void;
     isOpen: boolean;
     hubStyle: React.CSSProperties;
 }
 
-export const CenterHub = memo(({ handleHubPointerUp, isOpen, hubStyle }: CenterHubProps) => {
+export const CenterHub = memo(({ handleHubPointerUp, onMouseDown, isOpen, hubStyle }: CenterHubProps) => {
     return (
         <motion.div
             role="button"
             id="bottom-bar-hub-btn"
             onPointerUp={handleHubPointerUp}
-            whileHover={{ scale: 1.05, y: -1 }}
-            whileTap={{ scale: 0.95 }}
-            className="relative z-30 h-[52px] px-4 rounded-[18px] flex items-center justify-center cursor-pointer"
+            onMouseDown={!isOpen ? onMouseDown : undefined}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.94 }}
+            className={`hub-center-btn ${isOpen ? 'hub-center-btn--open' : 'hub-center-btn--closed'}`}
             style={hubStyle}
         >
+            {/* Icon - Central Anchor */}
             <motion.div
-                animate={{
-                    rotate: isOpen ? 45 : 0,
-                    scale: isOpen ? 1.05 : 1
-                }}
-                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                variants={hubIconVariants}
+                animate={isOpen ? 'open' : 'closed'}
+                transition={hubIconTransition}
+                className="relative flex items-center justify-center w-full h-full"
+                style={{ transformOrigin: 'center', transform: 'translateZ(0)' }}
             >
                 <MagicWandIcon
-                    className="w-5 h-5 transition-all duration-150"
+                    className="w-6 h-6"
                     style={{
-                        color: isOpen ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.55)',
+                        color: isOpen ? '#fff' : 'rgba(255,255,255,0.45)',
+                        filter: isOpen
+                            ? 'drop-shadow(0 0 8px rgba(167, 139, 250, 0.8)) drop-shadow(0 0 16px rgba(139, 92, 246, 0.4))'
+                            : 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+                        transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                 />
             </motion.div>
-
-            {/* Subtle glow when closed */}
-            {!isOpen && (
-                <div
-                    className="absolute inset-0 rounded-[18px] pointer-events-none"
-                    style={{
-                        boxShadow: '0 0 16px -4px rgba(255,255,255,0.1)',
-                        opacity: 0.35
-                    }}
-                />
-            )}
         </motion.div>
     )
 })
 
 CenterHub.displayName = 'CenterHub'
-

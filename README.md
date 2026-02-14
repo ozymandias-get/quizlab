@@ -24,7 +24,7 @@
 
 Say goodbye to tab-switching. Select text in your textbook, instantly clarify it with AI, and turn your notes into structured quizzes to test your mastery—all without leaving the app.
 
-![App Overview](docs/images/app-overview.png)
+<!-- TODO: Add new app overview image -->
 
 ## ✨ Core Features
 

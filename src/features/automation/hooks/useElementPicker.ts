@@ -1,10 +1,8 @@
-﻿import { useCallback, useState, useEffect } from 'react'
+﻿import { useCallback, useState, useRef, useEffect } from 'react'
 import { useToast, useLanguage } from '@src/app/providers'
 import type { WebviewController } from '@shared/types/webview';
 
-// Define a minimal interface if Electron types are not globally available or specific enough
-type ConsoleMessageEvent = Event & { message?: string }
-type WebviewInstance = WebviewController | null; // Electron.WebviewTag replacement
+type WebviewInstance = WebviewController | null;
 
 interface UseElementPickerReturn {
     isPickerActive: boolean;
@@ -13,73 +11,128 @@ interface UseElementPickerReturn {
     togglePicker: () => Promise<void>;
 }
 
+const POLL_INTERVAL = 500 // ms
+
 /**
  * Element Picker Logic as a Hook
- * Managed globally via AppContext
+ * Uses polling to check for picker results instead of console-message events
  */
 export function useElementPicker(webviewInstance: WebviewInstance): UseElementPickerReturn {
     const [isPickerActive, setIsPickerActive] = useState<boolean>(false)
     const { showSuccess, showError, showInfo } = useToast()
     const { t } = useLanguage()
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-    // Handle Picker Console Messages
+    // Cleanup polling on unmount
     useEffect(() => {
-        const webview = webviewInstance
-        if (!webview || typeof webview.addEventListener !== 'function') return
-
-        const handleConsoleMessage = async (e: Event) => { // Electron.ConsoleMessageEvent replacement
-            const consoleEvent = e as ConsoleMessageEvent
-            if (consoleEvent.message && consoleEvent.message.startsWith('__AI_PICKER_RESULT__')) {
-                try {
-                    const jsonStr = consoleEvent.message.replace('__AI_PICKER_RESULT__', '').trim()
-                    const config = JSON.parse(jsonStr)
-
-                    if (config.input && config.button) {
-                        if (typeof webview.getURL !== 'function') {
-                            showError('picker_webview_not_found')
-                            return
-                        }
-                        const url = webview.getURL()
-                        if (!url) {
-                            showError('picker_webview_not_found')
-                            return
-                        }
-                        const hostname = new URL(url).hostname
-
-                        if (!window.electronAPI?.saveAiConfig) {
-                            console.error('Electron API not available')
-                            return
-                        }
-                        const saved = await window.electronAPI.saveAiConfig(hostname, config)
-
-                        if (saved) {
-                            showSuccess('sent_successfully')
-                        } else {
-                            showError('picker_save_failed')
-                        }
-                    } else {
-                        showError('picker_selection_missing')
-                    }
-                } catch (err) {
-                    const message = err instanceof Error ? err.message : t('error_unknown_error')
-                    console.error('[ElementPicker] Picker result error:', err)
-                    showError('toast_pdf_load_error', undefined, { error: message })
-                } finally {
-                    setIsPickerActive(false)
-                }
+        return () => {
+            if (pollRef.current) {
+                clearInterval(pollRef.current)
+                pollRef.current = null
             }
         }
+    }, [])
 
-        webview.addEventListener('console-message', handleConsoleMessage)
+    const stopPolling = useCallback(() => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current)
+            pollRef.current = null
+        }
+    }, [])
 
-        return () => {
+    const savePickerResult = useCallback(async (config: { input: string; button: string }) => {
+        const webview = webviewInstance
+        if (!webview) return
+
+        try {
+            // Force cleanup webview picker UI
             try {
-                if (webview && typeof webview.removeEventListener === 'function') {
-                    webview.removeEventListener('console-message', handleConsoleMessage)
+                if (typeof webview.executeJavaScript === 'function') {
+                    await webview.executeJavaScript('if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;')
                 }
-            } catch (e) { }
+            } catch (_) { }
+
+            if (typeof webview.getURL !== 'function') {
+                showError('picker_webview_not_found')
+                return
+            }
+            const url = webview.getURL()
+            if (!url) {
+                showError('picker_webview_not_found')
+                return
+            }
+            const hostname = new URL(url).hostname
+
+            if (!window.electronAPI?.saveAiConfig) {
+                console.error('Electron API not available')
+                return
+            }
+            const saved = await window.electronAPI.saveAiConfig(hostname, config)
+
+            if (saved) {
+                showSuccess('sent_successfully')
+            } else {
+                showError('picker_save_failed')
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : t('error_unknown_error')
+            console.error('[ElementPicker] Save error:', err)
+            showError('toast_pdf_load_error', undefined, { error: message })
+        } finally {
+            setIsPickerActive(false)
         }
     }, [webviewInstance, showSuccess, showError, t])
+
+    const startPolling = useCallback(() => {
+        stopPolling()
+
+        pollRef.current = setInterval(async () => {
+            const webview = webviewInstance
+            if (!webview || typeof webview.executeJavaScript !== 'function') return
+
+            try {
+                // Check for result or cancellation
+                const status = await webview.executeJavaScript(`
+                    (function() {
+                        if (window._aiPickerResult) {
+                            var r = JSON.stringify(window._aiPickerResult);
+                            return JSON.stringify({ type: 'result', data: r });
+                        }
+                        if (window._aiPickerCancelled) {
+                            delete window._aiPickerCancelled;
+                            return JSON.stringify({ type: 'cancelled' });
+                        }
+                        return null;
+                    })()
+                `)
+
+                if (!status) return
+
+                const parsed = typeof status === 'string' ? JSON.parse(status) : status
+
+                if (parsed.type === 'cancelled') {
+                    stopPolling()
+                    setIsPickerActive(false)
+                    showInfo('picker_cancelled')
+                    return
+                }
+
+                if (parsed.type === 'result') {
+                    stopPolling()
+                    const config = typeof parsed.data === 'string' ? JSON.parse(parsed.data) : parsed.data
+
+                    if (config && config.input && config.button) {
+                        await savePickerResult(config)
+                    } else {
+                        showError('picker_selection_missing')
+                        setIsPickerActive(false)
+                    }
+                }
+            } catch (_) {
+                // Polling errors are non-critical (webview might be navigating)
+            }
+        }, POLL_INTERVAL)
+    }, [webviewInstance, stopPolling, savePickerResult, showError, showInfo])
 
     const startPicker = useCallback(async () => {
         if (!webviewInstance) {
@@ -136,30 +189,39 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             if (typeof webviewInstance.executeJavaScript !== 'function') {
                 throw new Error('Webview executeJavaScript not available')
             }
+
+            // Clear any previous result before starting
+            await webviewInstance.executeJavaScript('delete window._aiPickerResult; delete window._aiPickerCancelled;')
+
             await webviewInstance.executeJavaScript(script)
             setIsPickerActive(true)
             showInfo('picker_started_hint')
+
+            // Start polling for result
+            startPolling()
         } catch (err) {
             console.error('Failed to start picker:', err)
             showError('picker_init_failed')
             setIsPickerActive(false)
+            stopPolling()
         }
-    }, [webviewInstance, showError, showInfo, t])
+    }, [webviewInstance, showError, showInfo, t, startPolling, stopPolling])
 
     const stopPicker = useCallback(async () => {
+        stopPolling()
         if (!webviewInstance) return
         try {
             if (typeof webviewInstance.executeJavaScript !== 'function') {
                 throw new Error('Webview executeJavaScript not available')
             }
-            await webviewInstance.executeJavaScript('if (window._aiPickerCleanup) window._aiPickerCleanup();')
+            await webviewInstance.executeJavaScript('if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;')
             setIsPickerActive(false)
             showInfo('picker_cancelled')
         } catch (err) {
             console.error('Failed to stop picker:', err)
             setIsPickerActive(false)
         }
-    }, [webviewInstance, showInfo])
+    }, [webviewInstance, showInfo, stopPolling])
 
     const togglePicker = useCallback(async () => {
         if (isPickerActive) {
@@ -176,7 +238,3 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         togglePicker
     }
 }
-
-
-
-

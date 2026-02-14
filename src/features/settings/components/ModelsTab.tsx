@@ -294,7 +294,7 @@ const ModelsTab = React.memo(() => {
                                                         // Note: This relies on t() returning the key if translation is missing.
                                                         if (translated && translated !== key) return translated;
 
-                                                        return site.displayName || (key.charAt(0).toUpperCase() + key.slice(1));
+                                                        return site.displayName || site.name || (key.charAt(0).toUpperCase() + key.slice(1));
                                                     })()}
                                                 </Label>
                                                 {isCustom && (

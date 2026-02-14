@@ -4,11 +4,10 @@ import { SettingsIcon, MagicWandIcon, SwapIcon } from '@src/components/ui/Icons'
 import { Brain } from 'lucide-react'
 import { useLanguage, useAppTools } from '@src/app/providers'
 import { ToolButton } from './ToolButton'
-import { panelVariantsHorizontal, panelVariantsVertical, panelTransition } from './animations'
+import { panelVariantsVertical, panelTransition } from './animations'
 
 interface ToolsPanelProps {
     isOpen: boolean;
-    bottomBarLayout: 'horizontal' | 'vertical';
     panelStyle: React.CSSProperties;
     handleSettingsClick: () => void;
     toggleLayoutSwap: () => void;
@@ -18,7 +17,6 @@ interface ToolsPanelProps {
 
 export const ToolsPanel = memo(({
     isOpen,
-    bottomBarLayout,
     panelStyle,
     handleSettingsClick,
     toggleLayoutSwap,
@@ -33,28 +31,42 @@ export const ToolsPanel = memo(({
         <AnimatePresence initial={false}>
             {isOpen && (
                 <motion.div
-                    variants={bottomBarLayout === 'vertical' ? panelVariantsVertical : panelVariantsHorizontal}
+                    variants={panelVariantsVertical}
                     initial="hidden"
                     animate="visible"
                     exit="exit"
                     transition={panelTransition}
-                    className={bottomBarLayout === 'vertical'
-                        ? "absolute bottom-full mb-3 left-0 overflow-hidden w-[52px]"
-                        : "absolute right-full mr-3 top-0 overflow-hidden h-[52px]"
-                    }
+                    className="bottom-bar-panel bottom-bar-panel--tools absolute bottom-full mb-1.5 left-0 w-full overflow-hidden"
                     style={panelStyle}
                     id="bottom-bar-tools-panel"
                 >
-                    <div className={bottomBarLayout === 'vertical'
-                        ? "flex flex-col items-center gap-1.5 py-3 w-full"
-                        : "flex items-center gap-1.5 px-3 h-full"
-                    }>
-                        <div id="tool-btn-settings">
+                    <motion.div
+                        className="flex flex-col items-center gap-2 py-3 w-full"
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        variants={{
+                            hidden: {},
+                            visible: {
+                                transition: {
+                                    staggerChildren: 0.06,
+                                    delayChildren: 0.08,
+                                }
+                            },
+                            exit: {
+                                transition: {
+                                    staggerChildren: 0.03,
+                                    staggerDirection: -1,
+                                }
+                            }
+                        }}
+                    >
+                        <motion.div id="tool-btn-settings" variants={{ hidden: {}, visible: {}, exit: {} }}>
                             <ToolButton delay={0.03} onClick={handleSettingsClick} title={t('settings')}>
                                 <SettingsIcon className="w-5 h-5" />
                             </ToolButton>
-                        </div>
-                        <div id="tool-btn-swap">
+                        </motion.div>
+                        <motion.div id="tool-btn-swap" variants={{ hidden: {}, visible: {}, exit: {} }}>
                             <ToolButton
                                 delay={0.05}
                                 onClick={toggleLayoutSwap}
@@ -62,8 +74,8 @@ export const ToolsPanel = memo(({
                             >
                                 <SwapIcon className="w-5 h-5" />
                             </ToolButton>
-                        </div>
-                        <div id="tool-btn-picker">
+                        </motion.div>
+                        <motion.div id="tool-btn-picker" variants={{ hidden: {}, visible: {}, exit: {} }}>
                             <ToolButton
                                 delay={0.06}
                                 isActive={isPickerActive}
@@ -73,10 +85,10 @@ export const ToolsPanel = memo(({
                             >
                                 <MagicWandIcon className="w-5 h-5" />
                             </ToolButton>
-                        </div>
+                        </motion.div>
 
                         {/* Quiz Mode Button */}
-                        <div id="tool-btn-quiz">
+                        <motion.div id="tool-btn-quiz" variants={{ hidden: {}, visible: {}, exit: {} }}>
                             <ToolButton
                                 delay={0.12}
                                 isActive={isQuizMode}
@@ -86,9 +98,9 @@ export const ToolsPanel = memo(({
                             >
                                 <Brain className="w-5 h-5" />
                             </ToolButton>
-                        </div>
+                        </motion.div>
 
-                    </div>
+                    </motion.div>
                 </motion.div>
             )}
         </AnimatePresence>
@@ -96,4 +108,3 @@ export const ToolsPanel = memo(({
 })
 
 ToolsPanel.displayName = 'ToolsPanel'
-

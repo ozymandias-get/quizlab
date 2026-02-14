@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
 import { useLanguage } from '@src/app/providers'
 import { useSettings } from '@src/hooks'
-import { SettingsIcon, CloseIcon, LanguageIcon, InfoIcon, GridIcon, EyeIcon, MagicWandIcon } from '@src/components/ui/Icons'
+// Icons imported from @src/components/ui/Icons
+import { SettingsIcon, CloseIcon, LanguageIcon, InfoIcon, GridIcon, EyeIcon, MagicWandIcon, SelectorIcon, TerminalIcon } from '@src/components/ui/Icons'
 
 // Lazy Load Settings Tabs
 const LanguageTab = lazy(() => import('./LanguageTab'))
@@ -17,26 +18,7 @@ const PromptsTab = lazy(() => import('./PromptsTab'))
 // Click outside delay (ms)
 const CLICK_OUTSIDE_DELAY = 100
 
-interface IconProps {
-    className?: string;
-}
-
-// Target/Selector Icon
-const SelectorIcon = ({ className }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="6" />
-        <circle cx="12" cy="12" r="2" />
-    </svg>
-)
-
-// Terminal icon for Gemini CLI tab
-const TerminalIcon = ({ className }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="4 17 10 11 4 5"></polyline>
-        <line x1="12" y1="19" x2="20" y2="19"></line>
-    </svg>
-)
+// Icons imported from @src/components/ui/Icons
 
 interface SettingsModalProps {
     isOpen: boolean;
