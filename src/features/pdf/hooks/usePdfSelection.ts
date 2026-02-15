@@ -1,4 +1,5 @@
 ﻿import { useState, useCallback, useRef } from 'react'
+import { Logger } from '@src/utils/logger'
 import { useToast, useLanguage } from '@src/app/providers'
 import type { PdfFile } from '@shared/types'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
@@ -41,7 +42,7 @@ export const usePdfSelection = () => {
         } catch (error) {
             if (currentRequestId === lastLoadRequestId.current) {
                 const message = error instanceof Error ? error.message : t('error_unknown_error')
-                console.error('[usePdfSelection] PDF Selection Error:', error)
+                Logger.error('[usePdfSelection] PDF Selection Error:', error)
                 showError('toast_pdf_load_error', undefined, { error: message })
             }
         }
@@ -78,7 +79,7 @@ export const usePdfSelection = () => {
                 } catch { /* ignore */ }
             }
         } catch (error) {
-            console.error('[usePdfSelection] Drop Error:', error)
+            Logger.error('[usePdfSelection] Drop Error:', error)
             showError('error_pdf_load')
         }
     }, [showError, showSuccess])
@@ -111,7 +112,7 @@ export const usePdfSelection = () => {
                 }))
             }
         } catch (error) {
-            console.error('[usePdfSelection] Resume Error:', error)
+            Logger.error('[usePdfSelection] Resume Error:', error)
             // PDF artık mevcut değilse kayıtlı bilgiyi sil
             localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
             showError('error_pdf_load')

@@ -2,22 +2,14 @@
  * QuizActive - Active Quiz View
  * Premium Glass Morphism Design
  */
-import React, { useMemo, useEffect, useState, useCallback } from 'react'
+import React, { useMemo, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CheckCircle, Eraser, Clock, Sparkles } from 'lucide-react'
+import { SLIDE_VARIANTS } from '@src/constants/animations'
 import { formatQuizText } from '@src/utils/uiUtils'
-import { Question } from '@src/features/quiz/api'
-
-// Types (QuizState is local/module specific)
-interface QuizState {
-    questions: Question[];
-    userAnswers: Record<string, number>;
-    currentQuestionIndex: number;
-    score: number;
-    isFinished: boolean;
-    startTime: number | null;
-    endTime: number | null;
-}
+import { Question, QuizState } from '../types'
+import { useQuizTimer } from '../hooks/useQuizTimer'
+import { useQuizKeyboard } from '../hooks/useQuizKeyboard'
 
 interface QuizActiveProps {
     quizState: QuizState;
@@ -29,31 +21,7 @@ interface QuizActiveProps {
 }
 
 // Slide animation variants
-const slideVariants = {
-    enter: (direction: number) => ({
-        x: direction > 0 ? 60 : -60,
-        opacity: 0,
-        scale: 0.98
-    }),
-    center: {
-        zIndex: 1,
-        x: 0,
-        opacity: 1,
-        scale: 1
-    },
-    exit: (direction: number) => ({
-        zIndex: 0,
-        x: direction < 0 ? 60 : -60,
-        opacity: 0,
-        scale: 0.98
-    })
-}
 
-function isTypingElement(element: Element | null): boolean {
-    if (!(element instanceof HTMLElement)) return false
-    const tag = element.tagName.toLowerCase()
-    return tag === 'input' || tag === 'textarea' || tag === 'select' || element.isContentEditable
-}
 
 function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection, onFinish, t }: QuizActiveProps) {
     const { questions, currentQuestionIndex, userAnswers, startTime } = quizState
@@ -74,29 +42,8 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
         }
     }, [currentQ])
 
-    // Live timer - based on Date.now() diff for accuracy
-    const [elapsedTime, setElapsedTime] = useState('00:00')
-
-    useEffect(() => {
-        if (!startTime) {
-            setElapsedTime('00:00')
-            return
-        }
-
-        const updateElapsedTime = () => {
-            const elapsed = Math.floor((Date.now() - startTime) / 1000)
-            const mins = Math.floor(elapsed / 60).toString().padStart(2, '0')
-            const secs = (elapsed % 60).toString().padStart(2, '0')
-            setElapsedTime(`${mins}:${secs}`)
-        }
-
-        updateElapsedTime()
-        const interval = setInterval(() => {
-            updateElapsedTime()
-        }, 1000)
-
-        return () => clearInterval(interval)
-    }, [startTime])
+    // Live timer
+    const elapsedTime = useQuizTimer(startTime)
 
     // Handle answer toggle - safe functional update to prevent stale state
     const handleAnswerToggle = useCallback((optionIndex: number) => {
@@ -150,27 +97,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
     }, [currentQuestionIndex, totalQuestions, setQuizState])
 
     // Keyboard Navigation
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.defaultPrevented) return
-            if (e.altKey || e.ctrlKey || e.metaKey) return
-            if (e.repeat) return
-            if (isTypingElement(document.activeElement)) return
-
-            if (e.key === 'ArrowRight') {
-                if (isLast) return // Optional: could trigger finish on Enter but let's stick to arrows for nav
-                e.preventDefault()
-                navigateQuestion(1)
-            } else if (e.key === 'ArrowLeft') {
-                if (isFirst) return
-                e.preventDefault()
-                navigateQuestion(-1)
-            }
-        }
-        
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [navigateQuestion, isLast, isFirst])
+    useQuizKeyboard(navigateQuestion, isFirst, isLast)
 
     // Calculate progress
     const progress = totalQuestions > 0 ? ((currentQuestionIndex + 1) / totalQuestions) * 100 : 0
@@ -238,7 +165,7 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                     <motion.div
                         key={currentQ.id}
                         custom={slideDirection}
-                        variants={slideVariants}
+                        variants={SLIDE_VARIANTS}
                         initial="enter"
                         animate="center"
                         exit="exit"

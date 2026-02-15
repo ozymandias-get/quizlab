@@ -1,4 +1,5 @@
 ﻿import React, { useCallback } from 'react'
+import { Logger } from '@src/utils/logger'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage, useAppearance, type UpdateInfo } from '@src/app/providers'
 import { APP_CONSTANTS } from '@src/constants/appConstants'
@@ -63,7 +64,7 @@ const AboutTab = React.memo(({
                 setCacheStatus('error')
             }
         } catch (error) {
-            console.error('Cache clear failed', error)
+            Logger.error('Cache clear failed', error)
             setCacheStatus('error')
             setTimeout(() => setCacheStatus('idle'), 3000)
         }

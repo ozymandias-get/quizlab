@@ -1,4 +1,5 @@
 ﻿import React, { useState, useMemo, useCallback } from 'react'
+import { Logger } from '@src/utils/logger'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch, Field, Label, Description } from '@headlessui/react'
 import { useAi, useLanguage, useToast } from '@src/app/providers'
@@ -85,7 +86,7 @@ const ModelsTab = React.memo(() => {
                 showError(result?.error || t('ai_add_failed'))
             }
         } catch (err) {
-            console.error(err)
+            Logger.error(err)
             showError(t('ai_add_failed'))
         } finally {
             setActionLoading(null)

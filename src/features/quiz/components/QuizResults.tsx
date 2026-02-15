@@ -2,7 +2,7 @@
  * QuizResults - Quiz Results View
  * Shows score, correct/wrong answers, and detailed explanations
  */
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Trophy, RotateCcw, RefreshCw, AlertCircle,
@@ -10,18 +10,10 @@ import {
     Clock, TrendingUp
 } from 'lucide-react'
 import { formatQuizText } from '@src/utils/uiUtils'
-import { Question, QuizSettings } from '@src/features/quiz/api'
-
-// Interfaces (QuizState is local/module specific)
-interface QuizState {
-    questions: Question[];
-    userAnswers: Record<string, number>;
-    currentQuestionIndex: number;
-    score: number;
-    isFinished: boolean;
-    startTime: number | null;
-    endTime: number | null;
-}
+import { QuizSettings } from '@src/features/quiz/api'
+import { QuizState } from '../types'
+import { useQuizStats } from '../hooks/useQuizStats'
+import ConfettiCanvas from '@src/components/ui/ConfettiCanvas'
 
 interface QuizResultsProps {
     quizState: QuizState;
@@ -37,33 +29,7 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
 
 
     // Calculate stats
-    const stats = useMemo(() => {
-        const total = quizState.questions.length
-        const correct = quizState.score
-        const answeredCount = Object.keys(quizState.userAnswers).length
-        // Calculate wrong by checking each answered question
-        const wrong = quizState.questions.reduce((acc, q) => {
-            const answer = quizState.userAnswers[q.id]
-            // Only count as wrong if answered AND incorrect
-            if (answer !== undefined && answer !== q.correctAnswerIndex) {
-                return acc + 1
-            }
-            return acc
-        }, 0)
-        const empty = total - answeredCount
-        const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
-
-        // Calculate time
-        let timeStr = '--:--'
-        if (quizState.startTime && quizState.endTime) {
-            const elapsed = Math.floor((quizState.endTime - quizState.startTime) / 1000)
-            const mins = Math.floor(elapsed / 60).toString().padStart(2, '0')
-            const secs = (elapsed % 60).toString().padStart(2, '0')
-            timeStr = `${mins}:${secs}`
-        }
-
-        return { total, correct, wrong, empty, percentage, timeStr }
-    }, [quizState])
+    const stats = useQuizStats(quizState)
 
     // Grade based on score
     const getGradeInfo = () => {
@@ -79,7 +45,6 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
     const hasIncorrectOrEmpty = stats.wrong > 0 || stats.empty > 0
 
     const [displayScore, setDisplayScore] = useState(0)
-    const confettiRef = useState<HTMLCanvasElement | null>(null)[1] // Keeping simple ref handling or just use standard Ref
 
     // Count Up Animation
     useEffect(() => {
@@ -105,75 +70,7 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
         requestAnimationFrame(animate)
     }, [stats.percentage])
 
-    // Simple Confetti Effect
-    useEffect(() => {
-        if (stats.percentage < 70) return
 
-        const canvas = document.querySelector('canvas') as HTMLCanvasElement
-        if (!canvas) return
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        let animationId: number
-        const particles: any[] = []
-        const colors = ['#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#ffffff']
-
-        const createParticle = () => ({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height - canvas.height,
-            size: Math.random() * 5 + 2,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            speedY: Math.random() * 3 + 2,
-            speedX: (Math.random() - 0.5) * 2,
-            rotation: Math.random() * 360,
-            rotationSpeed: (Math.random() - 0.5) * 10
-        })
-
-        // Resize
-        const resize = () => {
-            canvas.width = canvas.parentElement?.clientWidth || 300
-            canvas.height = canvas.parentElement?.clientHeight || 300
-        }
-        resize()
-        window.addEventListener('resize', resize)
-
-        // Init particles
-        for (let i = 0; i < 100; i++) {
-            particles.push(createParticle())
-        }
-
-        const animate = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-            particles.forEach((p, i) => {
-                p.y += p.speedY
-                p.x += p.speedX
-                p.rotation += p.rotationSpeed
-
-                ctx.save()
-                ctx.translate(p.x, p.y)
-                ctx.rotate(p.rotation * Math.PI / 180)
-                ctx.fillStyle = p.color
-                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size)
-                ctx.restore()
-
-                // Reset fall
-                if (p.y > canvas.height) {
-                    particles[i] = createParticle()
-                    particles[i].y = -20
-                }
-            })
-
-            animationId = requestAnimationFrame(animate)
-        }
-        animate()
-
-        return () => {
-            cancelAnimationFrame(animationId)
-            window.removeEventListener('resize', resize)
-        }
-    }, [stats.percentage])
 
 
 
@@ -234,13 +131,10 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                         </div>
 
                         {/* Confetti Canvas (Only if good score) */}
-                        {stats.percentage >= 70 && (
-                            <canvas
-                                ref={confettiRef}
-                                className="absolute inset-0 pointer-events-none z-10"
-                                style={{ width: '100%', height: '100%' }}
-                            />
-                        )}
+                        <ConfettiCanvas
+                            isActive={stats.percentage >= 70}
+                            className="absolute inset-0"
+                        />
 
                         {/* Grade Info */}
                         <div className="flex-1 text-center md:text-left">

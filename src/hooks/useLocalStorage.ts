@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Logger } from '@src/utils/logger'
 
 /**
  * SSR/Test ortamı kontrolü
@@ -15,7 +16,7 @@ const getStorageItem = (key: string): string | null => {
     try {
         return localStorage.getItem(key)
     } catch (error) {
-        console.warn(`localStorage erişim hatası (get "${key}"):`, error)
+        Logger.warn(`localStorage erişim hatası (get "${key}"):`, error)
         return null
     }
 }
@@ -32,7 +33,7 @@ const setStorageItem = (key: string, value: string): boolean => {
         window.dispatchEvent(new CustomEvent('local-storage', { detail: { key, value } }))
         return true
     } catch (error) {
-        console.warn(`localStorage yazma hatası (set "${key}"):`, error)
+        Logger.warn(`localStorage yazma hatası (set "${key}"):`, error)
         return false
     }
 }
@@ -65,18 +66,18 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
                 // Special handling for Arrays (which are type 'object')
                 if (Array.isArray(initialValue)) {
                     if (!Array.isArray(parsed)) {
-                        console.warn(`useLocalStorage: Type mismatch for key "${key}". Expected Array, got ${parsedType}. Resetting to initial.`)
+                        Logger.warn(`useLocalStorage: Type mismatch for key "${key}". Expected Array, got ${parsedType}. Resetting to initial.`)
                         return initialValue
                     }
                 } else if (parsedType !== initialType) {
-                    console.warn(`useLocalStorage: Type mismatch for key "${key}". Expected ${initialType}, got ${parsedType}. Resetting to initial.`)
+                    Logger.warn(`useLocalStorage: Type mismatch for key "${key}". Expected ${initialType}, got ${parsedType}. Resetting to initial.`)
                     return initialValue
                 }
             }
 
             return parsed
         } catch (error) {
-            console.warn(`useLocalStorage: "${key}" için değer okunamadı:`, error)
+            Logger.warn(`useLocalStorage: "${key}" için değer okunamadı:`, error)
             return initialValue
         }
     })
@@ -98,7 +99,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
                 try {
                     setStoredValue(JSON.parse(e.newValue))
                 } catch (error) {
-                    console.warn(`useLocalStorage: "${key}" için cross-window sync başarısız:`, error)
+                    Logger.warn(`useLocalStorage: "${key}" için cross-window sync başarısız:`, error)
                 }
             } else if (e.key === key && e.newValue === null) {
                 // Key silindiyse initialValue'ya dön
@@ -113,7 +114,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
                 try {
                     setStoredValue(JSON.parse(customEvent.detail.value))
                 } catch (error) {
-                    console.warn(`useLocalStorage: "${key}" için local sync başarısız:`, error)
+                    Logger.warn(`useLocalStorage: "${key}" için local sync başarısız:`, error)
                 }
             }
         }
@@ -143,7 +144,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
                 setStorageItem(key, JSON.stringify(value))
             }
         } catch (error) {
-            console.warn(`useLocalStorage: "${key}" için değer kaydedilemedi:`, error)
+            Logger.warn(`useLocalStorage: "${key}" için değer kaydedilemedi:`, error)
         }
     }, [key])
 
@@ -170,7 +171,7 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
             }
             return initialValue
         } catch (error) {
-            console.warn(`useLocalStorageString: "${key}" için değer okunamadı:`, error)
+            Logger.warn(`useLocalStorageString: "${key}" için değer okunamadı:`, error)
             return initialValue
         }
     })
@@ -233,7 +234,7 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
                     const newValue = value(prevValue)
                     // Geçerli değerler varsa kontrol et
                     if (validValues && !validValues.includes(newValue)) {
-                        console.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, newValue)
+                        Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, newValue)
                         return prevValue // Geçersiz değeri kaydetme
                     }
                     setStorageItem(key, newValue)
@@ -242,14 +243,14 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
             } else {
                 // Geçerli değerler varsa kontrol et
                 if (validValues && !validValues.includes(value)) {
-                    console.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, value)
+                    Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, value)
                     return // Geçersiz değeri kaydetme
                 }
                 setStoredValue(value)
                 setStorageItem(key, value)
             }
         } catch (error) {
-            console.warn(`useLocalStorageString: "${key}" için değer kaydedilemedi:`, error)
+            Logger.warn(`useLocalStorageString: "${key}" için değer kaydedilemedi:`, error)
         }
     }, [key, validValues])
 
@@ -271,7 +272,7 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
             if (item === null) return initialValue
             return item === 'true'
         } catch (error) {
-            console.warn(`useLocalStorageBoolean: "${key}" için değer okunamadı:`, error)
+            Logger.warn(`useLocalStorageBoolean: "${key}" için değer okunamadı:`, error)
             return initialValue
         }
     })
@@ -318,7 +319,7 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
                 setStorageItem(key, value.toString())
             }
         } catch (error) {
-            console.warn(`useLocalStorageBoolean: "${key}" için değer kaydedilemedi:`, error)
+            Logger.warn(`useLocalStorageBoolean: "${key}" için değer kaydedilemedi:`, error)
         }
     }, [key])
 

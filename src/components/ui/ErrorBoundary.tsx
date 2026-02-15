@@ -1,4 +1,5 @@
 ﻿import React from 'react'
+import { Logger } from '@src/utils/logger'
 import { useLanguage } from '@src/app/providers'
 
 /**
@@ -43,7 +44,7 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryClassProps, ErrorB
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        console.error('[ErrorBoundary] Caught error:', error, errorInfo)
+        Logger.error('[ErrorBoundary] Caught error:', error, errorInfo)
         this.setState({ errorInfo })
         if (this.props.onError) {
             this.props.onError(error, errorInfo)

@@ -38,7 +38,7 @@
 }
 
 /* PDF içeriği - scroll pozisyonunu koru */
-.pdf-viewer-container > * {
+.pdf-viewer-container>* {
   position: relative;
 }
 
@@ -48,16 +48,17 @@
   height: 100% !important;
 }
 
-/* PDF sayfası - Resim gibi organik ve yumuşak boyutlanma için akıllı stiller */
+/* PDF sayfası - yumuşak geçişler */
 .pdf-viewer-container .rpv-core__inner-page {
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: width, height;
 }
 
+/* Layer geçişleri */
 .pdf-viewer-container .rpv-core__canvas-layer,
 .pdf-viewer-container .rpv-core__text-layer,
 .pdf-viewer-container .rpv-core__annotation-layer {
-  /* Katmanlarda 'all' geçişi yapmak PDF.js'in iç hesaplamalarını (scale-factor) bozar. */
   transition: opacity 0.3s ease;
 }
 
@@ -74,15 +75,11 @@
   background-color: transparent !important;
 }
 
-.pdf-viewer-container .rpv-core__inner-pages {
-  background-color: transparent !important;
-}
-
 .pdf-viewer-container .rpv-core__text-layer {
   color: transparent !important;
 }
 
-/* Premium Text Selection - Dinamik olarak değiştirilebilir */
+/* Premium Text Selection */
 .pdf-viewer-container .rpv-core__text-layer span::selection {
   background-color: var(--selection-color, rgba(99, 102, 241, 0.45)) !important;
   color: transparent !important;

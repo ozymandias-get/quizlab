@@ -23,6 +23,7 @@ export interface AIItemProps {
     activeDragItem: string | null;
     animationDelay?: number;
     showOnlyIcons?: boolean;
+    draggable?: boolean;
 }
 
 /**
@@ -36,7 +37,8 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     setActiveDragItem,
     activeDragItem,
     animationDelay: _animationDelay = 0,
-    showOnlyIcons = true
+    showOnlyIcons = true,
+    draggable = true
 }: AIItemProps) {
     // isDragging durumunu ref ile takip etmek daha performanslı ve senkron sorunsuz
     const isDraggingRef = useRef(false)
@@ -130,76 +132,87 @@ export const AIItem = memo<AIItemProps>(function AIItem({
 
 
 
-    return (
-        <Reorder.Item
-            value={modelKey}
-            // dragListener={true} varsayılan davranıştır, useDragControls kullanmıyoruz
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            animate={{
-                scale: isBeingDragged ? 1.05 : 1,
-                zIndex: isBeingDragged ? 50 : 1
+    const content = (
+        <motion.button
+            onHoverStart={() => setIsHovered(true)}
+            onHoverEnd={() => setIsHovered(false)}
+            whileHover={{
+                scale: 1.08,
+                y: -2,
+                transition: { type: "spring", stiffness: 420, damping: 22, mass: 0.6 }
             }}
-            transition={{
-                duration: 0.2,
-                type: 'spring',
-                stiffness: 350,
-                damping: 25,
-            }}
-            whileDrag={{ scale: 1.12, cursor: 'grabbing' }}
-            className="relative cursor-grab active:cursor-grabbing"
-            style={{
-                filter: isBeingDragged ? `drop-shadow(0 0 18px ${safeColor}90)` : 'none',
-                transform: 'translateZ(0)',
-            }}
+            whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
+            className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
+            style={buttonStyle}
+            onClick={handleClick}
+            title={site?.displayName || modelKey}
         >
-            <motion.button
-                onHoverStart={() => setIsHovered(true)}
-                onHoverEnd={() => setIsHovered(false)}
-                whileHover={{
-                    scale: 1.08,
-                    y: -2,
-                    transition: { type: "spring", stiffness: 420, damping: 22, mass: 0.6 }
+            {getAiIcon(site?.icon || modelKey) || (
+                <div className="w-4 h-4 flex items-center justify-center font-bold text-[10px]">
+                    {site?.displayName?.charAt(0) || site?.name?.charAt(0) || '?'}
+                </div>
+            )}
+
+            {!showOnlyIcons && (
+                <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 whitespace-nowrap overflow-hidden text-ellipsis">
+                    {site?.displayName || modelKey}
+                </span>
+            )}
+
+            {isSelected && (
+                <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{
+                        scale: [1, 1.3, 1],
+                        opacity: [0.9, 1, 0.9],
+                    }}
+                    transition={{
+                        scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+                        opacity: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+                    }}
+                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+                    style={{
+                        background: safeColor,
+                        boxShadow: `0 0 8px ${safeColor}, 0 0 16px ${safeColor}60`,
+                        transform: 'translateZ(0)',
+                    }}
+                />
+            )}
+        </motion.button>
+    )
+
+    if (draggable) {
+        return (
+            <Reorder.Item
+                value={modelKey}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                animate={{
+                    scale: isBeingDragged ? 1.05 : 1,
+                    zIndex: isBeingDragged ? 50 : 1
                 }}
-                whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
-                className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
-                style={buttonStyle}
-                onClick={handleClick}
-                title={site?.displayName || modelKey}
+                transition={{
+                    duration: 0.2,
+                    type: 'spring',
+                    stiffness: 350,
+                    damping: 25,
+                }}
+                whileDrag={{ scale: 1.12, cursor: 'grabbing' }}
+                className="relative cursor-grab active:cursor-grabbing"
+                style={{
+                    filter: isBeingDragged ? `drop-shadow(0 0 18px ${safeColor}90)` : 'none',
+                    transform: 'translateZ(0)',
+                }}
             >
-                {getAiIcon(site?.icon || modelKey) || (
-                    <div className="w-4 h-4 flex items-center justify-center font-bold text-[10px]">
-                        {site?.displayName?.charAt(0) || site?.name?.charAt(0) || '?'}
-                    </div>
-                )}
+                {content}
+            </Reorder.Item>
+        )
+    }
 
-                {!showOnlyIcons && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 whitespace-nowrap overflow-hidden text-ellipsis">
-                        {site?.displayName || modelKey}
-                    </span>
-                )}
-
-                {isSelected && (
-                    <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{
-                            scale: [1, 1.3, 1],
-                            opacity: [0.9, 1, 0.9],
-                        }}
-                        transition={{
-                            scale: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
-                            opacity: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
-                        }}
-                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
-                        style={{
-                            background: safeColor,
-                            boxShadow: `0 0 8px ${safeColor}, 0 0 16px ${safeColor}60`,
-                            transform: 'translateZ(0)',
-                        }}
-                    />
-                )}
-            </motion.button>
-        </Reorder.Item>
+    return (
+        <motion.div layout className="relative">
+            {content}
+        </motion.div>
     )
 })
 

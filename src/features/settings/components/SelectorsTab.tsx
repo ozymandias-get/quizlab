@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { Logger } from '@src/utils/logger'
 import { motion } from 'framer-motion'
 import { useAi, useLanguage, useToast } from '@src/app/providers'
 import { getAiIcon, GlobeIcon, MagicWandIcon, TrashIcon, SelectorIcon } from '@src/components/ui/Icons'
@@ -32,7 +33,7 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
                 setSelectors((data as Record<string, AiSelectorConfig>) || {})
             }
         } catch (err) {
-            console.error('Failed to load selectors:', err)
+            Logger.error('Failed to load selectors:', err)
         }
     }, [])
 

@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useEffect, useCallback } from 'react'
 import { useLanguage } from '@src/app/providers'
+import { Logger } from '@src/utils/logger'
 
 // Minimum selection size (px)
 const MIN_SELECTION_SIZE = 20
@@ -106,11 +107,11 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
             if (croppedImage) {
                 onCapture(croppedImage, rect)
             } else {
-                console.warn('[ScreenshotTool] Empty capture result')
+                Logger.warn('[ScreenshotTool] Empty capture result')
             }
             onClose()
         } catch (error) {
-            console.error('[ScreenshotTool] Capture error:', error)
+            Logger.error('[ScreenshotTool] Capture error:', error)
             onClose()
         }
     }

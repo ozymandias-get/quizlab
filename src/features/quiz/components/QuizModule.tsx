@@ -3,6 +3,7 @@
  * Orchestrates the quiz experience within Quizlab Reader
  */
 import React, { useState, useCallback, useEffect } from 'react'
+import { Logger } from '@src/utils/logger'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Brain, Zap } from 'lucide-react'
 import { useLanguage } from '@src/app/providers/LanguageContext'
@@ -14,7 +15,8 @@ import {
     QuizSettings,
     Question,
     getQuizSettings,
-    saveQuizSettings
+    saveQuizSettings,
+    INITIAL_QUIZ_STATE
 } from '@src/features/quiz/api'
 
 // Sub-components (will be created)
@@ -26,37 +28,7 @@ import QuizResults from './QuizResults'
 // Local Types (QuizState is specific to Module state, not API)
 // QuizSettings is imported
 
-interface QuizState {
-    questions: Question[];
-    userAnswers: Record<string, number>;
-    currentQuestionIndex: number;
-    score: number;
-    isFinished: boolean;
-    startTime: number | null;
-    endTime: number | null;
-}
-
-// Quiz States
-const QuizStep = {
-    CONFIG: 'CONFIG',
-    GENERATING: 'GENERATING',
-    READY: 'READY',
-    QUIZ: 'QUIZ',
-    RESULTS: 'RESULTS'
-} as const;
-
-type QuizStepType = typeof QuizStep[keyof typeof QuizStep];
-
-// Initial Quiz State
-const INITIAL_QUIZ_STATE: QuizState = {
-    questions: [],
-    userAnswers: {},
-    currentQuestionIndex: 0,
-    score: 0,
-    isFinished: false,
-    startTime: null,
-    endTime: null
-}
+import { QuizState, QuizStep, QuizStepType } from '../types'
 
 interface QuizModuleProps {
     onClose: () => void;
@@ -139,7 +111,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
             setPdfFileName(result.name || t('quiz_pdf_file_default'))
         } catch (err: unknown) {
             if (!isMountedRef.current) return
-            console.error('[QuizModule] PDF load error:', err)
+            Logger.error('[QuizModule] PDF load error:', err)
             const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('error_pdf_load')
             setError(message)
         } finally {
@@ -161,7 +133,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
                     setSettings(s => ({ ...s, ...saved }))
                 }
             } catch (e) {
-                console.error('[QuizModule] Failed to load settings:', e)
+                Logger.error('[QuizModule] Failed to load settings:', e)
             }
         }
         loadSettings()
@@ -173,7 +145,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
     useEffect(() => {
         const timer = setTimeout(() => {
             if (settings) {
-                saveQuizSettings(settings).catch(err => console.error('Failed to save settings:', err))
+                saveQuizSettings(settings).catch(err => Logger.error('Failed to save settings:', err))
             }
         }, 1500)
         return () => clearTimeout(timer)
@@ -239,7 +211,7 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
 
             // Only show error if this is still the active request
             if (currentRequestId === requestIdRef.current) {
-                console.error('[QuizModule] Generation error:', err)
+                Logger.error('[QuizModule] Generation error:', err)
                 const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('quiz_error')
                 setError(message)
                 setStep(QuizStep.CONFIG)

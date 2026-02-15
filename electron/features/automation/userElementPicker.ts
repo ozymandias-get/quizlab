@@ -272,11 +272,9 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                             }
                         } catch (e) {}
 
+
                         // Store result in global variable for polling
                         window._aiPickerResult = JSON.parse(JSON.stringify(selectionData));
-                        
-                        // Also try console for backwards compat
-                        try { console.log('__AI_PICKER_RESULT__' + JSON.stringify(selectionData)); } catch (e) {}
                         
                         // Delay cleanup to allow polling to pick up the result
                         setTimeout(() => { cleanup(); }, 300);

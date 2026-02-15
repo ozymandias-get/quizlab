@@ -1,7 +1,7 @@
 {
   "name": "quizlab-reader",
   "version": "1.1.8",
-  "description": "QuizLab-inspired split screen Electron app with PDF viewer and AI assistant",
+  "description": "The Ultimate AI-Powered PDF Reader & Quiz Generator. Study faster with split-screen PDF viewing, Google Gemini AI integration, and automatic flashcard creation.",
   "main": "dist/electron/electron/main/index.js",
   "repository": {
     "type": "git",
@@ -101,7 +101,16 @@
     "react",
     "pdf-viewer",
     "ai-assistant",
-    "study-tool"
+    "study-tool",
+    "quiz-generator",
+    "flashcards",
+    "gemini-ai",
+    "education",
+    "exam-prep",
+    "active-recall",
+    "pdf-annotation",
+    "typescript",
+    "vite"
   ],
   "author": "ozymandias-get",
   "license": "MIT",

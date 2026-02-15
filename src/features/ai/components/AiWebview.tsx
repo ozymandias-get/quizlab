@@ -1,5 +1,6 @@
-﻿import { useMemo, memo } from 'react'
+﻿import { useMemo, memo, useCallback } from 'react'
 import { useAi, useToast, useLanguage } from '@src/app/providers'
+import type { Tab } from '@src/app/providers/AiContext'
 
 import AestheticLoader from '@src/components/ui/AestheticLoader'
 import { useWebviewLifecycle } from '@src/hooks/webview/useWebviewLifecycle'
@@ -10,15 +11,23 @@ interface AiWebviewProps {
     isBarHovered: boolean;
 }
 
+interface AiSessionProps {
+    tab: Tab;
+    isActive: boolean;
+    isBarHovered: boolean;
+}
+
 /**
- * AI Webview Component (Optimized)
- * 
- * Creates a webview for the active AI platform.
+ * Single AI Session (Webview)
  */
-function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
-    const { currentAI, aiSites, registerWebview, chromeUserAgent, isTutorialActive, stopTutorial } = useAi()
+const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
+    const { aiSites, registerWebview, chromeUserAgent } = useAi()
     const { showWarning } = useToast()
     const { t } = useLanguage()
+
+    const registerInstance = useCallback((instance: any) => {
+        registerWebview(tab.id, instance)
+    }, [registerWebview, tab.id])
 
     // Use custom hook for lifecycle logic
     const {
@@ -27,13 +36,13 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
         onWebviewRef,
         handleRetry
     } = useWebviewLifecycle({
-        currentAI,
-        registerWebview,
+        currentAI: tab.modelId, // Pass the tab's model ID
+        registerWebview: registerInstance,
         t,
         showWarning
     })
 
-    const siteConfig = aiSites[currentAI]
+    const siteConfig = aiSites[tab.modelId]
     const initialUrl = siteConfig?.url
 
     const webview = useMemo(() => {
@@ -41,7 +50,7 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
 
         return (
             <webview
-                key={currentAI}
+                key={tab.modelId} // Reset webview if model changes in this tab
                 ref={onWebviewRef}
                 src={initialUrl}
                 partition={siteConfig?.partition || "persist:ai_session"}
@@ -51,33 +60,29 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
                 useragent={chromeUserAgent}
             />
         )
-    }, [initialUrl, onWebviewRef, siteConfig, chromeUserAgent])
+    }, [initialUrl, onWebviewRef, siteConfig, chromeUserAgent, tab.modelId])
 
     return (
-        <div className="flex flex-col flex-1 relative overflow-hidden bg-[#050505] m-3 rounded-[1.5rem] shadow-2xl"
+        <div
+            className="absolute inset-0 flex flex-col"
             style={{
-                pointerEvents: isResizing ? 'none' : 'auto',
-                transform: 'translateZ(0)',
-                backfaceVisibility: 'hidden',
-                clipPath: 'inset(0 round 1.5rem)' // Force proper clipping of Webview
+                visibility: isActive ? 'visible' : 'hidden',
+                zIndex: isActive ? 1 : 0
             }}
         >
-            {/* Border Overlay - Covers anti-aliasing artifacts */}
-            <div className="absolute inset-0 rounded-[1.5rem] border border-white/[0.08] pointer-events-none z-50" />
-
-            <div className="flex-1 relative">
+            <div className="flex-1 relative flex flex-col">
                 {webview}
 
                 {/* Mouse Catcher: Prevents webview from swallowing mouse events when bar is hovered */}
-                {isBarHovered && (
+                {isBarHovered && isActive && (
                     <div className="absolute inset-0 z-[5] pointer-events-auto bg-transparent" />
                 )}
 
-                {isLoading && (
+                {isLoading && isActive && (
                     <AestheticLoader />
                 )}
 
-                {error && (
+                {error && isActive && (
                     <div className="absolute inset-0 bg-stone-900/95 backdrop-blur-sm flex items-center justify-center z-10 animate-in fade-in zoom-in duration-300">
                         <div className="flex flex-col items-center text-center gap-5 p-10 max-w-xs">
                             <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -102,7 +107,41 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
                     </div>
                 )}
             </div>
+        </div>
+    )
+})
 
+AiSession.displayName = 'AiSession'
+
+/**
+ * AI Webview Component (Optimized)
+ * 
+ * Creates webviews for active AI tabs.
+ */
+function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
+    const { tabs, activeTabId, isTutorialActive, stopTutorial } = useAi()
+
+    return (
+        <div className="flex flex-col flex-1 relative overflow-hidden bg-[#050505] m-3 rounded-[1.5rem] shadow-2xl"
+            style={{
+                pointerEvents: isResizing ? 'none' : 'auto',
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden',
+                clipPath: 'inset(0 round 1.5rem)' // Force proper clipping of Webview
+            }}
+        >
+            {/* Border Overlay - Covers anti-aliasing artifacts */}
+            <div className="absolute inset-0 rounded-[1.5rem] border border-white/[0.08] pointer-events-none z-50" />
+
+            {/* Render all tabs */}
+            {tabs.map(tab => (
+                <AiSession
+                    key={tab.id}
+                    tab={tab}
+                    isActive={tab.id === activeTabId}
+                    isBarHovered={isBarHovered}
+                />
+            ))}
 
             {/* Tutorial Simulation */}
             {isTutorialActive && (

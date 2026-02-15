@@ -1,11 +1,13 @@
-﻿import React, { useState, useEffect, useRef, useCallback, useMemo, memo, Suspense, lazy } from 'react'
+﻿import React, { useState, useEffect, useRef, useCallback, memo, Suspense, lazy } from 'react'
+import { Logger } from '@src/utils/logger'
 import { createPortal } from 'react-dom'
 
-import { useAppearance } from '@src/app/providers'
+import { useAppearance, useAi } from '@src/app/providers'
 import { CenterHub } from './CenterHub'
 import { ToolsPanel } from './ToolsPanel'
 import { ModelsPanel } from './ModelsPanel'
 import { SettingsLoadingSpinner } from './SettingsLoadingSpinner'
+import { useBottomBarStyles } from './useBottomBarStyles'
 
 // Lazy load SettingsModal
 const SettingsModal = lazy(() => import('@src/features/settings/components/SettingsModal'))
@@ -34,6 +36,11 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
         isTourActive
     } = useAppearance()
 
+    const { tabs } = useAi()
+
+    // Using custom hook for styles
+    const { shellStyle, stackStyle, panelStyle, hubStyle } = useBottomBarStyles(isOpen, bottomBarOpacity, bottomBarScale)
+
     // Tur aktifken menüyü AÇIK tut
     useEffect(() => {
         if (isTourActive) {
@@ -45,7 +52,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
     useEffect(() => {
         const timer = setTimeout(() => {
             import('@src/features/settings/components/SettingsModal')
-                .catch(err => console.error('Error prefetching SettingsModal:', err))
+                .catch(err => Logger.error('Error prefetching SettingsModal:', err))
         }, 1500)
         return () => clearTimeout(timer)
     }, [])
@@ -120,80 +127,6 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
         onMouseDown?.(e)
     }, [onMouseDown])
 
-    const clampedOpacity = useMemo(() => Math.min(1, Math.max(0.1, bottomBarOpacity)), [bottomBarOpacity])
-    const clampedScale = useMemo(() => Math.min(1.3, Math.max(0.7, bottomBarScale)), [bottomBarScale])
-    const scaledShellWidth = useMemo(() => Math.round(48 * clampedScale), [clampedScale])
-
-    const shellStyle = useMemo<React.CSSProperties>(() => ({
-        '--bar-opacity-factor': clampedOpacity,
-        '--bar-scale-factor': clampedScale,
-        width: scaledShellWidth,
-        minWidth: scaledShellWidth,
-        maxWidth: scaledShellWidth,
-        flexBasis: scaledShellWidth,
-    } as React.CSSProperties), [clampedOpacity, clampedScale, scaledShellWidth])
-
-    const stackStyle = useMemo<React.CSSProperties>(() => ({
-        zIndex: 50,
-        width: 48,
-        minWidth: 48,
-        transform: `translateZ(0) scale(${clampedScale})`,
-        transformOrigin: 'center',
-        willChange: 'transform',
-    }), [clampedScale])
-
-    // Memoized panel style — segmented glass capsules between the two main panels
-    const panelStyle = useMemo<React.CSSProperties>(() => ({
-        background: `linear-gradient(165deg,
-            rgba(30, 30, 36, ${Math.min(0.92, 0.12 + (clampedOpacity * 0.76))}) 0%,
-            rgba(19, 19, 24, ${Math.min(0.95, 0.1 + (clampedOpacity * 0.8))}) 58%,
-            rgba(12, 12, 16, ${Math.min(0.98, 0.12 + (clampedOpacity * 0.82))}) 100%)`,
-        backdropFilter: 'blur(24px) saturate(190%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(190%)',
-        border: `1px solid rgba(255, 255, 255, ${0.03 + (clampedOpacity * 0.09)})`,
-        boxShadow: `
-            0 24px 45px -28px rgba(0,0,0,${0.52 + (clampedOpacity * 0.38)}),
-            0 0 0 1px rgba(0,0,0,${0.18 + (clampedOpacity * 0.34)}),
-            inset 0 1px 0 rgba(255,255,255,${0.05 + (clampedOpacity * 0.12)}),
-            inset 0 -12px 24px -22px rgba(148,163,184,${0.08 + (clampedOpacity * 0.22)})
-        `,
-        borderRadius: 14,
-        transform: 'translateZ(0)',
-        willChange: 'transform, opacity',
-        backfaceVisibility: 'hidden' as const,
-    }), [clampedOpacity])
-
-    const hubStyle = useMemo<React.CSSProperties>(() => ({
-        ...panelStyle,
-        width: '100%',
-        height: 48,
-        borderRadius: 12,
-        padding: 0,
-        // Open state: center capsule gets stronger depth and accent light
-        // Closed state: Matches panels perfectly
-        background: isOpen
-            ? `linear-gradient(145deg,
-                rgba(40, 40, 48, ${Math.min(0.96, 0.18 + (clampedOpacity * 0.74))}) 0%,
-                rgba(24, 24, 30, ${Math.min(0.98, 0.22 + (clampedOpacity * 0.74))}) 55%,
-                rgba(14, 14, 18, ${Math.min(0.99, 0.24 + (clampedOpacity * 0.74))}) 100%)`
-            : panelStyle.background,
-        boxShadow: isOpen
-            ? `
-                0 18px 34px -24px rgba(0,0,0,${0.56 + (clampedOpacity * 0.38)}),
-                0 0 32px -16px rgba(56,189,248,${0.08 + (clampedOpacity * 0.3)}),
-                0 0 24px -14px rgba(251,191,36,${0.08 + (clampedOpacity * 0.22)}),
-                inset 0 0 0 1px rgba(255,255,255,${0.07 + (clampedOpacity * 0.17)}),
-                inset 0 1px 0 rgba(255,255,255,${0.08 + (clampedOpacity * 0.14)})
-            `
-            : panelStyle.boxShadow,
-        border: isOpen
-            ? `1px solid rgba(255,255,255,${0.05 + (clampedOpacity * 0.12)})`
-            : panelStyle.border,
-        willChange: 'transform',
-        opacity: 1,
-        backfaceVisibility: 'hidden' as const,
-    }), [panelStyle, isOpen, clampedOpacity])
-
     return (
         <>
             {/* Full-height container in the resizer area */}
@@ -229,6 +162,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                             onMouseDown={handleHubMouseDown}
                             isOpen={isOpen}
                             hubStyle={hubStyle}
+                            tabsCount={tabs.length}
                         />
                     </div>
 

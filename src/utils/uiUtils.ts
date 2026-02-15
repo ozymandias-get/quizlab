@@ -38,10 +38,16 @@ export const generateId = (): string => {
 export const hexToRgba = (hex: string, alpha: number = 1): string => {
     if (!hex) return `rgba(0, 0, 0, ${alpha})`
 
-    let c: string | string[] = hex.substring(1).split('')
-    if (c.length === 3) {
-        c = [c[0], c[0], c[1], c[1], c[2], c[2]]
-    }
-    const hexVal = parseInt('0x' + (c as string[]).join(''), 16)
-    return 'rgba(' + [(hexVal >> 16) & 255, (hexVal >> 8) & 255, hexVal & 255].join(',') + ',' + alpha + ')'
+    const cleanHex = hex.replace('#', '')
+
+    // Kısa hex (#RGB) desteği
+    const fullHex = cleanHex.length === 3
+        ? cleanHex.split('').map(char => char + char).join('')
+        : cleanHex
+
+    const r = parseInt(fullHex.substring(0, 2), 16)
+    const g = parseInt(fullHex.substring(2, 4), 16)
+    const b = parseInt(fullHex.substring(4, 6), 16)
+
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }

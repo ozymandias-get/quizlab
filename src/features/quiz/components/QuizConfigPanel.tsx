@@ -4,14 +4,8 @@
  */
 import React, { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-    Play, Wand2, Brain, Zap, Rabbit,
-    ChevronDown, Microscope, AlertTriangle,
-    CheckSquare, XCircle, ListChecks, ArrowUpDown,
-    MoreHorizontal, Lightbulb, ArrowLeftRight, Layers,
-    Upload, Loader2, FileText, LucideIcon
-} from 'lucide-react'
-import { Difficulty, ModelType, QuestionStyle, QuizSettings, DifficultyType, QuestionStyleEnum } from '@src/features/quiz/api'
+import { Play, Wand2, Brain, Microscope, AlertTriangle, ChevronDown, Upload, Loader2, FileText, Rabbit } from 'lucide-react'
+import { Difficulty, QuizSettings, DifficultyType, QuestionStyleEnum, QuestionStyle, STYLE_ICONS, getModelConfigs } from '@src/features/quiz/api'
 
 // Interfaces (QuizSettings is imported)
 
@@ -29,25 +23,7 @@ interface QuizConfigPanelProps {
     isDemoMode?: boolean;
 }
 
-// Style icons mapping
-const styleIcons: Record<string, LucideIcon> = {
-    [QuestionStyle.CLASSIC]: CheckSquare,
-    [QuestionStyle.NEGATIVE]: XCircle,
-    [QuestionStyle.STATEMENT]: ListChecks,
-    [QuestionStyle.ORDERING]: ArrowUpDown,
-    [QuestionStyle.FILL_BLANK]: MoreHorizontal,
-    [QuestionStyle.REASONING]: Lightbulb,
-    [QuestionStyle.MATCHING]: ArrowLeftRight,
-    [QuestionStyle.MIXED]: Layers
-}
 
-// Model info helper
-const getModelConfigs = (t: (key: string) => string) => [
-    { type: ModelType.PRO_3_0, label: t('model_pro_3_0'), icon: Brain, desc: t('quiz_ai_smartest'), color: 'from-purple-400 to-pink-500' },
-    { type: ModelType.FLASH_3_0, label: t('model_flash_3_0'), icon: Zap, desc: t('quiz_ai_fastest'), color: 'from-yellow-400 to-orange-500' },
-    { type: ModelType.FLASH_2_5, label: t('model_flash_2_5'), icon: Zap, desc: t('quiz_ai_balanced'), color: 'from-cyan-400 to-blue-500' },
-    { type: ModelType.LITE_2_5, label: t('model_lite_2_5'), icon: Rabbit, desc: t('quiz_ai_economical'), color: 'from-green-400 to-emerald-500' }
-]
 
 function QuizConfigPanel({
     settings,
@@ -242,13 +218,13 @@ function QuizConfigPanel({
                 {/* Question Styles */}
                 <div className="quiz-glass-card p-5">
                     <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 block flex items-center gap-2">
-                        <Layers className="w-3.5 h-3.5" />
+                        <STYLE_ICONS.MIXED className="w-3.5 h-3.5" />
                         {t('quiz_style')}
                     </label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                         {(Object.values(QuestionStyle) as QuestionStyleEnum[]).map((style) => {
                             const isSelected = settings.style.includes(style)
-                            const IconComp = styleIcons[style] || CheckSquare
+                            const IconComp = STYLE_ICONS[style] || STYLE_ICONS[QuestionStyle.CLASSIC]
                             const styleKey = `style_${style.toLowerCase()}`
 
                             return (

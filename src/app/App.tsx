@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { AnimatePresence, motion, LayoutGroup, Easing } from 'framer-motion'
+import { AnimatePresence, motion, LayoutGroup, type Easing } from 'framer-motion'
 import AiWebview from '@src/features/ai/components/AiWebview'
 import BottomBar from '@src/components/layout/BottomBar'
 import FloatingButton from '@ui/FloatingButton'
@@ -22,8 +22,6 @@ import { STORAGE_KEYS } from '@src/constants/storageKeys'
 
 // Hooks
 import { usePanelResize, useOnlineStatus, usePdfSelection } from '@src/hooks'
-
-
 
 const App: React.FC = () => {
 
@@ -223,6 +221,8 @@ const App: React.FC = () => {
         transform: 'translateZ(0)', // Force GPU layer
         backfaceVisibility: 'hidden'
     }), [])
+
+
 
     return (
         <LayoutGroup>

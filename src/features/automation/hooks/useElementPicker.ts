@@ -1,4 +1,5 @@
 ﻿import { useCallback, useState, useRef, useEffect } from 'react'
+import { Logger } from '@src/utils/logger'
 import { useToast, useLanguage } from '@src/app/providers'
 import type { WebviewController } from '@shared/types/webview';
 
@@ -64,7 +65,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             const hostname = new URL(url).hostname
 
             if (!window.electronAPI?.saveAiConfig) {
-                console.error('Electron API not available')
+                Logger.error('Electron API not available')
                 return
             }
             const saved = await window.electronAPI.saveAiConfig(hostname, config)
@@ -76,7 +77,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : t('error_unknown_error')
-            console.error('[ElementPicker] Save error:', err)
+            Logger.error('[ElementPicker] Save error:', err)
             showError('toast_pdf_load_error', undefined, { error: message })
         } finally {
             setIsPickerActive(false)
@@ -200,7 +201,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             // Start polling for result
             startPolling()
         } catch (err) {
-            console.error('Failed to start picker:', err)
+            Logger.error('Failed to start picker:', err)
             showError('picker_init_failed')
             setIsPickerActive(false)
             stopPolling()
@@ -218,7 +219,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             setIsPickerActive(false)
             showInfo('picker_cancelled')
         } catch (err) {
-            console.error('Failed to stop picker:', err)
+            Logger.error('Failed to stop picker:', err)
             setIsPickerActive(false)
         }
     }, [webviewInstance, showInfo, stopPolling])

@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react'
+import { Logger } from '@src/utils/logger'
 import { motion } from 'framer-motion'
 import { useLanguage, useToast } from '@src/app/providers'
 import { TerminalIcon, CheckIcon, XIcon, LoaderIcon, ExternalLinkIcon, GoogleIcon, RefreshIcon } from '@src/components/ui/Icons'
@@ -55,7 +56,7 @@ const GeminiCliTab = React.memo(() => {
                 if (isMountedRef.current) setAuthStatus({ ...auth, checking: false })
             }
         } catch (err: unknown) {
-            console.error('[GeminiCliTab] Failed to load status:', err)
+            Logger.error('[GeminiCliTab] Failed to load status:', err)
             if (isMountedRef.current) setAuthStatus({ authenticated: false, checking: false })
         } finally {
             if (isMountedRef.current) setIsLoading(false)
@@ -90,12 +91,12 @@ const GeminiCliTab = React.memo(() => {
             if (window.electronAPI?.quiz?.openLogin) {
                 const result: QuizActionResult = await window.electronAPI.quiz.openLogin()
                 if (!result?.success) {
-                    console.error('[GeminiCliTab] Login failed:', result.error)
+                    Logger.error('[GeminiCliTab] Login failed:', result.error)
                     if (isMountedRef.current) showError(t('gcli_login_failed') || 'Login failed')
                 }
             }
         } catch (err: unknown) {
-            console.error('[GeminiCliTab] Failed to open login:', err)
+            Logger.error('[GeminiCliTab] Failed to open login:', err)
             if (isMountedRef.current) showError(t('gcli_login_error') || 'Failed to open login')
         } finally {
             if (isMountedRef.current) setIsOpeningLogin(false)
@@ -137,7 +138,7 @@ const GeminiCliTab = React.memo(() => {
                 setAuthStatus({ authenticated: false, checking: false })
             }
         } catch (err) {
-            console.error('[GeminiCliTab] Logout failed:', err)
+            Logger.error('[GeminiCliTab] Logout failed:', err)
         } finally {
             setIsLoggingOut(false)
         }

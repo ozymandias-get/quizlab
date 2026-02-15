@@ -5,6 +5,7 @@ import { useAppearance, useLanguage } from '@src/app/providers'
 import { EyeIcon, PaletteIcon, SliderIcon, SelectionIcon, ShuffleIcon } from '@src/components/ui/Icons'
 
 import ColorPicker from './ColorPicker'
+import Slider from '@src/components/ui/Slider'
 
 /**
  * Görünüm (Appearance) Ayarları Sekmesi - Premium Redesign
@@ -134,85 +135,25 @@ const AppearanceTab = React.memo(() => {
                     </div>
                 </div>
 
-                {/* Opacity Slider */}
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white/60">{t('opacity')}</span>
-                        <span className="text-[10px] font-mono font-bold text-white bg-white/[0.08] px-2 py-0.5 rounded-md">
-                            {Math.round(bottomBarOpacity * 100)}%
-                        </span>
-                    </div>
-                    <div className="relative h-6 flex items-center group">
-                        {(() => {
-                            const min = 0.1;
-                            const max = 1.0;
-                            const percent = ((bottomBarOpacity - min) / (max - min)) * 100;
-                            return (
-                                <>
-                                    <div className="absolute inset-0 h-1.5 my-auto w-full bg-white/[0.04] rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-pink-500/50 to-pink-400 transition-all duration-150"
-                                            style={{ width: `${percent}%` }}
-                                        />
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min={min}
-                                        max={max}
-                                        step="0.01"
-                                        value={bottomBarOpacity}
-                                        onChange={(e) => setBottomBarOpacity(parseFloat(e.target.value))}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    />
-                                    <div
-                                        className="absolute w-4 h-4 bg-white rounded-full shadow-lg pointer-events-none transition-transform duration-150 group-hover:scale-110"
-                                        style={{ left: `${percent}%`, transform: `translateX(-50%)` }}
-                                    />
-                                </>
-                            );
-                        })()}
-                    </div>
-                </div>
+                <Slider
+                    min={0.1}
+                    max={1.0}
+                    value={bottomBarOpacity}
+                    onChange={setBottomBarOpacity}
+                    label="Opacity"
+                    displayValue={`${Math.round(bottomBarOpacity * 100)}%`}
+                    className="space-y-3"
+                />
 
-                {/* Scale Slider */}
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white/60">{t('scale')}</span>
-                        <span className="text-[10px] font-mono font-bold text-white bg-white/[0.08] px-2 py-0.5 rounded-md">
-                            x{bottomBarScale.toFixed(2)}
-                        </span>
-                    </div>
-                    <div className="relative h-6 flex items-center group">
-                        {(() => {
-                            const min = 0.7;
-                            const max = 1.3;
-                            const percent = ((bottomBarScale - min) / (max - min)) * 100;
-                            return (
-                                <>
-                                    <div className="absolute inset-0 h-1.5 my-auto w-full bg-white/[0.04] rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-pink-500/50 to-pink-400 transition-all duration-150"
-                                            style={{ width: `${percent}%` }}
-                                        />
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min={min}
-                                        max={max}
-                                        step="0.01"
-                                        value={bottomBarScale}
-                                        onChange={(e) => setBottomBarScale(parseFloat(e.target.value))}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    />
-                                    <div
-                                        className="absolute w-4 h-4 bg-white rounded-full shadow-lg pointer-events-none transition-transform duration-150 group-hover:scale-110"
-                                        style={{ left: `${percent}%`, transform: `translateX(-50%)` }}
-                                    />
-                                </>
-                            );
-                        })()}
-                    </div>
-                </div>
+                <Slider
+                    min={0.7}
+                    max={1.3}
+                    value={bottomBarScale}
+                    onChange={setBottomBarScale}
+                    label="Scale"
+                    displayValue={`x${bottomBarScale.toFixed(2)}`}
+                    className="space-y-3"
+                />
             </motion.div>
 
             {/* Selection & AI Color Section */}

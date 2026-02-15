@@ -1,4 +1,5 @@
 ﻿import { useEffect, useCallback } from 'react'
+import { Logger } from '@src/utils/logger'
 import { APP_CONSTANTS } from '@src/constants/appConstants'
 
 const { SCREENSHOT_TYPES } = APP_CONSTANTS
@@ -93,7 +94,7 @@ export function usePdfScreenshot({ currentPage, sendImageToAI, startScreenshot }
                         }
                     }
                 } catch (innerErr) {
-                    console.warn('[PdfScreenshot] Attempt failed:', innerErr)
+                    Logger.warn('[PdfScreenshot] Attempt failed:', innerErr)
                 }
 
                 // Biraz bekle ve tekrar dene
@@ -101,7 +102,7 @@ export function usePdfScreenshot({ currentPage, sendImageToAI, startScreenshot }
             }
 
             if (!targetCanvas) {
-                console.warn('[PdfScreenshot] Canvas bulunamadı, screenshot alınamıyor.')
+                Logger.warn('[PdfScreenshot] Canvas bulunamadı, screenshot alınamıyor.')
                 return
             }
 
@@ -110,7 +111,7 @@ export function usePdfScreenshot({ currentPage, sendImageToAI, startScreenshot }
             await sendImageToAI(dataUrl)
 
         } catch (error) {
-            console.error('[PdfScreenshot] Full page capture error:', error)
+            Logger.error('[PdfScreenshot] Full page capture error:', error)
         }
     }, [sendImageToAI, currentPage])
 

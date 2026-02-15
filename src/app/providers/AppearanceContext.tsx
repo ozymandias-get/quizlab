@@ -1,4 +1,5 @@
 ﻿import React, { createContext, useContext, useMemo, useEffect } from 'react'
+import { Logger } from '@src/utils/logger'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
 import { useLocalStorage, useLocalStorageString, useLocalStorageBoolean } from '@src/hooks'
 import { hexToRgba } from '@src/utils/uiUtils'
@@ -55,7 +56,7 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
                 return () => clearTimeout(timer)
             }
         } catch (error) {
-            console.warn('LocalStorage onboarding check failed:', error)
+            Logger.warn('LocalStorage onboarding check failed:', error)
         }
     }, [])
 

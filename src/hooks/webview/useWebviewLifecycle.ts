@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
+import { Logger } from '@src/utils/logger'
 import type { WebviewController, WebviewElement, WebviewInputEvent } from '@shared/types/webview';
 
 // Crash recovery constants
@@ -145,7 +146,7 @@ export function useWebviewLifecycle({
             }
             window.electronAPI?.openExternal?.(newWindowEvent.url)
         } catch (err) {
-            console.error('[Webview] New window error:', err)
+            Logger.error('[Webview] New window error:', err)
         }
     }, [])
 

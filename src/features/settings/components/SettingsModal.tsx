@@ -18,7 +18,7 @@ const PromptsTab = lazy(() => import('./PromptsTab'))
 // Click outside delay (ms)
 const CLICK_OUTSIDE_DELAY = 100
 
-// Icons imported from @src/components/ui/Icons
+
 
 interface SettingsModalProps {
     isOpen: boolean;

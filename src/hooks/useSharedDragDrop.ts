@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
+import { Logger } from '@src/utils/logger'
 
 interface DragDropReturn {
     isDragOver: boolean;
@@ -70,7 +71,7 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
             const filePath = fileWithPath.path
 
             if (!filePath) {
-                console.warn('[DragDrop] File has no path')
+                Logger.warn('[DragDrop] File has no path')
                 return
             }
 
@@ -78,7 +79,7 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
             onFileReceived(pdfFile)
 
         } catch (error) {
-            console.error('[DragDrop] Error processing drop:', error)
+            Logger.error('[DragDrop] Error processing drop:', error)
         }
     }, [onFileReceived])
 

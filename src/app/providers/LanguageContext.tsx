@@ -1,4 +1,5 @@
 ﻿import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { Logger } from '@src/utils/logger'
 import { translations, LANGUAGES, DEFAULT_LANGUAGE, VALID_LANGUAGES, LanguageInfo } from '@src/constants/translations'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
 
@@ -18,7 +19,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             const saved = localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)
             return saved && VALID_LANGUAGES.includes(saved) ? saved : DEFAULT_LANGUAGE
         } catch (error) {
-            console.warn('LocalStorage language init failed:', error)
+            Logger.warn('LocalStorage language init failed:', error)
             return DEFAULT_LANGUAGE
         }
     })
@@ -30,7 +31,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             try {
                 localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE, newLang)
             } catch (error) {
-                console.warn('LocalStorage language save failed:', error)
+                Logger.warn('LocalStorage language save failed:', error)
             }
 
             // RTL diller için document direction ayarla
