@@ -23,7 +23,7 @@ const CHECK_DEBOUNCE_MS = 5000
 function isNewer(remote: string, current: string): boolean {
     if (!remote || !current) return false
 
-    // Remove 'v' prefix and any build metadata (+...)
+
     const cleanRemote = remote.replace(/^v/, '').split('+')[0]
     const cleanCurrent = current.replace(/^v/, '').split('+')[0]
 

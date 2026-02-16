@@ -53,7 +53,7 @@ Yerleşik **Quiz Motorumuz** ile pasif okumayı aktif öğrenmeye dönüştürü
 
 ### 🤖 Çoklu Platform Yapay Zeka Desteği
 Favori yapay zeka servislerinizle sorunsuz bağlantı kurun.
-- **Dahili Yapay Zeka Platformları:** ChatGPT, Claude, DeepSeek ve Qwen için yerel destek.
+- **Dahili Yapay Zeka Platformları:** ChatGPT, Claude, DeepSeek, Qwen ve Kimi için yerel destek.
 - **Özel Yapay Zeka Entegrasyonu:** URL'sini girerek herhangi bir web tabanlı yapay zeka platformu ekleyin.
 - **Model Yönetimi:** Yapay zeka platformlarını tercihlerinize göre etkinleştirin/devre dışı bırakın.
 - **Magic Selector (Sihirli Seçici):** Otomatik yapıştırma fonksiyonuyla evrensel yapay zeka entegrasyonu—uygulamaya giriş alanlarını tanımasını öğretin ve seçilen metni PDF'den yapay zeka sohbetine otomatik yapıştırın.
@@ -98,7 +98,7 @@ Etkileşimli bir tur ile uygulamayı öğrenin.
 C: Evet, QuizLab **ücretsiz ve açık kaynaklı bir yazılımdır (FOSS)**. İndirebilir ve herhangi bir abonelik ücreti ödemeden kullanabilirsiniz.
 
 **S: Hangi yapay zeka modellerini destekliyor?**
-C: Quiz oluşturma için yerel olarak CLI üzerinden **Google Gemini** ile entegre olur. Ayrıca, **Magic Selector** özelliği sayesinde ChatGPT, Claude, DeepSeek veya Qwen gibi hemen hemen tüm web tabanlı yapay zekalarla etkileşim kurabilirsiniz. Özel yapay zeka platformları da ekleyebilirsiniz.
+C: Quiz oluşturma için yerel olarak CLI üzerinden **Google Gemini** ile entegre olur. Ayrıca, **Magic Selector** özelliği sayesinde ChatGPT, Claude, DeepSeek, Qwen veya Kimi gibi hemen hemen tüm web tabanlı yapay zekalarla etkileşim kurabilirsiniz. Özel yapay zeka platformları da ekleyebilirsiniz.
 
 **S: Mac ve Linux üzerinde kullanabilir miyim?**
 C: Kesinlikle! QuizLab Electron ile geliştirilmiştir ve **Windows, macOS ve Linux** ile tam uyumludur.

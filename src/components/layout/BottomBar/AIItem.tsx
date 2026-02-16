@@ -2,7 +2,6 @@
 import { Reorder, motion } from 'framer-motion'
 import { getAiIcon } from '@src/components/ui/Icons'
 
-// Color validation
 const hexColorRegex = /^#([0-9A-F]{3}){1,2}$/i
 const isValidColor = (color: string) => hexColorRegex.test(color)
 
@@ -26,9 +25,6 @@ export interface AIItemProps {
     draggable?: boolean;
 }
 
-/**
- * Optimized AI Item Component
- */
 export const AIItem = memo<AIItemProps>(function AIItem({
     modelKey,
     site = {},
@@ -40,19 +36,16 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     showOnlyIcons = true,
     draggable = true
 }: AIItemProps) {
-    // isDragging durumunu ref ile takip etmek daha performanslı ve senkron sorunsuz
     const isDraggingRef = useRef(false)
     const dragEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const [isHovered, setIsHovered] = useState(false)
 
-    // Memoized color - fallback to neutral white instead of blue
     const safeColor = useMemo(() =>
         (site?.color && isValidColor(site.color)) ? site.color : '#ffffff'
         , [site?.color])
 
     const isBeingDragged = activeDragItem === modelKey
 
-    // Memoized style - Sharp & Clear
     const buttonStyle = useMemo<React.CSSProperties>(() => {
         const isActive = isSelected || isBeingDragged
 
@@ -91,7 +84,6 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     }, [isSelected, isBeingDragged, safeColor, isHovered])
 
     const handleClick = useCallback((e: React.MouseEvent) => {
-        // Eğer sürükleme işlemi yapıldıysa tıklamayı engelle
         if (isDraggingRef.current) {
             e.stopPropagation()
             return
@@ -99,7 +91,6 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         setCurrentAI(modelKey)
     }, [setCurrentAI, modelKey])
 
-    // Component unmount olduğunda timeout'u temizle
     useEffect(() => {
         return () => {
             if (dragEndTimeoutRef.current) {
@@ -109,8 +100,6 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     }, [])
 
     const handleDragStart = useCallback(() => {
-        // Yeni bir sürükleme başlarsa, önceki reset timeout'unu iptal et
-        // Bu, hızlı sürüklemelerde "isDraggingRef"in yanlışlıkla false olmasını önler
         if (dragEndTimeoutRef.current) {
             clearTimeout(dragEndTimeoutRef.current)
             dragEndTimeoutRef.current = null
@@ -123,7 +112,6 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     const handleDragEnd = useCallback(() => {
         setActiveDragItem(null)
 
-        // Tıklama olayının tetiklenmesini engellemek için kısa bir gecikme
         dragEndTimeoutRef.current = setTimeout(() => {
             isDraggingRef.current = false
             dragEndTimeoutRef.current = null

@@ -36,7 +36,7 @@ function QuizConfigPanel({
     t,
     isRegenerating = false,
     onStartDemo, // New prop
-    isDemoMode = false // New prop
+    isDemoMode = false
 }: QuizConfigPanelProps) {
     const [activeSection, setActiveSection] = useState<string | null>(null)
 
@@ -215,7 +215,6 @@ function QuizConfigPanel({
                     </div>
                 </div>
 
-                {/* Question Styles */}
                 <div className="quiz-glass-card p-5">
                     <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 block flex items-center gap-2">
                         <STYLE_ICONS.MIXED className="w-3.5 h-3.5" />
@@ -268,7 +267,6 @@ function QuizConfigPanel({
                     </div>
                 </div>
 
-                {/* Advanced Options - Focus Topic */}
                 <div className="quiz-glass-card overflow-hidden">
                     <motion.button
                         onClick={() => toggleSection('focus')}
@@ -320,7 +318,6 @@ function QuizConfigPanel({
                     </AnimatePresence>
                 </div>
 
-                {/* Action Buttons */}
                 <motion.button
                     onClick={() => onStartQuiz(!!isDemoMode)} // Pass current mode state
                     disabled={!canStart}
@@ -333,12 +330,10 @@ function QuizConfigPanel({
                 </motion.button>
             </div>
 
-            {/* Disclaimer */}
             <div className="flex items-center justify-center gap-2 text-xs text-amber-500/60 font-medium uppercase tracking-wider pt-2">
                 <AlertTriangle className="w-3.5 h-3.5" />
                 <span>{t('quiz_disclaimer')}</span>
             </div>
-            {/* Demo Button (Developer Mode) */}
             {onStartDemo && (
                 <div className="flex justify-center pt-2">
                     <button

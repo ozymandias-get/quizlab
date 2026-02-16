@@ -26,25 +26,17 @@ function sanitizeUserInput(input: unknown, maxLength: number = 150): string {
     }
 
     return input
-        // Remove newlines and tabs
         .replace(/[\r\n\t]/g, ' ')
-        // Remove potential injection patterns
         .replace(/ignore\s*(previous|all|above)/gi, '')
         .replace(/system\s*:/gi, '')
         .replace(/assistant\s*:/gi, '')
         .replace(/user\s*:/gi, '')
-        // Remove braces, brackets, backticks that could break JSON or markdown
         .replace(/[{}[\]`]/g, '')
-        // Remove quotes that could escape strings
         .replace(/["'\\]/g, '')
-        // Remove markdown headers
         .replace(/#{2,}/g, '')
-        // Remove control characters and unicode escape sequences
         .replace(/[\x00-\x1F\x7F]/g, '')
         .replace(/\\u[0-9a-fA-F]{4}/g, '')
-        // Collapse multiple spaces
         .replace(/\s+/g, ' ')
-        // Limit length
         .substring(0, maxLength)
         .trim()
 }

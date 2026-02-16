@@ -18,8 +18,6 @@ export const STORAGE_KEYS = {
     /** Sol panelin genişlik yüzdesi (number) */
     LEFT_PANEL_WIDTH: 'leftPanelWidth',
 
-
-
     // AI Ayarları
     /** Son seçilen AI platformu (string: 'chatgpt' vb.) */
     LAST_SELECTED_AI: 'lastSelectedAI',
@@ -30,8 +28,6 @@ export const STORAGE_KEYS = {
     /** Aktif edilecek Modellerin listesi (JSON array string) */
     ENABLED_MODELS: 'enabledModels',
 
-
-
     // Görünüm Ayarları
     /** Sadece ikonları göster (boolean) */
     SHOW_ONLY_ICONS: 'showOnlyIcons',
@@ -41,7 +37,6 @@ export const STORAGE_KEYS = {
 
     /** Alt bar boyutu/ölçeği (number: 0.8 - 1.5) */
     BOTTOM_BAR_SCALE: 'bottomBarScale',
-
 
     /** Pencere düzeni değiştirildi mi (boolean) - Sol ve Sağ panel yer değişimi */
     IS_LAYOUT_SWAPPED: 'isLayoutSwapped',

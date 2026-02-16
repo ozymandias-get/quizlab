@@ -53,7 +53,7 @@ Turn passive reading into active learning with our built-in **Quiz Engine**.
 
 ### 🤖 Multi-Platform AI Support
 Connect with your favorite AI services seamlessly.
-- **Built-in AI Platforms:** Native support for ChatGPT, Claude, DeepSeek, and Qwen.
+- **Built-in AI Platforms:** Native support for ChatGPT, Claude, DeepSeek, Qwen, and Kimi.
 - **Custom AI Integration:** Add any web-based AI platform by providing its URL.
 - **Model Management:** Enable/disable AI platforms based on your preferences.
 - **Magic Selector:** Universal AI integration with auto-paste functionality—train the app to recognize input fields and automatically paste selected text from your PDF into the AI chat.
@@ -98,7 +98,7 @@ Learn the app with an interactive tour.
 A: Yes, QuizLab is **free and open-source software (FOSS)**. You can download it and use it without any subscription fees.
 
 **Q: Which AI models does it support?**
-A: It natively integrates with **Google Gemini** via the CLI for quiz generation. Additionally, the **Magic Selector** allows you to interface with almost any web-based AI like ChatGPT, Claude, DeepSeek, or Qwen. You can also add custom AI platforms.
+A: It natively integrates with **Google Gemini** via the CLI for quiz generation. Additionally, the **Magic Selector** allows you to interface with almost any web-based AI like ChatGPT, Claude, DeepSeek, Qwen, or Kimi. You can also add custom AI platforms.
 
 **Q: Can I use it on Mac and Linux?**
 A: Absolutely! QuizLab is built with Electron and is cross-platform compatible with **Windows, macOS, and Linux**.

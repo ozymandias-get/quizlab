@@ -9,9 +9,6 @@ export const APP_CONSTANTS = {
     // Update Check
     UPDATE_CHECK_INTERVAL: 1000 * 60 * 60 * 24, // 24 hours
 
-    // UI Constants
-    // LEFT_PANEL_TABS removed
-
     // IPC Channels (Sync with main process constants.js)
     IPC_CHANNELS: {
         SELECT_PDF: 'select-pdf',

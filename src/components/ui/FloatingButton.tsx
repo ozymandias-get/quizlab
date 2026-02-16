@@ -1,7 +1,6 @@
 ﻿import React, { useMemo, useCallback, memo } from 'react'
 import { useLanguage, useAppearance } from '@src/app/providers'
 
-// Icon boyutu (px)
 const ICON_SIZE = 18
 
 interface FloatingButtonProps {
@@ -14,10 +13,8 @@ interface FloatingButtonProps {
 
 const FloatingButton: React.FC<FloatingButtonProps> = memo(({ onClick, position }) => {
     const { t } = useLanguage()
-    // Directly destruct selectionColor from hook - it is stable from context
     const { selectionColor } = useAppearance()
 
-    // Memoize style calculation
     const style = useMemo<React.CSSProperties>(() => {
         if (!position) return {}
         return {
@@ -38,7 +35,6 @@ const FloatingButton: React.FC<FloatingButtonProps> = memo(({ onClick, position 
     }, [onClick])
 
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-        // Seçimin iptal olmasını engelle
         e.preventDefault()
         e.stopPropagation()
     }, [])

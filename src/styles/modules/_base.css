@@ -6,6 +6,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  text-rendering: optimizeLegibility;
 }
 
 html, body, #root {
@@ -20,19 +21,9 @@ body {
   color: #fafaf9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* GPU Hızlandırma */
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   perspective: 1000px;
-}
-
-/* Donanım ivmesi için genel optimizasyon */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    /* Metin render kalitesi */
-    text-rendering: optimizeLegibility;
 }
 
 /* Metin seçme rengi - Dinamik olarak değiştirilebilir */

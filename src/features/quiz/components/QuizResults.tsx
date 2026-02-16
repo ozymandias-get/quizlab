@@ -3,17 +3,18 @@
  * Shows score, correct/wrong answers, and detailed explanations
  */
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
     Trophy, RotateCcw, RefreshCw, AlertCircle,
-    CheckCircle, XCircle, ChevronDown, BookOpen,
+    CheckCircle, XCircle, BookOpen,
     Clock, TrendingUp
 } from 'lucide-react'
-import { formatQuizText } from '@src/utils/uiUtils'
+
 import { QuizSettings } from '@src/features/quiz/api'
 import { QuizState } from '../types'
 import { useQuizStats } from '../hooks/useQuizStats'
 import ConfettiCanvas from '@src/components/ui/ConfettiCanvas'
+import { QuizQuestionReview } from './QuizQuestionReview'
 
 interface QuizResultsProps {
     quizState: QuizState;
@@ -214,117 +215,17 @@ function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMist
                         {t('quiz_review')}
                     </h3>
 
-                    {quizState.questions.map((q, idx) => {
-                        const userAnswer = quizState.userAnswers[q.id]
-                        const isAnswered = userAnswer !== undefined
-                        const isCorrect = isAnswered && userAnswer === q.correctAnswerIndex
-                        const isEmpty = !isAnswered
-                        const isExpanded = expandedQuestion === q.id
-
-                        return (
-                            <motion.div
-                                key={q.id}
-                                layout
-                                className={`rounded-2xl border overflow-hidden ${isCorrect
-                                    ? 'bg-emerald-500/10 border-emerald-500/20 gpu-layer'
-                                    : isEmpty
-                                        ? 'bg-stone-500/10 border-stone-500/20 gpu-layer'
-                                        : 'bg-red-500/10 border-red-500/20 gpu-layer'
-                                    }`}
-                            >
-                                {/* Question Header */}
-                                <button
-                                    onClick={() => {
-                                        setExpandedQuestion(isExpanded ? null : q.id)
-                                    }}
-                                    className="w-full p-4 flex items-start gap-3 text-left hover:bg-white/5 transition-colors"
-                                >
-                                    <div className={`p-2 rounded-xl shrink-0 ${isCorrect
-                                        ? 'bg-emerald-500/20 text-emerald-400'
-                                        : isEmpty
-                                            ? 'bg-stone-500/20 text-stone-400'
-                                            : 'bg-red-500/20 text-red-400'
-                                        }`}>
-                                        {isCorrect ? <CheckCircle className="w-4 h-4" /> : isEmpty ? <AlertCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div
-                                            className="text-sm font-medium text-white/80 line-clamp-2"
-                                            dangerouslySetInnerHTML={{ __html: `${idx + 1}. ${formatQuizText(q.text)}` }}
-                                        />
-                                    </div>
-                                    <ChevronDown className={`w-4 h-4 text-white/40 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''
-                                        }`} />
-                                </button>
-
-                                {/* Expanded Content */}
-                                <AnimatePresence>
-                                    {isExpanded && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="px-4 pb-4 space-y-3">
-                                                {/* Options */}
-                                                <div className="space-y-2">
-                                                    {q.options.map((opt, optIdx) => {
-                                                        const isUserChoice = userAnswer === optIdx
-                                                        const isCorrectAnswer = q.correctAnswerIndex === optIdx
-
-                                                        return (
-                                                            <div
-                                                                key={optIdx}
-                                                                className={`p-3 rounded-xl text-sm flex items-start gap-2 ${isCorrectAnswer
-                                                                    ? 'bg-emerald-500/20 border border-emerald-500/30'
-                                                                    : isUserChoice
-                                                                        ? 'bg-red-500/20 border border-red-500/30'
-                                                                        : 'bg-white/5 border border-white/10'
-                                                                    }`}
-                                                            >
-                                                                <span className={`font-bold shrink-0 ${isCorrectAnswer ? 'text-emerald-400' : isUserChoice ? 'text-red-400' : 'text-white/40'
-                                                                    }`}>
-                                                                    {String.fromCharCode(65 + optIdx)}.
-                                                                </span>
-                                                                <span
-                                                                    className={isCorrectAnswer ? 'text-emerald-300' : isUserChoice ? 'text-red-300' : 'text-white/60'}
-                                                                    dangerouslySetInnerHTML={{ __html: formatQuizText(opt) }}
-                                                                />
-                                                                {isCorrectAnswer && (
-                                                                    <CheckCircle className="w-4 h-4 text-emerald-400 ml-auto shrink-0" />
-                                                                )}
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
-
-                                                {/* Explanation */}
-                                                {q.explanation && (
-                                                    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                                                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">{t('quiz_explanation')}</p>
-                                                        <div
-                                                            className="text-sm text-white/70 leading-relaxed"
-                                                            dangerouslySetInnerHTML={{ __html: formatQuizText(q.explanation) }}
-                                                        />
-                                                    </div>
-                                                )}
-
-
-
-                                                {/* Source Quote */}
-                                                {q.sourceQuote && (
-                                                    <div className="bg-amber-500/10 rounded-xl p-3 border border-amber-500/20">
-                                                        <p className="text-xs text-amber-400 italic">"{q.sourceQuote}"</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </motion.div>
-                        )
-                    })}
+                    {quizState.questions.map((q, idx) => (
+                        <QuizQuestionReview
+                            key={q.id}
+                            question={q}
+                            index={idx}
+                            userAnswer={quizState.userAnswers[q.id]}
+                            isExpanded={expandedQuestion === q.id}
+                            onToggle={() => setExpandedQuestion(expandedQuestion === q.id ? null : q.id)}
+                            t={t}
+                        />
+                    ))}
                 </div>
             </div>
         </motion.div>

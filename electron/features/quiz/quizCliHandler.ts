@@ -214,7 +214,7 @@ function registerQuizHandlers() {
 
             return { success: true }
         } catch (err) {
-            // SECURITY: Don't expose detailed error info
+
             const message = err instanceof Error ? err.message : String(err)
             console.error('[QuizCLI] Failed to open login terminal:', message)
             return { success: false, error: 'error_terminal_open_failed' }
@@ -348,18 +348,18 @@ function registerQuizHandlers() {
                 throw new Error(validation.error)
             }
 
-            // Define working directory as system temp directory to avoid permission issues
+
             const workDir = os.tmpdir()
 
             // SECURITY: Create a temporary safe copy with secure random name
             const safePdfName = generateSecureTempName('pdf')
             const safePdfPath = path.join(workDir, safePdfName)
 
-            // SECURITY: Work with a safe copy in temp directory
+
             await fs.copyFile(pdfPath, safePdfPath)
 
             try {
-                // Generate output file path in temp dir
+
                 const outputFilePath = generateOutputFilePath(workDir)
 
                 const prompt = buildQuizPrompt(quizParams, safePdfPath, outputFilePath)
@@ -367,7 +367,7 @@ function registerQuizHandlers() {
                 // Use model from params (frontend) or settings
                 const model = typeof quizParams.model === 'string' ? quizParams.model : settings.model
 
-                // Execute CLI from temp directory
+
                 const result = await executeGeminiCli(prompt, {
                     model: model,
                     workingDir: workDir,
@@ -385,7 +385,7 @@ function registerQuizHandlers() {
                     count: result.length
                 }
             } finally {
-                // Cleanup temp pdf
+
                 await fs.unlink(safePdfPath).catch(() => { })
             }
         } catch (error) {

@@ -1,6 +1,4 @@
-/**
- * QuizLab Reader - Electron Main Process
- */
+
 import { app, BrowserWindow, dialog } from 'electron'
 import {
     registerPdfScheme,
@@ -20,9 +18,7 @@ import {
 import { registerGeneralHandlers, registerQuizHandlers } from './ipcHandlers'
 import { initUpdater } from '../core/updater'
 
-// ============================================
-// SINGLE INSTANCE LOCK
-// ============================================
+
 if (!isDev) {
     const gotTheLock = app.requestSingleInstanceLock()
     if (!gotTheLock) {
@@ -39,16 +35,11 @@ if (!isDev) {
     })
 }
 
-// ============================================
-// INITIALIZATION
-// ============================================
 
-// Register schemes before app ready
+
 registerPdfScheme()
 
-// ============================================
-// GPU ACCELERATION & OPTIMIZATION flags
-// ============================================
+
 app.commandLine.appendSwitch('enable-gpu-rasterization')
 app.commandLine.appendSwitch('enable-zero-copy')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
@@ -60,26 +51,18 @@ app.commandLine.appendSwitch('force-device-scale-factor', '1')
 // Disable Autofill to reduce DevTools noise
 app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication')
 
-/**
- * Main application entry point
- */
 async function initializeApp() {
-    // 1. Initial splash screen
     createSplashWindow()
 
-    // 2. Protocols and Handlers
     registerPdfProtocol()
     registerPdfProtocolHandlers()
     registerGeneralHandlers()
     registerQuizHandlers()
 
-    // 3. Background maintenance
     startPdfCleanupInterval()
 
-    // 4. Create main window
     await createWindow()
 
-    // Init update system
     initUpdater()
 }
 
@@ -101,12 +84,10 @@ app.on('window-all-closed', () => {
     }
 })
 
-// ============================================
-// GLOBAL ERROR HANDLING
-// ============================================
+
 
 const handleSeriousError = (type: string, error: unknown) => {
-    console.error(`${type}:`, error)
+    console.error(type, error)
 
     if (app.isReady()) {
         const message = error instanceof Error ? error.message : String(error)

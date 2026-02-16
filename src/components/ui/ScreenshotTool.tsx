@@ -1,8 +1,7 @@
-﻿import { useState, useRef, useEffect, useCallback } from 'react'
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLanguage } from '@src/app/providers'
 import { Logger } from '@src/utils/logger'
 
-// Minimum selection size (px)
 const MIN_SELECTION_SIZE = 20
 
 interface SelectionRect {
@@ -18,10 +17,6 @@ interface ScreenshotToolProps {
     onClose: () => void;
 }
 
-/**
- * Screenshot Tool
- * Allows selecting an area and capturing it to send to AI.
- */
 function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
     const { t } = useLanguage()
     const [isSelecting, setIsSelecting] = useState(false)
@@ -29,7 +24,6 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
     const [endPos, setEndPos] = useState({ x: 0, y: 0 })
     const overlayRef = useRef<HTMLDivElement>(null)
 
-    // Calculate selection rectangle
     const getSelectionRect = useCallback(() => {
         const left = Math.min(startPos.x, endPos.x)
         const top = Math.min(startPos.y, endPos.y)
@@ -38,7 +32,6 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
         return { left, top, width, height }
     }, [startPos, endPos])
 
-    // Mouse down - start selection
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return
         setIsSelecting(true)
@@ -46,20 +39,17 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
         setEndPos({ x: e.clientX, y: e.clientY })
     }
 
-    // Mouse move - update selection
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!isSelecting) return
         setEndPos({ x: e.clientX, y: e.clientY })
     }
 
-    // Mouse up - finish selection and capture
     const handleMouseUp = async (_e: React.MouseEvent) => {
         if (!isSelecting) return
         setIsSelecting(false)
 
         const rect = getSelectionRect()
 
-        // Minimum size check
         if (rect.width < MIN_SELECTION_SIZE || rect.height < MIN_SELECTION_SIZE) {
             onClose()
             return
@@ -68,7 +58,6 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
         await captureScreen(rect)
     }
 
-    // Cancel with ESC
     useEffect(() => {
         if (!isActive) return
 
@@ -83,7 +72,6 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
         }
     }, [isActive, onClose])
 
-    // Capture screen process
     const captureScreen = async (rect: SelectionRect) => {
         if (overlayRef.current) {
             overlayRef.current.style.display = 'none'
@@ -95,8 +83,6 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
         }))
 
         try {
-            // OPTIMIZATION: Send the rect to Backend for server-side cropping
-            // This avoids creating huge screenshots and processing them in JS
             const croppedImage = await window.electronAPI?.captureScreen({
                 x: Math.round(rect.left),
                 y: Math.round(rect.top),
@@ -128,7 +114,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
         >
-            {/* Darkening overlays */}
+
             {isSelecting && selectionRect.width > 0 && selectionRect.height > 0 && (
                 <>
                     <div className="screenshot-dim" style={{ top: 0, left: 0, width: '100%', height: selectionRect.top }} />
@@ -136,7 +122,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
                     <div className="screenshot-dim" style={{ top: selectionRect.top, left: selectionRect.left + selectionRect.width, right: 0, height: selectionRect.height }} />
                     <div className="screenshot-dim" style={{ top: selectionRect.top + selectionRect.height, left: 0, width: '100%', bottom: 0 }} />
 
-                    {/* Selection Frame */}
+
                     <div
                         className="screenshot-selection"
                         style={{

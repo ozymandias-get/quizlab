@@ -7,7 +7,6 @@ import ErrorBoundary from '@src/components/ui/ErrorBoundary'
 import { useSharedDragDrop } from '@src/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@src/components/ui/Icons'
 
-// Lazy Load Components
 const PdfViewer = lazy(() => import('@src/features/pdf/components/PdfViewer'))
 
 interface LeftPanelProps {
@@ -50,7 +49,6 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 }) => {
     const { t } = useLanguage()
 
-    // Drag and Drop Hook
     const { isDragOver, containerRef, dragHandlers } = useSharedDragDrop((file) => {
         onPdfDrop(file as File)
     })
@@ -70,14 +68,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 
             <ErrorBoundary title={t('error_pdf_handler')}>
                 <Worker workerUrl={pdfjsWorkerUrl}>
-                    {/* Contents - Full Screen */}
                     <div className="flex-1 overflow-hidden relative h-full">
                         <Suspense fallback={
                             <div className="flex items-center justify-center h-full">
                                 <LoaderIcon className="w-8 h-8 text-amber-500" />
                             </div>
                         }>
-                            {/* PdfViewer */}
                             <div className="absolute inset-0 w-full h-full animate-in fade-in duration-300">
                                 <ErrorBoundary title={t('error_pdf_viewer')}>
                                     <PdfViewer

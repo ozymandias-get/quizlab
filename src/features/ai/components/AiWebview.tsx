@@ -1,117 +1,12 @@
-﻿import { useMemo, memo, useCallback } from 'react'
-import { useAi, useToast, useLanguage } from '@src/app/providers'
-import type { Tab } from '@src/app/providers/AiContext'
-
-import AestheticLoader from '@src/components/ui/AestheticLoader'
-import { useWebviewLifecycle } from '@src/hooks/webview/useWebviewLifecycle'
+﻿import { memo } from 'react'
+import { useAi } from '@src/app/providers'
 import MagicSelectorTutorial from '@src/features/tutorial/components/MagicSelectorTutorial'
+import AiSession from './AiSession'
 
 interface AiWebviewProps {
     isResizing: boolean;
     isBarHovered: boolean;
 }
-
-interface AiSessionProps {
-    tab: Tab;
-    isActive: boolean;
-    isBarHovered: boolean;
-}
-
-/**
- * Single AI Session (Webview)
- */
-const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
-    const { aiSites, registerWebview, chromeUserAgent } = useAi()
-    const { showWarning } = useToast()
-    const { t } = useLanguage()
-
-    const registerInstance = useCallback((instance: any) => {
-        registerWebview(tab.id, instance)
-    }, [registerWebview, tab.id])
-
-    // Use custom hook for lifecycle logic
-    const {
-        isLoading,
-        error,
-        onWebviewRef,
-        handleRetry
-    } = useWebviewLifecycle({
-        currentAI: tab.modelId, // Pass the tab's model ID
-        registerWebview: registerInstance,
-        t,
-        showWarning
-    })
-
-    const siteConfig = aiSites[tab.modelId]
-    const initialUrl = siteConfig?.url
-
-    const webview = useMemo(() => {
-        if (!siteConfig) return null
-
-        return (
-            <webview
-                key={tab.modelId} // Reset webview if model changes in this tab
-                ref={onWebviewRef}
-                src={initialUrl}
-                partition={siteConfig?.partition || "persist:ai_session"}
-                className="flex-1 w-full h-full"
-                allowpopups={"true" as any}
-                webpreferences="contextIsolation=yes, sandbox=no"
-                useragent={chromeUserAgent}
-            />
-        )
-    }, [initialUrl, onWebviewRef, siteConfig, chromeUserAgent, tab.modelId])
-
-    return (
-        <div
-            className="absolute inset-0 flex flex-col"
-            style={{
-                visibility: isActive ? 'visible' : 'hidden',
-                zIndex: isActive ? 1 : 0
-            }}
-        >
-            <div className="flex-1 relative flex flex-col">
-                {webview}
-
-                {/* Mouse Catcher: Prevents webview from swallowing mouse events when bar is hovered */}
-                {isBarHovered && isActive && (
-                    <div className="absolute inset-0 z-[5] pointer-events-auto bg-transparent" />
-                )}
-
-                {isLoading && isActive && (
-                    <AestheticLoader />
-                )}
-
-                {error && isActive && (
-                    <div className="absolute inset-0 bg-stone-900/95 backdrop-blur-sm flex items-center justify-center z-10 animate-in fade-in zoom-in duration-300">
-                        <div className="flex flex-col items-center text-center gap-5 p-10 max-w-xs">
-                            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
-                                <svg className="text-red-400/80" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 8v4" />
-                                    <circle cx="12" cy="16" r="0.5" fill="currentColor" />
-                                </svg>
-                            </div>
-                            <h3 className="font-display text-xl font-semibold text-stone-200">
-                                {t('ai_error_title', { name: siteConfig?.displayName || 'AI' })}
-                            </h3>
-                            <p className="text-stone-500 text-sm leading-relaxed">{error}</p>
-                            <button className="btn-secondary flex items-center gap-2 mt-2 px-6 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-colors" onClick={handleRetry}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M23 4v6h-6" />
-                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                                </svg>
-                                <span>{t('try_again')}</span>
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    )
-})
-
-AiSession.displayName = 'AiSession'
 
 /**
  * AI Webview Component (Optimized)
@@ -159,4 +54,3 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
 }
 
 export default memo(AiWebview)
-

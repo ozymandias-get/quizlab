@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence } from 'framer-motion';
+
 import { useToast } from '@src/app/providers';
 import ToastItem from './ToastItem';
 

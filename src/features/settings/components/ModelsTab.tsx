@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useCallback } from 'react'
+﻿import React, { useState, useMemo, useCallback, memo } from 'react'
 import { Logger } from '@src/utils/logger'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch, Field, Label, Description } from '@headlessui/react'
@@ -9,7 +9,6 @@ interface IconProps {
     className?: string;
 }
 
-// Icons
 const PlusIcon = ({ className }: IconProps) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="5" x2="12" y2="19" />
@@ -26,21 +25,16 @@ const TrashIcon = ({ className }: IconProps) => (
     </svg>
 )
 
-/**
- * AI Modelleri sekmesi bileşeni - Premium Redesign
- */
-const ModelsTab = React.memo(() => {
+const ModelsTab = memo(() => {
     const { enabledModels, setEnabledModels, aiSites, refreshRegistry } = useAi()
     const { t } = useLanguage()
     const { showSuccess, showError } = useToast()
 
-    // En az bir model seçili kalmalı
     const MIN_ENABLED_MODELS = 1
 
     const toggleModel = useCallback((key: string) => {
         let newModels: string[]
         if (enabledModels.includes(key)) {
-            // En az bir model seçili kalmalı
             if (enabledModels.length <= MIN_ENABLED_MODELS) return
             newModels = enabledModels.filter(m => m !== key)
         } else {
@@ -103,7 +97,6 @@ const ModelsTab = React.memo(() => {
             if (success) {
                 showSuccess(t('ai_deleted_success'))
 
-                // Remove from enabled list if present
                 if (enabledModels.includes(id)) {
                     setEnabledModels(enabledModels.filter(m => m !== id))
                 }
@@ -121,7 +114,7 @@ const ModelsTab = React.memo(() => {
 
     return (
         <div className="space-y-6 pb-20">
-            {/* Header & Add Button */}
+
             <div className="flex items-center justify-between px-1 mb-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 text-blue-400 border border-blue-500/20">

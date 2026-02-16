@@ -1,6 +1,4 @@
-/**
- * Window Manager Module
- */
+
 import { BrowserWindow, dialog, session, app, screen } from 'electron'
 import path from 'path'
 import { APP_CONFIG } from './constants'
@@ -10,18 +8,13 @@ export const isDev = !app.isPackaged
 const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 
-/**
- * Path Resolution Helper
- */
 const getAppPath = (...parts: string[]) => {
     return isDev
         ? path.join(__dirname, ...parts)
         : path.join(app.getAppPath(), ...parts)
 }
 
-// ============================================
-// WINDOW STATE PERSISTENCE
-// ============================================
+
 
 interface WindowState {
     width: number;
@@ -53,11 +46,9 @@ function clampWindowStateToDisplay(windowState: WindowState) {
 
     const { workArea } = display
 
-    // Ensure width/height fits in workArea
     if (windowState.width > workArea.width) windowState.width = workArea.width
     if (windowState.height > workArea.height) windowState.height = workArea.height
 
-    // Check X bounds
     if (windowState.x + windowState.width > workArea.x + workArea.width) {
         windowState.x = workArea.x + workArea.width - windowState.width
     }
@@ -65,7 +56,6 @@ function clampWindowStateToDisplay(windowState: WindowState) {
         windowState.x = workArea.x
     }
 
-    // Check Y bounds
     if (windowState.y + windowState.height > workArea.y + workArea.height) {
         windowState.y = workArea.y + workArea.height - windowState.height
     }
@@ -145,7 +135,7 @@ export async function createWindow() {
         backgroundColor: '#0c0a09',
         show: false,
         webPreferences: {
-            preload: path.join(__dirname, '../preload/index.js'), // Compiled preload script
+            preload: path.join(__dirname, '../preload/index.js'),
             nodeIntegration: false,
             contextIsolation: true,
             sandbox: false,
@@ -188,9 +178,7 @@ export async function createWindow() {
     return mainWindow
 }
 
-// ============================================
-// SESSIONS
-// ============================================
+
 
 function setupSessions() {
     try {
@@ -211,9 +199,7 @@ function setupSessions() {
     }
 }
 
-// ============================================
-// SPLASH WINDOW
-// ============================================
+
 let splashWindow: BrowserWindow | null = null
 
 export function getSplashWindow() {
@@ -225,14 +211,19 @@ export function createSplashWindow() {
         ? path.join(app.getAppPath(), 'src', 'public', 'splash.html')
         : path.join(app.getAppPath(), 'dist', 'splash.html')
 
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { width, height } = primaryDisplay.workAreaSize
+
     splashWindow = new BrowserWindow({
-        width: 380,
-        height: 380,
+        width: width,
+        height: height,
+        x: 0,
+        y: 0,
         transparent: true,
         frame: false,
         alwaysOnTop: true,
         resizable: false,
-        center: true,
+        center: false,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true

@@ -9,7 +9,6 @@ import { ModelsPanel } from './ModelsPanel'
 import { SettingsLoadingSpinner } from './SettingsLoadingSpinner'
 import { useBottomBarStyles } from './useBottomBarStyles'
 
-// Lazy load SettingsModal
 const SettingsModal = lazy(() => import('@src/features/settings/components/SettingsModal'))
 
 interface BottomBarProps {
@@ -24,7 +23,6 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [isAnimating, setIsAnimating] = useState(false)
 
-    // Refs
     const barRef = useRef<HTMLDivElement>(null)
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -38,17 +36,14 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
 
     const { tabs } = useAi()
 
-    // Using custom hook for styles
     const { shellStyle, stackStyle, panelStyle, hubStyle } = useBottomBarStyles(isOpen, bottomBarOpacity, bottomBarScale)
 
-    // Tur aktifken menüyü AÇIK tut
     useEffect(() => {
         if (isTourActive) {
             setIsOpen(true)
         }
     }, [isTourActive])
 
-    // Preload settings modal (Prefetch)
     useEffect(() => {
         const timer = setTimeout(() => {
             import('@src/features/settings/components/SettingsModal')
@@ -57,7 +52,6 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
         return () => clearTimeout(timer)
     }, [])
 
-    // Click outside handler - Tur sırasında ve settings açıkken devre dışı
     useEffect(() => {
         if (!isOpen || isTourActive || isSettingsOpen) return
         const handler = (e: MouseEvent) => {
@@ -69,14 +63,12 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
         return () => document.removeEventListener('mousedown', handler)
     }, [isOpen, isTourActive, isSettingsOpen])
 
-    // Cleanup timeouts on unmount
     useEffect(() => {
         return () => {
             if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
         }
     }, [])
 
-    // Toggle Logic
     const handleToggle = useCallback((e?: React.MouseEvent) => {
         if (isAnimating) {
             e?.stopPropagation()
@@ -90,7 +82,6 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
         animationTimeoutRef.current = setTimeout(() => setIsAnimating(false), 400)
     }, [isAnimating])
 
-    // Track pointer start for distinguishing click vs drag
     const pointerStart = useRef({ x: 0, y: 0 })
 
     const handleHubPointerDown = useCallback((e: React.PointerEvent) => {
@@ -101,13 +92,11 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
         const dx = Math.abs(e.clientX - pointerStart.current.x)
         const dy = Math.abs(e.clientY - pointerStart.current.y)
 
-        // If movement was tiny, it's a click → toggle the menu
         if (dx < 5 && dy < 5) {
             handleToggle(e as unknown as React.MouseEvent)
         }
     }, [handleToggle])
 
-    // When hub is closed, mouse down on the hub also triggers resize
     const handleHubMouseDown = useCallback((e: React.MouseEvent) => {
         if (!isOpen) {
             onMouseDown?.(e)
@@ -122,14 +111,13 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
         setIsSettingsOpen(false)
     }, [])
 
-    // Resizer area mouse down — pass through to parent for panel resize
     const handleResizerMouseDown = useCallback((e: React.MouseEvent) => {
         onMouseDown?.(e)
     }, [onMouseDown])
 
     return (
         <>
-            {/* Full-height container in the resizer area */}
+
             <div
                 ref={barRef}
                 className={`resizer-hub-container bottom-bar-shell ${isOpen ? 'resizer-hub-container--open' : ''}`}
@@ -137,15 +125,15 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                 onMouseEnter={() => onHoverChange?.(true)}
                 onMouseLeave={() => onHoverChange?.(false)}
             >
-                {/* Top resizer drag area */}
+
                 <div
                     className="resizer-drag-area"
                     onMouseDown={handleResizerMouseDown}
                 />
 
-                {/* Hub + Panels Zone - w-full ensures perfect centering */}
+
                 <div className="bottom-bar-stack relative flex flex-col items-center w-full" style={stackStyle}>
-                    {/* TOOLS PANEL — opens upward */}
+
                     <ToolsPanel
                         isOpen={isOpen}
                         panelStyle={panelStyle}
@@ -155,7 +143,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                         onToggleQuizMode={onToggleQuizMode}
                     />
 
-                    {/* CENTER HUB */}
+
                     <div onPointerDown={handleHubPointerDown} className="w-full">
                         <CenterHub
                             handleHubPointerUp={handleHubPointerUp}
@@ -166,7 +154,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                         />
                     </div>
 
-                    {/* MODELS PANEL — opens downward */}
+
                     <ModelsPanel
                         isOpen={isOpen}
                         panelStyle={panelStyle}
@@ -174,14 +162,14 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                     />
                 </div>
 
-                {/* Bottom resizer drag area */}
+
                 <div
                     className="resizer-drag-area"
                     onMouseDown={handleResizerMouseDown}
                 />
             </div>
 
-            {/* SettingsModal — rendered via Portal to escape the resizer container */}
+
             {createPortal(
                 <Suspense fallback={<SettingsLoadingSpinner />}>
                     {isSettingsOpen && (

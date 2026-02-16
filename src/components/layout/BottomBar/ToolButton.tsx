@@ -11,12 +11,10 @@ export interface ToolButtonProps {
     delay?: number;
 }
 
-// Memoized Tool Button - Animated & GPU-accelerated
 export const ToolButton = memo(({ isActive, activeColor, onClick, title, children, delay: _delay = 0 }: ToolButtonProps) => {
     const rippleRef = useRef<HTMLSpanElement>(null)
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-        // Trigger ripple
         if (rippleRef.current) {
             const btn = e.currentTarget
             const rect = btn.getBoundingClientRect()
@@ -70,7 +68,7 @@ export const ToolButton = memo(({ isActive, activeColor, onClick, title, childre
             } as React.CSSProperties}
         >
             {children}
-            {/* Ripple container */}
+
             <span
                 ref={rippleRef}
                 className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none"

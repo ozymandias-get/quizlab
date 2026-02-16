@@ -142,7 +142,7 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
         {
             label: t('ctx_reset_zoom'),
             icon: RotateCcw,
-            onClick: () => zoomTo(1.0),
+            onClick: () => zoomTo(SpecialZoomLevel.PageWidth),
             shortcut: 'Ctrl+0'
         },
         { separator: true, label: '', onClick: () => { } },

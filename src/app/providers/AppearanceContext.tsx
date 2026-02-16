@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useMemo, useEffect } from 'react'
+﻿import React, { createContext, useContext, useMemo, useEffect, useState } from 'react'
 import { Logger } from '@src/utils/logger'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
 import { useLocalStorage, useLocalStorageString, useLocalStorageBoolean } from '@src/hooks'
@@ -43,14 +43,12 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     const [bgRandomMode, setBgRandomMode] = useLocalStorageBoolean(STORAGE_KEYS.BG_RANDOM_MODE, false)
     const [selectionColor, setSelectionColor] = useLocalStorageString(STORAGE_KEYS.SELECTION_COLOR, '#EAB308')
     const [isLayoutSwapped, setIsLayoutSwapped] = useLocalStorageBoolean(STORAGE_KEYS.IS_LAYOUT_SWAPPED, false)
-    const [isTourActive, setIsTourActive] = React.useState(false)
+    const [isTourActive, setIsTourActive] = useState(false)
 
-    // Onboarding check
     useEffect(() => {
         try {
             const hasSeenTour = localStorage.getItem('has_seen_tour_v1')
             if (!hasSeenTour) {
-                // Küçük bir gecikme ile başlat ki uygulama yüklensin
                 const timer = setTimeout(() => setIsTourActive(true), 1500)
                 localStorage.setItem('has_seen_tour_v1', 'true')
                 return () => clearTimeout(timer)
@@ -66,7 +64,6 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
 
     const toggleLayoutSwap = () => setIsLayoutSwapped(prev => !prev)
 
-    // Seçim rengini CSS değişkenine aktar
     useEffect(() => {
         const rgba = hexToRgba(selectionColor, 0.8);
         document.documentElement.style.setProperty('--selection-color', rgba);

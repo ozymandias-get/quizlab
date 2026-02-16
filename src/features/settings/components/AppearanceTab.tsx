@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Switch, Field, Label, Description } from '@headlessui/react'
 import { useAppearance, useLanguage } from '@src/app/providers'
@@ -7,10 +7,7 @@ import { EyeIcon, PaletteIcon, SliderIcon, SelectionIcon, ShuffleIcon } from '@s
 import ColorPicker from './ColorPicker'
 import Slider from '@src/components/ui/Slider'
 
-/**
- * Görünüm (Appearance) Ayarları Sekmesi - Premium Redesign
- */
-const AppearanceTab = React.memo(() => {
+const AppearanceTab = memo(() => {
     const {
         showOnlyIcons,
         setShowOnlyIcons,
@@ -37,7 +34,6 @@ const AppearanceTab = React.memo(() => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <header className="px-1 mb-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 text-pink-400 border border-pink-500/20">
@@ -54,7 +50,6 @@ const AppearanceTab = React.memo(() => {
                 </div>
             </header>
 
-            {/* Açıklama */}
             <div className="px-1">
                 <p className="text-xs text-white/40 leading-relaxed">
                     {t('appearance_description')}

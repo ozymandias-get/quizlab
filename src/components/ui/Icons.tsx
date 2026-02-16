@@ -1,6 +1,6 @@
-import React from 'react';
+import React from 'react'
 
-export interface IconProps {
+interface IconProps {
     className?: string;
     strokeWidth?: number | string;
     style?: React.CSSProperties;

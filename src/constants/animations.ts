@@ -1,5 +1,4 @@
 import { Variants, Easing } from 'framer-motion'
-import React from 'react'
 
 export const ANIMATION_DURATION = 0.4
 export const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]

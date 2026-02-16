@@ -32,7 +32,6 @@ const ConfettiCanvas: React.FC<ConfettiCanvasProps> = ({ isActive = true, classN
             rotationSpeed: (Math.random() - 0.5) * 10
         })
 
-        // Resize
         const resize = () => {
             if (!canvas.parentElement) return
             canvas.width = canvas.parentElement.clientWidth || 300
@@ -41,7 +40,6 @@ const ConfettiCanvas: React.FC<ConfettiCanvasProps> = ({ isActive = true, classN
         resize()
         window.addEventListener('resize', resize)
 
-        // Init particles
         for (let i = 0; i < 100; i++) {
             particles.push(createParticle())
         }
@@ -63,7 +61,6 @@ const ConfettiCanvas: React.FC<ConfettiCanvasProps> = ({ isActive = true, classN
                 ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size)
                 ctx.restore()
 
-                // Reset fall
                 if (p.y > canvas.height) {
                     particles[i] = createParticle()
                     particles[i].y = -20

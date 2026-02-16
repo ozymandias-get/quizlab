@@ -51,7 +51,7 @@ export class ConfigManager<T extends Record<string, any>> {
         try {
             await this.ensureFile();
             const content = JSON.stringify(data, null, 2);
-            // Atomic write: Write to temp file then rename
+
             const tempPath = `${this.filePath}.tmp`;
             await fs.writeFile(tempPath, content, 'utf8');
             await fs.rename(tempPath, this.filePath);

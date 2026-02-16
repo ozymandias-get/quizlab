@@ -12,16 +12,12 @@ import chatgpt from './platforms/chatgpt'
 import claude from './platforms/claude'
 import deepseek from './platforms/deepseek'
 import qwen from './platforms/qwen'
+import kimi from './platforms/kimi'
 
-// Re-export types for backward compatibility
 export type { SubmitMode, AiSelectorConfig, AiPlatformMeta, AiPlatform, EnhancedAiPlatform, AiRegistry, InactivePlatforms }
-
-
-
 
 /**
  * AI Modül Yöneticisi (Registry)
- * Tüm AI platformlarını tek bir noktadan yönetir ve dışa aktarır.
  */
 
 const { CHROME_USER_AGENT } = APP_CONFIG
@@ -60,7 +56,8 @@ const platforms: AiRegistry = {
     chatgpt: enhancePlatform(chatgpt),
     deepseek: enhancePlatform(deepseek),
     qwen: enhancePlatform(qwen),
-    claude: enhancePlatform(claude)
+    claude: enhancePlatform(claude),
+    kimi: enhancePlatform(kimi)
 }
 
 // Inactive/Removed Platforms (Kept for icon/meta recovery if user adds them back)
@@ -92,15 +89,7 @@ const inactivePlatforms: InactivePlatforms = {
         color: '#ffb300',
         meta: { displayName: 'HuggingChat', domainRegex: '^https://huggingface\\.co/chat(/conversation/[a-zA-Z0-9-]+)?/?$' }
     },
-    kimi: {
-        id: 'kimi',
-        name: 'Kimi',
-        url: 'https://kimi.moonshot.cn',
-        partition: 'persist:ai_kimi',
-        icon: 'kimi',
-        color: '#ff6b6b',
-        meta: { displayName: 'Kimi', domainRegex: '^https://(kimi\\.moonshot\\.cn|kimi\\.com)(/chat(/[a-zA-Z0-9]+)?)?/?$' }
-    },
+
     manus: {
         id: 'manus',
         name: 'Manus',

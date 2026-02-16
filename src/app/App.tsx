@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react'
-import { AnimatePresence, motion, LayoutGroup, type Easing } from 'framer-motion'
+import React, { useState } from 'react'
+import { AnimatePresence, motion, LayoutGroup } from 'framer-motion'
 import AiWebview from '@src/features/ai/components/AiWebview'
 import BottomBar from '@src/components/layout/BottomBar'
 import FloatingButton from '@ui/FloatingButton'
@@ -12,33 +12,33 @@ import ToastContainer from '@ui/Toast/ToastContainer'
 import UsageAssistant from '@src/features/tutorial/components/UsageAssistant'
 import { QuizModule } from '@src/features/quiz/components'
 
-
 // Context & Constants
-import { useAi, useAppTools, useUpdate, useAppearance, useLanguage } from './providers'
-
+import { useAppTools, useUpdate, useAppearance, useLanguage } from '@src/app/providers'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
 
-
-
 // Hooks
-import { usePanelResize, useOnlineStatus, usePdfSelection } from '@src/hooks'
+import {
+    usePanelResize,
+    useOnlineStatus,
+    usePdfSelection,
+    useWebviewMount,
+    useTextSelection
+} from '@src/hooks'
+import { useAppAnimations } from '@src/app/hooks/useAppAnimations'
 
 const App: React.FC = () => {
-
     const { t } = useLanguage()
     useOnlineStatus() // Activate global connection monitoring
 
     // Global state from specific contexts
-    const { sendTextToAI } = useAi()
     const { isScreenshotMode, handleCapture, closeScreenshot } = useAppTools()
     const { updateAvailable, updateInfo } = useUpdate()
     const { isLayoutSwapped, isTourActive, setIsTourActive, bottomBarScale } = useAppearance()
 
+    // Panel resize logic
     const clampedBarScale = Math.min(1.3, Math.max(0.7, bottomBarScale))
     const resizerShellWidth = Math.round(48 * clampedBarScale)
 
-
-    // Panel resize hook
     const {
         leftPanelWidth,
         isResizing,
@@ -59,170 +59,31 @@ const App: React.FC = () => {
 
     // Last reading info for resume button
     const lastReadingInfo = getLastReadingInfo()
-    const [initialPage, setInitialPage] = React.useState<number | undefined>(undefined)
+    const [initialPage, setInitialPage] = useState<number | undefined>(undefined)
 
     // Local State
-    const [selectedText, setSelectedText] = useState<string>('')
-    const [selectionPosition, setSelectionPosition] = useState<{ top: number; left: number } | null>(null)
     const [isBarHovered, setIsBarHovered] = useState<boolean>(false)
     const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState<boolean>(true)
-    const [isQuizMode, setIsQuizMode] = useState<boolean>(false) // Quiz Mode toggle
-    const [isWebviewMounted, setIsWebviewMounted] = useState<boolean>(false)
+    const [isQuizMode, setIsQuizMode] = useState<boolean>(false)
 
-    useEffect(() => {
-        let cancelled = false
-        const browserWindow = window as Window & {
-            requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-            cancelIdleCallback?: (handle: number) => void;
-        }
+    // Custom Hooks
+    const isWebviewMounted = useWebviewMount()
+    const {
+        handleTextSelection,
+        handleSendToAI,
+        selectedText,
+        selectionPosition
+    } = useTextSelection()
 
-        const mountWebview = () => {
-            if (!cancelled) setIsWebviewMounted(true)
-        }
-
-        if (browserWindow.requestIdleCallback) {
-            const idleId = browserWindow.requestIdleCallback(mountWebview, { timeout: 300 })
-            return () => {
-                cancelled = true
-                browserWindow.cancelIdleCallback?.(idleId)
-            }
-        }
-
-        const timeoutId = globalThis.setTimeout(mountWebview, 120)
-        return () => {
-            cancelled = true
-            globalThis.clearTimeout(timeoutId)
-        }
-    }, [])
-    const handleTextSelection = useCallback((text: string, position: { top: number; left: number } | null) => {
-        setSelectedText(text)
-        setSelectionPosition(position)
-    }, [])
-
-    const handleSendToAI = useCallback(async () => {
-        if (!selectedText) return
-        const result = await sendTextToAI(selectedText)
-
-        if (result.success) {
-            setSelectedText('')
-            setSelectionPosition(null)
-        }
-    }, [selectedText, sendTextToAI])
-
-    // Shared animation timing for synchronization
-    const ANIMATION_DURATION = 0.4
-    const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]
-
-    // GPU-accelerated panel animation variants settings wrapped in useMemo
-    const leftPanelVariants = React.useMemo(() => ({
-        visible: {
-            opacity: 1,
-            x: 0,
-            scale: 1,
-            transition: {
-                duration: ANIMATION_DURATION,
-                ease: ANIMATION_EASE
-            }
-        },
-        hidden: {
-            opacity: 0,
-            x: -30,
-            scale: 0.97,
-            transition: {
-                duration: ANIMATION_DURATION,
-                ease: ANIMATION_EASE
-            }
-        }
-    }), [])
-
-    const rightPanelVariants = React.useMemo(() => ({
-        visible: {
-            opacity: 1,
-            x: 0,
-            scale: 1,
-            transition: {
-                duration: ANIMATION_DURATION,
-                ease: ANIMATION_EASE
-            }
-        },
-        hidden: {
-            opacity: 0,
-            x: 30,
-            scale: 0.97,
-            transition: {
-                duration: ANIMATION_DURATION,
-                ease: ANIMATION_EASE
-            }
-        }
-    }), [])
-
-    const resizerVariants = React.useMemo(() => ({
-        visible: {
-            opacity: 1,
-            scaleY: 1,
-            transition: { duration: ANIMATION_DURATION * 0.75, ease: ANIMATION_EASE }
-        },
-        hidden: {
-            opacity: 0,
-            scaleY: 0,
-            transition: { duration: ANIMATION_DURATION * 0.5, ease: ANIMATION_EASE }
-        }
-    }), [])
-
-    // Container variants for synchronized children animation
-    const containerVariants = React.useMemo(() => ({
-        visible: {
-            transition: {
-                staggerChildren: 0.03,
-                delayChildren: 0,
-                when: "beforeChildren"
-            }
-        },
-        hidden: {
-            transition: {
-                staggerChildren: 0.03,
-                staggerDirection: -1,
-                when: "afterChildren"
-            }
-        }
-    }), [])
-
-    // Quiz panel variants
-    const quizPanelVariants = React.useMemo(() => ({
-        initial: {
-            opacity: 0,
-            scale: 0.96,
-            y: 20
-        },
-        animate: {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            transition: {
-                duration: ANIMATION_DURATION,
-                ease: ANIMATION_EASE,
-                delay: 0.05
-            }
-        },
-        exit: {
-            opacity: 0,
-            scale: 0.96,
-            y: 20,
-            transition: {
-                duration: ANIMATION_DURATION * 0.85,
-                ease: ANIMATION_EASE
-            }
-        }
-    }), [])
-
-    // GPU acceleration styles
-    const gpuAcceleratedStyle = React.useMemo<React.CSSProperties>(() => ({
-        willChange: 'transform, opacity',
-        transform: 'translateZ(0)', // Force GPU layer
-        backfaceVisibility: 'hidden'
-    }), [])
-
-
+    // Animations
+    const {
+        leftPanelVariants,
+        rightPanelVariants,
+        resizerVariants,
+        containerVariants,
+        quizPanelVariants,
+        gpuAcceleratedStyle
+    } = useAppAnimations(isLayoutSwapped)
 
     return (
         <LayoutGroup>
@@ -265,7 +126,7 @@ const App: React.FC = () => {
                             {/* Left Panel Wrapper */}
                             <motion.div
                                 ref={leftPanelRef as React.RefObject<HTMLDivElement>}
-                                variants={isLayoutSwapped ? rightPanelVariants : leftPanelVariants}
+                                variants={leftPanelVariants}
                                 style={{
                                     ...gpuAcceleratedStyle,
                                     width: `${leftPanelWidth}%`,
@@ -307,7 +168,7 @@ const App: React.FC = () => {
 
                             {/* Right Panel (AI Webview) */}
                             <motion.div
-                                variants={isLayoutSwapped ? leftPanelVariants : rightPanelVariants}
+                                variants={rightPanelVariants}
                                 className="glass-panel flex-1 min-w-[350px] flex flex-col overflow-hidden relative"
                                 style={gpuAcceleratedStyle}
                             >
@@ -322,7 +183,6 @@ const App: React.FC = () => {
                             </motion.div>
                         </motion.main>
                     ) : (
-                        /* Quiz Mode - Full Screen */
                         <motion.div
                             key="quiz-panel"
                             className="h-screen w-screen p-5"
@@ -340,7 +200,6 @@ const App: React.FC = () => {
                         </motion.div>
                     )}
                 </AnimatePresence>
-
 
                 {selectedText && selectionPosition && (
                     <FloatingButton
@@ -366,4 +225,3 @@ const App: React.FC = () => {
 }
 
 export default App
-

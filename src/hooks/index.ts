@@ -8,4 +8,5 @@ export * from '@src/features/ai/hooks/useAiSender'
 export * from '@src/features/automation/hooks/useElementPicker'
 export * from '@src/features/ai/hooks/usePrompts'
 export { useOnlineStatus } from './useOnlineStatus'
-
+export { useWebviewMount } from './useWebviewMount'
+export { useTextSelection } from './useTextSelection'
