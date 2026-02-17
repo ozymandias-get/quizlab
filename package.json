@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "1.1.9",
+  "version": "2.0.0",
   "description": "The Ultimate AI-Powered PDF Reader & Quiz Generator. Study faster with split-screen PDF viewing, Google Gemini AI integration, and automatic flashcard creation.",
   "main": "dist/electron/electron/main/index.js",
   "repository": {
@@ -115,6 +115,9 @@
   "author": "ozymandias-get",
   "license": "MIT",
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -124,10 +127,12 @@
     "electron": "^33.2.1",
     "electron-builder": "^26.7.0",
     "electron-devtools-installer": "^4.0.0",
+    "jsdom": "^28.1.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
+    "vitest": "^4.0.18",
     "wait-on": "^7.2.0"
   },
   "dependencies": {

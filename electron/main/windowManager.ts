@@ -9,9 +9,7 @@ const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 
 const getAppPath = (...parts: string[]) => {
-    return isDev
-        ? path.join(__dirname, ...parts)
-        : path.join(app.getAppPath(), ...parts)
+    return path.join(app.getAppPath(), ...parts)
 }
 
 
@@ -121,7 +119,7 @@ export async function createWindow() {
     windowState.height = Math.max(APP_CONFIG.WINDOW.MIN_HEIGHT, windowState.height)
     clampWindowStateToDisplay(windowState)
 
-    const iconPath = getAppPath(isDev ? '../../resources' : 'resources', `icon.${process.platform === 'win32' ? 'ico' : 'png'}`)
+    const iconPath = getAppPath('resources', `icon.${process.platform === 'win32' ? 'ico' : 'png'}`)
 
     mainWindow = new BrowserWindow({
         width: windowState.width,

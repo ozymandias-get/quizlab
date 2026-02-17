@@ -33,6 +33,11 @@ if (!isDev) {
             mainWindow.focus()
         }
     })
+} else {
+    // In development, set the App Model ID to match production to test icons/grouping
+    if (process.platform === 'win32') {
+        app.setAppUserModelId('com.quizlab.reader')
+    }
 }
 
 

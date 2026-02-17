@@ -41,7 +41,13 @@
             "@features/*": [
                 "./src/features/*"
             ]
-        }
+        },
+        "types": [
+            "vite/client",
+            "vitest/globals",
+            "@testing-library/jest-dom",
+            "node"
+        ]
     },
     "include": [
         "src",

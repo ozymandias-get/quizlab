@@ -1,0 +1,175 @@
+import { renderHook, act, waitFor } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { AiProvider, useAi } from '../../../app/providers/AiContext'
+import React from 'react'
+
+// Mock dependencies
+const mockShowSuccess = vi.fn()
+const mockShowWarning = vi.fn()
+
+vi.mock('../../../app/providers/ToastContext', () => ({
+    useToast: () => ({
+        showSuccess: mockShowSuccess,
+        showWarning: mockShowWarning
+    })
+}))
+
+const mockSendText = vi.fn()
+const mockSendImage = vi.fn()
+
+vi.mock('@src/hooks', () => ({
+    useAiSender: () => ({
+        sendTextToAI: mockSendText,
+        sendImageToAI: mockSendImage
+    }),
+    useLocalStorage: (_key: string, initial: any) => {
+        // Simple mock implementation of useLocalStorage
+        const [val, setVal] = React.useState(initial)
+        return [val, setVal]
+    },
+    useLocalStorageString: (_key: string, initial: any) => {
+        const [val, setVal] = React.useState(initial)
+        return [val, setVal]
+    },
+    useLocalStorageBoolean: (_key: string, initial: any) => {
+        const [val, setVal] = React.useState(initial)
+        const toggle = () => setVal(!val)
+        return [val, setVal, toggle]
+    }
+}))
+
+vi.mock('@src/utils/logger', () => ({
+    Logger: { error: vi.fn() }
+}))
+
+describe('AiContext', () => {
+    const originalElectronAPI = window.electronAPI
+    const mockGetAiRegistry = vi.fn()
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+
+        window.electronAPI = {
+            getAiRegistry: mockGetAiRegistry
+        } as any
+
+        // Default registry response
+        mockGetAiRegistry.mockResolvedValue({
+            aiRegistry: {
+                'chatgpt': { id: 'chatgpt', name: 'ChatGPT' },
+                'claude': { id: 'claude', name: 'Claude' }
+            },
+            defaultAiId: 'chatgpt',
+            allAiIds: ['chatgpt', 'claude'],
+            chromeUserAgent: 'Mozilla/5.0'
+        })
+    })
+
+    afterEach(() => {
+        window.electronAPI = originalElectronAPI
+    })
+
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <AiProvider>{children}</AiProvider>
+    )
+
+    it('loads registry on mount', async () => {
+        const { result } = renderHook(() => useAi(), { wrapper })
+
+        // Initial load might be async, but provider renders null until loaded.
+        // Wait for it.
+        await waitFor(() => {
+            expect(result.current.isRegistryLoaded).toBe(true)
+        })
+
+        expect(mockGetAiRegistry).toHaveBeenCalled()
+        expect(result.current.aiSites['chatgpt']).toBeDefined()
+        expect(result.current.currentAI).toBe('chatgpt')
+    })
+
+    it('manages tabs (add, switch)', async () => {
+        const { result } = renderHook(() => useAi(), { wrapper })
+        await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+        const initialTabId = result.current.activeTabId
+
+        act(() => {
+            result.current.addTab('claude')
+        })
+
+        expect(result.current.tabs).toHaveLength(2)
+        expect(result.current.activeTabId).not.toBe(initialTabId)
+        expect(result.current.currentAI).toBe('claude')
+
+        // Switch back
+        act(() => {
+            result.current.setActiveTab(initialTabId)
+        })
+        expect(result.current.activeTabId).toBe(initialTabId)
+        expect(result.current.currentAI).toBe('chatgpt')
+    })
+
+    it('closes tabs and prevents closing the last one', async () => {
+        const { result } = renderHook(() => useAi(), { wrapper })
+        await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+        // Add a tab first
+        act(() => {
+            result.current.addTab('claude')
+        })
+        expect(result.current.tabs).toHaveLength(2)
+
+        const tabToClose = result.current.activeTabId
+
+        // Close active tab
+        act(() => {
+            result.current.closeTab(tabToClose)
+        })
+
+        expect(result.current.tabs).toHaveLength(1)
+        expect(result.current.activeTabId).not.toBe(tabToClose)
+
+        // Try closing the last remaining tab
+        const lastTab = result.current.activeTabId
+        act(() => {
+            result.current.closeTab(lastTab)
+        })
+        expect(result.current.tabs).toHaveLength(1) // Should still be 1
+    })
+
+    it('wraps sending text with toast notifications', async () => {
+        const { result } = renderHook(() => useAi(), { wrapper })
+        await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+        mockSendText.mockResolvedValue({ success: true })
+
+        await act(async () => {
+            await result.current.sendTextToAI('hello')
+        })
+
+        expect(mockSendText).toHaveBeenCalledWith('hello')
+        // Success doesn't trigger toast for text?
+        // Code: if (!result.success) showWarning...
+        // So no success toast for text.
+        expect(mockShowSuccess).not.toHaveBeenCalled()
+
+        // Fail case
+        mockSendText.mockResolvedValue({ success: false, error: 'fail' })
+        await act(async () => {
+            await result.current.sendTextToAI('fail')
+        })
+        expect(mockShowWarning).toHaveBeenCalledWith('error_fail')
+    })
+
+    it('wraps sending image with toast notifications', async () => {
+        const { result } = renderHook(() => useAi(), { wrapper })
+        await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+        mockSendImage.mockResolvedValue({ success: true })
+
+        await act(async () => {
+            await result.current.sendImageToAI('data:image...')
+        })
+        expect(mockShowSuccess).toHaveBeenCalledWith('sent_successfully')
+    })
+})

@@ -131,7 +131,7 @@ export const getElementInfo = (el: PickerElement): PickerElementInfo => {
 
 export const generateRobustSelector = (el: Element | null): string | null => {
     if (!el) return null;
-    if (el.id && !/\\d{5,}|[-]{2,}|[a-zA-Z0-9]{15,}/.test(el.id)) return '#' + CSS.escape(el.id);
+    if (el.id && !/\d{5,}|[-]{2,}|[a-zA-Z0-9]{15,}/.test(el.id)) return '#' + CSS.escape(el.id);
     if (el.getAttribute('data-testid')) return el.tagName.toLowerCase() + '[data-testid="' + el.getAttribute('data-testid') + '"]';
 
     const attributes = ['name', 'placeholder', 'aria-label'];
