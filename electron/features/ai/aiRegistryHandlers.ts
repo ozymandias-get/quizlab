@@ -56,8 +56,8 @@ export function registerAiRegistryHandlers() {
         return manager.deleteItem(id)
     })
 
-    ipcMain.handle(IPC_CHANNELS.GET_AI_REGISTRY, async () => {
-        const customPlatforms = await manager.read()
+    ipcMain.handle(IPC_CHANNELS.GET_AI_REGISTRY, async (event, forceRefresh: boolean = false) => {
+        const customPlatforms = await manager.read(forceRefresh)
 
         const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
         const allIds = [...Object.keys(AI_REGISTRY), ...Object.keys(customPlatforms)]

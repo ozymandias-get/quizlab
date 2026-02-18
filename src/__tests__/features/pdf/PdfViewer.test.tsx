@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import PdfViewer from '@src/features/pdf/components/PdfViewer'
+import PdfViewer from '@features/pdf/components/PdfViewer'
 
 // Mock Providers
 vi.mock('@src/app/providers/AiContext', () => ({
@@ -24,7 +24,7 @@ vi.mock('@src/app/providers/LanguageContext', () => ({
 }))
 
 // Mock hooks
-vi.mock('@src/features/pdf/components/hooks', () => ({
+vi.mock('@features/pdf/components/hooks', () => ({
     usePdfPlugins: () => ({
         plugins: [],
         jumpToPageRef: { current: vi.fn() },
@@ -54,10 +54,10 @@ vi.mock('@src/features/pdf/components/hooks', () => ({
 }))
 
 // Mock Subcomponents
-vi.mock('@src/features/pdf/components/PdfPlaceholder', () => ({
+vi.mock('@features/pdf/components/PdfPlaceholder', () => ({
     default: () => <div>PDF Placeholder</div>,
 }))
-vi.mock('@src/features/pdf/components/PdfToolbar', () => ({
+vi.mock('@features/pdf/components/PdfToolbar', () => ({
     default: () => <div>PDF Toolbar</div>,
 }))
 
@@ -100,3 +100,4 @@ describe('PdfViewer Component', () => {
         expect(screen.getByText('PDF Toolbar')).toBeInTheDocument()
     })
 })
+

@@ -5,6 +5,8 @@ node_modules/
 dist/
 dist-electron/
 release/
+.cache/
+*.tsbuildinfo
 
 # OS files
 .DS_Store

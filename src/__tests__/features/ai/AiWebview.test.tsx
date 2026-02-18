@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import AiWebview from '@src/features/ai/components/AiWebview'
+import AiWebview from '@features/ai/components/AiWebview'
 
 // Setup a mock store to control returned values
 let mockAiState = {
@@ -21,7 +21,7 @@ vi.mock('@src/app/providers', () => ({
 }))
 
 // Mock Subcomponents
-vi.mock('@src/features/ai/components/AiSession', () => ({
+vi.mock('@features/ai/components/AiSession', () => ({
     default: ({ tab, isActive }: { tab: any, isActive: boolean }) => (
         <div data-testid={`ai-session-${tab.id}`}>
             {tab.title} - {isActive ? 'Active' : 'Inactive'}
@@ -29,7 +29,7 @@ vi.mock('@src/features/ai/components/AiSession', () => ({
     ),
 }))
 
-vi.mock('@src/features/tutorial/components/MagicSelectorTutorial', () => ({
+vi.mock('@features/tutorial/components/MagicSelectorTutorial', () => ({
     default: () => <div data-testid="tutorial-overlay">Tutorial Active</div>,
 }))
 
@@ -74,3 +74,4 @@ describe('AiWebview Component', () => {
         expect(outerDiv.style.clipPath).toContain('inset(0 round 1.5rem)')
     })
 })
+

@@ -1,10 +1,12 @@
-
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-    CheckCircle, XCircle, AlertCircle, ChevronDown
+    CheckCircle, XCircle, AlertCircle, ChevronDown,
+    Sparkles
 } from 'lucide-react'
 import { formatQuizText } from '@src/utils/uiUtils'
 import { Question } from '../types'
+import { QuizAssistantChat } from './review/QuizAssistantChat'
 
 interface QuizQuestionReviewProps {
     question: Question;
@@ -26,6 +28,9 @@ export function QuizQuestionReview({
     const isAnswered = userAnswer !== undefined
     const isCorrect = isAnswered && userAnswer === q.correctAnswerIndex
     const isEmpty = !isAnswered
+
+    // AI Assistant View State
+    const [showAssistant, setShowAssistant] = useState(false)
 
     return (
         <motion.div
@@ -69,7 +74,7 @@ export function QuizQuestionReview({
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="px-4 pb-4 space-y-3">
+                        <div className="px-4 pb-4 space-y-4">
                             {/* Options */}
                             <div className="space-y-2">
                                 {q.options.map((opt, optIdx) => {
@@ -118,6 +123,35 @@ export function QuizQuestionReview({
                                     <p className="text-xs text-amber-400 italic">"{q.sourceQuote}"</p>
                                 </div>
                             )}
+
+                            {/* AI Assistant Toggle */}
+                            <div className="pt-2 border-t border-white/5">
+                                <button
+                                    onClick={() => setShowAssistant(!showAssistant)}
+                                    className="flex items-center gap-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    {t('quiz_ask_ai_title')}
+                                </button>
+                            </div>
+
+                            {/* AI Assistant Chat */}
+                            <AnimatePresence>
+                                {showAssistant && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <QuizAssistantChat
+                                            questionText={q.text}
+                                            explanationText={q.explanation || ''}
+                                            t={t}
+                                        />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </motion.div>
                 )}

@@ -1,14 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useMemo, useEffect } from 'react'
+import { useCheckForUpdates } from '@platform/electron/api/useSystemApi'
+import type { UpdateCheckResult } from '@shared/types'
 
-export interface UpdateInfo {
-    available: boolean;
-    version?: string;
-    releaseDate?: string;
-    releaseName?: string;
-    releaseNotes?: string;
-    downloadUrl?: string;
-    error?: string;
-}
+export interface UpdateInfo extends UpdateCheckResult { }
 
 interface UpdateContextType {
     updateAvailable: boolean;
@@ -22,59 +16,39 @@ const UpdateContext = createContext<UpdateContextType | null>(null)
 const UPDATE_CHECK_DELAY = 5000
 
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
-    const [updateAvailable, setUpdateAvailable] = useState(false)
-    const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
-    const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
-    const [hasCheckedUpdate, setHasCheckedUpdate] = useState(false)
-
-    const checkForUpdates = useCallback(async (): Promise<UpdateInfo> => {
-        if (!window.electronAPI?.checkForUpdates) {
-            setHasCheckedUpdate(true)
-            return { available: false }
-        }
-        setIsCheckingUpdate(true)
-        try {
-            const result = await window.electronAPI.checkForUpdates()
-
-            // Map Global Result to Context Info
-            const info: UpdateInfo = {
-                available: result.available,
-                version: result.version,
-                releaseName: result.releaseName, // Now available via global type
-                releaseNotes: result.releaseNotes, // Mapped correctly
-                error: result.error
-            }
-
-            if (result.error) {
-                setUpdateAvailable(false)
-                setUpdateInfo(info)
-            } else if (result.available) {
-                setUpdateAvailable(true)
-                setUpdateInfo(info)
-            } else {
-                setUpdateAvailable(false)
-                setUpdateInfo(null)
-            }
-            return info
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'unknown_error'
-            const errorInfo: UpdateInfo = { available: false, error: message }
-            setUpdateInfo(errorInfo)
-            return errorInfo
-        } finally {
-            setIsCheckingUpdate(false)
-            setHasCheckedUpdate(true)
-        }
-    }, [])
+    // Enable query after 5 seconds to simulate the original delay
+    // or just let it run immediately. The original code simulated delay with setTimeout.
+    // We can use 'enabled' to control start time if strictly needed, but eager check is usually better.
+    // However, to respect the "don't block startup" intention, we can delay enablement.
+    const [isEnabled, setIsEnabled] = React.useState(false)
 
     useEffect(() => {
-        const timer = setTimeout(() => checkForUpdates(), UPDATE_CHECK_DELAY)
+        const timer = setTimeout(() => setIsEnabled(true), UPDATE_CHECK_DELAY)
         return () => clearTimeout(timer)
-    }, [checkForUpdates])
+    }, [])
+
+    const { data, isLoading, isFetched, refetch } = useCheckForUpdates(isEnabled)
+
+    const updateInfo: UpdateInfo | null = useMemo(() => {
+        if (!data) return null
+        return data
+    }, [data])
+
+    const updateAvailable = !!data?.available
+
+    const checkForUpdates = async (): Promise<UpdateInfo> => {
+        // Force refetch
+        const result = await refetch()
+        return result.data || { available: false, error: 'Refetch failed' }
+    }
 
     const value = useMemo(() => ({
-        updateAvailable, updateInfo, isCheckingUpdate, hasCheckedUpdate, checkForUpdates
-    }), [updateAvailable, updateInfo, isCheckingUpdate, hasCheckedUpdate, checkForUpdates])
+        updateAvailable,
+        updateInfo,
+        isCheckingUpdate: isLoading && isEnabled, // Only checking if enabled
+        hasCheckedUpdate: isFetched,
+        checkForUpdates
+    }), [updateAvailable, updateInfo, isLoading, isEnabled, isFetched, refetch])
 
     return (
         <UpdateContext.Provider value={value}>
@@ -88,3 +62,4 @@ export const useUpdate = () => {
     if (!context) throw new Error('useUpdate must be used within UpdateProvider')
     return context
 }
+

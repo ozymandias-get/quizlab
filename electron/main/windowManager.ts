@@ -1,5 +1,6 @@
 
 import { BrowserWindow, dialog, session, app, screen } from 'electron'
+import fs from 'fs'
 import path from 'path'
 import { APP_CONFIG } from './constants'
 import { ConfigManager } from '../core/ConfigManager'
@@ -10,6 +11,18 @@ const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 
 const getAppPath = (...parts: string[]) => {
     return path.join(app.getAppPath(), ...parts)
+}
+
+function resolveIconPath() {
+    const extension = process.platform === 'win32' ? 'ico' : 'png'
+    const iconName = `icon.${extension}`
+    const candidates = [
+        path.join(process.resourcesPath, 'resources', iconName),
+        getAppPath('resources', iconName),
+        path.join(app.getAppPath(), '..', 'resources', iconName)
+    ]
+
+    return candidates.find(iconPath => fs.existsSync(iconPath)) ?? candidates[0]
 }
 
 
@@ -119,7 +132,7 @@ export async function createWindow() {
     windowState.height = Math.max(APP_CONFIG.WINDOW.MIN_HEIGHT, windowState.height)
     clampWindowStateToDisplay(windowState)
 
-    const iconPath = getAppPath('resources', `icon.${process.platform === 'win32' ? 'ico' : 'png'}`)
+    const iconPath = resolveIconPath()
 
     mainWindow = new BrowserWindow({
         width: windowState.width,
@@ -212,6 +225,8 @@ export function createSplashWindow() {
     const primaryDisplay = screen.getPrimaryDisplay()
     const { width, height } = primaryDisplay.workAreaSize
 
+    const iconPath = resolveIconPath()
+
     splashWindow = new BrowserWindow({
         width: width,
         height: height,
@@ -222,6 +237,7 @@ export function createSplashWindow() {
         alwaysOnTop: true,
         resizable: false,
         center: false,
+        icon: iconPath,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true

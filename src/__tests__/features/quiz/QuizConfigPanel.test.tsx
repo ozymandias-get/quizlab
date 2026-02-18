@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import QuizConfigPanel from '@src/features/quiz/components/QuizConfigPanel'
+import QuizConfigPanel from '@features/quiz/components/QuizConfigPanel'
 
 // Mock dependencies
-vi.mock('@src/features/quiz/api', () => ({
+vi.mock('@features/quiz/api', () => ({
     Difficulty: { EASY: 'EASY', MEDIUM: 'MEDIUM', HARD: 'HARD' },
     QuestionStyle: {
         CLASSIC: 'CLASSIC',
@@ -162,3 +162,4 @@ describe('QuizConfigPanel Component', () => {
         expect(startBtnEnabled).not.toBeDisabled()
     })
 })
+

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, memo, Suspense, lazy } from 'react'
+import React, { useState, useEffect, useRef, useCallback, memo, Suspense, lazy } from 'react'
 import { Logger } from '@src/utils/logger'
 import { createPortal } from 'react-dom'
 
@@ -9,7 +9,7 @@ import { ModelsPanel } from './ModelsPanel'
 import { SettingsLoadingSpinner } from './SettingsLoadingSpinner'
 import { useBottomBarStyles } from './useBottomBarStyles'
 
-const SettingsModal = lazy(() => import('@src/features/settings/components/SettingsModal'))
+const SettingsModal = lazy(() => import('@features/settings/components/SettingsModal'))
 
 interface BottomBarProps {
     onHoverChange?: (isHovering: boolean) => void;
@@ -46,7 +46,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            import('@src/features/settings/components/SettingsModal')
+            import('@features/settings/components/SettingsModal')
                 .catch(err => Logger.error('Error prefetching SettingsModal:', err))
         }, 1500)
         return () => clearTimeout(timer)
@@ -183,3 +183,4 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
 }
 
 export default memo(BottomBar)
+

@@ -1,12 +1,8 @@
-﻿// Hooks exports
+// Generic shared hooks only. Feature/domain hooks live under src/features/* and src/platform/*.
 export { useLocalStorage, useLocalStorageString, useLocalStorageBoolean } from './useLocalStorage'
 export { usePanelResize } from './usePanelResize'
-export * from '@src/features/screenshot/hooks/useScreenshot'
-export * from '@src/features/settings/hooks/useSettings'
-export * from '@src/features/pdf/hooks/usePdfSelection'
-export * from '@src/features/ai/hooks/useAiSender'
-export * from '@src/features/automation/hooks/useElementPicker'
-export * from '@src/features/ai/hooks/usePrompts'
 export { useOnlineStatus } from './useOnlineStatus'
 export { useWebviewMount } from './useWebviewMount'
 export { useTextSelection } from './useTextSelection'
+export { useSharedDragDrop } from './useSharedDragDrop'
+

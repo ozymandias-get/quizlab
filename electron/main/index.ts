@@ -18,6 +18,9 @@ import {
 import { registerGeneralHandlers, registerQuizHandlers } from './ipcHandlers'
 import { initUpdater } from '../core/updater'
 
+if (process.platform === 'win32') {
+    app.setAppUserModelId('com.quizlab.reader')
+}
 
 if (!isDev) {
     const gotTheLock = app.requestSingleInstanceLock()
@@ -33,11 +36,6 @@ if (!isDev) {
             mainWindow.focus()
         }
     })
-} else {
-    // In development, set the App Model ID to match production to test icons/grouping
-    if (process.platform === 'win32') {
-        app.setAppUserModelId('com.quizlab.reader')
-    }
 }
 
 

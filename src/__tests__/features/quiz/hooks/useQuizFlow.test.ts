@@ -1,30 +1,38 @@
-import { renderHook, act, waitFor } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { renderHook, act } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { useQuizFlow } from '../../../../features/quiz/hooks/useQuizFlow'
 import { QuizStep } from '../../../../features/quiz/types'
+import { DEFAULT_SETTINGS } from '@features/quiz/api'
 
 // Mock dependencies
-const mockGenerateQuizQuestions = vi.fn()
-const mockGetQuizSettings = vi.fn()
-const mockSaveQuizSettings = vi.fn()
-const mockSelectPdf = vi.fn()
+const mockMutate = vi.fn()
+const mockGenerateMutate = vi.fn()
+const mockSelectPdfMutate = vi.fn()
 
-vi.mock('@src/features/quiz/api', () => ({
-    generateQuizQuestions: (...args: any[]) => mockGenerateQuizQuestions(...args),
-    getQuizSettings: () => mockGetQuizSettings(),
-    saveQuizSettings: (s: any) => mockSaveQuizSettings(s),
-    DEFAULT_SETTINGS: { questionCount: 5 },
-    INITIAL_QUIZ_STATE: {
-        questions: [],
-        userAnswers: {},
-        score: 0,
-        isFinished: false,
-        currentQuestionIndex: 0
-    },
-    QuizSettings: {},
-    Question: {}
+// 1. Mock useQuizApi (React Query hooks)
+vi.mock('@platform/electron/api/useQuizApi', () => ({
+    useQuizSettings: () => ({
+        data: { ...DEFAULT_SETTINGS, questionCount: 10 },
+        isLoading: false
+    }),
+    useSaveSettings: () => ({
+        mutate: mockMutate
+    }),
+    useGenerateQuiz: () => ({
+        mutateAsync: mockGenerateMutate,
+        isPending: false
+    })
 }))
 
+// 2. Mock usePdfApi
+vi.mock('@platform/electron/api/usePdfApi', () => ({
+    useSelectPdf: () => ({
+        mutateAsync: mockSelectPdfMutate,
+        isPending: false
+    })
+}))
+
+// 3. Mock Language Context
 vi.mock('@src/app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key,
@@ -32,6 +40,7 @@ vi.mock('@src/app/providers/LanguageContext', () => ({
     })
 }))
 
+// 4. Mock Logger
 vi.mock('@src/utils/logger', () => ({
     Logger: {
         error: vi.fn(),
@@ -39,40 +48,26 @@ vi.mock('@src/utils/logger', () => ({
     }
 }))
 
-// Mock window.electronAPI
-const originalElectronAPI = window.electronAPI
-
 describe('useQuizFlow', () => {
     beforeEach(() => {
         vi.clearAllMocks()
 
-        window.electronAPI = {
-            selectPdf: mockSelectPdf,
-            // Add other methods if needed
-        } as any
+        // Default: selectPdf succeeds
+        mockSelectPdfMutate.mockResolvedValue({ path: 'new.pdf', name: 'New Doc' })
 
-        mockGetQuizSettings.mockResolvedValue({ questionCount: 10 })
-        mockSaveQuizSettings.mockResolvedValue({})
-        mockGenerateQuizQuestions.mockResolvedValue([
-            { id: '1', question: 'Q1', correctAnswerIndex: 0, options: ['A', 'B'] }
-        ])
+        // Default: generateQuiz succeeds
+        mockGenerateMutate.mockResolvedValue({
+            success: true,
+            data: [{ id: '1', question: 'Q1', correctAnswerIndex: 0, options: ['A', 'B'] }]
+        })
     })
 
-    afterEach(() => {
-        window.electronAPI = originalElectronAPI
-    })
-
-    it('initializes with default state and loads settings', async () => {
+    it('initializes with default state and loads settings from query', async () => {
         const { result } = renderHook(() => useQuizFlow({}))
 
         expect(result.current.step).toBe(QuizStep.CONFIG)
         expect(result.current.pdfPath).toBe('')
-
-        // Settings are loaded async
-        await waitFor(() => {
-            expect(mockGetQuizSettings).toHaveBeenCalled()
-            expect(result.current.settings.questionCount).toBe(10)
-        })
+        expect(result.current.settings.questionCount).toBe(10) // From mocked useQuizSettings
     })
 
     it('initializes with provided PDF props', () => {
@@ -85,68 +80,53 @@ describe('useQuizFlow', () => {
         expect(result.current.pdfFileName).toBe('doc.pdf')
     })
 
-    it('loads PDF via electron API', async () => {
-        mockSelectPdf.mockResolvedValue({ path: 'new.pdf', name: 'New Doc' })
-
+    it('loads PDF via mutation', async () => {
         const { result } = renderHook(() => useQuizFlow({}))
 
         await act(async () => {
             await result.current.handleLoadPdf()
         })
 
-        expect(mockSelectPdf).toHaveBeenCalled()
+        expect(mockSelectPdfMutate).toHaveBeenCalled()
         expect(result.current.pdfPath).toBe('new.pdf')
         expect(result.current.pdfFileName).toBe('New Doc')
         expect(result.current.error).toBeNull()
     })
 
     it('handles PDF load error', async () => {
-        mockSelectPdf.mockRejectedValue(new Error('Load Failed'))
-
+        mockSelectPdfMutate.mockRejectedValue(new Error('Load Failed'))
         const { result } = renderHook(() => useQuizFlow({}))
 
         await act(async () => {
             await result.current.handleLoadPdf()
         })
 
-        expect(result.current.pdfPath).toBe('')
-        // Error message might be localized key or message
-        // t('error_pdf_load') or err.message
-        // Implementation logic check:
-        // const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('error_pdf_load')
-        // We mocked t(key) => key.
-        // So expected 'Load Failed' or 'error_pdf_load' if it falls back?
-        // Wait, logic says: if it's Error, use message.
-        // So 'Load Failed'.
+        // Error handling logic: if Error object, uses message
+        expect(result.current.error).toBe('Load Failed')
     })
 
-    it('starts quiz generation successfully', async () => {
+    it('starts quiz generation successfully via mutation', async () => {
         const { result } = renderHook(() => useQuizFlow({ initialPdfPath: 'test.pdf' }))
-
-        // Wait for settings to actually update
-        await waitFor(() => {
-            expect(result.current.settings.questionCount).toBe(10)
-        })
 
         await act(async () => {
             await result.current.handleStartQuiz()
         })
 
-        // Should call generate
-        expect(mockGenerateQuizQuestions).toHaveBeenCalledWith(
-            'test.pdf',
-            expect.objectContaining({ questionCount: 10 }), // loaded settings
-            'en',
-            [], // failed questions
-            [] // used questions
-        )
+        // Check correct arguments passed to mutation
+        expect(mockGenerateMutate).toHaveBeenCalledWith(expect.objectContaining({
+            pdfPath: 'test.pdf',
+            settings: expect.objectContaining({ questionCount: 10 }), // Check nested settings object
+            language: 'en'
+        }))
 
+        // On success, it should advance to READY
         expect(result.current.step).toBe(QuizStep.READY)
+        // Questions should be set from mutation result
         expect(result.current.quizState.questions).toHaveLength(1)
     })
 
     it('handles generation error', async () => {
-        mockGenerateQuizQuestions.mockRejectedValue(new Error('Gen Failed'))
+        mockGenerateMutate.mockResolvedValue({ success: false, error: 'Gen Failed' })
         const { result } = renderHook(() => useQuizFlow({ initialPdfPath: 'test.pdf' }))
 
         await act(async () => {
@@ -154,7 +134,7 @@ describe('useQuizFlow', () => {
         })
 
         expect(result.current.step).toBe(QuizStep.CONFIG)
-        // Error check
+        expect(result.current.error).toBe('Gen Failed')
     })
 
     it('transitions to active quiz', () => {
@@ -171,16 +151,15 @@ describe('useQuizFlow', () => {
     it('finishes quiz and calculates score', () => {
         const { result } = renderHook(() => useQuizFlow({}))
 
-        // Setup quiz state manually via setQuizState if exposed, 
-        // or assuming it was generated.
+        // Manually set quiz state to simulate a completed quiz
         act(() => {
             result.current.setQuizState({
-                questions: [{ id: '1', correctAnswerIndex: 0 } as any],
-                userAnswers: { '1': 0 }, // Correct
+                questions: [{ id: '1', correctAnswerIndex: 0, options: ['A', 'B'], text: 'Q', explanation: '' }],
+                userAnswers: { '1': 0 }, // Correct answer for index 0, using question ID '1' as key
                 score: 0,
                 isFinished: false,
                 currentQuestionIndex: 0,
-                startTime: 1000,
+                startTime: Date.now(),
                 endTime: null
             })
         })
@@ -195,24 +174,22 @@ describe('useQuizFlow', () => {
         expect(result.current.quizState.endTime).toBeDefined()
     })
 
-    it('debounces settings save', async () => {
+    it('debounces settings save via mutation', () => {
         vi.useFakeTimers()
         const { result } = renderHook(() => useQuizFlow({}))
-
-        // Wait for initial load if necessary, but we mock it.
-        // We will assert save is called after delay.
 
         act(() => {
             result.current.setSettings(prev => ({ ...prev, questionCount: 20 }))
         })
 
-        expect(mockSaveQuizSettings).not.toHaveBeenCalled()
+        expect(mockMutate).not.toHaveBeenCalled()
 
         act(() => {
             vi.advanceTimersByTime(1500)
         })
 
-        expect(mockSaveQuizSettings).toHaveBeenCalledWith(expect.objectContaining({ questionCount: 20 }))
+        expect(mockMutate).toHaveBeenCalledWith(expect.objectContaining({ questionCount: 20 }))
         vi.useRealTimers()
     })
 })
+

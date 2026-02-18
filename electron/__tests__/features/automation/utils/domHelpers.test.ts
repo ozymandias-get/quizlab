@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getElementInfo, generateRobustSelector } from '../../../utils/automation/domHelpers'
+import { getElementInfo, generateRobustSelector } from '@electron/features/automation/utils/domHelpers'
 
 describe('domHelpers', () => {
 
@@ -174,3 +174,4 @@ describe('domHelpers', () => {
         })
     })
 })
+

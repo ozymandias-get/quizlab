@@ -6,9 +6,9 @@
  * manuel olarak seçmesini sağlayacak mantığı içerir.
  */
 
-import { pickerStyles } from '../../../src/utils/automation/styles';
-import { getElementInfo, generateRobustSelector } from '../../../src/utils/automation/domHelpers';
-import { getStepHtml, getHintHtml, type TranslationMap } from '../../../src/utils/automation/uiTemplates';
+import { pickerStyles } from './utils/styles';
+import { getElementInfo, generateRobustSelector } from './utils/domHelpers';
+import { getStepHtml, getHintHtml, type TranslationMap } from './utils/uiTemplates';
 
 /**
  * Webview içine enjekte edilecek "Picker" scripti.

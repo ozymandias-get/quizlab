@@ -5,7 +5,7 @@ import { CenterHub } from '../../../../components/layout/BottomBar/CenterHub'
 // Mock dependencies
 vi.mock('framer-motion', () => ({
     motion: {
-        div: ({ children, onPointerUp, onMouseDown, role, ...props }: any) => (
+        div: ({ children, onPointerUp, onMouseDown, role, whileHover, whileTap, initial, animate, exit, transition, variants, layout, ...props }: any) => (
             <div
                 {...props}
                 role={role}

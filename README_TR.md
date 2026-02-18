@@ -1,10 +1,10 @@
-﻿# 🧪 QuizLab Reader | Yapay Zeka Destekli PDF Çalışma Aracı & Quiz Oluşturucu
+# ?? QuizLab Reader | Yapay Zeka Destekli PDF Çalışma Aracı & Quiz Oluşturucu
 
 <!-- markdownlint-disable MD033 -->
 <div align="center">
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg?style=flat-square)](README.md)
-[![Sürüm](https://img.shields.io/badge/sürüm-1.1.8-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Sürüm](https://img.shields.io/badge/sürüm-2.0.1-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 [![Built with](https://img.shields.io/badge/Altyapı-Electron%20%26%20React-61DAFB?style=flat-square&logo=react)](https://react.dev/)
@@ -19,7 +19,7 @@
 
 ---
 
-## 🚀 Genel Bakış: En İyi Ücretsiz Yapay Zeka Çalışma Asistanı
+## ?? Genel Bakış: En İyi Ücretsiz Yapay Zeka Çalışma Asistanı
 
 **QuizLab Reader**, öğrenme sürecinizi hızlandırmak için tasarlanmış, açık kaynaklı, **yapay zeka destekli bir PDF okuyucu** ve **çalışma aracıdır**. Standart PDF görüntüleyicilerin aksine, QuizLab, ders kitaplarınızı ve notlarınızı anında etkileşimli sınavlara ve bilgi kartlarına dönüştürmek için doğrudan **Google Gemini AI** ile entegre olur.
 
@@ -29,16 +29,16 @@ Güçlü bir PDF görüntüleyiciyi bağlam farkındalığına sahip bir yapay z
 
 ---
 
-## ✨ Ana Özellikler ve Faydalar
+## ? Ana Özellikler ve Faydalar
 
-### 📚 Akıllı Bölünmüş Ekran Çalışma Alanı (PDF + Yapay Zeka)
+### ?? Akıllı Bölünmüş Ekran Çalışma Alanı (PDF + Yapay Zeka)
 Solda rahatça okurken sağda bir yapay zeka öğretmeniyle etkileşime geçin.
 - **Anında Bağlam Aktarımı:** PDF'inizdeki herhangi bir metni seçin ve özetleme, çeviri veya açıklama için anında yapay zekaya gönderin.
 - **Odak Modu:** Derinlemesine çalışma için optimize edilmiş, dikkat dağıtmayan okuma ortamı.
 - **Çoklu Sekme Desteği:** Aynı anda birden fazla PDF ve referans materyali açın.
 - **Panel Yer Değiştirme:** PDF ve yapay zeka panellerinin konumlarını anında değiştirin.
 
-### 🧠 Gelişmiş Quiz Oluşturucu & Flashcard Yapıcı
+### ?? Gelişmiş Quiz Oluşturucu & Flashcard Yapıcı
 Yerleşik **Quiz Motorumuz** ile pasif okumayı aktif öğrenmeye dönüştürün.
 - **Dinamik Soru Oluşturma:** Seçtiğiniz metinden veya tam sayfalardan otomatik olarak çoktan seçmeli sorular (Test), doğru/yanlış ve açık uçlu sorular oluşturun.
 - **Gemini CLI Entegrasyonu:** Yüksek kaliteli ve bağlama uygun sorular için Google'ın Gemini modellerinin gücünden yararlanır.
@@ -51,14 +51,14 @@ Yerleşik **Quiz Motorumuz** ile pasif okumayı aktif öğrenmeye dönüştürü
 ![Etkileşimli Quiz Modu Arayüzü](docs/images/quiz-gameplay.png)
 ![Quiz Sonuçları ve Performans Takibi](docs/images/quiz-results.png)
 
-### 🤖 Çoklu Platform Yapay Zeka Desteği
+### ?? Çoklu Platform Yapay Zeka Desteği
 Favori yapay zeka servislerinizle sorunsuz bağlantı kurun.
 - **Dahili Yapay Zeka Platformları:** ChatGPT, Claude, DeepSeek, Qwen ve Kimi için yerel destek.
 - **Özel Yapay Zeka Entegrasyonu:** URL'sini girerek herhangi bir web tabanlı yapay zeka platformu ekleyin.
 - **Model Yönetimi:** Yapay zeka platformlarını tercihlerinize göre etkinleştirin/devre dışı bırakın.
 - **Magic Selector (Sihirli Seçici):** Otomatik yapıştırma fonksiyonuyla evrensel yapay zeka entegrasyonu—uygulamaya giriş alanlarını tanımasını öğretin ve seçilen metni PDF'den yapay zeka sohbetine otomatik yapıştırın.
 
-### 🎨 Premium Cam Efekti (Glass Morphism) UI ve Özelleştirme
+### ?? Premium Cam Efekti (Glass Morphism) UI ve Özelleştirme
 Çalışma ortamınızı kapsamlı görünüm seçenekleriyle kişiselleştirin.
 - **Görsel Temalar:** Özelleştirilebilir renklerle animasyonlu gradyan veya düz renk arka planları.
 - **Alt Çubuk Özelleştirme:** Opaklık, ölçek ve simge-öncelikli kompakt mod ayarları.
@@ -66,33 +66,33 @@ Favori yapay zeka servislerinizle sorunsuz bağlantı kurun.
 - **Rastgele Arka Plan Modu:** Her oturum için taze bir görünüm sunan dinamik renk geçişleri.
 - **Animasyonlar:** Framer Motion ile güçlendirilmiş, akıcı GPU hızlandırmalı geçişler.
 
-### 📸 Ekran Görüntüsü ile Yapay Zekaya Gönderme
+### ?? Ekran Görüntüsü ile Yapay Zekaya Gönderme
 Ekranınızın herhangi bir bölümünü yakalayıp analiz edin.
 - **Ekran Yakalama Aracı:** Ekranınızın herhangi bir alanını seçin ve doğrudan yapay zekaya analiz için gönderin.
 - **Görsel Öğrenme:** Diyagramlar, grafikler ve görsel içerik analizi için mükemmel.
 
-### 🌍 Çoklu Dil Desteği
+### ?? Çoklu Dil Desteği
 Tercih ettiğiniz dilde çalışın.
 - **İngilizce ve Türkçe:** Kolay dil değiştirme ile tam UI yerelleştirmesi.
 - **Genişletilebilir:** JSON dil dosyaları aracılığıyla daha fazla dil eklenebilir.
 
-### 🔄 Otomatik Güncelleme Sistemi
+### ?? Otomatik Güncelleme Sistemi
 Zahmetsizce güncel kalın.
 - **Güncelleme Bildirimleri:** GitHub sürümlerinden yeni versiyonlar için otomatik kontrol.
 - **Tek Tıkla İndirme:** En son sürümü indirmek için doğrudan bağlantı.
 
-### 🎯 Etkileşimli Kullanım Asistanı
+### ?? Etkileşimli Kullanım Asistanı
 Etkileşimli bir tur ile uygulamayı öğrenin.
 - **Adım Adım Öğretici:** Temel özellikleri ve kontrolleri vurgulayan rehber tur.
 - **Ekranı Karartmadan:** Karartma olmadan vurgu tabanlı rehberlik.
 
-### 🔒 Gizlilik Odaklı ve Yerel Öncelikli
+### ?? Gizlilik Odaklı ve Yerel Öncelikli
 - **Çevrimdışı Özellik:** Temel okuma özellikleri internet olmadan da çalışır.
 - **Verileriniz Size Aittir:** Notlar ve ayarlar cihazınızda yerel olarak saklanır. Doğrudan yapay zeka etkileşimleri kendi güvenli oturumlarınız üzerinden gerçekleşir.
 
 ---
 
-## ❓ Sıkça Sorulan Sorular (SSS)
+## ? Sıkça Sorulan Sorular (SSS)
 
 **S: QuizLab Reader ücretsiz mi?**
 C: Evet, QuizLab **ücretsiz ve açık kaynaklı bir yazılımdır (FOSS)**. İndirebilir ve herhangi bir abonelik ücreti ödemeden kullanabilirsiniz.
@@ -111,7 +111,7 @@ C: Evet! QuizLab, arka plan temaları, renkler, panel düzeni, alt çubuk opakl�
 
 ---
 
-## 🛠 Teknoloji Yığını
+## ?? Teknoloji Yığını
 
 Hız ve güvenilirlik sağlayan performans öncelikli, modern bir mimari ile geliştirildi:
 
@@ -127,7 +127,7 @@ Hız ve güvenilirlik sağlayan performans öncelikli, modern bir mimari ile gel
 
 ---
 
-## ⚡ Hızlı Başlangıç Kılavuzu
+## ? Hızlı Başlangıç Kılavuzu
 
 QuizLab Reader'ı yerel makinenize kurmak ve çalıştırmak için aşağıdaki adımları izleyin.
 
@@ -169,45 +169,45 @@ npm run build:linux  # Linux .AppImage için derle
 
 ---
 
-## 🏗 Proje Yapısı
+## ?? Proje Yapısı
 
 QuizLab, ölçeklenebilir **Özellik Tabanlı (Feature-Based) Mimari** izler. Kod, teknik katmanlardan ziyade etki alanına (feature) göre organize edilmiştir, bu da katkıda bulunmayı ve bakımı kolaylaştırır.
 
 ```text
 quizlab/
-├── electron/                 # Ana Süreç (Backend / Node.js)
-│   ├── core/                # ConfigManager, Güncelleyici, Sistem İşleyicileri
-│   ├── features/            # AI, PDF, Quiz, Otomasyon, Ekran Görüntüsü İşleyicileri
-│   │   ├── ai/              # Yapay Zeka platformları (ChatGPT, Claude, DeepSeek, Qwen)
-│   │   ├── quiz/            # Gemini CLI entegrasyonu, Prompt Oluşturucu
-│   │   ├── pdf/             # PDF Protokolü ve İşleyicileri
-│   │   ├── automation/      # Magic Selector, Element Seçici
-│   │   └── screenshot/      # Ekran yakalama işleyicileri
-│   ├── main/                # Pencere Yönetimi, IPC İşleyicileri
-│   └── preload/             # Güvenli IPC Köprüsü
-│
-├── src/                      # Renderer Süreci (Frontend / React)
-│   ├── components/          # Yeniden Kullanılabilir UI Bileşenleri
-│   │   ├── layout/          # AppBackground, BottomBar, LeftPanel
-│   │   └── ui/              # Toast, SplashScreen, ScreenshotTool
-│   ├── features/            # Özellik Uygulamaları
-│   │   ├── ai/              # Yapay Zeka Webview, Promptlar, Gönderim Hook'ları
-│   │   ├── pdf/             # PDF Görüntüleyici, Araç Çubuğu, Arama
-│   │   ├── quiz/            # Quiz Modülü, Yapılandırma Paneli, Sonuçlar
-│   │   ├── settings/        # Ayarlar Modalı, Tüm Sekmeler
-│   │   ├── screenshot/      # Ekran Görüntüsü Hook'ları
-│   │   └── tutorial/        # Kullanım Asistanı
-│   ├── hooks/               # Özel React Hook'ları
-│   ├── utils/               # Yardımcı Fonksiyonlar
-│   └── styles/              # Tailwind ve CSS Modülleri
-│
-├── resources/               # Varlıklar, İkonlar, Yükleyici
-└── package.json
++¦¦ electron/                 # Ana Süreç (Backend / Node.js)
+-   +¦¦ core/                # ConfigManager, Güncelleyici, Sistem İşleyicileri
+-   +¦¦ features/            # AI, PDF, Quiz, Otomasyon, Ekran Görüntüsü İşleyicileri
+-   -   +¦¦ ai/              # Yapay Zeka platformları (ChatGPT, Claude, DeepSeek, Qwen)
+-   -   +¦¦ quiz/            # Gemini CLI entegrasyonu, Prompt Oluşturucu
+-   -   +¦¦ pdf/             # PDF Protokolü ve İşleyicileri
+-   -   +¦¦ automation/      # Magic Selector, Element Seçici
+-   -   L¦¦ screenshot/      # Ekran yakalama işleyicileri
+-   +¦¦ main/                # Pencere Yönetimi, IPC İşleyicileri
+-   L¦¦ preload/             # Güvenli IPC Köprüsü
+-
++¦¦ src/                      # Renderer Süreci (Frontend / React)
+-   +¦¦ components/          # Yeniden Kullanılabilir UI Bileşenleri
+-   -   +¦¦ layout/          # AppBackground, BottomBar, LeftPanel
+-   -   L¦¦ ui/              # Toast, SplashScreen, ScreenshotTool
+-   +¦¦ features/            # Özellik Uygulamaları
+-   -   +¦¦ ai/              # Yapay Zeka Webview, Promptlar, Gönderim Hook'ları
+-   -   +¦¦ pdf/             # PDF Görüntüleyici, Araç Çubuğu, Arama
+-   -   +¦¦ quiz/            # Quiz Modülü, Yapılandırma Paneli, Sonuçlar
+-   -   +¦¦ settings/        # Ayarlar Modalı, Tüm Sekmeler
+-   -   +¦¦ screenshot/      # Ekran Görüntüsü Hook'ları
+-   -   L¦¦ tutorial/        # Kullanım Asistanı
+-   +¦¦ hooks/               # Özel React Hook'ları
+-   +¦¦ utils/               # Yardımcı Fonksiyonlar
+-   L¦¦ styles/              # Tailwind ve CSS Modülleri
+-
++¦¦ resources/               # Varlıklar, İkonlar, Yükleyici
+L¦¦ package.json
 ```
 
 ---
 
-## 🎮 Ayarlar ve Yapılandırma
+## ?? Ayarlar ve Yapılandırma
 
 QuizLab, sezgisel sekmeler halinde organize edilmiş kapsamlı ayarlar sunar:
 
@@ -223,7 +223,7 @@ QuizLab, sezgisel sekmeler halinde organize edilmiş kapsamlı ayarlar sunar:
 
 ---
 
-## 📄 Lisans
+## ?? Lisans
 
 **MIT Lisansı** altında dağıtılmaktadır. Bu, yazılımı özgürce kullanabileceğiniz, değiştirebileceğiniz ve dağıtabileceğiniz anlamına gelir. Daha fazla bilgi için [LICENSE](LICENSE) dosyasına bakın.
 
@@ -231,8 +231,10 @@ QuizLab, sezgisel sekmeler halinde organize edilmiş kapsamlı ayarlar sunar:
 
 <div align="center">
 
-**Her yerdeki öğrenenler için ❤️ ile yapıldı.**
+**Her yerdeki öğrenenler için ?? ile yapıldı.**
 
-[⬆ Başa Dön](#-quizlab-reader--yapay-zeka-destekli-pdf-çalışma-aracı--quiz-oluşturucu)
+[? Başa Dön](#-quizlab-reader--yapay-zeka-destekli-pdf-çalışma-aracı--quiz-oluşturucu)
 
 </div>
+
+

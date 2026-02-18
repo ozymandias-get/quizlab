@@ -1,18 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import QuizResults from '@src/features/quiz/components/QuizResults'
-import { QuizState } from '@src/features/quiz/types'
+import QuizResults from '@features/quiz/components/QuizResults'
+import { QuizState } from '@features/quiz/types'
 
 // Mock dependencies
-vi.mock('@src/features/quiz/hooks/useQuizStats', () => ({
+vi.mock('@features/quiz/hooks/useQuizStats', () => ({
     useQuizStats: (quizState: QuizState) => {
-        // Simple mock calculation or just return fixed values for testing
-        // Let's rely on the passed state to simulate stats
-        const correct = quizState.score // assuming score holds correct count for this mock
+        const correct = quizState.score
         const total = quizState.questions.length
         return {
             correct,
-            wrong: total - correct, // simplistic
+            wrong: total - correct,
             empty: 0,
             total,
             percentage: (correct / total) * 100,
@@ -28,6 +26,31 @@ vi.mock('@src/components/ui/ConfettiCanvas', () => ({
 // Mock formatQuizText
 vi.mock('@src/utils/uiUtils', () => ({
     formatQuizText: (text: string) => text,
+}))
+
+// Mock Virtuoso
+vi.mock('react-virtuoso', () => ({
+    Virtuoso: ({ itemContent, totalCount }: any) => (
+        <div data-testid="virtuoso-list">
+            {Array.from({ length: totalCount }).map((_, index) => (
+                <div key={index} data-testid={`virtuoso-item-${index}`}>
+                    {itemContent(index)}
+                </div>
+            ))}
+        </div>
+    ),
+}))
+
+// Mock QuizQuestionReview to avoid rendering child component that uses hooks
+vi.mock('@features/quiz/components/QuizQuestionReview', () => ({
+    QuizQuestionReview: ({ question, isExpanded, onToggle }: any) => (
+        <div data-testid={`question-review-${question.id}`}>
+            <button onClick={onToggle}>
+                {question.text} (Expanded: {isExpanded ? 'Yes' : 'No'})
+            </button>
+            {isExpanded && <div>{question.explanation}</div>}
+        </div>
+    )
 }))
 
 const mockQuestions = [
@@ -63,7 +86,6 @@ const mockState: QuizState = {
 const mockSettings = {
     difficulty: 'Easy',
     questionCount: 2,
-    // other settings...
 } as any
 
 describe('QuizResults Component', () => {
@@ -88,14 +110,10 @@ describe('QuizResults Component', () => {
             />
         )
 
-        // Score is 1/2 = 50%
-        // We might have multiple "1"s (score, correct count, etc.)
         const ones = screen.getAllByText('1')
         expect(ones.length).toBeGreaterThan(0)
 
         expect(screen.getAllByText('quiz_correct_label').length).toBeGreaterThan(0)
-
-        // Check for grade text (50% -> Average)
         expect(screen.getByText('quiz_grade_average')).toBeInTheDocument()
     })
 
@@ -117,7 +135,6 @@ describe('QuizResults Component', () => {
         fireEvent.click(screen.getByText('quiz_regenerate'))
         expect(onRegenerate).toHaveBeenCalled()
 
-        // Since we have 1 wrong answer, retry button should be visible
         const retryBtn = screen.getByText('quiz_retry_mistakes')
         expect(retryBtn).toBeInTheDocument()
         fireEvent.click(retryBtn)
@@ -136,8 +153,9 @@ describe('QuizResults Component', () => {
             />
         )
 
-        expect(screen.getByText(/1. Question 1/)).toBeInTheDocument()
-        expect(screen.getByText(/2. Question 2/)).toBeInTheDocument()
+        // Since we mocked QuizQuestionReview, we expect the mock text
+        expect(screen.getByTestId('question-review-1')).toBeInTheDocument()
+        expect(screen.getByTestId('question-review-2')).toBeInTheDocument()
     })
 
     it('toggles question expansion', () => {
@@ -152,15 +170,17 @@ describe('QuizResults Component', () => {
             />
         )
 
-        // Find expand button for Question 1
-        // The question text is inside a button
-        const q1Btn = screen.getByText(/1. Question 1/).closest('button')
+        // Find expand button for Question 1 (inside our mock)
+        const q1Btn = screen.getByText(/Question 1/).closest('button')
         expect(q1Btn).toBeInTheDocument()
 
         if (q1Btn) {
             fireEvent.click(q1Btn)
-            // Should show explanation
+            // Should show explanation (based on our mock implementation)
+            // The logic for expansion is controlled by QuizResults state
+            // Our mock uses the props passed from QuizResults
             expect(screen.getByText('Exp 1')).toBeInTheDocument()
         }
     })
 })
+

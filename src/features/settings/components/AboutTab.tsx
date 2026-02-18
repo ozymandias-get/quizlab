@@ -1,9 +1,7 @@
 ﻿import React, { useCallback } from 'react'
-import { Logger } from '@src/utils/logger'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage, useAppearance, type UpdateInfo } from '@src/app/providers'
 import { APP_CONSTANTS } from '@src/constants/appConstants'
-import appIcon from '@src/assets/icon.png'
 import {
     RefreshIcon,
     DownloadIcon,
@@ -14,6 +12,7 @@ import {
     TrashIcon,
     InfoIcon
 } from '@src/components/ui/Icons'
+import { useClearCache } from '@platform/electron/api/useSystemApi'
 
 
 interface AboutTabProps {
@@ -39,36 +38,19 @@ const AboutTab = React.memo(({
     const { t } = useLanguage()
     const { startTour } = useAppearance()
 
-    const [cacheStatus, setCacheStatus] = React.useState<'idle' | 'clearing' | 'success' | 'error'>('idle')
+    // React Query mutation — replaces manual window.electronAPI.clearCache() + cacheStatus state
+    const { mutate: clearCache, isPending: isClearing, isSuccess: isClearSuccess } = useClearCache()
 
     const handleStartTour = useCallback(() => {
         if (onClose) onClose()
-        // Modalın kapanma animasyonu için kısa bir gecikme
         setTimeout(() => {
             startTour()
         }, 300)
     }, [onClose, startTour])
 
-    const handleClearCache = useCallback(async () => {
-        setCacheStatus('clearing')
-        try {
-            if (window.electronAPI && window.electronAPI.clearCache) {
-                const success = await window.electronAPI.clearCache()
-                if (success) {
-                    setCacheStatus('success')
-                    setTimeout(() => setCacheStatus('idle'), 3000)
-                } else {
-                    setCacheStatus('error')
-                }
-            } else {
-                setCacheStatus('error')
-            }
-        } catch (error) {
-            Logger.error('Cache clear failed', error)
-            setCacheStatus('error')
-            setTimeout(() => setCacheStatus('idle'), 3000)
-        }
-    }, [])
+    const handleClearCache = useCallback(() => {
+        clearCache()
+    }, [clearCache])
 
     return (
         <div className="space-y-8 pb-4">
@@ -84,7 +66,7 @@ const AboutTab = React.memo(({
                 >
                     <div className="absolute inset-0 bg-white/10 blur-3xl rounded-full" />
                     <img
-                        src={appIcon}
+                        src="/icon.png"
                         alt="Quizlab Reader"
                         className="relative w-24 h-24 rounded-3xl shadow-2xl border border-white/10"
                     />
@@ -137,7 +119,6 @@ const AboutTab = React.memo(({
                     </div>
 
                     <div className="flex gap-3">
-                        {/* Manual Tour Start Button - Added as requested */}
                         {/* Usage Assistant Button */}
                         <button
                             onClick={handleStartTour}
@@ -194,7 +175,7 @@ const AboutTab = React.memo(({
                     <ChevronRightIcon className="w-5 h-5 text-white/20 group-hover:text-white transition-colors transform group-hover:translate-x-1" />
                 </a>
 
-                {/* Cache Control */}
+                {/* Cache Control — powered by useClearCache() React Query mutation */}
                 <div className="flex items-center justify-between p-6 rounded-[24px] bg-white/[0.04] border border-white/[0.12]">
                     <div className="space-y-1">
                         <h4 className="text-sm font-bold text-white">{t('clear_cache_title')}</h4>
@@ -202,18 +183,18 @@ const AboutTab = React.memo(({
                     </div>
                     <button
                         onClick={handleClearCache}
-                        disabled={cacheStatus === 'clearing'}
-                        className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 ${cacheStatus === 'success'
+                        disabled={isClearing}
+                        className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 ${isClearSuccess
                             ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                             : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20'
                             }`}
                     >
-                        {cacheStatus === 'clearing' ? (
+                        {isClearing ? (
                             <>
                                 <LoaderIcon className="w-4 h-4 text-white" />
                                 {t('clearing')}
                             </>
-                        ) : cacheStatus === 'success' ? (
+                        ) : isClearSuccess ? (
                             <>
                                 <CheckIcon className="w-4 h-4" />
                                 {t('cleared')}
@@ -298,4 +279,5 @@ function UpdateStatusMessage({ status, updateInfo, t }: UpdateStatusMessageProps
 }
 
 export default AboutTab
+
 

@@ -5,7 +5,7 @@ import { ToolButton } from '../../../../components/layout/BottomBar/ToolButton'
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
     motion: {
-        button: ({ children, onClick, className, style, ...props }: any) => (
+        button: ({ children, onClick, className, style, whileHover, whileTap, initial, animate, exit, transition, variants, layout, ...props }: any) => (
             <button
                 onClick={onClick}
                 className={className}

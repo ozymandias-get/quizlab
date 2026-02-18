@@ -13,7 +13,7 @@ vi.mock('@src/hooks/useSharedDragDrop', () => ({
     useSharedDragDrop: (onDrop: any) => mockUseSharedDragDrop(onDrop)
 }))
 
-vi.mock('@src/features/pdf/components/PdfViewer', () => ({
+vi.mock('@features/pdf/components/PdfViewer', () => ({
     default: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>
 }))
 
@@ -73,3 +73,4 @@ describe('LeftPanel Component', () => {
         expect(screen.getByText('drop_pdf_desc')).toBeInTheDocument()
     })
 })
+

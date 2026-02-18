@@ -1,8 +1,8 @@
-ï»¿import React, { useEffect, useRef, Suspense, lazy } from 'react'
+import React, { useEffect, useRef, Suspense, lazy } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
 import { useLanguage } from '@src/app/providers'
-import { useSettings } from '@src/hooks'
+import { useSettings } from '@features/settings/hooks/useSettings'
 // Icons imported from @src/components/ui/Icons
 import { SettingsIcon, CloseIcon, LanguageIcon, InfoIcon, GridIcon, EyeIcon, MagicWandIcon, SelectorIcon, TerminalIcon } from '@src/components/ui/Icons'
 
@@ -26,17 +26,17 @@ interface SettingsModalProps {
 }
 
 /**
- * Ayarlar modalÄ± ana bileÅŸeni
+ * Ayarlar modalý ana bileþeni
  * Headless UI + Framer Motion Premium Redesign v2
  */
 function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const { t } = useLanguage()
     const modalRef = useRef<HTMLDivElement>(null)
 
-    // Custom hook ile tÃ¼m settings state ve iÅŸlemlerini al
+    // Custom hook ile tüm settings state ve iþlemlerini al
     const settings = useSettings()
 
-    // ESC tuÅŸu ile kapatma
+    // ESC tuþu ile kapatma
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
@@ -47,7 +47,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [isOpen, onClose])
 
-    // Modal dÄ±ÅŸÄ±na tÄ±klama ile kapatma
+    // Modal dýþýna týklama ile kapatma
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
@@ -268,4 +268,5 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 }
 
 export default SettingsModal
+
 

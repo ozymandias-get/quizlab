@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import SettingsModal from '@src/features/settings/components/SettingsModal'
+import SettingsModal from '@features/settings/components/SettingsModal'
 
 // Mock dependencies
 vi.mock('@src/app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }))
 
-vi.mock('@src/hooks', () => ({
+vi.mock('@features/settings/hooks/useSettings', () => ({
     useSettings: () => ({
         appVersion: '1.0.0',
         updateStatus: 'idle',
@@ -18,13 +18,13 @@ vi.mock('@src/hooks', () => ({
 }))
 
 // Mock Subcomponents (Lazy Loaded)
-vi.mock('@src/features/settings/components/LanguageTab', () => ({ default: () => <div>Language Tab Content</div> }))
-vi.mock('@src/features/settings/components/AboutTab', () => ({ default: () => <div>About Tab Content</div> }))
-vi.mock('@src/features/settings/components/ModelsTab', () => ({ default: () => <div>Models Tab Content</div> }))
-vi.mock('@src/features/settings/components/AppearanceTab', () => ({ default: () => <div>Appearance Tab Content</div> }))
-vi.mock('@src/features/settings/components/SelectorsTab', () => ({ default: () => <div>Selectors Tab Content</div> }))
-vi.mock('@src/features/settings/components/GeminiCliTab', () => ({ default: () => <div>Gemini CLI Tab Content</div> }))
-vi.mock('@src/features/settings/components/PromptsTab', () => ({ default: () => <div>Prompts Tab Content</div> }))
+vi.mock('@features/settings/components/LanguageTab', () => ({ default: () => <div>Language Tab Content</div> }))
+vi.mock('@features/settings/components/AboutTab', () => ({ default: () => <div>About Tab Content</div> }))
+vi.mock('@features/settings/components/ModelsTab', () => ({ default: () => <div>Models Tab Content</div> }))
+vi.mock('@features/settings/components/AppearanceTab', () => ({ default: () => <div>Appearance Tab Content</div> }))
+vi.mock('@features/settings/components/SelectorsTab', () => ({ default: () => <div>Selectors Tab Content</div> }))
+vi.mock('@features/settings/components/GeminiCliTab', () => ({ default: () => <div>Gemini CLI Tab Content</div> }))
+vi.mock('@features/settings/components/PromptsTab', () => ({ default: () => <div>Prompts Tab Content</div> }))
 
 describe('SettingsModal Component', () => {
     it('renders nothing when closed', () => {
@@ -71,3 +71,4 @@ describe('SettingsModal Component', () => {
         expect(onClose).toHaveBeenCalled()
     })
 })
+

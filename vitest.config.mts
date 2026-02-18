@@ -8,7 +8,10 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/__tests__/setup.ts',
-        include: ['src/__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+        include: [
+            'src/__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+            'electron/__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+        ],
         exclude: ['src/__tests__/setup.ts'],
     },
     resolve: {
@@ -17,7 +20,8 @@ export default defineConfig({
             '@shared': path.resolve(__dirname, 'shared'),
             '@electron': path.resolve(__dirname, 'electron'),
             '@ui': path.resolve(__dirname, 'src/components/ui'),
-            '@features': path.resolve(__dirname, 'src/features')
+            '@features': path.resolve(__dirname, 'src/features'),
+            '@platform': path.resolve(__dirname, 'src/platform')
         }
     }
 })

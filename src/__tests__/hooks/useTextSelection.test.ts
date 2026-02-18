@@ -11,6 +11,14 @@ vi.mock('@src/app/providers', () => ({
     }),
 }))
 
+vi.mock('@src/utils/logger', () => ({
+    Logger: {
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn()
+    }
+}))
+
 describe('useTextSelection Hook', () => {
     beforeEach(() => {
         vi.clearAllMocks()

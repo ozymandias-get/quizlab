@@ -53,7 +53,7 @@ vi.mock('@src/components/ui/Icons', () => ({
     ShuffleIcon: () => <div data-testid="icon-shuffle" />
 }))
 
-vi.mock('@src/features/settings/components/ColorPicker', () => ({
+vi.mock('@features/settings/components/ColorPicker', () => ({
     default: ({ label, color, onChange }: any) => (
         <div data-testid="color-picker">
             <label>{label}</label>
@@ -132,3 +132,4 @@ describe('AppearanceTab', () => {
         expect(mockSetSelectionColor).toHaveBeenCalledWith('#ff0000')
     })
 })
+

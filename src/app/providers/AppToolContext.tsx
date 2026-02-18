@@ -1,7 +1,7 @@
 ﻿import React, { createContext, useContext } from 'react'
-import { useScreenshot } from '@src/hooks'
+import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
 import { useAi } from './AiContext'
-import { useElementPicker } from '@src/hooks'
+import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 
 interface AppToolContextType {
     isScreenshotMode: boolean;

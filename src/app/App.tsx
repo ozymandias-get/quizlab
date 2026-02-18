@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { AnimatePresence, motion, LayoutGroup } from 'framer-motion'
-import AiWebview from '@src/features/ai/components/AiWebview'
+import AiWebview from '@features/ai/components/AiWebview'
 import BottomBar from '@src/components/layout/BottomBar'
 import FloatingButton from '@ui/FloatingButton'
 import ScreenshotTool from '@ui/ScreenshotTool'
@@ -9,8 +9,9 @@ import AestheticLoader from '@src/components/ui/AestheticLoader'
 import LeftPanel from '@src/components/layout/LeftPanel'
 import AppBackground from '@src/components/layout/AppBackground'
 import ToastContainer from '@ui/Toast/ToastContainer'
-import UsageAssistant from '@src/features/tutorial/components/UsageAssistant'
-import { QuizModule } from '@src/features/quiz/components'
+import UsageAssistant from '@features/tutorial/components/UsageAssistant'
+import { QuizModule } from '@features/quiz/components'
+import { usePdfSelection } from '@features/pdf/hooks/usePdfSelection'
 
 // Context & Constants
 import { useAppTools, useUpdate, useAppearance, useLanguage } from '@src/app/providers'
@@ -20,7 +21,6 @@ import { STORAGE_KEYS } from '@src/constants/storageKeys'
 import {
     usePanelResize,
     useOnlineStatus,
-    usePdfSelection,
     useWebviewMount,
     useTextSelection
 } from '@src/hooks'
@@ -225,3 +225,4 @@ const App: React.FC = () => {
 }
 
 export default App
+

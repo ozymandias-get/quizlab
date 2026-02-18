@@ -1,6 +1,7 @@
 ﻿import React, { useRef, useCallback, useMemo, useState, memo, useEffect } from 'react'
 import { Reorder, motion } from 'framer-motion'
 import { getAiIcon } from '@src/components/ui/Icons'
+import { useLanguage } from '@src/app/providers'
 
 const hexColorRegex = /^#([0-9A-F]{3}){1,2}$/i
 const isValidColor = (color: string) => hexColorRegex.test(color)
@@ -36,6 +37,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     showOnlyIcons = true,
     draggable = true
 }: AIItemProps) {
+    const { t } = useLanguage()
     const isDraggingRef = useRef(false)
     const dragEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const [isHovered, setIsHovered] = useState(false)
@@ -120,6 +122,12 @@ export const AIItem = memo<AIItemProps>(function AIItem({
 
 
 
+    const translatedName = useMemo(() => {
+        const translated = t(modelKey)
+        if (translated && translated !== modelKey) return translated
+        return site?.displayName || site?.name || (modelKey.charAt(0).toUpperCase() + modelKey.slice(1))
+    }, [t, modelKey, site])
+
     const content = (
         <motion.button
             onHoverStart={() => setIsHovered(true)}
@@ -133,17 +141,17 @@ export const AIItem = memo<AIItemProps>(function AIItem({
             className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
             style={buttonStyle}
             onClick={handleClick}
-            title={site?.displayName || modelKey}
+            title={translatedName}
         >
             {getAiIcon(site?.icon || modelKey) || (
                 <div className="w-4 h-4 flex items-center justify-center font-bold text-[10px]">
-                    {site?.displayName?.charAt(0) || site?.name?.charAt(0) || '?'}
+                    {translatedName.charAt(0) || '?'}
                 </div>
             )}
 
             {!showOnlyIcons && (
                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 whitespace-nowrap overflow-hidden text-ellipsis">
-                    {site?.displayName || modelKey}
+                    {translatedName}
                 </span>
             )}
 

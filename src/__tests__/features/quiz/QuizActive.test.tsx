@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import QuizActive from '@src/features/quiz/components/QuizActive'
-import { QuizState } from '@src/features/quiz/types'
+import QuizActive from '@features/quiz/components/QuizActive'
+import { QuizState } from '@features/quiz/types'
 
 // Mock dependencies
-vi.mock('@src/features/quiz/hooks/useQuizTimer', () => ({
+vi.mock('@features/quiz/hooks/useQuizTimer', () => ({
     useQuizTimer: () => '00:10'
 }))
 
 // Mock keyboard hook
-vi.mock('@src/features/quiz/hooks/useQuizKeyboard', () => ({
+vi.mock('@features/quiz/hooks/useQuizKeyboard', () => ({
     useQuizKeyboard: () => {
         // We can expose the navigation function to testing if needed, or just ignore
     }
@@ -176,3 +176,4 @@ describe('QuizActive Component', () => {
         expect(onFinish).toHaveBeenCalled()
     })
 })
+

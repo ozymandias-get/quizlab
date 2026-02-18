@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { Logger } from '@src/utils/logger'
 import { motion } from 'framer-motion'
-import { useAi, useLanguage, useToast } from '@src/app/providers'
+import { useAi, useLanguage } from '@src/app/providers'
+import { useAiConfig, useDeleteAiConfig } from '@platform/electron/api/useAiApi'
 import { getAiIcon, GlobeIcon, MagicWandIcon, TrashIcon, SelectorIcon } from '@src/components/ui/Icons'
 import type { AiPlatform, AiSelectorConfig } from '@shared/types'
 
@@ -18,48 +19,29 @@ interface SelectorsTabProps {
 const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
     const { aiSites, startTutorial } = useAi()
     const { t } = useLanguage()
-    const { showSuccess, showWarning } = useToast()
 
-    const [selectors, setSelectors] = useState<Record<string, AiSelectorConfig>>({})
-    const [actionLoading, setActionLoading] = useState<string | null>(null)
+    // Use React Query hooks
+    const { data: selectorsData } = useAiConfig()
+    const { mutateAsync: deleteConfig, isPending: isDeleting } = useDeleteAiConfig()
 
-    // Load selectors
-    const loadSelectors = useCallback(async () => {
-        try {
-            const data = await window.electronAPI?.getAiConfig?.()
-            if (data && typeof data === 'object' && 'input' in data) {
-                setSelectors({})
-            } else {
-                setSelectors((data as Record<string, AiSelectorConfig>) || {})
-            }
-        } catch (err) {
-            Logger.error('Failed to load selectors:', err)
-        }
-    }, [])
-
-    useEffect(() => {
-        loadSelectors()
-    }, [loadSelectors])
-
+    // Normalize selectors data to Record<string, AiSelectorConfig>
+    const selectors = useMemo(() => {
+        if (!selectorsData) return {}
+        // If it returns an object with 'input' property (checking against CustomAiInput which shouldn't happen here but matching original logic)
+        if ('input' in selectorsData) return {}
+        return selectorsData as Record<string, AiSelectorConfig>
+    }, [selectorsData])
 
     const handleDeleteSelectors = useCallback(async (hostname: string) => {
         if (!confirm(t('confirm_delete_selectors'))) return
 
-        setActionLoading('sel_' + hostname)
         try {
-            await window.electronAPI?.deleteAiConfig(hostname)
-            setSelectors((prev) => {
-                const newSelectors = { ...prev }
-                delete newSelectors[hostname]
-                return newSelectors
-            })
-            showSuccess(t('selectors_deleted_success'))
+            await deleteConfig(hostname)
         } catch (err) {
-            showWarning(t('selectors_delete_failed'))
-        } finally {
-            setActionLoading(null)
+            // Error handling is managed by the mutation hook (toast)
+            Logger.error('Failed to delete selectors', err)
         }
-    }, [t, showSuccess, showWarning])
+    }, [t, deleteConfig])
 
     // Helper to find selectors for an AI
     const findSelectorHost = useCallback((ai: AiPlatform): string | null | undefined => {
@@ -197,18 +179,14 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
                                 {hasSelectors && (
                                     <button
                                         onClick={() => handleDeleteSelectors(selectorHost)}
-                                        disabled={!!actionLoading}
+                                        disabled={isDeleting}
                                         title={t('delete_selectors')}
                                         className="flex items-center gap-2 px-3 py-1.5 rounded-lg 
                                                  bg-red-500/10 border border-red-500/20 
                                                  text-red-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-300
                                                  transition-all disabled:opacity-50"
                                     >
-                                        {actionLoading === 'sel_' + selectorHost ? (
-                                            <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                            <TrashIcon className="w-3.5 h-3.5" />
-                                        )}
+                                        <TrashIcon className="w-3.5 h-3.5" />
                                         <span className="text-[10px] font-bold uppercase tracking-wider">{t('reset')}</span>
                                     </button>
                                 )}
@@ -225,4 +203,5 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
 SelectorsTab.displayName = 'SelectorsTab'
 
 export default SelectorsTab
+
 

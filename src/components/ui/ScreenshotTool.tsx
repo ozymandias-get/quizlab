@@ -1,8 +1,10 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useLanguage } from '@src/app/providers'
 import { Logger } from '@src/utils/logger'
 
 const MIN_SELECTION_SIZE = 20
+
+import { useCaptureScreen } from '@platform/electron/api/useSystemApi'
 
 interface SelectionRect {
     left: number;
@@ -23,6 +25,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
     const [startPos, setStartPos] = useState({ x: 0, y: 0 })
     const [endPos, setEndPos] = useState({ x: 0, y: 0 })
     const overlayRef = useRef<HTMLDivElement>(null)
+    const { mutateAsync: captureScreenMutation } = useCaptureScreen()
 
     const getSelectionRect = useCallback(() => {
         const left = Math.min(startPos.x, endPos.x)
@@ -55,7 +58,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
             return
         }
 
-        await captureScreen(rect)
+        await performCapture(rect)
     }
 
     useEffect(() => {
@@ -72,7 +75,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
         }
     }, [isActive, onClose])
 
-    const captureScreen = async (rect: SelectionRect) => {
+    const performCapture = async (rect: SelectionRect) => {
         if (overlayRef.current) {
             overlayRef.current.style.display = 'none'
         }
@@ -83,7 +86,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
         }))
 
         try {
-            const croppedImage = await window.electronAPI?.captureScreen({
+            const croppedImage = await captureScreenMutation({
                 x: Math.round(rect.left),
                 y: Math.round(rect.top),
                 width: Math.round(rect.width),
@@ -133,7 +136,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
                         }}
                     >
                         <div className="screenshot-size-indicator">
-                            {Math.round(selectionRect.width)} × {Math.round(selectionRect.height)}
+                            {Math.round(selectionRect.width)} � {Math.round(selectionRect.height)}
                         </div>
 
                         <div className="screenshot-handle top-left" />
@@ -154,4 +157,5 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
 }
 
 export default ScreenshotTool
+
 

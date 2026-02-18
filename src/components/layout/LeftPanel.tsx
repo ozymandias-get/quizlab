@@ -1,4 +1,4 @@
-﻿import React, { memo, Suspense, lazy } from 'react'
+import React, { memo, Suspense, lazy } from 'react'
 import { useLanguage } from '@src/app/providers/LanguageContext'
 import type { PdfFile } from '@shared/types'
 import { Worker } from '@react-pdf-viewer/core'
@@ -7,7 +7,7 @@ import ErrorBoundary from '@src/components/ui/ErrorBoundary'
 import { useSharedDragDrop } from '@src/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@src/components/ui/Icons'
 
-const PdfViewer = lazy(() => import('@src/features/pdf/components/PdfViewer'))
+const PdfViewer = lazy(() => import('@features/pdf/components/PdfViewer'))
 
 interface LeftPanelProps {
     onPdfDrop: (file: File) => void;
@@ -96,4 +96,5 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 }
 
 export default memo(LeftPanel)
+
 

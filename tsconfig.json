@@ -16,6 +16,9 @@
             ],
             "@features/*": [
                 "./src/features/*"
+            ],
+            "@platform/*": [
+                "./src/platform/*"
             ]
         }
     },

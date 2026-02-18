@@ -1,6 +1,8 @@
-﻿import React from 'react'
+import React from 'react'
 import { APP_CONSTANTS } from '@src/constants/appConstants'
 import { UpdateIcon, CloseIcon, DownloadIcon } from './Icons'
+
+import { useOpenExternal } from '@platform/electron/api/useSystemApi'
 
 import { type UpdateInfo } from '@src/app/providers'
 
@@ -19,6 +21,8 @@ const UpdateBanner: React.FC<UpdateBannerProps> = ({
     onClose,
     t
 }) => {
+    const { mutate: openExternal } = useOpenExternal()
+
     if (!updateAvailable || !updateInfo || !isVisible) return null
 
     return (
@@ -56,17 +60,7 @@ const UpdateBanner: React.FC<UpdateBannerProps> = ({
                     {/* Action Buttons */}
                     <div className="flex gap-2 mt-3">
                         <button
-                            onClick={async () => {
-                                if (window.electronAPI?.openReleasesPage) {
-                                    await window.electronAPI.openReleasesPage()
-                                } else {
-                                    if (window.electronAPI?.openExternal) {
-                                        await window.electronAPI.openExternal(APP_CONSTANTS.GITHUB_RELEASES_URL)
-                                    } else {
-                                        window.open(APP_CONSTANTS.GITHUB_RELEASES_URL, '_blank', 'noopener,noreferrer')
-                                    }
-                                }
-                            }}
+                            onClick={() => openExternal(APP_CONSTANTS.GITHUB_RELEASES_URL)}
                             className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-medium rounded-lg transition-all hover:scale-105"
                         >
                             <DownloadIcon className="w-4 h-4" />
@@ -86,4 +80,5 @@ const UpdateBanner: React.FC<UpdateBannerProps> = ({
 }
 
 export default UpdateBanner
+
 

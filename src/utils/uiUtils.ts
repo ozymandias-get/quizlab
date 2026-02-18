@@ -21,13 +21,7 @@ export const formatQuizText = (text: string): string => {
     })
 }
 
-/**
- * Benzersiz bir ID oluşturur
- * @returns {string} Unique ID
- */
-export const generateId = (): string => {
-    return Math.random().toString(36).substring(2, 9) + Date.now().toString(36)
-}
+
 
 /**
  * Hex renk kodunu RGBA formatına çevirir

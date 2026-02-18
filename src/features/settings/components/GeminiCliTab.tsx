@@ -1,20 +1,11 @@
-﻿import React, { useState, useEffect, useCallback } from 'react'
-import { Logger } from '@src/utils/logger'
+import React, { useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
+import type { Query } from '@tanstack/react-query'
 import { useLanguage, useToast } from '@src/app/providers'
+import { useCheckAuth, useCliPath, useOpenLogin, useLogout } from '@platform/electron/api/useQuizApi'
+import { useOpenExternal } from '@platform/electron/api/useSystemApi'
 import { TerminalIcon, CheckIcon, XIcon, LoaderIcon, ExternalLinkIcon, GoogleIcon, RefreshIcon } from '@src/components/ui/Icons'
-import type { QuizAuthResult, QuizCliPathResult, QuizActionResult } from '@shared/types'
-
-interface CliStatus {
-    path: string;
-    exists: boolean;
-}
-
-interface AuthStatus {
-    authenticated: boolean;
-    checking: boolean;
-    account?: string | null;
-}
+import type { QuizAuthResult } from '@shared/types'
 
 // Icons imported from @src/components/ui/Icons
 
@@ -24,132 +15,64 @@ interface AuthStatus {
  */
 const GeminiCliTab = React.memo(() => {
     const { t } = useLanguage()
-    const { showSuccess, showWarning, showError } = useToast()
+    const { showError } = useToast()
 
-    // cliStatus is set but not used in UI, keeping for potential future use
-    const [, setCliStatus] = useState<CliStatus>({ path: '', exists: false })
-    const [authStatus, setAuthStatus] = useState<AuthStatus>({ authenticated: false, checking: true })
-    const [isLoading, setIsLoading] = useState(true)
-    const [isOpeningLogin, setIsOpeningLogin] = useState(false)
+    const { data: cliStatus, isLoading: isCliLoading } = useCliPath()
 
-    // Prevent state updates on unmount
-    const isMountedRef = React.useRef(true)
-    useEffect(() => {
-        isMountedRef.current = true
-        return () => {
-            isMountedRef.current = false
-        }
-    }, [])
+    // Auth Check with polling every 3s when not authenticated
+    const {
+        data: authData,
+        isLoading: isAuthLoading,
+        isRefetching: isAuthChecking,
+        refetch: refreshAuth
+    } = useCheckAuth({
+        refetchInterval: (query: Query<QuizAuthResult, Error>) =>
+            !query.state.data?.authenticated ? 3000 : false
+    })
 
-    // Load settings and check auth
-    const loadStatus = useCallback(async () => {
-        try {
-            // Check CLI path
-            if (window.electronAPI?.quiz?.getCliPath) {
-                const cli: QuizCliPathResult = await window.electronAPI.quiz.getCliPath()
-                if (isMountedRef.current) setCliStatus(cli)
-            }
+    const { mutateAsync: openLogin, isPending: isOpeningLogin } = useOpenLogin()
+    const { mutateAsync: logout, isPending: isLoggingOut } = useLogout()
+    const { mutate: openExternal } = useOpenExternal()
 
-            // Check auth status
-            if (window.electronAPI?.quiz?.checkAuth) {
-                const auth: QuizAuthResult = await window.electronAPI.quiz.checkAuth()
-                if (isMountedRef.current) setAuthStatus({ ...auth, checking: false })
-            }
-        } catch (err: unknown) {
-            Logger.error('[GeminiCliTab] Failed to load status:', err)
-            if (isMountedRef.current) setAuthStatus({ authenticated: false, checking: false })
-        } finally {
-            if (isMountedRef.current) setIsLoading(false)
-        }
-    }, [])
-
-    useEffect(() => {
-        loadStatus()
-
-        // Refresh when window gains focus (user comes back from browser/terminal)
-        const onFocus = () => loadStatus()
-        window.addEventListener('focus', onFocus)
-
-        // Poll every 3 seconds ONLY if not checking and not authenticated
-        // This prevents infinite polling once connected
-        let pollInterval: ReturnType<typeof setInterval> | null = null
-
-        if (!authStatus.checking && !authStatus.authenticated) {
-            pollInterval = setInterval(loadStatus, 3000)
-        }
-
-        return () => {
-            window.removeEventListener('focus', onFocus)
-            if (pollInterval) clearInterval(pollInterval)
-        }
-    }, [loadStatus, authStatus.authenticated, authStatus.checking])
+    // Derived State
+    const authStatus = useMemo(() => ({
+        authenticated: !!authData?.authenticated,
+        checking: isAuthLoading || isAuthChecking,
+        account: authData?.account
+    }), [authData, isAuthLoading, isAuthChecking])
 
     // Open login terminal
     const handleOpenLogin = useCallback(async () => {
-        setIsOpeningLogin(true)
         try {
-            if (window.electronAPI?.quiz?.openLogin) {
-                const result: QuizActionResult = await window.electronAPI.quiz.openLogin()
-                if (!result?.success) {
-                    Logger.error('[GeminiCliTab] Login failed:', result.error)
-                    if (isMountedRef.current) showError(t('gcli_login_failed') || 'Login failed')
-                }
-            }
-        } catch (err: unknown) {
-            Logger.error('[GeminiCliTab] Failed to open login:', err)
-            if (isMountedRef.current) showError(t('gcli_login_error') || 'Failed to open login')
-        } finally {
-            if (isMountedRef.current) setIsOpeningLogin(false)
-        }
-    }, [t, showError])
-
-    // Refresh auth status
-    const handleRefreshAuth = useCallback(async () => {
-        setAuthStatus(prev => ({ ...prev, checking: true }))
-        try {
-            if (window.electronAPI?.quiz?.checkAuth) {
-                const auth: QuizAuthResult = await window.electronAPI.quiz.checkAuth()
-
-                if (!isMountedRef.current) return
-
-                setAuthStatus({ ...auth, checking: false })
-
-                if (auth?.authenticated) {
-                    showSuccess(t('gcli_status_connected') || 'Gemini CLI is connected')
-                } else {
-                    showWarning(t('gcli_status_disconnected') || 'Gemini CLI is not connected')
-                }
+            const result = await openLogin()
+            if (!result?.success && result?.error) {
+                showError(result.error)
             }
         } catch {
-            if (isMountedRef.current) {
-                setAuthStatus({ authenticated: false, checking: false })
-                showError(t('gcli_status_error') || 'Failed to check status')
-            }
+            // Error already shown via toast in useElectronMutation
         }
-    }, [t, showSuccess, showWarning, showError])
+    }, [openLogin, showError])
+
+    // Refresh auth status
+    const handleRefreshAuth = useCallback(() => {
+        refreshAuth()
+    }, [refreshAuth])
 
     // Logout
-    const [isLoggingOut, setIsLoggingOut] = useState(false)
     const handleLogout = useCallback(async () => {
-        setIsLoggingOut(true)
         try {
-            if (window.electronAPI?.quiz?.logout) {
-                await window.electronAPI.quiz.logout()
-                setAuthStatus({ authenticated: false, checking: false })
-            }
-        } catch (err) {
-            Logger.error('[GeminiCliTab] Logout failed:', err)
-        } finally {
-            setIsLoggingOut(false)
+            await logout()
+        } catch {
+            // Error already shown via toast in useElectronMutation
         }
-    }, [])
+    }, [logout])
 
-    // Open Gemini CLI docs
+    // Open Gemini CLI docs via React Query mutation
     const openCliDocs = useCallback(() => {
-        window.electronAPI?.openExternal?.('https://github.com/google-gemini/gemini-cli')
-    }, [])
+        openExternal('https://github.com/google-gemini/gemini-cli')
+    }, [openExternal])
 
-    if (isLoading) {
+    if (isCliLoading && !cliStatus) {
         return (
             <div className="flex items-center justify-center py-12">
                 <LoaderIcon className="w-6 h-6 text-white/40" />
@@ -316,4 +239,5 @@ const GeminiCliTab = React.memo(() => {
 GeminiCliTab.displayName = 'GeminiCliTab'
 
 export default GeminiCliTab
+
 

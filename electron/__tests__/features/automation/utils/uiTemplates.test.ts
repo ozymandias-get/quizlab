@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { getStepHtml, getHintHtml } from '../../../utils/automation/uiTemplates'
-import type { PickerElementInfo } from '../../../utils/automation/domHelpers'
+import { getStepHtml, getHintHtml } from '@electron/features/automation/utils/uiTemplates'
+import type { PickerElementInfo } from '@electron/features/automation/utils/domHelpers'
 
 describe('uiTemplates', () => {
 
@@ -74,3 +74,4 @@ describe('uiTemplates', () => {
         })
     })
 })
+

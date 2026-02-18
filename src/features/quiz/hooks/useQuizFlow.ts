@@ -2,14 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { Logger } from '@src/utils/logger'
 import { useLanguage } from '@src/app/providers/LanguageContext'
 import {
-    generateQuizQuestions,
     DEFAULT_SETTINGS,
     QuizSettings,
     Question,
-    getQuizSettings,
-    saveQuizSettings,
     INITIAL_QUIZ_STATE
-} from '@src/features/quiz/api'
+} from '@features/quiz/api'
+import { useQuizSettings, useGenerateQuiz, useSaveSettings } from '@platform/electron/api/useQuizApi'
+import { useSelectPdf } from '@platform/electron/api/usePdfApi'
 import { QuizState, QuizStep, QuizStepType } from '../types'
 
 interface UseQuizFlowProps {
@@ -20,19 +19,40 @@ interface UseQuizFlowProps {
 export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQuizFlowProps) {
     const { t, language } = useLanguage()
 
+    const { data: settingsData } = useQuizSettings()
+    const { mutate: saveSettings } = useSaveSettings()
+    const generateQuizMutation = useGenerateQuiz()
+    const { mutateAsync: selectPdf, isPending: isLoadingPdf } = useSelectPdf()
+
     // Quiz State Management
     const [step, setStep] = useState<QuizStepType>(QuizStep.CONFIG)
     const [settings, setSettings] = useState<QuizSettings>(DEFAULT_SETTINGS)
+
+    // Sync settings from React Query
+    useEffect(() => {
+        if (settingsData) {
+            setSettings(prev => {
+                // Component-level deep comparison to avoid loops
+                if (JSON.stringify(prev) !== JSON.stringify(settingsData)) {
+                    return { ...prev, ...settingsData }
+                }
+                return prev
+            })
+        }
+    }, [settingsData])
     const [quizState, setQuizState] = useState<QuizState>(INITIAL_QUIZ_STATE)
     const [error, setError] = useState<string | null>(null)
-    const [loadingMessage, setLoadingMessage] = useState('')
     const [usedQuestions, setUsedQuestions] = useState<Question[]>([])
 
     // PDF State
     const [pdfPath, setPdfPath] = useState(initialPdfPath)
     const [pdfFileName, setPdfFileName] = useState(initialPdfName)
-    const [isLoadingPdf, setIsLoadingPdf] = useState(false)
     const [isDemoMode, setIsDemoMode] = useState(false)
+
+    // Derived loading state
+    const loadingMessage = generateQuizMutation.isPending
+        ? (isDemoMode ? t('quiz_demo_loading') : t('quiz_generating'))
+        : ''
 
     // Refs
     const usedQuestionsRef = useRef(usedQuestions)
@@ -70,55 +90,37 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         }
     }, [initialPdfPath, initialPdfName, t])
 
-    // Load Settings
-    useEffect(() => {
-        let active = true
-        async function loadSettings() {
-            try {
-                const saved = await getQuizSettings()
-                if (active && saved) {
-                    setSettings(s => ({ ...s, ...saved }))
-                }
-            } catch (e) {
-                Logger.error('[QuizModule] Failed to load settings:', e)
-            }
-        }
-        loadSettings()
-        return () => { active = false }
-    }, [])
+    // Settings loading handled by useQuizSettingsQuery
 
-    // Save Settings
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (settings) {
-                saveQuizSettings(settings).catch(err => Logger.error('Failed to save settings:', err))
-            }
-        }, 1500)
-        return () => clearTimeout(timer)
-    }, [settings])
+    // Custom setSettings with debounced save
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+    const handleSetSettings = useCallback((newSettingsOrUpdater: QuizSettings | ((prev: QuizSettings) => QuizSettings)) => {
+        setSettings(prev => {
+            const updated = typeof newSettingsOrUpdater === 'function'
+                ? newSettingsOrUpdater(prev)
+                : newSettingsOrUpdater
+
+            // Debounce save
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+            saveTimeoutRef.current = setTimeout(() => {
+                saveSettings(updated)
+            }, 1500)
+
+            return updated
+        })
+    }, [saveSettings])
 
     // Load PDF
     const handleLoadPdf = useCallback(async () => {
-        const api = window.electronAPI
-        if (!api?.selectPdf) {
-            setError(t('error_api_unavailable'))
-            return
-        }
-
-        setIsLoadingPdf(true)
         setError(null)
 
         try {
-            const result = await api.selectPdf({ filterName: t('quiz_filter_name') })
+            const result = await selectPdf({ filterName: t('quiz_filter_name') })
 
             if (!isMountedRef.current) return
 
-            if (!result) {
-                if (isMountedRef.current) {
-                    setIsLoadingPdf(false)
-                }
-                return
-            }
+            if (!result) return
 
             setPdfPath(result.path)
             setPdfFileName(result.name || t('quiz_pdf_file_default'))
@@ -129,16 +131,18 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
             setError(message)
         } finally {
             if (isMountedRef.current) {
-                setIsLoadingPdf(false)
                 setIsDemoMode(false)
             }
         }
-    }, [t])
+    }, [t, selectPdf])
 
     // Start Quiz Generation
     const handleStartQuiz = useCallback(async (mode?: boolean) => {
+        // Determine if we are starting in demo mode
+        // If mode is provided (boolean), use it. Otherwise fall back to current isDemoMode state
         const targetIsDemo = typeof mode === 'boolean' ? mode : isDemoMode
 
+        // Validation: If not demo, we need a PDF
         if (!targetIsDemo && !pdfPath) {
             setError(t('quiz_no_pdf'))
             return
@@ -147,28 +151,31 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         const currentRequestId = ++requestIdRef.current
 
         try {
-            setLoadingMessage(targetIsDemo
-                ? t('quiz_demo_loading')
-                : t('quiz_generating')
-            )
+            // Update UI state
             setStep(QuizStep.GENERATING)
             setError(null)
+            setError(null)
 
+            // Update mode state
             setIsDemoMode(targetIsDemo)
 
-            const questions = await generateQuizQuestions(
-                targetIsDemo ? 'DEMO' : pdfPath,
+            const result = await generateQuizMutation.mutateAsync({
+                pdfPath: targetIsDemo ? 'DEMO' : pdfPath,
                 settings,
                 language,
-                [],
-                targetIsDemo ? [] : usedQuestionsRef.current
-            )
+                failedQuestionsContext: [],
+                previousQuestions: targetIsDemo ? [] : usedQuestionsRef.current
+            })
 
+            // Checks after await
             if (!isMountedRef.current) return
+            if (currentRequestId !== requestIdRef.current) return
 
-            if (currentRequestId !== requestIdRef.current) {
-                return
+            if (!result.success) {
+                throw new Error(result.error || 'Unknown generation error')
             }
+
+            const questions = result.data as Question[]
 
             setQuizState({
                 ...INITIAL_QUIZ_STATE,
@@ -182,10 +189,11 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
                 Logger.error('[QuizModule] Generation error:', err)
                 const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('quiz_error')
                 setError(message)
+                // Go back to config on error
                 setStep(QuizStep.CONFIG)
             }
         }
-    }, [pdfPath, settings, language, t, isDemoMode])
+    }, [pdfPath, settings, language, t, isDemoMode, generateQuizMutation])
 
     const handleStartDemo = useCallback(() => {
         handleStartQuiz(true)
@@ -243,22 +251,27 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         const currentRequestId = ++requestIdRef.current
 
         try {
-            setLoadingMessage(t('quiz_remedial'))
             setStep(QuizStep.GENERATING)
 
-            const questions = await generateQuizQuestions(
-                isDemoMode ? 'DEMO' : pdfPath,
+            const result = await generateQuizMutation.mutateAsync({
+                pdfPath: isDemoMode ? 'DEMO' : pdfPath,
                 settings,
                 language,
-                failedQuestions,
-                updatedUsedQuestions
-            )
+                failedQuestionsContext: failedQuestions,
+                previousQuestions: updatedUsedQuestions
+            })
 
             if (!isMountedRef.current) return
 
             if (currentRequestId !== requestIdRef.current) {
                 return
             }
+
+            if (!result.success) {
+                throw new Error(result.error || 'Unknown regeneration error')
+            }
+
+            const questions = result.data as Question[]
 
             setUsedQuestions(updatedUsedQuestions)
 
@@ -282,7 +295,7 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         step,
         setStep,
         settings,
-        setSettings,
+        setSettings: handleSetSettings,
         quizState,
         setQuizState,
         error,
@@ -301,3 +314,4 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         handleRetryMistakes
     }
 }
+

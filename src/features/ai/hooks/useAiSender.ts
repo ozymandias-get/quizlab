@@ -1,8 +1,12 @@
-ï»¿import { useCallback, useRef, RefObject } from 'react'
+import { useCallback, useRef, RefObject } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Logger } from '@src/utils/logger'
 import { safeWebviewPaste } from '@src/utils/webviewUtils'
 import { usePrompts } from './usePrompts'
-import type { WebviewController } from '@shared/types/webview';
+import type { WebviewController } from '@shared/types/webview'
+import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
+import { useGenerateAutoSendScript, useGenerateFocusScript, useGenerateClickSendScript } from '@platform/electron/api/useAutomationApi'
+import { useCopyImageToClipboard } from '@platform/electron/api/useSystemApi'
 
 // Define interfaces for config
 interface AiConfig {
@@ -42,24 +46,29 @@ interface UseAiSenderReturn {
     sendImageToAI: (imageDataUrl: string) => Promise<SendImageResult>;
 }
 
-type ElectronAPI = Window['electronAPI']
-
 const CLIPBOARD_WAIT_DELAY = 800
 
 export function useAiSender(
-    webviewRef: RefObject<WebviewController | null>, // Electron.WebviewTag replacement
+    webviewRef: RefObject<WebviewController | null>,
     currentAI: string,
     autoSend: boolean,
     aiRegistry: Record<string, AiConfig> | null
 ): UseAiSenderReturn {
     // Modular prompt logic
     const { activePromptText } = usePrompts()
+    const queryClient = useQueryClient()
+
+    // React Query Mutations
+    const { mutateAsync: generateAutoSendScript } = useGenerateAutoSendScript()
+    const { mutateAsync: generateFocusScript } = useGenerateFocusScript()
+    const { mutateAsync: generateClickSendScript } = useGenerateClickSendScript()
+    const { mutateAsync: copyImageToClipboard } = useCopyImageToClipboard()
 
     // Cache to avoid re-fetching/calculating config for the same URL
     const configCache = useRef<ConfigCache>({ key: null, data: null })
 
-    const getCachedConfig = useCallback(async (API: ElectronAPI, webview: WebviewController, baseConfig: AiConfig): Promise<CacheData> => { // Electron.WebviewTag replacement
-        if (!API || !webview || typeof webview.getURL !== 'function') return { config: baseConfig, regex: null }
+    const getCachedConfig = useCallback(async (client: ReturnType<typeof useQueryClient>, webview: WebviewController, baseConfig: AiConfig): Promise<CacheData> => {
+        if (!webview || typeof webview.getURL !== 'function') return { config: baseConfig, regex: null }
 
         const currentUrl = webview.getURL()
         if (!currentUrl) return { config: baseConfig, regex: null }
@@ -72,9 +81,17 @@ export function useAiSender(
 
         try {
             const hostname = new URL(currentUrl).hostname
-            const customConfig = await API.getAiConfig?.(hostname)
+            // Fetch dynamically using React Query (allows caching)
+            // Note: Utilizing window.electronAPI inside queryFn is acceptable as an implementation detail
+            // to fetch data, leveraging React Query for cache management.
+            const customConfig = await client.fetchQuery({
+                queryKey: AI_CONFIG_KEY(hostname),
+                queryFn: () => window.electronAPI.getAiConfig(hostname),
+                staleTime: 1000 * 60 * 5 // 5 minutes fresh
+            }) as AiConfig | null
+
             const selectorConfig = (customConfig && typeof customConfig === 'object' && 'input' in customConfig)
-                ? (customConfig as AiConfig)
+                ? (customConfig)
                 : null
 
             let finalConfig = baseConfig
@@ -108,9 +125,6 @@ export function useAiSender(
         if (!webview || !text) return { success: false, error: 'invalid_input' }
         if (!aiRegistry) return { success: false, error: 'registry_not_loaded' }
 
-        const API = window.electronAPI
-        if (!API) return { success: false, error: 'api_unavailable' }
-
         try {
             // Get base config from registry
             let baseAiConfig = aiRegistry[currentAI]
@@ -121,8 +135,8 @@ export function useAiSender(
             }
 
             // Get config + regex (cached if possible)
-            const { config: aiConfig, regex } = await getCachedConfig(API, webview, baseAiConfig)
-            const currentUrl = webview.getURL() // Get again for logging/consistency check if needed
+            const { config: aiConfig, regex } = await getCachedConfig(queryClient, webview, baseAiConfig)
+            const currentUrl = webview.getURL()
             if (!currentUrl) {
                 return { success: false, error: 'webview_url_missing' }
             }
@@ -141,7 +155,13 @@ export function useAiSender(
                 Logger.info('[useAiSender] Prompt prepended:', activePromptText)
             }
 
-            const script = await API.automation.generateAutoSendScript(aiConfig, finalText, autoSend)
+            // Use React Query mutation instead of direct API call
+            const script = await generateAutoSendScript({
+                config: aiConfig as any, // Cast to match AutomationConfig if needed
+                text: finalText,
+                submit: autoSend
+            })
+
             if (!script) return { success: false, error: 'script_generation_failed' }
 
             if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
@@ -157,7 +177,7 @@ export function useAiSender(
             Logger.error('[useAiSender] Hata:', error)
             return { success: false, error: message }
         }
-    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText])
+    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, generateAutoSendScript])
 
     const sendImageToAI = useCallback(async (imageDataUrl: string): Promise<SendImageResult> => {
         const webview = webviewRef.current
@@ -166,22 +186,20 @@ export function useAiSender(
 
         // Sanity check for data URL
         if (!imageDataUrl.startsWith('data:image/')) {
-            Logger.error('[useAiSender] GeÃ§ersiz resim formatÄ±')
+            Logger.error('[useAiSender] Geçersiz resim formatý')
             return { success: false, error: 'invalid_image_format' }
         }
-
-        const API = window.electronAPI
-        if (!API) return { success: false, error: 'api_unavailable' }
 
         try {
             // Get base config from registry
             let baseAiConfig = aiRegistry[currentAI]
             if (!baseAiConfig) return { success: false, error: 'config_not_found' }
 
-            // Get config (cached if possible) - regex check usually skipped for images or same as text
-            const { config: aiConfig } = await getCachedConfig(API, webview, baseAiConfig)
+            // Get config (cached if possible)
+            const { config: aiConfig } = await getCachedConfig(queryClient, webview, baseAiConfig)
 
-            const copied = await API?.copyImageToClipboard(imageDataUrl)
+            // Use React Query mutation
+            const copied = await copyImageToClipboard(imageDataUrl)
             if (!copied) return { success: false, error: 'clipboard_failed' }
 
             // Focus webview
@@ -193,7 +211,8 @@ export function useAiSender(
 
             await new Promise(r => setTimeout(r, 100))
 
-            const focusScript = await API.automation.generateFocusScript(aiConfig)
+            // Use React Query mutation
+            const focusScript = await generateFocusScript(aiConfig as any)
             if (!focusScript) return { success: false, error: 'focus_script_failed' }
 
             if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
@@ -205,15 +224,13 @@ export function useAiSender(
 
             let pasteSuccess = false
 
-            // Try native paste if available (Electron 22+)
-            // Note: pasteNative is not a standard method on webview tag in Electron types?
-            // checking if it exists on the instance dynamically
+            // Try native paste if available
             if (webview.isDestroyed?.() !== true) {
-                if (webview.pasteNative && typeof webview.getWebContentsId === 'function') {
+                if ((webview as any).pasteNative && typeof (webview as any).getWebContentsId === 'function') {
                     try {
-                        const wcId = webview.getWebContentsId()
+                        const wcId = (webview as any).getWebContentsId()
                         if (wcId) {
-                            const result = webview.pasteNative(wcId)
+                            const result = (webview as any).pasteNative(wcId)
                             pasteSuccess = typeof result === 'boolean' ? result : await result
                         }
                     } catch (err) {
@@ -237,7 +254,12 @@ export function useAiSender(
 
                 // Use the same auto-send script logic to insert the prompt text
                 // If autoSend is true, this will also click send
-                const promptScript = await API.automation.generateAutoSendScript(aiConfig, activePromptText, autoSend)
+                // Use React Query mutation
+                const promptScript = await generateAutoSendScript({
+                    config: aiConfig as any,
+                    text: activePromptText,
+                    submit: autoSend
+                })
 
                 if (promptScript) {
                     if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
@@ -254,7 +276,8 @@ export function useAiSender(
                 let waitTime = aiConfig.imageWaitTime || 1000
                 await new Promise(r => setTimeout(r, waitTime))
 
-                const clickScript = await API.automation.generateClickSendScript(aiConfig)
+                // Use React Query mutation
+                const clickScript = await generateClickSendScript(aiConfig as any)
                 if (!clickScript) return { success: false, error: 'click_script_failed' }
 
                 if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
@@ -268,10 +291,10 @@ export function useAiSender(
             return { success: true, mode: 'paste_only' }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'unknown_error'
-            Logger.error('[useAiSender] Resim gÃ¶nderme hatasÄ±:', error)
+            Logger.error('[useAiSender] Resim gönderme hatasý:', error)
             return { success: false, error: message }
         }
-    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText])
+    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, copyImageToClipboard, generateFocusScript, generateAutoSendScript, generateClickSendScript])
 
     return { sendTextToAI, sendImageToAI }
 }

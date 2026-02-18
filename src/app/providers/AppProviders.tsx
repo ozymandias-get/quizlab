@@ -5,6 +5,7 @@ import { AppearanceProvider } from './AppearanceContext'
 import { UpdateProvider } from './UpdateContext'
 import { AppToolProvider } from './AppToolContext'
 import { ToastProvider } from './ToastContext'
+import { QueryProvider } from './QueryProvider'
 
 interface AppProvidersProps {
     children: React.ReactNode
@@ -12,18 +13,20 @@ interface AppProvidersProps {
 
 export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     return (
-        <LanguageProvider>
-            <ToastProvider>
-                <AiProvider>
-                    <AppToolProvider>
-                        <AppearanceProvider>
-                            <UpdateProvider>
-                                {children}
-                            </UpdateProvider>
-                        </AppearanceProvider>
-                    </AppToolProvider>
-                </AiProvider>
-            </ToastProvider>
-        </LanguageProvider>
+        <QueryProvider>
+            <LanguageProvider>
+                <ToastProvider>
+                    <AiProvider>
+                        <AppToolProvider>
+                            <AppearanceProvider>
+                                <UpdateProvider>
+                                    {children}
+                                </UpdateProvider>
+                            </AppearanceProvider>
+                        </AppToolProvider>
+                    </AiProvider>
+                </ToastProvider>
+            </LanguageProvider>
+        </QueryProvider>
     )
 }

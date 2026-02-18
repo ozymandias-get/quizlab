@@ -1,8 +1,8 @@
-﻿import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage, useToast } from '@src/app/providers'
 import { MagicWandIcon, PlusIcon, TrashIcon, CheckIcon } from '@src/components/ui/Icons'
-import { usePrompts } from '@src/hooks'
+import { usePrompts } from '@features/ai/hooks/usePrompts'
 
 // Icons imported from @src/components/ui/Icons
 
@@ -194,4 +194,5 @@ const PromptsTab = () => {
 }
 
 export default PromptsTab
+
 

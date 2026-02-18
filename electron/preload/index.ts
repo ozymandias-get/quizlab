@@ -18,19 +18,9 @@ import type {
     QuizActionResult
 } from '@shared/types'
 
-let _aiRegistryCache: AiRegistryResponse | null = null
-
 contextBridge.exposeInMainWorld('electronAPI', {
     // AI & Automation
-    getAiRegistry: async (forceRefresh: boolean = false): Promise<AiRegistryResponse> => {
-        if (!_aiRegistryCache || forceRefresh) {
-            _aiRegistryCache = await ipcRenderer.invoke(IPC_CHANNELS.GET_AI_REGISTRY)
-        }
-        if (!_aiRegistryCache) {
-            throw new Error('AI registry not available')
-        }
-        return _aiRegistryCache
-    },
+    getAiRegistry: (forceRefresh: boolean = false): Promise<AiRegistryResponse> => ipcRenderer.invoke(IPC_CHANNELS.GET_AI_REGISTRY, forceRefresh),
     isAuthDomain: (url: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.IS_AUTH_DOMAIN, url),
     automation: {
         generateFocusScript: (config: AutomationConfig): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generateFocusScript', config),

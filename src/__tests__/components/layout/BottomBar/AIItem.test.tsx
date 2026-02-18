@@ -7,6 +7,12 @@ vi.mock('@src/components/ui/Icons', () => ({
     getAiIcon: (key: string) => <div data-testid={`icon-${key}`}>{key}</div>
 }))
 
+vi.mock('@src/app/providers', () => ({
+    useLanguage: () => ({
+        t: (key: string) => key
+    })
+}))
+
 vi.mock('framer-motion', () => ({
     Reorder: {
         Item: ({

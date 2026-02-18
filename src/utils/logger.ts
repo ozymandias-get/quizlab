@@ -5,9 +5,7 @@
 const isDev = process.env.NODE_ENV === 'development';
 
 export const Logger = {
-    log: (...args: unknown[]) => {
-        if (isDev) console.info(...args);
-    },
+
     warn: (...args: unknown[]) => {
         if (isDev) console.warn(...args);
     },

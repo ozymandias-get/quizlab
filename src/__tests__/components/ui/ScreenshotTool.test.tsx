@@ -14,16 +14,21 @@ vi.mock('@src/app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
+// Mock useCaptureScreen hook
+const mockCaptureScreenMutate = vi.fn()
+vi.mock('@platform/electron/api/useSystemApi', () => ({
+    useCaptureScreen: () => ({
+        mutateAsync: mockCaptureScreenMutate
+    })
+}))
+
 describe('ScreenshotTool Component', () => {
     const onCapture = vi.fn()
     const onClose = vi.fn()
 
     beforeEach(() => {
         vi.clearAllMocks()
-        // Mock electronAPI
-        window.electronAPI = {
-            captureScreen: vi.fn().mockResolvedValue('data:image/png;base64,result'),
-        } as any
+        mockCaptureScreenMutate.mockResolvedValue('data:image/png;base64,result')
     })
 
     it('renders nothing when not active', () => {
@@ -37,15 +42,20 @@ describe('ScreenshotTool Component', () => {
         render(
             <ScreenshotTool isActive={true} onCapture={onCapture} onClose={onClose} />
         )
+        // Check for some element present when active.
+        // Look at the code, when active and not selecting, it shows 'cancel_with_esc'
         expect(screen.getByText('cancel_with_esc')).toBeInTheDocument()
     })
 
     it('handles selection drag and capture', async () => {
-        render(
+        const { container } = render(
             <ScreenshotTool isActive={true} onCapture={onCapture} onClose={onClose} />
         )
 
-        const overlay = screen.getByText('cancel_with_esc').closest('.screenshot-overlay') as Element
+        // The overlay is the main div.
+        // It has check !isActive return null.
+        // Then returns a div with ref={overlayRef} className="screenshot-overlay"
+        const overlay = container.firstChild as Element
 
         // Start selection at (10, 10)
         fireEvent.mouseDown(overlay, { clientX: 10, clientY: 10, button: 0 })
@@ -56,12 +66,8 @@ describe('ScreenshotTool Component', () => {
         // Finish selection
         fireEvent.mouseUp(overlay)
 
-        // The component waits for 2 animation frames. We need to wait for that.
-        // Since we are not using fake timers here (mockResolvedValue is mostly instant),
-        // we rely on waitFor to poll until expectation is met.
-
         await waitFor(() => {
-            expect(window.electronAPI.captureScreen).toHaveBeenCalledWith({
+            expect(mockCaptureScreenMutate).toHaveBeenCalledWith({
                 x: 10,
                 y: 10,
                 width: 100,
@@ -99,7 +105,8 @@ describe('ScreenshotTool Component', () => {
         fireEvent.mouseMove(overlay, { clientX: 15, clientY: 15 })
         fireEvent.mouseUp(overlay)
 
-        expect(window.electronAPI.captureScreen).not.toHaveBeenCalled()
+        expect(mockCaptureScreenMutate).not.toHaveBeenCalled()
         expect(onClose).toHaveBeenCalled()
     })
 })
+

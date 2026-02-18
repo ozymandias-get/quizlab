@@ -37,10 +37,7 @@ jobs:
         env:
           npm_config_canvas_binary_host_mirror: "https://example.com/fake"
 
-      - name: Build Vite
-        run: npx vite build
-
-      - name: Build Electron
+      - name: Build and Package (Windows)
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -90,14 +87,15 @@ jobs:
           prerelease: false
           generate_release_notes: true
           body: |
-            ## 📥 Download
-            
-            **Windows:** Download the `.exe` file below and run the installer.
-            
-            ## ✨ Features
+            ## Download
+
+            **Windows:** Download the .exe file below and run the installer.
+
+            ## Features
             - **Google Gemini Integration (CLI)**
             - **Magic Selector** for Universal AI Chat
             - **Multi-language support (EN, TR)**
             - **Dual-Pane PDF Reader**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

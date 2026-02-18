@@ -51,7 +51,7 @@ vi.mock('react-dom', async () => {
     }
 })
 
-vi.mock('@src/features/settings/components/SettingsModal', () => ({
+vi.mock('@features/settings/components/SettingsModal', () => ({
     default: ({ isOpen, onClose }: any) => isOpen ? (
         <div data-testid="settings-modal">
             Settings Modal Content
@@ -150,3 +150,4 @@ describe('BottomBar Component', () => {
         })
     })
 })
+

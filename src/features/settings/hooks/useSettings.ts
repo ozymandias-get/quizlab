@@ -1,5 +1,6 @@
-ï»¿import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useUpdate, type UpdateInfo } from '@src/app/providers'
+import { useAppVersion, useOpenExternal } from '@platform/electron/api/useSystemApi'
 
 interface UseSettingsReturn {
     appVersion: string;
@@ -10,11 +11,11 @@ interface UseSettingsReturn {
 }
 
 /**
- * Settings modal iÃ§in state ve iÅŸlemleri yÃ¶neten custom hook
- * GÃ¼ncelleme state'leri UpdateContext'ten senkronize edilir
+ * Settings modal için state ve iþlemleri yöneten custom hook
+ * Güncelleme state'leri UpdateContext'ten senkronize edilir
  */
 export function useSettings(): UseSettingsReturn {
-    // UpdateContext'ten gÃ¼ncelleme state'lerini al
+    // UpdateContext'ten güncelleme state'lerini al
     const {
         updateAvailable,
         updateInfo: appUpdateInfo,
@@ -23,10 +24,11 @@ export function useSettings(): UseSettingsReturn {
         checkForUpdates: appCheckForUpdates
     } = useUpdate()
 
-    // Uygulama versiyonu
-    const [appVersion, setAppVersion] = useState<string>('1.0.0')
+    // Uygulama versiyonu - React Query ile al
+    const { data: appVersion = '1.0.0' } = useAppVersion()
+    const { mutate: openExternal } = useOpenExternal()
 
-    // Update status - AppContext'ten tÃ¼retilir
+    // Update status - AppContext'ten türetilir
     const updateStatus = useMemo(() => {
         if (isCheckingUpdate) return 'checking'
         if (appUpdateInfo?.error) return 'error'
@@ -37,31 +39,14 @@ export function useSettings(): UseSettingsReturn {
 
     const updateInfo = appUpdateInfo
 
-    // Uygulama sÃ¼rÃ¼mÃ¼nÃ¼ al
-    useEffect(() => {
-        if (window.electronAPI?.getAppVersion) {
-            window.electronAPI.getAppVersion().then(version => {
-                if (version) setAppVersion(version)
-            })
-        }
-    }, [])
-
-    // GÃ¼ncelleme kontrolÃ¼ - AppContext'teki fonksiyonu kullan
+    // Güncelleme kontrolü - AppContext'teki fonksiyonu kullan
     const checkForUpdates = async () => {
         await appCheckForUpdates()
     }
 
-    // GitHub Releases sayfasÄ±nÄ± aÃ§
+    // GitHub Releases sayfasýný aç
     const openReleasesPage = async () => {
-        if (!window.electronAPI?.openReleasesPage) {
-            if (window.electronAPI?.openExternal) {
-                await window.electronAPI.openExternal('https://github.com/ozymandias-get/Quizlab-Reader/releases')
-            } else {
-                window.open('https://github.com/ozymandias-get/Quizlab-Reader/releases', '_blank', 'noopener,noreferrer')
-            }
-            return
-        }
-        await window.electronAPI.openReleasesPage()
+        openExternal('https://github.com/ozymandias-get/Quizlab-Reader/releases')
     }
 
     return {
@@ -75,5 +60,6 @@ export function useSettings(): UseSettingsReturn {
         openReleasesPage
     }
 }
+
 
 

@@ -11,7 +11,7 @@ vi.mock('@src/app/providers', () => ({
 
 vi.mock('framer-motion', () => ({
     motion: {
-        div: ({ children, ...props }: any) => (
+        div: ({ children, layout, layoutId, initial, animate, exit, transition, variants, whileHover, whileTap, ...props }: any) => (
             <div
                 {...props}
                 data-testid="motion-div"

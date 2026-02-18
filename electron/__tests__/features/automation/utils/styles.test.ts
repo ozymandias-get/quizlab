@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pickerStyles } from '../../../utils/automation/styles'
+import { pickerStyles } from '@electron/features/automation/utils/styles'
 
 describe('pickerStyles', () => {
     it('should be a string containing CSS rules', () => {
@@ -14,3 +14,4 @@ describe('pickerStyles', () => {
         expect(pickerStyles.length).toBeGreaterThan(0)
     })
 })
+

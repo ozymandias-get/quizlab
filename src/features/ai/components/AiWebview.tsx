@@ -1,6 +1,6 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { useAi } from '@src/app/providers'
-import MagicSelectorTutorial from '@src/features/tutorial/components/MagicSelectorTutorial'
+import MagicSelectorTutorial from '@features/tutorial/components/MagicSelectorTutorial'
 import AiSession from './AiSession'
 
 interface AiWebviewProps {
@@ -54,3 +54,4 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
 }
 
 export default memo(AiWebview)
+

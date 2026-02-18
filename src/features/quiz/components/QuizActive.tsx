@@ -1,15 +1,14 @@
-﻿/**
- * QuizActive - Active Quiz View
- * Premium Glass Morphism Design
- */
-import React, { useMemo, useEffect, useCallback } from 'react'
+﻿import React, { useMemo, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, CheckCircle, Eraser, Clock, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { SLIDE_VARIANTS } from '@src/constants/animations'
 import { formatQuizText } from '@src/utils/uiUtils'
 import { Question, QuizState } from '../types'
 import { useQuizTimer } from '../hooks/useQuizTimer'
 import { useQuizKeyboard } from '../hooks/useQuizKeyboard'
+import { TopBar } from './active/TopBar'
+import { QuestionContent } from './active/QuestionContent'
+import { QuizNavigation } from './active/QuizNavigation'
 
 interface QuizActiveProps {
     quizState: QuizState;
@@ -19,9 +18,6 @@ interface QuizActiveProps {
     onFinish: () => void;
     t: (key: string) => string;
 }
-
-// Slide animation variants
-
 
 function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection, onFinish, t }: QuizActiveProps) {
     const { questions, currentQuestionIndex, userAnswers, startTime } = quizState
@@ -101,7 +97,6 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
 
     // Calculate progress
     const progress = totalQuestions > 0 ? ((currentQuestionIndex + 1) / totalQuestions) * 100 : 0
-    const optionHtmlList = formattedContent.options
     const answeredCount = useMemo(() => {
         return questions.reduce((count, q) => {
             return userAnswers[q.id] !== undefined ? count + 1 : count
@@ -119,45 +114,14 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
             className="quiz-active-container"
         >
             {/* Top Bar */}
-            <motion.div
-                className="quiz-topbar"
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.1 }}
-            >
-                <div className="flex items-center gap-4">
-                    {/* Question Counter */}
-                    <div className="quiz-counter-badge">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">
-                            {questionNumber}
-                        </span>
-                        <span className="text-white/30 mx-1.5">/</span>
-                        <span className="text-white/60">{questions.length}</span>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="hidden sm:block quiz-progress-track">
-                        <motion.div
-                            className="quiz-progress-bar"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 0.4, ease: 'easeOut' }}
-                        />
-                    </div>
-
-                    {/* Answered indicator */}
-                    <div className="hidden md:flex items-center gap-1.5 text-xs text-white/40">
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{answeredCount} {t('quiz_answered')}</span>
-                    </div>
-                </div>
-
-                {/* Timer */}
-                <div className="quiz-timer">
-                    <Clock className="w-4 h-4" />
-                    <span className="font-mono">{elapsedTime}</span>
-                </div>
-            </motion.div>
+            <TopBar
+                questionNumber={questionNumber}
+                total={questions.length}
+                progress={progress}
+                answeredCount={answeredCount}
+                elapsedTime={elapsedTime}
+                t={t}
+            />
 
             {/* Question Card */}
             <div className="flex-1 relative min-h-0 overflow-hidden">
@@ -186,95 +150,23 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
                             </span>
                         </div>
 
-                        {/* Question Text & Options */}
-                        <div className="flex-1 overflow-y-auto p-6 md:p-8">
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="quiz-question-text"
-                                dangerouslySetInnerHTML={{ __html: formattedContent.text }}
-                            />
-
-                            {/* Options */}
-                            <div className="space-y-3 mt-6">
-                                {optionHtmlList.map((optionHtml, idx) => {
-                                    const isSelected = selectedAnswer === idx
-                                    return (
-                                        <motion.button
-                                            key={idx}
-                                            onClick={() => handleAnswerToggle(idx)}
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.15 + idx * 0.05 }}
-                                            whileHover={{ scale: 1.01, x: 4 }}
-                                            whileTap={{ scale: 0.99 }}
-                                            className={`quiz-answer-option ${isSelected ? 'selected' : ''}`}
-                                        >
-                                            {/* Option Letter */}
-                                            <span className={`quiz-option-letter ${isSelected ? 'selected' : ''}`}>
-                                                {String.fromCharCode(65 + idx)}
-                                            </span>
-
-                                            {/* Option Text */}
-                                            <div
-                                                className={`text-sm md:text-base leading-relaxed pt-0.5 flex-1 ${isSelected ? 'text-white font-medium' : 'text-white/70'}`}
-                                                dangerouslySetInnerHTML={{ __html: optionHtml }}
-                                            />
-
-                                            {/* Selected indicator */}
-                                            {isSelected && (
-                                                <motion.div
-                                                    initial={{ scale: 0 }}
-                                                    animate={{ scale: 1 }}
-                                                    className="ml-2"
-                                                >
-                                                    <CheckCircle className="w-5 h-5 text-amber-400" />
-                                                </motion.div>
-                                            )}
-                                        </motion.button>
-                                    )
-                                })}
-                            </div>
-                        </div>
+                        {/* Content */}
+                        <QuestionContent
+                            formattedContent={formattedContent}
+                            selectedAnswer={selectedAnswer}
+                            handleAnswerToggle={handleAnswerToggle}
+                        />
 
                         {/* Navigation */}
-                        <div className="quiz-nav-bar">
-                            {/* Previous */}
-                            <motion.button
-                                onClick={() => navigateQuestion(-1)}
-                                disabled={isFirst}
-                                whileHover={!isFirst ? { scale: 1.02 } : {}}
-                                whileTap={!isFirst ? { scale: 0.98 } : {}}
-                                className="quiz-nav-btn"
-                            >
-                                <ChevronLeft className="w-5 h-5" />
-                                <span className="hidden sm:inline">{t('quiz_back')}</span>
-                            </motion.button>
-
-                            {/* Clear Selection */}
-                            <motion.button
-                                onClick={() => selectedAnswer !== undefined && handleAnswerToggle(selectedAnswer)}
-                                disabled={selectedAnswer === undefined}
-                                whileHover={selectedAnswer !== undefined ? { scale: 1.02 } : {}}
-                                whileTap={selectedAnswer !== undefined ? { scale: 0.98 } : {}}
-                                className="quiz-clear-btn"
-                            >
-                                <Eraser className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t('quiz_clear')}</span>
-                            </motion.button>
-
-                            {/* Next / Finish */}
-                            <motion.button
-                                onClick={() => isLast ? onFinish() : navigateQuestion(1)}
-                                whileHover={{ scale: 1.03 }}
-                                whileTap={{ scale: 0.97 }}
-                                className={isLast ? 'quiz-finish-btn' : 'quiz-next-btn'}
-                            >
-                                <span>{isLast ? t('quiz_finish') : t('quiz_next')}</span>
-                                {isLast ? <CheckCircle className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                            </motion.button>
-                        </div>
+                        <QuizNavigation
+                            isFirst={isFirst}
+                            isLast={isLast}
+                            navigateQuestion={navigateQuestion}
+                            onFinish={onFinish}
+                            selectedAnswer={selectedAnswer}
+                            handleAnswerToggle={handleAnswerToggle}
+                            t={t}
+                        />
                     </motion.div>
                 </AnimatePresence>
             </div>
@@ -283,4 +175,5 @@ function QuizActive({ quizState, setQuizState, slideDirection, setSlideDirection
 }
 
 export default QuizActive
+
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatQuizText, generateId, hexToRgba } from '@src/utils/uiUtils'
+import { formatQuizText, hexToRgba } from '@src/utils/uiUtils'
 
 describe('uiUtils', () => {
     describe('formatQuizText', () => {
@@ -29,19 +29,7 @@ describe('uiUtils', () => {
         })
     })
 
-    describe('generateId', () => {
-        it('returns a string', () => {
-            const id = generateId()
-            expect(typeof id).toBe('string')
-            expect(id.length).toBeGreaterThan(0)
-        })
 
-        it('returns unique IDs', () => {
-            const id1 = generateId()
-            const id2 = generateId()
-            expect(id1).not.toBe(id2)
-        })
-    })
 
     describe('hexToRgba', () => {
         it('converts 6-digit hex to rgba', () => {

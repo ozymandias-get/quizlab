@@ -2,15 +2,18 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { AiProvider, useAi } from '../../../app/providers/AiContext'
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 // Mock dependencies
 const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
+const mockShowError = vi.fn()
 
 vi.mock('../../../app/providers/ToastContext', () => ({
     useToast: () => ({
         showSuccess: mockShowSuccess,
-        showWarning: mockShowWarning
+        showWarning: mockShowWarning,
+        showError: mockShowError
     })
 }))
 
@@ -18,12 +21,7 @@ const mockSendText = vi.fn()
 const mockSendImage = vi.fn()
 
 vi.mock('@src/hooks', () => ({
-    useAiSender: () => ({
-        sendTextToAI: mockSendText,
-        sendImageToAI: mockSendImage
-    }),
     useLocalStorage: (_key: string, initial: any) => {
-        // Simple mock implementation of useLocalStorage
         const [val, setVal] = React.useState(initial)
         return [val, setVal]
     },
@@ -36,6 +34,13 @@ vi.mock('@src/hooks', () => ({
         const toggle = () => setVal(!val)
         return [val, setVal, toggle]
     }
+}))
+
+vi.mock('@features/ai/hooks/useAiSender', () => ({
+    useAiSender: () => ({
+        sendTextToAI: mockSendText,
+        sendImageToAI: mockSendImage
+    })
 }))
 
 vi.mock('@src/utils/logger', () => ({
@@ -69,15 +74,24 @@ describe('AiContext', () => {
         window.electronAPI = originalElectronAPI
     })
 
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AiProvider>{children}</AiProvider>
-    )
+    // Wrapper includes QueryClientProvider so React Query hooks inside AiProvider work
+    const createWrapper = () => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false }
+            }
+        })
+        return ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>
+                <AiProvider>{children}</AiProvider>
+            </QueryClientProvider>
+        )
+    }
 
     it('loads registry on mount', async () => {
-        const { result } = renderHook(() => useAi(), { wrapper })
+        const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
 
-        // Initial load might be async, but provider renders null until loaded.
-        // Wait for it.
         await waitFor(() => {
             expect(result.current.isRegistryLoaded).toBe(true)
         })
@@ -88,7 +102,7 @@ describe('AiContext', () => {
     })
 
     it('manages tabs (add, switch)', async () => {
-        const { result } = renderHook(() => useAi(), { wrapper })
+        const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
         const initialTabId = result.current.activeTabId
@@ -110,7 +124,7 @@ describe('AiContext', () => {
     })
 
     it('closes tabs and prevents closing the last one', async () => {
-        const { result } = renderHook(() => useAi(), { wrapper })
+        const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
         // Add a tab first
@@ -138,7 +152,7 @@ describe('AiContext', () => {
     })
 
     it('wraps sending text with toast notifications', async () => {
-        const { result } = renderHook(() => useAi(), { wrapper })
+        const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
         mockSendText.mockResolvedValue({ success: true })
@@ -148,9 +162,7 @@ describe('AiContext', () => {
         })
 
         expect(mockSendText).toHaveBeenCalledWith('hello')
-        // Success doesn't trigger toast for text?
-        // Code: if (!result.success) showWarning...
-        // So no success toast for text.
+        // Success doesn't trigger toast for text
         expect(mockShowSuccess).not.toHaveBeenCalled()
 
         // Fail case
@@ -162,7 +174,7 @@ describe('AiContext', () => {
     })
 
     it('wraps sending image with toast notifications', async () => {
-        const { result } = renderHook(() => useAi(), { wrapper })
+        const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
         mockSendImage.mockResolvedValue({ success: true })

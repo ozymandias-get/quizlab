@@ -1,13 +1,14 @@
-﻿import React, { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react'
-import { Logger } from '@src/utils/logger'
+import React, { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
-import { useLocalStorage, useLocalStorageString, useLocalStorageBoolean, useAiSender } from '@src/hooks'
+import { useLocalStorage, useLocalStorageString, useLocalStorageBoolean } from '@src/hooks'
 import { useToast } from './ToastContext'
-import type { AiRegistryResponse, AiPlatform } from '@shared/types'
+import type { AiPlatform } from '@shared/types'
 import type { WebviewController } from '@shared/types/webview';
-import type { SendImageResult, SendTextResult } from '@src/features/ai/hooks/useAiSender'
+import { useAiSender } from '@features/ai/hooks/useAiSender'
+import type { SendImageResult, SendTextResult } from '@features/ai/hooks/useAiSender'
+import { useAiRegistry, useRefreshAiRegistry } from '@platform/electron/api/useAiApi'
 
-type AiRegistryData = AiRegistryResponse
+
 
 export interface Tab {
     id: string;
@@ -49,43 +50,21 @@ interface AiContextType {
 
 const AiContext = createContext<AiContextType | null>(null)
 
-const DEFAULT_REGISTRY: AiRegistryData = {
-    aiRegistry: {} as Record<string, AiPlatform>,
-    defaultAiId: 'chatgpt',
-    allAiIds: [],
-    chromeUserAgent: ''
-}
-
 export function AiProvider({ children }: { children: React.ReactNode }) {
-    const [registryData, setRegistryData] = useState<AiRegistryData | null>(null)
-    const [isRegistryLoaded, setIsRegistryLoaded] = useState(false)
     const { showSuccess, showWarning } = useToast()
+
+    // React Query Hooks
+    const { data: registryData, isLoading, isError } = useAiRegistry()
+    const refreshMutation = useRefreshAiRegistry()
+
+    const isRegistryLoaded = !isLoading && !isError && !!registryData
 
     // Webview Instances State (Map by Tab ID)
     const [webviewInstances, setWebviewInstances] = useState<Record<string, WebviewController>>({})
-
     const [isTutorialActive, setIsTutorialActive] = useState(false)
 
-    const loadRegistry = useCallback(async (force = false) => {
-        try {
-            const API = window.electronAPI
-            if (API?.getAiRegistry) {
-                setRegistryData(await API.getAiRegistry(force))
-            } else {
-                setRegistryData(DEFAULT_REGISTRY)
-            }
-        } catch (error) {
-            Logger.error('[AiContext] Failed to load AI registry:', error)
-            showWarning('toast_registry_load_error')
-            setRegistryData(DEFAULT_REGISTRY)
-        } finally {
-            setIsRegistryLoaded(true)
-        }
-    }, [showWarning])
+    // Refresh Registry
 
-    useEffect(() => {
-        loadRegistry()
-    }, [loadRegistry])
 
     const AI_REGISTRY = (registryData?.aiRegistry || {}) as Record<string, AiPlatform>
     const DEFAULT_AI_ID = registryData?.defaultAiId || 'chatgpt'
@@ -195,6 +174,17 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         });
     }, [])
 
+    const refreshRegistry = useCallback(async (force = false) => {
+        if (force) {
+            try {
+                await refreshMutation.mutateAsync()
+                showSuccess('toast_registry_refreshed')
+            } catch (error) {
+                showWarning('toast_registry_load_error')
+            }
+        }
+    }, [refreshMutation, showSuccess, showWarning])
+
     const value = useMemo(() => ({
         isRegistryLoaded,
         chromeUserAgent: registryData?.chromeUserAgent || '',
@@ -209,7 +199,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         webviewInstance, registerWebview,
 
         sendTextToAI, sendImageToAI,
-        refreshRegistry: loadRegistry,
+        refreshRegistry,
         isTutorialActive,
         startTutorial: () => setIsTutorialActive(true),
         stopTutorial: () => setIsTutorialActive(false)
@@ -221,7 +211,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         AI_REGISTRY, autoSend, setAutoSend, toggleAutoSend,
         sendTextToAI, sendImageToAI,
         webviewInstance, registerWebview,
-        isTutorialActive, loadRegistry
+        isTutorialActive, refreshRegistry
     ])
 
     return (
@@ -236,4 +226,5 @@ export const useAi = () => {
     if (!context) throw new Error('useAi must be used within AiProvider')
     return context
 }
+
 

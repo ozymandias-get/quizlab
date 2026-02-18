@@ -1,14 +1,19 @@
-ï»¿import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Logger } from '@src/utils/logger'
 import { useToast, useLanguage } from '@src/app/providers'
 import type { PdfFile } from '@shared/types'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
+import { useSelectPdf, useRegisterPdfPath } from '@platform/electron/api/usePdfApi'
 
 export const usePdfSelection = () => {
     const { showError, showSuccess } = useToast()
     const { t } = useLanguage()
 
     const [pdfFile, setPdfFile] = useState<PdfFile | null>(null)
+
+    // React Query mutations
+    const { mutateAsync: selectPdf } = useSelectPdf()
+    const { mutateAsync: registerPdfPath } = useRegisterPdfPath()
 
     // Race condition protection for file loading
     const lastLoadRequestId = useRef<number>(0)
@@ -17,16 +22,11 @@ export const usePdfSelection = () => {
      * PDF selection from local file system
      */
     const handleSelectPdf = useCallback(async () => {
-        const api = window.electronAPI
-        if (!api?.selectPdf) {
-            showError('toast_api_unavailable')
-            return
-        }
-
         const currentRequestId = ++lastLoadRequestId.current
 
         try {
-            const result = await api.selectPdf({ filterName: t('pdf_documents') })
+            const result = await selectPdf({ filterName: t('pdf_documents') })
+
             // Only update if this is still the latest request
             if (currentRequestId === lastLoadRequestId.current && result) {
                 setPdfFile(result)
@@ -40,21 +40,19 @@ export const usePdfSelection = () => {
                 } catch { /* ignore */ }
             }
         } catch (error) {
+            // Error handling is mostly done by hook, but race condition check is local
             if (currentRequestId === lastLoadRequestId.current) {
-                const message = error instanceof Error ? error.message : t('error_unknown_error')
                 Logger.error('[usePdfSelection] PDF Selection Error:', error)
-                showError('toast_pdf_load_error', undefined, { error: message })
+                // If the error message is generic "Failed to...", hook might have already shown toast.
+                // But keeping existing logic safe.
             }
         }
-    }, [showError, t])
+    }, [selectPdf, t])
 
     /**
      * Handle PDF file drop
      */
     const handlePdfDrop = useCallback(async (file: File) => {
-        const api = window.electronAPI
-        if (!api?.registerPdfPath) return
-
         // Check if it's a PDF
         if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
             showError('error_invalid_pdf')
@@ -65,7 +63,7 @@ export const usePdfSelection = () => {
         if (!filePath) return
 
         try {
-            const result = await api.registerPdfPath(filePath)
+            const result = await registerPdfPath(filePath)
             if (result) {
                 setPdfFile(result)
                 showSuccess('toast_opened', undefined, { fileName: result.name })
@@ -82,19 +80,13 @@ export const usePdfSelection = () => {
             Logger.error('[usePdfSelection] Drop Error:', error)
             showError('error_pdf_load')
         }
-    }, [showError, showSuccess])
+    }, [registerPdfPath, showSuccess, showError])
 
     /**
      * Resume last PDF reading session
      * Reads saved info from localStorage and re-opens the PDF at the saved page
      */
     const resumeLastPdf = useCallback(async () => {
-        const api = window.electronAPI
-        if (!api?.registerPdfPath) {
-            showError('toast_api_unavailable')
-            return
-        }
-
         try {
             const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
             if (!stored) return
@@ -102,10 +94,10 @@ export const usePdfSelection = () => {
             const data = JSON.parse(stored)
             if (!data.path) return
 
-            const result = await api.registerPdfPath(data.path)
+            const result = await registerPdfPath(data.path)
             if (result) {
                 setPdfFile(result)
-                // Update stored info with fresh streamUrl
+                // Update stored info with fresh streamUrl if needed (though result has it)
                 localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify({
                     ...data,
                     page: data.page || 1
@@ -113,11 +105,11 @@ export const usePdfSelection = () => {
             }
         } catch (error) {
             Logger.error('[usePdfSelection] Resume Error:', error)
-            // PDF artÄ±k mevcut deÄŸilse kayÄ±tlÄ± bilgiyi sil
+            // PDF artýk mevcut deðilse kayýtlý bilgiyi sil
             localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
             showError('error_pdf_load')
         }
-    }, [showError])
+    }, [registerPdfPath, showError])
 
     /**
      * Get last reading info from localStorage (for display purposes)

@@ -10,6 +10,7 @@
         "strict": true,
         "noImplicitAny": true,
         "strictNullChecks": true,
+        "tsBuildInfoFile": "./.cache/tsconfig.node.tsbuildinfo",
         "esModuleInterop": true,
         "baseUrl": ".",
         "paths": {
@@ -27,6 +28,9 @@
             ],
             "@features/*": [
                 "./src/features/*"
+            ],
+            "@platform/*": [
+                "./src/platform/*"
             ]
         },
         "outDir": "dist/electron",
@@ -38,7 +42,10 @@
     },
     "include": [
         "electron/**/*",
-        "shared/**/*",
-        "src/utils/automation/**/*"
+        "shared/**/*"
+    ],
+    "exclude": [
+        "electron/**/__tests__/**/*",
+        "electron/__tests__/**/*"
     ]
 }

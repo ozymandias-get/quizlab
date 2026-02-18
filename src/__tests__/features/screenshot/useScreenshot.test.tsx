@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useScreenshot } from '@src/features/screenshot/hooks/useScreenshot'
+import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
 
 describe('useScreenshot Hook', () => {
     it('initializes with false state', () => {
@@ -39,3 +39,4 @@ describe('useScreenshot Hook', () => {
         expect(onSendToAI).toHaveBeenCalledWith('data:image/png;base64,...')
     })
 })
+

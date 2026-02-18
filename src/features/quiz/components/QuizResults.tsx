@@ -1,20 +1,15 @@
-﻿/**
- * QuizResults - Quiz Results View
- * Shows score, correct/wrong answers, and detailed explanations
- */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-    Trophy, RotateCcw, RefreshCw, AlertCircle,
-    CheckCircle, XCircle, BookOpen,
-    Clock, TrendingUp
-} from 'lucide-react'
+import { BookOpen } from 'lucide-react'
+import { Virtuoso } from 'react-virtuoso'
 
-import { QuizSettings } from '@src/features/quiz/api'
+import { QuizSettings } from '@features/quiz/api'
 import { QuizState } from '../types'
 import { useQuizStats } from '../hooks/useQuizStats'
-import ConfettiCanvas from '@src/components/ui/ConfettiCanvas'
 import { QuizQuestionReview } from './QuizQuestionReview'
+
+import { ScoreCard } from './results/ScoreCard'
+import { ActionButtons } from './results/ActionButtons'
 
 interface QuizResultsProps {
     quizState: QuizState;
@@ -28,209 +23,73 @@ interface QuizResultsProps {
 function QuizResults({ quizState, settings, onRestart, onRegenerate, onRetryMistakes, t }: QuizResultsProps) {
     const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
 
-
     // Calculate stats
     const stats = useQuizStats(quizState)
 
-    // Grade based on score
-    const getGradeInfo = () => {
-        if (stats.percentage >= 90) return { text: t('quiz_grade_perfect'), colorClass: 'emerald' }
-        if (stats.percentage >= 70) return { text: t('quiz_grade_good'), colorClass: 'green' }
-        if (stats.percentage >= 50) return { text: t('quiz_grade_average'), colorClass: 'amber' }
-        return { text: t('quiz_grade_poor'), colorClass: 'red' }
-    }
-
-    const grade = getGradeInfo()
-
     // Has incorrect or unanswered questions for retry
     const hasIncorrectOrEmpty = stats.wrong > 0 || stats.empty > 0
-
-    const [displayScore, setDisplayScore] = useState(0)
-
-    // Count Up Animation
-    useEffect(() => {
-        let start = 0
-        const end = stats.percentage
-        if (start === end) return
-
-        const duration = 1500
-        const startTime = performance.now()
-
-        const animate = (currentTime: number) => {
-            const elapsed = currentTime - startTime
-            const progress = Math.min(elapsed / duration, 1)
-            const easeOutQuart = 1 - Math.pow(1 - progress, 4) // Easing function
-
-            const current = Math.floor(easeOutQuart * (end - start) + start)
-            setDisplayScore(current)
-
-            if (progress < 1) {
-                requestAnimationFrame(animate)
-            }
-        }
-        requestAnimationFrame(animate)
-    }, [stats.percentage])
-
-
-
-
 
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="h-full overflow-y-auto p-4 md:p-6 gpu-layer"
+            className="h-full flex flex-col gpu-layer"
         >
-            <div className="max-w-4xl mx-auto space-y-6">
-                {/* Score Card */}
-                <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 p-6 md:p-8 gpu-layer"
-                >
-                    {/* Background decoration */}
-                    <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-full blur-3xl gpu-layer" />
-
-                    <div className="relative flex flex-col md:flex-row items-center gap-6">
-                        {/* Score Circle */}
-                        <div className="relative w-32 h-32">
-                            <svg className="w-full h-full transform -rotate-90">
-                                <circle
-                                    cx="64"
-                                    cy="64"
-                                    r="56"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="8"
-                                    className="text-white/10"
+            <Virtuoso
+                style={{ height: '100%' }}
+                totalCount={quizState.questions.length + 1}
+                itemContent={(index) => {
+                    // Index 0 is the Header (Score Card + Actions)
+                    if (index === 0) {
+                        return (
+                            <div className="max-w-4xl mx-auto space-y-6 p-4 md:p-6 pb-0">
+                                {/* Score Card */}
+                                <ScoreCard
+                                    stats={stats}
+                                    settings={settings}
+                                    t={t}
                                 />
-                                <motion.circle
-                                    cx="64"
-                                    cy="64"
-                                    r="56"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="8"
-                                    strokeLinecap="round"
-                                    className="text-amber-400"
-                                    initial={{ strokeDasharray: '0 352' }}
-                                    animate={{ strokeDasharray: `${(stats.percentage / 100) * 352} 352` }}
-                                    transition={{ duration: 1.5, ease: 'easeOut' }}
+
+                                {/* Action Buttons */}
+                                <ActionButtons
+                                    onRestart={onRestart}
+                                    onRegenerate={onRegenerate}
+                                    onRetryMistakes={onRetryMistakes}
+                                    hasIncorrectOrEmpty={hasIncorrectOrEmpty}
+                                    t={t}
                                 />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <motion.span
-                                    className="text-3xl font-bold text-white"
-                                    initial={{ opacity: 0, scale: 0.5 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: 0.2 }}
-                                >
-                                    {displayScore}%
-                                </motion.span>
+
+                                {/* Questions Review Header */}
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2 pt-2">
+                                    <BookOpen className="w-5 h-5 text-amber-400 gpu-layer" />
+                                    {t('quiz_review')}
+                                </h3>
                             </div>
+                        )
+                    }
+
+                    // Questions (Index > 0)
+                    const q = quizState.questions[index - 1]
+                    return (
+                        <div className="max-w-4xl mx-auto px-4 md:px-6 pb-3">
+                            <QuizQuestionReview
+                                key={q.id}
+                                question={q}
+                                index={index - 1}
+                                userAnswer={quizState.userAnswers[q.id]}
+                                isExpanded={expandedQuestion === q.id}
+                                onToggle={() => setExpandedQuestion(expandedQuestion === q.id ? null : q.id)}
+                                t={t}
+                            />
                         </div>
-
-                        {/* Confetti Canvas (Only if good score) */}
-                        <ConfettiCanvas
-                            isActive={stats.percentage >= 70}
-                            className="absolute inset-0"
-                        />
-
-                        {/* Grade Info */}
-                        <div className="flex-1 text-center md:text-left">
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 text-amber-400 text-sm font-bold mb-2">
-                                <Trophy className="w-4 h-4" />
-                                {grade.text}
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-1">
-                                {stats.correct} / {stats.total} {t('quiz_correct_label')}
-                            </h2>
-                            <p className="text-white/50 text-sm">
-                                {t(`difficulty_${settings?.difficulty?.toLowerCase()}`)} {t('quiz_completed_at')}
-                            </p>
-                        </div>
-
-                        {/* Stats Grid */}
-                        <div className={`grid gap-3 md:gap-4 ${stats.empty > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                            <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-                                <CheckCircle className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
-                                <span className="text-lg font-bold text-white block">{stats.correct}</span>
-                                <span className="text-xs text-white/40">{t('quiz_correct_label')}</span>
-                            </div>
-                            <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-                                <XCircle className="w-5 h-5 text-red-400 mx-auto mb-1" />
-                                <span className="text-lg font-bold text-white block">{stats.wrong}</span>
-                                <span className="text-xs text-white/40">{t('quiz_wrong_label')}</span>
-                            </div>
-                            {stats.empty > 0 && (
-                                <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-                                    <AlertCircle className="w-5 h-5 text-stone-400 mx-auto mb-1" />
-                                    <span className="text-lg font-bold text-white block">{stats.empty}</span>
-                                    <span className="text-xs text-white/40">{t('quiz_empty_label')}</span>
-                                </div>
-                            )}
-                            <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-                                <Clock className="w-5 h-5 text-amber-400 mx-auto mb-1" />
-                                <span className="text-lg font-bold text-white block">{stats.timeStr}</span>
-                                <span className="text-xs text-white/40">{t('quiz_duration')}</span>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <button
-                        onClick={onRestart}
-                        className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
-                    >
-                        <RotateCcw className="w-5 h-5" />
-                        {t('quiz_restart')}
-                    </button>
-
-                    <button
-                        onClick={onRegenerate}
-                        className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
-                    >
-                        <RefreshCw className="w-5 h-5" />
-                        {t('quiz_regenerate')}
-                    </button>
-
-                    {hasIncorrectOrEmpty && (
-                        <button
-                            onClick={onRetryMistakes}
-                            className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 hover:scale-[1.02] transition-all"
-                        >
-                            <TrendingUp className="w-5 h-5" />
-                            {t('quiz_retry_mistakes')}
-                        </button>
-                    )}
-                </div>
-
-                {/* Questions Review */}
-                <div className="space-y-3">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <BookOpen className="w-5 h-5 text-amber-400 gpu-layer" />
-                        {t('quiz_review')}
-                    </h3>
-
-                    {quizState.questions.map((q, idx) => (
-                        <QuizQuestionReview
-                            key={q.id}
-                            question={q}
-                            index={idx}
-                            userAnswer={quizState.userAnswers[q.id]}
-                            isExpanded={expandedQuestion === q.id}
-                            onToggle={() => setExpandedQuestion(expandedQuestion === q.id ? null : q.id)}
-                            t={t}
-                        />
-                    ))}
-                </div>
-            </div>
-        </motion.div>
+                    )
+                }}
+            />
+        </motion.div >
     )
 }
 
 export default QuizResults
+
 
