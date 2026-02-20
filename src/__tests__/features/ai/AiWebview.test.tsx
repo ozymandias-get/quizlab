@@ -22,9 +22,9 @@ vi.mock('@src/app/providers', () => ({
 
 // Mock Subcomponents
 vi.mock('@features/ai/components/AiSession', () => ({
-    default: ({ tab, isActive }: { tab: any, isActive: boolean }) => (
+    default: ({ tab, isActive }: { tab: import('@shared/types').AiPlatform, isActive: boolean }) => (
         <div data-testid={`ai-session-${tab.id}`}>
-            {tab.title} - {isActive ? 'Active' : 'Inactive'}
+            {String((tab as any).title || tab.id)} - {isActive ? 'Active' : 'Inactive'}
         </div>
     ),
 }))

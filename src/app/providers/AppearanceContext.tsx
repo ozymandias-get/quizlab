@@ -1,10 +1,10 @@
-﻿import React, { createContext, useContext, useMemo, useEffect, useState } from 'react'
-import { Logger } from '@src/utils/logger'
-import { STORAGE_KEYS } from '@src/constants/storageKeys'
-import { useLocalStorage, useLocalStorageString, useLocalStorageBoolean } from '@src/hooks'
+﻿import React, { useEffect } from 'react'
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+
 import { hexToRgba } from '@src/utils/uiUtils'
 
-interface AppearanceContextType {
+interface AppearanceState {
     showOnlyIcons: boolean;
     setShowOnlyIcons: (value: boolean) => void;
     bottomBarOpacity: number;
@@ -30,20 +30,56 @@ interface AppearanceContextType {
     startTour: () => void;
 }
 
-const AppearanceContext = createContext<AppearanceContextType | null>(null)
+export const useAppearance = create<AppearanceState>()(
+    persist(
+        (set) => ({
+            showOnlyIcons: true,
+            setShowOnlyIcons: (value) => set({ showOnlyIcons: value }),
+            bottomBarOpacity: 0.7,
+            setBottomBarOpacity: (value) => set({ bottomBarOpacity: value }),
+            bottomBarScale: 1.0,
+            setBottomBarScale: (value) => set({ bottomBarScale: value }),
+
+            bgType: 'solid',
+            setBgType: (type) => set({ bgType: type }),
+            bgSolidColor: '#000000',
+            setBgSolidColor: (color) => set({ bgSolidColor: color }),
+            bgAnimatedColors: ['#130a21', '#0a1d21', '#1a1010'],
+            setBgAnimatedColors: (colors) => set({ bgAnimatedColors: colors }),
+            bgRandomMode: false,
+            setBgRandomMode: (value) => set({ bgRandomMode: value }),
+            selectionColor: '#EAB308',
+            setSelectionColor: (color) => set({ selectionColor: color }),
+            isLayoutSwapped: false,
+            setIsLayoutSwapped: (value) => set({ isLayoutSwapped: value }),
+            toggleLayoutSwap: () => set((state) => ({ isLayoutSwapped: !state.isLayoutSwapped })),
+
+            isTourActive: false,
+            setIsTourActive: (value) => set({ isTourActive: value }),
+            startTour: () => set({ isTourActive: true })
+        }),
+        {
+            name: 'appearance-storage', // unique name
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({
+                showOnlyIcons: state.showOnlyIcons,
+                bottomBarOpacity: state.bottomBarOpacity,
+                bottomBarScale: state.bottomBarScale,
+                bgType: state.bgType,
+                bgSolidColor: state.bgSolidColor,
+                bgAnimatedColors: state.bgAnimatedColors,
+                bgRandomMode: state.bgRandomMode,
+                selectionColor: state.selectionColor,
+                isLayoutSwapped: state.isLayoutSwapped
+                // isTourActive is specifically excluded because we manage it locally per session
+            })
+        }
+    )
+)
 
 export function AppearanceProvider({ children }: { children: React.ReactNode }) {
-    const [showOnlyIcons, setShowOnlyIcons] = useLocalStorageBoolean(STORAGE_KEYS.SHOW_ONLY_ICONS, true)
-    const [bottomBarOpacity, setBottomBarOpacity] = useLocalStorage<number>(STORAGE_KEYS.BOTTOM_BAR_OPACITY, 0.7)
-    const [bottomBarScale, setBottomBarScale] = useLocalStorage<number>(STORAGE_KEYS.BOTTOM_BAR_SCALE, 1.0)
-
-    const [bgType, setBgType] = useLocalStorageString(STORAGE_KEYS.BG_TYPE, 'solid', ['solid', 'animated'])
-    const [bgSolidColor, setBgSolidColor] = useLocalStorageString(STORAGE_KEYS.BG_SOLID_COLOR, '#000000')
-    const [bgAnimatedColors, setBgAnimatedColors] = useLocalStorage<string[]>(STORAGE_KEYS.BG_ANIMATED_COLORS, ['#130a21', '#0a1d21', '#1a1010'])
-    const [bgRandomMode, setBgRandomMode] = useLocalStorageBoolean(STORAGE_KEYS.BG_RANDOM_MODE, false)
-    const [selectionColor, setSelectionColor] = useLocalStorageString(STORAGE_KEYS.SELECTION_COLOR, '#EAB308')
-    const [isLayoutSwapped, setIsLayoutSwapped] = useLocalStorageBoolean(STORAGE_KEYS.IS_LAYOUT_SWAPPED, false)
-    const [isTourActive, setIsTourActive] = useState(false)
+    const selectionColor = useAppearance(state => state.selectionColor)
+    const setIsTourActive = useAppearance(state => state.setIsTourActive)
 
     useEffect(() => {
         try {
@@ -54,15 +90,9 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
                 return () => clearTimeout(timer)
             }
         } catch (error) {
-            Logger.warn('LocalStorage onboarding check failed:', error)
+            console.warn('LocalStorage onboarding check failed:', error)
         }
-    }, [])
-
-    const startTour = () => {
-        setIsTourActive(true)
-    }
-
-    const toggleLayoutSwap = () => setIsLayoutSwapped(prev => !prev)
+    }, [setIsTourActive])
 
     useEffect(() => {
         const rgba = hexToRgba(selectionColor, 0.8);
@@ -70,38 +100,5 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
         document.documentElement.style.setProperty('--accent-color', selectionColor);
     }, [selectionColor]);
 
-    const value = useMemo(() => ({
-        showOnlyIcons, setShowOnlyIcons,
-        bottomBarOpacity, setBottomBarOpacity,
-        bottomBarScale, setBottomBarScale,
-        bgType, setBgType,
-        bgSolidColor, setBgSolidColor,
-        bgAnimatedColors, setBgAnimatedColors,
-        bgRandomMode, setBgRandomMode,
-        selectionColor, setSelectionColor,
-        isLayoutSwapped, setIsLayoutSwapped, toggleLayoutSwap,
-        isTourActive, setIsTourActive, startTour
-    }), [
-        showOnlyIcons, setShowOnlyIcons,
-        bottomBarOpacity, setBottomBarOpacity,
-        bottomBarScale, setBottomBarScale,
-        bgType, setBgType,
-        bgSolidColor, setBgSolidColor,
-        bgAnimatedColors, setBgAnimatedColors,
-        bgRandomMode, setBgRandomMode,
-        selectionColor, setSelectionColor,
-        isLayoutSwapped, setIsLayoutSwapped, isTourActive, setIsTourActive
-    ])
-
-    return (
-        <AppearanceContext.Provider value={value}>
-            {children}
-        </AppearanceContext.Provider>
-    )
-}
-
-export const useAppearance = () => {
-    const context = useContext(AppearanceContext)
-    if (!context) throw new Error('useAppearance must be used within AppearanceProvider')
-    return context
+    return <>{children}</>
 }

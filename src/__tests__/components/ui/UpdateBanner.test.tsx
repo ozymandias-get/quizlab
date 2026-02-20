@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import UpdateBanner from '../../../components/ui/UpdateBanner'
+import UpdateBanner from '@ui/UpdateBanner'
 
 // Mock icons
-vi.mock('../../../components/ui/Icons', () => ({
+vi.mock('@ui/Icons', () => ({
     UpdateIcon: () => <div data-testid="icon-update" />,
     CloseIcon: () => <div data-testid="icon-close" />,
     DownloadIcon: () => <div data-testid="icon-download" />

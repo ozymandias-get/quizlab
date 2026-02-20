@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { CenterHub } from '../../../../components/layout/BottomBar/CenterHub'
+import { CenterHub } from '@src/components/layout/BottomBar/CenterHub'
 
 // Mock dependencies
 vi.mock('framer-motion', () => ({
@@ -26,7 +26,7 @@ vi.mock('@src/components/ui/Icons', () => ({
 }))
 
 // Mock animations
-vi.mock('../../../../components/layout/BottomBar/animations', () => ({
+vi.mock('@src/components/layout/BottomBar/animations', () => ({
     hubIconVariants: {},
     hubIconTransition: {},
     iconStyleVariants: {},

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import FloatingButton from '../../../components/ui/FloatingButton'
+import FloatingButton from '@ui/FloatingButton'
 
 // Mock hooks
 vi.mock('@src/app/providers', () => ({

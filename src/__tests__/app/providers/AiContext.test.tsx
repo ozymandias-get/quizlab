@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { AiProvider, useAi } from '../../../app/providers/AiContext'
+import { AiProvider, useAi } from '@src/app/providers/AiContext'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -9,7 +9,7 @@ const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
 const mockShowError = vi.fn()
 
-vi.mock('../../../app/providers/ToastContext', () => ({
+vi.mock('@src/app/providers/ToastContext', () => ({
     useToast: () => ({
         showSuccess: mockShowSuccess,
         showWarning: mockShowWarning,

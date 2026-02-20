@@ -12,7 +12,8 @@ import {
 } from 'lucide-react'
 
 // @react-pdf-viewer imports
-import { Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
+import { Worker, Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 // PDF Viewer stilleri
 import '@react-pdf-viewer/core/lib/styles/index.css'
@@ -175,30 +176,32 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
                     }
                 }}
             >
-                <Viewer
-                    fileUrl={pdfUrl}
-                    plugins={plugins}
-                    defaultScale={SpecialZoomLevel.PageWidth}
-                    scrollMode={ScrollMode.Page}
-                    onPageChange={handlePageChange}
-                    onDocumentLoad={handleDocumentLoad}
-                    onZoom={(e) => setScaleFactor(e.scale)}
-                    renderError={(error: LoadError) => (
-                        <div className="flex items-center justify-center h-full text-red-500 p-8 text-center bg-stone-950/50 backdrop-blur-sm">
-                            <p>{t('pdf_load_error')}: {error.message || t('error_unknown_error')}</p>
-                        </div>
-                    )}
-                    renderPage={(props) => (
-                        <>
-                            {props.canvasLayer.children}
-                            {props.textLayer.children}
-                            {props.annotationLayer.children}
-                        </>
-                    )}
-                    theme={{
-                        theme: 'dark',
-                    }}
-                />
+                <Worker workerUrl={pdfjsWorkerUrl}>
+                    <Viewer
+                        fileUrl={pdfUrl}
+                        plugins={plugins}
+                        defaultScale={SpecialZoomLevel.PageWidth}
+                        scrollMode={ScrollMode.Page}
+                        onPageChange={handlePageChange}
+                        onDocumentLoad={handleDocumentLoad}
+                        onZoom={(e) => setScaleFactor(e.scale)}
+                        renderError={(error: LoadError) => (
+                            <div className="flex items-center justify-center h-full text-red-500 p-8 text-center bg-stone-950/50 backdrop-blur-sm">
+                                <p>{t('pdf_load_error')}: {error.message || t('error_unknown_error')}</p>
+                            </div>
+                        )}
+                        renderPage={(props) => (
+                            <>
+                                {props.canvasLayer.children}
+                                {props.textLayer.children}
+                                {props.annotationLayer.children}
+                            </>
+                        )}
+                        theme={{
+                            theme: 'dark',
+                        }}
+                    />
+                </Worker>
 
                 {contextMenu && (
                     <ContextMenu

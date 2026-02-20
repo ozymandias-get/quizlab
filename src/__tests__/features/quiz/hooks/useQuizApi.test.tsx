@@ -30,7 +30,7 @@ Object.defineProperty(window, 'electronAPI', {
 })
 
 // Validation: mock useToast correctly by mocking the specific file path
-vi.mock('../../../app/providers/ToastContext', () => ({
+vi.mock('@src/app/providers/ToastContext', () => ({
     useToast: () => ({
         showSuccess: vi.fn(),
         showError: vi.fn(),
@@ -47,7 +47,7 @@ vi.mock('@src/app/providers/ToastContext', () => ({
     })
 }))
 
-vi.mock('../../app/providers/LanguageContext', () => ({
+vi.mock('@src/app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key
     })

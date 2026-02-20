@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import LanguageTab from '../../../features/settings/components/LanguageTab'
+import LanguageTab from '@features/settings/components/LanguageTab'
 
 // Mock dependencies
 const { setLanguageMock } = vi.hoisted(() => ({
@@ -26,11 +26,12 @@ vi.mock('@src/components/ui/Icons', () => ({
 
 // Mock animated components
 vi.mock('framer-motion', async () => {
-    const ActualReact = await vi.importActual('react') as any
+    const ActualReact = await vi.importActual('react') as typeof import('react')
     return {
         motion: {
-            div: ActualReact.forwardRef(({ children, className, ...props }: any, ref: any) => (
-                <div ref={ref} className={className} {...props}>{children}</div>
+            div: ActualReact.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(({ children, className, ...props }, ref) => (
+                <div ref={ref} className={className} {...props}>
+                    {children}</div>
             ))
         }
     }

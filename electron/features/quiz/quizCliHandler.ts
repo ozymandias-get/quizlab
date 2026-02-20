@@ -238,7 +238,8 @@ function registerQuizHandlers() {
 
             // Try to find account info/email (sanitized for display only)
             let account = null
-            if (settings.security?.auth?.selectedType === 'OAuth') {
+            const authTypeStr = settings.security?.auth?.selectedType?.toLowerCase() || ''
+            if (authTypeStr.includes('oauth')) {
                 account = 'Google OAuth'
             } else if (settings.account || settings.email) {
                 // Only show first part of email for privacy
@@ -362,11 +363,19 @@ function registerQuizHandlers() {
 
                 const outputFilePath = generateOutputFilePath(workDir)
 
-                const prompt = buildQuizPrompt(quizParams, safePdfPath, outputFilePath)
+                // Merge params with fallback to settings
+                const mergedParams: QuizGenerateParams = {
+                    ...settings,
+                    ...quizParams
+                }
+
+                // SECURITY: Ensure numerical fallback for question count
+                mergedParams.questionCount = Number(mergedParams.questionCount) || settings.questionCount || 10
+
+                const prompt = buildQuizPrompt(mergedParams, safePdfPath, outputFilePath)
 
                 // Use model from params (frontend) or settings
-                const model = typeof quizParams.model === 'string' ? quizParams.model : settings.model
-
+                const model = typeof mergedParams.model === 'string' ? mergedParams.model : settings.model
 
                 const result = await executeGeminiCli(prompt, {
                     model: model,

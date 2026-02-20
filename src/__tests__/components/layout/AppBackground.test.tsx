@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import AppBackground from '../../../components/layout/AppBackground'
+import AppBackground from '@src/components/layout/AppBackground'
 
 // Mock dependencies
 vi.mock('@src/app/providers', () => ({

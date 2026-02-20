@@ -2,7 +2,7 @@ import React from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useAiSender } from '../../../../features/ai/hooks/useAiSender'
+import { useAiSender } from '@features/ai/hooks/useAiSender'
 
 // Mocks using vi.hoisted
 const { mockLogger, mockUsePrompts, mockSafeWebviewPaste } = vi.hoisted(() => ({
@@ -120,6 +120,7 @@ describe('useAiSender', () => {
             wrapper: createWrapper()
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendTextToAI('hello')
@@ -163,6 +164,7 @@ describe('useAiSender', () => {
             wrapper: createWrapper()
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendTextToAI('hello')
@@ -211,6 +213,7 @@ describe('useAiSender', () => {
             wrapper: createWrapper()
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendImageToAI(imageDataUrl)
@@ -234,6 +237,7 @@ describe('useAiSender', () => {
             wrapper: createWrapper()
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendImageToAI('data:image/png;base64,xx')

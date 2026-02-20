@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { useQuizKeyboard } from '../../../../features/quiz/hooks/useQuizKeyboard'
+import { useQuizKeyboard } from '@features/quiz/hooks/useQuizKeyboard'
 
 describe('useQuizKeyboard', () => {
     const navigateMock = vi.fn()

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { ToolButton } from '../../../../components/layout/BottomBar/ToolButton'
+import { ToolButton } from '@src/components/layout/BottomBar/ToolButton'
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -20,7 +20,7 @@ vi.mock('framer-motion', () => ({
 }))
 
 // Mock animations
-vi.mock('../../../../components/layout/BottomBar/animations', () => ({
+vi.mock('@src/components/layout/BottomBar/animations', () => ({
     toolItemVariants: {}
 }))
 

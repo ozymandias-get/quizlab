@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import { AIItem, AIItemProps } from '../../../../components/layout/BottomBar/AIItem'
+import { AIItem, AIItemProps } from '@src/components/layout/BottomBar/AIItem'
 
 // Mock dependencies
 vi.mock('@src/components/ui/Icons', () => ({

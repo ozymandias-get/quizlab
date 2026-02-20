@@ -71,23 +71,3 @@ export const STORAGE_KEYS = {
 } as const
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS]
-
-/**
- * Tüm localStorage verilerini temizle (debug/reset için)
- */
-export function clearAllStorageKeys(): void {
-    Object.values(STORAGE_KEYS).forEach(key => {
-        localStorage.removeItem(key)
-    })
-}
-
-/**
- * Belirli bir key'in localStorage'da olup olmadığını kontrol et
- * @param {string} key - STORAGE_KEYS'den bir key
- * @returns {boolean}
- */
-export function hasStorageKey(key: string): boolean {
-    return localStorage.getItem(key) !== null
-}
-
-export default STORAGE_KEYS

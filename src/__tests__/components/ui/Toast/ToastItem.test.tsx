@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import ToastItem from '../../../../components/ui/Toast/ToastItem'
+import ToastItem from '@ui/Toast/ToastItem'
 
 // Mock dependencies
 vi.mock('@src/app/providers', () => ({

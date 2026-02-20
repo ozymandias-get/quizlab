@@ -211,4 +211,3 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         </motion.div>
     )
 })
-

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { usePrompts } from '../../../../features/ai/hooks/usePrompts'
+import { usePrompts } from '@features/ai/hooks/usePrompts'
 
 // Mock dependencies
 const mockSetCustomPrompts = vi.fn()

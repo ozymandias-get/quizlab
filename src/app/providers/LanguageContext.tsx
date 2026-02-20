@@ -1,9 +1,10 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+﻿import React, { useEffect } from 'react'
+import { create } from 'zustand'
 import { Logger } from '@src/utils/logger'
 import { translations, LANGUAGES, DEFAULT_LANGUAGE, VALID_LANGUAGES, LanguageInfo } from '@src/constants/translations'
 import { STORAGE_KEYS } from '@src/constants/storageKeys'
 
-interface LanguageContextType {
+interface LanguageState {
     language: string;
     setLanguage: (lang: string) => void;
     t: (key: string, params?: Record<string, string>) => string;
@@ -11,46 +12,42 @@ interface LanguageContextType {
     currentLanguage: LanguageInfo;
 }
 
-export const LanguageContext = createContext<LanguageContextType | null>(null)
+const getInitialLanguage = (): string => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)
+        return saved && VALID_LANGUAGES.includes(saved) ? saved : DEFAULT_LANGUAGE
+    } catch (error) {
+        Logger.warn('LocalStorage language init failed:', error)
+        return DEFAULT_LANGUAGE
+    }
+}
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguageState] = useState<string>(() => {
+export const useLanguage = create<LanguageState>((set, get) => ({
+    language: getInitialLanguage(),
+    languages: LANGUAGES,
+    get currentLanguage() {
+        return LANGUAGES[get().language] || LANGUAGES[DEFAULT_LANGUAGE]
+    },
+
+    setLanguage: (newLang: string) => {
+        if (!VALID_LANGUAGES.includes(newLang)) return;
+
         try {
-            const saved = localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)
-            return saved && VALID_LANGUAGES.includes(saved) ? saved : DEFAULT_LANGUAGE
+            localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE, newLang)
         } catch (error) {
-            Logger.warn('LocalStorage language init failed:', error)
-            return DEFAULT_LANGUAGE
+            Logger.warn('LocalStorage language save failed:', error)
         }
-    })
 
-    // Dil değiştirme fonksiyonu
-    const setLanguage = useCallback((newLang: string) => {
-        if (VALID_LANGUAGES.includes(newLang)) {
-            setLanguageState(newLang)
-            try {
-                localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE, newLang)
-            } catch (error) {
-                Logger.warn('LocalStorage language save failed:', error)
-            }
-
-            // RTL diller için document direction ayarla
-            const langConfig = LANGUAGES[newLang]
-            document.documentElement.dir = langConfig?.dir || 'ltr'
-            document.documentElement.lang = newLang
-        }
-    }, [])
-
-    // İlk yüklemede direction ayarla
-    useEffect(() => {
-        const langConfig = LANGUAGES[language]
+        const langConfig = LANGUAGES[newLang]
         document.documentElement.dir = langConfig?.dir || 'ltr'
-        document.documentElement.lang = language
-    }, [language])
+        document.documentElement.lang = newLang
 
-    // Çeviri fonksiyonu
-    const t = useCallback((key: string, params: Record<string, string> = {}) => {
-        // Dot notation desteği (Örn: toast.info.title)
+        set({ language: newLang })
+    },
+
+    t: (key: string, params: Record<string, string> = {}) => {
+        const language = get().language;
+
         const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
             return path.split('.').reduce<unknown>((acc, part) => {
                 if (acc && typeof acc === 'object' && part in acc) {
@@ -67,10 +64,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             getNestedValue(defaultTranslationData, key) ||
             key
 
-        // Eğer sonuç bir obje ise (eksik anahtar), key'i geri dön
         let translationText = typeof rawTranslation === 'string' ? rawTranslation : key
 
-        // Parametreleri yerleştir (Interpolation)
         if (params && typeof params === 'object') {
             Object.entries(params).forEach(([k, v]) => {
                 translationText = translationText.replace(new RegExp(`\\{${k}\\}`, 'g'), v)
@@ -78,29 +73,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         }
 
         return translationText
+    }
+}))
+
+// For backward compatibility since it used to be a Provider wrapping the app
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+    const language = useLanguage(state => state.language)
+
+    // Ensure document lang and dir are set on mount and when language changes
+    useEffect(() => {
+        const langConfig = LANGUAGES[language] || LANGUAGES[DEFAULT_LANGUAGE]
+        document.documentElement.dir = langConfig?.dir || 'ltr'
+        document.documentElement.lang = language
     }, [language])
 
-    // Context value'yu memoize ederek gereksiz re-render'ları önle
-    const value = useMemo(() => ({
-        language,
-        setLanguage,
-        t,
-        languages: LANGUAGES,
-        currentLanguage: LANGUAGES[language]
-    }), [language, setLanguage, t])
-
-    return (
-        <LanguageContext.Provider value={value}>
-            {children}
-        </LanguageContext.Provider>
-    )
-}
-
-export function useLanguage() {
-    const context = useContext(LanguageContext)
-    if (!context) {
-        throw new Error('useLanguage must be used within a LanguageProvider')
-    }
-    return context
+    return <>{children}</>
 }
 

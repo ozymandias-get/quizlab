@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import ColorPicker from '../../../features/settings/components/ColorPicker'
+import ColorPicker from '@features/settings/components/ColorPicker'
 
 // Mock dependencies
 vi.mock('@src/app/providers', () => ({

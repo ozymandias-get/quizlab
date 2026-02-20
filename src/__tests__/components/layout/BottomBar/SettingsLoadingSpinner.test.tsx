@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import { SettingsLoadingSpinner } from '../../../../components/layout/BottomBar/SettingsLoadingSpinner'
+import { SettingsLoadingSpinner } from '@src/components/layout/BottomBar/SettingsLoadingSpinner'
 
 // Mock useLanguage
 vi.mock('@src/app/providers', () => ({

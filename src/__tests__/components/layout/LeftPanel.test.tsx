@@ -49,10 +49,9 @@ describe('LeftPanel Component', () => {
         })
     })
 
-    it('renders PdfViewer inside Worker and ErrorBoundary', async () => {
+    it('renders PdfViewer inside ErrorBoundary', async () => {
         render(<LeftPanel {...defaultProps} />)
 
-        expect(screen.getByTestId('pdf-worker')).toBeInTheDocument()
         expect(screen.getByTestId('error-boundary')).toBeInTheDocument()
 
         await waitFor(() => {

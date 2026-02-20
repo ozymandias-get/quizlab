@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act } from '@testing-library/react'
-import ConfettiCanvas from '../../../components/ui/ConfettiCanvas'
+import ConfettiCanvas from '@ui/ConfettiCanvas'
 
 describe('ConfettiCanvas', () => {
     let mockContext: any

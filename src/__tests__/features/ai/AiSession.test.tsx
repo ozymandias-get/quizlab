@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import AiSession from '../../../features/ai/components/AiSession'
+import AiSession from '@features/ai/components/AiSession'
 
 // Mock Hooks
 vi.mock('@src/app/providers', () => ({
@@ -48,7 +48,7 @@ vi.mock('@src/components/ui/AestheticLoader', () => ({
     default: () => <div data-testid="aesthetic-loader">Loading...</div>
 }))
 
-vi.mock('../../../features/ai/components/AiErrorView', () => ({
+vi.mock('@features/ai/components/AiErrorView', () => ({
     default: ({ error, onRetry }: any) => (
         <div data-testid="ai-error-view">
             Error: {error.message}

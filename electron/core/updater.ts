@@ -1,6 +1,5 @@
 import { app, ipcMain, shell, net } from 'electron'
 import { APP_CONFIG } from '../main/constants'
-import fetch from 'cross-fetch'
 
 // Local state
 type LatestRelease = {
@@ -52,8 +51,8 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-        // Attempt 1: Try with cross-fetch (standard)
-        const response = await fetch(url, {
+        // Attempt 1: Try with standard fetch
+        const response = await globalThis.fetch(url, {
             headers: {
                 'User-Agent': `Electron-App/${app.getVersion()}`, // Generic UA to avoid GitHub blocking
                 'Accept': 'application/vnd.github.v3+json'

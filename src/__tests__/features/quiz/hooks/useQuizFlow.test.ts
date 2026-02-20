@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { useQuizFlow } from '../../../../features/quiz/hooks/useQuizFlow'
-import { QuizStep } from '../../../../features/quiz/types'
+import { useQuizFlow } from '@features/quiz/hooks/useQuizFlow'
+import { QuizStep } from '@features/quiz/types'
 import { DEFAULT_SETTINGS } from '@features/quiz/api'
 
 // Mock dependencies

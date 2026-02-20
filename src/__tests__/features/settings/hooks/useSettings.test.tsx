@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { useSettings } from '../../../../features/settings/hooks/useSettings'
+import { useSettings } from '@features/settings/hooks/useSettings'
 
 // --- Mocks ---
 

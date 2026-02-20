@@ -222,17 +222,13 @@ export function buildQuizPrompt(params: QuizPromptParams, pdfPath: string, outpu
     const outputFileName = path.basename(outputFilePath)
 
     return `
-    COMMAND: Analyze the file @${path.basename(pdfPath)} and generate a ${safeQuestionCount}-question quiz.
-    
-    🚨 CRITICAL - FILE OUTPUT REQUIRED:
-    You MUST write the JSON result to file: ${outputFileName}
-    Use your write_file tool to create this file with ONLY the JSON array content.
-    DO NOT output the JSON to console. WRITE IT TO THE FILE.
+    COMMAND: Analyze the file @${path.basename(pdfPath)} and generate EXACTLY ${safeQuestionCount} questions.
     
     INSTRUCTIONS:
     1. DO NOT greet me. DO NOT say "I am ready".
-    2. Write ONLY the JSON ARRAY to the file. NO MARKDOWN, NO EXTRA TEXT.
-    3. If file is empty => write [{"error": "Empty file"}]
+    2. Respond strictly with a single JSON ARRAY containing EXACTLY ${safeQuestionCount} questions. No more, no less.
+    3. If the file is empty or cannot be read, output [{"error": "Empty file"}]
+    4. Wrap the response in \`\`\`json and \`\`\` tags.
 
     ${t.persona}
     
@@ -245,6 +241,7 @@ export function buildQuizPrompt(params: QuizPromptParams, pdfPath: string, outpu
     ${contextInstruction}
     
     ### ${t.titles.dist}
+    - **SORU SAYISI (QUESTION COUNT):** KESİNLİKLE VE TAM OLARAK ${safeQuestionCount} ADET SORU ÜRETMELİSİNİZ! EKSİK VEYA FAZLA OLAMAZ. (YOU MUST GENERATE EXACTLY ${safeQuestionCount} QUESTIONS)
     ${activeStyleInstruction}
 
     ${t.monologue}

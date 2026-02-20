@@ -48,8 +48,8 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
         ...options,
         onError: (error, variables, context) => {
             if (options?.onError) {
-                // @ts-ignore - Suppress lint error about argument count
-                (options.onError as any)(error, variables, context)
+                // @ts-expect-error - React Query callback provides 3 args but internal options type may expect 4
+                options.onError(error, variables, context)
             }
             // Explicitly pass undefined for optional parameters to satisfy strict linter checks
             showError(options?.errorMessage || (error as Error).message || 'An error occurred', 'Mutation Error', undefined, undefined)

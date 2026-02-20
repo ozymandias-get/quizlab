@@ -1,8 +1,6 @@
 import React, { memo, Suspense, lazy } from 'react'
 import { useLanguage } from '@src/app/providers/LanguageContext'
 import type { PdfFile } from '@shared/types'
-import { Worker } from '@react-pdf-viewer/core'
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 import ErrorBoundary from '@src/components/ui/ErrorBoundary'
 import { useSharedDragDrop } from '@src/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@src/components/ui/Icons'
@@ -67,29 +65,27 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
             <DropOverlay isVisible={isDragOver} t={t} />
 
             <ErrorBoundary title={t('error_pdf_handler')}>
-                <Worker workerUrl={pdfjsWorkerUrl}>
-                    <div className="flex-1 overflow-hidden relative h-full">
-                        <Suspense fallback={
-                            <div className="flex items-center justify-center h-full">
-                                <LoaderIcon className="w-8 h-8 text-amber-500" />
-                            </div>
-                        }>
-                            <div className="absolute inset-0 w-full h-full animate-in fade-in duration-300">
-                                <ErrorBoundary title={t('error_pdf_viewer')}>
-                                    <PdfViewer
-                                        pdfFile={pdfFile}
-                                        onSelectPdf={onSelectPdf}
-                                        onTextSelection={onTextSelection}
-                                        t={t}
-                                        initialPage={initialPage}
-                                        onResumePdf={onResumePdf}
-                                        lastReadingInfo={lastReadingInfo}
-                                    />
-                                </ErrorBoundary>
-                            </div>
-                        </Suspense>
-                    </div>
-                </Worker>
+                <div className="flex-1 overflow-hidden relative h-full">
+                    <Suspense fallback={
+                        <div className="flex items-center justify-center h-full">
+                            <LoaderIcon className="w-8 h-8 text-amber-500" />
+                        </div>
+                    }>
+                        <div className="absolute inset-0 w-full h-full animate-in fade-in duration-300">
+                            <ErrorBoundary title={t('error_pdf_viewer')}>
+                                <PdfViewer
+                                    pdfFile={pdfFile}
+                                    onSelectPdf={onSelectPdf}
+                                    onTextSelection={onTextSelection}
+                                    t={t}
+                                    initialPage={initialPage}
+                                    onResumePdf={onResumePdf}
+                                    lastReadingInfo={lastReadingInfo}
+                                />
+                            </ErrorBoundary>
+                        </div>
+                    </Suspense>
+                </div>
             </ErrorBoundary>
         </div>
     )

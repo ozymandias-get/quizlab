@@ -48,4 +48,3 @@ export const APP_CONSTANTS = {
 } as const
 
 export type AppConstants = typeof APP_CONSTANTS
-export default APP_CONSTANTS

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import AestheticLoader from '../../../components/ui/AestheticLoader'
+import AestheticLoader from '@ui/AestheticLoader'
 
 // Mock useLanguage
 vi.mock('@src/app/providers', () => ({

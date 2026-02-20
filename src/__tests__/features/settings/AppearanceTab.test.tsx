@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import AppearanceTab from '../../../features/settings/components/AppearanceTab'
+import AppearanceTab from '@features/settings/components/AppearanceTab'
 
 // Mock dependencies using vi.hoisted to ensure they are available in the mock factory
 const {

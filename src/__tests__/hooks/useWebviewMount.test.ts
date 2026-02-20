@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { useWebviewMount } from '../../hooks/useWebviewMount'
+import { useWebviewMount } from '@src/hooks/useWebviewMount'
 
 describe('useWebviewMount', () => {
     beforeEach(() => {

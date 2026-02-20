@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { useQuizTimer } from '../../../../features/quiz/hooks/useQuizTimer'
+import { useQuizTimer } from '@features/quiz/hooks/useQuizTimer'
 
 describe('useQuizTimer', () => {
     beforeEach(() => {

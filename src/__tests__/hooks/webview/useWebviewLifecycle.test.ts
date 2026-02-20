@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { useWebviewLifecycle } from '../../../hooks/webview/useWebviewLifecycle'
+import { useWebviewLifecycle } from '@src/hooks/webview/useWebviewLifecycle'
 
 describe('useWebviewLifecycle', () => {
     const mockT = vi.fn((key) => key)
