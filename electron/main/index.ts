@@ -22,6 +22,10 @@ if (process.platform === 'win32') {
     app.setAppUserModelId('com.quizlab.reader')
 }
 
+// Disable quota management to prevent database errors
+app.commandLine.appendSwitch('disable-features', 'StorageAccessAPI,AutofillServerCommunication')
+app.commandLine.appendSwitch('disable-site-isolation-trials')
+
 if (!isDev) {
     const gotTheLock = app.requestSingleInstanceLock()
     if (!gotTheLock) {
@@ -55,6 +59,23 @@ app.commandLine.appendSwitch('force-device-scale-factor', '1')
 app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication')
 
 async function initializeApp() {
+    // Clear potentially corrupted storage data on startup
+    try {
+        const userDataPath = app.getPath('userData')
+        const quotaDBPath = `${userDataPath}/QuotaManager`
+        const quotaDBJournalPath = `${userDataPath}/QuotaManager-journal`
+        
+        if (require('fs').existsSync(quotaDBPath)) {
+            require('fs').unlinkSync(quotaDBPath)
+            console.log('Cleared corrupted QuotaManager database')
+        }
+        if (require('fs').existsSync(quotaDBJournalPath)) {
+            require('fs').unlinkSync(quotaDBJournalPath)
+        }
+    } catch (e) {
+        // Ignore errors during cleanup
+    }
+
     createSplashWindow()
 
     registerPdfProtocol()
@@ -81,6 +102,34 @@ app.on('activate', async () => {
 app.on('window-all-closed', () => {
     stopPdfCleanupInterval()
     clearAllPdfPaths()
+
+    // Clear corrupted storage before exit to prevent quota database errors on next start
+    try {
+        const userDataPath = app.getPath('userData')
+        const fs = require('fs')
+        const path = require('path')
+        
+        // Remove problematic storage files
+        const filesToClean = [
+            'QuotaManager',
+            'QuotaManager-journal',
+            'DIPS',
+            'DIPS-journal'
+        ]
+        
+        filesToClean.forEach(file => {
+            const filePath = path.join(userDataPath, file)
+            if (fs.existsSync(filePath)) {
+                try {
+                    fs.unlinkSync(filePath)
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+            }
+        })
+    } catch (e) {
+        // Ignore cleanup errors
+    }
 
     if (process.platform !== 'darwin') {
         app.quit()

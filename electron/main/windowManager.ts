@@ -152,7 +152,10 @@ export async function createWindow() {
             sandbox: false,
             webviewTag: true,
             webSecurity: true,
-            spellcheck: false
+            spellcheck: false,
+            // Prevent storage/quota issues
+            allowRunningInsecureContent: false,
+            experimentalFeatures: false
         }
     })
 
@@ -193,6 +196,16 @@ export async function createWindow() {
 
 function setupSessions() {
     try {
+        // Configure default session to prevent quota database errors
+        const defaultSession = session.defaultSession
+        if (defaultSession) {
+            // Disable storage quota enforcement
+            defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+                const allowed = ['notifications', 'media']
+                callback(allowed.includes(permission))
+            })
+        }
+
         const aiSession = session.fromPartition(APP_CONFIG.PARTITIONS.AI)
 
         aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
