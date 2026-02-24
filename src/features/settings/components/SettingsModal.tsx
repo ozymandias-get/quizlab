@@ -9,6 +9,7 @@ import { SettingsIcon, CloseIcon, LanguageIcon, InfoIcon, GridIcon, EyeIcon, Mag
 // Lazy Load Settings Tabs
 const LanguageTab = lazy(() => import('./LanguageTab'))
 const AboutTab = lazy(() => import('./AboutTab'))
+const SitesTab = lazy(() => import('./SitesTab'))
 const ModelsTab = lazy(() => import('./ModelsTab'))
 const AppearanceTab = lazy(() => import('./AppearanceTab'))
 const SelectorsTab = lazy(() => import('./SelectorsTab'))
@@ -26,17 +27,17 @@ interface SettingsModalProps {
 }
 
 /**
- * Ayarlar modalý ana bileþeni
+ * Ayarlar modalï¿½ ana bileï¿½eni
  * Headless UI + Framer Motion Premium Redesign v2
  */
 function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const { t } = useLanguage()
     const modalRef = useRef<HTMLDivElement>(null)
 
-    // Custom hook ile tüm settings state ve iþlemlerini al
+    // Custom hook ile tï¿½m settings state ve iï¿½lemlerini al
     const settings = useSettings()
 
-    // ESC tuþu ile kapatma
+    // ESC tuï¿½u ile kapatma
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
@@ -47,7 +48,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [isOpen, onClose])
 
-    // Modal dýþýna týklama ile kapatma
+    // Modal dï¿½ï¿½ï¿½na tï¿½klama ile kapatma
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
@@ -69,6 +70,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const tabDefs = React.useMemo(() => [
         { id: 'prompts', label: t('prompts'), icon: MagicWandIcon },
         { id: 'models', label: t('models'), icon: GridIcon },
+        { id: 'sites', label: t('ai_sites') || 'Siteler', icon: GridIcon },
         { id: 'gemini-cli', label: t('gemini_cli'), icon: TerminalIcon },
         { id: 'selectors', label: t('selectors'), icon: SelectorIcon },
         { id: 'appearance', label: t('appearance'), icon: EyeIcon },
@@ -82,6 +84,8 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 return <PromptsTab />
             case 'models':
                 return <ModelsTab />
+            case 'sites':
+                return <SitesTab />
             case 'gemini-cli':
                 return <GeminiCliTab />
             case 'selectors':

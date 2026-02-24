@@ -105,7 +105,7 @@ export const usePdfSelection = () => {
             }
         } catch (error) {
             Logger.error('[usePdfSelection] Resume Error:', error)
-            // PDF artýk mevcut deðilse kayýtlý bilgiyi sil
+            // PDF artï¿½k mevcut deï¿½ilse kayï¿½tlï¿½ bilgiyi sil
             localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
             showError('error_pdf_load')
         }
@@ -126,13 +126,20 @@ export const usePdfSelection = () => {
         }
     }, [])
 
+    const clearLastReading = useCallback(() => {
+        try {
+            localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
+        } catch { /* ignore */ }
+    }, [])
+
     return {
         pdfFile,
         setPdfFile,
         handleSelectPdf,
         handlePdfDrop,
         resumeLastPdf,
-        getLastReadingInfo
+        getLastReadingInfo,
+        clearLastReading
     }
 }
 

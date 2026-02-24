@@ -15,6 +15,7 @@ interface LeftPanelProps {
     width: number;
     t: (key: string) => string;
     onResumePdf?: () => void;
+    onClearResumePdf?: () => void;
     lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
     initialPage?: number;
 }
@@ -42,6 +43,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     onSelectPdf,
     onTextSelection,
     onResumePdf,
+    onClearResumePdf,
     lastReadingInfo,
     initialPage
 }) => {
@@ -80,6 +82,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                                     t={t}
                                     initialPage={initialPage}
                                     onResumePdf={onResumePdf}
+                                    onClearResumePdf={onClearResumePdf}
                                     lastReadingInfo={lastReadingInfo}
                                 />
                             </ErrorBoundary>

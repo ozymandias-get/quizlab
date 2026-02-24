@@ -8,13 +8,15 @@ interface AddAiModelFormProps {
     setShowAddForm: (show: boolean) => void;
     onSuccess: (id: string) => void;
     t: (key: string) => string;
+    isSite?: boolean;
 }
 
 export const AddAiModelForm: React.FC<AddAiModelFormProps> = ({
     showAddForm,
     setShowAddForm,
     onSuccess,
-    t
+    t,
+    isSite = false
 }) => {
     const { mutateAsync: addCustomAi, isPending: isAdding } = useAddCustomAi()
     const [newAiName, setNewAiName] = useState('')
@@ -27,7 +29,8 @@ export const AddAiModelForm: React.FC<AddAiModelFormProps> = ({
         try {
             const result = await addCustomAi({
                 name: newAiName.trim(),
-                url: newAiUrl.trim()
+                url: newAiUrl.trim(),
+                isSite: isSite
             })
 
             if (result.success) {
@@ -77,7 +80,7 @@ export const AddAiModelForm: React.FC<AddAiModelFormProps> = ({
                                 type="text"
                                 value={newAiName}
                                 onChange={e => setNewAiName(e.target.value)}
-                                placeholder={t('placeholder_ai_name')}
+                                placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
                                 className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none transition-colors"
                             />
                         </div>

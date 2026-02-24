@@ -55,7 +55,7 @@ const App: React.FC = () => {
     })
 
     // PDF Selection Hook
-    const { pdfFile, handleSelectPdf, handlePdfDrop, resumeLastPdf, getLastReadingInfo } = usePdfSelection()
+    const { pdfFile, handleSelectPdf, handlePdfDrop, resumeLastPdf, getLastReadingInfo, clearLastReading } = usePdfSelection()
 
     // Last reading info for resume button
     const lastReadingInfo = getLastReadingInfo()
@@ -146,6 +146,7 @@ const App: React.FC = () => {
                                             await resumeLastPdf()
                                         }
                                     }}
+                                    onClearResumePdf={clearLastReading}
                                     lastReadingInfo={lastReadingInfo}
                                     initialPage={initialPage}
                                 />

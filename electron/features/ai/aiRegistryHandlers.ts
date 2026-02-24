@@ -12,7 +12,7 @@ import {
 } from './aiManager'
 
 type CustomPlatformsMap = Record<string, AiPlatform>
-type AddCustomAiInput = { name: string; url: string }
+export type AddCustomAiInput = { name: string; url: string; isSite?: boolean }
 
 export function registerAiRegistryHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
@@ -21,19 +21,26 @@ export function registerAiRegistryHandlers() {
     ipcMain.handle(IPC_CHANNELS.ADD_CUSTOM_AI, async (event, platformData: AddCustomAiInput) => {
         try {
             const id = 'custom_' + Date.now()
+            // Normalize URL to prevent ERR_FILE_NOT_FOUND when user types "google.com" without protocol
+            let normalizedUrl = platformData.url.trim()
+            if (!/^https?:\/\//i.test(normalizedUrl)) {
+                normalizedUrl = `https://${normalizedUrl}`
+            }
+
             let newPlatform: AiPlatform = {
                 id,
                 name: platformData.name,
                 displayName: platformData.name,
-                url: platformData.url,
-                icon: 'globe',
+                url: normalizedUrl,
+                icon: platformData.isSite ? 'globe' : 'globe', // Keep globe or customize later
                 selectors: { input: null, button: null, waitFor: null },
                 isCustom: true,
+                isSite: platformData.isSite,
                 color: undefined as string | undefined
             }
 
             // Restore icon from inactive platforms if available
-            const lowerUrl = platformData.url.toLowerCase().trim()
+            const lowerUrl = normalizedUrl.toLowerCase()
             for (const key in INACTIVE_PLATFORMS) {
                 const p = INACTIVE_PLATFORMS[key]
                 if (p.url && (lowerUrl.includes(p.url.replace('https://', '').replace(/\/$/, '')) || p.url.includes(lowerUrl))) {

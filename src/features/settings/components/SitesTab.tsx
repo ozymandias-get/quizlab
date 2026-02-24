@@ -18,8 +18,8 @@ const PlusIcon = ({ className }: IconProps) => (
     </svg>
 )
 
-const ModelsTab = memo(() => {
-    const { enabledModels, setEnabledModels, aiSites } = useAi()
+const SitesTab = memo(() => {
+    const { enabledModels: enabledSites, setEnabledModels: setEnabledSites, aiSites } = useAi()
     const { t } = useLanguage()
 
     // React Query mutation hooks
@@ -28,21 +28,21 @@ const ModelsTab = memo(() => {
     const MIN_ENABLED_MODELS = 1
 
     const toggleModel = useCallback((key: string) => {
-        let newModels: string[]
-        if (enabledModels.includes(key)) {
-            if (enabledModels.length <= MIN_ENABLED_MODELS) return
-            newModels = enabledModels.filter(m => m !== key)
+        let newSites: string[]
+        if (enabledSites.includes(key)) {
+            if (enabledSites.length <= MIN_ENABLED_MODELS) return
+            newSites = enabledSites.filter((m: string) => m !== key)
         } else {
-            newModels = [...enabledModels, key]
+            newSites = [...enabledSites, key]
         }
-        setEnabledModels(newModels)
-    }, [enabledModels, setEnabledModels])
+        setEnabledSites(newSites)
+    }, [enabledSites, setEnabledSites])
 
-    // Filter AI models (!isSite) from aiSites
-    const modelsList = useMemo(() => Object.values(aiSites).filter(site => !site.isSite).map(site => site.id), [aiSites])
+    // Filter sites (isSite === true) from aiSites
+    const sitesList = useMemo(() => Object.values(aiSites).filter((site: any) => site.isSite).map(site => site.id), [aiSites])
     
-    // Count only enabled items that are actually AI models (exist in aiSites and isSite is false)
-    const enabledModelsCount = useMemo(() => enabledModels.filter(id => aiSites[id] && !aiSites[id].isSite).length, [enabledModels, aiSites])
+    // Count only enabled items that are actually sites (exist in aiSites and isSite is true)
+    const enabledSitesCount = useMemo(() => enabledSites.filter(id => aiSites[id] && aiSites[id].isSite).length, [enabledSites, aiSites])
 
     // State for toggling add form
     const [showAddForm, setShowAddForm] = useState(false)
@@ -54,21 +54,21 @@ const ModelsTab = memo(() => {
         try {
             await deleteCustomAi(id)
 
-            // Remove from enabled models if present
-            if (enabledModels.includes(id)) {
-                setEnabledModels(enabledModels.filter(m => m !== id))
+            // Remove from enabled sites if present
+            if (enabledSites.includes(id)) {
+                setEnabledSites(enabledSites.filter((m: string) => m !== id))
             }
         } catch {
             // Error already shown via toast
         }
-    }, [t, enabledModels, setEnabledModels, deleteCustomAi])
+    }, [t, enabledSites, setEnabledSites, deleteCustomAi])
 
     const handleAddSuccess = useCallback((id: string) => {
         // Enable the new model by default
-        if (id && !enabledModels.includes(id)) {
-            setEnabledModels([...enabledModels, id])
+        if (id && !enabledSites.includes(id)) {
+            setEnabledSites([...enabledSites, id])
         }
-    }, [enabledModels, setEnabledModels])
+    }, [enabledSites, setEnabledSites])
 
     return (
         <div className="space-y-6 pb-20">
@@ -80,10 +80,10 @@ const ModelsTab = memo(() => {
                     </div>
                     <div className="space-y-0.5">
                         <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">
-                            {t('ai_settings')}
+                            {t('site_settings')}
                         </p>
                         <h4 className="text-sm font-bold text-white/90 tracking-wide">
-                            {t('ai_models')}
+                            {t('ai_sites')}
                         </h4>
                     </div>
                 </div>
@@ -103,34 +103,34 @@ const ModelsTab = memo(() => {
                     ) : (
                         <>
                             <PlusIcon className="w-4 h-4" />
-                            <span className="text-xs font-bold">{t('add_custom_ai')}</span>
+                            <span className="text-xs font-bold">{t('add_site')}</span>
                         </>
                     )}
                 </button>
             </div>
 
-            {/* Add AI Form */}
+            {/* Add Site Form */}
             <AddAiModelForm
                 showAddForm={showAddForm}
                 setShowAddForm={setShowAddForm}
                 onSuccess={handleAddSuccess}
                 t={t}
-                isSite={false}
+                isSite={true}
             />
 
             {/* Description */}
             {!showAddForm && (
                 <div className="px-1">
                     <p className="text-xs text-white/40 leading-relaxed">
-                        {t('models_description')}
+                        {t('sites_description')}
                     </p>
                 </div>
             )}
 
             {/* Model List */}
             <AiModelList
-                modelsList={modelsList}
-                enabledModels={enabledModels}
+                modelsList={sitesList}
+                enabledModels={enabledSites}
                 aiSites={aiSites}
                 toggleModel={toggleModel}
                 handleDeleteAi={handleDeleteAi}
@@ -139,18 +139,24 @@ const ModelsTab = memo(() => {
                 t={t}
             />
 
-            {/* Footer Stats */}
-            <div className="px-1 pt-4 border-t border-white/[0.04]">
-                <p className="text-[10px] text-white/20 uppercase tracking-widest">
-                    {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
+            {/* Stats area */}
+            <div className="flex border-t border-white/10 p-4">
+                <p className="flex items-center gap-2 text-sm text-white/50 w-1/2 justify-center">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    {t('active_sites')}: {enabledSitesCount} / {sitesList.length} {t('sites_count')}
+                </p>
+                <div className="w-px bg-white/10 mx-2"></div>
+                <p className="flex items-center gap-2 text-sm text-white/50 w-1/2 justify-center">
+                    <GridIcon className="w-4 h-4" />
+                    {t('total')}: {sitesList.length} {t('sites_count')}
                 </p>
             </div>
         </div>
     )
 })
 
-ModelsTab.displayName = 'ModelsTab'
+SitesTab.displayName = 'SitesTab'
 
-export default ModelsTab
+export default SitesTab
 
 

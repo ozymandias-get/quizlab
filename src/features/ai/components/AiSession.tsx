@@ -47,7 +47,7 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
                 key={tab.modelId} // Reset webview if model changes in this tab
                 ref={onWebviewRef}
                 src={initialUrl}
-                partition={siteConfig?.partition || "persist:ai_session"}
+                partition={siteConfig?.isSite ? `temp_${tab.modelId}_${Date.now()}` : siteConfig?.partition || "persist:ai_session"}
                 className="flex-1 w-full h-full"
                 allowpopups={"true" as any}
                 webpreferences="contextIsolation=yes, sandbox=no"

@@ -36,6 +36,7 @@ export type AiPlatform = {
     id: string;
     name: string;
     url: string;
+    isSite?: boolean;
     partition?: string;
     icon?: string;
     color?: string;
@@ -76,7 +77,7 @@ export type AiRegistryResponse = {
     chromeUserAgent: string;
 }
 
-export type CustomAiInput = { name: string; url: string }
+export type CustomAiInput = { name: string; url: string; isSite?: boolean }
 export type CustomAiResult = { success: boolean; id?: string; platform?: AiPlatform; error?: string }
 
 // ============================================

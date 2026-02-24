@@ -2,10 +2,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useElectronQuery, useElectronMutation } from '../useElectron'
 import type {
     AiRegistryResponse,
-    AiSelectorConfig,
     CustomAiInput,
     CustomAiResult
 } from '@shared/types'
+import type { AiSelectorConfig } from '@electron/features/ai/aiManager'
 import { useToast } from '@src/app/providers/ToastContext'
 import { useLanguage } from '@src/app/providers/LanguageContext'
 
@@ -101,6 +101,7 @@ export function useDeleteAiConfig() {
 /**
  * Add Custom AI Mutation
  */
+
 export function useAddCustomAi() {
     const queryClient = useQueryClient()
     const { showSuccess, showError } = useToast()

@@ -14,7 +14,8 @@ interface SelectorsTabProps {
 
 /**
  * Selectors Management Tab
- * Lists enabled AI models and allows managing their custom selectors.
+ * Lists enabled AI sites and allows managing their custom selectors.
+ * Regular web sites (isSite: true) are not shown in this list.
  */
 const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
     const { aiSites, startTutorial } = useAi()
@@ -59,7 +60,8 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
         }
     }, [selectors])
 
-    const aiEntries = useMemo(() => Object.entries(aiSites), [aiSites])
+    // Filter to show only AI models (isSite !== true), not regular web sites
+    const aiEntries = useMemo(() => Object.entries(aiSites).filter(([, ai]) => !ai.isSite), [aiSites])
 
     return (
         <div className="space-y-6 pb-20">

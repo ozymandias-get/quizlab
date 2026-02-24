@@ -44,6 +44,7 @@ interface PdfViewerProps {
     t?: (key: string) => string;
     initialPage?: number;
     onResumePdf?: () => void;
+    onClearResumePdf?: () => void;
     lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
 }
 
@@ -53,7 +54,7 @@ interface PdfViewerProps {
  * Virtualization is enabled by default in react-pdf-viewer, but 
  * optimized here with Worker and stable plugin references.
  */
-function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, lastReadingInfo }: PdfViewerProps) {
+function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, onClearResumePdf, lastReadingInfo }: PdfViewerProps) {
     const { autoSend, toggleAutoSend, sendImageToAI } = useAi()
     const { startScreenshot } = useAppTools()
     const { t: contextT } = useLanguage()
@@ -159,7 +160,7 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
 
     // === RENDER ===
     if (!pdfUrl) {
-        return <PdfPlaceholder onSelectPdf={onSelectPdf} onResumePdf={onResumePdf} lastReadingInfo={lastReadingInfo} />
+        return <PdfPlaceholder onSelectPdf={onSelectPdf} onResumePdf={onResumePdf} onClearResumePdf={onClearResumePdf} lastReadingInfo={lastReadingInfo} />
     }
 
     return (
