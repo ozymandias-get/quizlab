@@ -1,10 +1,10 @@
-﻿# 🧪 QuizLab Reader | Yapay Zeka Destekli PDF Çalışma Aracı & Quiz Oluşturucu
+# 🧪 QuizLab Reader | Yapay Zeka Destekli PDF Çalışma Aracı & Quiz Oluşturucu
 
 <!-- markdownlint-disable MD033 -->
 <div align="center">
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg?style=flat-square)](README.md)
-[![Sürüm](https://img.shields.io/badge/sürüm-2.0.1-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Sürüm](https://img.shields.io/badge/sürüm-2.0.3-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 [![Built with](https://img.shields.io/badge/Altyapı-Electron%20%26%20React-61DAFB?style=flat-square&logo=react)](https://react.dev/)
@@ -117,10 +117,10 @@ Hız ve güvenilirlik sağlayan performans öncelikli, modern bir mimari ile gel
 
 | Kategori | Teknoloji |
 | :--- | :--- |
-| **Çekirdek** | ![Electron](https://img.shields.io/badge/Electron-40-2F3241?style=flat-square&logo=electron) ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react) |
+| **Çekirdek** | ![Electron](https://img.shields.io/badge/Electron-33-2F3241?style=flat-square&logo=electron) ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react) |
 | **Dil** | ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript) |
 | **Stil** | ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-06B6D4?style=flat-square&logo=tailwindcss) |
-| **Derleme** | ![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite) ![Electron Builder](https://img.shields.io/badge/Electron_Builder-gray?style=flat-square) |
+| **Derleme** | ![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite) ![Electron Builder](https://img.shields.io/badge/Electron_Builder-gray?style=flat-square) |
 | **PDF Motoru** | React PDF Viewer + PDF.js |
 | **Animasyonlar** | Framer Motion |
 | **UI Bileşenleri** | Headless UI |

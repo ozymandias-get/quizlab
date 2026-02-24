@@ -4,7 +4,7 @@
 <div align="center">
 
 [![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg?style=flat-square)](README_TR.md)
-[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Version](https://img.shields.io/badge/version-2.0.3-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 [![Built with](https://img.shields.io/badge/Built%20with-Electron%20%26%20React-61DAFB?style=flat-square&logo=react)](https://react.dev/)
@@ -117,10 +117,10 @@ Built with a performance-first, modern architecture ensuring speed and reliabili
 
 | Category | Technology |
 | :--- | :--- |
-| **Core** | ![Electron](https://img.shields.io/badge/Electron-40-2F3241?style=flat-square&logo=electron) ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react) |
+| **Core** | ![Electron](https://img.shields.io/badge/Electron-33-2F3241?style=flat-square&logo=electron) ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react) |
 | **Language** | ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript) |
 | **Styling** | ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v3-06B6D4?style=flat-square&logo=tailwindcss) |
-| **Build** | ![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite) ![Electron Builder](https://img.shields.io/badge/Electron_Builder-gray?style=flat-square) |
+| **Build** | ![Vite](https://img.shields.io/badge/Vite-7-646CFF?style=flat-square&logo=vite) ![Electron Builder](https://img.shields.io/badge/Electron_Builder-gray?style=flat-square) |
 | **PDF Engine** | React PDF Viewer + PDF.js |
 | **Animations** | Framer Motion |
 | **UI Components** | Headless UI |
