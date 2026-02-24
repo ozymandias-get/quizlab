@@ -7,31 +7,31 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
     // --- Explain Simple ---
     {
         id: 'edu_explain_simple_tr',
-        text: "Bu metni ilkokul seviyesindeki bir öğrencinin merakını giderecek şekilde, günlük hayattan basit benzetmeler ve hikayeleştirme teknikleri kullanarak açıkla. Metindeki karmaşık terimleri parantez içinde basitçe tanımla. Anahtar fikirleri **kalın** yazarak vurgula."
+        text: "Bu metni ilkokul seviyesindeki bir öğrencinin merakını giderecek şekilde, günlük hayattan basit benzetmeler ve hikayeleştirme teknikleri kullanarak açıkla. Metindeki karmaşık terimleri parantez içinde basitçe tanımla. Anahtar fikirleri kalın yazarak vurgula."
     },
     {
         id: 'edu_explain_simple_en',
-        text: "Explain this text in a way that satisfies the curiosity of a primary school student, using simple analogies from daily life and storytelling techniques. Define complex terms in the text simply within parentheses. Highlight key ideas in **bold**."
+        text: "Explain this text in a way that satisfies the curiosity of a primary school student, using simple analogies from daily life and storytelling techniques. Define complex terms in the text simply within parentheses. Highlight key ideas in bold."
     },
 
     // --- Quiz Generator ---
     {
         id: 'edu_quiz_gen_tr',
-        text: "Bu metni esas alarak öğrenme düzeyini ölçmek için 3 adet 'zorlayıcı' çoktan seçmeli soru oluştur. Sorular ezberden ziyade kavrama ve analiz yeteneğini ölçsün. Her sorunun ardından doğru cevabı ve neden diğer şıkların yanlış olduğunu açıklayan detaylı bir **Çözüm** bölümü ekle."
+        text: "Bu metni esas alarak öğrenme düzeyini ölçmek için 3 adet 'zorlayıcı' çoktan seçmeli soru oluştur. Sorular ezberden ziyade kavrama ve analiz yeteneğini ölçsün. Her sorunun ardından doğru cevabı ve neden diğer şıkların yanlış olduğunu açıklayan detaylı bir Çözüm bölümü ekle."
     },
     {
         id: 'edu_quiz_gen_en',
-        text: "Based on this text, create 3 'challenging' multiple-choice questions to measure learning level. Questions should assess comprehension and analysis rather than rote memorization. Add a detailed **Solution** section after each question explaining the correct answer and why other options are incorrect."
+        text: "Based on this text, create 3 'challenging' multiple-choice questions to measure learning level. Questions should assess comprehension and analysis rather than rote memorization. Add a detailed Solution section after each question explaining the correct answer and why other options are incorrect."
     },
 
     // --- Summary / Cheat Sheet ---
     {
         id: 'edu_summary_study_tr',
-        text: "Bu içeriği bir sınav hazırlık notu (cheat sheet) formatında düzenle. \n1. **Temel Kavramlar**: Metindeki en önemli 3 terimi tanımla.\n2. **Kritik Noktalar**: Önemli bilgileri madde madde sırala.\n3. **Neden Önemli?**: Bu bilginin gerçek dünyada veya literatürde neden önemli olduğunu 1 cümleyle özetle."
+        text: "Bu içeriği bir sınav hazırlık notu (cheat sheet) formatında düzenle. \n1. Temel Kavramlar: Metindeki en önemli 3 terimi tanımla.\n2. Kritik Noktalar: Önemli bilgileri madde madde sırala.\n3. Neden Önemli?: Bu bilginin gerçek dünyada veya literatürde neden önemli olduğunu 1 cümleyle özetle."
     },
     {
         id: 'edu_summary_study_en',
-        text: "Organize this content into an exam preparation note (cheat sheet) format. \n1. **Key Concepts**: Define the 3 most important terms in the text.\n2. **Critical Points**: List important information in bullet points.\n3. **Why It Matters**: Summarize in 1 sentence why this information is important in the real world or literature."
+        text: "Organize this content into an exam preparation note (cheat sheet) format. \n1. Key Concepts: Define the 3 most important terms in the text.\n2. Critical Points: List important information in bullet points.\n3. Why It Matters: Summarize in 1 sentence why this information is important in the real world or literature."
     },
 
     // --- Socratic Tutor ---
