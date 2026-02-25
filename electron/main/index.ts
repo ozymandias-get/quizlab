@@ -58,24 +58,34 @@ app.commandLine.appendSwitch('force-device-scale-factor', '1')
 // Disable Autofill to reduce DevTools noise
 app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication')
 
-async function initializeApp() {
-    // Clear potentially corrupted storage data on startup
+// Background task to clean up corrupted storage without blocking startup
+async function runBackgroundCleanup() {
     try {
         const userDataPath = app.getPath('userData')
-        const quotaDBPath = `${userDataPath}/QuotaManager`
-        const quotaDBJournalPath = `${userDataPath}/QuotaManager-journal`
-        
-        if (require('fs').existsSync(quotaDBPath)) {
-            require('fs').unlinkSync(quotaDBPath)
-            console.log('Cleared corrupted QuotaManager database')
-        }
-        if (require('fs').existsSync(quotaDBJournalPath)) {
-            require('fs').unlinkSync(quotaDBJournalPath)
-        }
-    } catch (e) {
-        // Ignore errors during cleanup
-    }
+        const fs = require('fs').promises
+        const path = require('path')
 
+        const filesToClean = [
+            'QuotaManager',
+            'QuotaManager-journal'
+        ]
+
+        for (const file of filesToClean) {
+            const filePath = path.join(userDataPath, file)
+            try {
+                // Use rm with force: true to safely delete only if it exists
+                await fs.rm(filePath, { force: true })
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+        }
+        console.log('[Startup] Background cleanup finished')
+    } catch (e) {
+        // Ignore overall errors
+    }
+}
+
+async function initializeApp() {
     createSplashWindow()
 
     registerPdfProtocol()
@@ -88,6 +98,9 @@ async function initializeApp() {
     await createWindow()
 
     initUpdater()
+
+    // Start background cleanup without blocking the UI
+    runBackgroundCleanup()
 }
 
 app.whenReady().then(initializeApp)
@@ -99,16 +112,16 @@ app.on('activate', async () => {
     }
 })
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
     stopPdfCleanupInterval()
     clearAllPdfPaths()
 
-    // Clear corrupted storage before exit to prevent quota database errors on next start
+    // Clear corrupted storage before exit asynchronously
     try {
         const userDataPath = app.getPath('userData')
-        const fs = require('fs')
+        const fs = require('fs').promises
         const path = require('path')
-        
+
         // Remove problematic storage files
         const filesToClean = [
             'QuotaManager',
@@ -116,17 +129,15 @@ app.on('window-all-closed', () => {
             'DIPS',
             'DIPS-journal'
         ]
-        
-        filesToClean.forEach(file => {
+
+        await Promise.allSettled(filesToClean.map(async (file: string) => {
             const filePath = path.join(userDataPath, file)
-            if (fs.existsSync(filePath)) {
-                try {
-                    fs.unlinkSync(filePath)
-                } catch (e) {
-                    // Ignore cleanup errors
-                }
+            try {
+                await fs.rm(filePath, { force: true })
+            } catch (e) {
+                // Ignore cleanup errors
             }
-        })
+        }))
     } catch (e) {
         // Ignore cleanup errors
     }

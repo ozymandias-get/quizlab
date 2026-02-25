@@ -75,18 +75,74 @@ export function registerPdfProtocol() {
             if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
 
             const stats = await fs.promises.stat(filePath)
-            const nodeStream = fs.createReadStream(filePath, { highWaterMark: 128 * 1024 })
-            const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
 
-            return new Response(webStream, {
-                status: 200,
-                headers: {
-                    'Content-Type': 'application/pdf',
-                    'Content-Length': String(stats.size),
-                    'Cache-Control': 'private, no-cache',
-                    'X-Content-Type-Options': 'nosniff'
+            // Generate ETag for caching
+            const etag = `W/"${stats.size}-${stats.mtimeMs}"`
+
+            // Check If-None-Match header
+            const ifNoneMatch = request.headers.get('if-none-match')
+            if (ifNoneMatch === etag) {
+                return new Response(null, {
+                    status: 304,
+                    headers: {
+                        'Cache-Control': 'private, max-age=0, must-revalidate',
+                        'ETag': etag
+                    }
+                })
+            }
+
+            const rangeHeader = request.headers.get('range')
+
+            // Common headers
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/pdf',
+                'Cache-Control': 'private, max-age=0, must-revalidate',
+                'X-Content-Type-Options': 'nosniff',
+                'Accept-Ranges': 'bytes',
+                'ETag': etag
+            }
+
+            if (rangeHeader) {
+                // Parse Range header
+                const parts = rangeHeader.replace(/bytes=/, "").split("-")
+                const partialStart = parts[0]
+                const partialEnd = parts[1]
+
+                const start = parseInt(partialStart, 10)
+                const end = partialEnd ? parseInt(partialEnd, 10) : stats.size - 1
+
+                // Validate range
+                if (start >= stats.size || end >= stats.size) {
+                    headers['Content-Range'] = `bytes */${stats.size}`
+                    return new Response(null, {
+                        status: 416, // Range Not Satisfiable
+                        headers
+                    })
                 }
-            })
+
+                const chunksize = (end - start) + 1
+                const nodeStream = fs.createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 })
+                const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
+
+                headers['Content-Range'] = `bytes ${start}-${end}/${stats.size}`
+                headers['Content-Length'] = String(chunksize)
+
+                return new Response(webStream, {
+                    status: 206, // Partial Content
+                    headers
+                })
+            } else {
+                // Full file request
+                const nodeStream = fs.createReadStream(filePath, { highWaterMark: 1024 * 1024 })
+                const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
+
+                headers['Content-Length'] = String(stats.size)
+
+                return new Response(webStream, {
+                    status: 200,
+                    headers
+                })
+            }
         } catch (error) {
             console.error('[PDFProtocol] Stream Error:', error)
             return new Response('Internal Server Error', { status: 500 })

@@ -1,5 +1,6 @@
 import { ipcMain, shell, webContents, session } from 'electron'
 import { APP_CONFIG } from '../main/constants'
+import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 
 export function registerSystemHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
@@ -42,10 +43,23 @@ export function registerSystemHandlers() {
             // Clear default session cache
             await session.defaultSession.clearCache()
 
-            // Clear AI session cache for all platforms
-            const aiSession = session.fromPartition(APP_CONFIG.PARTITIONS.AI)
-            await aiSession.clearCache()
-            await aiSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
+            // Collect all unique partitions from AI_REGISTRY + INACTIVE_PLATFORMS
+            const allPartitions = new Set<string>()
+
+            // Constantly include the legacy APP_CONFIG.PARTITIONS.AI just in case
+            if (APP_CONFIG.PARTITIONS.AI) allPartitions.add(APP_CONFIG.PARTITIONS.AI)
+
+            Object.values(AI_REGISTRY).forEach(p => p.partition && allPartitions.add(p.partition))
+            Object.values(INACTIVE_PLATFORMS).forEach(p => p.partition && allPartitions.add(p.partition))
+
+            // Clear AI session cache for all configured platforms
+            const clearPromises = Array.from(allPartitions).map(async (partition) => {
+                const pSession = session.fromPartition(partition)
+                await pSession.clearCache()
+                await pSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
+            })
+
+            await Promise.all(clearPromises)
 
             return true
         } catch (error) {

@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { APP_CONFIG } from './constants'
 import { ConfigManager } from '../core/ConfigManager'
+import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 
 export const isDev = !app.isPackaged
 const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
@@ -206,17 +207,26 @@ function setupSessions() {
             })
         }
 
-        const aiSession = session.fromPartition(APP_CONFIG.PARTITIONS.AI)
+        const aiPartitions = new Set<string>()
+        if (APP_CONFIG.PARTITIONS.AI) aiPartitions.add(APP_CONFIG.PARTITIONS.AI)
+        Object.values(AI_REGISTRY).forEach(p => p.partition && aiPartitions.add(p.partition))
 
-        aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
-            details.requestHeaders['User-Agent'] = APP_CONFIG.CHROME_USER_AGENT
-            callback({ requestHeaders: details.requestHeaders })
-        })
+        // Optionally apply it to inactive platforms too in case users had a session before
+        Object.values(INACTIVE_PLATFORMS).forEach(p => p.partition && aiPartitions.add(p.partition))
 
-        aiSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-            const allowed = ['notifications', 'media', 'geolocation']
-            callback(allowed.includes(permission))
-        })
+        for (const partition of aiPartitions) {
+            const aiSession = session.fromPartition(partition)
+
+            aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
+                details.requestHeaders['User-Agent'] = APP_CONFIG.CHROME_USER_AGENT
+                callback({ requestHeaders: details.requestHeaders })
+            })
+
+            aiSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+                const allowed = ['notifications', 'media', 'geolocation']
+                callback(allowed.includes(permission))
+            })
+        }
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         console.error(`[Sessions] Error:`, message)

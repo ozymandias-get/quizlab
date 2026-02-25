@@ -6,78 +6,80 @@ import path from 'path'
 export default defineConfig({
     plugins: [
         react(),
-        VitePWA({
-            registerType: 'autoUpdate',
-            includeAssets: ['icon.png', 'icon.ico', 'robots.txt'],
-            manifest: {
-                name: 'QuizLab Reader',
-                short_name: 'QuizLab',
-                description: 'The Ultimate AI-Powered PDF Reader & Quiz Generator',
-                theme_color: '#0c0a09',
-                icons: [
-                    {
-                        src: 'icon.png',
-                        sizes: '192x192',
-                        type: 'image/png'
-                    },
-                    {
-                        src: 'icon.png',
-                        sizes: '512x512',
-                        type: 'image/png'
-                    }
-                ]
-            },
-            workbox: {
-                globPatterns: ['**/*.{js,css,html,ico,png,svg,json,pdf,woff2,ttf}'],
-                runtimeCaching: [
-                    {
-                        urlPattern: /pdf\.worker\.(min\.)?js/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'pdf-worker-cache',
-                            expiration: {
-                                maxEntries: 3,
-                                maxAgeSeconds: 60 * 60 * 24 * 365
+        ...(process.env.ELECTRON === "1" ? [] : [
+            VitePWA({
+                registerType: 'autoUpdate',
+                includeAssets: ['icon.png', 'icon.ico', 'robots.txt'],
+                manifest: {
+                    name: 'QuizLab Reader',
+                    short_name: 'QuizLab',
+                    description: 'The Ultimate AI-Powered PDF Reader & Quiz Generator',
+                    theme_color: '#0c0a09',
+                    icons: [
+                        {
+                            src: 'icon.png',
+                            sizes: '192x192',
+                            type: 'image/png'
+                        },
+                        {
+                            src: 'icon.png',
+                            sizes: '512x512',
+                            type: 'image/png'
+                        }
+                    ]
+                },
+                workbox: {
+                    globPatterns: ['**/*.{js,css,html,ico,png,svg,json,pdf,woff2,ttf}'],
+                    runtimeCaching: [
+                        {
+                            urlPattern: /pdf\.worker\.(min\.)?js/i,
+                            handler: 'CacheFirst',
+                            options: {
+                                cacheName: 'pdf-worker-cache',
+                                expiration: {
+                                    maxEntries: 3,
+                                    maxAgeSeconds: 60 * 60 * 24 * 365
+                                }
+                            }
+                        },
+                        {
+                            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+                            handler: 'CacheFirst',
+                            options: {
+                                cacheName: 'image-cache',
+                                expiration: {
+                                    maxEntries: 50,
+                                    maxAgeSeconds: 60 * 60 * 24 * 30
+                                }
+                            }
+                        },
+                        {
+                            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+                            handler: 'CacheFirst',
+                            options: {
+                                cacheName: 'google-fonts',
+                                expiration: {
+                                    maxEntries: 10,
+                                    maxAgeSeconds: 60 * 60 * 24 * 365
+                                }
+                            }
+                        },
+                        {
+                            urlPattern: /\/api\/.*$/i,
+                            handler: 'NetworkFirst',
+                            options: {
+                                cacheName: 'api-cache',
+                                networkTimeoutSeconds: 5,
+                                expiration: {
+                                    maxEntries: 50,
+                                    maxAgeSeconds: 60 * 60 * 24
+                                }
                             }
                         }
-                    },
-                    {
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'image-cache',
-                            expiration: {
-                                maxEntries: 50,
-                                maxAgeSeconds: 60 * 60 * 24 * 30
-                            }
-                        }
-                    },
-                    {
-                        urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'google-fonts',
-                            expiration: {
-                                maxEntries: 10,
-                                maxAgeSeconds: 60 * 60 * 24 * 365
-                            }
-                        }
-                    },
-                    {
-                        urlPattern: /\/api\/.*$/i,
-                        handler: 'NetworkFirst',
-                        options: {
-                            cacheName: 'api-cache',
-                            networkTimeoutSeconds: 5,
-                            expiration: {
-                                maxEntries: 50,
-                                maxAgeSeconds: 60 * 60 * 24
-                            }
-                        }
-                    }
-                ]
-            }
-        })
+                    ]
+                }
+            })
+        ])
     ],
     root: './src',
     publicDir: 'public',
