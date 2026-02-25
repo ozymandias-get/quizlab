@@ -2,6 +2,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { MagicWandIcon } from '@src/components/ui/Icons'
 import { hubIconVariants, hubIconTransition, iconStyleVariants, hubGlowVariants } from './animations'
+import { APP_CONSTANTS } from '@src/constants/appConstants'
 
 interface CenterHubProps {
     handleHubPointerUp: (e: React.PointerEvent) => void;
@@ -15,7 +16,7 @@ export const CenterHub = memo(({ handleHubPointerUp, onMouseDown, isOpen, hubSty
     return (
         <motion.div
             role="button"
-            id="bottom-bar-hub-btn"
+            id={APP_CONSTANTS.TOUR_TARGETS.HUB_BTN}
             onPointerUp={handleHubPointerUp}
             onMouseDown={!isOpen ? onMouseDown : undefined}
             whileHover={{ scale: 1.05 }}

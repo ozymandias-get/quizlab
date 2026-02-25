@@ -113,7 +113,7 @@ describe('useSettings', () => {
             await result.current.openReleasesPage()
         })
 
-        expect(mockOpenExternal).toHaveBeenCalledWith('https://github.com/ozymandias-get/Quizlab-Reader/releases')
+        expect(mockOpenExternal).toHaveBeenCalledWith('https://github.com/ozymandias-get/quizlab/releases')
     })
 
     it('handles default app version if undefined', () => {

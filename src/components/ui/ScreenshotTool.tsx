@@ -136,7 +136,7 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
                         }}
                     >
                         <div className="screenshot-size-indicator">
-                            {Math.round(selectionRect.width)} × {Math.round(selectionRect.height)}
+                            {Math.round(selectionRect.width)} x {Math.round(selectionRect.height)}
                         </div>
 
                         <div className="screenshot-handle top-left" />

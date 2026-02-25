@@ -5,6 +5,7 @@ import { Brain } from 'lucide-react'
 import { useLanguage, useAppTools } from '@src/app/providers'
 import { ToolButton } from './ToolButton'
 import { panelVariantsVertical, panelTransition, toolListVariants } from './animations'
+import { APP_CONSTANTS } from '@src/constants/appConstants'
 
 interface ToolsPanelProps {
     isOpen: boolean;
@@ -38,7 +39,7 @@ export const ToolsPanel = memo(({
                     transition={panelTransition}
                     className="bottom-bar-panel bottom-bar-panel--tools absolute bottom-full mb-1.5 left-0 w-full overflow-hidden"
                     style={panelStyle}
-                    id="bottom-bar-tools-panel"
+                    id={APP_CONSTANTS.TOUR_TARGETS.TOOLS_PANEL}
                 >
                     <motion.div
                         className="flex flex-col items-center gap-2 py-3 w-full"
@@ -47,11 +48,12 @@ export const ToolsPanel = memo(({
                         animate="visible"
                         exit="exit"
                     >
-                        <ToolButton delay={0.03} onClick={handleSettingsClick} title={t('settings')}>
+                        <ToolButton id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS} delay={0.03} onClick={handleSettingsClick} title={t('settings')}>
                             <SettingsIcon className="w-5 h-5" />
                         </ToolButton>
 
                         <ToolButton
+                            id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP}
                             delay={0.05}
                             onClick={toggleLayoutSwap}
                             title={t('swap_window')}
@@ -60,6 +62,7 @@ export const ToolsPanel = memo(({
                         </ToolButton>
 
                         <ToolButton
+                            id={APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER}
                             delay={0.06}
                             isActive={isPickerActive}
                             activeColor="rgba(139,92,246,0.35)"

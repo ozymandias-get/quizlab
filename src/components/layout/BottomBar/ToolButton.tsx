@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { toolItemVariants } from './animations'
 
 export interface ToolButtonProps {
+    id?: string;
     isActive?: boolean;
     activeColor?: string;
     onClick: () => void;
@@ -11,7 +12,7 @@ export interface ToolButtonProps {
     delay?: number;
 }
 
-export const ToolButton = memo(({ isActive, activeColor, onClick, title, children, delay: _delay = 0 }: ToolButtonProps) => {
+export const ToolButton = memo(({ id, isActive, activeColor, onClick, title, children, delay: _delay = 0 }: ToolButtonProps) => {
     const rippleRef = useRef<HTMLSpanElement>(null)
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -42,6 +43,7 @@ export const ToolButton = memo(({ isActive, activeColor, onClick, title, childre
 
     return (
         <motion.button
+            id={id}
             variants={toolItemVariants}
             whileHover={{
                 scale: 1.1,

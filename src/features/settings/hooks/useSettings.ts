@@ -46,7 +46,7 @@ export function useSettings(): UseSettingsReturn {
 
     // GitHub Releases sayfasýný aç
     const openReleasesPage = async () => {
-        openExternal('https://github.com/ozymandias-get/Quizlab-Reader/releases')
+        openExternal('https://github.com/ozymandias-get/quizlab/releases')
     }
 
     return {

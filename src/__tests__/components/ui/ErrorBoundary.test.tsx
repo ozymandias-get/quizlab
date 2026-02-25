@@ -9,10 +9,6 @@ vi.mock('@src/utils/logger', () => ({
     }
 }))
 
-vi.mock('@src/app/providers', () => ({
-    useLanguage: () => ({ t: (key: string) => key })
-}))
-
 const Thrower = ({ shouldThrow }: { shouldThrow: boolean }) => {
     if (shouldThrow) {
         throw new Error('Test Error!')
@@ -47,7 +43,7 @@ describe('ErrorBoundary', () => {
                 <Thrower shouldThrow={true} />
             </ErrorBoundary>
         )
-        expect(screen.getByText('error_boundary_title')).toBeInTheDocument()
+        expect(screen.getByText('Something went wrong')).toBeInTheDocument()
         expect(screen.getByText(/^Test Error!/)).toBeInTheDocument()
     })
 
@@ -97,9 +93,9 @@ describe('ErrorBoundary', () => {
             </ErrorBoundary>
         )
 
-        expect(screen.getByText('error_boundary_title')).toBeInTheDocument()
+        expect(screen.getByText('Something went wrong')).toBeInTheDocument()
 
-        const retryBtn = screen.getByText('try_again')
+        const retryBtn = screen.getByText('Try again')
         fireEvent.click(retryBtn)
 
         expect(onReset).toHaveBeenCalled()

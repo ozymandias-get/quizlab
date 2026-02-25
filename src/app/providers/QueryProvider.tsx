@@ -8,7 +8,11 @@ const queryClient = new QueryClient({
             staleTime: 1000 * 60 * 5, // 5 minutes cache
             refetchOnWindowFocus: false, // Desktop app behavior
             retry: 1,
+            networkMode: 'always', // Prevent IPC queries from pausing when offline
         },
+        mutations: {
+            networkMode: 'always',
+        }
     },
 })
 

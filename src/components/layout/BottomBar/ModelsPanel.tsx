@@ -3,6 +3,7 @@ import { AnimatePresence, motion, Reorder } from 'framer-motion'
 import { useAi, useLanguage } from '@src/app/providers'
 import { AIItem } from './AIItem'
 import { panelVariantsVertical, panelTransition } from './animations'
+import { APP_CONSTANTS } from '@src/constants/appConstants'
 
 interface ModelsPanelProps {
     isOpen: boolean;
@@ -41,7 +42,7 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPa
                     transition={panelTransition}
                     className="bottom-bar-panel bottom-bar-panel--models absolute top-full mt-2 left-0 w-full overflow-hidden flex flex-col gap-4 py-4 rounded-2xl border border-white/20 shadow-2xl shadow-black/50 bg-[#080808]/95 backdrop-blur-xl"
                     style={panelStyle}
-                    id="bottom-bar-models-list"
+                    id={APP_CONSTANTS.TOUR_TARGETS.MODELS_LIST}
                 >
                     {/* SECTION 1: ACTIVE TABS */}
                     {tabs.length > 0 && (

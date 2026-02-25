@@ -4,11 +4,24 @@ import { AppProviders } from './providers'
 import '@src/styles/index.css'
 
 import { registerPWA } from './pwa'
+import BrowserFallback from '@src/components/ui/BrowserFallback'
 
 registerPWA()
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <AppProviders>
-        <App />
-    </AppProviders>
-)
+const rootElement = document.getElementById('root') as HTMLElement
+const root = ReactDOM.createRoot(rootElement)
+
+// Safely check if we are running inside the Electron isolated environment
+const isElectron = typeof window !== 'undefined' && 'electronAPI' in window
+
+if (!isElectron) {
+    // Render the fallback screen when running in browser mode
+    root.render(<BrowserFallback />)
+} else {
+    // Render the actual application inside Electron
+    root.render(
+        <AppProviders>
+            <App />
+        </AppProviders>
+    )
+}

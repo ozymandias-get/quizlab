@@ -1,7 +1,5 @@
-﻿
-import React from 'react'
+﻿import React from 'react'
 import { Logger } from '@src/utils/logger'
-import { useLanguage } from '@src/app/providers'
 
 /**
  * Global Hata Yakalayıcı (Error Boundary)
@@ -15,27 +13,14 @@ interface ErrorBoundaryProps {
     onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
-interface ErrorBoundaryWrapperProps extends ErrorBoundaryProps {
-    t?: (key: string) => string; // To allow passing 't' manually if needed, or inferred from usage
-}
-
-function ErrorBoundary(props: ErrorBoundaryWrapperProps) {
-    const { t } = useLanguage()
-    return <ErrorBoundaryClass {...props} t={t} />
-}
-
-interface ErrorBoundaryClassProps extends ErrorBoundaryWrapperProps {
-    t: (key: string) => string;
-}
-
-interface ErrorBoundaryClassState {
+interface ErrorBoundaryState {
     hasError: boolean;
     error: Error | null;
     errorInfo: React.ErrorInfo | null;
 }
 
-class ErrorBoundaryClass extends React.Component<ErrorBoundaryClassProps, ErrorBoundaryClassState> {
-    constructor(props: ErrorBoundaryClassProps) {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+    constructor(props: ErrorBoundaryProps) {
         super(props)
         this.state = { hasError: false, error: null, errorInfo: null }
     }
@@ -60,7 +45,6 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryClassProps, ErrorB
     }
 
     render() {
-        const { t } = this.props
         if (this.state.hasError) {
             if (this.props.fallback && this.state.error) {
                 return this.props.fallback(this.state.error, this.handleRetry)
@@ -75,11 +59,11 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryClassProps, ErrorB
                     </div>
 
                     <h3 className="text-lg font-bold text-stone-200 mb-2">
-                        {this.props.title || t('error_boundary_title')}
+                        {this.props.title || 'Something went wrong'}
                     </h3>
 
                     <p className="text-sm text-stone-400 mb-6 max-w-sm mx-auto">
-                        {this.state.error?.message || t('unexpected_error')}
+                        {this.state.error?.message || 'An unexpected error occurred.'}
                     </p>
 
                     <button
@@ -89,13 +73,13 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryClassProps, ErrorB
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        {t('try_again')}
+                        Try again
                     </button>
 
                     <details className="mt-8 text-left w-full max-w-md bg-black/20 p-3 rounded-lg border border-white/5">
-                        <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-300 transition-colors uppercase font-bold tracking-widest">{t('technical_details')}</summary>
+                        <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-300 transition-colors uppercase font-bold tracking-widest">Technical details</summary>
                         <pre className="mt-2 text-[10px] text-red-300/70 overflow-x-auto whitespace-pre-wrap font-mono p-4 rounded-lg bg-black/40">
-                            {this.state.errorInfo?.componentStack || t('no_stack_trace')}
+                            {this.state.errorInfo?.componentStack || 'No stack trace available'}
                         </pre>
                     </details>
                 </div>
@@ -107,5 +91,3 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryClassProps, ErrorB
 }
 
 export default ErrorBoundary
-
-
