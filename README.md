@@ -4,7 +4,7 @@
 <div align="center">
 
 [![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg?style=flat-square)](README_TR.md)
-[![Version](https://img.shields.io/badge/version-2.0.4-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Version](https://img.shields.io/badge/version-2.0.5-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 [![Built with](https://img.shields.io/badge/Built%20with-Electron%20%26%20React-61DAFB?style=flat-square&logo=react)](https://react.dev/)
