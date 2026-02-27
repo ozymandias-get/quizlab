@@ -55,6 +55,8 @@ export const ToolButton = memo(({ id, isActive, activeColor, onClick, title, chi
             title={title}
             className={`relative p-2.5 rounded-xl transition-colors duration-150 ${isActive ? 'tool-btn--active-glow' : ''}`}
             style={{
+                padding: 'calc(10px * var(--bar-scale-factor, 1))',
+                borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',
                 background: isActive
                     ? `linear-gradient(145deg, ${activeColor || 'rgba(99,102,241,0.25)'}, ${activeColor?.replace('0.4', '0.35')?.replace('0.5', '0.45') || 'rgba(139,92,246,0.35)'})`
                     : 'linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))',

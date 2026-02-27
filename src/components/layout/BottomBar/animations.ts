@@ -3,42 +3,6 @@ import { Easing, Transition, Variants } from 'framer-motion'
 // Smooth spring easing
 const smoothEase: Easing = [0.16, 1, 0.3, 1]
 
-// ─── Panel Variants (Horizontal) ───────────────────────────────────
-export const panelVariantsHorizontal: Variants = {
-    hidden: {
-        opacity: 0,
-        scale: 0.88,
-        x: 12,
-        // Remove blur animation if it causes issues, or use simple fade
-        // filter: 'blur(8px)', 
-    },
-    visible: {
-        opacity: 1,
-        scale: 1,
-        x: 0,
-        // filter: 'blur(0px)',
-        transition: {
-            duration: 0.4,
-            ease: smoothEase,
-            staggerChildren: 0.05,
-            delayChildren: 0.05,
-        }
-    },
-    exit: {
-        opacity: 0,
-        scale: 0.92,
-        x: 8,
-        // filter: 'blur(6px)',
-        transition: {
-            duration: 0.25,
-            ease: [0.4, 0, 1, 1],
-            staggerChildren: 0.02,
-            staggerDirection: -1,
-        }
-    }
-}
-
-// ─── Panel Variants (Vertical) ─────────────────────────────────────
 export const panelVariantsVertical: Variants = {
     hidden: {
         opacity: 0,
@@ -170,13 +134,14 @@ export const toolListVariants: Variants = {
 // ─── WebGL-like Icon Styles ────────────────────────────────────────
 export const iconStyleVariants: Variants = {
     closed: {
-        color: 'rgba(255,255,255,0.45)',
+        color: 'rgba(226, 232, 240, 0.72)',
         filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
         transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }
     },
     open: {
-        color: '#ffffff',
-        filter: 'drop-shadow(0 0 8px rgba(167, 139, 250, 0.8)) drop-shadow(0 0 16px rgba(139, 92, 246, 0.4))',
+        color: '#f8fafc',
+        filter: 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.75)) drop-shadow(0 0 14px rgba(245, 158, 11, 0.45))',
         transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }
     }
 }
+

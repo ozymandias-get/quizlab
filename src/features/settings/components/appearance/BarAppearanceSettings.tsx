@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { SliderIcon } from '@src/components/ui/Icons'
-import Slider from '@src/components/ui/Slider'
+import { Slider } from '@src/components/ui/Slider'
 
 interface BarAppearanceSettingsProps {
     bottomBarOpacity: number;
@@ -35,25 +35,33 @@ const BarAppearanceSettings = memo(({
                 </div>
             </div>
 
-            <Slider
-                min={0.1}
-                max={1.0}
-                value={bottomBarOpacity}
-                onChange={setBottomBarOpacity}
-                label="Opacity"
-                displayValue={`${Math.round(bottomBarOpacity * 100)}%`}
-                className="space-y-3"
-            />
+            <div className="space-y-3">
+                <div className="flex justify-between items-center text-xs font-medium">
+                    <span className="text-white/70">Opacity</span>
+                    <span className="text-white/40">{Math.round(bottomBarOpacity * 100)}%</span>
+                </div>
+                <Slider
+                    min={0.1}
+                    max={1.0}
+                    step={0.01}
+                    value={[bottomBarOpacity]}
+                    onValueChange={(vals) => setBottomBarOpacity(vals[0])}
+                />
+            </div>
 
-            <Slider
-                min={0.7}
-                max={1.3}
-                value={bottomBarScale}
-                onChange={setBottomBarScale}
-                label="Scale"
-                displayValue={`x${bottomBarScale.toFixed(2)}`}
-                className="space-y-3"
-            />
+            <div className="space-y-3">
+                <div className="flex justify-between items-center text-xs font-medium">
+                    <span className="text-white/70">Scale</span>
+                    <span className="text-white/40">x{bottomBarScale.toFixed(2)}</span>
+                </div>
+                <Slider
+                    min={0.7}
+                    max={1.3}
+                    step={0.01}
+                    value={[bottomBarScale]}
+                    onValueChange={(vals) => setBottomBarScale(vals[0])}
+                />
+            </div>
         </motion.div>
     )
 })

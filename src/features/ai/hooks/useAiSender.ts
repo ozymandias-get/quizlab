@@ -4,6 +4,7 @@ import { Logger } from '@src/utils/logger'
 import { safeWebviewPaste } from '@src/utils/webviewUtils'
 import { usePrompts } from './usePrompts'
 import type { WebviewController } from '@shared/types/webview'
+import type { AutomationConfig } from '@shared/types'
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 import { useGenerateAutoSendScript, useGenerateFocusScript, useGenerateClickSendScript } from '@platform/electron/api/useAutomationApi'
 import { useCopyImageToClipboard } from '@platform/electron/api/useSystemApi'
@@ -47,6 +48,13 @@ interface UseAiSenderReturn {
 }
 
 const CLIPBOARD_WAIT_DELAY = 800
+
+const toAutomationConfig = (config: AiConfig): AutomationConfig => ({
+    input: typeof config.input === 'string' || config.input === null ? config.input : null,
+    button: typeof config.button === 'string' || config.button === null ? config.button : null,
+    waitFor: typeof config.waitFor === 'string' || config.waitFor === null ? config.waitFor : null,
+    submitMode: typeof config.submitMode === 'string' ? config.submitMode : undefined
+})
 
 export function useAiSender(
     webviewRef: RefObject<WebviewController | null>,
@@ -127,7 +135,7 @@ export function useAiSender(
 
         try {
             // Get base config from registry
-            let baseAiConfig = aiRegistry[currentAI]
+            const baseAiConfig = aiRegistry[currentAI]
             if (!baseAiConfig) return { success: false, error: 'config_not_found' }
 
             if (typeof webview.getURL !== 'function') {
@@ -157,7 +165,7 @@ export function useAiSender(
 
             // Use React Query mutation instead of direct API call
             const script = await generateAutoSendScript({
-                config: aiConfig as any, // Cast to match AutomationConfig if needed
+                config: toAutomationConfig(aiConfig),
                 text: finalText,
                 submit: autoSend
             })
@@ -186,13 +194,13 @@ export function useAiSender(
 
         // Sanity check for data URL
         if (!imageDataUrl.startsWith('data:image/')) {
-            Logger.error('[useAiSender] Geçersiz resim formatý')
+            Logger.error('[useAiSender] Invalid image format')
             return { success: false, error: 'invalid_image_format' }
         }
 
         try {
             // Get base config from registry
-            let baseAiConfig = aiRegistry[currentAI]
+            const baseAiConfig = aiRegistry[currentAI]
             if (!baseAiConfig) return { success: false, error: 'config_not_found' }
 
             // Get config (cached if possible)
@@ -212,7 +220,7 @@ export function useAiSender(
             await new Promise(r => setTimeout(r, 100))
 
             // Use React Query mutation
-            const focusScript = await generateFocusScript(aiConfig as any)
+            const focusScript = await generateFocusScript(toAutomationConfig(aiConfig))
             if (!focusScript) return { success: false, error: 'focus_script_failed' }
 
             if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
@@ -226,11 +234,11 @@ export function useAiSender(
 
             // Try native paste if available
             if (webview.isDestroyed?.() !== true) {
-                if ((webview as any).pasteNative && typeof (webview as any).getWebContentsId === 'function') {
+                if (typeof webview.pasteNative === 'function' && typeof webview.getWebContentsId === 'function') {
                     try {
-                        const wcId = (webview as any).getWebContentsId()
+                        const wcId = webview.getWebContentsId()
                         if (wcId) {
-                            const result = (webview as any).pasteNative(wcId)
+                            const result = webview.pasteNative(wcId)
                             pasteSuccess = typeof result === 'boolean' ? result : await result
                         }
                     } catch (err) {
@@ -256,7 +264,7 @@ export function useAiSender(
                 // If autoSend is true, this will also click send
                 // Use React Query mutation
                 const promptScript = await generateAutoSendScript({
-                    config: aiConfig as any,
+                    config: toAutomationConfig(aiConfig),
                     text: activePromptText,
                     submit: autoSend
                 })
@@ -277,7 +285,7 @@ export function useAiSender(
                 await new Promise(r => setTimeout(r, waitTime))
 
                 // Use React Query mutation
-                const clickScript = await generateClickSendScript(aiConfig as any)
+                const clickScript = await generateClickSendScript(toAutomationConfig(aiConfig))
                 if (!clickScript) return { success: false, error: 'click_script_failed' }
 
                 if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
@@ -291,7 +299,7 @@ export function useAiSender(
             return { success: true, mode: 'paste_only' }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'unknown_error'
-            Logger.error('[useAiSender] Resim gönderme hatasý:', error)
+            Logger.error('[useAiSender] Image send error:', error)
             return { success: false, error: message }
         }
     }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, copyImageToClipboard, generateFocusScript, generateAutoSendScript, generateClickSendScript])

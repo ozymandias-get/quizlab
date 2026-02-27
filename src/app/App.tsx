@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { AnimatePresence, motion, LayoutGroup } from 'framer-motion'
 import AiWebview from '@features/ai/components/AiWebview'
 import BottomBar from '@src/components/layout/BottomBar'
@@ -61,6 +61,16 @@ const App: React.FC = () => {
     const lastReadingInfo = getLastReadingInfo()
     const [initialPage, setInitialPage] = useState<number | undefined>(undefined)
 
+    const handleSelectPdfWithReset = useCallback(async () => {
+        setInitialPage(undefined)
+        await handleSelectPdf()
+    }, [handleSelectPdf])
+
+    const handlePdfDropWithReset = useCallback(async (file: File) => {
+        setInitialPage(undefined)
+        await handlePdfDrop(file)
+    }, [handlePdfDrop])
+
     // Local State
     const [isBarHovered, setIsBarHovered] = useState<boolean>(false)
     const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState<boolean>(true)
@@ -93,7 +103,7 @@ const App: React.FC = () => {
                 onDrop={(e) => {
                     e.preventDefault()
                     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                        handlePdfDrop(e.dataTransfer.files[0])
+                        void handlePdfDropWithReset(e.dataTransfer.files[0])
                     }
                 }}
             >
@@ -136,9 +146,9 @@ const App: React.FC = () => {
                                 <LeftPanel
                                     width={100}
                                     t={t}
-                                    onPdfDrop={handlePdfDrop}
+                                    onPdfDrop={handlePdfDropWithReset}
                                     pdfFile={pdfFile}
-                                    onSelectPdf={handleSelectPdf}
+                                    onSelectPdf={handleSelectPdfWithReset}
                                     onTextSelection={handleTextSelection}
                                     onResumePdf={async () => {
                                         if (lastReadingInfo) {

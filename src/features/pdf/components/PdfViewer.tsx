@@ -107,6 +107,10 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
     // initialPage belirtilmişse, doküman yüklendiginde o sayfaya atla
     const initialPageApplied = useRef(false)
     useEffect(() => {
+        initialPageApplied.current = false
+    }, [pdfUrl, initialPage])
+
+    useEffect(() => {
         if (initialPage && initialPage > 1 && totalPages > 0 && !initialPageApplied.current) {
             // 0-indexed
             const targetPage = Math.min(initialPage - 1, totalPages - 1)

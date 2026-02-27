@@ -1,6 +1,10 @@
 import DOMPurify from 'dompurify'
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
-
+export function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs))
+}
 
 /**
  * Quiz metinlerini formatlar (bold, italic, yeni satır)

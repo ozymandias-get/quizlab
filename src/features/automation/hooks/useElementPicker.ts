@@ -5,7 +5,7 @@ import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
 import type { WebviewController } from '@shared/types/webview'
 
-type WebviewInstance = WebviewController | null;
+type WebviewInstance = WebviewController | null
 
 interface UseElementPickerReturn {
     isPickerActive: boolean;
@@ -14,30 +14,25 @@ interface UseElementPickerReturn {
     togglePicker: () => Promise<void>;
 }
 
-const POLL_INTERVAL = 500 // ms
+const POLL_INTERVAL = 500
 
-/**
- * Element Picker Logic as a Hook
- * Uses polling to check for picker results instead of console-message events.
- * API calls are handled by React Query mutations (useSaveAiConfig, useGeneratePickerScript).
- */
 export function useElementPicker(webviewInstance: WebviewInstance): UseElementPickerReturn {
     const [isPickerActive, setIsPickerActive] = useState<boolean>(false)
     const { showError, showInfo } = useToast()
     const { t } = useLanguage()
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const pollInFlightRef = useRef(false)
 
-    // React Query mutations — no more direct window.electronAPI calls
     const { mutateAsync: saveAiConfig } = useSaveAiConfig()
     const { mutateAsync: generatePickerScript } = useGeneratePickerScript()
 
-    // Cleanup polling on unmount
     useEffect(() => {
         return () => {
             if (pollRef.current) {
                 clearInterval(pollRef.current)
                 pollRef.current = null
             }
+            pollInFlightRef.current = false
         }
     }, [])
 
@@ -46,6 +41,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             clearInterval(pollRef.current)
             pollRef.current = null
         }
+        pollInFlightRef.current = false
     }, [])
 
     const savePickerResult = useCallback(async (config: { input: string; button: string }) => {
@@ -53,27 +49,27 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         if (!webview) return
 
         try {
-            // Force cleanup webview picker UI
             try {
                 if (typeof webview.executeJavaScript === 'function') {
                     await webview.executeJavaScript('if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;')
                 }
-            } catch (_) { }
+            } catch {
+                // ignore cleanup errors
+            }
 
             if (typeof webview.getURL !== 'function') {
                 showError('picker_webview_not_found')
                 return
             }
+
             const url = webview.getURL()
             if (!url) {
                 showError('picker_webview_not_found')
                 return
             }
-            const hostname = new URL(url).hostname
 
-            // Use React Query mutation instead of direct window.electronAPI.saveAiConfig
+            const hostname = new URL(url).hostname
             await saveAiConfig({ hostname, config })
-            // Success toast is handled inside useSaveAiConfig's onSuccess
         } catch (err) {
             const message = err instanceof Error ? err.message : t('error_unknown_error')
             Logger.error('[ElementPicker] Save error:', err)
@@ -87,11 +83,13 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         stopPolling()
 
         pollRef.current = setInterval(async () => {
+            if (pollInFlightRef.current) return
+
             const webview = webviewInstance
             if (!webview || typeof webview.executeJavaScript !== 'function') return
 
+            pollInFlightRef.current = true
             try {
-                // Check for result or cancellation
                 const status = await webview.executeJavaScript(`
                     (function() {
                         if (window._aiPickerResult) {
@@ -128,8 +126,10 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
                         setIsPickerActive(false)
                     }
                 }
-            } catch (_) {
-                // Polling errors are non-critical (webview might be navigating)
+            } catch {
+                // non-critical polling errors
+            } finally {
+                pollInFlightRef.current = false
             }
         }, POLL_INTERVAL)
     }, [webviewInstance, stopPolling, savePickerResult, showError, showInfo])
@@ -165,7 +165,6 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
                 picker_hint_text: t('picker_hint_text'),
                 picker_hint_form: t('picker_hint_form'),
                 picker_hint_clickable: t('picker_hint_clickable'),
-                // Element Labels
                 picker_el_input: t('picker_el_input'),
                 picker_el_submit: t('picker_el_submit'),
                 picker_el_input_field: t('picker_el_input_field'),
@@ -180,24 +179,20 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
                 picker_el_form: t('picker_el_form')
             }
 
-            // Use React Query mutation instead of direct window.electronAPI.automation.generatePickerScript
             const script = await generatePickerScript(pickerTranslations)
-
             if (!script) {
                 throw new Error('Failed to generate picker script')
             }
+
             if (typeof webviewInstance.executeJavaScript !== 'function') {
                 throw new Error('Webview executeJavaScript not available')
             }
 
-            // Clear any previous result before starting
             await webviewInstance.executeJavaScript('delete window._aiPickerResult; delete window._aiPickerCancelled;')
-
             await webviewInstance.executeJavaScript(script)
+
             setIsPickerActive(true)
             showInfo('picker_started_hint')
-
-            // Start polling for result
             startPolling()
         } catch (err) {
             Logger.error('Failed to start picker:', err)
@@ -210,10 +205,12 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
     const stopPicker = useCallback(async () => {
         stopPolling()
         if (!webviewInstance) return
+
         try {
             if (typeof webviewInstance.executeJavaScript !== 'function') {
                 throw new Error('Webview executeJavaScript not available')
             }
+
             await webviewInstance.executeJavaScript('if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;')
             setIsPickerActive(false)
             showInfo('picker_cancelled')
@@ -238,4 +235,3 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         togglePicker
     }
 }
-

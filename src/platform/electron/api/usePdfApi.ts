@@ -1,11 +1,8 @@
-import { useElectronQuery, useElectronMutation } from '../useElectron'
+import { useElectronMutation } from '../useElectron'
 import type {
     PdfSelectOptions,
-    PdfSelection,
-    PdfStreamResult
+    PdfSelection
 } from '@shared/types'
-
-export const PDF_STREAM_KEY = (path?: string) => ['pdf', 'stream', path]
 
 /**
  * Select PDF Mutation
@@ -33,17 +30,3 @@ export function useRegisterPdfPath() {
     )
 }
 
-/**
- * Get PDF Stream URL Query
- */
-export function useGetPdfStreamUrl(filePath?: string) {
-    return useElectronQuery<PdfStreamResult | null>({
-        key: PDF_STREAM_KEY(filePath),
-        queryFn: (api) => api.getPdfStreamUrl(filePath!),
-        options: {
-            enabled: !!filePath,
-            staleTime: Infinity, // Stream URLs shouldn't change for the same file session
-            gcTime: 1000 * 60 * 5 // Keep in cache for 5 min if unused
-        }
-    })
-}

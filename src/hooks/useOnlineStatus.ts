@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react'
-import { useToast, useLanguage } from '@src/app/providers'
+import { useToast } from '@src/app/providers'
 
 /**
  * Provides online/offline status
@@ -8,7 +8,6 @@ import { useToast, useLanguage } from '@src/app/providers'
 export function useOnlineStatus() {
     const [isOnline, setIsOnline] = useState(navigator.onLine)
     const { showWarning, showSuccess } = useToast()
-    const { t } = useLanguage()
 
     useEffect(() => {
         const handleOnline = () => {
@@ -28,7 +27,7 @@ export function useOnlineStatus() {
             window.removeEventListener('online', handleOnline)
             window.removeEventListener('offline', handleOffline)
         }
-    }, [showSuccess, showWarning, t]) // t dependency usually stable
+    }, [showSuccess, showWarning])
 
     return isOnline
 }

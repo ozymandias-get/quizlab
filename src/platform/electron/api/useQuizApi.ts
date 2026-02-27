@@ -10,8 +10,8 @@ import type {
 import { useToast } from '@src/app/providers/ToastContext'
 import { useLanguage } from '@src/app/providers/LanguageContext'
 
-export const QUIZ_SETTINGS_KEY = ['quiz', 'settings']
-export const QUIZ_AUTH_KEY = ['quiz', 'auth']
+const QUIZ_SETTINGS_KEY = ['quiz', 'settings']
+const QUIZ_AUTH_KEY = ['quiz', 'auth']
 
 /**
  * Quiz Settings Query
@@ -124,7 +124,7 @@ export function useLogout() {
     )
 }
 
-export const QUIZ_CLI_PATH_KEY = ['quiz', 'cliPath']
+const QUIZ_CLI_PATH_KEY = ['quiz', 'cliPath']
 
 /**
  * Get CLI Path Query

@@ -22,7 +22,7 @@ vi.mock('framer-motion', () => ({
 
 // Mock Icons
 vi.mock('@src/components/ui/Icons', () => ({
-    MagicWandIcon: () => <svg data-testid="magic-wand-icon" />
+    AiHubIcon: () => <svg data-testid="ai-hub-icon" />
 }))
 
 // Mock animations
@@ -56,7 +56,7 @@ describe('CenterHub', () => {
         const hub = screen.getByTestId('center-hub-btn')
         expect(hub).toHaveClass('hub-center-btn--closed')
 
-        expect(screen.getByTestId('magic-wand-icon')).toBeInTheDocument()
+        expect(screen.getByTestId('ai-hub-icon')).toBeInTheDocument()
     })
 
     it('renders open state correctly', () => {

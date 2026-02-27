@@ -68,13 +68,13 @@ vi.mock('@features/settings/components/ColorPicker', () => ({
 }))
 
 vi.mock('@src/components/ui/Slider', () => ({
-    default: ({ label, value, onChange }: any) => (
+    Slider: ({ label, value, onValueChange }: any) => (
         <div data-testid="slider">
             <label>{label}</label>
             <input
                 type="range"
-                value={value}
-                onChange={(e) => onChange(parseFloat(e.target.value))}
+                value={Array.isArray(value) ? value[0] : value}
+                onChange={(e) => onValueChange([parseFloat(e.target.value)])}
                 data-testid="slider-input"
             />
         </div>

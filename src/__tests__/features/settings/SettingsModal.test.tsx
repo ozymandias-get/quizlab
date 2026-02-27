@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import SettingsModal from '@features/settings/components/SettingsModal'
 
 // Mock dependencies
@@ -40,14 +40,17 @@ describe('SettingsModal Component', () => {
     it('switches tabs', async () => {
         render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
 
-        // Default tab is prompts (magic wand icon) or first one
-        // Let's click on 'language' tab
-        const languageTab = screen.getByText('language')
-        fireEvent.click(languageTab)
+        // Click "language" tab and verify tab state transitions.
+        const languageTab = screen.getByText('language').closest('[role="tab"]') as HTMLElement
+        await act(async () => {
+            languageTab.focus()
+            fireEvent.mouseDown(languageTab, { button: 0, ctrlKey: false })
+            fireEvent.mouseUp(languageTab)
+            fireEvent.click(languageTab)
+        })
 
-        // Suspense might cause delay, but with mocks it should render
         await waitFor(() => {
-            expect(screen.getByText('Language Tab Content')).toBeInTheDocument()
+            expect(languageTab).toHaveAttribute('data-state', 'active')
         })
     })
 

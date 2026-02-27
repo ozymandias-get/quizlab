@@ -9,7 +9,7 @@ import type { AiSelectorConfig } from '@electron/features/ai/aiManager'
 import { useToast } from '@src/app/providers/ToastContext'
 import { useLanguage } from '@src/app/providers/LanguageContext'
 
-export const AI_REGISTRY_KEY = ['ai', 'registry']
+const AI_REGISTRY_KEY = ['ai', 'registry']
 export const AI_CONFIG_KEY = (hostname?: string) => hostname ? ['ai', 'config', hostname] : ['ai', 'config']
 
 /**

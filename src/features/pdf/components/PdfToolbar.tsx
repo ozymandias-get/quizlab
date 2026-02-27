@@ -9,6 +9,7 @@ import {
 import { useLanguage } from '@src/app/providers/LanguageContext'
 import PdfSearchBar from './PdfSearchBar'
 import type { PdfFile } from '@shared/types'
+import { Button } from '@ui/button'
 
 interface RenderChildProps {
     onClick: () => void;
@@ -129,14 +130,16 @@ function PdfToolbar({
             <div className="flex items-center gap-2">
                 {/* Navigation Island */}
                 <div className="flex items-center gap-1 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent rounded-2xl p-1.5 border border-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={onPreviousPage}
                         disabled={currentPage <= 1}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/[0.08] disabled:opacity-25 disabled:hover:bg-transparent transition-all duration-300 text-white/50 hover:text-white active:scale-95"
+                        className="w-8 h-8 rounded-xl hover:bg-white/[0.08] disabled:opacity-25 disabled:hover:bg-transparent transition-all duration-300 text-white/50 hover:text-white"
                         title={t('prev_page')}
                     >
                         <ChevronLeft className="w-4 h-4" />
-                    </button>
+                    </Button>
 
                     <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
 
@@ -146,27 +149,31 @@ function PdfToolbar({
 
                     <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
 
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={onNextPage}
                         disabled={currentPage >= totalPages}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/[0.08] disabled:opacity-25 disabled:hover:bg-transparent transition-all duration-300 text-white/50 hover:text-white active:scale-95"
+                        className="w-8 h-8 rounded-xl hover:bg-white/[0.08] disabled:opacity-25 disabled:hover:bg-transparent transition-all duration-300 text-white/50 hover:text-white"
                         title={t('next_page')}
                     >
                         <ChevronRight className="w-4 h-4" />
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Zoom Island */}
                 <div className="flex items-center gap-1 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent rounded-2xl p-1.5 border border-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
                     <ZoomOut>
                         {(props: RenderChildProps) => (
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={props.onClick}
-                                className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/[0.08] text-white/50 hover:text-white transition-all duration-300 active:scale-95"
+                                className="w-8 h-8 rounded-xl hover:bg-white/[0.08] text-white/50 hover:text-white transition-all duration-300"
                                 title={t('zoom_out')}
                             >
                                 <ZoomOutIcon className="w-4 h-4" />
-                            </button>
+                            </Button>
                         )}
                     </ZoomOut>
 
@@ -186,13 +193,15 @@ function PdfToolbar({
 
                     <ZoomIn>
                         {(props: RenderChildProps) => (
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={props.onClick}
-                                className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/[0.08] text-white/50 hover:text-white transition-all duration-300 active:scale-95"
+                                className="w-8 h-8 rounded-xl hover:bg-white/[0.08] text-white/50 hover:text-white transition-all duration-300"
                                 title={t('zoom_in')}
                             >
                                 <ZoomInIcon className="w-4 h-4" />
-                            </button>
+                            </Button>
                         )}
                     </ZoomIn>
                 </div>
@@ -213,21 +222,27 @@ interface ToolbarButtonProps {
 // Update standard button styles for symmetry
 function ToolbarButton({ onClick, icon: Icon, tooltip, isActive, className, activeClassName }: ToolbarButtonProps) {
     return (
-        <motion.button
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.95 }}
+        <Button
+            variant={isActive ? "default" : "ghost"}
+            size="icon"
             onClick={onClick}
             title={tooltip}
             className={`
-                w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-300
+                w-8 h-8 rounded-xl transition-all duration-300
                 ${isActive
                     ? (activeClassName || 'bg-white/15 text-white shadow-lg')
                     : (className || 'text-white/40 hover:text-white hover:bg-white/[0.08]')
                 }
             `}
+            asChild
         >
-            <Icon className="w-4 h-4" />
-        </motion.button>
+            <motion.button
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.95 }}
+            >
+                <Icon className="w-4 h-4" />
+            </motion.button>
+        </Button>
     )
 }
 

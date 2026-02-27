@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, Suspense, lazy } from 'react'
+import React, { useEffect, useRef, Suspense, lazy, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@src/components/ui/tabs'
+import { Button } from '@src/components/ui/button'
 import { useLanguage } from '@src/app/providers'
 import { useSettings } from '@features/settings/hooks/useSettings'
 // Icons imported from @src/components/ui/Icons
 import { SettingsIcon, CloseIcon, LanguageIcon, InfoIcon, GridIcon, EyeIcon, MagicWandIcon, SelectorIcon, TerminalIcon } from '@src/components/ui/Icons'
-
 // Lazy Load Settings Tabs
 const LanguageTab = lazy(() => import('./LanguageTab'))
 const AboutTab = lazy(() => import('./AboutTab'))
@@ -33,6 +33,7 @@ interface SettingsModalProps {
 function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const { t } = useLanguage()
     const modalRef = useRef<HTMLDivElement>(null)
+    const [activeTab, setActiveTab] = useState('prompts')
 
     // Custom hook ile t�m settings state ve i�lemlerini al
     const settings = useSettings()
@@ -129,8 +130,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
 
             {/* Modal Container */}
-            <TabGroup
-                as={motion.div}
+            <motion.div
                 ref={modalRef}
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -141,136 +141,133 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                            shadow-[0_50px_100px_-30px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.05)]
                            will-change-[transform,opacity]"
             >
-                {({ selectedIndex }) => (
-                    <>
-                        {/* Sidebar Navigation */}
-                        <aside className="relative w-56 flex flex-col bg-white/[0.02] border-r border-white/[0.06]">
-                            {/* Header */}
-                            <div className="p-6 pb-4">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/[0.1] shadow-lg">
-                                        <SettingsIcon className="w-5 h-5 text-white/60" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-base font-bold text-white/90 tracking-tight">
-                                            {t('settings_title')}
-                                        </h2>
-                                        <p className="text-[9px] text-white/30 uppercase tracking-widest font-medium">
-                                            {t('settings')}
-                                        </p>
-                                    </div>
+                <Tabs defaultValue="prompts" className="flex w-full h-full" value={activeTab} onValueChange={setActiveTab}>
+                    {/* Sidebar Navigation */}
+                    <aside className="relative w-56 flex flex-col bg-white/[0.02] border-r border-white/[0.06]">
+                        {/* Header */}
+                        <div className="p-6 pb-4">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="p-2.5 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/[0.1] shadow-lg">
+                                    <SettingsIcon className="w-5 h-5 text-white/60" />
                                 </div>
-
-                                <TabList className="flex flex-col gap-1">
-                                    {tabDefs.map((tab) => (
-                                        <Tab
-                                            key={tab.id}
-                                            className={({ selected }) => `
-                                                group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 outline-none
-                                                ${selected
-                                                    ? 'bg-white/[0.1] text-white shadow-lg'
-                                                    : 'text-white/40 hover:text-white/80 hover:bg-white/[0.04]'
-                                                }
-                                            `}
-                                        >
-                                            {({ selected }) => (
-                                                <>
-                                                    <tab.icon className={`w-4 h-4 transition-all duration-200 ${selected ? 'text-white' : 'text-white/30 group-hover:text-white/50'}`} />
-                                                    <span className="relative z-10">{tab.label}</span>
-                                                    {selected && (
-                                                        <motion.div
-                                                            layoutId="active-indicator"
-                                                            className="absolute left-0 w-0.5 h-5 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                                                        />
-                                                    )}
-                                                </>
-                                            )}
-                                        </Tab>
-                                    ))}
-                                </TabList>
-                            </div>
-
-                            {/* Sidebar Footer */}
-                            <div className="mt-auto p-6 pt-4 border-t border-white/[0.04]">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="relative">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                                        <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-50" />
-                                    </div>
-                                    <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                                        {t('system_ok') || 'System OK'}
-                                    </span>
-                                </div>
-                            </div>
-                        </aside>
-
-                        {/* Main Content Area */}
-                        <main className="relative flex-1 flex flex-col min-w-0 bg-gradient-to-br from-white/[0.01] to-transparent">
-                            {/* Content Header */}
-                            <header className="flex items-center justify-between px-8 pt-8 pb-4">
-                                <div className="space-y-0.5">
-                                    <AnimatePresence mode="wait">
-                                        <motion.h3
-                                            key={selectedIndex}
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: 10 }}
-                                            className="text-xl font-bold text-white/90 tracking-tight"
-                                        >
-                                            {tabDefs[selectedIndex]?.label}
-                                        </motion.h3>
-                                    </AnimatePresence>
-                                    <p className="text-[10px] text-white/30 uppercase tracking-widest font-medium">
-                                        {t('configure_settings')}
+                                <div>
+                                    <h2 className="text-base font-bold text-white/90 tracking-tight">
+                                        {t('settings_title')}
+                                    </h2>
+                                    <p className="text-[9px] text-white/30 uppercase tracking-widest font-medium">
+                                        {t('settings')}
                                     </p>
                                 </div>
-
-                                <button
-                                    onClick={onClose}
-                                    className="group p-2.5 rounded-xl transition-all duration-200 
-                                             bg-white/[0.03] border border-white/[0.06]
-                                             hover:bg-red-500/10 hover:border-red-500/20 hover:scale-105 active:scale-95"
-                                >
-                                    <CloseIcon className="w-4 h-4 text-white/30 group-hover:text-red-400 transition-colors" />
-                                </button>
-                            </header>
-
-                            {/* Divider */}
-                            <div className="mx-8 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
-
-                            {/* Scrollable Content */}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-6">
-                                <TabPanels>
-                                    {tabDefs.map((tab) => (
-                                        <TabPanel
-                                            key={tab.id}
-                                            className="focus:outline-none"
-                                        >
-                                            <Suspense fallback={
-                                                <div className="flex items-center justify-center p-12">
-                                                    <div className="w-6 h-6 rounded-full border-2 border-white/10 border-t-white/40 animate-spin" />
-                                                </div>
-                                            }>
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ duration: 0.3, ease: 'easeOut' }}
-                                                >
-                                                    {renderTabContent(tab.id)}
-                                                </motion.div>
-                                            </Suspense>
-                                        </TabPanel>
-                                    ))}
-                                </TabPanels>
                             </div>
-                        </main>
-                    </>
-                )}
-            </TabGroup>
+
+                            <TabsList className="flex flex-col gap-1 bg-transparent p-0 h-auto">
+                                {tabDefs.map((tab) => {
+                                    const selected = activeTab === tab.id
+                                    return (
+                                        <TabsTrigger
+                                            key={tab.id}
+                                            value={tab.id}
+                                            className={`
+                                                group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 outline-none w-full justify-start
+                                                data-[state=active]:bg-white/[0.1] data-[state=active]:text-white data-[state=active]:shadow-lg
+                                                data-[state=inactive]:text-white/40 data-[state=inactive]:hover:text-white/80 data-[state=inactive]:hover:bg-white/[0.04] data-[state=inactive]:bg-transparent
+                                            `}
+                                        >
+                                            <>
+                                                <tab.icon className={`w-4 h-4 transition-all duration-200 ${selected ? 'text-white' : 'text-white/30 group-hover:text-white/50'}`} />
+                                                <span className="relative z-10">{tab.label}</span>
+                                                {selected && (
+                                                    <motion.div
+                                                        layoutId="active-indicator"
+                                                        className="absolute left-0 w-0.5 h-5 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                                                    />
+                                                )}
+                                            </>
+                                        </TabsTrigger>
+                                    )
+                                })}
+                            </TabsList>
+                        </div>
+
+                        {/* Sidebar Footer */}
+                        <div className="mt-auto p-6 pt-4 border-t border-white/[0.04]">
+                            <div className="flex items-center gap-2.5">
+                                <div className="relative">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+                                    <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-50" />
+                                </div>
+                                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                                    {t('system_ok') || 'System OK'}
+                                </span>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Main Content Area */}
+                    <main className="relative flex-1 flex flex-col min-w-0 bg-gradient-to-br from-white/[0.01] to-transparent">
+                        {/* Content Header */}
+                        <header className="flex items-center justify-between px-8 pt-8 pb-4">
+                            <div className="space-y-0.5">
+                                <AnimatePresence mode="wait">
+                                    <motion.h3
+                                        key={activeTab}
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="text-xl font-bold text-white/90 tracking-tight"
+                                    >
+                                        {tabDefs.find(t => t.id === activeTab)?.label}
+                                    </motion.h3>
+                                </AnimatePresence>
+                                <p className="text-[10px] text-white/30 uppercase tracking-widest font-medium">
+                                    {t('configure_settings')}
+                                </p>
+                            </div>
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onClose}
+                                className="group h-9 w-9 rounded-xl transition-all duration-200 
+                                         bg-white/[0.03] border border-white/[0.06]
+                                         hover:bg-red-500/10 hover:border-red-500/20 hover:scale-105 active:scale-95"
+                            >
+                                <CloseIcon className="w-4 h-4 text-white/30 group-hover:text-red-400 transition-colors" />
+                            </Button>
+                        </header>
+
+                        {/* Divider */}
+                        <div className="mx-8 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-6">
+                            {tabDefs.map((tab) => (
+                                <TabsContent
+                                    key={tab.id}
+                                    value={tab.id}
+                                    className="focus:outline-none h-full m-0 data-[state=active]:block data-[state=inactive]:hidden"
+                                >
+                                    <Suspense fallback={
+                                        <div className="flex items-center justify-center p-12 h-full">
+                                            <div className="w-6 h-6 rounded-full border-2 border-white/10 border-t-white/40 animate-spin" />
+                                        </div>
+                                    }>
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                                        >
+                                            {renderTabContent(tab.id)}
+                                        </motion.div>
+                                    </Suspense>
+                                </TabsContent>
+                            ))}
+                        </div>
+                    </main>
+                </Tabs>
+            </motion.div>
         </div>
     )
 }
 
 export default SettingsModal
-
-

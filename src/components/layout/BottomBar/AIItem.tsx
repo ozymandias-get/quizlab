@@ -128,6 +128,43 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         return site?.displayName || site?.name || (modelKey.charAt(0).toUpperCase() + modelKey.slice(1))
     }, [t, modelKey, site])
 
+    const iconScaleStyle = useMemo<React.CSSProperties>(() => ({
+        width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+        height: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+    }), [])
+
+    const renderedIcon = useMemo(() => {
+        const icon = getAiIcon(site?.icon || modelKey)
+        if (!React.isValidElement(icon)) return icon
+        const iconElement = icon as React.ReactElement<{ style?: React.CSSProperties }>
+
+        return React.cloneElement(
+            iconElement,
+            {
+                style: {
+                    ...(iconElement.props.style ?? {}),
+                    ...iconScaleStyle,
+                }
+            }
+        )
+    }, [site?.icon, modelKey, iconScaleStyle])
+
+    const scaledButtonMetrics = useMemo<React.CSSProperties>(() => (
+        showOnlyIcons
+            ? {
+                width: 'calc(40px * var(--bar-scale-factor, 1))',
+                height: 'calc(40px * var(--bar-scale-factor, 1))',
+                padding: 'calc(10px * var(--bar-scale-factor, 1))',
+                borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',
+            }
+            : {
+                padding: 'calc(8px * var(--bar-scale-factor, 1)) calc(12px * var(--bar-scale-factor, 1))',
+                gap: 'calc(10px * var(--bar-scale-factor, 1))',
+                minWidth: 'calc(100px * var(--bar-scale-factor, 1))',
+                borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',
+            }
+    ), [showOnlyIcons])
+
     const content = (
         <motion.button
             onHoverStart={() => setIsHovered(true)}
@@ -139,12 +176,21 @@ export const AIItem = memo<AIItemProps>(function AIItem({
             }}
             whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
             className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
-            style={buttonStyle}
+            style={{
+                ...buttonStyle,
+                ...scaledButtonMetrics,
+            }}
             onClick={handleClick}
             title={translatedName}
         >
-            {getAiIcon(site?.icon || modelKey) || (
-                <div className="w-4 h-4 flex items-center justify-center font-bold text-[10px]">
+            {renderedIcon || (
+                <div
+                    className="w-4 h-4 flex items-center justify-center font-bold text-[10px]"
+                    style={{
+                        width: 'calc(1rem * var(--bar-scale-factor, 1))',
+                        height: 'calc(1rem * var(--bar-scale-factor, 1))',
+                    }}
+                >
                     {translatedName.charAt(0) || '?'}
                 </div>
             )}

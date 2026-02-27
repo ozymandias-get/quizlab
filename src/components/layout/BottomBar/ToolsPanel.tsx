@@ -27,6 +27,10 @@ export const ToolsPanel = memo(({
     const { t } = useLanguage()
 
     const { isPickerActive, togglePicker } = useAppTools()
+    const toolbarIconStyle: React.CSSProperties = {
+        width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+        height: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+    }
 
     return (
         <AnimatePresence initial={false}>
@@ -49,7 +53,7 @@ export const ToolsPanel = memo(({
                         exit="exit"
                     >
                         <ToolButton id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS} delay={0.03} onClick={handleSettingsClick} title={t('settings')}>
-                            <SettingsIcon className="w-5 h-5" />
+                            <SettingsIcon className="w-5 h-5" style={toolbarIconStyle} />
                         </ToolButton>
 
                         <ToolButton
@@ -58,7 +62,7 @@ export const ToolsPanel = memo(({
                             onClick={toggleLayoutSwap}
                             title={t('swap_window')}
                         >
-                            <SwapIcon className="w-5 h-5" />
+                            <SwapIcon className="w-5 h-5" style={toolbarIconStyle} />
                         </ToolButton>
 
                         <ToolButton
@@ -69,7 +73,7 @@ export const ToolsPanel = memo(({
                             onClick={togglePicker}
                             title={t('element_picker')}
                         >
-                            <MagicWandIcon className="w-5 h-5" />
+                            <MagicWandIcon className="w-5 h-5" style={toolbarIconStyle} />
                         </ToolButton>
 
                         {/* Quiz Mode Button */}
@@ -80,7 +84,7 @@ export const ToolsPanel = memo(({
                             onClick={onToggleQuizMode}
                             title={isQuizMode ? t('close_quiz') : t('open_quiz')}
                         >
-                            <Brain className="w-5 h-5" />
+                            <Brain className="w-5 h-5" style={toolbarIconStyle} />
                         </ToolButton>
 
                     </motion.div>

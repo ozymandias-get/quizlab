@@ -4,8 +4,8 @@ import type { UpdateCheckResult } from '@shared/types'
 import { useToast } from '@src/app/providers/ToastContext'
 import { useLanguage } from '@src/app/providers/LanguageContext'
 
-export const SYSTEM_VERSION_KEY = ['system', 'version']
-export const SYSTEM_UPDATE_KEY = ['system', 'update']
+const SYSTEM_VERSION_KEY = ['system', 'version']
+const SYSTEM_UPDATE_KEY = ['system', 'update']
 
 /**
  * App Version Query

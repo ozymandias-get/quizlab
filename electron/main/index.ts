@@ -55,8 +55,7 @@ app.commandLine.appendSwitch('enable-quic')
 // Set higher priority for the renderer process
 app.commandLine.appendSwitch('high-dpi-support', '1')
 app.commandLine.appendSwitch('force-device-scale-factor', '1')
-// Disable Autofill to reduce DevTools noise
-app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication')
+// NOTE: `disable-features` was already set above. Do not override it here.
 
 // Background task to clean up corrupted storage without blocking startup
 async function runBackgroundCleanup() {

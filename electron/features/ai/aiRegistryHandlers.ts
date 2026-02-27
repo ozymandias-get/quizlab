@@ -13,6 +13,34 @@ import {
 
 type CustomPlatformsMap = Record<string, AiPlatform>
 export type AddCustomAiInput = { name: string; url: string; isSite?: boolean }
+const MAX_CUSTOM_AI_NAME = 80
+const MAX_CUSTOM_AI_URL = 2048
+
+const normalizeCustomAiName = (name: unknown): string | null => {
+    if (typeof name !== 'string') return null
+    const normalized = name.trim()
+    if (!normalized || normalized.length > MAX_CUSTOM_AI_NAME) return null
+    return normalized
+}
+
+const normalizeCustomAiUrl = (url: unknown): string | null => {
+    if (typeof url !== 'string') return null
+
+    let normalized = url.trim()
+    if (!normalized || normalized.length > MAX_CUSTOM_AI_URL) return null
+    if (!/^https?:\/\//i.test(normalized)) {
+        normalized = `https://${normalized}`
+    }
+
+    try {
+        const parsed = new URL(normalized)
+        if (!parsed.hostname) return null
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+        return parsed.toString()
+    } catch {
+        return null
+    }
+}
 
 export function registerAiRegistryHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
@@ -20,22 +48,23 @@ export function registerAiRegistryHandlers() {
 
     ipcMain.handle(IPC_CHANNELS.ADD_CUSTOM_AI, async (event, platformData: AddCustomAiInput) => {
         try {
-            const id = 'custom_' + Date.now()
-            // Normalize URL to prevent ERR_FILE_NOT_FOUND when user types "google.com" without protocol
-            let normalizedUrl = platformData.url.trim()
-            if (!/^https?:\/\//i.test(normalizedUrl)) {
-                normalizedUrl = `https://${normalizedUrl}`
+            const name = normalizeCustomAiName(platformData?.name)
+            const normalizedUrl = normalizeCustomAiUrl(platformData?.url)
+            if (!name || !normalizedUrl) {
+                return { success: false, error: 'Invalid custom AI input' }
             }
+
+            const id = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
             let newPlatform: AiPlatform = {
                 id,
-                name: platformData.name,
-                displayName: platformData.name,
+                name,
+                displayName: name,
                 url: normalizedUrl,
                 icon: platformData.isSite ? 'globe' : 'globe', // Keep globe or customize later
                 selectors: { input: null, button: null, waitFor: null },
                 isCustom: true,
-                isSite: platformData.isSite,
+                isSite: Boolean(platformData.isSite),
                 color: undefined as string | undefined
             }
 
@@ -60,6 +89,9 @@ export function registerAiRegistryHandlers() {
     })
 
     ipcMain.handle(IPC_CHANNELS.DELETE_CUSTOM_AI, async (event, id: string) => {
+        if (typeof id !== 'string' || !id.startsWith('custom_') || id.length > 128) {
+            return false
+        }
         return manager.deleteItem(id)
     })
 

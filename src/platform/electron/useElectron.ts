@@ -8,7 +8,7 @@ import {
 import { useToast } from '@src/app/providers/ToastContext'
 
 // Helper to access API safely
-export const getApi = () => {
+const getApi = () => {
     if (typeof window === 'undefined' || !window.electronAPI) {
         throw new Error('Electron API is not available')
     }

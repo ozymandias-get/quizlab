@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import BottomBar from '@src/components/layout/BottomBar/index'
+import { APP_CONSTANTS } from '@src/constants/appConstants'
 
 // Mock dependencies
 vi.mock('@src/app/providers', () => ({
@@ -61,6 +62,7 @@ vi.mock('@features/settings/components/SettingsModal', () => ({
 }))
 
 vi.mock('@src/components/ui/Icons', () => ({
+    AiHubIcon: (props: any) => <svg {...props} data-testid="ai-hub" />,
     MagicWandIcon: (props: any) => <svg {...props} data-testid="magic-wand" />
 }))
 
@@ -96,7 +98,7 @@ describe('BottomBar Component', () => {
         expect(screen.getByTestId('models-panel')).toBeInTheDocument()
 
         // Find CenterHub via ID
-        const hubBtn = container.querySelector('#bottom-bar-hub-btn')
+        const hubBtn = container.querySelector(`#${APP_CONSTANTS.TOUR_TARGETS.HUB_BTN}`)
         expect(hubBtn).toBeInTheDocument()
     })
 
@@ -108,7 +110,7 @@ describe('BottomBar Component', () => {
             />
         )
 
-        const hubBtn = container.querySelector('#bottom-bar-hub-btn')
+        const hubBtn = container.querySelector(`#${APP_CONSTANTS.TOUR_TARGETS.HUB_BTN}`)
         expect(hubBtn).toBeInTheDocument()
 
         if (hubBtn) {

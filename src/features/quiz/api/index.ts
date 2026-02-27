@@ -26,10 +26,3 @@ export type { DifficultyType, ModelTypeEnum, QuestionStyleEnum, Question, QuizSe
 
 // Re-export constants
 export { Difficulty, ModelType, QuestionStyle, DEFAULT_SETTINGS, STYLE_ICONS, getModelConfigs, INITIAL_QUIZ_STATE }
-
-export default {
-    Difficulty,
-    ModelType,
-    QuestionStyle,
-    DEFAULT_SETTINGS
-}

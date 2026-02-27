@@ -69,5 +69,3 @@ export const STORAGE_KEYS = {
     /** Son okunan PDF dosya bilgisi ve sayfa numarası (JSON: {name, path, page, streamUrl}) */
     LAST_PDF_READING: 'lastPdfReading'
 } as const
-
-export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS]
