@@ -146,6 +146,8 @@ export async function createWindow() {
         autoHideMenuBar: true,
         backgroundColor: '#0c0a09',
         show: false,
+        // Hide from taskbar during boot to avoid dual-preview with splash.
+        skipTaskbar: true,
         webPreferences: {
             preload: path.join(__dirname, '../preload/index.js'),
             nodeIntegration: false,
@@ -182,6 +184,7 @@ export async function createWindow() {
             splashWindow.destroy()
             splashWindow = null
         }
+        mainWindow?.setSkipTaskbar(false)
         mainWindow?.show()
     })
 
@@ -260,6 +263,9 @@ export function createSplashWindow() {
         alwaysOnTop: true,
         resizable: false,
         center: false,
+        show: false,
+        skipTaskbar: true,
+        focusable: false,
         icon: iconPath,
         webPreferences: {
             nodeIntegration: false,
@@ -268,6 +274,9 @@ export function createSplashWindow() {
     })
 
     splashWindow.loadFile(splashPath).catch(() => { })
+    splashWindow.once('ready-to-show', () => {
+        splashWindow?.show()
+    })
     splashWindow.on('closed', () => { splashWindow = null })
 
     return splashWindow

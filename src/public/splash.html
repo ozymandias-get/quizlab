@@ -7,147 +7,269 @@
     <title>QuizLab Reader</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
 
     <style>
+        :root {
+            --bg: #000000;
+            --surface: rgba(7, 14, 24, 0.72);
+            --surface-border: rgba(170, 220, 255, 0.22);
+            --title: #f7fbff;
+            --body: #a9bbcd;
+            --accent-a: #4fd1ff;
+            --accent-b: #ffcc78;
+            --accent-c: #8af8ca;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #0a0a0c;
+            background: var(--bg);
             margin: 0;
-            padding: 0;
             height: 100vh;
             width: 100vw;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Space Grotesk', sans-serif;
             overflow: hidden;
             user-select: none;
             cursor: default;
         }
 
-        .splash-bg {
+        .ambient {
             position: absolute;
             inset: 0;
-            background:
-                radial-gradient(circle at 50% 50%, rgba(180, 100, 255, 0.08) 0%, transparent 60%),
-                radial-gradient(circle at 20% 80%, rgba(80, 150, 255, 0.05) 0%, transparent 40%);
-            z-index: -1;
+            background: #000000;
+            animation: none;
         }
 
-        /* Heartbeat Icon */
-        .heartbeat-container {
+        .grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(132, 162, 190, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(132, 162, 190, 0.07) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: radial-gradient(circle at center, black 38%, transparent 95%);
+            opacity: 0;
+        }
+
+        .shell {
             position: relative;
+            width: min(640px, 90vw);
+            border-radius: 24px;
+            padding: 38px 36px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 26px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            box-shadow:
+                0 32px 90px rgba(2, 10, 24, 0.72),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(14px);
+            transform: translateY(6px);
+            animation: shellEntrance 0.9s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+        }
+
+        .shell::after {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            border-radius: 23px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            pointer-events: none;
+        }
+
+        .brand {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin-bottom: 2rem;
+            gap: 16px;
         }
 
-        .heartbeat-aura {
+        .mark-wrap {
+            position: relative;
+            height: 56px;
+            width: 56px;
+        }
+
+        .mark-glow {
             position: absolute;
-            width: 80px;
-            height: 80px;
-            background: radial-gradient(circle, #ff3366 0%, transparent 70%);
+            inset: -10px;
             border-radius: 50%;
-            filter: blur(30px);
-            opacity: 0.3;
-            animation: auraPulse 1.5s ease-in-out infinite;
+            background: radial-gradient(circle, rgba(79, 209, 255, 0.42), transparent 68%);
+            filter: blur(7px);
+            animation: glowPulse 1.8s ease-in-out infinite;
         }
 
-        @keyframes auraPulse {
+        .mark {
+            position: relative;
+            height: 56px;
+            width: 56px;
+            filter: drop-shadow(0 10px 20px rgba(1, 18, 38, 0.46));
+        }
+
+        .app-title {
+            margin: 0;
+            font-size: clamp(30px, 4vw, 42px);
+            line-height: 1;
+            letter-spacing: -0.03em;
+            font-weight: 700;
+            color: var(--title);
+            background: linear-gradient(105deg, #ffffff 0%, #d3f0ff 45%, #ffe3b1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: titlePulse 2.2s ease-in-out infinite;
+        }
+
+        .subtitle {
+            margin: 8px 0 0;
+            color: var(--body);
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .meter {
+            height: 10px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(130, 160, 186, 0.18);
+            border: 1px solid rgba(150, 186, 217, 0.2);
+            position: relative;
+        }
+
+        .meter::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg,
+                    rgba(79, 209, 255, 0.06),
+                    rgba(255, 204, 120, 0.06));
+        }
+
+        .meter-bar {
+            height: 100%;
+            width: 44%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent-a), var(--accent-c), var(--accent-b));
+            box-shadow: 0 0 18px rgba(79, 209, 255, 0.5);
+            transform: translateX(-110%);
+            animation: barTravel 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--accent-c);
+            box-shadow: 0 0 12px rgba(138, 248, 202, 0.7);
+            animation: dotPulse 1.4s ease-in-out infinite;
+        }
+
+        .status-text {
+            margin: 0;
+            color: #d2dfec;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .build-text {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.04em;
+            color: rgba(191, 208, 225, 0.64);
+            opacity: 0;
+            animation: fadeIn 0.7s ease-out 0.5s forwards;
+        }
+
+        @keyframes ambientDrift {
+            0% {
+                transform: scale(1) translate3d(0, 0, 0);
+            }
+
+            100% {
+                transform: scale(1.04) translate3d(-1.2%, 0.8%, 0);
+            }
+        }
+
+        @keyframes shellEntrance {
+            from {
+                opacity: 0;
+                transform: translateY(16px) scale(0.985);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes glowPulse {
 
             0%,
             100% {
                 transform: scale(1);
-                opacity: 0.2;
+                opacity: 0.78;
             }
 
-            10%,
-            30% {
-                transform: scale(1.6);
-                opacity: 0.5;
-            }
-        }
-
-        .heartbeat-icon {
-            width: 100px;
-            height: 100px;
-            color: #ff3366;
-            filter: drop-shadow(0 0 20px rgba(255, 51, 102, 0.4));
-            z-index: 2;
-        }
-
-        .heartbeat-path {
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 3;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            stroke-dasharray: 1000;
-            stroke-dashoffset: 1000;
-            animation: drawLine 2s ease-in-out forwards;
-        }
-
-        @keyframes drawLine {
-            to {
-                stroke-dashoffset: 0;
+            50% {
+                transform: scale(1.12);
+                opacity: 0.4;
             }
         }
 
-        /* Pulsing Text */
-        .title {
-            font-size: 2.5rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            background: linear-gradient(135deg, #ffffff 0%, #ffcbd5 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: heartbeatPulse 1.5s ease-in-out infinite;
-            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        @keyframes titlePulse {
+
+            0%,
+            100% {
+                filter: brightness(1);
+            }
+
+            50% {
+                filter: brightness(1.13);
+            }
         }
 
-        @keyframes heartbeatPulse {
+        @keyframes barTravel {
             0% {
-                transform: scale(1);
-                filter: brightness(1);
+                transform: translateX(-110%);
             }
 
-            10% {
-                transform: scale(1.08);
-                filter: brightness(1.2);
-            }
-
-            20% {
-                transform: scale(1);
-                filter: brightness(1);
-            }
-
-            30% {
-                transform: scale(1.05);
-                filter: brightness(1.1);
-            }
-
-            40% {
-                transform: scale(1);
-                filter: brightness(1);
+            65% {
+                transform: translateX(142%);
             }
 
             100% {
-                transform: scale(1);
-                filter: brightness(1);
+                transform: translateX(142%);
             }
         }
 
-        .status {
-            margin-top: 2rem;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.2);
-            animation: fadeIn 1s ease-out 1s forwards;
-            opacity: 0;
+        @keyframes dotPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.24);
+            }
         }
 
         @keyframes fadeIn {
@@ -159,25 +281,63 @@
 </head>
 
 <body>
-    <div class="splash-bg"></div>
-    <div class="heartbeat-container">
-        <div class="heartbeat-aura"></div>
-        <svg class="heartbeat-icon" viewBox="0 0 100 100">
-            <path class="heartbeat-path" d="M0,50 L30,50 L35,30 L45,70 L55,10 L65,90 L70,50 L100,50" />
-        </svg>
-    </div>
-    <div class="title">QuizLab Reader</div>
-    <div class="status" id="status-text">Initialising Neural Engine</div>
+    <div class="ambient"></div>
+    <div class="grid"></div>
+    <main class="shell">
+        <section class="brand">
+            <div class="mark-wrap">
+                <div class="mark-glow"></div>
+                <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#4fd1ff" />
+                            <stop offset="52%" stop-color="#8af8ca" />
+                            <stop offset="100%" stop-color="#ffcc78" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="28" cy="28" r="24" fill="none" stroke="url(#ringGradient)" stroke-width="3.5" />
+                    <path d="M12 30 H20 L23 22 L28 35 L33 16 L37 39 L40 30 H45" fill="none" stroke="#ebf8ff" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="app-title">QuizLab Reader</h1>
+                <p id="subtitle-text" class="subtitle">AI-Powered Study Environment</p>
+            </div>
+        </section>
+
+        <div class="meter">
+            <div class="meter-bar"></div>
+        </div>
+
+        <section class="status-row">
+            <div class="status-dot"></div>
+            <p id="status-text" class="status-text">Bootstrapping Learning Workspace</p>
+        </section>
+
+        <div class="build-text">v2.0.4</div>
+    </main>
 
     <script>
-        // Simple language detection for splash screen
-        const userLanguage = navigator.language || navigator.userLanguage;
-        const statusElement = document.getElementById('status-text');
+        const userLanguage = navigator.language || navigator.userLanguage
+        const statusElement = document.getElementById('status-text')
+        const subtitleElement = document.getElementById('subtitle-text')
 
-        if (userLanguage.startsWith('tr')) {
-            statusElement.textContent = 'Sinirsel Motor Hazırlanıyor';
-        } else {
-            statusElement.textContent = 'Initialising Neural Engine';
+        const copy = userLanguage.startsWith('tr')
+            ? {
+                status: 'Ogrenme Ortami Baslatiliyor',
+                subtitle: 'Yapay Zeka Destekli Calisma Alani'
+            }
+            : {
+                status: 'Bootstrapping Learning Workspace',
+                subtitle: 'AI-Powered Study Environment'
+            }
+
+        if (statusElement) {
+            statusElement.textContent = copy.status
+        }
+        if (subtitleElement) {
+            subtitleElement.textContent = copy.subtitle
         }
     </script>
 </body>

@@ -114,44 +114,39 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            {/* Premium Backdrop with blur */}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+            {/* Backdrop */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 backdrop-blur-2xl bg-black/70 will-change-[opacity]"
+                className="absolute inset-0 bg-black/80 backdrop-blur-xl will-change-[opacity]"
             />
-
-            {/* Ambient glow effects */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px]" />
-                <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px]" />
-            </div>
 
             {/* Modal Container */}
             <motion.div
                 ref={modalRef}
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                initial={{ opacity: 0, scale: 0.96, y: 14 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                className="relative w-full max-w-5xl h-[680px] overflow-hidden rounded-[28px] 
-                           bg-gradient-to-br from-[#0d0d12] via-[#0a0a0f] to-[#08080c]
-                           border border-white/[0.08] flex
-                           shadow-[0_50px_100px_-30px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.05)]
+                className="relative w-full max-w-6xl h-[min(680px,calc(100vh-1.5rem))] overflow-hidden rounded-[24px] 
+                           bg-gradient-to-b from-[#0b0b0b] via-[#080808] to-[#050505]
+                           border border-white/[0.09] flex
+                           shadow-[0_40px_120px_-50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.04)]
                            will-change-[transform,opacity]"
             >
                 <Tabs defaultValue="prompts" className="flex w-full h-full" value={activeTab} onValueChange={setActiveTab}>
                     {/* Sidebar Navigation */}
-                    <aside className="relative w-56 flex flex-col bg-white/[0.02] border-r border-white/[0.06]">
+                    <aside className="relative w-60 lg:w-64 shrink-0 flex flex-col bg-black/35 border-r border-white/[0.1] max-[900px]:w-full max-[900px]:border-r-0 max-[900px]:border-b">
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.03] via-transparent to-transparent" />
                         {/* Header */}
-                        <div className="p-6 pb-4">
-                            <div className="flex items-center gap-3 mb-8">
-                                <div className="p-2.5 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.03] border border-white/[0.1] shadow-lg">
-                                    <SettingsIcon className="w-5 h-5 text-white/60" />
+                        <div className="relative p-5 md:p-6 md:pb-4">
+                            <div className="flex items-center gap-3 mb-6 md:mb-8">
+                                <div className="p-2.5 rounded-xl bg-gradient-to-b from-white/[0.1] to-white/[0.04] border border-white/[0.2] shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-md">
+                                    <SettingsIcon className="w-5 h-5 text-white/70" />
                                 </div>
                                 <div>
-                                    <h2 className="text-base font-bold text-white/90 tracking-tight">
+                                    <h2 className="text-sm md:text-base font-bold text-white/90 tracking-tight">
                                         {t('settings_title')}
                                     </h2>
                                     <p className="text-[9px] text-white/30 uppercase tracking-widest font-medium">
@@ -160,7 +155,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 </div>
                             </div>
 
-                            <TabsList className="flex flex-col gap-1 bg-transparent p-0 h-auto">
+                            <TabsList className="flex flex-col gap-1.5 bg-transparent p-0 h-auto max-[900px]:flex-row max-[900px]:overflow-x-auto max-[900px]:pb-1">
                                 {tabDefs.map((tab) => {
                                     const selected = activeTab === tab.id
                                     return (
@@ -168,18 +163,36 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                             key={tab.id}
                                             value={tab.id}
                                             className={`
-                                                group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 outline-none w-full justify-start
-                                                data-[state=active]:bg-white/[0.1] data-[state=active]:text-white data-[state=active]:shadow-lg
-                                                data-[state=inactive]:text-white/40 data-[state=inactive]:hover:text-white/80 data-[state=inactive]:hover:bg-white/[0.04] data-[state=inactive]:bg-transparent
+                                                group relative isolate overflow-hidden flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold
+                                                outline-none w-full justify-start border backdrop-blur-xl transition-all duration-300
+                                                ${selected
+                                                    ? 'text-white border-white/[0.32] bg-gradient-to-br from-white/[0.17] via-white/[0.09] to-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_28px_-14px_rgba(255,255,255,0.35)]'
+                                                    : 'text-white/50 border-white/[0.14] bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-transparent hover:text-white/85 hover:border-white/[0.24] hover:from-white/[0.12] hover:via-white/[0.05]'
+                                                }
+                                                max-[900px]:w-auto max-[900px]:min-w-max
                                             `}
                                         >
                                             <>
-                                                <tab.icon className={`w-4 h-4 transition-all duration-200 ${selected ? 'text-white' : 'text-white/30 group-hover:text-white/50'}`} />
+                                                <span
+                                                    className={`pointer-events-none absolute inset-[1px] rounded-[10px] transition-opacity duration-300 ${selected
+                                                        ? 'opacity-100 bg-gradient-to-b from-white/[0.14] to-transparent'
+                                                        : 'opacity-0 group-hover:opacity-100 bg-gradient-to-b from-white/[0.08] to-transparent'
+                                                    }`}
+                                                />
+                                                {selected && (
+                                                    <motion.span
+                                                        initial={{ x: '-140%' }}
+                                                        animate={{ x: '160%' }}
+                                                        transition={{ duration: 2.2, ease: 'linear', repeat: Infinity, repeatDelay: 0.8 }}
+                                                        className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.22] to-transparent opacity-60 blur-[1px]"
+                                                    />
+                                                )}
+                                                <tab.icon className={`relative z-10 w-4 h-4 transition-colors duration-200 ${selected ? 'text-white' : 'text-white/38 group-hover:text-white/64'}`} />
                                                 <span className="relative z-10">{tab.label}</span>
                                                 {selected && (
                                                     <motion.div
                                                         layoutId="active-indicator"
-                                                        className="absolute left-0 w-0.5 h-5 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                                                        className="pointer-events-none absolute left-2 inset-y-2 w-px rounded-full bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.35)] max-[900px]:left-2 max-[900px]:right-2 max-[900px]:top-auto max-[900px]:bottom-1 max-[900px]:h-px max-[900px]:w-auto"
                                                     />
                                                 )}
                                             </>
@@ -190,11 +203,11 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         </div>
 
                         {/* Sidebar Footer */}
-                        <div className="mt-auto p-6 pt-4 border-t border-white/[0.04]">
+                        <div className="mt-auto p-6 pt-4 border-t border-white/[0.06] max-[900px]:hidden">
                             <div className="flex items-center gap-2.5">
                                 <div className="relative">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                                    <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-50" />
+                                    <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
+                                    <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-45" />
                                 </div>
                                 <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
                                     {t('system_ok') || 'System OK'}
@@ -204,9 +217,9 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </aside>
 
                     {/* Main Content Area */}
-                    <main className="relative flex-1 flex flex-col min-w-0 bg-gradient-to-br from-white/[0.01] to-transparent">
+                    <main className="relative flex-1 flex flex-col min-w-0 bg-gradient-to-b from-white/[0.01] to-transparent">
                         {/* Content Header */}
-                        <header className="flex items-center justify-between px-8 pt-8 pb-4">
+                        <header className="flex items-center justify-between px-6 md:px-8 pt-6 md:pt-8 pb-4">
                             <div className="space-y-0.5">
                                 <AnimatePresence mode="wait">
                                     <motion.h3
@@ -214,7 +227,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: 10 }}
-                                        className="text-xl font-bold text-white/90 tracking-tight"
+                                        className="text-lg md:text-xl font-bold text-white/90 tracking-tight"
                                     >
                                         {tabDefs.find(t => t.id === activeTab)?.label}
                                     </motion.h3>
@@ -229,18 +242,18 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 size="icon"
                                 onClick={onClose}
                                 className="group h-9 w-9 rounded-xl transition-all duration-200 
-                                         bg-white/[0.03] border border-white/[0.06]
-                                         hover:bg-red-500/10 hover:border-red-500/20 hover:scale-105 active:scale-95"
+                                         bg-white/[0.03] border border-white/[0.09]
+                                         hover:bg-white/[0.08] hover:border-white/[0.18] hover:scale-105 active:scale-95"
                             >
-                                <CloseIcon className="w-4 h-4 text-white/30 group-hover:text-red-400 transition-colors" />
+                                <CloseIcon className="w-4 h-4 text-white/35 group-hover:text-white/80 transition-colors" />
                             </Button>
                         </header>
 
                         {/* Divider */}
-                        <div className="mx-8 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+                        <div className="mx-6 md:mx-8 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
                         {/* Scrollable Content */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-6">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 py-5 md:py-6">
                             {tabDefs.map((tab) => (
                                 <TabsContent
                                     key={tab.id}
@@ -249,7 +262,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 >
                                     <Suspense fallback={
                                         <div className="flex items-center justify-center p-12 h-full">
-                                            <div className="w-6 h-6 rounded-full border-2 border-white/10 border-t-white/40 animate-spin" />
+                                            <div className="w-6 h-6 rounded-full border-2 border-white/15 border-t-white/50 animate-spin" />
                                         </div>
                                     }>
                                         <motion.div
