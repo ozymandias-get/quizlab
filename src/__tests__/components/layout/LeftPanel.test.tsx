@@ -13,8 +13,8 @@ vi.mock('@shared/hooks/useSharedDragDrop', () => ({
     useSharedDragDrop: (onDrop: any) => mockUseSharedDragDrop(onDrop)
 }))
 
-vi.mock('@features/pdf/ui/components/PdfViewer', () => ({
-    default: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>
+vi.mock('@features/pdf', () => ({
+    PdfViewer: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>
 }))
 
 vi.mock('@react-pdf-viewer/core', () => ({

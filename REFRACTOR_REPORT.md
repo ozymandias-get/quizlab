@@ -116,6 +116,7 @@ Cross-feature imports were moved to feature-root imports (`@features/<feature>`)
 ## 5) Commands Run and Results
 
 - `npm run typecheck` -> PASS
+- `npm run lint` -> PASS
 - `npx vitest run` -> PASS (55 files, 266 tests)
 - `npm run build:renderer:electron` -> PASS
 - `npm run build:backend` -> PASS
@@ -125,16 +126,39 @@ Additional checks:
 - `rg -n "@src/" src electron shared` -> no matches
 - `rg -n "main/constants" electron` -> no matches
 
-## 6) Known Risks / Debt
+## 6) Guardrails
+
+- ESLint command added:
+  - `npm run lint` -> `eslint . --ext .ts,.tsx --max-warnings=0`
+- Alias policy guardrails:
+  - `@src/*` imports are forbidden.
+  - `@shared/*` reserved for renderer shared (`src/shared/*`).
+  - `@shared-core/*` reserved for repo-root shared contracts (`shared/*`).
+- Feature boundary guardrails:
+  - Outside `src/features/**`, deep imports to `@features/*/ui/*`, `@features/*/model/*`, `@features/*/api/*` are forbidden.
+  - Public imports via `@features/<feature>` are allowed.
+- Shared-core safety guardrails (`shared/**`):
+  - Warn on Electron module imports (`electron`, `electron/*`, `@electron/*`).
+  - Warn on DOM globals (`window`, `document`).
+- Reference doc added:
+  - `docs/ARCHITECTURE.md`
+
+## 7) How to Run Checks
+
+```bash
+npm run typecheck
+npm run lint
+npx vitest run
+npm run build
+```
+
+## 8) Known Risks / Debt
 
 - Vite warning remains during renderer build:
-  - `PdfViewer.tsx` is dynamically imported in `LeftPanel` and also statically exported via `src/features/pdf/index.ts`.
+  - `src/features/pdf/index.ts` is dynamically imported in `LeftPanel` and also statically imported in `src/app/App.tsx`.
   - This affects chunk-splitting behavior, not runtime correctness.
 - `design/button-redesign.html` was already deleted before refactor (user-confirmed as non-critical).
-- No lint script exists in `package.json`; lint gate is intentionally skipped.
 
-## 7) Remote Policy
+## 9) Remote Policy
 
-- No `git push` executed.
-- No PR/release actions executed.
-- All changes were applied locally only.
+- Post-refactor guardrail stabilization changes were applied locally only.

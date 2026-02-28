@@ -5,7 +5,9 @@ import ErrorBoundary from '@ui/components/ErrorBoundary'
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
 
-const PdfViewer = lazy(() => import('@features/pdf/ui/components/PdfViewer'))
+const PdfViewer = lazy(() =>
+    import('@features/pdf').then((module) => ({ default: module.PdfViewer }))
+)
 
 interface LeftPanelProps {
     onPdfDrop: (file: File) => void;

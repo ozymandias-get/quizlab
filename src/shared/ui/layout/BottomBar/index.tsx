@@ -9,7 +9,9 @@ import { ModelsPanel } from './ModelsPanel'
 import { SettingsLoadingSpinner } from './SettingsLoadingSpinner'
 import { useBottomBarStyles } from './useBottomBarStyles'
 
-const SettingsModal = lazy(() => import('@features/settings/ui/SettingsModal'))
+const SettingsModal = lazy(() =>
+    import('@features/settings').then((module) => ({ default: module.SettingsModal }))
+)
 
 interface BottomBarProps {
     onHoverChange?: (isHovering: boolean) => void;
@@ -46,7 +48,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            import('@features/settings/ui/SettingsModal')
+            import('@features/settings')
                 .catch(err => Logger.error('Error prefetching SettingsModal:', err))
         }, 1500)
         return () => clearTimeout(timer)
