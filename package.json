@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "The Ultimate AI-Powered PDF Reader & Quiz Generator. Study faster with split-screen PDF viewing, Google Gemini AI integration, and automatic flashcard creation.",
   "main": "dist/electron/electron/app/index.js",
   "repository": {
