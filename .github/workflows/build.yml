@@ -33,7 +33,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --ignore-optional
+        run: npm ci --omit=optional
         env:
           npm_config_canvas_binary_host_mirror: "https://example.com/fake"
 
