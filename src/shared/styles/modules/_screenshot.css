@@ -1,0 +1,183 @@
+/* ============================================
+   SCREENSHOT TOOL STYLES - Ekran görüntüsü aracı
+   ============================================ */
+
+.screenshot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  cursor: crosshair;
+  background: transparent;
+}
+
+.screenshot-esc-hint {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #a8a29e;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  pointer-events: none;
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.screenshot-dim {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  transition: all 0.05s ease;
+}
+
+.screenshot-selection {
+  position: absolute;
+  border: 2px solid #f59e0b;
+  background: transparent;
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(245, 158, 11, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation: selectionPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes selectionPulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 0 1px rgba(0, 0, 0, 0.3),
+      0 0 20px rgba(245, 158, 11, 0.3),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 0 1px rgba(0, 0, 0, 0.3),
+      0 0 30px rgba(245, 158, 11, 0.5),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  }
+}
+
+.screenshot-size-indicator {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fafaf9;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'SF Mono', Monaco, monospace;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.screenshot-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #f59e0b;
+  border: 2px solid #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.screenshot-handle.top-left {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.screenshot-handle.top-right {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.screenshot-handle.bottom-left {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.screenshot-handle.bottom-right {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+.screenshot-instructions {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+.screenshot-instructions .screenshot-instruction-box {
+  pointer-events: auto;
+}
+
+.screenshot-instruction-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 48px;
+  background: linear-gradient(
+    145deg,
+    rgba(28, 25, 23, 0.95) 0%,
+    rgba(12, 10, 9, 0.98) 100%
+  );
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 20px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(245, 158, 11, 0.15);
+  color: #fafaf9;
+  text-align: center;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.screenshot-instruction-box svg {
+  color: #f59e0b;
+}
+
+.screenshot-instruction-box h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.screenshot-instruction-box p {
+  font-size: 0.875rem;
+  color: #a8a29e;
+  max-width: 280px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.screenshot-hint {
+  margin-top: 8px;
+  padding: 6px 16px;
+  background: rgba(68, 64, 60, 0.5);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: #78716c;
+}
+
+.screenshot-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fafaf9;
+  font-size: 0.875rem;
+}

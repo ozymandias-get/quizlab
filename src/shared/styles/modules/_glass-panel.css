@@ -1,0 +1,33 @@
+/* ============================================
+   GLASS PANEL STYLES - Buzlu cam efektli paneller
+   ============================================ */
+
+.glass-panel {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(25px);
+  box-shadow: 
+    /* Base dark shadow for elevation */
+    0 30px 60px -12px rgba(0, 0, 0, 0.7),
+    /* Aura collisions (Light catching from background) */
+    -15px -15px 50px -10px rgba(251, 191, 36, 0.06), /* Amber glow top-left */
+    15px 15px 50px -10px rgba(244, 63, 94, 0.06),   /* Rose glow bottom-right */
+    /* Sharp outer rim */
+    0 0 0 1.5px rgba(255, 255, 255, 0.02),
+    /* Inner glass reflection */
+    inset 0 1px 2px rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+  z-index: 10;
+  
+  /* GPU Optimizasyonu */
+  transform: translateZ(0); 
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
