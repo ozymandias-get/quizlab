@@ -3,10 +3,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+const isElectronBuild = process.env.ELECTRON === "1"
+
 export default defineConfig({
     plugins: [
         react(),
-        ...(process.env.ELECTRON === "1" ? [] : [
+        ...(isElectronBuild ? [] : [
             VitePWA({
                 registerType: 'autoUpdate',
                 includeAssets: ['icon.png', 'icon.ico', 'robots.txt'],
@@ -105,7 +107,6 @@ export default defineConfig({
                         '@headlessui/react',
                         'framer-motion',
                         'lucide-react',
-                        'styled-components',
                         'react-colorful',
                         'react-virtuoso'
                     ],
@@ -124,6 +125,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
+            ...(isElectronBuild ? { 'virtual:pwa-register': path.resolve(__dirname, 'src/app/pwa-register-noop.ts') } : {}),
             '@src': path.resolve(__dirname, 'src'),
             '@shared': path.resolve(__dirname, 'shared'),
             '@electron': path.resolve(__dirname, 'electron'),

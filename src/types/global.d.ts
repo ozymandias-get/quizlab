@@ -70,6 +70,7 @@ declare global {
             // Utilities
             captureScreen: (rect?: { x: number; y: number; width: number; height: number }) => Promise<string | null>;
             copyImageToClipboard: (dataUrl: string) => Promise<boolean>;
+            copyTextToClipboard: (text: string) => Promise<boolean>;
             openExternal: (url: string) => Promise<boolean>;
             forcePaste: (webContentsId: number) => Promise<boolean>;
             showPdfContextMenu: (labels: Partial<Record<string, string>>) => void;

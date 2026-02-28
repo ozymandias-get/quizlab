@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import { create } from 'zustand'
+import React from 'react'
 
 /**
- * Toast Management System - Solid & Performant
- * Supports: Queueing (max 3), i18n, Progress Bar, Pause-on-hover, Framer Motion
+ * Toast Management Store
+ * Supports queueing (max 3) and keeps the old hook API stable.
  */
-
 export interface Toast {
     id: string;
     message: string;
@@ -14,7 +14,7 @@ export interface Toast {
     duration?: number;
 }
 
-interface ToastContextType {
+interface ToastStoreState {
     toasts: Toast[];
     addToast: (toast: Omit<Toast, 'id'>) => string;
     removeToast: (id: string) => void;
@@ -24,49 +24,59 @@ interface ToastContextType {
     showInfo: (message: string, title?: string, params?: Record<string, string>, duration?: number) => string;
 }
 
-const ToastContext = createContext<ToastContextType | null>(null);
+const MAX_TOASTS = 3
+const DEFAULT_DURATION = 5000
 
-const MAX_TOASTS = 3;
-const DEFAULT_DURATION = 5000;
+const useToastStore = create<ToastStoreState>((set, get) => ({
+    toasts: [],
 
+    removeToast: (id: string) => {
+        set((prev) => ({ toasts: prev.toasts.filter((toast) => toast.id !== id) }))
+    },
+
+    addToast: ({ message, title, type = 'info', params = {}, duration = DEFAULT_DURATION }: Omit<Toast, 'id'>) => {
+        const id = Math.random().toString(36).substring(2, 9)
+
+        set((prev) => {
+            const next = [...prev.toasts, { id, message, title, type, params, duration }]
+            return { toasts: next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next }
+        })
+
+        return id
+    },
+
+    showSuccess: (message, title, params, duration) => {
+        return get().addToast({ message, title, type: 'success', params, duration })
+    },
+
+    showError: (message, title, params, duration) => {
+        return get().addToast({ message, title, type: 'error', params, duration })
+    },
+
+    showWarning: (message, title, params, duration) => {
+        return get().addToast({ message, title, type: 'warning', params, duration })
+    },
+
+    showInfo: (message, title, params, duration) => {
+        return get().addToast({ message, title, type: 'info', params, duration })
+    }
+}))
+
+// Backward-compatible wrapper for old tree usage.
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-    const [toasts, setToasts] = useState<Toast[]>([]);
+    return <>{children}</>
+}
 
-    const removeToast = useCallback((id: string) => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, []);
+export function useToast() {
+    const toasts = useToastStore(state => state.toasts)
+    const addToast = useToastStore(state => state.addToast)
+    const removeToast = useToastStore(state => state.removeToast)
+    const showSuccess = useToastStore(state => state.showSuccess)
+    const showError = useToastStore(state => state.showError)
+    const showWarning = useToastStore(state => state.showWarning)
+    const showInfo = useToastStore(state => state.showInfo)
 
-    const addToast = useCallback(({ message, title, type = 'info', params = {}, duration = DEFAULT_DURATION }: Omit<Toast, 'id'>) => {
-        const id = Math.random().toString(36).substring(2, 9);
-
-        setToasts((prev) => {
-            const newToast: Toast = { id, message, title, type, params, duration };
-            const updated = [...prev, newToast];
-
-            // Queue Mechanism: Max 3 toasts. If more, remove the oldest one.
-            if (updated.length > MAX_TOASTS) {
-                return updated.slice(updated.length - MAX_TOASTS);
-            }
-            return updated;
-        });
-
-        return id;
-    }, []);
-
-    // Convenience Methods
-    const showSuccess = useCallback((message: string, title?: string, params?: Record<string, string>, duration?: number) =>
-        addToast({ message, title, type: 'success', params, duration }), [addToast]);
-
-    const showError = useCallback((message: string, title?: string, params?: Record<string, string>, duration?: number) =>
-        addToast({ message, title, type: 'error', params, duration }), [addToast]);
-
-    const showWarning = useCallback((message: string, title?: string, params?: Record<string, string>, duration?: number) =>
-        addToast({ message, title, type: 'warning', params, duration }), [addToast]);
-
-    const showInfo = useCallback((message: string, title?: string, params?: Record<string, string>, duration?: number) =>
-        addToast({ message, title, type: 'info', params, duration }), [addToast]);
-
-    const value = React.useMemo(() => ({
+    return {
         toasts,
         addToast,
         removeToast,
@@ -74,19 +84,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         showError,
         showWarning,
         showInfo
-    }), [toasts, addToast, removeToast, showSuccess, showError, showWarning, showInfo]);
-
-    return (
-        <ToastContext.Provider value={value}>
-            {children}
-        </ToastContext.Provider>
-    );
-}
-
-export function useToast() {
-    const context = useContext(ToastContext);
-    if (!context) {
-        throw new Error('useToast must be used within a ToastProvider');
     }
-    return context;
 }
+

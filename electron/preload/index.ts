@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Utilities
     captureScreen: (rect?: { x: number; y: number; width: number; height: number }): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_SCREEN, rect),
     copyImageToClipboard: (dataUrl: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.COPY_IMAGE, dataUrl),
+    copyTextToClipboard: (text: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.COPY_TEXT, text),
     openExternal: (url: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),
     forcePaste: (webContentsId: number): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.FORCE_PASTE, webContentsId),
     showPdfContextMenu: (labels: Partial<Record<string, string>>): void => ipcRenderer.send(IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU, labels),

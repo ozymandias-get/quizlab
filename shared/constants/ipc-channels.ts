@@ -4,6 +4,7 @@ export const IPC_CHANNELS = {
     PDF_REGISTER_PATH: 'pdf:register-path',
     CAPTURE_SCREEN: 'capture-screen',
     COPY_IMAGE: 'copy-image-to-clipboard',
+    COPY_TEXT: 'copy-text-to-clipboard',
     OPEN_EXTERNAL: 'open-external',
     SHOW_PDF_CONTEXT_MENU: 'show-pdf-context-menu',
     TRIGGER_SCREENSHOT: 'trigger-screenshot',

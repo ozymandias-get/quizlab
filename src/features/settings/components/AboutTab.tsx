@@ -6,6 +6,7 @@ import AppInfoSection from './about/AppInfoSection'
 import UpdatesCard from './about/UpdatesCard'
 import RepositoryLink from './about/RepositoryLink'
 import CacheControl from './about/CacheControl'
+import IssueReportCard from './about/IssueReportCard'
 
 interface AboutTabProps {
     appVersion: string;
@@ -61,6 +62,11 @@ const AboutTab = React.memo(({
                     handleClearCache={handleClearCache}
                     isClearing={isClearing}
                     isClearSuccess={isClearSuccess}
+                />
+
+                <IssueReportCard
+                    t={t}
+                    appVersion={appVersion}
                 />
             </div>
         </div>

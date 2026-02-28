@@ -1,4 +1,4 @@
-import { ipcMain, shell, webContents, session } from 'electron'
+import { ipcMain, shell, webContents, session, clipboard } from 'electron'
 import { APP_CONFIG } from '../main/constants'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 
@@ -64,6 +64,17 @@ export function registerSystemHandlers() {
             return true
         } catch (error) {
             console.error('[IPC] Failed to clear cache:', error)
+            return false
+        }
+    })
+
+    ipcMain.handle(IPC_CHANNELS.COPY_TEXT, (event, text: string) => {
+        try {
+            if (typeof text !== 'string' || text.length === 0) return false
+            clipboard.writeText(text)
+            return true
+        } catch (error) {
+            console.error('[Clipboard] Text copy failed:', error)
             return false
         }
     })

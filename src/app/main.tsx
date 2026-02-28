@@ -6,8 +6,6 @@ import '@src/styles/index.css'
 import { registerPWA } from './pwa'
 import BrowserFallback from '@src/components/ui/BrowserFallback'
 
-registerPWA()
-
 const rootElement = document.getElementById('root') as HTMLElement
 const root = ReactDOM.createRoot(rootElement)
 
@@ -15,6 +13,8 @@ const root = ReactDOM.createRoot(rootElement)
 const isElectron = typeof window !== 'undefined' && 'electronAPI' in window
 
 if (!isElectron) {
+    registerPWA()
+
     // Render the fallback screen when running in browser mode
     root.render(<BrowserFallback />)
 } else {

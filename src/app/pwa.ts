@@ -1,16 +1,21 @@
-import { registerSW } from 'virtual:pwa-register'
 import { Logger } from '@src/utils/logger'
 
 export function registerPWA() {
-    if ('serviceWorker' in navigator) {
-        registerSW({
-            onNeedRefresh() {
-                // Show update prompt if needed
-                Logger.info('New content available, click on reload button to update.')
-            },
-            onOfflineReady() {
-                Logger.info('App ready to work offline')
-            },
+    const isElectron = typeof window !== 'undefined' && 'electronAPI' in window
+    if (isElectron || !('serviceWorker' in navigator)) return
+
+    void import('virtual:pwa-register')
+        .then(({ registerSW }) => {
+            registerSW({
+                onNeedRefresh() {
+                    Logger.info('New content available, click on reload button to update.')
+                },
+                onOfflineReady() {
+                    Logger.info('App ready to work offline')
+                },
+            })
         })
-    }
+        .catch((error: unknown) => {
+            Logger.warn('[PWA] Service worker registration skipped:', error)
+        })
 }
