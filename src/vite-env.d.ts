@@ -37,7 +37,7 @@ declare module '*.webp' {
 }
 
 // PDF.js worker URL import
-declare module 'pdfjs-dist/build/pdf.worker.min.js?url' {
+declare module 'pdfjs-dist/build/pdf.worker.min.mjs?url' {
     const url: string;
     export default url;
 }

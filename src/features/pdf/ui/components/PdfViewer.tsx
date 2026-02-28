@@ -13,7 +13,7 @@ import {
 
 // @react-pdf-viewer imports
 import { Worker, Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 // PDF Viewer stilleri
 import '@react-pdf-viewer/core/lib/styles/index.css'

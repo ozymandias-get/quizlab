@@ -315,13 +315,14 @@
             <p id="status-text" class="status-text">Bootstrapping Learning Workspace</p>
         </section>
 
-        <div class="build-text">v2.0.4</div>
+        <div id="build-text" class="build-text">v0.0.0</div>
     </main>
 
     <script>
         const userLanguage = navigator.language || navigator.userLanguage
         const statusElement = document.getElementById('status-text')
         const subtitleElement = document.getElementById('subtitle-text')
+        const buildTextElement = document.getElementById('build-text')
 
         const copy = userLanguage.startsWith('tr')
             ? {
@@ -338,6 +339,11 @@
         }
         if (subtitleElement) {
             subtitleElement.textContent = copy.subtitle
+        }
+        if (buildTextElement) {
+            const params = new URLSearchParams(window.location.search)
+            const appVersion = params.get('version')
+            buildTextElement.textContent = appVersion ? `v${appVersion}` : 'v0.0.0'
         }
     </script>
 </body>

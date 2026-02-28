@@ -1,6 +1,7 @@
 ﻿import { ipcMain, shell, webContents, session, clipboard } from 'electron'
 import { APP_CONFIG } from '../app/constants'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
+import { getMainWindow } from '../app/windowManager'
 
 export function registerSystemHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
@@ -24,6 +25,13 @@ export function registerSystemHandlers() {
 
     ipcMain.handle(IPC_CHANNELS.FORCE_PASTE, async (event, webContentsId: number) => {
         try {
+            // Validation: Only allow main window to trigger force paste
+            const mainWindow = getMainWindow()
+            if (!mainWindow || event.sender !== mainWindow.webContents) {
+                console.warn('[IPC] FORCE_PASTE blocked: sender is not main window')
+                return false
+            }
+
             if (!webContentsId) return false
             const contents = webContents.fromId(webContentsId)
 

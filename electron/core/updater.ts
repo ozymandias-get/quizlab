@@ -49,7 +49,7 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
 
     try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        const timeoutId = setTimeout(() => controller.abort(), 12000)
 
         // Attempt 1: Try with standard fetch
         const response = await globalThis.fetch(url, {
@@ -83,46 +83,48 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
 
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        console.error(`[Updater] Network error:`, message)
+        const isAbort = err instanceof Error && err.name === 'AbortError'
+        console.warn(`[Updater] Network error:`, message)
 
-        // Attempt 2: Fallback to Electron's native 'net' module (if fetch fails due to proxy/env issues)
-        if (message && (message.includes('fetch') || message.includes('network'))) {
-            return new Promise((resolve) => {
-                const request = net.request(url)
-                request.setHeader('User-Agent', `Electron-App/${app.getVersion()}`)
-                request.on('response', (response) => {
-                    let data = ''
-                    response.on('data', (chunk) => { data += chunk })
-                    response.on('end', () => {
-                        try {
-                            if (response.statusCode !== 200) {
-                                resolve({ error: `HTTP ${response.statusCode}` })
-                            } else {
-                                const release = JSON.parse(data) as { tag_name?: string; name?: string; body?: string; html_url?: string }
-                                if (!release.tag_name) {
-                                    resolve({ error: 'Invalid release data' })
-                                    return
-                                }
-                                resolve({
-                                    version: release.tag_name,
-                                    releaseName: release.name || release.tag_name,
-                                    body: release.body || 'New version available.',
-                                    htmlUrl: release.html_url
-                                })
+        // Attempt 2: Fallback to Electron's native 'net' module.
+        // This also handles AbortError from fetch timeout on slow/proxied networks.
+        return new Promise((resolve) => {
+            const request = net.request(url)
+            request.setHeader('User-Agent', `Electron-App/${app.getVersion()}`)
+            request.on('response', (response) => {
+                let data = ''
+                response.on('data', (chunk) => { data += chunk })
+                response.on('end', () => {
+                    try {
+                        if (response.statusCode !== 200) {
+                            resolve({ error: `HTTP ${response.statusCode}` })
+                        } else {
+                            const release = JSON.parse(data) as { tag_name?: string; name?: string; body?: string; html_url?: string }
+                            if (!release.tag_name) {
+                                resolve({ error: 'Invalid release data' })
+                                return
                             }
-                        } catch (e) {
-                            resolve({ error: 'Parse error' })
+                            resolve({
+                                version: release.tag_name,
+                                releaseName: release.name || release.tag_name,
+                                body: release.body || 'New version available.',
+                                htmlUrl: release.html_url
+                            })
                         }
-                    })
+                    } catch {
+                        resolve({ error: 'Parse error' })
+                    }
                 })
-                request.on('error', (error) => {
-                    resolve({ error: error.message })
-                })
-                request.end()
             })
-        }
-
-        return { error: message }
+            request.on('error', (error) => {
+                if (isAbort) {
+                    resolve({ error: 'Request timed out' })
+                    return
+                }
+                resolve({ error: error.message })
+            })
+            request.end()
+        })
     }
 }
 

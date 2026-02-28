@@ -273,7 +273,11 @@ export function createSplashWindow() {
         }
     })
 
-    splashWindow.loadFile(splashPath).catch(() => { })
+    splashWindow.loadFile(splashPath, {
+        query: {
+            version: app.getVersion()
+        }
+    }).catch(() => { })
     splashWindow.once('ready-to-show', () => {
         splashWindow?.show()
     })

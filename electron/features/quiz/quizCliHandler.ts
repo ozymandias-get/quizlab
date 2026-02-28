@@ -170,8 +170,8 @@ function registerQuizHandlers() {
             if (isWindows) {
                 // Open new cmd window with gemini CLI
                 // The /k flag keeps the window open after command
-                spawn('cmd', ['/c', 'start', 'cmd', '/k', `"${cliPath}"`], {
-                    shell: true,
+                spawn('cmd.exe', ['/d', '/c', 'start', '""', 'cmd.exe', '/k', `"${cliPath}"`], {
+                    shell: false,
                     detached: true,
                     stdio: 'ignore'
                 }).unref()
@@ -263,25 +263,51 @@ function registerQuizHandlers() {
         const settingsPath = path.join(os.homedir(), '.gemini', 'settings.json')
         try {
             // Read current settings
-            let settings: GeminiSettingsFile = {}
+            let settings: GeminiSettingsFile | null = null
             try {
                 const data = await fs.readFile(settingsPath, 'utf8')
                 settings = JSON.parse(data) as GeminiSettingsFile
-            } catch { }
-
-            // Remove auth info
-            if (settings.security?.auth) {
-                delete settings.security.auth
-            }
-            if (settings.selectedAuthType) {
-                delete settings.selectedAuthType
-            }
-            if (settings.apiKey) {
-                delete settings.apiKey
+            } catch {
+                // Ignore if not present or corrupt
             }
 
-            // Write back
-            await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2))
+            if (settings) {
+                // Remove auth info
+                if (settings.security?.auth) {
+                    delete settings.security.auth
+                }
+                if (settings.selectedAuthType) {
+                    delete settings.selectedAuthType
+                }
+                if (settings.apiKey) {
+                    delete settings.apiKey
+                }
+
+                try {
+                    // Attempt secure atomic write
+                    const tempPath = `${settingsPath}.${randomBytes(8).toString('hex')}.tmp`
+                    await fs.writeFile(tempPath, JSON.stringify(settings, null, 2), { mode: 0o600 })
+                    await fs.rename(tempPath, settingsPath)
+                    return { success: true }
+                } catch (writeErr) {
+                    console.warn('[QuizCLI] Atomic write failed during logout, falling back to secure unlink')
+                }
+            }
+
+            // Secure unlink fallback: overwrite with zeros then unlink
+            try {
+                const stats = await fs.stat(settingsPath).catch(() => null)
+                if (stats && stats.isFile()) {
+                    // Fill file with zeros to securely erase sensitive token data
+                    await fs.writeFile(settingsPath, Buffer.alloc(stats.size), { mode: 0o600 })
+                    await fs.unlink(settingsPath)
+                }
+            } catch (unlinkErr: any) {
+                if (unlinkErr.code !== 'ENOENT') {
+                    throw unlinkErr
+                }
+            }
+
             return { success: true }
         } catch (err) {
             // SECURITY: Don't expose detailed error info

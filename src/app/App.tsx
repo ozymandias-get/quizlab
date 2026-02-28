@@ -11,7 +11,7 @@ import AppBackground from '@ui/layout/AppBackground'
 import ToastContainer from '@ui/components/Toast/ToastContainer'
 import { UsageAssistant } from '@features/tutorial'
 import { QuizModule } from '@features/quiz'
-import { usePdfSelection } from '@features/pdf'
+import { usePdfSelection } from '@features/pdf/hooks/usePdfSelection'
 
 // Context & Constants
 import { useAppTools, useUpdate, useAppearance, useLanguage } from '@app/providers'

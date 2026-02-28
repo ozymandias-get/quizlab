@@ -19,10 +19,18 @@ export const formatQuizText = (text: string): string => {
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .split('\n').join('<br/>')
 
+    // XSS ve DOM Clobbering'e karşı sıkılaştırılmış yapılandırma
     return DOMPurify.sanitize(formatted, {
         ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'br', 'p', 'span', 'code', 'pre'],
-        ALLOWED_ATTR: ['class']
-    })
+        ALLOWED_ATTR: ['class'],
+        USE_PROFILES: { html: true }, // Sadece güvenli HTML etiketlerine izin ver (SVG, MathML engelle)
+        ALLOW_DATA_ATTR: false, // Veri özniteliklerini engelle
+        ALLOW_UNKNOWN_PROTOCOLS: false, // js:, vb. bilinmeyen protokolleri engelle
+        SANITIZE_DOM: true, // DOM Clobbering saldırılarını engelle
+        SANITIZE_NAMED_PROPS: true, // İsimlendirilmiş özellik clobbering koruması
+        RETURN_DOM: false, // String dönmesini garantiye al
+        RETURN_DOM_FRAGMENT: false
+    }) as string
 }
 
 
