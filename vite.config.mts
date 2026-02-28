@@ -125,6 +125,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
+            // Project aliases
             ...(isElectronBuild ? { 'virtual:pwa-register': path.resolve(__dirname, 'src/app/pwa-register-noop.ts') } : {}),
             '@app': path.resolve(__dirname, 'src/app'),
             '@shared': path.resolve(__dirname, 'src/shared'),

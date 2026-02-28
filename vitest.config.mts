@@ -16,6 +16,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
+            // Project aliases for test runtime
             '@app': path.resolve(__dirname, 'src/app'),
             '@shared': path.resolve(__dirname, 'src/shared'),
             '@shared-core': path.resolve(__dirname, 'shared'),

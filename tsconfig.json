@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "baseUrl": ".",
+        // Path aliases (renderer + shared-core)
         "paths": {
             "@app/*": [
                 "./src/app/*"

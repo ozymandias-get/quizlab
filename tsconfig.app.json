@@ -26,6 +26,7 @@
         "noFallthroughCasesInSwitch": true,
         "allowJs": false,
         "baseUrl": ".",
+        // Renderer path aliases
         "paths": {
             "@app/*": [
                 "./src/app/*"

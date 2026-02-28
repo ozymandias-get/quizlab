@@ -5,6 +5,7 @@
 
 
 // Image module declarations
+// Keep this file as declaration-only (no runtime behavior).
 declare module '*.png' {
     const src: string;
     export default src;
