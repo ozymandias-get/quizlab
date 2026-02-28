@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Quiz CLI Handler Module
  * Orchestrates quiz generation using modular components
  */
@@ -8,13 +8,13 @@ import path from 'path'
 import os from 'os'
 import { randomBytes } from 'crypto'
 import { spawn } from 'child_process' // Used for login terminal
-import { APP_CONFIG } from '../../main/constants'
+import { APP_CONFIG } from '../../app/constants'
 import { ConfigManager } from '../../core/ConfigManager'
 import { getQuizSettingsPath } from '../../core/helpers'
 import { buildQuizPrompt, type QuizPromptParams } from './promptBuilder'
 import { getGeminiCliPath, findGeminiCliPath, executeGeminiCli, generateOutputFilePath } from './geminiService'
 
-import type { QuizSettings as SharedQuizSettings } from '@shared/types'
+import type { QuizSettings as SharedQuizSettings } from '@shared-core/types'
 
 interface QuizSettings extends SharedQuizSettings {
     maxOutputTokens: number;
@@ -457,3 +457,4 @@ function registerQuizHandlers() {
 }
 
 export { registerQuizHandlers }
+

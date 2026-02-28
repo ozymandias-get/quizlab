@@ -1,9 +1,9 @@
-import { protocol, ipcMain, dialog, app } from 'electron'
+﻿import { protocol, ipcMain, dialog, app } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { Readable } from 'stream'
 import crypto from 'crypto'
-import { APP_CONFIG } from '../../main/constants'
+import { APP_CONFIG } from '../../app/constants'
 import { ConfigManager } from '../../core/ConfigManager'
 
 // Registry to map unique IDs to local file paths
@@ -288,3 +288,4 @@ export function stopPdfCleanupInterval() {
 }
 
 export const clearAllPdfPaths = () => pdfRegistry.clear()
+

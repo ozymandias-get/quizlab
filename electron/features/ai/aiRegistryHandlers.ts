@@ -1,8 +1,8 @@
-import { ipcMain } from 'electron'
-import { APP_CONFIG } from '../../main/constants'
+﻿import { ipcMain } from 'electron'
+import { APP_CONFIG } from '../../app/constants'
 import { getCustomPlatformsPath } from '../../core/helpers'
 import { ConfigManager } from '../../core/ConfigManager'
-import type { AiPlatform } from '@shared/types'
+import type { AiPlatform } from '@shared-core/types'
 import {
     AI_REGISTRY,
     DEFAULT_AI_ID,
@@ -118,3 +118,4 @@ export function registerAiRegistryHandlers() {
         }
     })
 }
+

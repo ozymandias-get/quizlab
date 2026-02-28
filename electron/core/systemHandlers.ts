@@ -1,5 +1,5 @@
-import { ipcMain, shell, webContents, session, clipboard } from 'electron'
-import { APP_CONFIG } from '../main/constants'
+﻿import { ipcMain, shell, webContents, session, clipboard } from 'electron'
+import { APP_CONFIG } from '../app/constants'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 
 export function registerSystemHandlers() {
@@ -79,3 +79,4 @@ export function registerSystemHandlers() {
         }
     })
 }
+

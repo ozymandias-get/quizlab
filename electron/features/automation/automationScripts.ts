@@ -1,8 +1,8 @@
-/**
+﻿/**
  * AI Automation Script Generator
  * Generates safe JavaScript code for webview execution
  */
-import type { AutomationConfig } from '@shared/types'
+import type { AutomationConfig } from '@shared-core/types'
 
 // Re-export for backward compatibility
 export type { AutomationConfig }
@@ -220,3 +220,4 @@ export const generateClickSendScript = (config: AutomationConfig): string => {
     })();
     `;
 }
+

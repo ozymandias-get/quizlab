@@ -1,5 +1,5 @@
-import { ipcMain, BrowserWindow, Menu, MenuItem } from 'electron'
-import { APP_CONFIG } from '../../main/constants'
+﻿import { ipcMain, BrowserWindow, Menu, MenuItem } from 'electron'
+import { APP_CONFIG } from '../../app/constants'
 
 export function registerPdfHandlers() {
     const { IPC_CHANNELS, SCREENSHOT_TYPES } = APP_CONFIG
@@ -28,3 +28,4 @@ export function registerPdfHandlers() {
         menu.popup({ window: win })
     })
 }
+

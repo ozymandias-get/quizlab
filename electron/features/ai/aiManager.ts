@@ -1,4 +1,4 @@
-import { APP_CONFIG } from '../../main/constants'
+﻿import { APP_CONFIG } from '../../app/constants'
 import type {
     SubmitMode,
     AiSelectorConfig,
@@ -7,7 +7,7 @@ import type {
     EnhancedAiPlatform,
     AiRegistry,
     InactivePlatforms
-} from '@shared/types'
+} from '@shared-core/types'
 import chatgpt from './platforms/chatgpt'
 import claude from './platforms/claude'
 import deepseek from './platforms/deepseek'
@@ -17,7 +17,7 @@ import kimi from './platforms/kimi'
 export type { SubmitMode, AiSelectorConfig, AiPlatformMeta, AiPlatform, EnhancedAiPlatform, AiRegistry, InactivePlatforms }
 
 /**
- * AI Modül Yöneticisi (Registry)
+ * AI ModÃ¼l YÃ¶neticisi (Registry)
  */
 
 const { CHROME_USER_AGENT } = APP_CONFIG
@@ -50,7 +50,7 @@ const enhancePlatform = (data: AiPlatform): EnhancedAiPlatform => {
     }
 }
 
-// Tüm platformların haritası
+// TÃ¼m platformlarÄ±n haritasÄ±
 // Active Platforms (Defaults)
 const platforms: AiRegistry = {
     chatgpt: enhancePlatform(chatgpt),
@@ -139,3 +139,4 @@ export {
     GET_ALL_AI_IDS,
     inactivePlatforms as INACTIVE_PLATFORMS
 }
+

@@ -1,5 +1,5 @@
-import { ipcMain, BrowserWindow, clipboard, nativeImage } from 'electron'
-import { APP_CONFIG } from '../../main/constants'
+﻿import { ipcMain, BrowserWindow, clipboard, nativeImage } from 'electron'
+import { APP_CONFIG } from '../../app/constants'
 
 export function registerScreenshotHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
@@ -29,3 +29,4 @@ export function registerScreenshotHandlers() {
         }
     })
 }
+

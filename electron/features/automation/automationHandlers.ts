@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
-import { APP_CONFIG } from '../../main/constants'
+﻿import { ipcMain } from 'electron'
+import { APP_CONFIG } from '../../app/constants'
 import {
     generateFocusScript,
     generateClickSendScript,
@@ -40,3 +40,4 @@ export function registerAutomationHandlers() {
         }
     })
 }
+

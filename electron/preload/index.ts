@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
+﻿import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
 import type {
     AiPlatform,
@@ -16,7 +16,7 @@ import type {
     QuizCliPathResult,
     QuizAuthResult,
     QuizActionResult
-} from '@shared/types'
+} from '@shared-core/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
     // AI & Automation
@@ -81,3 +81,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
         askAssistant: (question: string, context?: string): Promise<{ success: boolean; data?: unknown; error?: string }> => ipcRenderer.invoke(IPC_CHANNELS.ASK_AI, { question, context })
     }
 })
+

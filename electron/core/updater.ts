@@ -1,5 +1,5 @@
-import { app, ipcMain, shell, net } from 'electron'
-import { APP_CONFIG } from '../main/constants'
+﻿import { app, ipcMain, shell, net } from 'electron'
+import { APP_CONFIG } from '../app/constants'
 
 // Local state
 type LatestRelease = {
@@ -136,7 +136,7 @@ export function initUpdater() {
         if (isChecking) return { available: !!updateInfo, cached: true }
 
         const now = Date.now()
-        // Cache geçerlilik süresini kontrol et
+        // Cache geÃ§erlilik sÃ¼resini kontrol et
         if (now - lastCheckTime < CHECK_DEBOUNCE_MS && updateInfo) {
             return {
                 available: true,
@@ -186,3 +186,4 @@ export function initUpdater() {
 
     ipcMain.handle(IPC_CHANNELS.GET_APP_VERSION, () => app.getVersion())
 }
+

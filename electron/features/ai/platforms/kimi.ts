@@ -1,4 +1,4 @@
-import type { AiPlatform } from '@shared/types'
+﻿import type { AiPlatform } from '@shared-core/types'
 
 const kimi: AiPlatform = {
     id: 'kimi',
@@ -21,3 +21,4 @@ const kimi: AiPlatform = {
 }
 
 export default kimi
+

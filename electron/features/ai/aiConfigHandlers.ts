@@ -1,8 +1,8 @@
-import { ipcMain } from 'electron'
-import { APP_CONFIG } from '../../main/constants'
+﻿import { ipcMain } from 'electron'
+import { APP_CONFIG } from '../../app/constants'
 import { getAiConfigPath } from '../../core/helpers'
 import { ConfigManager } from '../../core/ConfigManager'
-import type { AiSelectorConfig } from '@shared/types'
+import type { AiSelectorConfig } from '@shared-core/types'
 
 type StoredAiConfig = AiSelectorConfig & { timestamp?: number }
 type AiConfigMap = Record<string, StoredAiConfig>
@@ -81,3 +81,4 @@ export function registerAiConfigHandlers() {
         return manager.clear()
     })
 }
+
