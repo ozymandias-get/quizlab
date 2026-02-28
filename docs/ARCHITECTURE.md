@@ -20,6 +20,8 @@ This document defines stable architectural boundaries for the post-refactor stru
 - `@shared-core/*` -> `shared/*`
 - `@src/*` -> forbidden
 
+Note: To avoid GitHub mention-like rendering, always write aliases in docs with backticks (for example, ``@features/*``).
+
 ## Import Boundary Rules
 
 ### Feature Public API

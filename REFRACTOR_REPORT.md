@@ -142,6 +142,8 @@ Additional checks:
   - Warn on DOM globals (`window`, `document`).
 - Reference doc added:
   - `docs/ARCHITECTURE.md`
+- Documentation formatting rule:
+  - To prevent GitHub mention-like rendering, aliases must be written in backticks (for example, ``@shared/*``).
 
 ## 7) How to Run Checks
 
