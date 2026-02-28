@@ -30,18 +30,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         shell: pwsh
         run: |
-          npm i -g npm@10.9.4
+          node --version
           npm --version
-          npm ci --omit=optional --omit=peer
+          npm ci
           if ($LASTEXITCODE -ne 0) {
             Write-Host "npm ci failed due to lock validation; retrying with npm install."
-            npm install --omit=optional --omit=peer
+            npm install
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
