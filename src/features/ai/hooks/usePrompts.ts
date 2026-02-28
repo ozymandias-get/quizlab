@@ -1,8 +1,8 @@
 ﻿import { useMemo, useCallback } from 'react'
-import { useLanguage } from '@src/app/providers'
-import { useLocalStorage, useLocalStorageString } from '@src/hooks/useLocalStorage'
-import { STORAGE_KEYS } from '@src/constants/storageKeys'
-import { DEFAULT_PROMPTS, IPrompt } from '@src/constants/prompts'
+import { useLanguage } from '@app/providers'
+import { useLocalStorage, useLocalStorageString } from '@shared/hooks/useLocalStorage'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { DEFAULT_PROMPTS, IPrompt } from '@shared/constants/prompts'
 
 export interface Prompt extends IPrompt {
     isDefault?: boolean;
@@ -91,5 +91,7 @@ export function usePrompts(): UsePromptsReturn {
         clearSelection
     }
 }
+
+
 
 

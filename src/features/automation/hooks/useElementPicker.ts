@@ -1,9 +1,9 @@
-import { useCallback, useState, useRef, useEffect } from 'react'
-import { Logger } from '@src/utils/logger'
-import { useToast, useLanguage } from '@src/app/providers'
+﻿import { useCallback, useState, useRef, useEffect } from 'react'
+import { Logger } from '@shared/lib/logger'
+import { useToast, useLanguage } from '@app/providers'
 import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
-import type { WebviewController } from '@shared/types/webview'
+import type { WebviewController } from '@shared-core/types/webview'
 
 type WebviewInstance = WebviewController | null
 
@@ -235,3 +235,4 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         togglePicker
     }
 }
+

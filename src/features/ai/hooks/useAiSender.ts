@@ -1,10 +1,11 @@
-import { useCallback, useRef, RefObject } from 'react'
+﻿import { useCallback, useRef, RefObject } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Logger } from '@src/utils/logger'
-import { safeWebviewPaste } from '@src/utils/webviewUtils'
+import { Logger } from '@shared/lib/logger'
+import { safeWebviewPaste } from '@shared/lib/webviewUtils'
 import { usePrompts } from './usePrompts'
-import type { WebviewController } from '@shared/types/webview'
-import type { AutomationConfig } from '@shared/types'
+import type { WebviewController } from '@shared-core/types/webview'
+import type { AutomationConfig } from '@shared-core/types'
+import type { SendImageResult, SendTextResult } from '../model/types'
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 import { useGenerateAutoSendScript, useGenerateFocusScript, useGenerateClickSendScript } from '@platform/electron/api/useAutomationApi'
 import { useCopyImageToClipboard } from '@platform/electron/api/useSystemApi'
@@ -27,19 +28,6 @@ interface CacheData {
 interface ConfigCache {
     key: string | null;
     data: CacheData | null;
-}
-
-export interface SendTextResult {
-    success: boolean;
-    error?: string;
-    mode?: string;
-    actualUrl?: string;
-}
-
-export interface SendImageResult {
-    success: boolean;
-    error?: string;
-    mode?: string;
 }
 
 interface UseAiSenderReturn {
@@ -306,4 +294,5 @@ export function useAiSender(
 
     return { sendTextToAI, sendImageToAI }
 }
+
 

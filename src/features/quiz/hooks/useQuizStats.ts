@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { QuizState } from '../types'
+﻿import { useMemo } from 'react'
+import { QuizState } from '../model/types'
 
 export const useQuizStats = (quizState: QuizState) => {
     return useMemo(() => {
@@ -32,3 +32,4 @@ export const useQuizStats = (quizState: QuizState) => {
         return { total, correct, wrong, empty, percentage, timeStr }
     }, [quizState])
 }
+

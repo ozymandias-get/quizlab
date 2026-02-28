@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react'
-import { STORAGE_KEYS } from '@src/constants/storageKeys'
-import { useLocalStorage, useLocalStorageString, useLocalStorageBoolean } from '@src/hooks'
+﻿import React, { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { useLocalStorage, useLocalStorageString, useLocalStorageBoolean } from '@shared/hooks'
 import { useToast } from './ToastContext'
-import type { AiPlatform } from '@shared/types'
-import type { WebviewController } from '@shared/types/webview';
-import { useAiSender } from '@features/ai/hooks/useAiSender'
-import type { SendImageResult, SendTextResult } from '@features/ai/hooks/useAiSender'
+import type { AiPlatform } from '@shared-core/types'
+import type { WebviewController } from '@shared-core/types/webview';
+import { useAiSender } from '@features/ai'
+import type { SendImageResult, SendTextResult } from '@features/ai'
 import { useAiRegistry, useRefreshAiRegistry } from '@platform/electron/api/useAiApi'
 
 
@@ -226,5 +226,8 @@ export const useAi = () => {
     if (!context) throw new Error('useAi must be used within AiProvider')
     return context
 }
+
+
+
 
 

@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { Logger } from '@src/utils/logger'
-import { useLanguage } from '@src/app/providers/LanguageContext'
+﻿import { useState, useCallback, useEffect, useRef } from 'react'
+import { Logger } from '@shared/lib/logger'
+import { useLanguage } from '@app/providers/LanguageContext'
 import {
     DEFAULT_SETTINGS,
     QuizSettings,
@@ -9,7 +9,7 @@ import {
 } from '@features/quiz/api'
 import { useQuizSettings, useGenerateQuiz, useSaveSettings } from '@platform/electron/api/useQuizApi'
 import { useSelectPdf } from '@platform/electron/api/usePdfApi'
-import { QuizState, QuizStep, QuizStepType } from '../types'
+import { QuizState, QuizStep, QuizStepType } from '../model/types'
 
 interface UseQuizFlowProps {
     initialPdfPath?: string;
@@ -314,4 +314,6 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         handleRetryMistakes
     }
 }
+
+
 

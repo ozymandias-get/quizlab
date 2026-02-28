@@ -1,7 +1,7 @@
 ﻿import React, { createContext, useContext } from 'react'
-import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
+import { useScreenshot } from '@features/screenshot'
 import { useAi } from './AiContext'
-import { useElementPicker } from '@features/automation/hooks/useElementPicker'
+import { useElementPicker } from '@features/automation'
 
 interface AppToolContextType {
     isScreenshotMode: boolean;
@@ -39,4 +39,5 @@ export const useAppTools = () => {
     if (!context) throw new Error('useAppTools must be used within AppToolProvider')
     return context
 }
+
 

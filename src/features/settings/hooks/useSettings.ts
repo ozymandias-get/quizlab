@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { useUpdate, type UpdateInfo } from '@src/app/providers'
+ï»¿import { useMemo } from 'react'
+import { useUpdate, type UpdateInfo } from '@app/providers'
 import { useAppVersion, useOpenExternal } from '@platform/electron/api/useSystemApi'
 
 interface UseSettingsReturn {
@@ -11,11 +11,11 @@ interface UseSettingsReturn {
 }
 
 /**
- * Settings modal için state ve iþlemleri yöneten custom hook
- * Güncelleme state'leri UpdateContext'ten senkronize edilir
+ * Settings modal iÃ§in state ve iÅŸlemleri yÃ¶neten custom hook
+ * GÃ¼ncelleme state'leri UpdateContext'ten senkronize edilir
  */
 export function useSettings(): UseSettingsReturn {
-    // UpdateContext'ten güncelleme state'lerini al
+    // UpdateContext'ten gÃ¼ncelleme state'lerini al
     const {
         updateAvailable,
         updateInfo: appUpdateInfo,
@@ -28,7 +28,7 @@ export function useSettings(): UseSettingsReturn {
     const { data: appVersion = '1.0.0' } = useAppVersion()
     const { mutate: openExternal } = useOpenExternal()
 
-    // Update status - AppContext'ten türetilir
+    // Update status - AppContext'ten tÃ¼retilir
     const updateStatus = useMemo(() => {
         if (isCheckingUpdate) return 'checking'
         if (appUpdateInfo?.error) return 'error'
@@ -39,12 +39,12 @@ export function useSettings(): UseSettingsReturn {
 
     const updateInfo = appUpdateInfo
 
-    // Güncelleme kontrolü - AppContext'teki fonksiyonu kullan
+    // GÃ¼ncelleme kontrolÃ¼ - AppContext'teki fonksiyonu kullan
     const checkForUpdates = async () => {
         await appCheckForUpdates()
     }
 
-    // GitHub Releases sayfasýný aç
+    // GitHub Releases sayfasÄ±nÄ± aÃ§
     const openReleasesPage = async () => {
         openExternal('https://github.com/ozymandias-get/quizlab/releases')
     }
@@ -60,6 +60,7 @@ export function useSettings(): UseSettingsReturn {
         openReleasesPage
     }
 }
+
 
 
 

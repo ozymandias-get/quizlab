@@ -1,21 +1,21 @@
-import React, { useCallback, useState } from 'react'
+﻿import React, { useCallback, useState } from 'react'
 import { AnimatePresence, motion, LayoutGroup } from 'framer-motion'
-import AiWebview from '@features/ai/components/AiWebview'
-import BottomBar from '@src/components/layout/BottomBar'
-import FloatingButton from '@ui/FloatingButton'
-import ScreenshotTool from '@ui/ScreenshotTool'
-import UpdateBanner from '@ui/UpdateBanner'
-import AestheticLoader from '@src/components/ui/AestheticLoader'
-import LeftPanel from '@src/components/layout/LeftPanel'
-import AppBackground from '@src/components/layout/AppBackground'
-import ToastContainer from '@ui/Toast/ToastContainer'
-import UsageAssistant from '@features/tutorial/components/UsageAssistant'
-import { QuizModule } from '@features/quiz/components'
-import { usePdfSelection } from '@features/pdf/hooks/usePdfSelection'
+import { AiWebview } from '@features/ai'
+import BottomBar from '@ui/layout/BottomBar'
+import FloatingButton from '@ui/components/FloatingButton'
+import { ScreenshotTool } from '@features/screenshot'
+import UpdateBanner from '@ui/components/UpdateBanner'
+import AestheticLoader from '@ui/components/AestheticLoader'
+import LeftPanel from '@ui/layout/LeftPanel'
+import AppBackground from '@ui/layout/AppBackground'
+import ToastContainer from '@ui/components/Toast/ToastContainer'
+import { UsageAssistant } from '@features/tutorial'
+import { QuizModule } from '@features/quiz'
+import { usePdfSelection } from '@features/pdf'
 
 // Context & Constants
-import { useAppTools, useUpdate, useAppearance, useLanguage } from '@src/app/providers'
-import { STORAGE_KEYS } from '@src/constants/storageKeys'
+import { useAppTools, useUpdate, useAppearance, useLanguage } from '@app/providers'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 
 // Hooks
 import {
@@ -23,8 +23,8 @@ import {
     useOnlineStatus,
     useWebviewMount,
     useTextSelection
-} from '@src/hooks'
-import { useAppAnimations } from '@src/app/hooks/useAppAnimations'
+} from '@shared/hooks'
+import { useAppAnimations } from '@app/hooks/useAppAnimations'
 
 const App: React.FC = () => {
     const { t } = useLanguage()
@@ -162,7 +162,7 @@ const App: React.FC = () => {
                                 />
                             </motion.div>
 
-                            {/* Hub Resizer — BottomBar integrated in the center */}
+                            {/* Hub Resizer â€” BottomBar integrated in the center */}
                             <motion.div
                                 ref={resizerRef as React.RefObject<HTMLDivElement>}
                                 variants={resizerVariants}
@@ -236,4 +236,7 @@ const App: React.FC = () => {
 }
 
 export default App
+
+
+
 

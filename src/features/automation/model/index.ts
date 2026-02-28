@@ -1,1 +1,1 @@
-export {}\r\n
+export {}

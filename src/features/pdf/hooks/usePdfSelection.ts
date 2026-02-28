@@ -1,8 +1,8 @@
-import { useState, useCallback, useRef } from 'react'
-import { Logger } from '@src/utils/logger'
-import { useToast, useLanguage } from '@src/app/providers'
-import type { PdfFile } from '@shared/types'
-import { STORAGE_KEYS } from '@src/constants/storageKeys'
+﻿import { useState, useCallback, useRef } from 'react'
+import { Logger } from '@shared/lib/logger'
+import { useToast, useLanguage } from '@app/providers'
+import type { PdfFile } from '@shared-core/types'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useSelectPdf, useRegisterPdfPath } from '@platform/electron/api/usePdfApi'
 
 type DroppedPdfFile = File & { path?: string }
@@ -148,3 +148,5 @@ export const usePdfSelection = () => {
         clearLastReading
     }
 }
+
+
