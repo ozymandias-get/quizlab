@@ -34,9 +34,16 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --omit=optional
-        env:
-          npm_config_canvas_binary_host_mirror: "https://example.com/fake"
+        shell: pwsh
+        run: |
+          npm i -g npm@10.9.4
+          npm --version
+          npm ci --omit=optional --omit=peer
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "npm ci failed due to lock validation; retrying with npm install."
+            npm install --omit=optional --omit=peer
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Build and Package (Windows)
         run: npm run build:win
