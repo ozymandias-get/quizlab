@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import BottomBar from '@src/components/layout/BottomBar/index'
-import { APP_CONSTANTS } from '@src/constants/appConstants'
+import BottomBar from '@ui/layout/BottomBar/index'
+import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
 // Mock dependencies
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useAppearance: () => ({
         bottomBarOpacity: 1,
         bottomBarScale: 1,
@@ -17,7 +17,7 @@ vi.mock('@src/app/providers', () => ({
     })
 }))
 
-vi.mock('@src/components/layout/BottomBar/useBottomBarStyles', () => ({
+vi.mock('@ui/layout/BottomBar/useBottomBarStyles', () => ({
     useBottomBarStyles: () => ({
         shellStyle: {},
         stackStyle: {},
@@ -27,7 +27,7 @@ vi.mock('@src/components/layout/BottomBar/useBottomBarStyles', () => ({
 }))
 
 // Mock subcomponents
-vi.mock('@src/components/layout/BottomBar/ToolsPanel', () => ({
+vi.mock('@ui/layout/BottomBar/ToolsPanel', () => ({
     ToolsPanel: ({ isOpen, handleSettingsClick }: any) => (
         <div data-testid="tools-panel">
             {isOpen ? 'Tools Open' : 'Tools Closed'}
@@ -36,11 +36,11 @@ vi.mock('@src/components/layout/BottomBar/ToolsPanel', () => ({
     )
 }))
 
-vi.mock('@src/components/layout/BottomBar/ModelsPanel', () => ({
+vi.mock('@ui/layout/BottomBar/ModelsPanel', () => ({
     ModelsPanel: () => <div data-testid="models-panel">Models Panel</div>
 }))
 
-vi.mock('@src/components/layout/BottomBar/SettingsLoadingSpinner', () => ({
+vi.mock('@ui/layout/BottomBar/SettingsLoadingSpinner', () => ({
     SettingsLoadingSpinner: () => <div>Loading...</div>
 }))
 
@@ -52,7 +52,7 @@ vi.mock('react-dom', async () => {
     }
 })
 
-vi.mock('@features/settings/components/SettingsModal', () => ({
+vi.mock('@features/settings/ui/SettingsModal', () => ({
     default: ({ isOpen, onClose }: any) => isOpen ? (
         <div data-testid="settings-modal">
             Settings Modal Content
@@ -61,7 +61,7 @@ vi.mock('@features/settings/components/SettingsModal', () => ({
     ) : null
 }))
 
-vi.mock('@src/components/ui/Icons', () => ({
+vi.mock('@ui/components/Icons', () => ({
     AiHubIcon: (props: any) => <svg {...props} data-testid="ai-hub" />,
     MagicWandIcon: (props: any) => <svg {...props} data-testid="magic-wand" />
 }))
@@ -152,4 +152,6 @@ describe('BottomBar Component', () => {
         })
     })
 })
+
+
 

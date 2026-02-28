@@ -126,10 +126,11 @@ export default defineConfig({
     resolve: {
         alias: {
             ...(isElectronBuild ? { 'virtual:pwa-register': path.resolve(__dirname, 'src/app/pwa-register-noop.ts') } : {}),
-            '@src': path.resolve(__dirname, 'src'),
-            '@shared': path.resolve(__dirname, 'shared'),
+            '@app': path.resolve(__dirname, 'src/app'),
+            '@shared': path.resolve(__dirname, 'src/shared'),
+            '@shared-core': path.resolve(__dirname, 'shared'),
             '@electron': path.resolve(__dirname, 'electron'),
-            '@ui': path.resolve(__dirname, 'src/components/ui'),
+            '@ui': path.resolve(__dirname, 'src/shared/ui'),
             '@features': path.resolve(__dirname, 'src/features'),
             '@platform': path.resolve(__dirname, 'src/platform')
         }

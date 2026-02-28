@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react'
+﻿import { render, screen } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import { SettingsLoadingSpinner } from '@src/components/layout/BottomBar/SettingsLoadingSpinner'
+import { SettingsLoadingSpinner } from '@ui/layout/BottomBar/SettingsLoadingSpinner'
 
 // Mock useLanguage
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
@@ -19,3 +19,4 @@ describe('SettingsLoadingSpinner', () => {
         expect(overlay).toHaveClass('backdrop-blur-[2px]')
     })
 })
+

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import QuizModule from '@features/quiz/components/QuizModule'
-import { QuizStep } from '@features/quiz/types'
+import QuizModule from '@features/quiz/ui/QuizModule'
+import { QuizStep } from '@features/quiz/model/types'
 
 // Mock dependencies
 const mockUseQuizFlow = vi.fn()
@@ -9,21 +9,21 @@ vi.mock('@features/quiz/hooks/useQuizFlow', () => ({
     useQuizFlow: (props: any) => mockUseQuizFlow(props)
 }))
 
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
 // Mock Subcomponents to verify rendering
-vi.mock('@features/quiz/components/QuizConfigPanel', () => ({
+vi.mock('@features/quiz/ui/QuizConfigPanel', () => ({
     default: () => <div data-testid="quiz-config-panel">Config Panel</div>
 }))
-vi.mock('@features/quiz/components/QuizGenerating', () => ({
+vi.mock('@features/quiz/ui/QuizGenerating', () => ({
     default: () => <div data-testid="quiz-generating">Generating...</div>
 }))
-vi.mock('@features/quiz/components/QuizActive', () => ({
+vi.mock('@features/quiz/ui/QuizActive', () => ({
     default: () => <div data-testid="quiz-active">Quiz Active</div>
 }))
-vi.mock('@features/quiz/components/QuizResults', () => ({
+vi.mock('@features/quiz/ui/QuizResults', () => ({
     default: () => <div data-testid="quiz-results">Quiz Results</div>
 }))
 
@@ -159,4 +159,6 @@ describe('QuizModule Component', () => {
         expect(onClose).toHaveBeenCalled()
     })
 })
+
+
 

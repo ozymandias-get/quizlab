@@ -1,17 +1,17 @@
-import { renderHook, act } from '@testing-library/react'
+﻿import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useTextSelection } from '@src/hooks/useTextSelection'
+import { useTextSelection } from '@shared/hooks/useTextSelection'
 
 // Mock useAi
 const mockSendTextToAI = vi.fn().mockResolvedValue({ success: true })
 
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useAi: () => ({
         sendTextToAI: mockSendTextToAI,
     }),
 }))
 
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: {
         error: vi.fn(),
         warn: vi.fn(),
@@ -85,3 +85,4 @@ describe('useTextSelection Hook', () => {
         expect(result.current.selectedText).toBe('Failed text')
     })
 })
+

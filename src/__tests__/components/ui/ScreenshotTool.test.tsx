@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import ScreenshotTool from '@src/components/ui/ScreenshotTool'
+import ScreenshotTool from '@features/screenshot/ui/ScreenshotTool'
 
 // Mock Logger
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: {
         error: vi.fn(),
         warn: vi.fn()
     }
 }))
 
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
@@ -109,4 +109,6 @@ describe('ScreenshotTool Component', () => {
         expect(onClose).toHaveBeenCalled()
     })
 })
+
+
 

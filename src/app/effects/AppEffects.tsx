@@ -1,9 +1,9 @@
-import { useEffect } from 'react'
-import { useAppearance } from './providers/AppearanceContext'
-import { useLanguage } from './providers/LanguageContext'
-import { LANGUAGES, DEFAULT_LANGUAGE } from '@src/constants/translations'
-import { hexToRgba } from '@src/utils/uiUtils'
-import { Logger } from '@src/utils/logger'
+﻿import { useEffect } from 'react'
+import { useAppearance } from '../providers/AppearanceContext'
+import { useLanguage } from '../providers/LanguageContext'
+import { LANGUAGES, DEFAULT_LANGUAGE } from '@shared/i18n/translations'
+import { hexToRgba } from '@shared/lib/uiUtils'
+import { Logger } from '@shared/lib/logger'
 
 const ONBOARDING_STORAGE_KEY = 'has_seen_tour_v1'
 
@@ -43,4 +43,6 @@ export function AppEffects() {
 
     return null
 }
+
+
 

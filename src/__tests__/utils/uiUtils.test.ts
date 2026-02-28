@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { formatQuizText, hexToRgba } from '@src/utils/uiUtils'
+﻿import { describe, it, expect } from 'vitest'
+import { formatQuizText, hexToRgba } from '@shared/lib/uiUtils'
 
 describe('uiUtils', () => {
     describe('formatQuizText', () => {
@@ -50,3 +50,4 @@ describe('uiUtils', () => {
         })
     })
 })
+

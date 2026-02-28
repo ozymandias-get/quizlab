@@ -1,6 +1,6 @@
-import { renderHook, act } from '@testing-library/react'
+﻿import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import { useSharedDragDrop } from '@src/hooks/useSharedDragDrop'
+import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 
 describe('useSharedDragDrop Hook', () => {
     it('should initialize not dragging', () => {
@@ -96,3 +96,4 @@ describe('useSharedDragDrop Hook', () => {
         expect(onFileReceived).not.toHaveBeenCalled()
     })
 })
+

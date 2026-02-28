@@ -1,8 +1,8 @@
-import { useElectronMutation } from '../useElectron'
+﻿import { useElectronMutation } from '../useElectron'
 import type {
     PdfSelectOptions,
     PdfSelection
-} from '@shared/types'
+} from '@shared-core/types'
 
 /**
  * Select PDF Mutation
@@ -29,4 +29,5 @@ export function useRegisterPdfPath() {
         }
     )
 }
+
 

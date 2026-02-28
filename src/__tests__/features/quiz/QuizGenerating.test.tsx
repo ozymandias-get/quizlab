@@ -1,6 +1,6 @@
-import { render, screen, act } from '@testing-library/react'
+﻿import { render, screen, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import QuizGenerating from '@features/quiz/components/QuizGenerating'
+import QuizGenerating from '@features/quiz/ui/QuizGenerating'
 
 // Mock icons
 vi.mock('lucide-react', () => ({
@@ -69,3 +69,4 @@ describe('QuizGenerating', () => {
         expect(screen.getByText('quiz_gen_desc')).toBeInTheDocument()
     })
 })
+

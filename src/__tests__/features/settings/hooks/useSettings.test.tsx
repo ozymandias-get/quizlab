@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react'
+﻿import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { useSettings } from '@features/settings/hooks/useSettings'
 
@@ -7,7 +7,7 @@ import { useSettings } from '@features/settings/hooks/useSettings'
 // Mock useUpdate
 const mockCheckForUpdates = vi.fn()
 const mockUseUpdate = vi.fn()
-vi.mock('@src/app/providers/UpdateContext', () => ({
+vi.mock('@app/providers/UpdateContext', () => ({
     useUpdate: () => mockUseUpdate(),
     UpdateProvider: ({ children }: any) => <>{children}</>
 }))
@@ -123,4 +123,5 @@ describe('useSettings', () => {
         expect(result.current.appVersion).toBe('1.0.0') // Fallback in hook
     })
 })
+
 

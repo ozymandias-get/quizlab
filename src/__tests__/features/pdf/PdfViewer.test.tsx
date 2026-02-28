@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+﻿import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import PdfViewer from '@features/pdf/components/PdfViewer'
+import PdfViewer from '@features/pdf/ui/components/PdfViewer'
 
 // Mock Providers
-vi.mock('@src/app/providers/AiContext', () => ({
+vi.mock('@app/providers/AiContext', () => ({
     useAi: () => ({
         autoSend: false,
         toggleAutoSend: vi.fn(),
@@ -11,20 +11,20 @@ vi.mock('@src/app/providers/AiContext', () => ({
     }),
 }))
 
-vi.mock('@src/app/providers/AppToolContext', () => ({
+vi.mock('@app/providers/AppToolContext', () => ({
     useAppTools: () => ({
         startScreenshot: vi.fn(),
     }),
 }))
 
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key,
     }),
 }))
 
 // Mock hooks
-vi.mock('@features/pdf/components/hooks', () => ({
+vi.mock('@features/pdf/ui/hooks', () => ({
     usePdfPlugins: () => ({
         plugins: [],
         jumpToPageRef: { current: vi.fn() },
@@ -54,10 +54,10 @@ vi.mock('@features/pdf/components/hooks', () => ({
 }))
 
 // Mock Subcomponents
-vi.mock('@features/pdf/components/PdfPlaceholder', () => ({
+vi.mock('@features/pdf/ui/components/PdfPlaceholder', () => ({
     default: () => <div>PDF Placeholder</div>,
 }))
-vi.mock('@features/pdf/components/PdfToolbar', () => ({
+vi.mock('@features/pdf/ui/components/PdfToolbar', () => ({
     default: () => <div>PDF Toolbar</div>,
 }))
 
@@ -100,4 +100,5 @@ describe('PdfViewer Component', () => {
         expect(screen.getByText('PDF Toolbar')).toBeInTheDocument()
     })
 })
+
 

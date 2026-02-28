@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { ToolButton } from '@src/components/layout/BottomBar/ToolButton'
+import { ToolButton } from '@ui/layout/BottomBar/ToolButton'
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -20,7 +20,7 @@ vi.mock('framer-motion', () => ({
 }))
 
 // Mock animations
-vi.mock('@src/components/layout/BottomBar/animations', () => ({
+vi.mock('@ui/layout/BottomBar/animations', () => ({
     toolItemVariants: {}
 }))
 
@@ -106,3 +106,4 @@ describe('ToolButton', () => {
         // but testing the effect via DOM presence after click is tricky with the imperative code.
     })
 })
+

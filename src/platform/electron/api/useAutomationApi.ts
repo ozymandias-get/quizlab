@@ -1,6 +1,6 @@
-import { useElectronMutation } from '../useElectron'
-import type { AutomationConfig } from '@shared/types'
-import { useLanguage } from '@src/app/providers/LanguageContext'
+﻿import { useElectronMutation } from '../useElectron'
+import type { AutomationConfig } from '@shared-core/types'
+import { useLanguage } from '@app/providers/LanguageContext'
 
 /**
  * Generate Focus Script Mutation
@@ -56,4 +56,5 @@ export function useGeneratePickerScript() {
         }
     )
 }
+
 

@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react'
+﻿import { render, screen } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import AppBackground from '@src/components/layout/AppBackground'
+import AppBackground from '@ui/layout/AppBackground'
 
 // Mock dependencies
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useAppearance: vi.fn()
 }))
 
@@ -20,7 +20,7 @@ vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: any) => <>{children}</>
 }))
 
-import { useAppearance } from '@src/app/providers'
+import { useAppearance } from '@app/providers'
 
 describe('AppBackground', () => {
     beforeEach(() => {
@@ -60,3 +60,4 @@ describe('AppBackground', () => {
         expect(blobs.length).toBeGreaterThan(0)
     })
 })
+

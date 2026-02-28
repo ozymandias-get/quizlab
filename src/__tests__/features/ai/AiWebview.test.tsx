@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import AiWebview from '@features/ai/components/AiWebview'
+import AiWebview from '@features/ai/ui/AiWebview'
 
 // Setup a mock store to control returned values
 let mockAiState = {
@@ -14,22 +14,22 @@ let mockAiState = {
 }
 
 // Mock useAi to return the mutable state
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useAi: () => mockAiState,
     useToast: () => ({ showWarning: vi.fn() }),
     useLanguage: () => ({ t: (key: string) => key }),
 }))
 
 // Mock Subcomponents
-vi.mock('@features/ai/components/AiSession', () => ({
-    default: ({ tab, isActive }: { tab: import('@shared/types').AiPlatform, isActive: boolean }) => (
+vi.mock('@features/ai/ui/AiSession', () => ({
+    default: ({ tab, isActive }: { tab: import('@shared-core/types').AiPlatform, isActive: boolean }) => (
         <div data-testid={`ai-session-${tab.id}`}>
             {String((tab as any).title || tab.id)} - {isActive ? 'Active' : 'Inactive'}
         </div>
     ),
 }))
 
-vi.mock('@features/tutorial/components/MagicSelectorTutorial', () => ({
+vi.mock('@features/tutorial/ui/MagicSelectorTutorial', () => ({
     default: () => <div data-testid="tutorial-overlay">Tutorial Active</div>,
 }))
 
@@ -74,4 +74,5 @@ describe('AiWebview Component', () => {
         expect(outerDiv.style.clipPath).toContain('inset(0 round 1.5rem)')
     })
 })
+
 

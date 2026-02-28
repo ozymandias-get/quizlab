@@ -1,9 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import FloatingButton from '@ui/FloatingButton'
+import FloatingButton from '@ui/components/FloatingButton'
 
 // Mock hooks
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
     useAppearance: () => ({ selectionColor: '#ff0000' })
 }))
@@ -74,3 +74,4 @@ describe('FloatingButton', () => {
         expect(onOuterMouseDown).not.toHaveBeenCalled()
     })
 })
+

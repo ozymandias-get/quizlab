@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+﻿import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import AiSession from '@features/ai/components/AiSession'
+import AiSession from '@features/ai/ui/AiSession'
 
 // Mock Hooks
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useAi: () => ({
         aiSites: {
             'gpt-4': { url: 'https://chat.openai.com', displayName: 'ChatGPT' },
@@ -16,7 +16,7 @@ vi.mock('@src/app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
-vi.mock('@src/hooks/webview/useWebviewLifecycle', () => ({
+vi.mock('@shared/hooks/webview/useWebviewLifecycle', () => ({
     useWebviewLifecycle: ({ currentAI }: any) => {
         if (currentAI === 'error-model') {
             return {
@@ -44,11 +44,11 @@ vi.mock('@src/hooks/webview/useWebviewLifecycle', () => ({
 }))
 
 // Mock Components
-vi.mock('@src/components/ui/AestheticLoader', () => ({
+vi.mock('@ui/components/AestheticLoader', () => ({
     default: () => <div data-testid="aesthetic-loader">Loading...</div>
 }))
 
-vi.mock('@features/ai/components/AiErrorView', () => ({
+vi.mock('@features/ai/ui/AiErrorView', () => ({
     default: ({ error, onRetry }: any) => (
         <div data-testid="ai-error-view">
             Error: {error.message}
@@ -121,3 +121,4 @@ describe('AiSession', () => {
         expect(catcher).not.toBeInTheDocument()
     })
 })
+

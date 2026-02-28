@@ -1,7 +1,7 @@
-import { renderHook, act } from '@testing-library/react'
+﻿import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { useQuizFlow } from '@features/quiz/hooks/useQuizFlow'
-import { QuizStep } from '@features/quiz/types'
+import { QuizStep } from '@features/quiz/model/types'
 import { DEFAULT_SETTINGS } from '@features/quiz/api'
 
 // Mock dependencies
@@ -33,7 +33,7 @@ vi.mock('@platform/electron/api/usePdfApi', () => ({
 }))
 
 // 3. Mock Language Context
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key,
         language: 'en'
@@ -41,7 +41,7 @@ vi.mock('@src/app/providers/LanguageContext', () => ({
 }))
 
 // 4. Mock Logger
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: {
         error: vi.fn(),
         info: vi.fn()
@@ -192,4 +192,6 @@ describe('useQuizFlow', () => {
         vi.useRealTimers()
     })
 })
+
+
 

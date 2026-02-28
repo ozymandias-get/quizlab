@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 
@@ -8,13 +8,13 @@ const mockToast = {
     showError: vi.fn(),
     showInfo: vi.fn()
 }
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useToast: () => mockToast,
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
 // Mock Logger
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: {
         error: vi.fn(),
         log: vi.fn()
@@ -71,4 +71,5 @@ describe('useElementPicker Hook', () => {
         expect(mockToast.showInfo).toHaveBeenCalledWith('picker_started_hint')
     })
 })
+
 

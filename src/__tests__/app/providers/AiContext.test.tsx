@@ -1,6 +1,6 @@
-import { renderHook, act, waitFor } from '@testing-library/react'
+﻿import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { AiProvider, useAi } from '@src/app/providers/AiContext'
+import { AiProvider, useAi } from '@app/providers/AiContext'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -9,7 +9,7 @@ const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
 const mockShowError = vi.fn()
 
-vi.mock('@src/app/providers/ToastContext', () => ({
+vi.mock('@app/providers/ToastContext', () => ({
     useToast: () => ({
         showSuccess: mockShowSuccess,
         showWarning: mockShowWarning,
@@ -20,7 +20,7 @@ vi.mock('@src/app/providers/ToastContext', () => ({
 const mockSendText = vi.fn()
 const mockSendImage = vi.fn()
 
-vi.mock('@src/hooks', () => ({
+vi.mock('@shared/hooks', () => ({
     useLocalStorage: (_key: string, initial: any) => {
         const [val, setVal] = React.useState(initial)
         return [val, setVal]
@@ -36,14 +36,14 @@ vi.mock('@src/hooks', () => ({
     }
 }))
 
-vi.mock('@features/ai/hooks/useAiSender', () => ({
+vi.mock('@features/ai', () => ({
     useAiSender: () => ({
         sendTextToAI: mockSendText,
         sendImageToAI: mockSendImage
     })
 }))
 
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: { error: vi.fn() }
 }))
 
@@ -185,3 +185,5 @@ describe('AiContext', () => {
         // The context menu action completes
     })
 })
+
+

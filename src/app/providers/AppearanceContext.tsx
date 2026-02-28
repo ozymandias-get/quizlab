@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-import { hexToRgba } from '@src/utils/uiUtils'
+import { hexToRgba } from '@shared/lib/uiUtils'
 
 interface AppearanceState {
     showOnlyIcons: boolean;
@@ -102,3 +102,4 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
 
     return <>{children}</>
 }
+

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import ErrorBoundary from '@ui/ErrorBoundary'
+import ErrorBoundary from '@ui/components/ErrorBoundary'
 
 // Mock Logger
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: {
         error: vi.fn()
     }
@@ -101,3 +101,4 @@ describe('ErrorBoundary', () => {
         expect(onReset).toHaveBeenCalled()
     })
 })
+

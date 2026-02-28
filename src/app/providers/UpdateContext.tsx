@@ -1,6 +1,6 @@
-import React, { useMemo, useEffect, useState, useCallback } from 'react'
+﻿import React, { useMemo, useEffect, useState, useCallback } from 'react'
 import { useCheckForUpdates } from '@platform/electron/api/useSystemApi'
-import type { UpdateCheckResult } from '@shared/types'
+import type { UpdateCheckResult } from '@shared-core/types'
 
 export interface UpdateInfo extends UpdateCheckResult { }
 
@@ -48,4 +48,5 @@ export function useUpdate(): UpdateContextType {
         checkForUpdates
     }), [updateAvailable, updateInfo, isLoading, isEnabled, isFetched, checkForUpdates])
 }
+
 

@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react'
+﻿import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { usePrompts } from '@features/ai/hooks/usePrompts'
 
@@ -6,16 +6,16 @@ import { usePrompts } from '@features/ai/hooks/usePrompts'
 const mockSetCustomPrompts = vi.fn()
 const mockSetSelectedPromptId = vi.fn()
 
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ language: 'en' })
 }))
 
-vi.mock('@src/hooks/useLocalStorage', () => ({
+vi.mock('@shared/hooks/useLocalStorage', () => ({
     useLocalStorage: (_key: string, initial: any) => [initial, mockSetCustomPrompts],
     useLocalStorageString: (_key: string, initial: any) => [initial, mockSetSelectedPromptId]
 }))
 
-vi.mock('@src/constants/prompts', () => ({
+vi.mock('@shared/constants/prompts', () => ({
     DEFAULT_PROMPTS: [
         { id: 'p1_en', text: 'Prompt 1 EN' },
         { id: 'p1_tr', text: 'Prompt 1 TR' },
@@ -101,3 +101,5 @@ describe('usePrompts', () => {
         expect(newState[0].id).toBe('custom_2')
     })
 })
+
+

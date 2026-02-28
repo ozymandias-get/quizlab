@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+﻿import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import MagicSelectorTutorial from '@features/tutorial/components/MagicSelectorTutorial'
+import MagicSelectorTutorial from '@features/tutorial/ui/MagicSelectorTutorial'
 
 // Mock useLanguage
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }))
 
@@ -93,4 +93,5 @@ describe('MagicSelectorTutorial Component', () => {
         expect(onClose).toHaveBeenCalled()
     })
 })
+
 

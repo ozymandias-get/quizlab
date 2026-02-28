@@ -1,7 +1,7 @@
-
+﻿
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { QuizAssistantChat } from '@features/quiz/components/review/QuizAssistantChat'
+import { QuizAssistantChat } from '@features/quiz/ui/review/QuizAssistantChat'
 import { useAskAssistant } from '@platform/electron/api/useQuizApi'
 
 // Mock dependencies
@@ -15,12 +15,12 @@ vi.mock('@platform/electron/api/useQuizApi', () => ({
 }))
 
 // Mock uiUtils
-vi.mock('@src/utils/uiUtils', () => ({
+vi.mock('@shared/lib/uiUtils', () => ({
     formatQuizText: (text: string) => `formatted-${text}`
 }))
 
 // Mock Logger
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: {
         error: vi.fn(),
         info: vi.fn(),
@@ -140,4 +140,5 @@ describe('QuizAssistantChat Component', () => {
         expect(screen.getByText('error_asking_assistant')).toBeInTheDocument()
     })
 })
+
 

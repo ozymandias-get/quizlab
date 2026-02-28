@@ -1,9 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import ColorPicker from '@features/settings/components/ColorPicker'
+import ColorPicker from '@features/settings/ui/ColorPicker'
 
 // Mock dependencies
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
@@ -57,3 +57,4 @@ describe('ColorPicker', () => {
         expect(onChange).toHaveBeenCalledWith('#000000')
     })
 })
+

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import QuizResults from '@features/quiz/components/QuizResults'
-import { QuizState } from '@features/quiz/types'
+import QuizResults from '@features/quiz/ui/QuizResults'
+import { QuizState } from '@features/quiz/model/types'
 
 // Mock dependencies
 vi.mock('@features/quiz/hooks/useQuizStats', () => ({
@@ -19,12 +19,12 @@ vi.mock('@features/quiz/hooks/useQuizStats', () => ({
     },
 }))
 
-vi.mock('@src/components/ui/ConfettiCanvas', () => ({
+vi.mock('@ui/components/ConfettiCanvas', () => ({
     default: () => <div data-testid="confetti-canvas" />
 }))
 
 // Mock formatQuizText
-vi.mock('@src/utils/uiUtils', () => ({
+vi.mock('@shared/lib/uiUtils', () => ({
     formatQuizText: (text: string) => text,
 }))
 
@@ -42,7 +42,7 @@ vi.mock('react-virtuoso', () => ({
 }))
 
 // Mock QuizQuestionReview to avoid rendering child component that uses hooks
-vi.mock('@features/quiz/components/QuizQuestionReview', () => ({
+vi.mock('@features/quiz/ui/QuizQuestionReview', () => ({
     QuizQuestionReview: ({ question, isExpanded, onToggle }: any) => (
         <div data-testid={`question-review-${question.id}`}>
             <button onClick={onToggle}>
@@ -183,4 +183,6 @@ describe('QuizResults Component', () => {
         }
     })
 })
+
+
 

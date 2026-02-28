@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -15,7 +15,7 @@ const { mockLogger, mockUsePrompts, mockSafeWebviewPaste } = vi.hoisted(() => ({
     mockSafeWebviewPaste: vi.fn(() => true)
 }))
 
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: mockLogger
 }))
 
@@ -23,11 +23,11 @@ vi.mock('@features/ai/hooks/usePrompts', () => ({
     usePrompts: mockUsePrompts
 }))
 
-vi.mock('@src/utils/webviewUtils', () => ({
+vi.mock('@shared/lib/webviewUtils', () => ({
     safeWebviewPaste: mockSafeWebviewPaste
 }))
 
-vi.mock('@src/app/providers/ToastContext', () => ({
+vi.mock('@app/providers/ToastContext', () => ({
     useToast: () => ({
         showError: vi.fn(),
         showSuccess: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock('@src/app/providers/ToastContext', () => ({
     })
 }))
 
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key,
         language: 'en'
@@ -246,5 +246,6 @@ describe('useAiSender', () => {
         expect(res.error).toBe('clipboard_failed')
     })
 })
+
 
 

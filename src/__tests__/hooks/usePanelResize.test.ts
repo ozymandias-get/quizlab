@@ -1,6 +1,6 @@
-import { renderHook, act } from '@testing-library/react'
+﻿import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { usePanelResize } from '@src/hooks/usePanelResize'
+import { usePanelResize } from '@shared/hooks/usePanelResize'
 
 // Mock useLocalStorage to just behave like useState for simplicity in this test
 // OR rely on the real implementation which uses localStorage.
@@ -119,3 +119,4 @@ describe('usePanelResize Hook', () => {
         expect(result.current.leftPanelWidth).toBe(50)
     })
 })
+

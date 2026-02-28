@@ -1,8 +1,8 @@
 ﻿import React, { useEffect } from 'react'
 import { create } from 'zustand'
-import { Logger } from '@src/utils/logger'
-import { translations, LANGUAGES, DEFAULT_LANGUAGE, VALID_LANGUAGES, LanguageInfo } from '@src/constants/translations'
-import { STORAGE_KEYS } from '@src/constants/storageKeys'
+import { Logger } from '@shared/lib/logger'
+import { translations, LANGUAGES, DEFAULT_LANGUAGE, VALID_LANGUAGES, LanguageInfo } from '@shared/i18n/translations'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 
 interface LanguageState {
     language: string;
@@ -89,4 +89,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     return <>{children}</>
 }
+
+
 

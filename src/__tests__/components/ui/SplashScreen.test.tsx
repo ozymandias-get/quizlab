@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import SplashScreen from '@src/components/ui/SplashScreen/index'
+import SplashScreen from '@ui/components/SplashScreen/index'
 
 // Mock useLanguage
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
@@ -49,3 +49,4 @@ describe('SplashScreen Component', () => {
         expect(onFinish).toHaveBeenCalled()
     })
 })
+

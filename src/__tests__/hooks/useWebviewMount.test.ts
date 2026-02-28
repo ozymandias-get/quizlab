@@ -1,6 +1,6 @@
-import { renderHook, act } from '@testing-library/react'
+﻿import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { useWebviewMount } from '@src/hooks/useWebviewMount'
+import { useWebviewMount } from '@shared/hooks/useWebviewMount'
 
 describe('useWebviewMount', () => {
     beforeEach(() => {
@@ -101,3 +101,4 @@ describe('useWebviewMount', () => {
         expect(clearTimeoutSpy).toHaveBeenCalled()
     })
 })
+

@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react'
+﻿import { render, screen } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import AestheticLoader from '@ui/AestheticLoader'
+import AestheticLoader from '@ui/components/AestheticLoader'
 
 // Mock useLanguage
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
@@ -14,3 +14,4 @@ describe('AestheticLoader', () => {
         expect(screen.getByText('loader_syncing')).toBeInTheDocument()
     })
 })
+

@@ -2,17 +2,20 @@
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
+            "@app/*": [
+                "./src/app/*"
+            ],
             "@shared/*": [
+                "./src/shared/*"
+            ],
+            "@shared-core/*": [
                 "./shared/*"
             ],
             "@electron/*": [
                 "./electron/*"
             ],
-            "@src/*": [
-                "./src/*"
-            ],
             "@ui/*": [
-                "./src/components/ui/*"
+                "./src/shared/ui/*"
             ],
             "@features/*": [
                 "./src/features/*"

@@ -1,9 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import UpdateBanner from '@ui/UpdateBanner'
+import UpdateBanner from '@ui/components/UpdateBanner'
 
 // Mock icons
-vi.mock('@ui/Icons', () => ({
+vi.mock('@ui/components/Icons', () => ({
     UpdateIcon: () => <div data-testid="icon-update" />,
     CloseIcon: () => <div data-testid="icon-close" />,
     DownloadIcon: () => <div data-testid="icon-download" />
@@ -68,3 +68,4 @@ describe('UpdateBanner', () => {
         expect(mockOpenExternal).toHaveBeenCalled()
     })
 })
+

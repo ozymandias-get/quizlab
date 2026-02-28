@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+﻿import { useQueryClient } from '@tanstack/react-query'
 import type { UseQueryOptions } from '@tanstack/react-query'
 import { useElectronQuery, useElectronMutation } from '../useElectron'
 import type {
@@ -6,9 +6,9 @@ import type {
     QuizGenerateResult,
     QuizAuthResult,
     QuizActionResult
-} from '@shared/types'
-import { useToast } from '@src/app/providers/ToastContext'
-import { useLanguage } from '@src/app/providers/LanguageContext'
+} from '@shared-core/types'
+import { useToast } from '@app/providers/ToastContext'
+import { useLanguage } from '@app/providers/LanguageContext'
 
 const QUIZ_SETTINGS_KEY = ['quiz', 'settings']
 const QUIZ_AUTH_KEY = ['quiz', 'auth']
@@ -139,4 +139,5 @@ export function useCliPath() {
         }
     })
 }
+
 

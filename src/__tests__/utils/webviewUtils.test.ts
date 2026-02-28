@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { safeWebviewPaste } from '@src/utils/webviewUtils'
-import { Logger } from '@src/utils/logger'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { safeWebviewPaste } from '@shared/lib/webviewUtils'
+import { Logger } from '@shared/lib/logger'
 
 // Mock Logger to avoid clutter
-vi.mock('@src/utils/logger', () => ({
+vi.mock('@shared/lib/logger', () => ({
     Logger: {
         error: vi.fn(),
         warn: vi.fn(),
@@ -88,3 +88,4 @@ describe('webviewUtils - safeWebviewPaste', () => {
         expect(Logger.error).toHaveBeenCalledWith(expect.stringContaining('sendInputEvent API missing'))
     })
 })
+

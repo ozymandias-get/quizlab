@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+﻿import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import UsageAssistant from '@features/tutorial/components/UsageAssistant'
+import UsageAssistant from '@features/tutorial/ui/UsageAssistant'
 
 // Mock dependencies
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }))
 
@@ -63,4 +63,5 @@ describe('UsageAssistant Component', () => {
         expect(onClose).toHaveBeenCalled()
     })
 })
+
 

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import QuizActive from '@features/quiz/components/QuizActive'
-import { QuizState } from '@features/quiz/types'
+import QuizActive from '@features/quiz/ui/QuizActive'
+import { QuizState } from '@features/quiz/model/types'
 
 // Mock dependencies
 vi.mock('@features/quiz/hooks/useQuizTimer', () => ({
@@ -15,7 +15,7 @@ vi.mock('@features/quiz/hooks/useQuizKeyboard', () => ({
     }
 }))
 
-vi.mock('@src/utils/uiUtils', () => ({
+vi.mock('@shared/lib/uiUtils', () => ({
     formatQuizText: (text: string) => text
 }))
 
@@ -48,7 +48,7 @@ vi.mock('lucide-react', () => {
     }
 })
 
-vi.mock('@src/constants/animations', () => ({
+vi.mock('@shared/constants/animations', () => ({
     SLIDE_VARIANTS: {}
 }))
 
@@ -176,4 +176,7 @@ describe('QuizActive Component', () => {
         expect(onFinish).toHaveBeenCalled()
     })
 })
+
+
+
 

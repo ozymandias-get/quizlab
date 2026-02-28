@@ -1,19 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import LeftPanel from '@src/components/layout/LeftPanel'
+import LeftPanel from '@ui/layout/LeftPanel'
 
 // Mock dependencies
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
 // Create a mock for useSharedDragDrop specific to this test file
 const mockUseSharedDragDrop = vi.fn()
-vi.mock('@src/hooks/useSharedDragDrop', () => ({
+vi.mock('@shared/hooks/useSharedDragDrop', () => ({
     useSharedDragDrop: (onDrop: any) => mockUseSharedDragDrop(onDrop)
 }))
 
-vi.mock('@features/pdf/components/PdfViewer', () => ({
+vi.mock('@features/pdf/ui/components/PdfViewer', () => ({
     default: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>
 }))
 
@@ -22,7 +22,7 @@ vi.mock('@react-pdf-viewer/core', () => ({
 }))
 
 // Need to match the component structure precisely or just mock implementation
-vi.mock('@src/components/ui/ErrorBoundary', () => ({
+vi.mock('@ui/components/ErrorBoundary', () => ({
     default: ({ children }: any) => <div data-testid="error-boundary">{children}</div>
 }))
 
@@ -72,4 +72,5 @@ describe('LeftPanel Component', () => {
         expect(screen.getByText('drop_pdf_desc')).toBeInTheDocument()
     })
 })
+
 

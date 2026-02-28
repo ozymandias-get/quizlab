@@ -1,13 +1,13 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
-import { AIItem, AIItemProps } from '@src/components/layout/BottomBar/AIItem'
+import { AIItem, AIItemProps } from '@ui/layout/BottomBar/AIItem'
 
 // Mock dependencies
-vi.mock('@src/components/ui/Icons', () => ({
+vi.mock('@ui/components/Icons', () => ({
     getAiIcon: (key: string) => <div data-testid={`icon-${key}`}>{key}</div>
 }))
 
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({
         t: (key: string) => key
     })
@@ -122,3 +122,4 @@ describe('AIItem', () => {
         // The button has style based on isSelected too.
     })
 })
+

@@ -27,17 +27,20 @@
         "allowJs": false,
         "baseUrl": ".",
         "paths": {
-            "@src/*": [
-                "./src/*"
+            "@app/*": [
+                "./src/app/*"
             ],
             "@shared/*": [
+                "./src/shared/*"
+            ],
+            "@shared-core/*": [
                 "./shared/*"
             ],
             "@electron/*": [
                 "./electron/*"
             ],
             "@ui/*": [
-                "./src/components/ui/*"
+                "./src/shared/ui/*"
             ],
             "@features/*": [
                 "./src/features/*"

@@ -1,11 +1,11 @@
-import {
+﻿import {
     useQuery,
     useMutation,
     UseQueryOptions,
     UseMutationOptions,
     QueryKey
 } from '@tanstack/react-query'
-import { useToast } from '@src/app/providers/ToastContext'
+import { useToast } from '@app/providers/ToastContext'
 
 // Helper to access API safely
 const getApi = () => {
@@ -56,4 +56,5 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
         }
     })
 }
+
 

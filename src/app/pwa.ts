@@ -1,4 +1,4 @@
-import { Logger } from '@src/utils/logger'
+﻿import { Logger } from '@shared/lib/logger'
 
 export function registerPWA() {
     const isElectron = typeof window !== 'undefined' && 'electronAPI' in window
@@ -19,3 +19,4 @@ export function registerPWA() {
             Logger.warn('[PWA] Service worker registration skipped:', error)
         })
 }
+

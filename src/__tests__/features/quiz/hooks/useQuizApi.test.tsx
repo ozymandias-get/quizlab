@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+﻿import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
     useGenerateQuiz,
@@ -30,7 +30,7 @@ Object.defineProperty(window, 'electronAPI', {
 })
 
 // Validation: mock useToast correctly by mocking the specific file path
-vi.mock('@src/app/providers/ToastContext', () => ({
+vi.mock('@app/providers/ToastContext', () => ({
     useToast: () => ({
         showSuccess: vi.fn(),
         showError: vi.fn(),
@@ -39,7 +39,7 @@ vi.mock('@src/app/providers/ToastContext', () => ({
 }))
 
 // Also mock the alias path just in case
-vi.mock('@src/app/providers/ToastContext', () => ({
+vi.mock('@app/providers/ToastContext', () => ({
     useToast: () => ({
         showSuccess: vi.fn(),
         showError: vi.fn(),
@@ -47,13 +47,13 @@ vi.mock('@src/app/providers/ToastContext', () => ({
     })
 }))
 
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key
     })
 }))
 
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key
     })
@@ -164,4 +164,5 @@ describe('Quiz API Hooks', () => {
         })
     })
 })
+
 

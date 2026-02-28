@@ -1,14 +1,14 @@
-import { renderHook, act, waitFor } from '@testing-library/react'
+﻿import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { usePdfSelection } from '@features/pdf/hooks/usePdfSelection'
 import React from 'react'
-import { STORAGE_KEYS } from '@src/constants/storageKeys'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 
 // Mock Toast
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
-vi.mock('@src/app/providers/ToastContext', () => ({
+vi.mock('@app/providers/ToastContext', () => ({
     useToast: () => ({
         showError: mockShowError,
         showSuccess: mockShowSuccess
@@ -17,7 +17,7 @@ vi.mock('@src/app/providers/ToastContext', () => ({
 
 // Mock Language
 const mockT = vi.fn((key) => key)
-vi.mock('@src/app/providers/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: mockT
     })
@@ -191,4 +191,6 @@ describe('usePdfSelection', () => {
         expect(info).toEqual(data)
     })
 })
+
+
 

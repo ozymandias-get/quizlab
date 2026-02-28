@@ -1,9 +1,9 @@
-import { render, screen, fireEvent, act } from '@testing-library/react'
+﻿import { render, screen, fireEvent, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import ToastItem from '@ui/Toast/ToastItem'
+import ToastItem from '@ui/components/Toast/ToastItem'
 
 // Mock dependencies
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({
         t: (key: string, params?: any) => key + (params ? JSON.stringify(params) : '')
     })
@@ -99,3 +99,4 @@ describe('ToastItem', () => {
         expect(mockOnRemove).toHaveBeenCalledWith('123')
     })
 })
+

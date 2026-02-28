@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { CenterHub } from '@src/components/layout/BottomBar/CenterHub'
+import { CenterHub } from '@ui/layout/BottomBar/CenterHub'
 
 // Mock dependencies
 vi.mock('framer-motion', () => ({
@@ -21,12 +21,12 @@ vi.mock('framer-motion', () => ({
 }))
 
 // Mock Icons
-vi.mock('@src/components/ui/Icons', () => ({
+vi.mock('@ui/components/Icons', () => ({
     AiHubIcon: () => <svg data-testid="ai-hub-icon" />
 }))
 
 // Mock animations
-vi.mock('@src/components/layout/BottomBar/animations', () => ({
+vi.mock('@ui/layout/BottomBar/animations', () => ({
     hubIconVariants: {},
     hubIconTransition: {},
     iconStyleVariants: {},
@@ -157,3 +157,4 @@ describe('CenterHub', () => {
         expect(screen.queryByText('1')).not.toBeInTheDocument()
     })
 })
+

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe('Logger Utility', () => {
     let originalEnv: string | undefined
@@ -18,7 +18,7 @@ describe('Logger Utility', () => {
         process.env.NODE_ENV = 'development'
 
         // Dynamic import to re-evaluate module with new ENV
-        const { Logger } = await import('@src/utils/logger')
+        const { Logger } = await import('@shared/lib/logger')
 
         const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => { })
         const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => { })
@@ -34,7 +34,7 @@ describe('Logger Utility', () => {
         process.env.NODE_ENV = 'production'
 
         // This relies on the module re-evaluating process.env.NODE_ENV at top level
-        const { Logger } = await import('@src/utils/logger')
+        const { Logger } = await import('@shared/lib/logger')
 
         const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => { })
         const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => { })
@@ -48,7 +48,7 @@ describe('Logger Utility', () => {
 
     it('should always log errors regardless of environment', async () => {
         process.env.NODE_ENV = 'production'
-        const { Logger } = await import('@src/utils/logger')
+        const { Logger } = await import('@shared/lib/logger')
 
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => { })
 
@@ -56,3 +56,4 @@ describe('Logger Utility', () => {
         expect(consoleError).toHaveBeenCalledWith('critical error')
     })
 })
+

@@ -1,10 +1,10 @@
-import ReactDOM from 'react-dom/client'
+﻿import ReactDOM from 'react-dom/client'
 import App from './App'
 import { AppProviders } from './providers'
-import '@src/styles/index.css'
+import '@shared/styles/index.css'
 
 import { registerPWA } from './pwa'
-import BrowserFallback from '@src/components/ui/BrowserFallback'
+import BrowserFallback from '@ui/components/BrowserFallback'
 
 const rootElement = document.getElementById('root') as HTMLElement
 const root = ReactDOM.createRoot(rootElement)
@@ -25,3 +25,4 @@ if (!isElectron) {
         </AppProviders>
     )
 }
+

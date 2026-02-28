@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useQuizStats } from '@features/quiz/hooks/useQuizStats'
-import { QuizState } from '@features/quiz/types'
+import { QuizState } from '@features/quiz/model/types'
 
 describe('useQuizStats', () => {
     it('returns empty stats for empty state', () => {
@@ -74,3 +74,4 @@ describe('useQuizStats', () => {
         expect(result.current.percentage).toBe(100)
     })
 })
+

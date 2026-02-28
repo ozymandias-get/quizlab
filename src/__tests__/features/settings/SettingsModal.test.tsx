@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from 'vitest'
+﻿import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import SettingsModal from '@features/settings/components/SettingsModal'
+import SettingsModal from '@features/settings/ui/SettingsModal'
 
 // Mock dependencies
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }))
 
@@ -18,13 +18,13 @@ vi.mock('@features/settings/hooks/useSettings', () => ({
 }))
 
 // Mock Subcomponents (Lazy Loaded)
-vi.mock('@features/settings/components/LanguageTab', () => ({ default: () => <div>Language Tab Content</div> }))
-vi.mock('@features/settings/components/AboutTab', () => ({ default: () => <div>About Tab Content</div> }))
-vi.mock('@features/settings/components/ModelsTab', () => ({ default: () => <div>Models Tab Content</div> }))
-vi.mock('@features/settings/components/AppearanceTab', () => ({ default: () => <div>Appearance Tab Content</div> }))
-vi.mock('@features/settings/components/SelectorsTab', () => ({ default: () => <div>Selectors Tab Content</div> }))
-vi.mock('@features/settings/components/GeminiCliTab', () => ({ default: () => <div>Gemini CLI Tab Content</div> }))
-vi.mock('@features/settings/components/PromptsTab', () => ({ default: () => <div>Prompts Tab Content</div> }))
+vi.mock('@features/settings/ui/LanguageTab', () => ({ default: () => <div>Language Tab Content</div> }))
+vi.mock('@features/settings/ui/AboutTab', () => ({ default: () => <div>About Tab Content</div> }))
+vi.mock('@features/settings/ui/ModelsTab', () => ({ default: () => <div>Models Tab Content</div> }))
+vi.mock('@features/settings/ui/AppearanceTab', () => ({ default: () => <div>Appearance Tab Content</div> }))
+vi.mock('@features/settings/ui/SelectorsTab', () => ({ default: () => <div>Selectors Tab Content</div> }))
+vi.mock('@features/settings/ui/GeminiCliTab', () => ({ default: () => <div>Gemini CLI Tab Content</div> }))
+vi.mock('@features/settings/ui/PromptsTab', () => ({ default: () => <div>Prompts Tab Content</div> }))
 
 describe('SettingsModal Component', () => {
     it('renders nothing when closed', () => {
@@ -74,4 +74,5 @@ describe('SettingsModal Component', () => {
         expect(onClose).toHaveBeenCalled()
     })
 })
+
 

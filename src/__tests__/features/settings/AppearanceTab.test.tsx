@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
-import AppearanceTab from '@features/settings/components/AppearanceTab'
+import AppearanceTab from '@features/settings/ui/AppearanceTab'
 
 // Mock dependencies using vi.hoisted to ensure they are available in the mock factory
 const {
@@ -23,7 +23,7 @@ const {
     mockSetSelectionColor: vi.fn()
 }))
 
-vi.mock('@src/app/providers', () => ({
+vi.mock('@app/providers', () => ({
     useAppearance: () => ({
         showOnlyIcons: false,
         setShowOnlyIcons: mockSetShowOnlyIcons,
@@ -45,7 +45,7 @@ vi.mock('@src/app/providers', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 
-vi.mock('@src/components/ui/Icons', () => ({
+vi.mock('@ui/components/Icons', () => ({
     EyeIcon: () => <div data-testid="icon-eye" />,
     PaletteIcon: () => <div data-testid="icon-palette" />,
     SliderIcon: () => <div data-testid="icon-slider" />,
@@ -53,7 +53,7 @@ vi.mock('@src/components/ui/Icons', () => ({
     ShuffleIcon: () => <div data-testid="icon-shuffle" />
 }))
 
-vi.mock('@features/settings/components/ColorPicker', () => ({
+vi.mock('@features/settings/ui/ColorPicker', () => ({
     default: ({ label, color, onChange }: any) => (
         <div data-testid="color-picker">
             <label>{label}</label>
@@ -67,7 +67,7 @@ vi.mock('@features/settings/components/ColorPicker', () => ({
     )
 }))
 
-vi.mock('@src/components/ui/Slider', () => ({
+vi.mock('@ui/components/Slider', () => ({
     Slider: ({ label, value, onValueChange }: any) => (
         <div data-testid="slider">
             <label>{label}</label>
@@ -132,4 +132,5 @@ describe('AppearanceTab', () => {
         expect(mockSetSelectionColor).toHaveBeenCalledWith('#ff0000')
     })
 })
+
 

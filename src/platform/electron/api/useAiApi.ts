@@ -1,13 +1,13 @@
-import { useQueryClient } from '@tanstack/react-query'
+﻿import { useQueryClient } from '@tanstack/react-query'
 import { useElectronQuery, useElectronMutation } from '../useElectron'
 import type {
     AiRegistryResponse,
     CustomAiInput,
     CustomAiResult
-} from '@shared/types'
+} from '@shared-core/types'
 import type { AiSelectorConfig } from '@electron/features/ai/aiManager'
-import { useToast } from '@src/app/providers/ToastContext'
-import { useLanguage } from '@src/app/providers/LanguageContext'
+import { useToast } from '@app/providers/ToastContext'
+import { useLanguage } from '@app/providers/LanguageContext'
 
 const AI_REGISTRY_KEY = ['ai', 'registry']
 export const AI_CONFIG_KEY = (hostname?: string) => hostname ? ['ai', 'config', hostname] : ['ai', 'config']
@@ -116,7 +116,7 @@ export function useAddCustomAi() {
                     queryClient.invalidateQueries({ queryKey: AI_REGISTRY_KEY })
                     showSuccess(t('toast_custom_ai_added', { name: result.platform?.name || 'AI' }), t('toast_ai_added_title'))
                 } else {
-                    // Use showError directly — throwing inside onSuccess bypasses onError handler
+                    // Use showError directly â€” throwing inside onSuccess bypasses onError handler
                     showError(result.error || t('toast_custom_ai_failed'), t('toast_ai_error_title'))
                 }
             }
@@ -143,4 +143,5 @@ export function useDeleteCustomAi() {
         }
     )
 }
+
 
