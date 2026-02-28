@@ -4,7 +4,7 @@
 <div align="center">
 
 [![English](https://img.shields.io/badge/lang-English-blue.svg?style=flat-square)](README.md)
-[![Sürüm](https://img.shields.io/badge/sürüm-2.0.5-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Sürüm](https://img.shields.io/badge/sürüm-2.1.1-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 [![Built with](https://img.shields.io/badge/Altyapı-Electron%20%26%20React-61DAFB?style=flat-square&logo=react)](https://react.dev/)
@@ -171,29 +171,25 @@ npm run build:linux  # Linux .AppImage için derle
 
 ## 🏗 Proje Yapısı
 
-QuizLab, ölçeklenebilir **Özellik Tabanlı (Feature-Based) Mimari** izler. Kod, teknik katmanlardan ziyade etki alanına (feature) göre organize edilmiştir, bu da katkıda bulunmayı ve bakımı kolaylaştırır.
+QuizLab, refactor sonrası katmanları belirgin ayrılmış ölçeklenebilir bir mimari izler. Uygulama kabuğu, feature modülleri, renderer-shared katmanı ve süreçler arası paylaşılan sözleşmeler net olarak ayrılmıştır.
 
 ```text
 quizlab/
 ├── electron/                # Ana Süreç (Node.js / IPC işleyicileri)
+│   ├── app/
 │   ├── core/
 │   ├── features/
-│   ├── main/
 │   └── preload/
 │
 ├── src/                     # Renderer Süreci (React)
 │   ├── app/
-│   ├── components/
-│   ├── constants/
 │   ├── features/
-│   ├── hooks/
-│   ├── locales/
+│   ├── shared/
 │   ├── platform/            # Electron köprüsü ve API hook'ları
-│   ├── styles/
-│   ├── types/
-│   └── utils/
+│   └── __tests__/
 │
-├── shared/                  # Ortak IPC kanalları ve tipler
+├── shared/                  # Süreçler arası ortak IPC kanalları ve tipler
+├── docs/                    # Mimari ve proje dokümantasyonu
 ├── resources/               # Statik varlıklar ve ikonlar
 └── package.json
 ```

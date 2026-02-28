@@ -4,7 +4,7 @@
 <div align="center">
 
 [![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg?style=flat-square)](README_TR.md)
-[![Version](https://img.shields.io/badge/version-2.0.5-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
+[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
 [![Built with](https://img.shields.io/badge/Built%20with-Electron%20%26%20React-61DAFB?style=flat-square&logo=react)](https://react.dev/)
@@ -171,29 +171,25 @@ npm run build:linux  # Build for Linux .AppImage
 
 ## 🏗 Project Structure
 
-QuizLab follows a scalable **Feature-Based Architecture**. Code is organized by domain (feature) rather than technical layer, facilitating easy contribution and maintenance.
+QuizLab follows a scalable layered architecture after the structure refactor. App shell, features, shared renderer modules, and cross-process shared contracts are explicitly separated.
 
 ```text
 quizlab/
 ├── electron/                # Main Process (Node.js / IPC handlers)
+│   ├── app/
 │   ├── core/
 │   ├── features/
-│   ├── main/
 │   └── preload/
 │
 ├── src/                     # Renderer Process (React)
 │   ├── app/
-│   ├── components/
-│   ├── constants/
 │   ├── features/
-│   ├── hooks/
-│   ├── locales/
+│   ├── shared/
 │   ├── platform/            # Electron bridge and API hooks
-│   ├── styles/
-│   ├── types/
-│   └── utils/
+│   └── __tests__/
 │
-├── shared/                  # Shared IPC channels and types
+├── shared/                  # Cross-process shared IPC channels and types
+├── docs/                    # Architecture and project documentation
 ├── resources/               # Static assets and icons
 └── package.json
 ```
