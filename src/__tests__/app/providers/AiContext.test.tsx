@@ -151,6 +151,41 @@ describe('AiContext', () => {
         expect(result.current.tabs).toHaveLength(1) // Should still be 1
     })
 
+    it('supports pin/unpin and rename APIs', async () => {
+        const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+        await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+        act(() => {
+            result.current.addTab('claude')
+        })
+
+        const tabId = result.current.activeTabId
+
+        act(() => {
+            result.current.renameTab(tabId, '  Study Claude  ')
+        })
+
+        expect(result.current.tabs.find((tab) => tab.id === tabId)?.title).toBe('Study Claude')
+
+        act(() => {
+            result.current.togglePinTab(tabId)
+        })
+
+        expect(result.current.tabs.find((tab) => tab.id === tabId)?.pinned).toBe(true)
+
+        act(() => {
+            result.current.renameTab(tabId, '   ')
+        })
+
+        expect(result.current.tabs.find((tab) => tab.id === tabId)?.title).toBeUndefined()
+
+        act(() => {
+            result.current.togglePinTab(tabId)
+        })
+
+        expect(result.current.tabs.find((tab) => tab.id === tabId)?.pinned).toBe(false)
+    })
+
     it('wraps sending text with toast notifications', async () => {
         const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))

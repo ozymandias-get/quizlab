@@ -11,7 +11,9 @@ describe('AestheticLoader', () => {
     it('should render correctly', () => {
         render(<AestheticLoader />)
         expect(screen.getByText('app_name')).toBeInTheDocument()
-        expect(screen.getByText('loader_syncing')).toBeInTheDocument()
+
+        const loaderMsg = screen.getByText(/loader_msg_\d+/)
+        expect(loaderMsg).toBeInTheDocument()
     })
 })
 

@@ -36,6 +36,7 @@ import {
     usePdfContextMenu
 } from '../hooks'
 import type { PdfFile } from '@shared-core/types'
+import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
 
 interface PdfViewerProps {
     pdfFile: PdfFile | null;
@@ -43,9 +44,9 @@ interface PdfViewerProps {
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
     t?: (key: string) => string;
     initialPage?: number;
-    onResumePdf?: () => void;
-    onClearResumePdf?: () => void;
-    lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
+    onResumePdf?: (path?: string) => void;
+    onClearResumePdf?: (path?: string) => void;
+    lastReadingInfo?: LastReadingInfo[] | null;
 }
 
 /**
@@ -88,7 +89,8 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
         goToNextPage
     } = usePdfNavigation({
         containerRef,
-        jumpToPageRef
+        jumpToPageRef,
+        pdfPath: pdfFile?.path || null
     })
 
     const { handleFullPageScreenshot } = usePdfScreenshot({

@@ -18,6 +18,12 @@ const TrashIcon = ({ className }: IconProps) => (
     </svg>
 )
 
+const StarIcon = ({ className, filled }: { className?: string; filled?: boolean }) => (
+    <svg className={className} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+)
+
 interface AiModelListProps {
     modelsList: string[];
     enabledModels: string[];
@@ -26,6 +32,8 @@ interface AiModelListProps {
     handleDeleteAi: (e: React.MouseEvent, id: string, name: string) => Promise<void>;
     isDeleting: boolean;
     minEnabledModels: number;
+    defaultAiModel?: string;
+    setDefaultAiModel?: (model: string) => void;
     t: (key: string) => string;
 }
 
@@ -37,6 +45,8 @@ export const AiModelList: React.FC<AiModelListProps> = ({
     handleDeleteAi,
     isDeleting,
     minEnabledModels,
+    defaultAiModel,
+    setDefaultAiModel,
     t
 }) => {
     // Track local deleting state to show spinner on specific item
@@ -125,6 +135,25 @@ export const AiModelList: React.FC<AiModelListProps> = ({
                                 </div>
 
                                 <div className="flex items-center gap-3">
+                                    {/* Default Model Button */}
+                                    {isEnabled && setDefaultAiModel && defaultAiModel !== undefined && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setDefaultAiModel(key);
+                                            }}
+                                            className={`p-1.5 rounded-full transition-all duration-300 group/star
+                                                ${defaultAiModel === key
+                                                    ? 'text-yellow-400 hover:text-yellow-300'
+                                                    : 'text-white/20 hover:text-white/60 hover:bg-white/5'
+                                                }`}
+                                            title={defaultAiModel === key ? t('is_default_model') : t('set_as_default')}
+                                        >
+                                            <StarIcon className="w-5 h-5 transition-transform group-hover/star:scale-110" filled={defaultAiModel === key} />
+                                        </button>
+                                    )}
+
                                     {/* Toggle Switch */}
                                     <Switch
                                         checked={isEnabled}

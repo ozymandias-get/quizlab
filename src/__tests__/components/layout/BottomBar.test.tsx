@@ -13,7 +13,12 @@ vi.mock('@app/providers', () => ({
         isTourActive: false
     }),
     useAi: () => ({
-        tabs: []
+        tabs: [],
+        enabledModels: [],
+        setEnabledModels: vi.fn(),
+        defaultAiModel: 'chatgpt',
+        setDefaultAiModel: vi.fn(),
+        aiSites: {}
     })
 }))
 

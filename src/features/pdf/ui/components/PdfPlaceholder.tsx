@@ -1,16 +1,17 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { useLanguage } from '@app/providers/LanguageContext'
+import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
 
 interface PdfPlaceholderProps {
     onSelectPdf: () => void;
-    onResumePdf?: () => void;
-    onClearResumePdf?: () => void;
-    lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
+    onResumePdf?: (path?: string) => void;
+    onClearResumePdf?: (path?: string) => void;
+    lastReadingInfo?: LastReadingInfo[] | null;
 }
 
 /**
- * PDF yüklü olmadığında gösterilen placeholder bileşeni
- * Eğer daha önce bir PDF okunmuşsa "Kaldığın Yerden Devam Et" butonu gösterir
+ * PDF yuklu olmadiginda gosterilen placeholder bileseni.
+ * Son okunan en fazla 3 PDF icin "Kaldigin Yerden Devam Et" listesi sunar.
  */
 function PdfPlaceholder({ onSelectPdf, onResumePdf, onClearResumePdf, lastReadingInfo }: PdfPlaceholderProps) {
     const { t } = useLanguage()
@@ -49,62 +50,64 @@ function PdfPlaceholder({ onSelectPdf, onResumePdf, onClearResumePdf, lastReadin
                 <span>{t('select_pdf')}</span>
             </button>
 
-            {/* Kaldığın Yerden Devam Et Butonu */}
-            {lastReadingInfo && onResumePdf && (
-                <div className="flex items-center gap-2 relative">
-                    <button
-                        className="group flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm text-stone-300 text-sm transition-all duration-300 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-400 hover:shadow-lg hover:shadow-amber-500/5 hover:-translate-y-0.5"
-                        onClick={onResumePdf}
-                        title={`${lastReadingInfo.name} — ${t('page')} ${lastReadingInfo.page}${lastReadingInfo.totalPages ? ` / ${lastReadingInfo.totalPages}` : ''}`}
-                    >
-                        {/* Bookmark / Play icon */}
-                        <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="text-amber-500/70 group-hover:text-amber-400 transition-colors flex-shrink-0"
-                        >
-                            <path
-                                d="M5 5C5 3.89543 5.89543 3 7 3H17C18.1046 3 19 3.89543 19 5V21L12 17.5L5 21V5Z"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
-                            <path
-                                d="M10 10L14 12.5L10 15V10Z"
-                                fill="currentColor"
-                                stroke="currentColor"
-                                strokeWidth="0.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
-                        </svg>
-                        <div className="flex flex-col items-start gap-0.5 min-w-0">
-                            <span className="font-medium text-xs">{t('resume_reading')}</span>
-                            <span className="text-[11px] text-stone-500 group-hover:text-amber-500/60 transition-colors truncate max-w-[260px]">
-                                {lastReadingInfo.name} — {t('page')} {lastReadingInfo.page}{lastReadingInfo.totalPages ? ` / ${lastReadingInfo.totalPages}` : ''}
-                            </span>
+            {lastReadingInfo && lastReadingInfo.length > 0 && onResumePdf && (
+                <div className="w-full max-w-[440px] flex flex-col gap-2 relative">
+                    <div className="text-xs font-medium text-stone-400 text-left w-full px-1">{t('resume_reading')}</div>
+
+                    {lastReadingInfo.slice(0, 3).map((item) => (
+                        <div key={item.path} className="flex items-center gap-2">
+                            <button
+                                className="group flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm text-stone-300 text-sm transition-all duration-300 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-400 hover:shadow-lg hover:shadow-amber-500/5 hover:-translate-y-0.5 flex-1 min-w-0"
+                                onClick={() => onResumePdf(item.path)}
+                                title={`${item.name} - ${t('page')} ${item.page}${item.totalPages ? ` / ${item.totalPages}` : ''}`}
+                            >
+                                <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="text-amber-500/70 group-hover:text-amber-400 transition-colors flex-shrink-0"
+                                >
+                                    <path
+                                        d="M5 5C5 3.89543 5.89543 3 7 3H17C18.1046 3 19 3.89543 19 5V21L12 17.5L5 21V5Z"
+                                        stroke="currentColor"
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                    <path
+                                        d="M10 10L14 12.5L10 15V10Z"
+                                        fill="currentColor"
+                                        stroke="currentColor"
+                                        strokeWidth="0.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                                <span className="text-[11px] text-stone-500 group-hover:text-amber-500/60 transition-colors truncate max-w-[300px] text-left">
+                                    {item.name} - {t('page')} {item.page}{item.totalPages ? ` / ${item.totalPages}` : ''}
+                                </span>
+                            </button>
+
+                            {onClearResumePdf && (
+                                <button
+                                    className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm text-stone-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/5 hover:-translate-y-0.5"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onClearResumePdf(item.path)
+                                    }}
+                                    title={t('delete')}
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 6h18"></path>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                            )}
                         </div>
-                    </button>
-                    {onClearResumePdf && (
-                        <button
-                            className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm text-stone-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/5 hover:-translate-y-0.5"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onClearResumePdf();
-                            }}
-                            title={t('delete')}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M3 6h18"></path>
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                            </svg>
-                        </button>
-                    )}
+                    ))}
                 </div>
             )}
         </div>
@@ -112,4 +115,3 @@ function PdfPlaceholder({ onSelectPdf, onResumePdf, onClearResumePdf, lastReadin
 }
 
 export default memo(PdfPlaceholder)
-

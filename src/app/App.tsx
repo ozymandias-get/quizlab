@@ -55,10 +55,22 @@ const App: React.FC = () => {
     })
 
     // PDF Selection Hook
-    const { pdfFile, handleSelectPdf, handlePdfDrop, resumeLastPdf, getLastReadingInfo, clearLastReading } = usePdfSelection()
+    const {
+        pdfFile,
+        pdfTabs,
+        activePdfTabId,
+        setActivePdfTab,
+        closePdfTab,
+        renamePdfTab,
+        handleSelectPdf,
+        handlePdfDrop,
+        resumeLastPdf,
+        getRecentReadingInfo,
+        clearLastReading
+    } = usePdfSelection()
 
-    // Last reading info for resume button
-    const lastReadingInfo = getLastReadingInfo()
+    // Last reading info list (max 3) for resume button list
+    const lastReadingInfo = getRecentReadingInfo()
     const [initialPage, setInitialPage] = useState<number | undefined>(undefined)
 
     const handleSelectPdfWithReset = useCallback(async () => {
@@ -150,15 +162,23 @@ const App: React.FC = () => {
                                     pdfFile={pdfFile}
                                     onSelectPdf={handleSelectPdfWithReset}
                                     onTextSelection={handleTextSelection}
-                                    onResumePdf={async () => {
-                                        if (lastReadingInfo) {
-                                            setInitialPage(lastReadingInfo.page)
-                                            await resumeLastPdf()
+                                    onResumePdf={async (path?: string) => {
+                                        const target = path
+                                            ? lastReadingInfo.find((item) => item.path === path)
+                                            : lastReadingInfo[0]
+                                        if (target) {
+                                            setInitialPage(target.page)
+                                            await resumeLastPdf(target.path)
                                         }
                                     }}
-                                    onClearResumePdf={clearLastReading}
+                                    onClearResumePdf={(path?: string) => clearLastReading(path)}
                                     lastReadingInfo={lastReadingInfo}
                                     initialPage={initialPage}
+                                    pdfTabs={pdfTabs}
+                                    activePdfTabId={activePdfTabId}
+                                    onSetActivePdfTab={setActivePdfTab}
+                                    onClosePdfTab={closePdfTab}
+                                    onRenamePdfTab={renamePdfTab}
                                 />
                             </motion.div>
 
@@ -166,7 +186,7 @@ const App: React.FC = () => {
                             <motion.div
                                 ref={resizerRef as React.RefObject<HTMLDivElement>}
                                 variants={resizerVariants}
-                                className="h-full flex-shrink-0"
+                                className="h-full flex-shrink-0 relative z-30"
                                 style={gpuAcceleratedStyle}
                             >
                                 <BottomBar

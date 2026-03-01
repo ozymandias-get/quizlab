@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { Logger } from '@shared/lib/logger'
 import { useToast, useLanguage } from '@app/providers'
 import type { PdfFile } from '@shared-core/types'
@@ -6,50 +6,100 @@ import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useSelectPdf, useRegisterPdfPath } from '@platform/electron/api/usePdfApi'
 
 type DroppedPdfFile = File & { path?: string }
-type LastReadingInfo = { name: string; page: number; totalPages: number; path: string }
 
-const parseLastReadingInfo = (stored: string | null): LastReadingInfo | null => {
-    if (!stored) return null
+export type LastReadingInfo = {
+    name: string;
+    page: number;
+    totalPages: number;
+    path: string;
+}
+
+export interface PdfTab {
+    id: string;
+    file: PdfFile;
+    title?: string;
+}
+
+const MAX_RECENT_PDFS = 3
+
+const normalizeTitle = (title?: string): string | undefined => {
+    const normalized = title?.trim()
+    return normalized ? normalized : undefined
+}
+
+const sanitizeReadingInfo = (data: unknown): LastReadingInfo | null => {
+    if (!data || typeof data !== 'object') return null
+    const item = data as Partial<LastReadingInfo>
+    if (!item.path || !item.name) return null
+
+    return {
+        name: item.name,
+        page: item.page || 1,
+        totalPages: item.totalPages || 0,
+        path: item.path
+    }
+}
+
+const parseReadingHistory = (stored: string | null): LastReadingInfo[] => {
+    if (!stored) return []
 
     try {
-        const data = JSON.parse(stored)
-        if (!data.path || !data.name) return null
-
-        return {
-            name: data.name,
-            page: data.page || 1,
-            totalPages: data.totalPages || 0,
-            path: data.path
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) {
+            const history = parsed
+                .map((item) => sanitizeReadingInfo(item))
+                .filter((item): item is LastReadingInfo => Boolean(item))
+            return history.slice(0, MAX_RECENT_PDFS)
         }
+
+        const legacySingle = sanitizeReadingInfo(parsed)
+        return legacySingle ? [legacySingle] : []
     } catch {
-        return null
+        return []
     }
 }
 
-const readLastReadingInfo = (): LastReadingInfo | null => {
+const readReadingHistory = (): LastReadingInfo[] => {
     try {
-        return parseLastReadingInfo(localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING))
+        return parseReadingHistory(localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING))
     } catch {
-        return null
+        return []
     }
 }
+
+const upsertRecentHistory = (
+    history: LastReadingInfo[],
+    info: LastReadingInfo
+): LastReadingInfo[] => {
+    const filtered = history.filter((item) => item.path !== info.path)
+    return [info, ...filtered].slice(0, MAX_RECENT_PDFS)
+}
+
+const toPdfFile = (file: PdfFile): PdfFile => ({
+    name: file.name,
+    path: file.path,
+    streamUrl: file.streamUrl,
+    size: file.size
+})
 
 export const usePdfSelection = () => {
     const { showError, showSuccess } = useToast()
     const { t } = useLanguage()
 
-    const [pdfFile, setPdfFile] = useState<PdfFile | null>(null)
-    const [lastReadingInfo, setLastReadingInfo] = useState<LastReadingInfo | null>(() => readLastReadingInfo())
+    const [pdfTabs, setPdfTabs] = useState<PdfTab[]>([])
+    const [activePdfTabId, setActivePdfTabId] = useState<string>('')
+    const [recentReadingInfo, setRecentReadingInfo] = useState<LastReadingInfo[]>(() => readReadingHistory())
+    const pdfTabsRef = useRef<PdfTab[]>([])
 
     const { mutateAsync: selectPdf } = useSelectPdf()
     const { mutateAsync: registerPdfPath } = useRegisterPdfPath()
 
     const lastLoadRequestId = useRef<number>(0)
 
-    const persistLastReadingInfo = useCallback((info: LastReadingInfo | null) => {
+    const persistRecentReadingInfo = useCallback((items: LastReadingInfo[]) => {
         try {
-            if (info) {
-                localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(info))
+            if (items.length > 0) {
+                localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(items))
             } else {
                 localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
             }
@@ -57,7 +107,87 @@ export const usePdfSelection = () => {
             // ignore localStorage errors
         }
 
-        setLastReadingInfo(info)
+        setRecentReadingInfo(items)
+    }, [])
+
+    const upsertLastReadingInfo = useCallback((info: LastReadingInfo) => {
+        const current = readReadingHistory()
+        persistRecentReadingInfo(upsertRecentHistory(current, info))
+    }, [persistRecentReadingInfo])
+
+    useEffect(() => {
+        pdfTabsRef.current = pdfTabs
+    }, [pdfTabs])
+
+    const openPdfInTab = useCallback((file: PdfFile, initialReadInfo?: LastReadingInfo) => {
+        const normalizedFile = toPdfFile(file)
+        const normalizedPath = normalizedFile.path || null
+        const currentTabs = pdfTabsRef.current
+        const existingTab = normalizedPath
+            ? currentTabs.find((tab) => tab.file.path === normalizedPath)
+            : undefined
+
+        if (existingTab) {
+            setPdfTabs(currentTabs.map((tab) => (
+                tab.id === existingTab.id ? { ...tab, file: normalizedFile } : tab
+            )))
+            setActivePdfTabId(existingTab.id)
+        } else {
+            const newTabId = crypto.randomUUID()
+            setPdfTabs([...currentTabs, { id: newTabId, file: normalizedFile }])
+            setActivePdfTabId(newTabId)
+        }
+
+        if (normalizedFile.path && normalizedFile.name) {
+            upsertLastReadingInfo(initialReadInfo || {
+                name: normalizedFile.name,
+                path: normalizedFile.path,
+                page: 1,
+                totalPages: 0
+            })
+        }
+    }, [upsertLastReadingInfo])
+
+    const setActivePdfTab = useCallback((tabId: string) => {
+        const tab = pdfTabsRef.current.find((item) => item.id === tabId)
+        if (!tab) return
+
+        setActivePdfTabId(tabId)
+
+        if (tab.file.path && tab.file.name) {
+            const current = readReadingHistory()
+            const existing = current.find((item) => item.path === tab.file.path)
+            const nextInfo: LastReadingInfo = {
+                name: tab.file.name,
+                path: tab.file.path,
+                page: existing?.page || 1,
+                totalPages: existing?.totalPages || 0
+            }
+            persistRecentReadingInfo(upsertRecentHistory(current, nextInfo))
+        }
+    }, [persistRecentReadingInfo])
+
+    const closePdfTab = useCallback((tabId: string) => {
+        setPdfTabs((prevTabs) => {
+            const tabIndex = prevTabs.findIndex((tab) => tab.id === tabId)
+            if (tabIndex < 0) return prevTabs
+
+            const nextTabs = prevTabs.filter((tab) => tab.id !== tabId)
+            setActivePdfTabId((currentActiveId) => {
+                if (currentActiveId !== tabId) return currentActiveId
+                const fallbackTab = nextTabs[Math.max(0, tabIndex - 1)] || nextTabs[0]
+                return fallbackTab?.id || ''
+            })
+
+            return nextTabs
+        })
+    }, [])
+
+    const renamePdfTab = useCallback((tabId: string, title?: string) => {
+        const normalizedTitle = normalizeTitle(title)
+        setPdfTabs((prevTabs) => prevTabs.map((tab) => (
+            tab.id === tabId ? { ...tab, title: normalizedTitle } : tab
+        )))
     }, [])
 
     const handleSelectPdf = useCallback(async () => {
@@ -67,20 +197,14 @@ export const usePdfSelection = () => {
             const result = await selectPdf({ filterName: t('pdf_documents') })
 
             if (currentRequestId === lastLoadRequestId.current && result) {
-                setPdfFile(result)
-                persistLastReadingInfo({
-                    name: result.name,
-                    path: result.path,
-                    page: 1,
-                    totalPages: 0
-                })
+                openPdfInTab(result)
             }
         } catch (error) {
             if (currentRequestId === lastLoadRequestId.current) {
                 Logger.error('[usePdfSelection] PDF Selection Error:', error)
             }
         }
-    }, [selectPdf, t, persistLastReadingInfo])
+    }, [selectPdf, t, openPdfInTab])
 
     const handlePdfDrop = useCallback(async (file: File) => {
         if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
@@ -94,59 +218,84 @@ export const usePdfSelection = () => {
         try {
             const result = await registerPdfPath(filePath)
             if (result) {
-                setPdfFile(result)
+                openPdfInTab(result)
                 showSuccess('toast_opened', undefined, { fileName: result.name })
-                persistLastReadingInfo({
-                    name: result.name,
-                    path: result.path || filePath,
-                    page: 1,
-                    totalPages: 0
-                })
             }
         } catch (error) {
             Logger.error('[usePdfSelection] Drop Error:', error)
             showError('error_pdf_load')
         }
-    }, [registerPdfPath, showSuccess, showError, persistLastReadingInfo])
+    }, [registerPdfPath, showSuccess, showError, openPdfInTab])
 
-    const resumeLastPdf = useCallback(async () => {
+    const resumeLastPdf = useCallback(async (path?: string) => {
         try {
-            const storedInfo = readLastReadingInfo()
-            if (!storedInfo) return
+            const history = readReadingHistory()
+            const target = path
+                ? history.find((item) => item.path === path)
+                : history[0]
 
-            const result = await registerPdfPath(storedInfo.path)
+            if (!target) return
+
+            const result = await registerPdfPath(target.path)
             if (result) {
-                setPdfFile(result)
-                persistLastReadingInfo({
-                    ...storedInfo,
-                    name: result.name || storedInfo.name,
-                    path: result.path || storedInfo.path,
-                    page: storedInfo.page || 1
+                openPdfInTab(result, {
+                    ...target,
+                    name: result.name || target.name,
+                    path: result.path || target.path,
+                    page: target.page || 1
                 })
             }
         } catch (error) {
             Logger.error('[usePdfSelection] Resume Error:', error)
-            persistLastReadingInfo(null)
+            if (path) {
+                const history = readReadingHistory().filter((item) => item.path !== path)
+                persistRecentReadingInfo(history)
+            } else {
+                persistRecentReadingInfo([])
+            }
             showError('error_pdf_load')
         }
-    }, [registerPdfPath, showError, persistLastReadingInfo])
+    }, [registerPdfPath, showError, persistRecentReadingInfo, openPdfInTab])
 
     const getLastReadingInfo = useCallback((): LastReadingInfo | null => {
-        return readLastReadingInfo() || lastReadingInfo
-    }, [lastReadingInfo])
+        const history = readReadingHistory()
+        return history[0] || recentReadingInfo[0] || null
+    }, [recentReadingInfo])
 
-    const clearLastReading = useCallback(() => {
-        persistLastReadingInfo(null)
-    }, [persistLastReadingInfo])
+    const getRecentReadingInfo = useCallback((): LastReadingInfo[] => {
+        const history = readReadingHistory()
+        return history.length > 0 ? history : recentReadingInfo
+    }, [recentReadingInfo])
+
+    const clearLastReading = useCallback((path?: string) => {
+        if (!path) {
+            persistRecentReadingInfo([])
+            return
+        }
+
+        const history = readReadingHistory().filter((item) => item.path !== path)
+        persistRecentReadingInfo(history)
+    }, [persistRecentReadingInfo])
+
+    const pdfFile = useMemo(() => {
+        if (!activePdfTabId) return null
+        const activeTab = pdfTabs.find((tab) => tab.id === activePdfTabId)
+        return activeTab?.file || null
+    }, [pdfTabs, activePdfTabId])
 
     return {
         pdfFile,
+        pdfTabs,
+        activePdfTabId,
+        setActivePdfTab,
+        closePdfTab,
+        renamePdfTab,
         handleSelectPdf,
         handlePdfDrop,
         resumeLastPdf,
         getLastReadingInfo,
+        getRecentReadingInfo,
         clearLastReading
     }
 }
-
 

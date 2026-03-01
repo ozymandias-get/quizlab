@@ -29,6 +29,10 @@ vi.mock('@features/ai/ui/AiSession', () => ({
     ),
 }))
 
+vi.mock('@features/ai/ui/AiTabStrip', () => ({
+    default: () => <div data-testid="ai-tab-strip">Tab Strip</div>
+}))
+
 vi.mock('@features/tutorial/ui/MagicSelectorTutorial', () => ({
     default: () => <div data-testid="tutorial-overlay">Tutorial Active</div>,
 }))
@@ -49,6 +53,7 @@ describe('AiWebview Component', () => {
 
     it('renders all AI tabs', () => {
         render(<AiWebview isResizing={false} isBarHovered={false} />)
+        expect(screen.getByTestId('ai-tab-strip')).toBeInTheDocument()
         expect(screen.getByText('GPT-4 - Active')).toBeInTheDocument()
         expect(screen.getByText('Claude 3 - Inactive')).toBeInTheDocument()
     })

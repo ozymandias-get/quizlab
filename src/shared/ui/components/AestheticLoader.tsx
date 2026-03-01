@@ -1,4 +1,4 @@
-﻿import React from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useLanguage } from '@app/providers'
 
 /**
@@ -6,6 +6,21 @@ import { useLanguage } from '@app/providers'
  */
 const AestheticLoader: React.FC = () => {
     const { t } = useLanguage()
+
+    // Generate random messages
+    const [msgIndex, setMsgIndex] = useState(1)
+
+    useEffect(() => {
+        // Pick initial random index
+        setMsgIndex(Math.floor(Math.random() * 20) + 1)
+
+        // Rotate every 1.5 seconds to another random message
+        const intervalId = setInterval(() => {
+            setMsgIndex(Math.floor(Math.random() * 20) + 1)
+        }, 1500)
+
+        return () => clearInterval(intervalId)
+    }, [])
 
     return (
         <div className="aesthetic-loader-modern">
@@ -55,7 +70,7 @@ const AestheticLoader: React.FC = () => {
 
                 <section className="statusRow">
                     <div className="statusDot" />
-                    <p className="statusText">{t('loader_syncing')}</p>
+                    <p className="statusText">{t(`loader_msg_${msgIndex}`)}</p>
                 </section>
             </div>
         </div>

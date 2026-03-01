@@ -141,8 +141,8 @@ describe('usePdfSelection', () => {
     })
 
     it('should resume last PDF from localStorage', async () => {
-        const storedData = JSON.stringify({ name: 'resumed.pdf', path: '/resume/path.pdf', page: 5 })
-        localStorageMock.getItem.mockReturnValue(storedData)
+        const storedData = JSON.stringify([{ name: 'resumed.pdf', path: '/resume/path.pdf', page: 5, totalPages: 10 }])
+        localStorageMock.setItem(STORAGE_KEYS.LAST_PDF_READING, storedData)
 
         const mockResult = { name: 'resumed.pdf', path: '/resume/path.pdf' }
         mockRegisterPdfPathMutate.mockResolvedValue(mockResult)
@@ -163,8 +163,8 @@ describe('usePdfSelection', () => {
         // Mock Logger
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { })
 
-        const storedData = JSON.stringify({ name: 'fail.pdf', path: '/fail/path.pdf' })
-        localStorageMock.getItem.mockReturnValue(storedData)
+        const storedData = JSON.stringify([{ name: 'fail.pdf', path: '/fail/path.pdf', page: 1, totalPages: 0 }])
+        localStorageMock.setItem(STORAGE_KEYS.LAST_PDF_READING, storedData)
 
         mockRegisterPdfPathMutate.mockRejectedValue(new Error('File not found'))
 
@@ -183,12 +183,85 @@ describe('usePdfSelection', () => {
 
     it('should retrieve last reading info', async () => {
         const data = { name: 'info.pdf', path: '/info.pdf', page: 10, totalPages: 20 }
-        localStorageMock.getItem.mockReturnValue(JSON.stringify(data))
+        localStorageMock.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(data))
 
         const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
 
         const info = result.current.getLastReadingInfo()
         expect(info).toEqual(data)
+    })
+
+    it('should keep only the last 3 reading entries', async () => {
+        const files = [
+            { name: 'one.pdf', path: '/pdf/one.pdf', streamUrl: 'one-url' },
+            { name: 'two.pdf', path: '/pdf/two.pdf', streamUrl: 'two-url' },
+            { name: 'three.pdf', path: '/pdf/three.pdf', streamUrl: 'three-url' },
+            { name: 'four.pdf', path: '/pdf/four.pdf', streamUrl: 'four-url' }
+        ]
+
+        mockSelectPdfMutate
+            .mockResolvedValueOnce(files[0])
+            .mockResolvedValueOnce(files[1])
+            .mockResolvedValueOnce(files[2])
+            .mockResolvedValueOnce(files[3])
+
+        const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
+
+        await act(async () => {
+            await result.current.handleSelectPdf()
+            await result.current.handleSelectPdf()
+            await result.current.handleSelectPdf()
+            await result.current.handleSelectPdf()
+        })
+
+        const recent = result.current.getRecentReadingInfo()
+        expect(recent).toHaveLength(3)
+        expect(recent.map((item) => item.path)).toEqual([
+            '/pdf/four.pdf',
+            '/pdf/three.pdf',
+            '/pdf/two.pdf'
+        ])
+    })
+
+    it('should manage multiple pdf tabs (open, switch, rename, close)', async () => {
+        const firstPdf = { name: 'first.pdf', path: '/path/first.pdf', streamUrl: 'first-url' }
+        const secondPdf = { name: 'second.pdf', path: '/path/second.pdf', streamUrl: 'second-url' }
+        mockSelectPdfMutate
+            .mockResolvedValueOnce(firstPdf)
+            .mockResolvedValueOnce(secondPdf)
+
+        const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
+
+        await act(async () => {
+            await result.current.handleSelectPdf()
+        })
+
+        await act(async () => {
+            await result.current.handleSelectPdf()
+        })
+
+        expect(result.current.pdfTabs).toHaveLength(2)
+        expect(result.current.pdfFile?.name).toBe('second.pdf')
+
+        const firstTabId = result.current.pdfTabs[0].id
+        const secondTabId = result.current.pdfTabs[1].id
+
+        act(() => {
+            result.current.setActivePdfTab(firstTabId)
+        })
+        expect(result.current.activePdfTabId).toBe(firstTabId)
+        expect(result.current.pdfFile?.name).toBe('first.pdf')
+
+        act(() => {
+            result.current.renamePdfTab(firstTabId, '  Notes PDF  ')
+        })
+        expect(result.current.pdfTabs[0].title).toBe('Notes PDF')
+
+        act(() => {
+            result.current.closePdfTab(firstTabId)
+        })
+        expect(result.current.pdfTabs).toHaveLength(1)
+        expect(result.current.activePdfTabId).toBe(secondTabId)
     })
 })
 

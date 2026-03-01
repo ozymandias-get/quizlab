@@ -28,6 +28,12 @@ export const STORAGE_KEYS = {
     /** Aktif edilecek Modellerin listesi (JSON array string) */
     ENABLED_MODELS: 'enabledModels',
 
+    /** Varsayılan AI modeli (string) */
+    DEFAULT_AI_MODEL: 'defaultAiModel',
+
+    /** Pinlenmiş AI sekmeleri (JSON array: [{ id, modelId, title? }]) */
+    PINNED_AI_TABS: 'pinnedAiTabs',
+
     // Görünüm Ayarları
     /** Sadece ikonları göster (boolean) */
     SHOW_ONLY_ICONS: 'showOnlyIcons',

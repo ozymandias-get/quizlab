@@ -1,9 +1,12 @@
-﻿import React, { memo, Suspense, lazy } from 'react'
+import React, { memo, Suspense, lazy } from 'react'
 import { useLanguage } from '@app/providers/LanguageContext'
 import type { PdfFile } from '@shared-core/types'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
+import PdfTabStrip from '@features/pdf/ui/components/PdfTabStrip'
+import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
+import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
 
 const PdfViewer = lazy(() => import('@features/pdf/ui/components/PdfViewer'))
 
@@ -14,10 +17,15 @@ interface LeftPanelProps {
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
     width: number;
     t: (key: string) => string;
-    onResumePdf?: () => void;
-    onClearResumePdf?: () => void;
-    lastReadingInfo?: { name: string; page: number; totalPages: number; path: string } | null;
+    onResumePdf?: (path?: string) => void;
+    onClearResumePdf?: (path?: string) => void;
+    lastReadingInfo?: LastReadingInfo[] | null;
     initialPage?: number;
+    pdfTabs?: PdfTab[];
+    activePdfTabId?: string;
+    onSetActivePdfTab?: (tabId: string) => void;
+    onClosePdfTab?: (tabId: string) => void;
+    onRenamePdfTab?: (tabId: string, title?: string) => void;
 }
 
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
@@ -45,7 +53,12 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     onResumePdf,
     onClearResumePdf,
     lastReadingInfo,
-    initialPage
+    initialPage,
+    pdfTabs = [],
+    activePdfTabId = '',
+    onSetActivePdfTab,
+    onClosePdfTab,
+    onRenamePdfTab
 }) => {
     const { t } = useLanguage()
 
@@ -67,27 +80,40 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
             <DropOverlay isVisible={isDragOver} t={t} />
 
             <ErrorBoundary title={t('error_pdf_handler')}>
-                <div className="flex-1 overflow-hidden relative h-full">
-                    <Suspense fallback={
-                        <div className="flex items-center justify-center h-full">
-                            <LoaderIcon className="w-8 h-8 text-amber-500" />
-                        </div>
-                    }>
-                        <div className="absolute inset-0 w-full h-full animate-in fade-in duration-300">
-                            <ErrorBoundary title={t('error_pdf_viewer')}>
-                                <PdfViewer
-                                    pdfFile={pdfFile}
-                                    onSelectPdf={onSelectPdf}
-                                    onTextSelection={onTextSelection}
-                                    t={t}
-                                    initialPage={initialPage}
-                                    onResumePdf={onResumePdf}
-                                    onClearResumePdf={onClearResumePdf}
-                                    lastReadingInfo={lastReadingInfo}
-                                />
-                            </ErrorBoundary>
-                        </div>
-                    </Suspense>
+                <div className="flex-1 overflow-hidden relative h-full flex flex-col">
+                    {pdfTabs.length > 0 && onSetActivePdfTab && onClosePdfTab && onRenamePdfTab && (
+                        <PdfTabStrip
+                            tabs={pdfTabs}
+                            activeTabId={activePdfTabId}
+                            onSetActiveTab={onSetActivePdfTab}
+                            onCloseTab={onClosePdfTab}
+                            onRenameTab={onRenamePdfTab}
+                            onAddTab={onSelectPdf}
+                        />
+                    )}
+
+                    <div className="relative flex-1 overflow-hidden">
+                        <Suspense fallback={
+                            <div className="flex items-center justify-center h-full">
+                                <LoaderIcon className="w-8 h-8 text-amber-500" />
+                            </div>
+                        }>
+                            <div className="absolute inset-0 w-full h-full animate-in fade-in duration-300">
+                                <ErrorBoundary title={t('error_pdf_viewer')}>
+                                    <PdfViewer
+                                        pdfFile={pdfFile}
+                                        onSelectPdf={onSelectPdf}
+                                        onTextSelection={onTextSelection}
+                                        t={t}
+                                        initialPage={initialPage}
+                                        onResumePdf={onResumePdf}
+                                        onClearResumePdf={onClearResumePdf}
+                                        lastReadingInfo={lastReadingInfo}
+                                    />
+                                </ErrorBoundary>
+                            </div>
+                        </Suspense>
+                    </div>
                 </div>
             </ErrorBoundary>
         </div>
@@ -95,6 +121,3 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 }
 
 export default memo(LeftPanel)
-
-
-

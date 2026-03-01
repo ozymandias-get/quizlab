@@ -1,7 +1,8 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { useAi } from '@app/providers'
 import { MagicSelectorTutorial } from '@features/tutorial'
 import AiSession from './AiSession'
+import AiTabStrip from './AiTabStrip'
 
 interface AiWebviewProps {
     isResizing: boolean;
@@ -10,14 +11,15 @@ interface AiWebviewProps {
 
 /**
  * AI Webview Component (Optimized)
- * 
+ *
  * Creates webviews for active AI tabs.
  */
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
     const { tabs, activeTabId, isTutorialActive, stopTutorial } = useAi()
 
     return (
-        <div className="flex flex-col flex-1 relative overflow-hidden bg-[#050505] m-3 rounded-[1.5rem] shadow-2xl"
+        <div
+            className="flex flex-col flex-1 relative overflow-hidden bg-[#050505] m-3 rounded-[1.5rem] shadow-2xl"
             style={{
                 pointerEvents: isResizing ? 'none' : 'auto',
                 transform: 'translateZ(0)',
@@ -28,15 +30,19 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
             {/* Border Overlay - Covers anti-aliasing artifacts */}
             <div className="absolute inset-0 rounded-[1.5rem] border border-white/[0.08] pointer-events-none z-50" />
 
-            {/* Render all tabs */}
-            {tabs.map(tab => (
-                <AiSession
-                    key={tab.id}
-                    tab={tab}
-                    isActive={tab.id === activeTabId}
-                    isBarHovered={isBarHovered}
-                />
-            ))}
+            <AiTabStrip />
+
+            <div className="relative flex-1 min-h-0">
+                {/* Render all tabs */}
+                {tabs.map((tab) => (
+                    <AiSession
+                        key={tab.id}
+                        tab={tab}
+                        isActive={tab.id === activeTabId}
+                        isBarHovered={isBarHovered}
+                    />
+                ))}
+            </div>
 
             {/* Tutorial Simulation */}
             {isTutorialActive && (
@@ -54,6 +60,4 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
 }
 
 export default memo(AiWebview)
-
-
 

@@ -19,7 +19,7 @@ const PlusIcon = ({ className }: IconProps) => (
 )
 
 const ModelsTab = memo(() => {
-    const { enabledModels, setEnabledModels, aiSites } = useAi()
+    const { enabledModels, setEnabledModels, aiSites, defaultAiModel, setDefaultAiModel } = useAi()
     const { t } = useLanguage()
 
     // React Query mutation hooks
@@ -32,15 +32,18 @@ const ModelsTab = memo(() => {
         if (enabledModels.includes(key)) {
             if (enabledModels.length <= MIN_ENABLED_MODELS) return
             newModels = enabledModels.filter(m => m !== key)
+            if (defaultAiModel === key && newModels.length > 0) {
+                setDefaultAiModel(newModels[0])
+            }
         } else {
             newModels = [...enabledModels, key]
         }
         setEnabledModels(newModels)
-    }, [enabledModels, setEnabledModels])
+    }, [enabledModels, setEnabledModels, defaultAiModel, setDefaultAiModel])
 
     // Filter AI models (!isSite) from aiSites
     const modelsList = useMemo(() => Object.values(aiSites).filter(site => !site.isSite).map(site => site.id), [aiSites])
-    
+
     // Count only enabled items that are actually AI models (exist in aiSites and isSite is false)
     const enabledModelsCount = useMemo(() => enabledModels.filter(id => aiSites[id] && !aiSites[id].isSite).length, [enabledModels, aiSites])
 
@@ -56,12 +59,16 @@ const ModelsTab = memo(() => {
 
             // Remove from enabled models if present
             if (enabledModels.includes(id)) {
-                setEnabledModels(enabledModels.filter(m => m !== id))
+                const newModels = enabledModels.filter(m => m !== id)
+                setEnabledModels(newModels)
+                if (defaultAiModel === id && newModels.length > 0) {
+                    setDefaultAiModel(newModels[0])
+                }
             }
         } catch {
             // Error already shown via toast
         }
-    }, [t, enabledModels, setEnabledModels, deleteCustomAi])
+    }, [t, enabledModels, setEnabledModels, deleteCustomAi, defaultAiModel, setDefaultAiModel])
 
     const handleAddSuccess = useCallback((id: string) => {
         // Enable the new model by default
@@ -136,6 +143,8 @@ const ModelsTab = memo(() => {
                 handleDeleteAi={handleDeleteAi}
                 isDeleting={isDeleting}
                 minEnabledModels={MIN_ENABLED_MODELS}
+                defaultAiModel={defaultAiModel}
+                setDefaultAiModel={setDefaultAiModel}
                 t={t}
             />
 

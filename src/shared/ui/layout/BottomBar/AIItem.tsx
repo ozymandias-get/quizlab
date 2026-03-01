@@ -1,5 +1,6 @@
-﻿import React, { useRef, useCallback, useMemo, useState, memo, useEffect } from 'react'
+import React, { useRef, useCallback, useMemo, useState, memo, useEffect } from 'react'
 import { Reorder, motion } from 'framer-motion'
+import { Pin, X } from 'lucide-react'
 import { getAiIcon } from '@ui/components/Icons'
 import { useLanguage } from '@app/providers'
 
@@ -24,6 +25,11 @@ export interface AIItemProps {
     animationDelay?: number;
     showOnlyIcons?: boolean;
     draggable?: boolean;
+    labelOverride?: string;
+    onClose?: () => void;
+    isPinned?: boolean;
+    onTogglePin?: () => void;
+    onRequestRename?: () => void;
 }
 
 export const AIItem = memo<AIItemProps>(function AIItem({
@@ -35,7 +41,12 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     activeDragItem,
     animationDelay: _animationDelay = 0,
     showOnlyIcons = true,
-    draggable = true
+    draggable = true,
+    labelOverride,
+    onClose,
+    isPinned = false,
+    onTogglePin,
+    onRequestRename
 }: AIItemProps) {
     const { t } = useLanguage()
     const isDraggingRef = useRef(false)
@@ -47,6 +58,9 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         , [site?.color])
 
     const isBeingDragged = activeDragItem === modelKey
+    const hasTabControls = Boolean(onClose || onTogglePin)
+    const shouldShowPin = Boolean(onTogglePin) && (isPinned || isHovered)
+    const shouldShowClose = Boolean(onClose) && isHovered
 
     const buttonStyle = useMemo<React.CSSProperties>(() => {
         const isActive = isSelected || isBeingDragged
@@ -93,6 +107,28 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         setCurrentAI(modelKey)
     }, [setCurrentAI, modelKey])
 
+    const handleControlClick = useCallback((e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+    }, [])
+
+    const handleCloseClick = useCallback((e: React.MouseEvent) => {
+        handleControlClick(e)
+        onClose?.()
+    }, [handleControlClick, onClose])
+
+    const handlePinClick = useCallback((e: React.MouseEvent) => {
+        handleControlClick(e)
+        onTogglePin?.()
+    }, [handleControlClick, onTogglePin])
+
+    const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+        if (!onRequestRename) return
+        e.preventDefault()
+        e.stopPropagation()
+        onRequestRename()
+    }, [onRequestRename])
+
     useEffect(() => {
         return () => {
             if (dragEndTimeoutRef.current) {
@@ -120,13 +156,13 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         }, 150)
     }, [setActiveDragItem])
 
-
-
     const translatedName = useMemo(() => {
+        if (labelOverride) return labelOverride
+
         const translated = t(modelKey)
         if (translated && translated !== modelKey) return translated
         return site?.displayName || site?.name || (modelKey.charAt(0).toUpperCase() + modelKey.slice(1))
-    }, [t, modelKey, site])
+    }, [labelOverride, t, modelKey, site])
 
     const iconScaleStyle = useMemo<React.CSSProperties>(() => ({
         width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
@@ -172,7 +208,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
             whileHover={{
                 scale: 1.08,
                 y: -2,
-                transition: { type: "spring", stiffness: 420, damping: 22, mass: 0.6 }
+                transition: { type: 'spring', stiffness: 420, damping: 22, mass: 0.6 }
             }}
             whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
             className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
@@ -181,6 +217,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
                 ...scaledButtonMetrics,
             }}
             onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
             title={translatedName}
         >
             {renderedIcon || (
@@ -196,9 +233,45 @@ export const AIItem = memo<AIItemProps>(function AIItem({
             )}
 
             {!showOnlyIcons && (
-                <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 whitespace-nowrap overflow-hidden text-ellipsis">
+                <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
                     {translatedName}
                 </span>
+            )}
+
+            {hasTabControls && (
+                <div
+                    className="absolute top-1 right-1 z-20 flex items-center gap-1"
+                    onMouseDown={handleControlClick}
+                >
+                    {shouldShowPin && (
+                        <span
+                            role="button"
+                            tabIndex={-1}
+                            aria-label={isPinned ? t('tab_unpin') : t('tab_pin')}
+                            title={isPinned ? t('tab_pinned') : t('tab_pin')}
+                            className={`flex items-center justify-center rounded-md border px-1 py-1 transition-all duration-150 ${isPinned
+                                ? 'text-white bg-white/18 border-white/25 shadow-sm'
+                                : 'text-white/65 bg-black/35 border-white/15 hover:text-white hover:bg-white/14'
+                                }`}
+                            onClick={handlePinClick}
+                        >
+                            <Pin className="w-2.5 h-2.5" fill={isPinned ? 'currentColor' : 'none'} />
+                        </span>
+                    )}
+
+                    {shouldShowClose && (
+                        <span
+                            role="button"
+                            tabIndex={-1}
+                            aria-label={t('tab_close')}
+                            title={t('tab_close')}
+                            className="flex items-center justify-center rounded-md border border-white/15 px-1 py-1 text-white/70 bg-black/35 hover:text-white hover:bg-white/14 transition-all duration-150"
+                            onClick={handleCloseClick}
+                        >
+                            <X className="w-2.5 h-2.5" />
+                        </span>
+                    )}
+                </div>
             )}
 
             {isSelected && (
