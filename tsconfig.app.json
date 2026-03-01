@@ -49,13 +49,7 @@
             "@platform/*": [
                 "./src/platform/*"
             ]
-        },
-        "types": [
-            "vite/client",
-            "vitest/globals",
-            "@testing-library/jest-dom",
-            "node"
-        ]
+        }
     },
     "include": [
         "src",
