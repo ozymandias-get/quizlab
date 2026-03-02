@@ -32,5 +32,14 @@ export const IPC_CHANNELS = {
     GET_GEMINI_CLI_PATH: 'get-gemini-cli-path',
     OPEN_GEMINI_LOGIN: 'open-gemini-login',
     CHECK_GEMINI_AUTH: 'check-gemini-auth',
-    GEMINI_LOGOUT: 'gemini-logout'
+    GEMINI_LOGOUT: 'gemini-logout',
+    // Gemini Web Session
+    GEMINI_WEB_OPEN_LOGIN: 'gemini-web-open-login',
+    GEMINI_WEB_STATUS: 'gemini-web-status',
+    GEMINI_WEB_CHECK_NOW: 'gemini-web-check-now',
+    GEMINI_WEB_REAUTH: 'gemini-web-reauth',
+    GEMINI_WEB_RESET_PROFILE: 'gemini-web-reset-profile',
+    GEMINI_WEB_SET_ENABLED: 'gemini-web-set-enabled',
+    // App lifecycle
+    APP_QUIT: 'app-quit'
 }

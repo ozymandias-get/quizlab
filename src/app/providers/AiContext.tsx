@@ -63,6 +63,14 @@ const arePinnedTabsEqual = (a: PinnedTabStorage[], b: PinnedTabStorage[]) => {
     return true
 }
 
+const areStringArraysEqual = (a: string[], b: string[]) => {
+    if (a.length !== b.length) return false
+    for (let i = 0; i < a.length; i += 1) {
+        if (a[i] !== b[i]) return false
+    }
+    return true
+}
+
 export interface Tab {
     id: string;
     modelId: string;
@@ -309,12 +317,86 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         setLastSelectedAI(id)
     }, [activeTabId, setLastSelectedAI, setPinnedTabs])
 
-    // Sync enabledModels with registry on first load
+    // Keep enabled/default/selected models valid when registry changes (e.g. Gemini web toggle off).
     useEffect(() => {
-        if (isRegistryLoaded && GET_ALL_AI_IDS.length > 0 && enabledModels.length === 0) {
-            setEnabledModels(GET_ALL_AI_IDS)
+        if (!isRegistryLoaded || GET_ALL_AI_IDS.length === 0) return
+
+        const validIds = new Set(GET_ALL_AI_IDS)
+        const fallbackModelId = validIds.has(defaultAiModel)
+            ? defaultAiModel
+            : (GET_ALL_AI_IDS[0] || DEFAULT_AI_ID)
+
+        const filteredEnabled = enabledModels.filter((id) => validIds.has(id))
+        const nextEnabled = filteredEnabled.length > 0 ? filteredEnabled : [fallbackModelId]
+
+        if (!areStringArraysEqual(nextEnabled, enabledModels)) {
+            setEnabledModels(nextEnabled)
         }
-    }, [isRegistryLoaded, GET_ALL_AI_IDS, enabledModels.length, setEnabledModels])
+
+        if (!validIds.has(defaultAiModel)) {
+            setDefaultAiModel(nextEnabled[0] || fallbackModelId)
+        }
+
+        if (!validIds.has(lastSelectedAI)) {
+            setLastSelectedAI(nextEnabled[0] || fallbackModelId)
+        }
+    }, [
+        isRegistryLoaded,
+        GET_ALL_AI_IDS,
+        DEFAULT_AI_ID,
+        enabledModels,
+        defaultAiModel,
+        lastSelectedAI,
+        setEnabledModels,
+        setDefaultAiModel,
+        setLastSelectedAI
+    ])
+
+    // Ensure open tabs remain on valid models when registry removes a model.
+    useEffect(() => {
+        if (!isRegistryLoaded || GET_ALL_AI_IDS.length === 0 || tabs.length === 0) return
+
+        const validIds = new Set(GET_ALL_AI_IDS)
+        const fallbackModelId = validIds.has(defaultAiModel)
+            ? defaultAiModel
+            : (GET_ALL_AI_IDS[0] || DEFAULT_AI_ID)
+
+        let tabsChanged = false
+        const normalizedTabs = tabs.map((tab) => {
+            if (validIds.has(tab.modelId)) return tab
+            tabsChanged = true
+            return { ...tab, modelId: fallbackModelId }
+        })
+
+        if (tabsChanged) {
+            setTabs(normalizedTabs)
+
+            const activeTab = normalizedTabs.find((tab) => tab.id === activeTabId)
+            if (activeTab) {
+                setLastSelectedAI(activeTab.modelId)
+            }
+
+            setPinnedTabs((prevPinned) => {
+                let pinnedChanged = false
+                const mapped = prevPinned.map((tab) => {
+                    if (validIds.has(tab.modelId)) return tab
+                    pinnedChanged = true
+                    return { ...tab, modelId: fallbackModelId }
+                })
+                return pinnedChanged ? mapped : prevPinned
+            })
+        }
+    }, [
+        isRegistryLoaded,
+        GET_ALL_AI_IDS,
+        DEFAULT_AI_ID,
+        tabs,
+        activeTabId,
+        defaultAiModel,
+        setTabs,
+        setPinnedTabs,
+        setLastSelectedAI
+    ])
 
     // Get active webview instance
     const webviewInstance = useMemo(() => webviewInstances[activeTabId] || null, [webviewInstances, activeTabId])
@@ -438,4 +520,3 @@ export const useAi = () => {
     if (!context) throw new Error('useAi must be used within AiProvider')
     return context
 }
-

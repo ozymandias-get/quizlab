@@ -18,6 +18,8 @@ import type {
     QuizCliPathResult,
     QuizAuthResult,
     QuizActionResult,
+    GeminiWebSessionStatus,
+    GeminiWebSessionActionResult,
     ScreenshotType,
     AutomationConfig,
     PdfFile
@@ -43,6 +45,8 @@ export type {
     QuizCliPathResult,
     QuizAuthResult,
     QuizActionResult,
+    GeminiWebSessionStatus,
+    GeminiWebSessionActionResult,
     ScreenshotType,
     AutomationConfig,
     PdfFile
@@ -80,6 +84,7 @@ declare global {
 
             // Meta
             platform: string;
+            quitApp: () => Promise<void>;
 
             // Updater
             checkForUpdates: () => Promise<UpdateCheckResult>;
@@ -107,6 +112,15 @@ declare global {
                 checkAuth: () => Promise<QuizAuthResult>;
                 logout: () => Promise<QuizActionResult>;
                 askAssistant: (question: string, context?: string) => Promise<{ success: boolean; data?: { answer: string; suggestions?: string[] }; error?: string }>;
+            };
+
+            geminiWeb: {
+                getStatus: () => Promise<GeminiWebSessionStatus>;
+                openLogin: () => Promise<GeminiWebSessionActionResult>;
+                checkNow: () => Promise<GeminiWebSessionActionResult>;
+                reauth: () => Promise<GeminiWebSessionActionResult>;
+                resetProfile: () => Promise<GeminiWebSessionActionResult>;
+                setEnabled: (enabled: boolean) => Promise<GeminiWebSessionActionResult>;
             };
         };
     }

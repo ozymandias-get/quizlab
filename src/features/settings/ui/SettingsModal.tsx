@@ -5,7 +5,7 @@ import { Button } from '@ui/components/button'
 import { useLanguage } from '@app/providers'
 import { useSettings } from '../hooks/useSettings'
 // Icons imported from @ui/components/Icons
-import { SettingsIcon, CloseIcon, LanguageIcon, InfoIcon, GridIcon, EyeIcon, MagicWandIcon, SelectorIcon, TerminalIcon } from '@ui/components/Icons'
+import { SettingsIcon, CloseIcon, LanguageIcon, InfoIcon, GridIcon, EyeIcon, MagicWandIcon, SelectorIcon, TerminalIcon, GeminiIcon } from '@ui/components/Icons'
 // Lazy Load Settings Tabs
 const LanguageTab = lazy(() => import('./LanguageTab'))
 const AboutTab = lazy(() => import('./AboutTab'))
@@ -14,6 +14,7 @@ const ModelsTab = lazy(() => import('./ModelsTab'))
 const AppearanceTab = lazy(() => import('./AppearanceTab'))
 const SelectorsTab = lazy(() => import('./SelectorsTab'))
 const GeminiCliTab = lazy(() => import('./GeminiCliTab'))
+const GeminiWebSessionTab = lazy(() => import('./GeminiWebSessionTab'))
 const PromptsTab = lazy(() => import('./PromptsTab'))
 
 // Click outside delay (ms)
@@ -73,6 +74,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         { id: 'models', label: t('models'), icon: GridIcon },
         { id: 'sites', label: t('ai_sites') || 'Siteler', icon: GridIcon },
         { id: 'gemini-cli', label: t('gemini_cli'), icon: TerminalIcon },
+        { id: 'gemini-web', label: t('gws_title'), icon: GeminiIcon },
         { id: 'selectors', label: t('selectors'), icon: SelectorIcon },
         { id: 'appearance', label: t('appearance'), icon: EyeIcon },
         { id: 'language', label: t('language'), icon: LanguageIcon },
@@ -89,6 +91,8 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 return <SitesTab />
             case 'gemini-cli':
                 return <GeminiCliTab />
+            case 'gemini-web':
+                return <GeminiWebSessionTab />
             case 'selectors':
                 return <SelectorsTab onCloseSettings={onClose} />
             case 'appearance':

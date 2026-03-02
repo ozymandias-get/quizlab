@@ -5,6 +5,7 @@ import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers'
 import { registerQuizHandlers } from '../features/quiz/quizCliHandler'
+import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
 
 export function registerGeneralHandlers() {
     registerScreenshotHandlers()
@@ -13,6 +14,7 @@ export function registerGeneralHandlers() {
     registerAiConfigHandlers()
     registerAiRegistryHandlers()
     registerAutomationHandlers()
+    registerGeminiWebSessionHandlers()
 }
 
 export { registerQuizHandlers }

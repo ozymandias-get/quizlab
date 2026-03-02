@@ -15,7 +15,9 @@ import type {
     QuizGenerateResult,
     QuizCliPathResult,
     QuizAuthResult,
-    QuizActionResult
+    QuizActionResult,
+    GeminiWebSessionStatus,
+    GeminiWebSessionActionResult
 } from '@shared-core/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -51,6 +53,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Meta
     platform: process.platform,
+    quitApp: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.APP_QUIT),
 
     // Updater
     checkForUpdates: (): Promise<UpdateCheckResult> => ipcRenderer.invoke(IPC_CHANNELS.CHECK_FOR_UPDATES),
@@ -79,6 +82,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         checkAuth: (): Promise<QuizAuthResult> => ipcRenderer.invoke(IPC_CHANNELS.CHECK_GEMINI_AUTH),
         logout: (): Promise<QuizActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_LOGOUT),
         askAssistant: (question: string, context?: string): Promise<{ success: boolean; data?: unknown; error?: string }> => ipcRenderer.invoke(IPC_CHANNELS.ASK_AI, { question, context })
+    },
+
+    // Gemini Web Session API
+    geminiWeb: {
+        getStatus: (): Promise<GeminiWebSessionStatus> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_STATUS),
+        openLogin: (): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_OPEN_LOGIN),
+        checkNow: (): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_CHECK_NOW),
+        reauth: (): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_REAUTH),
+        resetProfile: (): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE),
+        setEnabled: (enabled: boolean): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, enabled)
     }
 })
 

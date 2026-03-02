@@ -9,8 +9,6 @@
 @import './modules/_fonts.css';
 /* Font tanımlamaları - EN ÖNCE */
 @import './modules/_base.css';
-@import './modules/_splash.css';
-/* Welcome Screen Stilleri */
 @import './modules/_glass-panel.css';
 @import './modules/_pdf-viewer.css';
 @import './modules/_resizer.css';

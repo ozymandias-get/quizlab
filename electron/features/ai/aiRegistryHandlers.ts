@@ -3,6 +3,7 @@ import { APP_CONFIG } from '../../app/constants'
 import { getCustomPlatformsPath } from '../../core/helpers'
 import { ConfigManager } from '../../core/ConfigManager'
 import type { AiPlatform } from '@shared-core/types'
+import { geminiWebSessionManager } from '../gemini-web-session/sessionManager'
 import {
     AI_REGISTRY,
     DEFAULT_AI_ID,
@@ -99,7 +100,18 @@ export function registerAiRegistryHandlers() {
         const customPlatforms = await manager.read(forceRefresh)
 
         const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
-        const allIds = [...Object.keys(AI_REGISTRY), ...Object.keys(customPlatforms)]
+
+        // Gemini web model is available only when the Gemini web session feature is both available and enabled.
+        try {
+            const geminiStatus = await geminiWebSessionManager.getStatus()
+            if (!(geminiStatus.featureEnabled && geminiStatus.enabled)) {
+                delete mergedRegistry.gemini
+            }
+        } catch {
+            delete mergedRegistry.gemini
+        }
+
+        const allIds = Object.keys(mergedRegistry)
 
         return {
             aiRegistry: mergedRegistry,

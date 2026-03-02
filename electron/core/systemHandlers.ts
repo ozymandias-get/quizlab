@@ -1,10 +1,15 @@
-﻿import { ipcMain, shell, webContents, session, clipboard } from 'electron'
+﻿import { app, ipcMain, shell, webContents, session, clipboard } from 'electron'
 import { APP_CONFIG } from '../app/constants'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 import { getMainWindow } from '../app/windowManager'
 
 export function registerSystemHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
+
+    // App Quit - allows renderer (e.g. splash screen) to exit the app
+    ipcMain.handle(IPC_CHANNELS.APP_QUIT, () => {
+        app.quit()
+    })
 
     ipcMain.handle(IPC_CHANNELS.OPEN_EXTERNAL, async (event, url: string) => {
         if (!url || typeof url !== 'string') return false

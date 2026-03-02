@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import type { Query } from '@tanstack/react-query'
 import { useLanguage, useToast } from '@app/providers'
@@ -239,6 +239,3 @@ const GeminiCliTab = React.memo(() => {
 GeminiCliTab.displayName = 'GeminiCliTab'
 
 export default GeminiCliTab
-
-
-

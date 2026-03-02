@@ -41,7 +41,7 @@ function pushToBuffer(level: LogLevel, args: unknown[]) {
     }
 }
 
-export function getRecentLogs(limit: number = 120): LogEntry[] {
+function getRecentLogs(limit: number = 120): LogEntry[] {
     if (limit <= 0) return []
     return logBuffer.slice(-limit)
 }

@@ -4,12 +4,12 @@ import type { PdfFile } from '@shared-core/types'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
-import PdfTabStrip from '@features/pdf/ui/components/PdfTabStrip'
-import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
-import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
-import type { ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
+import { PdfTabStrip } from '@features/pdf'
+import type { PdfTab, LastReadingInfo, ResumePdfResult } from '@features/pdf'
 
-const PdfViewer = lazy(() => import('@features/pdf/ui/components/PdfViewer'))
+const PdfViewer = lazy(() => (
+    import('@features/pdf').then((module) => ({ default: module.PdfViewer }))
+))
 
 interface LeftPanelProps {
     onPdfDrop: (file: File) => void;
