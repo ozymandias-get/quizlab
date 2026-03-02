@@ -1,4 +1,4 @@
-/**
+﻿/**
  * localStorage Key Sabitleri
  * 
  * Tüm localStorage key'leri burada merkezi olarak tanımlanır.
@@ -75,3 +75,4 @@ export const STORAGE_KEYS = {
     /** Son okunan PDF dosya bilgisi ve sayfa numarası (JSON: {name, path, page, streamUrl}) */
     LAST_PDF_READING: 'lastPdfReading'
 } as const
+

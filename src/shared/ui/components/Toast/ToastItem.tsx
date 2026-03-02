@@ -101,6 +101,15 @@ const ToastItem = React.forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onR
         onRemove(toast.id);
     };
 
+    const handleAction = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            toast.onAction?.();
+        } finally {
+            onRemove(toast.id);
+        }
+    };
+
     return (
         <motion.div
             ref={ref}
@@ -136,6 +145,15 @@ const ToastItem = React.forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onR
                 <p className="text-xs opacity-80 leading-relaxed break-words">
                     {t(toast.message, toast.params)}
                 </p>
+                {toast.actionLabel && (
+                    <button
+                        type="button"
+                        onClick={handleAction}
+                        className="mt-2 text-[11px] font-semibold uppercase tracking-wide opacity-90 hover:opacity-100 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm"
+                    >
+                        {t(toast.actionLabel)}
+                    </button>
+                )}
             </div>
 
             {/* Close Button */}

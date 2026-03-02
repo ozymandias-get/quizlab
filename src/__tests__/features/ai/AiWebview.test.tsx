@@ -2,8 +2,15 @@
 import { render, screen } from '@testing-library/react'
 import AiWebview from '@features/ai/ui/AiWebview'
 
+interface MockAiState {
+    tabs: Array<{ id: string; modelId: string; title?: string; pinned?: boolean }>;
+    activeTabId: string;
+    isTutorialActive: boolean;
+    stopTutorial: any;
+}
+
 // Setup a mock store to control returned values
-let mockAiState = {
+let mockAiState: MockAiState = {
     tabs: [
         { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
         { id: '2', modelId: 'claude-3', title: 'Claude 3' },
@@ -51,11 +58,26 @@ describe('AiWebview Component', () => {
         }
     })
 
-    it('renders all AI tabs', () => {
+    it('hibernates completely inactive/unpinned tabs to save RAM', () => {
+        // Mock a pinned tab, an active tab, and an inactive unpinned tab
+        mockAiState.activeTabId = '1'
+        mockAiState.tabs = [
+            { id: '1', modelId: 'gpt-4', title: 'GPT-4' }, // active
+            { id: '2', modelId: 'claude-3', title: 'Claude 3', pinned: true }, // pinned, inactive
+            { id: '3', modelId: 'deepseek', title: 'DeepSeek' }, // unpinned, inactive
+        ]
+
         render(<AiWebview isResizing={false} isBarHovered={false} />)
         expect(screen.getByTestId('ai-tab-strip')).toBeInTheDocument()
+
+        // Active tab must render
         expect(screen.getByText('GPT-4 - Active')).toBeInTheDocument()
+
+        // Pinned tab must render
         expect(screen.getByText('Claude 3 - Inactive')).toBeInTheDocument()
+
+        // Untouched, unpinned inactive tab must be hibernated (unmounted)
+        expect(screen.queryByText('DeepSeek - Inactive')).not.toBeInTheDocument()
     })
 
     it('renders tutorial overlay when active', () => {

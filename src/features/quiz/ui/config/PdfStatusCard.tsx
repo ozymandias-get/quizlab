@@ -2,6 +2,8 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Upload, Loader2, FileText, Rabbit } from 'lucide-react'
+import { cn } from '@shared/lib/uiUtils'
+import { buttonBaseClass } from '@ui/components/button'
 
 interface PdfStatusCardProps {
     hasPdf: boolean;
@@ -22,7 +24,7 @@ export const PdfStatusCard: React.FC<PdfStatusCardProps> = ({
 }) => {
     return (
         <motion.div
-            className={`quiz-glass-card p-5 ${hasPdf ? '' : 'quiz-pdf-card empty'}`}
+            className={`quiz-glass-card glass-surface glass-surface--card p-5 ${hasPdf ? '' : 'quiz-pdf-card empty'}`}
             whileHover={{ scale: 1.01 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         >
@@ -60,14 +62,18 @@ export const PdfStatusCard: React.FC<PdfStatusCardProps> = ({
                     </p>
                 </div>
                 <motion.button
+                    type="button"
                     onClick={onLoadPdf}
                     disabled={isLoadingPdf}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className={`px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all duration-300 ${hasPdf || isDemoMode
-                        ? 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20'
-                        : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25'
-                        }`}
+                    className={cn(
+                        buttonBaseClass,
+                        'px-5 py-3 rounded-xl font-bold text-sm transition-all duration-300',
+                        hasPdf || isDemoMode
+                            ? 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20'
+                            : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 hover:from-amber-500 hover:to-orange-500'
+                    )}
                 >
                     {isLoadingPdf ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

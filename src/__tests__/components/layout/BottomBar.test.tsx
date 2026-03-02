@@ -19,6 +19,9 @@ vi.mock('@app/providers', () => ({
         defaultAiModel: 'chatgpt',
         setDefaultAiModel: vi.fn(),
         aiSites: {}
+    }),
+    useLanguage: () => ({
+        t: (key: string) => key
     })
 }))
 
@@ -81,6 +84,7 @@ vi.mock('framer-motion', () => {
         motion: {
             div: ({ children, ...props }: any) => <div {...filterProps(props)}>{children}</div>,
             button: ({ children, ...props }: any) => <button {...filterProps(props)}>{children}</button>,
+            span: ({ children, ...props }: any) => <span {...filterProps(props)}>{children}</span>,
         },
         AnimatePresence: ({ children }: any) => <>{children}</>,
     }

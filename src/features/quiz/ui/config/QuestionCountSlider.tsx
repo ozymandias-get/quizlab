@@ -10,7 +10,7 @@ interface QuestionCountSliderProps {
 
 export const QuestionCountSlider: React.FC<QuestionCountSliderProps> = ({ settings, setSettings, t }) => {
     return (
-        <div className="quiz-glass-card p-5">
+        <div className="quiz-glass-card glass-surface glass-surface--card p-5">
             <div className="flex justify-between items-center mb-4">
                 <label className="text-xs font-bold text-white/50 uppercase tracking-widest">
                     {t('quiz_question_count')}

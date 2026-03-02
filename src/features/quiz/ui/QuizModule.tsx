@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Brain, Zap } from 'lucide-react'
 import { useLanguage } from '@app/providers/LanguageContext'
+import { Button } from '@ui/components/button'
 
 import { useQuizFlow } from '../hooks/useQuizFlow'
 import QuizConfigPanel from './QuizConfigPanel'
@@ -77,12 +78,15 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
                     </div>
                 </div>
 
-                <button
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
                     onClick={onClose}
-                    className="p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 transition-all group"
+                    className="h-auto w-auto p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 transition-all group"
                 >
                     <X className="w-5 h-5 text-white/40 group-hover:text-red-400 transition-colors" />
-                </button>
+                </Button>
             </header>
 
             {/* Error Banner */}
@@ -146,12 +150,13 @@ function QuizModule({ onClose, initialPdfPath = '', initialPdfName = '' }: QuizM
                                 <p className="text-white/50 mb-8">
                                     {quizState.questions.length} {t('quiz_ready_count')}
                                 </p>
-                                <button
+                                <Button
+                                    type="button"
                                     onClick={handleStartActiveQuiz}
-                                    className="px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-lg shadow-xl shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-105 transition-all"
+                                    className="h-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-lg shadow-xl shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-105 hover:from-amber-500 hover:to-orange-500"
                                 >
                                     {t('quiz_start')}
-                                </button>
+                                </Button>
                             </div>
                         </motion.div>
                     )}

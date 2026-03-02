@@ -31,3 +31,28 @@
   backface-visibility: hidden;
   perspective: 1000px;
 }
+
+.glass-surface {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 18px 40px -16px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.glass-surface--card {
+  border-radius: 1rem;
+}
+
+.glass-surface--toolbar {
+  border-radius: 0.875rem;
+}
+
+.glass-surface--tab {
+  border-radius: 0.75rem;
+}

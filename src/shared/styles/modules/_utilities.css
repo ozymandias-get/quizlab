@@ -1,18 +1,4 @@
 /* ============================================
-   TEXT SELECTION STYLES - Amber Theme
-   ============================================ */
-
-::selection {
-  background-color: rgba(251, 191, 36, 0.4);
-  color: inherit;
-}
-
-::-moz-selection {
-  background-color: rgba(251, 191, 36, 0.4);
-  color: inherit;
-}
-
-/* ============================================
    WEBVIEW STYLES
    ============================================ */
 

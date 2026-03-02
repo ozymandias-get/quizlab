@@ -1,4 +1,4 @@
-/* ============================================
+﻿/* ============================================
    SPLASH SCREEN - Premium Welcome Experience
    ============================================ */
 
@@ -103,3 +103,4 @@
   0% { opacity: 1; filter: blur(0); }
   100% { opacity: 0; filter: blur(20px); transform: scale(1.1); pointer-events: none; }
 }
+

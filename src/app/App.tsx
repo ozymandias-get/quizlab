@@ -66,10 +66,11 @@ const App: React.FC = () => {
         handlePdfDrop,
         resumeLastPdf,
         getRecentReadingInfo,
-        clearLastReading
+        clearLastReading,
+        restoreRecentReading
     } = usePdfSelection()
 
-    // Last reading info list (max 3) for resume button list
+    // Last reading info list for resume section
     const lastReadingInfo = getRecentReadingInfo()
     const [initialPage, setInitialPage] = useState<number | undefined>(undefined)
 
@@ -168,10 +169,12 @@ const App: React.FC = () => {
                                             : lastReadingInfo[0]
                                         if (target) {
                                             setInitialPage(target.page)
-                                            await resumeLastPdf(target.path)
+                                            return await resumeLastPdf(target.path)
                                         }
+                                        return await resumeLastPdf(path)
                                     }}
                                     onClearResumePdf={(path?: string) => clearLastReading(path)}
+                                    onRestoreResumePdf={(info, index) => restoreRecentReading(info, index)}
                                     lastReadingInfo={lastReadingInfo}
                                     initialPage={initialPage}
                                     pdfTabs={pdfTabs}
@@ -182,7 +185,7 @@ const App: React.FC = () => {
                                 />
                             </motion.div>
 
-                            {/* Hub Resizer â€” BottomBar integrated in the center */}
+                            {/* Hub Resizer - BottomBar integrated in the center */}
                             <motion.div
                                 ref={resizerRef as React.RefObject<HTMLDivElement>}
                                 variants={resizerVariants}
@@ -256,6 +259,7 @@ const App: React.FC = () => {
 }
 
 export default App
+
 
 
 

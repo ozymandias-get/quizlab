@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { useAi } from '@app/providers'
 import { MagicSelectorTutorial } from '@features/tutorial'
 import AiSession from './AiSession'
@@ -9,6 +9,10 @@ interface AiWebviewProps {
     isBarHovered: boolean;
 }
 
+// Memory optimization: How many unpinned tabs to keep mounted in background.
+// Unmounting older inactive tabs frees up significant RAM/CPU.
+const MAX_ALIVE_UNPINNED_TABS = 3
+
 /**
  * AI Webview Component (Optimized)
  *
@@ -16,6 +20,24 @@ interface AiWebviewProps {
  */
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
     const { tabs, activeTabId, isTutorialActive, stopTutorial } = useAi()
+    const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
+
+    // Update the LRU cache of alive tabs whenever active tab changes
+    useEffect(() => {
+        if (!activeTabId) return
+
+        setAliveTabIds(prev => {
+            const filtered = prev.filter(id => id !== activeTabId)
+            const next = [activeTabId, ...filtered]
+            return next.slice(0, MAX_ALIVE_UNPINNED_TABS)
+        })
+    }, [activeTabId])
+
+    // Cleanup aliveTabIds when tabs are closed
+    useEffect(() => {
+        const currentTabIds = new Set(tabs.map(t => t.id))
+        setAliveTabIds(prev => prev.filter(id => currentTabIds.has(id)))
+    }, [tabs])
 
     return (
         <div
@@ -33,15 +55,22 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
             <AiTabStrip />
 
             <div className="relative flex-1 min-h-0">
-                {/* Render all tabs */}
-                {tabs.map((tab) => (
-                    <AiSession
-                        key={tab.id}
-                        tab={tab}
-                        isActive={tab.id === activeTabId}
-                        isBarHovered={isBarHovered}
-                    />
-                ))}
+                {/* Render tabs based on hibernation strategy */}
+                {tabs.map((tab) => {
+                    const isMounted = tab.pinned || tab.id === activeTabId || aliveTabIds.includes(tab.id)
+
+                    // Hibernate (unmount) to save RAM/CPU
+                    if (!isMounted) return null
+
+                    return (
+                        <AiSession
+                            key={tab.id}
+                            tab={tab}
+                            isActive={tab.id === activeTabId}
+                            isBarHovered={isBarHovered}
+                        />
+                    )
+                })}
             </div>
 
             {/* Tutorial Simulation */}

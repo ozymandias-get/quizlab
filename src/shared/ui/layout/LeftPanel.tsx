@@ -7,6 +7,7 @@ import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
 import PdfTabStrip from '@features/pdf/ui/components/PdfTabStrip'
 import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
 import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
+import type { ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
 
 const PdfViewer = lazy(() => import('@features/pdf/ui/components/PdfViewer'))
 
@@ -17,8 +18,9 @@ interface LeftPanelProps {
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
     width: number;
     t: (key: string) => string;
-    onResumePdf?: (path?: string) => void;
+    onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult;
     onClearResumePdf?: (path?: string) => void;
+    onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;
     lastReadingInfo?: LastReadingInfo[] | null;
     initialPage?: number;
     pdfTabs?: PdfTab[];
@@ -52,6 +54,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     onTextSelection,
     onResumePdf,
     onClearResumePdf,
+    onRestoreResumePdf,
     lastReadingInfo,
     initialPage,
     pdfTabs = [],
@@ -108,6 +111,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                                         initialPage={initialPage}
                                         onResumePdf={onResumePdf}
                                         onClearResumePdf={onClearResumePdf}
+                                        onRestoreResumePdf={onRestoreResumePdf}
                                         lastReadingInfo={lastReadingInfo}
                                     />
                                 </ErrorBoundary>

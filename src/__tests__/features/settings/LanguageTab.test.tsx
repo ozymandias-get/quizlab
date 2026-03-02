@@ -13,8 +13,8 @@ vi.mock('@app/providers', () => ({
         language: 'en',
         setLanguage: setLanguageMock,
         languages: {
-            en: { code: 'en', name: 'English', nativeName: 'English', flag: 'ğŸ‡ºğŸ‡¸' },
-            tr: { code: 'tr', name: 'Turkish', nativeName: 'TÃ¼rkÃ§e', flag: 'ğŸ‡¹ğŸ‡·' }
+            en: { code: 'en', name: 'English', nativeName: 'English', flag: '\u{1F1FA}\u{1F1F8}' },
+            tr: { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '\u{1F1F9}\u{1F1F7}' }
         }
     })
 }))
@@ -44,7 +44,7 @@ describe('LanguageTab', () => {
         expect(screen.getByText('select_language')).toBeInTheDocument()
         // Use accessible role queries
         expect(screen.getByRole('radio', { name: /English/i })).toBeInTheDocument()
-        expect(screen.getByRole('radio', { name: /TÃ¼rkÃ§e/i })).toBeInTheDocument()
+        expect(screen.getByRole('radio', { name: /Türkçe/i })).toBeInTheDocument()
     })
 
     it('displays current language', () => {
@@ -56,10 +56,11 @@ describe('LanguageTab', () => {
         render(<LanguageTab />)
 
         // Use radio role which includes the label via children content or aria-label
-        const radio = screen.getByRole('radio', { name: /TÃ¼rkÃ§e/i })
+        const radio = screen.getByRole('radio', { name: /Türkçe/i })
         fireEvent.click(radio)
 
         expect(setLanguageMock).toHaveBeenCalledWith('tr')
     })
 })
+
 

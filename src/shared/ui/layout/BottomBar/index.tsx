@@ -2,7 +2,7 @@
 import { Logger } from '@shared/lib/logger'
 import { createPortal } from 'react-dom'
 
-import { useAppearance, useAi } from '@app/providers'
+import { useAppearance, useAi, useLanguage } from '@app/providers'
 import { CenterHub } from './CenterHub'
 import { ToolsPanel } from './ToolsPanel'
 import { ModelsPanel } from './ModelsPanel'
@@ -37,6 +37,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
     } = useAppearance()
 
     const { tabs } = useAi()
+    const { t } = useLanguage()
 
     const { shellStyle, stackStyle, panelStyle, hubStyle } = useBottomBarStyles(isOpen, bottomBarOpacity, bottomBarScale)
 
@@ -146,15 +147,17 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                     />
 
 
-                    <div onPointerDown={handleHubPointerDown} className="w-full">
-                        <CenterHub
-                            handleHubPointerUp={handleHubPointerUp}
-                            onMouseDown={handleHubMouseDown}
-                            isOpen={isOpen}
-                            hubStyle={hubStyle}
-                            tabsCount={tabs.length}
-                        />
-                    </div>
+                    <CenterHub
+                        handleHubPointerDown={handleHubPointerDown}
+                        handleHubPointerUp={handleHubPointerUp}
+                        onClick={() => handleToggle()}
+                        onMouseDown={handleHubMouseDown}
+                        isOpen={isOpen}
+                        hubStyle={hubStyle}
+                        tabsCount={tabs.length}
+                        hintText={t('ua_step1_title')}
+                        ariaLabel={isOpen ? t('close') : t('ua_step1_text')}
+                    />
 
 
                     <ModelsPanel

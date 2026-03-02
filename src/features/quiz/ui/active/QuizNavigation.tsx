@@ -2,6 +2,8 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, CheckCircle, Eraser } from 'lucide-react'
+import { cn } from '@shared/lib/uiUtils'
+import { buttonBaseClass } from '@ui/components/button'
 
 interface QuizNavigationProps {
     isFirst: boolean;
@@ -26,11 +28,12 @@ export const QuizNavigation: React.FC<QuizNavigationProps> = ({
         <div className="quiz-nav-bar">
             {/* Previous */}
             <motion.button
+                type="button"
                 onClick={() => navigateQuestion(-1)}
                 disabled={isFirst}
                 whileHover={!isFirst ? { scale: 1.02 } : {}}
                 whileTap={!isFirst ? { scale: 0.98 } : {}}
-                className="quiz-nav-btn"
+                className={cn(buttonBaseClass, 'quiz-nav-btn')}
             >
                 <ChevronLeft className="w-5 h-5" />
                 <span className="hidden sm:inline">{t('quiz_back')}</span>
@@ -38,11 +41,12 @@ export const QuizNavigation: React.FC<QuizNavigationProps> = ({
 
             {/* Clear Selection */}
             <motion.button
+                type="button"
                 onClick={() => selectedAnswer !== undefined && handleAnswerToggle(selectedAnswer)}
                 disabled={selectedAnswer === undefined}
                 whileHover={selectedAnswer !== undefined ? { scale: 1.02 } : {}}
                 whileTap={selectedAnswer !== undefined ? { scale: 0.98 } : {}}
-                className="quiz-clear-btn"
+                className={cn(buttonBaseClass, 'quiz-clear-btn')}
             >
                 <Eraser className="w-4 h-4" />
                 <span className="hidden sm:inline">{t('quiz_clear')}</span>
@@ -50,10 +54,11 @@ export const QuizNavigation: React.FC<QuizNavigationProps> = ({
 
             {/* Next / Finish */}
             <motion.button
+                type="button"
                 onClick={() => isLast ? onFinish() : navigateQuestion(1)}
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                className={isLast ? 'quiz-finish-btn' : 'quiz-next-btn'}
+                className={cn(buttonBaseClass, isLast ? 'quiz-finish-btn' : 'quiz-next-btn')}
             >
                 <span>{isLast ? t('quiz_finish') : t('quiz_next')}</span>
                 {isLast ? <CheckCircle className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}

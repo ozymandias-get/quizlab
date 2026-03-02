@@ -37,6 +37,7 @@ import {
 } from '../hooks'
 import type { PdfFile } from '@shared-core/types'
 import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
+import type { ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
 
 interface PdfViewerProps {
     pdfFile: PdfFile | null;
@@ -44,8 +45,9 @@ interface PdfViewerProps {
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
     t?: (key: string) => string;
     initialPage?: number;
-    onResumePdf?: (path?: string) => void;
+    onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult;
     onClearResumePdf?: (path?: string) => void;
+    onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;
     lastReadingInfo?: LastReadingInfo[] | null;
 }
 
@@ -55,7 +57,7 @@ interface PdfViewerProps {
  * Virtualization is enabled by default in react-pdf-viewer, but 
  * optimized here with Worker and stable plugin references.
  */
-function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, onClearResumePdf, lastReadingInfo }: PdfViewerProps) {
+function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, onClearResumePdf, onRestoreResumePdf, lastReadingInfo }: PdfViewerProps) {
     const { autoSend, toggleAutoSend, sendImageToAI } = useAi()
     const { startScreenshot } = useAppTools()
     const { t: contextT } = useLanguage()
@@ -166,7 +168,15 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
 
     // === RENDER ===
     if (!pdfUrl) {
-        return <PdfPlaceholder onSelectPdf={onSelectPdf} onResumePdf={onResumePdf} onClearResumePdf={onClearResumePdf} lastReadingInfo={lastReadingInfo} />
+        return (
+            <PdfPlaceholder
+                onSelectPdf={onSelectPdf}
+                onResumePdf={onResumePdf}
+                onClearResumePdf={onClearResumePdf}
+                onRestoreResumePdf={onRestoreResumePdf}
+                lastReadingInfo={lastReadingInfo}
+            />
+        )
     }
 
     return (

@@ -2,28 +2,28 @@
 import { Logger } from '@shared/lib/logger'
 
 /**
- * SSR/Test ortamÄ± kontrolÃ¼
- * window objesi olmayan ortamlarda (Jest, Vitest, SSR) hata vermemek iÃ§in
+ * SSR/Test ortamı kontrolü
+ * window objesi olmayan ortamlarda (Jest, Vitest, SSR) hata vermemek için
  */
 const isClient = typeof window !== 'undefined'
 
 /**
- * localStorage'a gÃ¼venli eriÅŸim saÄŸlar
- * window undefined ise null dÃ¶ner
+ * localStorage'a güvenli erişim sağlar
+ * window undefined ise null döner
  */
 const getStorageItem = (key: string): string | null => {
     if (!isClient) return null
     try {
         return localStorage.getItem(key)
     } catch (error) {
-        Logger.warn(`localStorage eriÅŸim hatasÄ± (get "${key}"):`, error)
+        Logger.warn(`localStorage erişim hatası (get "${key}"):`, error)
         return null
     }
 }
 
 /**
- * localStorage'a gÃ¼venli yazma saÄŸlar
- * window undefined ise sessizce baÅŸarÄ±sÄ±z olur
+ * localStorage'a güvenli yazma sağlar
+ * window undefined ise sessizce başarısız olur
  */
 const setStorageItem = (key: string, value: string): boolean => {
     if (!isClient) return false
@@ -33,7 +33,7 @@ const setStorageItem = (key: string, value: string): boolean => {
         window.dispatchEvent(new CustomEvent('local-storage', { detail: { key, value } }))
         return true
     } catch (error) {
-        Logger.warn(`localStorage yazma hatasÄ± (set "${key}"):`, error)
+        Logger.warn(`localStorage yazma hatası (set "${key}"):`, error)
         return false
     }
 }
@@ -41,15 +41,15 @@ const setStorageItem = (key: string, value: string): boolean => {
 type SetValue<T> = React.Dispatch<React.SetStateAction<T>>
 
 /**
- * localStorage ile state senkronizasyonu saÄŸlayan hook
- * SSR ve test ortamlarÄ±nda gÃ¼venli Ã§alÄ±ÅŸÄ±r
+ * localStorage ile state senkronizasyonu sağlayan hook
+ * SSR ve test ortamlarında güvenli çalışır
  * 
- * FIX: Stale closure sorunu Ã§Ã¶zÃ¼ldÃ¼ - useRef ile gÃ¼ncel deÄŸere eriÅŸim
+ * FIX: Stale closure sorunu çözüldü - useRef ile güncel değere erişim
  */
 export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>] {
-    // BaÅŸlangÄ±Ã§ deÄŸerini localStorage'dan al veya varsayÄ±lan kullan
+    // Başlangıç değerini localStorage'dan al veya varsayılan kullan
     const [storedValue, setStoredValue] = useState<T>(() => {
-        // SSR/Test ortamÄ±nda localStorage eriÅŸilemez
+        // SSR/Test ortamında localStorage erişilemez
         if (!isClient) return initialValue
 
         try {
@@ -77,32 +77,32 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
 
             return parsed
         } catch (error) {
-            Logger.warn(`useLocalStorage: "${key}" iÃ§in deÄŸer okunamadÄ±:`, error)
+            Logger.warn(`useLocalStorage: "${key}" için değer okunamadı:`, error)
             return initialValue
         }
     })
 
-    // GÃ¼ncel deÄŸeri ref'te tut - stale closure sorununu Ã§Ã¶zer
+    // Güncel değeri ref'te tut - stale closure sorununu çözer
     const storedValueRef = useRef(storedValue)
     useEffect(() => {
         storedValueRef.current = storedValue
     }, [storedValue])
 
-    // Cross-window senkronizasyon iÃ§in storage event'i dinle
+    // Cross-window senkronizasyon için storage event'i dinle
     useEffect(() => {
-        // SSR/Test ortamÄ±nda event listener ekleme
+        // SSR/Test ortamında event listener ekleme
         if (!isClient) return
 
         const handleStorageChange = (e: StorageEvent) => {
-            // Sadece ilgili key deÄŸiÅŸtiÄŸinde ve baÅŸka pencereden geldiyse
+            // Sadece ilgili key değiştiğinde ve başka pencereden geldiyse
             if (e.key === key && e.newValue !== null) {
                 try {
                     setStoredValue(JSON.parse(e.newValue))
                 } catch (error) {
-                    Logger.warn(`useLocalStorage: "${key}" iÃ§in cross-window sync baÅŸarÄ±sÄ±z:`, error)
+                    Logger.warn(`useLocalStorage: "${key}" için cross-window sync başarısız:`, error)
                 }
             } else if (e.key === key && e.newValue === null) {
-                // Key silindiyse initialValue'ya dÃ¶n
+                // Key silindiyse initialValue'ya dön
                 setStoredValue(initialValue)
             }
         }
@@ -114,7 +114,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
                 try {
                     setStoredValue(JSON.parse(customEvent.detail.value))
                 } catch (error) {
-                    Logger.warn(`useLocalStorage: "${key}" iÃ§in local sync baÅŸarÄ±sÄ±z:`, error)
+                    Logger.warn(`useLocalStorage: "${key}" için local sync başarısız:`, error)
                 }
             }
         }
@@ -127,11 +127,11 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
         }
     }, [key, initialValue])
 
-    // DeÄŸer deÄŸiÅŸtiÄŸinde localStorage'a kaydet
-    // FIX: Fonksiyon olarak geÃ§irildiÄŸinde React'in setState gibi Ã§alÄ±ÅŸÄ±r
+    // Değer değiştiğinde localStorage'a kaydet
+    // FIX: Fonksiyon olarak geçirildiğinde React'in setState gibi çalışır
     const setValue: SetValue<T> = useCallback((value) => {
         try {
-            // Fonksiyon olarak gelen deÄŸeri destekle - EN GÃœNCEL deÄŸeri kullan
+            // Fonksiyon olarak gelen değeri destekle - EN GÜNCEL değeri kullan
             if (value instanceof Function) {
                 setStoredValue((prevValue) => {
                     const newValue = value(prevValue)
@@ -139,12 +139,12 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
                     return newValue
                 })
             } else {
-                // DoÄŸrudan deÄŸer geÃ§ilmiÅŸse
+                // Doğrudan değer geçilmişse
                 setStoredValue(value)
                 setStorageItem(key, JSON.stringify(value))
             }
         } catch (error) {
-            Logger.warn(`useLocalStorage: "${key}" iÃ§in deÄŸer kaydedilemedi:`, error)
+            Logger.warn(`useLocalStorage: "${key}" için değer kaydedilemedi:`, error)
         }
     }, [key])
 
@@ -152,18 +152,18 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
 }
 
 /**
- * String deÄŸerler iÃ§in localStorage hook'u (JSON parse etmeden)
- * SSR ve test ortamlarÄ±nda gÃ¼venli Ã§alÄ±ÅŸÄ±r
+ * String değerler için localStorage hook'u (JSON parse etmeden)
+ * SSR ve test ortamlarında güvenli çalışır
  */
 export function useLocalStorageString(key: string, initialValue: string, validValues: string[] | null = null): [string, SetValue<string>] {
     const [storedValue, setStoredValue] = useState<string>(() => {
-        // SSR/Test ortamÄ±nda localStorage eriÅŸilemez
+        // SSR/Test ortamında localStorage erişilemez
         if (!isClient) return initialValue
 
         try {
             const item = getStorageItem(key)
             if (item !== null) {
-                // GeÃ§erli deÄŸerler varsa kontrol et
+                // Geçerli değerler varsa kontrol et
                 if (validValues && !validValues.includes(item)) {
                     return initialValue
                 }
@@ -171,19 +171,19 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
             }
             return initialValue
         } catch (error) {
-            Logger.warn(`useLocalStorageString: "${key}" iÃ§in deÄŸer okunamadÄ±:`, error)
+            Logger.warn(`useLocalStorageString: "${key}" için değer okunamadı:`, error)
             return initialValue
         }
     })
 
     // Cross-window senkronizasyon
     useEffect(() => {
-        // SSR/Test ortamÄ±nda event listener ekleme
+        // SSR/Test ortamında event listener ekleme
         if (!isClient) return
 
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === key && e.newValue !== null) {
-                // GeÃ§erli deÄŸerler varsa kontrol et
+                // Geçerli değerler varsa kontrol et
                 if (validValues && validValues.length > 0 && !validValues.includes(e.newValue)) {
                     return
                 }
@@ -198,7 +198,7 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
             const customEvent = e as CustomEvent
             if (customEvent.detail.key === key) {
                 const newValue = customEvent.detail.value
-                // GeÃ§erli deÄŸerler varsa kontrol et
+                // Geçerli değerler varsa kontrol et
                 if (validValues && validValues.length > 0 && !validValues.includes(newValue)) {
                     return
                 }
@@ -214,10 +214,10 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
         }
     }, [key, initialValue, validValues])
 
-    // Mevcut deÄŸeri validValues ile senkronize et (dinamik validValues iÃ§in)
+    // Mevcut değeri validValues ile senkronize et (dinamik validValues için)
     useEffect(() => {
         if (validValues && validValues.length > 0 && !validValues.includes(storedValue)) {
-            // EÄŸer localStorage'da geÃ§erli bir deÄŸer varsa onu al, yoksa initialValue
+            // Eğer localStorage'da geçerli bir değer varsa onu al, yoksa initialValue
             const item = getStorageItem(key)
             if (item && validValues.includes(item)) {
                 setStoredValue(item)
@@ -232,25 +232,25 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
             if (value instanceof Function) {
                 setStoredValue((prevValue) => {
                     const newValue = value(prevValue)
-                    // GeÃ§erli deÄŸerler varsa kontrol et
+                    // Geçerli değerler varsa kontrol et
                     if (validValues && !validValues.includes(newValue)) {
-                        Logger.warn(`useLocalStorageString: "${key}" iÃ§in geÃ§ersiz deÄŸer:`, newValue)
-                        return prevValue // GeÃ§ersiz deÄŸeri kaydetme
+                        Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, newValue)
+                        return prevValue // Geçersiz değeri kaydetme
                     }
                     setStorageItem(key, newValue)
                     return newValue
                 })
             } else {
-                // GeÃ§erli deÄŸerler varsa kontrol et
+                // Geçerli değerler varsa kontrol et
                 if (validValues && !validValues.includes(value)) {
-                    Logger.warn(`useLocalStorageString: "${key}" iÃ§in geÃ§ersiz deÄŸer:`, value)
-                    return // GeÃ§ersiz deÄŸeri kaydetme
+                    Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, value)
+                    return // Geçersiz değeri kaydetme
                 }
                 setStoredValue(value)
                 setStorageItem(key, value)
             }
         } catch (error) {
-            Logger.warn(`useLocalStorageString: "${key}" iÃ§in deÄŸer kaydedilemedi:`, error)
+            Logger.warn(`useLocalStorageString: "${key}" için değer kaydedilemedi:`, error)
         }
     }, [key, validValues])
 
@@ -258,12 +258,12 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
 }
 
 /**
- * Boolean deÄŸerler iÃ§in localStorage hook'u
- * SSR ve test ortamlarÄ±nda gÃ¼venli Ã§alÄ±ÅŸÄ±r
+ * Boolean değerler için localStorage hook'u
+ * SSR ve test ortamlarında güvenli çalışır
  */
 export function useLocalStorageBoolean(key: string, initialValue: boolean = false): [boolean, SetValue<boolean>, () => void] {
     const [storedValue, setStoredValue] = useState<boolean>(() => {
-        // SSR/Test ortamÄ±nda localStorage eriÅŸilemez
+        // SSR/Test ortamında localStorage erişilemez
         if (!isClient) return initialValue
 
         try {
@@ -272,14 +272,14 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
             if (item === null) return initialValue
             return item === 'true'
         } catch (error) {
-            Logger.warn(`useLocalStorageBoolean: "${key}" iÃ§in deÄŸer okunamadÄ±:`, error)
+            Logger.warn(`useLocalStorageBoolean: "${key}" için değer okunamadı:`, error)
             return initialValue
         }
     })
 
     // Cross-window senkronizasyon
     useEffect(() => {
-        // SSR/Test ortamÄ±nda event listener ekleme
+        // SSR/Test ortamında event listener ekleme
         if (!isClient) return
 
         const handleStorageChange = (e: StorageEvent) => {
@@ -319,7 +319,7 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
                 setStorageItem(key, value.toString())
             }
         } catch (error) {
-            Logger.warn(`useLocalStorageBoolean: "${key}" iÃ§in deÄŸer kaydedilemedi:`, error)
+            Logger.warn(`useLocalStorageBoolean: "${key}" için değer kaydedilemedi:`, error)
         }
     }, [key])
 
@@ -329,4 +329,5 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
 
     return [storedValue, setValue, toggle]
 }
+
 

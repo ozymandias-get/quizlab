@@ -15,7 +15,20 @@ vi.mock('framer-motion', () => ({
             >
                 {children}
             </div>
-        )
+        ),
+        button: ({ children, onPointerDown, onPointerUp, onMouseDown, onClick, whileHover, whileTap, initial, animate, exit, transition, variants, layout, ...props }: any) => (
+            <button
+                {...props}
+                onPointerDown={onPointerDown}
+                onPointerUp={onPointerUp}
+                onMouseDown={onMouseDown}
+                onClick={onClick}
+                data-testid="center-hub-btn"
+            >
+                {children}
+            </button>
+        ),
+        span: ({ children, ...props }: any) => <span {...props}>{children}</span>
     },
     AnimatePresence: ({ children }: any) => <>{children}</>
 }))
@@ -35,11 +48,15 @@ vi.mock('@ui/layout/BottomBar/animations', () => ({
 
 describe('CenterHub', () => {
     const handleHubPointerUp = vi.fn()
+    const handleHubPointerDown = vi.fn()
+    const onClick = vi.fn()
     const onMouseDown = vi.fn()
     const hubStyle = { transform: 'none' }
 
     beforeEach(() => {
         handleHubPointerUp.mockClear()
+        handleHubPointerDown.mockClear()
+        onClick.mockClear()
         onMouseDown.mockClear()
     })
 
@@ -48,7 +65,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={false}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
             />
         )
@@ -64,7 +83,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={true}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
             />
         )
@@ -78,7 +99,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={false}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
             />
         )
@@ -94,7 +117,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={false}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
             />
         )
@@ -109,7 +134,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={true}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
             />
         )
@@ -123,7 +150,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={false}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
                 tabsCount={5}
             />
@@ -136,7 +165,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={true}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
                 tabsCount={5}
             />
@@ -149,7 +180,9 @@ describe('CenterHub', () => {
             <CenterHub
                 isOpen={false}
                 hubStyle={hubStyle}
+                handleHubPointerDown={handleHubPointerDown}
                 handleHubPointerUp={handleHubPointerUp}
+                onClick={onClick}
                 onMouseDown={onMouseDown}
                 tabsCount={1}
             />

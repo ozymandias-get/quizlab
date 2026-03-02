@@ -1,6 +1,7 @@
 
 import React from 'react'
 import { RotateCcw, RefreshCw, TrendingUp } from 'lucide-react'
+import { Button } from '@ui/components/button'
 
 interface ActionButtonsProps {
     onRestart: () => void;
@@ -19,30 +20,35 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <button
+            <Button
+                type="button"
+                variant="outline"
                 onClick={onRestart}
-                className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
+                className="h-auto py-4 px-6 rounded-2xl font-bold text-sm bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
             >
                 <RotateCcw className="w-5 h-5" />
                 {t('quiz_restart')}
-            </button>
+            </Button>
 
-            <button
+            <Button
+                type="button"
+                variant="outline"
                 onClick={onRegenerate}
-                className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
+                className="h-auto py-4 px-6 rounded-2xl font-bold text-sm bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
             >
                 <RefreshCw className="w-5 h-5" />
                 {t('quiz_regenerate')}
-            </button>
+            </Button>
 
             {hasIncorrectOrEmpty && (
-                <button
+                <Button
+                    type="button"
                     onClick={onRetryMistakes}
-                    className="py-4 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 hover:scale-[1.02] transition-all"
+                    className="h-auto py-4 px-6 rounded-2xl font-bold text-sm bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 hover:scale-[1.02] hover:from-amber-500 hover:to-orange-500"
                 >
                     <TrendingUp className="w-5 h-5" />
                     {t('quiz_retry_mistakes')}
-                </button>
+                </Button>
             )}
         </div>
     )

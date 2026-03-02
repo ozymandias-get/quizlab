@@ -1,4 +1,4 @@
-{
+﻿{
   "about": "Hakkında",
   "active_models": "Aktif Modeller",
   "active_prompt": "Aktif Prompt",
@@ -343,7 +343,31 @@
   "quiz_ask_placeholder": "Bu soru hakkında bir şey sor...",
   "error_asking_assistant": "Asistana sorarken hata oluştu",
   "reading_now": "OKUNUYOR",
+  "clear_recent": "Temizle",
+  "continue_reading": "Devam et",
+  "continue_reading_short": "Devam Et",
+  "last_opened": "Son açılma",
+  "last_opened_unknown": "bilinmiyor",
+  "recent_entry_removed": "\"{fileName}\" kayıttan kaldırıldı",
+  "recent_group_older": "Daha eski",
+  "recent_group_today": "Bugün",
+  "recent_group_week": "Bu hafta",
+  "recent_invalid_hint": "Dosya bulunamadı. Kaydı kaldırabilir veya dosyayı tekrar ekleyebilirsin.",
+  "recent_list_cleared": "Geçmiş temizlendi",
+  "recent_pdf_not_found": "\"{fileName}\" bulunamadı",
+  "remove_from_history": "Kayıttan kaldır",
+  "resume_empty_desc": "Bir PDF açınca burada görünecek.",
+  "resume_empty_title": "Henüz geçmiş yok",
+  "resume_last_page": "Son kaldığın",
   "resume_reading": "Kaldığın Yerden Devam Et",
+  "resume_reading_desc": "Son açtıkların burada. Birine tıklayıp devam edebilirsin.",
+  "search_no_results": "Arama sonucu bulunamadı.",
+  "search_recent": "Geçmişte ara",
+  "search_recent_placeholder": "Ara...",
+  "sort_name": "Dosya adı",
+  "sort_recent": "Son açılan",
+  "sort_recent_list": "Geçmişi sırala",
+  "undo": "Geri Al",
   "reset": "Sıfırla",
   "save_platform": "Platformu Kaydet",
   "save_prompt": "Promptu Kaydet",
@@ -535,3 +559,5 @@
   "toast_autosend_script_gen": "Otomatik gönderme komutu oluşturuldu",
   "toast_picker_script_failed": "Seçici komutu oluşturulamadı"
 }
+
+

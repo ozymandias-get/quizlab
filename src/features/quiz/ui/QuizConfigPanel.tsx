@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * QuizConfigPanel - Quiz Configuration Interface
  * Premium Glass Morphism Design
  */
@@ -6,6 +6,8 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Wand2, Microscope, AlertTriangle, ChevronDown } from 'lucide-react'
 import { QuizSettings } from '@features/quiz/api'
+import { cn } from '@shared/lib/uiUtils'
+import { Button, buttonBaseClass } from '@ui/components/button'
 
 // Sub-components
 import { AIModelSelector } from './config/AIModelSelector'
@@ -75,7 +77,7 @@ function QuizConfigPanel({
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="quiz-glass-card p-4 flex items-start gap-3 border-l-4 border-indigo-500"
+                            className="quiz-glass-card glass-surface glass-surface--card p-4 flex items-start gap-3 border-l-4 border-indigo-500"
                         >
                             <div className="p-2.5 bg-indigo-500/20 rounded-xl text-indigo-400 shrink-0">
                                 <Wand2 className="w-5 h-5" />
@@ -118,10 +120,14 @@ function QuizConfigPanel({
                 />
 
                 {/* Focus Topic Section */}
-                <div className="quiz-glass-card overflow-hidden">
+                <div className="quiz-glass-card glass-surface glass-surface--card overflow-hidden">
                     <motion.button
+                        type="button"
                         onClick={() => toggleSection('focus')}
-                        className="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors"
+                        className={cn(
+                            buttonBaseClass,
+                            'w-full justify-between p-5 hover:bg-white/5 transition-colors whitespace-normal'
+                        )}
                     >
                         <div className="flex items-center gap-3">
                             <div className={`p-2.5 rounded-xl transition-all duration-300 ${activeSection === 'focus'
@@ -170,11 +176,15 @@ function QuizConfigPanel({
                 </div>
 
                 <motion.button
+                    type="button"
                     onClick={() => onStartQuiz(!!isDemoMode)}
                     disabled={!canStart}
                     whileHover={canStart ? { scale: 1.02, y: -2 } : {}}
                     whileTap={canStart ? { scale: 0.98 } : {}}
-                    className={`quiz-primary-btn w-full md:w-auto ${!canStart ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={cn(
+                        buttonBaseClass,
+                        `quiz-primary-btn w-full md:w-auto ${!canStart ? 'opacity-50 cursor-not-allowed' : ''}`
+                    )}
                 >
                     {t('quiz_create')}
                     <Play className="w-5 h-5" fill="currentColor" />
@@ -187,12 +197,15 @@ function QuizConfigPanel({
             </div>
             {onStartDemo && (
                 <div className="flex justify-center pt-2">
-                    <button
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={onStartDemo}
-                        className="text-xs font-bold text-white/20 hover:text-white/50 uppercase tracking-widest transition-colors"
+                        className="text-xs font-bold text-white/20 hover:text-white/50 uppercase tracking-widest transition-colors bg-transparent hover:bg-transparent px-0 py-0 h-auto"
                     >
-                        • {t('quiz_demo_start')} •
-                    </button>
+                        â€¢ {t('quiz_demo_start')} â€¢
+                    </Button>
                 </div>
             )}
         </motion.div>
@@ -200,6 +213,3 @@ function QuizConfigPanel({
 }
 
 export default QuizConfigPanel
-
-
-

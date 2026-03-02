@@ -2,6 +2,8 @@ import React, { useRef, useCallback, useMemo, useState, memo, useEffect } from '
 import { Reorder, motion } from 'framer-motion'
 import { Pin, X } from 'lucide-react'
 import { getAiIcon } from '@ui/components/Icons'
+import { buttonBaseClass } from '@ui/components/button'
+import { cn } from '@shared/lib/uiUtils'
 import { useLanguage } from '@app/providers'
 
 const hexColorRegex = /^#([0-9A-F]{3}){1,2}$/i
@@ -211,7 +213,11 @@ export const AIItem = memo<AIItemProps>(function AIItem({
                 transition: { type: 'spring', stiffness: 420, damping: 22, mass: 0.6 }
             }}
             whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
-            className={`relative flex items-center justify-center rounded-xl transition-all duration-150 ${showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'}`}
+            className={cn(
+                buttonBaseClass,
+                'relative rounded-xl transition-all duration-150',
+                showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'
+            )}
             style={{
                 ...buttonStyle,
                 ...scaledButtonMetrics,
@@ -330,4 +336,3 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         </motion.div>
     )
 })
-

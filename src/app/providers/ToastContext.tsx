@@ -12,6 +12,8 @@ export interface Toast {
     type: 'info' | 'success' | 'warning' | 'error';
     params?: Record<string, string>;
     duration?: number;
+    actionLabel?: string;
+    onAction?: () => void;
 }
 
 interface ToastStoreState {
@@ -86,4 +88,3 @@ export function useToast() {
         showInfo
     }
 }
-

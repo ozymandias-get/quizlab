@@ -17,6 +17,12 @@ export function AppEffects() {
     const setIsTourActive = useAppearance(state => state.setIsTourActive)
 
     useEffect(() => {
+        const root = document.documentElement
+        root.classList.add('dark')
+        root.classList.remove('light')
+    }, [])
+
+    useEffect(() => {
         const langConfig = LANGUAGES[language] || LANGUAGES[DEFAULT_LANGUAGE]
         document.documentElement.dir = langConfig?.dir || 'ltr'
         document.documentElement.lang = language

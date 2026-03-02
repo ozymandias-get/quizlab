@@ -82,7 +82,7 @@ function PdfToolbar({
             className="flex-shrink-0 w-full bg-gradient-to-t from-[#0a0a0a] via-[#0d0d0d] to-[#111111] border-t border-white/[0.06] px-6 py-3 relative z-50 flex items-center justify-between gap-4 select-none"
         >
             {/* Left: Tools Island */}
-            <div className="flex items-center gap-1 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent rounded-2xl p-1.5 border border-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+            <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
                 <ToolbarButton
                     onClick={onSelectPdf}
                     icon={Upload}
@@ -129,7 +129,7 @@ function PdfToolbar({
             {/* Right: Navigation & Zoom Groups */}
             <div className="flex items-center gap-2">
                 {/* Navigation Island */}
-                <div className="flex items-center gap-1 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent rounded-2xl p-1.5 border border-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+                <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -162,7 +162,7 @@ function PdfToolbar({
                 </div>
 
                 {/* Zoom Island */}
-                <div className="flex items-center gap-1 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent rounded-2xl p-1.5 border border-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
+                <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
                     <ZoomOut>
                         {(props: RenderChildProps) => (
                             <Button

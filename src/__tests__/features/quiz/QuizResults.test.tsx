@@ -26,6 +26,7 @@ vi.mock('@ui/components/ConfettiCanvas', () => ({
 // Mock formatQuizText
 vi.mock('@shared/lib/uiUtils', () => ({
     formatQuizText: (text: string) => text,
+    cn: (...inputs: Array<string | false | null | undefined>) => inputs.filter(Boolean).join(' '),
 }))
 
 // Mock Virtuoso

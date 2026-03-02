@@ -2,6 +2,8 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle } from 'lucide-react'
+import { cn } from '@shared/lib/uiUtils'
+import { buttonBaseClass } from '@ui/components/button'
 
 interface QuestionContentProps {
     formattedContent: { text: string; options: string[] };
@@ -31,13 +33,18 @@ export const QuestionContent: React.FC<QuestionContentProps> = ({
                     return (
                         <motion.button
                             key={idx}
+                            type="button"
                             onClick={() => handleAnswerToggle(idx)}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.15 + idx * 0.05 }}
                             whileHover={{ scale: 1.01, x: 4 }}
                             whileTap={{ scale: 0.99 }}
-                            className={`quiz-answer-option ${isSelected ? 'selected' : ''}`}
+                            className={cn(
+                                buttonBaseClass,
+                                'quiz-answer-option whitespace-normal',
+                                isSelected ? 'selected' : ''
+                            )}
                         >
                             {/* Option Letter */}
                             <span className={`quiz-option-letter ${isSelected ? 'selected' : ''}`}>

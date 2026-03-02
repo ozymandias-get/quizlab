@@ -1,4 +1,4 @@
-export interface IPrompt {
+﻿export interface IPrompt {
     id: string;
     text: string;
 }
@@ -137,3 +137,4 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
         text: "Based on the trends and information in the text, predict 3 scenarios tailored to how this topic might evolve in the next 5-10 years."
     }
 ] as const
+

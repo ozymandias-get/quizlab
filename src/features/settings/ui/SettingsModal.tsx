@@ -27,7 +27,7 @@ interface SettingsModalProps {
 }
 
 /**
- * Ayarlar modalï¿½ ana bileï¿½eni
+ * Settings modal main component
  * Headless UI + Framer Motion Premium Redesign v2
  */
 function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -35,10 +35,10 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const modalRef = useRef<HTMLDivElement>(null)
     const [activeTab, setActiveTab] = useState('prompts')
 
-    // Custom hook ile tï¿½m settings state ve iï¿½lemlerini al
+    // Read settings state/actions from the custom hook
     const settings = useSettings()
 
-    // ESC tuï¿½u ile kapatma
+    // Close on ESC
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
@@ -49,7 +49,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [isOpen, onClose])
 
-    // Modal dï¿½ï¿½ï¿½na tï¿½klama ile kapatma
+    // Close on outside click
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (modalRef.current && !modalRef.current.contains(e.target as Node)) {

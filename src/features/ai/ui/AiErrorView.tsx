@@ -1,5 +1,6 @@
 ﻿import { memo } from 'react'
 import { useLanguage } from '@app/providers'
+import { Button } from '@ui/components/button'
 
 interface AiErrorViewProps {
     error: string;
@@ -24,8 +25,10 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
                     {t('ai_error_title', { name: aiName || 'AI' })}
                 </h3>
                 <p className="text-stone-500 text-sm leading-relaxed">{error}</p>
-                <button
-                    className="btn-secondary flex items-center gap-2 mt-2 px-6 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-colors"
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="flex items-center gap-2 mt-2 px-6 py-2 rounded-full border-white/10 text-stone-200 hover:bg-white/5"
                     onClick={onRetry}
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -33,7 +36,7 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                     </svg>
                     <span>{t('try_again')}</span>
-                </button>
+                </Button>
             </div>
         </div>
     )
@@ -41,4 +44,3 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
 
 AiErrorView.displayName = 'AiErrorView'
 export default AiErrorView
-

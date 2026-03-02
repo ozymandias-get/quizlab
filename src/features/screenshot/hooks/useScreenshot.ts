@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
 
 interface UseScreenshotReturn {
     isScreenshotMode: boolean;
@@ -49,4 +49,5 @@ export function useScreenshot(onSendToAI?: (imageData: string) => Promise<unknow
         handleCapture
     }
 }
+
 

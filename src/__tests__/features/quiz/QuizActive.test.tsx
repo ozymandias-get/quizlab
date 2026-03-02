@@ -16,7 +16,8 @@ vi.mock('@features/quiz/hooks/useQuizKeyboard', () => ({
 }))
 
 vi.mock('@shared/lib/uiUtils', () => ({
-    formatQuizText: (text: string) => text
+    formatQuizText: (text: string) => text,
+    cn: (...inputs: Array<string | false | null | undefined>) => inputs.filter(Boolean).join(' ')
 }))
 
 // Mock framer-motion

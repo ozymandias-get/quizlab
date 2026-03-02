@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, RefObject } from 'react'
+﻿import { useState, useEffect, useCallback, useRef, RefObject } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 
 // Default resizer width in pixels (matches .resizer-hub-container base width)
@@ -25,16 +25,16 @@ interface UsePanelResizeReturn {
 /**
  * Panel boyutlandırma işlemlerini yöneten hook
  * 
- * PERFORMANS OPTİMİZASYONU (v2 - Geliştirilmiş):
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 1. Resize sırasında state güncellemesi YOK → React re-render YOK
+ * PERFORMANS OPTIMIZASYONU (v2 - Gelistirilmis):
+ * -----------------------------------------------
+ * 1. Resize sırasında state güncellemesi YOK â†’ React re-render YOK
  * 2. requestAnimationFrame ile 60fps akıcılık garantisi
  * 3. isResizingRef ile gereksiz re-render'lar önleniyor
  * 4. Sadece mouseup'ta final değer state'e yazılır
  * 5. CSS class toggle doğrudan DOM üzerinden yapılır
  * 
- * NEDEN BU YAKLAŞIM?
- * ━━━━━━━━━━━━━━━━━━
+ * NEDEN BU YAKLASIM?
+ * ------------------
  * - mousemove saniyede 60+ kez tetiklenir
  * - Her state güncellemesi React tree'sini re-render eder
  * - Ref + DOM manipülasyonu ile bunu bypass ediyoruz
@@ -170,7 +170,7 @@ export function usePanelResize({
             // Bu, isResizing prop'unu kullanan bileşenlere bildirim için gerekli
             setIsResizing(false)
 
-            // Final değeri state'e kaydet → tek bir re-render
+            // Final değeri state'e kaydet â†’ tek bir re-render
             // Bu aynı zamanda localStorage'a da kaydeder (useLocalStorage sayesinde)
             setLeftPanelWidth(pendingWidthRef.current)
         }
@@ -201,4 +201,5 @@ export function usePanelResize({
         resizerRef
     }
 }
+
 

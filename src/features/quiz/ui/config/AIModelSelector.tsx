@@ -3,6 +3,8 @@ import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Brain } from 'lucide-react'
 import { QuizSettings, getModelConfigs } from '@features/quiz/api'
+import { cn } from '@shared/lib/uiUtils'
+import { buttonBaseClass } from '@ui/components/button'
 
 interface AIModelSelectorProps {
     settings: QuizSettings;
@@ -15,7 +17,7 @@ export const AIModelSelector: React.FC<AIModelSelectorProps> = ({ settings, setS
     const models = useMemo(() => getModelConfigs(t), [t])
 
     return (
-        <div className="quiz-glass-card p-5">
+        <div className="quiz-glass-card glass-surface glass-surface--card p-5">
             <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 block flex items-center gap-2">
                 <Brain className="w-3.5 h-3.5" />
                 {t('quiz_ai_model')}
@@ -27,10 +29,15 @@ export const AIModelSelector: React.FC<AIModelSelectorProps> = ({ settings, setS
                     return (
                         <motion.button
                             key={m.type}
+                            type="button"
                             onClick={() => setSettings(s => ({ ...s, model: m.type }))}
                             whileHover={{ scale: 1.03, y: -2 }}
                             whileTap={{ scale: 0.98 }}
-                            className={`quiz-model-btn ${isSelected ? 'selected' : ''}`}
+                            className={cn(
+                                buttonBaseClass,
+                                'quiz-model-btn',
+                                isSelected ? 'selected' : ''
+                            )}
                         >
                             <div className={`p-2 rounded-lg transition-all ${isSelected
                                 ? `bg-gradient-to-br ${m.color} shadow-lg`

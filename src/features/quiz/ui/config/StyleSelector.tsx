@@ -2,6 +2,8 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { QuestionStyleEnum, QuestionStyle, STYLE_ICONS, QuizSettings } from '@features/quiz/api'
+import { cn } from '@shared/lib/uiUtils'
+import { buttonBaseClass } from '@ui/components/button'
 
 interface StyleSelectorProps {
     settings: QuizSettings;
@@ -11,7 +13,7 @@ interface StyleSelectorProps {
 
 export const StyleSelector: React.FC<StyleSelectorProps> = ({ settings, setSettings, t }) => {
     return (
-        <div className="quiz-glass-card p-5">
+        <div className="quiz-glass-card glass-surface glass-surface--card p-5">
             <label className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 block flex items-center gap-2">
                 <STYLE_ICONS.MIXED className="w-3.5 h-3.5" />
                 {t('quiz_style')}
@@ -25,6 +27,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({ settings, setSetti
                     return (
                         <motion.button
                             key={style}
+                            type="button"
                             onClick={() => {
                                 setSettings(s => {
                                     // If clicking MIXED, set only MIXED
@@ -51,7 +54,11 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({ settings, setSetti
                             }}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className={`quiz-option-btn ${isSelected ? 'selected' : ''}`}
+                            className={cn(
+                                buttonBaseClass,
+                                'quiz-option-btn',
+                                isSelected ? 'selected' : ''
+                            )}
                         >
                             <IconComp className={`w-4 h-4 shrink-0 ${isSelected ? 'text-amber-400' : 'text-white/40'}`} />
                             <span className={`text-xs font-bold truncate ${isSelected ? 'text-amber-300' : 'text-white/50'}`}>

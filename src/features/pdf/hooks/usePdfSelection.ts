@@ -12,7 +12,10 @@ export type LastReadingInfo = {
     page: number;
     totalPages: number;
     path: string;
+    lastOpenedAt?: number;
 }
+
+export type ResumePdfResult = 'success' | 'not_found' | 'missing' | 'error'
 
 export interface PdfTab {
     id: string;
@@ -20,7 +23,7 @@ export interface PdfTab {
     title?: string;
 }
 
-const MAX_RECENT_PDFS = 3
+const MAX_RECENT_PDFS = 24
 
 const normalizeTitle = (title?: string): string | undefined => {
     const normalized = title?.trim()
@@ -32,11 +35,17 @@ const sanitizeReadingInfo = (data: unknown): LastReadingInfo | null => {
     const item = data as Partial<LastReadingInfo>
     if (!item.path || !item.name) return null
 
+    const parsedLastOpenedAt =
+        typeof item.lastOpenedAt === 'number' && Number.isFinite(item.lastOpenedAt)
+            ? item.lastOpenedAt
+            : undefined
+
     return {
         name: item.name,
         page: item.page || 1,
         totalPages: item.totalPages || 0,
-        path: item.path
+        path: item.path,
+        ...(parsedLastOpenedAt !== undefined ? { lastOpenedAt: parsedLastOpenedAt } : {})
     }
 }
 
@@ -143,7 +152,8 @@ export const usePdfSelection = () => {
                 name: normalizedFile.name,
                 path: normalizedFile.path,
                 page: 1,
-                totalPages: 0
+                totalPages: 0,
+                lastOpenedAt: Date.now()
             })
         }
     }, [upsertLastReadingInfo])
@@ -161,7 +171,8 @@ export const usePdfSelection = () => {
                 name: tab.file.name,
                 path: tab.file.path,
                 page: existing?.page || 1,
-                totalPages: existing?.totalPages || 0
+                totalPages: existing?.totalPages || 0,
+                lastOpenedAt: Date.now()
             }
             persistRecentReadingInfo(upsertRecentHistory(current, nextInfo))
         }
@@ -227,35 +238,41 @@ export const usePdfSelection = () => {
         }
     }, [registerPdfPath, showSuccess, showError, openPdfInTab])
 
-    const resumeLastPdf = useCallback(async (path?: string) => {
+    const resumeLastPdf = useCallback(async (path?: string): Promise<ResumePdfResult> => {
+        const history = readReadingHistory()
+        const target = path
+            ? history.find((item) => item.path === path)
+            : history[0]
+
+        if (!target) {
+            return 'missing'
+        }
+
         try {
-            const history = readReadingHistory()
-            const target = path
-                ? history.find((item) => item.path === path)
-                : history[0]
-
-            if (!target) return
-
             const result = await registerPdfPath(target.path)
             if (result) {
                 openPdfInTab(result, {
                     ...target,
                     name: result.name || target.name,
                     path: result.path || target.path,
-                    page: target.page || 1
+                    page: target.page || 1,
+                    lastOpenedAt: Date.now()
                 })
+                return 'success'
             }
         } catch (error) {
             Logger.error('[usePdfSelection] Resume Error:', error)
             if (path) {
-                const history = readReadingHistory().filter((item) => item.path !== path)
-                persistRecentReadingInfo(history)
-            } else {
-                persistRecentReadingInfo([])
+                showError('recent_pdf_not_found', undefined, { fileName: target.name })
+                return 'not_found'
             }
             showError('error_pdf_load')
+            return 'error'
         }
-    }, [registerPdfPath, showError, persistRecentReadingInfo, openPdfInTab])
+
+        showError('error_pdf_load')
+        return 'error'
+    }, [registerPdfPath, showError, openPdfInTab])
 
     const getLastReadingInfo = useCallback((): LastReadingInfo | null => {
         const history = readReadingHistory()
@@ -277,6 +294,21 @@ export const usePdfSelection = () => {
         persistRecentReadingInfo(history)
     }, [persistRecentReadingInfo])
 
+    const restoreRecentReading = useCallback((info: LastReadingInfo, index = 0) => {
+        const history = readReadingHistory().filter((item) => item.path !== info.path)
+        const safeIndex = Math.max(0, Math.min(index, history.length))
+        const restored: LastReadingInfo = {
+            ...info,
+            page: info.page || 1,
+            totalPages: info.totalPages || 0,
+            lastOpenedAt: info.lastOpenedAt ?? Date.now()
+        }
+
+        const next = [...history]
+        next.splice(safeIndex, 0, restored)
+        persistRecentReadingInfo(next.slice(0, MAX_RECENT_PDFS))
+    }, [persistRecentReadingInfo])
+
     const pdfFile = useMemo(() => {
         if (!activePdfTabId) return null
         const activeTab = pdfTabs.find((tab) => tab.id === activePdfTabId)
@@ -295,7 +327,7 @@ export const usePdfSelection = () => {
         resumeLastPdf,
         getLastReadingInfo,
         getRecentReadingInfo,
-        clearLastReading
+        clearLastReading,
+        restoreRecentReading
     }
 }
-

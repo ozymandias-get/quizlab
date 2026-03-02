@@ -1,6 +1,8 @@
 import React, { memo, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { toolItemVariants } from './animations'
+import { cn } from '@shared/lib/uiUtils'
+import { buttonBaseClass } from '@ui/components/button'
 
 export interface ToolButtonProps {
     id?: string;
@@ -53,7 +55,11 @@ export const ToolButton = memo(({ id, isActive, activeColor, onClick, title, chi
             whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
             onClick={handleClick}
             title={title}
-            className={`relative p-2.5 rounded-xl transition-colors duration-150 ${isActive ? 'tool-btn--active-glow' : ''}`}
+            className={cn(
+                buttonBaseClass,
+                'relative p-2.5 rounded-xl transition-colors duration-150',
+                isActive ? 'tool-btn--active-glow' : ''
+            )}
             style={{
                 padding: 'calc(10px * var(--bar-scale-factor, 1))',
                 borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',

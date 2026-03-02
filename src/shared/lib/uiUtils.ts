@@ -1,4 +1,4 @@
-import DOMPurify from 'dompurify'
+﻿import DOMPurify from 'dompurify'
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -57,3 +57,4 @@ export const hexToRgba = (hex: string, alpha: number = 1): string => {
 
     return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
+

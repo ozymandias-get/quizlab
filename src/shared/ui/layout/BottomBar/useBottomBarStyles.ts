@@ -1,5 +1,30 @@
 import { useMemo } from 'react'
 
+const HUB_VISUAL_TOKENS = {
+    openBackground: `linear-gradient(155deg,
+        rgba(14, 30, 42, var(--hub-open-bg-a, 0.92)) 0%,
+        rgba(34, 27, 47, var(--hub-open-bg-b, 0.94)) 52%,
+        rgba(58, 39, 21, var(--hub-open-bg-c, 0.92)) 100%)`,
+    closedBackground: `linear-gradient(155deg,
+        rgba(20, 24, 30, var(--hub-closed-bg-a, 0.86)) 0%,
+        rgba(10, 13, 18, var(--hub-closed-bg-b, 0.9)) 100%)`,
+    openShadow: `
+        0 0 0 1px rgba(56, 189, 248, 0.3),
+        0 0 28px -7px rgba(56, 189, 248, 0.45),
+        0 0 42px -16px rgba(245, 158, 11, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.24),
+        inset 0 -10px 18px rgba(3, 7, 18, 0.42),
+        inset 0 0 20px rgba(56, 189, 248, 0.12)
+    `,
+    closedShadow: `
+        0 14px 26px -14px rgba(0, 0, 0, 0.62),
+        0 0 0 1px rgba(255, 255, 255, 0.07),
+        inset 0 1.2px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.34),
+        inset 0 0 14px rgba(0, 0, 0, 0.24)
+    `
+} as const
+
 export const useBottomBarStyles = (
     isOpen: boolean,
     bottomBarOpacity: number,
@@ -27,7 +52,6 @@ export const useBottomBarStyles = (
         willChange: 'auto',
     }), [scaledBaseSize])
 
-    // Memoized panel style — segmented glass capsules between the two main panels
     const panelStyle = useMemo<React.CSSProperties>(() => ({
         background: `linear-gradient(165deg,
             rgba(30, 30, 36, ${Math.min(0.92, 0.12 + (clampedOpacity * 0.76))}) 0%,
@@ -55,32 +79,14 @@ export const useBottomBarStyles = (
         borderRadius: Math.max(12, Math.round(16 * clampedScale)),
         padding: 0,
         overflow: 'hidden',
+        '--hub-open-bg-a': Math.min(0.94, 0.34 + (clampedOpacity * 0.58)),
+        '--hub-open-bg-b': Math.min(0.96, 0.38 + (clampedOpacity * 0.56)),
+        '--hub-open-bg-c': Math.min(0.95, 0.34 + (clampedOpacity * 0.58)),
+        '--hub-closed-bg-a': Math.min(0.9, 0.28 + (clampedOpacity * 0.58)),
+        '--hub-closed-bg-b': Math.min(0.95, 0.34 + (clampedOpacity * 0.56)),
 
-        background: isOpen
-            ? `linear-gradient(155deg, 
-                rgba(14, 30, 42, ${Math.min(0.94, 0.34 + (clampedOpacity * 0.58))}) 0%, 
-                rgba(34, 27, 47, ${Math.min(0.96, 0.38 + (clampedOpacity * 0.56))}) 52%,
-                rgba(58, 39, 21, ${Math.min(0.95, 0.34 + (clampedOpacity * 0.58))}) 100%)`
-            : `linear-gradient(155deg, 
-                rgba(20, 24, 30, ${Math.min(0.9, 0.28 + (clampedOpacity * 0.58))}) 0%,
-                rgba(10, 13, 18, ${Math.min(0.95, 0.34 + (clampedOpacity * 0.56))}) 100%)`,
-
-        boxShadow: isOpen
-            ? `
-                0 0 0 1px rgba(56, 189, 248, 0.3),
-                0 0 28px -7px rgba(56, 189, 248, 0.45),
-                0 0 42px -16px rgba(245, 158, 11, 0.38),
-                inset 0 1px 0 rgba(255, 255, 255, 0.24),
-                inset 0 -10px 18px rgba(3, 7, 18, 0.42),
-                inset 0 0 20px rgba(56, 189, 248, 0.12)
-            `
-            : `
-                0 14px 26px -14px rgba(0, 0, 0, 0.62),
-                0 0 0 1px rgba(255, 255, 255, 0.07),
-                inset 0 1.2px 0 rgba(255, 255, 255, 0.14),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.34),
-                inset 0 0 14px rgba(0, 0, 0, 0.24)
-            `,
+        background: isOpen ? HUB_VISUAL_TOKENS.openBackground : HUB_VISUAL_TOKENS.closedBackground,
+        boxShadow: isOpen ? HUB_VISUAL_TOKENS.openShadow : HUB_VISUAL_TOKENS.closedShadow,
 
         border: 'none',
         willChange: 'transform, box-shadow, background',
@@ -88,7 +94,7 @@ export const useBottomBarStyles = (
         opacity: 1,
         backfaceVisibility: 'hidden' as const,
         cursor: 'pointer',
-    }), [panelStyle, isOpen, clampedOpacity, scaledBaseSize, clampedScale])
+    } as React.CSSProperties), [panelStyle, isOpen, clampedOpacity, scaledBaseSize, clampedScale])
 
     return { shellStyle, stackStyle, panelStyle, hubStyle }
 }

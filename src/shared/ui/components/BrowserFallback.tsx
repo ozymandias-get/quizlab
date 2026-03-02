@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Monitor, DownloadCloud } from 'lucide-react'
 
@@ -63,3 +63,4 @@ const BrowserFallback: React.FC = () => {
 }
 
 export default BrowserFallback
+

@@ -15,7 +15,8 @@ export function usePdfNavigation({ containerRef, jumpToPageRef, pdfPath }: UsePd
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(0)
 
-    const lastWheelTime = useRef(0)
+    const lastNavigationTime = useRef(0)
+    const lastWheelEventTime = useRef(0)
     const accumulatedDelta = useRef(0)
     const DELTA_THRESHOLD = 50
     const THROTTLE_MS = 600
@@ -33,35 +34,45 @@ export function usePdfNavigation({ containerRef, jumpToPageRef, pdfPath }: UsePd
         }
 
         const now = Date.now()
-
-        if (now - lastWheelTime.current < THROTTLE_MS) {
-            e.preventDefault()
-            return
-        }
-
-        if (now - lastWheelTime.current > 200) {
+        const sinceLastWheelEvent = now - lastWheelEventTime.current
+        if (sinceLastWheelEvent > 220) {
             accumulatedDelta.current = 0
         }
 
         accumulatedDelta.current += e.deltaY
+        lastWheelEventTime.current = now
 
-        if (Math.abs(accumulatedDelta.current) >= DELTA_THRESHOLD) {
-            e.preventDefault()
-            const current = currentPageRef.current
-
-            if (accumulatedDelta.current > 0) {
-                if (current < totalPages) {
-                    jumpToPageRef.current(current)
-                    lastWheelTime.current = now
-                }
-            } else if (current > 1) {
-                jumpToPageRef.current(current - 2)
-                lastWheelTime.current = now
-            }
-
-            accumulatedDelta.current = 0
+        if (Math.abs(accumulatedDelta.current) < DELTA_THRESHOLD) {
+            return
         }
+
+        if (now - lastNavigationTime.current < THROTTLE_MS) {
+            e.preventDefault()
+            accumulatedDelta.current = 0
+            return
+        }
+
+        e.preventDefault()
+        const current = currentPageRef.current
+
+        if (accumulatedDelta.current > 0) {
+            if (current < totalPages) {
+                jumpToPageRef.current(current)
+                lastNavigationTime.current = now
+            }
+        } else if (current > 1) {
+            jumpToPageRef.current(current - 2)
+            lastNavigationTime.current = now
+        }
+
+        accumulatedDelta.current = 0
     }, [totalPages, jumpToPageRef])
+
+    useEffect(() => {
+        lastNavigationTime.current = 0
+        lastWheelEventTime.current = 0
+        accumulatedDelta.current = 0
+    }, [pdfPath])
 
     useEffect(() => {
         const container = containerRef.current
@@ -73,7 +84,7 @@ export function usePdfNavigation({ containerRef, jumpToPageRef, pdfPath }: UsePd
         }
     }, [handleWheel, containerRef])
 
-    const updateStoredReadingInfo = useCallback((updates: Partial<{ page: number; totalPages: number }>) => {
+    const updateStoredReadingInfo = useCallback((updates: Partial<{ page: number; totalPages: number; lastOpenedAt: number }>) => {
         try {
             const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
             if (!stored) return
@@ -109,12 +120,12 @@ export function usePdfNavigation({ containerRef, jumpToPageRef, pdfPath }: UsePd
     const handlePageChange = useCallback((e: PageChangeEvent) => {
         const newPage = e.currentPage + 1
         setCurrentPage(newPage)
-        updateStoredReadingInfo({ page: newPage })
+        updateStoredReadingInfo({ page: newPage, lastOpenedAt: Date.now() })
     }, [updateStoredReadingInfo])
 
     const handleDocumentLoad = useCallback((e: DocumentLoadEvent) => {
         setTotalPages(e.doc.numPages)
-        updateStoredReadingInfo({ totalPages: e.doc.numPages })
+        updateStoredReadingInfo({ totalPages: e.doc.numPages, lastOpenedAt: Date.now() })
     }, [updateStoredReadingInfo])
 
     const goToPreviousPage = useCallback(() => {

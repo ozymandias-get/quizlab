@@ -116,7 +116,7 @@ export function useAddCustomAi() {
                     queryClient.invalidateQueries({ queryKey: AI_REGISTRY_KEY })
                     showSuccess(t('toast_custom_ai_added', { name: result.platform?.name || 'AI' }), t('toast_ai_added_title'))
                 } else {
-                    // Use showError directly â€” throwing inside onSuccess bypasses onError handler
+                    // Use showError directly - throwing inside onSuccess bypasses onError handler
                     showError(result.error || t('toast_custom_ai_failed'), t('toast_ai_error_title'))
                 }
             }
@@ -143,5 +143,6 @@ export function useDeleteCustomAi() {
         }
     )
 }
+
 
 

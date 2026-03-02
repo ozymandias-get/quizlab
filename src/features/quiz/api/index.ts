@@ -1,5 +1,5 @@
 ﻿/**
- * Quiz Feature API â€” Types, Constants & Utilities
+ * Quiz Feature API - Types, Constants & Utilities
  *
  * NOTE: This file intentionally does NOT contain any window.electronAPI calls.
  * All async data operations (fetch/mutate) are handled by React Query hooks in:
@@ -27,4 +27,5 @@ export type { DifficultyType, ModelTypeEnum, QuestionStyleEnum, Question, QuizSe
 
 // Re-export constants
 export { Difficulty, ModelType, QuestionStyle, DEFAULT_SETTINGS, STYLE_ICONS, getModelConfigs, INITIAL_QUIZ_STATE }
+
 

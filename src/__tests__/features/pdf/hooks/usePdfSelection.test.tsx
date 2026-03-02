@@ -176,8 +176,9 @@ describe('usePdfSelection', () => {
 
         await waitFor(() => {
             expect(mockShowError).toHaveBeenCalledWith('error_pdf_load')
-            expect(localStorageMock.removeItem).toHaveBeenCalledWith(STORAGE_KEYS.LAST_PDF_READING)
         })
+
+        expect(localStorageMock.removeItem).not.toHaveBeenCalledWith(STORAGE_KEYS.LAST_PDF_READING)
         errorSpy.mockRestore()
     })
 
@@ -191,7 +192,7 @@ describe('usePdfSelection', () => {
         expect(info).toEqual(data)
     })
 
-    it('should keep only the last 3 reading entries', async () => {
+    it('should keep and order recent reading entries', async () => {
         const files = [
             { name: 'one.pdf', path: '/pdf/one.pdf', streamUrl: 'one-url' },
             { name: 'two.pdf', path: '/pdf/two.pdf', streamUrl: 'two-url' },
@@ -215,11 +216,12 @@ describe('usePdfSelection', () => {
         })
 
         const recent = result.current.getRecentReadingInfo()
-        expect(recent).toHaveLength(3)
+        expect(recent).toHaveLength(4)
         expect(recent.map((item) => item.path)).toEqual([
             '/pdf/four.pdf',
             '/pdf/three.pdf',
-            '/pdf/two.pdf'
+            '/pdf/two.pdf',
+            '/pdf/one.pdf'
         ])
     })
 

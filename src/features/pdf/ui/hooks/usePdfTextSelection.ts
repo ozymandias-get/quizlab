@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react'
+﻿import { useEffect, useCallback, useRef } from 'react'
 import type { RefObject } from 'react'
 
 /**
@@ -127,3 +127,4 @@ export function usePdfTextSelection({ containerRef, onTextSelection }: UsePdfTex
         }
     }, [containerRef, calculateSelectionPosition])
 }
+
