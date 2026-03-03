@@ -675,21 +675,6 @@ npm run dev
 
 ---
 
-## 🗺 Yol Haritası
-
-### Gelecek Özellikler
-
-- [ ] **Flaş Kart Modu**: Anki tarzı aralıklı tekrar
-- [ ] **Not Alma**: Yerleşik PDF açıklama
-- [ ] **Bulut Senkronizasyonu**: İsteğe bağlı şifreli yedekleme
-- [ ] **Mobil Yardımcı**: iOS/Android görüntüleyici uygulaması
-- [ ] **İşbirlikçi Çalışma**: Quizleri arkadaşlarla paylaşma
-- [ ] **Eklenti Sistemi**: Üçüncü taraf uzantılar
-- [ ] **OCR Desteği**: Taranmış PDF metin tanıma
-- [ ] **Sesli Giriş**: Yapay zeka sohbeti için konuşmadan metne
-
----
-
 ## 📄 Lisans
 
 Bu proje **MIT Lisansı** altında lisanslanmıştır - detaylar için [LICENSE](LICENSE) dosyasına bakın.
@@ -703,14 +688,6 @@ Bu proje **MIT Lisansı** altında lisanslanmıştır - detaylar için [LICENSE]
 - **React PDF Viewer**: Mükemmel PDF bileşeni için
 - **Framer Motion**: Pürüzsüz animasyonlar için
 - **Tüm Katkıda Bulunanlar**: Bu projeyi daha iyi hale getiren herkes
-
----
-
-## 📞 İletişim ve Destek
-
-- 🐛 **Hata Raporları**: [GitHub Issues](https://github.com/ozymandias-get/quizlab/issues)
-- 💡 **Özellik İstekleri**: [GitHub Discussions](https://github.com/ozymandias-get/quizlab/discussions)
-- 📧 **E-posta**: ozymandias-get@proton.me
 
 ---
 

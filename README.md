@@ -675,21 +675,6 @@ npm run dev
 
 ---
 
-## 🗺 Roadmap
-
-### Upcoming Features
-
-- [ ] **Flashcard Mode**: Anki-style spaced repetition
-- [ ] **Note Taking**: Built-in PDF annotation
-- [ ] **Cloud Sync**: Optional encrypted backup
-- [ ] **Mobile Companion**: iOS/Android viewer app
-- [ ] **Collaborative Study**: Share quizzes with friends
-- [ ] **Plugin System**: Third-party extensions
-- [ ] **OCR Support**: Scanned PDF text recognition
-- [ ] **Voice Input**: Speech-to-text for AI chat
-
----
-
 ## 📄 License
 
 This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file for details.
@@ -703,14 +688,6 @@ This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file
 - **React PDF Viewer**: For the excellent PDF component
 - **Framer Motion**: For smooth animations
 - **All Contributors**: Who helped make this project better
-
----
-
-## 📞 Contact & Support
-
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ozymandias-get/quizlab/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ozymandias-get/quizlab/discussions)
-- 📧 **Email**: ozymandias-get@proton.me
 
 ---
 
