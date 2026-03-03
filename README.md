@@ -1,9 +1,9 @@
-# 🧪 QuizLab Reader | AI-Powered PDF Study Tool & Quiz Generator
+﻿# ğŸ§ª QuizLab Reader | AI-Powered PDF Study Tool & Quiz Generator
 
 <!-- markdownlint-disable MD033 -->
 <div align="center">
 
-[![Turkish](https://img.shields.io/badge/lang-Türkçe-red.svg?style=flat-square)](README_TR.md)
+[![Turkish](https://img.shields.io/badge/lang-TÃ¼rkÃ§e-red.svg?style=flat-square)](README_TR.md)
 [![Version](https://img.shields.io/badge/version-2.1.1-blue.svg?style=flat-square)](https://github.com/ozymandias-get/quizlab/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](https://electronjs.org/)
@@ -12,14 +12,14 @@
 **The Ultimate Desktop Study Cockpit for Students & Developers**  
 *Read PDFs, Chat with Google Gemini AI, and Generate Quizzes in one focused flow.*
 
-[Features](#-core-features-and-benefits) • [Installation](#-quick-start-guide) • [Why QuizLab?](#-why-quizlab) • [Tech Stack](#-tech-stack) • [Türkçe](#türkçe-readme)
+[Features](#-core-features-and-benefits) â€¢ [Installation](#-quick-start-guide) â€¢ [Why QuizLab?](#-why-quizlab) â€¢ [Tech Stack](#-tech-stack) â€¢ [TÃ¼rkÃ§e](#tÃ¼rkÃ§e-readme)
 
 </div>
 <!-- markdownlint-enable MD033 -->
 
 ---
 
-## 🚀 Overview: The Best Free AI Study Assistant
+## ğŸš€ Overview: The Best Free AI Study Assistant
 
 **QuizLab Reader** is an open-source, **AI-powered PDF reader** and **study tool** designed to supercharge your learning process. Unlike standard PDF viewers, QuizLab integrates directly with **Google Gemini AI** to transform your textbooks and notes into interactive quizzes and flashcards instantly.
 
@@ -29,16 +29,16 @@ Redefine your study sessions with a **split-screen workspace** that combines a r
 
 ---
 
-## ✨ Core Features and Benefits
+## âœ¨ Core Features and Benefits
 
-### 📚 Intelligent Split-Screen Workspace (PDF + AI)
+### ğŸ“š Intelligent Split-Screen Workspace (PDF + AI)
 Read effortlessly on the left while interacting with an AI tutor on the right.
 - **Instant Context Transfer:** Select any text in your PDF and instantly send it to the AI for summarization, translation, or explanation.
 - **Focus Mode:** Distraction-free reading environment optimized for deep work.
 - **Multi-Tab Support:** Open multiple PDFs and reference materials simultaneously.
 - **Panel Layout Swap:** Instantly swap PDF and AI panel positions to match your preference.
 
-### 🧠 Advanced Quiz Generator & Flashcard Maker
+### ğŸ§  Advanced Quiz Generator & Flashcard Maker
 Turn passive reading into active learning with our built-in **Quiz Engine**.
 - **Dynamic Question Generation:** Automatically generate multiple-choice questions (MCQs), true/false, and open-ended questions from your selected text or entire pages.
 - **Gemini CLI Integration:** Leverages the power of Google's Gemini models for high-quality, context-aware questions.
@@ -51,14 +51,14 @@ Turn passive reading into active learning with our built-in **Quiz Engine**.
 ![Interactive Quiz Mode Interface](docs/images/quiz-gameplay.png)
 ![Quiz Results and Performance Tracking](docs/images/quiz-results.png)
 
-### 🤖 Multi-Platform AI Support
+### ğŸ¤– Multi-Platform AI Support
 Connect with your favorite AI services seamlessly.
 - **Built-in AI Platforms:** Native support for ChatGPT, Claude, DeepSeek, Qwen, and Kimi.
 - **Custom AI Integration:** Add any web-based AI platform by providing its URL.
 - **Model Management:** Enable/disable AI platforms based on your preferences.
-- **Magic Selector:** Universal AI integration with auto-paste functionality—train the app to recognize input fields and automatically paste selected text from your PDF into the AI chat.
+- **Magic Selector:** Universal AI integration with auto-paste functionalityâ€”train the app to recognize input fields and automatically paste selected text from your PDF into the AI chat.
 
-### 🎨 Premium Glass Morphism UI & Customization
+### ğŸ¨ Premium Glass Morphism UI & Customization
 Personalize your study environment with extensive appearance options.
 - **Visual Themes:** Animated gradient or solid color backgrounds with customizable colors.
 - **Bottom Bar Customization:** Adjust opacity, scale, and icon-only compact mode.
@@ -66,33 +66,33 @@ Personalize your study environment with extensive appearance options.
 - **Random Background Mode:** Dynamic color transitions for a fresh look every session.
 - **Animations:** Smooth GPU-accelerated transitions powered by Framer Motion.
 
-### 📸 Screenshot to AI
+### ğŸ“¸ Screenshot to AI
 Capture and analyze any part of your screen.
 - **Screen Capture Tool:** Select any area of your screen and send it directly to AI for analysis.
 - **Visual Learning:** Perfect for diagrams, charts, and visual content analysis.
 
-### 🌍 Multi-Language Support
+### ğŸŒ Multi-Language Support
 Study in your preferred language.
 - **English & Turkish:** Full UI localization with easy language switching.
 - **Extensible:** More languages can be added via JSON locale files.
 
-### 🔄 Auto-Update System
+### ğŸ”„ Auto-Update System
 Stay up-to-date effortlessly.
 - **Update Notifications:** Automatic check for new versions from GitHub releases.
 - **One-Click Downloads:** Direct link to download the latest version.
 
-### 🎯 Interactive Usage Assistant
+### ğŸ¯ Interactive Usage Assistant
 Learn the app with an interactive tour.
 - **Step-by-Step Tutorial:** Guided tour highlighting key features and controls.
 - **Non-Intrusive:** Highlight-based guidance without darkening the screen.
 
-### 🔒 Privacy-Focused & Local-First
+### ğŸ”’ Privacy-Focused & Local-First
 - **Offline Capability:** Core reading features work offline.
 - **Your Data Stays Yours:** Notes and settings are stored locally on your device. Direct AI interactions happen through your own secure sessions.
 
 ---
 
-## ❓ Frequently Asked Questions (FAQ)
+## â“ Frequently Asked Questions (FAQ)
 
 **Q: Is QuizLab Reader free?**
 A: Yes, QuizLab is **free and open-source software (FOSS)**. You can download it and use it without any subscription fees.
@@ -111,7 +111,7 @@ A: Yes! QuizLab offers extensive customization including background themes, colo
 
 ---
 
-## 🛠 Tech Stack
+## ğŸ›  Tech Stack
 
 Built with a performance-first, modern architecture ensuring speed and reliability:
 
@@ -127,7 +127,7 @@ Built with a performance-first, modern architecture ensuring speed and reliabili
 
 ---
 
-## ⚡ Quick Start Guide
+## âš¡ Quick Start Guide
 
 Follow these steps to install and run QuizLab Reader on your local machine.
 
@@ -169,34 +169,34 @@ npm run build:linux  # Build for Linux .AppImage
 
 ---
 
-## 🏗 Project Structure
+## ğŸ— Project Structure
 
 QuizLab follows a scalable layered architecture after the structure refactor. App shell, features, shared renderer modules, and cross-process shared contracts are explicitly separated.
 
 ```text
 quizlab/
-├── electron/                # Main Process (Node.js / IPC handlers)
-│   ├── app/
-│   ├── core/
-│   ├── features/
-│   └── preload/
-│
-├── src/                     # Renderer Process (React)
-│   ├── app/
-│   ├── features/
-│   ├── shared/
-│   ├── platform/            # Electron bridge and API hooks
-│   └── __tests__/
-│
-├── shared/                  # Cross-process shared IPC channels and types
-├── docs/                    # Architecture and project documentation
-├── resources/               # Static assets and icons
-└── package.json
+â”œâ”€â”€ electron/                # Main Process (Node.js / IPC handlers)
+â”‚   â”œâ”€â”€ app/
+â”‚   â”œâ”€â”€ core/
+â”‚   â”œâ”€â”€ features/
+â”‚   â””â”€â”€ preload/
+â”‚
+â”œâ”€â”€ src/                     # Renderer Process (React)
+â”‚   â”œâ”€â”€ app/
+â”‚   â”œâ”€â”€ features/
+â”‚   â”œâ”€â”€ shared/
+â”‚   â”œâ”€â”€ platform/            # Electron bridge and API hooks
+â”‚   â””â”€â”€ __tests__/
+â”‚
+â”œâ”€â”€ shared/                  # Cross-process shared IPC channels and types
+â”œâ”€â”€ docs/                    # Architecture and project documentation
+â”œâ”€â”€ resources/               # Static assets and icons
+â””â”€â”€ package.json
 ```
 
 ---
 
-## 🎮 Settings & Configuration
+## ğŸ® Settings & Configuration
 
 QuizLab offers comprehensive settings organized in intuitive tabs:
 
@@ -212,22 +212,22 @@ QuizLab offers comprehensive settings organized in intuitive tabs:
 
 ---
 
-## 📝 License
+## ğŸ“ License
 
 Distributed under the **MIT License**. This means you can use, modify, and distribute this software freely. See [LICENSE](LICENSE) for more information.
 
 ---
 
-## 🇹🇷 Türkçe README
+## ğŸ‡¹ğŸ‡· TÃ¼rkÃ§e README
 
-Bu projenin Türkçe dokümantasyonu için [README_TR.md](README_TR.md) dosyasına göz atabilirsiniz.
+Bu projenin TÃ¼rkÃ§e dokÃ¼mantasyonu iÃ§in [README_TR.md](README_TR.md) dosyasÄ±na gÃ¶z atabilirsiniz.
 
 ---
 
 <div align="center">
 
-**Made with ❤️ for learners everywhere.**
+**Made with â¤ï¸ for learners everywhere.**
 
-[⬆ Back to Top](#-quizlab-reader--ai-powered-pdf-study-tool--quiz-generator)
+[â¬† Back to Top](#-quizlab-reader--ai-powered-pdf-study-tool--quiz-generator)
 
 </div>
