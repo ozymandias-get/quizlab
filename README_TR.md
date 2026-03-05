@@ -166,6 +166,16 @@ Yapay zeka, şunları oluşturan kıdemli bir tıp kurulu sınavıcısı gibi da
 - **Seçim Renkleri**: Özelleştirilebilir PDF metin vurgusu
 - **Rastgele Mod**: Dinamik renk geçişleri
 
+### 🏠 AI Anasayfa ve Dinamik Sekme Yönetimi
+
+**v2.2.0 Versiyonunda Yeni:**
+- **AI Anasayfa**: Tüm yapay zeka etkileşimleriniz için tasarlanmış yeni bir komuta merkezi ve giriş sayfası.
+- **Dinamik Başlatma**: Bellek kullanımını optimize etmek için başlangıçta sadece pinlenmiş (sabitlenmiş) sekmeler yüklenir.
+- **Otomatik Anasayfa Navigasyonu**: Tüm sekmeler kapatıldığında uygulama otomatik olarak Anasayfa'ya döner.
+- **2D Grid Sıralama**: AI modellerini ve sitelerinizi sezgisel bir sürükle-bırak sistemi ile 2 boyutlu olarak dilediğiniz gibi sıralayın.
+- **Cam Morfizm Arka Plan**: Anasayfa, alttaki animasyonlu ışık hüzmesi efektlerini gösteren şık bir yarı saydam tasarıma sahiptir.
+- **Kategori Organizasyonu**: Açık Sekmeler, AI Modeller ve Özel Siteler için ayrılmış özel bölümler.
+
 **Animasyon ve Efektler:**
 - GPU hızlandırmalı geçişler (Framer Motion)
 - Pürüzsüz panel yeniden boyutlandırma

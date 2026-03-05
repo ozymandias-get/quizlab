@@ -166,6 +166,16 @@ The AI acts as a senior medical board examiner, creating questions that:
 - **Selection Colors**: Customizable PDF text highlight
 - **Random Mode**: Dynamic color transitions
 
+### 🏠 AI Home Page & Dynamic Tab Management
+
+**New in v2.2.0:**
+- **AI Home Page**: A premium landing page that serves as the command center for all your AI interactions.
+- **Dynamic Startup**: Only your pinned tabs load on startup, reducing memory usage and providing a clean slate.
+- **Auto-Home Navigation**: Closing all tabs or clearing the active session automatically returns you to the Home Page.
+- **2D Grid Reordering**: Order your AI models and sites exactly how you want them using an intuitive 2D drag-and-drop system.
+- **Glassmorphism Backdrop**: The Home Page features a beautiful translucent design that lets the underlying light-beam animations shine through.
+- **Category Organization**: Dedicated sections for Open Tabs, AI Models, and Custom Sites.
+
 **Animation & Effects:**
 - GPU-accelerated transitions (Framer Motion)
 - Smooth panel resizing
