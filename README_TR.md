@@ -13,7 +13,7 @@
   <a href="README.md">
     <img src="https://img.shields.io/badge/lang-English-blue.svg?style=flat-square" alt="English" />
   </a>
-  <img src="https://img.shields.io/badge/versiyon-2.1.9-blue.svg?style=flat-square" alt="Versiyon" />
+  <img src="https://img.shields.io/badge/versiyon-2.2.0-blue.svg?style=flat-square" alt="Versiyon" />
   <img src="https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square" alt="Lisans" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Platform" />
   <img src="https://img.shields.io/badge/YZ-Gemini%20%7C%20ChatGPT%20%7C%20Claude-4285F4?style=flat-square" alt="YZ Desteği" />
@@ -271,9 +271,9 @@ Herhangi bir içeriği yakalayın ve analiz edin:
 
 Platformunuz için en son sürümü indirin:
 
-- 🪟 **Windows**: `QuizlabReader-Setup-2.1.9.exe`
-- 🍎 **macOS**: `QuizlabReader-2.1.9.dmg`
-- 🐧 **Linux**: `QuizlabReader-2.1.9.AppImage`
+- 🪟 **Windows**: `QuizlabReader-Setup-2.2.0.exe`
+- 🍎 **macOS**: `QuizlabReader-2.2.0.dmg`
+- 🐧 **Linux**: `QuizlabReader-2.2.0.AppImage`
 
 [En Son Sürümü İndir](https://github.com/ozymandias-get/quizlab/releases)
 

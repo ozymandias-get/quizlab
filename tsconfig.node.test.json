@@ -1,0 +1,14 @@
+{
+    "extends": "./tsconfig.node.json",
+    "compilerOptions": {
+        "noEmit": true
+    },
+    "include": [
+        "electron/**/*",
+        "shared/**/*"
+    ],
+    "exclude": [
+        "dist/**/*",
+        "node_modules/**/*"
+    ]
+}

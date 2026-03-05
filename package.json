@@ -1,6 +1,6 @@
 {
     "name": "quizlab-reader",
-    "version": "2.1.9",
+    "version": "2.2.0",
     "description": "The Ultimate AI-Powered PDF Reader & Quiz Generator. Study faster with split-screen PDF viewing, Google Gemini AI integration, and automatic flashcard creation.",
     "main": "dist/electron/electron/app/index.js",
     "repository": {
@@ -14,8 +14,11 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
+        "test:e2e": "playwright test",
         "typecheck": "tsc -b",
         "lint": "eslint . --max-warnings=0",
+        "audit:high": "npm audit --audit-level=high",
+        "analyze": "vite-bundle-visualizer",
         "build:backend": "tsc -b tsconfig.node.json --force",
         "build:renderer:web": "vite build",
         "build:renderer:electron": "node scripts/build-electron.mjs",
@@ -123,6 +126,7 @@
     "author": "ozymandias-get",
     "license": "MIT",
     "devDependencies": {
+        "@playwright/test": "^1.58.2",
         "@tanstack/react-query-devtools": "^5.91.3",
         "@testing-library/dom": "^10.4.1",
         "@testing-library/jest-dom": "^6.9.1",
@@ -139,10 +143,12 @@
         "electron-builder": "^26.7.0",
         "eslint": "^8.57.1",
         "eslint-import-resolver-typescript": "^4.4.4",
+        "eslint-plugin-electron": "^7.0.0",
         "eslint-plugin-import": "^2.32.0",
         "eslint-plugin-react": "^7.37.5",
         "eslint-plugin-react-hooks": "^5.2.0",
         "eslint-plugin-react-refresh": "^0.4.24",
+        "eslint-plugin-security": "^4.0.0",
         "globals": "^17.3.0",
         "jsdom": "^28.1.0",
         "postcss": "^8.4.32",
@@ -150,6 +156,7 @@
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.56.1",
         "vite": "^7.3.1",
+        "vite-bundle-visualizer": "^1.2.1",
         "vitest": "^4.0.18",
         "wait-on": "^7.2.0"
     },

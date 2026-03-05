@@ -13,6 +13,6 @@ export default {
     meta: {
         displayName: 'Qwen',
         submitMode: 'click',
-        domainRegex: '^https://chat\\.(qwenlm|qwen)\\.ai(/chat(/[a-zA-Z0-9]+)?)?/?$'
+        domainRegex: '^https://chat\\.(qwenlm|qwen)\\.ai(/.*)?$'
     }
 }

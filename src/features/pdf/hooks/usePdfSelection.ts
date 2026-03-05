@@ -19,7 +19,7 @@ export type ResumePdfResult = 'success' | 'not_found' | 'missing' | 'error'
 
 export interface PdfTab {
     id: string;
-    file: PdfFile;
+    file: PdfFile | null;
     title?: string;
 }
 
@@ -99,6 +99,7 @@ export const usePdfSelection = () => {
     const [activePdfTabId, setActivePdfTabId] = useState<string>('')
     const [recentReadingInfo, setRecentReadingInfo] = useState<LastReadingInfo[]>(() => readReadingHistory())
     const pdfTabsRef = useRef<PdfTab[]>([])
+    const activePdfTabIdRef = useRef<string>('')
 
     const { mutateAsync: selectPdf } = useSelectPdf()
     const { mutateAsync: registerPdfPath } = useRegisterPdfPath()
@@ -126,14 +127,15 @@ export const usePdfSelection = () => {
 
     useEffect(() => {
         pdfTabsRef.current = pdfTabs
-    }, [pdfTabs])
+        activePdfTabIdRef.current = activePdfTabId
+    }, [pdfTabs, activePdfTabId])
 
     const openPdfInTab = useCallback((file: PdfFile, initialReadInfo?: LastReadingInfo) => {
         const normalizedFile = toPdfFile(file)
         const normalizedPath = normalizedFile.path || null
         const currentTabs = pdfTabsRef.current
         const existingTab = normalizedPath
-            ? currentTabs.find((tab) => tab.file.path === normalizedPath)
+            ? currentTabs.find((tab) => tab.file?.path === normalizedPath)
             : undefined
 
         if (existingTab) {
@@ -142,9 +144,17 @@ export const usePdfSelection = () => {
             )))
             setActivePdfTabId(existingTab.id)
         } else {
-            const newTabId = crypto.randomUUID()
-            setPdfTabs([...currentTabs, { id: newTabId, file: normalizedFile }])
-            setActivePdfTabId(newTabId)
+            const currentActiveId = activePdfTabIdRef.current
+            const activeTab = currentTabs.find((tab) => tab.id === currentActiveId)
+            if (activeTab && activeTab.file === null) {
+                setPdfTabs(currentTabs.map((tab) => (
+                    tab.id === activeTab.id ? { ...tab, file: normalizedFile } : tab
+                )))
+            } else {
+                const newTabId = crypto.randomUUID()
+                setPdfTabs([...currentTabs, { id: newTabId, file: normalizedFile }])
+                setActivePdfTabId(newTabId)
+            }
         }
 
         if (normalizedFile.path && normalizedFile.name) {
@@ -164,9 +174,9 @@ export const usePdfSelection = () => {
 
         setActivePdfTabId(tabId)
 
-        if (tab.file.path && tab.file.name) {
+        if (tab.file?.path && tab.file?.name) {
             const current = readReadingHistory()
-            const existing = current.find((item) => item.path === tab.file.path)
+            const existing = current.find((item) => item.path === tab.file?.path)
             const nextInfo: LastReadingInfo = {
                 name: tab.file.name,
                 path: tab.file.path,
@@ -192,6 +202,12 @@ export const usePdfSelection = () => {
 
             return nextTabs
         })
+    }, [])
+
+    const addEmptyPdfTab = useCallback(() => {
+        const newTabId = crypto.randomUUID()
+        setPdfTabs((prev) => [...prev, { id: newTabId, file: null }])
+        setActivePdfTabId(newTabId)
     }, [])
 
     const renamePdfTab = useCallback((tabId: string, title?: string) => {
@@ -309,6 +325,18 @@ export const usePdfSelection = () => {
         persistRecentReadingInfo(next.slice(0, MAX_RECENT_PDFS))
     }, [persistRecentReadingInfo])
 
+    const activeTabInitialPage = useMemo(() => {
+        if (!activePdfTabId) return undefined
+        const activeTab = pdfTabs.find((tab) => tab.id === activePdfTabId)
+        if (!activeTab || !activeTab.file?.path) return undefined
+
+        // localStorage'daki en guncel sayfa bilgisini oku.
+        // Bu deger sadece sekme ilk acildiginda veya degistiginde okunacagi icin performans sorununa yol acmaz.
+        const history = readReadingHistory()
+        const existing = history.find((item) => item.path === activeTab.file?.path)
+        return existing?.page
+    }, [activePdfTabId, pdfTabs])
+
     const pdfFile = useMemo(() => {
         if (!activePdfTabId) return null
         const activeTab = pdfTabs.find((tab) => tab.id === activePdfTabId)
@@ -328,6 +356,8 @@ export const usePdfSelection = () => {
         getLastReadingInfo,
         getRecentReadingInfo,
         clearLastReading,
-        restoreRecentReading
+        restoreRecentReading,
+        addEmptyPdfTab,
+        activeTabInitialPage
     }
 }

@@ -13,7 +13,7 @@ export default {
     meta: {
         displayName: 'DeepSeek',
         submitMode: 'mixed',
-        domainRegex: '^https://chat\\.deepseek\\.com(/chat(/[a-zA-Z0-9]+)?)?/?$',
+        domainRegex: '^https://chat\\.deepseek\\.com(/.*)?$',
         imageWaitTime: 2000
     }
 }

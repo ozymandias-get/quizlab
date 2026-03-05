@@ -111,7 +111,7 @@ app.on('activate', async () => {
     }
 })
 
-app.on('window-all-closed', async () => {
+app.on('window-all-closed', () => {
     stopPdfCleanupInterval()
     clearAllPdfPaths()
 
@@ -129,20 +129,23 @@ app.on('window-all-closed', async () => {
             'DIPS-journal'
         ]
 
-        await Promise.allSettled(filesToClean.map(async (file: string) => {
+        Promise.allSettled(filesToClean.map(async (file: string) => {
             const filePath = path.join(userDataPath, file)
             try {
                 await fs.rm(filePath, { force: true })
             } catch (e) {
                 // Ignore cleanup errors
             }
-        }))
+        })).finally(() => {
+            if (process.platform !== 'darwin') {
+                app.quit()
+            }
+        })
     } catch (e) {
-        // Ignore cleanup errors
-    }
-
-    if (process.platform !== 'darwin') {
-        app.quit()
+        // Ignore cleanup errors and quit as fallback
+        if (process.platform !== 'darwin') {
+            app.quit()
+        }
     }
 })
 

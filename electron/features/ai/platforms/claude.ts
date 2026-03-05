@@ -13,6 +13,6 @@ export default {
     meta: {
         displayName: 'Claude',
         submitMode: 'click',
-        domainRegex: '^https://claude\\.ai/(chat|new)(/[a-zA-Z0-9-]+)?/?$'
+        domainRegex: '^https://claude\\.ai(/.*)?$'
     }
 }

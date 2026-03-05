@@ -6,6 +6,8 @@ import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
 import { PdfTabStrip } from '@features/pdf'
 import type { PdfTab, LastReadingInfo, ResumePdfResult } from '@features/pdf'
+import { Worker } from '@react-pdf-viewer/core'
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 const PdfViewer = lazy(() => (
     import('@features/pdf').then((module) => ({ default: module.PdfViewer }))
@@ -28,6 +30,7 @@ interface LeftPanelProps {
     onSetActivePdfTab?: (tabId: string) => void;
     onClosePdfTab?: (tabId: string) => void;
     onRenamePdfTab?: (tabId: string, title?: string) => void;
+    onAddEmptyPdfTab?: () => void;
 }
 
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
@@ -61,7 +64,8 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     activePdfTabId = '',
     onSetActivePdfTab,
     onClosePdfTab,
-    onRenamePdfTab
+    onRenamePdfTab,
+    onAddEmptyPdfTab
 }) => {
     const { t } = useLanguage()
 
@@ -91,7 +95,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                             onSetActiveTab={onSetActivePdfTab}
                             onCloseTab={onClosePdfTab}
                             onRenameTab={onRenamePdfTab}
-                            onAddTab={onSelectPdf}
+                            onAddTab={onAddEmptyPdfTab || onSelectPdf}
                         />
                     )}
 
@@ -103,17 +107,20 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                         }>
                             <div className="absolute inset-0 w-full h-full animate-in fade-in duration-300">
                                 <ErrorBoundary title={t('error_pdf_viewer')}>
-                                    <PdfViewer
-                                        pdfFile={pdfFile}
-                                        onSelectPdf={onSelectPdf}
-                                        onTextSelection={onTextSelection}
-                                        t={t}
-                                        initialPage={initialPage}
-                                        onResumePdf={onResumePdf}
-                                        onClearResumePdf={onClearResumePdf}
-                                        onRestoreResumePdf={onRestoreResumePdf}
-                                        lastReadingInfo={lastReadingInfo}
-                                    />
+                                    <Worker workerUrl={pdfjsWorkerUrl}>
+                                        <PdfViewer
+                                            key={`${activePdfTabId}-${pdfFile?.streamUrl || 'empty'}`}
+                                            pdfFile={pdfFile}
+                                            onSelectPdf={onSelectPdf}
+                                            onTextSelection={onTextSelection}
+                                            t={t}
+                                            initialPage={initialPage}
+                                            onResumePdf={onResumePdf}
+                                            onClearResumePdf={onClearResumePdf}
+                                            onRestoreResumePdf={onRestoreResumePdf}
+                                            lastReadingInfo={lastReadingInfo}
+                                        />
+                                    </Worker>
                                 </ErrorBoundary>
                             </div>
                         </Suspense>

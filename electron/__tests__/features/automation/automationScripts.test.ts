@@ -13,18 +13,18 @@ describe('automationScripts', () => {
             true
         )
 
-        expect(script).toContain('resolveInputElement')
-        expect(script).toContain('resolveSubmitButton')
-        expect(script).toContain('input_not_accepted')
+        expect(script).toContain('findElement')
+        expect(script).toContain('performSubmit')
+        expect(script).toContain('isReadyForInteraction')
     })
 
     it('generates focus script that resolves inner input controls', () => {
         const script = generateFocusScript({ input: 'rich-textarea' })
-        expect(script).toContain('resolveInputElement')
+        expect(script).toContain('findElement')
     })
 
     it('generates click script with button fallback resolution', () => {
         const script = generateClickSendScript({ input: '[role="textbox"]', submitMode: 'mixed' })
-        expect(script).toContain('resolveSubmitButton')
+        expect(script).toContain('performSubmit')
     })
 })

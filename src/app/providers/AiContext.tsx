@@ -8,7 +8,7 @@ import { useAiSender } from '@features/ai'
 import type { SendImageResult, SendTextResult } from '@features/ai'
 import { useAiRegistry, useRefreshAiRegistry } from '@platform/electron/api/useAiApi'
 
-const DEFAULT_TAB_ID = 'default-tab'
+
 
 const normalizeTitle = (title?: string): string | undefined => {
     const normalized = title?.trim()
@@ -182,21 +182,13 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
             setPinnedTabs(sanitizedPinned)
         }
 
-        const nextTabs: Tab[] = sanitizedPinned.length > 0
-            ? sanitizedPinned.map((tab) => ({ ...tab, pinned: true }))
-            : [{ id: DEFAULT_TAB_ID, modelId: fallbackModelId }]
-
-        if (sanitizedPinned.length > 0 && !nextTabs.some((tab) => tab.modelId === fallbackModelId)) {
-            const fallbackTabId = nextTabs.some((tab) => tab.id === DEFAULT_TAB_ID)
-                ? crypto.randomUUID()
-                : DEFAULT_TAB_ID
-            nextTabs.push({ id: fallbackTabId, modelId: fallbackModelId })
-        }
-
-        const initialActiveTab = nextTabs.find((tab) => tab.modelId === fallbackModelId) || nextTabs[0]
+        // Only load pinned tabs on startup. The Home Page is the default view.
+        // Users will open new tabs from the Home Page or BottomBar.
+        const nextTabs: Tab[] = sanitizedPinned.map((tab) => ({ ...tab, pinned: true }))
 
         setTabs(nextTabs)
-        setActiveTabId(initialActiveTab?.id || '')
+        // If there are pinned tabs, select the first one; otherwise leave empty (home page will show)
+        setActiveTabId(nextTabs.length > 0 ? nextTabs[0].id : '')
         setIsTabsInitialized(true)
         hasInitializedTabsRef.current = true
     }, [
@@ -227,8 +219,6 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
     }, [GET_ALL_AI_IDS, lastSelectedAI, defaultAiModel, setLastSelectedAI])
 
     const closeTab = useCallback((tabId: string) => {
-        if (tabs.length <= 1) return // Don't close the last tab
-
         const tabToClose = tabs.find((tab) => tab.id === tabId)
         if (!tabToClose) return
 
@@ -244,6 +234,9 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
             if (nextActiveTab) {
                 setActiveTabId(nextActiveTab.id)
                 setLastSelectedAI(nextActiveTab.modelId)
+            } else {
+                // No tabs left — home page will show
+                setActiveTabId('')
             }
         }
 

@@ -70,8 +70,8 @@ function PdfTabStrip({
     }, [t])
 
     const getTabLabel = useCallback((tab: PdfTab) => {
-        return tab.title || tab.file.name || t('untitled_file')
-    }, [t])
+        return tab.title || tab.file?.name || tr('new_tab_title', 'Yeni Sekme')
+    }, [tr])
 
     const beginRename = useCallback((tab: PdfTab) => {
         setContextMenu(null)

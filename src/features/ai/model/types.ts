@@ -9,4 +9,5 @@ export interface SendImageResult {
     success: boolean;
     error?: string;
     mode?: string;
+    actualUrl?: string;
 }

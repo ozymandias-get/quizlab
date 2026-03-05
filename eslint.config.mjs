@@ -5,6 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import reactPlugin from 'eslint-plugin-react';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
+import securityPlugin from 'eslint-plugin-security';
+import electronPlugin from 'eslint-plugin-electron';
 
 const legacySrcAliasPattern = {
     group: ['@src/*'],
@@ -49,9 +51,11 @@ export default [
             'react': reactPlugin,
             'react-hooks': reactHooks,
             'react-refresh': reactRefresh,
+            'security': securityPlugin,
         },
         rules: {
-            'no-restricted-imports': ['error', { patterns: [legacySrcAliasPattern] }]
+            'no-restricted-imports': ['error', { patterns: [legacySrcAliasPattern] }],
+            'react/no-danger': 'warn',
         },
     },
     {
@@ -99,6 +103,15 @@ export default [
                     message: 'shared-core should not depend on DOM globals.'
                 }
             ]
+        }
+    },
+    {
+        files: ['electron/**/*.{js,mjs,cjs,ts,tsx}'],
+        plugins: {
+            'electron': electronPlugin,
+        },
+        rules: {
+            // İsterseniz burada 'electron/no-new-webview': 'error' vb. eklenebilir.
         }
     }
 ];

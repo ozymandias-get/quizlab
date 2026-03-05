@@ -34,7 +34,7 @@ const getVisibleTabIds = (tabs: Tab[], activeTabId: string): Set<string> => {
     return new Set([tabs[activeIndex - 1].id, tabs[activeIndex].id, tabs[activeIndex + 1].id])
 }
 
-function AiTabStrip() {
+function AiTabStrip({ showHome, onShowHome, onHideHome }: { showHome?: boolean; onShowHome?: () => void; onHideHome?: () => void }) {
     const {
         tabs,
         activeTabId,
@@ -160,6 +160,33 @@ function AiTabStrip() {
             className="relative h-11 rounded-t-[1.5rem] border-b border-white/[0.08] bg-[#050505]/70 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
         >
             <div className="flex items-center gap-2 h-full px-2.5 overflow-hidden">
+                {/* Home Button */}
+                <motion.button
+                    type="button"
+                    onClick={onShowHome}
+                    whileHover={{ scale: 1.08, y: -1 }}
+                    whileTap={{ scale: 0.94 }}
+                    title="Anasayfa"
+                    className="relative flex items-center justify-center w-8 h-8 rounded-xl border shrink-0 transition-all duration-150"
+                    style={showHome ? {
+                        background: 'linear-gradient(145deg, #6ee7b728, #34d39918)',
+                        borderColor: '#6ee7b755',
+                        boxShadow: '0 0 14px -5px #6ee7b760, inset 0 1px 0 rgba(255,255,255,0.15)',
+                    } : {
+                        background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
+                        borderColor: 'rgba(255,255,255,0.12)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+                    }}
+                >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={showHome ? '#6ee7b7' : 'rgba(255,255,255,0.7)'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                </motion.button>
+
+                {/* Divider */}
+                <div className="w-px h-5 bg-white/[0.1] shrink-0" />
+
                 {visibleTabs.map((tab) => {
                     const label = getTabLabel(tab)
                     const tabColor = getTabColor(tab)
@@ -188,7 +215,7 @@ function AiTabStrip() {
                                 background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
                                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)'
                             }}
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => { setActiveTab(tab.id); onHideHome?.() }}
                             onDoubleClick={(event) => {
                                 event.preventDefault()
                                 event.stopPropagation()
@@ -307,6 +334,7 @@ function AiTabStrip() {
                                             onClick={() => {
                                                 setActiveTab(tab.id)
                                                 setIsOverflowOpen(false)
+                                                onHideHome?.()
                                             }}
                                             onContextMenu={(event) => handleOpenContextMenu(event, tab.id)}
                                             title={label}

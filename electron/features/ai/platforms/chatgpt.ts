@@ -13,6 +13,6 @@ export default {
     meta: {
         displayName: 'ChatGPT',
         submitMode: 'mixed', // Enter or Click
-        domainRegex: '^https://(chat\\.)?chatgpt\\.com(/(c|g)/[a-zA-Z0-9-]+)?/?(\\?.*)?$'
+        domainRegex: '^https://(chat\\.)?chatgpt\\.com(/.*)?$'
     }
 }

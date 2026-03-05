@@ -37,6 +37,9 @@ interface UseAiSenderReturn {
 
 const CLIPBOARD_WAIT_DELAY = 800
 
+// Module-level queue to prevent overlapping send actions (e.g. rapid consecutive image pasting)
+let globalAiSendQueue = Promise.resolve<any>(true)
+
 const toAutomationConfig = (config: AiConfig): AutomationConfig => ({
     input: typeof config.input === 'string' || config.input === null ? config.input : null,
     button: typeof config.button === 'string' || config.button === null ? config.button : null,
@@ -116,180 +119,217 @@ export function useAiSender(
         }
     }, [currentAI])
 
-    const sendTextToAI = useCallback(async (text: string): Promise<SendTextResult> => {
-        const webview = webviewRef.current
-        if (!webview || !text) return { success: false, error: 'invalid_input' }
-        if (!aiRegistry) return { success: false, error: 'registry_not_loaded' }
+    const sendTextToAI = useCallback((text: string): Promise<SendTextResult> => {
+        const execute = async (): Promise<SendTextResult> => {
+            const webview = webviewRef.current
+            if (!webview || !text) return { success: false, error: 'invalid_input' }
+            if (!aiRegistry) return { success: false, error: 'registry_not_loaded' }
 
-        try {
-            // Get base config from registry
-            const baseAiConfig = aiRegistry[currentAI]
-            if (!baseAiConfig) return { success: false, error: 'config_not_found' }
-
-            if (typeof webview.getURL !== 'function') {
-                return { success: false, error: 'webview_api_missing' }
-            }
-
-            // Get config + regex (cached if possible)
-            const { config: aiConfig, regex } = await getCachedConfig(queryClient, webview, baseAiConfig)
-            const currentUrl = webview.getURL()
-            if (!currentUrl) {
-                return { success: false, error: 'webview_url_missing' }
-            }
-
-            if (regex) {
-                if (!regex.test(currentUrl)) {
-                    return { success: false, error: 'wrong_url', actualUrl: currentUrl }
-                }
-            }
-
-            // Prepend prompt if selected
-            let finalText = text
-            if (activePromptText) {
-                // Add prompt before the text
-                finalText = `${activePromptText}\n\n${text}`
-                Logger.info('[useAiSender] Prompt prepended:', activePromptText)
-            }
-
-            // Use React Query mutation instead of direct API call
-            const script = await generateAutoSendScript({
-                config: toAutomationConfig(aiConfig),
-                text: finalText,
-                submit: autoSend
-            })
-
-            if (!script) return { success: false, error: 'script_generation_failed' }
-
-            if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
-
-            const result = await webview.executeJavaScript(script) as { success?: boolean; error?: string; mode?: string } | null
-            if (!result || result.success === false) {
-                return { success: false, error: result?.error || 'script_failed' }
-            }
-
-            return { success: true, mode: result.mode || aiConfig.submitMode }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'unknown_error'
-            Logger.error('[useAiSender] Hata:', error)
-            return { success: false, error: message }
-        }
-    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, generateAutoSendScript])
-
-    const sendImageToAI = useCallback(async (imageDataUrl: string): Promise<SendImageResult> => {
-        const webview = webviewRef.current
-        if (!webview || !imageDataUrl) return { success: false, error: 'invalid_input' }
-        if (!aiRegistry) return { success: false, error: 'registry_not_loaded' }
-
-        // Sanity check for data URL
-        if (!imageDataUrl.startsWith('data:image/')) {
-            Logger.error('[useAiSender] Invalid image format')
-            return { success: false, error: 'invalid_image_format' }
-        }
-
-        try {
-            // Get base config from registry
-            const baseAiConfig = aiRegistry[currentAI]
-            if (!baseAiConfig) return { success: false, error: 'config_not_found' }
-
-            // Get config (cached if possible)
-            const { config: aiConfig } = await getCachedConfig(queryClient, webview, baseAiConfig)
-
-            // Use React Query mutation
-            const copied = await copyImageToClipboard(imageDataUrl)
-            if (!copied) return { success: false, error: 'clipboard_failed' }
-
-            // Focus webview
             try {
-                if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
-                    webview.focus()
+                // Get base config from registry
+                const baseAiConfig = aiRegistry[currentAI]
+                if (!baseAiConfig) return { success: false, error: 'config_not_found' }
+
+                if (typeof webview.getURL !== 'function') {
+                    return { success: false, error: 'webview_api_missing' }
                 }
-            } catch (e) { }
 
-            await new Promise(r => setTimeout(r, 100))
+                // Get config + regex (cached if possible)
+                const { config: aiConfig, regex } = await getCachedConfig(queryClient, webview, baseAiConfig)
+                const currentUrl = webview.getURL()
+                if (!currentUrl) {
+                    return { success: false, error: 'webview_url_missing' }
+                }
 
-            // Use React Query mutation
-            const focusScript = await generateFocusScript(toAutomationConfig(aiConfig))
-            if (!focusScript) return { success: false, error: 'focus_script_failed' }
-
-            if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
-            const focused = await webview.executeJavaScript(focusScript)
-            if (!focused) return { success: false, error: 'focus_failed' }
-
-            // Wait for clipboard to be ready in the remote process
-            await new Promise(r => setTimeout(r, CLIPBOARD_WAIT_DELAY))
-
-            let pasteSuccess = false
-
-            // Try native paste if available
-            if (webview.isDestroyed?.() !== true) {
-                if (typeof webview.pasteNative === 'function' && typeof webview.getWebContentsId === 'function') {
-                    try {
-                        const wcId = webview.getWebContentsId()
-                        if (wcId) {
-                            const result = webview.pasteNative(wcId)
-                            pasteSuccess = typeof result === 'boolean' ? result : await result
-                        }
-                    } catch (err) {
-                        pasteSuccess = false
+                if (regex) {
+                    if (!regex.test(currentUrl)) {
+                        return { success: false, error: 'wrong_url', actualUrl: currentUrl }
                     }
                 }
-            }
 
-            // Fallback to JS paste
-            if (!pasteSuccess) {
-                if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
-                pasteSuccess = safeWebviewPaste(webview)
-            }
+                // Prepend prompt if selected
+                let finalText = text
+                if (activePromptText) {
+                    // Add prompt before the text
+                    finalText = `${activePromptText}\n\n${text}`
+                    Logger.info('[useAiSender] Prompt prepended:', activePromptText)
+                }
 
-            if (!pasteSuccess) return { success: false, error: 'paste_failed' }
-
-            // Perform prompt injection for image
-            if (activePromptText) {
-                // Wait slightly for paste to settle
-                await new Promise(r => setTimeout(r, 500))
-
-                // Use the same auto-send script logic to insert the prompt text
-                // If autoSend is true, this will also click send
-                // Use React Query mutation
-                const promptScript = await generateAutoSendScript({
+                // Use React Query mutation instead of direct API call
+                const script = await generateAutoSendScript({
                     config: toAutomationConfig(aiConfig),
-                    text: activePromptText,
+                    text: finalText,
                     submit: autoSend
                 })
 
-                if (promptScript) {
-                    if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
-                    const promptResult = await webview.executeJavaScript(promptScript) as { success?: boolean; error?: string } | boolean | null
-                    if (promptResult === false || (typeof promptResult === 'object' && promptResult?.success === false)) {
-                        return { success: false, error: (typeof promptResult === 'object' && promptResult?.error) ? promptResult.error : 'script_failed' }
-                    }
-                    return { success: true, mode: autoSend ? 'auto_click_with_prompt' : 'paste_and_prompt' }
-                }
-            }
-
-            if (autoSend) {
-                // Wait for image to upload/process in the AI interface
-                let waitTime = aiConfig.imageWaitTime || 1000
-                await new Promise(r => setTimeout(r, waitTime))
-
-                // Use React Query mutation
-                const clickScript = await generateClickSendScript(toAutomationConfig(aiConfig))
-                if (!clickScript) return { success: false, error: 'click_script_failed' }
+                if (!script) return { success: false, error: 'script_generation_failed' }
 
                 if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
 
-                const clickResult = await webview.executeJavaScript(clickScript)
-                if (!clickResult) return { success: false, error: 'autosend_failed_draft_saved' }
+                const result = await webview.executeJavaScript(script) as { success?: boolean; error?: string; mode?: string } | null
+                if (!result || result.success === false) {
+                    return { success: false, error: result?.error || 'script_failed' }
+                }
 
-                return { success: true, mode: 'auto_click' }
+                return { success: true, mode: result.mode || aiConfig.submitMode }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'unknown_error'
+                Logger.error('[useAiSender] Hata:', error)
+                return { success: false, error: message }
+            }
+        };
+
+        return new Promise<SendTextResult>((resolve) => {
+            globalAiSendQueue = globalAiSendQueue
+                .then(async () => {
+                    const result = await execute()
+                    resolve(result)
+                })
+                .catch((error) => {
+                    resolve({ success: false, error: error instanceof Error ? error.message : 'queue_error' })
+                })
+        })
+    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, generateAutoSendScript])
+
+    const sendImageToAI = useCallback((imageDataUrl: string): Promise<SendImageResult> => {
+        const execute = async (): Promise<SendImageResult> => {
+            const webview = webviewRef.current
+            if (!webview || !imageDataUrl) return { success: false, error: 'invalid_input' }
+            if (!aiRegistry) return { success: false, error: 'registry_not_loaded' }
+
+            // Sanity check for data URL
+            if (!imageDataUrl.startsWith('data:image/')) {
+                Logger.error('[useAiSender] Invalid image format')
+                return { success: false, error: 'invalid_image_format' }
             }
 
-            return { success: true, mode: 'paste_only' }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'unknown_error'
-            Logger.error('[useAiSender] Image send error:', error)
-            return { success: false, error: message }
-        }
+            try {
+                // Get base config from registry
+                const baseAiConfig = aiRegistry[currentAI]
+                if (!baseAiConfig) return { success: false, error: 'config_not_found' }
+
+                // Get config (cached if possible)
+                const { config: aiConfig, regex } = await getCachedConfig(queryClient, webview, baseAiConfig)
+                const currentUrl = typeof webview.getURL === 'function' ? webview.getURL() : null
+                if (!currentUrl) {
+                    return { success: false, error: 'webview_url_missing' }
+                }
+
+                if (regex) {
+                    if (!regex.test(currentUrl)) {
+                        return { success: false, error: 'wrong_url', actualUrl: currentUrl }
+                    }
+                }
+
+                // Use React Query mutation
+                const copied = await copyImageToClipboard(imageDataUrl)
+                if (!copied) return { success: false, error: 'clipboard_failed' }
+
+                // Focus webview
+                try {
+                    if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
+                        webview.focus()
+                    }
+                } catch (e) { }
+
+                await new Promise(r => setTimeout(r, 100))
+
+                // Use React Query mutation
+                const focusScript = await generateFocusScript(toAutomationConfig(aiConfig))
+                if (!focusScript) return { success: false, error: 'focus_script_failed' }
+
+                if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                const focused = await webview.executeJavaScript(focusScript)
+                if (!focused) return { success: false, error: 'focus_failed' }
+
+                // Wait for clipboard to be ready in the remote process
+                await new Promise(r => setTimeout(r, CLIPBOARD_WAIT_DELAY))
+
+                let pasteSuccess = false
+
+                // Try native paste if available
+                if (webview.isDestroyed?.() !== true) {
+                    if (typeof webview.pasteNative === 'function' && typeof webview.getWebContentsId === 'function') {
+                        try {
+                            const wcId = webview.getWebContentsId()
+                            if (wcId) {
+                                const result = webview.pasteNative(wcId)
+                                pasteSuccess = typeof result === 'boolean' ? result : await result
+                            }
+                        } catch (err) {
+                            pasteSuccess = false
+                        }
+                    }
+                }
+
+                // Fallback to JS paste
+                if (!pasteSuccess) {
+                    if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                    pasteSuccess = safeWebviewPaste(webview)
+                }
+
+                if (!pasteSuccess) return { success: false, error: 'paste_failed' }
+
+                // Perform prompt injection for image
+                if (activePromptText) {
+                    // Wait slightly for paste to settle
+                    await new Promise(r => setTimeout(r, 500))
+
+                    // Use the same auto-send script logic to insert the prompt text
+                    // If autoSend is true, this will also click send
+                    // Use React Query mutation
+                    const promptScript = await generateAutoSendScript({
+                        config: toAutomationConfig(aiConfig),
+                        text: activePromptText,
+                        submit: autoSend
+                    })
+
+                    if (promptScript) {
+                        if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                        const promptResult = await webview.executeJavaScript(promptScript) as { success?: boolean; error?: string } | boolean | null
+                        if (promptResult === false || (typeof promptResult === 'object' && promptResult?.success === false)) {
+                            return { success: false, error: (typeof promptResult === 'object' && promptResult?.error) ? promptResult.error : 'script_failed' }
+                        }
+                        return { success: true, mode: autoSend ? 'auto_click_with_prompt' : 'paste_and_prompt' }
+                    }
+                }
+
+                if (autoSend) {
+                    // Wait for image to upload/process in the AI interface
+                    let waitTime = aiConfig.imageWaitTime || 1000
+                    await new Promise(r => setTimeout(r, waitTime))
+
+                    // Use React Query mutation
+                    const clickScript = await generateClickSendScript(toAutomationConfig(aiConfig))
+                    if (!clickScript) return { success: false, error: 'click_script_failed' }
+
+                    if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+
+                    const clickResult = await webview.executeJavaScript(clickScript)
+                    if (!clickResult) return { success: false, error: 'autosend_failed_draft_saved' }
+
+                    return { success: true, mode: 'auto_click' }
+                }
+
+                return { success: true, mode: 'paste_only' }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'unknown_error'
+                Logger.error('[useAiSender] Image send error:', error)
+                return { success: false, error: message }
+            }
+        };
+
+        return new Promise<SendImageResult>((resolve) => {
+            globalAiSendQueue = globalAiSendQueue
+                .then(async () => {
+                    const result = await execute()
+                    resolve(result)
+                })
+                .catch((error) => {
+                    Logger.error('[useAiSender] Image queue error:', error)
+                    resolve({ success: false, error: error instanceof Error ? error.message : 'queue_error' })
+                })
+        })
     }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, copyImageToClipboard, generateFocusScript, generateAutoSendScript, generateClickSendScript])
 
     return { sendTextToAI, sendImageToAI }

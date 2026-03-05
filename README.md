@@ -13,7 +13,7 @@
   <a href="README_TR.md">
     <img src="https://img.shields.io/badge/lang-Turkish-red.svg?style=flat-square" alt="Turkish" />
   </a>
-  <img src="https://img.shields.io/badge/version-2.1.9-blue.svg?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/version-2.2.0-blue.svg?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Platform" />
   <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20ChatGPT%20%7C%20Claude-4285F4?style=flat-square" alt="AI Support" />
@@ -271,9 +271,9 @@ Capture and analyze any content:
 
 Download the latest release for your platform:
 
-- 🪟 **Windows**: `QuizlabReader-Setup-2.1.9.exe`
-- 🍎 **macOS**: `QuizlabReader-2.1.9.dmg`
-- 🐧 **Linux**: `QuizlabReader-2.1.9.AppImage`
+- 🪟 **Windows**: `QuizlabReader-Setup-2.2.0.exe`
+- 🍎 **macOS**: `QuizlabReader-2.2.0.dmg`
+- 🐧 **Linux**: `QuizlabReader-2.2.0.AppImage`
 
 [Download Latest Release](https://github.com/ozymandias-get/quizlab/releases)
 

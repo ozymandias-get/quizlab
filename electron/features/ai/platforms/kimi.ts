@@ -15,7 +15,7 @@ const kimi: AiPlatform = {
     meta: {
         displayName: 'Kimi',
         submitMode: 'enter',
-        domainRegex: '^https://(kimi\\.moonshot\\.cn|kimi\\.com)(/chat(/[a-zA0-9]+)?)?/?$',
+        domainRegex: '^https://(kimi\\.moonshot\\.cn|kimi\\.com)(/.*)?$',
         imageWaitTime: 1000
     }
 }

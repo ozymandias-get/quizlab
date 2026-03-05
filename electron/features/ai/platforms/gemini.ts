@@ -13,6 +13,6 @@ export default {
     meta: {
         displayName: 'Gemini',
         submitMode: 'mixed',
-        domainRegex: '^https://gemini\\.google\\.com(/app(/.*)?)?/?(\\?.*)?$'
+        domainRegex: '^https://gemini\\.google\\.com(/.*)?$'
     }
 }

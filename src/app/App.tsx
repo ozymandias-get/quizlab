@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState } from 'react'
+﻿import React, { useState } from 'react'
 import { AnimatePresence, motion, LayoutGroup } from 'framer-motion'
 import { AiWebview } from '@features/ai'
 import BottomBar from '@ui/layout/BottomBar'
@@ -67,22 +67,15 @@ const App: React.FC = () => {
         resumeLastPdf,
         getRecentReadingInfo,
         clearLastReading,
-        restoreRecentReading
+        restoreRecentReading,
+        addEmptyPdfTab,
+        activeTabInitialPage
     } = usePdfSelection()
 
     // Last reading info list for resume section
     const lastReadingInfo = getRecentReadingInfo()
-    const [initialPage, setInitialPage] = useState<number | undefined>(undefined)
 
-    const handleSelectPdfWithReset = useCallback(async () => {
-        setInitialPage(undefined)
-        await handleSelectPdf()
-    }, [handleSelectPdf])
 
-    const handlePdfDropWithReset = useCallback(async (file: File) => {
-        setInitialPage(undefined)
-        await handlePdfDrop(file)
-    }, [handlePdfDrop])
 
     // Local State
     const [isBarHovered, setIsBarHovered] = useState<boolean>(false)
@@ -116,7 +109,7 @@ const App: React.FC = () => {
                 onDrop={(e) => {
                     e.preventDefault()
                     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                        void handlePdfDropWithReset(e.dataTransfer.files[0])
+                        void handlePdfDrop(e.dataTransfer.files[0])
                     }
                 }}
             >
@@ -159,16 +152,15 @@ const App: React.FC = () => {
                                 <LeftPanel
                                     width={100}
                                     t={t}
-                                    onPdfDrop={handlePdfDropWithReset}
+                                    onPdfDrop={handlePdfDrop}
                                     pdfFile={pdfFile}
-                                    onSelectPdf={handleSelectPdfWithReset}
+                                    onSelectPdf={handleSelectPdf}
                                     onTextSelection={handleTextSelection}
                                     onResumePdf={async (path?: string) => {
                                         const target = path
                                             ? lastReadingInfo.find((item) => item.path === path)
                                             : lastReadingInfo[0]
                                         if (target) {
-                                            setInitialPage(target.page)
                                             return await resumeLastPdf(target.path)
                                         }
                                         return await resumeLastPdf(path)
@@ -176,12 +168,13 @@ const App: React.FC = () => {
                                     onClearResumePdf={(path?: string) => clearLastReading(path)}
                                     onRestoreResumePdf={(info, index) => restoreRecentReading(info, index)}
                                     lastReadingInfo={lastReadingInfo}
-                                    initialPage={initialPage}
+                                    initialPage={activeTabInitialPage}
                                     pdfTabs={pdfTabs}
                                     activePdfTabId={activePdfTabId}
                                     onSetActivePdfTab={setActivePdfTab}
                                     onClosePdfTab={closePdfTab}
                                     onRenamePdfTab={renamePdfTab}
+                                    onAddEmptyPdfTab={addEmptyPdfTab}
                                 />
                             </motion.div>
 

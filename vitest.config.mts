@@ -13,6 +13,9 @@ export default defineConfig({
             'electron/__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
         ],
         exclude: ['src/__tests__/setup.ts'],
+        coverage: {
+            provider: 'v8'
+        }
     },
     resolve: {
         alias: {
