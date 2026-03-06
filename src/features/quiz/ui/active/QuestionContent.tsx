@@ -5,6 +5,8 @@ import { CheckCircle } from 'lucide-react'
 import { cn } from '@shared/lib/uiUtils'
 import { buttonBaseClass } from '@ui/components/button'
 
+/* eslint-disable react/no-danger -- formattedContent is sanitized before rendering */
+
 interface QuestionContentProps {
     formattedContent: { text: string; options: string[] };
     selectedAnswer?: number;
@@ -18,6 +20,8 @@ export const QuestionContent: React.FC<QuestionContentProps> = ({
 }) => {
     return (
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
+            {/* formattedContent is sanitized before reaching this component. */}
+            {/* eslint-disable-next-line react/no-danger */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -52,6 +56,8 @@ export const QuestionContent: React.FC<QuestionContentProps> = ({
                             </span>
 
                             {/* Option Text */}
+                            {/* formattedContent options are sanitized before reaching this component. */}
+                            {/* eslint-disable-next-line react/no-danger */}
                             <div
                                 className={`text-sm md:text-base leading-relaxed pt-0.5 flex-1 ${isSelected ? 'text-white font-medium' : 'text-white/70'}`}
                                 dangerouslySetInnerHTML={{ __html: optionHtml }}

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { FileText, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useLanguage } from '@app/providers/LanguageContext'
 import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
+import { getAiIcon } from '@ui/components/Icons'
 
 interface PdfTabStripProps {
     tabs: PdfTab[];
@@ -72,6 +73,13 @@ function PdfTabStrip({
     const getTabLabel = useCallback((tab: PdfTab) => {
         return tab.title || tab.file?.name || tr('new_tab_title', 'Yeni Sekme')
     }, [tr])
+
+    const getTabIcon = useCallback((tab: PdfTab) => {
+        if (tab.kind === 'drive') {
+            return getAiIcon('gdrive') || <FileText className="w-3.5 h-3.5 shrink-0 text-white/85" />
+        }
+        return <FileText className="w-3.5 h-3.5 shrink-0 text-white/85" />
+    }, [])
 
     const beginRename = useCallback((tab: PdfTab) => {
         setContextMenu(null)
@@ -180,7 +188,9 @@ function PdfTabStrip({
                             onMouseLeave={() => setHoveredTabId((prev) => (prev === tab.id ? null : prev))}
                             title={label}
                         >
-                            <FileText className="w-3.5 h-3.5 shrink-0 text-white/85" />
+                            <span className="flex items-center [&>svg]:w-3.5 [&>svg]:h-3.5 shrink-0 text-white/85">
+                                {getTabIcon(tab)}
+                            </span>
 
                             {isEditing ? (
                                 <input
@@ -266,7 +276,9 @@ function PdfTabStrip({
                                             onContextMenu={(event) => handleOpenContextMenu(event, tab.id)}
                                             title={label}
                                         >
-                                            <FileText className="w-3.5 h-3.5 shrink-0 text-white/85" />
+                                            <span className="flex items-center [&>svg]:w-3.5 [&>svg]:h-3.5 shrink-0 text-white/85">
+                                                {getTabIcon(tab)}
+                                            </span>
                                             <span className="min-w-0 flex-1 truncate text-[11px] text-white/85">{label}</span>
                                             <span
                                                 role="button"

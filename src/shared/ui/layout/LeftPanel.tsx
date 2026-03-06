@@ -25,12 +25,15 @@ interface LeftPanelProps {
     onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;
     lastReadingInfo?: LastReadingInfo[] | null;
     initialPage?: number;
+    activePdfTab?: PdfTab | null;
     pdfTabs?: PdfTab[];
     activePdfTabId?: string;
     onSetActivePdfTab?: (tabId: string) => void;
     onClosePdfTab?: (tabId: string) => void;
     onRenamePdfTab?: (tabId: string, title?: string) => void;
     onAddEmptyPdfTab?: () => void;
+    onOpenGoogleDrive?: () => void;
+    isInteractionBlocked?: boolean;
 }
 
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
@@ -60,12 +63,15 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     onRestoreResumePdf,
     lastReadingInfo,
     initialPage,
+    activePdfTab,
     pdfTabs = [],
     activePdfTabId = '',
     onSetActivePdfTab,
     onClosePdfTab,
     onRenamePdfTab,
-    onAddEmptyPdfTab
+    onAddEmptyPdfTab,
+    onOpenGoogleDrive,
+    isInteractionBlocked
 }) => {
     const { t } = useLanguage()
 
@@ -111,6 +117,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                                         <PdfViewer
                                             key={`${activePdfTabId}-${pdfFile?.streamUrl || 'empty'}`}
                                             pdfFile={pdfFile}
+                                            activePdfTab={activePdfTab}
                                             onSelectPdf={onSelectPdf}
                                             onTextSelection={onTextSelection}
                                             t={t}
@@ -119,6 +126,8 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                                             onClearResumePdf={onClearResumePdf}
                                             onRestoreResumePdf={onRestoreResumePdf}
                                             lastReadingInfo={lastReadingInfo}
+                                            onOpenGoogleDrive={onOpenGoogleDrive}
+                                            isInteractionBlocked={isInteractionBlocked}
                                         />
                                     </Worker>
                                 </ErrorBoundary>
@@ -132,3 +141,9 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
 }
 
 export default memo(LeftPanel)
+
+
+
+
+
+

@@ -1,16 +1,25 @@
 ﻿import React, { useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { useLanguage, useToast } from '@app/providers'
+import { useAppTools, useLanguage, useToast } from '@app/providers'
 import type { GeminiWebSessionActionResult } from '@shared-core/types'
+import { GOOGLE_WEB_SESSION_APPS } from '@shared-core/constants/google-ai-web-apps'
 import {
     useGeminiWebStatus,
-    useGeminiWebOpenLogin,
     useGeminiWebCheckNow,
     useGeminiWebReauth,
     useGeminiWebResetProfile,
     useGeminiWebSetEnabled
 } from '@platform/electron/api/useGeminiWebSessionApi'
-import { CheckIcon, XIcon, LoaderIcon, GoogleIcon, RefreshIcon, GeminiIcon, InfoIcon } from '@ui/components/Icons'
+import {
+    CheckIcon,
+    XIcon,
+    LoaderIcon,
+    GoogleIcon,
+    RefreshIcon,
+    GeminiIcon,
+    InfoIcon,
+    getAiIcon
+} from '@ui/components/Icons'
 
 /**
  * Gemini Web Session Settings Tab
@@ -36,7 +45,7 @@ const GeminiWebSessionTab = React.memo(() => {
         }
     })
 
-    const { mutateAsync: openWebLogin, isPending: isOpeningWebLogin } = useGeminiWebOpenLogin()
+    const { isGeminiWebLoginInProgress, startGeminiWebLogin } = useAppTools()
     const { mutateAsync: checkWebNow, isPending: isCheckingWebNow } = useGeminiWebCheckNow()
     const { mutateAsync: reauthWeb, isPending: isReauthingWeb } = useGeminiWebReauth()
     const { mutateAsync: resetWebProfile, isPending: isResettingWebProfile } = useGeminiWebResetProfile()
@@ -83,6 +92,8 @@ const GeminiWebSessionTab = React.memo(() => {
         t('gws_mitigation_no_shared_machine')
     ]), [t])
 
+    const supportedApps = useMemo(() => GOOGLE_WEB_SESSION_APPS, [])
+
     const reasonText = useMemo(() => {
         const reasonKey = `gws_reason_${webSessionStatus.reason}`
         const translated = t(reasonKey)
@@ -107,8 +118,8 @@ const GeminiWebSessionTab = React.memo(() => {
     }, [refetchWebSession, showError])
 
     const handleOpenWebLogin = useCallback(
-        () => runSessionAction(openWebLogin),
-        [openWebLogin, runSessionAction]
+        () => runSessionAction(startGeminiWebLogin),
+        [runSessionAction, startGeminiWebLogin]
     )
 
     const handleCheckWebNow = useCallback(
@@ -211,14 +222,51 @@ const GeminiWebSessionTab = React.memo(() => {
                             </button>
                         </div>
 
+                        <div className="mt-4">
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-white/55">
+                                    {t('gws_supported_apps_title')}
+                                </p>
+                                <span className="text-[11px] text-white/35">
+                                    {t('gws_supported_apps_desc')}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2.5">
+                                {supportedApps.map((app) => (
+                                    <div
+                                        key={app.id}
+                                        className="rounded-2xl border border-white/10 bg-black/20 px-3 py-3"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10"
+                                                style={{ backgroundColor: `${app.color}22`, color: app.color }}
+                                            >
+                                                {getAiIcon(app.icon) || <GeminiIcon className="w-5 h-5" />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-white/90 truncate">{app.name}</p>
+                                                <p className="text-[11px] text-white/45 truncate">{app.hostname}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <p className="mt-2 text-[11px] text-white/40 leading-relaxed">
+                                {t('gws_shared_account_note')}
+                            </p>
+                        </div>
+
                         <div className="flex flex-wrap items-center gap-2 mt-3">
                             <button
                                 onClick={handleOpenWebLogin}
-                                disabled={!webSessionStatus.webEnabled || isOpeningWebLogin}
+                                disabled={!webSessionStatus.webEnabled || isGeminiWebLoginInProgress}
                                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm
                                     bg-white text-gray-800 hover:bg-gray-100 transition-all disabled:opacity-50 shadow-lg"
                             >
-                                {isOpeningWebLogin ? (
+                                {isGeminiWebLoginInProgress ? (
                                     <LoaderIcon className="w-4 h-4 text-gray-600" />
                                 ) : (
                                     <GoogleIcon className="w-4 h-4" />

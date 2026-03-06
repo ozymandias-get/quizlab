@@ -6,11 +6,24 @@ import type { ProbeOutcome } from './stateMachine'
 import {
     DOM_SNAPSHOT_SCRIPT,
     EMPTY_DOM_SNAPSHOT,
-    GEMINI_HOME_URL,
+    GOOGLE_AI_WEB_APP_URLS,
     GOOGLE_SIGNIN_URL
 } from './constants'
 
 const UNKNOWN_OUTCOME: ProbeOutcome = { kind: 'unknown', healthy: false }
+const SESSION_COOKIE_SOURCE_URLS = Array.from(new Set([
+    ...GOOGLE_AI_WEB_APP_URLS,
+    GOOGLE_SIGNIN_URL,
+    'https://www.google.com',
+    'https://myaccount.google.com'
+]))
+const POST_LOGIN_HYDRATION_SETTLE_MS = 1_200
+const POST_LOGIN_HYDRATION_NAV_TIMEOUT_MS = 15_000
+const POST_LOGIN_HOSTS = new Set([
+    'accounts.google.com',
+    'myaccount.google.com',
+    'www.google.com'
+])
 
 type ExternalSameSite = 'Strict' | 'Lax' | 'None' | undefined
 
@@ -125,6 +138,87 @@ function computeAccountHash(cookies: ExternalBrowserCookie[]): string | null {
     return null
 }
 
+export function hasCompletedGoogleLogin(
+    currentUrl: string,
+    snapshot: { hasLoginForm: boolean; hasSignInText: boolean; hasChallengeText: boolean },
+    cookies: ExternalBrowserCookie[]
+): boolean {
+    const hostname = getHostname(currentUrl)
+    if (!hostname || !POST_LOGIN_HOSTS.has(hostname)) return false
+    if (snapshot.hasLoginForm || snapshot.hasChallengeText) return false
+
+    const hasSessionCookies = computeAccountHash(cookies) !== null
+    if (!hasSessionCookies) return false
+
+    // My Account and generic Google landings often contain "sign in" text
+    // in nav/help/footer chrome even for authenticated users.
+    if (hostname !== 'accounts.google.com') return true
+
+    return !snapshot.hasSignInText
+}
+
+function mapContextCookies(cookiesRaw: any[]): ExternalBrowserCookie[] {
+    return cookiesRaw.map((cookie: any) => ({
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path || '/',
+        secure: !!cookie.secure,
+        httpOnly: !!cookie.httpOnly,
+        sameSite: cookie.sameSite,
+        expires: typeof cookie.expires === 'number' ? cookie.expires : undefined
+    }))
+}
+
+async function collectSessionCookies(context: any): Promise<ExternalBrowserCookie[]> {
+    const cookiesRaw = await context.cookies(SESSION_COOKIE_SOURCE_URLS)
+    return mapContextCookies(cookiesRaw)
+}
+
+async function hydrateGoogleAiAppSession(
+    page: any,
+    context: any,
+    startedAt: number,
+    timeoutMs: number
+): Promise<{ cookies: ExternalBrowserCookie[]; outcome: ProbeOutcome }> {
+    let lastCookies = await collectSessionCookies(context).catch(() => [])
+    let lastOutcome: ProbeOutcome = UNKNOWN_OUTCOME
+
+    for (const targetUrl of GOOGLE_AI_WEB_APP_URLS) {
+        const remainingMs = timeoutMs > 0 ? timeoutMs - (Date.now() - startedAt) : POST_LOGIN_HYDRATION_NAV_TIMEOUT_MS
+        if (timeoutMs > 0 && remainingMs <= 0) break
+
+        const navTimeoutMs = Math.max(
+            1_000,
+            Math.min(remainingMs, POST_LOGIN_HYDRATION_NAV_TIMEOUT_MS)
+        )
+
+        await page.goto(targetUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: navTimeoutMs
+        }).catch(() => {})
+
+        await new Promise(resolve => setTimeout(resolve, POST_LOGIN_HYDRATION_SETTLE_MS))
+
+        const currentUrl = page.url()
+        const snapshot = await page.evaluate(DOM_SNAPSHOT_SCRIPT).catch(() => EMPTY_DOM_SNAPSHOT)
+        lastOutcome = classifyAuthProbe(currentUrl, snapshot, false)
+        lastCookies = await collectSessionCookies(context).catch(() => lastCookies)
+
+        if (lastOutcome.healthy) {
+            return {
+                cookies: lastCookies,
+                outcome: lastOutcome
+            }
+        }
+    }
+
+    return {
+        cookies: lastCookies,
+        outcome: lastOutcome
+    }
+}
+
 export async function runPlaywrightLogin({
     profileDir,
     timeoutMs
@@ -215,37 +309,23 @@ async function runPlaywrightSessionFlow({
             const snapshot = await activePage.evaluate(DOM_SNAPSHOT_SCRIPT).catch(() => EMPTY_DOM_SNAPSHOT)
             lastOutcome = classifyAuthProbe(currentUrl, snapshot, false)
 
-            // Start on Google login page, then move to Gemini after login completes.
-            // If we're still on accounts host but sign-in controls are gone, nudge to Gemini.
-            if (
-                getHostname(currentUrl) === 'accounts.google.com' &&
-                !snapshot.hasLoginForm &&
-                !snapshot.hasSignInText &&
-                !snapshot.hasChallengeText
-            ) {
-                await activePage.goto(GEMINI_HOME_URL, { waitUntil: 'domcontentloaded' }).catch(() => { })
+            const cookies = await collectSessionCookies(context)
+
+            if (hasCompletedGoogleLogin(currentUrl, snapshot, cookies)) {
+                const hydrated = await hydrateGoogleAiAppSession(activePage, context, startedAt, timeoutMs)
+                const hydratedCookies = hydrated.cookies.length > 0 ? hydrated.cookies : cookies
+                return {
+                    success: true,
+                    timedOut: false,
+                    outcome: hydrated.outcome.healthy ? hydrated.outcome : { kind: 'authenticated', healthy: true },
+                    cookies: hydratedCookies,
+                    accountHash: computeAccountHash(hydratedCookies)
+                }
             }
 
             if (lastOutcome.healthy) {
                 streak += 1
                 if (streak >= successStreakTarget) {
-                    const cookiesRaw = await context.cookies([
-                        'https://gemini.google.com',
-                        'https://accounts.google.com',
-                        'https://www.google.com'
-                    ])
-
-                    const cookies: ExternalBrowserCookie[] = cookiesRaw.map((cookie: any) => ({
-                        name: cookie.name,
-                        value: cookie.value,
-                        domain: cookie.domain,
-                        path: cookie.path || '/',
-                        secure: !!cookie.secure,
-                        httpOnly: !!cookie.httpOnly,
-                        sameSite: cookie.sameSite,
-                        expires: typeof cookie.expires === 'number' ? cookie.expires : undefined
-                    }))
-
                     return {
                         success: true,
                         timedOut: false,
@@ -261,15 +341,15 @@ async function runPlaywrightSessionFlow({
             await new Promise(resolve => setTimeout(resolve, 1500))
         }
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
         return buildFailureResult(
-            message.includes('Target page, context or browser has been closed')
+            (error instanceof Error ? error.message : String(error)).includes('Target page, context or browser has been closed')
                 ? 'error_login_cancelled'
                 : 'error_login_failed'
         )
     } finally {
         if (context) {
-            await context.close().catch(() => { })
+            await context.close()
+                .catch(() => {})
         }
     }
 }

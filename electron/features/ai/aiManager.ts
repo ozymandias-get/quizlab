@@ -14,6 +14,9 @@ import deepseek from './platforms/deepseek'
 import qwen from './platforms/qwen'
 import kimi from './platforms/kimi'
 import gemini from './platforms/gemini'
+import notebooklm from './platforms/notebooklm'
+import aistudio from './platforms/aistudio'
+import youtube from './platforms/youtube'
 
 export type { SubmitMode, AiSelectorConfig, AiPlatformMeta, AiPlatform, EnhancedAiPlatform, AiRegistry, InactivePlatforms }
 
@@ -56,6 +59,9 @@ const enhancePlatform = (data: AiPlatform): EnhancedAiPlatform => {
 const platforms: AiRegistry = {
     chatgpt: enhancePlatform(chatgpt),
     gemini: enhancePlatform(gemini),
+    notebooklm: enhancePlatform(notebooklm),
+    aistudio: enhancePlatform(aistudio),
+    youtube: enhancePlatform(youtube),
     deepseek: enhancePlatform(deepseek),
     qwen: enhancePlatform(qwen),
     claude: enhancePlatform(claude),

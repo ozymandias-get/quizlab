@@ -1,8 +1,10 @@
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps'
+
 export default {
     id: 'gemini',
     name: 'Gemini',
     url: 'https://gemini.google.com/app',
-    partition: 'persist:gemini_web_profile',
+    partition: GOOGLE_AI_WEB_SESSION_PARTITION,
     icon: 'gemini',
     color: '#f9ab00',
     selectors: {

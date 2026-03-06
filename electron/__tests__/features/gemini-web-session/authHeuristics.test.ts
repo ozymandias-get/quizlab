@@ -41,6 +41,33 @@ describe('gemini web auth heuristics', () => {
         expect(result.healthy).toBe(true)
     })
 
+    it('classifies notebooklm notebook composer as authenticated', () => {
+        const result = classifyAuthProbe('https://notebooklm.google.com/notebook/abc123', {
+            ...emptySnapshot,
+            hasComposer: true
+        }, false)
+        expect(result.kind).toBe('authenticated')
+        expect(result.healthy).toBe(true)
+    })
+
+    it('classifies ai studio prompt composer as authenticated', () => {
+        const result = classifyAuthProbe('https://aistudio.google.com/prompts/new_chat', {
+            ...emptySnapshot,
+            hasComposer: true
+        }, false)
+        expect(result.kind).toBe('authenticated')
+        expect(result.healthy).toBe(true)
+    })
+
+    it('does not classify notebooklm home as authenticated without notebook path', () => {
+        const result = classifyAuthProbe('https://notebooklm.google.com/', {
+            ...emptySnapshot,
+            hasComposer: true
+        }, false)
+        expect(result.kind).toBe('unknown')
+        expect(result.healthy).toBe(false)
+    })
+
     it('classifies network failures as network', () => {
         const result = classifyAuthProbe('https://gemini.google.com/app', emptySnapshot, true)
         expect(result.kind).toBe('network')

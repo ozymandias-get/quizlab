@@ -8,6 +8,8 @@ import { formatQuizText } from '@shared/lib/uiUtils'
 import { Question } from '../model/types'
 import { QuizAssistantChat } from './review/QuizAssistantChat'
 
+/* eslint-disable react/no-danger -- quiz markup is sanitized by formatQuizText before rendering */
+
 interface QuizQuestionReviewProps {
     question: Question;
     index: number;
@@ -57,6 +59,8 @@ export function QuizQuestionReview({
                     {isCorrect ? <CheckCircle className="w-4 h-4" /> : isEmpty ? <AlertCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
+                    {/* formatQuizText sanitizes the generated markup before rendering. */}
+                    {/* eslint-disable-next-line react/no-danger */}
                     <div
                         className="text-sm font-medium text-white/80 line-clamp-2"
                         dangerouslySetInnerHTML={{ __html: `${idx + 1}. ${formatQuizText(q.text)}` }}
@@ -94,6 +98,8 @@ export function QuizQuestionReview({
                                             <span className={`font-bold shrink-0 ${isCorrectAnswer ? 'text-emerald-400' : isUserChoice ? 'text-red-400' : 'text-white/40'}`}>
                                                 {String.fromCharCode(65 + optIdx)}.
                                             </span>
+                                            {/* formatQuizText sanitizes the generated markup before rendering. */}
+                                            {/* eslint-disable-next-line react/no-danger */}
                                             <div
                                                 className={isCorrectAnswer ? 'text-emerald-300' : isUserChoice ? 'text-red-300' : 'text-white/60'}
                                                 dangerouslySetInnerHTML={{ __html: formatQuizText(opt) }}
@@ -110,6 +116,8 @@ export function QuizQuestionReview({
                             {q.explanation && (
                                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                                     <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">{t('quiz_explanation')}</p>
+                                    {/* formatQuizText sanitizes the generated markup before rendering. */}
+                                    {/* eslint-disable-next-line react/no-danger */}
                                     <div
                                         className="text-sm text-white/70 leading-relaxed"
                                         dangerouslySetInnerHTML={{ __html: formatQuizText(q.explanation) }}

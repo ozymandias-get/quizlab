@@ -36,10 +36,11 @@ vi.mock('@ui/layout/BottomBar/useBottomBarStyles', () => ({
 
 // Mock subcomponents
 vi.mock('@ui/layout/BottomBar/ToolsPanel', () => ({
-    ToolsPanel: ({ isOpen, handleSettingsClick }: any) => (
+    ToolsPanel: ({ isOpen, handleSettingsClick, handleGeminiWebSettingsClick }: any) => (
         <div data-testid="tools-panel">
             {isOpen ? 'Tools Open' : 'Tools Closed'}
             <button onClick={handleSettingsClick}>Settings</button>
+            <button onClick={handleGeminiWebSettingsClick}>Gemini Web Settings</button>
         </div>
     )
 }))
@@ -61,9 +62,10 @@ vi.mock('react-dom', async () => {
 })
 
 vi.mock('@features/settings/ui/SettingsModal', () => ({
-    default: ({ isOpen, onClose }: any) => isOpen ? (
+    default: ({ isOpen, onClose, initialTab }: any) => isOpen ? (
         <div data-testid="settings-modal">
             Settings Modal Content
+            <span>{initialTab}</span>
             <button onClick={onClose}>Close Modal</button>
         </div>
     ) : null
@@ -159,6 +161,20 @@ describe('BottomBar Component', () => {
         await waitFor(() => {
             expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument()
         })
+    })
+
+    it('opens Gemini web settings tab from the Gemini session button', async () => {
+        render(
+            <BottomBar
+                isQuizMode={false}
+                onToggleQuizMode={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByText('Gemini Web Settings'))
+
+        expect(await screen.findByTestId('settings-modal')).toBeInTheDocument()
+        expect(screen.getByText('gemini-web')).toBeInTheDocument()
     })
 })
 

@@ -15,6 +15,7 @@ import type {
     QuizSettings,
     UpdateCheckResult
 } from '@shared-core/types'
+import { GOOGLE_AI_WEB_APP_IDS } from '@shared-core/constants/google-ai-web-apps'
 
 const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
     chatgpt: {
@@ -43,6 +44,34 @@ const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
         isSite: true,
         color: '#d97706',
         submitMode: 'enter_key'
+    },
+    notebooklm: {
+        id: 'notebooklm',
+        name: 'NotebookLM',
+        displayName: 'NotebookLM',
+        url: 'https://notebooklm.google.com/',
+        icon: 'notebooklm',
+        color: '#34a853',
+        submitMode: 'mixed'
+    },
+    aistudio: {
+        id: 'aistudio',
+        name: 'AI Studio',
+        displayName: 'AI Studio',
+        url: 'https://aistudio.google.com/welcome',
+        icon: 'aistudio',
+        color: '#4285f4',
+        submitMode: 'mixed'
+    },
+    youtube: {
+        id: 'youtube',
+        name: 'YouTube',
+        displayName: 'YouTube',
+        url: 'https://www.youtube.com/',
+        icon: 'youtube',
+        isSite: true,
+        color: '#ff0033',
+        submitMode: 'mixed'
     }
 }
 
@@ -120,6 +149,13 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
             ...WEB_AI_REGISTRY,
             ...toMapRecord(customPlatforms)
         }
+
+        if (!geminiWebEnabled) {
+            for (const appId of GOOGLE_AI_WEB_APP_IDS) {
+                delete aiRegistry[appId]
+            }
+        }
+
         const allAiIds = Object.keys(aiRegistry)
 
         return {
@@ -263,3 +299,4 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         }
     }
 }
+

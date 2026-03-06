@@ -1,16 +1,18 @@
-﻿import React, { memo } from 'react'
+import React, { memo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { SettingsIcon, MagicWandIcon, SwapIcon } from '@ui/components/Icons'
 import { Brain } from 'lucide-react'
 import { useLanguage, useAppTools } from '@app/providers'
-import { ToolButton } from './ToolButton'
-import { panelVariantsVertical, panelTransition, toolListVariants } from './animations'
+import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
+import { GeminiIcon, LoaderIcon, MagicWandIcon, SettingsIcon, SwapIcon } from '@ui/components/Icons'
+import { panelTransition, panelVariantsVertical, toolListVariants } from './animations'
+import { ToolButton } from './ToolButton'
 
 interface ToolsPanelProps {
     isOpen: boolean;
     panelStyle: React.CSSProperties;
     handleSettingsClick: () => void;
+    handleGeminiWebSettingsClick: () => void;
     toggleLayoutSwap: () => void;
     isQuizMode: boolean;
     onToggleQuizMode: () => void;
@@ -20,16 +22,51 @@ export const ToolsPanel = memo(({
     isOpen,
     panelStyle,
     handleSettingsClick,
+    handleGeminiWebSettingsClick,
     toggleLayoutSwap,
     isQuizMode,
     onToggleQuizMode
 }: ToolsPanelProps) => {
     const { t } = useLanguage()
+    const {
+        isPickerActive,
+        togglePicker,
+        isGeminiWebLoginInProgress,
+        startGeminiWebLogin
+    } = useAppTools()
+    const { data: webSessionData, isLoading: isGeminiWebStatusLoading } = useGeminiWebStatus()
 
-    const { isPickerActive, togglePicker } = useAppTools()
     const toolbarIconStyle: React.CSSProperties = {
         width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
         height: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+    }
+
+    const isGeminiWebEnabled = !!webSessionData?.featureEnabled && !!webSessionData?.enabled
+    const geminiWebState = webSessionData?.state ?? 'uninitialized'
+    const needsGeminiWebLogin = geminiWebState === 'auth_required' || geminiWebState === 'reauth_required'
+    const isGeminiWebDegraded = geminiWebState === 'degraded' || geminiWebState === 'uninitialized'
+    const geminiWebActiveColor = needsGeminiWebLogin
+        ? 'rgba(239,68,68,0.45)'
+        : isGeminiWebDegraded || isGeminiWebStatusLoading
+            ? 'rgba(245,158,11,0.42)'
+            : 'rgba(16,185,129,0.4)'
+    const geminiWebTitle = isGeminiWebLoginInProgress
+        ? t('gws_toolbar_checking')
+        : needsGeminiWebLogin
+            ? geminiWebState === 'reauth_required'
+                ? t('gws_toolbar_reauth_required')
+                : t('gws_toolbar_auth_required')
+            : isGeminiWebDegraded || isGeminiWebStatusLoading
+                ? t('gws_toolbar_degraded')
+                : t('gws_toolbar_authenticated')
+
+    const handleGeminiWebClick = () => {
+        if (needsGeminiWebLogin) {
+            void startGeminiWebLogin()
+            return
+        }
+
+        handleGeminiWebSettingsClick()
     }
 
     return (
@@ -52,9 +89,30 @@ export const ToolsPanel = memo(({
                         animate="visible"
                         exit="exit"
                     >
-                        <ToolButton id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS} delay={0.03} onClick={handleSettingsClick} title={t('settings')}>
+                        <ToolButton
+                            id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS}
+                            delay={0.03}
+                            onClick={handleSettingsClick}
+                            title={t('settings')}
+                        >
                             <SettingsIcon className="w-5 h-5" style={toolbarIconStyle} />
                         </ToolButton>
+
+                        {isGeminiWebEnabled && (
+                            <ToolButton
+                                delay={0.02}
+                                isActive
+                                activeColor={geminiWebActiveColor}
+                                onClick={handleGeminiWebClick}
+                                title={`${t('gws_toolbar_title')} - ${geminiWebTitle}`}
+                            >
+                                {isGeminiWebLoginInProgress ? (
+                                    <LoaderIcon className="w-5 h-5" />
+                                ) : (
+                                    <GeminiIcon className="w-5 h-5" style={toolbarIconStyle} />
+                                )}
+                            </ToolButton>
+                        )}
 
                         <ToolButton
                             id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP}
@@ -76,7 +134,6 @@ export const ToolsPanel = memo(({
                             <MagicWandIcon className="w-5 h-5" style={toolbarIconStyle} />
                         </ToolButton>
 
-                        {/* Quiz Mode Button */}
                         <ToolButton
                             delay={0.12}
                             isActive={isQuizMode}
@@ -86,7 +143,6 @@ export const ToolsPanel = memo(({
                         >
                             <Brain className="w-5 h-5" style={toolbarIconStyle} />
                         </ToolButton>
-
                     </motion.div>
                 </motion.div>
             )}
@@ -95,5 +151,3 @@ export const ToolsPanel = memo(({
 })
 
 ToolsPanel.displayName = 'ToolsPanel'
-
-

@@ -1,4 +1,3 @@
-
 import { app, BrowserWindow, dialog } from 'electron'
 import {
     registerPdfScheme,
@@ -11,9 +10,7 @@ import {
 import {
     createWindow,
     createSplashWindow,
-    getSplashWindow,
-    getMainWindow,
-    isDev
+    getMainWindow
 } from './windowManager'
 import { registerGeneralHandlers, registerQuizHandlers } from './ipcHandlers'
 import { initUpdater } from '../core/updater'
@@ -26,7 +23,9 @@ if (process.platform === 'win32') {
 app.commandLine.appendSwitch('disable-features', 'StorageAccessAPI,AutofillServerCommunication')
 app.commandLine.appendSwitch('disable-site-isolation-trials')
 
-if (!isDev) {
+const allowMultiInstance = process.env.QUIZLAB_ALLOW_MULTI_INSTANCE === '1'
+
+if (!allowMultiInstance) {
     const gotTheLock = app.requestSingleInstanceLock()
     if (!gotTheLock) {
         app.quit()
@@ -46,7 +45,6 @@ if (!isDev) {
 
 registerPdfScheme()
 
-
 app.commandLine.appendSwitch('enable-gpu-rasterization')
 app.commandLine.appendSwitch('enable-zero-copy')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
@@ -56,33 +54,6 @@ app.commandLine.appendSwitch('enable-quic')
 app.commandLine.appendSwitch('high-dpi-support', '1')
 app.commandLine.appendSwitch('force-device-scale-factor', '1')
 // NOTE: `disable-features` was already set above. Do not override it here.
-
-// Background task to clean up corrupted storage without blocking startup
-async function runBackgroundCleanup() {
-    try {
-        const userDataPath = app.getPath('userData')
-        const fs = require('fs').promises
-        const path = require('path')
-
-        const filesToClean = [
-            'QuotaManager',
-            'QuotaManager-journal'
-        ]
-
-        for (const file of filesToClean) {
-            const filePath = path.join(userDataPath, file)
-            try {
-                // Use rm with force: true to safely delete only if it exists
-                await fs.rm(filePath, { force: true })
-            } catch (e) {
-                // Ignore cleanup errors
-            }
-        }
-        console.log('[Startup] Background cleanup finished')
-    } catch (e) {
-        // Ignore overall errors
-    }
-}
 
 async function initializeApp() {
     createSplashWindow()
@@ -97,12 +68,14 @@ async function initializeApp() {
     await createWindow()
 
     initUpdater()
-
-    // Start background cleanup without blocking the UI
-    runBackgroundCleanup()
 }
 
-app.whenReady().then(initializeApp)
+app.whenReady().then(() => {
+    void initializeApp().catch((error) => {
+        handleSeriousError('Startup Failure', error)
+        app.quit()
+    })
+})
 
 app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -115,37 +88,8 @@ app.on('window-all-closed', () => {
     stopPdfCleanupInterval()
     clearAllPdfPaths()
 
-    // Clear corrupted storage before exit asynchronously
-    try {
-        const userDataPath = app.getPath('userData')
-        const fs = require('fs').promises
-        const path = require('path')
-
-        // Remove problematic storage files
-        const filesToClean = [
-            'QuotaManager',
-            'QuotaManager-journal',
-            'DIPS',
-            'DIPS-journal'
-        ]
-
-        Promise.allSettled(filesToClean.map(async (file: string) => {
-            const filePath = path.join(userDataPath, file)
-            try {
-                await fs.rm(filePath, { force: true })
-            } catch (e) {
-                // Ignore cleanup errors
-            }
-        })).finally(() => {
-            if (process.platform !== 'darwin') {
-                app.quit()
-            }
-        })
-    } catch (e) {
-        // Ignore cleanup errors and quit as fallback
-        if (process.platform !== 'darwin') {
-            app.quit()
-        }
+    if (process.platform !== 'darwin') {
+        app.quit()
     }
 })
 

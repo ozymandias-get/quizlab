@@ -1,7 +1,9 @@
 {
     "extends": "./tsconfig.node.json",
     "compilerOptions": {
-        "noEmit": true
+        "noEmit": true,
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext"
     },
     "include": [
         "electron/**/*",

@@ -1,4 +1,5 @@
 import type { ProbeOutcome, ProbeKind } from './stateMachine'
+import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps'
 
 const CHALLENGE_HOSTS = new Set([
     'challenge.google.com',
@@ -8,6 +9,9 @@ const CHALLENGE_HOSTS = new Set([
 const LOGIN_HOSTS = new Set([
     'accounts.google.com'
 ])
+
+const APP_HOSTS = new Set(GOOGLE_AI_WEB_APPS.map((app) => app.hostname))
+const APP_BY_HOST = new Map(GOOGLE_AI_WEB_APPS.map((app) => [app.hostname, app]))
 
 export interface DomProbeSnapshot {
     hasLoginForm: boolean;
@@ -57,17 +61,18 @@ export function classifyAuthProbe(rawUrl: string, snapshot: DomProbeSnapshot, ha
 
     if (snapshot.hasChallengeText) return buildOutcome('challenge')
 
-    const inGeminiHost = hostname.endsWith('gemini.google.com') || hostname === 'gemini.google.com'
+    const matchedApp = APP_BY_HOST.get(hostname)
+    const inGoogleAiWebApp = APP_HOSTS.has(hostname)
 
-    // If Gemini host still contains sign-in affordances, treat as unauthenticated.
-    if (inGeminiHost && (snapshot.hasLoginForm || snapshot.hasSignInText)) {
+    // If app host still contains sign-in affordances, treat as unauthenticated.
+    if (inGoogleAiWebApp && (snapshot.hasLoginForm || snapshot.hasSignInText)) {
         return buildOutcome('login_redirect')
     }
 
     // Strict success condition to avoid false-healthy detections that close login too early.
     if (
-        inGeminiHost &&
-        pathname.startsWith('/app') &&
+        matchedApp &&
+        matchedApp.healthPathPrefixes.some((prefix) => pathname.startsWith(prefix)) &&
         snapshot.hasComposer &&
         !snapshot.hasLoginForm &&
         !snapshot.hasSignInText

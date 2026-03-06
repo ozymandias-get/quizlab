@@ -145,6 +145,10 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         STORAGE_KEYS.ENABLED_MODELS,
         GET_ALL_AI_IDS
     )
+    const [bootstrappedSiteIds, setBootstrappedSiteIds] = useLocalStorage<string[]>(
+        STORAGE_KEYS.BUILT_IN_SITE_BOOTSTRAP,
+        []
+    )
     const [defaultAiModel, setDefaultAiModel] = useLocalStorageString(
         STORAGE_KEYS.DEFAULT_AI_MODEL,
         DEFAULT_AI_ID,
@@ -318,12 +322,21 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         const fallbackModelId = validIds.has(defaultAiModel)
             ? defaultAiModel
             : (GET_ALL_AI_IDS[0] || DEFAULT_AI_ID)
+        const builtInSiteIds = Object.values(AI_REGISTRY)
+            .filter((site) => site.isSite && !site.isCustom)
+            .map((site) => site.id)
+        const pendingBootstraps = builtInSiteIds.filter((id) => !bootstrappedSiteIds.includes(id))
 
         const filteredEnabled = enabledModels.filter((id) => validIds.has(id))
-        const nextEnabled = filteredEnabled.length > 0 ? filteredEnabled : [fallbackModelId]
+        const seededEnabled = [...filteredEnabled, ...pendingBootstraps.filter((id) => !filteredEnabled.includes(id))]
+        const nextEnabled = seededEnabled.length > 0 ? seededEnabled : [fallbackModelId]
 
         if (!areStringArraysEqual(nextEnabled, enabledModels)) {
             setEnabledModels(nextEnabled)
+        }
+
+        if (pendingBootstraps.length > 0) {
+            setBootstrappedSiteIds([...bootstrappedSiteIds, ...pendingBootstraps])
         }
 
         if (!validIds.has(defaultAiModel)) {
@@ -338,9 +351,11 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         GET_ALL_AI_IDS,
         DEFAULT_AI_ID,
         enabledModels,
+        bootstrappedSiteIds,
         defaultAiModel,
         lastSelectedAI,
         setEnabledModels,
+        setBootstrappedSiteIds,
         setDefaultAiModel,
         setLastSelectedAI
     ])
@@ -513,3 +528,4 @@ export const useAi = () => {
     if (!context) throw new Error('useAi must be used within AiProvider')
     return context
 }
+

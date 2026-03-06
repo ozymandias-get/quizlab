@@ -1,710 +1,356 @@
-# 🧪 QuizLab Reader - AI-Powered PDF Study Tool & Quiz Generator
+# QuizLab Reader: AI PDF Reader, Quiz Generator, and Study Workspace
 
 <p align="center">
-  <img src="docs/images/app-logo.png" alt="QuizLab Reader Logo" width="120" />
+  <img src="resources/icon.png" alt="QuizLab Reader icon" width="120" />
 </p>
 
 <p align="center">
-  <strong>The Ultimate Desktop Study Companion for Medical Students & Professionals</strong><br/>
-  <em>Transform your PDF textbooks into interactive quizzes with Google Gemini AI</em>
+  <strong>QuizLab Reader is an AI-powered PDF reader for active recall, quiz generation, and focused study workflows.</strong>
 </p>
 
 <p align="center">
-  <a href="README_TR.md">
-    <img src="https://img.shields.io/badge/lang-Turkish-red.svg?style=flat-square" alt="Turkish" />
-  </a>
-  <img src="https://img.shields.io/badge/version-2.2.0-blue.svg?style=flat-square" alt="Version" />
-  <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License" />
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Platform" />
-  <img src="https://img.shields.io/badge/AI-Gemini%20%7C%20ChatGPT%20%7C%20Claude-4285F4?style=flat-square" alt="AI Support" />
+  <a href="README_TR.md">Turkce README</a> |
+  <a href="https://github.com/ozymandias-get/quizlab/releases">Latest Release</a> |
+  <a href="CONTRIBUTING.md">Contributing</a> |
+  <a href="SECURITY.md">Security</a>
 </p>
 
 <p align="center">
-  <a href="#-why-quizlab">Why QuizLab?</a> •
-  <a href="#-core-features">Features</a> •
-  <a href="#-installation">Installation</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-tech-stack">Tech Stack</a> •
-  <a href="#-architecture">Architecture</a>
+  <img src="https://img.shields.io/badge/version-2.2.0-blue.svg?style=flat-square" alt="Version 2.2.0" />
+  <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Windows macOS Linux" />
+  <img src="https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Electron React TypeScript" />
 </p>
 
----
+## Overview
 
-## 📖 Table of Contents
+QuizLab Reader is a cross-platform desktop app that combines a PDF study reader, AI web workspace, and interactive quiz generator in a single Electron application. It is built for medical students, exam candidates, and heavy PDF readers who want to turn passive reading into active recall.
 
-- [Overview](#-overview)
-- [Why QuizLab?](#-why-quizlab)
-- [Core Features](#-core-features)
-- [Screenshots](#-screenshots)
-- [Installation Guide](#-installation-guide)
-- [Quick Start](#-quick-start)
-- [Usage Guide](#-usage-guide)
-- [Tech Stack](#-tech-stack)
-- [Architecture](#-architecture)
-- [Security](#-security)
-- [Configuration](#-configuration)
-- [API Reference](#-api-reference)
-- [Contributing](#-contributing)
-- [License](#-license)
+Instead of switching between a PDF app, browser tabs, notes, and quiz tools, QuizLab keeps the full study loop in one place:
 
----
+- Open and manage PDF tabs
+- Select text and send it to AI instantly
+- Generate quizzes from the current PDF or selection
+- Review answers, explanations, and weak areas
+- Keep your AI sessions and local study data on your machine
 
-## 🎯 Overview
+## Why QuizLab Reader
 
-**QuizLab Reader** is an open-source, AI-powered desktop application designed specifically for **medical students, competitive exam candidates, and lifelong learners**. Unlike traditional PDF viewers, QuizLab combines a robust PDF reader with advanced AI capabilities to create an interactive study environment.
+QuizLab is designed around real study workflows, not generic chat UI.
 
-### What Makes QuizLab Unique?
+- AI PDF reader: read, search, navigate, and inspect documents without leaving context
+- Quiz generator for study and exam prep: turn PDF content into active-recall questions
+- Split-screen desktop workspace: PDF on one side, AI on the other
+- Local-first Electron app: your files stay local and AI access happens through your own accounts
+- Multi-platform AI support: Gemini, ChatGPT, Claude, DeepSeek, Qwen, Kimi, NotebookLM, and AI Studio
 
-- **Active Recall Training**: Convert passive reading into active learning with AI-generated quizzes
-- **Split-Screen Workspace**: Read PDFs on one side, chat with AI on the other
-- **Context-Aware AI**: Send selected text directly to AI for explanation or quiz generation
-- **Multi-Platform AI Support**: Works with Google Gemini, ChatGPT, Claude, DeepSeek, and more
-- **Privacy-First**: All data stays local; no cloud storage of your documents
+## Core Features
 
-### Perfect For:
+### Split-screen PDF and AI workspace
 
-- 📚 Medical students preparing for board exams (USMLE, TUS, etc.)
-- 🎓 University students with heavy reading materials
-- 💼 Professionals studying for certifications
-- 🧠 Anyone using active recall for learning
-- 📝 Users who want to create flashcards from PDFs
+- Multi-tab PDF reading
+- Drag and drop PDF opening
+- Page navigation, zoom, search, and text selection
+- Persistent reading state for recent documents
+- Instant send-to-AI actions from selected text
 
----
+### AI-powered quiz generation
 
-## 💡 Why QuizLab?
+QuizLab includes a structured quiz flow instead of a plain prompt box.
 
-### The Problem with Traditional Study Methods
+- Multiple choice questions
+- Negative questions
+- Statement-based questions
+- Ordering questions
+- Fill-in-the-blank questions
+- Matching questions
+- Clinical reasoning style prompts
+- Adjustable difficulty, question count, language, and focus topic
 
-| Traditional Method | Limitation | QuizLab Solution |
-|-------------------|------------|------------------|
-| Passive reading | Low retention | Active recall quizzes |
-| Switching apps | Context loss | Split-screen integration |
-| Manual flashcards | Time-consuming | AI auto-generation |
-| Generic AI chat | No PDF context | Context-aware prompts |
+### AI webview workspace
 
-### Key Benefits
+Built-in AI registry currently includes:
 
-1. **🧠 Evidence-Based Learning**: Uses active recall and spaced repetition principles
-2. **⚡ Workflow Integration**: Study without leaving your PDF
-3. **🎯 Medical-Grade Questions**: AI persona specifically tuned for medical board exams
-4. **🔒 Privacy**: Your documents never leave your computer
-5. **💰 Free & Open Source**: No subscriptions, no limits
+- ChatGPT
+- Gemini
+- NotebookLM
+- AI Studio
+- YouTube
+- Claude
+- DeepSeek
+- Qwen
+- Kimi
 
----
+The app also supports custom AI or website entries, plus selector-based automation for web UIs that need custom input or send button targeting.
 
-## ✨ Core Features
+### AI home page and pinned tab workflow
 
-### 📖 Intelligent Split-Screen Workspace
+The current app includes a dedicated AI home page and improved tab management:
 
-The heart of QuizLab is its split-screen design:
+- Home page for open tabs, built-in AI models, and custom sites
+- Pinned AI tabs restored on startup
+- Cleaner startup behavior with fewer unnecessary webviews
+- Grid-based model ordering
+- Automatic navigation back to the AI home page when no session tab is active
 
-- **Left Panel**: High-performance PDF viewer with text selection
-- **Right Panel**: AI chat interface (Gemini, ChatGPT, Claude, etc.)
-- **Center Hub**: Quick access toolbar for screenshots and quiz generation
-- **Instant Context Transfer**: Select text in PDF → Send to AI with one click
+### Gemini web session tools
 
-**Features:**
-- Multi-tab PDF support
-- Drag-and-drop file opening
-- Page navigation and search
-- Zoom and rotation controls
-- Text highlighting
+QuizLab includes a dedicated Gemini web session management area for Google-backed surfaces.
 
-### 🧠 Advanced Quiz Generator
+- Session status monitoring
+- Manual re-check and re-auth flows
+- Shared Google sign-in experience for Gemini-family surfaces
+- Support for Gemini, NotebookLM, AI Studio, and related Google web surfaces
 
-Transform any PDF content into interactive quizzes:
+### Screenshot to AI workflow
 
-**Question Types:**
-- ✅ Multiple Choice (Classic)
-- ❌ Negative Questions ("Which is NOT...")
-- 🧩 Statement-Based (True/False with reasoning)
-- 📋 Ordering Questions (Step sequencing)
-- 🔍 Fill-in-the-Blank
-- 🧠 Clinical Reasoning (Complex cases)
-- 🔗 Matching Questions
+- Full-page capture
+- Cropped capture
+- Quick handoff to the active AI session
+- Useful for diagrams, figures, and non-copyable PDF content
 
-**Customization Options:**
-- **Difficulty**: Easy (Pre-clinical) | Medium (Clerkship) | Hard (Specialist)
-- **Question Count**: 1-30 questions per generation
-- **Style**: Mixed or specific question types
-- **Focus Topic**: Narrow down to specific subjects
-- **Language**: English or Turkish
+### Appearance and study UX
 
-**Medical Board Examiner Persona:**
-The AI acts as a senior medical board examiner, creating questions that:
-- Require clinical reasoning, not just memorization
-- Include realistic patient vignettes (70% of questions)
-- Have high-quality distractors (plausible wrong answers)
-- Test cause-effect relationships
+- Adjustable bottom bar scale and opacity
+- Layout swap support
+- Animated or solid backgrounds
+- Custom selection highlight color
+- Guided onboarding tutorial
+- English and Turkish localization
 
-### 🤖 Multi-Platform AI Integration
-
-**Built-in AI Platforms:**
-
-| Platform | Type | Submit Mode | Special Features |
-|----------|------|-------------|------------------|
-| **Google Gemini** | Web + CLI | Mixed | Native quiz generation, file upload |
-| **ChatGPT** | Web | Enter Key | Most popular, GPT-4 support |
-| **Claude** | Web | Enter Key | Long context window |
-| **DeepSeek** | Web | Enter Key | Code and reasoning |
-| **Qwen** | Web | Enter Key | Multilingual |
-| **Kimi** | Web | Enter Key | Chinese AI assistant |
-
-**Magic Selector Technology:**
-- Universal AI integration system
-- Automatically detects input fields and send buttons
-- Works with any web-based AI platform
-- 3-step visual picker for configuration
-- Shadow DOM support (Gemini, etc.)
-
-### 🎨 Premium Glassmorphism UI
-
-**Visual Customization:**
-- **Background Themes**: Animated gradient or solid colors
-- **Bottom Bar**: Adjustable opacity (0-100%), scale (0.7x-1.3x)
-- **Compact Mode**: Icon-only toolbar option
-- **Selection Colors**: Customizable PDF text highlight
-- **Random Mode**: Dynamic color transitions
-
-### 🏠 AI Home Page & Dynamic Tab Management
-
-**New in v2.2.0:**
-- **AI Home Page**: A premium landing page that serves as the command center for all your AI interactions.
-- **Dynamic Startup**: Only your pinned tabs load on startup, reducing memory usage and providing a clean slate.
-- **Auto-Home Navigation**: Closing all tabs or clearing the active session automatically returns you to the Home Page.
-- **2D Grid Reordering**: Order your AI models and sites exactly how you want them using an intuitive 2D drag-and-drop system.
-- **Glassmorphism Backdrop**: The Home Page features a beautiful translucent design that lets the underlying light-beam animations shine through.
-- **Category Organization**: Dedicated sections for Open Tabs, AI Models, and Custom Sites.
-
-**Animation & Effects:**
-- GPU-accelerated transitions (Framer Motion)
-- Smooth panel resizing
-- Glass panel effects with backdrop blur
-- Entrance and exit animations
-
-### 📸 Screenshot to AI
-
-Capture and analyze any content:
-
-- **Full Page Screenshot**: Send entire PDF page to AI
-- **Crop Screenshot**: Select specific area for analysis
-- **Auto-Paste**: Screenshots automatically sent to active AI
-- **Context Menu**: Right-click access in PDF viewer
-
-### 🌍 Multi-Language Support
-
-**Fully Localized:**
-- 🇺🇸 English
-- 🇹🇷 Turkish (Turkce)
-
-**Extensible:** Easy to add new languages via JSON locale files
-
-### 🔒 Privacy & Security
-
-**Local-First Architecture:**
-- ✅ All PDFs processed locally
-- ✅ No cloud upload of documents
-- ✅ AI conversations through your own accounts
-- ✅ Settings stored in local encrypted storage
-- ✅ No telemetry or tracking
-
-**Security Features:**
-- Context Bridge isolation (Electron security best practice)
-- PDF path validation (prevents directory traversal)
-- Magic bytes verification for PDF files
-- Allowlist-based file access
-
-### 🔄 Auto-Update System
-
-- Automatic version checking from GitHub releases
-- One-click update downloads
-- Update notifications with changelogs
-
-### 🎓 Interactive Tutorial
-
-- Step-by-step onboarding for new users
-- Non-intrusive highlight-based guidance
-- Feature discovery without darkening screen
-
----
-
-## 📸 Screenshots
+## Screenshots
 
 <p align="center">
-  <img src="docs/images/app-overview.png" alt="QuizLab Main Interface" width="800" />
-  <br/>
-  <em>Main Interface: PDF + AI Split Screen</em>
+  <img src="docs/images/app-overview.png" alt="QuizLab Reader PDF and AI split screen interface" width="900" />
 </p>
 
 <p align="center">
-  <img src="docs/images/quiz-creation.png" alt="Quiz Configuration" width="800" />
-  <br/>
-  <em>Quiz Generator: Customize Your Study Session</em>
+  <img src="docs/images/quiz-creation.png" alt="QuizLab Reader quiz generation settings" width="900" />
 </p>
 
 <p align="center">
-  <img src="docs/images/quiz-gameplay.png" alt="Active Quiz Mode" width="800" />
-  <br/>
-  <em>Interactive Quiz Mode with Timer</em>
+  <img src="docs/images/quiz-gameplay.png" alt="QuizLab Reader active quiz gameplay screen" width="900" />
 </p>
 
 <p align="center">
-  <img src="docs/images/quiz-results.png" alt="Quiz Results" width="800" />
-  <br/>
-  <em>Detailed Results with Explanations</em>
+  <img src="docs/images/quiz-results.png" alt="QuizLab Reader quiz results and answer review" width="900" />
 </p>
 
----
+## Installation
 
-## 📥 Installation Guide
+### System requirements
 
-### System Requirements
+| Item | Minimum | Recommended |
+| --- | --- | --- |
+| OS | Windows 10, macOS 10.15, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
+| RAM | 4 GB | 8 GB or more |
+| Storage | 500 MB | 2 GB or more |
+| Internet | Required for AI features | Stable broadband |
 
-| Requirement | Minimum | Recommended |
-|------------|---------|-------------|
-| **OS** | Windows 10, macOS 10.15, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
-| **RAM** | 4 GB | 8 GB+ |
-| **Storage** | 500 MB | 2 GB+ |
-| **Internet** | Required for AI features | Broadband |
+### Download prebuilt releases
 
-### Prerequisites
+Download the latest installer from the GitHub releases page:
 
-1. **Node.js 18+** and **npm**
-2. **Google Account** (for Gemini features)
-3. **Gemini CLI** (for quiz generation):
-   ```bash
-   npm install -g @google/gemini-cli
-   gemini login
-   ```
+[QuizLab Reader Releases](https://github.com/ozymandias-get/quizlab/releases)
 
-### Download Pre-built Binaries
+Typical artifacts:
 
-Download the latest release for your platform:
+- Windows: `QuizlabReader-Setup-<version>.exe`
+- macOS: `QuizlabReader-<version>.dmg`
+- Linux: `QuizlabReader-<version>.AppImage`
 
-- 🪟 **Windows**: `QuizlabReader-Setup-2.2.0.exe`
-- 🍎 **macOS**: `QuizlabReader-2.2.0.dmg`
-- 🐧 **Linux**: `QuizlabReader-2.2.0.AppImage`
-
-[Download Latest Release](https://github.com/ozymandias-get/quizlab/releases)
-
-### Build from Source
+### Build from source
 
 ```bash
-# Clone the repository
 git clone https://github.com/ozymandias-get/quizlab.git
 cd quizlab
-
-# Install dependencies
 npm install
-
-# Run in development mode
 npm run dev
+```
 
-# Build for production
+Production build:
+
+```bash
 npm run build
-
-# Create platform-specific installers
-npm run build:win    # Windows installer
-npm run build:mac    # macOS .dmg
-npm run build:linux  # Linux .AppImage
 ```
 
----
-
-## 🚀 Quick Start
-
-### 1. First Launch
-
-1. Open QuizLab Reader
-2. Complete the interactive tutorial (optional)
-3. Configure your preferred AI platform in Settings
-
-### 2. Open a PDF
-
-- Click "Select PDF" or drag-and-drop a file
-- PDF opens in the left panel
-- Recent files are remembered for quick access
-
-### 3. Configure AI (One-time Setup)
-
-**For Gemini (Quiz Generation):**
-1. Go to Settings → Gemini CLI
-2. Click "Open Login Terminal"
-3. Complete Google authentication
-
-**For Web AI (ChatGPT, Claude, etc.):**
-1. Go to Settings → AI Sites
-2. Select your preferred platform
-3. Login to the AI service in the right panel
-
-### 4. Generate Your First Quiz
-
-1. Select text in your PDF (optional, for context)
-2. Click the Quiz button in the center hub
-3. Configure difficulty and question count
-4. Click "Generate Quiz"
-5. Study with interactive questions!
-
-### 5. Use Magic Selector (Optional)
-
-For custom AI platforms:
-1. Go to Settings → Selectors
-2. Click "Configure Magic Selector"
-3. Follow the 3-step visual guide to select input and send button
-4. Auto-paste will now work with your AI
-
----
-
-## 📚 Usage Guide
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + O` | Open PDF |
-| `Ctrl/Cmd + S` | Full page screenshot |
-| `Shift + S` | Crop screenshot |
-| `Ctrl/Cmd + +` | Zoom in |
-| `Ctrl/Cmd + -` | Zoom out |
-| `Ctrl/Cmd + 0` | Reset zoom |
-| `Esc` | Close screenshot mode |
-
-### Quiz Mode Workflow
-
-1. **Config**: Set parameters (difficulty, count, style)
-2. **Generating**: AI processes your PDF (10-30 seconds)
-3. **Ready**: Review generated questions
-4. **Quiz**: Answer questions with timer
-5. **Results**: See score, review explanations, retry mistakes
-
-### Study Tips
-
-- **Active Recall**: Try to answer before seeing options
-- **Spaced Repetition**: Use "Retry Mistakes" feature
-- **Deep Learning**: Read explanations for wrong answers
-- **Context Switching**: Use "Regenerate" for same topic, different questions
-
----
-
-## 🛠 Tech Stack
-
-### Core Technologies
-
-| Category | Technology | Purpose |
-|----------|------------|---------|
-| **Framework** | Electron 40 | Cross-platform desktop |
-| **Frontend** | React 19 | UI components |
-| **Language** | TypeScript 5 | Type safety |
-| **Build Tool** | Vite 7 | Fast bundling |
-| **Styling** | TailwindCSS 3 | Utility-first CSS |
-| **Animations** | Framer Motion | GPU-accelerated |
-| **State** | Zustand 5 | Global state |
-| **Server State** | TanStack Query | Data fetching |
-
-### PDF Engine
-
-- **@react-pdf-viewer**: React wrapper for PDF.js
-- **PDF.js**: Mozilla's PDF rendering engine
-- **Custom Protocol**: Secure `local-pdf://` streaming
-
-### AI Integration
-
-- **Gemini CLI**: Official Google CLI tool
-- **Playwright**: Headless browser automation
-- **Custom Scripts**: Shadow DOM traversal, element picking
-
-### Testing
-
-- **Vitest**: Unit testing
-- **@testing-library/react**: Component testing
-- **jsdom**: Browser environment simulation
-
----
-
-## 🏗 Architecture
-
-### High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Electron Main Process                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  PDF Protocol │  │  Quiz CLI    │  │  AI Automation   │  │
-│  │  (Security)   │  │  (Gemini)    │  │  (Magic Selector)│  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  Config Mgr  │  │  Updater     │  │  Session Mgr     │  │
-│  │  (JSON)      │  │  (GitHub)    │  │  (Gemini Web)    │  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    IPC (Context Bridge)
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                   Electron Renderer Process                  │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │                    React App                          │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐│  │
-│  │  │  PDF     │  │  Bottom  │  │  AI Webview          ││  │
-│  │  │  Panel   │◄─┤  Hub     │─►│  (Multi-platform)    ││  │
-│  │  └──────────┘  └──────────┘  └──────────────────────┘│  │
-│  │  ┌──────────────────────────────────────────────────┐│  │
-│  │  │         Quiz Module (State Machine)              ││  │
-│  │  │   Config → Generating → Quiz → Results          ││  │
-│  │  └──────────────────────────────────────────────────┘│  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Module Structure
-
-```
-quizlab/
-├── electron/                    # Main Process
-│   ├── app/                     # Entry point, window manager
-│   ├── core/                    # Config, updater, helpers
-│   ├── features/                # Feature modules
-│   │   ├── ai/                  # AI platform registry
-│   │   ├── automation/          # Magic Selector scripts
-│   │   ├── gemini-web-session/  # Session management
-│   │   ├── pdf/                 # PDF protocol & handlers
-│   │   ├── quiz/                # Quiz CLI integration
-│   │   │   ├── gemini-runner/   # Isolated CLI runner
-│   │   │   ├── promptBuilder.ts # Medical prompts
-│   │   │   └── quizCliHandler.ts
-│   │   └── screenshot/          # Screen capture
-│   └── preload/                 # Context Bridge
-│
-├── src/                         # Renderer Process
-│   ├── app/                     # App.tsx, providers
-│   ├── features/                # Feature-based modules
-│   │   ├── ai/                  # AI webview components
-│   │   ├── pdf/                 # PDF viewer components
-│   │   ├── quiz/                # Quiz UI components
-│   │   │   ├── ui/
-│   │   │   │   ├── active/      # Quiz gameplay
-│   │   │   │   ├── config/      # Quiz settings
-│   │   │   │   └── results/     # Results & review
-│   │   │   └── hooks/
-│   │   ├── screenshot/          # Screenshot tool
-│   │   ├── settings/            # Settings modal
-│   │   └── tutorial/            # Onboarding
-│   ├── platform/                # Electron bridge
-│   └── shared/                  # Shared utilities
-│
-└── shared/                      # Cross-process types
-    ├── constants/
-    └── types/
-```
-
----
-
-## 🔐 Security
-
-### Security Best Practices
-
-1. **Context Isolation**: Renderer isolated from Node.js via preload script
-2. **IPC Validation**: All IPC messages validated in main process
-3. **Path Traversal Protection**: PDF paths normalized and validated
-4. **Content Security Policy**: Strict CSP for webviews
-5. **Secure Storage**: Config files with restricted permissions (0o600)
-
-### PDF Security
-
-```typescript
-// Path validation prevents directory traversal
-function isPathAllowed(pdfPath: string): boolean {
-    const normalized = path.normalize(pdfPath);
-    if (pdfPath.includes('\0')) return false;  // Null byte check
-    if (!path.isAbsolute(resolvedPath)) return false;
-    return true;
-}
-
-// PDF magic bytes verification
-const buffer = Buffer.alloc(5);
-await fileHandle.read(buffer, 0, 5, 0);
-if (buffer.toString() !== '%PDF-') return invalid;
-```
-
-### AI Security
-
-- No API keys stored in plain text
-- Gemini CLI uses system keychain
-- Web AI sessions isolated via partitions
-- No automatic execution of AI-generated code
-
----
-
-## ⚙️ Configuration
-
-### Settings Categories
-
-| Tab | Description | Key Options |
-|-----|-------------|-------------|
-| **Prompts** | AI prompt templates | Custom system prompts |
-| **Models** | AI platform management | Enable/disable platforms |
-| **Sites** | AI website URLs | Custom AI service URLs |
-| **Gemini CLI** | CLI configuration | Path, authentication |
-| **Gemini Web** | Web session settings | Session persistence |
-| **Selectors** | Magic Selector config | Element pickers |
-| **Appearance** | Visual customization | Colors, animations |
-| **Language** | UI language | English, Turkish |
-| **About** | App info & updates | Version checking |
-
-### Configuration Files
-
-All stored in user's app data directory:
-
-- `settings.json`: Appearance, language, AI configs
-- `quiz-settings.json`: Quiz generation preferences
-- `ai-configs.json`: Magic Selector configurations
-- `gemini-web-session.json`: Gemini web session state
-- `pdf-allowlist.json`: Allowed PDF file paths
-
----
-
-## 📡 API Reference
-
-### IPC Channels
-
-```typescript
-// PDF Operations
-SELECT_PDF: 'select-pdf'
-GET_PDF_STREAM_URL: 'get-pdf-stream-url'
-PDF_REGISTER_PATH: 'pdf:register-path'
-
-// AI Operations
-GET_AI_REGISTRY: 'get-ai-registry'
-SAVE_AI_CONFIG: 'save-ai-config'
-GET_AUTOMATION_SCRIPTS: 'get-automation-scripts'
-FORCE_PASTE: 'force-paste-in-webview'
-
-// Quiz Operations
-GENERATE_QUIZ_CLI: 'generate-quiz-cli'
-ASK_AI: 'ask-ai-assistant'
-GET_QUIZ_SETTINGS: 'get-quiz-settings'
-SAVE_QUIZ_SETTINGS: 'save-quiz-settings'
-GET_GEMINI_CLI_PATH: 'get-gemini-cli-path'
-OPEN_GEMINI_LOGIN: 'open-gemini-login'
-CHECK_GEMINI_AUTH: 'check-gemini-auth'
-GEMINI_LOGOUT: 'gemini-logout'
-
-// Gemini Web Session
-GEMINI_WEB_STATUS: 'gemini-web-status'
-GEMINI_WEB_OPEN_LOGIN: 'gemini-web-open-login'
-GEMINI_WEB_CHECK_NOW: 'gemini-web-check-now'
-GEMINI_WEB_REAUTH: 'gemini-web-reauth'
-GEMINI_WEB_RESET_PROFILE: 'gemini-web-reset-profile'
-```
-
-### Window API
-
-```typescript
-// Access via window.electronAPI
-window.electronAPI.selectPdf(options)
-window.electronAPI.quiz.generate(params)
-window.electronAPI.automation.generateAutoSendScript(config, text)
-window.electronAPI.captureScreen(rect)
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development Setup
+Platform packages:
 
 ```bash
-# Fork and clone
-git clone https://github.com/your-username/quizlab.git
-cd quizlab
+npm run build:win
+npm run build:mac
+npm run build:linux
+```
 
-# Install dependencies
-npm install
+## Quick Start
 
-# Run tests
-npm test
+### 1. Open the app and load a PDF
 
-# Run linting
+- Click the PDF picker, or drag a PDF into the window
+- Use recent reading state to jump back into previous documents
+
+### 2. Choose an AI workspace
+
+- Open a built-in AI tab from the home page
+- Or add a custom AI or site entry in settings
+
+### 3. Connect Gemini CLI for quiz generation
+
+Quiz generation depends on Gemini CLI.
+
+```bash
+npm install -g @google/gemini-cli
+gemini login
+```
+
+Then configure Gemini CLI inside QuizLab settings if needed.
+
+### 4. Generate a quiz
+
+- Select PDF text optionally for tighter context
+- Open the quiz flow
+- Choose difficulty, question count, and style
+- Generate questions and start review mode
+
+### 5. Use web session tools when needed
+
+If you use Google AI surfaces, open the Gemini Web settings tab to:
+
+- check session health
+- trigger re-auth
+- manage the shared Google session state
+
+## Development
+
+### Common commands
+
+```bash
+npm run dev
+npm run dev:web
+npm run build:backend
+npm run typecheck
 npm run lint
-
-# Start development
-npm run dev
+npm run test
+npm run test:e2e
+npm run build
 ```
 
-### Project Scripts
+### Current dev workflow notes
+
+- `npm run dev` starts the Vite renderer and Electron app together
+- The dev script can reuse an existing QuizLab Vite server on port `5173`
+- The current dev flow preserves the existing Electron and Chromium profile instead of clearing web session data
+- GPU acceleration flags are enabled at startup in the Electron main process
+
+## Architecture
+
+QuizLab uses a layered Electron plus React architecture.
+
+```text
+electron/
+  app/                     Main-process entry, windows, IPC registration
+  core/                    Config, updater, helpers
+  features/
+    ai/                    AI registry and platform definitions
+    automation/            Selector and automation helpers
+    gemini-web-session/    Shared Google web session management
+    pdf/                   Secure PDF protocol and handlers
+    quiz/                  Gemini CLI quiz pipeline
+    screenshot/            Capture handlers
+  preload/                 Context bridge API
+
+src/
+  app/                     App shell and providers
+  features/
+    ai/                    AI home page, sessions, webviews
+    pdf/                   PDF viewer and reading flows
+    quiz/                  Quiz configuration, play, review, results
+    settings/              Settings modal and tabs
+    screenshot/            Screenshot UI
+    tutorial/              Onboarding
+  platform/electron/       Renderer to preload bridge
+  shared/                  Shared renderer UI, hooks, constants, i18n
+
+shared/
+  constants/               Cross-process constants
+  types/                   Shared contracts and IPC types
+```
+
+## Security and Privacy
+
+QuizLab is local-first by design.
+
+- PDF files are handled locally
+- Renderer code is isolated behind a preload bridge
+- Electron IPC is validated in the main process
+- AI usage happens through your own logged-in web sessions or Gemini CLI setup
+- Custom PDF loading uses a dedicated Electron protocol instead of exposing arbitrary file paths
+
+See [SECURITY.md](SECURITY.md) for the current security policy and reporting process.
+
+## Configuration
+
+Main settings areas include:
+
+- Prompts
+- Models
+- Sites
+- Gemini CLI
+- Gemini Web
+- Selectors
+- Appearance
+- Language
+- About
+
+Examples of persisted local data include:
+
+- AI registry custom entries
+- quiz preferences
+- Gemini web session state
+- recent reading state
+- pinned AI tabs
+- layout and appearance preferences
+
+## Troubleshooting
+
+### Quiz generation is not working
+
+- Confirm Gemini CLI is installed globally
+- Run `gemini login`
+- Verify the selected PDF is readable and not password-protected
+
+### AI page is blank or not sending prompts
+
+- Refresh the active AI tab
+- Check whether the platform requires login
+- Reconfigure selectors for custom sites
+- Verify the target service is still using the expected input flow
+
+### Gemini web session shows degraded or re-auth required
+
+- Open Settings > Gemini Web
+- Run a manual check
+- Re-authenticate the Google session
+- Reset the profile only if you intentionally want a clean Google web session
+
+### `npm run dev` uses an existing server
+
+This is expected if QuizLab's Vite dev server is already running on port `5173`.
+
+## Contributing
+
+QuizLab accepts contributions for product features, documentation, bug fixes, tests, and platform improvements.
+
+Before opening a pull request, run:
 
 ```bash
-npm run dev           # Start development mode
-npm run test          # Run test suite
-npm run test:coverage # Run tests with coverage
-npm run lint          # Run ESLint
-npm run typecheck     # TypeScript type checking
-npm run build         # Build for production
-npm run build:win     # Build Windows installer
-npm run build:mac     # Build macOS DMG
-npm run build:linux   # Build Linux AppImage
+npm run typecheck
+npm run lint
+npm run test
 ```
 
----
+Contribution details live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 🐛 Troubleshooting
+## License
 
-### Common Issues
-
-**Quiz Generation Fails**
-- Ensure Gemini CLI is installed: `npm install -g @google/gemini-cli`
-- Check authentication: `gemini login`
-- Verify PDF is not corrupted or password-protected
-
-**AI Webview Not Loading**
-- Check internet connection
-- Try refreshing (Ctrl+R)
-- Clear cache in Settings → About
-
-**Magic Selector Not Working**
-- Ensure you're on the AI platform's chat page
-- Try reloading the webview
-- Reconfigure selectors in Settings
-
-**PDF Not Opening**
-- Verify file is a valid PDF
-- Check file is not larger than 50MB
-- Try dragging file into window instead of dialog
-
-### Debug Mode
-
-```bash
-# Run with DevTools open
-npm run dev
-
-# Check console for errors
-# View network requests in DevTools
-```
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **Google Gemini Team**: For the powerful AI API
-- **Electron Team**: For the cross-platform framework
-- **React PDF Viewer**: For the excellent PDF component
-- **Framer Motion**: For smooth animations
-- **All Contributors**: Who helped make this project better
-
----
-
-<p align="center">
-  <strong>Made with love for learners everywhere</strong>
-</p>
-
-<p align="center">
-  <a href="#-quizlab-reader---ai-powered-pdf-study-tool--quiz-generator">Back to Top</a>
-</p>
+QuizLab Reader is released under the [MIT License](LICENSE).

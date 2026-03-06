@@ -23,6 +23,7 @@ interface BottomBarProps {
 function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }: BottomBarProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+    const [settingsInitialTab, setSettingsInitialTab] = useState('prompts')
     const [isAnimating, setIsAnimating] = useState(false)
 
     const barRef = useRef<HTMLDivElement>(null)
@@ -107,6 +108,12 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
     }, [isOpen, onMouseDown])
 
     const handleSettingsClick = useCallback(() => {
+        setSettingsInitialTab('prompts')
+        setIsSettingsOpen(true)
+    }, [])
+
+    const handleGeminiWebSettingsClick = useCallback(() => {
+        setSettingsInitialTab('gemini-web')
         setIsSettingsOpen(true)
     }, [])
 
@@ -141,6 +148,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                         isOpen={isOpen}
                         panelStyle={panelStyle}
                         handleSettingsClick={handleSettingsClick}
+                        handleGeminiWebSettingsClick={handleGeminiWebSettingsClick}
                         toggleLayoutSwap={toggleLayoutSwap}
                         isQuizMode={isQuizMode}
                         onToggleQuizMode={onToggleQuizMode}
@@ -178,7 +186,11 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
             {createPortal(
                 <Suspense fallback={<SettingsLoadingSpinner />}>
                     {isSettingsOpen && (
-                        <SettingsModal isOpen={isSettingsOpen} onClose={handleSettingsClose} />
+                        <SettingsModal
+                            isOpen={isSettingsOpen}
+                            onClose={handleSettingsClose}
+                            initialTab={settingsInitialTab}
+                        />
                     )}
                 </Suspense>,
                 document.body

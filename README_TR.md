@@ -1,710 +1,356 @@
-# 🧪 QuizLab Reader - Yapay Zeka Destekli PDF Çalışma Aracı & Quiz Oluşturucu
+# QuizLab Reader: Yapay Zeka Destekli PDF Okuyucu, Quiz Üretici ve Çalışma Alanı
 
 <p align="center">
-  <img src="docs/images/app-logo.png" alt="QuizLab Reader Logo" width="120" />
+  <img src="resources/icon.png" alt="QuizLab Reader ikonu" width="120" />
 </p>
 
 <p align="center">
-  <strong>Tıp Öğrencileri ve Profesyoneller için Nihai Masaüstü Çalışma Arkadaşı</strong><br/>
-  <em>PDF ders kitaplarınızı Google Gemini AI ile interaktif quizlere dönüştürün</em>
+  <strong>QuizLab Reader, aktif hatırlama, quiz üretimi ve odaklı çalışma akışları için geliştirilmiş yapay zeka destekli bir PDF okuyucudur.</strong>
 </p>
 
 <p align="center">
-  <a href="README.md">
-    <img src="https://img.shields.io/badge/lang-English-blue.svg?style=flat-square" alt="English" />
-  </a>
-  <img src="https://img.shields.io/badge/versiyon-2.2.0-blue.svg?style=flat-square" alt="Versiyon" />
-  <img src="https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square" alt="Lisans" />
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Platform" />
-  <img src="https://img.shields.io/badge/YZ-Gemini%20%7C%20ChatGPT%20%7C%20Claude-4285F4?style=flat-square" alt="YZ Desteği" />
+  <a href="README.md">English README</a> |
+  <a href="https://github.com/ozymandias-get/quizlab/releases">Son Sürüm</a> |
+  <a href="CONTRIBUTING.md">Katkı</a> |
+  <a href="SECURITY.md">Güvenlik</a>
 </p>
 
 <p align="center">
-  <a href="#-neden-quizlab">Neden QuizLab?</a> •
-  <a href="#-temel-özellikler">Özellikler</a> •
-  <a href="#-kurulum">Kurulum</a> •
-  <a href="#-hızlı-başlangıç">Hızlı Başlangıç</a> •
-  <a href="#-teknik-altyapı">Teknik Altyapı</a> •
-  <a href="#-mimari">Mimari</a>
+  <img src="https://img.shields.io/badge/s%C3%BCr%C3%BCm-2.2.0-blue.svg?style=flat-square" alt="Sürüm 2.2.0" />
+  <img src="https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square" alt="MIT Lisansı" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Windows macOS Linux" />
+  <img src="https://img.shields.io/badge/teknoloji-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Electron React TypeScript" />
 </p>
 
----
+## Genel Bakış
 
-## 📖 İçindekiler
+QuizLab Reader; PDF okuyucu, yapay zeka web çalışma alanı ve interaktif quiz üreticisini tek bir Electron masaüstü uygulamasında birleştirir. Tıp öğrencileri, sınav adayları ve PDF ile yoğun çalışan kullanıcılar için pasif okumayı aktif hatırlamaya çevirmeyi hedefler.
 
-- [Genel Bakış](#-genel-bakış)
-- [Neden QuizLab?](#-neden-quizlab)
-- [Temel Özellikler](#-temel-özellikler)
-- [Ekran Görüntüleri](#-ekran-görüntüleri)
-- [Kurulum Rehberi](#-kurulum-rehberi)
-- [Hızlı Başlangıç](#-hızlı-başlangıç)
-- [Kullanım Kılavuzu](#-kullanım-kılavuzu)
-- [Teknik Altyapı](#-teknik-altyapı)
-- [Mimari Yapı](#-mimari-yapı)
-- [Güvenlik](#-güvenlik)
-- [Yapılandırma](#-yapılandırma)
-- [API Referansı](#-api-referansı)
-- [Katkıda Bulunma](#-katkıda-bulunma)
-- [Lisans](#-lisans)
+Bir PDF uygulaması, tarayıcı sekmeleri, notlar ve quiz araçları arasında gidip gelmek yerine QuizLab bütün çalışma döngüsünü tek yerde toplar:
 
----
+- PDF sekmeleri açma ve yönetme
+- Seçili metni tek tıkla yapay zekaya gönderme
+- Açık PDF veya seçili içerikten quiz üretme
+- Açıklamalar ve zayıf alanlarla soru gözden geçirme
+- Yapay zeka oturumlarını ve yerel çalışma verilerini cihazda tutma
 
-## 🎯 Genel Bakış
+## Neden QuizLab Reader
 
-**QuizLab Reader**, özellikle **tıp öğrencileri, sınav adayları ve yaşam boyu öğrenenler** için tasarlanmış açık kaynaklı, yapay zeka destekli bir masaüstü uygulamasıdır. Geleneksel PDF görüntüleyicilerden farklı olarak, QuizLab sağlam bir PDF okuyucuyu gelişmiş yapay zeka yetenekleriyle birleştirerek etkileşimli bir çalışma ortamı oluşturur.
+QuizLab genel amaçlı bir sohbet arayüzü değil, gerçek çalışma akışları etrafında tasarlanmış bir üründür.
 
-### QuizLab'i Benzersiz Kılan Nedir?
+- Yapay zeka destekli PDF okuyucu: belge bağlamından kopmadan okuma ve inceleme
+- Sınav ve tekrar için quiz üretici: PDF içeriğini aktif hatırlama sorularına çevirme
+- Bölünmüş ekran masaüstü düzeni: solda PDF, sağda yapay zeka
+- Yerel odaklı Electron uygulaması: dosyalar cihazda kalır, AI erişimi kendi hesaplarınızla olur
+- Çoklu AI desteği: Gemini, ChatGPT, Claude, DeepSeek, Qwen, Kimi, NotebookLM ve AI Studio
 
-- **Aktif Hatırlama Eğitimi**: Pasif okumayı aktif öğrenmeye dönüştürün
-- **Bölünmüş Ekran Çalışma Alanı**: Bir tarafta PDF okuyun, diğer tarafta yapay zeka ile sohbet edin
-- **Bağlam Farkında YZ**: Seçili metni doğrudan yapay zekaya açıklama veya quiz oluşturması için gönderin
-- **Çok Platformlu YZ Desteği**: Google Gemini, ChatGPT, Claude, DeepSeek ve daha fazlasıyla çalışır
-- **Gizlilik Öncelikli**: Tüm veriler yerel kalır; belgeleriniz buluta yüklenmez
+## Temel Özellikler
 
-### Kimler İçin Uygundur?
+### Bölünmüş ekran PDF ve AI çalışma alanı
 
-- 📚 USMLE, TUS gibi sınavlara hazırlanan tıp öğrencileri
-- 🎓 Yoğun okuma materyalleri olan üniversite öğrencileri
-- 💼 Sertifikasyon sınavlarına çalışan profesyoneller
-- 🧠 Aktif hatırlama ile öğrenmek isteyen herkes
-- 📝 PDF'lerden flaş kart oluşturmak isteyenler
+- Çoklu PDF sekmesi
+- Sürükle bırak ile PDF açma
+- Sayfa geçişi, yakınlaştırma, arama ve metin seçme
+- Son okuma durumunu hatırlama
+- Seçili metni anında AI tarafına gönderme
 
----
+### Yapay zeka destekli quiz oluşturma
 
-## 💡 Neden QuizLab?
+QuizLab yalnızca bir prompt kutusu değil, yapılı bir quiz akışı sunar.
 
-### Geleneksel Çalışma Yöntemlerinin Sorunları
+- Çoktan seçmeli sorular
+- Olumsuz sorular
+- İfade tabanlı sorular
+- Sıralama soruları
+- Boşluk doldurma
+- Eşleştirme soruları
+- Klinik akıl yürütme odaklı sorular
+- Zorluk, soru sayısı, dil ve konu odağı ayarları
 
-| Geleneksel Yöntem | Sınırlama | QuizLab Çözümü |
-|-------------------|-----------|----------------|
-| Pasif okuma | Düşük kalıcılık | Aktif hatırlama quizleri |
-| Uygulama değiştirme | Bağlam kaybı | Bölünmüş ekran entegrasyonu |
-| Manuel flaş kartlar | Zaman alıcı | YZ otomatik oluşturma |
-| Genel YZ sohbeti | PDF bağlamı yok | Bağlam farkında istemler |
+### AI webview çalışma alanı
 
-### Temel Faydalar
+Yerleşik AI kaydı şu platformları içerir:
 
-1. **🧠 Kanıta Dayalı Öğrenme**: Aktif hatırlama ve aralıklı tekrar ilkelerini kullanır
-2. **⚡ İş Akışı Entegrasyonu**: PDF'nizi terk etmeden çalışın
-3. **🎯 Tıp Düzeyinde Sorular**: Tıp kurulu sınavlarına özel ayarlanmış YZ persona
-4. **🔒 Gizlilik**: Belgeleriniz bilgisayarınızdan çıkmaz
-5. **💰 Ücretsiz ve Açık Kaynak**: Abonelik yok, sınır yok
+- ChatGPT
+- Gemini
+- NotebookLM
+- AI Studio
+- YouTube
+- Claude
+- DeepSeek
+- Qwen
+- Kimi
 
----
+Uygulama ayrıca özel AI veya site eklemeyi, gerekirse seçici tabanlı web otomasyonunu da destekler.
 
-## ✨ Temel Özellikler
+### AI anasayfa ve sabit sekme akışı
 
-### 📖 Akıllı Bölünmüş Ekran Çalışma Alanı
+Güncel sürümde özel bir AI anasayfası ve gelişmiş sekme yönetimi bulunur:
 
-QuizLab'in kalbi bölünmüş ekran tasarımıdır:
+- Açık sekmeler, yerleşik AI modelleri ve özel siteler için anasayfa
+- Sabitlenen AI sekmelerinin yeniden yüklenmesi
+- Gereksiz webview açılışlarını azaltan daha temiz başlangıç
+- Izgara tabanlı model sıralama
+- Aktif AI sekmesi kalmadığında otomatik anasayfaya dönüş
 
-- **Sol Panel**: Metin seçimi ile yüksek performanslı PDF görüntüleyici
-- **Sağ Panel**: Yapay zeka sohbet arayüzü (Gemini, ChatGPT, Claude, vb.)
-- **Merkez Hub**: Ekran görüntüsü ve quiz oluşturma için hızlı erişim araç çubuğu
-- **Anlık Bağlam Aktarımı**: PDF'de metin seçin → Tek tıkla yapay zekaya gönderin
+### Gemini web session araçları
 
-**Özellikler:**
-- Çoklu sekme PDF desteği
-- Sürükle-bırak dosya açma
-- Sayfa gezinme ve arama
-- Yakınlaştırma ve döndürme kontrolleri
-- Metin vurgulama
+QuizLab, Google tabanlı yüzeyler için ayrı bir Gemini web oturumu yönetimi sunar.
 
-### 🧠 Gelişmiş Quiz Oluşturucu
+- Oturum durumu izleme
+- Elle kontrol ve yeniden kimlik doğrulama
+- Gemini ailesi yüzeyleri için paylaşılan Google oturumu
+- Gemini, NotebookLM, AI Studio ve ilgili Google web yüzeyleri için destek
 
-Herhangi bir PDF içeriğini interaktif quizlere dönüştürün:
+### Ekran görüntüsünden AI akışı
 
-**Soru Türleri:**
-- ✅ Çoktan Seçmeli (Klasik)
-- ❌ Olumsuz Sorular ("Hangi değildir...")
-- 🧩 İfade Tabanlı (Açıklamalı doğru/yanlış)
-- 📋 Sıralama Soruları (Adım sıralaması)
-- 🔍 Boşluk Doldurma
-- 🧠 Klinik Akıl Yürütme (Karmaşık vakalar)
-- 🔗 Eşleştirme Soruları
+- Tam sayfa yakalama
+- Kırpılarak alan seçme
+- Aktif AI oturumuna hızlı gönderim
+- Kopyalanamayan PDF grafik ve şekilleri için kullanım
 
-**Özelleştirme Seçenekleri:**
-- **Zorluk**: Kolay (Preklinik) | Orta (Staj) | Zor (Uzmanlık)
-- **Soru Sayısı**: Oluşturma başına 1-30 soru
-- **Stil**: Karışık veya belirli soru türleri
-- **Odak Konusu**: Belirli konulara odaklanma
-- **Dil**: İngilizce veya Türkçe
+### Görünüm ve çalışma deneyimi
 
-**Tıp Kurulu Sınavıcı Personası:**
-Yapay zeka, şunları oluşturan kıdemli bir tıp kurulu sınavıcısı gibi davranır:
-- Sadece ezber değil, klinik akıl yürütme gerektiren sorular
-- Gerçekçi hasta vinyetleri (soruların %70'i)
-- Yüksek kaliteli çeldiriciler (mantıklı yanlış cevaplar)
-- Neden-sonuç ilişkilerini test eden sorular
+- Ayarlanabilir alt bar boyutu ve opaklığı
+- Panel yer değiştirme desteği
+- Animasyonlu veya düz arka plan
+- Özelleştirilebilir seçim rengi
+- Rehberli ilk kullanım turu
+- İngilizce ve Türkçe arayüz
 
-### 🤖 Çok Platformlu Yapay Zeka Entegrasyonu
-
-**Yerleşik YZ Platformları:**
-
-| Platform | Tür | Gönderim Modu | Özel Özellikler |
-|----------|-----|---------------|-----------------|
-| **Google Gemini** | Web + CLI | Karışık | Yerel quiz oluşturma, dosya yükleme |
-| **ChatGPT** | Web | Enter Tuşu | En popüler, GPT-4 desteği |
-| **Claude** | Web | Enter Tuşu | Uzun bağlam penceresi |
-| **DeepSeek** | Web | Enter Tuşu | Kod ve akıl yürütme |
-| **Qwen** | Web | Enter Tuşu | Çok dilli |
-| **Kimi** | Web | Enter Tuşu | Çinli yapay zeka asistanı |
-
-**Magic Selector Teknolojisi:**
-- Evrensel yapay zeka entegrasyon sistemi
-- Giriş alanlarını ve gönderme düğmelerini otomatik algılar
-- Herhangi bir web tabanlı yapay zeka platformuyla çalışır
-- Yapılandırma için 3 adımlı görsel seçici
-- Shadow DOM desteği (Gemini, vb.)
-
-### 🎨 Premium Cam Morfizm Arayüz
-
-**Görsel Özelleştirme:**
-- **Arka Plan Temaları**: Animasyonlu gradyan veya düz renkler
-- **Alt Çubuk**: Ayarlanabilir opaklık (%0-100), ölçek (0.7x-1.3x)
-- **Kompakt Mod**: Sadece simge araç çubuğu seçeneği
-- **Seçim Renkleri**: Özelleştirilebilir PDF metin vurgusu
-- **Rastgele Mod**: Dinamik renk geçişleri
-
-### 🏠 AI Anasayfa ve Dinamik Sekme Yönetimi
-
-**v2.2.0 Versiyonunda Yeni:**
-- **AI Anasayfa**: Tüm yapay zeka etkileşimleriniz için tasarlanmış yeni bir komuta merkezi ve giriş sayfası.
-- **Dinamik Başlatma**: Bellek kullanımını optimize etmek için başlangıçta sadece pinlenmiş (sabitlenmiş) sekmeler yüklenir.
-- **Otomatik Anasayfa Navigasyonu**: Tüm sekmeler kapatıldığında uygulama otomatik olarak Anasayfa'ya döner.
-- **2D Grid Sıralama**: AI modellerini ve sitelerinizi sezgisel bir sürükle-bırak sistemi ile 2 boyutlu olarak dilediğiniz gibi sıralayın.
-- **Cam Morfizm Arka Plan**: Anasayfa, alttaki animasyonlu ışık hüzmesi efektlerini gösteren şık bir yarı saydam tasarıma sahiptir.
-- **Kategori Organizasyonu**: Açık Sekmeler, AI Modeller ve Özel Siteler için ayrılmış özel bölümler.
-
-**Animasyon ve Efektler:**
-- GPU hızlandırmalı geçişler (Framer Motion)
-- Pürüzsüz panel yeniden boyutlandırma
-- Arka plan bulanıklığı ile cam panel efektleri
-- Giriş ve çıkış animasyonları
-
-### 📸 Yapay Zekaya Ekran Görüntüsü
-
-Herhangi bir içeriği yakalayın ve analiz edin:
-
-- **Tam Sayfa Ekran Görüntüsü**: Tüm PDF sayfasını yapay zekaya gönderin
-- **Kırpma Ekran Görüntüsü**: Analiz için belirli alanı seçin
-- **Otomatik Yapıştırma**: Ekran görüntüleri otomatik olarak aktif yapay zekaya gönderilir
-- **Bağlam Menüsü**: PDF görüntüleyicide sağ tık erişimi
-
-### 🌍 Çok Dilli Destek
-
-**Tamamen Yerelleştirilmiş:**
-- 🇺🇸 İngilizce
-- 🇹🇷 Türkçe
-
-**Genişletilebilir**: JSON yerel dosyaları aracılığıyla yeni diller kolayca eklenebilir
-
-### 🔒 Gizlilik ve Güvenlik
-
-**Yerel Öncelikli Mimari:**
-- ✅ Tüm PDF'ler yerel olarak işlenir
-- ✅ Buluta belge yükleme yok
-- ✅ Yapay zeka konuşmaları kendi hesaplarınız üzerinden
-- ✅ Ayarlar yerel şifreli depolamada
-- ✅ Telemetri veya izleme yok
-
-**Güvenlik Özellikleri:**
-- Context Bridge izolasyonu (Electron güvenlik en iyi uygulaması)
-- PDF yol doğrulama (dizin geçişini önler)
-- PDF için sihirli baytlar doğrulama
-- İzin listesi tabanlı dosya erişimi
-
-### 🔄 Otomatik Güncelleme Sistemi
-
-- GitHub sürümlerinden otomatik sürüm kontrolü
-- Tek tıklamayla güncelleme indirme
-- Değişiklik günlüğü ile güncelleme bildirimleri
-
-### 🎓 Etkileşimli Öğretici
-
-- Yeni kullanıcılar için adım adım yerleştirme
-- Ekranı karartmadan vurgu tabanlı kılavuzluk
-- Ekranı karartmadan özellik keşfi
-
----
-
-## 📸 Ekran Görüntüleri
+## Ekran Görüntüleri
 
 <p align="center">
-  <img src="docs/images/app-overview.png" alt="QuizLab Ana Arayüz" width="800" />
-  <br/>
-  <em>Ana Arayüz: PDF + YZ Bölünmüş Ekran</em>
+  <img src="docs/images/app-overview.png" alt="QuizLab Reader PDF ve AI bölünmüş ekran arayüzü" width="900" />
 </p>
 
 <p align="center">
-  <img src="docs/images/quiz-creation.png" alt="Quiz Yapılandırma" width="800" />
-  <br/>
-  <em>Quiz Oluşturucu: Çalışma Oturumunuzu Özelleştirin</em>
+  <img src="docs/images/quiz-creation.png" alt="QuizLab Reader quiz ayarları" width="900" />
 </p>
 
 <p align="center">
-  <img src="docs/images/quiz-gameplay.png" alt="Aktif Quiz Modu" width="800" />
-  <br/>
-  <em>Etkileşimli Quiz Modu ile Zamanlayıcı</em>
+  <img src="docs/images/quiz-gameplay.png" alt="QuizLab Reader aktif quiz ekranı" width="900" />
 </p>
 
 <p align="center">
-  <img src="docs/images/quiz-results.png" alt="Quiz Sonuçları" width="800" />
-  <br/>
-  <em>Açıklamalar ile Detaylı Sonuçlar</em>
+  <img src="docs/images/quiz-results.png" alt="QuizLab Reader quiz sonuç ve cevap inceleme ekranı" width="900" />
 </p>
 
----
+## Kurulum
 
-## 📥 Kurulum Rehberi
+### Sistem gereksinimleri
 
-### Sistem Gereksinimleri
+| Öğe | Minimum | Önerilen |
+| --- | --- | --- |
+| İşletim sistemi | Windows 10, macOS 10.15, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
+| RAM | 4 GB | 8 GB veya üstü |
+| Depolama | 500 MB | 2 GB veya üstü |
+| İnternet | AI özellikleri için gerekli | Stabil genişbant |
 
-| Gereksinim | Minimum | Önerilen |
-|------------|---------|----------|
-| **İşletim Sistemi** | Windows 10, macOS 10.15, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
-| **RAM** | 4 GB | 8 GB+ |
-| **Depolama** | 500 MB | 2 GB+ |
-| **İnternet** | YZ özellikleri için gerekli | Genişbant |
+### Hazır sürümü indirme
 
-### Ön Koşullar
+En güncel yükleyiciyi GitHub releases sayfasından indirebilirsiniz:
 
-1. **Node.js 18+** ve **npm**
-2. **Google Hesabı** (Gemini özellikleri için)
-3. **Gemini CLI** (quiz oluşturma için):
-   ```bash
-   npm install -g @google/gemini-cli
-   gemini login
-   ```
+[QuizLab Reader Releases](https://github.com/ozymandias-get/quizlab/releases)
 
-### Derlenmiş İkili Dosyaları İndirme
+Tipik çıktılar:
 
-Platformunuz için en son sürümü indirin:
+- Windows: `QuizlabReader-Setup-<version>.exe`
+- macOS: `QuizlabReader-<version>.dmg`
+- Linux: `QuizlabReader-<version>.AppImage`
 
-- 🪟 **Windows**: `QuizlabReader-Setup-2.2.0.exe`
-- 🍎 **macOS**: `QuizlabReader-2.2.0.dmg`
-- 🐧 **Linux**: `QuizlabReader-2.2.0.AppImage`
-
-[En Son Sürümü İndir](https://github.com/ozymandias-get/quizlab/releases)
-
-### Kaynaktan Derleme
+### Kaynaktan çalıştırma
 
 ```bash
-# Depoyu klonlayın
 git clone https://github.com/ozymandias-get/quizlab.git
 cd quizlab
-
-# Bağımlılıkları yükleyin
 npm install
-
-# Geliştirme modunda çalıştırın
 npm run dev
+```
 
-# Üretim için derleyin
+Üretim derlemesi:
+
+```bash
 npm run build
-
-# Platforma özel yükleyiciler oluşturun
-npm run build:win    # Windows yükleyici
-npm run build:mac    # macOS .dmg
-npm run build:linux  # Linux .AppImage
 ```
 
----
-
-## 🚀 Hızlı Başlangıç
-
-### 1. İlk Çalıştırma
-
-1. QuizLab Reader'ı açın
-2. Etkileşimli öğreticiyi tamamlayın (isteğe bağlı)
-3. Ayarlarda tercih ettiğiniz yapay zeka platformunu yapılandırın
-
-### 2. PDF Açma
-
-- "PDF Seç"e tıklayın veya dosyayı sürükleyip bırakın
-- PDF sol panelde açılır
-- Son dosyalar hızlı erişim için hatırlanır
-
-### 3. Yapay Zeka Yapılandırma (Tek Seferlik Kurulum)
-
-**Gemini İçin (Quiz Oluşturma):**
-1. Ayarlar → Gemini CLI'ye gidin
-2. "Giriş Terminalini Aç"a tıklayın
-3. Google kimlik doğrulamasını tamamlayın
-
-**Web Yapay Zekası İçin (ChatGPT, Claude, vb.):**
-1. Ayarlar → YZ Sitelerine gidin
-2. Tercih ettiğiniz platformu seçin
-3. Sağ panelde yapay zeka hizmetinde oturum açın
-
-### 4. İlk Quizinizi Oluşturun
-
-1. PDF'nizde metin seçin (bağlam için isteğe bağlı)
-2. Merkez hub'daki Quiz düğmesine tıklayın
-3. Zorluk ve soru sayısını yapılandırın
-4. "Quiz Oluştur"a tıklayın
-5. Etkileşimli sorularla çalışın!
-
-### 5. Magic Selector Kullanın (İsteğe Bağlı)
-
-Özel yapay zeka platformları için:
-1. Ayarlar → Seçicilere gidin
-2. "Magic Selector'ı Yapılandır"a tıklayın
-3. Giriş ve gönderme düğmesini seçmek için 3 adımlı görsel kılavuzu izleyin
-4. Otomatik yapıştırma artık yapay zekanızla çalışacaktır
-
----
-
-## 📚 Kullanım Kılavuzu
-
-### Klavye Kısayolları
-
-| Kısayol | İşlem |
-|---------|-------|
-| `Ctrl/Cmd + O` | PDF aç |
-| `Ctrl/Cmd + S` | Tam sayfa ekran görüntüsü |
-| `Shift + S` | Kırpma ekran görüntüsü |
-| `Ctrl/Cmd + +` | Yakınlaştır |
-| `Ctrl/Cmd + -` | Uzaklaştır |
-| `Ctrl/Cmd + 0` | Yakınlaştırmayı sıfırla |
-| `Esc` | Ekran görüntüsü modunu kapat |
-
-### Quiz Modu İş Akışı
-
-1. **Yapılandırma**: Parametreleri ayarlayın (zorluk, sayı, stil)
-2. **Oluşturma**: Yapay zeka PDF'nizi işler (10-30 saniye)
-3. **Hazır**: Oluşturulan soruları gözden geçirin
-4. **Quiz**: Zamanlayıcı ile soruları yanıtlayın
-5. **Sonuçlar**: Puanı görün, açıklamaları gözden geçirin, hataları tekrar deneyin
-
-### Çalışma İpuçları
-
-- **Aktif Hatırlama**: Seçenekleri görmeden önce yanıt vermeye çalışın
-- **Aralıklı Tekrar**: "Hataları Tekrar Dene" özelliğini kullanın
-- **Derin Öğrenme**: Yanlış cevapların açıklamalarını okuyun
-- **Bağlam Değiştirme**: Aynı konu için farklı sorular için "Yeniden Oluştur"
-
----
-
-## 🛠 Teknik Altyapı
-
-### Temel Teknolojiler
-
-| Kategori | Teknoloji | Amaç |
-|----------|-----------|------|
-| **Çerçeve** | Electron 40 | Çapraz platform masaüstü |
-| **Ön Uç** | React 19 | UI bileşenleri |
-| **Dil** | TypeScript 5 | Tip güvenliği |
-| **Derleme Aracı** | Vite 7 | Hızlı paketleme |
-| **Stil** | TailwindCSS 3 | Utility-first CSS |
-| **Animasyonlar** | Framer Motion | GPU hızlandırmalı |
-| **Durum** | Zustand 5 | Genel durum |
-| **Sunucu Durumu** | TanStack Query | Veri getirme |
-
-### PDF Motoru
-
-- **@react-pdf-viewer**: PDF.js için React sarmalayıcı
-- **PDF.js**: Mozilla'nın PDF oluşturma motoru
-- **Özel Protokol**: Güvenli `local-pdf://` akışı
-
-### Yapay Zeka Entegrasyonu
-
-- **Gemini CLI**: Resmi Google CLI aracı
-- **Playwright**: Başsız tarayıcı otomasyonu
-- **Özel Komut Dosyaları**: Shadow DOM geçişi, öğe seçme
-
-### Test
-
-- **Vitest**: Birim testi
-- **@testing-library/react**: Bileşen testi
-- **jsdom**: Tarayıcı ortamı simülasyonu
-
----
-
-## 🏗 Mimari Yapı
-
-### Yüksek Seviyeli Mimari
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Electron Ana Süreç                        │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  PDF Protokolü│  │  Quiz CLI    │  │  YZ Otomasyonu   │  │
-│  │  (Güvenlik)   │  │  (Gemini)    │  │  (Magic Selector)│  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  Yapılandırma│  │  Güncelleyici│  │  Oturum Yöneticisi│  │
-│  │  (JSON)      │  │  (GitHub)    │  │  (Gemini Web)    │  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    IPC (Context Bridge)
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                   Electron İşlemci Süreci                    │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │                    React Uygulaması                   │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐│  │
-│  │  │  PDF     │  │  Alt     │  │  YZ Web Görünümü     ││  │
-│  │  │  Paneli  │◄─┤  Hub     │─►│  (Çok platformlu)    ││  │
-│  │  └──────────┘  └──────────┘  └──────────────────────┘│  │
-│  │  ┌──────────────────────────────────────────────────┐│  │
-│  │  │         Quiz Modülü (Durum Makinesi)             ││  │
-│  │  │   Yapılandırma → Oluşturma → Quiz → Sonuçlar    ││  │
-│  │  └──────────────────────────────────────────────────┘│  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Modül Yapısı
-
-```
-quizlab/
-├── electron/                    # Ana Süreç
-│   ├── app/                     # Giriş noktası, pencere yöneticisi
-│   ├── core/                    # Yapılandırma, güncelleyici, yardımcılar
-│   ├── features/                # Özellik modülleri
-│   │   ├── ai/                  # Yapay zeka platform kayıt defteri
-│   │   ├── automation/          # Magic Selector komut dosyaları
-│   │   ├── gemini-web-session/  # Oturum yönetimi
-│   │   ├── pdf/                 # PDF protokolü ve işleyiciler
-│   │   ├── quiz/                # Quiz CLI entegrasyonu
-│   │   │   ├── gemini-runner/   # İzole CLI çalıştırıcı
-│   │   │   ├── promptBuilder.ts # Tıp istemleri
-│   │   │   └── quizCliHandler.ts
-│   │   └── screenshot/          # Ekran yakalama
-│   └── preload/                 # Context Bridge
-│
-├── src/                         # İşlemci Süreci
-│   ├── app/                     # App.tsx, sağlayıcılar
-│   ├── features/                # Özellik tabanlı modüller
-│   │   ├── ai/                  # Yapay zeka web görünümü bileşenleri
-│   │   ├── pdf/                 # PDF görüntüleyici bileşenleri
-│   │   ├── quiz/                # Quiz UI bileşenleri
-│   │   │   ├── ui/
-│   │   │   │   ├── active/      # Quiz oynanışı
-│   │   │   │   ├── config/      # Quiz ayarları
-│   │   │   │   └── results/     # Sonuçlar ve gözden geçirme
-│   │   │   └── hooks/
-│   │   ├── screenshot/          # Ekran görüntüsü aracı
-│   │   ├── settings/            # Ayarlar modalı
-│   │   └── tutorial/            # Yerleştirme
-│   ├── platform/                # Electron köprüsü
-│   └── shared/                  # Paylaşılan yardımcı programlar
-│
-└── shared/                      # Çapraz süreç tipleri
-    ├── constants/
-    └── types/
-```
-
----
-
-## 🔐 Güvenlik
-
-### Güvenlik En İyi Uygulamaları
-
-1. **Context İzolasyonu**: İşlemci, ön yükleme komut dosyası aracılığıyla Node.js'den izole edilir
-2. **IPC Doğrulama**: Tüm IPC mesajları ana süreçte doğrulanır
-3. **Yol Geçişi Koruması**: PDF yolları normalize edilir ve doğrulanır
-4. **İçerik Güvenliği Politikası**: Web görünümleri için katı CSP
-5. **Güvenli Depolama**: Sınırlandırılmış izinlere sahip yapılandırma dosyaları (0o600)
-
-### PDF Güvenliği
-
-```typescript
-// Yol doğrulama dizin geçişini önler
-function isPathAllowed(pdfPath: string): boolean {
-    const normalized = path.normalize(pdfPath);
-    if (pdfPath.includes('\0')) return false;  // Null bayt kontrolü
-    if (!path.isAbsolute(resolvedPath)) return false;
-    return true;
-}
-
-// PDF sihirli baytları doğrulama
-const buffer = Buffer.alloc(5);
-await fileHandle.read(buffer, 0, 5, 0);
-if (buffer.toString() !== '%PDF-') return invalid;
-```
-
-### Yapay Zeka Güvenliği
-
-- API anahtarları düz metin olarak saklanmaz
-- Gemini CLI sistem anahtarlığını kullanır
-- Web yapay zekası oturumları bölümler aracılığıyla izole edilir
-- Yapay zeka tarafından oluşturulan kodun otomatik yürütülmesi yok
-
----
-
-## ⚙️ Yapılandırma
-
-### Ayar Kategorileri
-
-| Sekme | Açıklama | Temel Seçenekler |
-|-------|----------|------------------|
-| **İstemler** | Yapay zeka istem şablonları | Özel sistem istemleri |
-| **Modeller** | Yapay zeka platform yönetimi | Platformları etkinleştir/devre dışı bırak |
-| **Siteler** | Yapay zeka web sitesi URL'leri | Özel yapay zeka hizmeti URL'leri |
-| **Gemini CLI** | CLI yapılandırması | Yol, kimlik doğrulama |
-| **Gemini Web** | Web oturumu ayarları | Oturum kalıcılığı |
-| **Seçiciler** | Magic Selector yapılandırması | Öğe seçiciler |
-| **Görünüm** | Görsel özelleştirme | Renkler, animasyonlar |
-| **Dil** | UI dili | İngilizce, Türkçe |
-| **Hakkında** | Uygulama bilgisi ve güncellemeler | Sürüm kontrolü |
-
-### Yapılandırma Dosyaları
-
-Tümü kullanıcının uygulama verileri dizininde saklanır:
-
-- `settings.json`: Görünüm, dil, yapay zeka yapılandırmaları
-- `quiz-settings.json`: Quiz oluşturma tercihleri
-- `ai-configs.json`: Magic Selector yapılandırmaları
-- `gemini-web-session.json`: Gemini web oturum durumu
-- `pdf-allowlist.json`: İzin verilen PDF dosya yolları
-
----
-
-## 📡 API Referansı
-
-### IPC Kanalları
-
-```typescript
-// PDF İşlemleri
-SELECT_PDF: 'select-pdf'
-GET_PDF_STREAM_URL: 'get-pdf-stream-url'
-PDF_REGISTER_PATH: 'pdf:register-path'
-
-// YZ İşlemleri
-GET_AI_REGISTRY: 'get-ai-registry'
-SAVE_AI_CONFIG: 'save-ai-config'
-GET_AUTOMATION_SCRIPTS: 'get-automation-scripts'
-FORCE_PASTE: 'force-paste-in-webview'
-
-// Quiz İşlemleri
-GENERATE_QUIZ_CLI: 'generate-quiz-cli'
-ASK_AI: 'ask-ai-assistant'
-GET_QUIZ_SETTINGS: 'get-quiz-settings'
-SAVE_QUIZ_SETTINGS: 'save-quiz-settings'
-GET_GEMINI_CLI_PATH: 'get-gemini-cli-path'
-OPEN_GEMINI_LOGIN: 'open-gemini-login'
-CHECK_GEMINI_AUTH: 'check-gemini-auth'
-GEMINI_LOGOUT: 'gemini-logout'
-
-// Gemini Web Oturumu
-GEMINI_WEB_STATUS: 'gemini-web-status'
-GEMINI_WEB_OPEN_LOGIN: 'gemini-web-open-login'
-GEMINI_WEB_CHECK_NOW: 'gemini-web-check-now'
-GEMINI_WEB_REAUTH: 'gemini-web-reauth'
-GEMINI_WEB_RESET_PROFILE: 'gemini-web-reset-profile'
-```
-
-### Pencere API'si
-
-```typescript
-// window.electronAPI aracılığıyla erişim
-window.electronAPI.selectPdf(options)
-window.electronAPI.quiz.generate(params)
-window.electronAPI.automation.generateAutoSendScript(config, text)
-window.electronAPI.captureScreen(rect)
-```
-
----
-
-## 🤝 Katkıda Bulunma
-
-Katkılarınızı bekliyoruz! Lütfen yönergeler için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın.
-
-### Geliştirme Kurulumu
+Platform paketleri:
 
 ```bash
-# Çatallayın ve klonlayın
-git clone https://github.com/kullanici-adi/quizlab.git
-cd quizlab
+npm run build:win
+npm run build:mac
+npm run build:linux
+```
 
-# Bağımlılıkları yükleyin
-npm install
+## Hızlı Başlangıç
 
-# Testleri çalıştırın
-npm test
+### 1. Uygulamayı açın ve PDF yükleyin
 
-# Linting çalıştırın
+- PDF seç butonunu kullanın veya dosyayı pencereye bırakın
+- Son okuma bilgisiyle önceki belgeye hızla dönün
+
+### 2. AI çalışma alanını seçin
+
+- Anasayfadan yerleşik bir AI sekmesi açın
+- Ya da ayarlardan özel AI veya site ekleyin
+
+### 3. Quiz üretimi için Gemini CLI bağlayın
+
+Quiz üretimi Gemini CLI üzerinden çalışır.
+
+```bash
+npm install -g @google/gemini-cli
+gemini login
+```
+
+Gerekirse uygulama ayarlarında Gemini CLI yolunu düzenleyin.
+
+### 4. Quiz oluşturun
+
+- Gerekirse PDF içinden metin seçin
+- Quiz akışına girin
+- Zorluk, soru sayısı ve stili seçin
+- Soruları oluşturup inceleme moduna geçin
+
+### 5. Gerekirse web session araçlarını kullanın
+
+Google AI yüzeyleri kullanıyorsanız Ayarlar > Gemini Web alanından:
+
+- oturum sağlığını kontrol edebilir
+- yeniden giriş akışını başlatabilir
+- paylaşılan Google web oturumunu yönetebilirsiniz
+
+## Geliştirme
+
+### Temel komutlar
+
+```bash
+npm run dev
+npm run dev:web
+npm run build:backend
+npm run typecheck
 npm run lint
-
-# Geliştirmeyi başlatın
-npm run dev
+npm run test
+npm run test:e2e
+npm run build
 ```
 
-### Proje Komut Dosyaları
+### Güncel geliştirme notları
+
+- `npm run dev`, Vite renderer ve Electron uygulamasını birlikte başlatır
+- Dev scripti, `5173` portunda zaten çalışan QuizLab Vite sunucusunu tekrar kullanabilir
+- Güncel dev akışı, mevcut Electron ve Chromium profilini korur; web oturum verilerini otomatik silmez
+- GPU hızlandırma bayrakları Electron açılışında etkinleştirilir
+
+## Mimari
+
+QuizLab katmanlı bir Electron ve React mimarisi kullanır.
+
+```text
+electron/
+  app/                     Ana süreç girişi, pencereler, IPC kaydı
+  core/                    Yapılandırma, güncelleyici, yardımcılar
+  features/
+    ai/                    AI kaydı ve platform tanımları
+    automation/            Seçici ve otomasyon yardımcıları
+    gemini-web-session/    Paylaşılan Google web oturumu yönetimi
+    pdf/                   Güvenli PDF protokolü ve handlerlar
+    quiz/                  Gemini CLI quiz hattı
+    screenshot/            Yakalayıcı handlerlar
+  preload/                 Context bridge API
+
+src/
+  app/                     Uygulama kabuğu ve providerlar
+  features/
+    ai/                    AI anasayfası, oturumlar, webviewler
+    pdf/                   PDF görüntüleyici ve okuma akışları
+    quiz/                  Quiz ayarı, oyun, inceleme, sonuçlar
+    settings/              Ayarlar modal ve sekmeleri
+    screenshot/            Ekran görüntüsü UI
+    tutorial/              İlk kullanım
+  platform/electron/       Renderer ile preload köprüsü
+  shared/                  Ortak UI, hook, sabit, i18n
+
+shared/
+  constants/               Süreçler arası sabitler
+  types/                   Ortak kontratlar ve IPC tipleri
+```
+
+## Güvenlik ve Gizlilik
+
+QuizLab tasarım olarak yerel odaklıdır.
+
+- PDF dosyaları yerel olarak ele alınır
+- Renderer kodu preload bridge arkasında izole edilir
+- Electron IPC ana süreçte doğrulanır
+- AI kullanımı kendi web oturumlarınız veya Gemini CLI kurulumunuz üzerinden ilerler
+- PDF yükleme için rastgele dosya yollarını açmak yerine özel Electron protokolü kullanılır
+
+Güncel güvenlik politikası ve bildirim süreci için [SECURITY.md](SECURITY.md) dosyasına bakın.
+
+## Yapılandırma
+
+Başlıca ayar alanları:
+
+- Promptlar
+- Modeller
+- Siteler
+- Gemini CLI
+- Gemini Web
+- Seçiciler
+- Görünüm
+- Dil
+- Hakkında
+
+Yerelde saklanan veri örnekleri:
+
+- özel AI kayıtları
+- quiz tercihleri
+- Gemini web session durumu
+- son okuma bilgisi
+- sabit AI sekmeleri
+- yerleşim ve görünüm tercihleri
+
+## Sorun Giderme
+
+### Quiz üretimi çalışmıyor
+
+- Gemini CLI kurulumunu kontrol edin
+- `gemini login` çalıştırın
+- PDF dosyasının okunabilir ve şifresiz olduğundan emin olun
+
+### AI sayfası boş açılıyor veya prompt göndermiyor
+
+- Aktif AI sekmesini yenileyin
+- Platformun giriş isteyip istemediğini kontrol edin
+- Özel sitelerde seçicileri yeniden yapılandırın
+- Hedef servisin girdi akışının değişmediğini doğrulayın
+
+### Gemini web session bozuk veya yeniden giriş istiyor
+
+- Ayarlar > Gemini Web ekranını açın
+- Elle kontrol çalıştırın
+- Google oturumunu yeniden doğrulayın
+- Profili sadece temiz bir Google oturumu istiyorsanız sıfırlayın
+
+### `npm run dev` mevcut sunucuyu kullanıyor
+
+Eğer `5173` portunda QuizLab Vite sunucusu açıksa bu beklenen davranıştır.
+
+## Katkı
+
+QuizLab; ürün özellikleri, dokümantasyon, hata düzeltmeleri, testler ve platform iyileştirmeleri için katkılar kabul eder.
+
+Pull request açmadan önce:
 
 ```bash
-npm run dev           # Geliştirme modunu başlat
-npm run test          # Test paketini çalıştır
-npm run test:coverage # Kapsamla testleri çalıştır
-npm run lint          # ESLint çalıştır
-npm run typecheck     # TypeScript tip kontrolü
-npm run build         # Üretim için derle
-npm run build:win     # Windows yükleyici oluştur
-npm run build:mac     # macOS DMG oluştur
-npm run build:linux   # Linux AppImage oluştur
+npm run typecheck
+npm run lint
+npm run test
 ```
 
----
+Detaylar [CONTRIBUTING.md](CONTRIBUTING.md) içindedir.
 
-## 🐛 Sorun Giderme
+## Lisans
 
-### Sık Karşılaşılan Sorunlar
-
-**Quiz Oluşturma Başarısız Oluyor**
-- Gemini CLI'nin kurulu olduğundan emin olun: `npm install -g @google/gemini-cli`
-- Kimlik doğrulamayı kontrol edin: `gemini login`
-- PDF'nin bozuk veya parola korumalı olmadığını doğrulayın
-
-**YZ Web Görünümü Yüklenmiyor**
-- İnternet bağlantısını kontrol edin
-- Yenilemeyi deneyin (Ctrl+R)
-- Ayarlar → Hakkında'da önbelleği temizleyin
-
-**Magic Selector Çalışmıyor**
-- Yapay zeka platformunun sohbet sayfasında olduğunuzdan emin olun
-- Web görünümünü yeniden yüklemeyi deneyin
-- Ayarlarda seçicileri yeniden yapılandırın
-
-**PDF Açılmıyor**
-- Dosyanın geçerli bir PDF olduğunu doğrulayın
-- Dosyanın 50MB'dan büyük olmadığını kontrol edin
-- Pencereye sürükleyip bırakmayı deneyin
-
-### Hata Ayıklama Modu
-
-```bash
-# Geliştirme Araçları açıkken çalıştırın
-npm run dev
-
-# Konsolda hataları kontrol edin
-# Geliştirme Araçları'nda ağ isteklerini görüntüleyin
-```
-
----
-
-## 📄 Lisans
-
-Bu proje **MIT Lisansı** altında lisanslanmıştır - detaylar için [LICENSE](LICENSE) dosyasına bakın.
-
----
-
-## 🙏 Teşekkürler
-
-- **Google Gemini Ekibi**: Güçlü yapay zeka API'si için
-- **Electron Ekibi**: Çapraz platform çerçevesi için
-- **React PDF Viewer**: Mükemmel PDF bileşeni için
-- **Framer Motion**: Pürüzsüz animasyonlar için
-- **Tüm Katkıda Bulunanlar**: Bu projeyi daha iyi hale getiren herkes
-
----
-
-<p align="center">
-  <strong>Her yerdeki öğrenenler için sevgiyle yapıldı</strong>
-</p>
-
-<p align="center">
-  <a href="#-quizlab-reader---yapay-zeka-destekli-pdf-çalışma-aracı--quiz-oluşturucu">Başa Dön</a>
-</p>
+QuizLab Reader [MIT Lisansı](LICENSE) ile yayınlanır.

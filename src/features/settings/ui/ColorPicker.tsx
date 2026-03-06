@@ -80,8 +80,7 @@ const ColorPicker = React.memo(({ color, onChange, label }: ColorPickerProps) =>
                 )}
             </Popover>
 
-            <style dangerouslySetInnerHTML={{
-                __html: `
+            <style>{`
                 .custom-color-picker .react-colorful {
                     width: 200px !important;
                     height: 180px !important;
@@ -102,7 +101,7 @@ const ColorPicker = React.memo(({ color, onChange, label }: ColorPickerProps) =>
                     border: 2px solid white;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
                 }
-            `}} />
+            `}</style>
         </div>
     )
 })

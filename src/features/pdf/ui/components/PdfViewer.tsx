@@ -1,4 +1,4 @@
-ï»¿import { useRef, useState, memo, CSSProperties, useEffect, useMemo } from 'react'
+import { useRef, useState, memo, CSSProperties, useEffect, useMemo } from 'react'
 import { useAi } from '@app/providers/AiContext'
 import { useAppTools } from '@app/providers/AppToolContext'
 import { useLanguage } from '@app/providers/LanguageContext'
@@ -10,6 +10,7 @@ import {
     RotateCcw,
     RefreshCw
 } from 'lucide-react'
+import { GOOGLE_AI_WEB_SESSION_PARTITION, GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
 
 // @react-pdf-viewer imports
 import { Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
@@ -24,6 +25,7 @@ import '@react-pdf-viewer/search/lib/styles/index.css'
 import PdfPlaceholder from './PdfPlaceholder'
 import PdfToolbar from './PdfToolbar'
 import { ContextMenu, MenuItem } from './ContextMenu'
+import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
 
 // Custom Hooks
@@ -36,10 +38,11 @@ import {
 } from '../hooks'
 import type { PdfFile } from '@shared-core/types'
 import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
-import type { ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
+import type { PdfTab, ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
 
 interface PdfViewerProps {
     pdfFile: PdfFile | null;
+    activePdfTab?: PdfTab | null;
     onSelectPdf: () => void;
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
     t?: (key: string) => string;
@@ -48,6 +51,8 @@ interface PdfViewerProps {
     onClearResumePdf?: (path?: string) => void;
     onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;
     lastReadingInfo?: LastReadingInfo[] | null;
+    onOpenGoogleDrive?: () => void;
+    isInteractionBlocked?: boolean;
 }
 
 /**
@@ -56,14 +61,15 @@ interface PdfViewerProps {
  * Virtualization is enabled by default in react-pdf-viewer, but 
  * optimized here with Worker and stable plugin references.
  */
-function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, onClearResumePdf, onRestoreResumePdf, lastReadingInfo }: PdfViewerProps) {
-    const { autoSend, toggleAutoSend, sendImageToAI } = useAi()
+function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, onClearResumePdf, onRestoreResumePdf, lastReadingInfo, onOpenGoogleDrive, isInteractionBlocked = false }: PdfViewerProps) {
+    const { autoSend, toggleAutoSend, sendImageToAI, chromeUserAgent } = useAi()
     const { startScreenshot } = useAppTools()
     const { t: contextT } = useLanguage()
     const t = propT || contextT || ((k: string) => k)
 
     // Local state
     const containerRef = useRef<HTMLDivElement>(null)
+    const driveWebviewRef = useRef<any>(null)
     const [scaleFactor, setScaleFactor] = useState(1)
 
     // Derived state
@@ -107,7 +113,7 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
 
     const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
 
-    // initialPage belirtilmiÅŸse, dokÃ¼man yÃ¼klendiginde o sayfaya atla
+    // initialPage belirtilmiþse, doküman yüklendiginde o sayfaya atla
     const initialPageApplied = useRef(false)
     useEffect(() => {
         initialPageApplied.current = false
@@ -166,6 +172,48 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
 
 
     // === RENDER ===
+    if (activePdfTab?.kind === 'drive') {
+        return (
+            <div className="flex-1 flex flex-col overflow-hidden h-full min-h-0">
+                <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-4 py-3 backdrop-blur-xl">
+                    <div className="min-w-0 flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[#1a73e8]/15 text-[#1a73e8]">
+                            {getAiIcon('gdrive')}
+                        </div>
+                        <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-stone-200">{GOOGLE_DRIVE_WEB_APP.name}</div>
+                            <div className="truncate text-[11px] text-stone-500">{t('gdrive_pdf_desc')}</div>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => driveWebviewRef.current?.reload?.()}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-stone-200 transition-colors hover:bg-white/10"
+                    >
+                        <RefreshIcon className="w-4 h-4" />
+                        {t('ctx_reload')}
+                    </button>
+                </div>
+
+                <div className="relative flex-1 min-h-0">
+                    <webview
+                        ref={driveWebviewRef}
+                        key={activePdfTab.id}
+                        src={activePdfTab.webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
+                        partition={GOOGLE_AI_WEB_SESSION_PARTITION}
+                        className="flex-1 w-full h-full"
+                        allowpopups={"true" as any}
+                        webpreferences="contextIsolation=yes, sandbox=no"
+                        useragent={chromeUserAgent}
+                    />
+                    {isInteractionBlocked && (
+                        <div className="absolute inset-0 z-10 pointer-events-auto bg-transparent" />
+                    )}
+                </div>
+            </div>
+        )
+    }
+
     if (!pdfUrl) {
         return (
             <PdfPlaceholder
@@ -174,6 +222,7 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
                 onClearResumePdf={onClearResumePdf}
                 onRestoreResumePdf={onRestoreResumePdf}
                 lastReadingInfo={lastReadingInfo}
+                onOpenGoogleDrive={onOpenGoogleDrive}
             />
         )
     }
@@ -185,8 +234,8 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
                 className="flex-1 overflow-hidden pdf-viewer-container h-full min-h-0 relative flex flex-col"
                 style={{ '--scale-factor': scaleFactor } as CSSProperties}
                 onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
-                    // Ctrl+wheel zoom'u tamamen devre dÄ±ÅŸÄ± bÄ±rak
-                    // Sadece UI Ã¼zerindeki +/- butonlarÄ±yla zoom yapÄ±labilir
+                    // Ctrl+wheel zoom'u tamamen devre dýþý býrak
+                    // Sadece UI üzerindeki +/- butonlarýyla zoom yapýlabilir
                     if (e.ctrlKey || e.metaKey) {
                         return
                     }
@@ -249,6 +298,9 @@ function PdfViewer({ pdfFile, onSelectPdf, onTextSelection, t: propT, initialPag
 }
 
 export default memo(PdfViewer)
+
+
+
 
 
 

@@ -25,16 +25,17 @@ const CLICK_OUTSIDE_DELAY = 100
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
+    initialTab?: string;
 }
 
 /**
  * Settings modal main component
  * Headless UI + Framer Motion Premium Redesign v2
  */
-function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+function SettingsModal({ isOpen, onClose, initialTab = 'prompts' }: SettingsModalProps) {
     const { t } = useLanguage()
     const modalRef = useRef<HTMLDivElement>(null)
-    const [activeTab, setActiveTab] = useState('prompts')
+    const [activeTab, setActiveTab] = useState(initialTab)
 
     // Read settings state/actions from the custom hook
     const settings = useSettings()
@@ -68,6 +69,12 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             document.removeEventListener('mousedown', handleClickOutside)
         }
     }, [isOpen, onClose])
+
+    useEffect(() => {
+        if (isOpen) {
+            setActiveTab(initialTab)
+        }
+    }, [initialTab, isOpen])
 
     const tabDefs = React.useMemo(() => [
         { id: 'prompts', label: t('prompts'), icon: MagicWandIcon },
@@ -139,7 +146,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                            shadow-[0_40px_120px_-50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.04)]
                            will-change-[transform,opacity]"
             >
-                <Tabs defaultValue="prompts" className="flex w-full h-full" value={activeTab} onValueChange={setActiveTab}>
+                <Tabs defaultValue={initialTab} className="flex w-full h-full" value={activeTab} onValueChange={setActiveTab}>
                     {/* Sidebar Navigation */}
                     <aside className="relative w-60 lg:w-64 shrink-0 flex flex-col bg-black/35 border-r border-white/[0.1] max-[900px]:w-full max-[900px]:border-r-0 max-[900px]:border-b">
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.03] via-transparent to-transparent" />

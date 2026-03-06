@@ -105,31 +105,47 @@ describe('AiContext', () => {
         const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
-        const initialTabId = result.current.activeTabId
+        expect(result.current.tabs).toHaveLength(0)
+        expect(result.current.activeTabId).toBe('')
+
+        act(() => {
+            result.current.addTab('chatgpt')
+        })
+
+        expect(result.current.tabs).toHaveLength(1)
+        const firstTabId = result.current.activeTabId
+        expect(result.current.currentAI).toBe('chatgpt')
 
         act(() => {
             result.current.addTab('claude')
         })
 
         expect(result.current.tabs).toHaveLength(2)
-        expect(result.current.activeTabId).not.toBe(initialTabId)
+        expect(result.current.activeTabId).not.toBe(firstTabId)
         expect(result.current.currentAI).toBe('claude')
 
-        // Switch back
         act(() => {
-            result.current.setActiveTab(initialTabId)
+            result.current.setActiveTab(firstTabId)
         })
-        expect(result.current.activeTabId).toBe(initialTabId)
+
+        expect(result.current.activeTabId).toBe(firstTabId)
         expect(result.current.currentAI).toBe('chatgpt')
     })
 
-    it('closes tabs and prevents closing the last one', async () => {
+    it('closes tabs and returns to the home state when the last tab closes', async () => {
         const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
-        // Add a tab first
         act(() => {
+            result.current.addTab('chatgpt')
             result.current.addTab('claude')
+        })
+
+        expect(result.current.tabs).toHaveLength(2)
+        const firstTabId = result.current.tabs[0]?.id
+
+        act(() => {
+            result.current.setActiveTab(firstTabId)
         })
         expect(result.current.tabs).toHaveLength(2)
 
@@ -143,12 +159,13 @@ describe('AiContext', () => {
         expect(result.current.tabs).toHaveLength(1)
         expect(result.current.activeTabId).not.toBe(tabToClose)
 
-        // Try closing the last remaining tab
         const lastTab = result.current.activeTabId
         act(() => {
             result.current.closeTab(lastTab)
         })
-        expect(result.current.tabs).toHaveLength(1) // Should still be 1
+
+        expect(result.current.tabs).toHaveLength(0)
+        expect(result.current.activeTabId).toBe('')
     })
 
     it('supports pin/unpin and rename APIs', async () => {

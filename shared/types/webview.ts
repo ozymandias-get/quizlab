@@ -6,6 +6,7 @@ export type WebviewInputEvent = {
 
 export type WebviewElement = HTMLElement & {
     executeJavaScript: (script: string) => Promise<unknown>;
+    insertCSS?: (css: string) => Promise<unknown>;
     reload: () => void;
     loadURL?: (url: string) => void;
     goBack?: () => void;

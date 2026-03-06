@@ -23,7 +23,7 @@ const MAX_ALIVE_UNPINNED_TABS = 3
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
     const { tabs, activeTabId, setActiveTab, addTab, isTutorialActive, stopTutorial } = useAi()
     const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
-    const [showHome, setShowHome] = useState(true)
+    const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
 
     // Auto-show home when no tabs exist or activeTabId is cleared
     useEffect(() => {

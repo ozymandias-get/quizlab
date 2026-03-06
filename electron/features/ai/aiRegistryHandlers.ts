@@ -1,4 +1,4 @@
-﻿import { ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import { APP_CONFIG } from '../../app/constants'
 import { getCustomPlatformsPath } from '../../core/helpers'
 import { ConfigManager } from '../../core/ConfigManager'
@@ -11,6 +11,7 @@ import {
     CHROME_USER_AGENT,
     INACTIVE_PLATFORMS
 } from './aiManager'
+import { GOOGLE_AI_WEB_APP_IDS } from '../../../shared/constants/google-ai-web-apps'
 
 type CustomPlatformsMap = Record<string, AiPlatform>
 export type AddCustomAiInput = { name: string; url: string; isSite?: boolean }
@@ -101,14 +102,25 @@ export function registerAiRegistryHandlers() {
 
         const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
 
-        // Gemini web model is available only when the Gemini web session feature is both available and enabled.
+        // Google AI apps are gated by the shared session toggle, but YouTube remains visible as a normal site.
         try {
             const geminiStatus = await geminiWebSessionManager.getStatus()
-            if (!(geminiStatus.featureEnabled && geminiStatus.enabled)) {
-                delete mergedRegistry.gemini
+            const isGoogleWebEnabled = geminiStatus.featureEnabled && geminiStatus.enabled
+            if (!isGoogleWebEnabled) {
+                for (const appId of GOOGLE_AI_WEB_APP_IDS) {
+                    delete mergedRegistry[appId]
+                }
+                if (mergedRegistry.youtube) {
+                    mergedRegistry.youtube = { ...mergedRegistry.youtube, partition: undefined }
+                }
             }
         } catch {
-            delete mergedRegistry.gemini
+            for (const appId of GOOGLE_AI_WEB_APP_IDS) {
+                delete mergedRegistry[appId]
+            }
+            if (mergedRegistry.youtube) {
+                mergedRegistry.youtube = { ...mergedRegistry.youtube, partition: undefined }
+            }
         }
 
         const allIds = Object.keys(mergedRegistry)
@@ -130,4 +142,5 @@ export function registerAiRegistryHandlers() {
         }
     })
 }
+
 

@@ -31,6 +31,7 @@ describe('useWebviewLifecycle', () => {
             }),
             reload: vi.fn(),
             executeJavaScript: vi.fn(),
+            insertCSS: vi.fn().mockResolvedValue(undefined),
             // Methods required by WebviewElement interface (partial mock)
             src: '',
             nodeName: 'WEBVIEW',
@@ -74,6 +75,7 @@ describe('useWebviewLifecycle', () => {
         expect(mockWebview.addEventListener).toHaveBeenCalledWith('did-start-loading', expect.any(Function))
         expect(mockWebview.addEventListener).toHaveBeenCalledWith('did-stop-loading', expect.any(Function))
         expect(mockWebview.addEventListener).toHaveBeenCalledWith('did-fail-load', expect.any(Function))
+        expect(mockWebview.addEventListener).toHaveBeenCalledWith('dom-ready', expect.any(Function))
 
         // Trigger stop loading
         act(() => {
@@ -202,6 +204,27 @@ describe('useWebviewLifecycle', () => {
         })
 
         expect(result.current.error).toBeNull()
+    })
+
+    it('should inject scrollbar styles on dom-ready', async () => {
+        const { result } = renderHook(() => useWebviewLifecycle({
+            currentAI: 'test-ai',
+            t: mockT,
+            showWarning: mockShowWarning,
+            registerWebview: mockRegisterWebview
+        }))
+
+        const mockWebview = createMockWebview()
+        act(() => {
+            result.current.onWebviewRef(mockWebview as any)
+        })
+
+        await act(async () => {
+            mockWebview._trigger('dom-ready')
+        })
+
+        expect(mockWebview.insertCSS).toHaveBeenCalledTimes(1)
+        expect(mockWebview.insertCSS).toHaveBeenCalledWith(expect.stringContaining('::-webkit-scrollbar'))
     })
 })
 

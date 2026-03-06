@@ -12,10 +12,17 @@ import type {
     GeminiWebSessionState,
     GeminiWebSessionStatus
 } from '@shared-core/types'
-import { classifyAuthProbe, sanitizeUrl, type DomProbeSnapshot } from './authHeuristics'
+import { classifyAuthProbe, type DomProbeSnapshot } from './authHeuristics'
 import { applyProbeTransition, createDefaultStatus, type ProbeOutcome } from './stateMachine'
 import { runPlaywrightHeadlessRefresh, runPlaywrightLogin, type ExternalBrowserCookie } from './playwrightLogin'
-import { DOM_SNAPSHOT_SCRIPT, EMPTY_DOM_SNAPSHOT, GEMINI_HOME_URL, GOOGLE_SIGNIN_URL } from './constants'
+import {
+    DOM_SNAPSHOT_SCRIPT,
+    EMPTY_DOM_SNAPSHOT,
+    GOOGLE_AI_WEB_APP_URLS,
+    GEMINI_HOME_URL,
+    GOOGLE_SIGNIN_URL
+} from './constants'
+import { buildElectronCookiePayload } from './sessionCookies'
 
 const PROFILE_PARTITION = 'persist:gemini_web_profile'
 const HEALTH_TIMEOUT_MS = 30_000
@@ -121,6 +128,14 @@ type DisabledActionResult = GeminiWebSessionActionResult & {
     status: GeminiWebSessionStatus;
 }
 
+function probeSeverity(kind: ProbeOutcome['kind']): number {
+    if (kind === 'challenge') return 4
+    if (kind === 'login_redirect') return 3
+    if (kind === 'network') return 2
+    if (kind === 'unknown') return 1
+    return 0
+}
+
 function nowIso(): string {
     return new Date().toISOString()
 }
@@ -131,10 +146,6 @@ function isSessionState(value: string): value is GeminiWebSessionState {
 
 function isReasonCode(value: string): value is GeminiWebSessionReasonCode {
     return REASON_CODES.includes(value as GeminiWebSessionReasonCode)
-}
-
-function delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 function isProcessAlive(pid: number): boolean {
@@ -149,6 +160,7 @@ function isProcessAlive(pid: number): boolean {
 
 export class GeminiWebSessionManager {
     private readonly profileDir: string
+    // Dedicated helper browser profile used only for login/refresh flows.
     private readonly playwrightProfileDir: string
     private readonly configPath: string
     private readonly lockPath: string
@@ -184,10 +196,7 @@ export class GeminiWebSessionManager {
         const metadata = await this.readMetadata()
         if (FEATURE_ENABLED && metadata.enabled) {
             this.scheduleMonitor()
-            void this.performHealthCheck({ allowRetry: false }).catch((error: unknown) => {
-                const message = error instanceof Error ? error.message : String(error)
-                console.warn('[GeminiWebSession] Initial health-check failed:', message)
-            })
+            void this.performHealthCheck({ allowRetry: false }).catch(() => { })
         }
     }
 
@@ -222,10 +231,7 @@ export class GeminiWebSessionManager {
         }
         if (nextEnabled) {
             this.scheduleMonitor()
-            void this.performHealthCheck({ allowRetry: false }).catch((error: unknown) => {
-                const message = error instanceof Error ? error.message : String(error)
-                console.warn('[GeminiWebSession] Enable health-check failed:', message)
-            })
+            void this.performHealthCheck({ allowRetry: false }).catch(() => { })
         }
 
         return { success: true, status }
@@ -254,7 +260,6 @@ export class GeminiWebSessionManager {
                 profileDir: this.playwrightProfileDir,
                 timeoutMs: LOGIN_TIMEOUT_MS
             })
-
             if (!loginResult.success) {
                 const transitioned = applyProbeTransition({
                     previous,
@@ -279,7 +284,7 @@ export class GeminiWebSessionManager {
             await this.importExternalCookies(targetSession, loginResult.cookies)
 
             // Verify imported cookies with in-app probe.
-            const probe = await this.runProbe({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
+            const probe = await this.runProbeAcrossApps({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
             const timestamp = nowIso()
             const transitioned = applyProbeTransition({
                 previous,
@@ -529,34 +534,10 @@ export class GeminiWebSessionManager {
 
     private async importExternalCookies(targetSession: Session, cookies: ExternalBrowserCookie[]): Promise<void> {
         await this.clearGoogleCookies(targetSession)
-
         for (const cookie of cookies) {
-            if (!cookie.domain || !cookie.name) continue
-            if (!cookie.domain.includes('google.com')) continue
-
-            const host = cookie.domain.replace(/^\./, '')
-            const cookiePath = cookie.path || '/'
-            const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`
-
-            const payload: Electron.CookiesSetDetails = {
-                url,
-                name: cookie.name,
-                value: cookie.value,
-                domain: cookie.domain,
-                path: cookiePath,
-                secure: !!cookie.secure,
-                httpOnly: !!cookie.httpOnly
-            }
-
-            if (typeof cookie.expires === 'number' && cookie.expires > 0) {
-                payload.expirationDate = cookie.expires
-            }
-
-            if (cookie.sameSite === 'Lax') payload.sameSite = 'lax'
-            if (cookie.sameSite === 'Strict') payload.sameSite = 'strict'
-            if (cookie.sameSite === 'None') payload.sameSite = 'no_restriction'
-
-            await targetSession.cookies.set(payload).catch(() => { })
+            const payload = buildElectronCookiePayload(cookie)
+            if (!payload) continue
+            await targetSession.cookies.set(payload).catch(() => {})
         }
 
         try {
@@ -604,16 +585,15 @@ export class GeminiWebSessionManager {
             }
 
             try {
-                let current = await this.readMetadata()
-                let firstProbe = await this.runProbe({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
-                let status = applyProbeTransition({
-                    previous: current,
-                    outcome: firstProbe.outcome,
-                    timestamp: nowIso(),
-                    maxConsecutiveFailures: this.config.maxConsecutiveFailures
-                })
+                const current = await this.readMetadata()
+                let firstProbe = await this.runProbeAcrossApps({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
                 let accountHash = firstProbe.outcome.healthy ? firstProbe.accountHash : current.accountHash
 
+                // Recovery order:
+                // 1. normal probe
+                // 2. silent refresh
+                // 3. headless Playwright refresh
+                // 4. surface reauth-required state to the user if still unhealthy
                 if (this.shouldAttemptSilentRefresh(firstProbe.outcome, options.allowRetry)) {
                     const refreshProbe = await this.runSilentRefreshProbe()
                     if (refreshProbe.outcome.healthy) {
@@ -627,53 +607,34 @@ export class GeminiWebSessionManager {
                     }
 
                     firstProbe = refreshProbe
-                    status = applyProbeTransition({
-                        previous: current,
-                        outcome: refreshProbe.outcome,
-                        timestamp: nowIso(),
-                        maxConsecutiveFailures: this.config.maxConsecutiveFailures
-                    })
                 }
 
                 if (this.shouldAttemptPlaywrightHeadlessRefresh(firstProbe.outcome, options.allowRetry)) {
                     const playwrightProbe = await this.runPlaywrightHeadlessRefreshProbe(accountHash)
                     if (playwrightProbe) {
                         firstProbe = playwrightProbe
-                        status = applyProbeTransition({
-                            previous: current,
-                            outcome: firstProbe.outcome,
-                            timestamp: nowIso(),
-                            maxConsecutiveFailures: this.config.maxConsecutiveFailures
-                        })
                         accountHash = firstProbe.outcome.healthy
                             ? (firstProbe.accountHash || accountHash)
                             : accountHash
 
                         if (firstProbe.outcome.healthy) {
-                            return this.writeStatus(status, accountHash)
+                            const recoveredStatus = applyProbeTransition({
+                                previous: current,
+                                outcome: firstProbe.outcome,
+                                timestamp: nowIso(),
+                                maxConsecutiveFailures: this.config.maxConsecutiveFailures
+                            })
+                            return this.writeStatus(recoveredStatus, accountHash)
                         }
                     }
                 }
 
-                const shouldRetry =
-                    options.allowRetry &&
-                    !firstProbe.outcome.healthy &&
-                    firstProbe.outcome.kind !== 'network' &&
-                    status.state === 'degraded'
-
-                if (shouldRetry) {
-                    await delay(this.config.retryDelayMs)
-                    current = { ...current, ...status, accountHash }
-                    const secondProbe = await this.runProbe({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
-                    status = applyProbeTransition({
-                        previous: current,
-                        outcome: secondProbe.outcome,
-                        timestamp: nowIso(),
-                        maxConsecutiveFailures: this.config.maxConsecutiveFailures
-                    })
-                    accountHash = secondProbe.outcome.healthy ? secondProbe.accountHash : accountHash
-                }
-
+                const status = applyProbeTransition({
+                    previous: current,
+                    outcome: firstProbe.outcome,
+                    timestamp: nowIso(),
+                    maxConsecutiveFailures: this.config.maxConsecutiveFailures
+                })
                 return this.writeStatus(status, accountHash)
             } finally {
                 await this.releaseProfileLock()
@@ -746,10 +707,9 @@ export class GeminiWebSessionManager {
         })
         if (signinProbe.outcome.healthy) return signinProbe
 
-        return this.runProbe({
+        return this.runProbeAcrossApps({
             interactive: false,
-            timeoutMs: HEALTH_TIMEOUT_MS,
-            initialUrl: GEMINI_HOME_URL
+            timeoutMs: HEALTH_TIMEOUT_MS
         })
     }
 
@@ -770,12 +730,44 @@ export class GeminiWebSessionManager {
         const targetSession = this.resolvePersistentSession()
         await this.importExternalCookies(targetSession, refreshResult.cookies)
 
-        const verificationProbe = await this.runProbe({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
+        const verificationProbe = await this.runProbeAcrossApps({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
         return {
             ...verificationProbe,
             accountHash: verificationProbe.outcome.healthy
                 ? (verificationProbe.accountHash || refreshResult.accountHash || previousAccountHash)
                 : previousAccountHash
+        }
+    }
+
+    private async runProbeAcrossApps(
+        options: { interactive: boolean; timeoutMs: number; initialUrls?: string[] }
+    ): Promise<ProbeExecutionResult> {
+        const targetUrls = options.initialUrls && options.initialUrls.length > 0
+            ? options.initialUrls
+            : GOOGLE_AI_WEB_APP_URLS
+
+        let bestFailure: ProbeExecutionResult | null = null
+
+        for (const initialUrl of targetUrls) {
+            const result = await this.runProbe({
+                interactive: options.interactive,
+                timeoutMs: options.timeoutMs,
+                initialUrl
+            })
+
+            if (result.outcome.healthy) {
+                return result
+            }
+
+            if (!bestFailure || probeSeverity(result.outcome.kind) > probeSeverity(bestFailure.outcome.kind)) {
+                bestFailure = result
+            }
+        }
+
+        return bestFailure || {
+            outcome: { kind: 'unknown', healthy: false },
+            accountHash: null,
+            timedOut: false
         }
     }
 
@@ -815,20 +807,6 @@ export class GeminiWebSessionManager {
                 done = true
                 clearTimeout(timeoutId)
                 clearInterval(intervalId)
-                const shouldLogIssue = !result.outcome.healthy || result.timedOut
-                const shouldLogInteractiveSuccess = options.interactive && result.outcome.healthy
-                if (shouldLogIssue) {
-                    console.warn(
-                        '[GeminiWebSession] Probe issue:',
-                        JSON.stringify({
-                            outcome: result.outcome.kind,
-                            timedOut: result.timedOut,
-                            url: sanitizeUrl(currentUrl)
-                        })
-                    )
-                } else if (shouldLogInteractiveSuccess) {
-                    console.info('[GeminiWebSession] Probe ok:', result.outcome.kind)
-                }
                 try {
                     if (!win.isDestroyed()) win.close()
                 } catch { }

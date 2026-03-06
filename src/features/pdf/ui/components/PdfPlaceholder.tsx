@@ -3,9 +3,11 @@ import { ArrowUpDown, FileText, Play, Search } from 'lucide-react'
 import { useLanguage, useToast } from '@app/providers'
 import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
 import { Button } from '@ui/components/button'
+import { getAiIcon } from '@ui/components/Icons'
 
 interface PdfPlaceholderProps {
     onSelectPdf: () => void;
+    onOpenGoogleDrive?: () => void;
     onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult;
     onClearResumePdf?: (path?: string) => void;
     onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;
@@ -45,6 +47,7 @@ const getProgressRatio = (page: number, totalPages: number): number => {
  */
 function PdfPlaceholder({
     onSelectPdf,
+    onOpenGoogleDrive,
     onResumePdf,
     onClearResumePdf,
     onRestoreResumePdf,
@@ -170,7 +173,6 @@ function PdfPlaceholder({
     }, [addToast, onClearResumePdf])
 
     const shouldShowAdvancedControls = recentItems.length > 6
-    const shouldEnableScroll = processedItems.length > 8
 
     return (
         <div className="h-full flex flex-col items-center justify-center gap-6 p-10 text-center bg-transparent animate-in fade-in zoom-in duration-700">
@@ -191,21 +193,37 @@ function PdfPlaceholder({
                 <p className="text-stone-500 text-sm max-w-[200px]">{t('drop_pdf_here')}</p>
             </div>
 
-            <Button
-                type="button"
-                onClick={onSelectPdf}
-                className="flex items-center gap-3 px-7 py-3.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-stone-950 font-semibold hover:from-amber-400 hover:to-orange-400 shadow-[0_8px_28px_rgba(245,158,11,0.35)]"
-            >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
-                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M17 8L12 3L7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                        strokeLinejoin="round" />
-                    <path d="M12 3V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{t('select_pdf')}</span>
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button
+                    type="button"
+                    onClick={onSelectPdf}
+                    className="flex items-center gap-3 px-7 py-3.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-stone-950 font-semibold hover:from-amber-400 hover:to-orange-400 shadow-[0_8px_28px_rgba(245,158,11,0.35)]"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M17 8L12 3L7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                            strokeLinejoin="round" />
+                        <path d="M12 3V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span>{t('select_pdf')}</span>
+                </Button>
+
+                {onOpenGoogleDrive && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={onOpenGoogleDrive}
+                        className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-3.5 font-semibold text-stone-100 hover:bg-white/10"
+                    >
+                        <span className="flex items-center [&>svg]:h-5 [&>svg]:w-5 text-[#1a73e8]">
+                            {getAiIcon('gdrive')}
+                        </span>
+                        <span>{t('open_google_drive')}</span>
+                    </Button>
+                )}
+            </div>
 
             <div className="w-full max-w-[680px] flex flex-col gap-2 relative">
                 <div className="flex items-start justify-between gap-3 px-1">
@@ -285,7 +303,7 @@ function PdfPlaceholder({
                 )}
 
                 {processedItems.length > 0 && onResumePdf && (
-                    <div className={`${shouldEnableScroll ? 'max-h-[380px] overflow-y-auto custom-scrollbar pr-1' : ''} space-y-2`}>
+                    <div className="max-h-[240px] sm:max-h-[300px] lg:max-h-[360px] overflow-y-auto custom-scrollbar pr-1 space-y-2 relative">
                         {groupedItems.map((group) => (
                             <div key={group.id} className="space-y-2">
                                 {group.labelKey && (
@@ -325,8 +343,8 @@ function PdfPlaceholder({
                                                 backdrop-blur-md shadow-[0_8px_20px_rgba(0,0,0,0.2)]
                                                 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80
                                                 ${isInvalid
-            ? 'bg-red-500/[0.07] border-red-500/30 text-stone-300/80'
-            : 'bg-white/[0.05] border-white/10 text-stone-200 hover:bg-white/[0.09] hover:border-amber-500/30 hover:shadow-[0_10px_24px_rgba(245,158,11,0.08)]'}
+                                                    ? 'bg-red-500/[0.07] border-red-500/30 text-stone-300/80'
+                                                    : 'bg-white/[0.05] border-white/10 text-stone-200 hover:bg-white/[0.09] hover:border-amber-500/30 hover:shadow-[0_10px_24px_rgba(245,158,11,0.08)]'}
                                             `}
                                             title={item.name}
                                         >
@@ -399,7 +417,7 @@ function PdfPlaceholder({
                         ))}
                     </div>
                 )}
-                </div>
+            </div>
         </div>
     )
 }

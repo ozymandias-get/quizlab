@@ -7,12 +7,17 @@ import { ConfigManager } from '../core/ConfigManager'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 
 export const isDev = !app.isPackaged
+const DEV_SERVER_URL = process.env.QUIZLAB_RENDERER_URL || 'http://localhost:5173'
+const DEV_SERVER_TIMEOUT_MS = 30000
+const DEV_SERVER_POLL_MS = 500
 const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 
 const getAppPath = (...parts: string[]) => {
     return path.join(app.getAppPath(), ...parts)
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 function resolveIconPath() {
     const extension = process.platform === 'win32' ? 'ico' : 'png'
@@ -24,6 +29,58 @@ function resolveIconPath() {
     ]
 
     return candidates.find(iconPath => fs.existsSync(iconPath)) ?? candidates[0]
+}
+
+async function isDevServerReachable() {
+    try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 1500)
+        const response = await fetch(DEV_SERVER_URL, {
+            signal: controller.signal,
+            headers: { Accept: 'text/html' }
+        })
+        clearTimeout(timeoutId)
+        return response.ok
+    } catch {
+        return false
+    }
+}
+
+async function waitForDevServer() {
+    const startedAt = Date.now()
+
+    while (Date.now() - startedAt < DEV_SERVER_TIMEOUT_MS) {
+        if (await isDevServerReachable()) {
+            return true
+        }
+        await sleep(DEV_SERVER_POLL_MS)
+    }
+
+    return false
+}
+
+async function loadRenderer(window: BrowserWindow) {
+    if (!isDev) {
+        window.setMenu(null)
+        const indexPath = path.join(app.getAppPath(), 'dist', 'index.html')
+        await window.loadFile(indexPath).catch(() => {
+            dialog.showErrorBox('Load Error', `Index not found: ${indexPath}`)
+        })
+        return
+    }
+
+    const devServerReady = await waitForDevServer()
+    if (!devServerReady) {
+        throw new Error(
+            `Renderer dev server was not reachable at ${DEV_SERVER_URL} within ${DEV_SERVER_TIMEOUT_MS / 1000} seconds. ` +
+            'Start the app with `npm run dev`, or run `npm run dev:web` before `npm run dev:electron`.'
+        )
+    }
+
+    await window.loadURL(DEV_SERVER_URL)
+    if (shouldOpenDevToolsOnStart) {
+        window.webContents.openDevTools({ mode: 'detach' })
+    }
 }
 
 
@@ -162,34 +219,62 @@ export async function createWindow() {
         }
     })
 
-    if (isDev) {
-        mainWindow.loadURL('http://localhost:5173')
-        if (shouldOpenDevToolsOnStart) {
-            mainWindow.webContents.openDevTools({ mode: 'detach' })
-        }
-    } else {
-        mainWindow.setMenu(null)
-        const indexPath = path.join(app.getAppPath(), 'dist', 'index.html')
-        mainWindow.loadFile(indexPath).catch(() => {
-            dialog.showErrorBox('Load Error', `Index not found: ${indexPath}`)
-        })
-    }
+    await loadRenderer(mainWindow)
 
     if (windowState.isMaximized) {
         mainWindow.maximize()
     }
 
-    mainWindow.once('ready-to-show', () => {
+    let revealTimer: NodeJS.Timeout | null = setTimeout(() => {
+        console.warn('[Window] ready-to-show timed out; revealing the main window as a fallback.')
+        revealMainWindow()
+    }, 10000)
+
+    const clearRevealTimer = () => {
+        if (!revealTimer) return
+        clearTimeout(revealTimer)
+        revealTimer = null
+    }
+
+    const revealMainWindow = () => {
+        clearRevealTimer()
+        if (!mainWindow || mainWindow.isDestroyed()) return
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.destroy()
             splashWindow = null
         }
-        mainWindow?.setSkipTaskbar(false)
-        mainWindow?.show()
+        mainWindow.setSkipTaskbar(false)
+        if (!mainWindow.isVisible()) {
+            mainWindow.show()
+        }
+    }
+
+    mainWindow.once('ready-to-show', revealMainWindow)
+    mainWindow.webContents.once('did-finish-load', () => {
+        setTimeout(() => {
+            revealMainWindow()
+        }, 250)
+    })
+    mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (!isMainFrame || errorCode === -3) return
+        console.error(`[Window] Failed to load ${validatedURL || 'main window'} (${errorCode}): ${errorDescription}`)
+        revealMainWindow()
+        const isDevRendererFailure = isDev && (validatedURL || '').startsWith(DEV_SERVER_URL)
+        dialog.showErrorBox(
+            isDevRendererFailure ? 'Renderer Dev Server Unavailable' : 'Load Error',
+            isDevRendererFailure
+                ? `Failed to load the renderer from ${validatedURL || DEV_SERVER_URL}.\n\n` +
+                `${errorDescription} (${errorCode})\n\n` +
+                'Run `npm run dev` to start both Vite and Electron, or start Vite with `npm run dev:web` before `npm run dev:electron`.'
+                : `Failed to load ${validatedURL || 'the main window'}.\n\n${errorDescription} (${errorCode})`
+        )
     })
 
     mainWindow.on('close', () => saveWindowState(mainWindow))
-    mainWindow.on('closed', () => { mainWindow = null })
+    mainWindow.on('closed', () => {
+        clearRevealTimer()
+        mainWindow = null
+    })
 
     setupSessions()
 

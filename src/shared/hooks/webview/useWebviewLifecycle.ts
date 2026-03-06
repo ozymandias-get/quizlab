@@ -6,6 +6,41 @@ import type { WebviewController, WebviewElement, WebviewInputEvent } from '@shar
 const MAX_CRASH_RETRIES = 3
 const CRASH_RETRY_DELAY = 1000
 const ERROR_CODE_ABORTED = -3
+const WEBVIEW_SCROLLBAR_CSS = `
+  html, body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.28) rgba(255,255,255,0.08);
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(255,255,255,0.34), rgba(255,255,255,0.18));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(255,255,255,0.46), rgba(255,255,255,0.24));
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+`
 
 interface UseWebviewLifecycleProps {
     currentAI: string;
@@ -150,6 +185,10 @@ export function useWebviewLifecycle({
         }
     }, [])
 
+    const handleDomReady = useCallback(() => {
+        activeWebviewRef.current?.insertCSS?.(WEBVIEW_SCROLLBAR_CSS).catch(() => { })
+    }, [])
+
     const onWebviewRef = useCallback((element: WebviewElement | null) => {
         if (!element || activeWebviewRef.current === element) return
         activeWebviewRef.current = element
@@ -165,6 +204,7 @@ export function useWebviewLifecycle({
         wv.addEventListener('did-stop-loading', handleStopLoading)
         wv.addEventListener('did-fail-load', handleFailLoad)
         wv.addEventListener('new-window', handleNewWindow)
+        wv.addEventListener('dom-ready', handleDomReady)
         wv.addEventListener('render-process-gone', handleCrashed)
 
         return () => {
@@ -172,9 +212,10 @@ export function useWebviewLifecycle({
             wv.removeEventListener('did-stop-loading', handleStopLoading)
             wv.removeEventListener('did-fail-load', handleFailLoad)
             wv.removeEventListener('new-window', handleNewWindow)
+            wv.removeEventListener('dom-ready', handleDomReady)
             wv.removeEventListener('render-process-gone', handleCrashed)
         }
-    }, [webviewElement, handleStartLoading, handleStopLoading, handleFailLoad, handleNewWindow, handleCrashed])
+    }, [webviewElement, handleStartLoading, handleStopLoading, handleFailLoad, handleNewWindow, handleDomReady, handleCrashed])
 
     return {
         isLoading,

@@ -4,6 +4,7 @@ import { useToast, useLanguage } from '@app/providers'
 import type { PdfFile } from '@shared-core/types'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useSelectPdf, useRegisterPdfPath } from '@platform/electron/api/usePdfApi'
+import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
 
 type DroppedPdfFile = File & { path?: string }
 
@@ -21,6 +22,8 @@ export interface PdfTab {
     id: string;
     file: PdfFile | null;
     title?: string;
+    kind?: 'pdf' | 'drive';
+    webviewUrl?: string;
 }
 
 const MAX_RECENT_PDFS = 24
@@ -140,7 +143,7 @@ export const usePdfSelection = () => {
 
         if (existingTab) {
             setPdfTabs(currentTabs.map((tab) => (
-                tab.id === existingTab.id ? { ...tab, file: normalizedFile } : tab
+                tab.id === existingTab.id ? { ...tab, file: normalizedFile, kind: 'pdf', webviewUrl: undefined } : tab
             )))
             setActivePdfTabId(existingTab.id)
         } else {
@@ -148,11 +151,11 @@ export const usePdfSelection = () => {
             const activeTab = currentTabs.find((tab) => tab.id === currentActiveId)
             if (activeTab && activeTab.file === null) {
                 setPdfTabs(currentTabs.map((tab) => (
-                    tab.id === activeTab.id ? { ...tab, file: normalizedFile } : tab
+                    tab.id === activeTab.id ? { ...tab, file: normalizedFile, kind: 'pdf', webviewUrl: undefined } : tab
                 )))
             } else {
                 const newTabId = crypto.randomUUID()
-                setPdfTabs([...currentTabs, { id: newTabId, file: normalizedFile }])
+                setPdfTabs([...currentTabs, { id: newTabId, file: normalizedFile, kind: 'pdf' }])
                 setActivePdfTabId(newTabId)
             }
         }
@@ -206,8 +209,38 @@ export const usePdfSelection = () => {
 
     const addEmptyPdfTab = useCallback(() => {
         const newTabId = crypto.randomUUID()
-        setPdfTabs((prev) => [...prev, { id: newTabId, file: null }])
+        setPdfTabs((prev) => [...prev, { id: newTabId, file: null, kind: 'pdf' }])
         setActivePdfTabId(newTabId)
+    }, [])
+
+    const openGoogleDriveTab = useCallback(() => {
+        const currentTabs = pdfTabsRef.current
+        const existingTab = currentTabs.find((tab) => tab.kind === 'drive')
+        if (existingTab) {
+            setActivePdfTabId(existingTab.id)
+            return
+        }
+
+        const currentActiveId = activePdfTabIdRef.current
+        const activeTab = currentTabs.find((tab) => tab.id === currentActiveId)
+        const driveTab: PdfTab = {
+            id: activeTab?.file === null ? activeTab.id : crypto.randomUUID(),
+            file: null,
+            kind: 'drive',
+            title: GOOGLE_DRIVE_WEB_APP.name,
+            webviewUrl: GOOGLE_DRIVE_WEB_APP.url
+        }
+
+        if (activeTab && activeTab.file === null) {
+            setPdfTabs(currentTabs.map((tab) => (
+                tab.id === activeTab.id ? driveTab : tab
+            )))
+            setActivePdfTabId(activeTab.id)
+            return
+        }
+
+        setPdfTabs([...currentTabs, driveTab])
+        setActivePdfTabId(driveTab.id)
     }, [])
 
     const renamePdfTab = useCallback((tabId: string, title?: string) => {
@@ -328,7 +361,7 @@ export const usePdfSelection = () => {
     const activeTabInitialPage = useMemo(() => {
         if (!activePdfTabId) return undefined
         const activeTab = pdfTabs.find((tab) => tab.id === activePdfTabId)
-        if (!activeTab || !activeTab.file?.path) return undefined
+        if (!activeTab || activeTab.kind !== 'pdf' || !activeTab.file?.path) return undefined
 
         // localStorage'daki en guncel sayfa bilgisini oku.
         // Bu deger sadece sekme ilk acildiginda veya degistiginde okunacagi icin performans sorununa yol acmaz.
@@ -340,12 +373,18 @@ export const usePdfSelection = () => {
     const pdfFile = useMemo(() => {
         if (!activePdfTabId) return null
         const activeTab = pdfTabs.find((tab) => tab.id === activePdfTabId)
-        return activeTab?.file || null
+        return activeTab?.kind === 'drive' ? null : (activeTab?.file || null)
+    }, [pdfTabs, activePdfTabId])
+
+    const activePdfTab = useMemo(() => {
+        if (!activePdfTabId) return null
+        return pdfTabs.find((tab) => tab.id === activePdfTabId) || null
     }, [pdfTabs, activePdfTabId])
 
     return {
         pdfFile,
         pdfTabs,
+        activePdfTab,
         activePdfTabId,
         setActivePdfTab,
         closePdfTab,
@@ -358,6 +397,7 @@ export const usePdfSelection = () => {
         clearLastReading,
         restoreRecentReading,
         addEmptyPdfTab,
+        openGoogleDriveTab,
         activeTabInitialPage
     }
 }

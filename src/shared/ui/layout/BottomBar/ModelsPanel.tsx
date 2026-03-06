@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback } from 'react'
 import { AnimatePresence, motion, Reorder } from 'framer-motion'
-import { useAi, useLanguage } from '@app/providers'
+import { useAi } from '@app/providers'
 import { AIItem } from './AIItem'
 import { panelVariantsVertical, panelTransition } from './animations'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
@@ -19,7 +19,6 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPa
         aiSites
     } = useAi()
 
-    const { t } = useLanguage()
     const [activeDragItem, setActiveDragItem] = useState<string | null>(null)
 
     const handleReorder = useCallback((newOrder: string[]) => {
@@ -35,41 +34,43 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPa
                     animate="visible"
                     exit="exit"
                     transition={panelTransition}
-                    className="bottom-bar-panel bottom-bar-panel--models absolute top-full mt-2 left-0 z-40 w-full overflow-visible flex flex-col gap-4 py-4 rounded-2xl border border-white/20 shadow-2xl shadow-black/50 bg-[#080808]/95 backdrop-blur-xl"
+                    className="bottom-bar-panel bottom-bar-panel--models absolute top-full mt-2 left-0 z-40 w-full overflow-hidden rounded-2xl border border-white/20 shadow-2xl shadow-black/50 bg-[#080808]/95 backdrop-blur-xl"
                     style={panelStyle}
                     id={APP_CONSTANTS.TOUR_TARGETS.MODELS_LIST}
                 >
-                    <div className="flex flex-col items-center gap-1 w-full relative z-10 px-0.5">
-                        <div className="text-[10px] font-bold text-white/90 tracking-widest leading-none select-none text-center w-full whitespace-nowrap drop-shadow-sm uppercase antialiased">
-                            {t('new_tab')}
-                        </div>
-
-                        <Reorder.Group
-                            axis="y"
-                            values={enabledModels}
-                            onReorder={handleReorder}
-                            className="flex flex-col items-center gap-1 w-full"
+                    <div className="relative flex flex-col items-center w-full">
+                        <div
+                            data-testid="models-panel-scroll-area"
+                            className="w-full overflow-y-auto overflow-x-hidden scrollbar-hidden overscroll-contain"
+                            style={{ maxHeight: 'min(52vh, 24rem)' }}
                         >
-                            {enabledModels.map((modelKey, index) => {
-                                const site = aiSites[modelKey]
-                                if (!site) return null
+                            <Reorder.Group
+                                axis="y"
+                                values={enabledModels}
+                                onReorder={handleReorder}
+                                className="flex flex-col items-center gap-2 py-3 w-full"
+                            >
+                                {enabledModels.map((modelKey, index) => {
+                                    const site = aiSites[modelKey]
+                                    if (!site) return null
 
-                                return (
-                                    <AIItem
-                                        key={modelKey}
-                                        modelKey={modelKey}
-                                        site={site}
-                                        isSelected={false}
-                                        setCurrentAI={addTab}
-                                        setActiveDragItem={setActiveDragItem}
-                                        activeDragItem={activeDragItem}
-                                        showOnlyIcons={showOnlyIcons}
-                                        animationDelay={0.03 + (index * 0.03)}
-                                        draggable={true}
-                                    />
-                                )
-                            })}
-                        </Reorder.Group>
+                                    return (
+                                        <AIItem
+                                            key={modelKey}
+                                            modelKey={modelKey}
+                                            site={site}
+                                            isSelected={false}
+                                            setCurrentAI={addTab}
+                                            setActiveDragItem={setActiveDragItem}
+                                            activeDragItem={activeDragItem}
+                                            showOnlyIcons={showOnlyIcons}
+                                            animationDelay={0.03 + (index * 0.03)}
+                                            draggable={true}
+                                        />
+                                    )
+                                })}
+                            </Reorder.Group>
+                        </div>
                     </div>
                 </motion.div>
             )}
@@ -78,4 +79,3 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPa
 })
 
 ModelsPanel.displayName = 'ModelsPanel'
-

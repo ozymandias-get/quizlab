@@ -109,6 +109,36 @@ const CopilotIcon = ({ className = "w-5 h-5" }) => (
     </svg>
 );
 
+const NotebookLmIcon = ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 96 97" fill="none">
+        <path d="M47.8949 18.4805C25.8606 18.4805 8 36.4097 8 58.5367V77.7155H15.3554V75.8041C15.3554 66.8302 22.5966 59.5548 31.5337 59.5548C40.4709 59.5548 47.712 66.8302 47.712 75.8041V77.7155H55.0674V75.8041C55.0674 62.7529 44.5303 52.1777 31.5337 52.1777C26.4731 52.1777 21.7874 53.779 17.9474 56.5142C21.9657 48.4983 30.2354 42.9955 39.7851 42.9955C53.2754 42.9955 64.2149 53.9826 64.2149 67.5244V77.7155H71.5703V67.5244C71.5703 49.9006 57.3394 35.6091 39.7851 35.6091C31.8903 35.6091 24.672 38.497 19.1131 43.2825C24.5714 32.9201 35.4103 25.8623 47.8994 25.8623C65.8743 25.8623 80.4434 40.4917 80.4434 58.5367V77.7155H87.7989V58.5367C87.7943 36.4097 69.9337 18.4805 47.8949 18.4805Z" fill="currentColor" />
+    </svg>
+)
+
+const AiStudioIcon = ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+        <rect x="2.5" y="2.5" width="19" height="19" rx="5.2" fill="#121212" />
+        <path d="M15.2 5.95L15.88 7.67L17.6 8.35L15.88 9.03L15.2 10.75L14.52 9.03L12.8 8.35L14.52 7.67L15.2 5.95Z" fill="white" />
+        <path d="M7.95 7.4C6.9835 7.4 6.2 8.1835 6.2 9.15V15.1C6.2 16.0665 6.9835 16.85 7.95 16.85H14.15C15.1165 16.85 15.9 16.0665 15.9 15.1V12.85" stroke="white" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M11.2 7.4H8.7" stroke="white" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+)
+
+const YoutubeIcon = ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+        <rect x="2.15" y="4.15" width="19.7" height="15.7" rx="5.45" fill="#FF0033" />
+        <path d="M10.15 8.95V15.05L15.6 12L10.15 8.95Z" fill="white" />
+    </svg>
+)
+
+const GoogleDriveIcon = ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+        <path d="M9.2 3.5H14.8L21 14.25H15.4L9.2 3.5Z" fill="#0F9D58" />
+        <path d="M8.6 4.1L11.4 8.95L6.15 18H3L8.6 4.1Z" fill="#F4B400" />
+        <path d="M6.75 18.5L9.55 13.65H21L18.2 18.5H6.75Z" fill="#4285F4" />
+    </svg>
+)
+
 const ManusIcon = ({ className = "w-5 h-5" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd">
         <path d="M8.047 1.163A.936.936 0 119.863.709c.063.256.132.508.2.76l.005.016c.158.58.315 1.16.416 1.771a.936.936 0 11-1.847.305c-.085-.517-.203-.949-.346-1.473v-.002c-.075-.274-.157-.573-.244-.923zM3.67 2.753a.936.936 0 00.428 1.252c.667.327 1.245.65 1.818 1.295a.936.936 0 001.4-1.242C6.5 3.138 5.66 2.687 4.922 2.325a.936.936 0 00-1.252.428z" />
@@ -155,6 +185,10 @@ export const getAiIcon = (modelKey: string): React.ReactNode => {
         case 'manus': return <ManusIcon />
         case 'claude': return <ClaudeIcon />
         case 'gemini': return <GeminiIcon />
+        case 'notebooklm': return <NotebookLmIcon />
+        case 'aistudio': return <AiStudioIcon />
+        case 'youtube': return <YoutubeIcon />
+        case 'gdrive': return <GoogleDriveIcon />
         case 'huggingchat': return <HuggingChatIcon />
         case 'globe': return <GlobeIcon />
         default: return null

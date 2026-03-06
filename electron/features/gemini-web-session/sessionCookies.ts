@@ -18,35 +18,46 @@ export async function clearGoogleCookies(targetSession: Session): Promise<void> 
     }
 }
 
+export function buildElectronCookiePayload(cookie: ExternalBrowserCookie): Electron.CookiesSetDetails | null {
+    if (!cookie.domain || !cookie.name) return null
+    if (!cookie.domain.includes('google.com')) return null
+
+    const host = cookie.domain.replace(/^\./, '')
+    const cookiePath = cookie.path || '/'
+    const payload: Electron.CookiesSetDetails = {
+        url: `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`,
+        name: cookie.name,
+        value: cookie.value,
+        path: cookiePath,
+        secure: !!cookie.secure,
+        httpOnly: !!cookie.httpOnly,
+        sameSite: 'unspecified'
+    }
+
+    // Electron normalizes explicit domains with a leading dot, which turns
+    // host-only cookies into domain cookies. Preserve host-only cookies by
+    // omitting `domain` unless the source cookie was already scoped broadly.
+    if (cookie.domain.startsWith('.')) {
+        payload.domain = cookie.domain
+    }
+
+    if (typeof cookie.expires === 'number' && cookie.expires > 0) {
+        payload.expirationDate = cookie.expires
+    }
+
+    if (cookie.sameSite === 'Lax') payload.sameSite = 'lax'
+    if (cookie.sameSite === 'Strict') payload.sameSite = 'strict'
+    if (cookie.sameSite === 'None') payload.sameSite = 'no_restriction'
+
+    return payload
+}
+
 export async function importExternalCookies(targetSession: Session, cookies: ExternalBrowserCookie[]): Promise<void> {
     await clearGoogleCookies(targetSession)
 
     for (const cookie of cookies) {
-        if (!cookie.domain || !cookie.name) continue
-        if (!cookie.domain.includes('google.com')) continue
-
-        const host = cookie.domain.replace(/^\./, '')
-        const cookiePath = cookie.path || '/'
-        const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`
-
-        const payload: Electron.CookiesSetDetails = {
-            url,
-            name: cookie.name,
-            value: cookie.value,
-            domain: cookie.domain,
-            path: cookiePath,
-            secure: !!cookie.secure,
-            httpOnly: !!cookie.httpOnly
-        }
-
-        if (typeof cookie.expires === 'number' && cookie.expires > 0) {
-            payload.expirationDate = cookie.expires
-        }
-
-        if (cookie.sameSite === 'Lax') payload.sameSite = 'lax'
-        if (cookie.sameSite === 'Strict') payload.sameSite = 'strict'
-        if (cookie.sameSite === 'None') payload.sameSite = 'no_restriction'
-
+        const payload = buildElectronCookiePayload(cookie)
+        if (!payload) continue
         await targetSession.cookies.set(payload).catch(() => { })
     }
 

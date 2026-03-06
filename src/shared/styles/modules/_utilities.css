@@ -35,6 +35,17 @@ webview {
   background: transparent;
 }
 
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .gpu-accelerated {
   transform: translateZ(0);
   backface-visibility: hidden;
