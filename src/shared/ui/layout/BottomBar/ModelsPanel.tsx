@@ -8,10 +8,11 @@ import { APP_CONSTANTS } from '@shared/constants/appConstants'
 interface ModelsPanelProps {
     isOpen: boolean;
     panelStyle: React.CSSProperties;
+    maxHeight?: number;
     showOnlyIcons: boolean;
 }
 
-export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPanelProps) => {
+export const ModelsPanel = memo(({ isOpen, panelStyle, maxHeight, showOnlyIcons }: ModelsPanelProps) => {
     const {
         addTab,
         enabledModels,
@@ -25,6 +26,8 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPa
         setEnabledModels(newOrder)
     }, [setEnabledModels])
 
+    const resolvedMaxHeight = maxHeight ? `${Math.max(0, Math.floor(maxHeight))}px` : 'min(52vh, 24rem)'
+
     return (
         <AnimatePresence initial={false}>
             {isOpen && (
@@ -35,14 +38,17 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, showOnlyIcons }: ModelsPa
                     exit="exit"
                     transition={panelTransition}
                     className="bottom-bar-panel bottom-bar-panel--models absolute top-full mt-2 left-0 z-40 w-full overflow-hidden rounded-2xl border border-white/20 shadow-2xl shadow-black/50 bg-[#080808]/95 backdrop-blur-xl"
-                    style={panelStyle}
+                    style={{
+                        ...panelStyle,
+                        maxHeight: resolvedMaxHeight
+                    }}
                     id={APP_CONSTANTS.TOUR_TARGETS.MODELS_LIST}
                 >
                     <div className="relative flex flex-col items-center w-full">
                         <div
                             data-testid="models-panel-scroll-area"
                             className="w-full overflow-y-auto overflow-x-hidden scrollbar-hidden overscroll-contain"
-                            style={{ maxHeight: 'min(52vh, 24rem)' }}
+                            style={{ maxHeight: resolvedMaxHeight }}
                         >
                             <Reorder.Group
                                 axis="y"

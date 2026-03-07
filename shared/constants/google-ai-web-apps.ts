@@ -80,6 +80,7 @@ export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
 ]
 
 export const GOOGLE_AI_WEB_APPS = GOOGLE_WEB_SESSION_APPS.filter((app) => app.healthCheckEligible)
+export const DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS = GOOGLE_WEB_SESSION_APPS.map((app) => app.id)
 export const GOOGLE_WEB_SESSION_REGISTRY_IDS = GOOGLE_WEB_SESSION_APPS
     .filter((app) => app.registryEligible)
     .map((app) => app.id)

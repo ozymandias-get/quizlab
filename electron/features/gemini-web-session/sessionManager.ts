@@ -23,6 +23,7 @@ import {
     GOOGLE_SIGNIN_URL
 } from './constants'
 import { buildElectronCookiePayload } from './sessionCookies'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
 
 const PROFILE_PARTITION = 'persist:gemini_web_profile'
 const HEALTH_TIMEOUT_MS = 30_000
@@ -140,6 +141,24 @@ function nowIso(): string {
     return new Date().toISOString()
 }
 
+function sanitizeEnabledAppIds(value: unknown): string[] {
+    if (!Array.isArray(value)) return [...GOOGLE_WEB_SESSION_REGISTRY_IDS]
+
+    const validIds = new Set(GOOGLE_WEB_SESSION_REGISTRY_IDS)
+    const seenIds = new Set<string>()
+    const sanitized: string[] = []
+
+    for (const item of value) {
+        if (typeof item !== 'string') continue
+        if (!validIds.has(item as typeof GOOGLE_WEB_SESSION_REGISTRY_IDS[number])) continue
+        if (seenIds.has(item)) continue
+        seenIds.add(item)
+        sanitized.push(item)
+    }
+
+    return sanitized
+}
+
 function isSessionState(value: string): value is GeminiWebSessionState {
     return SESSION_STATES.includes(value as GeminiWebSessionState)
 }
@@ -233,6 +252,21 @@ export class GeminiWebSessionManager {
             this.scheduleMonitor()
             void this.performHealthCheck({ allowRetry: false }).catch(() => { })
         }
+
+        return { success: true, status }
+    }
+
+    async setEnabledApps(enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> {
+        await this.initialize()
+        const current = await this.readMetadata()
+        const status = await this.writeStatus(
+            {
+                ...current,
+                enabledAppIds: sanitizeEnabledAppIds(enabledAppIds),
+                lastCheckAt: nowIso()
+            },
+            current.accountHash
+        )
 
         return { success: true, status }
     }
@@ -370,7 +404,8 @@ export class GeminiWebSessionManager {
                 ...createDefaultStatus(FEATURE_ENABLED, current.enabled),
                 state: 'auth_required',
                 reasonCode: 'reset_profile_required',
-                lastCheckAt: nowIso()
+                lastCheckAt: nowIso(),
+                enabledAppIds: current.enabledAppIds
             }, null)
 
             if (FEATURE_ENABLED && current.enabled) {
@@ -420,7 +455,8 @@ export class GeminiWebSessionManager {
             consecutiveFailures: metadata.consecutiveFailures,
             reasonCode: metadata.reasonCode,
             featureEnabled: FEATURE_ENABLED,
-            enabled: metadata.enabled
+            enabled: metadata.enabled,
+            enabledAppIds: metadata.enabledAppIds
         }
     }
 
@@ -474,7 +510,8 @@ export class GeminiWebSessionManager {
             featureEnabled: FEATURE_ENABLED,
             enabled: typeof raw.enabled === 'boolean'
                 ? (FEATURE_ENABLED ? raw.enabled : false)
-                : fallback.enabled
+                : fallback.enabled,
+            enabledAppIds: sanitizeEnabledAppIds(raw.enabledAppIds)
         }
     }
 
@@ -579,7 +616,8 @@ export class GeminiWebSessionManager {
                     lastHealthyAt: current.lastHealthyAt,
                     consecutiveFailures: current.consecutiveFailures,
                     featureEnabled: FEATURE_ENABLED,
-                    enabled: current.enabled
+                    enabled: current.enabled,
+                    enabledAppIds: current.enabledAppIds
                 }
                 return this.writeStatus(degradedStatus, current.accountHash)
             }

@@ -15,7 +15,7 @@ import type {
     QuizSettings,
     UpdateCheckResult
 } from '@shared-core/types'
-import { GOOGLE_AI_WEB_APP_IDS } from '@shared-core/constants/google-ai-web-apps'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS, type GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
 const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
     chatgpt: {
@@ -91,14 +91,15 @@ const getPlatform = (): string => {
     return 'web'
 }
 
-const createGeminiStatus = (enabled: boolean): GeminiWebSessionStatus => ({
+const createGeminiStatus = (enabled: boolean, enabledAppIds: GoogleWebSessionAppId[]): GeminiWebSessionStatus => ({
     state: enabled ? 'auth_required' : 'uninitialized',
     lastHealthyAt: null,
     lastCheckAt: new Date().toISOString(),
     consecutiveFailures: 0,
     reasonCode: 'none',
     featureEnabled: enabled,
-    enabled
+    enabled,
+    enabledAppIds
 })
 
 const createUnsupportedAction = async (): Promise<QuizActionResult> => ({
@@ -143,6 +144,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     const customPlatforms = new Map<string, AiPlatform>()
     let quizSettings: QuizSettings = { ...DEFAULT_QUIZ_SETTINGS }
     let geminiWebEnabled = false
+    let geminiWebEnabledAppIds: GoogleWebSessionAppId[] = [...GOOGLE_WEB_SESSION_REGISTRY_IDS]
 
     const getAiRegistry = async (): Promise<AiRegistryResponse> => {
         const aiRegistry: Record<string, AiPlatform> = {
@@ -150,8 +152,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
             ...toMapRecord(customPlatforms)
         }
 
-        if (!geminiWebEnabled) {
-            for (const appId of GOOGLE_AI_WEB_APP_IDS) {
+        const enabledAppIds = new Set(geminiWebEnabledAppIds)
+        for (const appId of GOOGLE_WEB_SESSION_REGISTRY_IDS) {
+            if (!geminiWebEnabled || !enabledAppIds.has(appId)) {
                 delete aiRegistry[appId]
             }
         }
@@ -166,7 +169,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         }
     }
 
-    const getGeminiStatus = () => createGeminiStatus(geminiWebEnabled)
+    const getGeminiStatus = () => createGeminiStatus(geminiWebEnabled, geminiWebEnabledAppIds)
 
     return {
         getAiRegistry,
@@ -294,6 +297,19 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
             resetProfile: async () => ({ success: true, status: getGeminiStatus() }),
             setEnabled: async (enabled: boolean) => {
                 geminiWebEnabled = enabled
+                return { success: true, status: getGeminiStatus() }
+            },
+            setEnabledApps: async (enabledAppIds: GoogleWebSessionAppId[]) => {
+                const validIds = new Set(GOOGLE_WEB_SESSION_REGISTRY_IDS)
+                const nextIds: GoogleWebSessionAppId[] = []
+
+                for (const appId of enabledAppIds) {
+                    if (!validIds.has(appId)) continue
+                    if (nextIds.includes(appId)) continue
+                    nextIds.push(appId)
+                }
+
+                geminiWebEnabledAppIds = nextIds
                 return { success: true, status: getGeminiStatus() }
             }
         }

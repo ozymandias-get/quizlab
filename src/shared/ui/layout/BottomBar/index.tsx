@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, memo, Suspense, lazy } from 'react'
+import React, { useState, useEffect, useRef, useCallback, memo, Suspense, lazy } from 'react'
 import { Logger } from '@shared/lib/logger'
 import { createPortal } from 'react-dom'
 
@@ -25,6 +25,7 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [settingsInitialTab, setSettingsInitialTab] = useState('prompts')
     const [isAnimating, setIsAnimating] = useState(false)
+    const [panelHeights, setPanelHeights] = useState({ top: 0, bottom: 0 })
 
     const barRef = useRef<HTMLDivElement>(null)
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -72,6 +73,49 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
             if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current)
         }
     }, [])
+
+    useEffect(() => {
+        const measure = () => {
+            const shell = barRef.current
+            if (!shell) return
+
+            const hub = shell.querySelector<HTMLButtonElement>('.hub-center-btn')
+            if (!hub) return
+
+            const shellRect = shell.getBoundingClientRect()
+            const hubRect = hub.getBoundingClientRect()
+            const edgePadding = 12
+            const panelGap = 10
+
+            const nextHeights = {
+                top: Math.max(0, Math.floor(hubRect.top - shellRect.top - edgePadding - panelGap)),
+                bottom: Math.max(0, Math.floor(shellRect.bottom - hubRect.bottom - edgePadding - panelGap))
+            }
+
+            setPanelHeights((prev) => (
+                prev.top === nextHeights.top && prev.bottom === nextHeights.bottom
+                    ? prev
+                    : nextHeights
+            ))
+        }
+
+        measure()
+        window.addEventListener('resize', measure)
+
+        const shell = barRef.current
+        const resizeObserver = typeof ResizeObserver !== 'undefined' && shell
+            ? new ResizeObserver(() => measure())
+            : null
+
+        if (resizeObserver && shell) {
+            resizeObserver.observe(shell)
+        }
+
+        return () => {
+            window.removeEventListener('resize', measure)
+            resizeObserver?.disconnect()
+        }
+    }, [bottomBarScale, isOpen])
 
     const handleToggle = useCallback((e?: React.MouseEvent) => {
         if (isAnimating) {
@@ -127,7 +171,6 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
 
     return (
         <>
-
             <div
                 ref={barRef}
                 className={`resizer-hub-container bottom-bar-shell ${isOpen ? 'resizer-hub-container--open' : ''}`}
@@ -135,25 +178,22 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                 onMouseEnter={() => onHoverChange?.(true)}
                 onMouseLeave={() => onHoverChange?.(false)}
             >
-
                 <div
                     className="resizer-drag-area"
                     onMouseDown={handleResizerMouseDown}
                 />
 
-
                 <div className="bottom-bar-stack relative flex flex-col items-center w-full" style={stackStyle}>
-
                     <ToolsPanel
                         isOpen={isOpen}
                         panelStyle={panelStyle}
+                        maxHeight={panelHeights.top}
                         handleSettingsClick={handleSettingsClick}
                         handleGeminiWebSettingsClick={handleGeminiWebSettingsClick}
                         toggleLayoutSwap={toggleLayoutSwap}
                         isQuizMode={isQuizMode}
                         onToggleQuizMode={onToggleQuizMode}
                     />
-
 
                     <CenterHub
                         handleHubPointerDown={handleHubPointerDown}
@@ -167,21 +207,19 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
                         ariaLabel={isOpen ? t('close') : t('ua_step1_text')}
                     />
 
-
                     <ModelsPanel
                         isOpen={isOpen}
                         panelStyle={panelStyle}
+                        maxHeight={panelHeights.bottom}
                         showOnlyIcons={showOnlyIcons}
                     />
                 </div>
-
 
                 <div
                     className="resizer-drag-area"
                     onMouseDown={handleResizerMouseDown}
                 />
             </div>
-
 
             {createPortal(
                 <Suspense fallback={<SettingsLoadingSpinner />}>
@@ -200,5 +238,3 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
 }
 
 export default memo(BottomBar)
-
-

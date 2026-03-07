@@ -1,5 +1,6 @@
 import { ConfigManager } from '../../core/ConfigManager'
 import type { GeminiWebSessionStatus } from '@shared-core/types'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
 import { FEATURE_ENABLED, DEFAULT_USER_ENABLED, isReasonCode, isSessionState } from './sessionConfig'
 import { createDefaultStatus } from './stateMachine'
 
@@ -20,6 +21,10 @@ export class SessionMetadataManager {
             FEATURE_ENABLED,
             FEATURE_ENABLED ? DEFAULT_USER_ENABLED : false
         )
+        const enabledAppIds = Array.isArray(raw.enabledAppIds)
+            ? raw.enabledAppIds.filter((value): value is string => typeof value === 'string' && GOOGLE_WEB_SESSION_REGISTRY_IDS.includes(value as typeof GOOGLE_WEB_SESSION_REGISTRY_IDS[number]))
+            : [...GOOGLE_WEB_SESSION_REGISTRY_IDS]
+
         return {
             accountHash: typeof raw.accountHash === 'string' ? raw.accountHash : null,
             state: typeof raw.state === 'string' && isSessionState(raw.state) ? raw.state : fallback.state,
@@ -30,7 +35,8 @@ export class SessionMetadataManager {
             featureEnabled: FEATURE_ENABLED,
             enabled: typeof raw.enabled === 'boolean'
                 ? (FEATURE_ENABLED ? raw.enabled : false)
-                : fallback.enabled
+                : fallback.enabled,
+            enabledAppIds
         }
     }
 
@@ -51,7 +57,8 @@ export class SessionMetadataManager {
             consecutiveFailures: metadata.consecutiveFailures,
             reasonCode: metadata.reasonCode,
             featureEnabled: FEATURE_ENABLED,
-            enabled: metadata.enabled
+            enabled: metadata.enabled,
+            enabledAppIds: metadata.enabledAppIds
         }
     }
 }

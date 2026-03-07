@@ -26,7 +26,8 @@ export function createDefaultStatus(featureEnabled: boolean, enabled: boolean = 
         consecutiveFailures: 0,
         reasonCode: 'none',
         featureEnabled,
-        enabled
+        enabled,
+        enabledAppIds: []
     }
 }
 

@@ -1,4 +1,6 @@
-import { useRef, useState, memo, CSSProperties, useEffect, useMemo } from 'react'
+ï»¿import { useRef, useState, memo, CSSProperties, useEffect, useMemo } from 'react'
+import { useLocalStorage } from '@shared/hooks'
+import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 import { useAi } from '@app/providers/AiContext'
 import { useAppTools } from '@app/providers/AppToolContext'
 import { useLanguage } from '@app/providers/LanguageContext'
@@ -10,7 +12,11 @@ import {
     RotateCcw,
     RefreshCw
 } from 'lucide-react'
-import { GOOGLE_AI_WEB_SESSION_PARTITION, GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
+import {
+    DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS,
+    GOOGLE_AI_WEB_SESSION_PARTITION,
+    GOOGLE_DRIVE_WEB_APP
+} from '@shared-core/constants/google-ai-web-apps'
 
 // @react-pdf-viewer imports
 import { Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
@@ -65,6 +71,11 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
     const { autoSend, toggleAutoSend, sendImageToAI, chromeUserAgent } = useAi()
     const { startScreenshot } = useAppTools()
     const { t: contextT } = useLanguage()
+    const { data: webSessionData } = useGeminiWebStatus()
+    const [enabledGoogleApps] = useLocalStorage<string[]>(
+        'gwsEnabledApps',
+        DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS
+    )
     const t = propT || contextT || ((k: string) => k)
 
     // Local state
@@ -74,6 +85,9 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
 
     // Derived state
     const pdfUrl = pdfFile?.streamUrl
+    const isGoogleDriveEnabled = !!webSessionData?.featureEnabled
+        && !!webSessionData?.enabled
+        && enabledGoogleApps.includes('gdrive')
 
     // === CUSTOM HOOKS ===
     const {
@@ -113,7 +127,7 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
 
     const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
 
-    // initialPage belirtilmiþse, doküman yüklendiginde o sayfaya atla
+    // initialPage belirtilmiÅŸse, dokÃ¼man yÃ¼klendiginde o sayfaya atla
     const initialPageApplied = useRef(false)
     useEffect(() => {
         initialPageApplied.current = false
@@ -222,7 +236,7 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
                 onClearResumePdf={onClearResumePdf}
                 onRestoreResumePdf={onRestoreResumePdf}
                 lastReadingInfo={lastReadingInfo}
-                onOpenGoogleDrive={onOpenGoogleDrive}
+                onOpenGoogleDrive={isGoogleDriveEnabled ? onOpenGoogleDrive : undefined}
             />
         )
     }
@@ -234,8 +248,8 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
                 className="flex-1 overflow-hidden pdf-viewer-container h-full min-h-0 relative flex flex-col"
                 style={{ '--scale-factor': scaleFactor } as CSSProperties}
                 onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
-                    // Ctrl+wheel zoom'u tamamen devre dýþý býrak
-                    // Sadece UI üzerindeki +/- butonlarýyla zoom yapýlabilir
+                    // Ctrl+wheel zoom'u tamamen devre dÄ±ÅŸÄ± bÄ±rak
+                    // Sadece UI Ã¼zerindeki +/- butonlarÄ±yla zoom yapÄ±labilir
                     if (e.ctrlKey || e.metaKey) {
                         return
                     }
@@ -298,6 +312,7 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
 }
 
 export default memo(PdfViewer)
+
 
 
 

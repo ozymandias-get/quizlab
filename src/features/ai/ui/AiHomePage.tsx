@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAi, useLanguage } from '@app/providers'
 import { hexToRgba } from '@shared/lib/uiUtils'
@@ -15,6 +15,9 @@ type SectionTone = 'model' | 'site'
 
 const hexColorRegex = /^#([0-9A-F]{3}){1,2}$/i
 const safeColor = (color?: string) => (color && hexColorRegex.test(color) ? color : '#6ee7b7')
+const areIdsEqual = (left: string[], right: string[]) => (
+    left.length === right.length && left.every((value, index) => value === right[index])
+)
 
 function useGridDragReorder(order: string[], onReorder: (newOrder: string[]) => void) {
     const dragItemRef = useRef<string | null>(null)
@@ -72,7 +75,7 @@ function StatChip({ icon, value, label, accent }: { icon: React.ReactNode; value
                     style={{
                         color: accent,
                         borderColor: hexToRgba(accent, 0.24),
-                        background: `linear-gradient(160deg, ${hexToRgba(accent, 0.18)} 0%, ${hexToRgba(accent, 0.05)} 100%)`
+                        background: `linear-gradient(160deg, ${hexToRgba(accent, 0.18)} 0%, ${hexToRgba(accent, 0.05)} 100%)`,
                     }}
                 >
                     {icon}
@@ -353,7 +356,7 @@ function OpenTabsToggle({ tabs, activeTabId, onSelectTab, aiSites }: any) {
                         style={{
                             color: accent,
                             borderColor: hexToRgba(accent, 0.24),
-                            background: `linear-gradient(160deg, ${hexToRgba(accent, 0.18)} 0%, ${hexToRgba(accent, 0.05)} 100%)`
+                            background: `linear-gradient(160deg, ${hexToRgba(accent, 0.18)} 0%, ${hexToRgba(accent, 0.05)} 100%)`,
                         }}
                     >
                         <Layers3 className="h-4 w-4" />
@@ -396,22 +399,64 @@ function OpenTabsToggle({ tabs, activeTabId, onSelectTab, aiSites }: any) {
 function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
     const { t } = useLanguage()
     const { tabs, activeTabId, aiSites = {}, enabledModels = [], setEnabledModels = () => { } } = useAi()
+    const pageRef = useRef<HTMLDivElement>(null)
+    const [panelWidth, setPanelWidth] = useState(0)
     const aiModelIds = useMemo(() => enabledModels.filter((id) => aiSites[id] && !aiSites[id].isSite), [enabledModels, aiSites])
     const siteIds = useMemo(() => enabledModels.filter((id) => aiSites[id] && aiSites[id].isSite), [enabledModels, aiSites])
+    const aiModelIdsKey = aiModelIds.join('|')
+    const siteIdsKey = siteIds.join('|')
     const [modelOrder, setModelOrder] = useState<string[]>(aiModelIds)
     const [siteOrder, setSiteOrder] = useState<string[]>(siteIds)
 
     useEffect(() => {
-        setModelOrder((prev) => [...prev.filter((id) => aiModelIds.includes(id)), ...aiModelIds.filter((id) => !prev.includes(id))])
-    }, [aiModelIds])
+        setModelOrder((prev) => {
+            const next = [...prev.filter((id) => aiModelIds.includes(id)), ...aiModelIds.filter((id) => !prev.includes(id))]
+            return areIdsEqual(prev, next) ? prev : next
+        })
+    }, [aiModelIdsKey])
 
     useEffect(() => {
-        setSiteOrder((prev) => [...prev.filter((id) => siteIds.includes(id)), ...siteIds.filter((id) => !prev.includes(id))])
-    }, [siteIds])
+        setSiteOrder((prev) => {
+            const next = [...prev.filter((id) => siteIds.includes(id)), ...siteIds.filter((id) => !prev.includes(id))]
+            return areIdsEqual(prev, next) ? prev : next
+        })
+    }, [siteIdsKey])
 
     const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [tabs, activeTabId])
     const activeModelIds = useMemo(() => new Set(tabs.map((tab) => tab.modelId)), [tabs])
     const featured = [...modelOrder.slice(0, 3), ...siteOrder.slice(0, 2)]
+
+    useEffect(() => {
+        const node = pageRef.current
+        if (!node) return
+
+        const measure = () => {
+            setPanelWidth(Math.round(node.getBoundingClientRect().width))
+        }
+
+        measure()
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', measure)
+            return () => window.removeEventListener('resize', measure)
+        }
+
+        const observer = new ResizeObserver(() => measure())
+        observer.observe(node)
+
+        return () => observer.disconnect()
+    }, [])
+
+    const isCompact = panelWidth > 0 && panelWidth < 960
+    const isNarrow = panelWidth > 0 && panelWidth < 760
+    const isUltraNarrow = panelWidth > 0 && panelWidth < 620
+    const heroColumns = isCompact ? 'minmax(0,1fr)' : 'minmax(0,1.45fr) minmax(0,0.95fr)'
+    const statsColumns = isUltraNarrow ? 'minmax(0,1fr)' : 'repeat(2, minmax(0,1fr))'
+    const cardColumns = panelWidth >= 1180
+        ? 'repeat(3, minmax(0, 1fr))'
+        : panelWidth >= 760
+            ? 'repeat(2, minmax(0, 1fr))'
+            : 'minmax(0, 1fr)'
 
     const handleModelReorder = useCallback((newOrder: string[]) => {
         setModelOrder(newOrder)
@@ -427,7 +472,7 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
     const siteDrag = useGridDragReorder(siteOrder, handleSiteReorder)
 
     return (
-        <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div ref={pageRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
             <div className="relative min-h-full px-4 py-4 sm:px-5 sm:py-5">
                 <div className="pointer-events-none absolute inset-0 overflow-hidden">
                     <div className="absolute left-[-12%] top-6 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(240,74,137,0.18),transparent_72%)] blur-3xl" />
@@ -438,24 +483,35 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
                 <div className="relative z-10 flex flex-col gap-4">
                     <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.38 }} className="overflow-hidden rounded-[36px] border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015)_48%,rgba(0,0,0,0.16))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_34px_80px_-46px_rgba(0,0,0,0.95)] backdrop-blur-2xl sm:p-6">
                         <div className="flex flex-col gap-5">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                <div className="max-w-2xl">
+                            <div className={`flex gap-4 ${isCompact ? 'flex-col' : 'flex-row items-start justify-between'}`}>
+                                <div className={isCompact ? 'max-w-none' : 'max-w-2xl'}>
                                     <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-1.5 text-[10px] uppercase tracking-[0.2em] text-emerald-200/65">
                                         <Home className="h-3.5 w-3.5" />
                                         {t('ai_home.badge')}
                                     </div>
-                                    <h1 className="mt-4 text-[24px] font-semibold tracking-tight text-white/92 sm:text-[30px]">{t('ai_home.title')}</h1>
-                                    <p className="mt-3 max-w-xl text-[13.5px] leading-relaxed text-white/48 sm:text-[14.5px]">{t('ai_home.description')}</p>
+                                    <h1
+                                        className={`mt-4 font-semibold tracking-tight text-white/92 ${isUltraNarrow
+                                            ? 'text-[22px] leading-[1.18]'
+                                            : isNarrow
+                                                ? 'text-[26px] leading-[1.16]'
+                                                : 'text-[24px] sm:text-[30px]'
+                                            }`}
+                                    >
+                                        {t('ai_home.title')}
+                                    </h1>
+                                    <p className={`mt-3 text-[13.5px] leading-relaxed text-white/48 ${isCompact ? 'max-w-none' : 'max-w-xl'} sm:text-[14.5px]`}>
+                                        {t('ai_home.description')}
+                                    </p>
                                 </div>
-                                <div className="flex flex-col gap-3 xl:min-w-[340px]">
+                                <div className="flex flex-col gap-3" style={{ width: isCompact ? '100%' : undefined, minWidth: isCompact ? undefined : 340 }}>
                                     <OpenTabsToggle tabs={tabs} activeTabId={activeTabId} onSelectTab={onSelectTab} aiSites={aiSites} />
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="grid gap-3" style={{ gridTemplateColumns: statsColumns }}>
                                         <StatChip icon={<Sparkles className="h-4 w-4" />} value={String(modelOrder.length)} label={t('ai_home.ready_model')} accent="#7c8cff" />
                                         <StatChip icon={<Globe className="h-4 w-4" />} value={String(siteOrder.length)} label={t('ai_home.custom_site_count')} accent="#f3b24f" />
                                     </div>
                                 </div>
                             </div>
-                            <div className="grid gap-3 xl:grid-cols-[1.45fr_0.95fr]">
+                            <div className="grid gap-3" style={{ gridTemplateColumns: heroColumns }}>
                                 <div className="rounded-[32px] border border-white/8 bg-black/20 p-4 px-5 backdrop-blur-xl">
                                     <div className="flex items-center gap-4">
                                         <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/65 shadow-sm">
@@ -490,7 +546,7 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
 
 
                     <CollapsibleSection title={t('ai_home.models_title')} detail={t('ai_home.models_detail')} icon={<Sparkles className="h-4 w-4" />} accent="#7c8cff" delay={0.09} defaultOpen={true}>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-3" style={{ gridTemplateColumns: cardColumns }}>
                             {modelOrder.map((id) => {
                                 const site = aiSites[id]
                                 if (!site) return null
@@ -502,7 +558,7 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
                     <CollapsibleSection title={t('ai_home.sites_title')} detail={t('ai_home.sites_detail')} icon={<Globe className="h-4 w-4" />} accent="#f3b24f" delay={0.13} defaultOpen={false}>
                         <div>
                             {siteOrder.length > 0 ? (
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                <div className="grid gap-3" style={{ gridTemplateColumns: cardColumns }}>
                                     {siteOrder.map((id) => {
                                         const site = aiSites[id]
                                         if (!site) return null
@@ -519,3 +575,10 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
 }
 
 export default memo(AiHomePage)
+
+
+
+
+
+
+

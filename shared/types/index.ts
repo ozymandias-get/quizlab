@@ -152,6 +152,7 @@ export interface GeminiWebSessionStatus {
     reasonCode: GeminiWebSessionReasonCode;
     featureEnabled: boolean;
     enabled: boolean;
+    enabledAppIds: string[];
 }
 
 export interface GeminiWebSessionConfig {

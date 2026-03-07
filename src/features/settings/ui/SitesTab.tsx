@@ -38,8 +38,13 @@ const SitesTab = memo(() => {
         setEnabledSites(newSites)
     }, [enabledSites, setEnabledSites])
 
-    // Filter sites (isSite === true) from aiSites
-    const sitesList = useMemo(() => Object.values(aiSites).filter((site: any) => site.isSite).map(site => site.id), [aiSites])
+    // Filter sites (isSite === true) from aiSites and exclude Google web-session managed apps
+    const sitesList = useMemo(
+        () => Object.values(aiSites)
+            .filter((site: any) => site.isSite && !['gemini', 'notebooklm', 'aistudio', 'youtube'].includes(site.id))
+            .map((site) => site.id),
+        [aiSites]
+    )
     
     // Count only enabled items that are actually sites (exist in aiSites and isSite is true)
     const enabledSitesCount = useMemo(() => enabledSites.filter(id => aiSites[id] && aiSites[id].isSite).length, [enabledSites, aiSites])

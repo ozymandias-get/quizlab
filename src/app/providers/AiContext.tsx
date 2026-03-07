@@ -7,6 +7,11 @@ import type { WebviewController } from '@shared-core/types/webview'
 import { useAiSender } from '@features/ai'
 import type { SendImageResult, SendTextResult } from '@features/ai'
 import { useAiRegistry, useRefreshAiRegistry } from '@platform/electron/api/useAiApi'
+import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
+import {
+    DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS,
+    GOOGLE_WEB_SESSION_REGISTRY_IDS
+} from '@shared-core/constants/google-ai-web-apps'
 
 
 
@@ -122,6 +127,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
 
     // React Query Hooks
     const { data: registryData, isLoading, isError } = useAiRegistry()
+    const { data: geminiWebStatus } = useGeminiWebStatus()
     const refreshMutation = useRefreshAiRegistry()
 
     const isRegistryLoaded = !isLoading && !isError && !!registryData
@@ -148,6 +154,10 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
     const [bootstrappedSiteIds, setBootstrappedSiteIds] = useLocalStorage<string[]>(
         STORAGE_KEYS.BUILT_IN_SITE_BOOTSTRAP,
         []
+    )
+    const [enabledGoogleWebApps] = useLocalStorage<string[]>(
+        'gwsEnabledApps',
+        DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS
     )
     const [defaultAiModel, setDefaultAiModel] = useLocalStorageString(
         STORAGE_KEYS.DEFAULT_AI_MODEL,
@@ -284,6 +294,38 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
             ))
         })
     }, [setPinnedTabs])
+
+    useEffect(() => {
+        if (!isRegistryLoaded || !geminiWebStatus || GET_ALL_AI_IDS.length === 0) return
+
+        const validIds = new Set(GET_ALL_AI_IDS)
+        const googleRegistryIdSet = new Set<string>(GOOGLE_WEB_SESSION_REGISTRY_IDS)
+        const googleEnabledIds = (geminiWebStatus.enabled ? enabledGoogleWebApps : [])
+            .filter((id) => validIds.has(id) && googleRegistryIdSet.has(id))
+        const allowedIds = GET_ALL_AI_IDS.filter((id) => !googleRegistryIdSet.has(id) || googleEnabledIds.includes(id))
+        const fallbackModelId = allowedIds.includes(defaultAiModel)
+            ? defaultAiModel
+            : (allowedIds[0] || GET_ALL_AI_IDS[0] || DEFAULT_AI_ID)
+
+        const nextEnabled = [
+            ...enabledModels.filter((id) => !googleRegistryIdSet.has(id) || googleEnabledIds.includes(id)),
+            ...googleEnabledIds.filter((id) => !enabledModels.includes(id))
+        ]
+        const normalizedEnabled = nextEnabled.length > 0 ? nextEnabled : [fallbackModelId]
+
+        if (!areStringArraysEqual(normalizedEnabled, enabledModels)) {
+            setEnabledModels(normalizedEnabled)
+        }
+    }, [
+        isRegistryLoaded,
+        geminiWebStatus,
+        GET_ALL_AI_IDS,
+        DEFAULT_AI_ID,
+        defaultAiModel,
+        enabledModels,
+        enabledGoogleWebApps,
+        setEnabledModels
+    ])
 
     // Computed currentAI based on active tab
     const currentAI = useMemo(() => {

@@ -11,6 +11,7 @@ import { ToolButton } from './ToolButton'
 interface ToolsPanelProps {
     isOpen: boolean;
     panelStyle: React.CSSProperties;
+    maxHeight?: number;
     handleSettingsClick: () => void;
     handleGeminiWebSettingsClick: () => void;
     toggleLayoutSwap: () => void;
@@ -21,6 +22,7 @@ interface ToolsPanelProps {
 export const ToolsPanel = memo(({
     isOpen,
     panelStyle,
+    maxHeight,
     handleSettingsClick,
     handleGeminiWebSettingsClick,
     toggleLayoutSwap,
@@ -79,71 +81,82 @@ export const ToolsPanel = memo(({
                     exit="exit"
                     transition={panelTransition}
                     className="bottom-bar-panel bottom-bar-panel--tools absolute bottom-full mb-1.5 left-0 w-full overflow-hidden"
-                    style={panelStyle}
+                    style={{
+                        ...panelStyle,
+                        maxHeight: maxHeight ? `${Math.max(0, Math.floor(maxHeight))}px` : undefined
+                    }}
                     id={APP_CONSTANTS.TOUR_TARGETS.TOOLS_PANEL}
                 >
-                    <motion.div
-                        className="flex flex-col items-center gap-2 py-3 w-full"
-                        variants={toolListVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                    >
-                        <ToolButton
-                            id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS}
-                            delay={0.03}
-                            onClick={handleSettingsClick}
-                            title={t('settings')}
+                    <div className="relative flex flex-col items-center w-full">
+                        <div
+                            data-testid="tools-panel-scroll-area"
+                            className="w-full overflow-y-auto overflow-x-hidden scrollbar-hidden overscroll-contain"
+                            style={{ maxHeight: maxHeight ? `${Math.max(0, Math.floor(maxHeight))}px` : undefined }}
                         >
-                            <SettingsIcon className="w-5 h-5" style={toolbarIconStyle} />
-                        </ToolButton>
-
-                        {isGeminiWebEnabled && (
-                            <ToolButton
-                                delay={0.02}
-                                isActive
-                                activeColor={geminiWebActiveColor}
-                                onClick={handleGeminiWebClick}
-                                title={`${t('gws_toolbar_title')} - ${geminiWebTitle}`}
+                            <motion.div
+                                className="flex flex-col items-center gap-2 py-3 w-full"
+                                variants={toolListVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
                             >
-                                {isGeminiWebLoginInProgress ? (
-                                    <LoaderIcon className="w-5 h-5" />
-                                ) : (
-                                    <GeminiIcon className="w-5 h-5" style={toolbarIconStyle} />
+                                <ToolButton
+                                    id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS}
+                                    delay={0.03}
+                                    onClick={handleSettingsClick}
+                                    title={t('settings')}
+                                >
+                                    <SettingsIcon className="w-5 h-5" style={toolbarIconStyle} />
+                                </ToolButton>
+
+                                {isGeminiWebEnabled && (
+                                    <ToolButton
+                                        delay={0.02}
+                                        isActive
+                                        activeColor={geminiWebActiveColor}
+                                        onClick={handleGeminiWebClick}
+                                        title={`${t('gws_toolbar_title')} - ${geminiWebTitle}`}
+                                    >
+                                        {isGeminiWebLoginInProgress ? (
+                                            <LoaderIcon className="w-5 h-5" />
+                                        ) : (
+                                            <GeminiIcon className="w-5 h-5" style={toolbarIconStyle} />
+                                        )}
+                                    </ToolButton>
                                 )}
-                            </ToolButton>
-                        )}
 
-                        <ToolButton
-                            id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP}
-                            delay={0.05}
-                            onClick={toggleLayoutSwap}
-                            title={t('swap_window')}
-                        >
-                            <SwapIcon className="w-5 h-5" style={toolbarIconStyle} />
-                        </ToolButton>
+                                <ToolButton
+                                    id={APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP}
+                                    delay={0.05}
+                                    onClick={toggleLayoutSwap}
+                                    title={t('swap_window')}
+                                >
+                                    <SwapIcon className="w-5 h-5" style={toolbarIconStyle} />
+                                </ToolButton>
 
-                        <ToolButton
-                            id={APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER}
-                            delay={0.06}
-                            isActive={isPickerActive}
-                            activeColor="rgba(139,92,246,0.35)"
-                            onClick={togglePicker}
-                            title={t('element_picker')}
-                        >
-                            <MagicWandIcon className="w-5 h-5" style={toolbarIconStyle} />
-                        </ToolButton>
+                                <ToolButton
+                                    id={APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER}
+                                    delay={0.06}
+                                    isActive={isPickerActive}
+                                    activeColor="rgba(139,92,246,0.35)"
+                                    onClick={togglePicker}
+                                    title={t('element_picker')}
+                                >
+                                    <MagicWandIcon className="w-5 h-5" style={toolbarIconStyle} />
+                                </ToolButton>
 
-                        <ToolButton
-                            delay={0.12}
-                            isActive={isQuizMode}
-                            activeColor="rgba(168,85,247,0.5)"
-                            onClick={onToggleQuizMode}
-                            title={isQuizMode ? t('close_quiz') : t('open_quiz')}
-                        >
-                            <Brain className="w-5 h-5" style={toolbarIconStyle} />
-                        </ToolButton>
-                    </motion.div>
+                                <ToolButton
+                                    delay={0.12}
+                                    isActive={isQuizMode}
+                                    activeColor="rgba(168,85,247,0.5)"
+                                    onClick={onToggleQuizMode}
+                                    title={isQuizMode ? t('close_quiz') : t('open_quiz')}
+                                >
+                                    <Brain className="w-5 h-5" style={toolbarIconStyle} />
+                                </ToolButton>
+                            </motion.div>
+                        </div>
+                    </div>
                 </motion.div>
             )}
         </AnimatePresence>

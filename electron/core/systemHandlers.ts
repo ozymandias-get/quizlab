@@ -1,7 +1,37 @@
-﻿import { app, ipcMain, shell, webContents, session, clipboard } from 'electron'
+import { promises as fs } from 'fs'
+import path from 'path'
+import { app, ipcMain, shell, webContents, session, clipboard } from 'electron'
 import { APP_CONFIG } from '../app/constants'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 import { getMainWindow } from '../app/windowManager'
+
+const SAFE_CACHE_DIRS = ['Cache', 'Code Cache', 'GPUCache'] as const
+
+function getPartitionCacheRoot(userDataPath: string, partition: string): string | null {
+    const partitionKey = partition.startsWith('persist:') ? partition.slice('persist:'.length) : partition
+    if (!partitionKey) return null
+
+    return path.join(userDataPath, 'Partitions', partitionKey)
+}
+
+async function clearSafeCacheDirectories(userDataPath: string, partitions: Set<string>) {
+    const roots = new Set<string>([userDataPath])
+
+    for (const partition of partitions) {
+        const partitionRoot = getPartitionCacheRoot(userDataPath, partition)
+        if (partitionRoot) {
+            roots.add(partitionRoot)
+        }
+    }
+
+    await Promise.allSettled(
+        Array.from(roots).flatMap((rootPath) =>
+            SAFE_CACHE_DIRS.map((dirName) =>
+                fs.rm(path.join(rootPath, dirName), { recursive: true, force: true })
+            )
+        )
+    )
+}
 
 export function registerSystemHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
@@ -53,6 +83,8 @@ export function registerSystemHandlers() {
 
     ipcMain.handle(IPC_CHANNELS.CLEAR_CACHE, async () => {
         try {
+            const userDataPath = app.getPath('userData')
+
             // Clear default session cache
             await session.defaultSession.clearCache()
 
@@ -73,6 +105,7 @@ export function registerSystemHandlers() {
             })
 
             await Promise.all(clearPromises)
+            await clearSafeCacheDirectories(userDataPath, allPartitions)
 
             return true
         } catch (error) {
@@ -92,4 +125,3 @@ export function registerSystemHandlers() {
         }
     })
 }
-

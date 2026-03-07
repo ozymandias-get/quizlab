@@ -91,7 +91,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         checkNow: (): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_CHECK_NOW),
         reauth: (): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_REAUTH),
         resetProfile: (): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE),
-        setEnabled: (enabled: boolean): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, enabled)
+        setEnabled: (enabled: boolean): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, enabled),
+        setEnabledApps: (enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS, enabledAppIds)
     }
 })
 

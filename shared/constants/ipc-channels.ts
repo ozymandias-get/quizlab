@@ -40,6 +40,7 @@ export const IPC_CHANNELS = {
     GEMINI_WEB_REAUTH: 'gemini-web-reauth',
     GEMINI_WEB_RESET_PROFILE: 'gemini-web-reset-profile',
     GEMINI_WEB_SET_ENABLED: 'gemini-web-set-enabled',
+    GEMINI_WEB_SET_ENABLED_APPS: 'gemini-web-set-enabled-apps',
     // App lifecycle
     APP_QUIT: 'app-quit'
 }

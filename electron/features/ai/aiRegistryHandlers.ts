@@ -11,7 +11,7 @@ import {
     CHROME_USER_AGENT,
     INACTIVE_PLATFORMS
 } from './aiManager'
-import { GOOGLE_AI_WEB_APP_IDS } from '../../../shared/constants/google-ai-web-apps'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
 
 type CustomPlatformsMap = Record<string, AiPlatform>
 export type AddCustomAiInput = { name: string; url: string; isSite?: boolean }
@@ -102,24 +102,20 @@ export function registerAiRegistryHandlers() {
 
         const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
 
-        // Google AI apps are gated by the shared session toggle, but YouTube remains visible as a normal site.
+        // Google session-backed apps are managed only from Google Web Session settings.
         try {
             const geminiStatus = await geminiWebSessionManager.getStatus()
             const isGoogleWebEnabled = geminiStatus.featureEnabled && geminiStatus.enabled
-            if (!isGoogleWebEnabled) {
-                for (const appId of GOOGLE_AI_WEB_APP_IDS) {
+            const enabledAppIds = new Set(geminiStatus.enabledAppIds)
+
+            for (const appId of GOOGLE_WEB_SESSION_REGISTRY_IDS) {
+                if (!isGoogleWebEnabled || !enabledAppIds.has(appId)) {
                     delete mergedRegistry[appId]
-                }
-                if (mergedRegistry.youtube) {
-                    mergedRegistry.youtube = { ...mergedRegistry.youtube, partition: undefined }
                 }
             }
         } catch {
-            for (const appId of GOOGLE_AI_WEB_APP_IDS) {
+            for (const appId of GOOGLE_WEB_SESSION_REGISTRY_IDS) {
                 delete mergedRegistry[appId]
-            }
-            if (mergedRegistry.youtube) {
-                mergedRegistry.youtube = { ...mergedRegistry.youtube, partition: undefined }
             }
         }
 

@@ -41,8 +41,13 @@ const ModelsTab = memo(() => {
         setEnabledModels(newModels)
     }, [enabledModels, setEnabledModels, defaultAiModel, setDefaultAiModel])
 
-    // Filter AI models (!isSite) from aiSites
-    const modelsList = useMemo(() => Object.values(aiSites).filter(site => !site.isSite).map(site => site.id), [aiSites])
+    // Filter AI models (!isSite) from aiSites and exclude Google web-session managed apps
+    const modelsList = useMemo(
+        () => Object.values(aiSites)
+            .filter((site) => !site.isSite && !['gemini', 'notebooklm', 'aistudio', 'youtube'].includes(site.id))
+            .map((site) => site.id),
+        [aiSites]
+    )
 
     // Count only enabled items that are actually AI models (exist in aiSites and isSite is false)
     const enabledModelsCount = useMemo(() => enabledModels.filter(id => aiSites[id] && !aiSites[id].isSite).length, [enabledModels, aiSites])

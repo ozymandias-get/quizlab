@@ -24,6 +24,7 @@ import type {
     AutomationConfig,
     PdfFile
 } from '@shared-core/types'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
 // Re-export types for usage in other files
 export type {
@@ -121,6 +122,7 @@ declare global {
                 reauth: () => Promise<GeminiWebSessionActionResult>;
                 resetProfile: () => Promise<GeminiWebSessionActionResult>;
                 setEnabled: (enabled: boolean) => Promise<GeminiWebSessionActionResult>;
+                setEnabledApps: (enabledAppIds: GoogleWebSessionAppId[]) => Promise<GeminiWebSessionActionResult>;
             };
         };
     }

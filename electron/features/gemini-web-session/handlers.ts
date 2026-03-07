@@ -38,4 +38,8 @@ export function registerGeminiWebSessionHandlers(): void {
     ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, async (_event, enabled: boolean) => {
         return geminiWebSessionManager.setEnabled(Boolean(enabled))
     })
+
+    ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS, async (_event, enabledAppIds: string[]) => {
+        return geminiWebSessionManager.setEnabledApps(Array.isArray(enabledAppIds) ? enabledAppIds : [])
+    })
 }
