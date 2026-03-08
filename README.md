@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="README_TR.md">Turkce README</a> |
+  <a href="README_TR.md">Türkçe README</a> |
   <a href="https://github.com/ozymandias-get/quizlab/releases">Latest Release</a> |
   <a href="CONTRIBUTING.md">Contributing</a> |
   <a href="SECURITY.md">Security</a>
@@ -20,6 +20,56 @@
   <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Windows macOS Linux" />
   <img src="https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Electron React TypeScript" />
+</p>
+
+## Screenshots
+
+### PDF Workspace and AI Home
+
+Shows the main split layout with the PDF reader on the left and the AI home dashboard on the right.
+
+<p align="center">
+  <img src="docs/images/workspace-home-overview.png" alt="QuizLab Reader PDF workspace and AI home dashboard" width="900" />
+</p>
+
+### AI Models and Sites
+
+Shows the screen where ready-to-use AI models and custom sites are listed in the workspace.
+
+<p align="center">
+  <img src="docs/images/ai-models-and-sites.png" alt="QuizLab Reader AI models and custom sites management view" width="900" />
+</p>
+
+### Prompt Library Settings
+
+Shows the settings screen for managing saved prompts and selecting an automatic prompt workflow.
+
+<p align="center">
+  <img src="docs/images/prompts-settings-library.png" alt="QuizLab Reader prompt library settings screen" width="900" />
+</p>
+
+### PDF and ChatGPT Quick Actions
+
+Shows the PDF reader together with the ChatGPT panel and the quick action tools beside the document.
+
+<p align="center">
+  <img src="docs/images/pdf-chatgpt-quick-actions.png" alt="QuizLab Reader PDF view with ChatGPT and quick actions" width="900" />
+</p>
+
+### AI Send Draft Review
+
+Shows the review modal where selected PDF content is prepared before being sent to the active AI tab.
+
+<p align="center">
+  <img src="docs/images/auto-send-draft-review.png" alt="QuizLab Reader AI send draft review modal" width="900" />
+</p>
+
+### Auto Send Enabled
+
+Shows the auto-send mode where selected content is delivered directly to the active AI session.
+
+<p align="center">
+  <img src="docs/images/auto-send-enabled.png" alt="QuizLab Reader auto send enabled workflow" width="900" />
 </p>
 
 ## Overview
@@ -117,24 +167,6 @@ QuizLab includes a dedicated Gemini web session management area for Google-backe
 - Custom selection highlight color
 - Guided onboarding tutorial
 - English and Turkish localization
-
-## Screenshots
-
-<p align="center">
-  <img src="docs/images/app-overview.png" alt="QuizLab Reader PDF and AI split screen interface" width="900" />
-</p>
-
-<p align="center">
-  <img src="docs/images/quiz-creation.png" alt="QuizLab Reader quiz generation settings" width="900" />
-</p>
-
-<p align="center">
-  <img src="docs/images/quiz-gameplay.png" alt="QuizLab Reader active quiz gameplay screen" width="900" />
-</p>
-
-<p align="center">
-  <img src="docs/images/quiz-results.png" alt="QuizLab Reader quiz results and answer review" width="900" />
-</p>
 
 ## Installation
 

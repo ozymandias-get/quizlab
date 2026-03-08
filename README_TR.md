@@ -22,6 +22,56 @@
   <img src="https://img.shields.io/badge/teknoloji-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Electron React TypeScript" />
 </p>
 
+## Ekran Görüntüleri
+
+### PDF Çalışma Alanı ve Yapay Zeka Ana Ekranı
+
+Bu görünüm, solda PDF okuyucuyu ve sağda yapay zeka ana ekranını aynı anda gösteren ana yerleşimi gösterir.
+
+<p align="center">
+  <img src="docs/images/workspace-home-overview.png" alt="QuizLab Reader PDF çalışma alanı ve yapay zeka ana ekranı" width="900" />
+</p>
+
+### Yapay Zeka Modelleri ve Siteler
+
+Bu ekran, çalışma alanında hazır yapay zeka modellerinin ve eklenen özel sitelerin listelendiği bölümü gösterir.
+
+<p align="center">
+  <img src="docs/images/ai-models-and-sites.png" alt="QuizLab Reader yapay zeka modelleri ve özel siteler ekranı" width="900" />
+</p>
+
+### Prompt Kütüphanesi Ayarları
+
+Bu ekran, kayıtlı promptları yönetme ve otomatik prompt akışını seçme bölümünü gösterir.
+
+<p align="center">
+  <img src="docs/images/prompts-settings-library.png" alt="QuizLab Reader prompt kütüphanesi ve ayarlar ekranı" width="900" />
+</p>
+
+### PDF ve ChatGPT Hızlı İşlemleri
+
+Bu görünüm, PDF okuyucuyu, ChatGPT panelini ve belge yanında yer alan hızlı işlem araçlarını birlikte gösterir.
+
+<p align="center">
+  <img src="docs/images/pdf-chatgpt-quick-actions.png" alt="QuizLab Reader PDF görünümü, ChatGPT paneli ve hızlı işlemler" width="900" />
+</p>
+
+### Yapay Zekaya Gönderim Taslağı
+
+Bu pencere, seçilen PDF içeriğinin aktif yapay zeka sekmesine gönderilmeden önce gözden geçirildiği alanı gösterir.
+
+<p align="center">
+  <img src="docs/images/auto-send-draft-review.png" alt="QuizLab Reader yapay zekaya gönderim taslağı inceleme penceresi" width="900" />
+</p>
+
+### Otomatik Gönderim Etkin
+
+Bu görünüm, seçilen içeriğin aktif yapay zeka oturumuna doğrudan gönderildiği otomatik gönderim akışını gösterir.
+
+<p align="center">
+  <img src="docs/images/auto-send-enabled.png" alt="QuizLab Reader otomatik gönderim etkin iş akışı" width="900" />
+</p>
+
 ## Genel Bakış
 
 QuizLab Reader; PDF okuyucu, yapay zeka web çalışma alanı ve interaktif quiz üreticisini tek bir Electron masaüstü uygulamasında birleştirir. Tıp öğrencileri, sınav adayları ve PDF ile yoğun çalışan kullanıcılar için pasif okumayı aktif hatırlamaya çevirmeyi hedefler.
@@ -117,24 +167,6 @@ QuizLab, Google tabanlı yüzeyler için ayrı bir Gemini web oturumu yönetimi 
 - Özelleştirilebilir seçim rengi
 - Rehberli ilk kullanım turu
 - İngilizce ve Türkçe arayüz
-
-## Ekran Görüntüleri
-
-<p align="center">
-  <img src="docs/images/app-overview.png" alt="QuizLab Reader PDF ve AI bölünmüş ekran arayüzü" width="900" />
-</p>
-
-<p align="center">
-  <img src="docs/images/quiz-creation.png" alt="QuizLab Reader quiz ayarları" width="900" />
-</p>
-
-<p align="center">
-  <img src="docs/images/quiz-gameplay.png" alt="QuizLab Reader aktif quiz ekranı" width="900" />
-</p>
-
-<p align="center">
-  <img src="docs/images/quiz-results.png" alt="QuizLab Reader quiz sonuç ve cevap inceleme ekranı" width="900" />
-</p>
 
 ## Kurulum
 
