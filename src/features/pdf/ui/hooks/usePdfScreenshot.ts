@@ -1,28 +1,19 @@
-﻿import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
+import type { AiDraftImageItem } from '@app/providers/ai/types'
 import { Logger } from '@shared/lib/logger'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
 const { SCREENSHOT_TYPES } = APP_CONSTANTS
 
-/**
- * PDF screenshot alma işlemlerini yöneten custom hook
- * @param {Object} options - Hook options
- * @param {number} options.currentPage - Mevcut sayfa numarası
- * @param {Function} options.sendImageToAI - Görüntüyü AI'ya gönderen fonksiyon
- * @param {Function} options.startScreenshot - Crop screenshot başlatan fonksiyon
- */
 interface UsePdfScreenshotOptions {
     currentPage: number;
-    sendImageToAI: (dataUrl: string) => Promise<unknown>;
-    startScreenshot: (mode?: 'full' | 'crop') => void;
+    queueImageForAi: (dataUrl: string, imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>) => void;
+    startScreenshot: (mode?: 'full' | 'crop', imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>) => void;
 }
 
-export function usePdfScreenshot({ currentPage, sendImageToAI, startScreenshot }: UsePdfScreenshotOptions) {
-
-    // Yardımcı: Ana thread'i bloklamadan Canvas -> DataURL dönüşümü
+export function usePdfScreenshot({ currentPage, queueImageForAi, startScreenshot }: UsePdfScreenshotOptions) {
     const canvasToDataURLAsync = (canvas: HTMLCanvasElement): Promise<string> => {
         return new Promise((resolve, reject) => {
-            // toBlob asenkron çalışır ve UI'ı dondurmaz
             canvas.toBlob((blob) => {
                 if (!blob) return reject(new Error('Canvas boş veya oluşturulamadı'))
                 const reader = new FileReader()
@@ -33,34 +24,28 @@ export function usePdfScreenshot({ currentPage, sendImageToAI, startScreenshot }
         })
     }
 
-    // Tam Sayfa Screenshot Alma (Canvas'tan)
     const handleFullPageScreenshot = useCallback(async () => {
         try {
             let targetCanvas: HTMLCanvasElement | null = null
             const pageIndex = currentPage - 1
-            const maxAttempts = 10 // 500ms toplam bekleme süresi
+            const maxAttempts = 10
 
-            // Canvas'ın render edilmesini bekle (Polling)
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
                 try {
-                    // Method 1: Kesin sayfa eşleşmesi
                     const specificLayer = document.querySelector(`.rpv-core__page-layer[data-page-number="${pageIndex}"]`)
                     if (specificLayer) {
                         const canvas = specificLayer.querySelector('canvas') as HTMLCanvasElement | null
-                        // Canvas var ve boyutu > 0 ise hazır demektir
                         if (canvas && canvas.width > 0 && canvas.height > 0) {
                             targetCanvas = canvas
                             break
                         }
                     }
 
-                    // Method 2: Görünür alandaki en büyük canvas (Fallback)
                     if (attempt > 2) {
                         const allCanvases = Array.from(document.querySelectorAll<HTMLCanvasElement>('.rpv-core__page-layer canvas'))
 
-                        // Robust Fallback: If no canvases found with specific class, try generic selector
                         if (allCanvases.length === 0 && attempt > 5) {
-                            const anyCanvas = document.querySelector('.pdf-viewer-container canvas') as HTMLCanvasElement
+                            const anyCanvas = document.querySelector('.pdf-viewer-container canvas') as HTMLCanvasElement | null
                             if (anyCanvas && anyCanvas.width > 0) {
                                 targetCanvas = anyCanvas
                                 break
@@ -97,43 +82,42 @@ export function usePdfScreenshot({ currentPage, sendImageToAI, startScreenshot }
                     Logger.warn('[PdfScreenshot] Attempt failed:', innerErr)
                 }
 
-                // Biraz bekle ve tekrar dene
-                await new Promise(r => setTimeout(r, 50))
+                await new Promise((resolve) => setTimeout(resolve, 50))
             }
 
             if (!targetCanvas) {
-                Logger.warn('[PdfScreenshot] Canvas bulunamadı, screenshot alınamıyor.')
+                Logger.warn('[PdfScreenshot] Canvas bulunamadı, ekran görüntüsü alınamıyor.')
                 return
             }
 
-            // Performanslı dönüşüm ve gönderim
             const dataUrl = await canvasToDataURLAsync(targetCanvas)
-            await sendImageToAI(dataUrl)
-
+            queueImageForAi(dataUrl, {
+                page: currentPage,
+                captureKind: 'full-page'
+            })
         } catch (error) {
             Logger.error('[PdfScreenshot] Full page capture error:', error)
         }
-    }, [sendImageToAI, currentPage])
+    }, [currentPage, queueImageForAi])
 
-    // Main Process'ten gelen tetikleyicileri dinle (Right Click Menu)
     useEffect(() => {
         if (!window.electronAPI?.onTriggerScreenshot) return
 
         const removeListener = window.electronAPI.onTriggerScreenshot((type) => {
             if (type === SCREENSHOT_TYPES.CROP) {
-                startScreenshot()
+                startScreenshot('crop', {
+                    page: currentPage,
+                    captureKind: 'selection'
+                })
             } else if (type === SCREENSHOT_TYPES.FULL) {
-                handleFullPageScreenshot()
+                void handleFullPageScreenshot()
             }
         })
 
         return () => {
             if (typeof removeListener === 'function') removeListener()
         }
-    }, [startScreenshot, handleFullPageScreenshot])
+    }, [currentPage, handleFullPageScreenshot, startScreenshot])
 
     return { handleFullPageScreenshot }
 }
-
-
-

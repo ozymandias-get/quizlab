@@ -3,15 +3,20 @@ import { render, screen } from '@testing-library/react'
 import AiSession from '@features/ai/ui/AiSession'
 
 // Mock Hooks
-vi.mock('@app/providers', () => ({
-    useAi: () => ({
+vi.mock('@app/providers/AiContext', () => ({
+    useAiState: () => ({
         aiSites: {
             'gpt-4': { url: 'https://chat.openai.com', displayName: 'ChatGPT' },
             'claude-3': { url: 'https://claude.ai', displayName: 'Claude' }
         },
-        registerWebview: vi.fn(),
         chromeUserAgent: 'mock-user-agent'
     }),
+    useAiActions: () => ({
+        registerWebview: vi.fn()
+    })
+}))
+
+vi.mock('@app/providers', () => ({
     useToast: () => ({ showWarning: vi.fn() }),
     useLanguage: () => ({ t: (key: string) => key })
 }))

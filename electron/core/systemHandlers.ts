@@ -6,6 +6,23 @@ import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 import { getMainWindow } from '../app/windowManager'
 
 const SAFE_CACHE_DIRS = ['Cache', 'Code Cache', 'GPUCache'] as const
+let handlersRegistered = false
+
+function isTrustedMainWindowSender(sender: Electron.WebContents): boolean {
+    const mainWindow = getMainWindow()
+    return !!mainWindow && sender === mainWindow.webContents
+}
+
+function isMainWindowGuestContents(contents: Electron.WebContents): boolean {
+    const mainWindow = getMainWindow()
+    if (!mainWindow || contents.isDestroyed()) return false
+
+    const guestContents = contents as Electron.WebContents & {
+        hostWebContents?: Electron.WebContents
+    }
+
+    return guestContents.hostWebContents === mainWindow.webContents
+}
 
 function getPartitionCacheRoot(userDataPath: string, partition: string): string | null {
     const partitionKey = partition.startsWith('persist:') ? partition.slice('persist:'.length) : partition
@@ -34,20 +51,25 @@ async function clearSafeCacheDirectories(userDataPath: string, partitions: Set<s
 }
 
 export function registerSystemHandlers() {
+    if (handlersRegistered) return
+    handlersRegistered = true
+
     const { IPC_CHANNELS } = APP_CONFIG
 
     // App Quit - allows renderer (e.g. splash screen) to exit the app
-    ipcMain.handle(IPC_CHANNELS.APP_QUIT, () => {
+    ipcMain.handle(IPC_CHANNELS.APP_QUIT, (event) => {
+        if (!isTrustedMainWindowSender(event.sender)) return
         app.quit()
     })
 
     ipcMain.handle(IPC_CHANNELS.OPEN_EXTERNAL, async (event, url: string) => {
+        if (!isTrustedMainWindowSender(event.sender)) return false
         if (!url || typeof url !== 'string') return false
         try {
             const parsedUrl = new URL(url)
             const allowedProtocols = ['http:', 'https:', 'mailto:']
             if (allowedProtocols.includes(parsedUrl.protocol)) {
-                await shell.openExternal(url)
+                await shell.openExternal(parsedUrl.toString())
                 return true
             }
             return false
@@ -60,9 +82,7 @@ export function registerSystemHandlers() {
 
     ipcMain.handle(IPC_CHANNELS.FORCE_PASTE, async (event, webContentsId: number) => {
         try {
-            // Validation: Only allow main window to trigger force paste
-            const mainWindow = getMainWindow()
-            if (!mainWindow || event.sender !== mainWindow.webContents) {
+            if (!isTrustedMainWindowSender(event.sender)) {
                 console.warn('[IPC] FORCE_PASTE blocked: sender is not main window')
                 return false
             }
@@ -70,7 +90,7 @@ export function registerSystemHandlers() {
             if (!webContentsId) return false
             const contents = webContents.fromId(webContentsId)
 
-            if (contents && !contents.isDestroyed()) {
+            if (contents && isMainWindowGuestContents(contents)) {
                 contents.paste()
                 return true
             }
@@ -81,7 +101,8 @@ export function registerSystemHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.CLEAR_CACHE, async () => {
+    ipcMain.handle(IPC_CHANNELS.CLEAR_CACHE, async (event) => {
+        if (!isTrustedMainWindowSender(event.sender)) return false
         try {
             const userDataPath = app.getPath('userData')
 
@@ -115,6 +136,7 @@ export function registerSystemHandlers() {
     })
 
     ipcMain.handle(IPC_CHANNELS.COPY_TEXT, (event, text: string) => {
+        if (!isTrustedMainWindowSender(event.sender)) return false
         try {
             if (typeof text !== 'string' || text.length === 0) return false
             clipboard.writeText(text)

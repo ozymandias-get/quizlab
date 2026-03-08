@@ -187,7 +187,7 @@ export function registerPdfProtocolHandlers() {
     }
 
     // Select PDF via dialog
-    ipcMain.handle(IPC_CHANNELS.SELECT_PDF, async (event, options = {}) => {
+    ipcMain.handle(IPC_CHANNELS.SELECT_PDF, async (_event, options = {}) => {
         const filterName = options.filterName || 'PDF Documents'
         const { canceled, filePaths } = await dialog.showOpenDialog({
             properties: ['openFile'],
@@ -219,7 +219,7 @@ export function registerPdfProtocolHandlers() {
     })
 
     // Get stream URL from path (for rehydration or drag-drop)
-    ipcMain.handle(IPC_CHANNELS.GET_PDF_STREAM_URL, async (event, filePath) => {
+    ipcMain.handle(IPC_CHANNELS.GET_PDF_STREAM_URL, async (_event, filePath) => {
         if (!filePath) return null
 
         // SECURITY: Check allowlist and file existence
@@ -245,7 +245,7 @@ export function registerPdfProtocolHandlers() {
     })
 
     // Register PDF path locally (e.g. from drag & drop)
-    ipcMain.handle(IPC_CHANNELS.PDF_REGISTER_PATH, async (event, filePath) => {
+    ipcMain.handle(IPC_CHANNELS.PDF_REGISTER_PATH, async (_event, filePath) => {
         if (!filePath) return null
         try {
             const stats = await fs.promises.stat(filePath)

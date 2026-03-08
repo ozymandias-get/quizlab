@@ -5,7 +5,7 @@ import ErrorBoundary from '@ui/components/ErrorBoundary'
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
 import { PdfTabStrip } from '@features/pdf'
-import type { PdfTab, LastReadingInfo, ResumePdfResult } from '@features/pdf'
+import type { PdfTab, LastReadingInfo, ResumePdfResult, ReadingProgressUpdate } from '@features/pdf'
 import { Worker } from '@react-pdf-viewer/core'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
@@ -23,6 +23,7 @@ interface LeftPanelProps {
     onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult;
     onClearResumePdf?: (path?: string) => void;
     onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;
+    onReadingProgressChange?: (update: ReadingProgressUpdate) => void;
     lastReadingInfo?: LastReadingInfo[] | null;
     initialPage?: number;
     activePdfTab?: PdfTab | null;
@@ -61,6 +62,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
     onResumePdf,
     onClearResumePdf,
     onRestoreResumePdf,
+    onReadingProgressChange,
     lastReadingInfo,
     initialPage,
     activePdfTab,
@@ -125,6 +127,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                                             onResumePdf={onResumePdf}
                                             onClearResumePdf={onClearResumePdf}
                                             onRestoreResumePdf={onRestoreResumePdf}
+                                            onReadingProgressChange={onReadingProgressChange}
                                             lastReadingInfo={lastReadingInfo}
                                             onOpenGoogleDrive={onOpenGoogleDrive}
                                             isInteractionBlocked={isInteractionBlocked}

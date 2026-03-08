@@ -62,8 +62,24 @@ function PdfTabStrip({
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
 
     const visibleTabIds = useMemo(() => getVisibleTabIds(tabs, activeTabId), [tabs, activeTabId])
-    const visibleTabs = useMemo(() => tabs.filter((tab) => visibleTabIds.has(tab.id)), [tabs, visibleTabIds])
-    const overflowTabs = useMemo(() => tabs.filter((tab) => !visibleTabIds.has(tab.id)), [tabs, visibleTabIds])
+    const { visibleTabs, overflowTabs } = useMemo(() => {
+        const nextVisibleTabs: PdfTab[] = []
+        const nextOverflowTabs: PdfTab[] = []
+
+        tabs.forEach((tab) => {
+            if (visibleTabIds.has(tab.id)) {
+                nextVisibleTabs.push(tab)
+                return
+            }
+
+            nextOverflowTabs.push(tab)
+        })
+
+        return {
+            visibleTabs: nextVisibleTabs,
+            overflowTabs: nextOverflowTabs
+        }
+    }, [tabs, visibleTabIds])
 
     const tr = useCallback((key: string, fallback: string) => {
         const translated = t(key)
@@ -71,7 +87,7 @@ function PdfTabStrip({
     }, [t])
 
     const getTabLabel = useCallback((tab: PdfTab) => {
-        return tab.title || tab.file?.name || tr('new_tab_title', 'Yeni Sekme')
+        return tab.title || tab.file?.name || tr('new_tab_title', 'New Tab')
     }, [tr])
 
     const getTabIcon = useCallback((tab: PdfTab) => {

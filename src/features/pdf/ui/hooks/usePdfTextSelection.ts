@@ -11,27 +11,52 @@ import type { RefObject } from 'react'
 interface UsePdfTextSelectionOptions {
     containerRef: RefObject<HTMLElement | null>;
     onTextSelection: (text: string, position: { top: number; left: number } | null) => void;
+    enabled?: boolean;
 }
 
-export function usePdfTextSelection({ containerRef, onTextSelection }: UsePdfTextSelectionOptions) {
+function isNodeInsideContainer(node: Node | null, container: HTMLElement) {
+    return !!node && container.contains(node)
+}
+
+function doesRectOverlapContainer(rect: DOMRect, container: HTMLElement) {
+    const containerRect = container.getBoundingClientRect()
+    if (containerRect.width === 0 || containerRect.height === 0) {
+        return false
+    }
+
+    return !(
+        rect.right < containerRect.left
+        || rect.left > containerRect.right
+        || rect.bottom < containerRect.top
+        || rect.top > containerRect.bottom
+    )
+}
+
+export function usePdfTextSelection({ containerRef, onTextSelection, enabled = true }: UsePdfTextSelectionOptions) {
     // Metin seçimi hesaplama - pozisyon sınır kontrolleri dahil
     const calculateSelectionPosition = useCallback((selection: Selection | null, container: HTMLElement) => {
         const text = selection?.toString().trim()
 
         // Seçim boşsa veya yoksa
-        if (!selection || !text || text.length === 0 || selection.rangeCount === 0) {
+        if (!selection || selection.isCollapsed || !text || text.length === 0 || selection.rangeCount === 0) {
             return { text: '', position: null }
         }
 
-        // Seçimin PDF container içinde olup olmadığını kontrol et
-        const anchorNode = selection.anchorNode
-        if (!anchorNode || !container.contains(anchorNode)) {
-            // Seçim PDF container dışında - floating button gösterme
+        const range = selection.getRangeAt(0)
+        const commonAncestorInside = isNodeInsideContainer(range.commonAncestorContainer, container)
+        const anchorInside = isNodeInsideContainer(selection.anchorNode, container)
+        const focusInside = isNodeInsideContainer(selection.focusNode, container)
+        const rect = range.getBoundingClientRect()
+        const overlapsContainer = doesRectOverlapContainer(rect, container)
+
+        // Seçim PDF alanı ile çakışıyorsa daha toleranslı davran.
+        if (!commonAncestorInside && !(anchorInside && focusInside) && !(overlapsContainer && (anchorInside || focusInside))) {
             return null
         }
 
-        const range = selection.getRangeAt(0)
-        const rect = range.getBoundingClientRect()
+        if (rect.width === 0 && rect.height === 0) {
+            return { text: '', position: null }
+        }
 
         // Buton boyutları
         const btnWidth = 140
@@ -82,49 +107,110 @@ export function usePdfTextSelection({ containerRef, onTextSelection }: UsePdfTex
 
     useEffect(() => {
         let timeoutId: ReturnType<typeof setTimeout> | null = null
+        let frameId: number | null = null
+        let pointerStartedInsideContainer = false
 
-        const handleSelection = () => {
+        const clearSelectionState = () => {
+            const container = containerRef.current
+            container?.classList.remove('pdf-selection-active')
+            onTextSelectionRef.current?.('', null)
+        }
+
+        const scheduleSelectionUpdate = () => {
+            if (frameId) {
+                cancelAnimationFrame(frameId)
+            }
+
+            frameId = requestAnimationFrame(() => {
+                frameId = null
+
+                const selection = window.getSelection()
+                const container = containerRef.current
+                const onSelection = onTextSelectionRef.current
+
+                if (!onSelection) return
+
+                if (!container) {
+                    clearSelectionState()
+                    return
+                }
+
+                const result = calculateSelectionPosition(selection, container)
+
+                if (result === null) {
+                    clearSelectionState()
+                    return
+                }
+
+                container.classList.toggle('pdf-selection-active', !!result.text && !!result.position)
+                onSelection(result.text, result.position)
+            })
+        }
+
+        if (!enabled) {
+            clearSelectionState()
+            return
+        }
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const container = containerRef.current
+            pointerStartedInsideContainer = !!container
+                && event.target instanceof Node
+                && container.contains(event.target)
+        }
+
+        const handlePointerUp = () => {
+            const shouldCheckSelection = pointerStartedInsideContainer
+            pointerStartedInsideContainer = false
+            if (shouldCheckSelection) {
+                scheduleSelectionUpdate()
+                return
+            }
+
             const selection = window.getSelection()
             const container = containerRef.current
-            const onSelection = onTextSelectionRef.current
-
-            if (!onSelection) return
-
-            if (!container) {
-                onSelection('', null)
+            if (!selection || !container) {
                 return
             }
 
             const result = calculateSelectionPosition(selection, container)
-
-            // null result means selection is outside container or invalid
-            if (result === null) return
-
-            onSelection(result.text, result.position)
+            if (result?.text) {
+                scheduleSelectionUpdate()
+            }
         }
 
-        // Handle selection clear on click
-        const handleClick = () => {
-            // Small delay to ensure selection is actually cleared by the browser
+        const handleSelectionChange = () => {
+            if (pointerStartedInsideContainer) {
+                return
+            }
+
+            if (timeoutId) {
+                clearTimeout(timeoutId)
+            }
+
             timeoutId = setTimeout(() => {
                 const selection = window.getSelection()
                 const text = selection?.toString().trim()
+
                 if (!text || text.length === 0) {
-                    onTextSelectionRef.current?.('', null)
+                    clearSelectionState()
                 }
-            }, 10)
+            }, 24)
         }
 
-        document.addEventListener('mouseup', handleSelection)
-        document.addEventListener('keyup', handleSelection)
-        document.addEventListener('mousedown', handleClick)
+        document.addEventListener('pointerdown', handlePointerDown, true)
+        document.addEventListener('pointerup', handlePointerUp, true)
+        document.addEventListener('keyup', scheduleSelectionUpdate)
+        document.addEventListener('selectionchange', handleSelectionChange)
 
         return () => {
-            document.removeEventListener('mouseup', handleSelection)
-            document.removeEventListener('keyup', handleSelection)
-            document.removeEventListener('mousedown', handleClick)
+            document.removeEventListener('pointerdown', handlePointerDown, true)
+            document.removeEventListener('pointerup', handlePointerUp, true)
+            document.removeEventListener('keyup', scheduleSelectionUpdate)
+            document.removeEventListener('selectionchange', handleSelectionChange)
             if (timeoutId) clearTimeout(timeoutId)
+            if (frameId) cancelAnimationFrame(frameId)
         }
-    }, [containerRef, calculateSelectionPosition])
+    }, [containerRef, calculateSelectionPosition, enabled])
 }
 

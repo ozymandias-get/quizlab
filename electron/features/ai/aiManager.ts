@@ -21,7 +21,7 @@ import youtube from './platforms/youtube'
 export type { SubmitMode, AiSelectorConfig, AiPlatformMeta, AiPlatform, EnhancedAiPlatform, AiRegistry, InactivePlatforms }
 
 /**
- * AI ModÃ¼l YÃ¶neticisi (Registry)
+ * AI Modül Yöneticisi (Registry)
  */
 
 const { CHROME_USER_AGENT } = APP_CONFIG
@@ -54,7 +54,7 @@ const enhancePlatform = (data: AiPlatform): EnhancedAiPlatform => {
     }
 }
 
-// TÃ¼m platformlarÄ±n haritasÄ±
+// Tüm platformların haritası
 // Active Platforms (Defaults)
 const platforms: AiRegistry = {
     chatgpt: enhancePlatform(chatgpt),

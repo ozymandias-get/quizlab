@@ -11,3 +11,8 @@ export interface SendImageResult {
     mode?: string;
     actualUrl?: string;
 }
+
+export interface AiSendOptions {
+    autoSend?: boolean;
+    promptText?: string;
+}

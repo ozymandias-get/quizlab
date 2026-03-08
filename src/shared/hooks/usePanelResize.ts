@@ -27,7 +27,7 @@ interface UsePanelResizeReturn {
  * 
  * PERFORMANS OPTIMIZASYONU (v2 - Gelistirilmis):
  * -----------------------------------------------
- * 1. Resize sırasında state güncellemesi YOK â†’ React re-render YOK
+ * 1. Resize sırasında state güncellemesi YOK -> React re-render YOK
  * 2. requestAnimationFrame ile 60fps akıcılık garantisi
  * 3. isResizingRef ile gereksiz re-render'lar önleniyor
  * 4. Sadece mouseup'ta final değer state'e yazılır
@@ -170,7 +170,7 @@ export function usePanelResize({
             // Bu, isResizing prop'unu kullanan bileşenlere bildirim için gerekli
             setIsResizing(false)
 
-            // Final değeri state'e kaydet â†’ tek bir re-render
+            // Final değeri state'e kaydet -> tek bir re-render
             // Bu aynı zamanda localStorage'a da kaydeder (useLocalStorage sayesinde)
             setLeftPanelWidth(pendingWidthRef.current)
         }

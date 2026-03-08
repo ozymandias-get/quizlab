@@ -1,7 +1,7 @@
 ﻿import { useRef, useState, memo, CSSProperties, useEffect, useMemo } from 'react'
 import { useLocalStorage } from '@shared/hooks'
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
-import { useAi } from '@app/providers/AiContext'
+import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { useAppTools } from '@app/providers/AppToolContext'
 import { useLanguage } from '@app/providers/LanguageContext'
 import {
@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 import {
     DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS,
-    GOOGLE_AI_WEB_SESSION_PARTITION,
     GOOGLE_DRIVE_WEB_APP
 } from '@shared-core/constants/google-ai-web-apps'
 
@@ -28,10 +27,10 @@ import '@react-pdf-viewer/zoom/lib/styles/index.css'
 import '@react-pdf-viewer/search/lib/styles/index.css'
 
 // Modular Components
+import GoogleDrivePanel from './GoogleDrivePanel'
 import PdfPlaceholder from './PdfPlaceholder'
 import PdfToolbar from './PdfToolbar'
 import { ContextMenu, MenuItem } from './ContextMenu'
-import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
 
 // Custom Hooks
@@ -43,7 +42,7 @@ import {
     usePdfContextMenu
 } from '../hooks'
 import type { PdfFile } from '@shared-core/types'
-import type { LastReadingInfo } from '@features/pdf/hooks/usePdfSelection'
+import type { LastReadingInfo, ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
 import type { PdfTab, ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
 
 interface PdfViewerProps {
@@ -56,6 +55,7 @@ interface PdfViewerProps {
     onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult;
     onClearResumePdf?: (path?: string) => void;
     onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;
+    onReadingProgressChange?: (update: ReadingProgressUpdate) => void;
     lastReadingInfo?: LastReadingInfo[] | null;
     onOpenGoogleDrive?: () => void;
     isInteractionBlocked?: boolean;
@@ -67,9 +67,24 @@ interface PdfViewerProps {
  * Virtualization is enabled by default in react-pdf-viewer, but 
  * optimized here with Worker and stable plugin references.
  */
-function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: propT, initialPage, onResumePdf, onClearResumePdf, onRestoreResumePdf, lastReadingInfo, onOpenGoogleDrive, isInteractionBlocked = false }: PdfViewerProps) {
-    const { autoSend, toggleAutoSend, sendImageToAI, chromeUserAgent } = useAi()
-    const { startScreenshot } = useAppTools()
+function PdfViewer({
+    pdfFile,
+    activePdfTab,
+    onSelectPdf,
+    onTextSelection,
+    t: propT,
+    initialPage,
+    onResumePdf,
+    onClearResumePdf,
+    onRestoreResumePdf,
+    onReadingProgressChange,
+    lastReadingInfo,
+    onOpenGoogleDrive,
+    isInteractionBlocked = false
+}: PdfViewerProps) {
+    const { autoSend, chromeUserAgent } = useAiState()
+    const { toggleAutoSend } = useAiActions()
+    const { startScreenshot, queueImageForAi } = useAppTools()
     const { t: contextT } = useLanguage()
     const { data: webSessionData } = useGeminiWebStatus()
     const [enabledGoogleApps] = useLocalStorage<string[]>(
@@ -80,8 +95,8 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
 
     // Local state
     const containerRef = useRef<HTMLDivElement>(null)
-    const driveWebviewRef = useRef<any>(null)
     const [scaleFactor, setScaleFactor] = useState(1)
+    const [viewerReloadKey, setViewerReloadKey] = useState(0)
 
     // Derived state
     const pdfUrl = pdfFile?.streamUrl
@@ -111,36 +126,28 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
     } = usePdfNavigation({
         containerRef,
         jumpToPageRef,
-        pdfPath: pdfFile?.path || null
+        pdfPath: pdfFile?.path || null,
+        initialPage,
+        onReadingProgressChange
     })
 
     const { handleFullPageScreenshot } = usePdfScreenshot({
         currentPage,
-        sendImageToAI,
+        queueImageForAi,
         startScreenshot
     })
 
     usePdfTextSelection({
         containerRef,
-        onTextSelection: onTextSelection || (() => { })
+        onTextSelection: onTextSelection || (() => { }),
+        enabled: !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl
     })
 
     const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
 
-    // initialPage belirtilmişse, doküman yüklendiginde o sayfaya atla
-    const initialPageApplied = useRef(false)
     useEffect(() => {
-        initialPageApplied.current = false
-    }, [pdfUrl, initialPage])
-
-    useEffect(() => {
-        if (initialPage && initialPage > 1 && totalPages > 0 && !initialPageApplied.current) {
-            // 0-indexed
-            const targetPage = Math.min(initialPage - 1, totalPages - 1)
-            jumpToPageRef.current(targetPage)
-            initialPageApplied.current = true
-        }
-    }, [initialPage, totalPages, jumpToPageRef])
+        setViewerReloadKey(0)
+    }, [pdfUrl])
 
     const menuItems: MenuItem[] = useMemo(() => [
         {
@@ -152,7 +159,10 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
         {
             label: t('ctx_crop_screenshot'),
             icon: Crop,
-            onClick: startScreenshot,
+            onClick: () => startScreenshot('crop', {
+                page: currentPage,
+                captureKind: 'selection'
+            }),
             shortcut: 'Shift+S'
         },
         { separator: true, label: '', onClick: () => { } },
@@ -178,53 +188,25 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
         {
             label: t('ctx_reload'),
             icon: RefreshCw,
-            onClick: () => window.location.reload(),
+            onClick: () => setViewerReloadKey((current) => current + 1),
             shortcut: 'Ctrl+R',
             danger: true
         }
-    ], [t, handleFullPageScreenshot, startScreenshot, zoomTo, scaleFactor])
+    ], [t, handleFullPageScreenshot, startScreenshot, zoomTo, scaleFactor, currentPage])
 
 
     // === RENDER ===
     if (activePdfTab?.kind === 'drive') {
         return (
-            <div className="flex-1 flex flex-col overflow-hidden h-full min-h-0">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-4 py-3 backdrop-blur-xl">
-                    <div className="min-w-0 flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[#1a73e8]/15 text-[#1a73e8]">
-                            {getAiIcon('gdrive')}
-                        </div>
-                        <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-stone-200">{GOOGLE_DRIVE_WEB_APP.name}</div>
-                            <div className="truncate text-[11px] text-stone-500">{t('gdrive_pdf_desc')}</div>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => driveWebviewRef.current?.reload?.()}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-stone-200 transition-colors hover:bg-white/10"
-                    >
-                        <RefreshIcon className="w-4 h-4" />
-                        {t('ctx_reload')}
-                    </button>
-                </div>
-
-                <div className="relative flex-1 min-h-0">
-                    <webview
-                        ref={driveWebviewRef}
-                        key={activePdfTab.id}
-                        src={activePdfTab.webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
-                        partition={GOOGLE_AI_WEB_SESSION_PARTITION}
-                        className="flex-1 w-full h-full"
-                        allowpopups={"true" as any}
-                        webpreferences="contextIsolation=yes, sandbox=no"
-                        useragent={chromeUserAgent}
-                    />
-                    {isInteractionBlocked && (
-                        <div className="absolute inset-0 z-10 pointer-events-auto bg-transparent" />
-                    )}
-                </div>
-            </div>
+            <GoogleDrivePanel
+                tabId={activePdfTab.id}
+                webviewUrl={activePdfTab.webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
+                chromeUserAgent={chromeUserAgent}
+                title={GOOGLE_DRIVE_WEB_APP.name}
+                description={t('gdrive_pdf_desc')}
+                reloadLabel={t('ctx_reload')}
+                isInteractionBlocked={isInteractionBlocked}
+            />
         )
     }
 
@@ -256,9 +238,11 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
                 }}
             >
                 <Viewer
+                    key={`${pdfUrl}:${viewerReloadKey}`}
                     fileUrl={pdfUrl}
                     plugins={plugins}
                     defaultScale={SpecialZoomLevel.PageWidth}
+                    initialPage={initialPage && initialPage > 1 ? initialPage - 1 : 0}
                     scrollMode={ScrollMode.Page}
                     onPageChange={handlePageChange}
                     onDocumentLoad={handleDocumentLoad}
@@ -293,7 +277,10 @@ function PdfViewer({ pdfFile, activePdfTab, onSelectPdf, onTextSelection, t: pro
             <PdfToolbar
                 pdfFile={pdfFile}
                 onSelectPdf={onSelectPdf}
-                onStartScreenshot={startScreenshot}
+                onStartScreenshot={() => startScreenshot('crop', {
+                    page: currentPage,
+                    captureKind: 'selection'
+                })}
                 onFullPageScreenshot={handleFullPageScreenshot}
                 autoSend={autoSend}
                 onToggleAutoSend={toggleAutoSend}

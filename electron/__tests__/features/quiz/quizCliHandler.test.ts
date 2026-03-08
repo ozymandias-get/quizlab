@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { registerQuizHandlers } from '../../../features/quiz/quizCliHandler'
 import { ipcMain } from 'electron'
-import { promises as fs } from 'fs'
-import path from 'path'
-import os from 'os'
 import { APP_CONFIG } from '../../../app/constants'
 
 // Mock dependencies
@@ -45,7 +42,7 @@ vi.mock('../../../core/helpers', () => ({
     getQuizSettingsPath: vi.fn().mockReturnValue('/mock/settings/path.json'),
 }))
 
-vi.mock('../../../features/quiz/geminiService', () => ({
+vi.mock('../../../features/quiz/gemini-runner', () => ({
     getGeminiCliPath: vi.fn().mockReturnValue('/mock/gemini/cli'),
     findGeminiCliPath: vi.fn().mockResolvedValue('/mock/gemini/cli'),
     executeGeminiCli: vi.fn().mockResolvedValue([{ question: 'Test?', options: ['A', 'B'], answer: 'A' }]),

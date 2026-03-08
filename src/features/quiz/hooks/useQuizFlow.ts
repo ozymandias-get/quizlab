@@ -136,6 +136,71 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         }
     }, [t, selectPdf])
 
+    const completeQuizGeneration = useCallback((questions: Question[], nextStep: QuizStepType = QuizStep.READY) => {
+        setQuizState({
+            ...INITIAL_QUIZ_STATE,
+            questions
+        })
+        setStep(nextStep)
+    }, [])
+
+    const getErrorMessage = useCallback((err: unknown, fallbackKey: string) => (
+        err instanceof Error
+            ? (err.message.startsWith('error_') ? t(err.message) : err.message)
+            : t(fallbackKey)
+    ), [t])
+
+    const runQuizGeneration = useCallback(async ({
+        targetIsDemo,
+        failedQuestionsContext,
+        previousQuestions,
+        onSuccess,
+        onErrorStep
+    }: {
+        targetIsDemo: boolean;
+        failedQuestionsContext: Question[];
+        previousQuestions: Question[];
+        onSuccess?: (questions: Question[]) => void;
+        onErrorStep: QuizStepType;
+    }) => {
+        const currentRequestId = ++requestIdRef.current
+
+        try {
+            setStep(QuizStep.GENERATING)
+            setError(null)
+            setIsDemoMode(targetIsDemo)
+
+            const result = await generateQuizMutation.mutateAsync({
+                pdfPath: targetIsDemo ? 'DEMO' : pdfPath,
+                settings,
+                language,
+                failedQuestionsContext,
+                previousQuestions
+            })
+
+            if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
+                return false
+            }
+
+            if (!result.success) {
+                throw new Error(result.error || 'Unknown generation error')
+            }
+
+            const questions = result.data as Question[]
+            onSuccess?.(questions)
+            return true
+        } catch (err: unknown) {
+            if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
+                return false
+            }
+
+            Logger.error('[QuizModule] Generation error:', err)
+            setError(getErrorMessage(err, 'quiz_error'))
+            setStep(onErrorStep)
+            return false
+        }
+    }, [generateQuizMutation, getErrorMessage, language, pdfPath, settings])
+
     // Start Quiz Generation
     const handleStartQuiz = useCallback(async (mode?: boolean) => {
         // Determine if we are starting in demo mode
@@ -148,52 +213,14 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
             return
         }
 
-        const currentRequestId = ++requestIdRef.current
-
-        try {
-            // Update UI state
-            setStep(QuizStep.GENERATING)
-            setError(null)
-            setError(null)
-
-            // Update mode state
-            setIsDemoMode(targetIsDemo)
-
-            const result = await generateQuizMutation.mutateAsync({
-                pdfPath: targetIsDemo ? 'DEMO' : pdfPath,
-                settings,
-                language,
-                failedQuestionsContext: [],
-                previousQuestions: targetIsDemo ? [] : usedQuestionsRef.current
-            })
-
-            // Checks after await
-            if (!isMountedRef.current) return
-            if (currentRequestId !== requestIdRef.current) return
-
-            if (!result.success) {
-                throw new Error(result.error || 'Unknown generation error')
-            }
-
-            const questions = result.data as Question[]
-
-            setQuizState({
-                ...INITIAL_QUIZ_STATE,
-                questions
-            })
-            setStep(QuizStep.READY)
-        } catch (err: unknown) {
-            if (!isMountedRef.current) return
-
-            if (currentRequestId === requestIdRef.current) {
-                Logger.error('[QuizModule] Generation error:', err)
-                const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('quiz_error')
-                setError(message)
-                // Go back to config on error
-                setStep(QuizStep.CONFIG)
-            }
-        }
-    }, [pdfPath, settings, language, t, isDemoMode, generateQuizMutation])
+        await runQuizGeneration({
+            targetIsDemo,
+            failedQuestionsContext: [],
+            previousQuestions: targetIsDemo ? [] : usedQuestionsRef.current,
+            onSuccess: completeQuizGeneration,
+            onErrorStep: QuizStep.CONFIG
+        })
+    }, [completeQuizGeneration, isDemoMode, pdfPath, runQuizGeneration, t])
 
     const handleStartDemo = useCallback(() => {
         handleStartQuiz(true)
@@ -248,48 +275,18 @@ export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQui
         if (failedQuestions.length === 0) return
 
         const updatedUsedQuestions = [...usedQuestions, ...quizState.questions]
-        const currentRequestId = ++requestIdRef.current
 
-        try {
-            setStep(QuizStep.GENERATING)
-
-            const result = await generateQuizMutation.mutateAsync({
-                pdfPath: isDemoMode ? 'DEMO' : pdfPath,
-                settings,
-                language,
-                failedQuestionsContext: failedQuestions,
-                previousQuestions: updatedUsedQuestions
-            })
-
-            if (!isMountedRef.current) return
-
-            if (currentRequestId !== requestIdRef.current) {
-                return
-            }
-
-            if (!result.success) {
-                throw new Error(result.error || 'Unknown regeneration error')
-            }
-
-            const questions = result.data as Question[]
-
-            setUsedQuestions(updatedUsedQuestions)
-
-            setQuizState({
-                ...INITIAL_QUIZ_STATE,
-                questions
-            })
-            setStep(QuizStep.READY)
-        } catch (err: unknown) {
-            if (!isMountedRef.current) return
-
-            if (currentRequestId === requestIdRef.current) {
-                const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('quiz_error')
-                setError(message)
-                setStep(QuizStep.RESULTS)
-            }
-        }
-    }, [quizState.questions, quizState.userAnswers, isDemoMode, pdfPath, settings, language, usedQuestions, t])
+        await runQuizGeneration({
+            targetIsDemo: isDemoMode,
+            failedQuestionsContext: failedQuestions,
+            previousQuestions: updatedUsedQuestions,
+            onSuccess: (questions) => {
+                setUsedQuestions(updatedUsedQuestions)
+                completeQuizGeneration(questions)
+            },
+            onErrorStep: QuizStep.RESULTS
+        })
+    }, [completeQuizGeneration, isDemoMode, quizState.questions, quizState.userAnswers, runQuizGeneration, usedQuestions])
 
     return {
         step,

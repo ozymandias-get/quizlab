@@ -1,6 +1,7 @@
 ﻿import { useCallback, useState, useRef, useEffect } from 'react'
 import { Logger } from '@shared/lib/logger'
-import { useToast, useLanguage } from '@app/providers'
+import { useLanguage } from '@app/providers/LanguageContext'
+import { useToast } from '@app/providers/ToastContext'
 import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
 import type { WebviewController } from '@shared-core/types/webview'
@@ -22,6 +23,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
     const { t } = useLanguage()
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const pollInFlightRef = useRef(false)
+    const pickerWebviewRef = useRef<WebviewInstance>(null)
 
     const { mutateAsync: saveAiConfig } = useSaveAiConfig()
     const { mutateAsync: generatePickerScript } = useGeneratePickerScript()
@@ -43,6 +45,15 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         }
         pollInFlightRef.current = false
     }, [])
+
+    useEffect(() => {
+        if (!isPickerActive) return
+        if (pickerWebviewRef.current === webviewInstance) return
+
+        stopPolling()
+        pickerWebviewRef.current = webviewInstance
+        setIsPickerActive(false)
+    }, [isPickerActive, stopPolling, webviewInstance])
 
     const savePickerResult = useCallback(async (config: { input: string; button: string }) => {
         const webview = webviewInstance
@@ -191,6 +202,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             await webviewInstance.executeJavaScript('delete window._aiPickerResult; delete window._aiPickerCancelled;')
             await webviewInstance.executeJavaScript(script)
 
+            pickerWebviewRef.current = webviewInstance
             setIsPickerActive(true)
             showInfo('picker_started_hint')
             startPolling()
@@ -204,6 +216,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
 
     const stopPicker = useCallback(async () => {
         stopPolling()
+        pickerWebviewRef.current = null
         if (!webviewInstance) return
 
         try {

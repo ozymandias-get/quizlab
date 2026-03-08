@@ -56,14 +56,14 @@ export function registerAiConfigHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
     const manager = new ConfigManager<AiConfigMap>(getAiConfigPath())
 
-    ipcMain.handle(IPC_CHANNELS.SAVE_AI_CONFIG, async (event, hostname: string, config: AiSelectorConfig) => {
+    ipcMain.handle(IPC_CHANNELS.SAVE_AI_CONFIG, async (_event, hostname: string, config: AiSelectorConfig) => {
         const normalizedHostname = normalizeHostname(hostname)
         const sanitizedConfig = sanitizeConfig(config)
         if (!normalizedHostname || !sanitizedConfig) return false
         return manager.setItem(normalizedHostname, { ...sanitizedConfig, timestamp: Date.now() })
     })
 
-    ipcMain.handle(IPC_CHANNELS.GET_AI_CONFIG, async (event, hostname?: string) => {
+    ipcMain.handle(IPC_CHANNELS.GET_AI_CONFIG, async (_event, hostname?: string) => {
         const config = await manager.read()
         if (!hostname) return config
         const normalizedHostname = normalizeHostname(hostname)
@@ -71,7 +71,7 @@ export function registerAiConfigHandlers() {
         return config[normalizedHostname] || null
     })
 
-    ipcMain.handle(IPC_CHANNELS.DELETE_AI_CONFIG, async (event, hostname: string) => {
+    ipcMain.handle(IPC_CHANNELS.DELETE_AI_CONFIG, async (_event, hostname: string) => {
         const normalizedHostname = normalizeHostname(hostname)
         if (!normalizedHostname) return false
         return manager.deleteItem(normalizedHostname)

@@ -1,7 +1,8 @@
-﻿import React from 'react'
+import React from 'react'
 import { AiProvider } from './AiContext'
 import { AppToolProvider } from './AppToolContext'
 import { QueryProvider } from './QueryProvider'
+import { UpdateProvider } from './UpdateContext'
 import { AppEffects } from '@app/effects/AppEffects'
 
 interface AppProvidersProps {
@@ -11,13 +12,14 @@ interface AppProvidersProps {
 export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     return (
         <QueryProvider>
-            <AppEffects />
-            <AiProvider>
-                <AppToolProvider>
-                    {children}
-                </AppToolProvider>
-            </AiProvider>
+            <UpdateProvider>
+                <AppEffects />
+                <AiProvider>
+                    <AppToolProvider>
+                        {children}
+                    </AppToolProvider>
+                </AiProvider>
+            </UpdateProvider>
         </QueryProvider>
     )
 }
-

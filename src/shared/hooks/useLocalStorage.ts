@@ -40,6 +40,19 @@ const setStorageItem = (key: string, value: string): boolean => {
 
 type SetValue<T> = React.Dispatch<React.SetStateAction<T>>
 
+interface LocalStorageChangeDetail {
+    key: string;
+    value: string;
+}
+
+const safeStringify = <T>(value: T): string | null => {
+    try {
+        return JSON.stringify(value)
+    } catch {
+        return null
+    }
+}
+
 /**
  * localStorage ile state senkronizasyonu sağlayan hook
  * SSR ve test ortamlarında güvenli çalışır
@@ -84,8 +97,10 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
 
     // Güncel değeri ref'te tut - stale closure sorununu çözer
     const storedValueRef = useRef(storedValue)
+    const serializedValueRef = useRef<string | null>(safeStringify(storedValue))
     useEffect(() => {
         storedValueRef.current = storedValue
+        serializedValueRef.current = safeStringify(storedValue)
     }, [storedValue])
 
     // Cross-window senkronizasyon için storage event'i dinle
@@ -96,6 +111,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
         const handleStorageChange = (e: StorageEvent) => {
             // Sadece ilgili key değiştiğinde ve başka pencereden geldiyse
             if (e.key === key && e.newValue !== null) {
+                if (e.newValue === serializedValueRef.current) return
                 try {
                     setStoredValue(JSON.parse(e.newValue))
                 } catch (error) {
@@ -109,8 +125,9 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
 
         // Custom event for same-window sync
         const handleLocalChange = (e: Event) => {
-            const customEvent = e as CustomEvent
+            const customEvent = e as CustomEvent<LocalStorageChangeDetail>
             if (customEvent.detail.key === key) {
+                if (customEvent.detail.value === serializedValueRef.current) return
                 try {
                     setStoredValue(JSON.parse(customEvent.detail.value))
                 } catch (error) {
@@ -135,11 +152,19 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
             if (value instanceof Function) {
                 setStoredValue((prevValue) => {
                     const newValue = value(prevValue)
+                    const serializedValue = safeStringify(newValue)
+                    if (serializedValue !== null && serializedValue === serializedValueRef.current) {
+                        return prevValue
+                    }
                     setStorageItem(key, JSON.stringify(newValue))
                     return newValue
                 })
             } else {
                 // Doğrudan değer geçilmişse
+                const serializedValue = safeStringify(value)
+                if (serializedValue !== null && serializedValue === serializedValueRef.current) {
+                    return
+                }
                 setStoredValue(value)
                 setStorageItem(key, JSON.stringify(value))
             }
@@ -175,6 +200,11 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
             return initialValue
         }
     })
+    const storedValueRef = useRef(storedValue)
+
+    useEffect(() => {
+        storedValueRef.current = storedValue
+    }, [storedValue])
 
     // Cross-window senkronizasyon
     useEffect(() => {
@@ -183,6 +213,7 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
 
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === key && e.newValue !== null) {
+                if (e.newValue === storedValueRef.current) return
                 // Geçerli değerler varsa kontrol et
                 if (validValues && validValues.length > 0 && !validValues.includes(e.newValue)) {
                     return
@@ -195,9 +226,10 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
 
         // Custom event for same-window sync
         const handleLocalChange = (e: Event) => {
-            const customEvent = e as CustomEvent
+            const customEvent = e as CustomEvent<LocalStorageChangeDetail>
             if (customEvent.detail.key === key) {
                 const newValue = customEvent.detail.value
+                if (newValue === storedValueRef.current) return
                 // Geçerli değerler varsa kontrol et
                 if (validValues && validValues.length > 0 && !validValues.includes(newValue)) {
                     return
@@ -232,6 +264,7 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
             if (value instanceof Function) {
                 setStoredValue((prevValue) => {
                     const newValue = value(prevValue)
+                    if (newValue === prevValue) return prevValue
                     // Geçerli değerler varsa kontrol et
                     if (validValues && !validValues.includes(newValue)) {
                         Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, newValue)
@@ -246,6 +279,7 @@ export function useLocalStorageString(key: string, initialValue: string, validVa
                     Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, value)
                     return // Geçersiz değeri kaydetme
                 }
+                if (value === storedValueRef.current) return
                 setStoredValue(value)
                 setStorageItem(key, value)
             }
@@ -276,6 +310,11 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
             return initialValue
         }
     })
+    const storedValueRef = useRef(storedValue)
+
+    useEffect(() => {
+        storedValueRef.current = storedValue
+    }, [storedValue])
 
     // Cross-window senkronizasyon
     useEffect(() => {
@@ -284,7 +323,9 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
 
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === key && e.newValue !== null) {
-                setStoredValue(e.newValue === 'true')
+                const nextValue = e.newValue === 'true'
+                if (nextValue === storedValueRef.current) return
+                setStoredValue(nextValue)
             } else if (e.key === key && e.newValue === null) {
                 setStoredValue(initialValue)
             }
@@ -292,9 +333,11 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
 
         // Custom event for same-window sync
         const handleLocalChange = (e: Event) => {
-            const customEvent = e as CustomEvent
+            const customEvent = e as CustomEvent<LocalStorageChangeDetail>
             if (customEvent.detail.key === key) {
-                setStoredValue(customEvent.detail.value === 'true')
+                const nextValue = customEvent.detail.value === 'true'
+                if (nextValue === storedValueRef.current) return
+                setStoredValue(nextValue)
             }
         }
 
@@ -311,10 +354,12 @@ export function useLocalStorageBoolean(key: string, initialValue: boolean = fals
             if (value instanceof Function) {
                 setStoredValue((prevValue) => {
                     const newValue = value(prevValue)
+                    if (newValue === prevValue) return prevValue
                     setStorageItem(key, newValue.toString())
                     return newValue
                 })
             } else {
+                if (value === storedValueRef.current) return
                 setStoredValue(value)
                 setStorageItem(key, value.toString())
             }

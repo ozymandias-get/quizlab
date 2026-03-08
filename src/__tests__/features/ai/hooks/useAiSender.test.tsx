@@ -92,6 +92,7 @@ describe('useAiSender', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        mockUsePrompts.mockReturnValue({ activePromptText: '' })
 
         window.electronAPI = {
             automation: {
@@ -152,6 +153,23 @@ describe('useAiSender', () => {
             expect.anything(),
             'Act as a expert\n\nhello',
             false
+        )
+    })
+
+    it('merges local prompt text with active prompt', async () => {
+        mockUsePrompts.mockReturnValue({ activePromptText: 'Act as a expert' })
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+            wrapper: createWrapper()
+        })
+
+        await act(async () => {
+            await result.current.sendTextToAI('hello', { promptText: 'Focus on key terms', autoSend: true })
+        })
+
+        expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
+            expect.anything(),
+            'Act as a expert\n\nFocus on key terms\n\nhello',
+            true
         )
     })
 
@@ -228,6 +246,27 @@ describe('useAiSender', () => {
             expect.anything(),
             'Describe this',
             true
+        )
+    })
+
+    it('uses local image prompt without a global prompt', async () => {
+        const imageDataUrl = 'data:image/png;base64,xxxx'
+        mockCopyImageToClipboard.mockResolvedValue(true)
+        mockGenerateFocusScript.mockResolvedValue('focus()')
+        mockGenerateAutoSendScript.mockResolvedValue('send()')
+
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+            wrapper: createWrapper()
+        })
+
+        await act(async () => {
+            await result.current.sendImageToAI(imageDataUrl, { promptText: 'Bu grafiği açıkla', autoSend: false })
+        })
+
+        expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
+            expect.anything(),
+            'Bu grafiği açıkla',
+            false
         )
     })
 

@@ -8,8 +8,11 @@ const mockToast = {
     showError: vi.fn(),
     showInfo: vi.fn()
 }
-vi.mock('@app/providers', () => ({
-    useToast: () => mockToast,
+vi.mock('@app/providers/ToastContext', () => ({
+    useToast: () => mockToast
+}))
+
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key })
 }))
 

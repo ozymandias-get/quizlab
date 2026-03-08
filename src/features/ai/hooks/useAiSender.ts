@@ -1,51 +1,37 @@
-﻿import { useCallback, useRef, RefObject } from 'react'
+import { useCallback, useRef } from 'react'
+import type { RefObject } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Logger } from '@shared/lib/logger'
 import { safeWebviewPaste } from '@shared/lib/webviewUtils'
-import { usePrompts } from './usePrompts'
 import type { WebviewController } from '@shared-core/types/webview'
-import type { AutomationConfig } from '@shared-core/types'
-import type { SendImageResult, SendTextResult } from '../model/types'
-import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
-import { useGenerateAutoSendScript, useGenerateFocusScript, useGenerateClickSendScript } from '@platform/electron/api/useAutomationApi'
+import type { AiSendOptions, SendImageResult, SendTextResult } from '../model/types'
+import {
+    buildPromptText,
+    CLIPBOARD_WAIT_DELAY,
+    getCachedAiConfig,
+    IMAGE_UPLOAD_WAIT_DELAY,
+    isWebviewUsable,
+    mergePromptText,
+    POST_PASTE_PROMPT_DELAY,
+    queueForWebview,
+    sleep,
+    toAutomationConfig,
+    type AiConfig,
+    type ConfigCache,
+    type UseAiSenderReturn
+} from '../lib/aiSenderSupport'
+import { usePrompts } from './usePrompts'
+import { useGenerateAutoSendScript, useGenerateClickSendScript, useGenerateFocusScript } from '@platform/electron/api/useAutomationApi'
 import { useCopyImageToClipboard } from '@platform/electron/api/useSystemApi'
 
-// Define interfaces for config
-interface AiConfig {
-    input?: string | null;
-    button?: string | null;
-    submitMode?: string;
-    domainRegex?: string;
-    imageWaitTime?: number;
-    [key: string]: unknown;
+interface ResolvedSendContext {
+    aiConfig: AiConfig
+    currentUrl: string
 }
 
-interface CacheData {
-    config: AiConfig;
-    regex: RegExp | null;
+function isSendError(result: ResolvedSendContext | SendTextResult): result is SendTextResult {
+    return 'success' in result
 }
-
-interface ConfigCache {
-    key: string | null;
-    data: CacheData | null;
-}
-
-interface UseAiSenderReturn {
-    sendTextToAI: (text: string) => Promise<SendTextResult>;
-    sendImageToAI: (imageDataUrl: string) => Promise<SendImageResult>;
-}
-
-const CLIPBOARD_WAIT_DELAY = 800
-
-// Module-level queue to prevent overlapping send actions (e.g. rapid consecutive image pasting)
-let globalAiSendQueue = Promise.resolve<any>(true)
-
-const toAutomationConfig = (config: AiConfig): AutomationConfig => ({
-    input: typeof config.input === 'string' || config.input === null ? config.input : null,
-    button: typeof config.button === 'string' || config.button === null ? config.button : null,
-    waitFor: typeof config.waitFor === 'string' || config.waitFor === null ? config.waitFor : null,
-    submitMode: typeof config.submitMode === 'string' ? config.submitMode : undefined
-})
 
 export function useAiSender(
     webviewRef: RefObject<WebviewController | null>,
@@ -53,260 +39,231 @@ export function useAiSender(
     autoSend: boolean,
     aiRegistry: Record<string, AiConfig> | null
 ): UseAiSenderReturn {
-    // Modular prompt logic
     const { activePromptText } = usePrompts()
     const queryClient = useQueryClient()
-
-    // React Query Mutations
     const { mutateAsync: generateAutoSendScript } = useGenerateAutoSendScript()
     const { mutateAsync: generateFocusScript } = useGenerateFocusScript()
     const { mutateAsync: generateClickSendScript } = useGenerateClickSendScript()
     const { mutateAsync: copyImageToClipboard } = useCopyImageToClipboard()
-
-    // Cache to avoid re-fetching/calculating config for the same URL
     const configCache = useRef<ConfigCache>({ key: null, data: null })
 
-    const getCachedConfig = useCallback(async (client: ReturnType<typeof useQueryClient>, webview: WebviewController, baseConfig: AiConfig): Promise<CacheData> => {
-        if (!webview || typeof webview.getURL !== 'function') return { config: baseConfig, regex: null }
+    const canUseWebview = useCallback((webview: WebviewController, expected?: WebviewController | null) => (
+        isWebviewUsable(webviewRef, webview, expected)
+    ), [webviewRef])
+
+    const resolveSendContext = useCallback(async (
+        webview: WebviewController,
+        scheduledWebview: WebviewController
+    ): Promise<ResolvedSendContext | SendTextResult> => {
+        if (!aiRegistry) {
+            return { success: false, error: 'registry_not_loaded' }
+        }
+
+        if (!canUseWebview(webview, scheduledWebview)) {
+            return { success: false, error: 'webview_destroyed' }
+        }
+
+        const baseAiConfig = aiRegistry[currentAI]
+        if (!baseAiConfig) {
+            return { success: false, error: 'config_not_found' }
+        }
+
+        if (typeof webview.getURL !== 'function') {
+            return { success: false, error: 'webview_api_missing' }
+        }
+
+        const { config: aiConfig, regex } = await getCachedAiConfig({
+            baseConfig: baseAiConfig,
+            configCache: configCache.current,
+            currentAI,
+            queryClient,
+            webview
+        })
 
         const currentUrl = webview.getURL()
-        if (!currentUrl) return { config: baseConfig, regex: null }
-        const configSignature = JSON.stringify(baseConfig || {})
-        const cacheKey = `${currentUrl}::${currentAI}::${configSignature}`
-
-        if (configCache.current.key === cacheKey && configCache.current.data) {
-            return configCache.current.data
+        if (!currentUrl) {
+            return { success: false, error: 'webview_url_missing' }
         }
 
-        try {
-            const hostname = new URL(currentUrl).hostname
-            // Fetch dynamically using React Query (allows caching)
-            // Note: Utilizing window.electronAPI inside queryFn is acceptable as an implementation detail
-            // to fetch data, leveraging React Query for cache management.
-            const customConfig = await client.fetchQuery({
-                queryKey: AI_CONFIG_KEY(hostname),
-                queryFn: () => window.electronAPI.getAiConfig(hostname),
-                staleTime: 1000 * 60 * 5 // 5 minutes fresh
-            }) as AiConfig | null
-
-            const selectorConfig = (customConfig && typeof customConfig === 'object' && 'input' in customConfig)
-                ? (customConfig)
-                : null
-
-            let finalConfig = baseConfig
-            if (selectorConfig && selectorConfig.input && selectorConfig.button) {
-                Logger.info('[useAiSender] Using custom selectors for:', hostname)
-                finalConfig = {
-                    ...baseConfig,
-                    input: selectorConfig.input,
-                    button: selectorConfig.button,
-                    submitMode: selectorConfig.submitMode || baseConfig.submitMode || 'click'
-                }
-            }
-
-            let regex: RegExp | null = null
-            if (finalConfig.domainRegex) {
-                regex = new RegExp(finalConfig.domainRegex)
-            }
-
-            const data = { config: finalConfig, regex }
-            configCache.current = { key: cacheKey, data }
-            return data
-
-        } catch (e) {
-            // Ignore errors
-            return { config: baseConfig, regex: null }
+        if (regex && !regex.test(currentUrl)) {
+            return { success: false, error: 'wrong_url', actualUrl: currentUrl }
         }
-    }, [currentAI])
 
-    const sendTextToAI = useCallback((text: string): Promise<SendTextResult> => {
-        const execute = async (): Promise<SendTextResult> => {
-            const webview = webviewRef.current
-            if (!webview || !text) return { success: false, error: 'invalid_input' }
-            if (!aiRegistry) return { success: false, error: 'registry_not_loaded' }
+        return { aiConfig, currentUrl }
+    }, [aiRegistry, canUseWebview, currentAI, queryClient])
 
+    const sendTextToAI = useCallback((text: string, options: AiSendOptions = {}): Promise<SendTextResult> => {
+        const scheduledWebview = webviewRef.current
+        if (!scheduledWebview || !text) {
+            return Promise.resolve({ success: false, error: 'invalid_input' })
+        }
+
+        const execute = async (webview: WebviewController): Promise<SendTextResult> => {
             try {
-                // Get base config from registry
-                const baseAiConfig = aiRegistry[currentAI]
-                if (!baseAiConfig) return { success: false, error: 'config_not_found' }
-
-                if (typeof webview.getURL !== 'function') {
-                    return { success: false, error: 'webview_api_missing' }
+                const resolved = await resolveSendContext(webview, scheduledWebview)
+                if (isSendError(resolved)) {
+                    return resolved
                 }
 
-                // Get config + regex (cached if possible)
-                const { config: aiConfig, regex } = await getCachedConfig(queryClient, webview, baseAiConfig)
-                const currentUrl = webview.getURL()
-                if (!currentUrl) {
-                    return { success: false, error: 'webview_url_missing' }
-                }
-
-                if (regex) {
-                    if (!regex.test(currentUrl)) {
-                        return { success: false, error: 'wrong_url', actualUrl: currentUrl }
-                    }
-                }
-
-                // Prepend prompt if selected
-                let finalText = text
-                if (activePromptText) {
-                    // Add prompt before the text
-                    finalText = `${activePromptText}\n\n${text}`
-                    Logger.info('[useAiSender] Prompt prepended:', activePromptText)
-                }
-
-                // Use React Query mutation instead of direct API call
+                const effectiveAutoSend = options.autoSend ?? autoSend
+                const finalPromptText = mergePromptText(activePromptText, options.promptText)
+                const finalText = buildPromptText(text, finalPromptText)
                 const script = await generateAutoSendScript({
-                    config: toAutomationConfig(aiConfig),
+                    config: toAutomationConfig(resolved.aiConfig),
                     text: finalText,
-                    submit: autoSend
+                    submit: effectiveAutoSend
                 })
 
-                if (!script) return { success: false, error: 'script_generation_failed' }
+                if (!script) {
+                    return { success: false, error: 'script_generation_failed' }
+                }
 
-                if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                if (!canUseWebview(webview, scheduledWebview)) {
+                    return { success: false, error: 'webview_destroyed' }
+                }
 
                 const result = await webview.executeJavaScript(script) as { success?: boolean; error?: string; mode?: string } | null
                 if (!result || result.success === false) {
                     return { success: false, error: result?.error || 'script_failed' }
                 }
 
-                return { success: true, mode: result.mode || aiConfig.submitMode }
+                return { success: true, mode: result.mode || resolved.aiConfig.submitMode }
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'unknown_error'
                 Logger.error('[useAiSender] Hata:', error)
                 return { success: false, error: message }
             }
-        };
+        }
 
-        return new Promise<SendTextResult>((resolve) => {
-            globalAiSendQueue = globalAiSendQueue
-                .then(async () => {
-                    const result = await execute()
-                    resolve(result)
-                })
-                .catch((error) => {
-                    resolve({ success: false, error: error instanceof Error ? error.message : 'queue_error' })
-                })
+        return queueForWebview(scheduledWebview, async () => {
+            try {
+                return await execute(scheduledWebview)
+            } catch (error) {
+                return { success: false, error: error instanceof Error ? error.message : 'queue_error' }
+            }
         })
-    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, generateAutoSendScript])
+    }, [activePromptText, autoSend, canUseWebview, generateAutoSendScript, resolveSendContext, webviewRef])
 
-    const sendImageToAI = useCallback((imageDataUrl: string): Promise<SendImageResult> => {
-        const execute = async (): Promise<SendImageResult> => {
-            const webview = webviewRef.current
-            if (!webview || !imageDataUrl) return { success: false, error: 'invalid_input' }
-            if (!aiRegistry) return { success: false, error: 'registry_not_loaded' }
+    const sendImageToAI = useCallback((imageDataUrl: string, options: AiSendOptions = {}): Promise<SendImageResult> => {
+        const scheduledWebview = webviewRef.current
+        if (!scheduledWebview || !imageDataUrl) {
+            return Promise.resolve({ success: false, error: 'invalid_input' })
+        }
 
-            // Sanity check for data URL
+        const execute = async (webview: WebviewController): Promise<SendImageResult> => {
             if (!imageDataUrl.startsWith('data:image/')) {
                 Logger.error('[useAiSender] Invalid image format')
                 return { success: false, error: 'invalid_image_format' }
             }
 
             try {
-                // Get base config from registry
-                const baseAiConfig = aiRegistry[currentAI]
-                if (!baseAiConfig) return { success: false, error: 'config_not_found' }
-
-                // Get config (cached if possible)
-                const { config: aiConfig, regex } = await getCachedConfig(queryClient, webview, baseAiConfig)
-                const currentUrl = typeof webview.getURL === 'function' ? webview.getURL() : null
-                if (!currentUrl) {
-                    return { success: false, error: 'webview_url_missing' }
+                const resolved = await resolveSendContext(webview, scheduledWebview)
+                if (isSendError(resolved)) {
+                    return resolved
                 }
 
-                if (regex) {
-                    if (!regex.test(currentUrl)) {
-                        return { success: false, error: 'wrong_url', actualUrl: currentUrl }
-                    }
-                }
+                const effectiveAutoSend = options.autoSend ?? autoSend
+                const effectivePromptText = mergePromptText(activePromptText, options.promptText)
 
-                // Use React Query mutation
                 const copied = await copyImageToClipboard(imageDataUrl)
-                if (!copied) return { success: false, error: 'clipboard_failed' }
+                if (!copied) {
+                    return { success: false, error: 'clipboard_failed' }
+                }
 
-                // Focus webview
                 try {
                     if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
                         webview.focus()
                     }
-                } catch (e) { }
+                } catch {
+                    // Focus failure should not block the next fallback path.
+                }
 
-                await new Promise(r => setTimeout(r, 100))
+                await sleep(100)
 
-                // Use React Query mutation
-                const focusScript = await generateFocusScript(toAutomationConfig(aiConfig))
-                if (!focusScript) return { success: false, error: 'focus_script_failed' }
+                const focusScript = await generateFocusScript(toAutomationConfig(resolved.aiConfig))
+                if (!focusScript) {
+                    return { success: false, error: 'focus_script_failed' }
+                }
 
-                if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                if (!canUseWebview(webview, scheduledWebview)) {
+                    return { success: false, error: 'webview_destroyed' }
+                }
+
                 const focused = await webview.executeJavaScript(focusScript)
-                if (!focused) return { success: false, error: 'focus_failed' }
+                if (!focused) {
+                    return { success: false, error: 'focus_failed' }
+                }
 
-                // Wait for clipboard to be ready in the remote process
-                await new Promise(r => setTimeout(r, CLIPBOARD_WAIT_DELAY))
+                await sleep(CLIPBOARD_WAIT_DELAY)
 
                 let pasteSuccess = false
-
-                // Try native paste if available
-                if (webview.isDestroyed?.() !== true) {
-                    if (typeof webview.pasteNative === 'function' && typeof webview.getWebContentsId === 'function') {
-                        try {
-                            const wcId = webview.getWebContentsId()
-                            if (wcId) {
-                                const result = webview.pasteNative(wcId)
-                                pasteSuccess = typeof result === 'boolean' ? result : await result
-                            }
-                        } catch (err) {
-                            pasteSuccess = false
+                if (canUseWebview(webview, scheduledWebview) && typeof webview.pasteNative === 'function' && typeof webview.getWebContentsId === 'function') {
+                    try {
+                        const webContentsId = webview.getWebContentsId()
+                        if (webContentsId) {
+                            const result = webview.pasteNative(webContentsId)
+                            pasteSuccess = typeof result === 'boolean' ? result : await result
                         }
+                    } catch {
+                        pasteSuccess = false
                     }
                 }
 
-                // Fallback to JS paste
                 if (!pasteSuccess) {
-                    if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                    if (!canUseWebview(webview, scheduledWebview)) {
+                        return { success: false, error: 'webview_destroyed' }
+                    }
                     pasteSuccess = safeWebviewPaste(webview)
                 }
 
-                if (!pasteSuccess) return { success: false, error: 'paste_failed' }
+                if (!pasteSuccess) {
+                    return { success: false, error: 'paste_failed' }
+                }
 
-                // Perform prompt injection for image
-                if (activePromptText) {
-                    // Wait slightly for paste to settle
-                    await new Promise(r => setTimeout(r, 500))
+                if (effectivePromptText) {
+                    await sleep(POST_PASTE_PROMPT_DELAY)
 
-                    // Use the same auto-send script logic to insert the prompt text
-                    // If autoSend is true, this will also click send
-                    // Use React Query mutation
                     const promptScript = await generateAutoSendScript({
-                        config: toAutomationConfig(aiConfig),
-                        text: activePromptText,
-                        submit: autoSend
+                        config: toAutomationConfig(resolved.aiConfig),
+                        text: effectivePromptText,
+                        submit: effectiveAutoSend
                     })
 
                     if (promptScript) {
-                        if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                        if (!canUseWebview(webview, scheduledWebview)) {
+                            return { success: false, error: 'webview_destroyed' }
+                        }
+
                         const promptResult = await webview.executeJavaScript(promptScript) as { success?: boolean; error?: string } | boolean | null
                         if (promptResult === false || (typeof promptResult === 'object' && promptResult?.success === false)) {
-                            return { success: false, error: (typeof promptResult === 'object' && promptResult?.error) ? promptResult.error : 'script_failed' }
+                            return {
+                                success: false,
+                                error: typeof promptResult === 'object' && promptResult?.error
+                                    ? promptResult.error
+                                    : 'script_failed'
+                            }
                         }
-                        return { success: true, mode: autoSend ? 'auto_click_with_prompt' : 'paste_and_prompt' }
+
+                        return { success: true, mode: effectiveAutoSend ? 'auto_click_with_prompt' : 'paste_and_prompt' }
                     }
                 }
 
-                if (autoSend) {
-                    // Wait for image to upload/process in the AI interface
-                    let waitTime = aiConfig.imageWaitTime || 1000
-                    await new Promise(r => setTimeout(r, waitTime))
+                if (effectiveAutoSend) {
+                    await sleep(resolved.aiConfig.imageWaitTime || IMAGE_UPLOAD_WAIT_DELAY)
 
-                    // Use React Query mutation
-                    const clickScript = await generateClickSendScript(toAutomationConfig(aiConfig))
-                    if (!clickScript) return { success: false, error: 'click_script_failed' }
+                    const clickScript = await generateClickSendScript(toAutomationConfig(resolved.aiConfig))
+                    if (!clickScript) {
+                        return { success: false, error: 'click_script_failed' }
+                    }
 
-                    if (webview.isDestroyed?.() === true) return { success: false, error: 'webview_destroyed' }
+                    if (!canUseWebview(webview, scheduledWebview)) {
+                        return { success: false, error: 'webview_destroyed' }
+                    }
 
                     const clickResult = await webview.executeJavaScript(clickScript)
-                    if (!clickResult) return { success: false, error: 'autosend_failed_draft_saved' }
+                    if (!clickResult) {
+                        return { success: false, error: 'autosend_failed_draft_saved' }
+                    }
 
                     return { success: true, mode: 'auto_click' }
                 }
@@ -317,22 +274,27 @@ export function useAiSender(
                 Logger.error('[useAiSender] Image send error:', error)
                 return { success: false, error: message }
             }
-        };
+        }
 
-        return new Promise<SendImageResult>((resolve) => {
-            globalAiSendQueue = globalAiSendQueue
-                .then(async () => {
-                    const result = await execute()
-                    resolve(result)
-                })
-                .catch((error) => {
-                    Logger.error('[useAiSender] Image queue error:', error)
-                    resolve({ success: false, error: error instanceof Error ? error.message : 'queue_error' })
-                })
+        return queueForWebview(scheduledWebview, async () => {
+            try {
+                return await execute(scheduledWebview)
+            } catch (error) {
+                Logger.error('[useAiSender] Image queue error:', error)
+                return { success: false, error: error instanceof Error ? error.message : 'queue_error' }
+            }
         })
-    }, [currentAI, autoSend, webviewRef, aiRegistry, getCachedConfig, activePromptText, queryClient, copyImageToClipboard, generateFocusScript, generateAutoSendScript, generateClickSendScript])
+    }, [
+        activePromptText,
+        autoSend,
+        canUseWebview,
+        copyImageToClipboard,
+        generateAutoSendScript,
+        generateClickSendScript,
+        generateFocusScript,
+        resolveSendContext,
+        webviewRef
+    ])
 
     return { sendTextToAI, sendImageToAI }
 }
-
-

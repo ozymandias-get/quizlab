@@ -1,8 +1,11 @@
-﻿import React from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Monitor, DownloadCloud } from 'lucide-react'
+import { useLanguage } from '@app/providers/LanguageContext'
 
 const BrowserFallback: React.FC = () => {
+    const { t } = useLanguage()
+
     return (
         <div className="fixed inset-0 flex items-center justify-center bg-zinc-950 p-6 z-[9999] overflow-hidden">
             {/* Aesthetic Background Orbs */}
@@ -22,7 +25,7 @@ const BrowserFallback: React.FC = () => {
                 <motion.div
                     initial={{ rotate: -10 }}
                     animate={{ rotate: 0 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 10, delay: 0.2 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 10, delay: 0.2 }}
                     className="relative mb-6"
                 >
                     <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
@@ -32,29 +35,29 @@ const BrowserFallback: React.FC = () => {
                     </div>
                 </motion.div>
 
-                {/* Typography */}
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
-                    Masaüstü Ortamı Gerekli
+                    {t('browser_fallback_title')}
                 </h1>
 
                 <p className="text-zinc-400 leading-relaxed mb-8">
-                    Bu uygulama, dosya sistemi ve yerel işlemlere erişim sağlayabilmek için <strong className="text-zinc-200">sadece Electron veya masaüstü ortamında</strong> bütünleşik olarak çalışacak şekilde tasarlanmıştır. Tarayıcı önizlemesi (Web) desteklenmemektedir.
+                    {t('browser_fallback_description')}
                 </p>
 
-                {/* Call To Action Buttons (Mock/Informational) */}
                 <div className="w-full flex flex-col sm:flex-row gap-3">
                     <button
-                        onClick={() => window.location.href = "https://github.com/ozymandias-get/quizlab"}
+                        onClick={() => {
+                            window.location.href = 'https://github.com/ozymandias-get/quizlab'
+                        }}
                         className="flex-1 flex items-center justify-center gap-2 bg-white text-zinc-950 px-5 py-3 rounded-xl font-medium hover:bg-zinc-200 active:bg-zinc-300 transition-colors"
                     >
                         <DownloadCloud className="w-4 h-4" />
-                        İndir & Kur
+                        {t('browser_fallback_download')}
                     </button>
                     <button
                         onClick={() => window.location.reload()}
                         className="flex-1 flex items-center justify-center gap-2 bg-white/5 text-white px-5 py-3 rounded-xl font-medium border border-white/10 hover:bg-white/10 transition-colors"
                     >
-                        Yeniden Dene
+                        {t('browser_fallback_retry')}
                     </button>
                 </div>
             </motion.div>
@@ -63,4 +66,3 @@ const BrowserFallback: React.FC = () => {
 }
 
 export default BrowserFallback
-

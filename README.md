@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.2.1-blue.svg?style=flat-square" alt="Version 2.2.1" />
+  <img src="https://img.shields.io/badge/version-2.2.2-blue.svg?style=flat-square" alt="Version 2.2.2" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Windows macOS Linux" />
   <img src="https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Electron React TypeScript" />

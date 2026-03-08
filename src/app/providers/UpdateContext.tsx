@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useCheckForUpdates } from '@platform/electron/api/useSystemApi'
 import type { UpdateCheckResult } from '@shared-core/types'
 
@@ -13,13 +13,9 @@ interface UpdateContextType {
 }
 
 const UPDATE_CHECK_DELAY = 5000
+const UpdateContext = createContext<UpdateContextType | null>(null)
 
-// Backward-compatible wrapper for old tree usage.
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
-    return <>{children}</>
-}
-
-export function useUpdate(): UpdateContextType {
     const [isEnabled, setIsEnabled] = useState(false)
 
     useEffect(() => {
@@ -40,13 +36,23 @@ export function useUpdate(): UpdateContextType {
         return result.data || { available: false, error: 'Refetch failed' }
     }, [refetch])
 
-    return useMemo(() => ({
+    const value = useMemo(() => ({
         updateAvailable,
         updateInfo,
         isCheckingUpdate: isLoading && isEnabled,
         hasCheckedUpdate: isFetched,
         checkForUpdates
     }), [updateAvailable, updateInfo, isLoading, isEnabled, isFetched, checkForUpdates])
+
+    return (
+        <UpdateContext.Provider value={value}>
+            {children}
+        </UpdateContext.Provider>
+    )
 }
 
-
+export function useUpdate(): UpdateContextType {
+    const context = useContext(UpdateContext)
+    if (!context) throw new Error('useUpdate must be used within UpdateProvider')
+    return context
+}

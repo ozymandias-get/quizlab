@@ -12,16 +12,14 @@ vi.mock('@app/providers', () => ({
         toggleLayoutSwap: vi.fn(),
         isTourActive: false
     }),
-    useAi: () => ({
-        tabs: [],
-        enabledModels: [],
-        setEnabledModels: vi.fn(),
-        defaultAiModel: 'chatgpt',
-        setDefaultAiModel: vi.fn(),
-        aiSites: {}
-    }),
     useLanguage: () => ({
         t: (key: string) => key
+    })
+}))
+
+vi.mock('@app/providers/AiContext', () => ({
+    useAiState: () => ({
+        tabs: []
     })
 }))
 
@@ -36,9 +34,22 @@ vi.mock('@ui/layout/BottomBar/useBottomBarStyles', () => ({
 
 // Mock subcomponents
 vi.mock('@ui/layout/BottomBar/ToolsPanel', () => ({
-    ToolsPanel: ({ isOpen, handleSettingsClick, handleGeminiWebSettingsClick }: any) => (
-        <div data-testid="tools-panel">
+    ToolsPanel: ({ isOpen, maxHeight, handleSettingsClick, handleGeminiWebSettingsClick }: any) => (
+        <div data-testid="tools-panel" data-max-height={maxHeight ?? ''}>
             {isOpen ? 'Tools Open' : 'Tools Closed'}
+            <div
+                data-testid="tools-panel-scroll-area"
+                ref={(element) => {
+                    if (!element) return
+
+                    Object.defineProperty(element, 'scrollHeight', {
+                        configurable: true,
+                        value: 120
+                    })
+                }}
+            >
+                <div style={{ height: '120px' }} />
+            </div>
             <button onClick={handleSettingsClick}>Settings</button>
             <button onClick={handleGeminiWebSettingsClick}>Gemini Web Settings</button>
         </div>
@@ -46,7 +57,24 @@ vi.mock('@ui/layout/BottomBar/ToolsPanel', () => ({
 }))
 
 vi.mock('@ui/layout/BottomBar/ModelsPanel', () => ({
-    ModelsPanel: () => <div data-testid="models-panel">Models Panel</div>
+    ModelsPanel: ({ maxHeight }: any) => (
+        <div data-testid="models-panel" data-max-height={maxHeight ?? ''}>
+            <div
+                data-testid="models-panel-scroll-area"
+                ref={(element) => {
+                    if (!element) return
+
+                    Object.defineProperty(element, 'scrollHeight', {
+                        configurable: true,
+                        value: 280
+                    })
+                }}
+            >
+                <div style={{ height: '280px' }} />
+            </div>
+            Models Panel
+        </div>
+    )
 }))
 
 vi.mock('@ui/layout/BottomBar/SettingsLoadingSpinner', () => ({
@@ -175,6 +203,74 @@ describe('BottomBar Component', () => {
 
         expect(await screen.findByTestId('settings-modal')).toBeInTheDocument()
         expect(screen.getByText('gemini-web')).toBeInTheDocument()
+    })
+
+    it('keeps the top and bottom panels at the same visible height using the shorter content height', async () => {
+        const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+            if (this.classList.contains('resizer-hub-container')) {
+                return {
+                    x: 0,
+                    y: 0,
+                    top: 0,
+                    left: 0,
+                    right: 56,
+                    bottom: 600,
+                    width: 56,
+                    height: 600,
+                    toJSON: () => ({})
+                } as DOMRect
+            }
+
+            if (this.classList.contains('hub-center-btn')) {
+                return {
+                    x: 0,
+                    y: 200,
+                    top: 200,
+                    left: 0,
+                    right: 56,
+                    bottom: 248,
+                    width: 56,
+                    height: 48,
+                    toJSON: () => ({})
+                } as DOMRect
+            }
+
+            return {
+                x: 0,
+                y: 0,
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: 0,
+                height: 0,
+                toJSON: () => ({})
+            } as DOMRect
+        })
+
+        try {
+            const { container } = render(
+                <BottomBar
+                    isQuizMode={false}
+                    onToggleQuizMode={vi.fn()}
+                />
+            )
+
+            const hubBtn = container.querySelector(`#${APP_CONSTANTS.TOUR_TARGETS.HUB_BTN}`)
+            expect(hubBtn).toBeInTheDocument()
+
+            if (hubBtn) {
+                fireEvent.pointerDown(hubBtn, { clientX: 0, clientY: 0 })
+                fireEvent.pointerUp(hubBtn, { clientX: 0, clientY: 0 })
+            }
+
+            await waitFor(() => {
+                expect(screen.getByTestId('tools-panel')).toHaveAttribute('data-max-height', '120')
+                expect(screen.getByTestId('models-panel')).toHaveAttribute('data-max-height', '120')
+            })
+        } finally {
+            rectSpy.mockRestore()
+        }
     })
 })
 

@@ -6,14 +6,7 @@
     QueryKey
 } from '@tanstack/react-query'
 import { useToast } from '@app/providers/ToastContext'
-
-// Helper to access API safely
-const getApi = () => {
-    if (typeof window === 'undefined' || !window.electronAPI) {
-        throw new Error('Electron API is not available')
-    }
-    return window.electronAPI
-}
+import { getElectronApi } from '@shared/lib/electronApi'
 
 /**
  * Base hook for Electron queries
@@ -27,7 +20,7 @@ export function useElectronQuery<TData = unknown>(
 ) {
     return useQuery({
         queryKey: options.key,
-        queryFn: () => options.queryFn(getApi()),
+        queryFn: () => options.queryFn(getElectronApi()),
         ...options.options
     })
 }
@@ -39,20 +32,23 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
     mutationFn: (api: typeof window.electronAPI, variables: TVariables) => Promise<TData>,
     options?: UseMutationOptions<TData, Error, TVariables> & {
         errorMessage?: string
+        showErrorToast?: boolean
     }
 ) {
     const { showError } = useToast()
 
     return useMutation({
-        mutationFn: (variables) => mutationFn(getApi(), variables),
+        mutationFn: (variables) => mutationFn(getElectronApi(), variables),
         ...options,
         onError: (error, variables, context) => {
             if (options?.onError) {
                 // @ts-expect-error - React Query callback provides 3 args but internal options type may expect 4
                 options.onError(error, variables, context)
             }
-            // Explicitly pass undefined for optional parameters to satisfy strict linter checks
-            showError(options?.errorMessage || (error as Error).message || 'An error occurred', 'Mutation Error', undefined, undefined)
+            if (options?.showErrorToast !== false) {
+                // Explicitly pass undefined for optional parameters to satisfy strict linter checks
+                showError(options?.errorMessage || (error as Error).message || 'An error occurred', 'Mutation Error', undefined, undefined)
+            }
         }
     })
 }

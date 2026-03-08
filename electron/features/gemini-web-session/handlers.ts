@@ -43,3 +43,7 @@ export function registerGeminiWebSessionHandlers(): void {
         return geminiWebSessionManager.setEnabledApps(Array.isArray(enabledAppIds) ? enabledAppIds : [])
     })
 }
+
+export async function shutdownGeminiWebSessionHandlers(): Promise<void> {
+    await geminiWebSessionManager.dispose()
+}

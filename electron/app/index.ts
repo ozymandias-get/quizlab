@@ -14,6 +14,7 @@ import {
 } from './windowManager'
 import { registerGeneralHandlers, registerQuizHandlers } from './ipcHandlers'
 import { initUpdater } from '../core/updater'
+import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
 
 if (process.platform === 'win32') {
     app.setAppUserModelId('com.quizlab.reader')
@@ -55,6 +56,32 @@ app.commandLine.appendSwitch('high-dpi-support', '1')
 app.commandLine.appendSwitch('force-device-scale-factor', '1')
 // NOTE: `disable-features` was already set above. Do not override it here.
 
+let appCleanupPromise: Promise<void> | null = null
+let appCleanupComplete = false
+
+async function performAppCleanup() {
+    if (appCleanupComplete) return
+    if (appCleanupPromise) {
+        await appCleanupPromise
+        return
+    }
+
+    appCleanupPromise = (async () => {
+        stopPdfCleanupInterval()
+        clearAllPdfPaths()
+        await shutdownGeminiWebSessionHandlers()
+        appCleanupComplete = true
+    })()
+        .catch((error) => {
+            console.error('[App] Cleanup failed:', error)
+        })
+        .finally(() => {
+            appCleanupPromise = null
+        })
+
+    await appCleanupPromise
+}
+
 async function initializeApp() {
     createSplashWindow()
 
@@ -79,18 +106,25 @@ app.whenReady().then(() => {
 
 app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-        const mw = await createWindow()
-        mw?.show()
+        try {
+            const mw = await createWindow()
+            mw?.show()
+        } catch (error) {
+            handleSeriousError('Window Activation Failure', error)
+        }
     }
 })
 
 app.on('window-all-closed', () => {
-    stopPdfCleanupInterval()
-    clearAllPdfPaths()
+    void performAppCleanup()
 
     if (process.platform !== 'darwin') {
         app.quit()
     }
+})
+
+app.on('before-quit', () => {
+    void performAppCleanup()
 })
 
 

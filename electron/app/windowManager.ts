@@ -1,7 +1,8 @@
 
-import { BrowserWindow, dialog, session, app, screen } from 'electron'
+import { BrowserWindow, dialog, session, app, screen, shell } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { APP_CONFIG } from './constants'
 import { ConfigManager } from '../core/ConfigManager'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
@@ -12,6 +13,18 @@ const DEV_SERVER_TIMEOUT_MS = 30000
 const DEV_SERVER_POLL_MS = 500
 const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
+const ALLOWED_DEFAULT_PERMISSIONS = new Set(['notifications', 'media'])
+const ALLOWED_AI_PERMISSIONS = new Set(['notifications', 'media', 'geolocation'])
+const ALLOWED_WEBVIEW_PROTOCOLS = new Set(['https:'])
+const DEV_SERVER_ORIGIN = (() => {
+    try {
+        return new URL(DEV_SERVER_URL).origin
+    } catch {
+        return null
+    }
+})()
+
+let sessionsConfigured = false
 
 const getAppPath = (...parts: string[]) => {
     return path.join(app.getAppPath(), ...parts)
@@ -32,17 +45,21 @@ function resolveIconPath() {
 }
 
 async function isDevServerReachable() {
+    let timeoutId: NodeJS.Timeout | null = null
     try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 1500)
+        timeoutId = setTimeout(() => controller.abort(), 1500)
         const response = await fetch(DEV_SERVER_URL, {
             signal: controller.signal,
             headers: { Accept: 'text/html' }
         })
-        clearTimeout(timeoutId)
         return response.ok
     } catch {
         return false
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId)
+        }
     }
 }
 
@@ -57,6 +74,84 @@ async function waitForDevServer() {
     }
 
     return false
+}
+
+export function isSafeExternalUrl(rawUrl: string) {
+    try {
+        const parsed = new URL(rawUrl)
+        if (isDev && DEV_SERVER_ORIGIN && parsed.origin === DEV_SERVER_ORIGIN) return true
+        return ALLOWED_WEBVIEW_PROTOCOLS.has(parsed.protocol)
+    } catch {
+        return false
+    }
+}
+
+export function isAllowedMainFrameUrl(rawUrl: string) {
+    try {
+        const parsed = new URL(rawUrl)
+
+        if (isDev) {
+            return DEV_SERVER_ORIGIN !== null && parsed.origin === DEV_SERVER_ORIGIN
+        }
+
+        if (parsed.protocol !== 'file:') {
+            return false
+        }
+
+        const targetPath = path.normalize(fileURLToPath(parsed))
+        const distRoot = path.normalize(path.join(app.getAppPath(), 'dist'))
+        return targetPath.startsWith(distRoot)
+    } catch {
+        return false
+    }
+}
+
+async function openExternalUrl(rawUrl: string) {
+    try {
+        await shell.openExternal(rawUrl)
+    } catch (error) {
+        console.error('[Window] Failed to open external URL:', error)
+    }
+}
+
+export function hardenWindowWebContents(window: BrowserWindow) {
+    window.webContents.setWindowOpenHandler(({ url }) => {
+        if (isSafeExternalUrl(url)) {
+            void openExternalUrl(url)
+        }
+
+        return { action: 'deny' }
+    })
+
+    const redirectExternalNavigation = (event: Electron.Event, url: string) => {
+        if (isAllowedMainFrameUrl(url)) return
+
+        event.preventDefault()
+        if (isSafeExternalUrl(url)) {
+            void openExternalUrl(url)
+        }
+    }
+
+    window.webContents.on('will-navigate', redirectExternalNavigation)
+    window.webContents.on('will-redirect', redirectExternalNavigation)
+
+    window.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+        if (!isSafeExternalUrl(params.src || '')) {
+            event.preventDefault()
+            return
+        }
+
+        // Never inherit host window privileges into guest content.
+        delete webPreferences.preload
+        delete (webPreferences as Record<string, unknown>).preloadURL
+        webPreferences.nodeIntegration = false
+        webPreferences.contextIsolation = true
+        webPreferences.sandbox = true
+        webPreferences.webSecurity = true
+        webPreferences.allowRunningInsecureContent = false
+        webPreferences.experimentalFeatures = false
+        webPreferences.spellcheck = false
+    })
 }
 
 async function loadRenderer(window: BrowserWindow) {
@@ -219,6 +314,8 @@ export async function createWindow() {
         }
     })
 
+    hardenWindowWebContents(mainWindow)
+
     await loadRenderer(mainWindow)
 
     if (windowState.isMaximized) {
@@ -284,15 +381,16 @@ export async function createWindow() {
 
 
 function setupSessions() {
+    if (sessionsConfigured) return
+
     try {
         // Configure default session to prevent quota database errors
         const defaultSession = session.defaultSession
         if (defaultSession) {
-            // Disable storage quota enforcement
             defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-                const allowed = ['notifications', 'media']
-                callback(allowed.includes(permission))
+                callback(ALLOWED_DEFAULT_PERMISSIONS.has(permission))
             })
+            defaultSession.setPermissionCheckHandler((_webContents, permission) => ALLOWED_DEFAULT_PERMISSIONS.has(permission))
         }
 
         const aiPartitions = new Set<string>()
@@ -311,10 +409,12 @@ function setupSessions() {
             })
 
             aiSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-                const allowed = ['notifications', 'media', 'geolocation']
-                callback(allowed.includes(permission))
+                callback(ALLOWED_AI_PERMISSIONS.has(permission))
             })
+            aiSession.setPermissionCheckHandler((_webContents, permission) => ALLOWED_AI_PERMISSIONS.has(permission))
         }
+
+        sessionsConfigured = true
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         console.error(`[Sessions] Error:`, message)

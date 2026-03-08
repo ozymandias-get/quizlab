@@ -7,6 +7,8 @@ import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { GeminiIcon, LoaderIcon, MagicWandIcon, SettingsIcon, SwapIcon } from '@ui/components/Icons'
 import { panelTransition, panelVariantsVertical, toolListVariants } from './animations'
 import { ToolButton } from './ToolButton'
+import { BottomScrollCue } from './BottomScrollCue'
+import { useBottomScrollCue } from './useBottomScrollCue'
 
 interface ToolsPanelProps {
     isOpen: boolean;
@@ -30,6 +32,7 @@ export const ToolsPanel = memo(({
     onToggleQuizMode
 }: ToolsPanelProps) => {
     const { t } = useLanguage()
+    const { scrollAreaRef, showScrollCue } = useBottomScrollCue<HTMLDivElement>(isOpen, maxHeight)
     const {
         isPickerActive,
         togglePicker,
@@ -42,6 +45,7 @@ export const ToolsPanel = memo(({
         width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
         height: 'calc(1.25rem * var(--bar-scale-factor, 1))',
     }
+    const resolvedMaxHeight = maxHeight ? `${Math.max(0, Math.floor(maxHeight))}px` : undefined
 
     const isGeminiWebEnabled = !!webSessionData?.featureEnabled && !!webSessionData?.enabled
     const geminiWebState = webSessionData?.state ?? 'uninitialized'
@@ -83,15 +87,16 @@ export const ToolsPanel = memo(({
                     className="bottom-bar-panel bottom-bar-panel--tools absolute bottom-full mb-1.5 left-0 w-full overflow-hidden"
                     style={{
                         ...panelStyle,
-                        maxHeight: maxHeight ? `${Math.max(0, Math.floor(maxHeight))}px` : undefined
+                        maxHeight: resolvedMaxHeight
                     }}
                     id={APP_CONSTANTS.TOUR_TARGETS.TOOLS_PANEL}
                 >
                     <div className="relative flex flex-col items-center w-full">
                         <div
+                            ref={scrollAreaRef}
                             data-testid="tools-panel-scroll-area"
                             className="w-full overflow-y-auto overflow-x-hidden scrollbar-hidden overscroll-contain"
-                            style={{ maxHeight: maxHeight ? `${Math.max(0, Math.floor(maxHeight))}px` : undefined }}
+                            style={{ maxHeight: resolvedMaxHeight }}
                         >
                             <motion.div
                                 className="flex flex-col items-center gap-2 py-3 w-full"
@@ -156,6 +161,7 @@ export const ToolsPanel = memo(({
                                 </ToolButton>
                             </motion.div>
                         </div>
+                        <BottomScrollCue visible={showScrollCue} testId="tools-panel-scroll-cue" />
                     </div>
                 </motion.div>
             )}

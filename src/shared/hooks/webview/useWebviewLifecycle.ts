@@ -1,5 +1,6 @@
 ﻿import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { Logger } from '@shared/lib/logger'
+import { getElectronApi } from '@shared/lib/electronApi'
 import type { WebviewController, WebviewElement, WebviewInputEvent } from '@shared-core/types/webview';
 
 // Crash recovery constants
@@ -79,6 +80,10 @@ export function useWebviewLifecycle({
 
     // Reset state on AI change
     useEffect(() => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+            timeoutRef.current = null
+        }
         setIsLoading(true)
         setError(null)
         crashRetryCount.current = 0
@@ -88,6 +93,7 @@ export function useWebviewLifecycle({
     useEffect(() => {
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current)
+            activeWebviewRef.current = null
             if (registerWebview) registerWebview(null)
         }
     }, [registerWebview])
@@ -113,8 +119,8 @@ export function useWebviewLifecycle({
         paste: () => activeWebviewRef.current?.paste?.(),
         getWebContentsId: () => activeWebviewRef.current?.getWebContentsId?.(),
         pasteNative: async (id: number) => {
-            if (id && window.electronAPI?.forcePaste) {
-                return await window.electronAPI.forcePaste(id);
+            if (id) {
+                return await getElectronApi().forcePaste(id);
             }
             return false;
         },
@@ -127,8 +133,12 @@ export function useWebviewLifecycle({
     }), [])
 
     useEffect(() => {
-        if (registerWebview && activeWebviewRef.current) {
-            registerWebview(webviewMethods)
+        if (!registerWebview) return
+
+        registerWebview(webviewElement ? webviewMethods : null)
+
+        return () => {
+            registerWebview(null)
         }
     }, [registerWebview, webviewElement, webviewMethods])
 
@@ -174,12 +184,13 @@ export function useWebviewLifecycle({
         try {
             if (!newWindowEvent.url) return
             const targetUrl = new URL(newWindowEvent.url)
-            const isAuth = await window.electronAPI?.isAuthDomain?.(targetUrl.hostname)
+            const api = getElectronApi()
+            const isAuth = await api.isAuthDomain(targetUrl.hostname)
             if (isAuth) {
                 activeWebviewRef.current?.loadURL?.(newWindowEvent.url)
                 return
             }
-            window.electronAPI?.openExternal?.(newWindowEvent.url)
+            await api.openExternal(newWindowEvent.url)
         } catch (err) {
             Logger.error('[Webview] New window error:', err)
         }
@@ -190,9 +201,20 @@ export function useWebviewLifecycle({
     }, [])
 
     const onWebviewRef = useCallback((element: WebviewElement | null) => {
-        if (!element || activeWebviewRef.current === element) return
+        if (activeWebviewRef.current === element) return
+
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+            timeoutRef.current = null
+        }
+
         activeWebviewRef.current = element
         setWebviewElement(element)
+        if (!element) {
+            crashRetryCount.current = 0
+            setError(null)
+            setIsLoading(true)
+        }
     }, [])
 
     // Event Listeners Binding

@@ -1,5 +1,6 @@
 ﻿import React, { useState, useMemo, useCallback, memo } from 'react'
-import { useAi, useLanguage } from '@app/providers'
+import { useLanguage } from '@app/providers'
+import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { GridIcon } from '@ui/components/Icons'
 import { useDeleteCustomAi } from '@platform/electron/api/useAiApi'
 
@@ -19,7 +20,8 @@ const PlusIcon = ({ className }: IconProps) => (
 )
 
 const ModelsTab = memo(() => {
-    const { enabledModels, setEnabledModels, aiSites, defaultAiModel, setDefaultAiModel } = useAi()
+    const { enabledModels, aiSites, defaultAiModel } = useAiState()
+    const { setEnabledModels, setDefaultAiModel } = useAiActions()
     const { t } = useLanguage()
 
     // React Query mutation hooks

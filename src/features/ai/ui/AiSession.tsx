@@ -1,5 +1,6 @@
 ﻿import { useMemo, memo, useCallback } from 'react'
-import { useAi, useToast, useLanguage } from '@app/providers'
+import { useToast, useLanguage } from '@app/providers'
+import { useAiActions, useAiState } from '@app/providers/AiContext'
 import type { Tab } from '@app/providers/AiContext'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
@@ -15,7 +16,8 @@ interface AiSessionProps {
  * Single AI Session (Webview)
  */
 const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
-    const { aiSites, registerWebview, chromeUserAgent } = useAi()
+    const { aiSites, chromeUserAgent } = useAiState()
+    const { registerWebview } = useAiActions()
     const { showWarning } = useToast()
     const { t } = useLanguage()
 
@@ -38,6 +40,12 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
 
     const siteConfig = aiSites[tab.modelId]
     const initialUrl = siteConfig?.url
+    const partition = useMemo(() => {
+        if (!siteConfig) return 'persist:ai_session'
+        if (siteConfig.partition) return siteConfig.partition
+        if (siteConfig.isSite) return `temp_${tab.modelId}_${tab.id}`
+        return 'persist:ai_session'
+    }, [siteConfig, tab.id, tab.modelId])
 
     const webview = useMemo(() => {
         if (!siteConfig) return null
@@ -47,14 +55,14 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
                 key={tab.modelId} // Reset webview if model changes in this tab
                 ref={onWebviewRef}
                 src={initialUrl}
-                partition={siteConfig?.partition || (siteConfig?.isSite ? `temp_${tab.modelId}_${Date.now()}` : "persist:ai_session")}
+                partition={partition}
                 className="flex-1 w-full h-full"
                 allowpopups={"true" as any}
-                webpreferences="contextIsolation=yes, sandbox=no"
+                webpreferences="contextIsolation=yes, sandbox=yes"
                 useragent={chromeUserAgent}
             />
         )
-    }, [initialUrl, onWebviewRef, siteConfig, chromeUserAgent, tab.modelId])
+    }, [chromeUserAgent, initialUrl, onWebviewRef, partition, siteConfig, tab.modelId])
 
     return (
         <div

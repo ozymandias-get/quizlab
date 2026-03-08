@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
 import { RadioGroup, Radio, Label } from '@headlessui/react'
 import { useLanguage } from '@app/providers'
@@ -9,8 +9,7 @@ import { LanguageIcon } from '@ui/components/Icons'
  */
 const LanguageTab = React.memo(() => {
     const { t, language, setLanguage, languages } = useLanguage()
-
-    const languageList = useMemo(() => Object.values(languages), [languages])
+    const languageList = Object.values(languages)
 
     return (
         <div className="space-y-6">
@@ -122,5 +121,3 @@ const LanguageTab = React.memo(() => {
 LanguageTab.displayName = 'LanguageTab'
 
 export default LanguageTab
-
-

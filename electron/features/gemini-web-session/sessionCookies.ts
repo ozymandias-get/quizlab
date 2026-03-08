@@ -2,8 +2,7 @@ import { app, webContents, type Session } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { ExternalBrowserCookie } from './playwrightLogin'
-
-export const PROFILE_PARTITION = 'persist:gemini_web_profile'
+import { PROFILE_PARTITION } from './sessionConfig'
 
 export async function clearGoogleCookies(targetSession: Session): Promise<void> {
     const existingCookies = await targetSession.cookies.get({})

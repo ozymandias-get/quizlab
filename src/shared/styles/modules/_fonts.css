@@ -8,8 +8,8 @@
    - Font yüklenince sorunsuz geçiş yapılır
    
    Not: Offline kullanım için sistem fontları fallback olarak tanımlı:
-   - Inter â†’ -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto
-   - Playfair Display â†’ Georgia, 'Times New Roman', serif
+   - Inter -> -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto
+   - Playfair Display -> Georgia, 'Times New Roman', serif
 */
 
 /* Inter font system stack with Google Fonts */

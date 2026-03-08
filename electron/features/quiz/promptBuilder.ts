@@ -66,7 +66,7 @@ function sanitizeStringArray(arr: unknown, maxItems: number = 10, maxLength: num
  * @param {string} outputFilePath - Path where the JSON output should be written
  * @returns {string} - Formatted prompt
  */
-export function buildQuizPrompt(params: QuizPromptParams, pdfPath: string, outputFilePath: string): string {
+export function buildQuizPrompt(params: QuizPromptParams, pdfPath: string, _outputFilePath: string): string {
     const {
         questionCount = 5,
         difficulty = 'MEDIUM',
@@ -218,8 +218,6 @@ export function buildQuizPrompt(params: QuizPromptParams, pdfPath: string, outpu
     } else if (cleanAvoidTopics.length > 0) {
         contextInstruction = t.context.spiral.replace('{topics}', cleanAvoidTopics.join(', '))
     }
-
-    const outputFileName = path.basename(outputFilePath)
 
     return `
     COMMAND: Analyze the file @${path.basename(pdfPath)} and generate EXACTLY ${safeQuestionCount} questions.

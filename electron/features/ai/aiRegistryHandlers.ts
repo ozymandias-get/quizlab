@@ -48,7 +48,7 @@ export function registerAiRegistryHandlers() {
     const { IPC_CHANNELS } = APP_CONFIG
     const manager = new ConfigManager<CustomPlatformsMap>(getCustomPlatformsPath())
 
-    ipcMain.handle(IPC_CHANNELS.ADD_CUSTOM_AI, async (event, platformData: AddCustomAiInput) => {
+    ipcMain.handle(IPC_CHANNELS.ADD_CUSTOM_AI, async (_event, platformData: AddCustomAiInput) => {
         try {
             const name = normalizeCustomAiName(platformData?.name)
             const normalizedUrl = normalizeCustomAiUrl(platformData?.url)
@@ -90,14 +90,14 @@ export function registerAiRegistryHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.DELETE_CUSTOM_AI, async (event, id: string) => {
+    ipcMain.handle(IPC_CHANNELS.DELETE_CUSTOM_AI, async (_event, id: string) => {
         if (typeof id !== 'string' || !id.startsWith('custom_') || id.length > 128) {
             return false
         }
         return manager.deleteItem(id)
     })
 
-    ipcMain.handle(IPC_CHANNELS.GET_AI_REGISTRY, async (event, forceRefresh: boolean = false) => {
+    ipcMain.handle(IPC_CHANNELS.GET_AI_REGISTRY, async (_event, forceRefresh: boolean = false) => {
         const customPlatforms = await manager.read(forceRefresh)
 
         const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
@@ -129,7 +129,7 @@ export function registerAiRegistryHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.IS_AUTH_DOMAIN, (event, urlOrHostname: string) => {
+    ipcMain.handle(IPC_CHANNELS.IS_AUTH_DOMAIN, (_event, urlOrHostname: string) => {
         try {
             const parsed = new URL(urlOrHostname)
             return isAuthDomain(parsed.hostname)

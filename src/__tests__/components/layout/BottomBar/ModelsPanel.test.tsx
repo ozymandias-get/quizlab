@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ModelsPanel } from '@ui/layout/BottomBar/ModelsPanel'
 
@@ -17,18 +17,23 @@ vi.mock('framer-motion', () => ({
 }))
 
 vi.mock('@app/providers', () => ({
-    useAi: () => ({
-        addTab: mockAddTab,
+    useLanguage: () => ({
+        t: (key: string) => key
+    })
+}))
+
+vi.mock('@app/providers/AiContext', () => ({
+    useAiState: () => ({
         enabledModels: ['chatgpt', 'gemini', 'youtube'],
-        setEnabledModels: mockSetEnabledModels,
         aiSites: {
             chatgpt: { icon: 'chatgpt', displayName: 'ChatGPT' },
             gemini: { icon: 'gemini', displayName: 'Gemini' },
             youtube: { icon: 'youtube', displayName: 'YouTube' }
         }
     }),
-    useLanguage: () => ({
-        t: (key: string) => key
+    useAiActions: () => ({
+        addTab: mockAddTab,
+        setEnabledModels: mockSetEnabledModels,
     })
 }))
 
@@ -60,5 +65,50 @@ describe('ModelsPanel', () => {
         expect(scrollArea).toHaveClass('overflow-y-auto')
         expect(scrollArea).toHaveClass('scrollbar-hidden')
         expect(scrollArea).toHaveStyle({ maxHeight: 'min(52vh, 24rem)' })
+    })
+
+    it('hides the bottom scroll cue after the user reaches the end of the list', async () => {
+        render(
+            <ModelsPanel
+                isOpen
+                panelStyle={{}}
+                maxHeight={100}
+                showOnlyIcons
+            />
+        )
+
+        const scrollArea = screen.getByTestId('models-panel-scroll-area')
+
+        Object.defineProperty(scrollArea, 'clientHeight', {
+            configurable: true,
+            value: 100
+        })
+        Object.defineProperty(scrollArea, 'scrollHeight', {
+            configurable: true,
+            value: 240
+        })
+        Object.defineProperty(scrollArea, 'scrollTop', {
+            configurable: true,
+            writable: true,
+            value: 0
+        })
+
+        fireEvent(window, new Event('resize'))
+
+        await waitFor(() => {
+            expect(screen.getByTestId('models-panel-scroll-cue')).toBeInTheDocument()
+        })
+
+        Object.defineProperty(scrollArea, 'scrollTop', {
+            configurable: true,
+            writable: true,
+            value: 140
+        })
+
+        fireEvent.scroll(scrollArea)
+
+        await waitFor(() => {
+            expect(screen.queryByTestId('models-panel-scroll-cue')).not.toBeInTheDocument()
+        })
     })
 })

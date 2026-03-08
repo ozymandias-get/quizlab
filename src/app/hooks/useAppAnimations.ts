@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react'
 import type { Easing } from 'framer-motion'
 
-export const ANIMATION_DURATION = 0.4
-export const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]
+const ANIMATION_DURATION = 0.4
+const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]
 
 // Default transition setting
 const DEFAULT_TRANSITION = {

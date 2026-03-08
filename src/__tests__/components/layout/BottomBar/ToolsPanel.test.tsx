@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ToolsPanel } from '@ui/layout/BottomBar/ToolsPanel'
 
@@ -79,7 +79,7 @@ describe('ToolsPanel', () => {
         })
     })
 
-    it('renders the Gemini session button above settings when web session is enabled', () => {
+    it('renders the Gemini session button together with settings when web session is enabled', () => {
         render(
             <ToolsPanel
                 isOpen
@@ -92,9 +92,9 @@ describe('ToolsPanel', () => {
             />
         )
 
-        const buttons = screen.getAllByRole('button')
-        expect(buttons[0]).toHaveAttribute('title', 'Google Session - Google session ready')
-        expect(buttons[1]).toHaveAttribute('title', 'Settings')
+        const buttonTitles = screen.getAllByRole('button').map((button) => button.getAttribute('title'))
+        expect(buttonTitles).toContain('Google Session - Google session ready')
+        expect(buttonTitles).toContain('Settings')
     })
 
     it('starts Playwright login when the Gemini session button requires authentication', () => {
@@ -143,5 +143,42 @@ describe('ToolsPanel', () => {
         expect(mockHandleGeminiWebSettingsClick).toHaveBeenCalledTimes(1)
         expect(mockHandleSettingsClick).not.toHaveBeenCalled()
         expect(mockStartGeminiWebLogin).not.toHaveBeenCalled()
+    })
+
+    it('shows a bottom scroll cue when more content is available below', async () => {
+        render(
+            <ToolsPanel
+                isOpen
+                panelStyle={{}}
+                maxHeight={100}
+                handleSettingsClick={mockHandleSettingsClick}
+                handleGeminiWebSettingsClick={mockHandleGeminiWebSettingsClick}
+                toggleLayoutSwap={vi.fn()}
+                isQuizMode={false}
+                onToggleQuizMode={vi.fn()}
+            />
+        )
+
+        const scrollArea = screen.getByTestId('tools-panel-scroll-area')
+
+        Object.defineProperty(scrollArea, 'clientHeight', {
+            configurable: true,
+            value: 100
+        })
+        Object.defineProperty(scrollArea, 'scrollHeight', {
+            configurable: true,
+            value: 220
+        })
+        Object.defineProperty(scrollArea, 'scrollTop', {
+            configurable: true,
+            writable: true,
+            value: 0
+        })
+
+        fireEvent(window, new Event('resize'))
+
+        await waitFor(() => {
+            expect(screen.getByTestId('tools-panel-scroll-cue')).toBeInTheDocument()
+        })
     })
 })

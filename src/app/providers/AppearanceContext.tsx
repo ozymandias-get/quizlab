@@ -97,6 +97,12 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     useEffect(() => {
         const rgba = hexToRgba(selectionColor, 0.8);
         document.documentElement.style.setProperty('--selection-color', rgba);
+        document.documentElement.style.setProperty('--selection-color-soft', hexToRgba(selectionColor, 0.22));
+        document.documentElement.style.setProperty('--selection-color-strong', hexToRgba(selectionColor, 0.7));
+        document.documentElement.style.setProperty('--selection-color-vivid', hexToRgba(selectionColor, 0.84));
+        document.documentElement.style.setProperty('--selection-color-glow', hexToRgba(selectionColor, 0.48));
+        document.documentElement.style.setProperty('--selection-color-edge', hexToRgba('#ffffff', 0.2));
+        document.documentElement.style.setProperty('--selection-color-ink', 'rgba(24, 24, 27, 0.96)');
         document.documentElement.style.setProperty('--accent-color', selectionColor);
     }, [selectionColor]);
 

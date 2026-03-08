@@ -6,7 +6,7 @@ import { usePrompts } from '@features/ai/hooks/usePrompts'
 const mockSetCustomPrompts = vi.fn()
 const mockSetSelectedPromptId = vi.fn()
 
-vi.mock('@app/providers', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({ language: 'en' })
 }))
 

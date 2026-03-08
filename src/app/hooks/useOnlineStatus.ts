@@ -1,10 +1,6 @@
-﻿import { useState, useEffect } from 'react'
-import { useToast } from '@app/providers'
+import { useEffect, useState } from 'react'
+import { useToast } from '@app/providers/ToastContext'
 
-/**
- * Provides online/offline status
- * Automatically notifies user via Toast when connection status changes
- */
 export function useOnlineStatus() {
     const [isOnline, setIsOnline] = useState(navigator.onLine)
     const { showWarning, showSuccess } = useToast()
@@ -31,5 +27,3 @@ export function useOnlineStatus() {
 
     return isOnline
 }
-
-

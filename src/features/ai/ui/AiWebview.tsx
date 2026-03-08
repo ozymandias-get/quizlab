@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAi } from '@app/providers'
+import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { MagicSelectorTutorial } from '@features/tutorial'
 import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
@@ -21,7 +21,8 @@ const MAX_ALIVE_UNPINNED_TABS = 3
  * Creates webviews for active AI tabs. Shows AiHomePage on startup.
  */
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
-    const { tabs, activeTabId, setActiveTab, addTab, isTutorialActive, stopTutorial } = useAi()
+    const { tabs, activeTabId, isTutorialActive } = useAiState()
+    const { setActiveTab, addTab, stopTutorial } = useAiActions()
     const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
     const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
 

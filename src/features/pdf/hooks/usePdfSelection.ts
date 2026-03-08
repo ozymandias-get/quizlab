@@ -18,6 +18,13 @@ export type LastReadingInfo = {
 
 export type ResumePdfResult = 'success' | 'not_found' | 'missing' | 'error'
 
+export interface ReadingProgressUpdate {
+    path: string;
+    page?: number;
+    totalPages?: number;
+    lastOpenedAt?: number;
+}
+
 export interface PdfTab {
     id: string;
     file: PdfFile | null;
@@ -103,6 +110,7 @@ export const usePdfSelection = () => {
     const [recentReadingInfo, setRecentReadingInfo] = useState<LastReadingInfo[]>(() => readReadingHistory())
     const pdfTabsRef = useRef<PdfTab[]>([])
     const activePdfTabIdRef = useRef<string>('')
+    const recentReadingInfoRef = useRef<LastReadingInfo[]>(recentReadingInfo)
 
     const { mutateAsync: selectPdf } = useSelectPdf()
     const { mutateAsync: registerPdfPath } = useRegisterPdfPath()
@@ -120,18 +128,38 @@ export const usePdfSelection = () => {
             // ignore localStorage errors
         }
 
+        recentReadingInfoRef.current = items
         setRecentReadingInfo(items)
     }, [])
 
     const upsertLastReadingInfo = useCallback((info: LastReadingInfo) => {
-        const current = readReadingHistory()
-        persistRecentReadingInfo(upsertRecentHistory(current, info))
+        persistRecentReadingInfo(upsertRecentHistory(recentReadingInfoRef.current, info))
+    }, [persistRecentReadingInfo])
+
+    const updateReadingProgress = useCallback((update: ReadingProgressUpdate) => {
+        const { path, page, totalPages, lastOpenedAt } = update
+        const current = recentReadingInfoRef.current
+        const existing = current.find((item) => item.path === path)
+        if (!existing) return
+
+        const nextInfo: LastReadingInfo = {
+            ...existing,
+            ...(typeof page === 'number' ? { page: Math.max(1, page) } : {}),
+            ...(typeof totalPages === 'number' ? { totalPages: Math.max(0, totalPages) } : {}),
+            lastOpenedAt: lastOpenedAt ?? Date.now()
+        }
+
+        persistRecentReadingInfo(upsertRecentHistory(current, nextInfo))
     }, [persistRecentReadingInfo])
 
     useEffect(() => {
         pdfTabsRef.current = pdfTabs
         activePdfTabIdRef.current = activePdfTabId
     }, [pdfTabs, activePdfTabId])
+
+    useEffect(() => {
+        recentReadingInfoRef.current = recentReadingInfo
+    }, [recentReadingInfo])
 
     const openPdfInTab = useCallback((file: PdfFile, initialReadInfo?: LastReadingInfo) => {
         const normalizedFile = toPdfFile(file)
@@ -178,18 +206,12 @@ export const usePdfSelection = () => {
         setActivePdfTabId(tabId)
 
         if (tab.file?.path && tab.file?.name) {
-            const current = readReadingHistory()
-            const existing = current.find((item) => item.path === tab.file?.path)
-            const nextInfo: LastReadingInfo = {
-                name: tab.file.name,
+            updateReadingProgress({
                 path: tab.file.path,
-                page: existing?.page || 1,
-                totalPages: existing?.totalPages || 0,
                 lastOpenedAt: Date.now()
-            }
-            persistRecentReadingInfo(upsertRecentHistory(current, nextInfo))
+            })
         }
-    }, [persistRecentReadingInfo])
+    }, [updateReadingProgress])
 
     const closePdfTab = useCallback((tabId: string) => {
         setPdfTabs((prevTabs) => {
@@ -288,7 +310,7 @@ export const usePdfSelection = () => {
     }, [registerPdfPath, showSuccess, showError, openPdfInTab])
 
     const resumeLastPdf = useCallback(async (path?: string): Promise<ResumePdfResult> => {
-        const history = readReadingHistory()
+        const history = recentReadingInfoRef.current
         const target = path
             ? history.find((item) => item.path === path)
             : history[0]
@@ -324,14 +346,12 @@ export const usePdfSelection = () => {
     }, [registerPdfPath, showError, openPdfInTab])
 
     const getLastReadingInfo = useCallback((): LastReadingInfo | null => {
-        const history = readReadingHistory()
-        return history[0] || recentReadingInfo[0] || null
-    }, [recentReadingInfo])
+        return recentReadingInfoRef.current[0] || null
+    }, [])
 
     const getRecentReadingInfo = useCallback((): LastReadingInfo[] => {
-        const history = readReadingHistory()
-        return history.length > 0 ? history : recentReadingInfo
-    }, [recentReadingInfo])
+        return recentReadingInfoRef.current
+    }, [])
 
     const clearLastReading = useCallback((path?: string) => {
         if (!path) {
@@ -339,12 +359,12 @@ export const usePdfSelection = () => {
             return
         }
 
-        const history = readReadingHistory().filter((item) => item.path !== path)
+        const history = recentReadingInfoRef.current.filter((item) => item.path !== path)
         persistRecentReadingInfo(history)
     }, [persistRecentReadingInfo])
 
     const restoreRecentReading = useCallback((info: LastReadingInfo, index = 0) => {
-        const history = readReadingHistory().filter((item) => item.path !== info.path)
+        const history = recentReadingInfoRef.current.filter((item) => item.path !== info.path)
         const safeIndex = Math.max(0, Math.min(index, history.length))
         const restored: LastReadingInfo = {
             ...info,
@@ -363,12 +383,10 @@ export const usePdfSelection = () => {
         const activeTab = pdfTabs.find((tab) => tab.id === activePdfTabId)
         if (!activeTab || activeTab.kind !== 'pdf' || !activeTab.file?.path) return undefined
 
-        // localStorage'daki en guncel sayfa bilgisini oku.
-        // Bu deger sadece sekme ilk acildiginda veya degistiginde okunacagi icin performans sorununa yol acmaz.
-        const history = readReadingHistory()
+        const history = recentReadingInfoRef.current
         const existing = history.find((item) => item.path === activeTab.file?.path)
         return existing?.page
-    }, [activePdfTabId, pdfTabs])
+    }, [activePdfTabId, pdfTabs, recentReadingInfo])
 
     const pdfFile = useMemo(() => {
         if (!activePdfTabId) return null
@@ -391,6 +409,7 @@ export const usePdfSelection = () => {
         renamePdfTab,
         handleSelectPdf,
         handlePdfDrop,
+        updateReadingProgress,
         resumeLastPdf,
         getLastReadingInfo,
         getRecentReadingInfo,

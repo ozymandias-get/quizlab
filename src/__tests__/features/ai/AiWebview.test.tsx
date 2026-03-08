@@ -6,6 +6,8 @@ interface MockAiState {
     tabs: Array<{ id: string; modelId: string; title?: string; pinned?: boolean }>;
     activeTabId: string;
     isTutorialActive: boolean;
+    setActiveTab: any;
+    addTab: any;
     stopTutorial: any;
 }
 
@@ -17,14 +19,24 @@ let mockAiState: MockAiState = {
     ],
     activeTabId: '1',
     isTutorialActive: false,
+    setActiveTab: vi.fn(),
+    addTab: vi.fn(),
     stopTutorial: vi.fn(),
 }
 
-// Mock useAi to return the mutable state
-vi.mock('@app/providers', () => ({
+// Mock Ai context hooks to return the mutable state
+vi.mock('@app/providers/AiContext', () => ({
     useAi: () => mockAiState,
-    useToast: () => ({ showWarning: vi.fn() }),
-    useLanguage: () => ({ t: (key: string) => key }),
+    useAiState: () => ({
+        tabs: mockAiState.tabs,
+        activeTabId: mockAiState.activeTabId,
+        isTutorialActive: mockAiState.isTutorialActive,
+    }),
+    useAiActions: () => ({
+        setActiveTab: mockAiState.setActiveTab,
+        addTab: mockAiState.addTab,
+        stopTutorial: mockAiState.stopTutorial,
+    }),
 }))
 
 // Mock Subcomponents
@@ -54,6 +66,8 @@ describe('AiWebview Component', () => {
             ],
             activeTabId: '1',
             isTutorialActive: false,
+            setActiveTab: vi.fn(),
+            addTab: vi.fn(),
             stopTutorial: vi.fn(),
         }
     })

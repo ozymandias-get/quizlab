@@ -43,7 +43,7 @@ describe('ErrorBoundary', () => {
                 <Thrower shouldThrow={true} />
             </ErrorBoundary>
         )
-        expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+        expect(screen.getByText('Bir şeyler yanlış gitti')).toBeInTheDocument()
         expect(screen.getByText(/^Test Error!/)).toBeInTheDocument()
     })
 
@@ -93,9 +93,9 @@ describe('ErrorBoundary', () => {
             </ErrorBoundary>
         )
 
-        expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+        expect(screen.getByText('Bir şeyler yanlış gitti')).toBeInTheDocument()
 
-        const retryBtn = screen.getByText('Try again')
+        const retryBtn = screen.getByText('Tekrar Dene')
         fireEvent.click(retryBtn)
 
         expect(onReset).toHaveBeenCalled()

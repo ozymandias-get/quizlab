@@ -115,19 +115,39 @@ const toMapRecord = <T>(map: Map<string, T>): Record<string, T> => {
     return record
 }
 
+const objectUrls = new Set<string>()
+let beforeUnloadListenerRegistered = false
+
+const trackObjectUrl = (objectUrl: string) => {
+    objectUrls.add(objectUrl)
+    return objectUrl
+}
+
+const revokeTrackedObjectUrls = () => {
+    for (const objectUrl of objectUrls) {
+        URL.revokeObjectURL(objectUrl)
+    }
+    objectUrls.clear()
+}
+
 const selectPdfInBrowser = (): Promise<PdfSelection | null> => {
     return new Promise((resolve) => {
         const input = document.createElement('input')
         input.type = 'file'
         input.accept = '.pdf,application/pdf'
+        const cleanup = () => {
+            input.onchange = null
+        }
         input.onchange = () => {
             const file = input.files?.[0]
             if (!file) {
+                cleanup()
                 resolve(null)
                 return
             }
 
-            const streamUrl = URL.createObjectURL(file)
+            const streamUrl = trackObjectUrl(URL.createObjectURL(file))
+            cleanup()
             resolve({
                 path: '',
                 name: file.name,
@@ -145,6 +165,11 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     let quizSettings: QuizSettings = { ...DEFAULT_QUIZ_SETTINGS }
     let geminiWebEnabled = false
     let geminiWebEnabledAppIds: GoogleWebSessionAppId[] = [...GOOGLE_WEB_SESSION_REGISTRY_IDS]
+
+    if (typeof window !== 'undefined' && !beforeUnloadListenerRegistered) {
+        window.addEventListener('beforeunload', revokeTrackedObjectUrls, { once: true })
+        beforeUnloadListenerRegistered = true
+    }
 
     const getAiRegistry = async (): Promise<AiRegistryResponse> => {
         const aiRegistry: Record<string, AiPlatform> = {
@@ -206,7 +231,12 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         },
         openExternal: async (url: string) => {
             try {
-                window.open(url, '_blank', 'noopener,noreferrer')
+                const parsedUrl = new URL(url)
+                const allowedProtocols = new Set(['http:', 'https:', 'mailto:'])
+                if (!allowedProtocols.has(parsedUrl.protocol)) {
+                    return false
+                }
+                window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer')
                 return true
             } catch {
                 return false

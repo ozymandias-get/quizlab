@@ -36,7 +36,7 @@ vi.mock('@shared/hooks', () => ({
     }
 }))
 
-vi.mock('@features/ai', () => ({
+vi.mock('@features/ai/hooks/useAiSender', () => ({
     useAiSender: () => ({
         sendTextToAI: mockSendText,
         sendImageToAI: mockSendImage

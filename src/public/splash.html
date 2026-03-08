@@ -362,14 +362,15 @@
 
     <script>
         const userLanguage = navigator.language || navigator.userLanguage
+        document.documentElement.lang = userLanguage.startsWith('tr') ? 'tr' : 'en'
         const statusElement = document.getElementById('status-text')
         const subtitleElement = document.getElementById('subtitle-text')
         const buildTextElement = document.getElementById('build-text')
 
         const copy = userLanguage.startsWith('tr')
             ? {
-                status: 'Ogrenme Ortami Baslatiliyor',
-                subtitle: 'Yapay Zeka Destekli Calisma Alani'
+                status: 'Öğrenme Ortamı Başlatılıyor',
+                subtitle: 'Yapay Zeka Destekli Çalışma Alanı'
             }
             : {
                 status: 'Bootstrapping Learning Workspace',

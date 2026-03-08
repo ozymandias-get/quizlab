@@ -138,7 +138,7 @@ export function initUpdater() {
         if (isChecking) return { available: !!updateInfo, cached: true }
 
         const now = Date.now()
-        // Cache geÃ§erlilik sÃ¼resini kontrol et
+        // Cache geçerlilik süresini kontrol et
         if (now - lastCheckTime < CHECK_DEBOUNCE_MS && updateInfo) {
             return {
                 available: true,

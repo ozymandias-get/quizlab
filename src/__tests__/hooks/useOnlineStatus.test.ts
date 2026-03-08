@@ -1,19 +1,16 @@
 ﻿import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useOnlineStatus } from '@shared/hooks/useOnlineStatus'
+import { useOnlineStatus } from '@app/hooks/useOnlineStatus'
 
 // Mock dependencies
 const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
 
-vi.mock('@app/providers', () => ({
+vi.mock('@app/providers/ToastContext', () => ({
     useToast: () => ({
         showSuccess: mockShowSuccess,
         showWarning: mockShowWarning,
-    }),
-    useLanguage: () => ({
-        t: (key: string) => key,
-    }),
+    })
 }))
 
 describe('useOnlineStatus Hook', () => {

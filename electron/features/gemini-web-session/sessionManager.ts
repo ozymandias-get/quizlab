@@ -1,4 +1,4 @@
-import { BrowserWindow, app, session as electronSession, webContents, type Session } from 'electron'
+import { BrowserWindow, app, session as electronSession, type Session } from 'electron'
 import { promises as fs, constants as fsConstants } from 'fs'
 import path from 'path'
 import { createHash } from 'crypto'
@@ -8,8 +8,6 @@ import { APP_CONFIG } from '../../app/constants'
 import type {
     GeminiWebSessionActionResult,
     GeminiWebSessionConfig,
-    GeminiWebSessionReasonCode,
-    GeminiWebSessionState,
     GeminiWebSessionStatus
 } from '@shared-core/types'
 import { classifyAuthProbe, type DomProbeSnapshot } from './authHeuristics'
@@ -22,91 +20,27 @@ import {
     GEMINI_HOME_URL,
     GOOGLE_SIGNIN_URL
 } from './constants'
-import { buildElectronCookiePayload } from './sessionCookies'
+import {
+    buildElectronCookiePayload,
+    clearPersistentPartitionData,
+    clearGoogleCookies
+} from './sessionCookies'
+import {
+    DEFAULT_CONFIG,
+    DEFAULT_USER_ENABLED,
+    FEATURE_ENABLED,
+    HEALTH_TIMEOUT_MS,
+    isReasonCode,
+    isSessionState,
+    LOGIN_TIMEOUT_MS,
+    PLAYWRIGHT_HEADLESS_REFRESH_COOLDOWN_MS,
+    PLAYWRIGHT_HEADLESS_REFRESH_TIMEOUT_MS,
+    PROFILE_PARTITION,
+    SILENT_REFRESH_COOLDOWN_MS,
+    SILENT_REFRESH_TIMEOUT_MS
+} from './sessionConfig'
+import { isProcessAlive, nowIso } from './sessionUtils'
 import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
-
-const PROFILE_PARTITION = 'persist:gemini_web_profile'
-const HEALTH_TIMEOUT_MS = 30_000
-const SILENT_REFRESH_TIMEOUT_MS = parseEnvNumber(
-    'GEMINI_WEB_SILENT_REFRESH_TIMEOUT_MS',
-    25_000,
-    10_000,
-    120_000
-)
-const SILENT_REFRESH_COOLDOWN_MS = parseEnvNumber(
-    'GEMINI_WEB_SILENT_REFRESH_COOLDOWN_MS',
-    10 * 60 * 1000,
-    60_000,
-    60 * 60 * 1000
-)
-const PLAYWRIGHT_HEADLESS_REFRESH_TIMEOUT_MS = parseEnvNumber(
-    'GEMINI_WEB_HEADLESS_REFRESH_TIMEOUT_MS',
-    45_000,
-    10_000,
-    180_000
-)
-const PLAYWRIGHT_HEADLESS_REFRESH_COOLDOWN_MS = parseEnvNumber(
-    'GEMINI_WEB_HEADLESS_REFRESH_COOLDOWN_MS',
-    15 * 60 * 1000,
-    60_000,
-    2 * 60 * 60 * 1000
-)
-const LOGIN_TIMEOUT_MS = (() => {
-    const rawEnv = process.env.GEMINI_WEB_LOGIN_TIMEOUT_MS?.trim()
-    if (!rawEnv) return 7_200_000 // 120 min default
-    const raw = Number(rawEnv)
-    if (!Number.isFinite(raw)) return 7_200_000
-    // 0 => no timeout (manual flow)
-    if (raw === 0) return 0
-    // En az 5 dk, en fazla 12 saat
-    return Math.min(Math.max(Math.floor(raw), 300_000), 43_200_000)
-})()
-
-const rawFeatureFlag = process.env.GEMINI_WEB_SESSION_ENABLED?.trim().toLowerCase()
-const FEATURE_ENABLED = rawFeatureFlag
-    ? !['0', 'false', 'off', 'no'].includes(rawFeatureFlag)
-    : true
-const rawDefaultEnabled = process.env.GEMINI_WEB_SESSION_DEFAULT_ENABLED?.trim().toLowerCase()
-const DEFAULT_USER_ENABLED = rawDefaultEnabled
-    ? !['0', 'false', 'off', 'no'].includes(rawDefaultEnabled)
-    : true
-
-function parseEnvNumber(name: string, fallback: number, min: number, max: number): number {
-    const raw = process.env[name]?.trim()
-    if (!raw) return fallback
-    const parsed = Number(raw)
-    if (!Number.isFinite(parsed)) return fallback
-    return Math.min(Math.max(Math.floor(parsed), min), max)
-}
-
-const DEFAULT_CONFIG: Omit<GeminiWebSessionConfig, 'profileDir'> = {
-    // Stricter defaults:
-    // - more frequent checks
-    // - lower jitter
-    // - faster retry
-    // - one degraded cycle before reauth
-    checkIntervalMs: parseEnvNumber('GEMINI_WEB_CHECK_INTERVAL_MS', 5 * 60 * 1000, 60_000, 60 * 60 * 1000),
-    jitterPct: parseEnvNumber('GEMINI_WEB_CHECK_JITTER_PCT', 10, 0, 50),
-    retryDelayMs: parseEnvNumber('GEMINI_WEB_RETRY_DELAY_MS', 30 * 1000, 10_000, 10 * 60 * 1000),
-    maxConsecutiveFailures: parseEnvNumber('GEMINI_WEB_MAX_CONSECUTIVE_FAILURES', 2, 1, 5)
-}
-
-const SESSION_STATES: GeminiWebSessionState[] = [
-    'uninitialized',
-    'auth_required',
-    'authenticated',
-    'degraded',
-    'reauth_required'
-]
-
-const REASON_CODES: GeminiWebSessionReasonCode[] = [
-    'none',
-    'login_redirect',
-    'challenge',
-    'network',
-    'unknown',
-    'reset_profile_required'
-]
 
 interface SessionMetadata extends GeminiWebSessionStatus {
     accountHash: string | null;
@@ -137,10 +71,6 @@ function probeSeverity(kind: ProbeOutcome['kind']): number {
     return 0
 }
 
-function nowIso(): string {
-    return new Date().toISOString()
-}
-
 function sanitizeEnabledAppIds(value: unknown): string[] {
     if (!Array.isArray(value)) return [...GOOGLE_WEB_SESSION_REGISTRY_IDS]
 
@@ -157,24 +87,6 @@ function sanitizeEnabledAppIds(value: unknown): string[] {
     }
 
     return sanitized
-}
-
-function isSessionState(value: string): value is GeminiWebSessionState {
-    return SESSION_STATES.includes(value as GeminiWebSessionState)
-}
-
-function isReasonCode(value: string): value is GeminiWebSessionReasonCode {
-    return REASON_CODES.includes(value as GeminiWebSessionReasonCode)
-}
-
-function isProcessAlive(pid: number): boolean {
-    if (!Number.isInteger(pid) || pid <= 0) return false
-    try {
-        process.kill(pid, 0)
-        return true
-    } catch (error: any) {
-        return error?.code === 'EPERM'
-    }
 }
 
 export class GeminiWebSessionManager {
@@ -447,6 +359,20 @@ export class GeminiWebSessionManager {
         return { ok: false, error: 'session_unavailable', status: result }
     }
 
+    async dispose(): Promise<void> {
+        if (this.monitorTimer) {
+            clearTimeout(this.monitorTimer)
+            this.monitorTimer = null
+        }
+
+        if (this.activeCheck) {
+            await this.activeCheck.catch(() => { })
+            this.activeCheck = null
+        }
+
+        await this.releaseProfileLock()
+    }
+
     private toPublicStatus(metadata: SessionMetadata): GeminiWebSessionStatus {
         return {
             state: metadata.state,
@@ -530,39 +456,7 @@ export class GeminiWebSessionManager {
 
     private async clearPersistentPartitionData(): Promise<void> {
         const targetSession = this.resolvePersistentSession()
-        await this.detachPartitionWebContents(targetSession)
-
-        await this.clearGoogleCookies(targetSession).catch(() => { })
-        await targetSession.clearStorageData().catch(() => { })
-        await targetSession.clearAuthCache().catch(() => { })
-        await targetSession.clearCache().catch(() => { })
-
-        try {
-            targetSession.flushStorageData()
-        } catch {
-            // Ignore flush errors.
-        }
-        await this.ensurePartitionStoragePath(targetSession)
-    }
-
-    private async detachPartitionWebContents(targetSession: Session): Promise<void> {
-        const contents = webContents
-            .getAllWebContents()
-            .filter(item => !item.isDestroyed() && item.session === targetSession)
-
-        await Promise.all(contents.map(item => item.loadURL('about:blank').catch(() => { })))
-    }
-
-    private async ensurePartitionStoragePath(targetSession: Session): Promise<void> {
-        const sessionStoragePath = (targetSession as Session & { storagePath?: string }).storagePath
-        const partitionName = PROFILE_PARTITION.replace(/^persist:/, '')
-        const fallbackPartitionPath = path.join(app.getPath('userData'), 'Partitions', partitionName)
-
-        if (typeof sessionStoragePath === 'string' && sessionStoragePath.trim()) {
-            await fs.mkdir(sessionStoragePath, { recursive: true }).catch(() => { })
-        }
-
-        await fs.mkdir(fallbackPartitionPath, { recursive: true }).catch(() => { })
+        await clearPersistentPartitionData(targetSession)
     }
 
     private async clearPlaywrightProfileData(): Promise<void> {
@@ -570,7 +464,7 @@ export class GeminiWebSessionManager {
     }
 
     private async importExternalCookies(targetSession: Session, cookies: ExternalBrowserCookie[]): Promise<void> {
-        await this.clearGoogleCookies(targetSession)
+        await clearGoogleCookies(targetSession)
         for (const cookie of cookies) {
             const payload = buildElectronCookiePayload(cookie)
             if (!payload) continue
@@ -581,19 +475,6 @@ export class GeminiWebSessionManager {
             targetSession.flushStorageData()
         } catch {
             // Ignore flush errors.
-        }
-    }
-
-    private async clearGoogleCookies(targetSession: Session): Promise<void> {
-        const existingCookies = await targetSession.cookies.get({})
-
-        for (const cookie of existingCookies) {
-            if (!cookie.domain?.includes('google.com')) continue
-
-            const host = cookie.domain.replace(/^\./, '')
-            const cookiePath = cookie.path || '/'
-            const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`
-            await targetSession.cookies.remove(url, cookie.name).catch(() => { })
         }
     }
 
@@ -819,7 +700,6 @@ export class GeminiWebSessionManager {
             let timeoutReached = false
             let currentUrl = initialUrl
             let hasNetworkError = false
-            let lastOutcome: ProbeOutcome = { kind: 'unknown', healthy: false }
             let interactiveHealthyStreak = 0
             let nonInteractiveHealthyStreak = 0
             let nonInteractiveIssueStreak = 0
@@ -873,7 +753,6 @@ export class GeminiWebSessionManager {
             const classifyCurrent = async (): Promise<ProbeExecutionResult> => {
                 const snapshot = await captureSnapshot()
                 const outcome = classifyAuthProbe(currentUrl, snapshot, hasNetworkError)
-                lastOutcome = outcome
                 const accountHash = outcome.healthy ? await this.readAccountHash(persistentSession) : null
                 return {
                     outcome,

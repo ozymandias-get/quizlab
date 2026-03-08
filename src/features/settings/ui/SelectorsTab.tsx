@@ -1,7 +1,8 @@
 ﻿import React, { useCallback, useMemo } from 'react'
 import { Logger } from '@shared/lib/logger'
 import { motion } from 'framer-motion'
-import { useAi, useLanguage } from '@app/providers'
+import { useLanguage } from '@app/providers'
+import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { useAiConfig, useDeleteAiConfig } from '@platform/electron/api/useAiApi'
 import { getAiIcon, GlobeIcon, MagicWandIcon, TrashIcon, SelectorIcon } from '@ui/components/Icons'
 import type { AiPlatform, AiSelectorConfig } from '@shared-core/types'
@@ -18,7 +19,8 @@ interface SelectorsTabProps {
  * Regular web sites (isSite: true) are not shown in this list.
  */
 const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
-    const { aiSites, startTutorial } = useAi()
+    const { aiSites } = useAiState()
+    const { startTutorial } = useAiActions()
     const { t } = useLanguage()
 
     // Use React Query hooks

@@ -1,4 +1,5 @@
-﻿import React from 'react'
+import React from 'react'
+import { useLanguage } from '@app/providers/LanguageContext'
 import { Logger } from '@shared/lib/logger'
 
 /**
@@ -18,6 +19,8 @@ interface ErrorBoundaryState {
     error: Error | null;
     errorInfo: React.ErrorInfo | null;
 }
+
+const translate = (key: string) => useLanguage.getState().t(key)
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
@@ -59,11 +62,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                     </div>
 
                     <h3 className="text-lg font-bold text-stone-200 mb-2">
-                        {this.props.title || 'Something went wrong'}
+                        {this.props.title || translate('error_boundary_title')}
                     </h3>
 
                     <p className="text-sm text-stone-400 mb-6 max-w-sm mx-auto">
-                        {this.state.error?.message || 'An unexpected error occurred.'}
+                        {this.state.error?.message || translate('unexpected_error')}
                     </p>
 
                     <button
@@ -73,13 +76,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        Try again
+                        {translate('try_again')}
                     </button>
 
                     <details className="mt-8 text-left w-full max-w-md bg-black/20 p-3 rounded-lg border border-white/5">
-                        <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-300 transition-colors uppercase font-bold tracking-widest">Technical details</summary>
+                        <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-300 transition-colors uppercase font-bold tracking-widest">{translate('technical_details')}</summary>
                         <pre className="mt-2 text-[10px] text-red-300/70 overflow-x-auto whitespace-pre-wrap font-mono p-4 rounded-lg bg-black/40">
-                            {this.state.errorInfo?.componentStack || 'No stack trace available'}
+                            {this.state.errorInfo?.componentStack || translate('no_stack_trace')}
                         </pre>
                     </details>
                 </div>
@@ -91,4 +94,3 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 }
 
 export default ErrorBoundary
-

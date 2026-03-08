@@ -11,7 +11,8 @@ export function useGenerateFocusScript() {
     return useElectronMutation<string | null, AutomationConfig>(
         (api, config) => api.automation.generateFocusScript(config),
         {
-            errorMessage: t('toast_focus_script_failed')
+            errorMessage: t('toast_focus_script_failed'),
+            showErrorToast: false
         }
     )
 }
@@ -25,7 +26,8 @@ export function useGenerateClickSendScript() {
     return useElectronMutation<string | null, AutomationConfig>(
         (api, config) => api.automation.generateClickSendScript(config),
         {
-            errorMessage: t('toast_click_script_failed')
+            errorMessage: t('toast_click_script_failed'),
+            showErrorToast: false
         }
     )
 }
@@ -39,7 +41,8 @@ export function useGenerateAutoSendScript() {
     return useElectronMutation<string | null, { config: AutomationConfig; text: string; submit: boolean }>(
         (api, { config, text, submit }) => api.automation.generateAutoSendScript(config, text, submit),
         {
-            errorMessage: t('toast_autosend_script_failed')
+            errorMessage: t('toast_autosend_script_failed'),
+            showErrorToast: false
         }
     )
 }
@@ -52,7 +55,8 @@ export function useGeneratePickerScript() {
     return useElectronMutation<string | null, Record<string, string>>(
         (api, translations) => api.automation.generatePickerScript(translations),
         {
-            errorMessage: t('toast_picker_script_failed')
+            errorMessage: t('toast_picker_script_failed'),
+            showErrorToast: false
         }
     )
 }

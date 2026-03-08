@@ -1,7 +1,6 @@
 ﻿import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
 import type {
-    AiPlatform,
     AiSelectorConfig,
     AiRegistryResponse,
     AutomationConfig,
@@ -68,9 +67,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteAllAiConfigs: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.DELETE_ALL_AI_CONFIGS),
     addCustomAi: (data: CustomAiInput): Promise<CustomAiResult> => ipcRenderer.invoke(IPC_CHANNELS.ADD_CUSTOM_AI, data),
     deleteCustomAi: (id: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id),
-
-    // Library Management (New v1.0)
-
 
     // Quiz Generation API
     quiz: {

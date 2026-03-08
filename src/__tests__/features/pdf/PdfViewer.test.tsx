@@ -1,11 +1,22 @@
-﻿import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import PdfViewer from '@features/pdf/ui/components/PdfViewer'
+
+const mockViewer = vi.fn()
 
 // Mock Providers
 vi.mock('@app/providers/AiContext', () => ({
     useAi: () => ({
         autoSend: false,
+        toggleAutoSend: vi.fn(),
+        sendImageToAI: vi.fn(),
+        chromeUserAgent: 'mock-user-agent'
+    }),
+    useAiState: () => ({
+        autoSend: false,
+        chromeUserAgent: 'mock-user-agent'
+    }),
+    useAiActions: () => ({
         toggleAutoSend: vi.fn(),
         sendImageToAI: vi.fn(),
     }),
@@ -14,6 +25,7 @@ vi.mock('@app/providers/AiContext', () => ({
 vi.mock('@app/providers/AppToolContext', () => ({
     useAppTools: () => ({
         startScreenshot: vi.fn(),
+        queueImageForAi: vi.fn()
     }),
 }))
 
@@ -21,6 +33,15 @@ vi.mock('@app/providers/LanguageContext', () => ({
     useLanguage: () => ({
         t: (key: string) => key,
     }),
+}))
+
+vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
+    useGeminiWebStatus: () => ({
+        data: {
+            featureEnabled: false,
+            enabled: false
+        }
+    })
 }))
 
 // Mock hooks
@@ -63,7 +84,10 @@ vi.mock('@features/pdf/ui/components/PdfToolbar', () => ({
 
 // Mock react-pdf-viewer
 vi.mock('@react-pdf-viewer/core', () => ({
-    Viewer: () => <div>PDF Viewer Content</div>,
+    Viewer: (props: any) => {
+        mockViewer(props)
+        return <div>PDF Viewer Content</div>
+    },
     SpecialZoomLevel: { PageWidth: 'PageWidth' },
     ScrollMode: { Page: 'Page' },
     Worker: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -99,6 +123,28 @@ describe('PdfViewer Component', () => {
         expect(screen.getByText('PDF Viewer Content')).toBeInTheDocument()
         expect(screen.getByText('PDF Toolbar')).toBeInTheDocument()
     })
+
+    it('passes the saved page to the viewer initialPage prop', () => {
+        const mockPdfFile = {
+            path: 'resume.pdf',
+            name: 'resume.pdf',
+            size: 1000,
+            lastModified: 0,
+            streamUrl: 'blob:resume',
+        }
+
+        render(
+            <PdfViewer
+                pdfFile={mockPdfFile}
+                initialPage={8}
+                onSelectPdf={vi.fn()}
+            />
+        )
+
+        expect(mockViewer).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                initialPage: 7
+            })
+        )
+    })
 })
-
-

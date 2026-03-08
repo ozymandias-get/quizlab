@@ -1,22 +1,13 @@
-﻿import { renderHook, act } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useTextSelection } from '@shared/hooks/useTextSelection'
+import { useTextSelection } from '@app/hooks/useTextSelection'
 
-// Mock useAi
-const mockSendTextToAI = vi.fn().mockResolvedValue({ success: true })
+const mockQueueTextForAi = vi.fn()
 
-vi.mock('@app/providers', () => ({
-    useAi: () => ({
-        sendTextToAI: mockSendTextToAI,
-    }),
-}))
-
-vi.mock('@shared/lib/logger', () => ({
-    Logger: {
-        error: vi.fn(),
-        warn: vi.fn(),
-        info: vi.fn()
-    }
+vi.mock('@app/providers/AppToolContext', () => ({
+    useAppTools: () => ({
+        queueTextForAi: mockQueueTextForAi
+    })
 }))
 
 describe('useTextSelection Hook', () => {
@@ -24,65 +15,34 @@ describe('useTextSelection Hook', () => {
         vi.clearAllMocks()
     })
 
-    it('should initialize with empty selection', () => {
-        const { result } = renderHook(() => useTextSelection())
-        expect(result.current.selectedText).toBe('')
-        expect(result.current.selectionPosition).toBeNull()
-    })
-
-    it('should update selection state when handleTextSelection is called', () => {
+    it('queues selected text for AI', () => {
         const { result } = renderHook(() => useTextSelection())
 
         act(() => {
             result.current.handleTextSelection('Selected Text', { top: 100, left: 100 })
         })
 
-        expect(result.current.selectedText).toBe('Selected Text')
-        expect(result.current.selectionPosition).toEqual({ top: 100, left: 100 })
+        expect(mockQueueTextForAi).toHaveBeenCalledWith('Selected Text')
     })
 
-    it('should send text to AI and clear selection on success', async () => {
+    it('does not queue empty text', () => {
         const { result } = renderHook(() => useTextSelection())
 
         act(() => {
-            result.current.handleTextSelection('Question text', { top: 100, left: 100 })
+            result.current.handleTextSelection('   ', { top: 100, left: 100 })
         })
 
-        await act(async () => {
-            await result.current.handleSendToAI()
-        })
-
-        expect(mockSendTextToAI).toHaveBeenCalledWith('Question text')
-        expect(result.current.selectedText).toBe('')
-        expect(result.current.selectionPosition).toBeNull()
+        expect(mockQueueTextForAi).not.toHaveBeenCalled()
     })
 
-    it('should not send empty text to AI', async () => {
-        const { result } = renderHook(() => useTextSelection())
-
-        await act(async () => {
-            await result.current.handleSendToAI()
-        })
-
-        expect(mockSendTextToAI).not.toHaveBeenCalled()
-    })
-
-    it('should handle API failure gracefully (keep selection)', async () => {
-        mockSendTextToAI.mockRejectedValueOnce(new Error('AI Failed'))
+    it('deduplicates the same selection signature briefly', () => {
         const { result } = renderHook(() => useTextSelection())
 
         act(() => {
-            result.current.handleTextSelection('Failed text', { top: 100, left: 100 })
+            result.current.handleTextSelection('Repeated', { top: 100, left: 100 })
+            result.current.handleTextSelection('Repeated', { top: 100, left: 100 })
         })
 
-        await act(async () => {
-            await result.current.handleSendToAI()
-        })
-
-        expect(mockSendTextToAI).toHaveBeenCalledWith('Failed text')
-        // Should keep selection if failed (or implementation might not handle it explicitly to keep, checking code...)
-        // Implementation: catch (error) { Logger.error(...) } -> doesn't clear selection.
-        expect(result.current.selectedText).toBe('Failed text')
+        expect(mockQueueTextForAi).toHaveBeenCalledTimes(1)
     })
 })
-

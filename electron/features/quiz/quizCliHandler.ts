@@ -2,7 +2,7 @@
  * Quiz CLI Handler Module
  * Orchestrates quiz generation using modular components
  */
-import { ipcMain, app } from 'electron'
+import { ipcMain } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 import os from 'os'
@@ -12,7 +12,7 @@ import { APP_CONFIG } from '../../app/constants'
 import { ConfigManager } from '../../core/ConfigManager'
 import { getQuizSettingsPath } from '../../core/helpers'
 import { buildQuizPrompt, type QuizPromptParams } from './promptBuilder'
-import { getGeminiCliPath, findGeminiCliPath, executeGeminiCli, generateOutputFilePath } from './geminiService'
+import { getGeminiCliPath, findGeminiCliPath, executeGeminiCli, generateOutputFilePath } from './gemini-runner'
 
 import type { QuizSettings as SharedQuizSettings } from '@shared-core/types'
 
@@ -25,12 +25,6 @@ interface QuizGenerateParams extends QuizPromptParams {
     type?: string;
     pdfPath?: string;
     model?: string;
-}
-
-interface AskAiParams {
-    question: string;
-    context?: string;
-    history?: unknown[];
 }
 
 interface GeminiSettingsFile {
@@ -326,7 +320,7 @@ function registerQuizHandlers() {
     })
 
     // Save quiz settings
-    ipcMain.handle(IPC_CHANNELS.SAVE_QUIZ_SETTINGS, async (event, settings: Partial<QuizSettings>) => {
+    ipcMain.handle(IPC_CHANNELS.SAVE_QUIZ_SETTINGS, async (_event, settings: Partial<QuizSettings>) => {
         return settingsManager.update((current) => {
             const incoming = settings || {}
             const merged = { ...DEFAULT_QUIZ_SETTINGS, ...current }
@@ -351,7 +345,7 @@ function registerQuizHandlers() {
     })
 
     // Generate quiz via CLI
-    ipcMain.handle(IPC_CHANNELS.GENERATE_QUIZ_CLI, async (event, params: QuizGenerateParams) => {
+    ipcMain.handle(IPC_CHANNELS.GENERATE_QUIZ_CLI, async (_event, params: QuizGenerateParams) => {
         try {
             // Load settings using manager (leverages cache)
             const settings = await settingsManager.read()
@@ -434,7 +428,7 @@ function registerQuizHandlers() {
     })
 
     // Ask AI Assistant (General Chat/Context)
-    ipcMain.handle(IPC_CHANNELS.ASK_AI, async (event, params: { question: string; context?: string; history?: unknown[] }) => {
+    ipcMain.handle(IPC_CHANNELS.ASK_AI, async (_event, params: { question: string; context?: string; history?: unknown[] }) => {
         try {
             const { question, context } = params
             if (!question) throw new Error('error_invalid_input')

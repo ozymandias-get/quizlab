@@ -50,23 +50,54 @@
 
 .pdf-viewer-container .rpv-core__text-layer {
   color: transparent !important;
+  cursor: default;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: filter 0.22s ease;
+  padding: 0.22rem 0.28rem;
 }
 
 /* Premium Text Selection */
 .pdf-viewer-container .rpv-core__text-layer span::selection {
-  background-color: var(--selection-color, rgba(99, 102, 241, 0.45)) !important;
+  background-color: var(--selection-color-vivid, rgba(234, 179, 8, 0.82)) !important;
   color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+  box-shadow:
+    0 0 0 1px var(--selection-color-edge, rgba(255, 255, 255, 0.22)),
+    0 0 0 999px var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
 }
 
 /* Firefox için */
 .pdf-viewer-container .rpv-core__text-layer span::-moz-selection {
-  background-color: var(--selection-color, rgba(99, 102, 241, 0.45)) !important;
+  background-color: var(--selection-color-vivid, rgba(234, 179, 8, 0.82)) !important;
   color: transparent !important;
+  text-shadow: none !important;
+  box-shadow:
+    0 0 0 1px var(--selection-color-edge, rgba(255, 255, 255, 0.22)),
+    0 0 0 999px var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
 }
 
 /* Text layer span'ları için ek stil */
 .pdf-viewer-container .rpv-core__text-layer span {
-  transition: background-color 0.1s ease;
+  cursor: text;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  line-height: 1.42 !important;
+  padding: 0.12em 0.18em !important;
+  margin: -0.12em -0.18em !important;
+  border-radius: 0.34rem;
+  transition: background-color 0.16s ease, color 0.16s ease, text-shadow 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pdf-viewer-container.pdf-selection-active .rpv-core__text-layer {
+  filter: drop-shadow(0 0 0.8rem var(--selection-color-glow, rgba(234, 179, 8, 0.42)));
+}
+
+.pdf-viewer-container.pdf-selection-active .rpv-core__inner-pages {
+  background-image:
+    radial-gradient(circle at 50% 0%, var(--selection-color-soft, rgba(234, 179, 8, 0.22)), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
 }
 
 /* Toolbar button overrides */

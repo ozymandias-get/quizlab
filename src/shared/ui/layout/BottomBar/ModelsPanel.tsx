@@ -1,9 +1,11 @@
 import React, { memo, useState, useCallback } from 'react'
 import { AnimatePresence, motion, Reorder } from 'framer-motion'
-import { useAi } from '@app/providers'
+import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { AIItem } from './AIItem'
 import { panelVariantsVertical, panelTransition } from './animations'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
+import { BottomScrollCue } from './BottomScrollCue'
+import { useBottomScrollCue } from './useBottomScrollCue'
 
 interface ModelsPanelProps {
     isOpen: boolean;
@@ -13,12 +15,9 @@ interface ModelsPanelProps {
 }
 
 export const ModelsPanel = memo(({ isOpen, panelStyle, maxHeight, showOnlyIcons }: ModelsPanelProps) => {
-    const {
-        addTab,
-        enabledModels,
-        setEnabledModels,
-        aiSites
-    } = useAi()
+    const { enabledModels, aiSites } = useAiState()
+    const { addTab, setEnabledModels } = useAiActions()
+    const { scrollAreaRef, showScrollCue } = useBottomScrollCue<HTMLDivElement>(isOpen, maxHeight)
 
     const [activeDragItem, setActiveDragItem] = useState<string | null>(null)
 
@@ -46,6 +45,7 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, maxHeight, showOnlyIcons 
                 >
                     <div className="relative flex flex-col items-center w-full">
                         <div
+                            ref={scrollAreaRef}
                             data-testid="models-panel-scroll-area"
                             className="w-full overflow-y-auto overflow-x-hidden scrollbar-hidden overscroll-contain"
                             style={{ maxHeight: resolvedMaxHeight }}
@@ -77,6 +77,7 @@ export const ModelsPanel = memo(({ isOpen, panelStyle, maxHeight, showOnlyIcons 
                                 })}
                             </Reorder.Group>
                         </div>
+                        <BottomScrollCue visible={showScrollCue} testId="models-panel-scroll-cue" />
                     </div>
                 </motion.div>
             )}

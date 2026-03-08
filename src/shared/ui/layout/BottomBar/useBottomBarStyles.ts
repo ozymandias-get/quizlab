@@ -30,9 +30,9 @@ export const useBottomBarStyles = (
     bottomBarOpacity: number,
     bottomBarScale: number
 ) => {
-    const clampedOpacity = useMemo(() => Math.min(1, Math.max(0.1, bottomBarOpacity)), [bottomBarOpacity])
-    const clampedScale = useMemo(() => Math.min(1.3, Math.max(0.7, bottomBarScale)), [bottomBarScale])
-    const scaledBaseSize = useMemo(() => Math.round(48 * clampedScale), [clampedScale])
+    const clampedOpacity = Math.min(1, Math.max(0.1, bottomBarOpacity))
+    const clampedScale = Math.min(1.3, Math.max(0.7, bottomBarScale))
+    const scaledBaseSize = Math.round(48 * clampedScale)
 
     const shellStyle = useMemo<React.CSSProperties>(() => ({
         '--bar-opacity-factor': clampedOpacity,

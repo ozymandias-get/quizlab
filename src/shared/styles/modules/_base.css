@@ -21,19 +21,16 @@ body {
   color: #fafaf9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-  perspective: 1000px;
 }
 
 /* Metin seçme rengi - Dinamik olarak değiştirilebilir */
 ::selection {
-  background-color: var(--selection-color, rgba(99, 102, 241, 0.4));
+  background-color: var(--selection-color-strong, rgba(99, 102, 241, 0.58));
   color: #ffffff;
 }
 
 ::-moz-selection {
-  background-color: var(--selection-color, rgba(99, 102, 241, 0.4));
+  background-color: var(--selection-color-strong, rgba(99, 102, 241, 0.58));
   color: #ffffff;
 }
 

@@ -16,7 +16,7 @@ export function registerScreenshotHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.COPY_IMAGE, (event, dataUrl: string) => {
+    ipcMain.handle(IPC_CHANNELS.COPY_IMAGE, (_event, dataUrl: string) => {
         try {
             if (!dataUrl?.startsWith('data:image/')) return false
             const image = nativeImage.createFromDataURL(dataUrl)

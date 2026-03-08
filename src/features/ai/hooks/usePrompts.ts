@@ -1,5 +1,5 @@
 ﻿import { useMemo, useCallback } from 'react'
-import { useLanguage } from '@app/providers'
+import { useLanguage } from '@app/providers/LanguageContext'
 import { useLocalStorage, useLocalStorageString } from '@shared/hooks/useLocalStorage'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { DEFAULT_PROMPTS, IPrompt } from '@shared/constants/prompts'

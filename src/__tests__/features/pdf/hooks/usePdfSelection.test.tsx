@@ -265,6 +265,61 @@ describe('usePdfSelection', () => {
         expect(result.current.pdfTabs).toHaveLength(1)
         expect(result.current.activePdfTabId).toBe(secondTabId)
     })
+
+    it('should keep the latest reading page in state for tab restore and resume', async () => {
+        const firstPdf = { name: 'first.pdf', path: '/path/first.pdf', streamUrl: 'first-url' }
+        const secondPdf = { name: 'second.pdf', path: '/path/second.pdf', streamUrl: 'second-url' }
+        mockSelectPdfMutate
+            .mockResolvedValueOnce(firstPdf)
+            .mockResolvedValueOnce(secondPdf)
+
+        const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
+
+        await act(async () => {
+            await result.current.handleSelectPdf()
+        })
+
+        await act(async () => {
+            await result.current.handleSelectPdf()
+        })
+
+        const firstTabId = result.current.pdfTabs[0].id
+        const secondTabId = result.current.pdfTabs[1].id
+
+        act(() => {
+            result.current.setActivePdfTab(firstTabId)
+        })
+
+        act(() => {
+            result.current.updateReadingProgress({
+                path: firstPdf.path,
+                page: 7,
+                totalPages: 30,
+                lastOpenedAt: 123456
+            })
+        })
+
+        expect(result.current.getRecentReadingInfo()[0]).toMatchObject({
+            path: firstPdf.path,
+            page: 7,
+            totalPages: 30,
+            lastOpenedAt: 123456
+        })
+        expect(result.current.activeTabInitialPage).toBe(7)
+
+        act(() => {
+            result.current.setActivePdfTab(secondTabId)
+        })
+        act(() => {
+            result.current.setActivePdfTab(firstTabId)
+        })
+
+        expect(result.current.activeTabInitialPage).toBe(7)
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            STORAGE_KEYS.LAST_PDF_READING,
+            expect.stringContaining('"page":7')
+        )
+    })
 })
 
 

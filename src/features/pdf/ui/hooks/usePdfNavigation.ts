@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { RefObject, MutableRefObject } from 'react'
-import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import type { ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
 
 type PageChangeEvent = { currentPage: number }
 type DocumentLoadEvent = { doc: { numPages: number } }
@@ -9,10 +9,18 @@ interface UsePdfNavigationOptions {
     containerRef: RefObject<HTMLDivElement | null>;
     jumpToPageRef: MutableRefObject<(pageIndex: number) => void>;
     pdfPath?: string | null;
+    initialPage?: number;
+    onReadingProgressChange?: (update: ReadingProgressUpdate) => void;
 }
 
-export function usePdfNavigation({ containerRef, jumpToPageRef, pdfPath }: UsePdfNavigationOptions) {
-    const [currentPage, setCurrentPage] = useState(1)
+export function usePdfNavigation({
+    containerRef,
+    jumpToPageRef,
+    pdfPath,
+    initialPage,
+    onReadingProgressChange
+}: UsePdfNavigationOptions) {
+    const [currentPage, setCurrentPage] = useState(() => (initialPage && initialPage > 0 ? initialPage : 1))
     const [totalPages, setTotalPages] = useState(0)
 
     const lastNavigationTime = useRef(0)
@@ -72,6 +80,8 @@ export function usePdfNavigation({ containerRef, jumpToPageRef, pdfPath }: UsePd
         lastNavigationTime.current = 0
         lastWheelEventTime.current = 0
         accumulatedDelta.current = 0
+        setCurrentPage(initialPage && initialPage > 0 ? initialPage : 1)
+        setTotalPages(0)
     }, [pdfPath])
 
     useEffect(() => {
@@ -84,49 +94,28 @@ export function usePdfNavigation({ containerRef, jumpToPageRef, pdfPath }: UsePd
         }
     }, [handleWheel, containerRef])
 
-    const updateStoredReadingInfo = useCallback((updates: Partial<{ page: number; totalPages: number; lastOpenedAt: number }>) => {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
-            if (!stored) return
-
-            const parsed = JSON.parse(stored)
-            if (Array.isArray(parsed)) {
-                if (parsed.length === 0) return
-
-                const targetIndex = pdfPath
-                    ? parsed.findIndex((item) => item && typeof item === 'object' && item.path === pdfPath)
-                    : 0
-                const index = targetIndex >= 0 ? targetIndex : 0
-                const target = parsed[index]
-                if (!target || typeof target !== 'object') return
-
-                const next = [...parsed]
-                next[index] = { ...target, ...updates }
-                localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(next))
-                return
-            }
-
-            if (parsed && typeof parsed === 'object') {
-                localStorage.setItem(
-                    STORAGE_KEYS.LAST_PDF_READING,
-                    JSON.stringify({ ...parsed, ...updates })
-                )
-            }
-        } catch {
-            // ignore localStorage errors
-        }
-    }, [pdfPath])
-
     const handlePageChange = useCallback((e: PageChangeEvent) => {
         const newPage = e.currentPage + 1
         setCurrentPage(newPage)
-        updateStoredReadingInfo({ page: newPage, lastOpenedAt: Date.now() })
-    }, [updateStoredReadingInfo])
+        if (!pdfPath) return
+
+        onReadingProgressChange?.({
+            path: pdfPath,
+            page: newPage,
+            lastOpenedAt: Date.now()
+        })
+    }, [onReadingProgressChange, pdfPath])
 
     const handleDocumentLoad = useCallback((e: DocumentLoadEvent) => {
         setTotalPages(e.doc.numPages)
-        updateStoredReadingInfo({ totalPages: e.doc.numPages, lastOpenedAt: Date.now() })
-    }, [updateStoredReadingInfo])
+        if (!pdfPath) return
+
+        onReadingProgressChange?.({
+            path: pdfPath,
+            totalPages: e.doc.numPages,
+            lastOpenedAt: Date.now()
+        })
+    }, [onReadingProgressChange, pdfPath])
 
     const goToPreviousPage = useCallback(() => {
         if (currentPage > 1 && jumpToPageRef.current) {
