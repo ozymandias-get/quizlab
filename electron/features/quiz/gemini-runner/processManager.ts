@@ -11,7 +11,7 @@ export function unregisterProcess(cp: ChildProcess) {
     activeProcesses.delete(cp)
 }
 
-export function cleanupActiveProcesses() {
+function cleanupActiveProcesses() {
     for (const cp of activeProcesses) {
         if (!cp.killed) {
             try { cp.kill('SIGKILL') } catch { }

@@ -42,6 +42,13 @@ function AiSendComposer({
 
     const textItems = useMemo(() => items.filter((item): item is AiDraftTextItem => item.type === 'text'), [items])
     const imageItems = useMemo(() => items.filter((item): item is AiDraftImageItem => item.type === 'image'), [items])
+    const resetDismissState = useCallback((dismissTimer: ReturnType<typeof setTimeout> | null) => {
+        if (dismissTimer) {
+            clearTimeout(dismissTimer)
+        }
+        setIsClosingAfterSubmit(false)
+        setIsDismissed(false)
+    }, [])
 
     const handleSubmit = useCallback(async (options?: { autoSend?: boolean }) => {
         if (isSubmitting || items.length === 0) {
@@ -73,21 +80,13 @@ function AiSendComposer({
                 return
             }
 
-            if (dismissTimer) {
-                clearTimeout(dismissTimer)
-            }
-            setIsClosingAfterSubmit(false)
-            setIsDismissed(false)
+            resetDismissState(dismissTimer)
         } catch {
-            if (dismissTimer) {
-                clearTimeout(dismissTimer)
-            }
-            setIsClosingAfterSubmit(false)
-            setIsDismissed(false)
+            resetDismissState(dismissTimer)
         } finally {
             setIsSubmitting(false)
         }
-    }, [isSubmitting, items.length, noteText, onSend])
+    }, [isSubmitting, items.length, noteText, onSend, resetDismissState])
 
     const accentStrong = hexToRgba(selectionColor, 0.9)
     const accentGlow = hexToRgba(selectionColor, 0.15)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyAuthProbe, sanitizeUrl } from '../../../features/gemini-web-session/authHeuristics'
+import { classifyAuthProbe } from '../../../features/gemini-web-session/authHeuristics'
 
 const emptySnapshot = {
     hasLoginForm: false,
@@ -71,10 +71,5 @@ describe('gemini web auth heuristics', () => {
     it('classifies network failures as network', () => {
         const result = classifyAuthProbe('https://gemini.google.com/app', emptySnapshot, true)
         expect(result.kind).toBe('network')
-    })
-
-    it('sanitizes query and hash fragments from url logs', () => {
-        const sanitized = sanitizeUrl('https://gemini.google.com/app?token=secret#fragment')
-        expect(sanitized).toBe('https://gemini.google.com/app')
     })
 })

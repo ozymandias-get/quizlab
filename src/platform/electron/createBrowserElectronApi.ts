@@ -263,10 +263,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
             return toMapRecord(aiConfigs)
         },
         deleteAiConfig: async (hostname) => aiConfigs.delete(hostname),
-        deleteAllAiConfigs: async () => {
-            aiConfigs.clear()
-            return true
-        },
         addCustomAi: async (data: CustomAiInput): Promise<CustomAiResult> => {
             const name = data?.name?.trim()
             const url = data?.url?.trim()

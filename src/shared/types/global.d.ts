@@ -97,7 +97,6 @@ declare global {
             saveAiConfig: (hostname: string, config: AiSelectorConfig) => Promise<boolean>;
             getAiConfig: (hostname?: string) => Promise<AiSelectorConfig | Record<string, AiSelectorConfig> | null>;
             deleteAiConfig: (hostname: string) => Promise<boolean>;
-            deleteAllAiConfigs: () => Promise<boolean>;
             addCustomAi: (data: CustomAiInput) => Promise<CustomAiResult>;
             deleteCustomAi: (id: string) => Promise<boolean>;
 

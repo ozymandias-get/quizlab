@@ -94,47 +94,45 @@ export default function SettingsModalSidebar({
                                         }
                                         : undefined}
                                 >
-                                    <>
-                                        <span className={`pointer-events-none absolute inset-0 bg-gradient-to-r transition-opacity duration-300 ${tab.accent} ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-80'}`} />
-                                        {selected && (
-                                            <motion.span
-                                                initial={{ x: '-140%' }}
-                                                animate={{ x: '160%' }}
-                                                transition={{ duration: 2.4, ease: 'linear', repeat: Infinity, repeatDelay: 1 }}
-                                                className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent opacity-60 blur-[1px]"
-                                            />
-                                        )}
-                                        <div
-                                            className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300 ${selected ? '' : 'group-hover:border-white/[0.14] group-hover:bg-white/[0.06]'}`}
-                                            style={selected
-                                                ? {
-                                                    color: tab.glow,
-                                                    borderColor: hexToRgba(tab.glow, 0.24),
-                                                    background: `linear-gradient(160deg, ${hexToRgba(tab.glow, 0.18)} 0%, ${hexToRgba(tab.glow, 0.04)} 100%)`,
-                                                    boxShadow: `0 10px 24px -20px ${hexToRgba(tab.glow, 0.45)}, inset 0 1px 0 rgba(255,255,255,0.14)`
-                                                }
-                                                : {
-                                                    borderColor: 'rgba(255,255,255,0.08)',
-                                                    background: 'rgba(255,255,255,0.04)'
-                                                }}
-                                        >
-                                            <tab.icon className={`h-4 w-4 transition-colors duration-200 ${selected ? '' : 'text-white/42 group-hover:text-white/72'}`} />
-                                        </div>
-                                        <div className="relative z-10 min-w-0 flex-1">
-                                            <span className="block truncate text-[13px] font-semibold tracking-tight">{tab.label}</span>
-                                        </div>
-                                        <ChevronRightIcon className={`relative z-10 h-4 w-4 shrink-0 transition-all duration-300 ${selected ? 'translate-x-0 text-white/70' : '-translate-x-1 text-white/14 group-hover:translate-x-0 group-hover:text-white/40'}`} />
-                                        {selected && (
-                                            <motion.div
-                                                layoutId="active-indicator"
-                                                className="pointer-events-none absolute left-0 inset-y-3 w-[3px] rounded-full max-[900px]:left-3 max-[900px]:right-3 max-[900px]:top-auto max-[900px]:bottom-0 max-[900px]:h-[3px] max-[900px]:w-auto"
-                                                style={{
-                                                    background: `linear-gradient(180deg, ${hexToRgba(tab.glow, 0.95)} 0%, ${hexToRgba(tab.glow, 0.35)} 100%)`,
-                                                    boxShadow: `0 0 14px ${hexToRgba(tab.glow, 0.45)}`
-                                                }}
-                                            />
-                                        )}
-                                    </>
+                                    <span className={`pointer-events-none absolute inset-0 bg-gradient-to-r transition-opacity duration-300 ${tab.accent} ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-80'}`} />
+                                    {selected && (
+                                        <motion.span
+                                            initial={{ x: '-140%' }}
+                                            animate={{ x: '160%' }}
+                                            transition={{ duration: 2.4, ease: 'linear', repeat: Infinity, repeatDelay: 1 }}
+                                            className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent opacity-60 blur-[1px]"
+                                        />
+                                    )}
+                                    <div
+                                        className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition-all duration-300 ${selected ? '' : 'group-hover:border-white/[0.14] group-hover:bg-white/[0.06]'}`}
+                                        style={selected
+                                            ? {
+                                                color: tab.glow,
+                                                borderColor: hexToRgba(tab.glow, 0.24),
+                                                background: `linear-gradient(160deg, ${hexToRgba(tab.glow, 0.18)} 0%, ${hexToRgba(tab.glow, 0.04)} 100%)`,
+                                                boxShadow: `0 10px 24px -20px ${hexToRgba(tab.glow, 0.45)}, inset 0 1px 0 rgba(255,255,255,0.14)`
+                                            }
+                                            : {
+                                                borderColor: 'rgba(255,255,255,0.08)',
+                                                background: 'rgba(255,255,255,0.04)'
+                                            }}
+                                    >
+                                        <tab.icon className={`h-4 w-4 transition-colors duration-200 ${selected ? '' : 'text-white/42 group-hover:text-white/72'}`} />
+                                    </div>
+                                    <div className="relative z-10 min-w-0 flex-1">
+                                        <span className="block truncate text-[13px] font-semibold tracking-tight">{tab.label}</span>
+                                    </div>
+                                    <ChevronRightIcon className={`relative z-10 h-4 w-4 shrink-0 transition-all duration-300 ${selected ? 'translate-x-0 text-white/70' : '-translate-x-1 text-white/14 group-hover:translate-x-0 group-hover:text-white/40'}`} />
+                                    {selected && (
+                                        <motion.div
+                                            layoutId="active-indicator"
+                                            className="pointer-events-none absolute left-0 inset-y-3 w-[3px] rounded-full max-[900px]:left-3 max-[900px]:right-3 max-[900px]:top-auto max-[900px]:bottom-0 max-[900px]:h-[3px] max-[900px]:w-auto"
+                                            style={{
+                                                background: `linear-gradient(180deg, ${hexToRgba(tab.glow, 0.95)} 0%, ${hexToRgba(tab.glow, 0.35)} 100%)`,
+                                                boxShadow: `0 0 14px ${hexToRgba(tab.glow, 0.45)}`
+                                            }}
+                                        />
+                                    )}
                                 </TabsTrigger>
                             )
                         })}

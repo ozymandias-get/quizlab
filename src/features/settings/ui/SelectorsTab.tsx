@@ -1,16 +1,41 @@
-﻿import React, { useCallback, useMemo } from 'react'
-import { Logger } from '@shared/lib/logger'
+import React, { useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useLanguage } from '@app/providers'
 import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { useAiConfig, useDeleteAiConfig } from '@platform/electron/api/useAiApi'
-import { getAiIcon, GlobeIcon, MagicWandIcon, TrashIcon, SelectorIcon } from '@ui/components/Icons'
+import { Logger } from '@shared/lib/logger'
+import { CheckIcon, ChevronRightIcon, GlobeIcon, MagicWandIcon, TrashIcon, SelectorIcon } from '@ui/components/Icons'
 import type { AiPlatform, AiSelectorConfig } from '@shared-core/types'
-
-// Icons imported from @ui/components/Icons
+import SettingsTabIntro from './shared/SettingsTabIntro'
+import { getAiPlatformIcon, getAiPlatformLabel } from './shared/aiPlatformPresentation'
 
 interface SelectorsTabProps {
     onCloseSettings?: () => void;
+}
+
+function normalizeSelectorsData(selectorsData: AiSelectorConfig | Record<string, AiSelectorConfig> | null | undefined) {
+    if (!selectorsData || 'input' in selectorsData) {
+        return {}
+    }
+
+    return selectorsData as Record<string, AiSelectorConfig>
+}
+
+function findSelectorHost(ai: AiPlatform, selectors: Record<string, AiSelectorConfig>) {
+    if (!ai.url) {
+        return null
+    }
+
+    try {
+        const aiHost = new URL(ai.url).hostname
+        if (selectors[aiHost]) {
+            return aiHost
+        }
+
+        return Object.keys(selectors).find((key) => key.includes(aiHost) || aiHost.includes(key)) ?? null
+    } catch {
+        return null
+    }
 }
 
 /**
@@ -22,154 +47,115 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
     const { aiSites } = useAiState()
     const { startTutorial } = useAiActions()
     const { t } = useLanguage()
-
-    // Use React Query hooks
     const { data: selectorsData } = useAiConfig()
     const { mutateAsync: deleteConfig, isPending: isDeleting } = useDeleteAiConfig()
 
-    // Normalize selectors data to Record<string, AiSelectorConfig>
-    const selectors = useMemo(() => {
-        if (!selectorsData) return {}
-        // If it returns an object with 'input' property (checking against CustomAiInput which shouldn't happen here but matching original logic)
-        if ('input' in selectorsData) return {}
-        return selectorsData as Record<string, AiSelectorConfig>
-    }, [selectorsData])
+    const selectors = useMemo(() => normalizeSelectorsData(selectorsData), [selectorsData])
 
     const handleDeleteSelectors = useCallback(async (hostname: string) => {
-        if (!confirm(t('confirm_delete_selectors'))) return
+        if (!confirm(t('confirm_delete_selectors'))) {
+            return
+        }
 
         try {
             await deleteConfig(hostname)
         } catch (err) {
-            // Error handling is managed by the mutation hook (toast)
             Logger.error('Failed to delete selectors', err)
         }
-    }, [t, deleteConfig])
+    }, [deleteConfig, t])
 
-    // Helper to find selectors for an AI
-    const findSelectorHost = useCallback((ai: AiPlatform): string | null | undefined => {
-        // Try to match specific hostname in selectors
-        if (!ai.url) return null
-        try {
-            const aiHost = new URL(ai.url).hostname
-            // Direct match
-            if (selectors[aiHost]) return aiHost
-            // Rough match in keys
-            const key = Object.keys(selectors).find(k => k.includes(aiHost) || aiHost.includes(k))
-            return key
-        } catch {
-            return null
-        }
-    }, [selectors])
+    const handleStartTutorial = useCallback(() => {
+        startTutorial()
+        onCloseSettings?.()
+    }, [onCloseSettings, startTutorial])
 
-    // Filter to show only AI models (isSite !== true), not regular web sites
-    const aiEntries = useMemo(() => Object.entries(aiSites).filter(([, ai]) => !ai.isSite), [aiSites])
+    const aiEntries = useMemo(
+        () => Object.entries(aiSites).filter(([, ai]) => !ai.isSite),
+        [aiSites]
+    )
 
     return (
         <div className="space-y-6 pb-20">
-            {/* Header */}
-            <header className="px-1 mb-2">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/20">
+            <SettingsTabIntro
+                icon={(
+                    <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-2.5 text-emerald-400">
                         <SelectorIcon className="w-5 h-5" />
                     </div>
-                    <div className="space-y-0.5">
-                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">
-                            {t('automation')}
-                        </p>
-                        <h4 className="text-sm font-bold text-white/90 tracking-wide">
-                            {t('element_selectors')}
-                        </h4>
-                    </div>
-                </div>
-            </header>
+                )}
+                eyebrow={t('automation')}
+                title={t('element_selectors')}
+                description={t('selectors_description_simple')}
+            />
 
-            {/* Description */}
-            <div className="px-1">
-                <p className="text-xs text-white/40 leading-relaxed">
-                    {t('selectors_description_simple')}
-                </p>
-            </div>
-
-            {/* AI List with Selector Status */}
-            <div className="px-1 mb-4">
+            <div className="mb-4 px-1">
                 <button
-                    onClick={() => {
-                        startTutorial()
-                        if (onCloseSettings) onCloseSettings()
-                    }}
-                    className="w-full flex items-center gap-4 p-4 rounded-[20px] bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 hover:border-purple-500/40 transition-all group"
+                    onClick={handleStartTutorial}
+                    className="group flex w-full items-center gap-4 rounded-[20px] border border-purple-500/20 bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-4 transition-all hover:border-purple-500/40"
                 >
-                    <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 group-hover:scale-110 transition-transform">
+                    <div className="rounded-xl bg-purple-500/20 p-2.5 text-purple-400 transition-transform group-hover:scale-110">
                         <MagicWandIcon className="w-6 h-6" />
                     </div>
                     <div className="text-left">
-                        <h4 className="text-sm font-bold text-white/90 group-hover:text-purple-300 transition-colors">
+                        <h4 className="text-sm font-bold text-white/90 transition-colors group-hover:text-purple-300">
                             {t('tutorial_button_title')}
                         </h4>
-                        <p className="text-xs text-white/40 group-hover:text-white/60 transition-colors">
+                        <p className="text-xs text-white/40 transition-colors group-hover:text-white/60">
                             {t('tutorial_button_desc')}
                         </p>
                     </div>
-                    <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-purple-400">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                    <div className="ml-auto text-purple-400 opacity-0 transition-opacity group-hover:opacity-100">
+                        <ChevronRightIcon className="w-5 h-5" />
                     </div>
                 </button>
             </div>
 
             <div className="grid gap-3">
-                {aiEntries.map(([key, ai]: [string, AiPlatform]) => {
-                    const selectorHost = findSelectorHost(ai)
-                    const hasSelectors = !!selectorHost
-                    const icon = getAiIcon(ai.icon || key) || <GlobeIcon className="w-5 h-5" />
+                {aiEntries.map(([key, ai]) => {
+                    const selectorHost = findSelectorHost(ai, selectors)
+                    const hasSelectors = Boolean(selectorHost)
 
                     return (
                         <motion.div
                             key={ai.id || key}
                             layout
-                            className={`
-                                group relative flex items-center justify-between p-4 pl-5 rounded-[20px] 
-                                bg-white/[0.03] border border-white/[0.06] 
-                                hover:bg-white/[0.05] hover:border-white/[0.1]
-                                transition-all duration-300
-                            `}
+                            className="
+                                group relative flex items-center justify-between rounded-[20px]
+                                border border-white/[0.06] bg-white/[0.03] p-4 pl-5
+                                transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.05]
+                            "
                         >
                             <div className="flex items-center gap-4">
-                                {/* Icon */}
                                 <div className="relative">
-                                    <div className={`
-                                        p-2.5 rounded-2xl border transition-all duration-300
-                                        ${hasSelectors
-                                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                            : 'bg-white/5 border-white/10 text-white/40'
-                                        }
-                                    `}>
-                                        {icon}
+                                    <div
+                                        className={`
+                                            rounded-2xl border p-2.5 transition-all duration-300
+                                            ${hasSelectors
+                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                                                : 'border-white/10 bg-white/5 text-white/40'
+                                            }
+                                        `}
+                                    >
+                                        {getAiPlatformIcon(ai, key, <GlobeIcon className="w-5 h-5" />)}
                                     </div>
-                                    {/* Selector Checkmark Notification */}
+
                                     {hasSelectors && (
-                                        <div className="absolute -top-1 -right-1 bg-emerald-500 rounded-full border-2 border-[#121212] p-[1px]">
-                                            <svg className="w-2.5 h-2.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="20 6 9 17 4 12" />
-                                            </svg>
+                                        <div className="absolute -right-1 -top-1 rounded-full border-2 border-[#121212] bg-emerald-500 p-[1px]">
+                                            <CheckIcon className="w-2.5 h-2.5 text-black" strokeWidth={4} />
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Info */}
                                 <div>
                                     <h4 className="text-sm font-bold text-white/90">
-                                        {ai.displayName || ai.name}
+                                        {getAiPlatformLabel(ai, key)}
                                     </h4>
-                                    <div className="flex items-center gap-2 mt-0.5">
+                                    <div className="mt-0.5 flex items-center gap-2">
                                         {hasSelectors ? (
-                                            <span className="text-[10px] font-bold text-emerald-400 tracking-wide flex items-center gap-1">
+                                            <span className="flex items-center gap-1 text-[10px] font-bold tracking-wide text-emerald-400">
                                                 {t('selectors_active')}
                                             </span>
                                         ) : (
-                                            <span className="text-[10px] font-medium text-white/20 tracking-wide">
+                                            <span className="text-[10px] font-medium tracking-wide text-white/20">
                                                 {t('no_selectors')}
                                             </span>
                                         )}
@@ -177,18 +163,17 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
                                 </div>
                             </div>
 
-                            {/* Actions */}
                             <div className="flex items-center gap-2">
-                                {/* Delete Selector Button */}
-                                {hasSelectors && (
+                                {selectorHost && (
                                     <button
                                         onClick={() => handleDeleteSelectors(selectorHost)}
                                         disabled={isDeleting}
                                         title={t('delete_selectors')}
-                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg 
-                                                 bg-red-500/10 border border-red-500/20 
-                                                 text-red-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-300
-                                                 transition-all disabled:opacity-50"
+                                        className="
+                                            flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5
+                                            text-red-400 transition-all hover:border-red-500/30 hover:bg-red-500/20 hover:text-red-300
+                                            disabled:opacity-50
+                                        "
                                     >
                                         <TrashIcon className="w-3.5 h-3.5" />
                                         <span className="text-[10px] font-bold uppercase tracking-wider">{t('reset')}</span>
@@ -199,7 +184,6 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
                     )
                 })}
             </div>
-
         </div>
     )
 })
@@ -207,6 +191,3 @@ const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
 SelectorsTab.displayName = 'SelectorsTab'
 
 export default SelectorsTab
-
-
-

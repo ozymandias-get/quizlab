@@ -1,7 +1,8 @@
 ﻿import { memo } from 'react'
 import { motion } from 'framer-motion'
-import { Switch, Field, Label, Description } from '@headlessui/react'
+import { Field, Label, Description } from '@headlessui/react'
 import { EyeIcon } from '@ui/components/Icons'
+import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 
 interface CompactModeToggleProps {
     showOnlyIcons: boolean;
@@ -52,16 +53,11 @@ const CompactModeToggle = memo(({ showOnlyIcons, setShowOnlyIcons, t }: CompactM
                         </Description>
                     </div>
                 </div>
-                <Switch
+                <SettingsToggleSwitch
                     checked={showOnlyIcons}
                     onChange={setShowOnlyIcons}
-                    className={`
-                        group relative flex items-center h-6 w-11 cursor-pointer rounded-full p-1 transition-all duration-300 border
-                        ${showOnlyIcons ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/[0.04] border-white/[0.08]'}
-                    `}
-                >
-                    <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full ring-0 transition duration-300 shadow-lg ${showOnlyIcons ? 'translate-x-5 bg-emerald-500' : 'translate-x-0 bg-white/20'}`} />
-                </Switch>
+                    knobClassName="shadow-lg"
+                />
             </Field>
         </motion.div>
     )

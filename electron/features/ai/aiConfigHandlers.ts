@@ -76,9 +76,5 @@ export function registerAiConfigHandlers() {
         if (!normalizedHostname) return false
         return manager.deleteItem(normalizedHostname)
     })
-
-    ipcMain.handle(IPC_CHANNELS.DELETE_ALL_AI_CONFIGS, async () => {
-        return manager.clear()
-    })
 }
 

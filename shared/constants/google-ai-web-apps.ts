@@ -1,9 +1,9 @@
 export const GOOGLE_AI_WEB_SESSION_PARTITION = 'persist:gemini_web_profile'
 
 export type GoogleWebSessionAppId = 'gemini' | 'notebooklm' | 'aistudio' | 'youtube' | 'gdrive'
-export type GoogleWebSessionSurface = 'ai' | 'site' | 'pdf'
+type GoogleWebSessionSurface = 'ai' | 'site' | 'pdf'
 
-export interface GoogleWebSessionAppDefinition {
+interface GoogleWebSessionAppDefinition {
     id: GoogleWebSessionAppId;
     name: string;
     url: string;
@@ -84,6 +84,5 @@ export const DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS = GOOGLE_WEB_SESSION_APP
 export const GOOGLE_WEB_SESSION_REGISTRY_IDS = GOOGLE_WEB_SESSION_APPS
     .filter((app) => app.registryEligible)
     .map((app) => app.id)
-export const GOOGLE_AI_WEB_APP_IDS = GOOGLE_AI_WEB_APPS.map((app) => app.id)
 export const GOOGLE_DRIVE_WEB_APP = GOOGLE_WEB_SESSION_APPS.find((app) => app.id === 'gdrive') || GOOGLE_WEB_SESSION_APPS[0]
 export const PRIMARY_GOOGLE_AI_WEB_APP = GOOGLE_AI_WEB_APPS[0]

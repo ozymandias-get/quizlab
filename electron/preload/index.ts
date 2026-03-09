@@ -64,7 +64,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveAiConfig: (hostname: string, config: AiSelectorConfig): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.SAVE_AI_CONFIG, hostname, config),
     getAiConfig: (hostname?: string): Promise<AiSelectorConfig | Record<string, AiSelectorConfig> | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_AI_CONFIG, hostname),
     deleteAiConfig: (hostname: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.DELETE_AI_CONFIG, hostname),
-    deleteAllAiConfigs: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.DELETE_ALL_AI_CONFIGS),
     addCustomAi: (data: CustomAiInput): Promise<CustomAiResult> => ipcRenderer.invoke(IPC_CHANNELS.ADD_CUSTOM_AI, data),
     deleteCustomAi: (id: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id),
 

@@ -18,8 +18,6 @@ interface LeftPanelProps {
     pdfFile: PdfFile | null;
     onSelectPdf: () => void;
     onTextSelection?: (text: string, position: { top: number; left: number } | null) => void;
-    width: number;
-    t: (key: string) => string;
     onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult;
     onClearResumePdf?: (path?: string) => void;
     onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void;

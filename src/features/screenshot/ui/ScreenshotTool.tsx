@@ -108,6 +108,12 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
     if (!isActive) return null
 
     const selectionRect = getSelectionRect()
+    const selectionBounds = [
+        { top: 0, left: 0, width: '100%', height: selectionRect.top },
+        { top: selectionRect.top, left: 0, width: selectionRect.left, height: selectionRect.height },
+        { top: selectionRect.top, left: selectionRect.left + selectionRect.width, right: 0, height: selectionRect.height },
+        { top: selectionRect.top + selectionRect.height, left: 0, width: '100%', bottom: 0 }
+    ]
 
     return (
         <div
@@ -120,11 +126,9 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
 
             {isSelecting && selectionRect.width > 0 && selectionRect.height > 0 && (
                 <>
-                    <div className="screenshot-dim" style={{ top: 0, left: 0, width: '100%', height: selectionRect.top }} />
-                    <div className="screenshot-dim" style={{ top: selectionRect.top, left: 0, width: selectionRect.left, height: selectionRect.height }} />
-                    <div className="screenshot-dim" style={{ top: selectionRect.top, left: selectionRect.left + selectionRect.width, right: 0, height: selectionRect.height }} />
-                    <div className="screenshot-dim" style={{ top: selectionRect.top + selectionRect.height, left: 0, width: '100%', bottom: 0 }} />
-
+                    {selectionBounds.map((style, index) => (
+                        <div key={index} className="screenshot-dim" style={style} />
+                    ))}
 
                     <div
                         className="screenshot-selection"

@@ -35,15 +35,4 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Font loading state handling */
-/* fonts.ready API ile daha iyi kontrol sağlanabilir */
-.fonts-loading {
-  /* Font yüklenirken geçici stil */
-  opacity: 0.99; /* Minimal reflow için */
-}
-
-.fonts-loaded {
-  /* Font yüklendikten sonra */
-  opacity: 1;
-}
 

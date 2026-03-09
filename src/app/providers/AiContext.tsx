@@ -71,6 +71,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
     const { sendTextToAI, sendImageToAI } = useAiMessaging({
         webviewInstance,
         currentAI,
+        activeTabId,
         autoSend,
         aiRegistry,
         showSuccess,

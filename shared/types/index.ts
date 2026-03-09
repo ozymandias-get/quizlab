@@ -25,6 +25,38 @@ export type AutomationConfig = {
     [key: string]: unknown;
 }
 
+export type AutomationLookupStrategy = 'cache' | 'direct' | 'recursive' | 'none'
+
+export interface AutomationSelectorDiagnostics {
+    requestedSelector: string | null;
+    matchedSelector: string | null;
+    strategy: AutomationLookupStrategy;
+    durationMs: number;
+    waitIterations: number;
+    cacheHits: number;
+    cacheInvalidations: number;
+    interactiveRequired: boolean;
+}
+
+export interface AutomationExecutionDiagnostics {
+    kind: 'focus' | 'auto_send' | 'click_send';
+    pageUrl: string;
+    totalMs: number;
+    input: AutomationSelectorDiagnostics;
+    button?: AutomationSelectorDiagnostics;
+    setInputMs: number;
+    submitMs: number;
+    error: string | null;
+}
+
+export interface AutomationExecutionResult {
+    success: boolean;
+    error?: string;
+    mode?: string;
+    action?: string;
+    diagnostics?: AutomationExecutionDiagnostics;
+}
+
 export type AiPlatformMeta = {
     displayName?: string;
     submitMode?: SubmitMode;

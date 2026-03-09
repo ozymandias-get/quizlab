@@ -8,24 +8,23 @@
  *
  * This file is the single source of truth for:
  *   - Type re-exports from @shared-core/types
- *   - Frontend constants (Difficulty, ModelType, QuestionStyle, etc.)
+ *   - Frontend constants (Difficulty, QuestionStyle, etc.)
  *   - Pure utility functions (no side effects, no API calls)
  */
 
 import type {
     DifficultyType,
-    ModelTypeEnum,
     QuestionStyleEnum
 } from '@shared-core/types'
 
 import type { Question, QuizSettings } from '../model/types'
-import { Difficulty, ModelType, QuestionStyle, DEFAULT_SETTINGS, INITIAL_QUIZ_STATE } from '../model/constants'
+import { Difficulty, QuestionStyle, DEFAULT_SETTINGS, INITIAL_QUIZ_STATE } from '../model/constants'
 import { STYLE_ICONS, getModelConfigs } from '../ui/constants'
 
 // Re-export shared types
-export type { DifficultyType, ModelTypeEnum, QuestionStyleEnum, Question, QuizSettings }
+export type { DifficultyType, QuestionStyleEnum, Question, QuizSettings }
 
 // Re-export constants
-export { Difficulty, ModelType, QuestionStyle, DEFAULT_SETTINGS, STYLE_ICONS, getModelConfigs, INITIAL_QUIZ_STATE }
+export { Difficulty, QuestionStyle, DEFAULT_SETTINGS, STYLE_ICONS, getModelConfigs, INITIAL_QUIZ_STATE }
 
 

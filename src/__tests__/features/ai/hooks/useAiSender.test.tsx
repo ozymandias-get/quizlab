@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -56,12 +56,11 @@ const createWrapper = () => {
         },
     })
     return ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient} > {children} </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
 }
 
 describe('useAiSender', () => {
-    // Setup Electron API mock
     const mockGenerateAutoSendScript = vi.fn()
     const mockGenerateClickSendScript = vi.fn()
     const mockGenerateFocusScript = vi.fn()
@@ -69,6 +68,34 @@ describe('useAiSender', () => {
     const mockGetAiConfig = vi.fn()
 
     const originalElectronAPI = window.electronAPI
+    const mockScriptDiagnostics = {
+        kind: 'auto_send',
+        pageUrl: 'https://openai.com/chat',
+        totalMs: 12,
+        input: {
+            requestedSelector: '#input',
+            matchedSelector: '#input',
+            strategy: 'direct',
+            durationMs: 2,
+            waitIterations: 1,
+            cacheHits: 0,
+            cacheInvalidations: 0,
+            interactiveRequired: false
+        },
+        button: {
+            requestedSelector: '#send',
+            matchedSelector: '#send',
+            strategy: 'direct',
+            durationMs: 1,
+            waitIterations: 1,
+            cacheHits: 0,
+            cacheInvalidations: 0,
+            interactiveRequired: true
+        },
+        setInputMs: 4,
+        submitMs: 5,
+        error: null
+    } as const
 
     const mockWebview = {
         getURL: vi.fn(),
@@ -80,7 +107,6 @@ describe('useAiSender', () => {
     }
 
     const mockWebviewRef = { current: mockWebview } as any
-
     const mockAiRegistry = {
         'gpt-4': {
             input: '#input',
@@ -104,11 +130,15 @@ describe('useAiSender', () => {
             getAiConfig: mockGetAiConfig
         } as any
 
-        // Defaults
         mockWebview.getURL.mockReturnValue('https://openai.com/chat')
-        mockWebview.executeJavaScript.mockResolvedValue({ success: true, mode: 'click' })
+        mockWebview.executeJavaScript.mockResolvedValue({
+            success: true,
+            mode: 'click',
+            diagnostics: mockScriptDiagnostics
+        })
         mockGenerateAutoSendScript.mockResolvedValue('document.querySelector("#input").value = "text";')
         mockGenerateFocusScript.mockResolvedValue('focus()')
+        mockGenerateClickSendScript.mockResolvedValue('click()')
         mockGetAiConfig.mockResolvedValue({})
     })
 
@@ -116,20 +146,16 @@ describe('useAiSender', () => {
         window.electronAPI = originalElectronAPI
     })
 
-    it('sends text successfully', async () => {
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+    it('sends text successfully with diagnostics', async () => {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendTextToAI('hello')
         })
 
-        if (!res.success) {
-            console.error('sendTextToAI failed with:', res.error)
-        }
         expect(res).toEqual(expect.objectContaining({ success: true }))
         expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
             expect.objectContaining({ input: '#input' }),
@@ -137,11 +163,15 @@ describe('useAiSender', () => {
             false
         )
         expect(mockWebview.executeJavaScript).toHaveBeenCalled()
+        expect(res.diagnostics?.tabId).toBe('tab-1')
+        expect(res.diagnostics?.currentAI).toBe('gpt-4')
+        expect(res.diagnostics?.currentUrl).toBe('https://openai.com/chat')
+        expect(res.diagnostics?.script?.kind).toBe('auto_send')
     })
 
     it('injects active prompt if present', async () => {
         mockUsePrompts.mockReturnValue({ activePromptText: 'Act as a expert' })
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
@@ -158,7 +188,7 @@ describe('useAiSender', () => {
 
     it('merges local prompt text with active prompt', async () => {
         mockUsePrompts.mockReturnValue({ activePromptText: 'Act as a expert' })
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
@@ -175,27 +205,26 @@ describe('useAiSender', () => {
 
     it('handles cached config with regex validation', async () => {
         mockWebview.getURL.mockReturnValue('https://other.com')
-        // Regex for gpt-4 is openai.com, so this should fail regex check if enforced?
-        // Code: if (regex) { if (!regex.test(currentUrl)) return error }
 
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendTextToAI('hello')
         })
+
         expect(res.success).toBe(false)
         expect(res.error).toBe('wrong_url')
+        expect(res.diagnostics?.currentUrl).toBe('https://other.com')
     })
 
     it('fetches custom config from API', async () => {
         mockWebview.getURL.mockReturnValue('https://openai.com')
         mockGetAiConfig.mockResolvedValue({ input: '.custom-input', button: '.custom-btn' })
 
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
@@ -203,35 +232,36 @@ describe('useAiSender', () => {
             await result.current.sendTextToAI('hello')
         })
 
-        // Should trigger getAiConfig
         expect(mockGetAiConfig).toHaveBeenCalledWith('openai.com')
-
-        // And use new selectors
         const calls = mockGenerateAutoSendScript.mock.calls
         expect(calls.length).toBeGreaterThan(0)
-        // Check the second argument (options) or first depending on structure
-        // useGenerateAutoSendScript calls api.generateAutoSendScript(config, text, submit)
-        // Wait, the hook calls mutate({ config, text, submit }).
-        // The mockGenerateAutoSendScript is the WINDOW API mock.
-        // It receives (config, text, submit)
 
         const configArg = calls[0][0]
         expect(configArg.input).toBe('.custom-input')
         expect(configArg.button).toBe('.custom-btn')
     })
 
-    it('sends image successfully (paste + prompt)', async () => {
+    it('sends image successfully and captures script diagnostics', async () => {
         const imageDataUrl = 'data:image/png;base64,xxxx'
         mockCopyImageToClipboard.mockResolvedValue(true)
         mockGenerateFocusScript.mockResolvedValue('focus()')
         mockGenerateAutoSendScript.mockResolvedValue('send()')
         mockUsePrompts.mockReturnValue({ activePromptText: 'Describe this' })
+        mockWebview.executeJavaScript
+            .mockResolvedValueOnce({
+                success: true,
+                diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+            })
+            .mockResolvedValueOnce({
+                success: true,
+                mode: 'click',
+                diagnostics: mockScriptDiagnostics
+            })
 
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', true, mockAiRegistry as any), {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', true, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendImageToAI(imageDataUrl)
@@ -239,14 +269,14 @@ describe('useAiSender', () => {
 
         expect(res.success).toBe(true)
         expect(mockCopyImageToClipboard).toHaveBeenCalledWith(imageDataUrl)
-        expect(mockWebview.pasteNative).toHaveBeenCalled() // Electron 22+ path
-
-        // Prompt injection
+        expect(mockWebview.pasteNative).toHaveBeenCalled()
         expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
             expect.anything(),
             'Describe this',
             true
         )
+        expect(res.diagnostics?.focusScript?.kind).toBe('focus')
+        expect(res.diagnostics?.promptScript?.kind).toBe('auto_send')
     })
 
     it('uses local image prompt without a global prompt', async () => {
@@ -254,8 +284,17 @@ describe('useAiSender', () => {
         mockCopyImageToClipboard.mockResolvedValue(true)
         mockGenerateFocusScript.mockResolvedValue('focus()')
         mockGenerateAutoSendScript.mockResolvedValue('send()')
+        mockWebview.executeJavaScript
+            .mockResolvedValueOnce({
+                success: true,
+                diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+            })
+            .mockResolvedValueOnce({
+                success: true,
+                diagnostics: mockScriptDiagnostics
+            })
 
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
@@ -272,19 +311,33 @@ describe('useAiSender', () => {
 
     it('handles clipboard failure', async () => {
         mockCopyImageToClipboard.mockResolvedValue(false)
-        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any), {
+        const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'), {
             wrapper: createWrapper()
         })
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let res: any
         await act(async () => {
             res = await result.current.sendImageToAI('data:image/png;base64,xx')
         })
+
         expect(res.success).toBe(false)
         expect(res.error).toBe('clipboard_failed')
+        expect(res.diagnostics?.timings.clipboardMs).toBeDefined()
+    })
+
+    it('returns diagnostics when no webview is available', async () => {
+        const emptyRef = { current: null as any }
+        const { result } = renderHook(() => useAiSender(emptyRef, 'gpt-4', false, mockAiRegistry as any, 'tab-stale'), {
+            wrapper: createWrapper()
+        })
+
+        let res: any
+        await act(async () => {
+            res = await result.current.sendTextToAI('hello')
+        })
+
+        expect(res.success).toBe(false)
+        expect(res.error).toBe('invalid_input')
+        expect(res.diagnostics?.tabId).toBe('tab-stale')
     })
 })
-
-
-

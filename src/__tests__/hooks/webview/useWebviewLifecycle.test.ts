@@ -1,4 +1,4 @@
-﻿import { renderHook, act } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
 
@@ -19,7 +19,6 @@ describe('useWebviewLifecycle', () => {
         vi.useRealTimers()
     })
 
-    // Helper to create a mock webview element
     const createMockWebview = () => {
         const listeners: Record<string, Function> = {}
         return {
@@ -32,10 +31,9 @@ describe('useWebviewLifecycle', () => {
             reload: vi.fn(),
             executeJavaScript: vi.fn(),
             insertCSS: vi.fn().mockResolvedValue(undefined),
-            // Methods required by WebviewElement interface (partial mock)
+            getURL: vi.fn(() => 'https://example.com'),
             src: '',
             nodeName: 'WEBVIEW',
-            // Helper to trigger events
             _trigger: (event: string, ...args: any[]) => {
                 if (listeners[event]) {
                     listeners[event](...args)
@@ -65,31 +63,25 @@ describe('useWebviewLifecycle', () => {
         }))
 
         const mockWebview = createMockWebview()
-
-        // Simulate ref callback
         act(() => {
             result.current.onWebviewRef(mockWebview as any)
         })
 
-        // Check if event listeners were added
         expect(mockWebview.addEventListener).toHaveBeenCalledWith('did-start-loading', expect.any(Function))
         expect(mockWebview.addEventListener).toHaveBeenCalledWith('did-stop-loading', expect.any(Function))
         expect(mockWebview.addEventListener).toHaveBeenCalledWith('did-fail-load', expect.any(Function))
         expect(mockWebview.addEventListener).toHaveBeenCalledWith('dom-ready', expect.any(Function))
 
-        // Trigger stop loading
         act(() => {
             mockWebview._trigger('did-stop-loading')
         })
         expect(result.current.isLoading).toBe(false)
 
-        // Trigger start loading
         act(() => {
             mockWebview._trigger('did-start-loading')
         })
         expect(result.current.isLoading).toBe(true)
 
-        // Trigger fail load
         act(() => {
             mockWebview._trigger('did-fail-load', { errorCode: -100, errorDescription: 'Failed' })
         })
@@ -110,15 +102,13 @@ describe('useWebviewLifecycle', () => {
             result.current.onWebviewRef(mockWebview as any)
         })
 
-        // Trigger crash
         act(() => {
             mockWebview._trigger('render-process-gone')
         })
 
         expect(mockShowWarning).toHaveBeenCalledWith('webview_crashed_retrying')
-        expect(mockWebview.reload).not.toHaveBeenCalled() // Waits for delay
+        expect(mockWebview.reload).not.toHaveBeenCalled()
 
-        // Fast-forward time
         act(() => {
             vi.runAllTimers()
         })
@@ -139,7 +129,6 @@ describe('useWebviewLifecycle', () => {
             result.current.onWebviewRef(mockWebview as any)
         })
 
-        // Retry 3 times
         for (let i = 0; i < 3; i++) {
             act(() => {
                 mockWebview._trigger('render-process-gone')
@@ -147,7 +136,6 @@ describe('useWebviewLifecycle', () => {
             })
         }
 
-        // 4th crash
         act(() => {
             mockWebview._trigger('render-process-gone')
         })
@@ -156,18 +144,6 @@ describe('useWebviewLifecycle', () => {
     })
 
     it('should register webview methods', () => {
-        renderHook(() => useWebviewLifecycle({
-            currentAI: 'test-ai',
-            t: mockT,
-            showWarning: mockShowWarning,
-            registerWebview: mockRegisterWebview
-        }))
-
-        // Initially called with null (cleanup/init) or methods once ref is available. 
-        // Wait, the hook calls registerWebview(methods) when ref is available.
-        // And registerWebview(null) on unmount.
-
-        // Let's create a ref
         const { result } = renderHook(() => useWebviewLifecycle({
             currentAI: 'test-ai',
             t: mockT,
@@ -175,6 +151,7 @@ describe('useWebviewLifecycle', () => {
             registerWebview: mockRegisterWebview
         }))
         const mockWebview = createMockWebview()
+
         act(() => {
             result.current.onWebviewRef(mockWebview as any)
         })
@@ -198,7 +175,6 @@ describe('useWebviewLifecycle', () => {
             result.current.onWebviewRef(mockWebview as any)
         })
 
-        // Trigger aborted error
         act(() => {
             mockWebview._trigger('did-fail-load', { errorCode: -3 })
         })
@@ -226,5 +202,26 @@ describe('useWebviewLifecycle', () => {
         expect(mockWebview.insertCSS).toHaveBeenCalledTimes(1)
         expect(mockWebview.insertCSS).toHaveBeenCalledWith(expect.stringContaining('::-webkit-scrollbar'))
     })
-})
 
+    it('returns undefined from controller access after the webview ref is cleared', () => {
+        const { result } = renderHook(() => useWebviewLifecycle({
+            currentAI: 'test-ai',
+            t: mockT,
+            showWarning: mockShowWarning,
+            registerWebview: mockRegisterWebview
+        }))
+
+        const mockWebview = createMockWebview()
+        act(() => {
+            result.current.onWebviewRef(mockWebview as any)
+        })
+
+        const controller = mockRegisterWebview.mock.calls[mockRegisterWebview.mock.calls.length - 1]?.[0]
+
+        act(() => {
+            result.current.onWebviewRef(null)
+        })
+
+        expect(controller.executeJavaScript('1 + 1')).toBeUndefined()
+    })
+})

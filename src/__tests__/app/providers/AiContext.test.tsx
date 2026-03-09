@@ -213,7 +213,7 @@ describe('AiContext', () => {
             await result.current.sendTextToAI('hello')
         })
 
-        expect(mockSendText).toHaveBeenCalledWith('hello')
+        expect(mockSendText).toHaveBeenCalledWith('hello', undefined)
         // Success doesn't trigger toast for text
         expect(mockShowSuccess).not.toHaveBeenCalled()
 

@@ -15,7 +15,6 @@ const isWebDevMode = !isElectron && import.meta.env.DEV
 
 if (isWebDevMode) {
     window.electronAPI = createBrowserElectronApi()
-    console.info('[quizlab] Running in web dev mode with mocked electronAPI bridge.')
 }
 
 if (!isElectron && !isWebDevMode) {

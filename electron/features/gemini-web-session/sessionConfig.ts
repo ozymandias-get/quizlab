@@ -7,7 +7,7 @@ import type {
 export const PROFILE_PARTITION = 'persist:gemini_web_profile'
 export const HEALTH_TIMEOUT_MS = 30_000
 
-export function parseEnvNumber(name: string, fallback: number, min: number, max: number): number {
+function parseEnvNumber(name: string, fallback: number, min: number, max: number): number {
     const raw = process.env[name]?.trim()
     if (!raw) return fallback
     const parsed = Number(raw)
@@ -42,11 +42,11 @@ export const DEFAULT_CONFIG: Omit<GeminiWebSessionConfig, 'profileDir'> = {
     maxConsecutiveFailures: parseEnvNumber('GEMINI_WEB_MAX_CONSECUTIVE_FAILURES', 2, 1, 5)
 }
 
-export const SESSION_STATES: GeminiWebSessionState[] = [
+const SESSION_STATES: GeminiWebSessionState[] = [
     'uninitialized', 'auth_required', 'authenticated', 'degraded', 'reauth_required'
 ]
 
-export const REASON_CODES: GeminiWebSessionReasonCode[] = [
+const REASON_CODES: GeminiWebSessionReasonCode[] = [
     'none', 'login_redirect', 'challenge', 'network', 'unknown', 'reset_profile_required'
 ]
 

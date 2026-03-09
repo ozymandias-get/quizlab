@@ -1,7 +1,9 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { AiSendOptions } from '@features/ai'
+import type { AiSendOptions, AiSendResult } from '@features/ai'
 import type { AiPlatform } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
+
+export type { AiSendResult }
 
 export interface PinnedTabStorage {
     id: string;
@@ -14,13 +16,6 @@ export interface Tab {
     modelId: string;
     title?: string;
     pinned?: boolean;
-}
-
-export interface AiSendResult {
-    success: boolean;
-    error?: string;
-    mode?: string;
-    actualUrl?: string;
 }
 
 export interface AiDraftTextItem {

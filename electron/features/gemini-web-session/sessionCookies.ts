@@ -4,7 +4,7 @@ import path from 'path'
 import type { ExternalBrowserCookie } from './playwrightLogin'
 import { PROFILE_PARTITION } from './sessionConfig'
 
-export async function clearGoogleCookies(targetSession: Session): Promise<void> {
+async function clearGoogleCookies(targetSession: Session): Promise<void> {
     const existingCookies = await targetSession.cookies.get({})
 
     for (const cookie of existingCookies) {
@@ -17,7 +17,7 @@ export async function clearGoogleCookies(targetSession: Session): Promise<void> 
     }
 }
 
-export function buildElectronCookiePayload(cookie: ExternalBrowserCookie): Electron.CookiesSetDetails | null {
+function buildElectronCookiePayload(cookie: ExternalBrowserCookie): Electron.CookiesSetDetails | null {
     if (!cookie.domain || !cookie.name) return null
     if (!cookie.domain.includes('google.com')) return null
 
@@ -67,7 +67,7 @@ export async function importExternalCookies(targetSession: Session, cookies: Ext
     }
 }
 
-export async function ensurePartitionStoragePath(targetSession: Session): Promise<void> {
+async function ensurePartitionStoragePath(targetSession: Session): Promise<void> {
     const sessionStoragePath = (targetSession as Session & { storagePath?: string }).storagePath
     const partitionName = PROFILE_PARTITION.replace(/^persist:/, '')
     const fallbackPartitionPath = path.join(app.getPath('userData'), 'Partitions', partitionName)
@@ -79,7 +79,7 @@ export async function ensurePartitionStoragePath(targetSession: Session): Promis
     await fs.mkdir(fallbackPartitionPath, { recursive: true }).catch(() => { })
 }
 
-export async function detachPartitionWebContents(targetSession: Session): Promise<void> {
+async function detachPartitionWebContents(targetSession: Session): Promise<void> {
     const contents = webContents
         .getAllWebContents()
         .filter(item => !item.isDestroyed() && item.session === targetSession)

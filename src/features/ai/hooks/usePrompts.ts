@@ -4,7 +4,7 @@ import { useLocalStorage, useLocalStorageString } from '@shared/hooks/useLocalSt
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { DEFAULT_PROMPTS, IPrompt } from '@shared/constants/prompts'
 
-export interface Prompt extends IPrompt {
+interface Prompt extends IPrompt {
     isDefault?: boolean;
 }
 

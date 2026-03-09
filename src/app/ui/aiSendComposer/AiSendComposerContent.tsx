@@ -65,9 +65,12 @@ function AiSendComposerContent({
     const { t } = useLanguage()
     const hasNoteText = noteText.trim().length > 0
 
+    if (collapsed) {
+        return null
+    }
+
     return (
         <>
-            {!collapsed ? (
                 <div
                     className="relative overflow-y-auto space-y-3 px-4 pb-3 pt-3"
                     style={{ height: bodyHeight }}
@@ -194,58 +197,53 @@ function AiSendComposerContent({
                         />
                     </section>
                 </div>
-            ) : null}
 
-            {!collapsed ? (
-                <>
-                    <div
-                        className="relative flex justify-end gap-2 border-t border-white/[0.06] px-4 py-3 backdrop-blur-xl"
-                        style={{ background: footerSurface }}
+            <div
+                className="relative flex justify-end gap-2 border-t border-white/[0.06] px-4 py-3 backdrop-blur-xl"
+                style={{ background: footerSurface }}
+            >
+                {hasNoteText ? (
+                    <Button
+                        onClick={() => onSubmit({ autoSend: true })}
+                        disabled={isSubmitting || totalItems === 0}
+                        variant="outline"
+                        className="rounded-full border border-emerald-400/20 bg-emerald-500/12 px-4 py-2.5 text-[13px] font-medium text-emerald-100 shadow-[0_8px_24px_-10px_rgba(16,185,129,0.45)] transition-all duration-300 hover:scale-[1.02] hover:bg-emerald-500/18 active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
                     >
-                        {hasNoteText ? (
-                            <Button
-                                onClick={() => onSubmit({ autoSend: true })}
-                                disabled={isSubmitting || totalItems === 0}
-                                variant="outline"
-                                className="rounded-full border border-emerald-400/20 bg-emerald-500/12 px-4 py-2.5 text-[13px] font-medium text-emerald-100 shadow-[0_8px_24px_-10px_rgba(16,185,129,0.45)] transition-all duration-300 hover:scale-[1.02] hover:bg-emerald-500/18 active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
-                            >
-                                <span className="relative z-10 flex items-center gap-2">
-                                    {t('auto_send')}
-                                </span>
-                            </Button>
-                        ) : null}
-
-                        <Button
-                            onClick={() => onSubmit()}
-                            disabled={isSubmitting || totalItems === 0}
-                            className="group rounded-full border-0 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_30px_-6px_rgba(0,0,0,0.6)] active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
-                            style={{
-                                background: `linear-gradient(135deg, ${accentStrong}, rgba(255,255,255,0.18))`
-                            }}
-                        >
-                            <span className="relative z-10 flex items-center gap-2">
-                                {isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
-                            </span>
-                            <div className="absolute inset-0 rounded-full bg-white opacity-0 transition-opacity duration-300 group-hover:opacity-10 group-active:opacity-20" />
-                        </Button>
-                    </div>
-
-                    <button
-                        type="button"
-                        onPointerDown={onResizeStart}
-                        onPointerMove={onResizeMove}
-                        onPointerUp={onResizeEnd}
-                        onPointerCancel={onResizeEnd}
-                        className="absolute bottom-2 right-2 flex h-7 w-7 cursor-nwse-resize items-end justify-end rounded-full text-white/30 transition-colors hover:text-white/65"
-                        title={t('ai_send_resize')}
-                    >
-                        <span className="relative block h-4 w-4">
-                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-br-[0.55rem] border-b-2 border-r-2 border-current" />
-                            <span className="absolute bottom-1.5 right-1.5 h-2 w-2 rounded-br-[0.45rem] border-b-2 border-r-2 border-current opacity-60" />
+                        <span className="relative z-10 flex items-center gap-2">
+                            {t('auto_send')}
                         </span>
-                    </button>
-                </>
-            ) : null}
+                    </Button>
+                ) : null}
+
+                <Button
+                    onClick={() => onSubmit()}
+                    disabled={isSubmitting || totalItems === 0}
+                    className="group rounded-full border-0 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_30px_-6px_rgba(0,0,0,0.6)] active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
+                    style={{
+                        background: `linear-gradient(135deg, ${accentStrong}, rgba(255,255,255,0.18))`
+                    }}
+                >
+                    <span className="relative z-10 flex items-center gap-2">
+                        {isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
+                    </span>
+                    <div className="absolute inset-0 rounded-full bg-white opacity-0 transition-opacity duration-300 group-hover:opacity-10 group-active:opacity-20" />
+                </Button>
+            </div>
+
+            <button
+                type="button"
+                onPointerDown={onResizeStart}
+                onPointerMove={onResizeMove}
+                onPointerUp={onResizeEnd}
+                onPointerCancel={onResizeEnd}
+                className="absolute bottom-2 right-2 flex h-7 w-7 cursor-nwse-resize items-end justify-end rounded-full text-white/30 transition-colors hover:text-white/65"
+                title={t('ai_send_resize')}
+            >
+                <span className="relative block h-4 w-4">
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-br-[0.55rem] border-b-2 border-r-2 border-current" />
+                    <span className="absolute bottom-1.5 right-1.5 h-2 w-2 rounded-br-[0.45rem] border-b-2 border-r-2 border-current opacity-60" />
+                </span>
+            </button>
         </>
     )
 }

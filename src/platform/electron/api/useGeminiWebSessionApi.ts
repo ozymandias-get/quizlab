@@ -2,7 +2,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { UseQueryOptions } from '@tanstack/react-query'
 import { useElectronMutation, useElectronQuery } from '../useElectron'
 import type { GeminiWebSessionActionResult, GeminiWebSessionStatus } from '@shared-core/types'
-import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 import { useLanguage } from '@app/providers/LanguageContext'
 
 const GEMINI_WEB_STATUS_KEY = ['gemini-web', 'status']
@@ -63,14 +62,6 @@ export function useGeminiWebSetEnabled() {
     return useGeminiWebMutation<boolean>(
         (api, enabled) => api.geminiWeb.setEnabled(enabled),
         'toast_gws_toggle_failed',
-        { invalidateAiRegistry: true }
-    )
-}
-
-export function useGeminiWebSetEnabledApps() {
-    return useGeminiWebMutation<GoogleWebSessionAppId[]>(
-        (api, enabledAppIds) => api.geminiWeb.setEnabledApps(enabledAppIds),
-        'toast_gws_apps_failed',
         { invalidateAiRegistry: true }
     )
 }

@@ -43,11 +43,7 @@ function QuizConfigPanel({
     onStartDemo,
     isDemoMode = false
 }: QuizConfigPanelProps) {
-    const [activeSection, setActiveSection] = useState<string | null>(null)
-
-    const toggleSection = (section: string) => {
-        setActiveSection(activeSection === section ? null : section)
-    }
+    const [isFocusOpen, setIsFocusOpen] = useState(false)
 
     const hasPdf = !!(pdfPath && pdfPath.length > 0)
     const canStart = hasPdf || isDemoMode
@@ -123,14 +119,14 @@ function QuizConfigPanel({
                 <div className="quiz-glass-card glass-surface glass-surface--card overflow-hidden">
                     <motion.button
                         type="button"
-                        onClick={() => toggleSection('focus')}
+                        onClick={() => setIsFocusOpen(open => !open)}
                         className={cn(
                             buttonBaseClass,
                             'w-full justify-between p-5 hover:bg-white/5 transition-colors whitespace-normal'
                         )}
                     >
                         <div className="flex items-center gap-3">
-                            <div className={`p-2.5 rounded-xl transition-all duration-300 ${activeSection === 'focus'
+                            <div className={`p-2.5 rounded-xl transition-all duration-300 ${isFocusOpen
                                 ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/10 text-amber-400'
                                 : 'bg-white/10 text-white/50'
                                 }`}>
@@ -142,7 +138,7 @@ function QuizConfigPanel({
                             </div>
                         </div>
                         <motion.div
-                            animate={{ rotate: activeSection === 'focus' ? 180 : 0 }}
+                            animate={{ rotate: isFocusOpen ? 180 : 0 }}
                             transition={{ duration: 0.3 }}
                         >
                             <ChevronDown className="w-5 h-5 text-white/40" />
@@ -150,7 +146,7 @@ function QuizConfigPanel({
                     </motion.button>
 
                     <AnimatePresence>
-                        {activeSection === 'focus' && (
+                        {isFocusOpen && (
                             <motion.div
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}

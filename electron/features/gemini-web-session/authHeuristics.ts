@@ -86,14 +86,3 @@ export function classifyAuthProbe(rawUrl: string, snapshot: DomProbeSnapshot, ha
 
     return buildOutcome('unknown')
 }
-
-export function sanitizeUrl(rawUrl: string): string {
-    try {
-        const parsed = new URL(rawUrl)
-        parsed.search = ''
-        parsed.hash = ''
-        return parsed.toString()
-    } catch {
-        return rawUrl
-    }
-}

@@ -45,10 +45,3 @@ webview {
   height: 0;
   display: none;
 }
-
-.gpu-accelerated {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  perspective: 1000px;
-  will-change: transform, opacity;
-}

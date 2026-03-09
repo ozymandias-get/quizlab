@@ -1,7 +1,8 @@
-﻿import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { InfoIcon } from '@ui/components/Icons'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToast } from '@app/providers/ToastContext'
+import AboutActionCard from './AboutActionCard'
 
 interface IssueReportCardProps {
     t: (key: string) => string;
@@ -73,25 +74,23 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
     }, [appVersion, isCopying, showError, showSuccess, t])
 
     return (
-        <div className="flex items-center justify-between p-6 rounded-[24px] bg-white/[0.04] border border-white/[0.12]">
-            <div className="space-y-1">
-                <h4 className="text-sm font-bold text-white">{t('report_issue_title')}</h4>
-                <p className="text-xs text-white/40">{t('report_issue_desc')}</p>
-            </div>
-
-            <button
-                onClick={handleCopy}
-                disabled={isCopying}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 disabled:opacity-60"
-            >
-                <InfoIcon className="w-4 h-4" />
-                {isCopying ? t('loading') : t('copy_logs')}
-            </button>
-        </div>
+        <AboutActionCard
+            title={t('report_issue_title')}
+            description={t('report_issue_desc')}
+            trailing={(
+                <button
+                    onClick={handleCopy}
+                    disabled={isCopying}
+                    className="flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-5 py-2.5 text-xs font-bold text-blue-400 transition-all hover:bg-blue-500/20 disabled:opacity-60"
+                >
+                    <InfoIcon className="w-4 h-4" />
+                    {isCopying ? t('loading') : t('copy_logs')}
+                </button>
+            )}
+        />
     )
 })
 
 IssueReportCard.displayName = 'IssueReportCard'
 
 export default IssueReportCard
-

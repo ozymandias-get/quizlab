@@ -15,7 +15,6 @@ export const IPC_CHANNELS = {
     SAVE_AI_CONFIG: 'save-ai-config',
     GET_AI_CONFIG: 'get-ai-config',
     DELETE_AI_CONFIG: 'delete-ai-config',
-    DELETE_ALL_AI_CONFIGS: 'delete-all-ai-configs',
     // AI Registry & Automation (Main Process Data)
     GET_AI_REGISTRY: 'get-ai-registry',
     GET_AUTOMATION_SCRIPTS: 'get-automation-scripts',

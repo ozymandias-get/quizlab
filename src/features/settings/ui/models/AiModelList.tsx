@@ -1,22 +1,11 @@
 ﻿
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Switch, Field, Label, Description } from '@headlessui/react'
-import { GridIcon, getAiIcon } from '@ui/components/Icons'
+import { Field, Label, Description } from '@headlessui/react'
+import { GridIcon, TrashIcon } from '@ui/components/Icons'
 import type { AiPlatform } from '@shared-core/types'
-
-interface IconProps {
-    className?: string;
-}
-
-const TrashIcon = ({ className }: IconProps) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-        <line x1="10" y1="11" x2="10" y2="17" />
-        <line x1="14" y1="11" x2="14" y2="17" />
-    </svg>
-)
+import { getAiPlatformIcon, getAiPlatformLabel } from '../shared/aiPlatformPresentation'
+import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 
 const StarIcon = ({ className, filled }: { className?: string; filled?: boolean }) => (
     <svg className={className} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -54,8 +43,13 @@ export const AiModelList: React.FC<AiModelListProps> = ({
 
     const onDeleteClick = async (e: React.MouseEvent, id: string, name: string) => {
         setLocalDeletingId(id)
-        await handleDeleteAi(e, id, name)
-        setLocalDeletingId(null)
+        try {
+            await handleDeleteAi(e, id, name)
+        } catch {
+            // Parent handlers surface delete failures when needed.
+        } finally {
+            setLocalDeletingId(null)
+        }
     }
 
     return (
@@ -97,10 +91,7 @@ export const AiModelList: React.FC<AiModelListProps> = ({
                                                 : 'bg-white/[0.02] border-white/[0.06] text-white/20'
                                             }
                                         `}>
-                                            {(() => {
-                                                const icon = getAiIcon(site?.icon || key);
-                                                return icon ? icon : <GridIcon className="w-5 h-5" />;
-                                            })()}
+                                            {getAiPlatformIcon(site, key, <GridIcon className="w-5 h-5" />)}
                                         </div>
                                         {/* Status Dot */}
                                         {isEnabled && (
@@ -116,11 +107,7 @@ export const AiModelList: React.FC<AiModelListProps> = ({
                                     <div className="space-y-0.5">
                                         <div className="flex items-center gap-2">
                                             <Label className={`text-sm font-bold transition-colors duration-300 ${isEnabled ? 'text-white' : 'text-white/50'}`}>
-                                                {(() => {
-                                                    const translated = t(key);
-                                                    if (translated && translated !== key) return translated;
-                                                    return site.displayName || site.name || (key.charAt(0).toUpperCase() + key.slice(1));
-                                                })()}
+                                                {getAiPlatformLabel(site, key, t)}
                                             </Label>
                                             {isCustom && (
                                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/20">
@@ -155,26 +142,11 @@ export const AiModelList: React.FC<AiModelListProps> = ({
                                     )}
 
                                     {/* Toggle Switch */}
-                                    <Switch
+                                    <SettingsToggleSwitch
                                         checked={isEnabled}
                                         onChange={() => !isLastModel && toggleModel(key)}
                                         disabled={isLastModel}
-                                        className={`
-                                            group relative flex items-center h-6 w-11 cursor-pointer rounded-full p-1 transition-all duration-300 border
-                                            ${isEnabled
-                                                ? 'bg-emerald-500/20 border-emerald-500/30'
-                                                : 'bg-white/[0.04] border-white/[0.08]'
-                                            }
-                                            ${isLastModel ? 'cursor-not-allowed opacity-50' : ''}
-                                        `}
-                                    >
-                                        <span
-                                            className={`
-                                                pointer-events-none inline-block h-4 w-4 transform rounded-full ring-0 transition duration-300 ease-in-out shadow-sm
-                                                ${isEnabled ? 'translate-x-5 bg-emerald-500' : 'translate-x-0 bg-white/20'}
-                                            `}
-                                        />
-                                    </Switch>
+                                    />
 
                                     {/* Delete Custom AI Button */}
                                     {isCustom && (

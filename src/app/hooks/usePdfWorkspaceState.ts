@@ -49,8 +49,6 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
     }, [lastReadingInfo, resumeLastPdf])
 
     const leftPanelProps = useMemo<ComponentProps<typeof LeftPanel>>(() => ({
-        width: 100,
-        t,
         onPdfDrop: handlePdfDrop,
         pdfFile,
         onSelectPdf: handleSelectPdf,
@@ -71,7 +69,6 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
         onOpenGoogleDrive: openGoogleDriveTab,
         isInteractionBlocked
     }), [
-        t,
         handlePdfDrop,
         pdfFile,
         handleSelectPdf,

@@ -1,5 +1,4 @@
 ﻿import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
-import { Logger } from '@shared/lib/logger'
 import { getElectronApi } from '@shared/lib/electronApi'
 import type { WebviewController, WebviewElement, WebviewInputEvent } from '@shared-core/types/webview';
 
@@ -78,6 +77,17 @@ export function useWebviewLifecycle({
     const [error, setError] = useState<string | null>(null)
     const [webviewElement, setWebviewElement] = useState<WebviewElement | null>(null)
 
+    const withActiveWebview = useCallback(<T,>(
+        operation: (webview: WebviewElement) => T
+    ): T | undefined => {
+        const webview = activeWebviewRef.current
+        if (!webview) {
+            return undefined
+        }
+
+        return operation(webview)
+    }, [])
+
     // Reset state on AI change
     useEffect(() => {
         if (timeoutRef.current) {
@@ -100,24 +110,22 @@ export function useWebviewLifecycle({
 
     const handleRetry = useCallback(() => {
         setError(null)
-        if (activeWebviewRef.current) {
-            activeWebviewRef.current.reload()
-        }
+        activeWebviewRef.current?.reload()
     }, [])
 
     // Expose webview methods
     const webviewMethods = useMemo<WebviewController>(() => ({
-        executeJavaScript: (script: string) => activeWebviewRef.current?.executeJavaScript(script),
+        executeJavaScript: (script: string) => withActiveWebview((webview) => webview.executeJavaScript(script)),
         getActiveWebview: () => activeWebviewRef.current,
         getWebview: () => activeWebviewRef.current,
-        insertText: (text: string) => activeWebviewRef.current?.insertText?.(text),
-        reload: () => activeWebviewRef.current?.reload(),
-        goBack: () => activeWebviewRef.current?.goBack?.(),
-        goForward: () => activeWebviewRef.current?.goForward?.(),
-        getURL: () => activeWebviewRef.current?.getURL?.(),
-        sendInputEvent: (event: WebviewInputEvent) => activeWebviewRef.current?.sendInputEvent?.(event),
-        paste: () => activeWebviewRef.current?.paste?.(),
-        getWebContentsId: () => activeWebviewRef.current?.getWebContentsId?.(),
+        insertText: (text: string) => withActiveWebview((webview) => webview.insertText?.(text)),
+        reload: () => withActiveWebview((webview) => webview.reload()),
+        goBack: () => withActiveWebview((webview) => webview.goBack?.()),
+        goForward: () => withActiveWebview((webview) => webview.goForward?.()),
+        getURL: () => withActiveWebview((webview) => webview.getURL?.()),
+        sendInputEvent: (event: WebviewInputEvent) => withActiveWebview((webview) => webview.sendInputEvent?.(event)),
+        paste: () => withActiveWebview((webview) => webview.paste?.()),
+        getWebContentsId: () => withActiveWebview((webview) => webview.getWebContentsId?.()),
         pasteNative: async (id: number) => {
             if (id) {
                 return await getElectronApi().forcePaste(id);
@@ -125,12 +133,12 @@ export function useWebviewLifecycle({
             return false;
         },
         addEventListener: (event: string, handler: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) =>
-            activeWebviewRef.current?.addEventListener(event, handler, options),
+            withActiveWebview((webview) => webview.addEventListener(event, handler, options)),
         removeEventListener: (event: string, handler: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions) =>
-            activeWebviewRef.current?.removeEventListener(event, handler, options),
-        focus: () => activeWebviewRef.current?.focus?.(),
-        isDestroyed: () => activeWebviewRef.current?.isDestroyed?.() ?? false
-    }), [])
+            withActiveWebview((webview) => webview.removeEventListener(event, handler, options)),
+        focus: () => withActiveWebview((webview) => webview.focus?.()),
+        isDestroyed: () => withActiveWebview((webview) => webview.isDestroyed?.() ?? false) ?? false
+    }), [withActiveWebview])
 
     useEffect(() => {
         if (!registerWebview) return
@@ -176,7 +184,7 @@ export function useWebviewLifecycle({
         } else {
             setError(t('webview_crashed_max'))
         }
-    }, [showWarning, t, currentAI])
+    }, [currentAI, showWarning, t])
 
     const handleNewWindow = useCallback(async (event: Event) => {
         event.preventDefault()
@@ -192,7 +200,7 @@ export function useWebviewLifecycle({
             }
             await api.openExternal(newWindowEvent.url)
         } catch (err) {
-            Logger.error('[Webview] New window error:', err)
+            console.error('[Webview] New window error:', err)
         }
     }, [])
 
@@ -210,6 +218,7 @@ export function useWebviewLifecycle({
 
         activeWebviewRef.current = element
         setWebviewElement(element)
+
         if (!element) {
             crashRetryCount.current = 0
             setError(null)
@@ -237,7 +246,15 @@ export function useWebviewLifecycle({
             wv.removeEventListener('dom-ready', handleDomReady)
             wv.removeEventListener('render-process-gone', handleCrashed)
         }
-    }, [webviewElement, handleStartLoading, handleStopLoading, handleFailLoad, handleNewWindow, handleDomReady, handleCrashed])
+    }, [
+        handleCrashed,
+        handleDomReady,
+        handleFailLoad,
+        handleNewWindow,
+        handleStartLoading,
+        handleStopLoading,
+        webviewElement
+    ])
 
     return {
         isLoading,

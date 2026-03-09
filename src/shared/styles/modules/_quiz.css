@@ -64,22 +64,6 @@
     );
 }
 
-/* Section Cards */
-.quiz-section-card {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 1.25rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.quiz-section-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
-}
-
 /* PDF Status Card */
 .quiz-pdf-card {
     background: linear-gradient(
@@ -216,18 +200,6 @@
 }
 
 /* Secondary Button */
-.quiz-secondary-btn {
-    @apply py-4 px-6 rounded-2xl font-bold text-base flex items-center justify-center gap-3 border transition-all duration-300;
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.15);
-}
-
-.quiz-secondary-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.25);
-    transform: translateY(-2px);
-}
-
 /* ==========================================
    QUIZ ACTIVE (Question Screen)
    ========================================== */
@@ -397,21 +369,4 @@
 .quiz-next-btn:hover {
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 15px 40px -10px rgba(251, 191, 36, 0.5);
-}
-
-/* ==========================================
-   ANIMATIONS & TRANSITIONS
-   ========================================== */
-
-@keyframes quiz-glow-pulse {
-    0%, 100% {
-        box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
-    }
-    50% {
-        box-shadow: 0 0 40px rgba(251, 191, 36, 0.4);
-    }
-}
-
-.quiz-glow-animate {
-    animation: quiz-glow-pulse 2s ease-in-out infinite;
 }

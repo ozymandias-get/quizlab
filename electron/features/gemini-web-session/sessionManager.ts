@@ -1,7 +1,6 @@
 import { BrowserWindow, app, session as electronSession, type Session } from 'electron'
 import { promises as fs, constants as fsConstants } from 'fs'
 import path from 'path'
-import { createHash } from 'crypto'
 import type { FileHandle } from 'fs/promises'
 import { ConfigManager } from '../../core/ConfigManager'
 import { APP_CONFIG } from '../../app/constants'
@@ -12,7 +11,7 @@ import type {
 } from '@shared-core/types'
 import { classifyAuthProbe, type DomProbeSnapshot } from './authHeuristics'
 import { applyProbeTransition, createDefaultStatus, type ProbeOutcome } from './stateMachine'
-import { runPlaywrightHeadlessRefresh, runPlaywrightLogin, type ExternalBrowserCookie } from './playwrightLogin'
+import { runPlaywrightHeadlessRefresh, runPlaywrightLogin } from './playwrightLogin'
 import {
     DOM_SNAPSHOT_SCRIPT,
     EMPTY_DOM_SNAPSHOT,
@@ -21,9 +20,8 @@ import {
     GOOGLE_SIGNIN_URL
 } from './constants'
 import {
-    buildElectronCookiePayload,
     clearPersistentPartitionData,
-    clearGoogleCookies
+    importExternalCookies
 } from './sessionCookies'
 import {
     DEFAULT_CONFIG,
@@ -39,7 +37,7 @@ import {
     SILENT_REFRESH_COOLDOWN_MS,
     SILENT_REFRESH_TIMEOUT_MS
 } from './sessionConfig'
-import { isProcessAlive, nowIso } from './sessionUtils'
+import { computeGoogleAccountHash, isProcessAlive, nowIso } from './sessionUtils'
 import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
 
 interface SessionMetadata extends GeminiWebSessionStatus {
@@ -62,6 +60,8 @@ type DisabledActionResult = GeminiWebSessionActionResult & {
     error: string;
     status: GeminiWebSessionStatus;
 }
+
+const GOOGLE_ACCOUNT_HASH_COOKIE_NAMES = ['__Secure-1PSID', 'SID', 'SAPISID'] as const
 
 function probeSeverity(kind: ProbeOutcome['kind']): number {
     if (kind === 'challenge') return 4
@@ -227,7 +227,7 @@ export class GeminiWebSessionManager {
             }
 
             const targetSession = this.resolvePersistentSession()
-            await this.importExternalCookies(targetSession, loginResult.cookies)
+            await importExternalCookies(targetSession, loginResult.cookies)
 
             // Verify imported cookies with in-app probe.
             const probe = await this.runProbeAcrossApps({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
@@ -463,21 +463,6 @@ export class GeminiWebSessionManager {
         await fs.rm(this.playwrightProfileDir, { recursive: true, force: true }).catch(() => { })
     }
 
-    private async importExternalCookies(targetSession: Session, cookies: ExternalBrowserCookie[]): Promise<void> {
-        await clearGoogleCookies(targetSession)
-        for (const cookie of cookies) {
-            const payload = buildElectronCookiePayload(cookie)
-            if (!payload) continue
-            await targetSession.cookies.set(payload).catch(() => {})
-        }
-
-        try {
-            targetSession.flushStorageData()
-        } catch {
-            // Ignore flush errors.
-        }
-    }
-
     private async performHealthCheck(options: { allowRetry: boolean }): Promise<GeminiWebSessionStatus> {
         if (this.activeCheck) return this.activeCheck
 
@@ -647,7 +632,7 @@ export class GeminiWebSessionManager {
         }
 
         const targetSession = this.resolvePersistentSession()
-        await this.importExternalCookies(targetSession, refreshResult.cookies)
+        await importExternalCookies(targetSession, refreshResult.cookies)
 
         const verificationProbe = await this.runProbeAcrossApps({ interactive: false, timeoutMs: HEALTH_TIMEOUT_MS })
         return {
@@ -835,19 +820,18 @@ export class GeminiWebSessionManager {
     }
 
     private async readAccountHash(profileSession: Session): Promise<string | null> {
-        const cookieNames = ['__Secure-1PSID', 'SID', 'SAPISID']
-        for (const name of cookieNames) {
+        const candidateCookies: Array<{ domain?: string | null; name: string; value?: string | null }> = []
+
+        for (const name of GOOGLE_ACCOUNT_HASH_COOKIE_NAMES) {
             try {
                 const cookies = await profileSession.cookies.get({ name })
-                const target = cookies.find(cookie => cookie.domain?.includes('google.com'))
-                if (target?.value) {
-                    return createHash('sha256').update(target.value).digest('hex').slice(0, 16)
-                }
+                candidateCookies.push(...cookies)
             } catch {
                 continue
             }
         }
-        return null
+
+        return computeGoogleAccountHash(candidateCookies)
     }
 
     private async acquireProfileLock(): Promise<LockResult> {

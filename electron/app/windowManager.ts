@@ -11,6 +11,9 @@ export const isDev = !app.isPackaged
 const DEV_SERVER_URL = process.env.QUIZLAB_RENDERER_URL || 'http://localhost:5173'
 const DEV_SERVER_TIMEOUT_MS = 30000
 const DEV_SERVER_POLL_MS = 500
+const MAIN_WINDOW_REVEAL_TIMEOUT_MS = 10000
+const MAIN_WINDOW_DOM_READY_REVEAL_DELAY_MS = 100
+const MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS = 250
 const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 const ALLOWED_DEFAULT_PERMISSIONS = new Set(['notifications', 'media'])
@@ -297,6 +300,7 @@ export async function createWindow() {
         icon: iconPath,
         autoHideMenuBar: true,
         backgroundColor: '#0c0a09',
+        paintWhenInitiallyHidden: true,
         show: false,
         // Hide from taskbar during boot to avoid dual-preview with splash.
         skipTaskbar: true,
@@ -322,10 +326,8 @@ export async function createWindow() {
         mainWindow.maximize()
     }
 
-    let revealTimer: NodeJS.Timeout | null = setTimeout(() => {
-        console.warn('[Window] ready-to-show timed out; revealing the main window as a fallback.')
-        revealMainWindow()
-    }, 10000)
+    let revealTimer: NodeJS.Timeout | null = null
+    let hasRevealedMainWindow = false
 
     const clearRevealTimer = () => {
         if (!revealTimer) return
@@ -333,9 +335,14 @@ export async function createWindow() {
         revealTimer = null
     }
 
-    const revealMainWindow = () => {
+    const revealMainWindow = (reason: 'dom-ready' | 'did-fail-load' | 'did-finish-load' | 'ready-to-show' | 'timeout') => {
+        if (hasRevealedMainWindow) return
+        hasRevealedMainWindow = true
         clearRevealTimer()
         if (!mainWindow || mainWindow.isDestroyed()) return
+        if (reason === 'timeout' && mainWindow.webContents.isLoadingMainFrame()) {
+            console.warn('[Window] Main window did not report readiness in time; revealing it as a fallback.')
+        }
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.destroy()
             splashWindow = null
@@ -346,16 +353,30 @@ export async function createWindow() {
         }
     }
 
-    mainWindow.once('ready-to-show', revealMainWindow)
-    mainWindow.webContents.once('did-finish-load', () => {
+    const scheduleReveal = (
+        reason: 'dom-ready' | 'did-finish-load',
+        delayMs: number
+    ) => {
         setTimeout(() => {
-            revealMainWindow()
-        }, 250)
+            revealMainWindow(reason)
+        }, delayMs)
+    }
+
+    revealTimer = setTimeout(() => {
+        revealMainWindow('timeout')
+    }, MAIN_WINDOW_REVEAL_TIMEOUT_MS)
+
+    mainWindow.once('ready-to-show', () => revealMainWindow('ready-to-show'))
+    mainWindow.webContents.once('dom-ready', () => {
+        scheduleReveal('dom-ready', MAIN_WINDOW_DOM_READY_REVEAL_DELAY_MS)
+    })
+    mainWindow.webContents.once('did-finish-load', () => {
+        scheduleReveal('did-finish-load', MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS)
     })
     mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
         if (!isMainFrame || errorCode === -3) return
         console.error(`[Window] Failed to load ${validatedURL || 'main window'} (${errorCode}): ${errorDescription}`)
-        revealMainWindow()
+        revealMainWindow('did-fail-load')
         const isDevRendererFailure = isDev && (validatedURL || '').startsWith(DEV_SERVER_URL)
         dialog.showErrorBox(
             isDevRendererFailure ? 'Renderer Dev Server Unavailable' : 'Load Error',

@@ -1,8 +1,8 @@
 import path from 'path'
 import { existsSync } from 'fs'
-import { createHash } from 'crypto'
 import { classifyAuthProbe } from './authHeuristics'
 import type { ProbeOutcome } from './stateMachine'
+import { computeGoogleAccountHash } from './sessionUtils'
 import {
     DOM_SNAPSHOT_SCRIPT,
     EMPTY_DOM_SNAPSHOT,
@@ -38,7 +38,7 @@ export interface ExternalBrowserCookie {
     expires?: number;
 }
 
-export interface PlaywrightLoginResult {
+interface PlaywrightLoginResult {
     success: boolean;
     outcome: ProbeOutcome;
     timedOut: boolean;
@@ -127,17 +127,6 @@ function mapProbeError(outcome: ProbeOutcome, timedOut: boolean): string {
     return 'error_login_failed'
 }
 
-function computeAccountHash(cookies: ExternalBrowserCookie[]): string | null {
-    const prioritized = ['__Secure-1PSID', 'SID', 'SAPISID']
-    for (const name of prioritized) {
-        const target = cookies.find(cookie => cookie.name === name && cookie.domain.includes('google.com'))
-        if (target?.value) {
-            return createHash('sha256').update(target.value).digest('hex').slice(0, 16)
-        }
-    }
-    return null
-}
-
 export function hasCompletedGoogleLogin(
     currentUrl: string,
     snapshot: { hasLoginForm: boolean; hasSignInText: boolean; hasChallengeText: boolean },
@@ -147,7 +136,7 @@ export function hasCompletedGoogleLogin(
     if (!hostname || !POST_LOGIN_HOSTS.has(hostname)) return false
     if (snapshot.hasLoginForm || snapshot.hasChallengeText) return false
 
-    const hasSessionCookies = computeAccountHash(cookies) !== null
+    const hasSessionCookies = computeGoogleAccountHash(cookies) !== null
     if (!hasSessionCookies) return false
 
     // My Account and generic Google landings often contain "sign in" text
@@ -319,7 +308,7 @@ async function runPlaywrightSessionFlow({
                     timedOut: false,
                     outcome: hydrated.outcome.healthy ? hydrated.outcome : { kind: 'authenticated', healthy: true },
                     cookies: hydratedCookies,
-                    accountHash: computeAccountHash(hydratedCookies)
+                    accountHash: computeGoogleAccountHash(hydratedCookies)
                 }
             }
 
@@ -331,7 +320,7 @@ async function runPlaywrightSessionFlow({
                         timedOut: false,
                         outcome: lastOutcome,
                         cookies,
-                        accountHash: computeAccountHash(cookies)
+                        accountHash: computeGoogleAccountHash(cookies)
                     }
                 }
             } else {

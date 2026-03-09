@@ -6,8 +6,116 @@ import { buttonBaseClass } from '@ui/components/button'
 import { cn } from '@shared/lib/uiUtils'
 import { useLanguage } from '@app/providers'
 
+const DEFAULT_BAR_COLOR = '#ffffff'
 const hexColorRegex = /^#([0-9A-F]{3}){1,2}$/i
 const isValidColor = (color: string) => hexColorRegex.test(color)
+const ICON_SCALE_STYLE: React.CSSProperties = {
+    width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+    height: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+}
+const ICON_ONLY_BUTTON_METRICS: React.CSSProperties = {
+    width: 'calc(40px * var(--bar-scale-factor, 1))',
+    height: 'calc(40px * var(--bar-scale-factor, 1))',
+    padding: 'calc(10px * var(--bar-scale-factor, 1))',
+    borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',
+}
+const LABEL_BUTTON_METRICS: React.CSSProperties = {
+    padding: 'calc(8px * var(--bar-scale-factor, 1)) calc(12px * var(--bar-scale-factor, 1))',
+    gap: 'calc(10px * var(--bar-scale-factor, 1))',
+    minWidth: 'calc(100px * var(--bar-scale-factor, 1))',
+    borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',
+}
+const FALLBACK_ICON_STYLE: React.CSSProperties = {
+    width: 'calc(1rem * var(--bar-scale-factor, 1))',
+    height: 'calc(1rem * var(--bar-scale-factor, 1))',
+}
+
+function getSafeColor(color?: string) {
+    return color && isValidColor(color) ? color : DEFAULT_BAR_COLOR
+}
+
+function getAiItemLabel({
+    labelOverride,
+    t,
+    modelKey,
+    site
+}: {
+    labelOverride?: string;
+    t: (key: string) => string;
+    modelKey: string;
+    site: AiSite;
+}) {
+    if (labelOverride) {
+        return labelOverride
+    }
+
+    const translated = t(modelKey)
+    if (translated && translated !== modelKey) {
+        return translated
+    }
+
+    return site.displayName || site.name || (modelKey.charAt(0).toUpperCase() + modelKey.slice(1))
+}
+
+function getButtonStyle({
+    isSelected,
+    isBeingDragged,
+    isHovered,
+    safeColor
+}: {
+    isSelected: boolean;
+    isBeingDragged: boolean;
+    isHovered: boolean;
+    safeColor: string;
+}): React.CSSProperties {
+    if (isSelected || isBeingDragged) {
+        return {
+            background: `linear-gradient(145deg, ${safeColor}25, ${safeColor}35)`,
+            border: `1px solid ${safeColor}55`,
+            boxShadow: `0 4px 16px -4px ${safeColor}45, inset 0 1px 0 rgba(255,255,255,0.15)`,
+            color: '#fff',
+            textShadow: 'none',
+            willChange: 'transform'
+        }
+    }
+
+    if (isHovered) {
+        return {
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 6px 16px -6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1)',
+            color: '#fff',
+            textShadow: 'none',
+            willChange: 'transform'
+        }
+    }
+
+    return {
+        background: 'linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))',
+        border: '1px solid rgba(255,255,255,0.1)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+        color: 'rgba(255,255,255,0.55)',
+        textShadow: 'none',
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+    }
+}
+
+function getScaledAiIcon(iconKey: string) {
+    const icon = getAiIcon(iconKey)
+    if (!React.isValidElement(icon)) {
+        return icon
+    }
+
+    const iconElement = icon as React.ReactElement<{ style?: React.CSSProperties }>
+    return React.cloneElement(iconElement, {
+        style: {
+            ...(iconElement.props.style ?? {}),
+            ...ICON_SCALE_STYLE,
+        }
+    })
+}
 
 interface AiSite {
     color?: string;
@@ -24,7 +132,6 @@ export interface AIItemProps {
     setCurrentAI: (key: string) => void;
     setActiveDragItem: (key: string | null) => void;
     activeDragItem: string | null;
-    animationDelay?: number;
     showOnlyIcons?: boolean;
     draggable?: boolean;
     labelOverride?: string;
@@ -41,7 +148,6 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     setCurrentAI,
     setActiveDragItem,
     activeDragItem,
-    animationDelay: _animationDelay = 0,
     showOnlyIcons = true,
     draggable = true,
     labelOverride,
@@ -54,52 +160,17 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     const isDraggingRef = useRef(false)
     const dragEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const [isHovered, setIsHovered] = useState(false)
-
-    const safeColor = useMemo(() =>
-        (site?.color && isValidColor(site.color)) ? site.color : '#ffffff'
-        , [site?.color])
+    const safeColor = getSafeColor(site.color)
 
     const isBeingDragged = activeDragItem === modelKey
     const hasTabControls = Boolean(onClose || onTogglePin)
     const shouldShowPin = Boolean(onTogglePin) && (isPinned || isHovered)
     const shouldShowClose = Boolean(onClose) && isHovered
 
-    const buttonStyle = useMemo<React.CSSProperties>(() => {
-        const isActive = isSelected || isBeingDragged
-
-        if (isActive) {
-            return {
-                background: `linear-gradient(145deg, ${safeColor}25, ${safeColor}35)`,
-                border: `1px solid ${safeColor}55`,
-                boxShadow: `0 4px 16px -4px ${safeColor}45, inset 0 1px 0 rgba(255,255,255,0.15)`,
-                color: '#fff',
-                textShadow: 'none',
-                willChange: 'transform'
-            }
-        }
-
-        if (isHovered) {
-            return {
-                background: `linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))`,
-                border: `1px solid rgba(255,255,255,0.15)`,
-                boxShadow: `0 6px 16px -6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1)`,
-                color: '#fff',
-                textShadow: 'none',
-                willChange: 'transform'
-            }
-        }
-
-        return {
-            background: 'linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-            color: 'rgba(255,255,255,0.55)',
-            textShadow: 'none',
-            willChange: 'transform',
-            transform: 'translateZ(0)',
-            backfaceVisibility: 'hidden' as const,
-        }
-    }, [isSelected, isBeingDragged, safeColor, isHovered])
+    const buttonStyle = useMemo(
+        () => getButtonStyle({ isSelected, isBeingDragged, isHovered, safeColor }),
+        [isSelected, isBeingDragged, isHovered, safeColor]
+    )
 
     const handleClick = useCallback((e: React.MouseEvent) => {
         if (isDraggingRef.current) {
@@ -131,23 +202,22 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         onRequestRename()
     }, [onRequestRename])
 
-    useEffect(() => {
-        return () => {
-            if (dragEndTimeoutRef.current) {
-                clearTimeout(dragEndTimeoutRef.current)
-            }
-        }
-    }, [])
-
-    const handleDragStart = useCallback(() => {
+    const clearDragEndTimeout = useCallback(() => {
         if (dragEndTimeoutRef.current) {
             clearTimeout(dragEndTimeoutRef.current)
             dragEndTimeoutRef.current = null
         }
+    }, [])
 
+    useEffect(() => {
+        return clearDragEndTimeout
+    }, [clearDragEndTimeout])
+
+    const handleDragStart = useCallback(() => {
+        clearDragEndTimeout()
         isDraggingRef.current = true
         setActiveDragItem(modelKey)
-    }, [setActiveDragItem, modelKey])
+    }, [clearDragEndTimeout, setActiveDragItem, modelKey])
 
     const handleDragEnd = useCallback(() => {
         setActiveDragItem(null)
@@ -158,50 +228,13 @@ export const AIItem = memo<AIItemProps>(function AIItem({
         }, 150)
     }, [setActiveDragItem])
 
-    const translatedName = useMemo(() => {
-        if (labelOverride) return labelOverride
-
-        const translated = t(modelKey)
-        if (translated && translated !== modelKey) return translated
-        return site?.displayName || site?.name || (modelKey.charAt(0).toUpperCase() + modelKey.slice(1))
-    }, [labelOverride, t, modelKey, site])
-
-    const iconScaleStyle = useMemo<React.CSSProperties>(() => ({
-        width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
-        height: 'calc(1.25rem * var(--bar-scale-factor, 1))',
-    }), [])
+    const translatedName = getAiItemLabel({ labelOverride, t, modelKey, site })
 
     const renderedIcon = useMemo(() => {
-        const icon = getAiIcon(site?.icon || modelKey)
-        if (!React.isValidElement(icon)) return icon
-        const iconElement = icon as React.ReactElement<{ style?: React.CSSProperties }>
+        return getScaledAiIcon(site.icon || modelKey)
+    }, [site.icon, modelKey])
 
-        return React.cloneElement(
-            iconElement,
-            {
-                style: {
-                    ...(iconElement.props.style ?? {}),
-                    ...iconScaleStyle,
-                }
-            }
-        )
-    }, [site?.icon, modelKey, iconScaleStyle])
-
-    const scaledButtonMetrics = useMemo<React.CSSProperties>(() => (
-        showOnlyIcons
-            ? {
-                width: 'calc(40px * var(--bar-scale-factor, 1))',
-                height: 'calc(40px * var(--bar-scale-factor, 1))',
-                padding: 'calc(10px * var(--bar-scale-factor, 1))',
-                borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',
-            }
-            : {
-                padding: 'calc(8px * var(--bar-scale-factor, 1)) calc(12px * var(--bar-scale-factor, 1))',
-                gap: 'calc(10px * var(--bar-scale-factor, 1))',
-                minWidth: 'calc(100px * var(--bar-scale-factor, 1))',
-                borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))',
-            }
-    ), [showOnlyIcons])
+    const scaledButtonMetrics = showOnlyIcons ? ICON_ONLY_BUTTON_METRICS : LABEL_BUTTON_METRICS
 
     const content = (
         <motion.button
@@ -229,10 +262,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
             {renderedIcon || (
                 <div
                     className="w-4 h-4 flex items-center justify-center font-bold text-[10px]"
-                    style={{
-                        width: 'calc(1rem * var(--bar-scale-factor, 1))',
-                        height: 'calc(1rem * var(--bar-scale-factor, 1))',
-                    }}
+                    style={FALLBACK_ICON_STYLE}
                 >
                     {translatedName.charAt(0) || '?'}
                 </div>

@@ -7,6 +7,7 @@ import type { WebviewController } from '@shared-core/types/webview'
 interface UseAiMessagingParams {
     webviewInstance: WebviewController | null
     currentAI: string
+    activeTabId: string
     autoSend: boolean
     aiRegistry: Record<string, AiPlatform>
     showSuccess: (message: string, title?: string) => void
@@ -16,6 +17,7 @@ interface UseAiMessagingParams {
 export function useAiMessaging({
     webviewInstance,
     currentAI,
+    activeTabId,
     autoSend,
     aiRegistry,
     showSuccess,
@@ -25,7 +27,7 @@ export function useAiMessaging({
     const {
         sendTextToAI: rawSendText,
         sendImageToAI: rawSendImage
-    } = useAiSender(webviewRefProxy, currentAI, autoSend, aiRegistry)
+    } = useAiSender(webviewRefProxy, currentAI, autoSend, aiRegistry, activeTabId)
 
     const sendTextToAI = useCallback(async (text: string, options?: AiSendOptions) => {
         const result = await rawSendText(text, options)

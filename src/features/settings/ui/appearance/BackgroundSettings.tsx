@@ -1,8 +1,9 @@
 ﻿import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Switch, Field, Label } from '@headlessui/react'
+import { Field, Label } from '@headlessui/react'
 import { PaletteIcon, ShuffleIcon } from '@ui/components/Icons'
 import ColorPicker from '../ColorPicker'
+import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 
 interface BackgroundSettingsProps {
     bgType: 'solid' | 'animated';
@@ -104,13 +105,11 @@ const BackgroundSettings = memo(({
                                     </Label>
                                 </div>
                             </div>
-                            <Switch
+                            <SettingsToggleSwitch
                                 checked={bgRandomMode}
                                 onChange={setBgRandomMode}
-                                className={`relative flex items-center h-5 w-9 cursor-pointer rounded-full p-0.5 transition-all duration-300 border ${bgRandomMode ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/[0.04] border-white/[0.08]'}`}
-                            >
-                                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full ring-0 transition duration-300 ${bgRandomMode ? 'translate-x-4 bg-emerald-500' : 'translate-x-0 bg-white/20'}`} />
-                            </Switch>
+                                size="sm"
+                            />
                         </Field>
 
                         {!bgRandomMode && (

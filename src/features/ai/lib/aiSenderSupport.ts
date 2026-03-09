@@ -1,7 +1,6 @@
 import type { RefObject } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
-import { Logger } from '@shared/lib/logger'
 import { getElectronApi } from '@shared/lib/electronApi'
 import type { AutomationConfig } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
@@ -16,7 +15,7 @@ export interface AiConfig {
     [key: string]: unknown
 }
 
-export interface CacheData {
+interface CacheData {
     config: AiConfig
     regex: RegExp | null
 }
@@ -60,7 +59,6 @@ export function buildPromptText(text: string, prompt?: string | null) {
         return text
     }
 
-    Logger.info('[useAiSender] Prompt prepended:', prompt)
     return `${prompt}\n\n${text}`
 }
 
@@ -128,7 +126,6 @@ export async function getCachedAiConfig(options: {
 
         let finalConfig = baseConfig
         if (selectorConfig?.input && selectorConfig.button) {
-            Logger.info('[useAiSender] Using custom selectors for:', hostname)
             finalConfig = {
                 ...baseConfig,
                 input: selectorConfig.input,

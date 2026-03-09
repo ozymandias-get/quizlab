@@ -12,7 +12,7 @@ const GeminiCliTab = lazy(() => import('../GeminiCliTab'))
 const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
 const PromptsTab = lazy(() => import('../PromptsTab'))
 
-export interface SettingsTabMeta {
+interface SettingsTabMeta {
     id: string
     labelKey: string
     descriptionKey: string
@@ -22,7 +22,7 @@ export interface SettingsTabMeta {
     fallbackLabel?: string
 }
 
-export const SETTINGS_TABS = [
+const SETTINGS_TABS = [
     {
         id: 'prompts',
         labelKey: 'prompts',
@@ -101,7 +101,7 @@ export const SETTINGS_TABS = [
 export type SettingsTabId = typeof SETTINGS_TABS[number]['id']
 export type SettingsState = ReturnType<typeof useSettings>
 
-export interface SettingsContext {
+interface SettingsContext {
     onClose: () => void
     settings: SettingsState
 }
@@ -115,7 +115,7 @@ export interface TabDef {
     glow: string
 }
 
-export const DEFAULT_SETTINGS_TAB: SettingsTabId = 'prompts'
+const DEFAULT_SETTINGS_TAB: SettingsTabId = 'prompts'
 
 export function toSettingsTabId(value?: string): SettingsTabId {
     const matchedTab = SETTINGS_TABS.find((tab) => tab.id === value)

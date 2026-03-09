@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react'
 import { memo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@shared/lib/uiUtils'
@@ -25,12 +26,23 @@ function AiSendComposerToggle({
 }: AiSendComposerToggleProps) {
     const { t } = useLanguage()
     const shouldAnimateLayout = !isDragging
+    const handleToggleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+            return
+        }
+
+        event.preventDefault()
+        onToggle()
+    }
 
     return (
         <div className="relative border-b border-white/[0.06] px-4 py-3">
-            <motion.button
-                type="button"
+            <motion.div
+                role="button"
+                aria-pressed={autoSend}
+                tabIndex={0}
                 onClick={onToggle}
+                onKeyDown={handleToggleKeyDown}
                 whileTap={{ scale: 0.992 }}
                 className={cn(
                     'group relative w-full overflow-hidden rounded-[1.7rem] border px-4 py-3.5 text-left transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50',
@@ -176,7 +188,7 @@ function AiSendComposerToggle({
                         />
                     ) : null}
                 </AnimatePresence>
-            </motion.button>
+            </motion.div>
         </div>
     )
 }

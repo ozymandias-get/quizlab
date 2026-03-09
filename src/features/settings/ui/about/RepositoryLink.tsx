@@ -1,6 +1,7 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { GithubIcon, ChevronRightIcon } from '@ui/components/Icons'
+import AboutActionCard from './AboutActionCard'
 
 interface RepositoryLinkProps {
     t: (key: string) => string;
@@ -8,27 +9,28 @@ interface RepositoryLinkProps {
 
 const RepositoryLink = memo(({ t }: RepositoryLinkProps) => {
     return (
-        <a
+        <AboutActionCard
+            title={t('github_repository')}
+            description={t('view_source_code')}
             href={APP_CONSTANTS.GITHUB_REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-center justify-between p-6 rounded-[24px] bg-white/[0.04] border border-white/[0.12] hover:bg-white/[0.08] transition-all duration-300 shadow-sm"
-        >
-            <div className="flex items-center gap-4">
-                <div className="p-2.5 rounded-xl bg-white/[0.08] text-white/60 border border-white/[.15] group-hover:scale-110 group-hover:bg-white/[0.15] group-hover:text-white transition-all shadow-md">
+            interactive={true}
+            className="group shadow-sm hover:bg-white/[0.08]"
+            bodyClassName="space-y-0.5"
+            titleClassName="transition-colors group-hover:text-white"
+            descriptionClassName="text-[10px] font-bold uppercase tracking-widest leading-none italic text-white/40"
+            leading={(
+                <div className="rounded-xl border border-white/[.15] bg-white/[0.08] p-2.5 text-white/60 shadow-md transition-all group-hover:scale-110 group-hover:bg-white/[0.15] group-hover:text-white">
                     <GithubIcon className="w-6 h-6" />
                 </div>
-                <div className="space-y-0.5">
-                    <span className="text-sm font-bold text-white group-hover:text-white transition-colors">{t('github_repository')}</span>
-                    <p className="text-[10px] text-white/40 uppercase tracking-widest leading-none font-bold italic">{t('view_source_code')}</p>
-                </div>
-            </div>
-            <ChevronRightIcon className="w-5 h-5 text-white/20 group-hover:text-white transition-colors transform group-hover:translate-x-1" />
-        </a>
+            )}
+            trailing={(
+                <ChevronRightIcon className="w-5 h-5 transform text-white/20 transition-colors group-hover:translate-x-1 group-hover:text-white" />
+            )}
+        />
     )
 })
 
 RepositoryLink.displayName = 'RepositoryLink'
 export default RepositoryLink
-
-
