@@ -16,15 +16,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.2.2-blue.svg?style=flat-square" alt="Version 2.2.2" />
-  <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License" />
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Windows macOS Linux" />
-  <img src="https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Electron React TypeScript" />
+  <img src="https://img.shields.io/badge/version-2.2.5-blue.svg?style=flat-square" alt="QuizLab Reader version 2.2.5" />
+  <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License open source" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Cross-platform desktop app for Windows macOS Linux" />
+  <img src="https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Built with Electron React TypeScript" />
 </p>
 
 ## Screenshots
 
-### PDF Workspace and AI Home
+### Split-Screen PDF Workspace and AI Home Dashboard
 
 Shows the main split layout with the PDF reader on the left and the AI home dashboard on the right.
 
@@ -32,7 +32,7 @@ Shows the main split layout with the PDF reader on the left and the AI home dash
   <img src="docs/images/workspace-home-overview.png" alt="QuizLab Reader PDF workspace and AI home dashboard" width="900" />
 </p>
 
-### AI Models and Sites
+### Built-in AI Models and Custom Sites
 
 Shows the screen where ready-to-use AI models and custom sites are listed in the workspace.
 
@@ -40,7 +40,7 @@ Shows the screen where ready-to-use AI models and custom sites are listed in the
   <img src="docs/images/ai-models-and-sites.png" alt="QuizLab Reader AI models and custom sites management view" width="900" />
 </p>
 
-### Prompt Library Settings
+### Prompt Library and Automation Settings
 
 Shows the settings screen for managing saved prompts and selecting an automatic prompt workflow.
 
@@ -48,7 +48,7 @@ Shows the settings screen for managing saved prompts and selecting an automatic 
   <img src="docs/images/prompts-settings-library.png" alt="QuizLab Reader prompt library settings screen" width="900" />
 </p>
 
-### PDF and ChatGPT Quick Actions
+### PDF Reader with ChatGPT Quick Actions
 
 Shows the PDF reader together with the ChatGPT panel and the quick action tools beside the document.
 
@@ -56,7 +56,7 @@ Shows the PDF reader together with the ChatGPT panel and the quick action tools 
   <img src="docs/images/pdf-chatgpt-quick-actions.png" alt="QuizLab Reader PDF view with ChatGPT and quick actions" width="900" />
 </p>
 
-### AI Send Draft Review
+### AI Send Draft Review Modal
 
 Shows the review modal where selected PDF content is prepared before being sent to the active AI tab.
 
@@ -64,7 +64,7 @@ Shows the review modal where selected PDF content is prepared before being sent 
   <img src="docs/images/auto-send-draft-review.png" alt="QuizLab Reader AI send draft review modal" width="900" />
 </p>
 
-### Auto Send Enabled
+### Auto Send to AI Workflow
 
 Shows the auto-send mode where selected content is delivered directly to the active AI session.
 
@@ -74,7 +74,7 @@ Shows the auto-send mode where selected content is delivered directly to the act
 
 ## Overview
 
-QuizLab Reader is a cross-platform desktop app that combines a PDF study reader, AI web workspace, and interactive quiz generator in a single Electron application. It is built for medical students, exam candidates, and heavy PDF readers who want to turn passive reading into active recall.
+QuizLab Reader is a free, open-source, cross-platform desktop application that combines a PDF study reader, AI web workspace, and interactive quiz generator in a single Electron app. Built for medical students, exam candidates, researchers, and heavy PDF readers who want to turn passive reading into active recall.
 
 Instead of switching between a PDF app, browser tabs, notes, and quiz tools, QuizLab keeps the full study loop in one place:
 
@@ -84,7 +84,7 @@ Instead of switching between a PDF app, browser tabs, notes, and quiz tools, Qui
 - Review answers, explanations, and weak areas
 - Keep your AI sessions and local study data on your machine
 
-## Why QuizLab Reader
+## Why QuizLab Reader — AI-Powered Study Workspace
 
 QuizLab is designed around real study workflows, not generic chat UI.
 
@@ -96,7 +96,7 @@ QuizLab is designed around real study workflows, not generic chat UI.
 
 ## Core Features
 
-### Split-screen PDF and AI workspace
+### Split-Screen PDF Reader and AI Workspace
 
 - Multi-tab PDF reading
 - Drag and drop PDF opening
@@ -104,7 +104,7 @@ QuizLab is designed around real study workflows, not generic chat UI.
 - Persistent reading state for recent documents
 - Instant send-to-AI actions from selected text
 
-### AI-powered quiz generation
+### AI-Powered Quiz Generator for Active Recall
 
 QuizLab includes a structured quiz flow instead of a plain prompt box.
 
@@ -117,7 +117,7 @@ QuizLab includes a structured quiz flow instead of a plain prompt box.
 - Clinical reasoning style prompts
 - Adjustable difficulty, question count, language, and focus topic
 
-### AI webview workspace
+### Multi-Platform AI Webview Workspace
 
 Built-in AI registry currently includes:
 
@@ -133,7 +133,7 @@ Built-in AI registry currently includes:
 
 The app also supports custom AI or website entries, plus selector-based automation for web UIs that need custom input or send button targeting.
 
-### AI home page and pinned tab workflow
+### AI Home Page and Pinned Tab Management
 
 The current app includes a dedicated AI home page and improved tab management:
 
@@ -143,7 +143,7 @@ The current app includes a dedicated AI home page and improved tab management:
 - Grid-based model ordering
 - Automatic navigation back to the AI home page when no session tab is active
 
-### Gemini web session tools
+### Gemini Web Session Management Tools
 
 QuizLab includes a dedicated Gemini web session management area for Google-backed surfaces.
 
@@ -152,14 +152,14 @@ QuizLab includes a dedicated Gemini web session management area for Google-backe
 - Shared Google sign-in experience for Gemini-family surfaces
 - Support for Gemini, NotebookLM, AI Studio, and related Google web surfaces
 
-### Screenshot to AI workflow
+### Screenshot to AI Workflow
 
 - Full-page capture
 - Cropped capture
 - Quick handoff to the active AI session
 - Useful for diagrams, figures, and non-copyable PDF content
 
-### Appearance and study UX
+### Appearance, Localization, and Study UX
 
 - Adjustable bottom bar scale and opacity
 - Layout swap support
@@ -172,12 +172,12 @@ QuizLab includes a dedicated Gemini web session management area for Google-backe
 
 ### System requirements
 
-| Item | Minimum | Recommended |
-| --- | --- | --- |
-| OS | Windows 10, macOS 10.15, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
-| RAM | 4 GB | 8 GB or more |
-| Storage | 500 MB | 2 GB or more |
-| Internet | Required for AI features | Stable broadband |
+| Item     | Minimum                               | Recommended                        |
+| -------- | ------------------------------------- | ---------------------------------- |
+| OS       | Windows 10, macOS 10.15, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
+| RAM      | 4 GB                                  | 8 GB or more                       |
+| Storage  | 500 MB                                | 2 GB or more                       |
+| Internet | Required for AI features              | Stable broadband                   |
 
 ### Download prebuilt releases
 
@@ -194,6 +194,7 @@ Typical artifacts:
 ### Build from source
 
 > **Windows Users**: QuizLab enforces `LF` line endings across the source repository. Before cloning or committing, we recommend setting this Git configuration to prevent formatting conflicts:
+>
 > ```bash
 > git config --global core.autocrlf input
 > ```
@@ -391,3 +392,9 @@ Contribution details live in [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 QuizLab Reader is released under the [MIT License](LICENSE).
+
+---
+
+<p align="center">
+  <strong>Keywords:</strong> AI PDF reader, quiz generator, study tool, active recall, flashcard generator, Electron app, split-screen PDF viewer, Gemini AI, ChatGPT integration, medical study app, exam preparation, open source study workspace, PDF annotation tool, AI-powered learning, cross-platform desktop app
+</p>
