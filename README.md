@@ -193,6 +193,11 @@ Typical artifacts:
 
 ### Build from source
 
+> **Windows Users**: QuizLab enforces `LF` line endings across the source repository. Before cloning or committing, we recommend setting this Git configuration to prevent formatting conflicts:
+> ```bash
+> git config --global core.autocrlf input
+> ```
+
 ```bash
 git clone https://github.com/ozymandias-get/quizlab.git
 cd quizlab

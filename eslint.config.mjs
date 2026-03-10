@@ -7,6 +7,8 @@ import tsPlugin from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import securityPlugin from 'eslint-plugin-security';
 import electronPlugin from 'eslint-plugin-electron';
+import prettierPlugin from 'eslint-plugin-prettier';
+import prettierConfig from 'eslint-config-prettier';
 
 const legacySrcAliasPattern = {
     group: ['@src/*'],
@@ -32,6 +34,7 @@ export default [
     {
         ignores: ['dist/**', 'release/**', 'node_modules/**', '.cache/**', '.agent/**', 'out.txt']
     },
+    prettierConfig,
     {
         files: ['**/*.{js,mjs,cjs,ts,tsx}'],
         languageOptions: {
@@ -52,10 +55,12 @@ export default [
             'react-hooks': reactHooks,
             'react-refresh': reactRefresh,
             'security': securityPlugin,
+            'prettier': prettierPlugin,
         },
         rules: {
             'no-restricted-imports': ['error', { patterns: [legacySrcAliasPattern] }],
             'react/no-danger': 'warn',
+            'prettier/prettier': 'error',
         },
     },
     {
