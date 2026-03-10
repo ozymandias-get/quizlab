@@ -193,6 +193,11 @@ Tipik çıktılar:
 
 ### Kaynaktan çalıştırma
 
+> **Windows Kullanıcıları**: QuizLab, kaynak kod deposunda `LF` satır sonu biçimini (line endings) zorunlu kılar. Kodu klonlamadan veya commit atmadan önce, format çakışmalarını önlemek için şu Git ayarını yapmanızı öneririz:
+> ```bash
+> git config --global core.autocrlf input
+> ```
+
 ```bash
 git clone https://github.com/ozymandias-get/quizlab.git
 cd quizlab
