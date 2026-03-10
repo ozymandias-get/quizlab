@@ -27,6 +27,14 @@ const featureInternalImportPatterns = [
     {
         group: ['@features/*/api', '@features/*/api/*'],
         message: 'Feature internals are private. Import via @features/<feature> public API.'
+    },
+    {
+        group: ['@features/*/hooks', '@features/*/hooks/*'],
+        message: 'Feature internals are private. Import via @features/<feature> public API.'
+    },
+    {
+        group: ['@features/*/lib', '@features/*/lib/*'],
+        message: 'Feature internals are private. Import via @features/<feature> public API.'
     }
 ];
 
@@ -76,7 +84,7 @@ export default [
             'no-restricted-syntax': [
                 'error',
                 {
-                    selector: 'ImportExpression[source.value=/^@features\\/[^/]+\\/(ui|model|api)(\\/.*)?$/]',
+                    selector: 'ImportExpression[source.value=/^@features\\/[^/]+\\/(ui|model|api|hooks|lib)(\\/.*)?$/]',
                     message: 'Feature internals are private. Use dynamic import from @features/<feature> public API.'
                 }
             ]
@@ -111,12 +119,39 @@ export default [
         }
     },
     {
+        files: ['src/**/*.{ts,tsx}'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        legacySrcAliasPattern,
+                        {
+                            group: ['electron', 'electron/*'],
+                            message: 'Renderer must not import Electron directly. Use the preload bridge via @platform/electron.'
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    {
         files: ['electron/**/*.{js,mjs,cjs,ts,tsx}'],
         plugins: {
             'electron': electronPlugin,
         },
         rules: {
-            // İsterseniz burada 'electron/no-new-webview': 'error' vb. eklenebilir.
+            'no-restricted-imports': [
+                'warn',
+                {
+                    patterns: [
+                        {
+                            group: ['@features/*', '@shared/*', '@app/*', '@platform/*', '@ui/*'],
+                            message: 'Electron main process must not import renderer aliases. Use relative paths or @electron.'
+                        }
+                    ]
+                }
+            ]
         }
     }
 ];

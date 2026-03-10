@@ -1,247 +1,60 @@
 /**
  * Shared Types - Single Source of Truth
  * These types are used by both electron (backend) and src (frontend)
+ *
+ * Each domain has its own file for maintainability.
+ * Import from '@shared-core/types' as before — this barrel re-exports everything.
  */
 
-// ============================================
-// AI & Automation Types
-// ============================================
+// Automation & Selector types
+export type {
+  SubmitMode,
+  SelectorHealth,
+  AutomationHostDescriptor,
+  AutomationElementFingerprint,
+  AiSelectorConfig,
+  AutomationConfig,
+  AutomationLookupStrategy,
+  AutomationSelectorDiagnostics,
+  AutomationExecutionDiagnostics,
+  AutomationExecutionResult
+} from './automation'
 
-export type SubmitMode = 'click' | 'enter_key' | 'mixed' | string
+// AI Platform & Registry types
+export type {
+  AiPlatformMeta,
+  AiPlatform,
+  EnhancedAiPlatform,
+  AiRegistry,
+  InactivePlatforms,
+  AiRegistryResponse,
+  CustomAiInput,
+  CustomAiResult
+} from './ai'
 
-export type SelectorHealth = 'ready' | 'migrated' | 'needs_repick'
+// PDF types
+export type { PdfSelectOptions, PdfSelection, PdfStreamResult, PdfFile } from './pdf'
 
-export interface AutomationHostDescriptor {
-    selector: string;
-    tag: string;
-    safeId?: string | null;
-    dataTestId?: string | null;
-    classTokens?: string[] | null;
-    nthChild?: number | null;
-}
+// System & Update types
+export type { UpdateCheckResult, ScreenshotType } from './system'
 
-export interface AutomationElementFingerprint {
-    tag: string;
-    role?: string | null;
-    type?: string | null;
-    contentEditable?: boolean;
-    text?: string | null;
-    name?: string | null;
-    placeholder?: string | null;
-    ariaLabel?: string | null;
-    dataTestId?: string | null;
-    safeId?: string | null;
-    classTokens?: string[] | null;
-    localPath?: string[] | null;
-    hostChain?: AutomationHostDescriptor[] | null;
-}
+// Quiz types
+export type {
+  DifficultyType,
+  ModelTypeEnum,
+  QuestionStyleEnum,
+  QuizSettings,
+  QuizGenerateResult,
+  QuizCliPathResult,
+  QuizAuthResult,
+  QuizActionResult
+} from './quiz'
 
-export type AiSelectorConfig = {
-    version?: 2;
-    input?: string | null;
-    button?: string | null;
-    waitFor?: string | null;
-    submitMode?: SubmitMode;
-    inputCandidates?: string[] | null;
-    buttonCandidates?: string[] | null;
-    inputFingerprint?: AutomationElementFingerprint | null;
-    buttonFingerprint?: AutomationElementFingerprint | null;
-    sourceUrl?: string | null;
-    sourceHostname?: string | null;
-    canonicalHostname?: string | null;
-    health?: SelectorHealth;
-    [key: string]: unknown;
-}
-
-export type AutomationConfig = {
-    version?: 2;
-    input?: string | null;
-    button?: string | null;
-    waitFor?: string | null;
-    submitMode?: SubmitMode;
-    inputCandidates?: string[] | null;
-    buttonCandidates?: string[] | null;
-    inputFingerprint?: AutomationElementFingerprint | null;
-    buttonFingerprint?: AutomationElementFingerprint | null;
-    sourceUrl?: string | null;
-    sourceHostname?: string | null;
-    canonicalHostname?: string | null;
-    health?: SelectorHealth;
-    [key: string]: unknown;
-}
-
-export type AutomationLookupStrategy = 'cache' | 'direct' | 'recursive' | 'fingerprint' | 'none'
-
-export interface AutomationSelectorDiagnostics {
-    requestedSelector: string | null;
-    matchedSelector: string | null;
-    strategy: AutomationLookupStrategy;
-    durationMs: number;
-    waitIterations: number;
-    cacheHits: number;
-    cacheInvalidations: number;
-    interactiveRequired: boolean;
-}
-
-export interface AutomationExecutionDiagnostics {
-    kind: 'focus' | 'auto_send' | 'click_send' | 'validate' | 'submit_ready';
-    pageUrl: string;
-    totalMs: number;
-    input: AutomationSelectorDiagnostics;
-    button?: AutomationSelectorDiagnostics;
-    setInputMs: number;
-    submitMs: number;
-    error: string | null;
-}
-
-export interface AutomationExecutionResult {
-    success: boolean;
-    error?: string;
-    mode?: string;
-    action?: string;
-    diagnostics?: AutomationExecutionDiagnostics;
-}
-
-export type AiPlatformMeta = {
-    displayName?: string;
-    submitMode?: SubmitMode;
-    domainRegex?: string;
-    imageWaitTime?: number;
-}
-
-export type AiPlatform = {
-    id: string;
-    name: string;
-    url: string;
-    isSite?: boolean;
-    partition?: string;
-    icon?: string;
-    color?: string;
-    displayName?: string;
-    submitMode?: SubmitMode;
-    domainRegex?: string;
-    imageWaitTime?: number;
-    input?: string | null;
-    button?: string | null;
-    waitFor?: string | null;
-    selectors?: {
-        input?: string | null;
-        button?: string | null;
-        waitFor?: string | null;
-    };
-    meta?: AiPlatformMeta;
-    isCustom?: boolean;
-    [key: string]: unknown;
-}
-
-export type EnhancedAiPlatform = AiPlatform & {
-    displayName?: string;
-    submitMode?: SubmitMode;
-    domainRegex?: string;
-    imageWaitTime?: number;
-    input?: string | null;
-    button?: string | null;
-    waitFor?: string | null;
-}
-
-export type AiRegistry = Record<string, EnhancedAiPlatform>
-export type InactivePlatforms = Record<string, AiPlatform>
-
-export type AiRegistryResponse = {
-    aiRegistry: Record<string, AiPlatform>;
-    defaultAiId: string;
-    allAiIds: string[];
-    chromeUserAgent: string;
-}
-
-export type CustomAiInput = { name: string; url: string; isSite?: boolean }
-export type CustomAiResult = { success: boolean; id?: string; platform?: AiPlatform; error?: string }
-
-// ============================================
-// PDF Types
-// ============================================
-
-export type PdfSelectOptions = { filterName?: string }
-export type PdfSelection = { path: string; name: string; size: number; streamUrl: string }
-export type PdfStreamResult = { streamUrl: string }
-
-export type PdfFile = {
-    path?: string | null;
-    name?: string;
-    streamUrl?: string | null;
-    size?: number | null;
-}
-
-// ============================================
-// System & Update Types
-// ============================================
-
-export type UpdateCheckResult = { available: boolean; version?: string; releaseName?: string; releaseNotes?: string; cached?: boolean; error?: string }
-export type ScreenshotType = 'full-page' | 'crop' | string
-
-// ============================================
-// Quiz Types
-// ============================================
-
-export type DifficultyType = 'EASY' | 'MEDIUM' | 'HARD'
-export type ModelTypeEnum =
-    | 'gemini-2.5-flash'
-    | 'gemini-2.5-flash-lite'
-    | 'gemini-3-flash-preview'
-    | 'gemini-3-pro-preview'
-    | 'gemini-2.0-flash'
-    | 'gemini-1.5-flash'
-    | 'gemini-1.5-pro'
-export type QuestionStyleEnum = 'CLASSIC' | 'NEGATIVE' | 'STATEMENT' | 'ORDERING' | 'FILL_BLANK' | 'REASONING' | 'MATCHING' | 'MIXED'
-
-export type QuizSettings = { questionCount: number; difficulty: DifficultyType; model: string; style: QuestionStyleEnum[]; focusTopic: string; cliPath?: string }
-export type QuizGenerateResult =
-    | { success: true; data: unknown[]; count?: number }
-    | { success: false; error: string }
-export type QuizCliPathResult = { path: string; exists: boolean }
-export type QuizAuthResult = { authenticated: boolean; account?: string | null }
-export type QuizActionResult = { success: boolean; error?: string }
-
-// ============================================
-// Gemini Web Session Types
-// ============================================
-
-export type GeminiWebSessionState =
-    | 'uninitialized'
-    | 'auth_required'
-    | 'authenticated'
-    | 'degraded'
-    | 'reauth_required'
-
-export type GeminiWebSessionReasonCode =
-    | 'none'
-    | 'login_redirect'
-    | 'challenge'
-    | 'network'
-    | 'unknown'
-    | 'reset_profile_required'
-
-export interface GeminiWebSessionStatus {
-    state: GeminiWebSessionState;
-    lastHealthyAt: string | null;
-    lastCheckAt: string | null;
-    consecutiveFailures: number;
-    reasonCode: GeminiWebSessionReasonCode;
-    featureEnabled: boolean;
-    enabled: boolean;
-    enabledAppIds: string[];
-}
-
-export interface GeminiWebSessionConfig {
-    profileDir: string;
-    checkIntervalMs: number;
-    jitterPct: number;
-    retryDelayMs: number;
-    maxConsecutiveFailures: number;
-}
-
-export type GeminiWebSessionActionResult = {
-    success: boolean;
-    error?: string;
-    status?: GeminiWebSessionStatus;
-}
+// Gemini Web Session types
+export type {
+  GeminiWebSessionState,
+  GeminiWebSessionReasonCode,
+  GeminiWebSessionStatus,
+  GeminiWebSessionConfig,
+  GeminiWebSessionActionResult
+} from './gemini-web'
