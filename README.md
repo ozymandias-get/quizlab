@@ -152,6 +152,17 @@ QuizLab includes a dedicated Gemini web session management area for Google-backe
 - Shared Google sign-in experience for Gemini-family surfaces
 - Support for Gemini, NotebookLM, AI Studio, and related Google web surfaces
 
+> **⚠️ Important: Google Session Notice**
+>
+> QuizLab's Gemini web session feature uses a **persistent local Chromium profile** to maintain your Google sign-in state. Please be aware of the following:
+>
+> - **Google account login is required** to use Gemini, NotebookLM, AI Studio, and other Google-backed AI surfaces within QuizLab.
+> - **Session data is stored locally** on your device inside QuizLab's application data directory. QuizLab does **not** transmit your credentials or session data to any external server.
+> - **Session may expire or degrade** over time. Google may require re-authentication due to security policies, cookie expiration, or account activity. Use `Settings > Gemini Web > Check Now` to verify session health.
+> - **Shared session across Google surfaces**: signing into one Google AI surface (e.g., Gemini) will share the session with other Google surfaces (NotebookLM, AI Studio). Logging out or resetting the profile will affect all Google surfaces.
+> - **Profile reset is irreversible**: using the "Reset Profile" option will clear all Google session data and require a fresh login.
+> - QuizLab is **not affiliated with Google**. AI interactions happen through your own Google account and are subject to Google's Terms of Service and Privacy Policy.
+
 ### Screenshot to AI Workflow
 
 - Full-page capture

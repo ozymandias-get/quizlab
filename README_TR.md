@@ -152,6 +152,17 @@ QuizLab, Google tabanlı yüzeyler için ayrı bir Gemini web oturumu yönetimi 
 - Gemini ailesi yüzeyleri için paylaşılan Google oturumu
 - Gemini, NotebookLM, AI Studio ve ilgili Google web yüzeyleri için destek
 
+> **⚠️ Önemli: Google Oturumu Bildirimi**
+>
+> QuizLab'ın Gemini web oturumu özelliği, Google oturum durumunuzu korumak için **yerel bir Chromium profili** kullanır. Lütfen aşağıdaki bilgilere dikkat edin:
+>
+> - QuizLab içinde Gemini, NotebookLM, AI Studio ve diğer Google destekli yapay zeka yüzeylerini kullanmak için **Google hesabıyla giriş yapmanız gerekir**.
+> - **Oturum verileri cihazınızda yerel olarak saklanır.** QuizLab, kimlik bilgilerinizi veya oturum verilerinizi herhangi bir dış sunucuya **göndermez**.
+> - Google'ın güvenlik politikaları, çerez süresinin dolması veya hesap etkinliğine bağlı olarak **oturum süresi dolabilir veya bozulabilir**. Oturum sağlığını doğrulamak için `Ayarlar > Gemini Web > Şimdi Kontrol Et` seçeneğini kullanın.
+> - **Google yüzeyleri arasında paylaşılan oturum**: bir Google AI yüzeyine (ör. Gemini) giriş yapmak, oturumu diğer Google yüzeyleriyle (NotebookLM, AI Studio) paylaşır. Çıkış yapmak veya profili sıfırlamak tüm Google yüzeylerini etkiler.
+> - **Profil sıfırlama geri alınamaz**: "Profili Sıfırla" seçeneğini kullanmak tüm Google oturum verilerini temizler ve yeni bir giriş gerektirir.
+> - QuizLab, **Google ile bağlantılı değildir**. Yapay zeka etkileşimleri kendi Google hesabınız üzerinden gerçekleşir ve Google'ın Hizmet Şartları ile Gizlilik Politikasına tabidir.
+
 ### Ekran Görüntüsünden AI'ya Gönderim Akışı
 
 - Tam sayfa yakalama
