@@ -4,6 +4,8 @@ import {
     generateFocusScript,
     generateClickSendScript,
     generateAutoSendScript,
+    generateValidateSelectorsScript,
+    generateWaitForSubmitReadyScript,
     type AutomationConfig
 } from './automationScripts'
 import { generatePickerScript } from './userElementPicker'
@@ -19,6 +21,11 @@ export function registerAutomationHandlers() {
             const submit = typeof args[2] === 'boolean' ? args[2] : true
             return generateAutoSendScript(readConfig(args[0]), text, submit)
         },
+        generateValidateSelectorsScript: (args: unknown[]) => generateValidateSelectorsScript(readConfig(args[0])),
+        generateWaitForSubmitReadyScript: (args: unknown[]) => generateWaitForSubmitReadyScript(
+            readConfig(args[0]),
+            (args[1] || {}) as { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number }
+        ),
         generatePickerScript: (args: unknown[]) => generatePickerScript((args[0] || {}) as Record<string, string>)
     } satisfies Record<string, (args: unknown[]) => string | null>
 

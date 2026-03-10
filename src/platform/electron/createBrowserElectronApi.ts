@@ -203,6 +203,8 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
             generateFocusScript: async () => null,
             generateClickSendScript: async () => null,
             generateAutoSendScript: async () => null,
+            generateValidateSelectorsScript: async () => null,
+            generateWaitForSubmitReadyScript: async () => null,
             generatePickerScript: async () => null
         },
 

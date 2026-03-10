@@ -19,6 +19,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
     const { data: geminiWebStatus } = useGeminiWebStatus()
     const refreshMutation = useRefreshAiRegistry()
     const [isTutorialActive, setIsTutorialActive] = useState(false)
+    const [aiViewRequestNonce, setAiViewRequestNonce] = useState(0)
 
     const {
         isRegistryLoaded,
@@ -102,11 +103,24 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         setIsTutorialActive(false)
     }, [])
 
+    const openAiWorkspace = useCallback((modelId: string) => {
+        const existingTab = tabs.find((tab) => tab.modelId === modelId)
+
+        if (existingTab) {
+            setActiveTab(existingTab.id)
+        } else {
+            addTab(modelId)
+        }
+
+        setAiViewRequestNonce((current) => current + 1)
+    }, [addTab, setActiveTab, tabs])
+
     const stateValue = useMemo<AiContextState>(() => ({
         isRegistryLoaded,
         chromeUserAgent,
         tabs,
         activeTabId,
+        aiViewRequestNonce,
         currentAI,
         enabledModels,
         defaultAiModel,
@@ -119,6 +133,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         chromeUserAgent,
         tabs,
         activeTabId,
+        aiViewRequestNonce,
         currentAI,
         enabledModels,
         defaultAiModel,
@@ -132,6 +147,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         addTab,
         closeTab: handleCloseTab,
         setActiveTab,
+        openAiWorkspace,
         renameTab,
         togglePinTab,
         setCurrentAI,
@@ -149,6 +165,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         addTab,
         handleCloseTab,
         setActiveTab,
+        openAiWorkspace,
         renameTab,
         togglePinTab,
         setCurrentAI,

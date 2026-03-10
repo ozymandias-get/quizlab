@@ -132,6 +132,30 @@ describe('AiContext', () => {
         expect(result.current.currentAI).toBe('chatgpt')
     })
 
+    it('opens the requested AI workspace and bumps the reveal nonce', async () => {
+        const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+        await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+        act(() => {
+            result.current.openAiWorkspace('chatgpt')
+        })
+
+        const firstNonce = result.current.aiViewRequestNonce
+        const firstTabId = result.current.activeTabId
+
+        expect(result.current.tabs).toHaveLength(1)
+        expect(result.current.currentAI).toBe('chatgpt')
+        expect(firstNonce).toBeGreaterThan(0)
+
+        act(() => {
+            result.current.openAiWorkspace('chatgpt')
+        })
+
+        expect(result.current.tabs).toHaveLength(1)
+        expect(result.current.activeTabId).toBe(firstTabId)
+        expect(result.current.aiViewRequestNonce).toBeGreaterThan(firstNonce)
+    })
+
     it('closes tabs and returns to the home state when the last tab closes', async () => {
         const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
         await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))

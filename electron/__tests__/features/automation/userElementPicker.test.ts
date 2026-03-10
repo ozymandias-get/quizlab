@@ -6,7 +6,8 @@ describe('userElementPicker', () => {
         const script = generatePickerScript()
 
         expect(script).toContain('getElementInfo')
-        expect(script).toContain('generateRobustSelector')
+        expect(script).toContain('generateLocatorBundle')
+        expect(script).toContain('getEventTarget')
         expect(script).toContain('_ai_picker_next_btn')
     })
 })

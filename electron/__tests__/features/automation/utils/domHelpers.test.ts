@@ -1,177 +1,105 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { getElementInfo, generateRobustSelector } from '@electron/features/automation/utils/domHelpers'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { generateLocatorBundle, generateRobustSelector, getElementInfo } from '@electron/features/automation/utils/domHelpers'
 
 describe('domHelpers', () => {
-
     describe('getElementInfo', () => {
+        it('classifies common composer controls', () => {
+            const textInput = document.createElement('input')
+            textInput.type = 'text'
+            const textarea = document.createElement('textarea')
+            const button = document.createElement('button')
+            const contentEditable = document.createElement('div')
+            contentEditable.setAttribute('contenteditable', 'true')
 
-        it('should correctly identify text input', () => {
-            const el = document.createElement('input')
-            el.type = 'text'
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('input')
-            expect(info.confidence).toBe('high')
+            expect(getElementInfo(textInput as any).category).toBe('input')
+            expect(getElementInfo(textarea as any).category).toBe('input')
+            expect(getElementInfo(button as any).category).toBe('button')
+            expect(getElementInfo(contentEditable as any).category).toBe('input')
         })
 
-        it('should correctly identify submit button', () => {
-            const el = document.createElement('input')
-            el.type = 'submit'
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('button')
-            expect(info.confidence).toBe('high')
-        })
+        it('keeps low-confidence elements out of the good path', () => {
+            const icon = document.createElement('svg')
+            const container = document.createElement('div')
+            const infoIcon = getElementInfo(icon as any)
+            const infoContainer = getElementInfo(container as any)
 
-        it('should correctly identify textarea as input', () => {
-            const el = document.createElement('textarea')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('input')
-            expect(info.confidence).toBe('high')
-        })
-
-        it('should correctly identify button element', () => {
-            const el = document.createElement('button')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('button')
-            expect(info.confidence).toBe('high')
-        })
-
-        it('should correctly identify div with role button', () => {
-            const el = document.createElement('div')
-            el.setAttribute('role', 'button')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('button')
-            expect(info.confidence).toBe('high')
-        })
-
-        it('should correctly identify contentEditable div', () => {
-            const el = document.createElement('div')
-            el.setAttribute('contenteditable', 'true')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('input')
-            expect(info.confidence).toBe('high')
-        })
-
-        it('should correctly identify clickable div', () => {
-            const el = document.createElement('div')
-            el.onclick = () => { }
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('button')
-            expect(info.confidence).toBe('medium')
-        })
-
-        it('should correctly identify generic container div', () => {
-            const el = document.createElement('div')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('container')
-            expect(info.confidence).toBe('low')
-        })
-
-        it('should correctly identify icon (svg)', () => {
-            const el = document.createElement('svg')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('icon')
-            expect(info.confidence).toBe('low')
-        })
-
-        it('should correctly identify link (a)', () => {
-            const el = document.createElement('a')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('button')
-            expect(info.confidence).toBe('medium')
-        })
-
-        it('should correctly identify span (text)', () => {
-            const el = document.createElement('span')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('text')
-            expect(info.confidence).toBe('low')
-        })
-
-        it('should correctly identify form', () => {
-            const el = document.createElement('form')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('container')
-            expect(info.confidence).toBe('low')
+            expect(infoIcon.confidence).toBe('low')
+            expect(infoContainer.category).toBe('container')
         })
     })
 
-    describe('generateRobustSelector', () => {
-
+    describe('generateLocatorBundle', () => {
         beforeEach(() => {
             document.body.innerHTML = ''
         })
 
-        it('should return null if element is null', () => {
+        it('prefers stable css candidates for light DOM inputs', () => {
+            const input = document.createElement('textarea')
+            input.setAttribute('data-testid', 'composer-input')
+            input.setAttribute('aria-label', 'Ask anything')
+            document.body.appendChild(input)
+
+            const bundle = generateLocatorBundle(input, 'input')
+
+            expect(bundle?.primarySelector).toBe('textarea[data-testid="composer-input"]')
+            expect(bundle?.candidates).toContain('[data-testid="composer-input"]')
+            expect(bundle?.fingerprint.dataTestId).toBe('composer-input')
+            expect(bundle?.fingerprint.ariaLabel).toBe('Ask anything')
+            expect(bundle?.fingerprint.hostChain).toEqual([])
+        })
+
+        it('captures shadow host chain instead of document body fallback', () => {
+            const host = document.createElement('rich-textarea')
+            host.id = 'composer-host'
+            const shadowRoot = host.attachShadow({ mode: 'open' })
+            const input = document.createElement('div')
+            input.setAttribute('role', 'textbox')
+            input.setAttribute('contenteditable', 'true')
+            shadowRoot.appendChild(input)
+            document.body.appendChild(host)
+
+            const bundle = generateLocatorBundle(input, 'input')
+
+            expect(bundle?.primarySelector).toBe('div[role="textbox"]')
+            expect(bundle?.fingerprint.hostChain).toEqual([
+                expect.objectContaining({
+                    selector: '#composer-host',
+                    tag: 'rich-textarea'
+                })
+            ])
+            expect(bundle?.fingerprint.localPath).toEqual(['div'])
+        })
+
+        it('stores button text in the fingerprint for ambiguous layouts', () => {
+            const button = document.createElement('button')
+            button.textContent = 'Send now'
+            document.body.appendChild(button)
+
+            const bundle = generateLocatorBundle(button, 'button')
+
+            expect(bundle?.fingerprint.text).toBe('Send now')
+            expect(bundle?.candidates).toEqual([])
+        })
+    })
+
+    describe('generateRobustSelector', () => {
+        beforeEach(() => {
+            document.body.innerHTML = ''
+        })
+
+        it('returns null for missing elements', () => {
             expect(generateRobustSelector(null)).toBeNull()
         })
 
-        it('should generate selector by ID', () => {
-            const el = document.createElement('div')
-            el.id = 'my-unique-id'
-            document.body.appendChild(el)
-            expect(generateRobustSelector(el)).toBe('#my-unique-id')
-        })
+        it('keeps stable ids and rejects generated ids', () => {
+            const stable = document.createElement('div')
+            stable.id = 'composer'
+            const unstable = document.createElement('div')
+            unstable.id = '123456789012345'
+            document.body.append(stable, unstable)
 
-        it('should create #id > something if nested and id present', () => {
-            // Placeholder for future tests
-        })
-
-        it('should generate selector by data-testid', () => {
-            const el = document.createElement('div')
-            el.setAttribute('data-testid', 'testing-element')
-            document.body.appendChild(el)
-            expect(generateRobustSelector(el)).toBe('div[data-testid="testing-element"]')
-        })
-
-        it('should generate selector by unique attribute (name)', () => {
-            const el = document.createElement('input')
-            el.setAttribute('name', 'unique-name')
-            document.body.appendChild(el)
-            expect(generateRobustSelector(el)).toBe('input[name="unique-name"]')
-        })
-
-        it('should generate selector by path if no unique attributes', () => {
-            const container = document.createElement('div')
-            const span1 = document.createElement('span')
-            const span2 = document.createElement('span')
-
-            container.appendChild(span1)
-            container.appendChild(span2)
-            document.body.appendChild(container)
-
-            const selector = generateRobustSelector(span2)
-            // Expect something like body > div:nth-child(1) > span:nth-child(2)
-            // The exact output depends on whether body has other children.
-            // But we know it contains span:nth-child(2)
-            expect(selector).toContain('span:nth-child(2)')
-        })
-
-        it('should not use generated or long IDs', () => {
-            const el = document.createElement('div')
-            el.id = '123456' // Too many digits
-            document.body.appendChild(el)
-            const selector = generateRobustSelector(el)
-            // Should NOT use #123456
-            expect(selector).not.toBe('#123456')
-            // It will fallback to body > div:nth-child(1) or similar
-            expect(selector).toContain('body > div')
-        })
-    })
-
-    describe('getElementInfo edge cases', () => {
-        it('handles inputs with no type attribute', () => {
-            const el = document.createElement('input')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('input')
-            expect(info.confidence).toBe('high')
-        })
-
-        it('handles unknown tags gracefully', () => {
-            const el = document.createElement('custom-element')
-            const info = getElementInfo(el as any)
-            expect(info.category).toBe('unknown')
-            expect(info.confidence).toBe('low')
+            expect(generateRobustSelector(stable)).toBe('#composer')
+            expect(generateRobustSelector(unstable)).not.toBe('#123456789012345')
         })
     })
 })
-

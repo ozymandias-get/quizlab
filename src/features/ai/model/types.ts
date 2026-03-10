@@ -13,6 +13,8 @@ export interface AiSendStageTimings {
     promptExecuteJavaScriptMs?: number;
     postPastePromptDelayMs?: number;
     imageUploadWaitMs?: number;
+    submitReadyScriptGenerationMs?: number;
+    submitReadyExecuteJavaScriptMs?: number;
     clickScriptGenerationMs?: number;
     clickExecuteJavaScriptMs?: number;
     totalMs: number;
@@ -28,6 +30,7 @@ export interface AiSendDiagnostics {
     script?: AutomationExecutionDiagnostics | null;
     focusScript?: AutomationExecutionDiagnostics | null;
     promptScript?: AutomationExecutionDiagnostics | null;
+    submitReadyScript?: AutomationExecutionDiagnostics | null;
     clickScript?: AutomationExecutionDiagnostics | null;
 }
 

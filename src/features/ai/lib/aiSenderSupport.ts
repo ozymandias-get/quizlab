@@ -2,17 +2,15 @@ import type { RefObject } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 import { getElectronApi } from '@shared/lib/electronApi'
-import type { AutomationConfig } from '@shared-core/types'
+import { normalizeSubmitMode } from '@shared-core/selectorConfig'
+import type { AiSelectorConfig, AutomationConfig, SelectorHealth } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 import type { AiSendOptions, SendImageResult, SendTextResult } from '../model/types'
 
-export interface AiConfig {
-    input?: string | null
-    button?: string | null
-    submitMode?: string
+export interface AiConfig extends AiSelectorConfig {
     domainRegex?: string
     imageWaitTime?: number
-    [key: string]: unknown
+    health?: SelectorHealth
 }
 
 interface CacheData {
@@ -33,6 +31,8 @@ export interface UseAiSenderReturn {
 export const CLIPBOARD_WAIT_DELAY = 800
 export const POST_PASTE_PROMPT_DELAY = 500
 export const IMAGE_UPLOAD_WAIT_DELAY = 1000
+export const IMAGE_SUBMIT_READY_SETTLE_DELAY = 1200
+export const IMAGE_SUBMIT_READY_TIMEOUT_BUFFER = 6000
 
 const webviewQueues = new WeakMap<WebviewController, Promise<unknown>>()
 
@@ -50,7 +50,16 @@ export function toAutomationConfig(config: AiConfig): AutomationConfig {
         input: typeof config.input === 'string' || config.input === null ? config.input : null,
         button: typeof config.button === 'string' || config.button === null ? config.button : null,
         waitFor: typeof config.waitFor === 'string' || config.waitFor === null ? config.waitFor : null,
-        submitMode: typeof config.submitMode === 'string' ? config.submitMode : undefined
+        submitMode: normalizeSubmitMode(config.submitMode) || undefined,
+        inputCandidates: Array.isArray(config.inputCandidates) ? config.inputCandidates : null,
+        buttonCandidates: Array.isArray(config.buttonCandidates) ? config.buttonCandidates : null,
+        inputFingerprint: config.inputFingerprint || null,
+        buttonFingerprint: config.buttonFingerprint || null,
+        sourceUrl: typeof config.sourceUrl === 'string' ? config.sourceUrl : null,
+        sourceHostname: typeof config.sourceHostname === 'string' ? config.sourceHostname : null,
+        canonicalHostname: typeof config.canonicalHostname === 'string' ? config.canonicalHostname : null,
+        health: config.health || undefined,
+        version: config.version === 2 ? 2 : undefined
     }
 }
 
@@ -120,18 +129,26 @@ export async function getCachedAiConfig(options: {
             staleTime: 1000 * 60 * 5
         }) as AiConfig | null
 
-        const selectorConfig = customConfig && typeof customConfig === 'object' && 'input' in customConfig
+        const selectorConfig = customConfig && typeof customConfig === 'object'
             ? customConfig
             : null
 
-        let finalConfig = baseConfig
-        if (selectorConfig?.input && selectorConfig.button) {
-            finalConfig = {
-                ...baseConfig,
-                input: selectorConfig.input,
-                button: selectorConfig.button,
-                submitMode: selectorConfig.submitMode || baseConfig.submitMode || 'click'
-            }
+        const finalConfig: AiConfig = {
+            ...baseConfig,
+            ...(selectorConfig?.input !== undefined ? { input: selectorConfig.input } : {}),
+            ...(selectorConfig?.button !== undefined ? { button: selectorConfig.button } : {}),
+            ...(selectorConfig?.waitFor !== undefined ? { waitFor: selectorConfig.waitFor } : {}),
+            ...(selectorConfig?.inputCandidates !== undefined ? { inputCandidates: selectorConfig.inputCandidates } : {}),
+            ...(selectorConfig?.buttonCandidates !== undefined ? { buttonCandidates: selectorConfig.buttonCandidates } : {}),
+            ...(selectorConfig?.inputFingerprint !== undefined ? { inputFingerprint: selectorConfig.inputFingerprint } : {}),
+            ...(selectorConfig?.buttonFingerprint !== undefined ? { buttonFingerprint: selectorConfig.buttonFingerprint } : {}),
+            ...(selectorConfig?.sourceUrl !== undefined ? { sourceUrl: selectorConfig.sourceUrl } : {}),
+            ...(selectorConfig?.sourceHostname !== undefined ? { sourceHostname: selectorConfig.sourceHostname } : {}),
+            ...(selectorConfig?.canonicalHostname !== undefined ? { canonicalHostname: selectorConfig.canonicalHostname } : {}),
+            ...(selectorConfig?.health !== undefined ? { health: selectorConfig.health as SelectorHealth } : {}),
+            submitMode: normalizeSubmitMode(selectorConfig?.submitMode)
+                || normalizeSubmitMode(baseConfig.submitMode)
+                || 'mixed'
         }
 
         const data = {

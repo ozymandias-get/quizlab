@@ -64,6 +64,11 @@ declare global {
                 generateFocusScript: (config: AiSelectorConfig) => Promise<string | null>;
                 generateClickSendScript: (config: AiSelectorConfig) => Promise<string | null>;
                 generateAutoSendScript: (config: AiSelectorConfig, text: string, submit: boolean) => Promise<string | null>;
+                generateValidateSelectorsScript: (config: AiSelectorConfig) => Promise<string | null>;
+                generateWaitForSubmitReadyScript: (
+                    config: AiSelectorConfig,
+                    options?: { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number }
+                ) => Promise<string | null>;
                 generatePickerScript: (translations: Record<string, string>) => Promise<string | null>;
             };
 

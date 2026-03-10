@@ -21,8 +21,8 @@ const MAX_ALIVE_UNPINNED_TABS = 3
  * Creates webviews for active AI tabs. Shows AiHomePage on startup.
  */
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
-    const { tabs, activeTabId, isTutorialActive } = useAiState()
-    const { setActiveTab, addTab, stopTutorial } = useAiActions()
+    const { tabs, activeTabId, isTutorialActive, aiViewRequestNonce } = useAiState()
+    const { setActiveTab, openAiWorkspace, stopTutorial } = useAiActions()
     const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
     const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
 
@@ -50,20 +50,21 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
         setAliveTabIds(prev => prev.filter(id => currentTabIds.has(id)))
     }, [tabs])
 
+    useEffect(() => {
+        if (aiViewRequestNonce === 0 || tabs.length === 0 || !activeTabId) {
+            return
+        }
+
+        setShowHome(false)
+    }, [activeTabId, aiViewRequestNonce, tabs.length])
+
     const handleSelectTab = (tabId: string) => {
         setActiveTab(tabId)
         setShowHome(false)
     }
 
     const handleOpenModel = (modelId: string) => {
-        // If there's already a tab with this model, just switch to it
-        const existing = tabs.find(t => t.modelId === modelId)
-        if (existing) {
-            setActiveTab(existing.id)
-        } else {
-            addTab(modelId)
-        }
-        setShowHome(false)
+        openAiWorkspace(modelId)
     }
 
     return (

@@ -8,6 +8,7 @@ import type {
     AiRegistry,
     InactivePlatforms
 } from '@shared-core/types'
+import { normalizeSubmitMode } from '../../../shared/selectorConfig'
 import chatgpt from './platforms/chatgpt'
 import claude from './platforms/claude'
 import deepseek from './platforms/deepseek'
@@ -45,7 +46,7 @@ const enhancePlatform = (data: AiPlatform): EnhancedAiPlatform => {
     return {
         ...data,
         displayName: data.meta?.displayName || data.name,
-        submitMode: data.meta?.submitMode,
+        submitMode: normalizeSubmitMode(data.meta?.submitMode) || 'mixed',
         domainRegex: data.meta?.domainRegex,
         imageWaitTime: data.meta?.imageWaitTime,
         input: data.selectors?.input,

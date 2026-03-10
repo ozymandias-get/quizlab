@@ -18,6 +18,8 @@ import {
     buildPromptText,
     CLIPBOARD_WAIT_DELAY,
     getCachedAiConfig,
+    IMAGE_SUBMIT_READY_SETTLE_DELAY,
+    IMAGE_SUBMIT_READY_TIMEOUT_BUFFER,
     IMAGE_UPLOAD_WAIT_DELAY,
     isWebviewUsable,
     mergePromptText,
@@ -33,7 +35,8 @@ import { usePrompts } from './usePrompts'
 import {
     useGenerateAutoSendScript,
     useGenerateClickSendScript,
-    useGenerateFocusScript
+    useGenerateFocusScript,
+    useGenerateWaitForSubmitReadyScript
 } from '@platform/electron/api/useAutomationApi'
 import { useCopyImageToClipboard } from '@platform/electron/api/useSystemApi'
 
@@ -139,6 +142,7 @@ export function useAiSender(
     const { mutateAsync: generateAutoSendScript } = useGenerateAutoSendScript()
     const { mutateAsync: generateFocusScript } = useGenerateFocusScript()
     const { mutateAsync: generateClickSendScript } = useGenerateClickSendScript()
+    const { mutateAsync: generateWaitForSubmitReadyScript } = useGenerateWaitForSubmitReadyScript()
     const { mutateAsync: copyImageToClipboard } = useCopyImageToClipboard()
     const configCache = useRef<ConfigCache>({ key: null, data: null })
 
@@ -349,6 +353,9 @@ export function useAiSender(
 
                 diagnostics.currentUrl = resolved.currentUrl
                 const effectivePromptText = mergePromptText(activePromptText, options.promptText)
+                const minimumReadyWaitMs = Math.max(resolved.aiConfig.imageWaitTime || IMAGE_UPLOAD_WAIT_DELAY, IMAGE_UPLOAD_WAIT_DELAY)
+                const submitReadyTimeoutMs = minimumReadyWaitMs + IMAGE_SUBMIT_READY_TIMEOUT_BUFFER
+                let promptApplied = false
 
                 const clipboardStartedAt = nowMs()
                 const copied = await copyImageToClipboard(imageDataUrl)
@@ -451,7 +458,7 @@ export function useAiSender(
                     const promptScript = await generateAutoSendScript({
                         config: toAutomationConfig(resolved.aiConfig),
                         text: effectivePromptText,
-                        submit: effectiveAutoSend
+                        submit: false
                     })
                     diagnostics.timings.promptScriptGenerationMs = roundMs(nowMs() - promptScriptGenerationStartedAt)
 
@@ -477,20 +484,63 @@ export function useAiSender(
                             )
                         }
 
-                        return attachDiagnostics(
-                            {
-                                success: true,
-                                mode: effectiveAutoSend ? 'auto_click_with_prompt' : 'paste_and_prompt'
-                            },
-                            diagnostics,
-                            requestStartedAt
-                        )
+                        promptApplied = true
+
+                        if (!effectiveAutoSend) {
+                            return attachDiagnostics(
+                                {
+                                    success: true,
+                                    mode: 'paste_and_prompt'
+                                },
+                                diagnostics,
+                                requestStartedAt
+                            )
+                        }
                     }
                 }
 
                 if (effectiveAutoSend) {
-                    await sleep(resolved.aiConfig.imageWaitTime || IMAGE_UPLOAD_WAIT_DELAY)
-                    diagnostics.timings.imageUploadWaitMs = resolved.aiConfig.imageWaitTime || IMAGE_UPLOAD_WAIT_DELAY
+                    const submitReadyScriptGenerationStartedAt = nowMs()
+                    const submitReadyScript = await generateWaitForSubmitReadyScript({
+                        config: toAutomationConfig(resolved.aiConfig),
+                        options: {
+                            timeoutMs: submitReadyTimeoutMs,
+                            settleMs: IMAGE_SUBMIT_READY_SETTLE_DELAY,
+                            minimumWaitMs: minimumReadyWaitMs
+                        }
+                    })
+                    diagnostics.timings.submitReadyScriptGenerationMs = roundMs(nowMs() - submitReadyScriptGenerationStartedAt)
+                    if (!submitReadyScript) {
+                        return attachDiagnostics(
+                            { success: false, error: 'submit_ready_script_failed' },
+                            diagnostics,
+                            requestStartedAt
+                        )
+                    }
+
+                    if (!canUseWebview(webview, scheduledWebview)) {
+                        return attachDiagnostics(
+                            { success: false, error: 'webview_destroyed' },
+                            diagnostics,
+                            requestStartedAt
+                        )
+                    }
+
+                    const submitReadyExecuteStartedAt = nowMs()
+                    const rawSubmitReadyResult = await webview.executeJavaScript(submitReadyScript)
+                    diagnostics.timings.submitReadyExecuteJavaScriptMs = roundMs(nowMs() - submitReadyExecuteStartedAt)
+                    const submitReadyResult = normalizeExecutionResult(rawSubmitReadyResult)
+                    diagnostics.submitReadyScript = cloneScriptDiagnostics(submitReadyResult?.diagnostics)
+                    diagnostics.timings.imageUploadWaitMs = roundMs(
+                        submitReadyResult?.diagnostics?.totalMs ?? diagnostics.timings.submitReadyExecuteJavaScriptMs ?? minimumReadyWaitMs
+                    )
+                    if (!submitReadyResult?.success) {
+                        return attachDiagnostics(
+                            { success: false, error: submitReadyResult?.error || 'submit_not_ready' },
+                            diagnostics,
+                            requestStartedAt
+                        )
+                    }
 
                     const clickScriptGenerationStartedAt = nowMs()
                     const clickScript = await generateClickSendScript(toAutomationConfig(resolved.aiConfig))
@@ -525,7 +575,7 @@ export function useAiSender(
                     }
 
                     return attachDiagnostics(
-                        { success: true, mode: 'auto_click' },
+                        { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
                         diagnostics,
                         requestStartedAt
                     )
@@ -569,6 +619,7 @@ export function useAiSender(
         generateAutoSendScript,
         generateClickSendScript,
         generateFocusScript,
+        generateWaitForSubmitReadyScript,
         resolveSendContext,
         webviewRef
     ])

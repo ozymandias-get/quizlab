@@ -39,6 +39,7 @@ export interface AiContextState {
     chromeUserAgent: string;
     tabs: Tab[];
     activeTabId: string;
+    aiViewRequestNonce: number;
     currentAI: string;
     enabledModels: string[];
     defaultAiModel: string;
@@ -52,6 +53,7 @@ export interface AiContextActions {
     addTab: (modelId: string) => void;
     closeTab: (tabId: string) => void;
     setActiveTab: (tabId: string) => void;
+    openAiWorkspace: (modelId: string) => void;
     renameTab: (tabId: string, title?: string) => void;
     togglePinTab: (tabId: string) => void;
     setCurrentAI: (id: string) => void;

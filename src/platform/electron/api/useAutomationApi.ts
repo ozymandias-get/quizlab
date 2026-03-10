@@ -48,6 +48,42 @@ export function useGenerateAutoSendScript() {
 }
 
 /**
+ * Generate Validate Selectors Script Mutation
+ */
+export function useGenerateValidateSelectorsScript() {
+    const { t } = useLanguage()
+
+    return useElectronMutation<string | null, AutomationConfig>(
+        (api, config) => api.automation.generateValidateSelectorsScript(config),
+        {
+            errorMessage: t('toast_validate_script_failed'),
+            showErrorToast: false
+        }
+    )
+}
+
+/**
+ * Generate submit-ready wait script
+ */
+export function useGenerateWaitForSubmitReadyScript() {
+    const { t } = useLanguage()
+
+    return useElectronMutation<
+        string | null,
+        {
+            config: AutomationConfig;
+            options?: { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number };
+        }
+    >(
+        (api, { config, options }) => api.automation.generateWaitForSubmitReadyScript(config, options),
+        {
+            errorMessage: t('toast_submit_ready_script_failed'),
+            showErrorToast: false
+        }
+    )
+}
+
+/**
  * Generate Picker Script Mutation
  */
 export function useGeneratePickerScript() {

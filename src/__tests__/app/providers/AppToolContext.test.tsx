@@ -1,10 +1,14 @@
 import React from 'react'
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppToolProvider, useAppTools } from '@app/providers/AppToolContext'
 
 const mockSendTextToAI = vi.fn()
 const mockSendImageToAI = vi.fn()
+const mockStartPicker = vi.fn()
+const mockWebviewState = {
+    instance: null as any
+}
 
 vi.mock('@app/providers/AiContext', () => ({
     useAiActions: () => ({
@@ -12,7 +16,7 @@ vi.mock('@app/providers/AiContext', () => ({
         sendImageToAI: mockSendImageToAI
     }),
     useAiState: () => ({
-        webviewInstance: null,
+        webviewInstance: mockWebviewState.instance,
         autoSend: false
     })
 }))
@@ -29,7 +33,7 @@ vi.mock('@features/screenshot/hooks/useScreenshot', () => ({
 vi.mock('@features/automation/hooks/useElementPicker', () => ({
     useElementPicker: () => ({
         isPickerActive: false,
-        startPicker: vi.fn(),
+        startPicker: mockStartPicker,
         togglePicker: vi.fn()
     })
 }))
@@ -49,6 +53,9 @@ describe('AppToolContext', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.useFakeTimers()
+        mockWebviewState.instance = null
+        mockStartPicker.mockResolvedValue(undefined)
         Object.defineProperty(window, 'getSelection', {
             configurable: true,
             value: vi.fn(() => ({
@@ -56,6 +63,10 @@ describe('AppToolContext', () => {
                 removeAllRanges: mockRemoveAllRanges
             }))
         })
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
     })
 
     it('queues multiple text and image items', () => {
@@ -133,5 +144,24 @@ describe('AppToolContext', () => {
 
         expect(mockRemoveAllRanges).toHaveBeenCalledTimes(1)
         expect(result.current.pendingAiItems).toHaveLength(0)
+    })
+
+    it('starts the picker once the active webview becomes ready', async () => {
+        mockWebviewState.instance = {
+            getURL: vi.fn(() => 'https://chat.openai.com'),
+            executeJavaScript: vi.fn().mockResolvedValue('complete')
+        }
+
+        const { result } = renderHook(() => useAppTools(), { wrapper })
+
+        act(() => {
+            result.current.startPickerWhenReady()
+        })
+
+        await act(async () => {
+            await vi.runAllTimersAsync()
+        })
+
+        expect(mockStartPicker).toHaveBeenCalledTimes(1)
     })
 })

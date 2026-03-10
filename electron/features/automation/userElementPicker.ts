@@ -7,7 +7,7 @@
  */
 
 import { pickerStyles } from './utils/styles';
-import { getElementInfo, generateRobustSelector } from './utils/domHelpers';
+import { getElementInfo, generateLocatorBundle } from './utils/domHelpers';
 import { getStepHtml, getHintHtml, type TranslationMap } from './utils/uiTemplates';
 
 /**
@@ -34,12 +34,22 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
 
         // Durum Yönetimi - 3 ADIM
         let step = 'input'; // 'input' | 'typing' | 'submit' | 'done'
-        const selectionData = { input: null, button: null };
+        const selectionData = {
+            version: 2,
+            input: null,
+            button: null,
+            waitFor: null,
+            submitMode: 'mixed',
+            inputCandidates: [],
+            buttonCandidates: [],
+            inputFingerprint: null,
+            buttonFingerprint: null
+        };
         let selectedInputElement = null;
 
         // --- HELPER FUNCTIONS INJECTION ---
         const getElementInfo = ${getElementInfo.toString()};
-        const generateRobustSelector = ${generateRobustSelector.toString()};
+        const generateLocatorBundle = ${generateLocatorBundle.toString()};
         const getStepHtml = ${getStepHtml.toString()};
         const getHintHtml = ${getHintHtml.toString()};
 
@@ -108,6 +118,19 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         // --- EVENT HANDLERS ---
         let lastHovered = null;
 
+        const getEventTarget = (event) => {
+            if (event && typeof event.composedPath === 'function') {
+                const path = event.composedPath();
+                for (const candidate of path) {
+                    if (candidate && candidate.nodeType === 1) {
+                        return candidate;
+                    }
+                }
+            }
+
+            return event ? event.target : null;
+        };
+
         const normalizeTarget = (rawTarget) => {
             if (!rawTarget) return null;
             if (rawTarget.nodeType !== 1) return null; // Element node check
@@ -129,7 +152,7 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             if (step === 'done') return;
             e.stopPropagation();
             try {
-                const target = normalizeTarget(e.target);
+                const target = normalizeTarget(getEventTarget(e));
                 if (!target) return;
 
                 if (lastHovered === target) return;
@@ -220,14 +243,19 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             e.preventDefault();
             e.stopPropagation();
 
-            const target = normalizeTarget(e.target);
+            const target = normalizeTarget(getEventTarget(e));
             if (!target) return;
 
-            let selector = null;
+            let locatorBundle = null;
             try {
-                selector = generateRobustSelector(target);
+                locatorBundle = generateLocatorBundle(target, step === 'input' ? 'input' : 'button');
             } catch (err) {
                 safeConsole.error('Selector generation failed', err);
+                return;
+            }
+
+            if (!locatorBundle || !locatorBundle.fingerprint) {
+                safeConsole.error('Locator bundle generation returned empty result');
                 return;
             }
 
@@ -246,7 +274,10 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
 
             // ADIM 1: Input seçildi
             if (step === 'input') {
-                selectionData.input = selector;
+                selectionData.input = locatorBundle.primarySelector;
+                selectionData.waitFor = locatorBundle.primarySelector;
+                selectionData.inputCandidates = locatorBundle.candidates || [];
+                selectionData.inputFingerprint = locatorBundle.fingerprint;
                 selectedInputElement = target;
                 target.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
                 target.classList.add('_ai-picker-selected');
@@ -257,7 +288,9 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             // ADIM 3: Submit seçildi
             else if (step === 'submit') {
                 try {
-                    selectionData.button = selector;
+                    selectionData.button = locatorBundle.primarySelector;
+                    selectionData.buttonCandidates = locatorBundle.candidates || [];
+                    selectionData.buttonFingerprint = locatorBundle.fingerprint;
                     step = 'done';
                     
                     target.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');

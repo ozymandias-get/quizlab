@@ -5,9 +5,11 @@ import AiWebview from '@features/ai/ui/AiWebview'
 interface MockAiState {
     tabs: Array<{ id: string; modelId: string; title?: string; pinned?: boolean }>;
     activeTabId: string;
+    aiViewRequestNonce: number;
     isTutorialActive: boolean;
     setActiveTab: any;
     addTab: any;
+    openAiWorkspace: any;
     stopTutorial: any;
 }
 
@@ -18,9 +20,11 @@ let mockAiState: MockAiState = {
         { id: '2', modelId: 'claude-3', title: 'Claude 3' },
     ],
     activeTabId: '1',
+    aiViewRequestNonce: 0,
     isTutorialActive: false,
     setActiveTab: vi.fn(),
     addTab: vi.fn(),
+    openAiWorkspace: vi.fn(),
     stopTutorial: vi.fn(),
 }
 
@@ -30,11 +34,13 @@ vi.mock('@app/providers/AiContext', () => ({
     useAiState: () => ({
         tabs: mockAiState.tabs,
         activeTabId: mockAiState.activeTabId,
+        aiViewRequestNonce: mockAiState.aiViewRequestNonce,
         isTutorialActive: mockAiState.isTutorialActive,
     }),
     useAiActions: () => ({
         setActiveTab: mockAiState.setActiveTab,
         addTab: mockAiState.addTab,
+        openAiWorkspace: mockAiState.openAiWorkspace,
         stopTutorial: mockAiState.stopTutorial,
     }),
 }))
@@ -65,9 +71,11 @@ describe('AiWebview Component', () => {
                 { id: '2', modelId: 'claude-3', title: 'Claude 3' },
             ],
             activeTabId: '1',
+            aiViewRequestNonce: 0,
             isTutorialActive: false,
             setActiveTab: vi.fn(),
             addTab: vi.fn(),
+            openAiWorkspace: vi.fn(),
             stopTutorial: vi.fn(),
         }
     })

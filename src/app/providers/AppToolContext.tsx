@@ -24,6 +24,7 @@ interface AppToolContextType {
     setAutoSend: (value: boolean) => void;
     isPickerActive: boolean;
     startPicker: () => void;
+    startPickerWhenReady: () => void;
     togglePicker: () => void;
     isGeminiWebLoginInProgress: boolean;
     startGeminiWebLogin: () => Promise<GeminiWebSessionActionResult>;
@@ -75,6 +76,8 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
     const { webviewInstance, autoSend } = useAiState()
     const [pendingAiItems, setPendingAiItems] = React.useState<AiDraftItem[]>([])
     const [pendingScreenshotMeta, setPendingScreenshotMeta] = React.useState<QueuedImageMeta | null>(null)
+    const [pickerStartNonce, setPickerStartNonce] = React.useState(0)
+    const pendingPickerStartRef = React.useRef(false)
 
     const queueTextForAi = useCallback((text: string) => {
         const normalized = text.trim()
@@ -201,6 +204,52 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
         }
     }, [captureScreenshot])
     const { isPickerActive, startPicker, togglePicker } = useElementPicker(webviewInstance)
+    const startPickerWhenReady = useCallback(() => {
+        pendingPickerStartRef.current = true
+        setPickerStartNonce((current) => current + 1)
+    }, [])
+
+    React.useEffect(() => {
+        if (!pendingPickerStartRef.current || !webviewInstance) {
+            return
+        }
+
+        let cancelled = false
+
+        const waitForWebviewReady = async () => {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                if (cancelled || !pendingPickerStartRef.current) {
+                    return
+                }
+
+                try {
+                    const currentUrl = typeof webviewInstance.getURL === 'function' ? webviewInstance.getURL() : ''
+                    if (!currentUrl || typeof webviewInstance.executeJavaScript !== 'function') {
+                        await new Promise((resolve) => setTimeout(resolve, 250))
+                        continue
+                    }
+
+                    const readyState = await webviewInstance.executeJavaScript('document.readyState')
+                    if (readyState === 'interactive' || readyState === 'complete') {
+                        pendingPickerStartRef.current = false
+                        await startPicker()
+                        return
+                    }
+                } catch {
+                    // Wait for the next retry while the webview is still initializing.
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, 250))
+            }
+        }
+
+        void waitForWebviewReady()
+
+        return () => {
+            cancelled = true
+        }
+    }, [pickerStartNonce, startPicker, webviewInstance])
+
     const { mutateAsync: openGeminiWebLogin, isPending: isGeminiWebLoginInProgress } = useGeminiWebOpenLogin()
 
     const startGeminiWebLogin = useCallback(() => openGeminiWebLogin(), [openGeminiWebLogin])
@@ -220,6 +269,7 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
         setAutoSend,
         isPickerActive,
         startPicker,
+        startPickerWhenReady,
         togglePicker,
         isGeminiWebLoginInProgress,
         startGeminiWebLogin
@@ -238,6 +288,7 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
         sendPendingAiItems,
         startGeminiWebLogin,
         startPicker,
+        startPickerWhenReady,
         startScreenshot,
         setAutoSend,
         togglePicker

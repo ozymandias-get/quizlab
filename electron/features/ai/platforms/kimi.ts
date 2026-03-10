@@ -14,7 +14,7 @@ const kimi: AiPlatform = {
     },
     meta: {
         displayName: 'Kimi',
-        submitMode: 'enter',
+        submitMode: 'enter_key',
         domainRegex: '^https://(kimi\\.moonshot\\.cn|kimi\\.com)(/.*)?$',
         imageWaitTime: 1000
     }

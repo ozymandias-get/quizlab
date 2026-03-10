@@ -64,6 +64,7 @@ describe('useAiSender', () => {
     const mockGenerateAutoSendScript = vi.fn()
     const mockGenerateClickSendScript = vi.fn()
     const mockGenerateFocusScript = vi.fn()
+    const mockGenerateWaitForSubmitReadyScript = vi.fn()
     const mockCopyImageToClipboard = vi.fn()
     const mockGetAiConfig = vi.fn()
 
@@ -124,7 +125,8 @@ describe('useAiSender', () => {
             automation: {
                 generateAutoSendScript: mockGenerateAutoSendScript,
                 generateClickSendScript: mockGenerateClickSendScript,
-                generateFocusScript: mockGenerateFocusScript
+                generateFocusScript: mockGenerateFocusScript,
+                generateWaitForSubmitReadyScript: mockGenerateWaitForSubmitReadyScript
             },
             copyImageToClipboard: mockCopyImageToClipboard,
             getAiConfig: mockGetAiConfig
@@ -139,6 +141,7 @@ describe('useAiSender', () => {
         mockGenerateAutoSendScript.mockResolvedValue('document.querySelector("#input").value = "text";')
         mockGenerateFocusScript.mockResolvedValue('focus()')
         mockGenerateClickSendScript.mockResolvedValue('click()')
+        mockGenerateWaitForSubmitReadyScript.mockResolvedValue('waitReady()')
         mockGetAiConfig.mockResolvedValue({})
     })
 
@@ -246,6 +249,8 @@ describe('useAiSender', () => {
         mockCopyImageToClipboard.mockResolvedValue(true)
         mockGenerateFocusScript.mockResolvedValue('focus()')
         mockGenerateAutoSendScript.mockResolvedValue('send()')
+        mockGenerateWaitForSubmitReadyScript.mockResolvedValue('waitReady()')
+        mockGenerateClickSendScript.mockResolvedValue('click()')
         mockUsePrompts.mockReturnValue({ activePromptText: 'Describe this' })
         mockWebview.executeJavaScript
             .mockResolvedValueOnce({
@@ -254,8 +259,18 @@ describe('useAiSender', () => {
             })
             .mockResolvedValueOnce({
                 success: true,
+                action: 'input_only',
+                diagnostics: { ...mockScriptDiagnostics, kind: 'auto_send', submitMs: 0 }
+            })
+            .mockResolvedValueOnce({
+                success: true,
+                action: 'submit_ready',
+                diagnostics: { ...mockScriptDiagnostics, kind: 'submit_ready', setInputMs: 0 }
+            })
+            .mockResolvedValueOnce({
+                success: true,
                 mode: 'click',
-                diagnostics: mockScriptDiagnostics
+                diagnostics: { ...mockScriptDiagnostics, kind: 'click_send', setInputMs: 0 }
             })
 
         const { result } = renderHook(() => useAiSender(mockWebviewRef, 'gpt-4', true, mockAiRegistry as any, 'tab-1'), {
@@ -273,10 +288,20 @@ describe('useAiSender', () => {
         expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
             expect.anything(),
             'Describe this',
-            true
+            false
         )
+        expect(mockGenerateWaitForSubmitReadyScript).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                minimumWaitMs: 1000,
+                settleMs: 1200
+            })
+        )
+        expect(mockGenerateClickSendScript).toHaveBeenCalledWith(expect.anything())
         expect(res.diagnostics?.focusScript?.kind).toBe('focus')
         expect(res.diagnostics?.promptScript?.kind).toBe('auto_send')
+        expect(res.diagnostics?.submitReadyScript?.kind).toBe('submit_ready')
+        expect(res.diagnostics?.clickScript?.kind).toBe('click_send')
     })
 
     it('uses local image prompt without a global prompt', async () => {

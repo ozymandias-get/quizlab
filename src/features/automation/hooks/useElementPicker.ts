@@ -4,6 +4,8 @@ import { useLanguage } from '@app/providers/LanguageContext'
 import { useToast } from '@app/providers/ToastContext'
 import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
+import { canonicalizeHostname, normalizeSubmitMode } from '@shared-core/selectorConfig'
+import type { AiSelectorConfig } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
 type WebviewInstance = WebviewController | null
@@ -55,7 +57,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         setIsPickerActive(false)
     }, [isPickerActive, stopPolling, webviewInstance])
 
-    const savePickerResult = useCallback(async (config: { input: string; button: string }) => {
+    const savePickerResult = useCallback(async (config: AiSelectorConfig) => {
         const webview = webviewInstance
         if (!webview) return
 
@@ -80,7 +82,19 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             }
 
             const hostname = new URL(url).hostname
-            await saveAiConfig({ hostname, config })
+            const normalizedHostname = hostname.toLowerCase()
+            await saveAiConfig({
+                hostname: normalizedHostname,
+                config: {
+                    ...config,
+                    version: 2,
+                    sourceUrl: url,
+                    sourceHostname: normalizedHostname,
+                    canonicalHostname: canonicalizeHostname(normalizedHostname) || normalizedHostname,
+                    submitMode: normalizeSubmitMode(config.submitMode) || 'mixed',
+                    health: 'ready'
+                }
+            })
         } catch (err) {
             const message = err instanceof Error ? err.message : t('error_unknown_error')
             Logger.error('[ElementPicker] Save error:', err)
@@ -130,7 +144,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
                     stopPolling()
                     const config = typeof parsed.data === 'string' ? JSON.parse(parsed.data) : parsed.data
 
-                    if (config && config.input && config.button) {
+                    if (config && config.inputFingerprint && config.buttonFingerprint) {
                         await savePickerResult(config)
                     } else {
                         showError('picker_selection_missing')

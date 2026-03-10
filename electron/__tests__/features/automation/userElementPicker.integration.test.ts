@@ -1,52 +1,55 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { generateAutoSendScript, generateValidateSelectorsScript } from '@electron/features/automation/automationScripts'
 import { generatePickerScript } from '@electron/features/automation/userElementPicker'
 
 type PickerWindow = Window & {
-    _aiPickerResult?: { input: string | null; button: string | null } | null
+    _aiPickerResult?: Record<string, unknown> | null
     _aiPickerCleanup?: () => void
 }
 
 describe('userElementPicker integration', () => {
     beforeEach(() => {
-        vi.useFakeTimers()
+        vi.useRealTimers()
         document.body.innerHTML = ''
         document.head.innerHTML = ''
     })
 
     afterEach(() => {
-        vi.useRealTimers()
-        const w = window as PickerWindow
-        if (w._aiPickerCleanup) {
+        const pickerWindow = window as PickerWindow
+        if (pickerWindow._aiPickerCleanup) {
             try {
-                w._aiPickerCleanup()
+                pickerWindow._aiPickerCleanup()
             } catch {
                 // no-op
             }
         }
-        delete w._aiPickerResult
+        delete pickerWindow._aiPickerResult
     })
 
-    it('captures input and send button on Gemini-like shadow DOM composer', async () => {
+    it('captures rich selector data and validates on the same shadow DOM composer', async () => {
         const host = document.createElement('div')
-        const shadow = host.attachShadow({ mode: 'open' })
+        host.id = 'gemini-shell'
+        const shadowRoot = host.attachShadow({ mode: 'open' })
         document.body.appendChild(host)
 
         const richTextarea = document.createElement('rich-textarea')
+        richTextarea.id = 'composer-host'
         const textbox = document.createElement('div')
         textbox.setAttribute('role', 'textbox')
         textbox.setAttribute('contenteditable', 'true')
-        richTextarea.appendChild(textbox)
+        richTextarea.attachShadow({ mode: 'open' }).appendChild(textbox)
 
         const sendButton = document.createElement('button')
         sendButton.setAttribute('aria-label', 'Send message')
+        Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, get: () => 32 })
+        Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, get: () => 32 })
 
-        shadow.appendChild(richTextarea)
-        shadow.appendChild(sendButton)
+        shadowRoot.appendChild(richTextarea)
+        shadowRoot.appendChild(sendButton)
 
-        const script = generatePickerScript()
-        // execute generated in-page picker script
+        const pickerScript = generatePickerScript()
         // eslint-disable-next-line no-eval
-        eval(script)
+        eval(pickerScript)
 
         textbox.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, composed: true }))
         textbox.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true }))
@@ -58,12 +61,25 @@ describe('userElementPicker integration', () => {
         sendButton.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, composed: true }))
         sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true }))
 
-        vi.advanceTimersByTime(900)
-        await Promise.resolve()
+        await new Promise((resolve) => setTimeout(resolve, 900))
 
         const pickerResult = (window as PickerWindow)._aiPickerResult
         expect(pickerResult).toBeTruthy()
-        expect(pickerResult?.input).toBeTruthy()
-        expect(pickerResult?.button).toBeTruthy()
-    })
+        expect(pickerResult).toEqual(expect.objectContaining({
+            version: 2,
+            submitMode: 'mixed',
+            inputFingerprint: expect.any(Object),
+            buttonFingerprint: expect.any(Object),
+            inputCandidates: expect.any(Array),
+            buttonCandidates: expect.any(Array)
+        }))
+
+        const validateResult = await window.eval(generateValidateSelectorsScript(pickerResult as any))
+        expect(validateResult.success).toBe(true)
+        expect(['recursive', 'fingerprint']).toContain(validateResult.diagnostics.input.strategy)
+
+        const sendResult = await window.eval(generateAutoSendScript(pickerResult as any, 'Shadow DOM hello', false))
+        expect(sendResult.success).toBe(true)
+        expect(textbox.textContent || (textbox as HTMLElement).innerText).toContain('Shadow DOM hello')
+    }, 10000)
 })

@@ -27,6 +27,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         generateFocusScript: (config: AutomationConfig): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generateFocusScript', config),
         generateClickSendScript: (config: AutomationConfig): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generateClickSendScript', config),
         generateAutoSendScript: (config: AutomationConfig, text: string, submit: boolean): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generateAutoSendScript', config, text, submit),
+        generateValidateSelectorsScript: (config: AutomationConfig): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generateValidateSelectorsScript', config),
+        generateWaitForSubmitReadyScript: (
+            config: AutomationConfig,
+            options?: { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number }
+        ): Promise<string | null> => ipcRenderer.invoke(
+            IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
+            'generateWaitForSubmitReadyScript',
+            config,
+            options
+        ),
         generatePickerScript: (translations: Record<string, string>): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generatePickerScript', translations)
     },
 
