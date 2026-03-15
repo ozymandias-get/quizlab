@@ -200,32 +200,53 @@
 
 .hub-center-btn__glow--open {
   background:
-    radial-gradient(circle at 24% 22%, rgba(56, 189, 248, 0.4) 0%, rgba(56, 189, 248, 0.14) 36%, transparent 70%),
+    radial-gradient(
+      circle at 24% 22%,
+      rgba(56, 189, 248, 0.4) 0%,
+      rgba(56, 189, 248, 0.14) 36%,
+      transparent 70%
+    ),
     radial-gradient(circle at 78% 82%, rgba(245, 158, 11, 0.34) 0%, transparent 64%);
 }
 
 .hub-center-btn__glow--closed {
   background:
-    radial-gradient(circle at 28% 24%, rgba(56, 189, 248, 0.2) 0%, rgba(56, 189, 248, 0.06) 34%, transparent 70%),
+    radial-gradient(
+      circle at 28% 24%,
+      rgba(56, 189, 248, 0.2) 0%,
+      rgba(56, 189, 248, 0.06) 34%,
+      transparent 70%
+    ),
     radial-gradient(circle at 74% 80%, rgba(245, 158, 11, 0.16) 0%, transparent 60%);
 }
 
 .hub-center-btn__ring {
   z-index: 1;
   mix-blend-mode: screen;
-  background: conic-gradient(from 0deg, transparent 0%, rgba(56, 189, 248, 0.34) 23%, rgba(245, 158, 11, 0.32) 48%, rgba(56, 189, 248, 0.3) 72%, transparent 100%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.34) 23%,
+    rgba(245, 158, 11, 0.32) 48%,
+    rgba(56, 189, 248, 0.3) 72%,
+    transparent 100%
+  );
 }
 
 .hub-center-btn__icon-shell--open {
   background: linear-gradient(145deg, rgba(56, 189, 248, 0.26) 0%, rgba(245, 158, 11, 0.2) 100%);
   border: 1px solid rgba(56, 189, 248, 0.35);
-  box-shadow: 0 8px 18px -10px rgba(56, 189, 248, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  box-shadow:
+    0 8px 18px -10px rgba(56, 189, 248, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
 .hub-center-btn__icon-shell--closed {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
   border: 1px solid rgba(255, 255, 255, 0.11);
-  box-shadow: 0 6px 14px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 6px 14px -10px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .hub-center-btn__badge {

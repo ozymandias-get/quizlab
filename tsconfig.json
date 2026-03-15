@@ -1,41 +1,27 @@
 {
-    "compilerOptions": {
-        "baseUrl": ".",
-        // Path aliases (renderer + shared-core)
-        "paths": {
-            "@app/*": [
-                "./src/app/*"
-            ],
-            "@shared/*": [
-                "./src/shared/*"
-            ],
-            "@shared-core/*": [
-                "./shared/*"
-            ],
-            "@electron/*": [
-                "./electron/*"
-            ],
-            "@ui/*": [
-                "./src/shared/ui/*"
-            ],
-            "@features/*": [
-                "./src/features/*"
-            ],
-            "@platform/*": [
-                "./src/platform/*"
-            ]
-        }
+  "compilerOptions": {
+    "baseUrl": ".",
+    // Path aliases (renderer + shared-core)
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@shared-core/*": ["./shared/*"],
+      "@electron/*": ["./electron/*"],
+      "@ui/*": ["./src/shared/ui/*"],
+      "@features/*": ["./src/features/*"],
+      "@platform/*": ["./src/platform/*"]
+    }
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
     },
-    "files": [],
-    "references": [
-        {
-            "path": "./tsconfig.app.json"
-        },
-        {
-            "path": "./tsconfig.node.json"
-        },
-        {
-            "path": "./tsconfig.node.test.json"
-        }
-    ]
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./tsconfig.node.test.json"
+    }
+  ]
 }

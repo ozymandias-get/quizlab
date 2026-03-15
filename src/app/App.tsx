@@ -13,105 +13,96 @@ import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 
 const App: React.FC = () => {
-    const {
-        appTools,
-        update,
-        appearance,
-        animations,
-        isWebviewMounted,
-        panelResize,
-        workspaceState,
-        updateBanner,
-        tour
-    } = useAppShellState()
+  const {
+    appTools,
+    update,
+    appearance,
+    animations,
+    isWebviewMounted,
+    panelResize,
+    workspaceState,
+    updateBanner,
+    tour
+  } = useAppShellState()
 
-    const {
-        t,
-        pdfFile,
-        leftPanelProps,
-        rootDragHandlers
-    } = usePdfWorkspaceState({
-        isInteractionBlocked: workspaceState.isBarHovered || panelResize.isResizing
-    })
+  const { t, pdfFile, leftPanelProps, rootDragHandlers } = usePdfWorkspaceState({
+    isInteractionBlocked: workspaceState.isBarHovered || panelResize.isResizing
+  })
 
-    return (
-        <LayoutGroup>
-            <div
-                className="h-screen w-screen overflow-hidden relative animate-app-enter"
-                {...rootDragHandlers}
-            >
-                <AppBackground />
+  return (
+    <LayoutGroup>
+      <div
+        className="h-screen w-screen overflow-hidden relative animate-app-enter"
+        {...rootDragHandlers}
+      >
+        <AppBackground />
 
-                <ToastContainer />
+        <ToastContainer />
 
-                <UpdateBanner
-                    updateAvailable={update.updateAvailable}
-                    updateInfo={update.updateInfo}
-                    isVisible={updateBanner.isVisible}
-                    onClose={updateBanner.close}
-                    t={t}
-                />
+        <UpdateBanner
+          updateAvailable={update.updateAvailable}
+          updateInfo={update.updateInfo}
+          isVisible={updateBanner.isVisible}
+          onClose={updateBanner.close}
+          t={t}
+        />
 
-                <AnimatePresence mode="wait" initial={false}>
-                    {!workspaceState.isQuizMode ? (
-                        <MainWorkspace
-                            isLayoutSwapped={appearance.isLayoutSwapped}
-                            leftPanelWidth={panelResize.leftPanelWidth}
-                            leftPanelRef={panelResize.leftPanelRef as React.RefObject<HTMLDivElement>}
-                            resizerRef={panelResize.resizerRef as React.RefObject<HTMLDivElement>}
-                            containerVariants={animations.containerVariants}
-                            leftPanelVariants={animations.leftPanelVariants}
-                            rightPanelVariants={animations.rightPanelVariants}
-                            resizerVariants={animations.resizerVariants}
-                            gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
-                            handleMouseDown={panelResize.handleMouseDown}
-                            isQuizMode={workspaceState.isQuizMode}
-                            onToggleQuizMode={workspaceState.toggleQuizMode}
-                            isWebviewMounted={isWebviewMounted}
-                            isResizing={panelResize.isResizing}
-                            isBarHovered={workspaceState.isBarHovered}
-                            onBarHoverChange={workspaceState.setIsBarHovered}
-                            leftPanelProps={leftPanelProps}
-                        />
-                    ) : (
-                        <QuizWorkspace
-                            pdfFile={pdfFile}
-                            quizPanelVariants={animations.quizPanelVariants}
-                            gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
-                            onClose={workspaceState.closeQuizMode}
-                        />
-                    )}
-                </AnimatePresence>
+        <AnimatePresence mode="wait" initial={false}>
+          {!workspaceState.isQuizMode ? (
+            <MainWorkspace
+              isLayoutSwapped={appearance.isLayoutSwapped}
+              leftPanelWidth={panelResize.leftPanelWidth}
+              leftPanelRef={panelResize.leftPanelRef as React.RefObject<HTMLDivElement>}
+              resizerRef={panelResize.resizerRef as React.RefObject<HTMLDivElement>}
+              containerVariants={animations.containerVariants}
+              leftPanelVariants={animations.leftPanelVariants}
+              rightPanelVariants={animations.rightPanelVariants}
+              resizerVariants={animations.resizerVariants}
+              gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
+              handleMouseDown={panelResize.handleMouseDown}
+              isQuizMode={workspaceState.isQuizMode}
+              onToggleQuizMode={workspaceState.toggleQuizMode}
+              isWebviewMounted={isWebviewMounted}
+              isResizing={panelResize.isResizing}
+              isBarHovered={workspaceState.isBarHovered}
+              onBarHoverChange={workspaceState.setIsBarHovered}
+              leftPanelProps={leftPanelProps}
+            />
+          ) : (
+            <QuizWorkspace
+              pdfFile={pdfFile}
+              quizPanelVariants={animations.quizPanelVariants}
+              gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
+              onClose={workspaceState.closeQuizMode}
+            />
+          )}
+        </AnimatePresence>
 
-                <GeminiWebLoginOverlay
-                    isVisible={appTools.isGeminiWebLoginInProgress}
-                    t={t}
-                />
+        <GeminiWebLoginOverlay isVisible={appTools.isGeminiWebLoginInProgress} t={t} />
 
-                {appTools.pendingAiItems.length > 0 && (
-                    <AiSendComposer
-                        items={appTools.pendingAiItems}
-                        autoSend={appTools.autoSend}
-                        onAutoSendChange={appTools.setAutoSend}
-                        onRemoveItem={appTools.removePendingAiItem}
-                        onClearAll={appTools.clearPendingAiItems}
-                        onSend={({ noteText, autoSend }) => appTools.sendPendingAiItems({ promptText: noteText, autoSend })}
-                    />
-                )}
+        {appTools.pendingAiItems.length > 0 && (
+          <AiSendComposer
+            items={appTools.pendingAiItems}
+            autoSend={appTools.autoSend}
+            onAutoSendChange={appTools.setAutoSend}
+            onRemoveItem={appTools.removePendingAiItem}
+            onClearAll={appTools.clearPendingAiItems}
+            onSend={({ noteText, autoSend }) =>
+              appTools.sendPendingAiItems({ promptText: noteText, autoSend })
+            }
+          />
+        )}
 
-                <ScreenshotTool
-                    isActive={appTools.isScreenshotMode}
-                    onCapture={appTools.handleCapture}
-                    onClose={appTools.closeScreenshot}
-                />
+        <ScreenshotTool
+          isActive={appTools.isScreenshotMode}
+          onCapture={appTools.handleCapture}
+          onClose={appTools.closeScreenshot}
+        />
 
-                <UsageAssistant
-                    isActive={tour.isActive}
-                    onClose={tour.close}
-                />
-            </div>
-        </LayoutGroup>
-    )
+        <UsageAssistant isActive={tour.isActive} onClose={tour.close} />
+      </div>
+    </LayoutGroup>
+  )
 }
 
 export default App

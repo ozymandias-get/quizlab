@@ -1,177 +1,174 @@
-import { spawn } from 'child_process';
+import { spawn } from 'child_process'
 
-const DEV_SERVER_URL = 'http://localhost:5173/';
-const DEV_SERVER_TIMEOUT_MS = 30000;
-const DEV_SERVER_MARKERS = ['QuizLab Reader', '/app/main.tsx'];
-const isWindows = process.platform === 'win32';
-const windowsShell = process.env.ComSpec || 'cmd.exe';
+const DEV_SERVER_URL = 'http://localhost:5173/'
+const DEV_SERVER_TIMEOUT_MS = 30000
+const DEV_SERVER_MARKERS = ['QuizLab Reader', '/app/main.tsx']
+const isWindows = process.platform === 'win32'
+const windowsShell = process.env.ComSpec || 'cmd.exe'
 
-const viteEnv = { ...process.env, ELECTRON: '1' };
-const electronEnv = { ...process.env };
-delete electronEnv.ELECTRON_RUN_AS_NODE;
+const viteEnv = { ...process.env, ELECTRON: '1' }
+const electronEnv = { ...process.env }
+delete electronEnv.ELECTRON_RUN_AS_NODE
 
-let viteProc = null;
-let electronProc = null;
-let isShuttingDown = false;
-let ownsViteProcess = false;
+let viteProc = null
+let electronProc = null
+let isShuttingDown = false
+let ownsViteProcess = false
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 function spawnCommand(command, args, options = {}) {
-    if (!isWindows) {
-        return spawn(command, args, options);
-    }
+  if (!isWindows) {
+    return spawn(command, args, options)
+  }
 
-    return spawn(windowsShell, ['/d', '/s', '/c', command, ...args], {
-        windowsHide: true,
-        ...options
-    });
+  return spawn(windowsShell, ['/d', '/s', '/c', command, ...args], {
+    windowsHide: true,
+    ...options
+  })
 }
 
 function killProcessTree(proc) {
-    try {
-        if (!proc?.pid || proc.killed) return;
-        if (process.platform === 'win32') {
-            spawn('taskkill', ['/pid', String(proc.pid), '/t', '/f'], {
-                stdio: 'ignore',
-                windowsHide: true
-            });
-            return;
-        }
-        proc.kill('SIGTERM');
-    } catch { }
+  try {
+    if (!proc?.pid || proc.killed) return
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(proc.pid), '/t', '/f'], {
+        stdio: 'ignore',
+        windowsHide: true
+      })
+      return
+    }
+    proc.kill('SIGTERM')
+  } catch {}
 }
 
 async function readServerResponse() {
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1500);
-        const response = await fetch(DEV_SERVER_URL, {
-            signal: controller.signal,
-            headers: { Accept: 'text/html' }
-        });
-        clearTimeout(timeoutId);
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 1500)
+    const response = await fetch(DEV_SERVER_URL, {
+      signal: controller.signal,
+      headers: { Accept: 'text/html' }
+    })
+    clearTimeout(timeoutId)
 
-        const body = await response.text();
-        const isQuizLabServer = DEV_SERVER_MARKERS.every((marker) => body.includes(marker));
+    const body = await response.text()
+    const isQuizLabServer = DEV_SERVER_MARKERS.every((marker) => body.includes(marker))
 
-        return {
-            reachable: true,
-            ok: response.ok,
-            isQuizLabServer,
-            status: response.status
-        };
-    } catch {
-        return {
-            reachable: false,
-            ok: false,
-            isQuizLabServer: false,
-            status: null
-        };
+    return {
+      reachable: true,
+      ok: response.ok,
+      isQuizLabServer,
+      status: response.status
     }
+  } catch {
+    return {
+      reachable: false,
+      ok: false,
+      isQuizLabServer: false,
+      status: null
+    }
+  }
 }
 
 async function ensureDevServerReady() {
-    const initialProbe = await readServerResponse();
-    if (initialProbe.reachable) {
-        if (!initialProbe.isQuizLabServer) {
-            throw new Error(
-                'Port 5173 is already serving a different app. Stop that process or free the port before running `npm run dev`.'
-            );
-        }
-
-        console.log('[dev] Reusing existing QuizLab Vite server on port 5173.');
-        return;
+  const initialProbe = await readServerResponse()
+  if (initialProbe.reachable) {
+    if (!initialProbe.isQuizLabServer) {
+      throw new Error(
+        'Port 5173 is already serving a different app. Stop that process or free the port before running `npm run dev`.'
+      )
     }
 
-    ownsViteProcess = true;
-    viteProc = spawnCommand('npx', ['vite'], {
-        stdio: 'inherit',
-        env: viteEnv
-    });
+    console.log('[dev] Reusing existing QuizLab Vite server on port 5173.')
+    return
+  }
 
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < DEV_SERVER_TIMEOUT_MS) {
-        if (viteProc.exitCode !== null) {
-            throw new Error(`Vite exited early with code ${viteProc.exitCode}.`);
-        }
+  ownsViteProcess = true
+  viteProc = spawnCommand('npx', ['vite'], {
+    stdio: 'inherit',
+    env: viteEnv
+  })
 
-        const probe = await readServerResponse();
-        if (probe.reachable && probe.isQuizLabServer && probe.ok) {
-            console.log('[dev] QuizLab Vite server is ready.');
-            return;
-        }
-
-        if (probe.reachable && !probe.isQuizLabServer) {
-            throw new Error(
-                'Port 5173 became available but is not serving QuizLab. Refusing to launch Electron against the wrong dev server.'
-            );
-        }
-
-        await sleep(500);
+  const startedAt = Date.now()
+  while (Date.now() - startedAt < DEV_SERVER_TIMEOUT_MS) {
+    if (viteProc.exitCode !== null) {
+      throw new Error(`Vite exited early with code ${viteProc.exitCode}.`)
     }
 
-    throw new Error('Timed out waiting for the QuizLab Vite server to become ready.');
+    const probe = await readServerResponse()
+    if (probe.reachable && probe.isQuizLabServer && probe.ok) {
+      console.log('[dev] QuizLab Vite server is ready.')
+      return
+    }
+
+    if (probe.reachable && !probe.isQuizLabServer) {
+      throw new Error(
+        'Port 5173 became available but is not serving QuizLab. Refusing to launch Electron against the wrong dev server.'
+      )
+    }
+
+    await sleep(500)
+  }
+
+  throw new Error('Timed out waiting for the QuizLab Vite server to become ready.')
 }
 
 async function runBuildBackend() {
-    await new Promise((resolve, reject) => {
-        const buildProc = spawnCommand('npm', ['run', 'build:backend'], {
-            stdio: 'inherit',
-            env: electronEnv
-        });
+  await new Promise((resolve, reject) => {
+    const buildProc = spawnCommand('npm', ['run', 'build:backend'], {
+      stdio: 'inherit',
+      env: electronEnv
+    })
 
-        buildProc.on('exit', (code) => {
-            if (code === 0) {
-                resolve();
-                return;
-            }
-            reject(new Error(`Backend build failed with code ${code ?? 1}.`));
-        });
-    });
+    buildProc.on('exit', (code) => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+      reject(new Error(`Backend build failed with code ${code ?? 1}.`))
+    })
+  })
 }
 
 function launchElectron() {
-    electronProc = spawnCommand('electron', ['.'], {
-        stdio: 'inherit',
-        env: electronEnv
-    });
+  electronProc = spawnCommand('electron', ['.'], {
+    stdio: 'inherit',
+    env: electronEnv
+  })
 
-    electronProc.on('exit', (code) => {
-        shutdown(code ?? 0);
-    });
+  electronProc.on('exit', (code) => {
+    shutdown(code ?? 0)
+  })
 }
 
 function shutdown(code = 0) {
-    if (isShuttingDown) return;
-    isShuttingDown = true;
+  if (isShuttingDown) return
+  isShuttingDown = true
 
-    if (electronProc) {
-        killProcessTree(electronProc);
-    }
-    if (ownsViteProcess && viteProc) {
-        killProcessTree(viteProc);
-    }
+  if (electronProc) {
+    killProcessTree(electronProc)
+  }
+  if (ownsViteProcess && viteProc) {
+    killProcessTree(viteProc)
+  }
 
-    setTimeout(() => process.exit(code), 100);
+  setTimeout(() => process.exit(code), 100)
 }
 
 async function main() {
-    try {
-        await Promise.all([
-            ensureDevServerReady(),
-            runBuildBackend()
-        ]);
+  try {
+    await Promise.all([ensureDevServerReady(), runBuildBackend()])
 
-        launchElectron();
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(`[dev] ${message}`);
-        shutdown(1);
-    }
+    launchElectron()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`[dev] ${message}`)
+    shutdown(1)
+  }
 }
 
-process.on('SIGINT', () => shutdown(0));
-process.on('SIGTERM', () => shutdown(0));
+process.on('SIGINT', () => shutdown(0))
+process.on('SIGTERM', () => shutdown(0))
 
-main();
+main()

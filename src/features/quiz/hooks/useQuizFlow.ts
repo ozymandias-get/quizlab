@@ -1,316 +1,343 @@
 ﻿import { useState, useCallback, useEffect, useRef } from 'react'
 import { Logger } from '@shared/lib/logger'
 import { useLanguage } from '@app/providers/LanguageContext'
+import { DEFAULT_SETTINGS, QuizSettings, Question, INITIAL_QUIZ_STATE } from '@features/quiz/api'
 import {
-    DEFAULT_SETTINGS,
-    QuizSettings,
-    Question,
-    INITIAL_QUIZ_STATE
-} from '@features/quiz/api'
-import { useQuizSettings, useGenerateQuiz, useSaveSettings } from '@platform/electron/api/useQuizApi'
+  useQuizSettings,
+  useGenerateQuiz,
+  useSaveSettings
+} from '@platform/electron/api/useQuizApi'
 import { useSelectPdf } from '@platform/electron/api/usePdfApi'
 import { QuizState, QuizStep, QuizStepType } from '../model/types'
 
 interface UseQuizFlowProps {
-    initialPdfPath?: string;
-    initialPdfName?: string;
+  initialPdfPath?: string
+  initialPdfName?: string
 }
 
 export function useQuizFlow({ initialPdfPath = '', initialPdfName = '' }: UseQuizFlowProps) {
-    const { t, language } = useLanguage()
+  const { t, language } = useLanguage()
 
-    const { data: settingsData } = useQuizSettings()
-    const { mutate: saveSettings } = useSaveSettings()
-    const generateQuizMutation = useGenerateQuiz()
-    const { mutateAsync: selectPdf, isPending: isLoadingPdf } = useSelectPdf()
+  const { data: settingsData } = useQuizSettings()
+  const { mutate: saveSettings } = useSaveSettings()
+  const generateQuizMutation = useGenerateQuiz()
+  const { mutateAsync: selectPdf, isPending: isLoadingPdf } = useSelectPdf()
 
-    // Quiz State Management
-    const [step, setStep] = useState<QuizStepType>(QuizStep.CONFIG)
-    const [settings, setSettings] = useState<QuizSettings>(DEFAULT_SETTINGS)
+  // Quiz State Management
+  const [step, setStep] = useState<QuizStepType>(QuizStep.CONFIG)
+  const [settings, setSettings] = useState<QuizSettings>(DEFAULT_SETTINGS)
 
-    // Sync settings from React Query
-    useEffect(() => {
-        if (settingsData) {
-            setSettings(prev => {
-                // Component-level deep comparison to avoid loops
-                if (JSON.stringify(prev) !== JSON.stringify(settingsData)) {
-                    return { ...prev, ...settingsData }
-                }
-                return prev
-            })
+  // Sync settings from React Query
+  useEffect(() => {
+    if (settingsData) {
+      setSettings((prev) => {
+        // Component-level deep comparison to avoid loops
+        if (JSON.stringify(prev) !== JSON.stringify(settingsData)) {
+          return { ...prev, ...settingsData }
         }
-    }, [settingsData])
-    const [quizState, setQuizState] = useState<QuizState>(INITIAL_QUIZ_STATE)
-    const [error, setError] = useState<string | null>(null)
-    const [usedQuestions, setUsedQuestions] = useState<Question[]>([])
-
-    // PDF State
-    const [pdfPath, setPdfPath] = useState(initialPdfPath)
-    const [pdfFileName, setPdfFileName] = useState(initialPdfName)
-    const [isDemoMode, setIsDemoMode] = useState(false)
-
-    // Derived loading state
-    const loadingMessage = generateQuizMutation.isPending
-        ? (isDemoMode ? t('quiz_demo_loading') : t('quiz_generating'))
-        : ''
-
-    // Refs
-    const usedQuestionsRef = useRef(usedQuestions)
-    const requestIdRef = useRef(0)
-    const isMountedRef = useRef(true)
-    const prevInitialPathRef = useRef(initialPdfPath)
-    const prevInitialNameRef = useRef(initialPdfName)
-
-    // Sync ref
-    useEffect(() => {
-        usedQuestionsRef.current = usedQuestions
-    }, [usedQuestions])
-
-    // Mount check
-    useEffect(() => {
-        isMountedRef.current = true
-        return () => {
-            isMountedRef.current = false
-        }
-    }, [])
-
-    // Sync with initial props
-    useEffect(() => {
-        const pathChanged = initialPdfPath && initialPdfPath !== prevInitialPathRef.current
-        const nameChanged = initialPdfName && initialPdfName !== prevInitialNameRef.current
-
-        if (pathChanged || nameChanged) {
-            prevInitialPathRef.current = initialPdfPath
-            prevInitialNameRef.current = initialPdfName
-
-            if (pathChanged) setPdfPath(initialPdfPath)
-            setPdfFileName(initialPdfName || t('quiz_pdf_file_default'))
-
-            if (pathChanged) setIsDemoMode(false)
-        }
-    }, [initialPdfPath, initialPdfName, t])
-
-    // Settings loading handled by useQuizSettingsQuery
-
-    // Custom setSettings with debounced save
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-    const handleSetSettings = useCallback((newSettingsOrUpdater: QuizSettings | ((prev: QuizSettings) => QuizSettings)) => {
-        setSettings(prev => {
-            const updated = typeof newSettingsOrUpdater === 'function'
-                ? newSettingsOrUpdater(prev)
-                : newSettingsOrUpdater
-
-            // Debounce save
-            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-            saveTimeoutRef.current = setTimeout(() => {
-                saveSettings(updated)
-            }, 1500)
-
-            return updated
-        })
-    }, [saveSettings])
-
-    // Load PDF
-    const handleLoadPdf = useCallback(async () => {
-        setError(null)
-
-        try {
-            const result = await selectPdf({ filterName: t('quiz_filter_name') })
-
-            if (!isMountedRef.current) return
-
-            if (!result) return
-
-            setPdfPath(result.path)
-            setPdfFileName(result.name || t('quiz_pdf_file_default'))
-        } catch (err: unknown) {
-            if (!isMountedRef.current) return
-            Logger.error('[QuizModule] PDF load error:', err)
-            const message = err instanceof Error ? (err.message.startsWith('error_') ? t(err.message) : err.message) : t('error_pdf_load')
-            setError(message)
-        } finally {
-            if (isMountedRef.current) {
-                setIsDemoMode(false)
-            }
-        }
-    }, [t, selectPdf])
-
-    const completeQuizGeneration = useCallback((questions: Question[], nextStep: QuizStepType = QuizStep.READY) => {
-        setQuizState({
-            ...INITIAL_QUIZ_STATE,
-            questions
-        })
-        setStep(nextStep)
-    }, [])
-
-    const getErrorMessage = useCallback((err: unknown, fallbackKey: string) => (
-        err instanceof Error
-            ? (err.message.startsWith('error_') ? t(err.message) : err.message)
-            : t(fallbackKey)
-    ), [t])
-
-    const runQuizGeneration = useCallback(async ({
-        targetIsDemo,
-        failedQuestionsContext,
-        previousQuestions,
-        onSuccess,
-        onErrorStep
-    }: {
-        targetIsDemo: boolean;
-        failedQuestionsContext: Question[];
-        previousQuestions: Question[];
-        onSuccess?: (questions: Question[]) => void;
-        onErrorStep: QuizStepType;
-    }) => {
-        const currentRequestId = ++requestIdRef.current
-
-        try {
-            setStep(QuizStep.GENERATING)
-            setError(null)
-            setIsDemoMode(targetIsDemo)
-
-            const result = await generateQuizMutation.mutateAsync({
-                pdfPath: targetIsDemo ? 'DEMO' : pdfPath,
-                settings,
-                language,
-                failedQuestionsContext,
-                previousQuestions
-            })
-
-            if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
-                return false
-            }
-
-            if (!result.success) {
-                throw new Error(result.error || 'Unknown generation error')
-            }
-
-            const questions = result.data as Question[]
-            onSuccess?.(questions)
-            return true
-        } catch (err: unknown) {
-            if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
-                return false
-            }
-
-            Logger.error('[QuizModule] Generation error:', err)
-            setError(getErrorMessage(err, 'quiz_error'))
-            setStep(onErrorStep)
-            return false
-        }
-    }, [generateQuizMutation, getErrorMessage, language, pdfPath, settings])
-
-    // Start Quiz Generation
-    const handleStartQuiz = useCallback(async (mode?: boolean) => {
-        // Determine if we are starting in demo mode
-        // If mode is provided (boolean), use it. Otherwise fall back to current isDemoMode state
-        const targetIsDemo = typeof mode === 'boolean' ? mode : isDemoMode
-
-        // Validation: If not demo, we need a PDF
-        if (!targetIsDemo && !pdfPath) {
-            setError(t('quiz_no_pdf'))
-            return
-        }
-
-        await runQuizGeneration({
-            targetIsDemo,
-            failedQuestionsContext: [],
-            previousQuestions: targetIsDemo ? [] : usedQuestionsRef.current,
-            onSuccess: completeQuizGeneration,
-            onErrorStep: QuizStep.CONFIG
-        })
-    }, [completeQuizGeneration, isDemoMode, pdfPath, runQuizGeneration, t])
-
-    const handleStartDemo = useCallback(() => {
-        handleStartQuiz(true)
-    }, [handleStartQuiz])
-
-    const handleStartActiveQuiz = useCallback(() => {
-        setQuizState(prev => ({
-            ...prev,
-            startTime: Date.now()
-        }))
-        setStep(QuizStep.QUIZ)
-    }, [])
-
-    const handleFinishQuiz = useCallback(() => {
-        setQuizState(prev => {
-            const correctCount = prev.questions.reduce((acc, q) => {
-                const ans = prev.userAnswers[q.id]
-                return acc + (ans !== undefined && ans === q.correctAnswerIndex ? 1 : 0)
-            }, 0)
-
-            return {
-                ...prev,
-                score: correctCount,
-                isFinished: true,
-                endTime: Date.now()
-            }
-        })
-        setStep(QuizStep.RESULTS)
-    }, [])
-
-    const handleRestart = useCallback(() => {
-        requestIdRef.current++
-        setQuizState(INITIAL_QUIZ_STATE)
-        setUsedQuestions([])
-        setIsDemoMode(false)
-        setStep(QuizStep.CONFIG)
-    }, [])
-
-    const handleRegenerate = useCallback(() => {
-        requestIdRef.current++
-        setUsedQuestions(prev => [...prev, ...quizState.questions])
-        setQuizState(INITIAL_QUIZ_STATE)
-        setStep(QuizStep.CONFIG)
-    }, [quizState.questions])
-
-    const handleRetryMistakes = useCallback(async () => {
-        const failedQuestions = quizState.questions.filter(q => {
-            const answer = quizState.userAnswers[q.id]
-            return answer === undefined || answer !== q.correctAnswerIndex
-        })
-
-        if (failedQuestions.length === 0) return
-
-        const updatedUsedQuestions = [...usedQuestions, ...quizState.questions]
-
-        await runQuizGeneration({
-            targetIsDemo: isDemoMode,
-            failedQuestionsContext: failedQuestions,
-            previousQuestions: updatedUsedQuestions,
-            onSuccess: (questions) => {
-                setUsedQuestions(updatedUsedQuestions)
-                completeQuizGeneration(questions)
-            },
-            onErrorStep: QuizStep.RESULTS
-        })
-    }, [completeQuizGeneration, isDemoMode, quizState.questions, quizState.userAnswers, runQuizGeneration, usedQuestions])
-
-    return {
-        step,
-        setStep,
-        settings,
-        setSettings: handleSetSettings,
-        quizState,
-        setQuizState,
-        error,
-        loadingMessage,
-        pdfPath,
-        pdfFileName,
-        isLoadingPdf,
-        isDemoMode,
-        handleLoadPdf,
-        handleStartQuiz,
-        handleStartDemo,
-        handleStartActiveQuiz,
-        handleFinishQuiz,
-        handleRestart,
-        handleRegenerate,
-        handleRetryMistakes
+        return prev
+      })
     }
+  }, [settingsData])
+  const [quizState, setQuizState] = useState<QuizState>(INITIAL_QUIZ_STATE)
+  const [error, setError] = useState<string | null>(null)
+  const [usedQuestions, setUsedQuestions] = useState<Question[]>([])
+
+  // PDF State
+  const [pdfPath, setPdfPath] = useState(initialPdfPath)
+  const [pdfFileName, setPdfFileName] = useState(initialPdfName)
+  const [isDemoMode, setIsDemoMode] = useState(false)
+
+  // Derived loading state
+  const loadingMessage = generateQuizMutation.isPending
+    ? isDemoMode
+      ? t('quiz_demo_loading')
+      : t('quiz_generating')
+    : ''
+
+  // Refs
+  const usedQuestionsRef = useRef(usedQuestions)
+  const requestIdRef = useRef(0)
+  const isMountedRef = useRef(true)
+  const prevInitialPathRef = useRef(initialPdfPath)
+  const prevInitialNameRef = useRef(initialPdfName)
+
+  // Sync ref
+  useEffect(() => {
+    usedQuestionsRef.current = usedQuestions
+  }, [usedQuestions])
+
+  // Mount check
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  // Sync with initial props
+  useEffect(() => {
+    const pathChanged = initialPdfPath && initialPdfPath !== prevInitialPathRef.current
+    const nameChanged = initialPdfName && initialPdfName !== prevInitialNameRef.current
+
+    if (pathChanged || nameChanged) {
+      prevInitialPathRef.current = initialPdfPath
+      prevInitialNameRef.current = initialPdfName
+
+      if (pathChanged) setPdfPath(initialPdfPath)
+      setPdfFileName(initialPdfName || t('quiz_pdf_file_default'))
+
+      if (pathChanged) setIsDemoMode(false)
+    }
+  }, [initialPdfPath, initialPdfName, t])
+
+  // Settings loading handled by useQuizSettingsQuery
+
+  // Custom setSettings with debounced save
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const handleSetSettings = useCallback(
+    (newSettingsOrUpdater: QuizSettings | ((prev: QuizSettings) => QuizSettings)) => {
+      setSettings((prev) => {
+        const updated =
+          typeof newSettingsOrUpdater === 'function'
+            ? newSettingsOrUpdater(prev)
+            : newSettingsOrUpdater
+
+        // Debounce save
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = setTimeout(() => {
+          saveSettings(updated)
+        }, 1500)
+
+        return updated
+      })
+    },
+    [saveSettings]
+  )
+
+  // Load PDF
+  const handleLoadPdf = useCallback(async () => {
+    setError(null)
+
+    try {
+      const result = await selectPdf({ filterName: t('quiz_filter_name') })
+
+      if (!isMountedRef.current) return
+
+      if (!result) return
+
+      setPdfPath(result.path)
+      setPdfFileName(result.name || t('quiz_pdf_file_default'))
+    } catch (err: unknown) {
+      if (!isMountedRef.current) return
+      Logger.error('[QuizModule] PDF load error:', err)
+      const message =
+        err instanceof Error
+          ? err.message.startsWith('error_')
+            ? t(err.message)
+            : err.message
+          : t('error_pdf_load')
+      setError(message)
+    } finally {
+      if (isMountedRef.current) {
+        setIsDemoMode(false)
+      }
+    }
+  }, [t, selectPdf])
+
+  const completeQuizGeneration = useCallback(
+    (questions: Question[], nextStep: QuizStepType = QuizStep.READY) => {
+      setQuizState({
+        ...INITIAL_QUIZ_STATE,
+        questions
+      })
+      setStep(nextStep)
+    },
+    []
+  )
+
+  const getErrorMessage = useCallback(
+    (err: unknown, fallbackKey: string) =>
+      err instanceof Error
+        ? err.message.startsWith('error_')
+          ? t(err.message)
+          : err.message
+        : t(fallbackKey),
+    [t]
+  )
+
+  const runQuizGeneration = useCallback(
+    async ({
+      targetIsDemo,
+      failedQuestionsContext,
+      previousQuestions,
+      onSuccess,
+      onErrorStep
+    }: {
+      targetIsDemo: boolean
+      failedQuestionsContext: Question[]
+      previousQuestions: Question[]
+      onSuccess?: (questions: Question[]) => void
+      onErrorStep: QuizStepType
+    }) => {
+      const currentRequestId = ++requestIdRef.current
+
+      try {
+        setStep(QuizStep.GENERATING)
+        setError(null)
+        setIsDemoMode(targetIsDemo)
+
+        const result = await generateQuizMutation.mutateAsync({
+          pdfPath: targetIsDemo ? 'DEMO' : pdfPath,
+          settings,
+          language,
+          failedQuestionsContext,
+          previousQuestions
+        })
+
+        if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
+          return false
+        }
+
+        if (!result.success) {
+          throw new Error(result.error || 'Unknown generation error')
+        }
+
+        const questions = result.data as Question[]
+        onSuccess?.(questions)
+        return true
+      } catch (err: unknown) {
+        if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
+          return false
+        }
+
+        Logger.error('[QuizModule] Generation error:', err)
+        setError(getErrorMessage(err, 'quiz_error'))
+        setStep(onErrorStep)
+        return false
+      }
+    },
+    [generateQuizMutation, getErrorMessage, language, pdfPath, settings]
+  )
+
+  // Start Quiz Generation
+  const handleStartQuiz = useCallback(
+    async (mode?: boolean) => {
+      // Determine if we are starting in demo mode
+      // If mode is provided (boolean), use it. Otherwise fall back to current isDemoMode state
+      const targetIsDemo = typeof mode === 'boolean' ? mode : isDemoMode
+
+      // Validation: If not demo, we need a PDF
+      if (!targetIsDemo && !pdfPath) {
+        setError(t('quiz_no_pdf'))
+        return
+      }
+
+      await runQuizGeneration({
+        targetIsDemo,
+        failedQuestionsContext: [],
+        previousQuestions: targetIsDemo ? [] : usedQuestionsRef.current,
+        onSuccess: completeQuizGeneration,
+        onErrorStep: QuizStep.CONFIG
+      })
+    },
+    [completeQuizGeneration, isDemoMode, pdfPath, runQuizGeneration, t]
+  )
+
+  const handleStartDemo = useCallback(() => {
+    handleStartQuiz(true)
+  }, [handleStartQuiz])
+
+  const handleStartActiveQuiz = useCallback(() => {
+    setQuizState((prev) => ({
+      ...prev,
+      startTime: Date.now()
+    }))
+    setStep(QuizStep.QUIZ)
+  }, [])
+
+  const handleFinishQuiz = useCallback(() => {
+    setQuizState((prev) => {
+      const correctCount = prev.questions.reduce((acc, q) => {
+        const ans = prev.userAnswers[q.id]
+        return acc + (ans !== undefined && ans === q.correctAnswerIndex ? 1 : 0)
+      }, 0)
+
+      return {
+        ...prev,
+        score: correctCount,
+        isFinished: true,
+        endTime: Date.now()
+      }
+    })
+    setStep(QuizStep.RESULTS)
+  }, [])
+
+  const handleRestart = useCallback(() => {
+    requestIdRef.current++
+    setQuizState(INITIAL_QUIZ_STATE)
+    setUsedQuestions([])
+    setIsDemoMode(false)
+    setStep(QuizStep.CONFIG)
+  }, [])
+
+  const handleRegenerate = useCallback(() => {
+    requestIdRef.current++
+    setUsedQuestions((prev) => [...prev, ...quizState.questions])
+    setQuizState(INITIAL_QUIZ_STATE)
+    setStep(QuizStep.CONFIG)
+  }, [quizState.questions])
+
+  const handleRetryMistakes = useCallback(async () => {
+    const failedQuestions = quizState.questions.filter((q) => {
+      const answer = quizState.userAnswers[q.id]
+      return answer === undefined || answer !== q.correctAnswerIndex
+    })
+
+    if (failedQuestions.length === 0) return
+
+    const updatedUsedQuestions = [...usedQuestions, ...quizState.questions]
+
+    await runQuizGeneration({
+      targetIsDemo: isDemoMode,
+      failedQuestionsContext: failedQuestions,
+      previousQuestions: updatedUsedQuestions,
+      onSuccess: (questions) => {
+        setUsedQuestions(updatedUsedQuestions)
+        completeQuizGeneration(questions)
+      },
+      onErrorStep: QuizStep.RESULTS
+    })
+  }, [
+    completeQuizGeneration,
+    isDemoMode,
+    quizState.questions,
+    quizState.userAnswers,
+    runQuizGeneration,
+    usedQuestions
+  ])
+
+  return {
+    step,
+    setStep,
+    settings,
+    setSettings: handleSetSettings,
+    quizState,
+    setQuizState,
+    error,
+    loadingMessage,
+    pdfPath,
+    pdfFileName,
+    isLoadingPdf,
+    isDemoMode,
+    handleLoadPdf,
+    handleStartQuiz,
+    handleStartDemo,
+    handleStartActiveQuiz,
+    handleFinishQuiz,
+    handleRestart,
+    handleRegenerate,
+    handleRetryMistakes
+  }
 }
-
-
-

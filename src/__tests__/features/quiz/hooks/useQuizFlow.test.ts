@@ -11,187 +11,190 @@ const mockSelectPdfMutate = vi.fn()
 
 // 1. Mock useQuizApi (React Query hooks)
 vi.mock('@platform/electron/api/useQuizApi', () => ({
-    useQuizSettings: () => ({
-        data: { ...DEFAULT_SETTINGS, questionCount: 10 },
-        isLoading: false
-    }),
-    useSaveSettings: () => ({
-        mutate: mockMutate
-    }),
-    useGenerateQuiz: () => ({
-        mutateAsync: mockGenerateMutate,
-        isPending: false
-    })
+  useQuizSettings: () => ({
+    data: { ...DEFAULT_SETTINGS, questionCount: 10 },
+    isLoading: false
+  }),
+  useSaveSettings: () => ({
+    mutate: mockMutate
+  }),
+  useGenerateQuiz: () => ({
+    mutateAsync: mockGenerateMutate,
+    isPending: false
+  })
 }))
 
 // 2. Mock usePdfApi
 vi.mock('@platform/electron/api/usePdfApi', () => ({
-    useSelectPdf: () => ({
-        mutateAsync: mockSelectPdfMutate,
-        isPending: false
-    })
+  useSelectPdf: () => ({
+    mutateAsync: mockSelectPdfMutate,
+    isPending: false
+  })
 }))
 
 // 3. Mock Language Context
 vi.mock('@app/providers/LanguageContext', () => ({
-    useLanguage: () => ({
-        t: (key: string) => key,
-        language: 'en'
-    })
+  useLanguage: () => ({
+    t: (key: string) => key,
+    language: 'en'
+  })
 }))
 
 // 4. Mock Logger
 vi.mock('@shared/lib/logger', () => ({
-    Logger: {
-        error: vi.fn(),
-        info: vi.fn()
-    }
+  Logger: {
+    error: vi.fn(),
+    info: vi.fn()
+  }
 }))
 
 describe('useQuizFlow', () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
+  beforeEach(() => {
+    vi.clearAllMocks()
 
-        // Default: selectPdf succeeds
-        mockSelectPdfMutate.mockResolvedValue({ path: 'new.pdf', name: 'New Doc' })
+    // Default: selectPdf succeeds
+    mockSelectPdfMutate.mockResolvedValue({ path: 'new.pdf', name: 'New Doc' })
 
-        // Default: generateQuiz succeeds
-        mockGenerateMutate.mockResolvedValue({
-            success: true,
-            data: [{ id: '1', question: 'Q1', correctAnswerIndex: 0, options: ['A', 'B'] }]
-        })
+    // Default: generateQuiz succeeds
+    mockGenerateMutate.mockResolvedValue({
+      success: true,
+      data: [{ id: '1', question: 'Q1', correctAnswerIndex: 0, options: ['A', 'B'] }]
+    })
+  })
+
+  it('initializes with default state and loads settings from query', async () => {
+    const { result } = renderHook(() => useQuizFlow({}))
+
+    expect(result.current.step).toBe(QuizStep.CONFIG)
+    expect(result.current.pdfPath).toBe('')
+    expect(result.current.settings.questionCount).toBe(10) // From mocked useQuizSettings
+  })
+
+  it('initializes with provided PDF props', () => {
+    const { result } = renderHook(() =>
+      useQuizFlow({
+        initialPdfPath: 'path/to.pdf',
+        initialPdfName: 'doc.pdf'
+      })
+    )
+
+    expect(result.current.pdfPath).toBe('path/to.pdf')
+    expect(result.current.pdfFileName).toBe('doc.pdf')
+  })
+
+  it('loads PDF via mutation', async () => {
+    const { result } = renderHook(() => useQuizFlow({}))
+
+    await act(async () => {
+      await result.current.handleLoadPdf()
     })
 
-    it('initializes with default state and loads settings from query', async () => {
-        const { result } = renderHook(() => useQuizFlow({}))
+    expect(mockSelectPdfMutate).toHaveBeenCalled()
+    expect(result.current.pdfPath).toBe('new.pdf')
+    expect(result.current.pdfFileName).toBe('New Doc')
+    expect(result.current.error).toBeNull()
+  })
 
-        expect(result.current.step).toBe(QuizStep.CONFIG)
-        expect(result.current.pdfPath).toBe('')
-        expect(result.current.settings.questionCount).toBe(10) // From mocked useQuizSettings
+  it('handles PDF load error', async () => {
+    mockSelectPdfMutate.mockRejectedValue(new Error('Load Failed'))
+    const { result } = renderHook(() => useQuizFlow({}))
+
+    await act(async () => {
+      await result.current.handleLoadPdf()
     })
 
-    it('initializes with provided PDF props', () => {
-        const { result } = renderHook(() => useQuizFlow({
-            initialPdfPath: 'path/to.pdf',
-            initialPdfName: 'doc.pdf'
-        }))
+    // Error handling logic: if Error object, uses message
+    expect(result.current.error).toBe('Load Failed')
+  })
 
-        expect(result.current.pdfPath).toBe('path/to.pdf')
-        expect(result.current.pdfFileName).toBe('doc.pdf')
+  it('starts quiz generation successfully via mutation', async () => {
+    const { result } = renderHook(() => useQuizFlow({ initialPdfPath: 'test.pdf' }))
+
+    await act(async () => {
+      await result.current.handleStartQuiz()
     })
 
-    it('loads PDF via mutation', async () => {
-        const { result } = renderHook(() => useQuizFlow({}))
+    // Check correct arguments passed to mutation
+    expect(mockGenerateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pdfPath: 'test.pdf',
+        settings: expect.objectContaining({ questionCount: 10 }), // Check nested settings object
+        language: 'en'
+      })
+    )
 
-        await act(async () => {
-            await result.current.handleLoadPdf()
-        })
+    // On success, it should advance to READY
+    expect(result.current.step).toBe(QuizStep.READY)
+    // Questions should be set from mutation result
+    expect(result.current.quizState.questions).toHaveLength(1)
+  })
 
-        expect(mockSelectPdfMutate).toHaveBeenCalled()
-        expect(result.current.pdfPath).toBe('new.pdf')
-        expect(result.current.pdfFileName).toBe('New Doc')
-        expect(result.current.error).toBeNull()
+  it('handles generation error', async () => {
+    mockGenerateMutate.mockResolvedValue({ success: false, error: 'Gen Failed' })
+    const { result } = renderHook(() => useQuizFlow({ initialPdfPath: 'test.pdf' }))
+
+    await act(async () => {
+      await result.current.handleStartQuiz()
     })
 
-    it('handles PDF load error', async () => {
-        mockSelectPdfMutate.mockRejectedValue(new Error('Load Failed'))
-        const { result } = renderHook(() => useQuizFlow({}))
+    expect(result.current.step).toBe(QuizStep.CONFIG)
+    expect(result.current.error).toBe('Gen Failed')
+  })
 
-        await act(async () => {
-            await result.current.handleLoadPdf()
-        })
+  it('transitions to active quiz', () => {
+    const { result } = renderHook(() => useQuizFlow({}))
 
-        // Error handling logic: if Error object, uses message
-        expect(result.current.error).toBe('Load Failed')
+    act(() => {
+      result.current.handleStartActiveQuiz()
     })
 
-    it('starts quiz generation successfully via mutation', async () => {
-        const { result } = renderHook(() => useQuizFlow({ initialPdfPath: 'test.pdf' }))
+    expect(result.current.step).toBe(QuizStep.QUIZ)
+    expect(result.current.quizState.startTime).toBeDefined()
+  })
 
-        await act(async () => {
-            await result.current.handleStartQuiz()
-        })
+  it('finishes quiz and calculates score', () => {
+    const { result } = renderHook(() => useQuizFlow({}))
 
-        // Check correct arguments passed to mutation
-        expect(mockGenerateMutate).toHaveBeenCalledWith(expect.objectContaining({
-            pdfPath: 'test.pdf',
-            settings: expect.objectContaining({ questionCount: 10 }), // Check nested settings object
-            language: 'en'
-        }))
-
-        // On success, it should advance to READY
-        expect(result.current.step).toBe(QuizStep.READY)
-        // Questions should be set from mutation result
-        expect(result.current.quizState.questions).toHaveLength(1)
+    // Manually set quiz state to simulate a completed quiz
+    act(() => {
+      result.current.setQuizState({
+        questions: [
+          { id: '1', correctAnswerIndex: 0, options: ['A', 'B'], text: 'Q', explanation: '' }
+        ],
+        userAnswers: { '1': 0 }, // Correct answer for index 0, using question ID '1' as key
+        score: 0,
+        isFinished: false,
+        currentQuestionIndex: 0,
+        startTime: Date.now(),
+        endTime: null
+      })
     })
 
-    it('handles generation error', async () => {
-        mockGenerateMutate.mockResolvedValue({ success: false, error: 'Gen Failed' })
-        const { result } = renderHook(() => useQuizFlow({ initialPdfPath: 'test.pdf' }))
-
-        await act(async () => {
-            await result.current.handleStartQuiz()
-        })
-
-        expect(result.current.step).toBe(QuizStep.CONFIG)
-        expect(result.current.error).toBe('Gen Failed')
+    act(() => {
+      result.current.handleFinishQuiz()
     })
 
-    it('transitions to active quiz', () => {
-        const { result } = renderHook(() => useQuizFlow({}))
+    expect(result.current.step).toBe(QuizStep.RESULTS)
+    expect(result.current.quizState.isFinished).toBe(true)
+    expect(result.current.quizState.score).toBe(1)
+    expect(result.current.quizState.endTime).toBeDefined()
+  })
 
-        act(() => {
-            result.current.handleStartActiveQuiz()
-        })
+  it('debounces settings save via mutation', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useQuizFlow({}))
 
-        expect(result.current.step).toBe(QuizStep.QUIZ)
-        expect(result.current.quizState.startTime).toBeDefined()
+    act(() => {
+      result.current.setSettings((prev) => ({ ...prev, questionCount: 20 }))
     })
 
-    it('finishes quiz and calculates score', () => {
-        const { result } = renderHook(() => useQuizFlow({}))
+    expect(mockMutate).not.toHaveBeenCalled()
 
-        // Manually set quiz state to simulate a completed quiz
-        act(() => {
-            result.current.setQuizState({
-                questions: [{ id: '1', correctAnswerIndex: 0, options: ['A', 'B'], text: 'Q', explanation: '' }],
-                userAnswers: { '1': 0 }, // Correct answer for index 0, using question ID '1' as key
-                score: 0,
-                isFinished: false,
-                currentQuestionIndex: 0,
-                startTime: Date.now(),
-                endTime: null
-            })
-        })
-
-        act(() => {
-            result.current.handleFinishQuiz()
-        })
-
-        expect(result.current.step).toBe(QuizStep.RESULTS)
-        expect(result.current.quizState.isFinished).toBe(true)
-        expect(result.current.quizState.score).toBe(1)
-        expect(result.current.quizState.endTime).toBeDefined()
+    act(() => {
+      vi.advanceTimersByTime(1500)
     })
 
-    it('debounces settings save via mutation', () => {
-        vi.useFakeTimers()
-        const { result } = renderHook(() => useQuizFlow({}))
-
-        act(() => {
-            result.current.setSettings(prev => ({ ...prev, questionCount: 20 }))
-        })
-
-        expect(mockMutate).not.toHaveBeenCalled()
-
-        act(() => {
-            vi.advanceTimersByTime(1500)
-        })
-
-        expect(mockMutate).toHaveBeenCalledWith(expect.objectContaining({ questionCount: 20 }))
-        vi.useRealTimers()
-    })
+    expect(mockMutate).toHaveBeenCalledWith(expect.objectContaining({ questionCount: 20 }))
+    vi.useRealTimers()
+  })
 })
-
-
-

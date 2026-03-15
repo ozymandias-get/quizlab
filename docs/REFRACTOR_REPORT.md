@@ -3,6 +3,7 @@
 ## 1) Final Directory Tree
 
 ### Top-level (key folders)
+
 ```text
 quizlab/
   electron/
@@ -43,6 +44,7 @@ quizlab/
 ```
 
 ### `src/` (actual)
+
 ```text
 src/
   app/
@@ -67,6 +69,7 @@ src/
 - `@src/*` -> removed
 
 Configs updated:
+
 - `tsconfig.json`
 - `tsconfig.app.json`
 - `tsconfig.node.json`
@@ -97,6 +100,7 @@ Configs updated:
 ## 4) Feature Public API Standardization
 
 Added root public entry files:
+
 - `src/features/ai/index.ts`
 - `src/features/pdf/index.ts`
 - `src/features/quiz/index.ts`
@@ -106,6 +110,7 @@ Added root public entry files:
 - `src/features/tutorial/index.ts`
 
 Added model/public files:
+
 - `src/features/ai/model/types.ts`
 - `src/features/quiz/model/{types.ts,constants.ts,index.ts}`
 - `src/features/quiz/ui/constants.ts`
@@ -123,6 +128,7 @@ Cross-feature imports were moved to feature-root imports (`@features/<feature>`)
 - `npm run build` -> PASS
 
 Additional checks:
+
 - `rg -n "@src/" src electron shared` -> no matches
 - `rg -n "main/constants" electron` -> no matches
 
@@ -143,7 +149,7 @@ Additional checks:
 - Reference doc added:
   - `docs/ARCHITECTURE.md`
 - Documentation formatting rule:
-  - To prevent GitHub mention-like rendering, aliases must be written in backticks (for example, ``@shared/*``).
+  - To prevent GitHub mention-like rendering, aliases must be written in backticks (for example, `@shared/*`).
 
 ## 7) How to Run Checks
 

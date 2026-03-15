@@ -9,14 +9,22 @@
   text-rendering: optimizeLegibility;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   overflow: hidden;
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   background-color: #0c0a09;
   color: #fafaf9;
   -webkit-font-smoothing: antialiased;
@@ -38,4 +46,3 @@ body {
 .font-display {
   font-family: 'Playfair Display', Georgia, serif;
 }
-

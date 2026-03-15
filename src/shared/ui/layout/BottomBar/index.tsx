@@ -11,110 +11,112 @@ import { useBottomBarPanelHeight } from './useBottomBarPanelHeight'
 import type { BottomBarProps } from './types'
 
 function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }: BottomBarProps) {
-    const {
-        bottomBarOpacity,
-        bottomBarScale,
-        showOnlyIcons,
-        toggleLayoutSwap,
-        isTourActive
-    } = useAppearance()
-    const { tabs } = useAiState()
-    const { t } = useLanguage()
-    const {
-        barRef,
-        isOpen,
-        isSettingsOpen,
-        settingsInitialTab,
-        handleToggle,
-        handleHubPointerDown,
-        handleHubPointerUp,
-        openSettings,
-        closeSettings,
-        setIsOpen
-    } = useBottomBarController(isTourActive)
-    const panelHeight = useBottomBarPanelHeight(barRef, isOpen, bottomBarScale)
-    const { shellStyle, stackStyle, panelStyle, hubStyle } = useBottomBarStyles(isOpen, bottomBarOpacity, bottomBarScale)
+  const { bottomBarOpacity, bottomBarScale, showOnlyIcons, toggleLayoutSwap, isTourActive } =
+    useAppearance()
+  const { tabs } = useAiState()
+  const { t } = useLanguage()
+  const {
+    barRef,
+    isOpen,
+    isSettingsOpen,
+    settingsInitialTab,
+    handleToggle,
+    handleHubPointerDown,
+    handleHubPointerUp,
+    openSettings,
+    closeSettings,
+    setIsOpen
+  } = useBottomBarController(isTourActive)
+  const panelHeight = useBottomBarPanelHeight(barRef, isOpen, bottomBarScale)
+  const { shellStyle, stackStyle, panelStyle, hubStyle } = useBottomBarStyles(
+    isOpen,
+    bottomBarOpacity,
+    bottomBarScale
+  )
 
-    useEffect(() => {
-        if (!isOpen || isTourActive || isSettingsOpen) return
-        const handler = (e: MouseEvent) => {
-            if (barRef.current && !barRef.current.contains(e.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
-    }, [isOpen, isTourActive, isSettingsOpen])
+  useEffect(() => {
+    if (!isOpen || isTourActive || isSettingsOpen) return
+    const handler = (e: MouseEvent) => {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [isOpen, isTourActive, isSettingsOpen])
 
-    const handleHubMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!isOpen) {
-            onMouseDown?.(e)
-        }
-    }, [isOpen, onMouseDown])
-
-    const handleResizerMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleHubMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isOpen) {
         onMouseDown?.(e)
-    }, [onMouseDown])
+      }
+    },
+    [isOpen, onMouseDown]
+  )
 
-    return (
-        <>
-            <div
-                ref={barRef}
-                className={`resizer-hub-container bottom-bar-shell ${isOpen ? 'resizer-hub-container--open' : ''}`}
-                style={shellStyle}
-                onMouseEnter={() => onHoverChange?.(true)}
-                onMouseLeave={() => onHoverChange?.(false)}
-            >
-                <div
-                    className="resizer-drag-area"
-                    onMouseDown={handleResizerMouseDown}
-                />
+  const handleResizerMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      onMouseDown?.(e)
+    },
+    [onMouseDown]
+  )
 
-                <div className="bottom-bar-stack relative flex flex-col items-center w-full" style={stackStyle}>
-                    <ToolsPanel
-                        isOpen={isOpen}
-                        panelStyle={panelStyle}
-                        maxHeight={panelHeight}
-                        handleSettingsClick={() => openSettings('prompts')}
-                        handleGeminiWebSettingsClick={() => openSettings('gemini-web')}
-                        toggleLayoutSwap={toggleLayoutSwap}
-                        isQuizMode={isQuizMode}
-                        onToggleQuizMode={onToggleQuizMode}
-                    />
+  return (
+    <>
+      <div
+        ref={barRef}
+        className={`resizer-hub-container bottom-bar-shell ${isOpen ? 'resizer-hub-container--open' : ''}`}
+        style={shellStyle}
+        onMouseEnter={() => onHoverChange?.(true)}
+        onMouseLeave={() => onHoverChange?.(false)}
+      >
+        <div className="resizer-drag-area" onMouseDown={handleResizerMouseDown} />
 
-                    <CenterHub
-                        handleHubPointerDown={handleHubPointerDown}
-                        handleHubPointerUp={handleHubPointerUp}
-                        onClick={() => handleToggle()}
-                        onMouseDown={handleHubMouseDown}
-                        isOpen={isOpen}
-                        hubStyle={hubStyle}
-                        tabsCount={tabs.length}
-                        hintText={t('ua_step1_title')}
-                        ariaLabel={isOpen ? t('close') : t('ua_step1_text')}
-                    />
+        <div
+          className="bottom-bar-stack relative flex flex-col items-center w-full"
+          style={stackStyle}
+        >
+          <ToolsPanel
+            isOpen={isOpen}
+            panelStyle={panelStyle}
+            maxHeight={panelHeight}
+            handleSettingsClick={() => openSettings('prompts')}
+            handleGeminiWebSettingsClick={() => openSettings('gemini-web')}
+            toggleLayoutSwap={toggleLayoutSwap}
+            isQuizMode={isQuizMode}
+            onToggleQuizMode={onToggleQuizMode}
+          />
 
-                    <ModelsPanel
-                        isOpen={isOpen}
-                        panelStyle={panelStyle}
-                        maxHeight={panelHeight}
-                        showOnlyIcons={showOnlyIcons}
-                    />
-                </div>
+          <CenterHub
+            handleHubPointerDown={handleHubPointerDown}
+            handleHubPointerUp={handleHubPointerUp}
+            onClick={() => handleToggle()}
+            onMouseDown={handleHubMouseDown}
+            isOpen={isOpen}
+            hubStyle={hubStyle}
+            tabsCount={tabs.length}
+            hintText={t('ua_step1_title')}
+            ariaLabel={isOpen ? t('close') : t('ua_step1_text')}
+          />
 
-                <div
-                    className="resizer-drag-area"
-                    onMouseDown={handleResizerMouseDown}
-                />
-            </div>
+          <ModelsPanel
+            isOpen={isOpen}
+            panelStyle={panelStyle}
+            maxHeight={panelHeight}
+            showOnlyIcons={showOnlyIcons}
+          />
+        </div>
 
-            <SettingsModalPortal
-                isOpen={isSettingsOpen}
-                onClose={closeSettings}
-                initialTab={settingsInitialTab}
-            />
-        </>
-    )
+        <div className="resizer-drag-area" onMouseDown={handleResizerMouseDown} />
+      </div>
+
+      <SettingsModalPortal
+        isOpen={isSettingsOpen}
+        onClose={closeSettings}
+        initialTab={settingsInitialTab}
+      />
+    </>
+  )
 }
 
 export default memo(BottomBar)

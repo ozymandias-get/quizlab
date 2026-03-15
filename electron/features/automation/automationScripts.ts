@@ -8,59 +8,59 @@ import type { AutomationConfig } from '@shared-core/types'
 export type { AutomationConfig }
 
 interface ScriptLookupConfig {
-    selectors: string[]
-    fingerprint: AutomationConfig['inputFingerprint']
+  selectors: string[]
+  fingerprint: AutomationConfig['inputFingerprint']
 }
 
 interface SerializedAutomationConfig {
-    input: ScriptLookupConfig
-    button: ScriptLookupConfig
-    waitFor: ScriptLookupConfig
-    submitMode: string
-    health: AutomationConfig['health'] | null
+  input: ScriptLookupConfig
+  button: ScriptLookupConfig
+  waitFor: ScriptLookupConfig
+  submitMode: string
+  health: AutomationConfig['health'] | null
 }
 
 function uniqueSelectors(values: Array<string | null | undefined>) {
-    const selectors: string[] = []
+  const selectors: string[] = []
 
-    for (const value of values) {
-        if (typeof value !== 'string') continue
-        const normalized = value.trim()
-        if (!normalized || selectors.includes(normalized)) continue
-        selectors.push(normalized)
-    }
+  for (const value of values) {
+    if (typeof value !== 'string') continue
+    const normalized = value.trim()
+    if (!normalized || selectors.includes(normalized)) continue
+    selectors.push(normalized)
+  }
 
-    return selectors
+  return selectors
 }
 
 function serializeAutomationConfig(config: AutomationConfig): SerializedAutomationConfig {
-    return {
-        input: {
-            selectors: uniqueSelectors([
-                config.input,
-                ...(Array.isArray(config.inputCandidates) ? config.inputCandidates : []),
-                config.waitFor
-            ]),
-            fingerprint: config.inputFingerprint || null
-        },
-        button: {
-            selectors: uniqueSelectors([
-                config.button,
-                ...(Array.isArray(config.buttonCandidates) ? config.buttonCandidates : [])
-            ]),
-            fingerprint: config.buttonFingerprint || null
-        },
-        waitFor: {
-            selectors: uniqueSelectors([
-                config.waitFor,
-                config.input,
-                ...(Array.isArray(config.inputCandidates) ? config.inputCandidates : [])
-            ]),
-            fingerprint: config.inputFingerprint || null
-        },
-        submitMode: normalizeSubmitMode(config.submitMode) || 'mixed',
-        health: config.health || null
-    }
+  return {
+    input: {
+      selectors: uniqueSelectors([
+        config.input,
+        ...(Array.isArray(config.inputCandidates) ? config.inputCandidates : []),
+        config.waitFor
+      ]),
+      fingerprint: config.inputFingerprint || null
+    },
+    button: {
+      selectors: uniqueSelectors([
+        config.button,
+        ...(Array.isArray(config.buttonCandidates) ? config.buttonCandidates : [])
+      ]),
+      fingerprint: config.buttonFingerprint || null
+    },
+    waitFor: {
+      selectors: uniqueSelectors([
+        config.waitFor,
+        config.input,
+        ...(Array.isArray(config.inputCandidates) ? config.inputCandidates : [])
+      ]),
+      fingerprint: config.inputFingerprint || null
+    },
+    submitMode: normalizeSubmitMode(config.submitMode) || 'mixed',
+    health: config.health || null
+  }
 }
 
 const COMMON_HELPERS = `
@@ -587,14 +587,14 @@ const COMMON_HELPERS = `
             getMutationCount: () => mutationCount
         };
     };
-`;
+`
 
 function createScriptPreamble(
-    kind: 'focus' | 'auto_send' | 'click_send' | 'validate' | 'submit_ready',
-    config: SerializedAutomationConfig,
-    includeButton = false
+  kind: 'focus' | 'auto_send' | 'click_send' | 'validate' | 'submit_ready',
+  config: SerializedAutomationConfig,
+  includeButton = false
 ) {
-    return `
+  return `
     (async function() {
         ${COMMON_HELPERS}
         const scriptStartedAt = now();
@@ -608,9 +608,9 @@ function createScriptPreamble(
 }
 
 export const generateFocusScript = (config: AutomationConfig): string => {
-    const serialized = serializeAutomationConfig(config)
+  const serialized = serializeAutomationConfig(config)
 
-    return `
+  return `
     ${createScriptPreamble('focus', serialized)}
         try {
             const result = await waitForElement(config.waitFor, 'input', diagnostics.input, 10000, false);
@@ -646,11 +646,15 @@ export const generateFocusScript = (config: AutomationConfig): string => {
     `
 }
 
-export const generateAutoSendScript = (config: AutomationConfig, text: string, shouldSubmit: boolean = true): string => {
-    const serialized = serializeAutomationConfig(config)
-    const safeText = JSON.stringify(text)
+export const generateAutoSendScript = (
+  config: AutomationConfig,
+  text: string,
+  shouldSubmit: boolean = true
+): string => {
+  const serialized = serializeAutomationConfig(config)
+  const safeText = JSON.stringify(text)
 
-    return `
+  return `
     ${createScriptPreamble('auto_send', serialized, true)}
         const setInputValue = async (element, value) => {
             const start = now();
@@ -802,9 +806,9 @@ export const generateAutoSendScript = (config: AutomationConfig, text: string, s
 }
 
 export const generateClickSendScript = (config: AutomationConfig): string => {
-    const serialized = serializeAutomationConfig(config)
+  const serialized = serializeAutomationConfig(config)
 
-    return `
+  return `
     ${createScriptPreamble('click_send', serialized, true)}
         const performSubmit = async () => {
             const start = now();
@@ -882,15 +886,24 @@ export const generateClickSendScript = (config: AutomationConfig): string => {
 }
 
 export const generateWaitForSubmitReadyScript = (
-    config: AutomationConfig,
-    options: { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number } = {}
+  config: AutomationConfig,
+  options: { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number } = {}
 ): string => {
-    const serialized = serializeAutomationConfig(config)
-    const timeoutMs = typeof options.timeoutMs === 'number' && options.timeoutMs > 0 ? Math.round(options.timeoutMs) : 15000
-    const settleMs = typeof options.settleMs === 'number' && options.settleMs >= 0 ? Math.round(options.settleMs) : 1200
-    const minimumWaitMs = typeof options.minimumWaitMs === 'number' && options.minimumWaitMs >= 0 ? Math.round(options.minimumWaitMs) : 1000
+  const serialized = serializeAutomationConfig(config)
+  const timeoutMs =
+    typeof options.timeoutMs === 'number' && options.timeoutMs > 0
+      ? Math.round(options.timeoutMs)
+      : 15000
+  const settleMs =
+    typeof options.settleMs === 'number' && options.settleMs >= 0
+      ? Math.round(options.settleMs)
+      : 1200
+  const minimumWaitMs =
+    typeof options.minimumWaitMs === 'number' && options.minimumWaitMs >= 0
+      ? Math.round(options.minimumWaitMs)
+      : 1000
 
-    return `
+  return `
     ${createScriptPreamble('submit_ready', serialized, true)}
         try {
             const buttonConfigured = config.submitMode !== 'enter_key' && hasLookup(config.button);
@@ -993,9 +1006,9 @@ export const generateWaitForSubmitReadyScript = (
 }
 
 export const generateValidateSelectorsScript = (config: AutomationConfig): string => {
-    const serialized = serializeAutomationConfig(config)
+  const serialized = serializeAutomationConfig(config)
 
-    return `
+  return `
     ${createScriptPreamble('validate', serialized, true)}
         try {
             const inputResult = await waitForElement(config.input, 'input', diagnostics.input, 2000, false);

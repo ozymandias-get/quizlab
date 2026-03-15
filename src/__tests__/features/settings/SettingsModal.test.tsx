@@ -4,75 +4,83 @@ import SettingsModal from '@features/settings/ui/SettingsModal'
 
 // Mock dependencies
 vi.mock('@app/providers', () => ({
-    useLanguage: () => ({ t: (key: string) => key }),
+  useLanguage: () => ({ t: (key: string) => key })
 }))
 
 vi.mock('@features/settings/hooks/useSettings', () => ({
-    useSettings: () => ({
-        appVersion: '1.0.0',
-        updateStatus: 'idle',
-        updateInfo: null,
-        checkForUpdates: vi.fn(),
-        openReleasesPage: vi.fn(),
-    }),
+  useSettings: () => ({
+    appVersion: '1.0.0',
+    updateStatus: 'idle',
+    updateInfo: null,
+    checkForUpdates: vi.fn(),
+    openReleasesPage: vi.fn()
+  })
 }))
 
 // Mock Subcomponents (Lazy Loaded)
-vi.mock('@features/settings/ui/LanguageTab', () => ({ default: () => <div>Language Tab Content</div> }))
+vi.mock('@features/settings/ui/LanguageTab', () => ({
+  default: () => <div>Language Tab Content</div>
+}))
 vi.mock('@features/settings/ui/AboutTab', () => ({ default: () => <div>About Tab Content</div> }))
 vi.mock('@features/settings/ui/ModelsTab', () => ({ default: () => <div>Models Tab Content</div> }))
-vi.mock('@features/settings/ui/AppearanceTab', () => ({ default: () => <div>Appearance Tab Content</div> }))
-vi.mock('@features/settings/ui/SelectorsTab', () => ({ default: () => <div>Selectors Tab Content</div> }))
-vi.mock('@features/settings/ui/GeminiCliTab', () => ({ default: () => <div>Gemini CLI Tab Content</div> }))
-vi.mock('@features/settings/ui/PromptsTab', () => ({ default: () => <div>Prompts Tab Content</div> }))
+vi.mock('@features/settings/ui/AppearanceTab', () => ({
+  default: () => <div>Appearance Tab Content</div>
+}))
+vi.mock('@features/settings/ui/SelectorsTab', () => ({
+  default: () => <div>Selectors Tab Content</div>
+}))
+vi.mock('@features/settings/ui/GeminiCliTab', () => ({
+  default: () => <div>Gemini CLI Tab Content</div>
+}))
+vi.mock('@features/settings/ui/PromptsTab', () => ({
+  default: () => <div>Prompts Tab Content</div>
+}))
 
 describe('SettingsModal Component', () => {
-    it('renders nothing when closed', () => {
-        render(<SettingsModal isOpen={false} onClose={vi.fn()} />)
-        expect(screen.queryByText('settings_title')).not.toBeInTheDocument()
+  it('renders nothing when closed', () => {
+    render(<SettingsModal isOpen={false} onClose={vi.fn()} />)
+    expect(screen.queryByText('settings_title')).not.toBeInTheDocument()
+  })
+
+  it('renders modal when open', () => {
+    render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
+    expect(screen.getByText('settings_title')).toBeInTheDocument()
+  })
+
+  it('switches tabs', async () => {
+    render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
+
+    // Click "language" tab and verify tab state transitions.
+    const languageTab = screen.getByText('language').closest('[role="tab"]') as HTMLElement
+    await act(async () => {
+      languageTab.focus()
+      fireEvent.mouseDown(languageTab, { button: 0, ctrlKey: false })
+      fireEvent.mouseUp(languageTab)
+      fireEvent.click(languageTab)
     })
 
-    it('renders modal when open', () => {
-        render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
-        expect(screen.getByText('settings_title')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(languageTab).toHaveAttribute('data-state', 'active')
     })
+  })
 
-    it('switches tabs', async () => {
-        render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
+  it('calls onClose when close button is clicked', () => {
+    const onClose = vi.fn()
+    render(<SettingsModal isOpen={true} onClose={onClose} />)
 
-        // Click "language" tab and verify tab state transitions.
-        const languageTab = screen.getByText('language').closest('[role="tab"]') as HTMLElement
-        await act(async () => {
-            languageTab.focus()
-            fireEvent.mouseDown(languageTab, { button: 0, ctrlKey: false })
-            fireEvent.mouseUp(languageTab)
-            fireEvent.click(languageTab)
-        })
+    // Find close button by icon usually, but here we can try finding by role or just generic button click if we can identify it.
+    // The close button has CloseIcon inside. We can query by role button.
+    // However, there might be multiple buttons.
+    // Let's rely on finding the button that contains the CloseIcon or has no text.
+    // Or just look for the close button implementation in the code:
+    // <button onClick={onClose} ... > <CloseIcon ... /> </button>
+    // It's in the header.
 
-        await waitFor(() => {
-            expect(languageTab).toHaveAttribute('data-state', 'active')
-        })
-    })
-
-    it('calls onClose when close button is clicked', () => {
-        const onClose = vi.fn()
-        render(<SettingsModal isOpen={true} onClose={onClose} />)
-
-        // Find close button by icon usually, but here we can try finding by role or just generic button click if we can identify it.
-        // The close button has CloseIcon inside. We can query by role button.
-        // However, there might be multiple buttons.
-        // Let's rely on finding the button that contains the CloseIcon or has no text.
-        // Or just look for the close button implementation in the code:
-        // <button onClick={onClose} ... > <CloseIcon ... /> </button>
-        // It's in the header.
-
-        // Simplest way with testing library might be to add aria-label to the button in the component, but we can't change component now easily without context.
-        // Let's assume it's one of the buttons.
-        // The close button has a CloseIcon inside without accessible text,
-        // so we test via Escape key which the component also handles.
-        fireEvent.keyDown(window, { key: 'Escape' })
-        expect(onClose).toHaveBeenCalled()
-    })
+    // Simplest way with testing library might be to add aria-label to the button in the component, but we can't change component now easily without context.
+    // Let's assume it's one of the buttons.
+    // The close button has a CloseIcon inside without accessible text,
+    // so we test via Escape key which the component also handles.
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
+  })
 })
-
-

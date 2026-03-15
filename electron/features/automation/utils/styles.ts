@@ -24,4 +24,4 @@ export const pickerStyles = `
     outline-offset: 2px !important;
     box-shadow: 0 0 20px rgba(96, 165, 250, 0.5) !important;
 }
-`;
+`

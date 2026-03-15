@@ -1,55 +1,32 @@
 {
-    "compilerOptions": {
-        "composite": true,
-        "target": "ES2020",
-        "module": "CommonJS",
-        "moduleResolution": "Node",
-        "skipLibCheck": false,
-        "allowSyntheticDefaultImports": true,
-        "allowJs": false,
-        "strict": true,
-        "noImplicitAny": true,
-        "strictNullChecks": true,
-        "tsBuildInfoFile": "./.cache/tsconfig.node.tsbuildinfo",
-        "esModuleInterop": true,
-        "baseUrl": ".",
-        // Node/Electron path aliases
-        "paths": {
-            "@app/*": [
-                "./src/app/*"
-            ],
-            "@shared/*": [
-                "./src/shared/*"
-            ],
-            "@shared-core/*": [
-                "./shared/*"
-            ],
-            "@electron/*": [
-                "./electron/*"
-            ],
-            "@ui/*": [
-                "./src/shared/ui/*"
-            ],
-            "@features/*": [
-                "./src/features/*"
-            ],
-            "@platform/*": [
-                "./src/platform/*"
-            ]
-        },
-        "outDir": "dist/electron",
-        "rootDir": ".",
-        "lib": [
-            "ES2020",
-            "DOM"
-        ]
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "skipLibCheck": false,
+    "allowSyntheticDefaultImports": true,
+    "allowJs": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "tsBuildInfoFile": "./.cache/tsconfig.node.tsbuildinfo",
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    // Node/Electron path aliases
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@shared-core/*": ["./shared/*"],
+      "@electron/*": ["./electron/*"],
+      "@ui/*": ["./src/shared/ui/*"],
+      "@features/*": ["./src/features/*"],
+      "@platform/*": ["./src/platform/*"]
     },
-    "include": [
-        "electron/**/*",
-        "shared/**/*"
-    ],
-    "exclude": [
-        "electron/**/__tests__/**/*",
-        "electron/__tests__/**/*"
-    ]
+    "outDir": "dist/electron",
+    "rootDir": ".",
+    "lib": ["ES2020", "DOM"]
+  },
+  "include": ["electron/**/*", "shared/**/*"],
+  "exclude": ["electron/**/__tests__/**/*", "electron/__tests__/**/*"]
 }

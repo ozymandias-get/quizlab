@@ -1,188 +1,191 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-    generateAutoSendScript,
-    generateClickSendScript,
-    generateFocusScript,
-    generateWaitForSubmitReadyScript,
-    generateValidateSelectorsScript
+  generateAutoSendScript,
+  generateClickSendScript,
+  generateFocusScript,
+  generateWaitForSubmitReadyScript,
+  generateValidateSelectorsScript
 } from '@electron/features/automation/automationScripts'
 
 describe('automationScripts', () => {
-    beforeEach(() => {
-        document.body.innerHTML = ''
-        delete (window as typeof window & { __quizlabAutomationCache?: unknown }).__quizlabAutomationCache
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    delete (window as typeof window & { __quizlabAutomationCache?: unknown })
+      .__quizlabAutomationCache
+  })
+
+  it('embeds diagnostics and validation helpers in generated scripts', () => {
+    const autoSend = generateAutoSendScript(
+      { input: '[role="textbox"]', button: 'button[aria-label*="send" i]', submitMode: 'mixed' },
+      'hello',
+      true
+    )
+    const validate = generateValidateSelectorsScript({
+      input: '#input',
+      button: '#send',
+      submitMode: 'click'
     })
 
-    it('embeds diagnostics and validation helpers in generated scripts', () => {
-        const autoSend = generateAutoSendScript(
-            { input: '[role="textbox"]', button: 'button[aria-label*="send" i]', submitMode: 'mixed' },
-            'hello',
-            true
-        )
-        const validate = generateValidateSelectorsScript(
-            { input: '#input', button: '#send', submitMode: 'click' }
-        )
+    expect(autoSend).toContain('createDiagnostics')
+    expect(autoSend).toContain('__quizlabAutomationCache')
+    expect(autoSend).toContain('findElementByFingerprint')
+    expect(validate).toContain("createDiagnostics('validate'")
+  })
 
-        expect(autoSend).toContain('createDiagnostics')
-        expect(autoSend).toContain('__quizlabAutomationCache')
-        expect(autoSend).toContain('findElementByFingerprint')
-        expect(validate).toContain("createDiagnostics('validate'")
-    })
-
-    it('reuses cached input elements across repeated sends', async () => {
-        document.body.innerHTML = `
+  it('reuses cached input elements across repeated sends', async () => {
+    document.body.innerHTML = `
             <textarea id="input"></textarea>
             <button id="send" type="button">Send</button>
         `
 
-        const script = generateAutoSendScript(
-            { input: '#input', button: '#send', submitMode: 'click' },
-            'hello',
-            false
-        )
-        const querySpy = vi.spyOn(document, 'querySelectorAll')
+    const script = generateAutoSendScript(
+      { input: '#input', button: '#send', submitMode: 'click' },
+      'hello',
+      false
+    )
+    const querySpy = vi.spyOn(document, 'querySelectorAll')
 
-        const firstResult = await window.eval(script)
-        const queryCountAfterFirstRun = querySpy.mock.calls.length
-        const secondResult = await window.eval(script)
+    const firstResult = await window.eval(script)
+    const queryCountAfterFirstRun = querySpy.mock.calls.length
+    const secondResult = await window.eval(script)
 
-        expect(firstResult.success).toBe(true)
-        expect(secondResult.success).toBe(true)
-        expect(firstResult.diagnostics.input.strategy).toBe('direct')
-        expect(secondResult.diagnostics.input.strategy).toBe('cache')
-        expect(secondResult.diagnostics.input.cacheHits).toBeGreaterThan(0)
-        expect(querySpy.mock.calls.length).toBe(queryCountAfterFirstRun)
-    })
+    expect(firstResult.success).toBe(true)
+    expect(secondResult.success).toBe(true)
+    expect(firstResult.diagnostics.input.strategy).toBe('direct')
+    expect(secondResult.diagnostics.input.strategy).toBe('cache')
+    expect(secondResult.diagnostics.input.cacheHits).toBeGreaterThan(0)
+    expect(querySpy.mock.calls.length).toBe(queryCountAfterFirstRun)
+  })
 
-    it('invalidates cached selectors when the old element is detached', async () => {
-        document.body.innerHTML = `
+  it('invalidates cached selectors when the old element is detached', async () => {
+    document.body.innerHTML = `
             <textarea id="input"></textarea>
             <button id="send" type="button">Send</button>
         `
 
-        const script = generateAutoSendScript(
-            { input: '#input', button: '#send', submitMode: 'click' },
-            'hello',
-            false
-        )
+    const script = generateAutoSendScript(
+      { input: '#input', button: '#send', submitMode: 'click' },
+      'hello',
+      false
+    )
 
-        await window.eval(script)
+    await window.eval(script)
 
-        const previousInput = document.getElementById('input')
-        previousInput?.remove()
-        const replacementInput = document.createElement('textarea')
-        replacementInput.id = 'input'
-        document.body.prepend(replacementInput)
+    const previousInput = document.getElementById('input')
+    previousInput?.remove()
+    const replacementInput = document.createElement('textarea')
+    replacementInput.id = 'input'
+    document.body.prepend(replacementInput)
 
-        const secondResult = await window.eval(script)
+    const secondResult = await window.eval(script)
 
-        expect(secondResult.success).toBe(true)
-        expect(secondResult.diagnostics.input.cacheInvalidations).toBeGreaterThan(0)
-        expect(secondResult.diagnostics.input.strategy).toBe('direct')
+    expect(secondResult.success).toBe(true)
+    expect(secondResult.diagnostics.input.cacheInvalidations).toBeGreaterThan(0)
+    expect(secondResult.diagnostics.input.strategy).toBe('direct')
+  })
+
+  it('falls back to fingerprint resolution inside shadow DOM', async () => {
+    const host = document.createElement('rich-textarea')
+    host.id = 'composer-host'
+    const shadowRoot = host.attachShadow({ mode: 'open' })
+    const input = document.createElement('div')
+    input.setAttribute('role', 'textbox')
+    input.setAttribute('contenteditable', 'true')
+    shadowRoot.appendChild(input)
+
+    const sendButton = document.createElement('button')
+    sendButton.setAttribute('aria-label', 'Send message')
+    shadowRoot.appendChild(sendButton)
+
+    document.body.appendChild(host)
+
+    const focusScript = generateFocusScript({
+      input: null,
+      inputFingerprint: {
+        tag: 'div',
+        role: 'textbox',
+        contentEditable: true,
+        hostChain: [{ selector: '#composer-host', tag: 'rich-textarea', safeId: 'composer-host' }],
+        localPath: ['div[role="textbox"]']
+      }
     })
 
-    it('falls back to fingerprint resolution inside shadow DOM', async () => {
-        const host = document.createElement('rich-textarea')
-        host.id = 'composer-host'
-        const shadowRoot = host.attachShadow({ mode: 'open' })
-        const input = document.createElement('div')
-        input.setAttribute('role', 'textbox')
-        input.setAttribute('contenteditable', 'true')
-        shadowRoot.appendChild(input)
+    const result = await window.eval(focusScript)
 
-        const sendButton = document.createElement('button')
-        sendButton.setAttribute('aria-label', 'Send message')
-        shadowRoot.appendChild(sendButton)
+    expect(result.success).toBe(true)
+    expect(result.diagnostics.input.strategy).toBe('fingerprint')
+  })
 
-        document.body.appendChild(host)
-
-        const focusScript = generateFocusScript({
-            input: null,
-            inputFingerprint: {
-                tag: 'div',
-                role: 'textbox',
-                contentEditable: true,
-                hostChain: [{ selector: '#composer-host', tag: 'rich-textarea', safeId: 'composer-host' }],
-                localPath: ['div[role="textbox"]']
-            }
-        })
-
-        const result = await window.eval(focusScript)
-
-        expect(result.success).toBe(true)
-        expect(result.diagnostics.input.strategy).toBe('fingerprint')
-    })
-
-    it('rejects ambiguous selector matches and surfaces re-pick requirement', async () => {
-        document.body.innerHTML = `
+  it('rejects ambiguous selector matches and surfaces re-pick requirement', async () => {
+    document.body.innerHTML = `
             <textarea placeholder="Ask"></textarea>
             <textarea placeholder="Ask"></textarea>
             <button>Send</button>
         `
 
-        const validateScript = generateValidateSelectorsScript({
-            inputCandidates: ['textarea[placeholder="Ask"]'],
-            button: 'button',
-            submitMode: 'click',
-            inputFingerprint: {
-                tag: 'textarea',
-                placeholder: 'Ask'
-            },
-            health: 'needs_repick'
-        })
-
-        const result = await window.eval(validateScript)
-
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('selector_repick_required')
-        expect(result.diagnostics.input.strategy).toBe('none')
+    const validateScript = generateValidateSelectorsScript({
+      inputCandidates: ['textarea[placeholder="Ask"]'],
+      button: 'button',
+      submitMode: 'click',
+      inputFingerprint: {
+        tag: 'textarea',
+        placeholder: 'Ask'
+      },
+      health: 'needs_repick'
     })
 
-    it('keeps click-send enter fallback available when submit mode is enter_key', async () => {
-        const input = document.createElement('textarea')
-        document.body.appendChild(input)
-        const keydownSpy = vi.fn()
-        input.addEventListener('keydown', keydownSpy)
+    const result = await window.eval(validateScript)
 
-        const script = generateClickSendScript({
-            input: 'textarea',
-            submitMode: 'enter_key'
-        })
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('selector_repick_required')
+    expect(result.diagnostics.input.strategy).toBe('none')
+  })
 
-        const result = await window.eval(script)
+  it('keeps click-send enter fallback available when submit mode is enter_key', async () => {
+    const input = document.createElement('textarea')
+    document.body.appendChild(input)
+    const keydownSpy = vi.fn()
+    input.addEventListener('keydown', keydownSpy)
 
-        expect(result.success).toBe(true)
-        expect(keydownSpy).toHaveBeenCalled()
+    const script = generateClickSendScript({
+      input: 'textarea',
+      submitMode: 'enter_key'
     })
 
-    it('waits for the send button to settle before reporting submit readiness', async () => {
-        document.body.innerHTML = `
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(true)
+    expect(keydownSpy).toHaveBeenCalled()
+  })
+
+  it('waits for the send button to settle before reporting submit readiness', async () => {
+    document.body.innerHTML = `
             <form id="composer">
                 <textarea id="input"></textarea>
                 <button id="send" type="button" disabled>Send</button>
             </form>
         `
 
-        const sendButton = document.getElementById('send') as HTMLButtonElement
-        Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
-        Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
-        const script = generateWaitForSubmitReadyScript(
-            { input: '#input', button: '#send', submitMode: 'click' },
-            { timeoutMs: 4000, settleMs: 300, minimumWaitMs: 200 }
-        )
+    const sendButton = document.getElementById('send') as HTMLButtonElement
+    Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
+    Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
+    const script = generateWaitForSubmitReadyScript(
+      { input: '#input', button: '#send', submitMode: 'click' },
+      { timeoutMs: 4000, settleMs: 300, minimumWaitMs: 200 }
+    )
 
-        const execution = window.eval(script)
+    const execution = window.eval(script)
 
-        setTimeout(() => {
-            sendButton.disabled = false
-            sendButton.removeAttribute('disabled')
-            sendButton.setAttribute('data-upload-state', 'complete')
-        }, 500)
+    setTimeout(() => {
+      sendButton.disabled = false
+      sendButton.removeAttribute('disabled')
+      sendButton.setAttribute('data-upload-state', 'complete')
+    }, 500)
 
-        const result = await execution
+    const result = await execution
 
-        expect(result.success).toBe(true)
-        expect(result.action).toBe('submit_ready')
-        expect(result.diagnostics.submitMs).toBeGreaterThan(0)
-    }, 10000)
+    expect(result.success).toBe(true)
+    expect(result.action).toBe('submit_ready')
+    expect(result.diagnostics.submitMs).toBeGreaterThan(0)
+  }, 10000)
 })

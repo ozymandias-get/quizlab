@@ -4,24 +4,24 @@ import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 
 // Mock useToast
 const mockToast = {
-    showSuccess: vi.fn(),
-    showError: vi.fn(),
-    showInfo: vi.fn()
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
+  showInfo: vi.fn()
 }
 vi.mock('@app/providers/ToastContext', () => ({
-    useToast: () => mockToast
+  useToast: () => mockToast
 }))
 
 vi.mock('@app/providers/LanguageContext', () => ({
-    useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key })
 }))
 
 // Mock Logger
 vi.mock('@shared/lib/logger', () => ({
-    Logger: {
-        error: vi.fn(),
-        log: vi.fn()
-    }
+  Logger: {
+    error: vi.fn(),
+    log: vi.fn()
+  }
 }))
 
 // Mock useAiApi and useAutomationApi hooks
@@ -29,50 +29,48 @@ const mockSaveAiConfigMutate = vi.fn()
 const mockGeneratePickerScriptMutate = vi.fn()
 
 vi.mock('@platform/electron/api/useAiApi', () => ({
-    useSaveAiConfig: () => ({
-        mutateAsync: mockSaveAiConfigMutate
-    })
+  useSaveAiConfig: () => ({
+    mutateAsync: mockSaveAiConfigMutate
+  })
 }))
 
 vi.mock('@platform/electron/api/useAutomationApi', () => ({
-    useGeneratePickerScript: () => ({
-        mutateAsync: mockGeneratePickerScriptMutate
-    })
+  useGeneratePickerScript: () => ({
+    mutateAsync: mockGeneratePickerScriptMutate
+  })
 }))
 
 describe('useElementPicker Hook', () => {
-    let mockWebview: any
+  let mockWebview: any
 
-    beforeEach(() => {
-        vi.clearAllMocks()
-        vi.useFakeTimers()
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
 
-        mockWebview = {
-            executeJavaScript: vi.fn(),
-            getURL: vi.fn().mockReturnValue('https://example.com/foo')
-        }
+    mockWebview = {
+      executeJavaScript: vi.fn(),
+      getURL: vi.fn().mockReturnValue('https://example.com/foo')
+    }
 
-        // Setup default mocks
-        mockGeneratePickerScriptMutate.mockResolvedValue('// script')
-        mockSaveAiConfigMutate.mockResolvedValue(true)
+    // Setup default mocks
+    mockGeneratePickerScriptMutate.mockResolvedValue('// script')
+    mockSaveAiConfigMutate.mockResolvedValue(true)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('starts picker successfully', async () => {
+    const { result } = renderHook(() => useElementPicker(mockWebview))
+
+    await act(async () => {
+      await result.current.startPicker()
     })
 
-    afterEach(() => {
-        vi.useRealTimers()
-    })
-
-    it('starts picker successfully', async () => {
-        const { result } = renderHook(() => useElementPicker(mockWebview))
-
-        await act(async () => {
-            await result.current.startPicker()
-        })
-
-        expect(mockGeneratePickerScriptMutate).toHaveBeenCalled()
-        expect(mockWebview.executeJavaScript).toHaveBeenCalledWith('// script')
-        expect(result.current.isPickerActive).toBe(true)
-        expect(mockToast.showInfo).toHaveBeenCalledWith('picker_started_hint')
-    })
+    expect(mockGeneratePickerScriptMutate).toHaveBeenCalled()
+    expect(mockWebview.executeJavaScript).toHaveBeenCalledWith('// script')
+    expect(result.current.isPickerActive).toBe(true)
+    expect(mockToast.showInfo).toHaveBeenCalledWith('picker_started_hint')
+  })
 })
-
-

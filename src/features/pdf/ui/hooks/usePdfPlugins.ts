@@ -11,45 +11,52 @@ import { searchPlugin } from '@react-pdf-viewer/search'
 type JumpToPage = (pageIndex: number) => void
 
 export function usePdfPlugins() {
-    // Plugin instance'larını oluştur.
-    // DİKKAT: Bu fonksiyonlar içlerinde hook kullandığı için (react-pdf-viewer v3+)
-    // useMemo icinde CAGRILAMAZLAR. Dogrudan top-level'da cagrilmalilar.
-    const pageNavigationPluginInstance = pageNavigationPlugin()
-    const { jumpToPage } = pageNavigationPluginInstance
+  // Plugin instance'larını oluştur.
+  // DİKKAT: Bu fonksiyonlar içlerinde hook kullandığı için (react-pdf-viewer v3+)
+  // useMemo icinde CAGRILAMAZLAR. Dogrudan top-level'da cagrilmalilar.
+  const pageNavigationPluginInstance = pageNavigationPlugin()
+  const { jumpToPage } = pageNavigationPluginInstance
 
-    const zoomPluginInstance = zoomPlugin({
-        enableShortcuts: false,
-    })
-    const { ZoomIn, ZoomOut, CurrentScale, zoomTo } = zoomPluginInstance
+  const zoomPluginInstance = zoomPlugin({
+    enableShortcuts: false
+  })
+  const { ZoomIn, ZoomOut, CurrentScale, zoomTo } = zoomPluginInstance
 
-    const scrollModePluginInstance = scrollModePlugin()
+  const scrollModePluginInstance = scrollModePlugin()
 
-    const searchPluginInstance = searchPlugin()
-    const { highlight, clearHighlights } = searchPluginInstance
+  const searchPluginInstance = searchPlugin()
+  const { highlight, clearHighlights } = searchPluginInstance
 
-    const plugins = useMemo(() => [
-        pageNavigationPluginInstance,
-        zoomPluginInstance,
-        scrollModePluginInstance,
-        searchPluginInstance
-    ], [pageNavigationPluginInstance, zoomPluginInstance, scrollModePluginInstance, searchPluginInstance])
+  const plugins = useMemo(
+    () => [
+      pageNavigationPluginInstance,
+      zoomPluginInstance,
+      scrollModePluginInstance,
+      searchPluginInstance
+    ],
+    [
+      pageNavigationPluginInstance,
+      zoomPluginInstance,
+      scrollModePluginInstance,
+      searchPluginInstance
+    ]
+  )
 
-    // jumpToPage ref'i - useCallback içinde kullanmak için
-    const jumpToPageRef = useRef<JumpToPage>(jumpToPage)
-    useEffect(() => {
-        jumpToPageRef.current = jumpToPage
-    }, [jumpToPage])
+  // jumpToPage ref'i - useCallback içinde kullanmak için
+  const jumpToPageRef = useRef<JumpToPage>(jumpToPage)
+  useEffect(() => {
+    jumpToPageRef.current = jumpToPage
+  }, [jumpToPage])
 
-    return {
-        plugins,
-        jumpToPage,
-        jumpToPageRef,
-        ZoomIn,
-        ZoomOut,
-        CurrentScale,
-        zoomTo,
-        highlight,
-        clearHighlights
-    }
+  return {
+    plugins,
+    jumpToPage,
+    jumpToPageRef,
+    ZoomIn,
+    ZoomOut,
+    CurrentScale,
+    zoomTo,
+    highlight,
+    clearHighlights
+  }
 }
-

@@ -8,8 +8,8 @@ import { ConfigManager } from '../../core/ConfigManager'
 
 // Registry to map unique IDs to local file paths
 interface PDFData {
-    path: string;
-    createdAt: number;
+  path: string
+  createdAt: number
 }
 const pdfRegistry = new Map<string, PDFData>()
 
@@ -28,19 +28,19 @@ let cleanupInterval: NodeJS.Timeout | null = null
  * Generate a unique ID for the PDF stream
  */
 function generateId() {
-    return `pdf_${crypto.randomBytes(6).toString('hex')}_${Date.now()}`
+  return `pdf_${crypto.randomBytes(6).toString('hex')}_${Date.now()}`
 }
 
 /**
  * Cleanup old registry entries to free up memory
  */
 function runCleanup() {
-    const now = Date.now()
-    for (const [id, data] of pdfRegistry.entries()) {
-        if (now - data.createdAt > MAX_AGE_MS) {
-            pdfRegistry.delete(id)
-        }
+  const now = Date.now()
+  for (const [id, data] of pdfRegistry.entries()) {
+    if (now - data.createdAt > MAX_AGE_MS) {
+      pdfRegistry.delete(id)
     }
+  }
 }
 
 // ============================================
@@ -48,106 +48,106 @@ function runCleanup() {
 // ============================================
 
 export function registerPdfScheme() {
-    protocol.registerSchemesAsPrivileged([
-        {
-            scheme: 'local-pdf',
-            privileges: {
-                standard: true,
-                secure: true,
-                supportFetchAPI: true,
-                stream: true,
-                bypassCSP: true
-            }
-        }
-    ])
+  protocol.registerSchemesAsPrivileged([
+    {
+      scheme: 'local-pdf',
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        stream: true,
+        bypassCSP: true
+      }
+    }
+  ])
 }
 
 export function registerPdfProtocol() {
-    protocol.handle('local-pdf', async (request) => {
-        try {
-            const url = new URL(request.url)
-            const pdfId = url.host
-            const pdfData = pdfRegistry.get(pdfId)
+  protocol.handle('local-pdf', async (request) => {
+    try {
+      const url = new URL(request.url)
+      const pdfId = url.host
+      const pdfData = pdfRegistry.get(pdfId)
 
-            if (!pdfData) return new Response('Forbidden', { status: 403 })
+      if (!pdfData) return new Response('Forbidden', { status: 403 })
 
-            const filePath = pdfData.path
-            if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
+      const filePath = pdfData.path
+      if (!fs.existsSync(filePath)) return new Response('Not Found', { status: 404 })
 
-            const stats = await fs.promises.stat(filePath)
+      const stats = await fs.promises.stat(filePath)
 
-            // Generate ETag for caching
-            const etag = `W/"${stats.size}-${stats.mtimeMs}"`
+      // Generate ETag for caching
+      const etag = `W/"${stats.size}-${stats.mtimeMs}"`
 
-            // Check If-None-Match header
-            const ifNoneMatch = request.headers.get('if-none-match')
-            if (ifNoneMatch === etag) {
-                return new Response(null, {
-                    status: 304,
-                    headers: {
-                        'Cache-Control': 'private, max-age=0, must-revalidate',
-                        'ETag': etag
-                    }
-                })
-            }
+      // Check If-None-Match header
+      const ifNoneMatch = request.headers.get('if-none-match')
+      if (ifNoneMatch === etag) {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            'Cache-Control': 'private, max-age=0, must-revalidate',
+            ETag: etag
+          }
+        })
+      }
 
-            const rangeHeader = request.headers.get('range')
+      const rangeHeader = request.headers.get('range')
 
-            // Common headers
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/pdf',
-                'Cache-Control': 'private, max-age=0, must-revalidate',
-                'X-Content-Type-Options': 'nosniff',
-                'Accept-Ranges': 'bytes',
-                'ETag': etag
-            }
+      // Common headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/pdf',
+        'Cache-Control': 'private, max-age=0, must-revalidate',
+        'X-Content-Type-Options': 'nosniff',
+        'Accept-Ranges': 'bytes',
+        ETag: etag
+      }
 
-            if (rangeHeader) {
-                // Parse Range header
-                const parts = rangeHeader.replace(/bytes=/, "").split("-")
-                const partialStart = parts[0]
-                const partialEnd = parts[1]
+      if (rangeHeader) {
+        // Parse Range header
+        const parts = rangeHeader.replace(/bytes=/, '').split('-')
+        const partialStart = parts[0]
+        const partialEnd = parts[1]
 
-                const start = parseInt(partialStart, 10)
-                const end = partialEnd ? parseInt(partialEnd, 10) : stats.size - 1
+        const start = parseInt(partialStart, 10)
+        const end = partialEnd ? parseInt(partialEnd, 10) : stats.size - 1
 
-                // Validate range
-                if (start >= stats.size || end >= stats.size) {
-                    headers['Content-Range'] = `bytes */${stats.size}`
-                    return new Response(null, {
-                        status: 416, // Range Not Satisfiable
-                        headers
-                    })
-                }
-
-                const chunksize = (end - start) + 1
-                const nodeStream = fs.createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 })
-                const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
-
-                headers['Content-Range'] = `bytes ${start}-${end}/${stats.size}`
-                headers['Content-Length'] = String(chunksize)
-
-                return new Response(webStream, {
-                    status: 206, // Partial Content
-                    headers
-                })
-            } else {
-                // Full file request
-                const nodeStream = fs.createReadStream(filePath, { highWaterMark: 1024 * 1024 })
-                const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
-
-                headers['Content-Length'] = String(stats.size)
-
-                return new Response(webStream, {
-                    status: 200,
-                    headers
-                })
-            }
-        } catch (error) {
-            console.error('[PDFProtocol] Stream Error:', error)
-            return new Response('Internal Server Error', { status: 500 })
+        // Validate range
+        if (start >= stats.size || end >= stats.size) {
+          headers['Content-Range'] = `bytes */${stats.size}`
+          return new Response(null, {
+            status: 416, // Range Not Satisfiable
+            headers
+          })
         }
-    })
+
+        const chunksize = end - start + 1
+        const nodeStream = fs.createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 })
+        const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
+
+        headers['Content-Range'] = `bytes ${start}-${end}/${stats.size}`
+        headers['Content-Length'] = String(chunksize)
+
+        return new Response(webStream, {
+          status: 206, // Partial Content
+          headers
+        })
+      } else {
+        // Full file request
+        const nodeStream = fs.createReadStream(filePath, { highWaterMark: 1024 * 1024 })
+        const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
+
+        headers['Content-Length'] = String(stats.size)
+
+        return new Response(webStream, {
+          status: 200,
+          headers
+        })
+      }
+    } catch (error) {
+      console.error('[PDFProtocol] Stream Error:', error)
+      return new Response('Internal Server Error', { status: 500 })
+    }
+  })
 }
 
 // ============================================
@@ -155,119 +155,122 @@ export function registerPdfProtocol() {
 // ============================================
 
 export function registerPdfProtocolHandlers() {
-    const { IPC_CHANNELS } = APP_CONFIG
+  const { IPC_CHANNELS } = APP_CONFIG
 
-    const addToAllowlist = async (filePath: string) => {
-        const normalized = path.normalize(filePath)
-        await allowListManager.setItem(normalized, true)
+  const addToAllowlist = async (filePath: string) => {
+    const normalized = path.normalize(filePath)
+    await allowListManager.setItem(normalized, true)
+  }
+
+  const isAllowed = async (filePath: string) => {
+    const normalized = path.normalize(filePath)
+
+    // 1. Check explicit allowlist
+    const allowed = await allowListManager.read()
+    if (allowed[normalized]) return true
+
+    // 2. Allow files in User Data directory (e.g. Library)
+    // This ensures the internal Library and other app-managed files are accessible
+    try {
+      const userDataPath = app.getPath('userData')
+      const rel = path.relative(userDataPath, normalized)
+
+      // Check if inside userData (not parent, not absolute/other drive)
+      if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
+        return true
+      }
+    } catch (e) {
+      console.error('[PDFProtocol] Error checking userData path:', e)
     }
 
-    const isAllowed = async (filePath: string) => {
-        const normalized = path.normalize(filePath)
+    return false
+  }
 
-        // 1. Check explicit allowlist
-        const allowed = await allowListManager.read()
-        if (allowed[normalized]) return true
-
-        // 2. Allow files in User Data directory (e.g. Library)
-        // This ensures the internal Library and other app-managed files are accessible
-        try {
-            const userDataPath = app.getPath('userData')
-            const rel = path.relative(userDataPath, normalized)
-
-            // Check if inside userData (not parent, not absolute/other drive)
-            if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
-                return true
-            }
-        } catch (e) {
-            console.error('[PDFProtocol] Error checking userData path:', e)
-        }
-
-        return false
-    }
-
-    // Select PDF via dialog
-    ipcMain.handle(IPC_CHANNELS.SELECT_PDF, async (_event, options = {}) => {
-        const filterName = options.filterName || 'PDF Documents'
-        const { canceled, filePaths } = await dialog.showOpenDialog({
-            properties: ['openFile'],
-            filters: [{ name: filterName, extensions: ['pdf'] }]
-        })
-
-        if (canceled || filePaths.length === 0) return null
-
-        const filePath = filePaths[0]
-        try {
-            const stats = await fs.promises.stat(filePath)
-
-            // SECURITY: Add to allowlist
-            await addToAllowlist(filePath)
-
-            const id = generateId()
-            pdfRegistry.set(id, { path: filePath, createdAt: Date.now() })
-
-            return {
-                path: filePath,
-                name: path.basename(filePath),
-                size: stats.size,
-                streamUrl: `local-pdf://${id}`
-            }
-        } catch (err) {
-            console.error('[PDFProtocol] Selection error:', err)
-            return null
-        }
+  // Select PDF via dialog
+  ipcMain.handle(IPC_CHANNELS.SELECT_PDF, async (_event, options = {}) => {
+    const filterName = options.filterName || 'PDF Documents'
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: filterName, extensions: ['pdf'] }]
     })
 
-    // Get stream URL from path (for rehydration or drag-drop)
-    ipcMain.handle(IPC_CHANNELS.GET_PDF_STREAM_URL, async (_event, filePath) => {
-        if (!filePath) return null
+    if (canceled || filePaths.length === 0) return null
 
-        // SECURITY: Check allowlist and file existence
-        try {
-            const normalizedPath = path.normalize(filePath)
+    const filePath = filePaths[0]
+    try {
+      const stats = await fs.promises.stat(filePath)
 
-            // IMPORTANT: Only allow paths that user previously selected OR explicit allows
-            // This prevents renderer from requesting arbitrary system files
-            if (!(await isAllowed(normalizedPath))) {
-                console.warn('[PDFProtocol] Security Warning: Unauthorized PDF access attempt:', normalizedPath)
-                return null
-            }
+      // SECURITY: Add to allowlist
+      await addToAllowlist(filePath)
 
-            if (fs.existsSync(normalizedPath) && normalizedPath.toLowerCase().endsWith('.pdf')) {
-                const id = generateId()
-                pdfRegistry.set(id, { path: normalizedPath, createdAt: Date.now() })
-                return { streamUrl: `local-pdf://${id}` }
-            }
-        } catch (err) {
-            console.error('[PDFProtocol] Resolve Error:', err)
-        }
+      const id = generateId()
+      pdfRegistry.set(id, { path: filePath, createdAt: Date.now() })
+
+      return {
+        path: filePath,
+        name: path.basename(filePath),
+        size: stats.size,
+        streamUrl: `local-pdf://${id}`
+      }
+    } catch (err) {
+      console.error('[PDFProtocol] Selection error:', err)
+      return null
+    }
+  })
+
+  // Get stream URL from path (for rehydration or drag-drop)
+  ipcMain.handle(IPC_CHANNELS.GET_PDF_STREAM_URL, async (_event, filePath) => {
+    if (!filePath) return null
+
+    // SECURITY: Check allowlist and file existence
+    try {
+      const normalizedPath = path.normalize(filePath)
+
+      // IMPORTANT: Only allow paths that user previously selected OR explicit allows
+      // This prevents renderer from requesting arbitrary system files
+      if (!(await isAllowed(normalizedPath))) {
+        console.warn(
+          '[PDFProtocol] Security Warning: Unauthorized PDF access attempt:',
+          normalizedPath
+        )
         return null
-    })
+      }
 
-    // Register PDF path locally (e.g. from drag & drop)
-    ipcMain.handle(IPC_CHANNELS.PDF_REGISTER_PATH, async (_event, filePath) => {
-        if (!filePath) return null
-        try {
-            const stats = await fs.promises.stat(filePath)
-            if (path.extname(filePath).toLowerCase() !== '.pdf') return null
+      if (fs.existsSync(normalizedPath) && normalizedPath.toLowerCase().endsWith('.pdf')) {
+        const id = generateId()
+        pdfRegistry.set(id, { path: normalizedPath, createdAt: Date.now() })
+        return { streamUrl: `local-pdf://${id}` }
+      }
+    } catch (err) {
+      console.error('[PDFProtocol] Resolve Error:', err)
+    }
+    return null
+  })
 
-            // Allow this path
-            await addToAllowlist(filePath)
+  // Register PDF path locally (e.g. from drag & drop)
+  ipcMain.handle(IPC_CHANNELS.PDF_REGISTER_PATH, async (_event, filePath) => {
+    if (!filePath) return null
+    try {
+      const stats = await fs.promises.stat(filePath)
+      if (path.extname(filePath).toLowerCase() !== '.pdf') return null
 
-            const id = generateId()
-            pdfRegistry.set(id, { path: filePath, createdAt: Date.now() })
+      // Allow this path
+      await addToAllowlist(filePath)
 
-            return {
-                path: filePath,
-                name: path.basename(filePath),
-                size: stats.size,
-                streamUrl: `local-pdf://${id}`
-            }
-        } catch (err) {
-            console.error('[PDFProtocol] Register error:', err)
-            return null
-        }
-    })
+      const id = generateId()
+      pdfRegistry.set(id, { path: filePath, createdAt: Date.now() })
+
+      return {
+        path: filePath,
+        name: path.basename(filePath),
+        size: stats.size,
+        streamUrl: `local-pdf://${id}`
+      }
+    } catch (err) {
+      console.error('[PDFProtocol] Register error:', err)
+      return null
+    }
+  })
 }
 
 // ============================================
@@ -275,17 +278,16 @@ export function registerPdfProtocolHandlers() {
 // ============================================
 
 export function startPdfCleanupInterval() {
-    if (!cleanupInterval) {
-        cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
-    }
+  if (!cleanupInterval) {
+    cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
+  }
 }
 
 export function stopPdfCleanupInterval() {
-    if (cleanupInterval) {
-        clearInterval(cleanupInterval)
-        cleanupInterval = null
-    }
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval)
+    cleanupInterval = null
+  }
 }
 
 export const clearAllPdfPaths = () => pdfRegistry.clear()
-

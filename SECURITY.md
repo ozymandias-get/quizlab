@@ -37,12 +37,12 @@ When reporting a vulnerability, please provide:
 
 ### Response Timeline
 
-| Phase | Timeline |
-|-------|----------|
-| Acknowledgment | Within 48 hours |
+| Phase              | Timeline               |
+| ------------------ | ---------------------- |
+| Acknowledgment     | Within 48 hours        |
 | Initial Assessment | Within 5 business days |
-| Fix Development | Depends on severity |
-| Public Disclosure | After fix is released |
+| Fix Development    | Depends on severity    |
+| Public Disclosure  | After fix is released  |
 
 ## Security Best Practices
 

@@ -4,73 +4,71 @@ import LeftPanel from '@ui/layout/LeftPanel'
 
 // Mock dependencies
 vi.mock('@app/providers/LanguageContext', () => ({
-    useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key })
 }))
 
 // Create a mock for useSharedDragDrop specific to this test file
 const mockUseSharedDragDrop = vi.fn()
 vi.mock('@shared/hooks/useSharedDragDrop', () => ({
-    useSharedDragDrop: (onDrop: any) => mockUseSharedDragDrop(onDrop)
+  useSharedDragDrop: (onDrop: any) => mockUseSharedDragDrop(onDrop)
 }))
 
 vi.mock('@features/pdf/ui/components/PdfViewer', () => ({
-    default: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>
+  default: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>
 }))
 
 vi.mock('@react-pdf-viewer/core', () => ({
-    Worker: ({ children }: any) => <div data-testid="pdf-worker">{children}</div>
+  Worker: ({ children }: any) => <div data-testid="pdf-worker">{children}</div>
 }))
 
 // Need to match the component structure precisely or just mock implementation
 vi.mock('@ui/components/ErrorBoundary', () => ({
-    default: ({ children }: any) => <div data-testid="error-boundary">{children}</div>
+  default: ({ children }: any) => <div data-testid="error-boundary">{children}</div>
 }))
 
 describe('LeftPanel Component', () => {
-    const defaultProps = {
-        onPdfDrop: vi.fn(),
-        pdfFile: null,
-        onSelectPdf: vi.fn(),
-        onTextSelection: vi.fn(),
-        width: 300,
-        t: (key: string) => key,
-        onResumePdf: vi.fn(),
-        lastReadingInfo: null,
-        initialPage: 1
-    }
+  const defaultProps = {
+    onPdfDrop: vi.fn(),
+    pdfFile: null,
+    onSelectPdf: vi.fn(),
+    onTextSelection: vi.fn(),
+    width: 300,
+    t: (key: string) => key,
+    onResumePdf: vi.fn(),
+    lastReadingInfo: null,
+    initialPage: 1
+  }
 
-    beforeEach(() => {
-        vi.clearAllMocks()
-        // Default impl
-        mockUseSharedDragDrop.mockReturnValue({
-            isDragOver: false,
-            containerRef: { current: null },
-            dragHandlers: {}
-        })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Default impl
+    mockUseSharedDragDrop.mockReturnValue({
+      isDragOver: false,
+      containerRef: { current: null },
+      dragHandlers: {}
+    })
+  })
+
+  it('renders PdfViewer inside ErrorBoundary', async () => {
+    render(<LeftPanel {...defaultProps} />)
+
+    expect(screen.getByTestId('error-boundary')).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pdf-viewer')).toBeInTheDocument()
+    })
+  })
+
+  it('shows drop overlay when isDragOver is true', () => {
+    mockUseSharedDragDrop.mockReturnValue({
+      isDragOver: true,
+      containerRef: { current: null },
+      dragHandlers: {}
     })
 
-    it('renders PdfViewer inside ErrorBoundary', async () => {
-        render(<LeftPanel {...defaultProps} />)
+    render(<LeftPanel {...defaultProps} />)
 
-        expect(screen.getByTestId('error-boundary')).toBeInTheDocument()
-
-        await waitFor(() => {
-            expect(screen.getByTestId('pdf-viewer')).toBeInTheDocument()
-        })
-    })
-
-    it('shows drop overlay when isDragOver is true', () => {
-        mockUseSharedDragDrop.mockReturnValue({
-            isDragOver: true,
-            containerRef: { current: null },
-            dragHandlers: {}
-        })
-
-        render(<LeftPanel {...defaultProps} />)
-
-        expect(screen.getByText('drop_pdf_title')).toBeInTheDocument()
-        expect(screen.getByText('drop_pdf_desc')).toBeInTheDocument()
-    })
+    expect(screen.getByText('drop_pdf_title')).toBeInTheDocument()
+    expect(screen.getByText('drop_pdf_desc')).toBeInTheDocument()
+  })
 })
-
-

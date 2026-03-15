@@ -153,6 +153,6 @@ For detailed release notes, see our [Releases](https://github.com/ozymandias-get
 
 ---
 
-*This roadmap is a living document and may change based on community feedback and priorities.*
+_This roadmap is a living document and may change based on community feedback and priorities._
 
 Last updated: 2026-02-25

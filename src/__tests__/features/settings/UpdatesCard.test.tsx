@@ -3,71 +3,81 @@ import { describe, expect, it, vi } from 'vitest'
 import UpdatesCard from '@features/settings/ui/about/UpdatesCard'
 
 vi.mock('@ui/components/Icons', () => ({
-    RefreshIcon: ({ className }: { className?: string }) => <span className={className}>RefreshIcon</span>,
-    InfoIcon: ({ className }: { className?: string }) => <span className={className}>InfoIcon</span>,
-    DownloadIcon: ({ className }: { className?: string }) => <span className={className}>DownloadIcon</span>,
-    LoaderIcon: ({ className }: { className?: string }) => <span className={className}>LoaderIcon</span>,
+  RefreshIcon: ({ className }: { className?: string }) => (
+    <span className={className}>RefreshIcon</span>
+  ),
+  InfoIcon: ({ className }: { className?: string }) => <span className={className}>InfoIcon</span>,
+  DownloadIcon: ({ className }: { className?: string }) => (
+    <span className={className}>DownloadIcon</span>
+  ),
+  LoaderIcon: ({ className }: { className?: string }) => (
+    <span className={className}>LoaderIcon</span>
+  )
 }))
 
 vi.mock('framer-motion', () => ({
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    motion: {
-        div: ({ children, initial, animate, exit, transition, ...props }: any) => <div {...props}>{children}</div>,
-        span: ({ children, initial, animate, exit, transition, ...props }: any) => <span {...props}>{children}</span>
-    }
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  motion: {
+    div: ({ children, initial, animate, exit, transition, ...props }: any) => (
+      <div {...props}>{children}</div>
+    ),
+    span: ({ children, initial, animate, exit, transition, ...props }: any) => (
+      <span {...props}>{children}</span>
+    )
+  }
 }))
 
 describe('UpdatesCard', () => {
-    const createProps = (overrides: Partial<React.ComponentProps<typeof UpdatesCard>> = {}) => ({
-        updateStatus: 'idle' as const,
-        updateInfo: null,
-        t: (key: string) => key,
-        handleStartTour: vi.fn(),
-        checkForUpdates: vi.fn(async () => undefined),
-        openReleasesPage: vi.fn(async () => undefined),
-        ...overrides
+  const createProps = (overrides: Partial<React.ComponentProps<typeof UpdatesCard>> = {}) => ({
+    updateStatus: 'idle' as const,
+    updateInfo: null,
+    t: (key: string) => key,
+    handleStartTour: vi.fn(),
+    checkForUpdates: vi.fn(async () => undefined),
+    openReleasesPage: vi.fn(async () => undefined),
+    ...overrides
+  })
+
+  it('shows the idle status and check button', () => {
+    const props = createProps()
+
+    render(<UpdatesCard {...props} />)
+
+    expect(screen.getByText('update_not_available')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /usage_assistant_start/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /check_for_updates/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /download_from_github/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the available status and opens the releases page', () => {
+    const props = createProps({
+      updateStatus: 'available',
+      updateInfo: { available: true, version: '2.0.0', releaseName: 'Launch Notes' }
     })
 
-    it('shows the idle status and check button', () => {
-        const props = createProps()
+    render(<UpdatesCard {...props} />)
 
-        render(<UpdatesCard {...props} />)
+    expect(screen.getByText('update_available')).toBeInTheDocument()
+    expect(screen.getByText('2.0.0')).toBeInTheDocument()
+    expect(screen.getByText('"Launch Notes"')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /check_for_updates/i })).not.toBeInTheDocument()
 
-        expect(screen.getByText('update_not_available')).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /usage_assistant_start/i })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: /check_for_updates/i })).toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: /download_from_github/i })).not.toBeInTheDocument()
-    })
+    fireEvent.click(screen.getByRole('button', { name: /download_from_github/i }))
 
-    it('shows the available status and opens the releases page', () => {
-        const props = createProps({
-            updateStatus: 'available',
-            updateInfo: { available: true, version: '2.0.0', releaseName: 'Launch Notes' }
-        })
+    expect(props.openReleasesPage).toHaveBeenCalledTimes(1)
+  })
 
-        render(<UpdatesCard {...props} />)
+  it('keeps the tour action and refresh action callable for latest status', () => {
+    const props = createProps({ updateStatus: 'latest' })
 
-        expect(screen.getByText('update_available')).toBeInTheDocument()
-        expect(screen.getByText('2.0.0')).toBeInTheDocument()
-        expect(screen.getByText('"Launch Notes"')).toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: /check_for_updates/i })).not.toBeInTheDocument()
+    render(<UpdatesCard {...props} />)
 
-        fireEvent.click(screen.getByRole('button', { name: /download_from_github/i }))
+    expect(screen.getByText('you_have_latest')).toBeInTheDocument()
 
-        expect(props.openReleasesPage).toHaveBeenCalledTimes(1)
-    })
+    fireEvent.click(screen.getByRole('button', { name: /usage_assistant_start/i }))
+    fireEvent.click(screen.getByRole('button', { name: /check_for_updates/i }))
 
-    it('keeps the tour action and refresh action callable for latest status', () => {
-        const props = createProps({ updateStatus: 'latest' })
-
-        render(<UpdatesCard {...props} />)
-
-        expect(screen.getByText('you_have_latest')).toBeInTheDocument()
-
-        fireEvent.click(screen.getByRole('button', { name: /usage_assistant_start/i }))
-        fireEvent.click(screen.getByRole('button', { name: /check_for_updates/i }))
-
-        expect(props.handleStartTour).toHaveBeenCalledTimes(1)
-        expect(props.checkForUpdates).toHaveBeenCalledTimes(1)
-    })
+    expect(props.handleStartTour).toHaveBeenCalledTimes(1)
+    expect(props.checkForUpdates).toHaveBeenCalledTimes(1)
+  })
 })

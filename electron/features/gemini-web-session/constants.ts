@@ -1,5 +1,8 @@
 import type { DomProbeSnapshot } from './authHeuristics'
-import { GOOGLE_AI_WEB_APPS, PRIMARY_GOOGLE_AI_WEB_APP } from '../../../shared/constants/google-ai-web-apps'
+import {
+  GOOGLE_AI_WEB_APPS,
+  PRIMARY_GOOGLE_AI_WEB_APP
+} from '../../../shared/constants/google-ai-web-apps'
 
 export const GEMINI_HOME_URL = PRIMARY_GOOGLE_AI_WEB_APP.url
 export const GOOGLE_AI_WEB_APP_URLS = GOOGLE_AI_WEB_APPS.map((app) => app.url)

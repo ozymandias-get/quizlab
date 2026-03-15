@@ -14,18 +14,17 @@ const isElectron = typeof window !== 'undefined' && 'electronAPI' in window
 const isWebDevMode = !isElectron && import.meta.env.DEV
 
 if (isWebDevMode) {
-    window.electronAPI = createBrowserElectronApi()
+  window.electronAPI = createBrowserElectronApi()
 }
 
 if (!isElectron && !isWebDevMode) {
-    // Render the fallback screen when running in browser mode
-    root.render(<BrowserFallback />)
+  // Render the fallback screen when running in browser mode
+  root.render(<BrowserFallback />)
 } else {
-    // Render the actual application inside Electron
-    root.render(
-        <AppProviders>
-            <App />
-        </AppProviders>
-    )
+  // Render the actual application inside Electron
+  root.render(
+    <AppProviders>
+      <App />
+    </AppProviders>
+  )
 }
-

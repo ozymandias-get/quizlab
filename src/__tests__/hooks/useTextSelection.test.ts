@@ -5,44 +5,44 @@ import { useTextSelection } from '@app/hooks/useTextSelection'
 const mockQueueTextForAi = vi.fn()
 
 vi.mock('@app/providers/AppToolContext', () => ({
-    useAppTools: () => ({
-        queueTextForAi: mockQueueTextForAi
-    })
+  useAppTools: () => ({
+    queueTextForAi: mockQueueTextForAi
+  })
 }))
 
 describe('useTextSelection Hook', () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('queues selected text for AI', () => {
+    const { result } = renderHook(() => useTextSelection())
+
+    act(() => {
+      result.current.handleTextSelection('Selected Text', { top: 100, left: 100 })
     })
 
-    it('queues selected text for AI', () => {
-        const { result } = renderHook(() => useTextSelection())
+    expect(mockQueueTextForAi).toHaveBeenCalledWith('Selected Text')
+  })
 
-        act(() => {
-            result.current.handleTextSelection('Selected Text', { top: 100, left: 100 })
-        })
+  it('does not queue empty text', () => {
+    const { result } = renderHook(() => useTextSelection())
 
-        expect(mockQueueTextForAi).toHaveBeenCalledWith('Selected Text')
+    act(() => {
+      result.current.handleTextSelection('   ', { top: 100, left: 100 })
     })
 
-    it('does not queue empty text', () => {
-        const { result } = renderHook(() => useTextSelection())
+    expect(mockQueueTextForAi).not.toHaveBeenCalled()
+  })
 
-        act(() => {
-            result.current.handleTextSelection('   ', { top: 100, left: 100 })
-        })
+  it('deduplicates the same selection signature briefly', () => {
+    const { result } = renderHook(() => useTextSelection())
 
-        expect(mockQueueTextForAi).not.toHaveBeenCalled()
+    act(() => {
+      result.current.handleTextSelection('Repeated', { top: 100, left: 100 })
+      result.current.handleTextSelection('Repeated', { top: 100, left: 100 })
     })
 
-    it('deduplicates the same selection signature briefly', () => {
-        const { result } = renderHook(() => useTextSelection())
-
-        act(() => {
-            result.current.handleTextSelection('Repeated', { top: 100, left: 100 })
-            result.current.handleTextSelection('Repeated', { top: 100, left: 100 })
-        })
-
-        expect(mockQueueTextForAi).toHaveBeenCalledTimes(1)
-    })
+    expect(mockQueueTextForAi).toHaveBeenCalledTimes(1)
+  })
 })

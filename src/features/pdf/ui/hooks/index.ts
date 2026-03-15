@@ -6,4 +6,3 @@ export { usePdfNavigation } from './usePdfNavigation'
 export { usePdfTextSelection } from './usePdfTextSelection'
 export { usePdfScreenshot } from './usePdfScreenshot'
 export { usePdfContextMenu } from './usePdfContextMenu'
-

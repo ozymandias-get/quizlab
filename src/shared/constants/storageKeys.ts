@@ -1,82 +1,80 @@
 /**
  * localStorage Key Sabitleri
- * 
- * Tüm localStorage key'leri burada merkezi olarak tanýmlanýr.
- * Bu yaklaþým:
- * - Yazým hatalarýný önler (IDE otomatik tamamlama saðlar)
- * - Key'lerin nerede kullanýldýðýný bulmayý kolaylaþtýrýr
- * - Refactoring'i güvenli hale getirir
- * - Çakýþmalarý önler
- * 
- * Kullaným:
+ *
+ * Tï¿½m localStorage key'leri burada merkezi olarak tanï¿½mlanï¿½r.
+ * Bu yaklaï¿½ï¿½m:
+ * - Yazï¿½m hatalarï¿½nï¿½ ï¿½nler (IDE otomatik tamamlama saï¿½lar)
+ * - Key'lerin nerede kullanï¿½ldï¿½ï¿½ï¿½nï¿½ bulmayï¿½ kolaylaï¿½tï¿½rï¿½r
+ * - Refactoring'i gï¿½venli hale getirir
+ * - ï¿½akï¿½ï¿½malarï¿½ ï¿½nler
+ *
+ * Kullanï¿½m:
  * import { STORAGE_KEYS } from '../constants/storageKeys'
  * useLocalStorage(STORAGE_KEYS.LEFT_PANEL_WIDTH, 50)
  */
 
 export const STORAGE_KEYS = {
-    // Panel Ayarlarý
-    /** Sol panelin geniþlik yüzdesi (number) */
-    LEFT_PANEL_WIDTH: 'leftPanelWidth',
+  // Panel Ayarlarï¿½
+  /** Sol panelin geniï¿½lik yï¿½zdesi (number) */
+  LEFT_PANEL_WIDTH: 'leftPanelWidth',
 
-    // AI Ayarlarý
-    /** Son seçilen AI platformu (string: 'chatgpt' vb.) */
-    LAST_SELECTED_AI: 'lastSelectedAI',
+  // AI Ayarlarï¿½
+  /** Son seï¿½ilen AI platformu (string: 'chatgpt' vb.) */
+  LAST_SELECTED_AI: 'lastSelectedAI',
 
-    /** Otomatik gönder özelliði aktif mi (boolean) */
-    AUTO_SEND_ENABLED: 'autoSendEnabled',
+  /** Otomatik gï¿½nder ï¿½zelliï¿½i aktif mi (boolean) */
+  AUTO_SEND_ENABLED: 'autoSendEnabled',
 
-    /** Aktif edilecek Modellerin listesi (JSON array string) */
-    ENABLED_MODELS: 'enabledModels',
+  /** Aktif edilecek Modellerin listesi (JSON array string) */
+  ENABLED_MODELS: 'enabledModels',
 
-    /** Bir kez otomatik etkinleþtirilen built-in site ID listesi (JSON array string) */
-    BUILT_IN_SITE_BOOTSTRAP: 'builtInSiteBootstrap',
+  /** Bir kez otomatik etkinleï¿½tirilen built-in site ID listesi (JSON array string) */
+  BUILT_IN_SITE_BOOTSTRAP: 'builtInSiteBootstrap',
 
-    /** Varsayýlan AI modeli (string) */
-    DEFAULT_AI_MODEL: 'defaultAiModel',
+  /** Varsayï¿½lan AI modeli (string) */
+  DEFAULT_AI_MODEL: 'defaultAiModel',
 
-    /** Pinlenmiþ AI sekmeleri (JSON array: [{ id, modelId, title? }]) */
-    PINNED_AI_TABS: 'pinnedAiTabs',
+  /** Pinlenmiï¿½ AI sekmeleri (JSON array: [{ id, modelId, title? }]) */
+  PINNED_AI_TABS: 'pinnedAiTabs',
 
-    // Görünüm Ayarlarý
-    /** Sadece ikonlarý göster (boolean) */
-    SHOW_ONLY_ICONS: 'showOnlyIcons',
+  // Gï¿½rï¿½nï¿½m Ayarlarï¿½
+  /** Sadece ikonlarï¿½ gï¿½ster (boolean) */
+  SHOW_ONLY_ICONS: 'showOnlyIcons',
 
-    /** Alt bar þeffaflýðý (number: 0.1 - 1.0) */
-    BOTTOM_BAR_OPACITY: 'bottomBarOpacity',
+  /** Alt bar ï¿½effaflï¿½ï¿½ï¿½ (number: 0.1 - 1.0) */
+  BOTTOM_BAR_OPACITY: 'bottomBarOpacity',
 
-    /** Alt bar boyutu/ölçeði (number: 0.8 - 1.5) */
-    BOTTOM_BAR_SCALE: 'bottomBarScale',
+  /** Alt bar boyutu/ï¿½lï¿½eï¿½i (number: 0.8 - 1.5) */
+  BOTTOM_BAR_SCALE: 'bottomBarScale',
 
-    /** Pencere düzeni deðiþtirildi mi (boolean) - Sol ve Sað panel yer deðiþimi */
-    IS_LAYOUT_SWAPPED: 'isLayoutSwapped',
+  /** Pencere dï¿½zeni deï¿½iï¿½tirildi mi (boolean) - Sol ve Saï¿½ panel yer deï¿½iï¿½imi */
+  IS_LAYOUT_SWAPPED: 'isLayoutSwapped',
 
-    // Arkaplan Ayarlarý
-    /** Arkaplan tipi ('solid' | 'animated') */
-    BG_TYPE: 'bgType',
-    /** Sabit renk kodu (hex) */
-    BG_SOLID_COLOR: 'bgSolidColor',
-    /** Hareketli arkaplan renkleri (JSON array) */
-    BG_ANIMATED_COLORS: 'bgAnimatedColors',
-    /** Rastgele renk modu aktif mi (boolean) */
-    BG_RANDOM_MODE: 'bgRandomMode',
+  // Arkaplan Ayarlarï¿½
+  /** Arkaplan tipi ('solid' | 'animated') */
+  BG_TYPE: 'bgType',
+  /** Sabit renk kodu (hex) */
+  BG_SOLID_COLOR: 'bgSolidColor',
+  /** Hareketli arkaplan renkleri (JSON array) */
+  BG_ANIMATED_COLORS: 'bgAnimatedColors',
+  /** Rastgele renk modu aktif mi (boolean) */
+  BG_RANDOM_MODE: 'bgRandomMode',
 
-    /** Metin seçme ve AI butonu rengi (hex) */
-    SELECTION_COLOR: 'selectionColor',
+  /** Metin seï¿½me ve AI butonu rengi (hex) */
+  SELECTION_COLOR: 'selectionColor',
 
-    // Dil Ayarlarý
-    /** Uygulama dili (string: 'tr' | 'en' | 'zh' | 'es' | 'ar') */
-    APP_LANGUAGE: 'appLanguage',
+  // Dil Ayarlarï¿½
+  /** Uygulama dili (string: 'tr' | 'en' | 'zh' | 'es' | 'ar') */
+  APP_LANGUAGE: 'appLanguage',
 
-    // Prompt Ayarlarý
-    /** Kayýtlý Promptlar (JSON Array) */
-    CUSTOM_PROMPTS: 'customPrompts',
+  // Prompt Ayarlarï¿½
+  /** Kayï¿½tlï¿½ Promptlar (JSON Array) */
+  CUSTOM_PROMPTS: 'customPrompts',
 
-    /** Seçili Prompt ID (string | null) */
-    SELECTED_PROMPT_ID: 'selectedPromptId',
+  /** Seï¿½ili Prompt ID (string | null) */
+  SELECTED_PROMPT_ID: 'selectedPromptId',
 
-    // Son Okuma Durumu
-    /** Son okunan PDF dosya bilgisi ve sayfa numarasý (JSON: {name, path, page, streamUrl}) */
-    LAST_PDF_READING: 'lastPdfReading'
+  // Son Okuma Durumu
+  /** Son okunan PDF dosya bilgisi ve sayfa numarasï¿½ (JSON: {name, path, page, streamUrl}) */
+  LAST_PDF_READING: 'lastPdfReading'
 } as const
-
-

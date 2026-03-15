@@ -38,6 +38,7 @@ If applicable, add screenshots to help explain your problem.
 ## Additional Context
 
 Add any other context about the problem here, such as:
+
 - Does it happen consistently or intermittently?
 - Any error messages in the console (DevTools: Ctrl+Shift+I)
 - Recent changes made to the system or app

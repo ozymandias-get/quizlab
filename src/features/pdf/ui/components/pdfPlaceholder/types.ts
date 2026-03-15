@@ -4,7 +4,7 @@ export type SortMode = 'recent' | 'name'
 export type RecentItemView = LastReadingInfo & { originalIndex: number }
 
 export interface RecentItemGroup {
-    id: string
-    labelKey: string | null
-    items: RecentItemView[]
+  id: string
+  labelKey: string | null
+  items: RecentItemView[]
 }

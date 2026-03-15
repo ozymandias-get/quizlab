@@ -4,101 +4,103 @@ import ErrorBoundary from '@ui/components/ErrorBoundary'
 
 // Mock Logger
 vi.mock('@shared/lib/logger', () => ({
-    Logger: {
-        error: vi.fn()
-    }
+  Logger: {
+    error: vi.fn()
+  }
 }))
 
 const Thrower = ({ shouldThrow }: { shouldThrow: boolean }) => {
-    if (shouldThrow) {
-        throw new Error('Test Error!')
-    }
-    return <div>Safe Content</div>
+  if (shouldThrow) {
+    throw new Error('Test Error!')
+  }
+  return <div>Safe Content</div>
 }
 
 describe('ErrorBoundary', () => {
-    const originalConsoleError = console.error
+  const originalConsoleError = console.error
 
-    beforeEach(() => {
-        console.error = vi.fn()
-    })
+  beforeEach(() => {
+    console.error = vi.fn()
+  })
 
-    afterEach(() => {
-        console.error = originalConsoleError
-        vi.clearAllMocks()
-    })
+  afterEach(() => {
+    console.error = originalConsoleError
+    vi.clearAllMocks()
+  })
 
-    it('renders children when no error occurs', () => {
-        render(
-            <ErrorBoundary>
-                <Thrower shouldThrow={false} />
-            </ErrorBoundary>
-        )
-        expect(screen.getByText('Safe Content')).toBeInTheDocument()
-    })
+  it('renders children when no error occurs', () => {
+    render(
+      <ErrorBoundary>
+        <Thrower shouldThrow={false} />
+      </ErrorBoundary>
+    )
+    expect(screen.getByText('Safe Content')).toBeInTheDocument()
+  })
 
-    it('renders default error UI when error occurs', () => {
-        render(
-            <ErrorBoundary>
-                <Thrower shouldThrow={true} />
-            </ErrorBoundary>
-        )
-        expect(screen.getByText('Bir şeyler yanlış gitti')).toBeInTheDocument()
-        expect(screen.getByText(/^Test Error!/)).toBeInTheDocument()
-    })
+  it('renders default error UI when error occurs', () => {
+    render(
+      <ErrorBoundary>
+        <Thrower shouldThrow={true} />
+      </ErrorBoundary>
+    )
+    expect(screen.getByText('Bir şeyler yanlış gitti')).toBeInTheDocument()
+    expect(screen.getByText(/^Test Error!/)).toBeInTheDocument()
+  })
 
-    it('renders custom title if provided', () => {
-        render(
-            <ErrorBoundary title="Custom Error Title">
-                <Thrower shouldThrow={true} />
-            </ErrorBoundary>
-        )
-        expect(screen.getByText('Custom Error Title')).toBeInTheDocument()
-    })
+  it('renders custom title if provided', () => {
+    render(
+      <ErrorBoundary title="Custom Error Title">
+        <Thrower shouldThrow={true} />
+      </ErrorBoundary>
+    )
+    expect(screen.getByText('Custom Error Title')).toBeInTheDocument()
+  })
 
-    it('renders custom fallback if provided', () => {
-        const fallback = (error: Error, reset: () => void) => (
-            <div>
-                <h1>Custom Fallback</h1>
-                <p>{error.message}</p>
-                <button onClick={reset}>Retry Custom</button>
-            </div>
-        )
+  it('renders custom fallback if provided', () => {
+    const fallback = (error: Error, reset: () => void) => (
+      <div>
+        <h1>Custom Fallback</h1>
+        <p>{error.message}</p>
+        <button onClick={reset}>Retry Custom</button>
+      </div>
+    )
 
-        render(
-            <ErrorBoundary fallback={fallback}>
-                <Thrower shouldThrow={true} />
-            </ErrorBoundary>
-        )
+    render(
+      <ErrorBoundary fallback={fallback}>
+        <Thrower shouldThrow={true} />
+      </ErrorBoundary>
+    )
 
-        expect(screen.getByText('Custom Fallback')).toBeInTheDocument()
-        expect(screen.getByText('Test Error!')).toBeInTheDocument()
-    })
+    expect(screen.getByText('Custom Fallback')).toBeInTheDocument()
+    expect(screen.getByText('Test Error!')).toBeInTheDocument()
+  })
 
-    it('calls onError prop when error is caught', () => {
-        const onError = vi.fn()
-        render(
-            <ErrorBoundary onError={onError}>
-                <Thrower shouldThrow={true} />
-            </ErrorBoundary>
-        )
-        expect(onError).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({ componentStack: expect.any(String) }))
-    })
+  it('calls onError prop when error is caught', () => {
+    const onError = vi.fn()
+    render(
+      <ErrorBoundary onError={onError}>
+        <Thrower shouldThrow={true} />
+      </ErrorBoundary>
+    )
+    expect(onError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ componentStack: expect.any(String) })
+    )
+  })
 
-    it('resets error state on retry', () => {
-        const onReset = vi.fn()
-        render(
-            <ErrorBoundary onReset={onReset}>
-                <Thrower shouldThrow={true} />
-            </ErrorBoundary>
-        )
+  it('resets error state on retry', () => {
+    const onReset = vi.fn()
+    render(
+      <ErrorBoundary onReset={onReset}>
+        <Thrower shouldThrow={true} />
+      </ErrorBoundary>
+    )
 
-        expect(screen.getByText('Bir şeyler yanlış gitti')).toBeInTheDocument()
+    expect(screen.getByText('Bir şeyler yanlış gitti')).toBeInTheDocument()
 
-        const retryBtn = screen.getByText('Tekrar Dene')
-        fireEvent.click(retryBtn)
+    const retryBtn = screen.getByText('Tekrar Dene')
+    fireEvent.click(retryBtn)
 
-        expect(onReset).toHaveBeenCalled()
-    })
+    expect(onReset).toHaveBeenCalled()
+  })
 })
-

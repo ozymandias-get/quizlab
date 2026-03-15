@@ -11,7 +11,7 @@
 }
 
 /* PDF içeriği - scroll pozisyonunu koru */
-.pdf-viewer-container>* {
+.pdf-viewer-container > * {
   position: relative;
 }
 
@@ -23,7 +23,8 @@
 
 /* PDF sayfası - yumuşak geçişler */
 .pdf-viewer-container .rpv-core__inner-page {
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+  transition:
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: width, height;
 }
@@ -87,7 +88,11 @@
   padding: 0.12em 0.18em !important;
   margin: -0.12em -0.18em !important;
   border-radius: 0.34rem;
-  transition: background-color 0.16s ease, color 0.16s ease, text-shadow 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    text-shadow 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .pdf-viewer-container.pdf-selection-active .rpv-core__text-layer {
@@ -96,7 +101,11 @@
 
 .pdf-viewer-container.pdf-selection-active .rpv-core__inner-pages {
   background-image:
-    radial-gradient(circle at 50% 0%, var(--selection-color-soft, rgba(234, 179, 8, 0.22)), transparent 42%),
+    radial-gradient(
+      circle at 50% 0%,
+      var(--selection-color-soft, rgba(234, 179, 8, 0.22)),
+      transparent 42%
+    ),
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
 }
 
@@ -128,4 +137,3 @@
 .pdf-viewer-container ::-webkit-scrollbar-thumb:hover {
   background: rgba(120, 113, 108, 0.6);
 }
-

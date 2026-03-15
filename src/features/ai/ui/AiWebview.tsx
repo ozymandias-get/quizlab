@@ -7,8 +7,8 @@ import AiTabStrip from './AiTabStrip'
 import AiHomePage from './AiHomePage'
 
 interface AiWebviewProps {
-    isResizing: boolean
-    isBarHovered: boolean
+  isResizing: boolean
+  isBarHovered: boolean
 }
 
 // Memory optimization: How many unpinned tabs to keep mounted in background.
@@ -21,122 +21,119 @@ const MAX_ALIVE_UNPINNED_TABS = 3
  * Creates webviews for active AI tabs. Shows AiHomePage on startup.
  */
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
-    const { tabs, activeTabId, isTutorialActive, aiViewRequestNonce } = useAiState()
-    const { setActiveTab, openAiWorkspace, stopTutorial } = useAiActions()
-    const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
-    const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
+  const { tabs, activeTabId, isTutorialActive, aiViewRequestNonce } = useAiState()
+  const { setActiveTab, openAiWorkspace, stopTutorial } = useAiActions()
+  const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
+  const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
 
-    // Auto-show home when no tabs exist or activeTabId is cleared
-    useEffect(() => {
-        if (tabs.length === 0 || !activeTabId) {
-            setShowHome(true)
-        }
-    }, [tabs.length, activeTabId])
+  // Auto-show home when no tabs exist or activeTabId is cleared
+  useEffect(() => {
+    if (tabs.length === 0 || !activeTabId) {
+      setShowHome(true)
+    }
+  }, [tabs.length, activeTabId])
 
-    // Update the LRU cache of alive tabs whenever active tab changes
-    useEffect(() => {
-        if (!activeTabId) return
+  // Update the LRU cache of alive tabs whenever active tab changes
+  useEffect(() => {
+    if (!activeTabId) return
 
-        setAliveTabIds(prev => {
-            const filtered = prev.filter(id => id !== activeTabId)
-            const next = [activeTabId, ...filtered]
-            return next.slice(0, MAX_ALIVE_UNPINNED_TABS)
-        })
-    }, [activeTabId])
+    setAliveTabIds((prev) => {
+      const filtered = prev.filter((id) => id !== activeTabId)
+      const next = [activeTabId, ...filtered]
+      return next.slice(0, MAX_ALIVE_UNPINNED_TABS)
+    })
+  }, [activeTabId])
 
-    // Cleanup aliveTabIds when tabs are closed
-    useEffect(() => {
-        const currentTabIds = new Set(tabs.map(t => t.id))
-        setAliveTabIds(prev => prev.filter(id => currentTabIds.has(id)))
-    }, [tabs])
+  // Cleanup aliveTabIds when tabs are closed
+  useEffect(() => {
+    const currentTabIds = new Set(tabs.map((t) => t.id))
+    setAliveTabIds((prev) => prev.filter((id) => currentTabIds.has(id)))
+  }, [tabs])
 
-    useEffect(() => {
-        if (aiViewRequestNonce === 0 || tabs.length === 0 || !activeTabId) {
-            return
-        }
-
-        setShowHome(false)
-    }, [activeTabId, aiViewRequestNonce, tabs.length])
-
-    const handleSelectTab = (tabId: string) => {
-        setActiveTab(tabId)
-        setShowHome(false)
+  useEffect(() => {
+    if (aiViewRequestNonce === 0 || tabs.length === 0 || !activeTabId) {
+      return
     }
 
-    const handleOpenModel = (modelId: string) => {
-        openAiWorkspace(modelId)
-    }
+    setShowHome(false)
+  }, [activeTabId, aiViewRequestNonce, tabs.length])
 
-    return (
-        <div
-            className={`flex flex-col flex-1 relative overflow-hidden m-3 rounded-[1.5rem] shadow-2xl transition-colors duration-500 ${showHome ? 'bg-black/40 backdrop-blur-xl' : 'bg-[#050505]'}`}
-            style={{
-                pointerEvents: isResizing ? 'none' : 'auto',
-                transform: 'translateZ(0)',
-                backfaceVisibility: 'hidden',
-                clipPath: 'inset(0 round 1.5rem)' // Force proper clipping of Webview
-            }}
-        >
-            {/* Border Overlay - Covers anti-aliasing artifacts */}
-            <div className="absolute inset-0 rounded-[1.5rem] border border-white/[0.08] pointer-events-none z-50" />
+  const handleSelectTab = (tabId: string) => {
+    setActiveTab(tabId)
+    setShowHome(false)
+  }
 
-            <AiTabStrip
-                showHome={showHome}
-                onShowHome={() => setShowHome(true)}
-                onHideHome={() => setShowHome(false)}
+  const handleOpenModel = (modelId: string) => {
+    openAiWorkspace(modelId)
+  }
+
+  return (
+    <div
+      className={`flex flex-col flex-1 relative overflow-hidden m-3 rounded-[1.5rem] shadow-2xl transition-colors duration-500 ${showHome ? 'bg-black/40 backdrop-blur-xl' : 'bg-[#050505]'}`}
+      style={{
+        pointerEvents: isResizing ? 'none' : 'auto',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        clipPath: 'inset(0 round 1.5rem)' // Force proper clipping of Webview
+      }}
+    >
+      {/* Border Overlay - Covers anti-aliasing artifacts */}
+      <div className="absolute inset-0 rounded-[1.5rem] border border-white/[0.08] pointer-events-none z-50" />
+
+      <AiTabStrip
+        showHome={showHome}
+        onShowHome={() => setShowHome(true)}
+        onHideHome={() => setShowHome(false)}
+      />
+
+      <div className="relative flex-1 min-h-0">
+        {/* Home Page */}
+        <AnimatePresence>
+          {showHome && (
+            <motion.div
+              key="home"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-0 z-10"
+            >
+              <AiHomePage onSelectTab={handleSelectTab} onOpenModel={handleOpenModel} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Render tabs based on hibernation strategy */}
+        {tabs.map((tab) => {
+          const isMounted = tab.pinned || tab.id === activeTabId || aliveTabIds.includes(tab.id)
+
+          // Hibernate (unmount) to save RAM/CPU
+          if (!isMounted) return null
+
+          return (
+            <AiSession
+              key={tab.id}
+              tab={tab}
+              isActive={tab.id === activeTabId && !showHome}
+              isBarHovered={isBarHovered}
             />
+          )
+        })}
+      </div>
 
-            <div className="relative flex-1 min-h-0">
-                {/* Home Page */}
-                <AnimatePresence>
-                    {showHome && (
-                        <motion.div
-                            key="home"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.18 }}
-                            className="absolute inset-0 z-10"
-                        >
-                            <AiHomePage
-                                onSelectTab={handleSelectTab}
-                                onOpenModel={handleOpenModel}
-                            />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Render tabs based on hibernation strategy */}
-                {tabs.map((tab) => {
-                    const isMounted = tab.pinned || tab.id === activeTabId || aliveTabIds.includes(tab.id)
-
-                    // Hibernate (unmount) to save RAM/CPU
-                    if (!isMounted) return null
-
-                    return (
-                        <AiSession
-                            key={tab.id}
-                            tab={tab}
-                            isActive={tab.id === activeTabId && !showHome}
-                            isBarHovered={isBarHovered}
-                        />
-                    )
-                })}
-            </div>
-
-            {/* Tutorial Simulation */}
-            {isTutorialActive && (
-                <div className="absolute inset-0 z-[100] bg-black">
-                    <MagicSelectorTutorial
-                        onClose={stopTutorial}
-                        onComplete={() => {
-                            stopTutorial()
-                        }}
-                    />
-                </div>
-            )}
+      {/* Tutorial Simulation */}
+      {isTutorialActive && (
+        <div className="absolute inset-0 z-[100] bg-black">
+          <MagicSelectorTutorial
+            onClose={stopTutorial}
+            onComplete={() => {
+              stopTutorial()
+            }}
+          />
         </div>
-    )
+      )}
+    </div>
+  )
 }
 
 export default memo(AiWebview)

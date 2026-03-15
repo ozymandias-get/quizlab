@@ -8,13 +8,13 @@ import { registerQuizHandlers } from '../features/quiz/quizCliHandler'
 import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
 
 export function registerGeneralHandlers() {
-    registerScreenshotHandlers()
-    registerSystemHandlers()
-    registerPdfHandlers()
-    registerAiConfigHandlers()
-    registerAiRegistryHandlers()
-    registerAutomationHandlers()
-    registerGeminiWebSessionHandlers()
+  registerScreenshotHandlers()
+  registerSystemHandlers()
+  registerPdfHandlers()
+  registerAiConfigHandlers()
+  registerAiRegistryHandlers()
+  registerAutomationHandlers()
+  registerGeminiWebSessionHandlers()
 }
 
 export { registerQuizHandlers }

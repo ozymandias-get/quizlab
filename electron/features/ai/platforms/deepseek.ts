@@ -1,19 +1,19 @@
 export default {
-    id: 'deepseek',
-    name: 'DeepSeek',
-    url: 'https://chat.deepseek.com',
-    partition: 'persist:ai_deepseek',
-    icon: 'deepseek',
-    color: '#4285f4',
-    selectors: {
-        input: null,
-        button: null,
-        waitFor: null
-    },
-    meta: {
-        displayName: 'DeepSeek',
-        submitMode: 'mixed',
-        domainRegex: '^https://chat\\.deepseek\\.com(/.*)?$',
-        imageWaitTime: 2000
-    }
+  id: 'deepseek',
+  name: 'DeepSeek',
+  url: 'https://chat.deepseek.com',
+  partition: 'persist:ai_deepseek',
+  icon: 'deepseek',
+  color: '#4285f4',
+  selectors: {
+    input: null,
+    button: null,
+    waitFor: null
+  },
+  meta: {
+    displayName: 'DeepSeek',
+    submitMode: 'mixed',
+    domainRegex: '^https://chat\\.deepseek\\.com(/.*)?$',
+    imageWaitTime: 2000
+  }
 }

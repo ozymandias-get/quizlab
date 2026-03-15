@@ -4,16 +4,15 @@ import AestheticLoader from '@ui/components/AestheticLoader'
 
 // Mock useLanguage
 vi.mock('@app/providers', () => ({
-    useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key })
 }))
 
 describe('AestheticLoader', () => {
-    it('should render correctly', () => {
-        render(<AestheticLoader />)
-        expect(screen.getByText('app_name')).toBeInTheDocument()
+  it('should render correctly', () => {
+    render(<AestheticLoader />)
+    expect(screen.getByText('app_name')).toBeInTheDocument()
 
-        const loaderMsg = screen.getByText(/loader_msg_\d+/)
-        expect(loaderMsg).toBeInTheDocument()
-    })
+    const loaderMsg = screen.getByText(/loader_msg_\d+/)
+    expect(loaderMsg).toBeInTheDocument()
+  })
 })
-

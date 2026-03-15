@@ -7,36 +7,34 @@ import tr from './locales/tr.json'
  */
 
 export interface LanguageInfo {
-    code: string;
-    name: string;
-    nativeName: string;
-    flag: string;
-    dir: string;
+  code: string
+  name: string
+  nativeName: string
+  flag: string
+  dir: string
 }
 
 export const LANGUAGES: Record<string, LanguageInfo> = {
-    en: {
-        code: 'en',
-        name: 'English',
-        nativeName: 'English',
-        flag: '🇬🇧',
-        dir: 'ltr'
-    },
-    tr: {
-        code: 'tr',
-        name: 'Turkish',
-        nativeName: 'Türkçe',
-        flag: '🇹🇷',
-        dir: 'ltr'
-    }
+  en: {
+    code: 'en',
+    name: 'English',
+    nativeName: 'English',
+    flag: '🇬🇧',
+    dir: 'ltr'
+  },
+  tr: {
+    code: 'tr',
+    name: 'Turkish',
+    nativeName: 'Türkçe',
+    flag: '🇹🇷',
+    dir: 'ltr'
+  }
 } as const
 
 export const translations = {
-    en,
-    tr
+  en,
+  tr
 }
 
 export const DEFAULT_LANGUAGE = 'tr'
 export const VALID_LANGUAGES = Object.keys(LANGUAGES)
-
-

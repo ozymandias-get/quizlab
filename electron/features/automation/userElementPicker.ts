@@ -1,23 +1,23 @@
 /**
  * Kullanıcı Tanımlı Element Seçici (Picker) Modülü
- * 
+ *
  * Bu modül, webview içine enjekte edilecek ve kullanıcının
  * etkileşime girmek istediği elementleri (Input ve Button)
  * manuel olarak seçmesini sağlayacak mantığı içerir.
  */
 
-import { pickerStyles } from './utils/styles';
-import { getElementInfo, generateLocatorBundle } from './utils/domHelpers';
-import { getStepHtml, getHintHtml, type TranslationMap } from './utils/uiTemplates';
+import { pickerStyles } from './utils/styles'
+import { getElementInfo, generateLocatorBundle } from './utils/domHelpers'
+import { getStepHtml, getHintHtml, type TranslationMap } from './utils/uiTemplates'
 
 /**
  * Webview içine enjekte edilecek "Picker" scripti.
  * Bu script, sayfadaki elementleri vurgular ve tıklamaları yakalar.
- * 
+ *
  * @returns {string} Enjekte edilecek JS kodu
  */
 export const generatePickerScript = (translations: TranslationMap = {}): string => {
-    return `
+  return `
     (function() {
         // Capture original console to avoid overridden methods
         const safeConsole = {
@@ -366,5 +366,5 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
 
         window._aiPickerCleanup = cleanup;
     })();
-    `;
-};
+    `
+}

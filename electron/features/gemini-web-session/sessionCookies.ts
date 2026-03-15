@@ -5,100 +5,105 @@ import type { ExternalBrowserCookie } from './playwrightLogin'
 import { PROFILE_PARTITION } from './sessionConfig'
 
 async function clearGoogleCookies(targetSession: Session): Promise<void> {
-    const existingCookies = await targetSession.cookies.get({})
+  const existingCookies = await targetSession.cookies.get({})
 
-    for (const cookie of existingCookies) {
-        if (!cookie.domain?.includes('google.com')) continue
-
-        const host = cookie.domain.replace(/^\./, '')
-        const cookiePath = cookie.path || '/'
-        const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`
-        await targetSession.cookies.remove(url, cookie.name).catch(() => { })
-    }
-}
-
-function buildElectronCookiePayload(cookie: ExternalBrowserCookie): Electron.CookiesSetDetails | null {
-    if (!cookie.domain || !cookie.name) return null
-    if (!cookie.domain.includes('google.com')) return null
+  for (const cookie of existingCookies) {
+    if (!cookie.domain?.includes('google.com')) continue
 
     const host = cookie.domain.replace(/^\./, '')
     const cookiePath = cookie.path || '/'
-    const payload: Electron.CookiesSetDetails = {
-        url: `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`,
-        name: cookie.name,
-        value: cookie.value,
-        path: cookiePath,
-        secure: !!cookie.secure,
-        httpOnly: !!cookie.httpOnly,
-        sameSite: 'unspecified'
-    }
-
-    // Electron normalizes explicit domains with a leading dot, which turns
-    // host-only cookies into domain cookies. Preserve host-only cookies by
-    // omitting `domain` unless the source cookie was already scoped broadly.
-    if (cookie.domain.startsWith('.')) {
-        payload.domain = cookie.domain
-    }
-
-    if (typeof cookie.expires === 'number' && cookie.expires > 0) {
-        payload.expirationDate = cookie.expires
-    }
-
-    if (cookie.sameSite === 'Lax') payload.sameSite = 'lax'
-    if (cookie.sameSite === 'Strict') payload.sameSite = 'strict'
-    if (cookie.sameSite === 'None') payload.sameSite = 'no_restriction'
-
-    return payload
+    const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`
+    await targetSession.cookies.remove(url, cookie.name).catch(() => {})
+  }
 }
 
-export async function importExternalCookies(targetSession: Session, cookies: ExternalBrowserCookie[]): Promise<void> {
-    await clearGoogleCookies(targetSession)
+function buildElectronCookiePayload(
+  cookie: ExternalBrowserCookie
+): Electron.CookiesSetDetails | null {
+  if (!cookie.domain || !cookie.name) return null
+  if (!cookie.domain.includes('google.com')) return null
 
-    for (const cookie of cookies) {
-        const payload = buildElectronCookiePayload(cookie)
-        if (!payload) continue
-        await targetSession.cookies.set(payload).catch(() => { })
-    }
+  const host = cookie.domain.replace(/^\./, '')
+  const cookiePath = cookie.path || '/'
+  const payload: Electron.CookiesSetDetails = {
+    url: `${cookie.secure ? 'https' : 'http'}://${host}${cookiePath}`,
+    name: cookie.name,
+    value: cookie.value,
+    path: cookiePath,
+    secure: !!cookie.secure,
+    httpOnly: !!cookie.httpOnly,
+    sameSite: 'unspecified'
+  }
 
-    try {
-        targetSession.flushStorageData()
-    } catch {
-        // Ignore flush errors.
-    }
+  // Electron normalizes explicit domains with a leading dot, which turns
+  // host-only cookies into domain cookies. Preserve host-only cookies by
+  // omitting `domain` unless the source cookie was already scoped broadly.
+  if (cookie.domain.startsWith('.')) {
+    payload.domain = cookie.domain
+  }
+
+  if (typeof cookie.expires === 'number' && cookie.expires > 0) {
+    payload.expirationDate = cookie.expires
+  }
+
+  if (cookie.sameSite === 'Lax') payload.sameSite = 'lax'
+  if (cookie.sameSite === 'Strict') payload.sameSite = 'strict'
+  if (cookie.sameSite === 'None') payload.sameSite = 'no_restriction'
+
+  return payload
+}
+
+export async function importExternalCookies(
+  targetSession: Session,
+  cookies: ExternalBrowserCookie[]
+): Promise<void> {
+  await clearGoogleCookies(targetSession)
+
+  for (const cookie of cookies) {
+    const payload = buildElectronCookiePayload(cookie)
+    if (!payload) continue
+    await targetSession.cookies.set(payload).catch(() => {})
+  }
+
+  try {
+    targetSession.flushStorageData()
+  } catch {
+    // Ignore flush errors.
+  }
 }
 
 async function ensurePartitionStoragePath(targetSession: Session): Promise<void> {
-    const sessionStoragePath = (targetSession as Session & { storagePath?: string }).storagePath
-    const partitionName = PROFILE_PARTITION.replace(/^persist:/, '')
-    const fallbackPartitionPath = path.join(app.getPath('userData'), 'Partitions', partitionName)
+  const sessionStoragePath = (targetSession as Session & { storagePath?: string }).storagePath
+  const partitionName = PROFILE_PARTITION.replace(/^persist:/, '')
+  const fallbackPartitionPath = path.join(app.getPath('userData'), 'Partitions', partitionName)
 
-    if (typeof sessionStoragePath === 'string' && sessionStoragePath.trim()) {
-        await fs.mkdir(sessionStoragePath, { recursive: true }).catch(() => { })
-    }
+  if (typeof sessionStoragePath === 'string' && sessionStoragePath.trim()) {
+    await fs.mkdir(sessionStoragePath, { recursive: true }).catch(() => {})
+  }
 
-    await fs.mkdir(fallbackPartitionPath, { recursive: true }).catch(() => { })
+  await fs.mkdir(fallbackPartitionPath, { recursive: true }).catch(() => {})
 }
 
 async function detachPartitionWebContents(targetSession: Session): Promise<void> {
-    const contents = webContents
-        .getAllWebContents()
-        .filter(item => !item.isDestroyed() && item.session === targetSession)
+  const contents = webContents
+    .getAllWebContents()
+    .filter((item) => !item.isDestroyed() && item.session === targetSession)
 
-    await Promise.all(contents.map(item => item.loadURL('about:blank').catch(() => { })))
+  await Promise.all(contents.map((item) => item.loadURL('about:blank').catch(() => {})))
 }
 
 export async function clearPersistentPartitionData(targetSession: Session): Promise<void> {
-    await detachPartitionWebContents(targetSession)
+  await detachPartitionWebContents(targetSession)
 
-    await clearGoogleCookies(targetSession).catch(() => { })
-    await targetSession.clearStorageData().catch(() => { })
-    await targetSession.clearAuthCache().catch(() => { })
-    await targetSession.clearCache().catch(() => { })
+  await clearGoogleCookies(targetSession).catch(() => {})
+  await targetSession.clearStorageData().catch(() => {})
+  await targetSession.clearAuthCache().catch(() => {})
+  await targetSession.clearCache().catch(() => {})
 
-    try {
-        targetSession.flushStorageData()
-    } catch {
-        // Ignore flush errors.
-    }
-    await ensurePartitionStoragePath(targetSession)
+  try {
+    targetSession.flushStorageData()
+  } catch {
+    // Ignore flush errors.
+  }
+  await ensurePartitionStoragePath(targetSession)
 }

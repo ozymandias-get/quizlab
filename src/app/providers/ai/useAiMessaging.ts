@@ -5,50 +5,59 @@ import type { AiPlatform } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
 interface UseAiMessagingParams {
-    webviewInstance: WebviewController | null
-    currentAI: string
-    activeTabId: string
-    autoSend: boolean
-    aiRegistry: Record<string, AiPlatform>
-    showSuccess: (message: string, title?: string) => void
-    showWarning: (message: string, title?: string) => void
+  webviewInstance: WebviewController | null
+  currentAI: string
+  activeTabId: string
+  autoSend: boolean
+  aiRegistry: Record<string, AiPlatform>
+  showSuccess: (message: string, title?: string) => void
+  showWarning: (message: string, title?: string) => void
 }
 
 export function useAiMessaging({
-    webviewInstance,
+  webviewInstance,
+  currentAI,
+  activeTabId,
+  autoSend,
+  aiRegistry,
+  showSuccess,
+  showWarning
+}: UseAiMessagingParams) {
+  const webviewRefProxy = useMemo(() => ({ current: webviewInstance }), [webviewInstance])
+  const { sendTextToAI: rawSendText, sendImageToAI: rawSendImage } = useAiSender(
+    webviewRefProxy,
     currentAI,
-    activeTabId,
     autoSend,
     aiRegistry,
-    showSuccess,
-    showWarning
-}: UseAiMessagingParams) {
-    const webviewRefProxy = useMemo(() => ({ current: webviewInstance }), [webviewInstance])
-    const {
-        sendTextToAI: rawSendText,
-        sendImageToAI: rawSendImage
-    } = useAiSender(webviewRefProxy, currentAI, autoSend, aiRegistry, activeTabId)
+    activeTabId
+  )
 
-    const sendTextToAI = useCallback(async (text: string, options?: AiSendOptions) => {
-        const result = await rawSendText(text, options)
-        if (!result.success) {
-            showWarning(`error_${result.error}`)
-        }
-        return result
-    }, [rawSendText, showWarning])
+  const sendTextToAI = useCallback(
+    async (text: string, options?: AiSendOptions) => {
+      const result = await rawSendText(text, options)
+      if (!result.success) {
+        showWarning(`error_${result.error}`)
+      }
+      return result
+    },
+    [rawSendText, showWarning]
+  )
 
-    const sendImageToAI = useCallback(async (imageData: string, options?: AiSendOptions) => {
-        const result = await rawSendImage(imageData, options)
-        if (result.success) {
-            showSuccess('sent_successfully')
-        } else {
-            showWarning(`error_${result.error}`)
-        }
-        return result
-    }, [rawSendImage, showSuccess, showWarning])
+  const sendImageToAI = useCallback(
+    async (imageData: string, options?: AiSendOptions) => {
+      const result = await rawSendImage(imageData, options)
+      if (result.success) {
+        showSuccess('sent_successfully')
+      } else {
+        showWarning(`error_${result.error}`)
+      }
+      return result
+    },
+    [rawSendImage, showSuccess, showWarning]
+  )
 
-    return {
-        sendTextToAI,
-        sendImageToAI
-    }
+  return {
+    sendTextToAI,
+    sendImageToAI
+  }
 }

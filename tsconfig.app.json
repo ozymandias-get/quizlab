@@ -1,58 +1,37 @@
 {
-    "compilerOptions": {
-        "target": "ES2020",
-        "useDefineForClassFields": true,
-        "lib": [
-            "ES2020",
-            "DOM",
-            "DOM.Iterable"
-        ],
-        "module": "ESNext",
-        "skipLibCheck": true,
-        /* Bundler mode */
-        "moduleResolution": "bundler",
-        "allowImportingTsExtensions": true,
-        "resolveJsonModule": true,
-        "isolatedModules": true,
-        "noEmit": true,
-        "jsx": "react-jsx",
-        /* Linting */
-        "strict": true,
-        "noImplicitAny": true,
-        "strictNullChecks": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "tsBuildInfoFile": "./.cache/tsconfig.app.tsbuildinfo",
-        "noFallthroughCasesInSwitch": true,
-        "allowJs": false,
-        "baseUrl": ".",
-        // Renderer path aliases
-        "paths": {
-            "@app/*": [
-                "./src/app/*"
-            ],
-            "@shared/*": [
-                "./src/shared/*"
-            ],
-            "@shared-core/*": [
-                "./shared/*"
-            ],
-            "@electron/*": [
-                "./electron/*"
-            ],
-            "@ui/*": [
-                "./src/shared/ui/*"
-            ],
-            "@features/*": [
-                "./src/features/*"
-            ],
-            "@platform/*": [
-                "./src/platform/*"
-            ]
-        }
-    },
-    "include": [
-        "src",
-        "shared"
-    ]
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    /* Linting */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "tsBuildInfoFile": "./.cache/tsconfig.app.tsbuildinfo",
+    "noFallthroughCasesInSwitch": true,
+    "allowJs": false,
+    "baseUrl": ".",
+    // Renderer path aliases
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@shared-core/*": ["./shared/*"],
+      "@electron/*": ["./electron/*"],
+      "@ui/*": ["./src/shared/ui/*"],
+      "@features/*": ["./src/features/*"],
+      "@platform/*": ["./src/platform/*"]
+    }
+  },
+  "include": ["src", "shared"]
 }

@@ -1,5 +1,5 @@
 export interface ContextMenuState {
-    tabId: string;
-    x: number;
-    y: number;
+  tabId: string
+  x: number
+  y: number
 }

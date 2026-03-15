@@ -18,11 +18,18 @@ permissions:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    
+
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest]
-    
+        include:
+          - os: windows-latest
+            platform: win
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: mac
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,7 +40,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install dependencies (Windows)
+        if: matrix.platform == 'win'
         shell: pwsh
         run: |
           node --version
@@ -45,33 +53,94 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
+      - name: Install dependencies (Linux / macOS)
+        if: matrix.platform != 'win'
+        run: |
+          node --version
+          npm --version
+          npm ci || npm install
+
       - name: Build and Package (Windows)
+        if: matrix.platform == 'win'
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List release files
-        run: Get-ChildItem -Path release -Recurse
-        shell: pwsh
+      - name: Build and Package (Linux)
+        if: matrix.platform == 'linux'
+        run: npm run build:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifacts
+      - name: Build and Package (macOS)
+        if: matrix.platform == 'mac'
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          CSC_NAME: ${{ secrets.MAC_CERTIFICATE_NAME }}
+          # Notarization (optional; set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID to enable)
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: List release files (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          if (Test-Path release) { Get-ChildItem -Recurse release }
+
+      - name: List release files (Linux / macOS)
+        if: matrix.platform != 'win'
+        run: |
+          if [ -d release ]; then
+            ls -laR release
+          fi
+
+      - name: Upload artifacts (Windows)
+        if: matrix.platform == 'win'
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.os }}
+          name: release-windows
           path: |
             release/*.exe
             release/*.yml
             release/latest.yml
           if-no-files-found: warn
 
+      - name: Upload artifacts (Linux)
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.yml
+            release/latest-linux.yml
+          if-no-files-found: warn
+
+      - name: Upload artifacts (macOS)
+        if: matrix.platform == 'mac'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.yml
+            release/latest-mac.yml
+          if-no-files-found: warn
+
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
-    
+
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -80,24 +149,27 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: release-*
           merge-multiple: true
 
       - name: List downloaded files
-        run: ls -la artifacts/
+        run: find artifacts -type f
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/*.exe
-            artifacts/*.yml
+          files: artifacts/*
           draft: false
           prerelease: false
           generate_release_notes: true
           body: |
             ## Download
 
-            **Windows:** Download the .exe file below and run the installer.
+            **Windows:** `QuizlabReader-Setup-*.exe` — run the installer.
+
+            **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
+
+            **macOS:** `*.dmg` — open and drag to Applications.
 
             ## Features
             - **Google Gemini Integration (CLI)**
@@ -106,4 +178,3 @@ jobs:
             - **Dual-Pane PDF Reader**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

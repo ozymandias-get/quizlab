@@ -4,190 +4,218 @@ import { CenterHub } from '@ui/layout/BottomBar/CenterHub'
 
 // Mock dependencies
 vi.mock('framer-motion', () => ({
-    motion: {
-        div: ({ children, onPointerUp, onMouseDown, role, whileHover, whileTap, initial, animate, exit, transition, variants, layout, ...props }: any) => (
-            <div
-                {...props}
-                role={role}
-                onPointerUp={onPointerUp}
-                onMouseDown={onMouseDown}
-                data-testid={role === 'button' ? 'center-hub-btn' : 'motion-div'}
-            >
-                {children}
-            </div>
-        ),
-        button: ({ children, onPointerDown, onPointerUp, onMouseDown, onClick, whileHover, whileTap, initial, animate, exit, transition, variants, layout, ...props }: any) => (
-            <button
-                {...props}
-                onPointerDown={onPointerDown}
-                onPointerUp={onPointerUp}
-                onMouseDown={onMouseDown}
-                onClick={onClick}
-                data-testid="center-hub-btn"
-            >
-                {children}
-            </button>
-        ),
-        span: ({ children, ...props }: any) => <span {...props}>{children}</span>
-    },
-    AnimatePresence: ({ children }: any) => <>{children}</>
+  motion: {
+    div: ({
+      children,
+      onPointerUp,
+      onMouseDown,
+      role,
+      whileHover,
+      whileTap,
+      initial,
+      animate,
+      exit,
+      transition,
+      variants,
+      layout,
+      ...props
+    }: any) => (
+      <div
+        {...props}
+        role={role}
+        onPointerUp={onPointerUp}
+        onMouseDown={onMouseDown}
+        data-testid={role === 'button' ? 'center-hub-btn' : 'motion-div'}
+      >
+        {children}
+      </div>
+    ),
+    button: ({
+      children,
+      onPointerDown,
+      onPointerUp,
+      onMouseDown,
+      onClick,
+      whileHover,
+      whileTap,
+      initial,
+      animate,
+      exit,
+      transition,
+      variants,
+      layout,
+      ...props
+    }: any) => (
+      <button
+        {...props}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+        data-testid="center-hub-btn"
+      >
+        {children}
+      </button>
+    ),
+    span: ({ children, ...props }: any) => <span {...props}>{children}</span>
+  },
+  AnimatePresence: ({ children }: any) => <>{children}</>
 }))
 
 // Mock Icons
 vi.mock('@ui/components/Icons', () => ({
-    AiHubIcon: () => <svg data-testid="ai-hub-icon" />
+  AiHubIcon: () => <svg data-testid="ai-hub-icon" />
 }))
 
 // Mock animations
 vi.mock('@ui/layout/BottomBar/animations', () => ({
-    hubIconVariants: {},
-    hubIconTransition: {},
-    iconStyleVariants: {},
-    hubGlowVariants: {}
+  hubIconVariants: {},
+  hubIconTransition: {},
+  iconStyleVariants: {},
+  hubGlowVariants: {}
 }))
 
 describe('CenterHub', () => {
-    const handleHubPointerUp = vi.fn()
-    const handleHubPointerDown = vi.fn()
-    const onClick = vi.fn()
-    const onMouseDown = vi.fn()
-    const hubStyle = { transform: 'none' }
+  const handleHubPointerUp = vi.fn()
+  const handleHubPointerDown = vi.fn()
+  const onClick = vi.fn()
+  const onMouseDown = vi.fn()
+  const hubStyle = { transform: 'none' }
 
-    beforeEach(() => {
-        handleHubPointerUp.mockClear()
-        handleHubPointerDown.mockClear()
-        onClick.mockClear()
-        onMouseDown.mockClear()
-    })
+  beforeEach(() => {
+    handleHubPointerUp.mockClear()
+    handleHubPointerDown.mockClear()
+    onClick.mockClear()
+    onMouseDown.mockClear()
+  })
 
-    it('renders closed state correctly', () => {
-        render(
-            <CenterHub
-                isOpen={false}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-            />
-        )
+  it('renders closed state correctly', () => {
+    render(
+      <CenterHub
+        isOpen={false}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+      />
+    )
 
-        const hub = screen.getByTestId('center-hub-btn')
-        expect(hub).toHaveClass('hub-center-btn--closed')
+    const hub = screen.getByTestId('center-hub-btn')
+    expect(hub).toHaveClass('hub-center-btn--closed')
 
-        expect(screen.getByTestId('ai-hub-icon')).toBeInTheDocument()
-    })
+    expect(screen.getByTestId('ai-hub-icon')).toBeInTheDocument()
+  })
 
-    it('renders open state correctly', () => {
-        render(
-            <CenterHub
-                isOpen={true}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-            />
-        )
+  it('renders open state correctly', () => {
+    render(
+      <CenterHub
+        isOpen={true}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+      />
+    )
 
-        const hub = screen.getByTestId('center-hub-btn')
-        expect(hub).toHaveClass('hub-center-btn--open')
-    })
+    const hub = screen.getByTestId('center-hub-btn')
+    expect(hub).toHaveClass('hub-center-btn--open')
+  })
 
-    it('calls handleHubPointerUp when clicked (pointer up)', () => {
-        render(
-            <CenterHub
-                isOpen={false}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-            />
-        )
+  it('calls handleHubPointerUp when clicked (pointer up)', () => {
+    render(
+      <CenterHub
+        isOpen={false}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+      />
+    )
 
-        const hub = screen.getByTestId('center-hub-btn')
-        fireEvent.pointerUp(hub)
+    const hub = screen.getByTestId('center-hub-btn')
+    fireEvent.pointerUp(hub)
 
-        expect(handleHubPointerUp).toHaveBeenCalled()
-    })
+    expect(handleHubPointerUp).toHaveBeenCalled()
+  })
 
-    it('calls onMouseDown only when closed', () => {
-        const { rerender } = render(
-            <CenterHub
-                isOpen={false}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-            />
-        )
+  it('calls onMouseDown only when closed', () => {
+    const { rerender } = render(
+      <CenterHub
+        isOpen={false}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+      />
+    )
 
-        const hub = screen.getByTestId('center-hub-btn')
-        fireEvent.mouseDown(hub)
-        expect(onMouseDown).toHaveBeenCalled()
+    const hub = screen.getByTestId('center-hub-btn')
+    fireEvent.mouseDown(hub)
+    expect(onMouseDown).toHaveBeenCalled()
 
-        onMouseDown.mockClear()
+    onMouseDown.mockClear()
 
-        rerender(
-            <CenterHub
-                isOpen={true}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-            />
-        )
+    rerender(
+      <CenterHub
+        isOpen={true}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+      />
+    )
 
-        fireEvent.mouseDown(hub)
-        expect(onMouseDown).not.toHaveBeenCalled()
-    })
+    fireEvent.mouseDown(hub)
+    expect(onMouseDown).not.toHaveBeenCalled()
+  })
 
-    it('shows tabs count badge when > 1 and closed', () => {
-        const { rerender } = render(
-            <CenterHub
-                isOpen={false}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-                tabsCount={5}
-            />
-        )
+  it('shows tabs count badge when > 1 and closed', () => {
+    const { rerender } = render(
+      <CenterHub
+        isOpen={false}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+        tabsCount={5}
+      />
+    )
 
-        expect(screen.getByText('5')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
 
-        // Hide when open
-        rerender(
-            <CenterHub
-                isOpen={true}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-                tabsCount={5}
-            />
-        )
+    // Hide when open
+    rerender(
+      <CenterHub
+        isOpen={true}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+        tabsCount={5}
+      />
+    )
 
-        expect(screen.queryByText('5')).not.toBeInTheDocument()
+    expect(screen.queryByText('5')).not.toBeInTheDocument()
 
-        // Hide when count <= 1
-        rerender(
-            <CenterHub
-                isOpen={false}
-                hubStyle={hubStyle}
-                handleHubPointerDown={handleHubPointerDown}
-                handleHubPointerUp={handleHubPointerUp}
-                onClick={onClick}
-                onMouseDown={onMouseDown}
-                tabsCount={1}
-            />
-        )
-        expect(screen.queryByText('1')).not.toBeInTheDocument()
-    })
+    // Hide when count <= 1
+    rerender(
+      <CenterHub
+        isOpen={false}
+        hubStyle={hubStyle}
+        handleHubPointerDown={handleHubPointerDown}
+        handleHubPointerUp={handleHubPointerUp}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+        tabsCount={1}
+      />
+    )
+    expect(screen.queryByText('1')).not.toBeInTheDocument()
+  })
 })
-

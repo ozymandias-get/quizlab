@@ -1,16 +1,10 @@
 {
-    "extends": "./tsconfig.node.json",
-    "compilerOptions": {
-        "noEmit": true,
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext"
-    },
-    "include": [
-        "electron/**/*",
-        "shared/**/*"
-    ],
-    "exclude": [
-        "dist/**/*",
-        "node_modules/**/*"
-    ]
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "include": ["electron/**/*", "shared/**/*"],
+  "exclude": ["dist/**/*", "node_modules/**/*"]
 }

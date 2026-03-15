@@ -32,16 +32,17 @@ npm run dev
 
 We use a simple branching model:
 
-| Branch | Purpose |
-|--------|---------|
-| `master` | Production-ready code |
+| Branch      | Purpose                      |
+| ----------- | ---------------------------- |
+| `master`    | Production-ready code        |
 | `feature/*` | New features or enhancements |
-| `bugfix/*` | Bug fixes |
-| `hotfix/*` | Critical production fixes |
+| `bugfix/*`  | Bug fixes                    |
+| `hotfix/*`  | Critical production fixes    |
 
 ### Workflow
 
 1. Create a new branch from `master`:
+
    ```bash
    git checkout master
    git pull origin master
@@ -65,16 +66,16 @@ We follow conventional commit format:
 
 ### Types
 
-| Type | Description |
-|------|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation changes |
-| `style` | Code style changes (formatting, semicolons, etc.) |
-| `refactor` | Code refactoring |
-| `perf` | Performance improvements |
-| `test` | Adding or updating tests |
-| `chore` | Build process or auxiliary tool changes |
+| Type       | Description                                       |
+| ---------- | ------------------------------------------------- |
+| `feat`     | New feature                                       |
+| `fix`      | Bug fix                                           |
+| `docs`     | Documentation changes                             |
+| `style`    | Code style changes (formatting, semicolons, etc.) |
+| `refactor` | Code refactoring                                  |
+| `perf`     | Performance improvements                          |
+| `test`     | Adding or updating tests                          |
+| `chore`    | Build process or auxiliary tool changes           |
 
 ## Pull Request Checklist
 
