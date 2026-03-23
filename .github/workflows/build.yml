@@ -27,7 +27,7 @@ jobs:
             platform: win
           - os: ubuntu-22.04
             platform: linux
-          - os: macos-13
+          - os: macos-latest
             platform: mac
 
     steps:
@@ -37,7 +37,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install Linux build dependencies
@@ -77,10 +77,11 @@ jobs:
         run: npm run build && npx electron-builder --linux --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: 'electron-builder'
 
       - name: Build and Package (macOS)
         if: matrix.platform == 'mac'
-        run: npm run build && npx electron-builder --mac --x64 --publish never
+        run: npm run build && npx electron-builder --mac --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
