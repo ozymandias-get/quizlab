@@ -102,7 +102,8 @@
         "deb"
       ],
       "icon": "resources/icon.png",
-      "category": "Office"
+      "category": "Office",
+      "maintainer": "ozymandias-get@users.noreply.github.com"
     },
     "publish": {
       "provider": "github",

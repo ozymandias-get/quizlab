@@ -27,8 +27,6 @@ jobs:
             platform: win
           - os: ubuntu-22.04
             platform: linux
-          - os: macos-latest
-            platform: mac
 
     steps:
       - name: Checkout code
@@ -79,12 +77,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEBUG: 'electron-builder'
 
-      - name: Build and Package (macOS)
-        if: matrix.platform == 'mac'
-        run: npm run build && npx electron-builder --mac --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: List release files (Windows)
         if: matrix.platform == 'win'
@@ -122,17 +114,6 @@ jobs:
             release/latest-linux.yml
           if-no-files-found: warn
 
-      - name: Upload artifacts (macOS)
-        if: matrix.platform == 'mac'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-macos
-          path: |
-            release/*.dmg
-            release/*.zip
-            release/*.yml
-            release/latest-mac.yml
-          if-no-files-found: warn
 
   release:
     needs: build
