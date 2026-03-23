@@ -25,9 +25,9 @@ jobs:
         include:
           - os: windows-latest
             platform: win
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             platform: linux
-          - os: macos-latest
+          - os: macos-13
             platform: mac
 
     steps:
@@ -58,7 +58,7 @@ jobs:
         run: |
           node --version
           npm --version
-          npm ci || npm install
+          npm install
 
       - name: Build and Package (Windows)
         if: matrix.platform == 'win'
