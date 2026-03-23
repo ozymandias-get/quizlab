@@ -40,6 +40,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 rpm
+
       - name: Install dependencies (Windows)
         if: matrix.platform == 'win'
         shell: pwsh
@@ -58,32 +64,26 @@ jobs:
         run: |
           node --version
           npm --version
-          npm install
+          npm install --ignore-optional
 
       - name: Build and Package (Windows)
         if: matrix.platform == 'win'
-        run: npm run build:win
+        run: npm run build && npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Package (Linux)
         if: matrix.platform == 'linux'
-        run: npm run build:linux
+        run: npm run build && npx electron-builder --linux --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Package (macOS)
         if: matrix.platform == 'mac'
-        run: npm run build:mac
+        run: npm run build && npx electron-builder --mac --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
-          CSC_NAME: ${{ secrets.MAC_CERTIFICATE_NAME }}
-          # Notarization (optional; set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID to enable)
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: List release files (Windows)
         if: matrix.platform == 'win'
