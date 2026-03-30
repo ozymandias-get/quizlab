@@ -1,4 +1,4 @@
-﻿import { useElectronMutation } from '../useElectron'
+import { useElectronMutation } from '../useElectron'
 import type { AutomationConfig } from '@shared-core/types'
 import { useLanguage } from '@app/providers/LanguageContext'
 
@@ -40,9 +40,10 @@ export function useGenerateAutoSendScript() {
 
   return useElectronMutation<
     string | null,
-    { config: AutomationConfig; text: string; submit: boolean }
+    { config: AutomationConfig; text: string; submit: boolean; append?: boolean }
   >(
-    (api, { config, text, submit }) => api.automation.generateAutoSendScript(config, text, submit),
+    (api, { config, text, submit, append }) =>
+      api.automation.generateAutoSendScript(config, text, submit, append === true),
     {
       errorMessage: t('toast_autosend_script_failed'),
       showErrorToast: false

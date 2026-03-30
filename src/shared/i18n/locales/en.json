@@ -50,7 +50,8 @@
     "new_tab": "New tab",
     "empty_sites_title": "Your site collection is empty",
     "empty_sites_description": "Add YouTube or other working sites to turn this view into a powerful launchpad.",
-    "empty_sites_hint": "Settings > Sites"
+    "empty_sites_hint": "Settings > Sites",
+    "refresh_page": "Reload current AI page"
   },
   "sites_description": "Add regular websites here. These sites will not have selector saving, they will only open as web views.",
   "active_sites": "Active Sites",
@@ -488,6 +489,7 @@
   "select_color": "Select Color",
   "select_colors": "Select 3 Colors",
   "select_language": "Select Language",
+  "pdf_pan_mode": "Pan — drag to move the page (zoom in first if needed)",
   "select_pdf": "Select PDF File",
   "selection_color_desc": "Personalize text selection and AI send button color.",
   "selection_color_preview_hint": "Preview (Check by selecting text)",
@@ -524,6 +526,7 @@
   "selectors_no_match": "No match",
   "send_to_ai": "Send to AI",
   "sending_to_ai": "Sending to AI...",
+  "ai_send_sending_subtitle": "Delivering to your active tab",
   "ai_send_selected_text": "Send selected text",
   "ai_send_selected_image": "Send image",
   "ai_send_panel_title": "AI send draft",
@@ -582,7 +585,6 @@
   "style_reasoning": "Case Study",
   "style_statement": "Statement",
   "swap_window": "Swap Panels",
-  "system_ok": "System OK",
   "technical_details": "Technical Details",
   "tab_close": "Close",
   "tab_more": "More tabs",

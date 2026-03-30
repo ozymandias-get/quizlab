@@ -8,6 +8,8 @@ export interface AiSendStageTimings {
   clipboardMs?: number
   focusScriptGenerationMs?: number
   focusExecuteJavaScriptMs?: number
+  refocusScriptGenerationMs?: number
+  refocusExecuteJavaScriptMs?: number
   pasteMs?: number
   promptScriptGenerationMs?: number
   promptExecuteJavaScriptMs?: number
@@ -29,6 +31,7 @@ export interface AiSendDiagnostics {
   timings: AiSendStageTimings
   script?: AutomationExecutionDiagnostics | null
   focusScript?: AutomationExecutionDiagnostics | null
+  refocusScript?: AutomationExecutionDiagnostics | null
   promptScript?: AutomationExecutionDiagnostics | null
   submitReadyScript?: AutomationExecutionDiagnostics | null
   clickScript?: AutomationExecutionDiagnostics | null
@@ -52,7 +55,14 @@ export interface SendImageResult {
 
 export interface AiSendOptions {
   autoSend?: boolean
+  /** Composer’dan tek seferlik: global otomatik gönder kapalı olsa da tarayıcıda gönder (tıkla) */
+  forceAutoSend?: boolean
   promptText?: string
+  /**
+   * Görsel yapıştırdıktan sonra ek notu giriş alanının sonuna ekle (Quill/contenteditable uyumu).
+   * false: tüm alanı yeniden yazmayı dene (eski mod). Varsayılan: true.
+   */
+  appendPromptAfterPaste?: boolean
 }
 
 export type AiSendResult = SendTextResult | SendImageResult

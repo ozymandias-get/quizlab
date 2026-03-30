@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
 import { useAppearance, useLanguage } from '@app/providers'
 import type { AiDraftImageItem, AiDraftTextItem } from '@app/providers/ai/types'
 import { hexToRgba } from '@shared/lib/uiUtils'
@@ -57,10 +58,12 @@ function AiSendComposer({
   }, [])
 
   const handleSubmit = useCallback(
-    async (options?: { autoSend?: boolean }) => {
+    async (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => {
       if (isSubmitting || items.length === 0) {
         return
       }
+
+      const forcedAutoSend = options?.forceAutoSend === true || options?.autoSend === true
 
       let dismissTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -73,7 +76,7 @@ function AiSendComposer({
 
         const result = await onSend({
           noteText: noteText.trim() || undefined,
-          autoSend: options?.autoSend
+          ...(forcedAutoSend ? { forceAutoSend: true as const } : {})
         })
 
         const wasSuccessful =
@@ -226,19 +229,36 @@ function AiSendComposer({
                 <motion.div
                   key="sending-overlay"
                   initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                  animate={{ opacity: 1, backdropFilter: 'blur(8px)' }}
+                  animate={{ opacity: 1, backdropFilter: 'blur(12px)' }}
                   exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/20"
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/35"
                 >
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                    transition={{ type: 'spring', stiffness: 240, damping: 22 }}
-                    className="rounded-full border border-amber-300/20 bg-amber-400/12 px-5 py-2.5 text-sm font-semibold text-amber-100 shadow-[0_10px_30px_-12px_rgba(251,191,36,0.55)]"
+                    transition={{ type: 'spring', stiffness: 240, damping: 24 }}
+                    className="relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-transparent px-7 py-5 text-center shadow-[0_8px_40px_-12px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-[20px]"
                   >
-                    {t('sending_to_ai')}
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(251,191,36,0.18),transparent_55%)]" />
+                    <div className="relative flex flex-col items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/25 bg-amber-400/12 shadow-[0_0_24px_-12px_rgba(251,191,36,0.5)]">
+                        <Loader2
+                          className="h-5 w-5 text-amber-100/95 animate-spin"
+                          strokeWidth={2.25}
+                          aria-hidden
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[14px] font-semibold tracking-tight text-white/95">
+                          {t('sending_to_ai')}
+                        </p>
+                        <p className="text-[11.5px] font-medium leading-snug tracking-wide text-white/45">
+                          {t('ai_send_sending_subtitle')}
+                        </p>
+                      </div>
+                    </div>
                   </motion.div>
                 </motion.div>
               ) : null}
@@ -275,7 +295,7 @@ function AiSendComposer({
                 isDragging={isDragging}
                 onToggle={() => onAutoSendChange(!autoSend)}
                 onSubmit={() => {
-                  void handleSubmit({ autoSend: true })
+                  void handleSubmit({ forceAutoSend: true })
                 }}
                 isSubmitting={isSubmitting}
                 isSubmitDisabled={items.length === 0}

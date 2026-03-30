@@ -1,4 +1,4 @@
-﻿import { ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import { APP_CONFIG } from '../../app/constants'
 import {
   generateFocusScript,
@@ -19,7 +19,8 @@ export function registerAutomationHandlers() {
     generateAutoSendScript: (args: unknown[]) => {
       const text = typeof args[1] === 'string' ? args[1] : ''
       const submit = typeof args[2] === 'boolean' ? args[2] : true
-      return generateAutoSendScript(readConfig(args[0]), text, submit)
+      const append = args[3] === true
+      return generateAutoSendScript(readConfig(args[0]), text, submit, append)
     },
     generateValidateSelectorsScript: (args: unknown[]) =>
       generateValidateSelectorsScript(readConfig(args[0])),

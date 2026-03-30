@@ -62,6 +62,8 @@ export interface AiContextActions {
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
   registerWebview: (id: string, instance: WebviewController | null) => void
+  /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron webview.reload). */
+  reloadActiveWebview: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   refreshRegistry: (force?: boolean) => Promise<void>

@@ -31,7 +31,8 @@ import {
   usePdfNavigation,
   usePdfTextSelection,
   usePdfScreenshot,
-  usePdfContextMenu
+  usePdfContextMenu,
+  usePdfPanTool
 } from '../hooks'
 import type { PdfFile } from '@shared-core/types'
 import type { LastReadingInfo, ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
@@ -89,6 +90,7 @@ function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [scaleFactor, setScaleFactor] = useState(1)
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
+  const [panMode, setPanMode] = useState(false)
 
   // Derived state
   const pdfUrl = pdfFile?.streamUrl
@@ -130,10 +132,15 @@ function PdfViewer({
     startScreenshot
   })
 
+  const { isDragging: isPanDragging } = usePdfPanTool({
+    containerRef,
+    isPanMode: panMode
+  })
+
   usePdfTextSelection({
     containerRef,
     onTextSelection: onTextSelection || (() => {}),
-    enabled: !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl
+    enabled: !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !panMode
   })
 
   const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
@@ -223,7 +230,9 @@ function PdfViewer({
     <div className="flex-1 flex flex-col overflow-hidden h-full min-h-0">
       <div
         ref={containerRef}
-        className="flex-1 overflow-hidden pdf-viewer-container h-full min-h-0 relative flex flex-col"
+        className={`flex-1 overflow-hidden pdf-viewer-container h-full min-h-0 relative flex flex-col${
+          panMode ? ' pdf-pan-mode-active' : ''
+        }${isPanDragging ? ' pdf-pan-mode-dragging' : ''}`}
         style={{ '--scale-factor': scaleFactor } as CSSProperties}
         onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
           // Ctrl+wheel zoom'u tamamen devre dışı bırak
@@ -288,6 +297,8 @@ function PdfViewer({
         onFullPageScreenshot={handleFullPageScreenshot}
         autoSend={autoSend}
         onToggleAutoSend={toggleAutoSend}
+        panMode={panMode}
+        onTogglePanMode={() => setPanMode((v) => !v)}
         currentPage={currentPage}
         totalPages={totalPages}
         onPreviousPage={goToPreviousPage}

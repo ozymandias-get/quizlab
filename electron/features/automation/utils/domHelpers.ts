@@ -221,11 +221,49 @@ function buildCssCandidates(el: Element, kind: 'input' | 'button') {
   return candidates.slice(0, 12)
 }
 
+/**
+ * Gemini / Google AI gibi arayüzlerde gönder kontrolü bazen <button> veya role="button" değildir;
+ * aria-label / data-testid ile tanımlanır ve geniş role=textbox kapsayıcısının içinde kalır.
+ *
+ * Not: Regex gövde içinde tutulur; userElementPicker enjekte ederken .toString() ile dış kapsam gerekmez.
+ */
+export function inferSendLikeControl(el: Element): boolean {
+  const R =
+    /\b(send|gönder|submit)\b|send-?message|sendmessage|send_message|composer-?send|send-button|sendbutton|submit_message|message_send|send_/i
+  const al = (el.getAttribute('aria-label') || '').toLowerCase()
+  if (R.test(al)) return true
+  const title = (el.getAttribute('title') || '').toLowerCase()
+  if (R.test(title)) return true
+  const tid = (
+    el.getAttribute('data-testid') ||
+    el.getAttribute('data-test-id') ||
+    ''
+  ).toLowerCase()
+  if (R.test(tid)) return true
+  if (el instanceof HTMLElement && typeof el.className === 'string') {
+    const cls = el.className.toLowerCase()
+    if (R.test(cls)) return true
+  }
+  return false
+}
+
 export const getElementInfo = (el: PickerElement): PickerElementInfo => {
   const tag = el.tagName.toLowerCase()
   const role = el.getAttribute('role')
   const type = el.getAttribute('type')
   const contentEditable = el.isContentEditable || el.getAttribute('contenteditable') === 'true'
+
+  if (inferSendLikeControl(el)) {
+    return {
+      category: 'button',
+      labelEN: 'Send Button',
+      labelKey: 'picker_el_submit',
+      confidence: 'high',
+      tag,
+      hintKey: 'picker_hint_submit_correct',
+      hintEN: ''
+    }
+  }
 
   let category: PickerCategory = 'unknown'
   let labelEN = 'Unknown'
@@ -265,7 +303,7 @@ export const getElementInfo = (el: PickerElement): PickerElementInfo => {
     labelKey = 'picker_el_button'
     confidence = 'high'
     hintKey = 'picker_hint_button_send'
-  } else if (tag === 'div' && contentEditable) {
+  } else if (role === 'textbox' || contentEditable) {
     category = 'input'
     labelEN = 'Message Input Area'
     labelKey = 'picker_el_msg_area'

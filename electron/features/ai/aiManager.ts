@@ -1,4 +1,4 @@
-﻿import { APP_CONFIG } from '../../app/constants'
+import { APP_CONFIG } from '../../app/constants'
 import type {
   SubmitMode,
   AiSelectorConfig,
@@ -61,6 +61,7 @@ const enhancePlatform = (data: AiPlatform): EnhancedAiPlatform => {
     submitMode: normalizeSubmitMode(data.meta?.submitMode) || 'mixed',
     domainRegex: data.meta?.domainRegex,
     imageWaitTime: data.meta?.imageWaitTime,
+    appendPromptAfterPaste: data.meta?.appendPromptAfterPaste !== false,
     input: data.selectors?.input,
     button: data.selectors?.button,
     waitFor: data.selectors?.waitFor

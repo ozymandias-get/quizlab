@@ -159,23 +159,6 @@ export default function SettingsModalSidebar({
               )
             })}
           </TabsList>
-
-          <div className="mt-5 max-[900px]:hidden">
-            <div className="rounded-[20px] border border-white/[0.08] bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              <div className="flex items-center gap-2.5">
-                <div className="relative">
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(74,222,128,0.7)]" />
-                  <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping opacity-45" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/55">
-                  {t('system_ok') || 'System OK'}
-                </span>
-              </div>
-              <p className="mt-2 text-[11px] leading-5 text-white/32">
-                {activeTabMeta.description}
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </aside>

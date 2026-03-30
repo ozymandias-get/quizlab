@@ -17,7 +17,6 @@ interface CenterHubProps {
   isOpen: boolean
   hubStyle: React.CSSProperties
   tabsCount?: number
-  hintText?: string
   ariaLabel?: string
 }
 
@@ -30,7 +29,6 @@ export const CenterHub = memo(
     isOpen,
     hubStyle,
     tabsCount = 0,
-    hintText = 'Open hub',
     ariaLabel = 'Toggle hub'
   }: CenterHubProps) => {
     return (
@@ -49,7 +47,6 @@ export const CenterHub = memo(
         whileTap={{ scale: 0.95 }}
         className={`hub-center-btn ${isOpen ? 'hub-center-btn--open' : 'hub-center-btn--closed'}`}
         style={hubStyle}
-        title={!isOpen ? hintText : undefined}
         aria-expanded={isOpen}
         aria-label={ariaLabel}
         aria-controls={`${APP_CONSTANTS.TOUR_TARGETS.TOOLS_PANEL} ${APP_CONSTANTS.TOUR_TARGETS.MODELS_LIST}`}
@@ -111,20 +108,6 @@ export const CenterHub = memo(
             >
               {tabsCount}
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {!isOpen && (
-            <motion.span
-              initial={{ opacity: 0, y: 2 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 2 }}
-              transition={{ duration: 0.22 }}
-              className="hub-center-btn__hint absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none"
-            >
-              {hintText}
-            </motion.span>
           )}
         </AnimatePresence>
       </motion.button>

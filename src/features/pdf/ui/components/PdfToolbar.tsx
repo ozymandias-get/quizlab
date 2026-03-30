@@ -1,8 +1,9 @@
-﻿import { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback } from 'react'
 import type { ComponentType, ReactElement } from 'react'
 import { motion } from 'framer-motion'
 import {
   Upload,
+  Hand,
   Crop,
   Image as ImageIcon,
   Send,
@@ -31,6 +32,8 @@ interface PdfToolbarProps {
   onFullPageScreenshot: () => void
   autoSend: boolean
   onToggleAutoSend: () => void
+  panMode: boolean
+  onTogglePanMode: () => void
   currentPage: number
   totalPages: number
   onPreviousPage: () => void
@@ -54,6 +57,8 @@ function PdfToolbar({
   onFullPageScreenshot,
   autoSend,
   onToggleAutoSend,
+  panMode,
+  onTogglePanMode,
   currentPage,
   totalPages,
   onPreviousPage,
@@ -89,6 +94,16 @@ function PdfToolbar({
       {/* Left: Tools Island */}
       <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
         <ToolbarButton onClick={onSelectPdf} icon={Upload} tooltip={t('select_pdf')} />
+
+        <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-0.5" />
+        <ToolbarButton
+          onClick={onTogglePanMode}
+          icon={Hand}
+          tooltip={t('pdf_pan_mode')}
+          isActive={panMode}
+          activeClassName="bg-gradient-to-br from-sky-600 to-cyan-700 text-white shadow-[0_0_18px_-4px_rgba(34,211,238,0.55)]"
+          className="text-sky-400/80 hover:text-sky-200 hover:bg-sky-500/15"
+        />
 
         <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-0.5" />
         <ToolbarButton

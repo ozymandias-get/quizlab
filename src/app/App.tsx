@@ -87,8 +87,8 @@ const App: React.FC = () => {
             onAutoSendChange={appTools.setAutoSend}
             onRemoveItem={appTools.removePendingAiItem}
             onClearAll={appTools.clearPendingAiItems}
-            onSend={({ noteText, autoSend }) =>
-              appTools.sendPendingAiItems({ promptText: noteText, autoSend })
+            onSend={({ noteText, autoSend, forceAutoSend }) =>
+              appTools.sendPendingAiItems({ promptText: noteText, autoSend, forceAutoSend })
             }
           />
         )}

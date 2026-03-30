@@ -1,4 +1,4 @@
-﻿import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { getElectronApi } from '@shared/lib/electronApi'
 import type {
   WebviewController,
@@ -121,8 +121,13 @@ export function useWebviewLifecycle({
   // Expose webview methods
   const webviewMethods = useMemo<WebviewController>(
     () => ({
+      // Reflect.apply keeps the correct `this` for native webview bindings (avoids "Illegal invocation").
       executeJavaScript: (script: string) =>
-        withActiveWebview((webview) => webview.executeJavaScript(script)),
+        withActiveWebview((webview) => {
+          const fn = webview.executeJavaScript
+          if (typeof fn !== 'function') return undefined
+          return Reflect.apply(fn, webview, [script])
+        }),
       getActiveWebview: () => activeWebviewRef.current,
       getWebview: () => activeWebviewRef.current,
       insertText: (text: string) => withActiveWebview((webview) => webview.insertText?.(text)),
@@ -132,7 +137,12 @@ export function useWebviewLifecycle({
       getURL: () => withActiveWebview((webview) => webview.getURL?.()),
       sendInputEvent: (event: WebviewInputEvent) =>
         withActiveWebview((webview) => webview.sendInputEvent?.(event)),
-      paste: () => withActiveWebview((webview) => webview.paste?.()),
+      paste: () =>
+        withActiveWebview((webview) => {
+          const fn = webview.paste
+          if (typeof fn !== 'function') return undefined
+          return Reflect.apply(fn, webview, [])
+        }),
       getWebContentsId: () => withActiveWebview((webview) => webview.getWebContentsId?.()),
       pasteNative: async (id: number) => {
         if (id) {

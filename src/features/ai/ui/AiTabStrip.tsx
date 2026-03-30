@@ -4,6 +4,7 @@ import { useAiActions, useAiState } from '@app/providers/AiContext'
 import AiOverflowMenu from './aiTabStrip/AiOverflowMenu'
 import AiTabContextMenu from './aiTabStrip/AiTabContextMenu'
 import AiTabStripHomeButton from './aiTabStrip/AiTabStripHomeButton'
+import AiTabStripRefreshButton from './aiTabStrip/AiTabStripRefreshButton'
 import AiVisibleTabButton from './aiTabStrip/AiVisibleTabButton'
 import { useAiTabStripState } from './aiTabStrip/useAiTabStripState'
 
@@ -14,8 +15,8 @@ interface AiTabStripProps {
 }
 
 function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
-  const { tabs, activeTabId, aiSites } = useAiState()
-  const { setActiveTab, closeTab, renameTab, togglePinTab } = useAiActions()
+  const { tabs, activeTabId, aiSites, webviewInstance } = useAiState()
+  const { setActiveTab, closeTab, renameTab, togglePinTab, reloadActiveWebview } = useAiActions()
   const { t } = useLanguage()
   const { refs, state, helpers, actions } = useAiTabStripState({
     tabs,
@@ -34,6 +35,12 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
     <div className="relative h-11 rounded-t-[1.5rem] border-b border-white/[0.08] bg-[#050505]/70 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
       <div className="flex items-center gap-2 h-full px-2.5 overflow-hidden">
         <AiTabStripHomeButton showHome={showHome} onShowHome={onShowHome} />
+
+        <AiTabStripRefreshButton
+          disabled={Boolean(showHome) || tabs.length === 0 || !webviewInstance}
+          title={t('ai_home.refresh_page')}
+          onRefresh={reloadActiveWebview}
+        />
 
         <div className="w-px h-5 bg-white/[0.1] shrink-0" />
 

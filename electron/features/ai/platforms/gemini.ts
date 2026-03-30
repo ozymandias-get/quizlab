@@ -8,10 +8,11 @@ export default {
   icon: 'gemini',
   color: '#f9ab00',
   selectors: {
-    input: 'div[contenteditable=\"true\"][role=\"textbox\"], div[role=\"textbox\"]',
+    input:
+      'div.ql-editor[role=\"textbox\"], rich-textarea div[contenteditable=\"true\"][role=\"textbox\"], div[contenteditable=\"true\"][role=\"textbox\"], div[role=\"textbox\"], textarea',
     button:
-      'button[aria-label*=\"Send\" i], button[aria-label*=\"Gonder\" i], button[data-test-id*=\"send\" i]',
-    waitFor: 'div[role=\"textbox\"], textarea'
+      'button.send-button, button[aria-label*=\"Send\" i], button[aria-label*=\"Send message\" i], button[aria-label*=\"Gönder\" i], button[aria-label*=\"Gonder\" i], [role=\"button\"][aria-label*=\"Send\" i], [role=\"button\"][aria-label*=\"Gönder\" i], [role=\"button\"][aria-label*=\"Gonder\" i], button[data-test-id*=\"send\" i], button[data-testid*=\"send\" i], [data-testid*=\"send\" i][role=\"button\"], button[mattooltip*=\"Send\" i], button[mattooltip*=\"Gonder\" i]',
+    waitFor: 'div.ql-editor[role=\"textbox\"], div[role=\"textbox\"], textarea'
   },
   meta: {
     displayName: 'Gemini',

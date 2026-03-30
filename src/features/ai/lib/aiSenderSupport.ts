@@ -10,6 +10,8 @@ import type { AiSendOptions, SendImageResult, SendTextResult } from '../model/ty
 export interface AiConfig extends AiSelectorConfig {
   domainRegex?: string
   imageWaitTime?: number
+  /** Görsel yapıştırdıktan sonra ek notu sona ekle; false = tüm alanı yeniden yaz */
+  appendPromptAfterPaste?: boolean
   health?: SelectorHealth
 }
 
@@ -29,7 +31,7 @@ export interface UseAiSenderReturn {
 }
 
 export const CLIPBOARD_WAIT_DELAY = 800
-export const POST_PASTE_PROMPT_DELAY = 500
+export const POST_PASTE_PROMPT_DELAY = 900
 export const IMAGE_UPLOAD_WAIT_DELAY = 1000
 export const IMAGE_SUBMIT_READY_SETTLE_DELAY = 1200
 export const IMAGE_SUBMIT_READY_TIMEOUT_BUFFER = 6000
@@ -37,6 +39,17 @@ export const IMAGE_SUBMIT_READY_TIMEOUT_BUFFER = 6000
 const webviewQueues = new WeakMap<WebviewController, Promise<unknown>>()
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Maps browser/runtime messages (e.g. TypeError "Illegal invocation" from native
+ * DOM/Electron bindings) to stable error codes used for toasts and diagnostics.
+ */
+export function normalizeSendErrorCode(raw: unknown, fallback: string): string {
+  const e = typeof raw === 'string' ? raw.trim() : typeof raw === 'number' ? String(raw) : ''
+  if (!e) return fallback
+  if (e === 'Illegal invocation') return fallback
+  return e
+}
 
 export function queueForWebview<T>(webview: WebviewController, task: () => Promise<T>): Promise<T> {
   const previous = webviewQueues.get(webview) ?? Promise.resolve()
@@ -161,6 +174,11 @@ export async function getCachedAiConfig(options: {
         : {}),
       ...(selectorConfig?.health !== undefined
         ? { health: selectorConfig.health as SelectorHealth }
+        : {}),
+      ...(selectorConfig?.appendPromptAfterPaste !== undefined
+        ? {
+            appendPromptAfterPaste: selectorConfig.appendPromptAfterPaste !== false
+          }
         : {}),
       submitMode:
         normalizeSubmitMode(selectorConfig?.submitMode) ||

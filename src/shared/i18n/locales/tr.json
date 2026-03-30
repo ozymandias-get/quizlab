@@ -1,4 +1,4 @@
-﻿{
+{
   "about": "Hakkında",
   "active_models": "Aktif Modeller",
   "active_prompt": "Aktif Prompt",
@@ -50,7 +50,8 @@
     "new_tab": "Yeni sekme",
     "empty_sites_title": "Site koleksiyonu henüz boş",
     "empty_sites_description": "Ana sayfayı güçlü bir başlatıcıya dönüştürmek için YouTube veya kendi çalışma sitelerinizi ekleyebilirsiniz.",
-    "empty_sites_hint": "Ayarlar > Siteler"
+    "empty_sites_hint": "Ayarlar > Siteler",
+    "refresh_page": "Sayfayı yenile"
   },
   "sites_description": "Normal web sitelerini buradan ekleyebilirsiniz. Bu siteler için selektör kaydedilmez, sadece web görünümü olarak açılır.",
   "active_sites": "Aktif Siteler",
@@ -488,6 +489,7 @@
   "select_color": "Renk Seç",
   "select_colors": "3 Renk Seçin",
   "select_language": "Dil Seçin",
+  "pdf_pan_mode": "El — sayfayı sürükleyerek kaydır (gerekirse önce yakınlaştır)",
   "select_pdf": "PDF Dosyası Seç",
   "selection_color_desc": "Metin seçme ve AI gönder butonu rengini kişiselleştirin.",
   "selection_color_preview_hint": "Önizleme (Metin seçerek kontrol edebilirsiniz)",
@@ -524,6 +526,7 @@
   "selectors_no_match": "Eşleşme yok",
   "send_to_ai": "AI'ya Gönder",
   "sending_to_ai": "AI'ya gönderiliyor...",
+  "ai_send_sending_subtitle": "Aktif sekmede iletilir",
   "ai_send_selected_text": "Seçili metni gönder",
   "ai_send_selected_image": "Görseli gönder",
   "ai_send_panel_title": "AI gönder taslağı",
@@ -582,7 +585,6 @@
   "style_reasoning": "Vaka",
   "style_statement": "Öncüllü",
   "swap_window": "Paneli Değiştir",
-  "system_ok": "Sistem Aktif",
   "technical_details": "Teknik Detaylar",
   "tab_close": "Kapat",
   "tab_more": "Daha fazla sekme",

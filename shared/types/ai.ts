@@ -9,6 +9,11 @@ export type AiPlatformMeta = {
   submitMode?: SubmitMode
   domainRegex?: string
   imageWaitTime?: number
+  /**
+   * false: görsel sonrası ek not tüm kutuyu yeniden yazar (eski davranış).
+   * Varsayılan: true — tüm platformlarda metin sona eklenir (Quill vb. ile uyumlu).
+   */
+  appendPromptAfterPaste?: boolean
 }
 
 export type AiPlatform = {
@@ -23,6 +28,7 @@ export type AiPlatform = {
   submitMode?: SubmitMode
   domainRegex?: string
   imageWaitTime?: number
+  appendPromptAfterPaste?: boolean
   input?: string | null
   button?: string | null
   waitFor?: string | null
@@ -41,6 +47,7 @@ export type EnhancedAiPlatform = AiPlatform & {
   submitMode?: SubmitMode
   domainRegex?: string
   imageWaitTime?: number
+  appendPromptAfterPaste?: boolean
   input?: string | null
   button?: string | null
   waitFor?: string | null

@@ -87,6 +87,10 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
     [closeTab, registerWebview]
   )
 
+  const reloadActiveWebview = useCallback(() => {
+    webviewInstance?.reload?.()
+  }, [webviewInstance])
+
   const refreshRegistry = useCallback(
     async (force = false) => {
       if (!force) return
@@ -169,6 +173,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
       setAutoSend,
       toggleAutoSend,
       registerWebview,
+      reloadActiveWebview,
       sendTextToAI,
       sendImageToAI,
       refreshRegistry,
@@ -188,6 +193,7 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
       setAutoSend,
       toggleAutoSend,
       registerWebview,
+      reloadActiveWebview,
       sendTextToAI,
       sendImageToAI,
       refreshRegistry,

@@ -14,6 +14,19 @@ interface UseAiMessagingParams {
   showWarning: (message: string, title?: string) => void
 }
 
+/** Builds a valid i18n key from send pipeline error codes (avoids spaces / odd chars). */
+function toErrorToastKey(errorKey: string | undefined): string {
+  if (!errorKey) return 'error_unknown_error'
+  const slug = errorKey
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/_+/g, '_')
+  if (!slug) return 'error_unknown_error'
+  return `error_${slug}`
+}
+
 export function useAiMessaging({
   webviewInstance,
   currentAI,
@@ -36,7 +49,7 @@ export function useAiMessaging({
     async (text: string, options?: AiSendOptions) => {
       const result = await rawSendText(text, options)
       if (!result.success) {
-        showWarning(`error_${result.error}`)
+        showWarning(toErrorToastKey(result.error))
       }
       return result
     },
@@ -49,7 +62,7 @@ export function useAiMessaging({
       if (result.success) {
         showSuccess('sent_successfully')
       } else {
-        showWarning(`error_${result.error}`)
+        showWarning(toErrorToastKey(result.error))
       }
       return result
     },

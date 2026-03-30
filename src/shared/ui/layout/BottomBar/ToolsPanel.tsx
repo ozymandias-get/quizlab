@@ -32,8 +32,13 @@ export const ToolsPanel = memo(
     onToggleQuizMode
   }: ToolsPanelProps) => {
     const { t } = useLanguage()
-    const { isPickerActive, togglePicker, isGeminiWebLoginInProgress, startGeminiWebLogin } =
-      useAppTools()
+    const {
+      isPickerActive,
+      togglePicker,
+      startPickerWhenReady,
+      isGeminiWebLoginInProgress,
+      startGeminiWebLogin
+    } = useAppTools()
     const { data: webSessionData, isLoading: isGeminiWebStatusLoading } = useGeminiWebStatus()
 
     const toolbarIconStyle: React.CSSProperties = {
@@ -68,6 +73,15 @@ export const ToolsPanel = memo(
       }
 
       handleGeminiWebSettingsClick()
+    }
+
+    const handlePickerClick = () => {
+      if (isPickerActive) {
+        void togglePicker()
+        return
+      }
+
+      startPickerWhenReady()
     }
 
     return (
@@ -126,7 +140,7 @@ export const ToolsPanel = memo(
             delay={0.06}
             isActive={isPickerActive}
             activeColor="rgba(139,92,246,0.35)"
-            onClick={togglePicker}
+            onClick={handlePickerClick}
             title={t('element_picker')}
           >
             <MagicWandIcon className="w-5 h-5" style={toolbarIconStyle} />

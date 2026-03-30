@@ -54,7 +54,7 @@ describe('AiSendComposerContent', () => {
     const autoSendButton = screen.getByRole('button', { name: 'auto_send' })
     fireEvent.click(autoSendButton)
 
-    expect(onSubmit).toHaveBeenCalledWith({ autoSend: true })
+    expect(onSubmit).toHaveBeenCalledWith({ forceAutoSend: true })
   })
 
   it('hides auto send action when note text is empty', () => {

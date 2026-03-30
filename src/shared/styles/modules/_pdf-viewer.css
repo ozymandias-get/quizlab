@@ -1,4 +1,4 @@
-﻿/* ============================================
+/* ============================================
    PDF VIEWER CUSTOM STYLES
    ============================================ */
 
@@ -136,4 +136,20 @@
 
 .pdf-viewer-container ::-webkit-scrollbar-thumb:hover {
   background: rgba(120, 113, 108, 0.6);
+}
+
+/* Pan (hand) tool — drag to scroll zoomed page */
+.pdf-viewer-container.pdf-pan-mode-active {
+  cursor: grab;
+}
+
+.pdf-viewer-container.pdf-pan-mode-dragging {
+  cursor: grabbing;
+}
+
+.pdf-viewer-container.pdf-pan-mode-active .rpv-core__text-layer,
+.pdf-viewer-container.pdf-pan-mode-active .rpv-core__text-layer span {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: inherit;
 }

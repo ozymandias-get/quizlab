@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   generateLocatorBundle,
   generateRobustSelector,
-  getElementInfo
+  getElementInfo,
+  inferSendLikeControl
 } from '@electron/features/automation/utils/domHelpers'
 
 describe('domHelpers', () => {
@@ -29,6 +30,19 @@ describe('domHelpers', () => {
 
       expect(infoIcon.confidence).toBe('low')
       expect(infoContainer.category).toBe('container')
+    })
+
+    it('classifies Gemini-style send controls that are not native <button>', () => {
+      const sendDiv = document.createElement('div')
+      sendDiv.setAttribute('aria-label', 'Send message')
+      expect(inferSendLikeControl(sendDiv)).toBe(true)
+      expect(getElementInfo(sendDiv as any).category).toBe('button')
+      expect(getElementInfo(sendDiv as any).confidence).toBe('high')
+
+      const tr = document.createElement('div')
+      tr.setAttribute('aria-label', 'Gönder')
+      expect(inferSendLikeControl(tr)).toBe(true)
+      expect(getElementInfo(tr as any).category).toBe('button')
     })
   })
 

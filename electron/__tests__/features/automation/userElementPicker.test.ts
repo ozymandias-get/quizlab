@@ -7,7 +7,7 @@ describe('userElementPicker', () => {
 
     expect(script).toContain('getElementInfo')
     expect(script).toContain('generateLocatorBundle')
-    expect(script).toContain('getEventTarget')
+    expect(script).toContain('getEventContext')
     expect(script).toContain('_ai_picker_next_btn')
   })
 })

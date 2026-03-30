@@ -156,7 +156,9 @@ function AiSendComposerToggle({
                   className="mt-3 overflow-hidden"
                 >
                   <Button
+                    type="button"
                     onClick={(event) => {
+                      event.preventDefault()
                       event.stopPropagation()
                       onSubmit()
                     }}

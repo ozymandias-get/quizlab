@@ -11,7 +11,7 @@ const { mockLogger, mockUsePrompts, mockSafeWebviewPaste } = vi.hoisted(() => ({
     error: vi.fn(),
     warn: vi.fn()
   },
-  mockUsePrompts: vi.fn(() => ({ activePromptText: '' })),
+  mockUsePrompts: vi.fn((): { activePromptText: string | null } => ({ activePromptText: '' })),
   mockSafeWebviewPaste: vi.fn(() => true)
 }))
 
@@ -166,6 +166,7 @@ describe('useAiSender', () => {
     expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
       expect.objectContaining({ input: '#input' }),
       'hello',
+      false,
       false
     )
     expect(mockWebview.executeJavaScript).toHaveBeenCalled()
@@ -191,6 +192,7 @@ describe('useAiSender', () => {
     expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
       expect.anything(),
       'Act as a expert\n\nhello',
+      false,
       false
     )
   })
@@ -214,7 +216,8 @@ describe('useAiSender', () => {
     expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
       expect.anything(),
       'Act as a expert\n\nFocus on key terms\n\nhello',
-      true
+      true,
+      false
     )
   })
 
@@ -277,6 +280,10 @@ describe('useAiSender', () => {
       })
       .mockResolvedValueOnce({
         success: true,
+        diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
         action: 'input_only',
         diagnostics: { ...mockScriptDiagnostics, kind: 'auto_send', submitMs: 0 }
       })
@@ -309,7 +316,8 @@ describe('useAiSender', () => {
     expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
       expect.anything(),
       'Describe this',
-      false
+      false,
+      true
     )
     expect(mockGenerateWaitForSubmitReadyScript).toHaveBeenCalledWith(
       expect.anything(),
@@ -320,9 +328,63 @@ describe('useAiSender', () => {
     )
     expect(mockGenerateClickSendScript).toHaveBeenCalledWith(expect.anything())
     expect(res.diagnostics?.focusScript?.kind).toBe('focus')
+    expect(res.diagnostics?.refocusScript?.kind).toBe('focus')
     expect(res.diagnostics?.promptScript?.kind).toBe('auto_send')
     expect(res.diagnostics?.submitReadyScript?.kind).toBe('submit_ready')
     expect(res.diagnostics?.clickScript?.kind).toBe('click_send')
+  })
+
+  it('forceAutoSend runs click after note prompt when global auto-send is off', async () => {
+    const imageDataUrl = 'data:image/png;base64,xxxx'
+    mockCopyImageToClipboard.mockResolvedValue(true)
+    mockGenerateFocusScript.mockResolvedValue('focus()')
+    mockGenerateAutoSendScript.mockResolvedValue('send()')
+    mockGenerateWaitForSubmitReadyScript.mockResolvedValue('waitReady()')
+    mockGenerateClickSendScript.mockResolvedValue('click()')
+    mockUsePrompts.mockReturnValue({ activePromptText: null })
+    mockWebview.executeJavaScript
+      .mockResolvedValueOnce({
+        success: true,
+        diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        action: 'input_only',
+        diagnostics: { ...mockScriptDiagnostics, kind: 'auto_send', submitMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        action: 'submit_ready',
+        diagnostics: { ...mockScriptDiagnostics, kind: 'submit_ready', setInputMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        mode: 'click',
+        diagnostics: { ...mockScriptDiagnostics, kind: 'click_send', setInputMs: 0 }
+      })
+
+    const { result } = renderHook(
+      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      {
+        wrapper: createWrapper()
+      }
+    )
+
+    let res: any
+    await act(async () => {
+      res = await result.current.sendImageToAI(imageDataUrl, {
+        promptText: 'Ek not',
+        forceAutoSend: true
+      })
+    })
+
+    expect(res.success).toBe(true)
+    expect(mockGenerateClickSendScript).toHaveBeenCalled()
+    expect(res.mode).toBe('auto_click_with_prompt')
   })
 
   it('uses local image prompt without a global prompt', async () => {
@@ -357,8 +419,47 @@ describe('useAiSender', () => {
     expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
       expect.anything(),
       'Bu grafiği açıkla',
-      false
+      false,
+      true
     )
+  })
+
+  it('disables append prompt mode when appendPromptAfterPaste is false', async () => {
+    const imageDataUrl = 'data:image/png;base64,xxxx'
+    mockCopyImageToClipboard.mockResolvedValue(true)
+    mockGenerateFocusScript.mockResolvedValue('focus()')
+    mockGenerateAutoSendScript.mockResolvedValue('send()')
+    mockWebview.executeJavaScript
+      .mockResolvedValueOnce({
+        success: true,
+        diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        action: 'input_only',
+        diagnostics: { ...mockScriptDiagnostics, kind: 'auto_send', submitMs: 0 }
+      })
+
+    const { result } = renderHook(
+      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      {
+        wrapper: createWrapper()
+      }
+    )
+
+    await act(async () => {
+      await result.current.sendImageToAI(imageDataUrl, {
+        promptText: 'note',
+        autoSend: false,
+        appendPromptAfterPaste: false
+      })
+    })
+
+    expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(expect.anything(), 'note', false, false)
   })
 
   it('handles clipboard failure', async () => {

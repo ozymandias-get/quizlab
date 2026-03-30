@@ -1,4 +1,4 @@
-﻿import type { WebviewElement } from '@shared-core/types/webview'
+import type { WebviewElement } from '@shared-core/types/webview'
 import type {
   SubmitMode,
   AiSelectorConfig,
@@ -65,7 +65,8 @@ declare global {
         generateAutoSendScript: (
           config: AiSelectorConfig,
           text: string,
-          submit: boolean
+          submit: boolean,
+          append?: boolean
         ) => Promise<string | null>
         generateValidateSelectorsScript: (config: AiSelectorConfig) => Promise<string | null>
         generateWaitForSubmitReadyScript: (

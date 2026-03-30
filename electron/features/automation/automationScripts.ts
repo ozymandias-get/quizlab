@@ -63,7 +63,9 @@ function serializeAutomationConfig(config: AutomationConfig): SerializedAutomati
   }
 }
 
-const COMMON_HELPERS = `
+function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject'): string {
+  return `
+    const AMBIGUOUS_SELECTOR_BEHAVIOR = '${ambiguousSelectorBehavior}';
     const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     const now = () => (typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
@@ -216,10 +218,40 @@ const COMMON_HELPERS = `
         return unique;
     };
 
+    const pickPrimaryInputCandidate = (elements) => {
+        const list = Array.isArray(elements) ? elements.filter((el) => el && el.isConnected) : [];
+        if (list.length === 0) return null;
+        if (list.length === 1) return list[0];
+        const scored = list.map((el) => {
+            const style = window.getComputedStyle(el);
+            const rect = el.getBoundingClientRect();
+            const area = rect.width * rect.height;
+            const visible = rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+            const role = (el.getAttribute && el.getAttribute('role')) || '';
+            const preferBoost = role === 'textbox' ? 2 : 1;
+            return { el, area, visible, preferBoost };
+        });
+        const visible = scored.filter((s) => s.visible);
+        const pool = visible.length > 0 ? visible : scored;
+        pool.sort((a, b) => {
+            if (b.preferBoost !== a.preferBoost) return b.preferBoost - a.preferBoost;
+            return b.area - a.area;
+        });
+        return pool[0].el;
+    };
+
     const findUniqueSelectorMatch = (selector) => {
         const roots = getSearchRoots();
         const directMatches = uniqueElements(Array.from(document.querySelectorAll(selector)));
         const allMatches = uniqueElements(roots.flatMap((root) => Array.from(root.querySelectorAll(selector))));
+
+        if (allMatches.length === 0) {
+            return {
+                element: null,
+                matchedSelector: null,
+                strategy: 'none'
+            };
+        }
 
         if (allMatches.length === 1) {
             const element = allMatches[0];
@@ -229,6 +261,18 @@ const COMMON_HELPERS = `
                 matchedSelector: selector,
                 strategy
             };
+        }
+
+        if (AMBIGUOUS_SELECTOR_BEHAVIOR === 'pick') {
+            const picked = pickPrimaryInputCandidate(allMatches);
+            if (picked) {
+                const strategy = directMatches.includes(picked) ? 'direct' : 'recursive';
+                return {
+                    element: picked,
+                    matchedSelector: selector,
+                    strategy
+                };
+            }
         }
 
         return {
@@ -384,6 +428,99 @@ const COMMON_HELPERS = `
         return null;
     };
 
+    const isChatGptHost = () => {
+        try {
+            const h = (window.location.hostname || '').toLowerCase();
+            return h === 'chatgpt.com' || h.endsWith('.chatgpt.com');
+        } catch {
+            return false;
+        }
+    };
+
+    /**
+     * Project / GPT /g/.../c/... routes sometimes use a different DOM than the main chat view.
+     * Saved selectors may not match or may be ambiguous — pick the main bottom composer heuristically.
+     */
+    const tryChatGptComposerFallback = () => {
+        if (!isChatGptHost()) {
+            return null;
+        }
+
+        try {
+            const quick = document.querySelector(
+                '#prompt-textarea, textarea[placeholder*="Message" i], textarea[placeholder*="Ask" i], [data-testid="composer-input"]'
+            );
+            if (quick && quick.isConnected) {
+                const r = quick.getBoundingClientRect();
+                const style = window.getComputedStyle(quick);
+                if (
+                    r.width >= 64 &&
+                    r.height >= 14 &&
+                    style.visibility !== 'hidden' &&
+                    style.display !== 'none' &&
+                    !quick.closest('header')
+                ) {
+                    return {
+                        element: quick,
+                        matchedSelector: 'chatgpt:known-pattern',
+                        strategy: 'heuristic'
+                    };
+                }
+            }
+        } catch {
+        }
+
+        const vines = [];
+        const roots = getSearchRoots();
+        for (const root of roots) {
+            try {
+                root.querySelectorAll('textarea').forEach((el) => vines.push(el));
+                root.querySelectorAll('[role="textbox"]').forEach((el) => vines.push(el));
+            } catch {
+            }
+        }
+
+        const candidates = uniqueElements(vines).filter((el) => {
+            if (!el || !el.isConnected) return false;
+            if (el.closest('header') || el.closest('[role="banner"]')) return false;
+            if (el.closest('[data-testid="modal"]') || el.closest('[data-state="open"][role="dialog"]')) {
+                return false;
+            }
+            if (el.getAttribute('aria-hidden') === 'true') return false;
+            const style = window.getComputedStyle(el);
+            if (style.visibility === 'hidden' || style.display === 'none' || style.pointerEvents === 'none') {
+                return false;
+            }
+            const r = el.getBoundingClientRect();
+            if (r.width < 64 || r.height < 14) return false;
+            if (r.bottom < -20 || r.top > window.innerHeight + 80) return false;
+            return true;
+        });
+
+        if (candidates.length === 0) return null;
+
+        const scored = candidates.map((el) => {
+            const r = el.getBoundingClientRect();
+            const area = r.width * r.height;
+            const bottomScore = r.bottom + area * 1e-6;
+            return { el, area, bottomScore };
+        });
+
+        scored.sort((a, b) => {
+            if (Math.abs(a.bottomScore - b.bottomScore) > 48) {
+                return b.bottomScore - a.bottomScore;
+            }
+            return b.area - a.area;
+        });
+
+        const picked = scored[0].el;
+        return {
+            element: picked,
+            matchedSelector: 'chatgpt:composer-fallback',
+            strategy: 'heuristic'
+        };
+    };
+
     const queryElement = (lookup, kind, diagnostics) => {
         const cached = getCachedElement(kind, lookup, diagnostics);
         if (cached) {
@@ -407,6 +544,16 @@ const COMMON_HELPERS = `
             diagnostics.strategy = 'fingerprint';
             diagnostics.matchedSelector = fingerprintMatch.matchedSelector;
             return fingerprintMatch;
+        }
+
+        if (kind === 'input') {
+            const chatgptFallback = tryChatGptComposerFallback();
+            if (chatgptFallback && chatgptFallback.element) {
+                cacheElement(kind, lookup, chatgptFallback.matchedSelector, chatgptFallback.element);
+                diagnostics.strategy = chatgptFallback.strategy;
+                diagnostics.matchedSelector = chatgptFallback.matchedSelector;
+                return chatgptFallback;
+            }
         }
 
         return {
@@ -588,15 +735,18 @@ const COMMON_HELPERS = `
         };
     };
 `
+}
 
 function createScriptPreamble(
   kind: 'focus' | 'auto_send' | 'click_send' | 'validate' | 'submit_ready',
   config: SerializedAutomationConfig,
   includeButton = false
 ) {
+  const ambiguousSelectorBehavior =
+    kind === 'auto_send' || kind === 'click_send' ? 'pick' : 'reject'
   return `
     (async function() {
-        ${COMMON_HELPERS}
+        ${buildCommonHelpers(ambiguousSelectorBehavior)}
         const scriptStartedAt = now();
         const config = ${JSON.stringify(config)};
         const diagnostics = createDiagnostics('${kind}', {
@@ -649,21 +799,134 @@ export const generateFocusScript = (config: AutomationConfig): string => {
 export const generateAutoSendScript = (
   config: AutomationConfig,
   text: string,
-  shouldSubmit: boolean = true
+  shouldSubmit: boolean = true,
+  appendMode: boolean = false
 ): string => {
   const serialized = serializeAutomationConfig(config)
   const safeText = JSON.stringify(text)
 
   return `
     ${createScriptPreamble('auto_send', serialized, true)}
+        const APPEND_TEXT_MODE = ${appendMode ? 'true' : 'false'};
+
         const setInputValue = async (element, value) => {
             const start = now();
+            const doubleLinebreak = String.fromCharCode(10) + String.fromCharCode(10);
+            try {
+                if (element && typeof element.scrollIntoView === 'function') {
+                    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }
+            } catch {
+            }
             element.focus();
             await wait(100);
 
             const isContentEditable = element.isContentEditable || element.getAttribute('contenteditable') === 'true';
 
+            const collapseSelectionToEnd = () => {
+                try {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(element);
+                    range.collapse(false);
+                    if (selection) {
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                } catch {
+                }
+            };
+
+            const resolveValueSetter = () => {
+                const prototype = Object.getPrototypeOf(element);
+                return Object.getOwnPropertyDescriptor(prototype, 'value') && Object.getOwnPropertyDescriptor(prototype, 'value').set
+                    || (Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value') && Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set)
+                    || (Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value') && Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set);
+            };
+
+            if (!isContentEditable && APPEND_TEXT_MODE) {
+                const valueSetter = resolveValueSetter();
+                const current = String(element.value || '');
+                const prefix = current.trim().length > 0 ? doubleLinebreak : '';
+                const next = current + prefix + value;
+                if (valueSetter) {
+                    valueSetter.call(element, next);
+                } else {
+                    element.value = next;
+                }
+                triggerLifecycleEvents(element);
+                diagnostics.setInputMs = roundMs(now() - start);
+                return;
+            }
+
+            if (isContentEditable && APPEND_TEXT_MODE) {
+                try {
+                    collapseSelectionToEnd();
+                    const hasContent = element.textContent && element.textContent.trim().length > 0;
+                    const prefix = hasContent ? doubleLinebreak : '';
+                    const payload = prefix + value;
+                    if (typeof document.execCommand === 'function' && document.execCommand('insertText', false, payload)) {
+                        triggerLifecycleEvents(element);
+                        diagnostics.setInputMs = roundMs(now() - start);
+                        return;
+                    }
+                } catch {
+                }
+                try {
+                    collapseSelectionToEnd();
+                    if (typeof document.execCommand === 'function' && document.execCommand('insertText', false, value)) {
+                        triggerLifecycleEvents(element);
+                        diagnostics.setInputMs = roundMs(now() - start);
+                        return;
+                    }
+                } catch {
+                }
+                try {
+                    collapseSelectionToEnd();
+                    const hasContent = element.textContent && element.textContent.trim().length > 0;
+                    const prefix = hasContent ? doubleLinebreak : '';
+                    const payload = prefix + value;
+                    element.dispatchEvent(new InputEvent('beforeinput', {
+                        bubbles: true,
+                        composed: true,
+                        inputType: 'insertText',
+                        data: payload
+                    }));
+                    element.dispatchEvent(new InputEvent('input', {
+                        bubbles: true,
+                        composed: true,
+                        inputType: 'insertText',
+                        data: payload
+                    }));
+                } catch {
+                }
+                try {
+                    const hasContent = element.textContent && element.textContent.trim().length > 0;
+                    const prefix = hasContent ? doubleLinebreak : '';
+                    const dt = new DataTransfer();
+                    dt.setData('text/plain', prefix + value);
+                    collapseSelectionToEnd();
+                    element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }));
+                } catch {
+                }
+                triggerLifecycleEvents(element);
+                diagnostics.setInputMs = roundMs(now() - start);
+                return;
+            }
+
             if (isContentEditable) {
+                try {
+                    if (typeof document.execCommand === 'function') {
+                        document.execCommand('selectAll', false, null);
+                        if (document.execCommand('insertText', false, value)) {
+                            triggerLifecycleEvents(element);
+                            diagnostics.setInputMs = roundMs(now() - start);
+                            return;
+                        }
+                    }
+                } catch {
+                }
+
                 try {
                     const selection = window.getSelection();
                     const range = document.createRange();
@@ -696,12 +959,15 @@ export const generateAutoSendScript = (
                         inputType: 'insertText',
                         data: value
                     }));
+                    try {
+                        const dt = new DataTransfer();
+                        dt.setData('text/plain', value);
+                        element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }));
+                    } catch {
+                    }
                 }
             } else {
-                const prototype = Object.getPrototypeOf(element);
-                const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value') && Object.getOwnPropertyDescriptor(prototype, 'value').set
-                    || (Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value') && Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set)
-                    || (Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value') && Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set);
+                const valueSetter = resolveValueSetter();
 
                 if (valueSetter) {
                     valueSetter.call(element, value);

@@ -1,6 +1,6 @@
 import type { PointerEventHandler } from 'react'
 import { memo } from 'react'
-import { Image as ImageIcon, Quote, X } from 'lucide-react'
+import { Image as ImageIcon, Loader2, Quote, Send, X, Zap } from 'lucide-react'
 import { useLanguage } from '@app/providers'
 import { Button } from '@ui/components/button'
 import type { AiDraftImageItem, AiDraftTextItem } from './types'
@@ -20,7 +20,7 @@ interface AiSendComposerContentProps {
   bodyHeight: number
   onRemoveItem: (id: string) => void
   onNoteTextChange: (value: string) => void
-  onSubmit: (options?: { autoSend?: boolean }) => void
+  onSubmit: (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => void
   onResizeStart: PointerEventHandler<HTMLButtonElement>
   onResizeMove: PointerEventHandler<HTMLButtonElement>
   onResizeEnd: PointerEventHandler<HTMLButtonElement>
@@ -206,27 +206,52 @@ function AiSendComposerContent({
       >
         {hasNoteText ? (
           <Button
-            onClick={() => onSubmit({ autoSend: true })}
+            type="button"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onSubmit({ forceAutoSend: true })
+            }}
             disabled={isSubmitting || totalItems === 0}
             variant="outline"
-            className="rounded-full border border-emerald-400/20 bg-emerald-500/12 px-4 py-2.5 text-[13px] font-medium text-emerald-100 shadow-[0_8px_24px_-10px_rgba(16,185,129,0.45)] transition-all duration-300 hover:scale-[1.02] hover:bg-emerald-500/18 active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
+            aria-label={t('auto_send')}
+            className="rounded-full border border-emerald-400/25 bg-emerald-500/[0.12] px-4 py-2.5 text-[13px] font-semibold tracking-tight text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_28px_-12px_rgba(16,185,129,0.42)] transition-all duration-300 hover:scale-[1.02] hover:border-emerald-300/35 hover:bg-emerald-500/20 active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
           >
-            <span className="relative z-10 flex items-center gap-2">{t('auto_send')}</span>
+            <span className="relative z-10 flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+              {t('auto_send')}
+            </span>
           </Button>
         ) : null}
 
         <Button
-          onClick={() => onSubmit()}
+          type="button"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onSubmit()
+          }}
           disabled={isSubmitting || totalItems === 0}
-          className="group rounded-full border-0 px-5 py-2.5 text-[13.5px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_30px_-6px_rgba(0,0,0,0.6)] active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
+          aria-label={isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
+          className="group relative overflow-hidden rounded-full border border-white/10 px-5 py-2.5 text-[13.5px] font-semibold tracking-tight text-white shadow-[0_10px_32px_-8px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_14px_36px_-8px_rgba(0,0,0,0.55)] active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
           style={{
-            background: `linear-gradient(135deg, ${accentStrong}, rgba(255,255,255,0.18))`
+            background: `linear-gradient(145deg, ${accentStrong}, rgba(255,255,255,0.18))`
           }}
         >
           <span className="relative z-10 flex items-center gap-2">
-            {isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2.25} aria-hidden />
+                {t('sending_to_ai')}
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
+                {t('send_to_ai')}
+              </>
+            )}
           </span>
-          <div className="absolute inset-0 rounded-full bg-white opacity-0 transition-opacity duration-300 group-hover:opacity-10 group-active:opacity-20" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-30%,rgba(255,255,255,0.22),transparent_60%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </Button>
       </div>
 

@@ -141,7 +141,8 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: 'invalid_input' }
       }
 
-      const effectiveAutoSend = options?.autoSend ?? autoSend
+      const effectiveAutoSend =
+        options?.forceAutoSend === true ? true : (options?.autoSend ?? autoSend)
       const textItems = pendingAiItems.filter(
         (item): item is Extract<AiDraftItem, { type: 'text' }> => item.type === 'text'
       )

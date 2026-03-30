@@ -71,7 +71,8 @@ vi.mock('@features/pdf/ui/hooks', () => ({
   usePdfContextMenu: () => ({
     contextMenu: null,
     setContextMenu: vi.fn()
-  })
+  }),
+  usePdfPanTool: () => ({ isDragging: false })
 }))
 
 // Mock Subcomponents

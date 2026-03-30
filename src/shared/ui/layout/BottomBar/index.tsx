@@ -95,7 +95,6 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
             isOpen={isOpen}
             hubStyle={hubStyle}
             tabsCount={tabs.length}
-            hintText={t('ua_step1_title')}
             ariaLabel={isOpen ? t('close') : t('ua_step1_text')}
           />
 

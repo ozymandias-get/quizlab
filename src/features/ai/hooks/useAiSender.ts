@@ -24,6 +24,7 @@ import {
   queueForWebview,
   sleep,
   toAutomationConfig,
+  normalizeSendErrorCode,
   type AiConfig,
   type ConfigCache,
   type UseAiSenderReturn
@@ -195,7 +196,8 @@ export function useAiSender(
     (text: string, options: AiSendOptions = {}): Promise<SendTextResult> => {
       const scheduledWebview = webviewRef.current
       const requestStartedAt = nowMs()
-      const effectiveAutoSend = options.autoSend ?? autoSend
+      const effectiveAutoSend =
+        options.forceAutoSend === true ? true : (options.autoSend ?? autoSend)
       const diagnostics = createSendDiagnostics({
         pipeline: 'text',
         currentAI,
@@ -267,7 +269,10 @@ export function useAiSender(
 
           if (!scriptResult || scriptResult.success === false) {
             return attachDiagnostics(
-              { success: false, error: scriptResult?.error || 'script_failed' },
+              {
+                success: false,
+                error: normalizeSendErrorCode(scriptResult?.error, 'script_failed')
+              },
               diagnostics,
               requestStartedAt
             )
@@ -282,10 +287,13 @@ export function useAiSender(
             requestStartedAt
           )
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'unknown_error'
+          const raw = error instanceof Error ? error.message : String(error)
           Logger.error('[useAiSender] Hata:', error)
           return attachDiagnostics(
-            { success: false, error: message },
+            {
+              success: false,
+              error: normalizeSendErrorCode(raw, 'send_failed')
+            },
             diagnostics,
             requestStartedAt
           )
@@ -296,8 +304,12 @@ export function useAiSender(
         try {
           return await execute(scheduledWebview)
         } catch (error) {
+          const raw = error instanceof Error ? error.message : String(error)
           return attachDiagnostics(
-            { success: false, error: error instanceof Error ? error.message : 'queue_error' },
+            {
+              success: false,
+              error: normalizeSendErrorCode(raw, 'send_failed')
+            },
             diagnostics,
             requestStartedAt
           )
@@ -320,7 +332,8 @@ export function useAiSender(
     (imageDataUrl: string, options: AiSendOptions = {}): Promise<SendImageResult> => {
       const scheduledWebview = webviewRef.current
       const requestStartedAt = nowMs()
-      const effectiveAutoSend = options.autoSend ?? autoSend
+      const effectiveAutoSend =
+        options.forceAutoSend === true ? true : (options.autoSend ?? autoSend)
       const diagnostics = createSendDiagnostics({
         pipeline: 'image',
         currentAI,
@@ -421,7 +434,10 @@ export function useAiSender(
           diagnostics.focusScript = cloneScriptDiagnostics(focusResult?.diagnostics)
           if (!focusResult?.success) {
             return attachDiagnostics(
-              { success: false, error: focusResult?.error || 'focus_failed' },
+              {
+                success: false,
+                error: normalizeSendErrorCode(focusResult?.error, 'focus_failed')
+              },
               diagnostics,
               requestStartedAt
             )
@@ -468,14 +484,59 @@ export function useAiSender(
           }
 
           if (effectivePromptText) {
+            const refocusScriptGenerationStartedAt = nowMs()
+            const refocusScript = await generateFocusScript(toAutomationConfig(resolved.aiConfig))
+            diagnostics.timings.refocusScriptGenerationMs = roundMs(
+              nowMs() - refocusScriptGenerationStartedAt
+            )
+            if (!refocusScript) {
+              return attachDiagnostics(
+                { success: false, error: 'focus_script_failed' },
+                diagnostics,
+                requestStartedAt
+              )
+            }
+
+            if (!canUseWebview(webview, scheduledWebview)) {
+              return attachDiagnostics(
+                { success: false, error: 'webview_destroyed' },
+                diagnostics,
+                requestStartedAt
+              )
+            }
+
+            const refocusExecuteStartedAt = nowMs()
+            const rawRefocusResult = await webview.executeJavaScript(refocusScript)
+            diagnostics.timings.refocusExecuteJavaScriptMs = roundMs(
+              nowMs() - refocusExecuteStartedAt
+            )
+            const refocusResult = normalizeExecutionResult(rawRefocusResult)
+            diagnostics.refocusScript = cloneScriptDiagnostics(refocusResult?.diagnostics)
+            if (!refocusResult?.success) {
+              return attachDiagnostics(
+                {
+                  success: false,
+                  error: normalizeSendErrorCode(refocusResult?.error, 'focus_failed')
+                },
+                diagnostics,
+                requestStartedAt
+              )
+            }
+
+            await sleep(280)
+
             await sleep(POST_PASTE_PROMPT_DELAY)
             diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
 
             const promptScriptGenerationStartedAt = nowMs()
+            const shouldAppendPromptAfterPaste =
+              resolved.aiConfig.appendPromptAfterPaste !== false &&
+              options.appendPromptAfterPaste !== false
             const promptScript = await generateAutoSendScript({
               config: toAutomationConfig(resolved.aiConfig),
               text: effectivePromptText,
-              submit: false
+              submit: false,
+              append: shouldAppendPromptAfterPaste
             })
             diagnostics.timings.promptScriptGenerationMs = roundMs(
               nowMs() - promptScriptGenerationStartedAt
@@ -499,7 +560,10 @@ export function useAiSender(
               diagnostics.promptScript = cloneScriptDiagnostics(promptResult?.diagnostics)
               if (!promptResult?.success) {
                 return attachDiagnostics(
-                  { success: false, error: promptResult?.error || 'script_failed' },
+                  {
+                    success: false,
+                    error: normalizeSendErrorCode(promptResult?.error, 'script_failed')
+                  },
                   diagnostics,
                   requestStartedAt
                 )
@@ -563,7 +627,10 @@ export function useAiSender(
             )
             if (!submitReadyResult?.success) {
               return attachDiagnostics(
-                { success: false, error: submitReadyResult?.error || 'submit_not_ready' },
+                {
+                  success: false,
+                  error: normalizeSendErrorCode(submitReadyResult?.error, 'submit_not_ready')
+                },
                 diagnostics,
                 requestStartedAt
               )
@@ -597,7 +664,10 @@ export function useAiSender(
             diagnostics.clickScript = cloneScriptDiagnostics(clickResult?.diagnostics)
             if (!clickResult?.success) {
               return attachDiagnostics(
-                { success: false, error: clickResult?.error || 'autosend_failed_draft_saved' },
+                {
+                  success: false,
+                  error: normalizeSendErrorCode(clickResult?.error, 'autosend_failed_draft_saved')
+                },
                 diagnostics,
                 requestStartedAt
               )
@@ -616,10 +686,13 @@ export function useAiSender(
             requestStartedAt
           )
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'unknown_error'
+          const raw = error instanceof Error ? error.message : String(error)
           Logger.error('[useAiSender] Image send error:', error)
           return attachDiagnostics(
-            { success: false, error: message },
+            {
+              success: false,
+              error: normalizeSendErrorCode(raw, 'send_failed')
+            },
             diagnostics,
             requestStartedAt
           )
@@ -631,8 +704,12 @@ export function useAiSender(
           return await execute(scheduledWebview)
         } catch (error) {
           Logger.error('[useAiSender] Image queue error:', error)
+          const raw = error instanceof Error ? error.message : String(error)
           return attachDiagnostics(
-            { success: false, error: error instanceof Error ? error.message : 'queue_error' },
+            {
+              success: false,
+              error: normalizeSendErrorCode(raw, 'send_failed')
+            },
             diagnostics,
             requestStartedAt
           )

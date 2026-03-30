@@ -1,4 +1,4 @@
-﻿import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
 import type {
   AiSelectorConfig,
@@ -33,14 +33,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     generateAutoSendScript: (
       config: AutomationConfig,
       text: string,
-      submit: boolean
+      submit: boolean,
+      append?: boolean
     ): Promise<string | null> =>
       ipcRenderer.invoke(
         IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
         'generateAutoSendScript',
         config,
         text,
-        submit
+        submit,
+        append === true
       ),
     generateValidateSelectorsScript: (config: AutomationConfig): Promise<string | null> =>
       ipcRenderer.invoke(

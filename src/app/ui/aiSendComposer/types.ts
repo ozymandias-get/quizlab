@@ -3,6 +3,8 @@ import type { AiDraftItem, AiDraftImageItem, AiDraftTextItem } from '@app/provid
 export interface ComposerPayload {
   noteText?: string
   autoSend?: boolean
+  /** Tek seferlik gönder (otomatik gönder anahtarı kapalıyken yeşil buton) */
+  forceAutoSend?: boolean
 }
 
 export interface AiSendComposerProps {
