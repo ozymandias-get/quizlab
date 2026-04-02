@@ -45,6 +45,10 @@ app.commandLine.appendSwitch('enable-zero-copy')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
 app.commandLine.appendSwitch('enable-parallel-downloading')
 app.commandLine.appendSwitch('enable-quic')
+
+// Suppress non-critical Chromium output to console (fixes dbus/vaapi terminal spam on Linux)
+app.commandLine.appendSwitch('log-level', '3')
+
 // Set higher priority for the renderer process
 app.commandLine.appendSwitch('high-dpi-support', '1')
 app.commandLine.appendSwitch('force-device-scale-factor', '1')
