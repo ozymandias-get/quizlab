@@ -133,9 +133,27 @@ async function runBuildBackend() {
 
 function launchElectron() {
   electronProc = spawnCommand('electron', ['.'], {
-    stdio: 'inherit',
+    stdio: ['inherit', 'pipe', 'pipe'],
     env: electronEnv
   })
+
+  if (electronProc.stdout) {
+    electronProc.stdout.on('data', (data) => process.stdout.write(data))
+  }
+  if (electronProc.stderr) {
+    electronProc.stderr.on('data', (data) => {
+      const msg = data.toString()
+      // Filter out low-level Linux/Chromium spam that bypasses log-level
+      if (
+        msg.includes('vaapi_video_decoder') || 
+        msg.includes('object_proxy.cc') || 
+        msg.includes('media/gpu/')
+      ) {
+        return
+      }
+      process.stderr.write(data)
+    })
+  }
 
   electronProc.on('exit', (code) => {
     shutdown(code ?? 0)
