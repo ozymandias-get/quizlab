@@ -16,8 +16,8 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.quizlab.reader')
 }
 
-// Disable quota management to prevent database errors
-app.commandLine.appendSwitch('disable-features', 'StorageAccessAPI,AutofillServerCommunication')
+// Disable quota management and noisy/unsupported linux gpu features
+app.commandLine.appendSwitch('disable-features', 'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder')
 app.commandLine.appendSwitch('disable-site-isolation-trials')
 
 const allowMultiInstance = process.env.APP_ALLOW_MULTI_INSTANCE === '1'
