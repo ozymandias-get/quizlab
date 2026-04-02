@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest an idea for QuizLab Reader
+about: Suggest an idea for Quizlab Reader
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''

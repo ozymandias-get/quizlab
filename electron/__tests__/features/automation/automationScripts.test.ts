@@ -10,8 +10,8 @@ import {
 describe('automationScripts', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
-    delete (window as typeof window & { __quizlabAutomationCache?: unknown })
-      .__quizlabAutomationCache
+    delete (window as typeof window & { __quizlabReaderAutomationCache?: unknown })
+      .__quizlabReaderAutomationCache
   })
 
   it('embeds diagnostics and validation helpers in generated scripts', () => {
@@ -27,7 +27,7 @@ describe('automationScripts', () => {
     })
 
     expect(autoSend).toContain('createDiagnostics')
-    expect(autoSend).toContain('__quizlabAutomationCache')
+    expect(autoSend).toContain('__quizlabReaderAutomationCache')
     expect(autoSend).toContain('findElementByFingerprint')
     expect(validate).toContain("createDiagnostics('validate'")
   })

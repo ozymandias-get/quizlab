@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import SettingsModal from '@features/settings/ui/SettingsModal'
 
@@ -28,9 +28,6 @@ vi.mock('@features/settings/ui/AppearanceTab', () => ({
 }))
 vi.mock('@features/settings/ui/SelectorsTab', () => ({
   default: () => <div>Selectors Tab Content</div>
-}))
-vi.mock('@features/settings/ui/GeminiCliTab', () => ({
-  default: () => <div>Gemini CLI Tab Content</div>
 }))
 vi.mock('@features/settings/ui/PromptsTab', () => ({
   default: () => <div>Prompts Tab Content</div>

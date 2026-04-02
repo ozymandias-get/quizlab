@@ -1,4 +1,4 @@
-﻿export interface IPrompt {
+export interface IPrompt {
   id: string
   text: string
 }
@@ -12,16 +12,6 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
   {
     id: 'edu_explain_simple_en',
     text: 'Explain this text in a way that satisfies the curiosity of a primary school student, using simple analogies from daily life and storytelling techniques. Define complex terms in the text simply within parentheses. Highlight key ideas in bold.'
-  },
-
-  // --- Quiz Generator ---
-  {
-    id: 'edu_quiz_gen_tr',
-    text: "Bu metni esas alarak öğrenme düzeyini ölçmek için 3 adet 'zorlayıcı' çoktan seçmeli soru oluştur. Sorular ezberden ziyade kavrama ve analiz yeteneğini ölçsün. Her sorunun ardından doğru cevabı ve neden diğer şıkların yanlış olduğunu açıklayan detaylı bir Çözüm bölümü ekle."
-  },
-  {
-    id: 'edu_quiz_gen_en',
-    text: "Based on this text, create 3 'challenging' multiple-choice questions to measure learning level. Questions should assess comprehension and analysis rather than rote memorization. Add a detailed Solution section after each question explaining the correct answer and why other options are incorrect."
   },
 
   // --- Summary / Cheat Sheet ---

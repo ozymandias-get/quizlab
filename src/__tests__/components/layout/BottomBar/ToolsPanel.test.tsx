@@ -30,8 +30,6 @@ vi.mock('@app/providers', () => ({
         settings: 'Settings',
         swap_window: 'Swap panels',
         element_picker: 'Element picker',
-        close_quiz: 'Close quiz',
-        open_quiz: 'Open quiz',
         gws_toolbar_title: 'Google Session',
         gws_toolbar_authenticated: 'Google session ready',
         gws_toolbar_auth_required: 'Google session needs login',
@@ -87,8 +85,6 @@ describe('ToolsPanel', () => {
         handleSettingsClick={mockHandleSettingsClick}
         handleGeminiWebSettingsClick={mockHandleGeminiWebSettingsClick}
         toggleLayoutSwap={vi.fn()}
-        isQuizMode={false}
-        onToggleQuizMode={vi.fn()}
       />
     )
 
@@ -114,8 +110,6 @@ describe('ToolsPanel', () => {
         handleSettingsClick={mockHandleSettingsClick}
         handleGeminiWebSettingsClick={mockHandleGeminiWebSettingsClick}
         toggleLayoutSwap={vi.fn()}
-        isQuizMode={false}
-        onToggleQuizMode={vi.fn()}
       />
     )
 
@@ -133,8 +127,6 @@ describe('ToolsPanel', () => {
         handleSettingsClick={mockHandleSettingsClick}
         handleGeminiWebSettingsClick={mockHandleGeminiWebSettingsClick}
         toggleLayoutSwap={vi.fn()}
-        isQuizMode={false}
-        onToggleQuizMode={vi.fn()}
       />
     )
 
@@ -154,8 +146,6 @@ describe('ToolsPanel', () => {
         handleSettingsClick={mockHandleSettingsClick}
         handleGeminiWebSettingsClick={mockHandleGeminiWebSettingsClick}
         toggleLayoutSwap={vi.fn()}
-        isQuizMode={false}
-        onToggleQuizMode={vi.fn()}
       />
     )
 

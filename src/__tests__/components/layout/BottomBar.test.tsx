@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import BottomBar from '@ui/layout/BottomBar/index'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
@@ -139,7 +139,7 @@ describe('BottomBar Component', () => {
   })
 
   it('renders closed state initially', () => {
-    const { container } = render(<BottomBar isQuizMode={false} onToggleQuizMode={vi.fn()} />)
+    const { container } = render(<BottomBar />)
 
     expect(screen.getByTestId('tools-panel')).toHaveTextContent('Tools Closed')
     expect(screen.getByTestId('models-panel')).toBeInTheDocument()
@@ -150,7 +150,7 @@ describe('BottomBar Component', () => {
   })
 
   it('toggles open state when clicking center hub', () => {
-    const { container } = render(<BottomBar isQuizMode={false} onToggleQuizMode={vi.fn()} />)
+    const { container } = render(<BottomBar />)
 
     const hubBtn = container.querySelector(`#${APP_CONSTANTS.TOUR_TARGETS.HUB_BTN}`)
     expect(hubBtn).toBeInTheDocument()
@@ -164,7 +164,7 @@ describe('BottomBar Component', () => {
   })
 
   it('opens settings modal', async () => {
-    render(<BottomBar isQuizMode={false} onToggleQuizMode={vi.fn()} />)
+    render(<BottomBar />)
 
     const settingsTrigger = screen.getByText('Settings')
     fireEvent.click(settingsTrigger)
@@ -173,7 +173,7 @@ describe('BottomBar Component', () => {
   })
 
   it('closes settings modal', async () => {
-    render(<BottomBar isQuizMode={false} onToggleQuizMode={vi.fn()} />)
+    render(<BottomBar />)
 
     fireEvent.click(screen.getByText('Settings'))
     const closeBtn = await screen.findByText('Close Modal')
@@ -185,7 +185,7 @@ describe('BottomBar Component', () => {
   })
 
   it('opens Gemini web settings tab from the Gemini session button', async () => {
-    render(<BottomBar isQuizMode={false} onToggleQuizMode={vi.fn()} />)
+    render(<BottomBar />)
 
     fireEvent.click(screen.getByText('Gemini Web Settings'))
 
@@ -239,7 +239,7 @@ describe('BottomBar Component', () => {
       })
 
     try {
-      const { container } = render(<BottomBar isQuizMode={false} onToggleQuizMode={vi.fn()} />)
+      const { container } = render(<BottomBar />)
 
       const hubBtn = container.querySelector(`#${APP_CONSTANTS.TOUR_TARGETS.HUB_BTN}`)
       expect(hubBtn).toBeInTheDocument()

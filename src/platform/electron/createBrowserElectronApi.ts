@@ -8,11 +8,6 @@ import type {
   GeminiWebSessionStatus,
   PdfSelection,
   PdfStreamResult,
-  QuizActionResult,
-  QuizAuthResult,
-  QuizCliPathResult,
-  QuizGenerateResult,
-  QuizSettings,
   UpdateCheckResult
 } from '@shared-core/types'
 import {
@@ -78,14 +73,6 @@ const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
   }
 }
 
-const DEFAULT_QUIZ_SETTINGS: QuizSettings = {
-  questionCount: 10,
-  difficulty: 'MEDIUM',
-  model: 'gemini-2.5-flash',
-  style: ['MIXED'],
-  focusTopic: ''
-}
-
 const getPlatform = (): string => {
   const platform = navigator.platform.toLowerCase()
   if (platform.includes('mac')) return 'darwin'
@@ -106,11 +93,6 @@ const createGeminiStatus = (
   featureEnabled: enabled,
   enabled,
   enabledAppIds
-})
-
-const createUnsupportedAction = async (): Promise<QuizActionResult> => ({
-  success: false,
-  error: 'web_dev_mode_only'
 })
 
 const toMapRecord = <T>(map: Map<string, T>): Record<string, T> => {
@@ -168,7 +150,6 @@ const selectPdfInBrowser = (): Promise<PdfSelection | null> => {
 export function createBrowserElectronApi(): Window['electronAPI'] {
   const aiConfigs = new Map<string, AiSelectorConfig>()
   const customPlatforms = new Map<string, AiPlatform>()
-  let quizSettings: QuizSettings = { ...DEFAULT_QUIZ_SETTINGS }
   let geminiWebEnabled = false
   let geminiWebEnabledAppIds: GoogleWebSessionAppId[] = [...GOOGLE_WEB_SESSION_REGISTRY_IDS]
 
@@ -292,33 +273,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       return { success: true, id, platform }
     },
     deleteCustomAi: async (id) => customPlatforms.delete(id),
-
-    quiz: {
-      generate: async (): Promise<QuizGenerateResult> => ({
-        success: false,
-        error: 'web_dev_mode_only'
-      }),
-      getSettings: async () => quizSettings,
-      saveSettings: async (settings) => {
-        quizSettings = { ...quizSettings, ...settings }
-        return true
-      },
-      getCliPath: async (): Promise<QuizCliPathResult> => ({ path: '', exists: false }),
-      openLogin: createUnsupportedAction,
-      checkAuth: async (): Promise<QuizAuthResult> => ({ authenticated: false }),
-      logout: async () => ({ success: true }),
-      askAssistant: async (question: string) => {
-        const trimmed = question.trim()
-        if (!trimmed) return { success: false, error: 'empty_question' }
-        return {
-          success: true,
-          data: {
-            answer: 'Web dev mode mock response.',
-            suggestions: ['Run in Electron for full features', 'Test another prompt']
-          }
-        }
-      }
-    },
 
     geminiWeb: {
       getStatus: async () => getGeminiStatus(),

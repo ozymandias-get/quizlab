@@ -8,7 +8,7 @@ import {
   clearAllPdfPaths
 } from '../features/pdf/pdfProtocol'
 import { createWindow, createSplashWindow, getMainWindow } from './windowManager'
-import { registerGeneralHandlers, registerQuizHandlers } from './ipcHandlers'
+import { registerGeneralHandlers } from './ipcHandlers'
 import { initUpdater } from '../core/updater'
 import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
 
@@ -20,7 +20,7 @@ if (process.platform === 'win32') {
 app.commandLine.appendSwitch('disable-features', 'StorageAccessAPI,AutofillServerCommunication')
 app.commandLine.appendSwitch('disable-site-isolation-trials')
 
-const allowMultiInstance = process.env.QUIZLAB_ALLOW_MULTI_INSTANCE === '1'
+const allowMultiInstance = process.env.APP_ALLOW_MULTI_INSTANCE === '1'
 
 if (!allowMultiInstance) {
   const gotTheLock = app.requestSingleInstanceLock()
@@ -82,7 +82,6 @@ async function initializeApp() {
   registerPdfProtocol()
   registerPdfProtocolHandlers()
   registerGeneralHandlers()
-  registerQuizHandlers()
 
   startPdfCleanupInterval()
 

@@ -1,37 +1,8 @@
-﻿import DOMPurify from 'dompurify'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
-}
-
-/**
- * Quiz metinlerini formatlar (bold, italic, yeni satır)
- * ve XSS'e karşı sanitize eder
- * @param {string} text - Formatlanacak metin
- * @returns {string} Güvenli HTML formatlı metin
- */
-export const formatQuizText = (text: string): string => {
-  if (!text) return ''
-  const formatted = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .split('\n')
-    .join('<br/>')
-
-  // XSS ve DOM Clobbering'e karşı sıkılaştırılmış yapılandırma
-  return DOMPurify.sanitize(formatted, {
-    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'br', 'p', 'span', 'code', 'pre'],
-    ALLOWED_ATTR: ['class'],
-    USE_PROFILES: { html: true }, // Sadece güvenli HTML etiketlerine izin ver (SVG, MathML engelle)
-    ALLOW_DATA_ATTR: false, // Veri özniteliklerini engelle
-    ALLOW_UNKNOWN_PROTOCOLS: false, // js:, vb. bilinmeyen protokolleri engelle
-    SANITIZE_DOM: true, // DOM Clobbering saldırılarını engelle
-    SANITIZE_NAMED_PROPS: true, // İsimlendirilmiş özellik clobbering koruması
-    RETURN_DOM: false, // String dönmesini garantiye al
-    RETURN_DOM_FRAGMENT: false
-  }) as string
 }
 
 /**

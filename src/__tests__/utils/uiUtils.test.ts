@@ -1,34 +1,7 @@
-﻿import { describe, it, expect } from 'vitest'
-import { formatQuizText, hexToRgba } from '@shared/lib/uiUtils'
+import { describe, it, expect } from 'vitest'
+import { hexToRgba } from '@shared/lib/uiUtils'
 
 describe('uiUtils', () => {
-  describe('formatQuizText', () => {
-    it('converts markdown bold to HTML strong tags', () => {
-      const input = 'Hello **World**'
-      const output = formatQuizText(input)
-      expect(output).toBe('Hello <strong>World</strong>')
-    })
-
-    it('converts markdown italic to HTML em tags', () => {
-      const input = 'Hello *World*'
-      const output = formatQuizText(input)
-      expect(output).toBe('Hello <em>World</em>')
-    })
-
-    it('converts newlines to br tags', () => {
-      const input = 'Line 1\nLine 2'
-      const output = formatQuizText(input)
-      expect(output).toBe('Line 1<br>Line 2')
-    })
-
-    it('sanitizes unsafe HTML', () => {
-      const input = '<script>alert("xss")</script>Test'
-      const output = formatQuizText(input)
-      expect(output).not.toContain('<script>')
-      expect(output).toContain('Test')
-    })
-  })
-
   describe('hexToRgba', () => {
     it('converts 6-digit hex to rgba', () => {
       expect(hexToRgba('#ff0000', 0.5)).toBe('rgba(255, 0, 0, 0.5)')

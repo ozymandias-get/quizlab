@@ -38,18 +38,6 @@ export type { PdfSelectOptions, PdfSelection, PdfStreamResult, PdfFile } from '.
 // System & Update types
 export type { UpdateCheckResult, ScreenshotType } from './system'
 
-// Quiz types
-export type {
-  DifficultyType,
-  ModelTypeEnum,
-  QuestionStyleEnum,
-  QuizSettings,
-  QuizGenerateResult,
-  QuizCliPathResult,
-  QuizAuthResult,
-  QuizActionResult
-} from './quiz'
-
 // Gemini Web Session types
 export type {
   GeminiWebSessionState,

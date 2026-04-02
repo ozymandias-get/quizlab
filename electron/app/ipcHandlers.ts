@@ -4,7 +4,6 @@ import { registerPdfHandlers } from '../features/pdf/pdfHandlers'
 import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers'
-import { registerQuizHandlers } from '../features/quiz/quizCliHandler'
 import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
 
 export function registerGeneralHandlers() {
@@ -16,5 +15,3 @@ export function registerGeneralHandlers() {
   registerAutomationHandlers()
   registerGeminiWebSessionHandlers()
 }
-
-export { registerQuizHandlers }

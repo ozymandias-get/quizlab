@@ -113,7 +113,7 @@ function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject'): strin
     };
 
     const getAutomationCache = () => {
-        const cacheKey = '__quizlabAutomationCache';
+        const cacheKey = '__quizlabReaderAutomationCache';
         const globalCache = window[cacheKey] || {};
 
         if (!globalCache.elements || typeof globalCache.elements !== 'object') {

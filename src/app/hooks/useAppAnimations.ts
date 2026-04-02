@@ -93,42 +93,11 @@ export const useAppAnimations = (isLayoutSwapped: boolean = false) => {
     []
   )
 
-  const quizPanelVariants = useMemo(
-    () => ({
-      initial: {
-        opacity: 0,
-        scale: 0.96,
-        y: 20
-      },
-      animate: {
-        opacity: 1,
-        scale: 1,
-        y: 0,
-        transition: {
-          duration: ANIMATION_DURATION,
-          ease: ANIMATION_EASE,
-          delay: 0.05
-        }
-      },
-      exit: {
-        opacity: 0,
-        scale: 0.96,
-        y: 20,
-        transition: {
-          duration: ANIMATION_DURATION * 0.85,
-          ease: ANIMATION_EASE
-        }
-      }
-    }),
-    []
-  )
-
   return {
     leftPanelVariants: isLayoutSwapped ? rightPanelVariants : leftPanelVariants,
     rightPanelVariants: isLayoutSwapped ? leftPanelVariants : rightPanelVariants, // Swap logic handled here
     resizerVariants,
     containerVariants,
-    quizPanelVariants,
     gpuAcceleratedStyle
   }
 }

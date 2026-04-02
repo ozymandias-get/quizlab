@@ -7,7 +7,6 @@ import {
   EyeIcon,
   MagicWandIcon,
   SelectorIcon,
-  TerminalIcon,
   GeminiIcon
 } from '@ui/components/Icons'
 import { useSettings } from '../../hooks/useSettings'
@@ -18,7 +17,6 @@ const SitesTab = lazy(() => import('../SitesTab'))
 const ModelsTab = lazy(() => import('../ModelsTab'))
 const AppearanceTab = lazy(() => import('../AppearanceTab'))
 const SelectorsTab = lazy(() => import('../SelectorsTab'))
-const GeminiCliTab = lazy(() => import('../GeminiCliTab'))
 const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
 const PromptsTab = lazy(() => import('../PromptsTab'))
 
@@ -57,14 +55,6 @@ const SETTINGS_TABS = [
     icon: GridIcon,
     accent: 'from-emerald-300/28 via-teal-200/12 to-transparent',
     glow: '#34d399'
-  },
-  {
-    id: 'gemini-cli',
-    labelKey: 'gemini_cli',
-    descriptionKey: 'gcli_ready_desc',
-    icon: TerminalIcon,
-    accent: 'from-fuchsia-300/26 via-pink-200/10 to-transparent',
-    glow: '#e879f9'
   },
   {
     id: 'gemini-web',
@@ -139,7 +129,6 @@ export const SETTINGS_TAB_RENDERERS: Record<
   prompts: () => <PromptsTab />,
   models: () => <ModelsTab />,
   sites: () => <SitesTab />,
-  'gemini-cli': () => <GeminiCliTab />,
   'gemini-web': () => <GeminiWebSessionTab />,
   selectors: ({ onClose }) => <SelectorsTab onCloseSettings={onClose} />,
   appearance: () => <AppearanceTab />,

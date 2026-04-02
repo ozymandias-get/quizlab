@@ -1,6 +1,6 @@
-# Contributing to QuizLab Reader
+# Contributing to Quizlab Reader
 
-Thank you for your interest in contributing to QuizLab Reader. This guide reflects the current repository layout and contribution workflow.
+Thank you for your interest in contributing to Quizlab Reader. This guide reflects the current repository layout and contribution workflow.
 
 ## Development Setup
 
@@ -8,7 +8,7 @@ Thank you for your interest in contributing to QuizLab Reader. This guide reflec
 
 - **Node.js 18+** (recommended: 20+)
 - **npm**
-- **Google Account** (for Gemini CLI features)
+- **Google Account** (optional, for Gemini Web and Google AI surfaces in the embedded browser)
 - **Git**
 
 ### Initial Setup
@@ -21,12 +21,17 @@ cd quizlab
 # Install dependencies
 npm install
 
-# Install Gemini CLI globally (required for quiz generation)
-npm install -g @google/gemini-cli
-
 # Run in development mode
 npm run dev
 ```
+
+Optional Electron dev environment variables (all optional):
+
+| Variable | Effect |
+| -------- | ------ |
+| `APP_ALLOW_MULTI_INSTANCE=1` | Allow more than one running instance (default is single-instance). |
+| `APP_RENDERER_URL` | Dev server URL for the renderer (default `http://localhost:5173`). |
+| `APP_OPEN_DEVTOOLS=1` | Open DevTools when the main window loads. |
 
 ## Branch Strategy
 
@@ -111,7 +116,7 @@ shared/                          # Cross-process constants/types
 
 Import boundaries:
 
-- Use feature public API imports (for example, `@features/quiz`) outside `src/features/**`.
+- Use feature public API imports (for example, `@features/settings`) outside `src/features/**`.
 - Avoid deep feature imports such as `@features/<feature>/ui/*` from non-feature layers.
 - Use `@shared/*` for renderer shared code and `@shared-core/*` for cross-process contracts.
 - Do not introduce deprecated `@src/*` imports.
@@ -156,4 +161,4 @@ Feel free to open a GitHub Discussion or comment on related issues.
 
 ---
 
-Thank you for contributing to QuizLab Reader.
+Thank you for contributing to Quizlab Reader.

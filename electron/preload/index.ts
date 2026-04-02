@@ -10,11 +10,6 @@ import type {
   UpdateCheckResult,
   CustomAiInput,
   CustomAiResult,
-  QuizSettings,
-  QuizGenerateResult,
-  QuizCliPathResult,
-  QuizAuthResult,
-  QuizActionResult,
   GeminiWebSessionStatus,
   GeminiWebSessionActionResult
 } from '@shared-core/types'
@@ -121,25 +116,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.ADD_CUSTOM_AI, data),
   deleteCustomAi: (id: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id),
-
-  // Quiz Generation API
-  quiz: {
-    generate: (params: Record<string, unknown>): Promise<QuizGenerateResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GENERATE_QUIZ_CLI, params),
-    getSettings: (): Promise<QuizSettings> => ipcRenderer.invoke(IPC_CHANNELS.GET_QUIZ_SETTINGS),
-    saveSettings: (settings: Partial<QuizSettings>): Promise<boolean> =>
-      ipcRenderer.invoke(IPC_CHANNELS.SAVE_QUIZ_SETTINGS, settings),
-    getCliPath: (): Promise<QuizCliPathResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GET_GEMINI_CLI_PATH),
-    openLogin: (): Promise<QuizActionResult> => ipcRenderer.invoke(IPC_CHANNELS.OPEN_GEMINI_LOGIN),
-    checkAuth: (): Promise<QuizAuthResult> => ipcRenderer.invoke(IPC_CHANNELS.CHECK_GEMINI_AUTH),
-    logout: (): Promise<QuizActionResult> => ipcRenderer.invoke(IPC_CHANNELS.GEMINI_LOGOUT),
-    askAssistant: (
-      question: string,
-      context?: string
-    ): Promise<{ success: boolean; data?: unknown; error?: string }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.ASK_AI, { question, context })
-  },
 
   // Gemini Web Session API
   geminiWeb: {

@@ -16,8 +16,6 @@ interface MainWorkspaceProps {
   resizerVariants: Variants
   gpuAcceleratedStyle: CSSProperties
   handleMouseDown: MouseEventHandler<Element>
-  isQuizMode: boolean
-  onToggleQuizMode: () => void
   isWebviewMounted: boolean
   isResizing: boolean
   isBarHovered: boolean
@@ -36,8 +34,6 @@ function MainWorkspace({
   resizerVariants,
   gpuAcceleratedStyle,
   handleMouseDown,
-  isQuizMode,
-  onToggleQuizMode,
   isWebviewMounted,
   isResizing,
   isBarHovered,
@@ -72,12 +68,7 @@ function MainWorkspace({
         className="h-full flex-shrink-0 relative z-30"
         style={gpuAcceleratedStyle}
       >
-        <BottomBar
-          onHoverChange={onBarHoverChange}
-          isQuizMode={isQuizMode}
-          onToggleQuizMode={onToggleQuizMode}
-          onMouseDown={handleMouseDown}
-        />
+        <BottomBar onHoverChange={onBarHoverChange} onMouseDown={handleMouseDown} />
       </motion.div>
 
       <motion.div

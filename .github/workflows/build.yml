@@ -147,14 +147,14 @@ jobs:
           body: |
             ## Download
 
-            **Windows:** `QuizlabReader-Setup-*.exe` — run the installer.
+            **Windows:** `PdfAiReader-Setup-*.exe` — run the installer.
 
             **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
 
             **macOS:** `*.dmg` — open and drag to Applications.
 
             ## Features
-            - **Google Gemini Integration (CLI)**
+            - **Embedded AI webviews** (ChatGPT, Gemini, Claude, and more)
             - **Magic Selector** for Universal AI Chat
             - **Multi-language support (EN, TR)**
             - **Dual-Pane PDF Reader**

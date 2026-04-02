@@ -2,7 +2,7 @@ import { spawn } from 'child_process'
 
 const DEV_SERVER_URL = 'http://localhost:5173/'
 const DEV_SERVER_TIMEOUT_MS = 30000
-const DEV_SERVER_MARKERS = ['QuizLab Reader', '/app/main.tsx']
+const DEV_SERVER_MARKERS = ['Quizlab Reader', '/app/main.tsx']
 const isWindows = process.platform === 'win32'
 const windowsShell = process.env.ComSpec || 'cmd.exe'
 
@@ -53,19 +53,19 @@ async function readServerResponse() {
     clearTimeout(timeoutId)
 
     const body = await response.text()
-    const isQuizLabServer = DEV_SERVER_MARKERS.every((marker) => body.includes(marker))
+    const isAppDevServer = DEV_SERVER_MARKERS.every((marker) => body.includes(marker))
 
     return {
       reachable: true,
       ok: response.ok,
-      isQuizLabServer,
+      isAppDevServer,
       status: response.status
     }
   } catch {
     return {
       reachable: false,
       ok: false,
-      isQuizLabServer: false,
+      isAppDevServer: false,
       status: null
     }
   }
@@ -74,13 +74,13 @@ async function readServerResponse() {
 async function ensureDevServerReady() {
   const initialProbe = await readServerResponse()
   if (initialProbe.reachable) {
-    if (!initialProbe.isQuizLabServer) {
+    if (!initialProbe.isAppDevServer) {
       throw new Error(
         'Port 5173 is already serving a different app. Stop that process or free the port before running `npm run dev`.'
       )
     }
 
-    console.log('[dev] Reusing existing QuizLab Vite server on port 5173.')
+    console.log('[dev] Reusing existing Vite dev server on port 5173.')
     return
   }
 
@@ -97,21 +97,21 @@ async function ensureDevServerReady() {
     }
 
     const probe = await readServerResponse()
-    if (probe.reachable && probe.isQuizLabServer && probe.ok) {
-      console.log('[dev] QuizLab Vite server is ready.')
+    if (probe.reachable && probe.isAppDevServer && probe.ok) {
+      console.log('[dev] Vite dev server is ready.')
       return
     }
 
-    if (probe.reachable && !probe.isQuizLabServer) {
+    if (probe.reachable && !probe.isAppDevServer) {
       throw new Error(
-        'Port 5173 became available but is not serving QuizLab. Refusing to launch Electron against the wrong dev server.'
+        'Port 5173 became available but is not serving this app. Refusing to launch Electron against the wrong dev server.'
       )
     }
 
     await sleep(500)
   }
 
-  throw new Error('Timed out waiting for the QuizLab Vite server to become ready.')
+  throw new Error('Timed out waiting for the Vite dev server to become ready.')
 }
 
 async function runBuildBackend() {

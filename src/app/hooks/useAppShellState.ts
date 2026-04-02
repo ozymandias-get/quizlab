@@ -13,7 +13,6 @@ export function useAppShellState() {
   const appearance = useAppearance()
   const [isBarHovered, setIsBarHovered] = useState(false)
   const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState(true)
-  const [isQuizMode, setIsQuizMode] = useState(false)
 
   const resizerShellWidth = useMemo(() => {
     const clampedBarScale = Math.min(1.3, Math.max(0.7, appearance.bottomBarScale))
@@ -41,10 +40,7 @@ export function useAppShellState() {
     panelResize,
     workspaceState: {
       isBarHovered,
-      setIsBarHovered,
-      isQuizMode,
-      toggleQuizMode: () => setIsQuizMode((prev) => !prev),
-      closeQuizMode: () => setIsQuizMode(false)
+      setIsBarHovered
     },
     updateBanner: {
       isVisible: isUpdateBannerVisible,

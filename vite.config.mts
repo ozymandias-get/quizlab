@@ -39,8 +39,7 @@ export default defineConfig({
             '@react-pdf-viewer/scroll-mode',
             '@react-pdf-viewer/search',
             '@react-pdf-viewer/zoom'
-          ],
-          'vendor-utils': ['dompurify']
+          ]
         }
       }
     }

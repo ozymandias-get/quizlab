@@ -1,6 +1,5 @@
 import React, { memo } from 'react'
 import { motion } from 'framer-motion'
-import { Brain } from 'lucide-react'
 import { useLanguage, useAppTools } from '@app/providers'
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
@@ -16,8 +15,6 @@ interface ToolsPanelProps {
   handleSettingsClick: () => void
   handleGeminiWebSettingsClick: () => void
   toggleLayoutSwap: () => void
-  isQuizMode: boolean
-  onToggleQuizMode: () => void
 }
 
 export const ToolsPanel = memo(
@@ -27,9 +24,7 @@ export const ToolsPanel = memo(
     maxHeight,
     handleSettingsClick,
     handleGeminiWebSettingsClick,
-    toggleLayoutSwap,
-    isQuizMode,
-    onToggleQuizMode
+    toggleLayoutSwap
   }: ToolsPanelProps) => {
     const { t } = useLanguage()
     const {
@@ -144,16 +139,6 @@ export const ToolsPanel = memo(
             title={t('element_picker')}
           >
             <MagicWandIcon className="w-5 h-5" style={toolbarIconStyle} />
-          </ToolButton>
-
-          <ToolButton
-            delay={0.12}
-            isActive={isQuizMode}
-            activeColor="rgba(168,85,247,0.5)"
-            onClick={onToggleQuizMode}
-            title={isQuizMode ? t('close_quiz') : t('open_quiz')}
-          >
-            <Brain className="w-5 h-5" style={toolbarIconStyle} />
           </ToolButton>
         </motion.div>
       </BottomBarPanelFrame>

@@ -5,7 +5,7 @@ This document defines stable architectural boundaries for the post-refactor stru
 ## Layers
 
 - `src/app`: Application shell, composition root, providers, app-level effects/hooks.
-- `src/features`: Domain features (`ai`, `pdf`, `quiz`, `settings`, `screenshot`, `automation`, `tutorial`).
+- `src/features`: Domain features (`ai`, `pdf`, `settings`, `screenshot`, `automation`, `tutorial`).
 - `src/shared`: Renderer-shared UI, hooks, constants, i18n, styles, utility libraries, renderer-only types.
 - `src/platform`: Platform adapters (Electron bridge hooks/APIs).
 - `shared` (`@shared-core/*`): Cross-process shared contracts (IPC channels, shared types).
@@ -27,10 +27,8 @@ Note: To avoid GitHub mention-like rendering, always write aliases in docs with 
 ### Feature Public API
 
 - Feature internals (`ui`, `model`, `api`) are private from outside `src/features`.
-- External consumers must import feature entry points:
-  - Allowed: `@features/quiz`
-  - Allowed: `@features/quiz/index`
-  - Forbidden outside `src/features`: `@features/quiz/ui/*`, `@features/quiz/model/*`, `@features/quiz/api/*`
+- External consumers must import feature entry points (for example `@features/pdf`, `@features/ai`).
+- Forbidden outside `src/features`: deep imports such as `@features/<feature>/ui/*` unless the feature’s public API explicitly re-exports them.
 
 ### Shared vs Shared-Core
 
@@ -43,15 +41,15 @@ Note: To avoid GitHub mention-like rendering, always write aliases in docs with 
 ### Do
 
 ```ts
-import { QuizModule } from '@features/quiz'
+import { PdfViewer } from '@features/pdf'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
-import type { QuizSettings } from '@shared-core/types'
+import type { AiRegistryResponse } from '@shared-core/types'
 ```
 
 ### Don't
 
 ```ts
-import QuizModule from '@features/quiz/ui/QuizModule'
+import PdfViewer from '@features/pdf/ui/components/PdfViewer'
 import { Something } from '@src/utils/something'
 import { app } from 'electron'
 ```

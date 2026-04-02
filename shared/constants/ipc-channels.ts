@@ -21,17 +21,7 @@ export const IPC_CHANNELS = {
   ADD_CUSTOM_AI: 'add-custom-ai',
   DELETE_CUSTOM_AI: 'delete-custom-ai',
   IS_AUTH_DOMAIN: 'is-auth-domain',
-  // Quiz CLI Generation
-  GENERATE_QUIZ_CLI: 'generate-quiz-cli',
-  ASK_AI: 'ask-ai-assistant',
-  GET_QUIZ_SETTINGS: 'get-quiz-settings',
-  SAVE_QUIZ_SETTINGS: 'save-quiz-settings',
   CLEAR_CACHE: 'clear-cache',
-  // Quiz Auth & CLI - Standardized
-  GET_GEMINI_CLI_PATH: 'get-gemini-cli-path',
-  OPEN_GEMINI_LOGIN: 'open-gemini-login',
-  CHECK_GEMINI_AUTH: 'check-gemini-auth',
-  GEMINI_LOGOUT: 'gemini-logout',
   // Gemini Web Session
   GEMINI_WEB_OPEN_LOGIN: 'gemini-web-open-login',
   GEMINI_WEB_STATUS: 'gemini-web-status',

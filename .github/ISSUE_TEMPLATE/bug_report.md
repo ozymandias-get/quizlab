@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a report to help us improve QuizLab Reader
+about: Create a report to help us improve Quizlab Reader
 title: '[BUG] '
 labels: bug
 assignees: ''

@@ -10,7 +10,7 @@ import { useBottomBarController } from './useBottomBarController'
 import { useBottomBarPanelHeight } from './useBottomBarPanelHeight'
 import type { BottomBarProps } from './types'
 
-function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }: BottomBarProps) {
+function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
   const { bottomBarOpacity, bottomBarScale, showOnlyIcons, toggleLayoutSwap, isTourActive } =
     useAppearance()
   const { tabs } = useAiState()
@@ -83,8 +83,6 @@ function BottomBar({ onHoverChange, isQuizMode, onToggleQuizMode, onMouseDown }:
             handleSettingsClick={() => openSettings('prompts')}
             handleGeminiWebSettingsClick={() => openSettings('gemini-web')}
             toggleLayoutSwap={toggleLayoutSwap}
-            isQuizMode={isQuizMode}
-            onToggleQuizMode={onToggleQuizMode}
           />
 
           <CenterHub

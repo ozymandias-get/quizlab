@@ -10,14 +10,6 @@ import type {
   UpdateCheckResult,
   CustomAiInput,
   CustomAiResult,
-  DifficultyType,
-  ModelTypeEnum,
-  QuestionStyleEnum,
-  QuizSettings,
-  QuizGenerateResult,
-  QuizCliPathResult,
-  QuizAuthResult,
-  QuizActionResult,
   GeminiWebSessionStatus,
   GeminiWebSessionActionResult,
   ScreenshotType,
@@ -38,14 +30,6 @@ export type {
   UpdateCheckResult,
   CustomAiInput,
   CustomAiResult,
-  DifficultyType,
-  ModelTypeEnum,
-  QuestionStyleEnum,
-  QuizSettings,
-  QuizGenerateResult,
-  QuizCliPathResult,
-  QuizAuthResult,
-  QuizActionResult,
   GeminiWebSessionStatus,
   GeminiWebSessionActionResult,
   ScreenshotType,
@@ -115,25 +99,6 @@ declare global {
       deleteAiConfig: (hostname: string) => Promise<boolean>
       addCustomAi: (data: CustomAiInput) => Promise<CustomAiResult>
       deleteCustomAi: (id: string) => Promise<boolean>
-
-      // Quiz Generation API
-      quiz: {
-        generate: (params: Record<string, unknown>) => Promise<QuizGenerateResult>
-        getSettings: () => Promise<QuizSettings>
-        saveSettings: (settings: Partial<QuizSettings>) => Promise<boolean>
-        getCliPath: () => Promise<QuizCliPathResult>
-        openLogin: () => Promise<QuizActionResult>
-        checkAuth: () => Promise<QuizAuthResult>
-        logout: () => Promise<QuizActionResult>
-        askAssistant: (
-          question: string,
-          context?: string
-        ) => Promise<{
-          success: boolean
-          data?: { answer: string; suggestions?: string[] }
-          error?: string
-        }>
-      }
 
       geminiWeb: {
         getStatus: () => Promise<GeminiWebSessionStatus>

@@ -1,4 +1,4 @@
-﻿/* ============================================
+/* ============================================
    MAIN STYLESHEET
    Tüm modüler CSS dosyalarını içe aktarır
    
@@ -16,7 +16,6 @@
 @import './modules/_aesthetic-loader.css';
 @import './modules/_screenshot.css';
 @import './modules/_backgrounds.css';
-@import './modules/_quiz.css';
 @import './modules/_utilities.css';
 
 /* Tailwind directives - İmportlardan SONRA */

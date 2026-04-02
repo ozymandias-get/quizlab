@@ -20,7 +20,8 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
         <div className="absolute inset-0 bg-white/10 blur-3xl rounded-full" />
         <img
           src="/icon.png"
-          alt="Quizlab Reader"
+          alt=""
+          aria-hidden
           className="relative w-24 h-24 rounded-3xl shadow-2xl border border-white/10"
         />
       </motion.div>

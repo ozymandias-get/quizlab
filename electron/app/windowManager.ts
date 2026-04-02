@@ -7,13 +7,13 @@ import { ConfigManager } from '../core/ConfigManager'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 
 export const isDev = !app.isPackaged
-const DEV_SERVER_URL = process.env.QUIZLAB_RENDERER_URL || 'http://localhost:5173'
+const DEV_SERVER_URL = process.env.APP_RENDERER_URL || 'http://localhost:5173'
 const DEV_SERVER_TIMEOUT_MS = 30000
 const DEV_SERVER_POLL_MS = 500
 const MAIN_WINDOW_REVEAL_TIMEOUT_MS = 10000
 const MAIN_WINDOW_DOM_READY_REVEAL_DELAY_MS = 100
 const MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS = 250
-const shouldOpenDevToolsOnStart = process.env.QUIZLAB_OPEN_DEVTOOLS === '1'
+const shouldOpenDevToolsOnStart = process.env.APP_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 const ALLOWED_DEFAULT_PERMISSIONS = new Set(['notifications', 'media'])
 const ALLOWED_AI_PERMISSIONS = new Set(['notifications', 'media', 'geolocation'])

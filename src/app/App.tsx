@@ -8,7 +8,6 @@ import ToastContainer from '@ui/components/Toast/ToastContainer'
 import GeminiWebLoginOverlay from '@app/ui/GeminiWebLoginOverlay'
 import AiSendComposer from '@app/ui/AiSendComposer'
 import MainWorkspace from '@app/ui/MainWorkspace'
-import QuizWorkspace from '@app/ui/QuizWorkspace'
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 
@@ -25,7 +24,7 @@ const App: React.FC = () => {
     tour
   } = useAppShellState()
 
-  const { t, pdfFile, leftPanelProps, rootDragHandlers } = usePdfWorkspaceState({
+  const { t, leftPanelProps, rootDragHandlers } = usePdfWorkspaceState({
     isInteractionBlocked: workspaceState.isBarHovered || panelResize.isResizing
   })
 
@@ -48,34 +47,23 @@ const App: React.FC = () => {
         />
 
         <AnimatePresence mode="wait" initial={false}>
-          {!workspaceState.isQuizMode ? (
-            <MainWorkspace
-              isLayoutSwapped={appearance.isLayoutSwapped}
-              leftPanelWidth={panelResize.leftPanelWidth}
-              leftPanelRef={panelResize.leftPanelRef as React.RefObject<HTMLDivElement>}
-              resizerRef={panelResize.resizerRef as React.RefObject<HTMLDivElement>}
-              containerVariants={animations.containerVariants}
-              leftPanelVariants={animations.leftPanelVariants}
-              rightPanelVariants={animations.rightPanelVariants}
-              resizerVariants={animations.resizerVariants}
-              gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
-              handleMouseDown={panelResize.handleMouseDown}
-              isQuizMode={workspaceState.isQuizMode}
-              onToggleQuizMode={workspaceState.toggleQuizMode}
-              isWebviewMounted={isWebviewMounted}
-              isResizing={panelResize.isResizing}
-              isBarHovered={workspaceState.isBarHovered}
-              onBarHoverChange={workspaceState.setIsBarHovered}
-              leftPanelProps={leftPanelProps}
-            />
-          ) : (
-            <QuizWorkspace
-              pdfFile={pdfFile}
-              quizPanelVariants={animations.quizPanelVariants}
-              gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
-              onClose={workspaceState.closeQuizMode}
-            />
-          )}
+          <MainWorkspace
+            isLayoutSwapped={appearance.isLayoutSwapped}
+            leftPanelWidth={panelResize.leftPanelWidth}
+            leftPanelRef={panelResize.leftPanelRef as React.RefObject<HTMLDivElement>}
+            resizerRef={panelResize.resizerRef as React.RefObject<HTMLDivElement>}
+            containerVariants={animations.containerVariants}
+            leftPanelVariants={animations.leftPanelVariants}
+            rightPanelVariants={animations.rightPanelVariants}
+            resizerVariants={animations.resizerVariants}
+            gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
+            handleMouseDown={panelResize.handleMouseDown}
+            isWebviewMounted={isWebviewMounted}
+            isResizing={panelResize.isResizing}
+            isBarHovered={workspaceState.isBarHovered}
+            onBarHoverChange={workspaceState.setIsBarHovered}
+            leftPanelProps={leftPanelProps}
+          />
         </AnimatePresence>
 
         <GeminiWebLoginOverlay isVisible={appTools.isGeminiWebLoginInProgress} t={t} />

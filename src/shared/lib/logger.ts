@@ -60,7 +60,7 @@ export function createIssueLogReport(params: { appVersion: string; language: str
       : 'No buffered logs yet.'
 
   return [
-    '# Quizlab Error Report',
+    '# Quizlab Reader Error Report',
     '',
     '## Environment',
     `- App Version: ${params.appVersion}`,
