@@ -1,10 +1,9 @@
-import React from 'react'
+import type { ReactNode } from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAiSender } from '@features/ai/hooks/useAiSender'
 
-// Mocks using vi.hoisted
 const { mockLogger, mockUsePrompts, mockSafeWebviewPaste } = vi.hoisted(() => ({
   mockLogger: {
     info: vi.fn(),
@@ -43,7 +42,6 @@ vi.mock('@app/providers/LanguageContext', () => ({
   })
 }))
 
-// Wrapper for QueryClientProvider
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -55,7 +53,7 @@ const createWrapper = () => {
       }
     }
   })
-  return ({ children }: { children: React.ReactNode }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
 }

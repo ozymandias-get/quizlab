@@ -1,8 +1,8 @@
+import type { RefObject } from 'react'
 import { motion } from 'framer-motion'
 import { TabsList, TabsTrigger } from '@ui/components/tabs'
 import { SettingsIcon, ChevronRightIcon } from '@ui/components/Icons'
 import { hexToRgba } from '@shared/lib/uiUtils'
-import type { RefObject } from 'react'
 import type { SettingsTabId, TabDef } from './settingsModalTabs'
 
 interface SettingsModalSidebarProps {

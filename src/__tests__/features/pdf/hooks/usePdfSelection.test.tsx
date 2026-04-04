@@ -1,11 +1,10 @@
-﻿import { renderHook, act, waitFor } from '@testing-library/react'
+﻿import type { ReactNode } from 'react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { usePdfSelection } from '@features/pdf/hooks/usePdfSelection'
-import React from 'react'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 
-// Mock Toast
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 vi.mock('@app/providers/ToastContext', () => ({
@@ -15,7 +14,6 @@ vi.mock('@app/providers/ToastContext', () => ({
   })
 }))
 
-// Mock Language
 const mockT = vi.fn((key) => key)
 vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: () => ({
@@ -23,7 +21,6 @@ vi.mock('@app/providers/LanguageContext', () => ({
   })
 }))
 
-// Mock API Hooks
 const mockSelectPdfMutate = vi.fn()
 const mockRegisterPdfPathMutate = vi.fn()
 
@@ -36,7 +33,6 @@ vi.mock('@platform/electron/api/usePdfApi', () => ({
   })
 }))
 
-// Mock LocalStorage
 const localStorageMock = (function () {
   let store: Record<string, string> = {}
   return {
@@ -54,7 +50,6 @@ const localStorageMock = (function () {
 })()
 vi.stubGlobal('localStorage', localStorageMock)
 
-// Wrapper
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -62,7 +57,7 @@ const createWrapper = () => {
       mutations: { retry: false }
     }
   })
-  return ({ children }: { children: React.ReactNode }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
 }
@@ -94,7 +89,6 @@ describe('usePdfSelection', () => {
   })
 
   it('should handle PDF selection failure', async () => {
-    // Mock Logger to suppress console output
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     mockSelectPdfMutate.mockRejectedValue(new Error('Selection cancelled'))
@@ -120,7 +114,6 @@ describe('usePdfSelection', () => {
     })
 
     expect(mockRegisterPdfPathMutate).toHaveBeenCalledWith('/dropped/path.pdf')
-    // Wait for state
     await waitFor(() => {
       expect(result.current.pdfFile).toEqual(mockResult)
     })
@@ -161,7 +154,6 @@ describe('usePdfSelection', () => {
   })
 
   it('should handle resume failure (invalid path)', async () => {
-    // Mock Logger
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const storedData = JSON.stringify([

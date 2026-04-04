@@ -1,10 +1,10 @@
+import type { ReactNode } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import PdfViewer from '@features/pdf/ui/components/PdfViewer'
 
 const mockViewer = vi.fn()
 
-// Mock Providers
 vi.mock('@app/providers/AiContext', () => ({
   useAi: () => ({
     autoSend: false,
@@ -23,7 +23,7 @@ vi.mock('@app/providers/AiContext', () => ({
 }))
 
 vi.mock('@app/providers/AppToolContext', () => ({
-  useAppTools: () => ({
+  useAppToolActions: () => ({
     startScreenshot: vi.fn(),
     queueImageForAi: vi.fn()
   })
@@ -44,7 +44,6 @@ vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
   })
 }))
 
-// Mock hooks
 vi.mock('@features/pdf/ui/hooks', () => ({
   usePdfPlugins: () => ({
     plugins: [],
@@ -75,7 +74,6 @@ vi.mock('@features/pdf/ui/hooks', () => ({
   usePdfPanTool: () => ({ isDragging: false })
 }))
 
-// Mock Subcomponents
 vi.mock('@features/pdf/ui/components/PdfPlaceholder', () => ({
   default: () => <div>PDF Placeholder</div>
 }))
@@ -83,7 +81,6 @@ vi.mock('@features/pdf/ui/components/PdfToolbar', () => ({
   default: () => <div>PDF Toolbar</div>
 }))
 
-// Mock react-pdf-viewer
 vi.mock('@react-pdf-viewer/core', () => ({
   Viewer: (props: any) => {
     mockViewer(props)
@@ -91,7 +88,7 @@ vi.mock('@react-pdf-viewer/core', () => ({
   },
   SpecialZoomLevel: { PageWidth: 'PageWidth' },
   ScrollMode: { Page: 'Page' },
-  Worker: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  Worker: ({ children }: { children: ReactNode }) => <>{children}</>
 }))
 
 describe('PdfViewer Component', () => {

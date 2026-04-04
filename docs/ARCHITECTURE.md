@@ -10,6 +10,8 @@ This document defines stable architectural boundaries for the post-refactor stru
 - `src/platform`: Platform adapters (Electron bridge hooks/APIs).
 - `shared` (`@shared-core/*`): Cross-process shared contracts (IPC channels, shared types).
 
+The AI send draft queue (`pendingAiItems` → `planBulkAiSend`) delivers excerpts to the active tab **in user order**, with the composer UI reflecting that same sequence.
+
 ## Alias Policy
 
 - `@app/*` -> `src/app/*`

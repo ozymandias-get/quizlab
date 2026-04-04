@@ -1,10 +1,9 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react'
+﻿import { useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
 import { useLanguage } from '@app/providers'
+import { useCaptureScreen } from '@platform/electron/api/useSystemApi'
 import { Logger } from '@shared/lib/logger'
 
 const MIN_SELECTION_SIZE = 20
-
-import { useCaptureScreen } from '@platform/electron/api/useSystemApi'
 
 interface SelectionRect {
   left: number
@@ -35,19 +34,19 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
     return { left, top, width, height }
   }, [startPos, endPos])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return
     setIsSelecting(true)
     setStartPos({ x: e.clientX, y: e.clientY })
     setEndPos({ x: e.clientX, y: e.clientY })
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (!isSelecting) return
     setEndPos({ x: e.clientX, y: e.clientY })
   }
 
-  const handleMouseUp = async (_e: React.MouseEvent) => {
+  const handleMouseUp = async (_e: MouseEvent) => {
     if (!isSelecting) return
     setIsSelecting(false)
 
@@ -80,7 +79,6 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
       overlayRef.current.style.display = 'none'
     }
 
-    // Wait for DOM update to ensure overlay is hidden
     await new Promise((resolve) =>
       requestAnimationFrame(() => {
         requestAnimationFrame(resolve)

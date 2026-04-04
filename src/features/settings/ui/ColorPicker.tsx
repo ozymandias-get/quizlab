@@ -1,8 +1,7 @@
-﻿import React from 'react'
+﻿import { Fragment, memo } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import { Popover, PopoverButton, PopoverPanel, Transition } from '@headlessui/react'
 import { useLanguage } from '@app/providers'
-import { Fragment } from 'react'
 
 interface ColorPickerProps {
   color: string
@@ -10,11 +9,8 @@ interface ColorPickerProps {
   label?: string
 }
 
-/**
- * Premium Color Picker Component
- * Uses Headless UI for accessible popover management
- */
-const ColorPicker = React.memo(({ color, onChange, label }: ColorPickerProps) => {
+/** Accessible color popover (Headless UI + react-colorful). */
+const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
   const { t } = useLanguage()
 
   return (

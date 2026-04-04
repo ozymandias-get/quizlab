@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAddCustomAi } from '@platform/electron/api/useAiApi'
 
@@ -10,18 +10,18 @@ interface AddAiModelFormProps {
   isSite?: boolean
 }
 
-export const AddAiModelForm: React.FC<AddAiModelFormProps> = ({
+export function AddAiModelForm({
   showAddForm,
   setShowAddForm,
   onSuccess,
   t,
   isSite = false
-}) => {
+}: AddAiModelFormProps) {
   const { mutateAsync: addCustomAi, isPending: isAdding } = useAddCustomAi()
   const [newAiName, setNewAiName] = useState('')
   const [newAiUrl, setNewAiUrl] = useState('')
 
-  const handleAddAi = async (e: React.FormEvent) => {
+  const handleAddAi = async (e: FormEvent) => {
     e.preventDefault()
     if (!newAiName.trim() || !newAiUrl.trim()) return
 

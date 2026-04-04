@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { useAppearance, useLanguage } from '@app/providers'
@@ -24,6 +24,7 @@ function AiSendComposer({
 }: AiSendComposerProps) {
   const { selectionColor } = useAppearance()
   const { t } = useLanguage()
+  const prefersReducedMotion = useReducedMotion()
   const [noteText, setNoteText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isClosingAfterSubmit, setIsClosingAfterSubmit] = useState(false)
@@ -100,72 +101,95 @@ function AiSendComposer({
   )
 
   const accentStrong = hexToRgba(selectionColor, 0.9)
-  const accentGlow = hexToRgba(selectionColor, 0.15)
+  const accentGlow = hexToRgba(selectionColor, 0.12)
+
   const panelShellBackground = `
-        linear-gradient(180deg, rgba(10,14,22,0.86) 0%, rgba(7,10,15,0.93) 52%, rgba(5,7,11,0.975) 100%),
-        radial-gradient(ellipse at top, ${accentGlow}, transparent 55%),
-        radial-gradient(circle at 85% 100%, rgba(200,80,180,0.06), transparent 30%)
-    `
-  const panelGlowBackground = `
-        radial-gradient(ellipse at top left, rgba(255,255,255,0.08), transparent 45%),
-        radial-gradient(circle at 80% 15%, rgba(255,255,255,0.03), transparent 25%),
-        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0))
-    `
+    linear-gradient(180deg, rgba(12,16,24,0.92) 0%, rgba(8,11,17,0.96) 50%, rgba(5,7,12,0.98) 100%),
+    radial-gradient(ellipse 70% 40% at 50% 0%, ${accentGlow}, transparent 60%)
+  `
   const sectionSurface = `
-        linear-gradient(180deg, rgba(18,23,33,0.72), rgba(12,16,24,0.86))
-    `
+    linear-gradient(180deg, rgba(18,23,33,0.65), rgba(12,16,24,0.8))
+  `
   const cardSurface = `
-        linear-gradient(180deg, rgba(24,30,43,0.78), rgba(15,20,30,0.9))
-    `
+    linear-gradient(180deg, rgba(22,28,40,0.7), rgba(14,18,28,0.85))
+  `
   const footerSurface = `
-        linear-gradient(180deg, rgba(9,12,18,0.82), rgba(7,10,15,0.94) 30%, rgba(4,6,10,0.985))
-    `
-  const panelVariants: Variants = {
-    hidden: {
-      opacity: 0,
-      y: 28,
-      scale: 0.94,
-      filter: 'blur(12px)'
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      filter: 'blur(0px)',
-      transition: {
-        type: 'spring' as const,
-        stiffness: 260,
-        damping: 24,
-        mass: 0.9,
-        staggerChildren: 0.06,
-        delayChildren: 0.04
-      }
-    },
-    exit: {
-      opacity: 0,
-      y: 18,
-      scale: 0.96,
-      filter: 'blur(8px)',
-      transition: {
-        duration: 0.18,
-        ease: 'easeInOut'
-      }
-    }
-  }
-  const sectionVariants: Variants = {
-    hidden: {
-      opacity: 0,
-      y: 10
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.28,
-        ease: 'easeOut'
-      }
-    }
-  }
+    linear-gradient(180deg, rgba(10,13,20,0.85), rgba(6,8,13,0.95))
+  `
+
+  const panelVariants: Variants = useMemo(
+    () =>
+      prefersReducedMotion
+        ? {
+            hidden: { opacity: 0, y: 6 },
+            visible: {
+              opacity: 1,
+              y: 0,
+              transition: { duration: 0.18, ease: 'easeOut' }
+            },
+            exit: {
+              opacity: 0,
+              y: 4,
+              transition: { duration: 0.12, ease: 'easeIn' }
+            }
+          }
+        : {
+            hidden: {
+              opacity: 0,
+              y: 24,
+              scale: 0.95,
+              filter: 'blur(8px)'
+            },
+            visible: {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              filter: 'blur(0px)',
+              transition: {
+                type: 'spring' as const,
+                stiffness: 340,
+                damping: 30,
+                mass: 0.7,
+                staggerChildren: 0.04,
+                delayChildren: 0.02
+              }
+            },
+            exit: {
+              opacity: 0,
+              y: 16,
+              scale: 0.97,
+              filter: 'blur(6px)',
+              transition: {
+                duration: 0.22,
+                ease: [0.32, 0, 0.67, 0]
+              }
+            }
+          },
+    [prefersReducedMotion]
+  )
+
+  const sectionVariants: Variants = useMemo(
+    () =>
+      prefersReducedMotion
+        ? {
+            hidden: { opacity: 0 },
+            visible: { opacity: 1, transition: { duration: 0.15 } }
+          }
+        : {
+            hidden: { opacity: 0, y: 8 },
+            visible: {
+              opacity: 1,
+              y: 0,
+              transition: {
+                type: 'spring' as const,
+                stiffness: 400,
+                damping: 32,
+                mass: 0.6
+              }
+            }
+          },
+    [prefersReducedMotion]
+  )
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -205,7 +229,7 @@ function AiSendComposer({
           animate="visible"
           exit="exit"
           variants={panelVariants}
-          className="fixed z-[110]"
+          className="fixed z-[110] will-change-transform"
           style={{
             left: layout.x,
             top: layout.y,
@@ -214,67 +238,68 @@ function AiSendComposer({
         >
           <div
             ref={panelRef}
-            className="relative isolate overflow-hidden rounded-[2rem] text-white shadow-[0_24px_64px_-12px_rgba(0,0,0,0.6)] backdrop-blur-xl"
-            style={{
-              background: panelShellBackground,
-              boxShadow: `
-                                0 24px 64px -12px rgba(0,0,0,0.6),
-                                0 0 0 1px rgba(255,255,255,0.04),
-                                inset 0 1px 0 rgba(255,255,255,0.05)
-                            `
-            }}
+            className="relative isolate overflow-hidden rounded-2xl text-white shadow-[0_16px_48px_-8px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl"
+            style={{ background: panelShellBackground }}
           >
+            {/* Sending overlay */}
             <AnimatePresence>
               {isClosingAfterSubmit ? (
                 <motion.div
                   key="sending-overlay"
-                  initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                  animate={{ opacity: 1, backdropFilter: 'blur(12px)' }}
-                  exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/35"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-md"
                 >
                   <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                    initial={
+                      prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.95 }
+                    }
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                    transition={{ type: 'spring', stiffness: 240, damping: 24 }}
-                    className="relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-transparent px-7 py-5 text-center shadow-[0_8px_40px_-12px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-[20px]"
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={
+                      prefersReducedMotion
+                        ? { duration: 0.15 }
+                        : { type: 'spring', stiffness: 320, damping: 28, mass: 0.65 }
+                    }
+                    className="flex flex-col items-center gap-2.5"
                   >
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(251,191,36,0.18),transparent_55%)]" />
-                    <div className="relative flex flex-col items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/25 bg-amber-400/12 shadow-[0_0_24px_-12px_rgba(251,191,36,0.5)]">
-                        <Loader2
-                          className="h-5 w-5 text-amber-100/95 animate-spin"
-                          strokeWidth={2.25}
-                          aria-hidden
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[14px] font-semibold tracking-tight text-white/95">
-                          {t('sending_to_ai')}
-                        </p>
-                        <p className="text-[11.5px] font-medium leading-snug tracking-wide text-white/45">
-                          {t('ai_send_sending_subtitle')}
-                        </p>
-                      </div>
-                    </div>
+                    <motion.div
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06]"
+                      animate={
+                        prefersReducedMotion
+                          ? {}
+                          : {
+                              boxShadow: [
+                                '0 0 16px -6px rgba(255,255,255,0.15)',
+                                '0 0 24px -4px rgba(255,255,255,0.25)',
+                                '0 0 16px -6px rgba(255,255,255,0.15)'
+                              ]
+                            }
+                      }
+                      transition={{
+                        duration: 1.6,
+                        repeat: Number.POSITIVE_INFINITY,
+                        ease: 'easeInOut'
+                      }}
+                    >
+                      <Loader2
+                        className="h-4.5 w-4.5 text-white/80 animate-spin"
+                        strokeWidth={2}
+                        aria-hidden
+                      />
+                    </motion.div>
+                    <p className="text-[13px] font-medium text-white/70">{t('sending_to_ai')}</p>
                   </motion.div>
                 </motion.div>
               ) : null}
             </AnimatePresence>
 
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: sectionSurface, opacity: 0.72 }}
-            />
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: panelGlowBackground }}
-            />
-            <div className="pointer-events-none absolute inset-[1px] rounded-[1.95rem] border border-white/[0.08]" />
-            <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent)] opacity-60" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.12)_40%,rgba(0,0,0,0.3))]" />
+            {/* Subtle top edge highlight */}
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
+            {/* Inner border */}
+            <div className="pointer-events-none absolute inset-[1px] rounded-[calc(1rem-1px)] border border-white/[0.05]" />
 
             <motion.div variants={sectionVariants}>
               <AiSendComposerHeader
@@ -309,15 +334,21 @@ function AiSendComposer({
                 variants={sectionVariants}
                 initial="hidden"
                 animate="visible"
+                transition={
+                  prefersReducedMotion
+                    ? { duration: 0.15 }
+                    : { type: 'spring', stiffness: 320, damping: 30, mass: 0.65 }
+                }
                 exit={{
                   opacity: 0,
                   y: 8,
-                  transition: { duration: 0.16, ease: 'easeInOut' }
+                  transition: prefersReducedMotion
+                    ? { duration: 0.12 }
+                    : { duration: 0.18, ease: [0.32, 0, 0.67, 0] }
                 }}
               >
                 <AiSendComposerContent
-                  textItems={textItems}
-                  imageItems={imageItems}
+                  items={items}
                   totalItems={items.length}
                   noteText={noteText}
                   isSubmitting={isSubmitting}

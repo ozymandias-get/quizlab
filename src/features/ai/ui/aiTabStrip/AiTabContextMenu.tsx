@@ -1,6 +1,6 @@
+import type { RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import type { RefObject } from 'react'
 import type { Tab } from '@app/providers/AiContext'
 import type { ContextMenuState } from './types'
 

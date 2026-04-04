@@ -1,39 +1,31 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, lazy, Suspense, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAiActions, useAiState } from '@app/providers/AiContext'
-import { MagicSelectorTutorial } from '@features/tutorial'
 import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
-import AiHomePage from './AiHomePage'
+
+const AiHomePage = lazy(() => import('./AiHomePage'))
+const MagicSelectorTutorial = lazy(() => import('@features/tutorial/ui/MagicSelectorTutorial'))
 
 interface AiWebviewProps {
   isResizing: boolean
   isBarHovered: boolean
 }
 
-// Memory optimization: How many unpinned tabs to keep mounted in background.
-// Unmounting older inactive tabs frees up significant RAM/CPU.
 const MAX_ALIVE_UNPINNED_TABS = 3
 
-/**
- * AI Webview Component (Optimized)
- *
- * Creates webviews for active AI tabs. Shows AiHomePage on startup.
- */
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
   const { tabs, activeTabId, isTutorialActive, aiViewRequestNonce } = useAiState()
   const { setActiveTab, openAiWorkspace, stopTutorial } = useAiActions()
   const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
   const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
 
-  // Auto-show home when no tabs exist or activeTabId is cleared
   useEffect(() => {
     if (tabs.length === 0 || !activeTabId) {
       setShowHome(true)
     }
   }, [tabs.length, activeTabId])
 
-  // Update the LRU cache of alive tabs whenever active tab changes
   useEffect(() => {
     if (!activeTabId) return
 
@@ -69,16 +61,15 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
 
   return (
     <div
-      className={`flex flex-col flex-1 relative overflow-hidden m-3 rounded-[1.5rem] shadow-2xl transition-colors duration-500 ${showHome ? 'bg-black/40 backdrop-blur-xl' : 'bg-[#050505]'}`}
+      className="flex flex-1 flex-col relative min-h-0 overflow-hidden rounded-[1.5rem] bg-[#050505] transition-colors duration-300"
       style={{
         pointerEvents: isResizing ? 'none' : 'auto',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden',
-        clipPath: 'inset(0 round 1.5rem)' // Force proper clipping of Webview
+        clipPath: 'inset(0 round 1.5rem)'
       }}
     >
-      {/* Border Overlay - Covers anti-aliasing artifacts */}
-      <div className="absolute inset-0 rounded-[1.5rem] border border-white/[0.08] pointer-events-none z-50" />
+      <div className="pointer-events-none absolute inset-0 z-50 rounded-[1.5rem] border border-white/[0.07]" />
 
       <AiTabStrip
         showHome={showHome}
@@ -87,7 +78,6 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
       />
 
       <div className="relative flex-1 min-h-0">
-        {/* Home Page */}
         <AnimatePresence>
           {showHome && (
             <motion.div
@@ -98,16 +88,16 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
               transition={{ duration: 0.18 }}
               className="absolute inset-0 z-10"
             >
-              <AiHomePage onSelectTab={handleSelectTab} onOpenModel={handleOpenModel} />
+              <Suspense fallback={null}>
+                <AiHomePage onSelectTab={handleSelectTab} onOpenModel={handleOpenModel} />
+              </Suspense>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Render tabs based on hibernation strategy */}
         {tabs.map((tab) => {
           const isMounted = tab.pinned || tab.id === activeTabId || aliveTabIds.includes(tab.id)
 
-          // Hibernate (unmount) to save RAM/CPU
           if (!isMounted) return null
 
           return (
@@ -124,12 +114,14 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
       {/* Tutorial Simulation */}
       {isTutorialActive && (
         <div className="absolute inset-0 z-[100] bg-black">
-          <MagicSelectorTutorial
-            onClose={stopTutorial}
-            onComplete={() => {
-              stopTutorial()
-            }}
-          />
+          <Suspense fallback={null}>
+            <MagicSelectorTutorial
+              onClose={stopTutorial}
+              onComplete={() => {
+                stopTutorial()
+              }}
+            />
+          </Suspense>
         </div>
       )}
     </div>

@@ -7,10 +7,18 @@ import { Logger } from '@shared/lib/logger'
 
 const ONBOARDING_STORAGE_KEY = 'has_seen_tour_v1'
 
-/**
- * Global side-effects that used to live in wrapper providers.
- * Keeps provider tree flat while preserving behavior.
- */
+function applySelectionColorTheme(color: string) {
+  const root = document.documentElement
+  root.style.setProperty('--selection-color', hexToRgba(color, 0.8))
+  root.style.setProperty('--selection-color-soft', hexToRgba(color, 0.22))
+  root.style.setProperty('--selection-color-strong', hexToRgba(color, 0.7))
+  root.style.setProperty('--selection-color-vivid', hexToRgba(color, 0.84))
+  root.style.setProperty('--selection-color-glow', hexToRgba(color, 0.48))
+  root.style.setProperty('--selection-color-edge', hexToRgba('#ffffff', 0.2))
+  root.style.setProperty('--selection-color-ink', 'rgba(24, 24, 27, 0.96)')
+  root.style.setProperty('--accent-color', color)
+}
+
 export function AppEffects() {
   const language = useLanguage((state) => state.language)
   const selectionColor = useAppearance((state) => state.selectionColor)
@@ -29,27 +37,7 @@ export function AppEffects() {
   }, [language])
 
   useEffect(() => {
-    const rgba = hexToRgba(selectionColor, 0.8)
-    document.documentElement.style.setProperty('--selection-color', rgba)
-    document.documentElement.style.setProperty(
-      '--selection-color-soft',
-      hexToRgba(selectionColor, 0.22)
-    )
-    document.documentElement.style.setProperty(
-      '--selection-color-strong',
-      hexToRgba(selectionColor, 0.7)
-    )
-    document.documentElement.style.setProperty(
-      '--selection-color-vivid',
-      hexToRgba(selectionColor, 0.84)
-    )
-    document.documentElement.style.setProperty(
-      '--selection-color-glow',
-      hexToRgba(selectionColor, 0.48)
-    )
-    document.documentElement.style.setProperty('--selection-color-edge', hexToRgba('#ffffff', 0.2))
-    document.documentElement.style.setProperty('--selection-color-ink', 'rgba(24, 24, 27, 0.96)')
-    document.documentElement.style.setProperty('--accent-color', selectionColor)
+    applySelectionColorTheme(selectionColor)
   }, [selectionColor])
 
   useEffect(() => {

@@ -145,8 +145,8 @@ function launchElectron() {
       const msg = data.toString()
       // Filter out low-level Linux/Chromium spam that bypasses log-level
       if (
-        msg.includes('vaapi_video_decoder') || 
-        msg.includes('object_proxy.cc') || 
+        msg.includes('vaapi_video_decoder') ||
+        msg.includes('object_proxy.cc') ||
         msg.includes('media/gpu/')
       ) {
         return

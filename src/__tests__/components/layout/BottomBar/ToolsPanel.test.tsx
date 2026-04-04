@@ -40,7 +40,14 @@ vi.mock('@app/providers', () => ({
       return translations[key] ?? key
     }
   }),
-  useAppTools: () => mockAppTools
+  useAppToolState: () => ({
+    isPickerActive: mockAppTools.isPickerActive,
+    isGeminiWebLoginInProgress: mockAppTools.isGeminiWebLoginInProgress
+  }),
+  useAppToolActions: () => ({
+    togglePicker: mockAppTools.togglePicker,
+    startGeminiWebLogin: mockAppTools.startGeminiWebLogin
+  })
 }))
 
 vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({

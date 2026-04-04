@@ -428,6 +428,7 @@
   "ai_send_text_count_label": "text",
   "ai_send_image_count_label": "image",
   "ai_send_item_count": "{{count}} items",
+  "ai_send_send_order_hint": "Items are sent to the AI in this order.",
   "ai_send_selection_item": "Excerpt {{index}}",
   "ai_send_image_item": "Image {{index}}",
   "ai_send_page_item": "Page {{page}}",

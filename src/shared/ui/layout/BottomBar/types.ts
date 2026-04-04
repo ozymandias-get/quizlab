@@ -1,4 +1,6 @@
+import type { MouseEvent } from 'react'
+
 export interface BottomBarProps {
   onHoverChange?: (isHovering: boolean) => void
-  onMouseDown?: (e: React.MouseEvent) => void
+  onMouseDown?: (e: MouseEvent) => void
 }

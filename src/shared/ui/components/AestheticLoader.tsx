@@ -1,20 +1,14 @@
-﻿import React, { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useLanguage } from '@app/providers'
 
-/**
- * Shared splash-style loader used for webview/site transitions.
- */
-const AestheticLoader: React.FC = () => {
+function AestheticLoader() {
   const { t } = useLanguage()
 
-  // Generate random messages
   const [msgIndex, setMsgIndex] = useState(1)
 
   useEffect(() => {
-    // Pick initial random index
     setMsgIndex(Math.floor(Math.random() * 20) + 1)
 
-    // Rotate every 1.5 seconds to another random message
     const intervalId = setInterval(() => {
       setMsgIndex(Math.floor(Math.random() * 20) + 1)
     }, 1500)

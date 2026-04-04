@@ -1,7 +1,7 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, memo } from 'react'
 import { motion } from 'framer-motion'
-import { useAppTools, useLanguage, useToast } from '@app/providers'
-import { useAiActions, useAiState } from '@app/providers/AiContext'
+import { useAppToolActions, useLanguage, useToast } from '@app/providers'
+import { useAiActions, useAiState, useAiWebview } from '@app/providers/AiContext'
 import { useAiConfig, useDeleteAiConfig, useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGenerateValidateSelectorsScript } from '@platform/electron/api/useAutomationApi'
 import { Logger } from '@shared/lib/logger'
@@ -206,10 +206,11 @@ function getHealthLabelKey(health: SelectorHealth | 'missing') {
   }
 }
 
-const SelectorsTab = React.memo(({ onCloseSettings }: SelectorsTabProps) => {
-  const { aiSites, tabs, currentAI, webviewInstance } = useAiState()
+const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
+  const { aiSites, tabs, currentAI } = useAiState()
+  const { webviewInstance } = useAiWebview()
   const { startTutorial, openAiWorkspace } = useAiActions()
-  const { startPickerWhenReady } = useAppTools()
+  const { startPickerWhenReady } = useAppToolActions()
   const { showError, showSuccess, showWarning } = useToast()
   const { t } = useLanguage()
   const { data: selectorsData } = useAiConfig()

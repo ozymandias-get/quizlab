@@ -1,11 +1,11 @@
-import React from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AiModelList } from '@features/settings/ui/models/AiModelList'
 import type { AiPlatform } from '@shared-core/types'
 
 vi.mock('framer-motion', () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
   motion: {
     div: ({ children, layout: _layout, ...props }: any) => <div {...props}>{children}</div>
   }
@@ -39,7 +39,7 @@ describe('AiModelList', () => {
     vi.clearAllMocks()
   })
 
-  function createProps(overrides: Partial<React.ComponentProps<typeof AiModelList>> = {}) {
+  function createProps(overrides: Partial<ComponentProps<typeof AiModelList>> = {}) {
     const aiSites: Record<string, AiPlatform> = {
       chatgpt: {
         id: 'chatgpt',

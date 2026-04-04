@@ -1,10 +1,10 @@
-﻿import React, { useEffect, useState, useRef } from 'react'
+﻿import { useEffect, useState, useRef, forwardRef, type MouseEvent, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { useLanguage, type Toast } from '@app/providers'
 
 type ToastType = Toast['type']
 
-const ICONS: Record<ToastType, React.ReactNode> = {
+const ICONS: Record<ToastType, ReactNode> = {
   success: (
     <svg
       className="w-5 h-5"
@@ -84,7 +84,7 @@ interface ToastItemProps {
   onRemove: (id: string) => void
 }
 
-const ToastItem = React.forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove }, ref) => {
+const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove }, ref) => {
   const { t } = useLanguage()
   const [progress, setProgress] = useState(100)
   const [isPaused, setIsPaused] = useState(false)
@@ -128,12 +128,12 @@ const ToastItem = React.forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onR
     setIsPaused(false)
   }
 
-  const handleClose = (e: React.MouseEvent) => {
+  const handleClose = (e: MouseEvent) => {
     e.stopPropagation()
     onRemove(toast.id)
   }
 
-  const handleAction = (e: React.MouseEvent) => {
+  const handleAction = (e: MouseEvent) => {
     e.stopPropagation()
     try {
       toast.onAction?.()

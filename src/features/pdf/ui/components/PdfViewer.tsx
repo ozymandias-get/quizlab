@@ -1,8 +1,16 @@
-import { useRef, useState, memo, CSSProperties, useEffect, useMemo } from 'react'
+import {
+  useRef,
+  useState,
+  memo,
+  useEffect,
+  useMemo,
+  type CSSProperties,
+  type WheelEvent
+} from 'react'
 import { useLocalStorage } from '@shared/hooks'
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 import { useAiActions, useAiState } from '@app/providers/AiContext'
-import { useAppTools } from '@app/providers/AppToolContext'
+import { useAppToolActions } from '@app/providers/AppToolContext'
 import { useLanguage } from '@app/providers/LanguageContext'
 import { Maximize, Crop, ZoomIn, ZoomOut, RotateCcw, RefreshCw } from 'lucide-react'
 import {
@@ -10,22 +18,18 @@ import {
   GOOGLE_DRIVE_WEB_APP
 } from '@shared-core/constants/google-ai-web-apps'
 
-// @react-pdf-viewer imports
 import { Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
 
-// PDF Viewer stilleri
 import '@react-pdf-viewer/core/lib/styles/index.css'
 import '@react-pdf-viewer/page-navigation/lib/styles/index.css'
 import '@react-pdf-viewer/zoom/lib/styles/index.css'
 import '@react-pdf-viewer/search/lib/styles/index.css'
 
-// Modular Components
 import GoogleDrivePanel from './GoogleDrivePanel'
 import PdfPlaceholder from './PdfPlaceholder'
 import PdfToolbar from './PdfToolbar'
 import { ContextMenu, MenuItem } from './ContextMenu'
 
-// Custom Hooks
 import {
   usePdfPlugins,
   usePdfNavigation,
@@ -54,12 +58,6 @@ interface PdfViewerProps {
   isInteractionBlocked?: boolean
 }
 
-/**
- * PDF Viewer Main Component
- * Orchestrates modular hooks and sub-components.
- * Virtualization is enabled by default in react-pdf-viewer, but
- * optimized here with Worker and stable plugin references.
- */
 function PdfViewer({
   pdfFile,
   activePdfTab,
@@ -77,7 +75,7 @@ function PdfViewer({
 }: PdfViewerProps) {
   const { autoSend, chromeUserAgent } = useAiState()
   const { toggleAutoSend } = useAiActions()
-  const { startScreenshot, queueImageForAi } = useAppTools()
+  const { startScreenshot, queueImageForAi } = useAppToolActions()
   const { t: contextT } = useLanguage()
   const { data: webSessionData } = useGeminiWebStatus()
   const [enabledGoogleApps] = useLocalStorage<string[]>(
@@ -86,20 +84,17 @@ function PdfViewer({
   )
   const t = propT || contextT || ((k: string) => k)
 
-  // Local state
   const containerRef = useRef<HTMLDivElement>(null)
   const [scaleFactor, setScaleFactor] = useState(1)
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
   const [panMode, setPanMode] = useState(false)
 
-  // Derived state
   const pdfUrl = pdfFile?.streamUrl
   const isGoogleDriveEnabled =
     !!webSessionData?.featureEnabled &&
     !!webSessionData?.enabled &&
     enabledGoogleApps.includes('gdrive')
 
-  // === CUSTOM HOOKS ===
   const {
     plugins,
     jumpToPageRef,
@@ -161,7 +156,7 @@ function PdfViewer({
         label: t('ctx_crop_screenshot'),
         icon: Crop,
         onClick: () =>
-          startScreenshot('crop', {
+          startScreenshot({
             page: currentPage,
             captureKind: 'selection'
           }),
@@ -198,7 +193,6 @@ function PdfViewer({
     [t, handleFullPageScreenshot, startScreenshot, zoomTo, scaleFactor, currentPage]
   )
 
-  // === RENDER ===
   if (activePdfTab?.kind === 'drive') {
     return (
       <GoogleDrivePanel
@@ -234,9 +228,7 @@ function PdfViewer({
           panMode ? ' pdf-pan-mode-active' : ''
         }${isPanDragging ? ' pdf-pan-mode-dragging' : ''}`}
         style={{ '--scale-factor': scaleFactor } as CSSProperties}
-        onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
-          // Ctrl+wheel zoom'u tamamen devre dışı bırak
-          // Sadece UI üzerindeki +/- butonlarıyla zoom yapılabilir
+        onWheel={(e: WheelEvent<HTMLDivElement>) => {
           if (e.ctrlKey || e.metaKey) {
             return
           }
@@ -289,7 +281,7 @@ function PdfViewer({
         pdfFile={pdfFile}
         onSelectPdf={onSelectPdf}
         onStartScreenshot={() =>
-          startScreenshot('crop', {
+          startScreenshot({
             page: currentPage,
             captureKind: 'selection'
           })

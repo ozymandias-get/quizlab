@@ -1,18 +1,16 @@
-import React, { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import type { Easing } from 'framer-motion'
 
 const ANIMATION_DURATION = 0.4
 const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]
 
-// Default transition setting
 const DEFAULT_TRANSITION = {
   duration: ANIMATION_DURATION,
   ease: ANIMATION_EASE
 }
 
 export const useAppAnimations = (isLayoutSwapped: boolean = false) => {
-  // GPU acceleration styles
-  const gpuAcceleratedStyle = useMemo<React.CSSProperties>(
+  const gpuAcceleratedStyle = useMemo<CSSProperties>(
     () => ({
       willChange: 'transform, opacity',
       transform: 'translateZ(0)',

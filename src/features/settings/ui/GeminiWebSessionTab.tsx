@@ -1,9 +1,9 @@
-import React from 'react'
+import { memo } from 'react'
 import GeminiWebRiskNotice from './geminiWebSession/GeminiWebRiskNotice'
 import GeminiWebSessionOverview from './geminiWebSession/GeminiWebSessionOverview'
 import { useGeminiWebSessionState } from './geminiWebSession/useGeminiWebSessionState'
 
-const GeminiWebSessionTab = React.memo(() => {
+const GeminiWebSessionTab = memo(() => {
   const {
     t,
     status,

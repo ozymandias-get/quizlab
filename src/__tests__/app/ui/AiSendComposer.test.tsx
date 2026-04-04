@@ -1,4 +1,4 @@
-import React from 'react'
+import { createElement, forwardRef, type HTMLAttributes, type ReactNode } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import AiSendComposer from '@app/ui/AiSendComposer'
@@ -49,14 +49,15 @@ vi.mock('@app/ui/aiSendComposer/AiSendComposerContent', () => ({
 }))
 
 vi.mock('framer-motion', () => {
-  const createMock = (tag: keyof React.JSX.IntrinsicElements) => {
-    return React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
-      ({ children, ...props }, ref) => React.createElement(tag, { ...props, ref }, children)
+  const createMock = (tag: 'aside' | 'div') => {
+    return forwardRef<HTMLElement, HTMLAttributes<HTMLElement>>(({ children, ...props }, ref) =>
+      createElement(tag, { ...props, ref }, children)
     )
   }
 
   return {
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
+    useReducedMotion: () => false,
     motion: {
       aside: createMock('aside'),
       div: createMock('div')

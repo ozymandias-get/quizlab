@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronDown, Grip } from 'lucide-react'
 import { useLanguage } from '@app/providers'
@@ -55,11 +54,12 @@ export default function AiHomeSection({
           <div className="mt-0.5 text-[13px] text-white/56">{detail}</div>
         </div>
         <div
-          className="flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/28 cursor-default"
+          className="flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-white/35"
+          title={t('ai_home.drag_drop')}
+          aria-label={t('ai_home.drag_drop')}
           onClick={(event) => event.stopPropagation()}
         >
-          <Grip className="h-3.5 w-3.5" />
-          {t('ai_home.drag_drop')}
+          <Grip className="h-3.5 w-3.5" aria-hidden />
         </div>
         <div
           className="ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.04] text-white/40 transition-transform duration-300"

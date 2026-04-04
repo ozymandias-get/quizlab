@@ -2,6 +2,7 @@ import type { MouseEvent as ReactMouseEvent, RefObject } from 'react'
 import { motion } from 'framer-motion'
 import { MoreHorizontal, X } from 'lucide-react'
 import type { Tab } from '@app/providers/AiContext'
+import { TAB_STRIP_CHROME_BTN_WIDE } from '@shared/ui/tabStripChrome'
 import { getAiIcon } from '@ui/components/Icons'
 
 interface AiOverflowMenuProps {
@@ -37,7 +38,7 @@ function AiOverflowMenu({
     <div ref={overflowRef} className="relative ml-auto shrink-0">
       <button
         type="button"
-        className="h-8 w-9 rounded-xl border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+        className={`${TAB_STRIP_CHROME_BTN_WIDE} text-white/75`}
         aria-label={tr('tab_more', 'More tabs')}
         title={tr('tab_more', 'More tabs')}
         onClick={onToggleOpen}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { useLocalStorage } from '@shared/hooks'
 import type { DockLayout } from './types'
 
@@ -112,7 +112,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
   }, [setLayout])
 
   const handleDragStart = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent<HTMLDivElement>) => {
       const target = event.target as HTMLElement
       if (target.closest('button, textarea, input, img')) {
         return
@@ -131,7 +131,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
   )
 
   const handleDragMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent<HTMLDivElement>) => {
       if (!dragStateRef.current || dragStateRef.current.pointerId !== event.pointerId) {
         return
       }
@@ -151,7 +151,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
     [getPanelHeight, layout, setLayout]
   )
 
-  const handleDragEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const handleDragEnd = useCallback((event: PointerEvent<HTMLDivElement>) => {
     if (!dragStateRef.current || dragStateRef.current.pointerId !== event.pointerId) {
       return
     }
@@ -162,7 +162,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
   }, [])
 
   const handleResizeStart = useCallback(
-    (event: React.PointerEvent<HTMLButtonElement>) => {
+    (event: PointerEvent<HTMLButtonElement>) => {
       resizeStateRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -177,7 +177,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
   )
 
   const handleResizeMove = useCallback(
-    (event: React.PointerEvent<HTMLButtonElement>) => {
+    (event: PointerEvent<HTMLButtonElement>) => {
       if (!resizeStateRef.current || resizeStateRef.current.pointerId !== event.pointerId) {
         return
       }
@@ -202,7 +202,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
     [getPanelHeight, setLayout]
   )
 
-  const handleResizeEnd = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+  const handleResizeEnd = useCallback((event: PointerEvent<HTMLButtonElement>) => {
     if (!resizeStateRef.current || resizeStateRef.current.pointerId !== event.pointerId) {
       return
     }

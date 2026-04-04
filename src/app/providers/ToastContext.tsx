@@ -1,10 +1,6 @@
 import { create } from 'zustand'
-import React from 'react'
 
-/**
- * Toast Management Store
- * Supports queueing (max 3) and keeps the old hook API stable.
- */
+/** Toast store: max 3 visible; `useToast()` API unchanged. */
 export interface Toast {
   id: string
   message: string
@@ -49,51 +45,42 @@ interface ToastStoreState {
 const MAX_TOASTS = 3
 const DEFAULT_DURATION = 5000
 
-const useToastStore = create<ToastStoreState>((set, get) => ({
-  toasts: [],
+const useToastStore = create<ToastStoreState>((set, get) => {
+  const showTyped =
+    (type: Toast['type']) =>
+    (message: string, title?: string, params?: Record<string, string>, duration?: number) =>
+      get().addToast({ message, title, type, params, duration })
 
-  removeToast: (id: string) => {
-    set((prev) => ({ toasts: prev.toasts.filter((toast) => toast.id !== id) }))
-  },
+  return {
+    toasts: [],
 
-  addToast: ({
-    message,
-    title,
-    type = 'info',
-    params = {},
-    duration = DEFAULT_DURATION
-  }: Omit<Toast, 'id'>) => {
-    const id = Math.random().toString(36).substring(2, 9)
+    removeToast: (id: string) => {
+      set((prev) => ({ toasts: prev.toasts.filter((toast) => toast.id !== id) }))
+    },
 
-    set((prev) => {
-      const next = [...prev.toasts, { id, message, title, type, params, duration }]
-      return { toasts: next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next }
-    })
+    addToast: ({
+      message,
+      title,
+      type = 'info',
+      params = {},
+      duration = DEFAULT_DURATION
+    }: Omit<Toast, 'id'>) => {
+      const id = Math.random().toString(36).substring(2, 9)
 
-    return id
-  },
+      set((prev) => {
+        const next = [...prev.toasts, { id, message, title, type, params, duration }]
+        return { toasts: next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next }
+      })
 
-  showSuccess: (message, title, params, duration) => {
-    return get().addToast({ message, title, type: 'success', params, duration })
-  },
+      return id
+    },
 
-  showError: (message, title, params, duration) => {
-    return get().addToast({ message, title, type: 'error', params, duration })
-  },
-
-  showWarning: (message, title, params, duration) => {
-    return get().addToast({ message, title, type: 'warning', params, duration })
-  },
-
-  showInfo: (message, title, params, duration) => {
-    return get().addToast({ message, title, type: 'info', params, duration })
+    showSuccess: showTyped('success'),
+    showError: showTyped('error'),
+    showWarning: showTyped('warning'),
+    showInfo: showTyped('info')
   }
-}))
-
-// Backward-compatible wrapper for old tree usage.
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
+})
 
 export function useToast() {
   const toasts = useToastStore((state) => state.toasts)

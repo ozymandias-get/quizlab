@@ -1,4 +1,10 @@
-import React, { memo, type CSSProperties, type MouseEventHandler, type RefObject } from 'react'
+import {
+  memo,
+  type ComponentProps,
+  type CSSProperties,
+  type MouseEventHandler,
+  type RefObject
+} from 'react'
 import { motion, type Variants } from 'framer-motion'
 import { AiWebview } from '@features/ai'
 import BottomBar from '@ui/layout/BottomBar'
@@ -20,7 +26,7 @@ interface MainWorkspaceProps {
   isResizing: boolean
   isBarHovered: boolean
   onBarHoverChange: (isHovered: boolean) => void
-  leftPanelProps: React.ComponentProps<typeof LeftPanel>
+  leftPanelProps: ComponentProps<typeof LeftPanel>
 }
 
 function MainWorkspace({

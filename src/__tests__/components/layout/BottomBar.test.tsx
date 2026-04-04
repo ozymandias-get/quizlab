@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import BottomBar from '@ui/layout/BottomBar/index'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
-// Mock dependencies
 vi.mock('@app/providers', () => ({
   useAppearance: () => ({
     bottomBarOpacity: 1,
@@ -32,7 +31,6 @@ vi.mock('@ui/layout/BottomBar/useBottomBarStyles', () => ({
   })
 }))
 
-// Mock subcomponents
 vi.mock('@ui/layout/BottomBar/ToolsPanel', () => ({
   ToolsPanel: ({ isOpen, maxHeight, handleSettingsClick, handleGeminiWebSettingsClick }: any) => (
     <div data-testid="tools-panel" data-max-height={maxHeight ?? ''}>
@@ -144,7 +142,6 @@ describe('BottomBar Component', () => {
     expect(screen.getByTestId('tools-panel')).toHaveTextContent('Tools Closed')
     expect(screen.getByTestId('models-panel')).toBeInTheDocument()
 
-    // Find CenterHub via ID
     const hubBtn = container.querySelector(`#${APP_CONSTANTS.TOUR_TARGETS.HUB_BTN}`)
     expect(hubBtn).toBeInTheDocument()
   })

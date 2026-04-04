@@ -1,5 +1,11 @@
-import { memo, useState, useCallback } from 'react'
-import type { ComponentType, ReactElement } from 'react'
+import {
+  memo,
+  useState,
+  useCallback,
+  type ComponentType,
+  type ElementType,
+  type ReactElement
+} from 'react'
 import { motion } from 'framer-motion'
 import {
   Upload,
@@ -40,16 +46,11 @@ interface PdfToolbarProps {
   onNextPage: () => void
   highlight: (keyword: string) => void
   clearHighlights: () => void
-  // These come from react-pdf-viewer zoom plugin
   ZoomIn: ZoomComponent
   ZoomOut: ZoomComponent
   CurrentScale: CurrentScaleComponent
 }
 
-/**
- * PDF bottom toolbar component
- * Redesigned with Premium Glass Morphism
- */
 function PdfToolbar({
   pdfFile,
   onSelectPdf,
@@ -89,7 +90,7 @@ function PdfToolbar({
     <motion.div
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="flex-shrink-0 w-full bg-gradient-to-t from-[#0a0a0a] via-[#0d0d0d] to-[#111111] border-t border-white/[0.06] px-6 py-3 relative z-50 flex items-center justify-between gap-4 select-none"
+      className="flex-shrink-0 w-full bg-gradient-to-t from-[#050505] via-[#050505] to-[#080808] border-t border-white/[0.06] px-6 py-3 relative z-50 flex items-center justify-between gap-4 select-none"
     >
       {/* Left: Tools Island */}
       <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
@@ -226,14 +227,13 @@ function PdfToolbar({
 
 interface ToolbarButtonProps {
   onClick: () => void
-  icon: React.ElementType
+  icon: ElementType
   tooltip: string
   isActive?: boolean
   className?: string
   activeClassName?: string
 }
 
-// Update standard button styles for symmetry
 function ToolbarButton({
   onClick,
   icon: Icon,

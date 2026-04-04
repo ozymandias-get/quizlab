@@ -32,7 +32,6 @@ export type WebviewElement = HTMLElement & {
 
 export type WebviewController = {
   executeJavaScript: (script: string) => Promise<unknown> | undefined
-  getActiveWebview?: () => WebviewElement | null
   getWebview?: () => WebviewElement | null
   insertText?: (text: string) => void
   reload?: () => void

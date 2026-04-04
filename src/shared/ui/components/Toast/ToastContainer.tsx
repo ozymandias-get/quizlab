@@ -1,14 +1,12 @@
-﻿import React from 'react'
-import { createPortal } from 'react-dom'
+﻿import { createPortal } from 'react-dom'
 import { AnimatePresence } from 'framer-motion'
 
 import { useToast } from '@app/providers'
 import ToastItem from './ToastItem'
 
-const ToastContainer: React.FC = () => {
+function ToastContainer() {
   const { toasts, removeToast } = useToast()
 
-  // Portal targets the body to stay above all elements and avoid z-index/transform issues
   const container = typeof document !== 'undefined' ? document.body : null
 
   if (!container) return null

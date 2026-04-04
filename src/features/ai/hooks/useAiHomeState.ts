@@ -66,7 +66,6 @@ export function useAiHomeState() {
     aiSites,
     cardColumns: layout.cardColumns,
     featuredIds,
-    heroColumns: layout.heroColumns,
     isCompact: layout.isCompact,
     isNarrow: layout.isNarrow,
     isUltraNarrow: layout.isUltraNarrow,
@@ -75,7 +74,6 @@ export function useAiHomeState() {
     pageRef,
     siteDrag,
     siteOrder,
-    statsColumns: layout.statsColumns,
     tabs
   }
 }

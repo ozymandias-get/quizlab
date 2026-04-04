@@ -1,8 +1,8 @@
-﻿import { render, screen, fireEvent } from '@testing-library/react'
+﻿import { forwardRef, type ComponentProps } from 'react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect } from 'vitest'
 import LanguageTab from '@features/settings/ui/LanguageTab'
 
-// Mock dependencies
 const { setLanguageMock } = vi.hoisted(() => ({
   setLanguageMock: vi.fn()
 }))
@@ -19,33 +19,27 @@ vi.mock('@app/providers', () => ({
   })
 }))
 
-// Mock Icons
 vi.mock('@ui/components/Icons', () => ({
   LanguageIcon: () => <div data-testid="icon-language" />
 }))
 
-// Mock animated components
-vi.mock('framer-motion', async () => {
-  const ActualReact = (await vi.importActual('react')) as typeof import('react')
-  return {
-    motion: {
-      div: ActualReact.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
-        ({ children, className, ...props }, ref) => (
-          <div ref={ref} className={className} {...props}>
-            {children}
-          </div>
-        )
+vi.mock('framer-motion', () => ({
+  motion: {
+    div: forwardRef<HTMLDivElement, ComponentProps<'div'>>(
+      ({ children, className, ...props }, ref) => (
+        <div ref={ref} className={className} {...props}>
+          {children}
+        </div>
       )
-    }
+    )
   }
-})
+}))
 
 describe('LanguageTab', () => {
   it('renders language options', () => {
     render(<LanguageTab />)
 
     expect(screen.getByText('select_language')).toBeInTheDocument()
-    // Use accessible role queries
     expect(screen.getByRole('radio', { name: /English/i })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /Türkçe/i })).toBeInTheDocument()
   })
@@ -58,7 +52,6 @@ describe('LanguageTab', () => {
   it('allows changing language', () => {
     render(<LanguageTab />)
 
-    // Use radio role which includes the label via children content or aria-label
     const radio = screen.getByRole('radio', { name: /Türkçe/i })
     fireEvent.click(radio)
 

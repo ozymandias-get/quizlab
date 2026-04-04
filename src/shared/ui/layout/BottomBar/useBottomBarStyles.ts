@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 
 const HUB_VISUAL_TOKENS = {
   openBackground: `linear-gradient(155deg,
@@ -34,7 +34,7 @@ export const useBottomBarStyles = (
   const clampedScale = Math.min(1.3, Math.max(0.7, bottomBarScale))
   const scaledBaseSize = Math.round(48 * clampedScale)
 
-  const shellStyle = useMemo<React.CSSProperties>(
+  const shellStyle = useMemo<CSSProperties>(
     () =>
       ({
         '--bar-opacity-factor': clampedOpacity,
@@ -43,11 +43,11 @@ export const useBottomBarStyles = (
         minWidth: scaledBaseSize,
         maxWidth: scaledBaseSize,
         flexBasis: scaledBaseSize
-      }) as React.CSSProperties,
+      }) as CSSProperties,
     [clampedOpacity, clampedScale, scaledBaseSize]
   )
 
-  const stackStyle = useMemo<React.CSSProperties>(
+  const stackStyle = useMemo<CSSProperties>(
     () => ({
       zIndex: 50,
       width: scaledBaseSize,
@@ -59,7 +59,7 @@ export const useBottomBarStyles = (
     [scaledBaseSize]
   )
 
-  const panelStyle = useMemo<React.CSSProperties>(
+  const panelStyle = useMemo<CSSProperties>(
     () => ({
       background: `linear-gradient(165deg,
             rgba(30, 30, 36, ${Math.min(0.92, 0.12 + clampedOpacity * 0.76)}) 0%,
@@ -82,7 +82,7 @@ export const useBottomBarStyles = (
     [clampedOpacity, clampedScale]
   )
 
-  const hubStyle = useMemo<React.CSSProperties>(
+  const hubStyle = useMemo<CSSProperties>(
     () =>
       ({
         ...panelStyle,
@@ -106,7 +106,7 @@ export const useBottomBarStyles = (
         opacity: 1,
         backfaceVisibility: 'hidden' as const,
         cursor: 'pointer'
-      }) as React.CSSProperties,
+      }) as CSSProperties,
     [panelStyle, isOpen, clampedOpacity, scaledBaseSize, clampedScale]
   )
 

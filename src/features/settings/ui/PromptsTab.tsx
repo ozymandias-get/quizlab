@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import { useState, useCallback, type FormEvent, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage, useToast } from '@app/providers'
 import { MagicWandIcon, TrashIcon, CheckIcon } from '@ui/components/Icons'
@@ -15,7 +15,7 @@ const PromptsTab = () => {
   const [newPromptText, setNewPromptText] = useState('')
 
   const handleAddPrompt = useCallback(
-    (e: React.FormEvent) => {
+    (e: FormEvent) => {
       e.preventDefault()
       if (!newPromptText.trim()) {
         showError(t('prompt_empty_error'))
@@ -31,7 +31,7 @@ const PromptsTab = () => {
   )
 
   const handleDeletePrompt = useCallback(
-    (e: React.MouseEvent, id: string) => {
+    (e: MouseEvent, id: string) => {
       e.stopPropagation()
       deletePrompt(id)
       showSuccess(t('prompt_deleted'))

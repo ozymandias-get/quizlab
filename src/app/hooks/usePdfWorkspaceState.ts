@@ -1,5 +1,4 @@
-import { useCallback, useMemo } from 'react'
-import type { ComponentProps, DragEvent } from 'react'
+import { useCallback, useMemo, type ComponentProps, type DragEvent } from 'react'
 import { useLanguage } from '@app/providers'
 import { useTextSelection } from '@app/hooks/useTextSelection'
 import { usePdfSelection } from '@features/pdf'
@@ -28,7 +27,8 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
     restoreRecentReading,
     addEmptyPdfTab,
     openGoogleDriveTab,
-    activeTabInitialPage
+    activeTabInitialPage,
+    goToPdfHome
   } = usePdfSelection()
   const { handleTextSelection } = useTextSelection()
 
@@ -67,6 +67,7 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
       onRenamePdfTab: renamePdfTab,
       onAddEmptyPdfTab: addEmptyPdfTab,
       onOpenGoogleDrive: openGoogleDriveTab,
+      onPdfHome: goToPdfHome,
       isInteractionBlocked
     }),
     [
@@ -88,6 +89,7 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
       renamePdfTab,
       addEmptyPdfTab,
       openGoogleDriveTab,
+      goToPdfHome,
       isInteractionBlocked
     ]
   )

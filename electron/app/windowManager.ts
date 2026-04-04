@@ -1,10 +1,12 @@
-import { BrowserWindow, dialog, session, app, screen, shell } from 'electron'
+import { BrowserWindow, desktopCapturer, dialog, session, app, screen, shell } from 'electron'
+import type { DisplayMediaRequestHandlerHandlerRequest, Streams } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { APP_CONFIG } from './constants'
 import { ConfigManager } from '../core/ConfigManager'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
+import { showDisplayMediaPicker } from './displayMediaPicker'
 
 export const isDev = !app.isPackaged
 const DEV_SERVER_URL = process.env.APP_RENDERER_URL || 'http://localhost:5173'
@@ -16,8 +18,58 @@ const MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS = 250
 const shouldOpenDevToolsOnStart = process.env.APP_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 const ALLOWED_DEFAULT_PERMISSIONS = new Set(['notifications', 'media'])
-const ALLOWED_AI_PERMISSIONS = new Set(['notifications', 'media', 'geolocation'])
+const ALLOWED_AI_PERMISSIONS = new Set([
+  'notifications',
+  'media',
+  'geolocation',
+  // Screen share in embedded AI sites (getDisplayMedia), distinct from camera/mic "media"
+  'display-capture'
+])
 const ALLOWED_WEBVIEW_PROTOCOLS = new Set(['https:'])
+
+/**
+ * Embedded webviews (AI Studio, etc.) need the main process to resolve getDisplayMedia via
+ * desktopCapturer; granting the session "display-capture" permission alone is not enough.
+ */
+async function handleDisplayMediaRequest(
+  request: DisplayMediaRequestHandlerHandlerRequest,
+  callback: (streams: Streams) => void
+): Promise<void> {
+  if (!request.videoRequested) {
+    callback({})
+    return
+  }
+
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 150, height: 150 }
+    })
+    if (sources.length === 0) {
+      callback({})
+      return
+    }
+
+    let picked: (typeof sources)[0]
+    if (sources.length === 1) {
+      picked = sources[0]
+    } else {
+      const parent = BrowserWindow.getFocusedWindow() ?? getMainWindow()
+      const pickedIndex = await showDisplayMediaPicker(parent, sources)
+      if (pickedIndex === null || pickedIndex < 0 || pickedIndex >= sources.length) {
+        callback({})
+        return
+      }
+      picked = sources[pickedIndex]
+    }
+
+    callback({
+      video: { id: picked.id, name: picked.name }
+    })
+  } catch {
+    callback({})
+  }
+}
 const DEV_SERVER_ORIGIN = (() => {
   try {
     return new URL(DEV_SERVER_URL).origin
@@ -437,8 +489,12 @@ function setupSessions() {
         callback(ALLOWED_AI_PERMISSIONS.has(permission))
       })
       aiSession.setPermissionCheckHandler((_webContents, permission) =>
-        ALLOWED_AI_PERMISSIONS.has(permission)
+        ALLOWED_AI_PERMISSIONS.has(permission as string)
       )
+
+      aiSession.setDisplayMediaRequestHandler((request, callback) => {
+        void handleDisplayMediaRequest(request, callback)
+      })
     }
 
     sessionsConfigured = true

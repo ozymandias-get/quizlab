@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useMemo, useCallback, memo, type MouseEvent } from 'react'
 import { useLanguage } from '@app/providers'
 import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { GridIcon } from '@ui/components/Icons'
@@ -51,7 +51,7 @@ const ModelsTab = memo(() => {
   )
 
   const handleDeleteAi = useCallback(
-    async (e: React.MouseEvent, id: string, name: string) => {
+    async (e: MouseEvent, id: string, name: string) => {
       e.stopPropagation()
       if (!confirm(t('confirm_delete', { name }))) return
 
@@ -65,9 +65,7 @@ const ModelsTab = memo(() => {
             setDefaultAiModel(newModels[0])
           }
         }
-      } catch {
-        // Error already shown via toast
-      }
+      } catch {}
     },
     [t, enabledModels, setEnabledModels, deleteCustomAi, defaultAiModel, setDefaultAiModel]
   )

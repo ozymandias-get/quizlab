@@ -128,7 +128,6 @@ export function useWebviewLifecycle({
           if (typeof fn !== 'function') return undefined
           return Reflect.apply(fn, webview, [script])
         }),
-      getActiveWebview: () => activeWebviewRef.current,
       getWebview: () => activeWebviewRef.current,
       insertText: (text: string) => withActiveWebview((webview) => webview.insertText?.(text)),
       reload: () => withActiveWebview((webview) => webview.reload()),

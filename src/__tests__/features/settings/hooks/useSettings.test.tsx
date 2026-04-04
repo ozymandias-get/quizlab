@@ -2,9 +2,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { useSettings } from '@features/settings/hooks/useSettings'
 
-// --- Mocks ---
-
-// Mock useUpdate
 const mockCheckForUpdates = vi.fn()
 const mockUseUpdate = vi.fn()
 vi.mock('@app/providers/UpdateContext', () => ({
@@ -12,21 +9,18 @@ vi.mock('@app/providers/UpdateContext', () => ({
   UpdateProvider: ({ children }: any) => <>{children}</>
 }))
 
-// Mock useAppVersion
 const mockUseAppVersion = vi.fn()
 vi.mock('@platform/electron/api/useSystemApi', () => ({
   useAppVersion: () => mockUseAppVersion(),
   useOpenExternal: () => ({ mutate: mockOpenExternal })
 }))
 
-// Mock useOpenExternal
 const mockOpenExternal = vi.fn()
 
 describe('useSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Default mocks
     mockUseAppVersion.mockReturnValue({ data: '1.2.3' })
     mockUseUpdate.mockReturnValue({
       updateAvailable: false,
@@ -90,7 +84,6 @@ describe('useSettings', () => {
   })
 
   it('should return "idle" initially', () => {
-    // Initial state set in beforeEach matches idle
     const { result } = renderHook(() => useSettings())
     expect(result.current.updateStatus).toBe('idle')
   })
@@ -113,7 +106,7 @@ describe('useSettings', () => {
     })
 
     expect(mockOpenExternal).toHaveBeenCalledWith(
-      'https://github.com/ozymandias-get/quizlab/releases'
+      'https://github.com/ozymandias-get/quizlab/releases/latest'
     )
   })
 

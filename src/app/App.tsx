@@ -1,4 +1,4 @@
-import React from 'react'
+import type { RefObject } from 'react'
 import { AnimatePresence, LayoutGroup } from 'framer-motion'
 import { ScreenshotTool } from '@features/screenshot'
 import { UsageAssistant } from '@features/tutorial'
@@ -11,9 +11,10 @@ import MainWorkspace from '@app/ui/MainWorkspace'
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 
-const App: React.FC = () => {
+function App() {
   const {
-    appTools,
+    appToolState,
+    appToolActions,
     update,
     appearance,
     animations,
@@ -50,8 +51,8 @@ const App: React.FC = () => {
           <MainWorkspace
             isLayoutSwapped={appearance.isLayoutSwapped}
             leftPanelWidth={panelResize.leftPanelWidth}
-            leftPanelRef={panelResize.leftPanelRef as React.RefObject<HTMLDivElement>}
-            resizerRef={panelResize.resizerRef as React.RefObject<HTMLDivElement>}
+            leftPanelRef={panelResize.leftPanelRef as RefObject<HTMLDivElement>}
+            resizerRef={panelResize.resizerRef as RefObject<HTMLDivElement>}
             containerVariants={animations.containerVariants}
             leftPanelVariants={animations.leftPanelVariants}
             rightPanelVariants={animations.rightPanelVariants}
@@ -66,25 +67,25 @@ const App: React.FC = () => {
           />
         </AnimatePresence>
 
-        <GeminiWebLoginOverlay isVisible={appTools.isGeminiWebLoginInProgress} t={t} />
+        <GeminiWebLoginOverlay isVisible={appToolState.isGeminiWebLoginInProgress} t={t} />
 
-        {appTools.pendingAiItems.length > 0 && (
+        {appToolState.pendingAiItems.length > 0 && (
           <AiSendComposer
-            items={appTools.pendingAiItems}
-            autoSend={appTools.autoSend}
-            onAutoSendChange={appTools.setAutoSend}
-            onRemoveItem={appTools.removePendingAiItem}
-            onClearAll={appTools.clearPendingAiItems}
+            items={appToolState.pendingAiItems}
+            autoSend={appToolState.autoSend}
+            onAutoSendChange={appToolActions.setAutoSend}
+            onRemoveItem={appToolActions.removePendingAiItem}
+            onClearAll={appToolActions.clearPendingAiItems}
             onSend={({ noteText, autoSend, forceAutoSend }) =>
-              appTools.sendPendingAiItems({ promptText: noteText, autoSend, forceAutoSend })
+              appToolActions.sendPendingAiItems({ promptText: noteText, autoSend, forceAutoSend })
             }
           />
         )}
 
         <ScreenshotTool
-          isActive={appTools.isScreenshotMode}
-          onCapture={appTools.handleCapture}
-          onClose={appTools.closeScreenshot}
+          isActive={appToolState.isScreenshotMode}
+          onCapture={appToolActions.handleCapture}
+          onClose={appToolActions.closeScreenshot}
         />
 
         <UsageAssistant isActive={tour.isActive} onClose={tour.close} />

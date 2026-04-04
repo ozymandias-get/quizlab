@@ -1,36 +1,50 @@
-import React, { createContext, useCallback, useContext, useMemo } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react'
 import type { AiSendOptions } from '@features/ai'
 import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
-import { useAiActions, useAiState } from './AiContext'
+import { useAiActions, useAiState, useAiWebview } from './AiContext'
 import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 import { useGeminiWebOpenLogin } from '@platform/electron/api/useGeminiWebSessionApi'
 import type { GeminiWebSessionActionResult } from '@shared-core/types'
+import { planBulkAiSend } from './ai/planBulkAiSend'
 import type { AiDraftImageItem, AiDraftItem, AiSendResult } from './ai/types'
 
 type QueuedImageMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'>
 
-interface AppToolContextType {
+interface AppToolStateType {
+  pendingAiItems: AiDraftItem[]
   isScreenshotMode: boolean
-  startScreenshot: (mode?: 'full' | 'crop', imageMeta?: QueuedImageMeta) => void
+  autoSend: boolean
+  isPickerActive: boolean
+  isGeminiWebLoginInProgress: boolean
+}
+
+interface AppToolActionsType {
+  startScreenshot: (imageMeta?: QueuedImageMeta) => void
   closeScreenshot: () => void
   handleCapture: (dataUrl: string) => Promise<void>
-  pendingAiItems: AiDraftItem[]
   queueTextForAi: (text: string) => void
   queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => void
   removePendingAiItem: (id: string) => void
   clearPendingAiItems: () => void
   sendPendingAiItems: (options?: AiSendOptions) => Promise<AiSendResult>
-  autoSend: boolean
   setAutoSend: (value: boolean) => void
-  isPickerActive: boolean
   startPicker: () => void
   startPickerWhenReady: () => void
   togglePicker: () => void
-  isGeminiWebLoginInProgress: boolean
   startGeminiWebLogin: () => Promise<GeminiWebSessionActionResult>
 }
 
-const AppToolContext = createContext<AppToolContextType | null>(null)
+const AppToolStateContext = createContext<AppToolStateType | null>(null)
+const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
 
 function buildPendingId(prefix: 'text' | 'image') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -49,35 +63,52 @@ function clearBrowserTextSelection() {
   selection.removeAllRanges()
 }
 
-function buildTextPayload(textItems: Extract<AiDraftItem, { type: 'text' }>[], noteText?: string) {
-  const trimmedTextItems = textItems.map((item) => item.text.trim()).filter(Boolean)
-
-  const sections: string[] = []
-  const normalizedNote = noteText?.trim()
-
-  if (normalizedNote) {
-    sections.push(normalizedNote)
-  }
-
-  if (trimmedTextItems.length === 1) {
-    sections.push(trimmedTextItems[0] || '')
-  } else if (trimmedTextItems.length > 1) {
-    sections.push(trimmedTextItems.join('\n\n---\n\n'))
-  }
-
-  const finalText = sections.filter(Boolean).join('\n\n')
-  return finalText || undefined
-}
-
-export function AppToolProvider({ children }: { children: React.ReactNode }) {
+export function AppToolProvider({ children }: { children: ReactNode }) {
   const { sendTextToAI, sendImageToAI, setAutoSend } = useAiActions()
-  const { webviewInstance, autoSend } = useAiState()
-  const [pendingAiItems, setPendingAiItems] = React.useState<AiDraftItem[]>([])
-  const [pendingScreenshotMeta, setPendingScreenshotMeta] = React.useState<QueuedImageMeta | null>(
-    null
+  const { autoSend } = useAiState()
+  const { webviewInstance } = useAiWebview()
+  const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
+  const [pickerStartNonce, setPickerStartNonce] = useState(0)
+  const pendingPickerStartRef = useRef(false)
+  const screenshotMetaRef = useRef<QueuedImageMeta | null>(null)
+  const pendingAiItemsRef = useRef(pendingAiItems)
+  pendingAiItemsRef.current = pendingAiItems
+
+  const executeDraftSend = useCallback(
+    async (items: AiDraftItem[], options?: AiSendOptions): Promise<AiSendResult> => {
+      if (items.length === 0) {
+        return { success: false, error: 'invalid_input' }
+      }
+
+      const effectiveAutoSend =
+        options?.forceAutoSend === true ? true : (options?.autoSend ?? autoSend)
+      const segments = planBulkAiSend(items, options?.promptText)
+
+      if (segments.length === 0) {
+        return { success: false, error: 'invalid_input' }
+      }
+
+      let result: AiSendResult = { success: true }
+
+      for (const segment of segments) {
+        if (segment.kind === 'text') {
+          result = await sendTextToAI(segment.payload, { autoSend: effectiveAutoSend })
+        } else {
+          result = await sendImageToAI(segment.dataUrl, {
+            autoSend: effectiveAutoSend,
+            promptText: segment.promptText
+          })
+        }
+
+        if (!result.success) {
+          return result
+        }
+      }
+
+      return result
+    },
+    [autoSend, sendImageToAI, sendTextToAI]
   )
-  const [pickerStartNonce, setPickerStartNonce] = React.useState(0)
-  const pendingPickerStartRef = React.useRef(false)
 
   const queueTextForAi = useCallback((text: string) => {
     const normalized = text.trim()
@@ -85,21 +116,13 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    setPendingAiItems((current) => {
-      const lastItem = current[current.length - 1]
-      if (lastItem?.type === 'text' && lastItem.text === normalized) {
-        return current
-      }
+    const item: AiDraftItem = {
+      id: buildPendingId('text'),
+      type: 'text',
+      text: normalized
+    }
 
-      return [
-        ...current,
-        {
-          id: buildPendingId('text'),
-          type: 'text',
-          text: normalized
-        }
-      ]
-    })
+    setPendingAiItems((current) => [...current, item])
   }, [])
 
   const queueImageForAi = useCallback((dataUrl: string, imageMeta?: QueuedImageMeta) => {
@@ -107,83 +130,81 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    setPendingAiItems((current) => {
-      const lastItem = current[current.length - 1]
-      if (lastItem?.type === 'image' && lastItem.dataUrl === dataUrl) {
-        return current
+    let blobUrl: string | undefined
+    try {
+      const byteString = atob(dataUrl.split(',')[1])
+      const mimeMatch = dataUrl.match(/data:([^;]+);/)
+      const mime = mimeMatch?.[1] ?? 'image/png'
+      const buf = new Uint8Array(byteString.length)
+      for (let i = 0; i < byteString.length; i++) {
+        buf[i] = byteString.charCodeAt(i)
       }
+      blobUrl = URL.createObjectURL(new Blob([buf], { type: mime }))
+    } catch {}
 
-      return [
-        ...current,
-        {
-          id: buildPendingId('image'),
-          type: 'image',
-          dataUrl,
-          ...imageMeta
-        }
-      ]
-    })
+    const item: AiDraftItem = {
+      id: buildPendingId('image'),
+      type: 'image',
+      dataUrl,
+      ...(blobUrl ? { blobUrl } : {}),
+      ...imageMeta
+    }
+
+    setPendingAiItems((current) => [...current, item])
   }, [])
 
   const removePendingAiItem = useCallback((id: string) => {
-    setPendingAiItems((current) => current.filter((item) => item.id !== id))
+    setPendingAiItems((current) => {
+      const removed = current.find((item) => item.id === id)
+      if (removed?.type === 'image' && removed.blobUrl) {
+        URL.revokeObjectURL(removed.blobUrl)
+      }
+      return current.filter((item) => item.id !== id)
+    })
   }, [])
 
   const clearPendingAiItems = useCallback(() => {
     clearBrowserTextSelection()
-    setPendingScreenshotMeta(null)
-    setPendingAiItems([])
+    screenshotMetaRef.current = null
+    setPendingAiItems((current) => {
+      for (const item of current) {
+        if (item.type === 'image' && item.blobUrl) {
+          URL.revokeObjectURL(item.blobUrl)
+        }
+      }
+      return []
+    })
   }, [])
 
   const sendPendingAiItems = useCallback(
     async (options?: AiSendOptions): Promise<AiSendResult> => {
-      if (pendingAiItems.length === 0) {
+      const items = pendingAiItemsRef.current
+      if (items.length === 0) {
         return { success: false, error: 'invalid_input' }
       }
 
-      const effectiveAutoSend =
-        options?.forceAutoSend === true ? true : (options?.autoSend ?? autoSend)
-      const textItems = pendingAiItems.filter(
-        (item): item is Extract<AiDraftItem, { type: 'text' }> => item.type === 'text'
-      )
-      const imageItems = pendingAiItems.filter(
-        (item): item is Extract<AiDraftItem, { type: 'image' }> => item.type === 'image'
-      )
-      const promptText = buildTextPayload(textItems, options?.promptText)
-
-      let result: AiSendResult
-
-      if (imageItems.length === 0) {
-        if (!promptText) {
-          return { success: false, error: 'invalid_input' }
-        }
-
-        result = await sendTextToAI(promptText, { autoSend: effectiveAutoSend })
-      } else {
-        result = { success: true }
-
-        for (let index = 0; index < imageItems.length; index += 1) {
-          const imageItem = imageItems[index]
-          const isLastImage = index === imageItems.length - 1
-
-          result = await sendImageToAI(imageItem.dataUrl, {
-            autoSend: isLastImage ? effectiveAutoSend : false,
-            promptText: isLastImage ? promptText : undefined
-          })
-
-          if (!result.success) {
-            return result
-          }
-        }
-      }
+      const result = await executeDraftSend(items, options)
 
       if (result.success) {
+        for (const item of items) {
+          if (item.type === 'image' && item.blobUrl) {
+            URL.revokeObjectURL(item.blobUrl)
+          }
+        }
         setPendingAiItems([])
       }
 
       return result
     },
-    [autoSend, pendingAiItems, sendImageToAI, sendTextToAI]
+    [executeDraftSend]
+  )
+
+  const onScreenshotCapture = useCallback(
+    async (dataUrl: string) => {
+      queueImageForAi(dataUrl, screenshotMetaRef.current ?? undefined)
+      screenshotMetaRef.current = null
+    },
+    [queueImageForAi]
   )
 
   const {
@@ -191,20 +212,17 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
     startScreenshot: beginScreenshot,
     closeScreenshot: closeRawScreenshot,
     handleCapture: captureScreenshot
-  } = useScreenshot(async (dataUrl) => {
-    queueImageForAi(dataUrl, pendingScreenshotMeta ?? undefined)
-    setPendingScreenshotMeta(null)
-  })
+  } = useScreenshot(onScreenshotCapture)
+
   const startScreenshot = useCallback(
-    (mode?: 'full' | 'crop', imageMeta?: QueuedImageMeta) => {
-      void mode
-      setPendingScreenshotMeta(imageMeta ?? null)
+    (imageMeta?: QueuedImageMeta) => {
+      screenshotMetaRef.current = imageMeta ?? null
       beginScreenshot()
     },
     [beginScreenshot]
   )
   const closeScreenshot = useCallback(() => {
-    setPendingScreenshotMeta(null)
+    screenshotMetaRef.current = null
     closeRawScreenshot()
   }, [closeRawScreenshot])
   const handleCapture = useCallback(
@@ -212,7 +230,7 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
       try {
         await captureScreenshot(dataUrl)
       } finally {
-        setPendingScreenshotMeta(null)
+        screenshotMetaRef.current = null
       }
     },
     [captureScreenshot]
@@ -223,7 +241,7 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
     setPickerStartNonce((current) => current + 1)
   }, [])
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!pendingPickerStartRef.current || !webviewInstance) {
       return
     }
@@ -250,9 +268,7 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
             await startPicker()
             return
           }
-        } catch {
-          // Wait for the next retry while the webview is still initializing.
-        }
+        } catch {}
 
         await new Promise((resolve) => setTimeout(resolve, 250))
       }
@@ -265,59 +281,83 @@ export function AppToolProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pickerStartNonce, startPicker, webviewInstance])
 
-  const { mutateAsync: openGeminiWebLogin, isPending: isGeminiWebLoginInProgress } =
+  const { mutateAsync: startGeminiWebLogin, isPending: isGeminiWebLoginInProgress } =
     useGeminiWebOpenLogin()
 
-  const startGeminiWebLogin = useCallback(() => openGeminiWebLogin(), [openGeminiWebLogin])
-
-  const value = useMemo(
+  const stateValue = useMemo<AppToolStateType>(
     () => ({
+      pendingAiItems,
       isScreenshotMode,
+      autoSend,
+      isPickerActive,
+      isGeminiWebLoginInProgress
+    }),
+    [pendingAiItems, isScreenshotMode, autoSend, isPickerActive, isGeminiWebLoginInProgress]
+  )
+
+  const actionsValue = useMemo<AppToolActionsType>(
+    () => ({
       startScreenshot,
       closeScreenshot,
       handleCapture,
-      pendingAiItems,
       queueTextForAi,
       queueImageForAi,
       removePendingAiItem,
       clearPendingAiItems,
       sendPendingAiItems,
-      autoSend,
       setAutoSend,
-      isPickerActive,
       startPicker,
       startPickerWhenReady,
       togglePicker,
-      isGeminiWebLoginInProgress,
       startGeminiWebLogin
     }),
     [
-      autoSend,
       clearPendingAiItems,
       closeScreenshot,
       handleCapture,
-      isGeminiWebLoginInProgress,
-      isPickerActive,
-      isScreenshotMode,
-      pendingAiItems,
       queueImageForAi,
       queueTextForAi,
       removePendingAiItem,
       sendPendingAiItems,
+      setAutoSend,
       startGeminiWebLogin,
       startPicker,
       startPickerWhenReady,
       startScreenshot,
-      setAutoSend,
       togglePicker
     ]
   )
 
-  return <AppToolContext.Provider value={value}>{children}</AppToolContext.Provider>
+  return (
+    <AppToolStateContext.Provider value={stateValue}>
+      <AppToolActionsContext.Provider value={actionsValue}>
+        {children}
+      </AppToolActionsContext.Provider>
+    </AppToolStateContext.Provider>
+  )
+}
+
+export const useAppToolState = () => {
+  const context = useContext(AppToolStateContext)
+  if (!context) throw new Error('useAppToolState must be used within AppToolProvider')
+  return context
+}
+
+export const useAppToolActions = () => {
+  const context = useContext(AppToolActionsContext)
+  if (!context) throw new Error('useAppToolActions must be used within AppToolProvider')
+  return context
 }
 
 export const useAppTools = () => {
-  const context = useContext(AppToolContext)
-  if (!context) throw new Error('useAppTools must be used within AppToolProvider')
-  return context
+  const state = useAppToolState()
+  const actions = useAppToolActions()
+
+  return useMemo(
+    () => ({
+      ...state,
+      ...actions
+    }),
+    [state, actions]
+  )
 }

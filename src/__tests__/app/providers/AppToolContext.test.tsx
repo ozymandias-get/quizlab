@@ -1,4 +1,4 @@
-import React from 'react'
+import type { ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppToolProvider, useAppTools } from '@app/providers/AppToolContext'
@@ -10,14 +10,21 @@ const mockWebviewState = {
   instance: null as any
 }
 
+const mockAiState = {
+  autoSend: false
+}
+
 vi.mock('@app/providers/AiContext', () => ({
   useAiActions: () => ({
     sendTextToAI: mockSendTextToAI,
-    sendImageToAI: mockSendImageToAI
+    sendImageToAI: mockSendImageToAI,
+    setAutoSend: vi.fn()
   }),
   useAiState: () => ({
-    webviewInstance: mockWebviewState.instance,
-    autoSend: false
+    autoSend: mockAiState.autoSend
+  }),
+  useAiWebview: () => ({
+    webviewInstance: mockWebviewState.instance
   })
 }))
 
@@ -46,7 +53,7 @@ vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
 }))
 
 describe('AppToolContext', () => {
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
+  const wrapper = ({ children }: { children: ReactNode }) => (
     <AppToolProvider>{children}</AppToolProvider>
   )
   const mockRemoveAllRanges = vi.fn()
@@ -54,6 +61,7 @@ describe('AppToolContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
+    mockAiState.autoSend = false
     mockWebviewState.instance = null
     mockStartPicker.mockResolvedValue(undefined)
     Object.defineProperty(window, 'getSelection', {
@@ -91,7 +99,62 @@ describe('AppToolContext', () => {
     )
   })
 
-  it('sends multiple images sequentially and adds prompt text on the last image', async () => {
+  it('queues text to draft when autoSend is on (composer must show before send)', async () => {
+    vi.useRealTimers()
+    mockAiState.autoSend = true
+    mockSendTextToAI.mockResolvedValue({ success: true })
+    const { result } = renderHook(() => useAppTools(), { wrapper })
+
+    await act(async () => {
+      result.current.queueTextForAi('draft line')
+      await Promise.resolve()
+    })
+
+    expect(mockSendTextToAI).not.toHaveBeenCalled()
+    expect(result.current.pendingAiItems).toHaveLength(1)
+    expect(result.current.pendingAiItems[0]).toEqual(
+      expect.objectContaining({ type: 'text', text: 'draft line' })
+    )
+    vi.useFakeTimers()
+  })
+
+  it('queues image to draft even when autoSend is on', () => {
+    mockAiState.autoSend = true
+    const { result } = renderHook(() => useAppTools(), { wrapper })
+
+    act(() => {
+      result.current.queueImageForAi('data:image/png;base64,xx', {
+        page: 5,
+        captureKind: 'full-page'
+      })
+    })
+
+    expect(mockSendImageToAI).not.toHaveBeenCalled()
+    expect(result.current.pendingAiItems).toHaveLength(1)
+    expect(result.current.pendingAiItems[0]).toEqual(
+      expect.objectContaining({ type: 'image', page: 5, captureKind: 'full-page' })
+    )
+  })
+
+  it('queues consecutive full-page captures even when data URLs match (e.g. PDF canvas reuse)', () => {
+    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const samePixels = 'data:image/png;base64,identical'
+
+    act(() => {
+      result.current.queueImageForAi(samePixels, { page: 12, captureKind: 'full-page' })
+      result.current.queueImageForAi(samePixels, { page: 13, captureKind: 'full-page' })
+    })
+
+    expect(result.current.pendingAiItems).toHaveLength(2)
+    expect(result.current.pendingAiItems[0]).toEqual(
+      expect.objectContaining({ page: 12, captureKind: 'full-page' })
+    )
+    expect(result.current.pendingAiItems[1]).toEqual(
+      expect.objectContaining({ page: 13, captureKind: 'full-page' })
+    )
+  })
+
+  it('sends multiple images in order with note on the first image and autoSend on each', async () => {
     mockSendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
     const { result } = renderHook(() => useAppTools(), { wrapper })
 
@@ -107,13 +170,37 @@ describe('AppToolContext', () => {
     })
 
     expect(mockSendImageToAI).toHaveBeenNthCalledWith(1, 'data:image/png;base64,one', {
-      autoSend: false,
-      promptText: undefined
-    })
-    expect(mockSendImageToAI).toHaveBeenNthCalledWith(2, 'data:image/png;base64,two', {
       autoSend: true,
       promptText: 'Summarize these\n\nFirst excerpt\n\n---\n\nSecond excerpt'
     })
+    expect(mockSendImageToAI).toHaveBeenNthCalledWith(2, 'data:image/png;base64,two', {
+      autoSend: true,
+      promptText: undefined
+    })
+    expect(mockSendTextToAI).not.toHaveBeenCalled()
+  })
+
+  it('sends text then image then trailing text with ordered segments', async () => {
+    mockSendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
+    mockSendTextToAI.mockResolvedValue({ success: true, mode: 'mixed' })
+    const { result } = renderHook(() => useAppTools(), { wrapper })
+
+    act(() => {
+      result.current.queueTextForAi('Before shot')
+      result.current.queueImageForAi('data:image/png;base64,one')
+      result.current.queueTextForAi('After shot')
+    })
+
+    await act(async () => {
+      await result.current.sendPendingAiItems({ promptText: 'Task', autoSend: false })
+    })
+
+    expect(mockSendImageToAI).toHaveBeenCalledTimes(1)
+    expect(mockSendImageToAI).toHaveBeenCalledWith('data:image/png;base64,one', {
+      autoSend: false,
+      promptText: 'Task\n\nBefore shot'
+    })
+    expect(mockSendTextToAI).toHaveBeenCalledWith('After shot', { autoSend: false })
   })
 
   it('sends text-only drafts as a single message', async () => {

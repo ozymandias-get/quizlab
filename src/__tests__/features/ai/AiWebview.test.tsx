@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import AiWebview from '@features/ai/ui/AiWebview'
 
 interface MockAiState {
@@ -13,7 +13,6 @@ interface MockAiState {
   stopTutorial: any
 }
 
-// Setup a mock store to control returned values
 let mockAiState: MockAiState = {
   tabs: [
     { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
@@ -28,7 +27,6 @@ let mockAiState: MockAiState = {
   stopTutorial: vi.fn()
 }
 
-// Mock Ai context hooks to return the mutable state
 vi.mock('@app/providers/AiContext', () => ({
   useAi: () => mockAiState,
   useAiState: () => ({
@@ -45,7 +43,6 @@ vi.mock('@app/providers/AiContext', () => ({
   })
 }))
 
-// Mock Subcomponents
 vi.mock('@features/ai/ui/AiSession', () => ({
   default: ({
     tab,
@@ -70,7 +67,6 @@ vi.mock('@features/tutorial/ui/MagicSelectorTutorial', () => ({
 
 describe('AiWebview Component', () => {
   beforeEach(() => {
-    // Reset state before each test
     mockAiState = {
       tabs: [
         { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
@@ -87,37 +83,33 @@ describe('AiWebview Component', () => {
   })
 
   it('hibernates completely inactive/unpinned tabs to save RAM', () => {
-    // Mock a pinned tab, an active tab, and an inactive unpinned tab
     mockAiState.activeTabId = '1'
     mockAiState.tabs = [
-      { id: '1', modelId: 'gpt-4', title: 'GPT-4' }, // active
-      { id: '2', modelId: 'claude-3', title: 'Claude 3', pinned: true }, // pinned, inactive
-      { id: '3', modelId: 'deepseek', title: 'DeepSeek' } // unpinned, inactive
+      { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
+      { id: '2', modelId: 'claude-3', title: 'Claude 3', pinned: true },
+      { id: '3', modelId: 'deepseek', title: 'DeepSeek' }
     ]
 
     render(<AiWebview isResizing={false} isBarHovered={false} />)
     expect(screen.getByTestId('ai-tab-strip')).toBeInTheDocument()
 
-    // Active tab must render
     expect(screen.getByText('GPT-4 - Active')).toBeInTheDocument()
 
-    // Pinned tab must render
     expect(screen.getByText('Claude 3 - Inactive')).toBeInTheDocument()
 
-    // Untouched, unpinned inactive tab must be hibernated (unmounted)
     expect(screen.queryByText('DeepSeek - Inactive')).not.toBeInTheDocument()
   })
 
-  it('renders tutorial overlay when active', () => {
+  it('renders tutorial overlay when active', async () => {
     mockAiState.isTutorialActive = true
     render(<AiWebview isResizing={false} isBarHovered={false} />)
-    expect(screen.getByTestId('tutorial-overlay')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('tutorial-overlay')).toBeInTheDocument()
+    })
   })
 
   it('applies pointer-events-none when resizing', () => {
     const { container } = render(<AiWebview isResizing={true} isBarHovered={false} />)
-    // The outer div should have pointer-events: none
-    // It's the first child of the fragment/container usually
     const outerDiv = container.firstChild as HTMLElement
     expect(outerDiv).toHaveStyle({ pointerEvents: 'none' })
   })
@@ -125,7 +117,6 @@ describe('AiWebview Component', () => {
   it('applies clip-path style', () => {
     const { container } = render(<AiWebview isResizing={false} isBarHovered={false} />)
     const outerDiv = container.firstChild as HTMLElement
-    // Check for the clip-path style which is important for rounded corners on webviews
     expect(outerDiv.style.clipPath).toContain('inset(0 round 1.5rem)')
   })
 })

@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import SettingsModal from '@features/settings/ui/SettingsModal'
 
-// Mock dependencies
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({ t: (key: string) => key })
 }))
@@ -17,7 +16,6 @@ vi.mock('@features/settings/hooks/useSettings', () => ({
   })
 }))
 
-// Mock Subcomponents (Lazy Loaded)
 vi.mock('@features/settings/ui/LanguageTab', () => ({
   default: () => <div>Language Tab Content</div>
 }))
@@ -47,7 +45,6 @@ describe('SettingsModal Component', () => {
   it('switches tabs', async () => {
     render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
 
-    // Click "language" tab and verify tab state transitions.
     const languageTab = screen.getByText('language').closest('[role="tab"]') as HTMLElement
     await act(async () => {
       languageTab.focus()
@@ -65,18 +62,6 @@ describe('SettingsModal Component', () => {
     const onClose = vi.fn()
     render(<SettingsModal isOpen={true} onClose={onClose} />)
 
-    // Find close button by icon usually, but here we can try finding by role or just generic button click if we can identify it.
-    // The close button has CloseIcon inside. We can query by role button.
-    // However, there might be multiple buttons.
-    // Let's rely on finding the button that contains the CloseIcon or has no text.
-    // Or just look for the close button implementation in the code:
-    // <button onClick={onClose} ... > <CloseIcon ... /> </button>
-    // It's in the header.
-
-    // Simplest way with testing library might be to add aria-label to the button in the component, but we can't change component now easily without context.
-    // Let's assume it's one of the buttons.
-    // The close button has a CloseIcon inside without accessible text,
-    // so we test via Escape key which the component also handles.
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalled()
   })

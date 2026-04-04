@@ -1,9 +1,8 @@
-import React from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Monitor, DownloadCloud } from 'lucide-react'
 import { useLanguage } from '@app/providers/LanguageContext'
 
-const BrowserFallback: React.FC = () => {
+function BrowserFallback() {
   const { t } = useLanguage()
 
   return (

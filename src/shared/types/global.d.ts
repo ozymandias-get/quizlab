@@ -1,3 +1,4 @@
+import type { DetailedHTMLProps, HTMLAttributes } from 'react'
 import type { WebviewElement } from '@shared-core/types/webview'
 import type {
   SubmitMode,
@@ -18,7 +19,6 @@ import type {
 } from '@shared-core/types'
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
-// Re-export types for usage in other files
 export type {
   SubmitMode,
   AiSelectorConfig,
@@ -117,8 +117,8 @@ declare global {
   // Electron Webview element type declaration for JSX
   namespace JSX {
     interface IntrinsicElements {
-      webview: React.DetailedHTMLProps<
-        React.HTMLAttributes<WebviewElement> & {
+      webview: DetailedHTMLProps<
+        HTMLAttributes<WebviewElement> & {
           src?: string
           partition?: string
           allowpopups?: boolean | string

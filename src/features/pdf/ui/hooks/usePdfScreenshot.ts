@@ -11,10 +11,7 @@ interface UsePdfScreenshotOptions {
     dataUrl: string,
     imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>
   ) => void
-  startScreenshot: (
-    mode?: 'full' | 'crop',
-    imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>
-  ) => void
+  startScreenshot: (imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>) => void
 }
 
 export function usePdfScreenshot({
@@ -22,88 +19,74 @@ export function usePdfScreenshot({
   queueImageForAi,
   startScreenshot
 }: UsePdfScreenshotOptions) {
-  const canvasToDataURLAsync = (canvas: HTMLCanvasElement): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return reject(new Error('Canvas boş veya oluşturulamadı'))
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(String(reader.result))
-          reader.onerror = reject
-          reader.readAsDataURL(blob)
-        },
-        'image/png',
-        1.0
+  const findPageCanvas = useCallback((): HTMLCanvasElement | null => {
+    const pageNumberCandidates = [currentPage, currentPage - 1]
+
+    for (const pageNumber of pageNumberCandidates) {
+      const layer = document.querySelector(
+        `.rpv-core__page-layer[data-page-number="${pageNumber}"]`
       )
-    })
-  }
+      if (!layer) continue
+
+      const canvas = layer.querySelector('canvas') as HTMLCanvasElement | null
+      if (canvas && canvas.width > 0 && canvas.height > 0) return canvas
+    }
+
+    const allCanvases = Array.from(
+      document.querySelectorAll<HTMLCanvasElement>('.rpv-core__page-layer canvas')
+    )
+
+    let bestCandidate: HTMLCanvasElement | null = null
+    let nearestPageDistance = Number.POSITIVE_INFINITY
+    let maxVisibleArea = -1
+
+    for (const canvas of allCanvases) {
+      if (canvas.width === 0 || canvas.height === 0) continue
+
+      const rect = canvas.getBoundingClientRect()
+      const vTop = Math.max(0, rect.top)
+      const vBottom = Math.min(window.innerHeight, rect.bottom)
+      const vLeft = Math.max(0, rect.left)
+      const vRight = Math.min(window.innerWidth, rect.right)
+
+      if (vBottom <= vTop || vRight <= vLeft) continue
+
+      const visibleArea = (vBottom - vTop) * (vRight - vLeft)
+      const layer = canvas.closest('.rpv-core__page-layer') as HTMLElement | null
+      const layerPage = Number(layer?.dataset?.pageNumber ?? Number.NaN)
+      const dist = Number.isFinite(layerPage)
+        ? Math.abs(layerPage - currentPage)
+        : Number.POSITIVE_INFINITY
+
+      if (
+        dist < nearestPageDistance ||
+        (dist === nearestPageDistance && visibleArea > maxVisibleArea)
+      ) {
+        nearestPageDistance = dist
+        maxVisibleArea = visibleArea
+        bestCandidate = canvas
+      }
+    }
+
+    if (bestCandidate) return bestCandidate
+
+    const fallback = document.querySelector(
+      '.pdf-viewer-container canvas'
+    ) as HTMLCanvasElement | null
+    return fallback && fallback.width > 0 ? fallback : null
+  }, [currentPage])
 
   const handleFullPageScreenshot = useCallback(async () => {
     try {
-      let targetCanvas: HTMLCanvasElement | null = null
-      const pageIndex = currentPage - 1
-      const maxAttempts = 10
+      let targetCanvas = findPageCanvas()
 
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          const specificLayer = document.querySelector(
-            `.rpv-core__page-layer[data-page-number="${pageIndex}"]`
-          )
-          if (specificLayer) {
-            const canvas = specificLayer.querySelector('canvas') as HTMLCanvasElement | null
-            if (canvas && canvas.width > 0 && canvas.height > 0) {
-              targetCanvas = canvas
-              break
-            }
-          }
-
-          if (attempt > 2) {
-            const allCanvases = Array.from(
-              document.querySelectorAll<HTMLCanvasElement>('.rpv-core__page-layer canvas')
-            )
-
-            if (allCanvases.length === 0 && attempt > 5) {
-              const anyCanvas = document.querySelector(
-                '.pdf-viewer-container canvas'
-              ) as HTMLCanvasElement | null
-              if (anyCanvas && anyCanvas.width > 0) {
-                targetCanvas = anyCanvas
-                break
-              }
-            }
-
-            let maxVisibleArea = -1
-            let bestCandidate: HTMLCanvasElement | null = null
-
-            for (const canvas of allCanvases) {
-              if (canvas.width === 0 || canvas.height === 0) continue
-
-              const rect = canvas.getBoundingClientRect()
-              const intersectionTop = Math.max(0, rect.top)
-              const intersectionBottom = Math.min(window.innerHeight, rect.bottom)
-              const intersectionLeft = Math.max(0, rect.left)
-              const intersectionRight = Math.min(window.innerWidth, rect.right)
-
-              if (intersectionBottom > intersectionTop && intersectionRight > intersectionLeft) {
-                const visibleArea =
-                  (intersectionBottom - intersectionTop) * (intersectionRight - intersectionLeft)
-                if (visibleArea > maxVisibleArea) {
-                  maxVisibleArea = visibleArea
-                  bestCandidate = canvas
-                }
-              }
-            }
-
-            if (bestCandidate) {
-              targetCanvas = bestCandidate
-              break
-            }
-          }
-        } catch (innerErr) {
-          Logger.warn('[PdfScreenshot] Attempt failed:', innerErr)
+      if (!targetCanvas) {
+        const MAX_RETRIES = 6
+        for (let i = 0; i < MAX_RETRIES; i++) {
+          await new Promise((r) => setTimeout(r, 40))
+          targetCanvas = findPageCanvas()
+          if (targetCanvas) break
         }
-
-        await new Promise((resolve) => setTimeout(resolve, 50))
       }
 
       if (!targetCanvas) {
@@ -111,7 +94,7 @@ export function usePdfScreenshot({
         return
       }
 
-      const dataUrl = await canvasToDataURLAsync(targetCanvas)
+      const dataUrl = targetCanvas.toDataURL('image/png')
       queueImageForAi(dataUrl, {
         page: currentPage,
         captureKind: 'full-page'
@@ -119,14 +102,14 @@ export function usePdfScreenshot({
     } catch (error) {
       Logger.error('[PdfScreenshot] Full page capture error:', error)
     }
-  }, [currentPage, queueImageForAi])
+  }, [currentPage, findPageCanvas, queueImageForAi])
 
   useEffect(() => {
     if (!window.electronAPI?.onTriggerScreenshot) return
 
     const removeListener = window.electronAPI.onTriggerScreenshot((type) => {
       if (type === SCREENSHOT_TYPES.CROP) {
-        startScreenshot('crop', {
+        startScreenshot({
           page: currentPage,
           captureKind: 'selection'
         })

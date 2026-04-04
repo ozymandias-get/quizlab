@@ -1,28 +1,25 @@
-import React from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { useLanguage } from '@app/providers/LanguageContext'
 import { Logger } from '@shared/lib/logger'
 
-/**
- * Global Hata Yakalayıcı (Error Boundary)
- * Uygulamanın veya belirli bir bölümün çökmesini engeller ve şık bir hata ekranı gösterir.
- */
+/** Catches subtree render errors and shows a recovery UI. */
 interface ErrorBoundaryProps {
-  children: React.ReactNode
-  fallback?: (error: Error, retry: () => void) => React.ReactNode
+  children: ReactNode
+  fallback?: (error: Error, retry: () => void) => ReactNode
   title?: string
   onReset?: () => void
-  onError?: (error: Error, errorInfo: React.ErrorInfo) => void
+  onError?: (error: Error, errorInfo: ErrorInfo) => void
 }
 
 interface ErrorBoundaryState {
   hasError: boolean
   error: Error | null
-  errorInfo: React.ErrorInfo | null
+  errorInfo: ErrorInfo | null
 }
 
 const translate = (key: string) => useLanguage.getState().t(key)
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false, error: null, errorInfo: null }
@@ -32,7 +29,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     Logger.error('[ErrorBoundary] Caught error:', error, errorInfo)
     this.setState({ errorInfo })
     if (this.props.onError) {

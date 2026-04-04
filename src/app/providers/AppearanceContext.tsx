@@ -1,8 +1,5 @@
-﻿import React, { useEffect } from 'react'
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-
-import { hexToRgba } from '@shared/lib/uiUtils'
 
 interface AppearanceState {
   showOnlyIcons: boolean
@@ -59,7 +56,7 @@ export const useAppearance = create<AppearanceState>()(
       startTour: () => set({ isTourActive: true })
     }),
     {
-      name: 'appearance-storage', // unique name
+      name: 'appearance-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         showOnlyIcons: state.showOnlyIcons,
@@ -71,52 +68,7 @@ export const useAppearance = create<AppearanceState>()(
         bgRandomMode: state.bgRandomMode,
         selectionColor: state.selectionColor,
         isLayoutSwapped: state.isLayoutSwapped
-        // isTourActive is specifically excluded because we manage it locally per session
       })
     }
   )
 )
-
-export function AppearanceProvider({ children }: { children: React.ReactNode }) {
-  const selectionColor = useAppearance((state) => state.selectionColor)
-  const setIsTourActive = useAppearance((state) => state.setIsTourActive)
-
-  useEffect(() => {
-    try {
-      const hasSeenTour = localStorage.getItem('has_seen_tour_v1')
-      if (!hasSeenTour) {
-        const timer = setTimeout(() => setIsTourActive(true), 1500)
-        localStorage.setItem('has_seen_tour_v1', 'true')
-        return () => clearTimeout(timer)
-      }
-    } catch (error) {
-      console.warn('LocalStorage onboarding check failed:', error)
-    }
-  }, [setIsTourActive])
-
-  useEffect(() => {
-    const rgba = hexToRgba(selectionColor, 0.8)
-    document.documentElement.style.setProperty('--selection-color', rgba)
-    document.documentElement.style.setProperty(
-      '--selection-color-soft',
-      hexToRgba(selectionColor, 0.22)
-    )
-    document.documentElement.style.setProperty(
-      '--selection-color-strong',
-      hexToRgba(selectionColor, 0.7)
-    )
-    document.documentElement.style.setProperty(
-      '--selection-color-vivid',
-      hexToRgba(selectionColor, 0.84)
-    )
-    document.documentElement.style.setProperty(
-      '--selection-color-glow',
-      hexToRgba(selectionColor, 0.48)
-    )
-    document.documentElement.style.setProperty('--selection-color-edge', hexToRgba('#ffffff', 0.2))
-    document.documentElement.style.setProperty('--selection-color-ink', 'rgba(24, 24, 27, 0.96)')
-    document.documentElement.style.setProperty('--accent-color', selectionColor)
-  }, [selectionColor])
-
-  return <>{children}</>
-}

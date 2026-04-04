@@ -1,4 +1,4 @@
-﻿import React, { useCallback } from 'react'
+﻿import { useCallback, memo } from 'react'
 import { useLanguage, useAppearance, type UpdateInfo } from '@app/providers'
 import { useClearCache } from '@platform/electron/api/useSystemApi'
 
@@ -17,7 +17,7 @@ interface AboutTabProps {
   onClose: () => void
 }
 
-const AboutTab = React.memo(
+const AboutTab = memo(
   ({
     appVersion,
     updateStatus,

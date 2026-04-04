@@ -1,16 +1,8 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
+﻿import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 import { Logger } from '@shared/lib/logger'
 
-/**
- * SSR/Test ortamı kontrolü
- * window objesi olmayan ortamlarda (Jest, Vitest, SSR) hata vermemek için
- */
 const isClient = typeof window !== 'undefined'
 
-/**
- * localStorage'a güvenli erişim sağlar
- * window undefined ise null döner
- */
 const getStorageItem = (key: string): string | null => {
   if (!isClient) return null
   try {
@@ -21,15 +13,10 @@ const getStorageItem = (key: string): string | null => {
   }
 }
 
-/**
- * localStorage'a güvenli yazma sağlar
- * window undefined ise sessizce başarısız olur
- */
 const setStorageItem = (key: string, value: string): boolean => {
   if (!isClient) return false
   try {
     localStorage.setItem(key, value)
-    // Dispatch custom event for same-window sync
     window.dispatchEvent(new CustomEvent('local-storage', { detail: { key, value } }))
     return true
   } catch (error) {
@@ -38,7 +25,7 @@ const setStorageItem = (key: string, value: string): boolean => {
   }
 }
 
-type SetValue<T> = React.Dispatch<React.SetStateAction<T>>
+type SetValue<T> = Dispatch<SetStateAction<T>>
 
 interface LocalStorageChangeDetail {
   key: string
@@ -53,16 +40,8 @@ const safeStringify = <T>(value: T): string | null => {
   }
 }
 
-/**
- * localStorage ile state senkronizasyonu sağlayan hook
- * SSR ve test ortamlarında güvenli çalışır
- *
- * FIX: Stale closure sorunu çözüldü - useRef ile güncel değere erişim
- */
 export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>] {
-  // Başlangıç değerini localStorage'dan al veya varsayılan kullan
   const [storedValue, setStoredValue] = useState<T>(() => {
-    // SSR/Test ortamında localStorage erişilemez
     if (!isClient) return initialValue
 
     try {
@@ -71,12 +50,10 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
 
       const parsed = JSON.parse(item)
 
-      // Type safety check: If initialValue is provided, ensure parsed value matches type
       if (initialValue !== null && initialValue !== undefined) {
         const initialType = typeof initialValue
         const parsedType = typeof parsed
 
-        // Special handling for Arrays (which are type 'object')
         if (Array.isArray(initialValue)) {
           if (!Array.isArray(parsed)) {
             Logger.warn(
@@ -99,7 +76,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
     }
   })
 
-  // Güncel değeri ref'te tut - stale closure sorununu çözer
   const storedValueRef = useRef(storedValue)
   const serializedValueRef = useRef<string | null>(safeStringify(storedValue))
   useEffect(() => {
@@ -107,13 +83,10 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
     serializedValueRef.current = safeStringify(storedValue)
   }, [storedValue])
 
-  // Cross-window senkronizasyon için storage event'i dinle
   useEffect(() => {
-    // SSR/Test ortamında event listener ekleme
     if (!isClient) return
 
     const handleStorageChange = (e: StorageEvent) => {
-      // Sadece ilgili key değiştiğinde ve başka pencereden geldiyse
       if (e.key === key && e.newValue !== null) {
         if (e.newValue === serializedValueRef.current) return
         try {
@@ -122,12 +95,10 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
           Logger.warn(`useLocalStorage: "${key}" için cross-window sync başarısız:`, error)
         }
       } else if (e.key === key && e.newValue === null) {
-        // Key silindiyse initialValue'ya dön
         setStoredValue(initialValue)
       }
     }
 
-    // Custom event for same-window sync
     const handleLocalChange = (e: Event) => {
       const customEvent = e as CustomEvent<LocalStorageChangeDetail>
       if (customEvent.detail.key === key) {
@@ -148,12 +119,9 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
     }
   }, [key, initialValue])
 
-  // Değer değiştiğinde localStorage'a kaydet
-  // FIX: Fonksiyon olarak geçirildiğinde React'in setState gibi çalışır
   const setValue: SetValue<T> = useCallback(
     (value) => {
       try {
-        // Fonksiyon olarak gelen değeri destekle - EN GÜNCEL değeri kullan
         if (value instanceof Function) {
           setStoredValue((prevValue) => {
             const newValue = value(prevValue)
@@ -165,7 +133,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
             return newValue
           })
         } else {
-          // Doğrudan değer geçilmişse
           const serializedValue = safeStringify(value)
           if (serializedValue !== null && serializedValue === serializedValueRef.current) {
             return
@@ -183,23 +150,17 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
   return [storedValue, setValue]
 }
 
-/**
- * String değerler için localStorage hook'u (JSON parse etmeden)
- * SSR ve test ortamlarında güvenli çalışır
- */
 export function useLocalStorageString(
   key: string,
   initialValue: string,
   validValues: string[] | null = null
 ): [string, SetValue<string>] {
   const [storedValue, setStoredValue] = useState<string>(() => {
-    // SSR/Test ortamında localStorage erişilemez
     if (!isClient) return initialValue
 
     try {
       const item = getStorageItem(key)
       if (item !== null) {
-        // Geçerli değerler varsa kontrol et
         if (validValues && !validValues.includes(item)) {
           return initialValue
         }
@@ -217,15 +178,12 @@ export function useLocalStorageString(
     storedValueRef.current = storedValue
   }, [storedValue])
 
-  // Cross-window senkronizasyon
   useEffect(() => {
-    // SSR/Test ortamında event listener ekleme
     if (!isClient) return
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === key && e.newValue !== null) {
         if (e.newValue === storedValueRef.current) return
-        // Geçerli değerler varsa kontrol et
         if (validValues && validValues.length > 0 && !validValues.includes(e.newValue)) {
           return
         }
@@ -235,13 +193,11 @@ export function useLocalStorageString(
       }
     }
 
-    // Custom event for same-window sync
     const handleLocalChange = (e: Event) => {
       const customEvent = e as CustomEvent<LocalStorageChangeDetail>
       if (customEvent.detail.key === key) {
         const newValue = customEvent.detail.value
         if (newValue === storedValueRef.current) return
-        // Geçerli değerler varsa kontrol et
         if (validValues && validValues.length > 0 && !validValues.includes(newValue)) {
           return
         }
@@ -257,10 +213,8 @@ export function useLocalStorageString(
     }
   }, [key, initialValue, validValues])
 
-  // Mevcut değeri validValues ile senkronize et (dinamik validValues için)
   useEffect(() => {
     if (validValues && validValues.length > 0 && !validValues.includes(storedValue)) {
-      // Eğer localStorage'da geçerli bir değer varsa onu al, yoksa initialValue
       const item = getStorageItem(key)
       if (item && validValues.includes(item)) {
         setStoredValue(item)
@@ -277,19 +231,17 @@ export function useLocalStorageString(
           setStoredValue((prevValue) => {
             const newValue = value(prevValue)
             if (newValue === prevValue) return prevValue
-            // Geçerli değerler varsa kontrol et
             if (validValues && !validValues.includes(newValue)) {
               Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, newValue)
-              return prevValue // Geçersiz değeri kaydetme
+              return prevValue
             }
             setStorageItem(key, newValue)
             return newValue
           })
         } else {
-          // Geçerli değerler varsa kontrol et
           if (validValues && !validValues.includes(value)) {
             Logger.warn(`useLocalStorageString: "${key}" için geçersiz değer:`, value)
-            return // Geçersiz değeri kaydetme
+            return
           }
           if (value === storedValueRef.current) return
           setStoredValue(value)
@@ -305,21 +257,15 @@ export function useLocalStorageString(
   return [storedValue, setValue]
 }
 
-/**
- * Boolean değerler için localStorage hook'u
- * SSR ve test ortamlarında güvenli çalışır
- */
 export function useLocalStorageBoolean(
   key: string,
   initialValue: boolean = false
 ): [boolean, SetValue<boolean>, () => void] {
   const [storedValue, setStoredValue] = useState<boolean>(() => {
-    // SSR/Test ortamında localStorage erişilemez
     if (!isClient) return initialValue
 
     try {
       const item = getStorageItem(key)
-      // null ise (key yok) initialValue kullan
       if (item === null) return initialValue
       return item === 'true'
     } catch (error) {
@@ -333,9 +279,7 @@ export function useLocalStorageBoolean(
     storedValueRef.current = storedValue
   }, [storedValue])
 
-  // Cross-window senkronizasyon
   useEffect(() => {
-    // SSR/Test ortamında event listener ekleme
     if (!isClient) return
 
     const handleStorageChange = (e: StorageEvent) => {
@@ -348,7 +292,6 @@ export function useLocalStorageBoolean(
       }
     }
 
-    // Custom event for same-window sync
     const handleLocalChange = (e: Event) => {
       const customEvent = e as CustomEvent<LocalStorageChangeDetail>
       if (customEvent.detail.key === key) {

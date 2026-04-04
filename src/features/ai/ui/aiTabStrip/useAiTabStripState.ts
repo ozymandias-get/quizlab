@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent
+} from 'react'
 import type { AiPlatform } from '@shared-core/types'
 import type { Tab } from '@app/providers/AiContext'
 import { clamp, getVisibleTabIds, isValidColor } from './utils'

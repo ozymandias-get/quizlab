@@ -1,6 +1,11 @@
 import { memo } from 'react'
 import { useLanguage } from '@app/providers'
-import { useAiActions, useAiState } from '@app/providers/AiContext'
+import { useAiActions, useAiState, useAiWebview } from '@app/providers/AiContext'
+import {
+  TAB_STRIP_BAR_CLASS,
+  TAB_STRIP_DIVIDER_CLASS,
+  TAB_STRIP_ROW_CLASS
+} from '@shared/ui/tabStripChrome'
 import AiOverflowMenu from './aiTabStrip/AiOverflowMenu'
 import AiTabContextMenu from './aiTabStrip/AiTabContextMenu'
 import AiTabStripHomeButton from './aiTabStrip/AiTabStripHomeButton'
@@ -15,7 +20,8 @@ interface AiTabStripProps {
 }
 
 function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
-  const { tabs, activeTabId, aiSites, webviewInstance } = useAiState()
+  const { tabs, activeTabId, aiSites } = useAiState()
+  const { webviewInstance } = useAiWebview()
   const { setActiveTab, closeTab, renameTab, togglePinTab, reloadActiveWebview } = useAiActions()
   const { t } = useLanguage()
   const { refs, state, helpers, actions } = useAiTabStripState({
@@ -32,9 +38,13 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
   }
 
   return (
-    <div className="relative h-11 rounded-t-[1.5rem] border-b border-white/[0.08] bg-[#050505]/70 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-      <div className="flex items-center gap-2 h-full px-2.5 overflow-hidden">
-        <AiTabStripHomeButton showHome={showHome} onShowHome={onShowHome} />
+    <div className={TAB_STRIP_BAR_CLASS}>
+      <div className={TAB_STRIP_ROW_CLASS}>
+        <AiTabStripHomeButton
+          showHome={showHome}
+          title={t('ai_home.home')}
+          onShowHome={onShowHome}
+        />
 
         <AiTabStripRefreshButton
           disabled={Boolean(showHome) || tabs.length === 0 || !webviewInstance}
@@ -42,7 +52,7 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
           onRefresh={reloadActiveWebview}
         />
 
-        <div className="w-px h-5 bg-white/[0.1] shrink-0" />
+        <div className={TAB_STRIP_DIVIDER_CLASS} aria-hidden />
 
         {state.visibleTabs.map((tab) => (
           <AiVisibleTabButton

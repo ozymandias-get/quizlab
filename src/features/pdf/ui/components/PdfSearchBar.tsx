@@ -1,4 +1,4 @@
-﻿import { memo, useRef, useEffect } from 'react'
+﻿import { memo, useRef, useEffect, type KeyboardEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, FileText } from 'lucide-react'
 import { useLanguage } from '@app/providers/LanguageContext'
@@ -13,10 +13,6 @@ interface PdfSearchBarProps {
   fileName?: string
 }
 
-/**
- * PDF search bar component
- * Redesigned with Premium Glass Morphism
- */
 function PdfSearchBar({
   isOpen,
   onToggle,
@@ -29,7 +25,6 @@ function PdfSearchBar({
   const { t } = useLanguage()
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Focus input when open
   useEffect(() => {
     if (isOpen) {
       const timeout = setTimeout(() => inputRef.current?.focus(), 100)
@@ -37,7 +32,7 @@ function PdfSearchBar({
     }
   }, [isOpen])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && keyword.trim()) {
       onSearch()
     } else if (e.key === 'Escape') {

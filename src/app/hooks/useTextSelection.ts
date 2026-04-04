@@ -1,8 +1,8 @@
 import { useCallback, useRef } from 'react'
-import { useAppTools } from '@app/providers/AppToolContext'
+import { useAppToolActions } from '@app/providers/AppToolContext'
 
 export function useTextSelection() {
-  const { queueTextForAi } = useAppTools()
+  const { queueTextForAi } = useAppToolActions()
   const lastQueuedSignatureRef = useRef<string | null>(null)
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 

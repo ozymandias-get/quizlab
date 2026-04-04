@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, memo, forwardRef } from 'react'
+﻿import { useState, useEffect, memo, forwardRef, type CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppearance } from '@app/providers'
 
@@ -82,7 +82,7 @@ const RandomBlob = memo(
           left: index === 0 ? '-10%' : index === 1 ? '50%' : '20%',
           top: index === 0 ? '-10%' : index === 1 ? '50%' : '10%',
           willChange: 'transform, border-radius, background-color', // GPU hints
-          backfaceVisibility: 'hidden' as React.CSSProperties['backfaceVisibility'] // Framer motion type workaround
+          backfaceVisibility: 'hidden' as CSSProperties['backfaceVisibility']
         }}
       />
     )
@@ -94,7 +94,7 @@ interface AnimatedBlobsProps {
   isRandomMode: boolean
 }
 
-const AnimatedBlobs: React.FC<AnimatedBlobsProps> = memo(({ colors, isRandomMode }) => (
+const AnimatedBlobs = memo(({ colors, isRandomMode }: AnimatedBlobsProps) => (
   <AnimatePresence mode="popLayout">
     {colors.map((color, index) => (
       <RandomBlob key={index} color={color} index={index} isRandomMode={isRandomMode} />
@@ -102,7 +102,7 @@ const AnimatedBlobs: React.FC<AnimatedBlobsProps> = memo(({ colors, isRandomMode
   </AnimatePresence>
 ))
 
-const AppBackground: React.FC = () => {
+function AppBackground() {
   const { bgType, bgSolidColor, bgAnimatedColors, bgRandomMode } = useAppearance()
 
   const baseStyle = {

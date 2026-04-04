@@ -97,6 +97,10 @@ export function usePdfPlaceholderState({
     addToast({ type: 'info', message: 'recent_list_cleared' })
   }, [addToast, onClearResumePdf])
 
+  const toggleMobileSearch = useCallback(() => {
+    setIsMobileSearchOpen((prev) => !prev)
+  }, [])
+
   return {
     t,
     language,
@@ -110,7 +114,7 @@ export function usePdfPlaceholderState({
     shouldShowAdvancedControls: recentItems.length > 6,
     setSearchQuery,
     setSortMode,
-    toggleMobileSearch: () => setIsMobileSearchOpen((prev) => !prev),
+    toggleMobileSearch,
     handleResume,
     handleRemove,
     handleClearAll

@@ -77,7 +77,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEBUG: 'electron-builder'
 
-
       - name: List release files (Windows)
         if: matrix.platform == 'win'
         shell: pwsh
@@ -113,7 +112,6 @@ jobs:
             release/*.yml
             release/latest-linux.yml
           if-no-files-found: warn
-
 
   release:
     needs: build

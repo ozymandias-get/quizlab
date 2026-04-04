@@ -88,7 +88,7 @@ vi.mock('@app/providers', () => ({
     showSuccess: mockShowSuccess,
     showWarning: mockShowWarning
   }),
-  useAppTools: () => ({
+  useAppToolActions: () => ({
     startPickerWhenReady: mockStartPickerWhenReady
   })
 }))
@@ -97,12 +97,14 @@ vi.mock('@app/providers/AiContext', () => ({
   useAiState: () => ({
     aiSites,
     tabs: [{ id: 'tab-chatgpt', modelId: 'chatgpt' }],
-    currentAI: 'chatgpt',
-    webviewInstance: mockWebview
+    currentAI: 'chatgpt'
   }),
   useAiActions: () => ({
     startTutorial: mockStartTutorial,
     openAiWorkspace: mockOpenAiWorkspace
+  }),
+  useAiWebview: () => ({
+    webviewInstance: mockWebview
   })
 }))
 

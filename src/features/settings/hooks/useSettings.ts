@@ -1,6 +1,7 @@
 ﻿import { useMemo } from 'react'
 import { useUpdate, type UpdateInfo } from '@app/providers'
 import { useAppVersion, useOpenExternal } from '@platform/electron/api/useSystemApi'
+import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
 interface UseSettingsReturn {
   appVersion: string
@@ -10,12 +11,7 @@ interface UseSettingsReturn {
   openReleasesPage: () => Promise<void>
 }
 
-/**
- * Settings modal için state ve işlemleri yöneten custom hook
- * Güncelleme state'leri UpdateContext'ten senkronize edilir
- */
 export function useSettings(): UseSettingsReturn {
-  // UpdateContext'ten güncelleme state'lerini al
   const {
     updateAvailable,
     updateInfo: appUpdateInfo,
@@ -24,11 +20,9 @@ export function useSettings(): UseSettingsReturn {
     checkForUpdates: appCheckForUpdates
   } = useUpdate()
 
-  // Uygulama versiyonu - React Query ile al
   const { data: appVersion = '1.0.0' } = useAppVersion()
   const { mutate: openExternal } = useOpenExternal()
 
-  // Update status - AppContext'ten türetilir
   const updateStatus = useMemo(() => {
     if (isCheckingUpdate) return 'checking'
     if (appUpdateInfo?.error) return 'error'
@@ -39,21 +33,16 @@ export function useSettings(): UseSettingsReturn {
 
   const updateInfo = appUpdateInfo
 
-  // Güncelleme kontrolü - AppContext'teki fonksiyonu kullan
   const checkForUpdates = async () => {
     await appCheckForUpdates()
   }
 
-  // GitHub Releases sayfasını aç
   const openReleasesPage = async () => {
-    openExternal('https://github.com/ozymandias-get/quizlab/releases')
+    openExternal(APP_CONSTANTS.GITHUB_RELEASES_URL)
   }
 
   return {
-    // App info
     appVersion,
-
-    // Update
     updateStatus,
     updateInfo,
     checkForUpdates,

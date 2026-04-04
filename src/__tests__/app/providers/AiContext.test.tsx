@@ -1,10 +1,9 @@
-﻿import { renderHook, act, waitFor } from '@testing-library/react'
+﻿import { useState, type ReactNode } from 'react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { AiProvider, useAi } from '@app/providers/AiContext'
-import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-// Mock dependencies
 const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
 const mockShowError = vi.fn()
@@ -22,15 +21,15 @@ const mockSendImage = vi.fn()
 
 vi.mock('@shared/hooks', () => ({
   useLocalStorage: (_key: string, initial: any) => {
-    const [val, setVal] = React.useState(initial)
+    const [val, setVal] = useState(initial)
     return [val, setVal]
   },
   useLocalStorageString: (_key: string, initial: any) => {
-    const [val, setVal] = React.useState(initial)
+    const [val, setVal] = useState(initial)
     return [val, setVal]
   },
   useLocalStorageBoolean: (_key: string, initial: any) => {
-    const [val, setVal] = React.useState(initial)
+    const [val, setVal] = useState(initial)
     const toggle = () => setVal(!val)
     return [val, setVal, toggle]
   }
@@ -58,7 +57,6 @@ describe('AiContext', () => {
       getAiRegistry: mockGetAiRegistry
     } as any
 
-    // Default registry response
     mockGetAiRegistry.mockResolvedValue({
       aiRegistry: {
         chatgpt: { id: 'chatgpt', name: 'ChatGPT' },
@@ -74,7 +72,6 @@ describe('AiContext', () => {
     window.electronAPI = originalElectronAPI
   })
 
-  // Wrapper includes QueryClientProvider so React Query hooks inside AiProvider work
   const createWrapper = () => {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -82,7 +79,7 @@ describe('AiContext', () => {
         mutations: { retry: false }
       }
     })
-    return ({ children }: { children: React.ReactNode }) => (
+    return ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
         <AiProvider>{children}</AiProvider>
       </QueryClientProvider>
@@ -175,7 +172,6 @@ describe('AiContext', () => {
 
     const tabToClose = result.current.activeTabId
 
-    // Close active tab
     act(() => {
       result.current.closeTab(tabToClose)
     })
@@ -238,10 +234,8 @@ describe('AiContext', () => {
     })
 
     expect(mockSendText).toHaveBeenCalledWith('hello', undefined)
-    // Success doesn't trigger toast for text
     expect(mockShowSuccess).not.toHaveBeenCalled()
 
-    // Fail case
     mockSendText.mockResolvedValue({ success: false, error: 'fail' })
     await act(async () => {
       await result.current.sendTextToAI('fail')
@@ -258,6 +252,5 @@ describe('AiContext', () => {
     await act(async () => {
       await result.current.sendImageToAI('data:image...')
     })
-    // The context menu action completes
   })
 })

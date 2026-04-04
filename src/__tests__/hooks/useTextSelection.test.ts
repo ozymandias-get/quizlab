@@ -5,7 +5,7 @@ import { useTextSelection } from '@app/hooks/useTextSelection'
 const mockQueueTextForAi = vi.fn()
 
 vi.mock('@app/providers/AppToolContext', () => ({
-  useAppTools: () => ({
+  useAppToolActions: () => ({
     queueTextForAi: mockQueueTextForAi
   })
 }))

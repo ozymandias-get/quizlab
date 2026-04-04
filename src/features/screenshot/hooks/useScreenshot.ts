@@ -7,42 +7,24 @@ interface UseScreenshotReturn {
   handleCapture: (imageData: string) => Promise<void>
 }
 
-/**
- * Ekran görüntüsü alma işlemlerini yöneten hook
- * @param {Function} onSendToAI - Görüntüyü AI'ya gönderme fonksiyonu
- * @returns {Object} - Screenshot durumu ve fonksiyonları
- */
+/** Full-screen crop overlay: toggles mode and forwards captured image to the caller. */
 export function useScreenshot(
   onSendToAI?: (imageData: string) => Promise<unknown>
 ): UseScreenshotReturn {
-  const [isScreenshotMode, setIsScreenshotMode] = useState<boolean>(false)
+  const [isScreenshotMode, setIsScreenshotMode] = useState(false)
 
-  /**
-   * Ekran görüntüsü modunu başlat
-   */
   const startScreenshot = useCallback(() => {
     setIsScreenshotMode(true)
   }, [])
 
-  /**
-   * Ekran görüntüsü modunu kapat
-   */
   const closeScreenshot = useCallback(() => {
     setIsScreenshotMode(false)
   }, [])
 
-  /**
-   * Ekran görüntüsü yakalandığında
-   * @param {string} imageData - Base64 formatında görüntü verisi
-   */
   const handleCapture = useCallback(
     async (imageData: string) => {
       setIsScreenshotMode(false)
-
-      // Görüntüyü AI'ya gönder
-      if (onSendToAI) {
-        await onSendToAI(imageData)
-      }
+      await onSendToAI?.(imageData)
     },
     [onSendToAI]
   )

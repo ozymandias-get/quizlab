@@ -20,7 +20,6 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
     aiSites,
     cardColumns,
     featuredIds,
-    heroColumns,
     isCompact,
     isNarrow,
     isUltraNarrow,
@@ -29,7 +28,6 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
     pageRef,
     siteDrag,
     siteOrder,
-    statsColumns,
     tabs
   } = useAiHomeState()
 
@@ -40,18 +38,16 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
     >
       <div className="relative min-h-full px-4 py-4 sm:px-5 sm:py-5">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-[-12%] top-6 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(240,74,137,0.18),transparent_72%)] blur-3xl" />
-          <div className="absolute right-[-8%] top-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(0,194,255,0.14),transparent_72%)] blur-3xl" />
-          <div className="absolute bottom-12 left-[34%] h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(91,113,255,0.12),transparent_74%)] blur-3xl" />
+          <div className="absolute left-[-10%] top-4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(240,74,137,0.16),transparent_72%)] blur-3xl" />
+          <div className="absolute right-[-6%] bottom-8 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(0,194,255,0.13),transparent_72%)] blur-3xl" />
         </div>
 
-        <div className="relative z-10 flex flex-col gap-4">
+        <div className="relative z-10 flex flex-col gap-3.5">
           <AiHomeHero
             activeTab={activeTab}
             activeTabId={activeTabId}
             aiSites={aiSites}
             featuredIds={featuredIds}
-            heroColumns={heroColumns}
             isCompact={isCompact}
             isNarrow={isNarrow}
             isUltraNarrow={isUltraNarrow}
@@ -59,7 +55,6 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
             onOpenModel={onOpenModel}
             onSelectTab={onSelectTab}
             siteCount={siteOrder.length}
-            statsColumns={statsColumns}
             tabs={tabs}
           />
 

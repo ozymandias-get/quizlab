@@ -1,10 +1,25 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent
+} from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { FileText, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useLanguage } from '@app/providers/LanguageContext'
 import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
+import AiTabStripHomeButton from '@features/ai/ui/aiTabStrip/AiTabStripHomeButton'
 import { getAiIcon } from '@ui/components/Icons'
+import {
+  TAB_STRIP_BAR_CLASS,
+  TAB_STRIP_CHROME_BTN,
+  TAB_STRIP_CHROME_BTN_WIDE,
+  TAB_STRIP_ROW_CLASS
+} from '@shared/ui/tabStripChrome'
 
 interface PdfTabStripProps {
   tabs: PdfTab[]
@@ -13,6 +28,7 @@ interface PdfTabStripProps {
   onCloseTab: (tabId: string) => void
   onRenameTab: (tabId: string, title?: string) => void
   onAddTab: () => void
+  onHome?: () => void
 }
 
 interface ContextMenuState {
@@ -47,7 +63,8 @@ function PdfTabStrip({
   onSetActiveTab,
   onCloseTab,
   onRenameTab,
-  onAddTab
+  onAddTab,
+  onHome
 }: PdfTabStripProps) {
   const { t } = useLanguage()
   const contextMenuRef = useRef<HTMLDivElement>(null)
@@ -80,6 +97,14 @@ function PdfTabStrip({
       overflowTabs: nextOverflowTabs
     }
   }, [tabs, visibleTabIds])
+
+  const pdfHomeTabId = useMemo(() => {
+    if (tabs.length === 0) return ''
+    const landing = tabs.find((tab) => !tab.file && tab.kind !== 'drive')
+    return landing?.id ?? ''
+  }, [tabs])
+
+  const isPdfHomeActive = pdfHomeTabId !== '' && activeTabId === pdfHomeTabId
 
   const tr = useCallback(
     (key: string, fallback: string) => {
@@ -124,7 +149,7 @@ function PdfTabStrip({
     setEditingValue('')
   }, [])
 
-  const handleOpenContextMenu = useCallback((event: React.MouseEvent, tabId: string) => {
+  const handleOpenContextMenu = useCallback((event: ReactMouseEvent, tabId: string) => {
     event.preventDefault()
     event.stopPropagation()
 
@@ -173,8 +198,15 @@ function PdfTabStrip({
   const contextMenuTab = contextMenu ? tabs.find((tab) => tab.id === contextMenu.tabId) : undefined
 
   return (
-    <div className="relative h-11 rounded-t-[1.5rem] border-b border-white/[0.08] bg-[#050505]/70 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-      <div className="flex items-center gap-2 h-full px-2.5 overflow-hidden">
+    <div className={TAB_STRIP_BAR_CLASS}>
+      <div className={TAB_STRIP_ROW_CLASS}>
+        {onHome && (
+          <AiTabStripHomeButton
+            showHome={isPdfHomeActive}
+            title={t('ai_home.home')}
+            onShowHome={onHome}
+          />
+        )}
         {visibleTabs.map((tab) => {
           const label = getTabLabel(tab)
           const isActive = tab.id === activeTabId
@@ -187,26 +219,26 @@ function PdfTabStrip({
               type="button"
               layout
               whileHover={{
-                y: -1,
-                scale: 1.01,
-                transition: { type: 'spring', stiffness: 320, damping: 20 }
+                y: -0.5,
+                scale: 1.005,
+                transition: { type: 'spring', stiffness: 380, damping: 24 }
               }}
-              whileTap={{ scale: 0.98 }}
-              className="relative flex items-center gap-2 min-w-0 max-w-[250px] px-3 pr-10 h-8 rounded-xl border transition-all duration-150"
+              whileTap={{ scale: 0.99 }}
+              className="relative flex h-8 min-w-0 max-w-[250px] items-center gap-2 rounded-full border px-3.5 pr-10 transition-all duration-200"
               style={
                 isActive
                   ? {
-                      borderColor: 'rgba(16,185,129,0.5)',
+                      borderColor: 'rgba(16,185,129,0.44)',
                       background:
-                        'linear-gradient(145deg, rgba(16,185,129,0.18), rgba(255,255,255,0.08))',
+                        'linear-gradient(145deg, rgba(16,185,129,0.13), rgba(255,255,255,0.045))',
                       boxShadow:
-                        '0 0 12px -5px rgba(16,185,129,0.6), inset 0 1px 0 rgba(255,255,255,0.15)'
+                        '0 0 18px -8px rgba(16,185,129,0.38), inset 0 1px 0 rgba(255,255,255,0.1)'
                     }
                   : {
-                      borderColor: 'rgba(255,255,255,0.12)',
+                      borderColor: 'rgba(255,255,255,0.08)',
                       background:
-                        'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)'
+                        'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)'
                     }
               }
               onClick={() => onSetActiveTab(tab.id)}
@@ -278,7 +310,7 @@ function PdfTabStrip({
           <div ref={overflowRef} className="relative ml-auto shrink-0">
             <button
               type="button"
-              className="h-8 w-9 rounded-xl border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+              className={`${TAB_STRIP_CHROME_BTN_WIDE} text-white/75`}
               aria-label={tr('tab_more', 'More tabs')}
               title={tr('tab_more', 'More tabs')}
               onClick={() => setIsOverflowOpen((prev) => !prev)}
@@ -336,7 +368,7 @@ function PdfTabStrip({
 
         <button
           type="button"
-          className="h-8 w-9 rounded-xl border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center shrink-0"
+          className={`${TAB_STRIP_CHROME_BTN} shrink-0 text-white/75`}
           title={t('add_pdf')}
           aria-label={t('add_pdf')}
           onClick={onAddTab}

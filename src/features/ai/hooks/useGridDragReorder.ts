@@ -1,5 +1,4 @@
-import { useCallback, useRef } from 'react'
-import type { DragEvent, MutableRefObject } from 'react'
+import { useCallback, useRef, type DragEvent, type MutableRefObject } from 'react'
 
 export interface GridDragReorderState {
   dragItemRef: MutableRefObject<string | null>

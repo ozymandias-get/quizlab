@@ -1,13 +1,5 @@
-﻿import { useEffect, useCallback, useRef } from 'react'
-import type { RefObject } from 'react'
+﻿import { useEffect, useCallback, useRef, type RefObject } from 'react'
 
-/**
- * PDF içinde metin seçimini izleyen custom hook
- * Seçim yapıldığında konum bilgisiyle birlikte callback çağırır
- * @param {Object} options - Hook options
- * @param {React.RefObject} options.containerRef - PDF container ref
- * @param {Function} options.onTextSelection - Metin seçildiğinde çağrılacak callback
- */
 interface UsePdfTextSelectionOptions {
   containerRef: RefObject<HTMLElement | null>
   onTextSelection: (text: string, position: { top: number; left: number } | null) => void
@@ -37,12 +29,10 @@ export function usePdfTextSelection({
   onTextSelection,
   enabled = true
 }: UsePdfTextSelectionOptions) {
-  // Metin seçimi hesaplama - pozisyon sınır kontrolleri dahil
   const calculateSelectionPosition = useCallback(
     (selection: Selection | null, container: HTMLElement) => {
       const text = selection?.toString().trim()
 
-      // Seçim boşsa veya yoksa
       if (
         !selection ||
         selection.isCollapsed ||
@@ -60,7 +50,6 @@ export function usePdfTextSelection({
       const rect = range.getBoundingClientRect()
       const overlapsContainer = doesRectOverlapContainer(rect, container)
 
-      // Seçim PDF alanı ile çakışıyorsa daha toleranslı davran.
       if (
         !commonAncestorInside &&
         !(anchorInside && focusInside) &&
@@ -73,24 +62,18 @@ export function usePdfTextSelection({
         return { text: '', position: null }
       }
 
-      // Buton boyutları
       const btnWidth = 140
       const btnHeight = 44
       const margin = 10
-      const bottomBarHeight = 80 // Alt bar yüksekliği (tahmini)
+      const bottomBarHeight = 80
 
-      // Varsayılan pozisyon: seçimin üstünde ortalanmış
       let top = rect.top - btnHeight - margin
       let left = rect.left + rect.width / 2
 
-      // === SINIR KONTROLLERI ===
-
-      // Üst sınır: Buton ekranın üstüne çıkıyorsa, seçimin altına koy
       if (top < margin) {
         top = rect.bottom + margin
       }
 
-      // Alt sınır: Buton ekranın altına veya taskbar'a gizleniyorsa
       if (top + btnHeight > window.innerHeight - bottomBarHeight - margin) {
         const topPosition = rect.top - btnHeight - margin
         if (topPosition >= margin) {
@@ -100,12 +83,10 @@ export function usePdfTextSelection({
         }
       }
 
-      // Sol sınır: Buton ekranın soluna çıkmasın
       if (left < btnWidth / 2 + margin) {
         left = btnWidth / 2 + margin
       }
 
-      // Sağ sınır: Buton ekranın sağına çıkmasın
       if (left > window.innerWidth - btnWidth / 2 - margin) {
         left = window.innerWidth - btnWidth / 2 - margin
       }
@@ -115,7 +96,6 @@ export function usePdfTextSelection({
     []
   )
 
-  // Callback ref to avoid re-attaching listeners
   const onTextSelectionRef = useRef(onTextSelection)
 
   useEffect(() => {

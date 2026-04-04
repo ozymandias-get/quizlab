@@ -259,6 +259,23 @@ export const usePdfSelection = () => {
     setActivePdfTabId(newTabId)
   }, [])
 
+  /**
+   * PDF ana ekranı: açık PDF sekmelerine dokunulmaz (dosya / başlık aynı kalır).
+   * Boş pdf sekmesi varsa oraya geçilir; yoksa yeni boş sekme eklenir ve odak oraya alınır.
+   */
+  const goToPdfHome = useCallback(() => {
+    const list = pdfTabsRef.current
+    if (list.length === 0) return
+
+    const pdfLanding = list.find((tab) => !tab.file && tab.kind !== 'drive')
+    if (pdfLanding) {
+      setActivePdfTab(pdfLanding.id)
+      return
+    }
+
+    addEmptyPdfTab()
+  }, [setActivePdfTab, addEmptyPdfTab])
+
   const openGoogleDriveTab = useCallback(() => {
     const currentTabs = pdfTabsRef.current
     const existingTab = currentTabs.find((tab) => tab.kind === 'drive')
@@ -449,6 +466,7 @@ export const usePdfSelection = () => {
     restoreRecentReading,
     addEmptyPdfTab,
     openGoogleDriveTab,
-    activeTabInitialPage
+    activeTabInitialPage,
+    goToPdfHome
   }
 }

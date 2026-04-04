@@ -1,5 +1,4 @@
-import type { PointerEventHandler } from 'react'
-import { memo } from 'react'
+import { memo, type PointerEventHandler } from 'react'
 import { Send, X } from 'lucide-react'
 import { cn } from '@shared/lib/uiUtils'
 import { useLanguage } from '@app/providers'
@@ -30,41 +29,41 @@ function AiSendComposerHeader({
 
   return (
     <div
-      className="relative cursor-grab select-none touch-none border-b border-white/[0.06] px-4 py-3 active:cursor-grabbing backdrop-blur-md"
+      className="relative cursor-grab select-none touch-none border-b border-white/[0.05] px-5 pb-3.5 pt-3 active:cursor-grabbing"
       onPointerDown={onDragStart}
       onPointerMove={onDragMove}
       onPointerUp={onDragEnd}
       onPointerCancel={onDragEnd}
     >
-      <div className="mb-3.5 flex justify-center">
-        <div className="h-1.5 w-10 rounded-full bg-white/10 transition-colors duration-300 hover:bg-white/20" />
+      <div className="mb-3 flex justify-center">
+        <div className="h-[5px] w-9 rounded-full bg-white/[0.12] transition-colors duration-200 hover:bg-white/[0.22]" />
       </div>
 
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 pt-0.5">
-          <p className="truncate text-[15px] font-medium tracking-tight text-white/95">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[14.5px] font-semibold tracking-[-0.01em] text-white/90">
             {t('ai_send_panel_title')}
           </p>
-          <p className="mt-0.5 text-[11.5px] font-medium tracking-wide text-white/40">
+          <p className="mt-0.5 text-[11px] tabular-nums tracking-wide text-white/35">
             {`${textCount} ${t('ai_send_text_count_label')} / ${imageCount} ${t('ai_send_image_count_label')}`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <Button
             type="button"
             variant="ghost"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onToggleAutoSend}
             className={cn(
-              'h-8 rounded-full border px-3 text-[11px] font-semibold tracking-[0.08em] uppercase shadow-sm backdrop-blur-md transition-all duration-300',
+              'h-[30px] rounded-full border px-3 text-[10.5px] font-semibold tracking-[0.06em] uppercase transition-all duration-200',
               autoSend
-                ? 'border-emerald-400/30 bg-emerald-500/16 text-emerald-100 hover:bg-emerald-500/24'
-                : 'border-white/[0.08] bg-white/[0.02] text-white/65 hover:bg-white/[0.08] hover:text-white'
+                ? 'border-emerald-400/25 bg-emerald-500/14 text-emerald-200/90 hover:bg-emerald-500/22'
+                : 'border-white/[0.07] bg-white/[0.03] text-white/50 hover:bg-white/[0.07] hover:text-white/70'
             )}
             title={autoSend ? t('auto_send_on') : t('auto_send_off')}
           >
-            <Send className="mr-1.5 h-3.5 w-3.5" />
+            <Send className="mr-1.5 h-3 w-3 opacity-70" strokeWidth={2} />
             {t('auto_send')}
           </Button>
 
@@ -73,10 +72,10 @@ function AiSendComposerHeader({
             size="icon"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onClearAll}
-            className="h-8 w-8 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.02] text-white/50 shadow-sm backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-white/[0.08] hover:text-white"
+            className="h-[30px] w-[30px] shrink-0 rounded-full border border-white/[0.06] bg-white/[0.02] text-white/40 transition-all duration-200 hover:bg-white/[0.07] hover:text-white/70"
             title={t('close')}
           >
-            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <X className="h-3.5 w-3.5" strokeWidth={2.2} />
           </Button>
         </div>
       </div>

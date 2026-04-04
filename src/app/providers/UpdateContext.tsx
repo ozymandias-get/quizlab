@@ -1,8 +1,16 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode
+} from 'react'
 import { useCheckForUpdates } from '@platform/electron/api/useSystemApi'
 import type { UpdateCheckResult } from '@shared-core/types'
 
-export interface UpdateInfo extends UpdateCheckResult {}
+export type UpdateInfo = UpdateCheckResult
 
 interface UpdateContextType {
   updateAvailable: boolean
@@ -15,7 +23,7 @@ interface UpdateContextType {
 const UPDATE_CHECK_DELAY = 5000
 const UpdateContext = createContext<UpdateContextType | null>(null)
 
-export function UpdateProvider({ children }: { children: React.ReactNode }) {
+export function UpdateProvider({ children }: { children: ReactNode }) {
   const [isEnabled, setIsEnabled] = useState(false)
 
   useEffect(() => {
@@ -25,15 +33,12 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
 
   const { data, isLoading, isFetched, refetch } = useCheckForUpdates(isEnabled)
 
-  const updateInfo: UpdateInfo | null = useMemo(() => {
-    return data ?? null
-  }, [data])
-
+  const updateInfo: UpdateInfo | null = data ?? null
   const updateAvailable = !!data?.available
 
   const checkForUpdates = useCallback(async (): Promise<UpdateInfo> => {
     const result = await refetch()
-    return result.data || { available: false, error: 'Refetch failed' }
+    return result.data ?? { available: false, error: 'Refetch failed' }
   }, [refetch])
 
   const value = useMemo(

@@ -28,6 +28,8 @@ export interface AiDraftImageItem {
   id: string
   type: 'image'
   dataUrl: string
+  /** Lightweight blob URL for preview; prefer over dataUrl for rendering. */
+  blobUrl?: string
   page?: number
   captureKind?: 'full-page' | 'selection'
 }
@@ -45,8 +47,11 @@ export interface AiContextState {
   defaultAiModel: string
   aiSites: Record<string, AiPlatform>
   autoSend: boolean
-  webviewInstance: WebviewController | null
   isTutorialActive: boolean
+}
+
+export interface AiWebviewState {
+  webviewInstance: WebviewController | null
 }
 
 export interface AiContextActions {
@@ -66,10 +71,9 @@ export interface AiContextActions {
   reloadActiveWebview: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
-  refreshRegistry: (force?: boolean) => Promise<void>
   startTutorial: () => void
   stopTutorial: () => void
 }
 
-export type AiContextType = AiContextState & AiContextActions
+export type AiContextType = AiContextState & AiWebviewState & AiContextActions
 export type SetStoredValue<T> = Dispatch<SetStateAction<T>>

@@ -193,7 +193,7 @@ export function initUpdater() {
 
   ipcMain.handle(IPC_CHANNELS.OPEN_RELEASES, async () => {
     const { OWNER, REPO } = APP_CONFIG.GITHUB
-    const url = updateInfo?.htmlUrl || `https://github.com/${OWNER}/${REPO}/releases`
+    const url = updateInfo?.htmlUrl || `https://github.com/${OWNER}/${REPO}/releases/latest`
     await shell.openExternal(url)
   })
 

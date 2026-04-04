@@ -1,10 +1,6 @@
-﻿/**
- * Context exports
- * Tüm context'leri tek noktadan export eder
- */
+﻿/** App-wide provider modules and stores (barrel). */
 export * from './LanguageContext'
 export * from './ToastContext'
-// New granular contexts
 export * from './AiContext'
 export * from './AppearanceContext'
 export * from './UpdateContext'

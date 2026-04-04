@@ -1,3 +1,4 @@
+import type { ComponentProps, ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import UpdatesCard from '@features/settings/ui/about/UpdatesCard'
@@ -16,7 +17,7 @@ vi.mock('@ui/components/Icons', () => ({
 }))
 
 vi.mock('framer-motion', () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
   motion: {
     div: ({ children, initial, animate, exit, transition, ...props }: any) => (
       <div {...props}>{children}</div>
@@ -28,7 +29,7 @@ vi.mock('framer-motion', () => ({
 }))
 
 describe('UpdatesCard', () => {
-  const createProps = (overrides: Partial<React.ComponentProps<typeof UpdatesCard>> = {}) => ({
+  const createProps = (overrides: Partial<ComponentProps<typeof UpdatesCard>> = {}) => ({
     updateStatus: 'idle' as const,
     updateInfo: null,
     t: (key: string) => key,

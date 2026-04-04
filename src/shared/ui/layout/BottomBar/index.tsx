@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, memo } from 'react'
+import { useEffect, useCallback, memo, type MouseEvent as ReactMouseEvent } from 'react'
 import { useAppearance, useLanguage } from '@app/providers'
 import { useAiState } from '@app/providers/AiContext'
 import { CenterHub } from './CenterHub'
@@ -46,7 +46,7 @@ function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
   }, [isOpen, isTourActive, isSettingsOpen])
 
   const handleHubMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: ReactMouseEvent) => {
       if (!isOpen) {
         onMouseDown?.(e)
       }
@@ -55,7 +55,7 @@ function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
   )
 
   const handleResizerMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: ReactMouseEvent) => {
       onMouseDown?.(e)
     },
     [onMouseDown]

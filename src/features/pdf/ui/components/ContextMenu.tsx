@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useLayoutEffect, useState } from 'react'
+import { useEffect, useRef, useLayoutEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LucideIcon } from 'lucide-react'
@@ -19,13 +19,10 @@ interface ContextMenuProps {
   onClose: () => void
 }
 
-export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }) => {
-  // We attach the ref to the inner div for bounding box calculation,
-  // or the outer one. Let's use outer for positioning.
+export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [adjustedPosition, setAdjustedPosition] = useState({ x, y })
 
-  // Handle Closing
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -40,7 +37,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
     window.addEventListener('scroll', handleScroll, true)
     window.addEventListener('resize', handleResize)
 
-    // Block default context menu on the menu itself
     const preventDefault = (e: Event) => e.preventDefault()
     menuRef.current?.addEventListener('contextmenu', preventDefault)
 
@@ -52,7 +48,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
     }
   }, [onClose])
 
-  // Keep menu within viewport
   useLayoutEffect(() => {
     if (menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect()

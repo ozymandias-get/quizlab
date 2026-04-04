@@ -27,11 +27,11 @@ npm run dev
 
 Optional Electron dev environment variables (all optional):
 
-| Variable | Effect |
-| -------- | ------ |
+| Variable                     | Effect                                                             |
+| ---------------------------- | ------------------------------------------------------------------ |
 | `APP_ALLOW_MULTI_INSTANCE=1` | Allow more than one running instance (default is single-instance). |
-| `APP_RENDERER_URL` | Dev server URL for the renderer (default `http://localhost:5173`). |
-| `APP_OPEN_DEVTOOLS=1` | Open DevTools when the main window loads. |
+| `APP_RENDERER_URL`           | Dev server URL for the renderer (default `http://localhost:5173`). |
+| `APP_OPEN_DEVTOOLS=1`        | Open DevTools when the main window loads.                          |
 
 ## Branch Strategy
 

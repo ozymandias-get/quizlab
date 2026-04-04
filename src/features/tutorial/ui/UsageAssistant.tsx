@@ -1,13 +1,7 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react'
+﻿import { useState, useEffect, useMemo, useCallback, memo, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@app/providers'
 
-/**
- * Kullanım Asistanı - Karartmasız
- * Sadece ok ve kare işaretleri ile hedefleri gösterir
- */
-
-// ================== STEP CONFIG ==================
 const STEP_CONFIG = [
   {
     targetId: 'bottom-bar-hub-btn',
@@ -73,8 +67,7 @@ interface UsageAssistantProps {
   onClose: () => void
 }
 
-// ================== POINTER (OK İŞARETİ) ==================
-const Pointer = React.memo<PointerProps>(({ rect, color = '#10b981' }) => {
+const Pointer = memo<PointerProps>(({ rect, color = '#10b981' }) => {
   if (!rect) return null
 
   return (
@@ -131,8 +124,7 @@ const Pointer = React.memo<PointerProps>(({ rect, color = '#10b981' }) => {
   )
 })
 
-// ================== HIGHLIGHT BOX ==================
-const HighlightBox = React.memo<HighlightBoxProps>(({ rect, color = '#3b82f6' }) => {
+const HighlightBox = memo<HighlightBoxProps>(({ rect, color = '#3b82f6' }) => {
   if (!rect) return null
 
   return (
@@ -187,8 +179,7 @@ const HighlightBox = React.memo<HighlightBoxProps>(({ rect, color = '#3b82f6' })
   )
 })
 
-// ================== TOOLTIP ==================
-const Tooltip = React.memo<TooltipProps>(
+const Tooltip = memo<TooltipProps>(
   ({ step, totalSteps, title, text, onNext, onSkip, finishText, nextText, skipText }) => {
     return (
       <motion.div
@@ -257,13 +248,11 @@ const Tooltip = React.memo<TooltipProps>(
   }
 )
 
-// ================== MAIN ==================
 function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
   const { t } = useLanguage()
   const [step, setStep] = useState(0)
   const [rects, setRects] = useState<Rect[]>([])
 
-  // Reset
   useEffect(() => {
     if (isActive) {
       setStep(0)
@@ -271,7 +260,6 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
     }
   }, [isActive])
 
-  // Helper for rect comparison
   const areRectsSame = (r1: Rect[], r2: Rect[]) => {
     if (r1.length !== r2.length) return false
     return r1.every((rect, i) => {
@@ -286,7 +274,6 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
     })
   }
 
-  // Update rects
   const updateRects = useCallback(() => {
     if (!isActive) return
 
@@ -357,9 +344,7 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
     }
   }, [isActive, updateRects])
 
-  // Next handler
   const handleNext = () => {
-    // Bar zaten isTourActive ile açık tutuluyor
     if (step < STEP_CONFIG.length - 1) {
       setStep((s) => s + 1)
     } else {
@@ -367,7 +352,6 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
     }
   }
 
-  // Colors memoization
   const colors = useMemo(() => ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'], [])
 
   if (!isActive) return null
@@ -396,10 +380,10 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
 
         {/* Highlight boxes ve oklar */}
         {rects.map((rect, index) => (
-          <React.Fragment key={`${step}-${rect.id}-${index}`}>
+          <Fragment key={`${step}-${rect.id}-${index}`}>
             <HighlightBox rect={rect} color={colors[index % colors.length]} />
             {step === 0 && <Pointer rect={rect} color={colors[0]} />}
-          </React.Fragment>
+          </Fragment>
         ))}
       </div>
     </AnimatePresence>

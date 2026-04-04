@@ -1,11 +1,11 @@
-import React from 'react'
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { RadioGroup, Radio, Label } from '@headlessui/react'
 import { useLanguage } from '@app/providers'
 import { LanguageIcon } from '@ui/components/Icons'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
-const LanguageTab = React.memo(() => {
+const LanguageTab = memo(() => {
   const { t, language, setLanguage, languages } = useLanguage()
   const languageList = Object.values(languages)
 

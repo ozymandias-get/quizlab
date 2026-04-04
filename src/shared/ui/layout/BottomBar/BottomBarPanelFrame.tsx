@@ -1,5 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
-import { memo } from 'react'
+import { memo, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { panelTransition, panelVariantsVertical } from './animations'
 import { BottomScrollCue } from './BottomScrollCue'

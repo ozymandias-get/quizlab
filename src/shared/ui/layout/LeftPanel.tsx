@@ -1,4 +1,4 @@
-import React, { memo, Suspense, lazy } from 'react'
+import { memo, Suspense, lazy } from 'react'
 import { useLanguage } from '@app/providers/LanguageContext'
 import type { PdfFile } from '@shared-core/types'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
@@ -32,6 +32,7 @@ interface LeftPanelProps {
   onRenamePdfTab?: (tabId: string, title?: string) => void
   onAddEmptyPdfTab?: () => void
   onOpenGoogleDrive?: () => void
+  onPdfHome?: () => void
   isInteractionBlocked?: boolean
 }
 
@@ -52,7 +53,7 @@ const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) =>
   )
 }
 
-const LeftPanel: React.FC<LeftPanelProps> = ({
+function LeftPanel({
   onPdfDrop,
   pdfFile,
   onSelectPdf,
@@ -71,8 +72,9 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   onRenamePdfTab,
   onAddEmptyPdfTab,
   onOpenGoogleDrive,
+  onPdfHome,
   isInteractionBlocked
-}) => {
+}: LeftPanelProps) {
   const { t } = useLanguage()
 
   const { isDragOver, containerRef, dragHandlers } = useSharedDragDrop((file) => {
@@ -85,7 +87,6 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
       {...dragHandlers}
       className="glass-panel h-full w-full flex flex-col overflow-hidden relative"
       style={{
-        willChange: 'transform, opacity',
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden'
       }}
@@ -102,6 +103,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
               onCloseTab={onClosePdfTab}
               onRenameTab={onRenamePdfTab}
               onAddTab={onAddEmptyPdfTab || onSelectPdf}
+              onHome={onPdfHome}
             />
           )}
 

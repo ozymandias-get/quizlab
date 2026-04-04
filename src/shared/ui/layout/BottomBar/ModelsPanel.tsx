@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback, type CSSProperties } from 'react'
 import { Reorder } from 'framer-motion'
 import { useAiActions, useAiState } from '@app/providers/AiContext'
 import { AIItem } from './AIItem'
@@ -7,7 +7,7 @@ import { BottomBarPanelFrame } from './BottomBarPanelFrame'
 
 interface ModelsPanelProps {
   isOpen: boolean
-  panelStyle: React.CSSProperties
+  panelStyle: CSSProperties
   maxHeight?: number
   showOnlyIcons: boolean
 }

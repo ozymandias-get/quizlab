@@ -1,4 +1,4 @@
-import React, { lazy } from 'react'
+import { lazy, type ReactNode } from 'react'
 import {
   SettingsIcon,
   LanguageIcon,
@@ -124,7 +124,7 @@ export function toSettingsTabId(value?: string): SettingsTabId {
 
 export const SETTINGS_TAB_RENDERERS: Record<
   SettingsTabId,
-  (context: SettingsContext) => React.ReactNode
+  (context: SettingsContext) => ReactNode
 > = {
   prompts: () => <PromptsTab />,
   models: () => <ModelsTab />,

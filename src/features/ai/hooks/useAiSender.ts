@@ -1,5 +1,4 @@
-import { useCallback, useRef } from 'react'
-import type { RefObject } from 'react'
+import { useCallback, useRef, type RefObject } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { AutomationExecutionDiagnostics, AutomationExecutionResult } from '@shared-core/types'
 import { Logger } from '@shared/lib/logger'
@@ -400,9 +399,7 @@ export function useAiSender(
             if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
               webview.focus()
             }
-          } catch {
-            // Focus failure should not block the next fallback path.
-          }
+          } catch {}
 
           await sleep(100)
 

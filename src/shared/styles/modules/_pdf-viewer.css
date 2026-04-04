@@ -21,12 +21,11 @@
   height: 100% !important;
 }
 
-/* PDF sayfası - yumuşak geçişler */
+/* PDF sayfası - yumuşak geçişler (will-change kaldırıldı: ekstra layer taşıma/sürüklerken hizayı bozabiliyor) */
 .pdf-viewer-container .rpv-core__inner-page {
   transition:
     width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: width, height;
 }
 
 /* Layer geçişleri */

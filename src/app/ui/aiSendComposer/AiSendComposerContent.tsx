@@ -1,13 +1,12 @@
-import type { PointerEventHandler } from 'react'
-import { memo } from 'react'
+import { memo, useMemo, type PointerEventHandler } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Image as ImageIcon, Loader2, Quote, Send, X, Zap } from 'lucide-react'
 import { useLanguage } from '@app/providers'
+import type { AiDraftItem, AiDraftImageItem } from '@app/providers/ai/types'
 import { Button } from '@ui/components/button'
-import type { AiDraftImageItem, AiDraftTextItem } from './types'
 
 interface AiSendComposerContentProps {
-  textItems: AiDraftTextItem[]
-  imageItems: AiDraftImageItem[]
+  items: AiDraftItem[]
   totalItems: number
   collapsed: boolean
   noteText: string
@@ -28,7 +27,7 @@ interface AiSendComposerContentProps {
 
 function getImageLabel(
   item: AiDraftImageItem,
-  index: number,
+  imageIndex: number,
   t: (key: string, params?: Record<string, string>) => string
 ) {
   if (typeof item.page === 'number' && item.page > 0) {
@@ -39,12 +38,14 @@ function getImageLabel(
     return t('ai_send_page_item', { page: String(item.page) })
   }
 
-  return t('ai_send_image_item', { index: String(index + 1) })
+  return t('ai_send_image_item', { index: String(imageIndex + 1) })
 }
 
+const ITEM_ENTER = { type: 'spring' as const, stiffness: 420, damping: 30, mass: 0.55 }
+const ITEM_ENTER_REDUCED = { duration: 0.15 }
+
 function AiSendComposerContent({
-  textItems,
-  imageItems,
+  items,
   totalItems,
   collapsed,
   noteText,
@@ -63,7 +64,11 @@ function AiSendComposerContent({
   onResizeEnd
 }: AiSendComposerContentProps) {
   const { t } = useLanguage()
+  const prefersReducedMotion = useReducedMotion()
   const hasNoteText = noteText.trim().length > 0
+  const hasImages = useMemo(() => items.some((i) => i.type === 'image'), [items])
+
+  const itemTransition = prefersReducedMotion ? ITEM_ENTER_REDUCED : ITEM_ENTER
 
   if (collapsed) {
     return null
@@ -72,113 +77,150 @@ function AiSendComposerContent({
   return (
     <>
       <div
-        className="relative overflow-y-auto space-y-3 px-4 pb-3 pt-3"
+        className="relative space-y-2.5 overflow-y-auto px-5 pb-3 pt-3"
         style={{ height: bodyHeight }}
       >
-        {textItems.length > 0 ? (
-          <section className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Quote className="h-3.5 w-3.5" style={{ color: accentStrong }} strokeWidth={2.1} />
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">
-                {t('ai_send_selected_texts')}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              {textItems.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="group relative overflow-hidden rounded-[1.35rem] border px-3 py-2.5 transition-all duration-300 backdrop-blur-sm hover:bg-white/[0.02]"
-                  style={{
-                    borderColor: 'rgba(255,255,255,0.06)',
-                    background: cardSurface,
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 12px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  <div
-                    className="absolute inset-y-3 left-0 w-[3px] rounded-full opacity-80"
-                    style={{ background: accentStrong }}
-                  />
-                  <div className="mb-1 flex items-start justify-between gap-3">
-                    <span className="pl-2 pt-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-white/40">
-                      {t('ai_send_selection_item', { index: String(index + 1) })}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveItem(item.id)}
-                      className="rounded-full border border-white/5 bg-white/[0.04] p-1 text-white/40 shadow-sm backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-white/10 hover:bg-white/[0.08] hover:text-white"
-                      title={t('ai_send_remove_item')}
-                    >
-                      <X className="h-3 w-3" strokeWidth={2.5} />
-                    </button>
-                  </div>
-                  <p
-                    className="overflow-hidden pl-2 pr-1 text-[13px] leading-[1.6] text-white/80 font-medium"
-                    style={{
-                      display: '-webkit-box',
-                      WebkitBoxOrient: 'vertical',
-                      WebkitLineClamp: 3
-                    }}
-                  >
-                    {item.text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
+        {items.length > 1 ? (
+          <motion.p
+            className="text-[10px] font-medium tracking-wide text-white/30"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+          >
+            {t('ai_send_send_order_hint')}
+          </motion.p>
         ) : null}
 
-        {imageItems.length > 0 ? (
-          <section className="space-y-2">
-            <div className="flex items-center gap-2">
-              <ImageIcon className="h-3.5 w-3.5 text-emerald-300/90" strokeWidth={2.1} />
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">
-                {t('ai_send_selected_images')}
-              </p>
-            </div>
+        <div className="space-y-2">
+          <AnimatePresence initial={false} mode="popLayout">
+            {items.map((item, index) => {
+              if (item.type === 'text') {
+                const textOrdinal =
+                  items.slice(0, index).filter((entry) => entry.type === 'text').length + 1
 
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {imageItems.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="group relative min-w-[7.1rem] overflow-hidden rounded-[1.35rem] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:border-white/[0.12] hover:shadow-lg"
-                  style={{
-                    background: cardSurface,
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
-                  }}
-                >
-                  <img
-                    src={item.dataUrl}
-                    alt={t('ai_send_image_preview_alt')}
-                    className="h-[4.6rem] w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-2.5 pb-2 pt-5">
-                    <div className="flex items-end justify-between gap-2">
-                      <span className="rounded-full border border-white/10 bg-black/35 px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-white shadow-[0_8px_24px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm">
-                        {getImageLabel(item, index, t)}
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={
+                      prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }
+                    }
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={
+                      prefersReducedMotion
+                        ? { opacity: 0 }
+                        : {
+                            opacity: 0,
+                            scale: 0.95,
+                            x: -8,
+                            transition: { duration: 0.16, ease: [0.32, 0, 0.67, 0] }
+                          }
+                    }
+                    transition={itemTransition}
+                    className="group relative overflow-hidden rounded-xl border border-white/[0.05] transition-colors duration-200 hover:border-white/[0.09]"
+                    style={{
+                      background: cardSurface,
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'
+                    }}
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 w-[2.5px] opacity-70"
+                      style={{ background: accentStrong }}
+                    />
+                    <div className="flex items-start justify-between gap-2 px-3 pb-2 pt-2.5">
+                      <span className="flex items-center gap-1.5 pl-1">
+                        <Quote
+                          className="h-3 w-3 opacity-60"
+                          style={{ color: accentStrong }}
+                          strokeWidth={2}
+                        />
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                          {t('ai_send_selection_item', { index: String(textOrdinal) })}
+                        </span>
                       </span>
                       <button
                         type="button"
                         onClick={() => onRemoveItem(item.id)}
-                        className="rounded-full border border-white/[0.08] bg-white/[0.05] p-1 text-white/60 shadow-sm backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-white/[0.15] hover:bg-white/[0.1] hover:text-white"
+                        className="rounded-full p-1 text-white/25 transition-colors duration-150 hover:bg-white/[0.06] hover:text-white/60"
                         title={t('ai_send_remove_item')}
                       >
-                        <X className="h-3 w-3" strokeWidth={2.5} />
+                        <X className="h-3 w-3" strokeWidth={2.2} />
                       </button>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
+                    <p
+                      className="overflow-hidden px-3 pb-2.5 pl-4 text-[12.5px] leading-[1.55] text-white/65"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 3
+                      }}
+                    >
+                      {item.text}
+                    </p>
+                  </motion.div>
+                )
+              }
 
-        <section className="space-y-2">
+              const imageIndex = items
+                .slice(0, index)
+                .filter((entry) => entry.type === 'image').length
+
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={
+                    prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }
+                  }
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={
+                    prefersReducedMotion
+                      ? { opacity: 0 }
+                      : {
+                          opacity: 0,
+                          scale: 0.95,
+                          x: -8,
+                          transition: { duration: 0.16, ease: [0.32, 0, 0.67, 0] }
+                        }
+                  }
+                  transition={itemTransition}
+                  className="group relative overflow-hidden rounded-xl border border-white/[0.05] transition-colors duration-200 hover:border-white/[0.09]"
+                  style={{
+                    background: cardSurface,
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 px-3 py-2">
+                    <ImageIcon className="h-3 w-3 text-emerald-400/70" strokeWidth={2} />
+                    <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                      {getImageLabel(item, imageIndex, t)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveItem(item.id)}
+                      className="ml-auto rounded-full p-1 text-white/25 transition-colors duration-150 hover:bg-white/[0.06] hover:text-white/60"
+                      title={t('ai_send_remove_item')}
+                    >
+                      <X className="h-3 w-3" strokeWidth={2.2} />
+                    </button>
+                  </div>
+                  <div className="overflow-hidden border-t border-white/[0.04]">
+                    <img
+                      src={item.blobUrl ?? item.dataUrl}
+                      alt={t('ai_send_image_preview_alt')}
+                      className="h-[4.2rem] w-full object-cover transition-transform duration-400 ease-out group-hover:scale-[1.03]"
+                    />
+                  </div>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+
+        <section className="space-y-1.5">
           <div className="flex items-center justify-between gap-3">
-            <label className="block text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">
+            <label className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
               {t('ai_send_note_label')}
             </label>
-            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em] text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <span className="tabular-nums text-[10px] font-medium text-white/30">
               {t('ai_send_item_count', { count: String(totalItems) })}
             </span>
           </div>
@@ -187,12 +229,10 @@ function AiSendComposerContent({
             rows={3}
             value={noteText}
             onChange={(event) => onNoteTextChange(event.target.value)}
-            placeholder={
-              imageItems.length > 0 ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')
-            }
-            className="w-full resize-none rounded-[1.55rem] border border-white/[0.08] px-4 py-3.5 text-[13px] text-white outline-none transition-all duration-300 placeholder:text-white/30 focus:border-white/20 focus:bg-white/[0.02] focus:ring-4 focus:ring-white/[0.02]"
+            placeholder={hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')}
+            className="w-full resize-none rounded-xl border border-white/[0.06] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none transition-all duration-200 placeholder:text-white/25 focus:border-white/[0.12] focus:ring-2 focus:ring-white/[0.04]"
             style={{
-              minHeight: 88,
+              minHeight: 80,
               background: sectionSurface,
               boxShadow: `inset 0 1px 0 ${textareaInsetShadow}`
             }}
@@ -201,28 +241,37 @@ function AiSendComposerContent({
       </div>
 
       <div
-        className="relative flex justify-end gap-2 border-t border-white/[0.06] px-4 py-3 backdrop-blur-xl"
+        className="relative flex items-center justify-end gap-2 border-t border-white/[0.05] px-5 py-3"
         style={{ background: footerSurface }}
       >
-        {hasNoteText ? (
-          <Button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onSubmit({ forceAutoSend: true })
-            }}
-            disabled={isSubmitting || totalItems === 0}
-            variant="outline"
-            aria-label={t('auto_send')}
-            className="rounded-full border border-emerald-400/25 bg-emerald-500/[0.12] px-4 py-2.5 text-[13px] font-semibold tracking-tight text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_28px_-12px_rgba(16,185,129,0.42)] transition-all duration-300 hover:scale-[1.02] hover:border-emerald-300/35 hover:bg-emerald-500/20 active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-              {t('auto_send')}
-            </span>
-          </Button>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {hasNoteText ? (
+            <motion.div
+              key="auto-send-btn"
+              initial={{ opacity: 0, scale: 0.9, width: 0 }}
+              animate={{ opacity: 1, scale: 1, width: 'auto' }}
+              exit={{ opacity: 0, scale: 0.9, width: 0 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <Button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onSubmit({ forceAutoSend: true })
+                }}
+                disabled={isSubmitting || totalItems === 0}
+                variant="outline"
+                aria-label={t('auto_send')}
+                className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.1] px-3.5 py-2 text-[12px] font-semibold text-emerald-100/90 transition-all duration-200 hover:bg-emerald-500/[0.18] active:scale-[0.97] disabled:opacity-35"
+              >
+                <Zap className="mr-1.5 h-3 w-3 opacity-70" strokeWidth={2.2} aria-hidden />
+                {t('auto_send')}
+              </Button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
         <Button
           type="button"
@@ -233,25 +282,28 @@ function AiSendComposerContent({
           }}
           disabled={isSubmitting || totalItems === 0}
           aria-label={isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
-          className="group relative overflow-hidden rounded-full border border-white/10 px-5 py-2.5 text-[13.5px] font-semibold tracking-tight text-white shadow-[0_10px_32px_-8px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_14px_36px_-8px_rgba(0,0,0,0.55)] active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
+          className="group relative overflow-hidden rounded-xl border border-white/[0.08] px-4 py-2 text-[12.5px] font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.5)] active:scale-[0.97] disabled:opacity-35"
           style={{
-            background: `linear-gradient(145deg, ${accentStrong}, rgba(255,255,255,0.18))`
+            background: `linear-gradient(140deg, ${accentStrong}, rgba(255,255,255,0.12))`
           }}
         >
-          <span className="relative z-10 flex items-center gap-2">
+          <span className="relative z-10 flex items-center gap-1.5">
             {isSubmitting ? (
               <>
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2.25} aria-hidden />
+                <Loader2
+                  className="h-3.5 w-3.5 shrink-0 animate-spin"
+                  strokeWidth={2}
+                  aria-hidden
+                />
                 {t('sending_to_ai')}
               </>
             ) : (
               <>
-                <Send className="h-4 w-4 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
+                <Send className="h-3.5 w-3.5 shrink-0 opacity-80" strokeWidth={2} aria-hidden />
                 {t('send_to_ai')}
               </>
             )}
           </span>
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-30%,rgba(255,255,255,0.22),transparent_60%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </Button>
       </div>
 
@@ -261,12 +313,12 @@ function AiSendComposerContent({
         onPointerMove={onResizeMove}
         onPointerUp={onResizeEnd}
         onPointerCancel={onResizeEnd}
-        className="absolute bottom-2 right-2 flex h-7 w-7 cursor-nwse-resize items-end justify-end rounded-full text-white/30 transition-colors hover:text-white/65"
+        className="absolute bottom-1.5 right-1.5 flex h-6 w-6 cursor-nwse-resize items-end justify-end rounded-full text-white/20 transition-colors duration-150 hover:text-white/45"
         title={t('ai_send_resize')}
       >
-        <span className="relative block h-4 w-4">
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-br-[0.55rem] border-b-2 border-r-2 border-current" />
-          <span className="absolute bottom-1.5 right-1.5 h-2 w-2 rounded-br-[0.45rem] border-b-2 border-r-2 border-current opacity-60" />
+        <span className="relative block h-3.5 w-3.5">
+          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-br-[0.4rem] border-b-[1.5px] border-r-[1.5px] border-current" />
+          <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-br-[0.35rem] border-b-[1.5px] border-r-[1.5px] border-current opacity-50" />
         </span>
       </button>
     </>

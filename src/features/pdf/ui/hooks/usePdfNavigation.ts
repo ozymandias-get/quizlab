@@ -1,5 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { RefObject, MutableRefObject } from 'react'
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type RefObject,
+  type MutableRefObject
+} from 'react'
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
 
 type PageChangeEvent = { currentPage: number }

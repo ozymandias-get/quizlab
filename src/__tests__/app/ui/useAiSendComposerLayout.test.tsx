@@ -1,13 +1,13 @@
-import { act, renderHook } from '@testing-library/react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useAiSendComposerLayout } from '@app/ui/aiSendComposer/useAiSendComposerLayout'
 
 vi.mock('@shared/hooks', async () => {
-  const React = await import('react')
+  const { useState } = await import('react')
 
   return {
-    useLocalStorage: <T,>(_key: string, initialValue: T) => React.useState(initialValue)
+    useLocalStorage: <T,>(_key: string, initialValue: T) => useState(initialValue)
   }
 })
 

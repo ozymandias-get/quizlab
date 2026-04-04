@@ -428,6 +428,7 @@
   "ai_send_text_count_label": "metin",
   "ai_send_image_count_label": "görsel",
   "ai_send_item_count": "{{count}} öğe",
+  "ai_send_send_order_hint": "Öğeler bu sırayla AI'ya iletilir.",
   "ai_send_selection_item": "Alıntı {{index}}",
   "ai_send_image_item": "Görsel {{index}}",
   "ai_send_page_item": "Sayfa {{page}}",

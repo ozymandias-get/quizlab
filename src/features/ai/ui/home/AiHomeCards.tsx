@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import type { DragEvent, ReactNode } from 'react'
+import { useState, type DragEvent, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowUpRight, ChevronDown, Globe, Layers3, Sparkles } from 'lucide-react'
 import { useLanguage } from '@app/providers'
@@ -206,26 +205,28 @@ function GridCard({
 
 export function StatChip({
   accent,
+  compact,
   icon,
   label,
   value
 }: {
   accent: string
+  compact?: boolean
   icon: ReactNode
   label: string
   value: string
 }) {
   return (
     <div
-      className="rounded-[32px] border px-4 py-3 backdrop-blur-xl"
+      className={`rounded-[32px] border backdrop-blur-xl ${compact ? 'flex-1 min-w-[120px] px-3 py-2' : 'px-4 py-3'}`}
       style={{
         borderColor: hexToRgba(accent, 0.2),
         background: `linear-gradient(160deg, ${hexToRgba(accent, 0.12)} 0%, rgba(255,255,255,0.04) 55%, rgba(0,0,0,0.16) 100%)`
       }}
     >
-      <div className="flex items-center gap-3">
+      <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`}>
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-full border shadow-sm"
+          className={`flex shrink-0 items-center justify-center rounded-full border shadow-sm ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}
           style={{
             color: accent,
             borderColor: hexToRgba(accent, 0.24),
@@ -235,7 +236,9 @@ export function StatChip({
           {icon}
         </div>
         <div className="min-w-0">
-          <div className="truncate text-base font-semibold tracking-tight text-white/90">
+          <div
+            className={`truncate font-semibold tracking-tight text-white/90 ${compact ? 'text-sm' : 'text-base'}`}
+          >
             {value}
           </div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-white/32">{label}</div>

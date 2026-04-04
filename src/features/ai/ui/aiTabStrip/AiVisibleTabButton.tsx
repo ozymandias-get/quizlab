@@ -56,23 +56,23 @@ function AiVisibleTabButton({
       type="button"
       layout
       whileHover={{
-        y: -1,
-        scale: 1.01,
-        transition: { type: 'spring', stiffness: 340, damping: 22 }
+        y: -0.5,
+        scale: 1.005,
+        transition: { type: 'spring', stiffness: 400, damping: 26 }
       }}
-      whileTap={{ scale: 0.98 }}
-      className="relative flex items-center gap-2 min-w-0 max-w-[260px] px-3 pr-16 h-8 rounded-xl border transition-all duration-150"
+      whileTap={{ scale: 0.99 }}
+      className="relative flex h-8 min-w-0 max-w-[260px] items-center gap-2 rounded-full border px-3.5 pr-16 transition-all duration-200"
       style={
         isActive
           ? {
-              borderColor: `${tabColor}70`,
-              background: `linear-gradient(145deg, ${tabColor}28, rgba(255,255,255,0.08))`,
-              boxShadow: `0 0 14px -5px ${tabColor}80, inset 0 1px 0 rgba(255,255,255,0.15)`
+              borderColor: `${tabColor}66`,
+              background: `linear-gradient(145deg, ${tabColor}22, rgba(255,255,255,0.05))`,
+              boxShadow: `0 0 18px -8px ${tabColor}66, inset 0 1px 0 rgba(255,255,255,0.1)`
             }
           : {
-              borderColor: 'rgba(255,255,255,0.12)',
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)'
+              borderColor: 'rgba(255,255,255,0.08)',
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)'
             }
       }
       onClick={onSelect}

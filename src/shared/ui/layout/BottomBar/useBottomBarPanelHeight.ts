@@ -1,7 +1,7 @@
-import { useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useState, type RefObject } from 'react'
 
 export function useBottomBarPanelHeight(
-  barRef: React.RefObject<HTMLDivElement | null>,
+  barRef: RefObject<HTMLDivElement | null>,
   isOpen: boolean,
   bottomBarScale: number
 ) {

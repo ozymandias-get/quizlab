@@ -1,4 +1,16 @@
-import React, { useRef, useCallback, useMemo, useState, memo, useEffect } from 'react'
+import {
+  cloneElement,
+  isValidElement,
+  useRef,
+  useCallback,
+  useMemo,
+  useState,
+  memo,
+  useEffect,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactElement
+} from 'react'
 import { Reorder, motion } from 'framer-motion'
 import { Pin, X } from 'lucide-react'
 import { getAiIcon } from '@ui/components/Icons'
@@ -9,23 +21,23 @@ import { useLanguage } from '@app/providers'
 const DEFAULT_BAR_COLOR = '#ffffff'
 const hexColorRegex = /^#([0-9A-F]{3}){1,2}$/i
 const isValidColor = (color: string) => hexColorRegex.test(color)
-const ICON_SCALE_STYLE: React.CSSProperties = {
+const ICON_SCALE_STYLE: CSSProperties = {
   width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
   height: 'calc(1.25rem * var(--bar-scale-factor, 1))'
 }
-const ICON_ONLY_BUTTON_METRICS: React.CSSProperties = {
+const ICON_ONLY_BUTTON_METRICS: CSSProperties = {
   width: 'calc(40px * var(--bar-scale-factor, 1))',
   height: 'calc(40px * var(--bar-scale-factor, 1))',
   padding: 'calc(10px * var(--bar-scale-factor, 1))',
   borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))'
 }
-const LABEL_BUTTON_METRICS: React.CSSProperties = {
+const LABEL_BUTTON_METRICS: CSSProperties = {
   padding: 'calc(8px * var(--bar-scale-factor, 1)) calc(12px * var(--bar-scale-factor, 1))',
   gap: 'calc(10px * var(--bar-scale-factor, 1))',
   minWidth: 'calc(100px * var(--bar-scale-factor, 1))',
   borderRadius: 'calc(0.75rem * var(--bar-scale-factor, 1))'
 }
-const FALLBACK_ICON_STYLE: React.CSSProperties = {
+const FALLBACK_ICON_STYLE: CSSProperties = {
   width: 'calc(1rem * var(--bar-scale-factor, 1))',
   height: 'calc(1rem * var(--bar-scale-factor, 1))'
 }
@@ -67,7 +79,7 @@ function getButtonStyle({
   isBeingDragged: boolean
   isHovered: boolean
   safeColor: string
-}): React.CSSProperties {
+}): CSSProperties {
   if (isSelected || isBeingDragged) {
     return {
       background: `linear-gradient(145deg, ${safeColor}25, ${safeColor}35)`,
@@ -104,12 +116,12 @@ function getButtonStyle({
 
 function getScaledAiIcon(iconKey: string) {
   const icon = getAiIcon(iconKey)
-  if (!React.isValidElement(icon)) {
+  if (!isValidElement(icon)) {
     return icon
   }
 
-  const iconElement = icon as React.ReactElement<{ style?: React.CSSProperties }>
-  return React.cloneElement(iconElement, {
+  const iconElement = icon as ReactElement<{ style?: CSSProperties }>
+  return cloneElement(iconElement, {
     style: {
       ...(iconElement.props.style ?? {}),
       ...ICON_SCALE_STYLE
@@ -173,7 +185,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
   )
 
   const handleClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       if (isDraggingRef.current) {
         e.stopPropagation()
         return
@@ -183,13 +195,13 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     [setCurrentAI, modelKey]
   )
 
-  const handleControlClick = useCallback((e: React.MouseEvent) => {
+  const handleControlClick = useCallback((e: MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
   }, [])
 
   const handleCloseClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       handleControlClick(e)
       onClose?.()
     },
@@ -197,7 +209,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
   )
 
   const handlePinClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       handleControlClick(e)
       onTogglePin?.()
     },
@@ -205,7 +217,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
   )
 
   const handleDoubleClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       if (!onRequestRename) return
       e.preventDefault()
       e.stopPropagation()

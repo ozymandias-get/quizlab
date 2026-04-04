@@ -1,4 +1,5 @@
-﻿import { renderHook, act } from '@testing-library/react'
+﻿import type { DragEvent } from 'react'
+import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 
@@ -16,7 +17,7 @@ describe('useSharedDragDrop Hook', () => {
       stopPropagation: vi.fn(),
       dataTransfer: { types: ['Files'] },
       type: 'dragenter'
-    } as unknown as React.DragEvent
+    } as unknown as DragEvent
 
     act(() => {
       result.current.dragHandlers.onDragEnter(dragEnterEvent)
@@ -32,7 +33,7 @@ describe('useSharedDragDrop Hook', () => {
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
       dataTransfer: { types: ['text/plain'] }
-    } as unknown as React.DragEvent
+    } as unknown as DragEvent
 
     act(() => {
       result.current.dragHandlers.onDragEnter(dragEnterEvent)
@@ -45,7 +46,6 @@ describe('useSharedDragDrop Hook', () => {
     const onFileReceived = vi.fn()
     const { result } = renderHook(() => useSharedDragDrop(onFileReceived))
 
-    // Set dragging first
     act(() => {
       result.current.dragHandlers.onDragEnter({
         preventDefault: vi.fn(),
@@ -55,9 +55,7 @@ describe('useSharedDragDrop Hook', () => {
     })
     expect(result.current.isDragOver).toBe(true)
 
-    // Drop
     const mockPdfFile = new File([''], 'test.pdf', { type: 'application/pdf' })
-    // Add path prop for implementation requirement
     Object.defineProperty(mockPdfFile, 'path', { value: '/path/to/test.pdf' })
 
     const dropEvent = {
@@ -67,7 +65,7 @@ describe('useSharedDragDrop Hook', () => {
         files: [mockPdfFile],
         types: ['Files']
       }
-    } as unknown as React.DragEvent
+    } as unknown as DragEvent
 
     await act(async () => {
       await result.current.dragHandlers.onDrop(dropEvent)
@@ -87,7 +85,7 @@ describe('useSharedDragDrop Hook', () => {
       preventDefault: vi.fn(),
       stopPropagation: vi.fn(),
       dataTransfer: { files: [mockTxtFile] }
-    } as unknown as React.DragEvent
+    } as unknown as DragEvent
 
     await act(async () => {
       await result.current.dragHandlers.onDrop(dropEvent)

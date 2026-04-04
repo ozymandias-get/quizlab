@@ -1,5 +1,4 @@
-﻿import React, { useEffect } from 'react'
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { Logger } from '@shared/lib/logger'
 import {
   translations,
@@ -44,10 +43,6 @@ export const useLanguage = create<LanguageState>((set, get) => ({
       Logger.warn('LocalStorage language save failed:', error)
     }
 
-    const langConfig = LANGUAGES[newLang]
-    document.documentElement.dir = langConfig?.dir || 'ltr'
-    document.documentElement.lang = newLang
-
     set({ language: newLang })
   },
 
@@ -83,17 +78,3 @@ export const useLanguage = create<LanguageState>((set, get) => ({
     return translationText
   }
 }))
-
-// For backward compatibility since it used to be a Provider wrapping the app
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const language = useLanguage((state) => state.language)
-
-  // Ensure document lang and dir are set on mount and when language changes
-  useEffect(() => {
-    const langConfig = LANGUAGES[language] || LANGUAGES[DEFAULT_LANGUAGE]
-    document.documentElement.dir = langConfig?.dir || 'ltr'
-    document.documentElement.lang = language
-  }, [language])
-
-  return <>{children}</>
-}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react'
+﻿import { useState, useRef, type ChangeEvent, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@app/providers'
 import { MagicWandIcon, CloseIcon } from '@ui/components/Icons'
@@ -16,35 +16,21 @@ interface HoveredRect {
   type: 'input' | 'button'
 }
 
-/**
- * Magic Selector Tutorial
- * A guided interactive tutorial to teach users how to use the Magic Selector.
- */
 export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSelectorTutorialProps) {
   const { t } = useLanguage()
 
-  // Steps:
-  // 0: Intro (Explanation)
-  // 1: Select Input (Guide user to click input)
-  // 2: Type Test (Guide user to type text to reveal button)
-  // 3: Select Button (Guide user to click send button)
-  // 4: Success (Finish)
   const [step, setStep] = useState(0)
 
-  // Fake Chat App State
   const [inputValue, setInputValue] = useState('')
   const [isButtonVisible, setIsButtonVisible] = useState(false)
 
-  // Refs for highlighting
   const inputRef = useRef<HTMLInputElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Hover state for "Magic Selector" effect
   const [hoveredRect, setHoveredRect] = useState<HoveredRect | null>(null)
 
-  // Handle typing simulation
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setInputValue(val)
     if (step === 2 && val.length > 0) {
@@ -53,7 +39,6 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
     }
   }
 
-  // Handle Element Selection (Simulation)
   const handleElementClick = (type: 'input' | 'button') => {
     if (step === 1 && type === 'input') {
       setStep(2)
@@ -63,7 +48,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
     }
   }
 
-  const handleElementHover = (e: React.MouseEvent<HTMLElement>, type: 'input' | 'button') => {
+  const handleElementHover = (e: MouseEvent<HTMLElement>, type: 'input' | 'button') => {
     if (step !== 1 && step !== 3) return
     if (!containerRef.current) return
 
@@ -75,7 +60,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
       left: rect.left - containerRect.left,
       width: rect.width,
       height: rect.height,
-      type // 'input' or 'button'
+      type
     })
   }
 

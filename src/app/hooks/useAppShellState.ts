@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useAppTools, useAppearance, useUpdate } from '@app/providers'
+import { useAppToolState, useAppToolActions, useAppearance, useUpdate } from '@app/providers'
 import { usePanelResize, useWebviewMount } from '@shared/hooks'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useAppAnimations } from './useAppAnimations'
@@ -8,7 +8,8 @@ import { useOnlineStatus } from './useOnlineStatus'
 export function useAppShellState() {
   useOnlineStatus()
 
-  const appTools = useAppTools()
+  const appToolState = useAppToolState()
+  const appToolActions = useAppToolActions()
   const update = useUpdate()
   const appearance = useAppearance()
   const [isBarHovered, setIsBarHovered] = useState(false)
@@ -32,7 +33,8 @@ export function useAppShellState() {
   const isWebviewMounted = useWebviewMount()
 
   return {
-    appTools,
+    appToolState,
+    appToolActions,
     update,
     appearance,
     animations,

@@ -1,4 +1,11 @@
-import React, { memo, useCallback, useRef } from 'react'
+import {
+  memo,
+  useCallback,
+  useRef,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode
+} from 'react'
 import { motion } from 'framer-motion'
 import { toolItemVariants } from './animations'
 import { cn } from '@shared/lib/uiUtils'
@@ -10,7 +17,7 @@ export interface ToolButtonProps {
   activeColor?: string
   onClick: () => void
   title: string
-  children: React.ReactNode
+  children: ReactNode
   delay?: number
 }
 
@@ -19,7 +26,7 @@ export const ToolButton = memo(
     const rippleRef = useRef<HTMLSpanElement>(null)
 
     const handleClick = useCallback(
-      (e: React.MouseEvent<HTMLButtonElement>) => {
+      (e: MouseEvent<HTMLButtonElement>) => {
         if (rippleRef.current) {
           const btn = e.currentTarget
           const rect = btn.getBoundingClientRect()
@@ -80,7 +87,7 @@ export const ToolButton = memo(
             color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
             transform: 'translateZ(0)',
             '--active-glow-color': activeColor || 'rgba(139, 92, 246, 0.35)'
-          } as React.CSSProperties
+          } as CSSProperties
         }
       >
         {children}

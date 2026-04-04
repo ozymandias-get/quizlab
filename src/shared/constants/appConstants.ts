@@ -1,6 +1,6 @@
 export const APP_CONSTANTS = {
   // External URLs
-  GITHUB_RELEASES_URL: 'https://github.com/ozymandias-get/quizlab/releases',
+  GITHUB_RELEASES_URL: 'https://github.com/ozymandias-get/quizlab/releases/latest',
   GITHUB_REPO_URL: 'https://github.com/ozymandias-get/quizlab',
 
   SCREENSHOT_TYPES: {

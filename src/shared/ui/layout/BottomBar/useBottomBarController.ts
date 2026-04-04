@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { Logger } from '@shared/lib/logger'
+
+function prefetchSettingsModal(prefetch: () => Promise<unknown>) {
+  void prefetch().catch((error) => Logger.error('Error prefetching SettingsModal:', error))
+}
 
 function scheduleIdlePrefetch(prefetch: () => Promise<unknown>) {
   if (
@@ -7,19 +11,14 @@ function scheduleIdlePrefetch(prefetch: () => Promise<unknown>) {
     typeof window.requestIdleCallback === 'function' &&
     typeof window.cancelIdleCallback === 'function'
   ) {
-    const handle = window.requestIdleCallback(
-      () => {
-        void prefetch().catch((error) => Logger.error('Error prefetching SettingsModal:', error))
-      },
-      { timeout: 2000 }
-    )
+    const handle = window.requestIdleCallback(() => prefetchSettingsModal(prefetch), {
+      timeout: 2000
+    })
 
     return () => window.cancelIdleCallback(handle)
   }
 
-  const timer = window.setTimeout(() => {
-    void prefetch().catch((error) => Logger.error('Error prefetching SettingsModal:', error))
-  }, 1500)
+  const timer = window.setTimeout(() => prefetchSettingsModal(prefetch), 1500)
 
   return () => window.clearTimeout(timer)
 }
@@ -51,7 +50,7 @@ export function useBottomBarController(isTourActive: boolean) {
   )
 
   const handleToggle = useCallback(
-    (event?: React.MouseEvent) => {
+    (event?: MouseEvent) => {
       if (isAnimating) {
         event?.stopPropagation()
         return
@@ -69,17 +68,17 @@ export function useBottomBarController(isTourActive: boolean) {
     [isAnimating]
   )
 
-  const handleHubPointerDown = useCallback((event: React.PointerEvent) => {
+  const handleHubPointerDown = useCallback((event: PointerEvent) => {
     pointerStart.current = { x: event.clientX, y: event.clientY }
   }, [])
 
   const handleHubPointerUp = useCallback(
-    (event: React.PointerEvent) => {
+    (event: PointerEvent) => {
       const dx = Math.abs(event.clientX - pointerStart.current.x)
       const dy = Math.abs(event.clientY - pointerStart.current.y)
 
       if (dx < 5 && dy < 5) {
-        handleToggle(event as unknown as React.MouseEvent)
+        handleToggle(event as unknown as MouseEvent)
       }
     },
     [handleToggle]

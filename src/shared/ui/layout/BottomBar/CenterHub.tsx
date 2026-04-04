@@ -1,4 +1,4 @@
-import React, { memo } from 'react'
+import { memo, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AiHubIcon } from '@ui/components/Icons'
 import {
@@ -10,12 +10,12 @@ import {
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
 interface CenterHubProps {
-  handleHubPointerDown: (e: React.PointerEvent) => void
-  handleHubPointerUp: (e: React.PointerEvent) => void
+  handleHubPointerDown: (e: PointerEvent) => void
+  handleHubPointerUp: (e: PointerEvent) => void
   onClick: () => void
-  onMouseDown?: (e: React.MouseEvent) => void
+  onMouseDown?: (e: MouseEvent) => void
   isOpen: boolean
-  hubStyle: React.CSSProperties
+  hubStyle: CSSProperties
   tabsCount?: number
   ariaLabel?: string
 }

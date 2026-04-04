@@ -7,9 +7,11 @@ vi.mock('@app/providers', () => ({
     t: (key: string, params?: Record<string, string>) => {
       const translations: Record<string, string> = {
         auto_send: 'auto_send',
+        ai_send_send_order_hint: 'Send order hint',
         ai_send_page_item: `Sayfa ${params?.page ?? ''}`.trim(),
         ai_send_page_selection_item: `Sayfa ${params?.page ?? ''} • Bir kisim`.trim(),
         ai_send_image_item: `Gorsel ${params?.index ?? ''}`.trim(),
+        ai_send_selection_item: `Alinti ${params?.index ?? ''}`.trim(),
         ai_send_item_count: `${params?.count ?? ''} oge`.trim()
       }
 
@@ -20,8 +22,7 @@ vi.mock('@app/providers', () => ({
 
 describe('AiSendComposerContent', () => {
   const baseProps = {
-    textItems: [],
-    imageItems: [],
+    items: [] as { id: string; type: 'text'; text: string }[],
     totalItems: 1,
     collapsed: false,
     noteText: '',
@@ -63,11 +64,11 @@ describe('AiSendComposerContent', () => {
     expect(screen.queryByRole('button', { name: 'auto_send' })).not.toBeInTheDocument()
   })
 
-  it('shows page-based labels for full-page and selection images', () => {
+  it('shows page-based labels for full-page and selection images in queue order', () => {
     render(
       <AiSendComposerContent
         {...baseProps}
-        imageItems={[
+        items={[
           {
             id: 'full',
             type: 'image',
@@ -87,6 +88,7 @@ describe('AiSendComposerContent', () => {
       />
     )
 
+    expect(screen.getByText('Send order hint')).toBeInTheDocument()
     expect(screen.getByText('Sayfa 34')).toBeInTheDocument()
     expect(screen.getByText('Sayfa 34 • Bir kisim')).toBeInTheDocument()
     expect(screen.getByText('2 oge')).toBeInTheDocument()

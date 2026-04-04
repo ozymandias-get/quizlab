@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { FileText, Play } from 'lucide-react'
 import { Button } from '@ui/components/button'
 import type { RecentItemGroup, RecentItemView } from './types'
@@ -28,6 +29,13 @@ function PdfRecentList({
   onResume,
   onRemove
 }: PdfRecentListProps) {
+  const resumeItem = useCallback(
+    (item: RecentItemView) => {
+      void onResume(item)
+    },
+    [onResume]
+  )
+
   if (recentCount === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 text-left">
@@ -72,11 +80,11 @@ function PdfRecentList({
                 key={item.path}
                 role="button"
                 tabIndex={0}
-                onClick={() => void onResume(item)}
+                onClick={() => resumeItem(item)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault()
-                    void onResume(item)
+                    resumeItem(item)
                   }
                   if (event.key === 'Delete') {
                     event.preventDefault()
@@ -136,7 +144,7 @@ function PdfRecentList({
                       variant="ghost"
                       onClick={(event) => {
                         event.stopPropagation()
-                        void onResume(item)
+                        resumeItem(item)
                       }}
                       className="h-8 px-2.5 rounded-lg border border-white/10 bg-white/5 text-stone-200 hover:bg-amber-500/20 hover:text-amber-100 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
                       aria-label={t('continue_reading')}

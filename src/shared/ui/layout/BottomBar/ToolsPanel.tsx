@@ -1,6 +1,6 @@
-import React, { memo } from 'react'
+import { memo, type CSSProperties } from 'react'
 import { motion } from 'framer-motion'
-import { useLanguage, useAppTools } from '@app/providers'
+import { useLanguage, useAppToolActions, useAppToolState } from '@app/providers'
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { GeminiIcon, LoaderIcon, MagicWandIcon, SettingsIcon, SwapIcon } from '@ui/components/Icons'
@@ -10,7 +10,7 @@ import { BottomBarPanelFrame } from './BottomBarPanelFrame'
 
 interface ToolsPanelProps {
   isOpen: boolean
-  panelStyle: React.CSSProperties
+  panelStyle: CSSProperties
   maxHeight?: number
   handleSettingsClick: () => void
   handleGeminiWebSettingsClick: () => void
@@ -27,16 +27,11 @@ export const ToolsPanel = memo(
     toggleLayoutSwap
   }: ToolsPanelProps) => {
     const { t } = useLanguage()
-    const {
-      isPickerActive,
-      togglePicker,
-      startPickerWhenReady,
-      isGeminiWebLoginInProgress,
-      startGeminiWebLogin
-    } = useAppTools()
+    const { isPickerActive, isGeminiWebLoginInProgress } = useAppToolState()
+    const { togglePicker, startPickerWhenReady, startGeminiWebLogin } = useAppToolActions()
     const { data: webSessionData, isLoading: isGeminiWebStatusLoading } = useGeminiWebStatus()
 
-    const toolbarIconStyle: React.CSSProperties = {
+    const toolbarIconStyle: CSSProperties = {
       width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
       height: 'calc(1.25rem * var(--bar-scale-factor, 1))'
     }

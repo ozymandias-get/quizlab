@@ -1,14 +1,14 @@
-﻿import { useState, useCallback, useRef } from 'react'
+﻿import { useState, useCallback, useRef, type DragEvent, type RefObject } from 'react'
 import { Logger } from '@shared/lib/logger'
 
 interface DragDropReturn {
   isDragOver: boolean
-  containerRef: React.RefObject<HTMLDivElement | null>
+  containerRef: RefObject<HTMLDivElement | null>
   dragHandlers: {
-    onDragEnter: (e: React.DragEvent) => void
-    onDragOver: (e: React.DragEvent) => void
-    onDragLeave: (e: React.DragEvent) => void
-    onDrop: (e: React.DragEvent) => void
+    onDragEnter: (e: DragEvent) => void
+    onDragOver: (e: DragEvent) => void
+    onDragLeave: (e: DragEvent) => void
+    onDrop: (e: DragEvent) => void
   }
   resetDragState: () => void
 }
@@ -22,7 +22,7 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
   const dragCounterRef = useRef(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
+  const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
@@ -32,7 +32,7 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
     setIsDragOver(true)
   }, [])
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
@@ -41,7 +41,7 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
     }
   }, [])
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
@@ -54,7 +54,7 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
   }, [])
 
   const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
+    async (e: DragEvent) => {
       e.preventDefault()
       e.stopPropagation()
 
@@ -62,7 +62,6 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
       setIsDragOver(false)
 
       const files = Array.from(e.dataTransfer.files)
-      // Find first PDF
       const pdfFile = files.find((file) => file.name.toLowerCase().endsWith('.pdf'))
 
       if (!pdfFile) return
@@ -76,7 +75,6 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
           return
         }
 
-        // Just pass the file to the callback, let the consumer handle registration
         onFileReceived(pdfFile)
       } catch (error) {
         Logger.error('[DragDrop] Error processing drop:', error)

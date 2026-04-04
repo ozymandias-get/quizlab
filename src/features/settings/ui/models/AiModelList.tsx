@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+﻿import { useState, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Field, Label, Description } from '@headlessui/react'
 import { GridIcon, TrashIcon } from '@ui/components/Icons'
@@ -25,7 +25,7 @@ interface AiModelListProps {
   enabledModels: string[]
   aiSites: Record<string, AiPlatform>
   toggleModel: (key: string) => void
-  handleDeleteAi: (e: React.MouseEvent, id: string, name: string) => Promise<void>
+  handleDeleteAi: (e: MouseEvent, id: string, name: string) => Promise<void>
   isDeleting: boolean
   minEnabledModels: number
   defaultAiModel?: string
@@ -33,7 +33,7 @@ interface AiModelListProps {
   t: (key: string) => string
 }
 
-export const AiModelList: React.FC<AiModelListProps> = ({
+export function AiModelList({
   modelsList,
   enabledModels,
   aiSites,
@@ -44,11 +44,11 @@ export const AiModelList: React.FC<AiModelListProps> = ({
   defaultAiModel,
   setDefaultAiModel,
   t
-}) => {
+}: AiModelListProps) {
   // Track local deleting state to show spinner on specific item
   const [localDeletingId, setLocalDeletingId] = useState<string | null>(null)
 
-  const onDeleteClick = async (e: React.MouseEvent, id: string, name: string) => {
+  const onDeleteClick = async (e: MouseEvent, id: string, name: string) => {
     setLocalDeletingId(id)
     try {
       await handleDeleteAi(e, id, name)

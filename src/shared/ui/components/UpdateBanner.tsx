@@ -1,5 +1,4 @@
-﻿import React from 'react'
-import { APP_CONSTANTS } from '@shared/constants/appConstants'
+﻿import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { UpdateIcon, CloseIcon, DownloadIcon } from './Icons'
 
 import { useOpenExternal } from '@platform/electron/api/useSystemApi'
@@ -14,13 +13,7 @@ interface UpdateBannerProps {
   t: (key: string) => string
 }
 
-const UpdateBanner: React.FC<UpdateBannerProps> = ({
-  updateAvailable,
-  updateInfo,
-  isVisible,
-  onClose,
-  t
-}) => {
+function UpdateBanner({ updateAvailable, updateInfo, isVisible, onClose, t }: UpdateBannerProps) {
   const { mutate: openExternal } = useOpenExternal()
 
   if (!updateAvailable || !updateInfo || !isVisible) return null

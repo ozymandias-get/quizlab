@@ -1,14 +1,14 @@
-import React from 'react'
+import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes cache
-      refetchOnWindowFocus: false, // Desktop app behavior
+      staleTime: 1000 * 60 * 5,
+      refetchOnWindowFocus: false,
       retry: 1,
-      networkMode: 'always' // Prevent IPC queries from pausing when offline
+      networkMode: 'always'
     },
     mutations: {
       networkMode: 'always'
@@ -16,15 +16,11 @@ const queryClient = new QueryClient({
   }
 })
 
-interface QueryProviderProps {
-  children: React.ReactNode
-}
-
-export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
+export function QueryProvider({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <ReactQueryDevtools initialIsOpen={false} />
+      {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
     </QueryClientProvider>
   )
 }

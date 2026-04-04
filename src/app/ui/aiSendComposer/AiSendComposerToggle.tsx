@@ -1,5 +1,4 @@
-import type { KeyboardEvent } from 'react'
-import { memo } from 'react'
+import { memo, type KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@shared/lib/uiUtils'
 import { useLanguage } from '@app/providers'
@@ -14,6 +13,8 @@ interface AiSendComposerToggleProps {
   isSubmitDisabled: boolean
   accentStrong: string
 }
+
+const SPRING_SNAPPY = { type: 'spring' as const, stiffness: 500, damping: 30, mass: 0.6 }
 
 function AiSendComposerToggle({
   autoSend,
@@ -36,75 +37,42 @@ function AiSendComposerToggle({
   }
 
   return (
-    <div className="relative border-b border-white/[0.06] px-4 py-3">
+    <div className="relative border-b border-white/[0.05] px-5 py-3">
       <motion.div
         role="button"
         aria-pressed={autoSend}
         tabIndex={0}
         onClick={onToggle}
         onKeyDown={handleToggleKeyDown}
-        whileTap={{ scale: 0.992 }}
+        whileTap={{ scale: 0.985 }}
         className={cn(
-          'group relative w-full overflow-hidden rounded-[1.7rem] border px-4 py-3.5 text-left transition-all duration-500 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50',
-          autoSend
-            ? 'border-emerald-500/28'
-            : 'border-white/[0.08] hover:border-white/[0.15] hover:bg-white/[0.02]'
+          'group relative w-full overflow-hidden rounded-2xl border px-4 py-3 text-left outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-emerald-500/40',
+          autoSend ? 'border-emerald-400/20' : 'border-white/[0.06] hover:border-white/[0.1]'
         )}
         style={
           autoSend
             ? {
                 background:
-                  'linear-gradient(145deg, rgba(16,185,129,0.16), rgba(16,185,129,0.04) 55%, rgba(255,255,255,0.02))',
-                boxShadow:
-                  'inset 0 1px 0 rgba(255,255,255,0.05), 0 16px 28px -16px rgba(16,185,129,0.45)'
+                  'linear-gradient(150deg, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0.04) 60%, rgba(255,255,255,0.01) 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(16,185,129,0.06)'
               }
             : {
                 background:
-                  'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015) 60%, rgba(255,255,255,0.01))',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 16px 28px -20px rgba(0,0,0,0.5)'
+                  'linear-gradient(150deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
               }
         }
       >
         <motion.div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-[1.7rem]"
-          animate={{
-            opacity: autoSend ? 1 : 0.65,
-            scale: autoSend ? 1 : 0.985
-          }}
-          transition={{ duration: 0.34, ease: 'easeOut' }}
-          style={{
-            background: autoSend
-              ? 'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.14), transparent 38%)'
-              : 'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.05), transparent 38%)'
-          }}
-        />
-
-        <motion.div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-10 top-0 h-24 w-24 rounded-full blur-2xl"
-          animate={{
-            opacity: autoSend ? 0.9 : 0.25,
-            scale: autoSend ? 1 : 0.72,
-            x: autoSend ? -6 : 10,
-            y: autoSend ? -2 : 6
-          }}
-          transition={{ type: 'spring', stiffness: 180, damping: 20 }}
-          style={{
-            background: autoSend ? 'rgba(16,185,129,0.28)' : 'rgba(255,255,255,0.08)'
-          }}
-        />
-
-        <motion.div
           layout={shouldAnimateLayout}
-          className="relative z-10 flex items-start justify-between gap-4"
+          className="relative z-10 flex items-center justify-between gap-3"
         >
-          <motion.div layout={shouldAnimateLayout} className="min-w-0">
-            <motion.div layout={shouldAnimateLayout} className="flex items-center gap-2.5">
+          <motion.div layout={shouldAnimateLayout} className="min-w-0 flex-1">
+            <motion.div layout={shouldAnimateLayout} className="flex items-center gap-2">
               <span
                 className={cn(
-                  'text-[13px] font-semibold tracking-[0.01em] leading-none transition-colors duration-500',
-                  autoSend ? 'text-emerald-50' : 'text-white/82 group-hover:text-white'
+                  'text-[13px] font-semibold leading-none tracking-[0.005em] transition-colors duration-300',
+                  autoSend ? 'text-emerald-50' : 'text-white/75 group-hover:text-white/90'
                 )}
               >
                 {t('auto_send')}
@@ -112,15 +80,15 @@ function AiSendComposerToggle({
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
                   key={autoSend ? 'on' : 'off'}
-                  initial={{ opacity: 0, y: autoSend ? 6 : -6, scale: 0.92 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: autoSend ? -6 : 6, scale: 0.92 }}
-                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  initial={{ opacity: 0, scale: 0.85, filter: 'blur(4px)' }}
+                  animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, scale: 0.85, filter: 'blur(4px)' }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                   className={cn(
-                    'inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]',
+                    'inline-flex rounded-md px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em]',
                     autoSend
-                      ? 'bg-emerald-400/16 text-emerald-300 ring-1 ring-emerald-400/18'
-                      : 'bg-white/[0.05] text-white/42 ring-1 ring-white/8'
+                      ? 'bg-emerald-400/15 text-emerald-300/90'
+                      : 'bg-white/[0.05] text-white/35'
                   )}
                 >
                   {autoSend ? t('auto_send_state_on') : t('auto_send_state_off')}
@@ -131,73 +99,69 @@ function AiSendComposerToggle({
             <AnimatePresence mode="wait" initial={false}>
               <motion.p
                 key={autoSend ? 'hint-on' : 'hint-off'}
-                initial={{ opacity: 0, y: 8, filter: 'blur(6px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-                transition={{ duration: 0.24, ease: 'easeOut' }}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -3 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
                 className={cn(
-                  'mt-2 text-[11px] leading-5',
-                  autoSend ? 'text-emerald-100/72' : 'text-white/44'
+                  'mt-1.5 text-[11px] leading-[1.45]',
+                  autoSend ? 'text-emerald-200/50' : 'text-white/35'
                 )}
               >
                 {autoSend ? t('auto_send_hint_on') : t('auto_send_hint_off')}
               </motion.p>
             </AnimatePresence>
-
-            <AnimatePresence initial={false}>
-              {autoSend ? (
-                <motion.div
-                  key="submit-cta"
-                  layout={shouldAnimateLayout}
-                  initial={{ opacity: 0, y: 10, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                  exit={{ opacity: 0, y: -6, height: 0 }}
-                  transition={{ type: 'spring', stiffness: 230, damping: 22 }}
-                  className="mt-3 overflow-hidden"
-                >
-                  <Button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      onSubmit()
-                    }}
-                    disabled={isSubmitting || isSubmitDisabled}
-                    className="rounded-full border-0 px-4 py-2 text-[12.5px] font-medium text-white shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 disabled:opacity-40"
-                    style={{
-                      background: `linear-gradient(135deg, ${accentStrong}, rgba(255,255,255,0.18))`
-                    }}
-                  >
-                    {isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
-                  </Button>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
           </motion.div>
 
-          <motion.span
-            aria-hidden="true"
-            animate={{
-              scale: autoSend ? 1.08 : 1,
-              backgroundColor: autoSend ? 'rgba(74, 222, 128, 1)' : 'rgba(255,255,255,0.18)',
-              boxShadow: autoSend ? '0 0 22px rgba(16,185,129,0.55)' : '0 0 0 rgba(0,0,0,0)'
-            }}
-            transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-            className="mt-1 h-3 w-3 shrink-0 rounded-full"
-          />
+          {/* Pill switch */}
+          <div
+            className={cn(
+              'relative flex h-[22px] w-[40px] shrink-0 items-center rounded-full border transition-all duration-300',
+              autoSend
+                ? 'border-emerald-400/25 bg-emerald-500/30'
+                : 'border-white/[0.08] bg-white/[0.06]'
+            )}
+          >
+            <motion.span
+              className={cn(
+                'absolute h-[16px] w-[16px] rounded-full shadow-sm',
+                autoSend ? 'bg-emerald-300' : 'bg-white/40'
+              )}
+              animate={{ x: autoSend ? 19 : 3 }}
+              transition={SPRING_SNAPPY}
+            />
+          </div>
         </motion.div>
 
         <AnimatePresence initial={false}>
           {autoSend ? (
             <motion.div
-              aria-hidden="true"
-              key="active-outline"
-              className="pointer-events-none absolute inset-[1px] rounded-[1.6rem] border border-emerald-300/10"
-              initial={{ opacity: 0, scale: 0.985 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.015 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-            />
+              key="submit-cta"
+              layout={shouldAnimateLayout}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="pt-2.5">
+                <Button
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    onSubmit()
+                  }}
+                  disabled={isSubmitting || isSubmitDisabled}
+                  className="w-full rounded-xl border-0 py-2 text-[12px] font-semibold tracking-[0.01em] text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-35"
+                  style={{
+                    background: `linear-gradient(135deg, ${accentStrong}, rgba(45,212,191,0.65) 70%, rgba(255,255,255,0.18))`
+                  }}
+                >
+                  {isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
+                </Button>
+              </div>
+            </motion.div>
           ) : null}
         </AnimatePresence>
       </motion.div>
