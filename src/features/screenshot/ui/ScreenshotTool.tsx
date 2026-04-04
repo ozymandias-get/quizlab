@@ -1,5 +1,5 @@
 ﻿import { useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { useCaptureScreen } from '@platform/electron/api/useSystemApi'
 import { Logger } from '@shared/lib/logger'
 
@@ -19,7 +19,7 @@ interface ScreenshotToolProps {
 }
 
 function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const [isSelecting, setIsSelecting] = useState(false)
   const [startPos, setStartPos] = useState({ x: 0, y: 0 })
   const [endPos, setEndPos] = useState({ x: 0, y: 0 })

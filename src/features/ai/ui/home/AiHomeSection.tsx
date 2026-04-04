@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronDown, Grip } from 'lucide-react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { hexToRgba } from '@shared/lib/uiUtils'
 
 interface AiHomeSectionProps {
@@ -23,7 +23,7 @@ export default function AiHomeSection({
   icon,
   title
 }: AiHomeSectionProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   return (

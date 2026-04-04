@@ -9,7 +9,8 @@ vi.mock('@ui/components/Icons', () => ({
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({
     t: (key: string) => key
-  })
+  }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 vi.mock('framer-motion', () => ({

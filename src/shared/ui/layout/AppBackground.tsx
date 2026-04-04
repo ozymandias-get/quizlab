@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, memo, forwardRef, type CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useShallow } from 'zustand/react/shallow'
 import { useAppearance } from '@app/providers'
 
 interface RandomBlobProps {
@@ -103,7 +104,14 @@ const AnimatedBlobs = memo(({ colors, isRandomMode }: AnimatedBlobsProps) => (
 ))
 
 function AppBackground() {
-  const { bgType, bgSolidColor, bgAnimatedColors, bgRandomMode } = useAppearance()
+  const { bgType, bgSolidColor, bgAnimatedColors, bgRandomMode } = useAppearance(
+    useShallow((s) => ({
+      bgType: s.bgType,
+      bgSolidColor: s.bgSolidColor,
+      bgAnimatedColors: s.bgAnimatedColors,
+      bgRandomMode: s.bgRandomMode
+    }))
+  )
 
   const baseStyle = {
     backgroundColor: bgType === 'solid' ? bgSolidColor : '#050505',

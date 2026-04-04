@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState, useRef, forwardRef, type MouseEvent, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { useLanguage, type Toast } from '@app/providers'
+import { useLanguageStrings, type Toast } from '@app/providers'
 
 type ToastType = Toast['type']
 
@@ -85,7 +85,7 @@ interface ToastItemProps {
 }
 
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove }, ref) => {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const [progress, setProgress] = useState(100)
   const [isPaused, setIsPaused] = useState(false)
   const startTimeRef = useRef(Date.now())

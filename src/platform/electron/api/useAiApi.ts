@@ -2,8 +2,8 @@
 import { useElectronQuery, useElectronMutation } from '../useElectron'
 import type { AiRegistryResponse, CustomAiInput, CustomAiResult } from '@shared-core/types'
 import type { AiSelectorConfig } from '@electron/features/ai/aiManager'
-import { useToast } from '@app/providers/ToastContext'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useToastActions } from '@app/providers/ToastContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 
 const AI_REGISTRY_KEY = ['ai', 'registry']
 export const AI_CONFIG_KEY = (hostname?: string) =>
@@ -55,8 +55,8 @@ export function useRefreshAiRegistry() {
  */
 export function useSaveAiConfig() {
   const queryClient = useQueryClient()
-  const { showSuccess } = useToast()
-  const { t } = useLanguage()
+  const { showSuccess } = useToastActions()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<boolean, { hostname: string; config: AiSelectorConfig }>(
     (api, { hostname, config }) => api.saveAiConfig(hostname, config),
@@ -76,8 +76,8 @@ export function useSaveAiConfig() {
  */
 export function useDeleteAiConfig() {
   const queryClient = useQueryClient()
-  const { showSuccess } = useToast()
-  const { t } = useLanguage()
+  const { showSuccess } = useToastActions()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<boolean, string>((api, hostname) => api.deleteAiConfig(hostname), {
     errorMessage: t('toast_ai_config_delete_failed'),
@@ -95,8 +95,8 @@ export function useDeleteAiConfig() {
 
 export function useAddCustomAi() {
   const queryClient = useQueryClient()
-  const { showSuccess, showError } = useToast()
-  const { t } = useLanguage()
+  const { showSuccess, showError } = useToastActions()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<CustomAiResult, CustomAiInput>((api, data) => api.addCustomAi(data), {
     errorMessage: t('toast_custom_ai_failed'),
@@ -120,8 +120,8 @@ export function useAddCustomAi() {
  */
 export function useDeleteCustomAi() {
   const queryClient = useQueryClient()
-  const { showSuccess } = useToast()
-  const { t } = useLanguage()
+  const { showSuccess } = useToastActions()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<boolean, string>((api, id) => api.deleteCustomAi(id), {
     errorMessage: t('toast_custom_ai_delete_failed'),

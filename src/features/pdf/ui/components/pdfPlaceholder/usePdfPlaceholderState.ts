@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLanguage, useToast } from '@app/providers'
+import { useLanguageStrings, useToastActions } from '@app/providers'
 import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/usePdfSelection'
 import type { RecentItemView, SortMode } from './types'
 import { groupRecentItems, processRecentItems } from './utils'
@@ -17,8 +17,8 @@ export function usePdfPlaceholderState({
   onRestoreResumePdf,
   lastReadingInfo
 }: UsePdfPlaceholderStateParams) {
-  const { t, language } = useLanguage()
-  const { addToast } = useToast()
+  const { t, language } = useLanguageStrings()
+  const { addToast } = useToastActions()
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('recent')
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)

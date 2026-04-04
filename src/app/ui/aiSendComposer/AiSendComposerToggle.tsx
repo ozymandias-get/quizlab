@@ -1,7 +1,7 @@
 import { memo, type KeyboardEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@shared/lib/uiUtils'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { Button } from '@ui/components/button'
 
 interface AiSendComposerToggleProps {
@@ -25,7 +25,7 @@ function AiSendComposerToggle({
   isSubmitDisabled,
   accentStrong
 }: AiSendComposerToggleProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const shouldAnimateLayout = !isDragging
   const handleToggleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Enter' && event.key !== ' ') {

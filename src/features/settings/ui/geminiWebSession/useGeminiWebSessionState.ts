@@ -1,5 +1,10 @@
 import { useCallback, useMemo } from 'react'
-import { useAppToolActions, useAppToolState, useLanguage, useToast } from '@app/providers'
+import {
+  useAppToolActions,
+  useAppToolFlagsState,
+  useLanguageStrings,
+  useToastActions
+} from '@app/providers'
 import type { GeminiWebSessionActionResult } from '@shared-core/types'
 import {
   DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS,
@@ -23,8 +28,8 @@ import type {
 const MANAGED_APP_IDS = new Set(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
 
 export function useGeminiWebSessionState() {
-  const { t } = useLanguage()
-  const { showError } = useToast()
+  const { t } = useLanguageStrings()
+  const { showError } = useToastActions()
   const {
     data: webSessionData,
     isLoading: isWebSessionLoading,
@@ -42,7 +47,7 @@ export function useGeminiWebSessionState() {
     }
   })
 
-  const { isGeminiWebLoginInProgress } = useAppToolState()
+  const { isGeminiWebLoginInProgress } = useAppToolFlagsState()
   const { startGeminiWebLogin } = useAppToolActions()
   const { mutateAsync: checkWebNow, isPending: isCheckingWebNow } = useGeminiWebCheckNow()
   const { mutateAsync: reauthWeb, isPending: isReauthingWeb } = useGeminiWebReauth()

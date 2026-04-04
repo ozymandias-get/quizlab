@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
-import { useAppearance, useLanguage } from '@app/providers'
+import { useAppearance, useLanguageStrings } from '@app/providers'
 import type { AiDraftImageItem, AiDraftTextItem } from '@app/providers/ai/types'
 import { hexToRgba } from '@shared/lib/uiUtils'
 import AiSendComposerContent from './aiSendComposer/AiSendComposerContent'
@@ -22,8 +22,8 @@ function AiSendComposer({
   onClearAll,
   onSend
 }: AiSendComposerProps) {
-  const { selectionColor } = useAppearance()
-  const { t } = useLanguage()
+  const selectionColor = useAppearance((s) => s.selectionColor)
+  const { t, language } = useLanguageStrings()
   const prefersReducedMotion = useReducedMotion()
   const [noteText, setNoteText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -225,6 +225,7 @@ function AiSendComposer({
       {!isDismissed ? (
         <motion.aside
           key="ai-send-composer"
+          data-app-locale={language}
           initial="hidden"
           animate="visible"
           exit="exit"

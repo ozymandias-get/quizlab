@@ -1,6 +1,12 @@
 import { memo } from 'react'
-import { useLanguage } from '@app/providers'
-import { useAiActions, useAiState, useAiWebview } from '@app/providers/AiContext'
+import { useLanguageStrings } from '@app/providers'
+import {
+  useAiModelsCatalog,
+  useAiCoreWorkspaceActions,
+  useAiTabsSliceState,
+  useAiWebviewHostActions,
+  useAiWebviewPresence
+} from '@app/providers/AiContext'
 import {
   TAB_STRIP_BAR_CLASS,
   TAB_STRIP_DIVIDER_CLASS,
@@ -20,10 +26,12 @@ interface AiTabStripProps {
 }
 
 function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
-  const { tabs, activeTabId, aiSites } = useAiState()
-  const { webviewInstance } = useAiWebview()
-  const { setActiveTab, closeTab, renameTab, togglePinTab, reloadActiveWebview } = useAiActions()
-  const { t } = useLanguage()
+  const { tabs, activeTabId } = useAiTabsSliceState()
+  const { aiSites } = useAiModelsCatalog()
+  const { hasActiveWebview } = useAiWebviewPresence()
+  const { setActiveTab, closeTab, renameTab, togglePinTab } = useAiCoreWorkspaceActions()
+  const { reloadActiveWebview } = useAiWebviewHostActions()
+  const { t } = useLanguageStrings()
   const { refs, state, helpers, actions } = useAiTabStripState({
     tabs,
     activeTabId,
@@ -47,7 +55,7 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
         />
 
         <AiTabStripRefreshButton
-          disabled={Boolean(showHome) || tabs.length === 0 || !webviewInstance}
+          disabled={Boolean(showHome) || tabs.length === 0 || !hasActiveWebview}
           title={t('ai_home.refresh_page')}
           onRefresh={reloadActiveWebview}
         />

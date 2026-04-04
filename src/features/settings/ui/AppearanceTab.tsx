@@ -1,5 +1,6 @@
 ﻿import { memo } from 'react'
-import { useAppearance, useLanguage } from '@app/providers'
+import { useShallow } from 'zustand/react/shallow'
+import { useAppearance, useLanguageStrings } from '@app/providers'
 import { EyeIcon } from '@ui/components/Icons'
 
 import CompactModeToggle from './appearance/CompactModeToggle'
@@ -26,12 +27,31 @@ const AppearanceTab = memo(() => {
     setBgRandomMode,
     selectionColor,
     setSelectionColor
-  } = useAppearance()
+  } = useAppearance(
+    useShallow((s) => ({
+      showOnlyIcons: s.showOnlyIcons,
+      setShowOnlyIcons: s.setShowOnlyIcons,
+      bottomBarOpacity: s.bottomBarOpacity,
+      setBottomBarOpacity: s.setBottomBarOpacity,
+      bottomBarScale: s.bottomBarScale,
+      setBottomBarScale: s.setBottomBarScale,
+      bgType: s.bgType,
+      setBgType: s.setBgType,
+      bgSolidColor: s.bgSolidColor,
+      setBgSolidColor: s.setBgSolidColor,
+      bgAnimatedColors: s.bgAnimatedColors,
+      setBgAnimatedColors: s.setBgAnimatedColors,
+      bgRandomMode: s.bgRandomMode,
+      setBgRandomMode: s.setBgRandomMode,
+      selectionColor: s.selectionColor,
+      setSelectionColor: s.setSelectionColor
+    }))
+  )
 
-  const { t } = useLanguage()
+  const { t, language } = useLanguageStrings()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-app-locale={language}>
       <SettingsTabIntro
         icon={
           <div className="rounded-xl border border-pink-500/20 bg-gradient-to-br from-pink-500/20 to-rose-500/20 p-2.5 text-pink-400">

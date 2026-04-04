@@ -9,11 +9,12 @@ const mockToast = {
   showInfo: vi.fn()
 }
 vi.mock('@app/providers/ToastContext', () => ({
-  useToast: () => mockToast
+  useToastActions: () => mockToast
 }))
 
 vi.mock('@app/providers/LanguageContext', () => ({
-  useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 // Mock Logger

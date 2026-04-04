@@ -3,11 +3,13 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import ToastItem from '@ui/components/Toast/ToastItem'
 
 // Mock dependencies
-vi.mock('@app/providers', () => ({
-  useLanguage: () => ({
-    t: (key: string, params?: any) => key + (params ? JSON.stringify(params) : '')
-  })
-}))
+vi.mock('@app/providers', () => {
+  const t = (key: string, params?: any) => key + (params ? JSON.stringify(params) : '')
+  return {
+    useLanguage: () => ({ t }),
+    useLanguageStrings: () => ({ t, language: 'en' })
+  }
+})
 
 vi.mock('framer-motion', () => ({
   motion: {

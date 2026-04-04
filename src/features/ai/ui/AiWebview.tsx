@@ -1,6 +1,10 @@
 import { memo, lazy, Suspense, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAiActions, useAiState } from '@app/providers/AiContext'
+import {
+  useAiCoreWorkspaceActions,
+  useAiSessionUiPrefsState,
+  useAiTabsSliceState
+} from '@app/providers/AiContext'
 import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
 
@@ -15,8 +19,9 @@ interface AiWebviewProps {
 const MAX_ALIVE_UNPINNED_TABS = 3
 
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
-  const { tabs, activeTabId, isTutorialActive, aiViewRequestNonce } = useAiState()
-  const { setActiveTab, openAiWorkspace, stopTutorial } = useAiActions()
+  const { tabs, activeTabId, aiViewRequestNonce } = useAiTabsSliceState()
+  const { isTutorialActive } = useAiSessionUiPrefsState()
+  const { setActiveTab, openAiWorkspace, stopTutorial } = useAiCoreWorkspaceActions()
   const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
   const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
 

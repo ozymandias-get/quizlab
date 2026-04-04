@@ -1,7 +1,7 @@
 ﻿import { Fragment, memo } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import { Popover, PopoverButton, PopoverPanel, Transition } from '@headlessui/react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 
 interface ColorPickerProps {
   color: string
@@ -11,7 +11,7 @@ interface ColorPickerProps {
 
 /** Accessible color popover (Headless UI + react-colorful). */
 const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return (
     <div className="relative flex flex-col gap-2">

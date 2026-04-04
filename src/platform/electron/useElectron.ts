@@ -5,7 +5,7 @@
   UseMutationOptions,
   QueryKey
 } from '@tanstack/react-query'
-import { useToast } from '@app/providers/ToastContext'
+import { useToastActions } from '@app/providers/ToastContext'
 import { getElectronApi } from '@shared/lib/electronApi'
 
 /**
@@ -33,7 +33,7 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
     showErrorToast?: boolean
   }
 ) {
-  const { showError } = useToast()
+  const { showError } = useToastActions()
 
   return useMutation({
     mutationFn: (variables) => mutationFn(getElectronApi(), variables),

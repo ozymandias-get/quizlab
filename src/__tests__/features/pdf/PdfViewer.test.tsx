@@ -16,9 +16,16 @@ vi.mock('@app/providers/AiContext', () => ({
     autoSend: false,
     chromeUserAgent: 'mock-user-agent'
   }),
-  useAiActions: () => ({
-    toggleAutoSend: vi.fn(),
-    sendImageToAI: vi.fn()
+  useAiRegistryMeta: () => ({
+    isRegistryLoaded: true,
+    chromeUserAgent: 'mock-user-agent'
+  }),
+  useAiSessionUiPrefsState: () => ({
+    autoSend: false,
+    isTutorialActive: false
+  }),
+  useAiCoreWorkspaceActions: () => ({
+    toggleAutoSend: vi.fn()
   })
 }))
 
@@ -32,7 +39,8 @@ vi.mock('@app/providers/AppToolContext', () => ({
 vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: () => ({
     t: (key: string) => key
-  })
+  }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({

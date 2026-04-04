@@ -24,13 +24,13 @@ export default defineConfig({
       },
       output: {
         manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
           'vendor-query': ['@tanstack/react-query'],
           'vendor-ui': [
             '@headlessui/react',
             'framer-motion',
             'lucide-react',
-            'react-colorful',
-            'react-virtuoso'
+            'react-colorful'
           ],
           'vendor-pdf': [
             'pdfjs-dist',

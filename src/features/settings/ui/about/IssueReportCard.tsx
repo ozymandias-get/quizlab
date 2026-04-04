@@ -1,7 +1,7 @@
 import { memo, useCallback, useState } from 'react'
 import { InfoIcon } from '@ui/components/Icons'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
-import { useToast } from '@app/providers/ToastContext'
+import { useToastActions } from '@app/providers/ToastContext'
 import AboutActionCard from './AboutActionCard'
 
 interface IssueReportCardProps {
@@ -54,7 +54,7 @@ async function copyToClipboard(text: string): Promise<void> {
 
 const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
   const [isCopying, setIsCopying] = useState(false)
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showError } = useToastActions()
 
   const handleCopy = useCallback(async () => {
     if (isCopying) return

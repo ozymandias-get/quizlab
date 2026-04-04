@@ -1,14 +1,14 @@
 import { useState, useCallback, type FormEvent, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useLanguage, useToast } from '@app/providers'
+import { useLanguageStrings, useToastActions } from '@app/providers'
 import { MagicWandIcon, TrashIcon, CheckIcon } from '@ui/components/Icons'
 import { usePrompts } from '@features/ai'
 import SettingsAddToggleButton from './shared/SettingsAddToggleButton'
 import SettingsTabHeader from './shared/SettingsTabHeader'
 
 const PromptsTab = () => {
-  const { t } = useLanguage()
-  const { showSuccess, showError } = useToast()
+  const { t } = useLanguageStrings()
+  const { showSuccess, showError } = useToastActions()
   const { allPrompts, selectedPromptId, addPrompt, deletePrompt, selectPrompt, clearSelection } =
     usePrompts()
   const [showAddForm, setShowAddForm] = useState(false)

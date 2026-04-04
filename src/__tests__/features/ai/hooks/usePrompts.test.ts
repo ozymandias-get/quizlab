@@ -7,7 +7,10 @@ const mockSetCustomPrompts = vi.fn()
 const mockSetSelectedPromptId = vi.fn()
 
 vi.mock('@app/providers/LanguageContext', () => ({
-  useLanguage: () => ({ language: 'en' })
+  useLanguage: (selector?: (s: { language: string }) => string) => {
+    const state = { language: 'en' }
+    return selector ? selector(state) : state
+  }
 }))
 
 vi.mock('@shared/hooks/useLocalStorage', () => ({

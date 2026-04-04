@@ -4,7 +4,8 @@ import UsageAssistant from '@features/tutorial/ui/UsageAssistant'
 
 // Mock dependencies
 vi.mock('@app/providers', () => ({
-  useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 // Mock step config by mocking the component's internal constant? No, can't easily.

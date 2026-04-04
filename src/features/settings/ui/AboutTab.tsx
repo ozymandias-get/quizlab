@@ -1,5 +1,5 @@
 ﻿import { useCallback, memo } from 'react'
-import { useLanguage, useAppearance, type UpdateInfo } from '@app/providers'
+import { useLanguageStrings, useAppearance, type UpdateInfo } from '@app/providers'
 import { useClearCache } from '@platform/electron/api/useSystemApi'
 
 import AppInfoSection from './about/AppInfoSection'
@@ -26,8 +26,8 @@ const AboutTab = memo(
     openReleasesPage,
     onClose
   }: AboutTabProps) => {
-    const { t } = useLanguage()
-    const { startTour } = useAppearance()
+    const { t, language } = useLanguageStrings()
+    const startTour = useAppearance((s) => s.startTour)
 
     const { mutate: clearCache, isPending: isClearing, isSuccess: isClearSuccess } = useClearCache()
 
@@ -43,7 +43,7 @@ const AboutTab = memo(
     }, [clearCache])
 
     return (
-      <div className="space-y-8 pb-4">
+      <div className="space-y-8 pb-4" data-app-locale={language}>
         <AppInfoSection t={t} appVersion={appVersion} />
 
         <div className="grid grid-cols-1 gap-4">

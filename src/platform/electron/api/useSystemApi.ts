@@ -1,8 +1,8 @@
 ﻿import { useQueryClient } from '@tanstack/react-query'
 import { useElectronQuery, useElectronMutation } from '../useElectron'
 import type { UpdateCheckResult } from '@shared-core/types'
-import { useToast } from '@app/providers/ToastContext'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useToastActions } from '@app/providers/ToastContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 
 const SYSTEM_VERSION_KEY = ['system', 'version']
 const SYSTEM_UPDATE_KEY = ['system', 'update']
@@ -39,8 +39,8 @@ export function useCheckForUpdates(enabled: boolean = false) {
  */
 export function useClearCache() {
   const queryClient = useQueryClient()
-  const { showSuccess } = useToast()
-  const { t } = useLanguage()
+  const { showSuccess } = useToastActions()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<boolean, void>((api) => api.clearCache(), {
     errorMessage: t('toast_cache_cleared_failed'),
@@ -55,7 +55,7 @@ export function useClearCache() {
  * Open External Link Mutation
  */
 export function useOpenExternal() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   return useElectronMutation<boolean, string>((api, url) => api.openExternal(url), {
     errorMessage: t('toast_open_link_failed')
   })
@@ -65,7 +65,7 @@ export function useOpenExternal() {
  * Copy Image To Clipboard Mutation
  */
 export function useCopyImageToClipboard() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   return useElectronMutation<boolean, string>((api, dataUrl) => api.copyImageToClipboard(dataUrl), {
     errorMessage: t('toast_copy_failed')
   })
@@ -75,8 +75,8 @@ export function useCopyImageToClipboard() {
  * Capture Screen Mutation
  */
 export function useCaptureScreen() {
-  const { showSuccess } = useToast()
-  const { t } = useLanguage()
+  const { showSuccess } = useToastActions()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<
     string | null,

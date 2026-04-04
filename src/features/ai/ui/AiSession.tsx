@@ -1,6 +1,10 @@
 ﻿import { useMemo, memo, useCallback } from 'react'
-import { useToast, useLanguage } from '@app/providers'
-import { useAiActions, useAiState } from '@app/providers/AiContext'
+import { useToastActions, useLanguageStrings } from '@app/providers'
+import {
+  useAiModelsCatalog,
+  useAiRegistryMeta,
+  useAiWebviewHostActions
+} from '@app/providers/AiContext'
 import type { Tab } from '@app/providers/AiContext'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
@@ -16,10 +20,11 @@ interface AiSessionProps {
  * Single AI Session (Webview)
  */
 const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
-  const { aiSites, chromeUserAgent } = useAiState()
-  const { registerWebview } = useAiActions()
-  const { showWarning } = useToast()
-  const { t } = useLanguage()
+  const { chromeUserAgent } = useAiRegistryMeta()
+  const { aiSites } = useAiModelsCatalog()
+  const { registerWebview } = useAiWebviewHostActions()
+  const { showWarning } = useToastActions()
+  const { t } = useLanguageStrings()
 
   const registerInstance = useCallback(
     (instance: any) => {

@@ -18,7 +18,7 @@ import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon
 } from 'lucide-react'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 import PdfSearchBar from './PdfSearchBar'
 import type { PdfFile } from '@shared-core/types'
 import { Button } from '@ui/components/button'
@@ -70,7 +70,7 @@ function PdfToolbar({
   ZoomOut,
   CurrentScale
 }: PdfToolbarProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
 

@@ -50,8 +50,43 @@ export interface AiContextState {
   isTutorialActive: boolean
 }
 
+/** Yalnızca sekme listesi (aktif sekme değişince referans genelde aynı kalır). */
+export type AiTabsListSliceState = Pick<AiContextState, 'tabs'>
+
+/** Aktif sekme, yenileme nonce, seçili model (liste uzunluğu değişmeden güncellenebilir). */
+export type AiTabFocusSliceState = Pick<
+  AiContextState,
+  'activeTabId' | 'aiViewRequestNonce' | 'currentAI'
+>
+
+/** Birleşik sekme dilimi (`useAiTabsList` / `useAiTabFocus` ile daha dar abonelik mümkün). */
+export type AiTabsSliceState = AiTabsListSliceState & AiTabFocusSliceState
+
+/** Yükleme + UA — model/site listesinden ayrı; PDF viewer yalnızca buna abone olabilir. */
+export type AiRegistryMetaSliceState = Pick<AiContextState, 'isRegistryLoaded' | 'chromeUserAgent'>
+
+/** Siteler + etkin modeller — UA değişmeden güncellenebilir. */
+export type AiModelsCatalogSliceState = Pick<
+  AiContextState,
+  'enabledModels' | 'defaultAiModel' | 'aiSites'
+>
+
+/** Tam katalog dilimi (dar abonelik için `useAiRegistryMeta` / `useAiModelsCatalog` tercih edin). */
+export type AiCatalogSliceState = AiRegistryMetaSliceState & AiModelsCatalogSliceState
+
+/** Gönderim / tutorial gibi hızlı UI tercihleri (katalogdan ayrı abonelik). */
+export type AiSessionUiPrefsSliceState = Pick<AiContextState, 'autoSend' | 'isTutorialActive'>
+
+/** Katalog + oturum tercihleri (tam registry prefs dilimi). */
+export type AiRegistryPrefsSliceState = AiCatalogSliceState & AiSessionUiPrefsSliceState
+
 export interface AiWebviewState {
   webviewInstance: WebviewController | null
+}
+
+/** Aktif sekmede webview var mı (referans değişiminden bağımsız; şerit yenile butonu için). */
+export interface AiWebviewPresenceState {
+  hasActiveWebview: boolean
 }
 
 export interface AiContextActions {
@@ -74,6 +109,24 @@ export interface AiContextActions {
   startTutorial: () => void
   stopTutorial: () => void
 }
+
+/** Webview tabanlı gönderim; aktif sekme değişince güncellenir (dar abonelik: useAiMessagingActions). */
+export type AiMessagingActions = Pick<AiContextActions, 'sendTextToAI' | 'sendImageToAI'>
+
+/** Sekme, model ve webview kayıt aksiyonları (gönderimden bağımsız). */
+export type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI'>
+
+/** Webview örneğine bağlı kayıt / yenileme (dar abonelik: useAiWebviewHostActions). */
+export type AiWebviewHostActions = Pick<
+  AiWorkspaceActions,
+  'registerWebview' | 'reloadActiveWebview'
+>
+
+/** Sekme ve modeller; aktif webview değişince güncellenmez. */
+export type AiCoreWorkspaceActions = Omit<
+  AiWorkspaceActions,
+  'registerWebview' | 'reloadActiveWebview'
+>
 
 export type AiContextType = AiContextState & AiWebviewState & AiContextActions
 export type SetStoredValue<T> = Dispatch<SetStateAction<T>>

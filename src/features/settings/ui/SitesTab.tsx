@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, memo, type MouseEvent } from 'react'
-import { useLanguage } from '@app/providers'
-import { useAiActions, useAiState } from '@app/providers/AiContext'
+import { useLanguageStrings } from '@app/providers'
+import { useAiModelsCatalog, useAiCoreWorkspaceActions } from '@app/providers/AiContext'
 import { GridIcon } from '@ui/components/Icons'
 import { useDeleteCustomAi } from '@platform/electron/api/useAiApi'
 import { AddAiModelForm } from './models/AddAiModelForm'
@@ -8,9 +8,9 @@ import { AiModelList } from './models/AiModelList'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const SitesTab = memo(() => {
-  const { enabledModels: enabledSites, aiSites } = useAiState()
-  const { setEnabledModels: setEnabledSites } = useAiActions()
-  const { t } = useLanguage()
+  const { enabledModels: enabledSites, aiSites } = useAiModelsCatalog()
+  const { setEnabledModels: setEnabledSites } = useAiCoreWorkspaceActions()
+  const { t } = useLanguageStrings()
   const { mutateAsync: deleteCustomAi, isPending: isDeleting } = useDeleteCustomAi()
   const [showAddForm, setShowAddForm] = useState(false)
   const MIN_ENABLED_MODELS = 1

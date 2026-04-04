@@ -13,13 +13,12 @@ vi.mock('@app/providers', () => ({
   }),
   useLanguage: () => ({
     t: (key: string) => key
-  })
+  }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 vi.mock('@app/providers/AiContext', () => ({
-  useAiState: () => ({
-    tabs: []
-  })
+  useAiTabsList: () => ({ tabs: [] })
 }))
 
 vi.mock('@ui/layout/BottomBar/useBottomBarStyles', () => ({

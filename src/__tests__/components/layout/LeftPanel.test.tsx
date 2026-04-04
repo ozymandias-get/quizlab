@@ -4,7 +4,8 @@ import LeftPanel from '@ui/layout/LeftPanel'
 
 // Mock dependencies
 vi.mock('@app/providers/LanguageContext', () => ({
-  useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 // Create a mock for useSharedDragDrop specific to this test file

@@ -1,5 +1,5 @@
 import { memo, Suspense, lazy } from 'react'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 import type { PdfFile } from '@shared-core/types'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
@@ -75,7 +75,7 @@ function LeftPanel({
   onPdfHome,
   isInteractionBlocked
 }: LeftPanelProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   const { isDragOver, containerRef, dragHandlers } = useSharedDragDrop((file) => {
     onPdfDrop(file as File)

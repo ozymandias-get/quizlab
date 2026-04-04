@@ -23,32 +23,34 @@ vi.mock('framer-motion', () => ({
   }
 }))
 
-vi.mock('@app/providers', () => ({
-  useLanguage: () => ({
-    t: (key: string) => {
-      const translations: Record<string, string> = {
-        settings: 'Settings',
-        swap_window: 'Swap panels',
-        element_picker: 'Element picker',
-        gws_toolbar_title: 'Google Session',
-        gws_toolbar_authenticated: 'Google session ready',
-        gws_toolbar_auth_required: 'Google session needs login',
-        gws_toolbar_reauth_required: 'Google session needs reauth',
-        gws_toolbar_degraded: 'Google session degraded',
-        gws_toolbar_checking: 'Verifying Google session'
-      }
-      return translations[key] ?? key
+vi.mock('@app/providers', () => {
+  const t = (key: string) => {
+    const translations: Record<string, string> = {
+      settings: 'Settings',
+      swap_window: 'Swap panels',
+      element_picker: 'Element picker',
+      gws_toolbar_title: 'Google Session',
+      gws_toolbar_authenticated: 'Google session ready',
+      gws_toolbar_auth_required: 'Google session needs login',
+      gws_toolbar_reauth_required: 'Google session needs reauth',
+      gws_toolbar_degraded: 'Google session degraded',
+      gws_toolbar_checking: 'Verifying Google session'
     }
-  }),
-  useAppToolState: () => ({
-    isPickerActive: mockAppTools.isPickerActive,
-    isGeminiWebLoginInProgress: mockAppTools.isGeminiWebLoginInProgress
-  }),
-  useAppToolActions: () => ({
-    togglePicker: mockAppTools.togglePicker,
-    startGeminiWebLogin: mockAppTools.startGeminiWebLogin
-  })
-}))
+    return translations[key] ?? key
+  }
+  return {
+    useLanguage: () => ({ t }),
+    useLanguageStrings: () => ({ t, language: 'en' }),
+    useAppToolFlagsState: () => ({
+      isPickerActive: mockAppTools.isPickerActive,
+      isGeminiWebLoginInProgress: mockAppTools.isGeminiWebLoginInProgress
+    }),
+    useAppToolActions: () => ({
+      togglePicker: mockAppTools.togglePicker,
+      startGeminiWebLogin: mockAppTools.startGeminiWebLogin
+    })
+  }
+})
 
 vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
   useGeminiWebStatus: () => mockGeminiWebStatus()

@@ -1,4 +1,5 @@
 ﻿import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import { Logger } from '@shared/lib/logger'
 import {
   translations,
@@ -78,3 +79,8 @@ export const useLanguage = create<LanguageState>((set, get) => ({
     return translationText
   }
 }))
+
+/** Subscribes only to `t` and `language` (not `languages`, `setLanguage`, etc.). */
+export function useLanguageStrings() {
+  return useLanguage(useShallow((s) => ({ t: s.t, language: s.language })))
+}

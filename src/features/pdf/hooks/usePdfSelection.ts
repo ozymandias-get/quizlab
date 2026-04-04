@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { Logger } from '@shared/lib/logger'
-import { useToast, useLanguage } from '@app/providers'
+import { useToastActions, useLanguageStrings } from '@app/providers'
 import type { PdfFile } from '@shared-core/types'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useSelectPdf, useRegisterPdfPath } from '@platform/electron/api/usePdfApi'
@@ -102,8 +102,8 @@ const toPdfFile = (file: PdfFile): PdfFile => ({
 })
 
 export const usePdfSelection = () => {
-  const { showError, showSuccess } = useToast()
-  const { t } = useLanguage()
+  const { showError, showSuccess } = useToastActions()
+  const { t } = useLanguageStrings()
 
   const [pdfTabs, setPdfTabs] = useState<PdfTab[]>([])
   const [activePdfTabId, setActivePdfTabId] = useState<string>('')
@@ -113,6 +113,8 @@ export const usePdfSelection = () => {
   const pdfTabsRef = useRef<PdfTab[]>([])
   const activePdfTabIdRef = useRef<string>('')
   const recentReadingInfoRef = useRef<LastReadingInfo[]>(recentReadingInfo)
+  const readingProgressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingReadingProgressApplyRef = useRef<(() => void) | null>(null)
 
   const { mutateAsync: selectPdf } = useSelectPdf()
   const { mutateAsync: registerPdfPath } = useRegisterPdfPath()
@@ -155,10 +157,46 @@ export const usePdfSelection = () => {
         lastOpenedAt: lastOpenedAt ?? Date.now()
       }
 
-      persistRecentReadingInfo(upsertRecentHistory(current, nextInfo))
+      const applyPersist = () => {
+        persistRecentReadingInfo(upsertRecentHistory(recentReadingInfoRef.current, nextInfo))
+      }
+
+      const shouldDebounce = typeof page === 'number' && typeof totalPages !== 'number'
+
+      if (shouldDebounce) {
+        pendingReadingProgressApplyRef.current = applyPersist
+        if (readingProgressDebounceRef.current) {
+          clearTimeout(readingProgressDebounceRef.current)
+        }
+        readingProgressDebounceRef.current = setTimeout(() => {
+          readingProgressDebounceRef.current = null
+          pendingReadingProgressApplyRef.current?.()
+          pendingReadingProgressApplyRef.current = null
+        }, 400)
+        return
+      }
+
+      if (readingProgressDebounceRef.current) {
+        clearTimeout(readingProgressDebounceRef.current)
+        readingProgressDebounceRef.current = null
+      }
+      pendingReadingProgressApplyRef.current?.()
+      pendingReadingProgressApplyRef.current = null
+      applyPersist()
     },
     [persistRecentReadingInfo]
   )
+
+  useEffect(() => {
+    return () => {
+      if (readingProgressDebounceRef.current) {
+        clearTimeout(readingProgressDebounceRef.current)
+        readingProgressDebounceRef.current = null
+      }
+      pendingReadingProgressApplyRef.current?.()
+      pendingReadingProgressApplyRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     pdfTabsRef.current = pdfTabs

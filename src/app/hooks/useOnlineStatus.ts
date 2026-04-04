@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useToast } from '@app/providers/ToastContext'
+import { useToastActions } from '@app/providers/ToastContext'
 
 export function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine)
-  const { showWarning, showSuccess } = useToast()
+  const { showWarning, showSuccess } = useToastActions()
 
   useEffect(() => {
     const handleOnline = () => {

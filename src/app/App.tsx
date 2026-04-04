@@ -1,4 +1,5 @@
 import type { RefObject } from 'react'
+import { memo } from 'react'
 import { AnimatePresence, LayoutGroup } from 'framer-motion'
 import { ScreenshotTool } from '@features/screenshot'
 import { UsageAssistant } from '@features/tutorial'
@@ -10,13 +11,12 @@ import AiSendComposer from '@app/ui/AiSendComposer'
 import MainWorkspace from '@app/ui/MainWorkspace'
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
+import { useAppToolActions, useAppToolFlagsState, useAppToolQueueState } from '@app/providers'
 
 function App() {
   const {
-    appToolState,
-    appToolActions,
     update,
-    appearance,
+    isLayoutSwapped,
     animations,
     isWebviewMounted,
     panelResize,
@@ -49,7 +49,7 @@ function App() {
 
         <AnimatePresence mode="wait" initial={false}>
           <MainWorkspace
-            isLayoutSwapped={appearance.isLayoutSwapped}
+            isLayoutSwapped={isLayoutSwapped}
             leftPanelWidth={panelResize.leftPanelWidth}
             leftPanelRef={panelResize.leftPanelRef as RefObject<HTMLDivElement>}
             resizerRef={panelResize.resizerRef as RefObject<HTMLDivElement>}
@@ -67,31 +67,61 @@ function App() {
           />
         </AnimatePresence>
 
-        <GeminiWebLoginOverlay isVisible={appToolState.isGeminiWebLoginInProgress} t={t} />
+        <GeminiWebLoginLayer t={t} />
 
-        {appToolState.pendingAiItems.length > 0 && (
-          <AiSendComposer
-            items={appToolState.pendingAiItems}
-            autoSend={appToolState.autoSend}
-            onAutoSendChange={appToolActions.setAutoSend}
-            onRemoveItem={appToolActions.removePendingAiItem}
-            onClearAll={appToolActions.clearPendingAiItems}
-            onSend={({ noteText, autoSend, forceAutoSend }) =>
-              appToolActions.sendPendingAiItems({ promptText: noteText, autoSend, forceAutoSend })
-            }
-          />
-        )}
+        <PendingAiSendLayer />
 
-        <ScreenshotTool
-          isActive={appToolState.isScreenshotMode}
-          onCapture={appToolActions.handleCapture}
-          onClose={appToolActions.closeScreenshot}
-        />
+        <ScreenshotToolLayer />
 
         <UsageAssistant isActive={tour.isActive} onClose={tour.close} />
       </div>
     </LayoutGroup>
   )
 }
+
+const GeminiWebLoginLayer = memo(function GeminiWebLoginLayer({
+  t
+}: {
+  t: (key: string, params?: Record<string, string>) => string
+}) {
+  const { isGeminiWebLoginInProgress } = useAppToolFlagsState()
+  return <GeminiWebLoginOverlay isVisible={isGeminiWebLoginInProgress} t={t} />
+})
+
+const PendingAiSendLayer = memo(function PendingAiSendLayer() {
+  const { pendingAiItems, autoSend } = useAppToolQueueState()
+  const { setAutoSend, removePendingAiItem, clearPendingAiItems, sendPendingAiItems } =
+    useAppToolActions()
+
+  if (pendingAiItems.length === 0) {
+    return null
+  }
+
+  return (
+    <AiSendComposer
+      items={pendingAiItems}
+      autoSend={autoSend}
+      onAutoSendChange={setAutoSend}
+      onRemoveItem={removePendingAiItem}
+      onClearAll={clearPendingAiItems}
+      onSend={({ noteText, autoSend: auto, forceAutoSend }) =>
+        sendPendingAiItems({ promptText: noteText, autoSend: auto, forceAutoSend })
+      }
+    />
+  )
+})
+
+const ScreenshotToolLayer = memo(function ScreenshotToolLayer() {
+  const { isScreenshotMode } = useAppToolFlagsState()
+  const { handleCapture, closeScreenshot } = useAppToolActions()
+
+  return (
+    <ScreenshotTool
+      isActive={isScreenshotMode}
+      onCapture={handleCapture}
+      onClose={closeScreenshot}
+    />
+  )
+})
 
 export default App

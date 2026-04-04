@@ -15,13 +15,19 @@ const mockAiState = {
 }
 
 vi.mock('@app/providers/AiContext', () => ({
-  useAiActions: () => ({
+  useAiMessagingActions: () => ({
     sendTextToAI: mockSendTextToAI,
-    sendImageToAI: mockSendImageToAI,
+    sendImageToAI: mockSendImageToAI
+  }),
+  useAiCoreWorkspaceActions: () => ({
     setAutoSend: vi.fn()
   }),
   useAiState: () => ({
     autoSend: mockAiState.autoSend
+  }),
+  useAiSessionUiPrefsState: () => ({
+    autoSend: mockAiState.autoSend,
+    isTutorialActive: false
   }),
   useAiWebview: () => ({
     webviewInstance: mockWebviewState.instance

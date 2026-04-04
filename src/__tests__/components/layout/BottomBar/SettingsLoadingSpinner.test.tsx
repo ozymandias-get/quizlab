@@ -4,7 +4,8 @@ import { SettingsLoadingSpinner } from '@ui/layout/BottomBar/SettingsLoadingSpin
 
 // Mock useLanguage
 vi.mock('@app/providers', () => ({
-  useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 describe('SettingsLoadingSpinner', () => {

@@ -3,13 +3,18 @@ import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import AiSendComposer from '@app/ui/AiSendComposer'
 
+const appearanceState = { selectionColor: '#EAB308' }
+const languageState = {
+  t: (key: string) => key,
+  language: 'en'
+}
+
 vi.mock('@app/providers', () => ({
-  useAppearance: () => ({
-    selectionColor: '#EAB308'
-  }),
-  useLanguage: () => ({
-    t: (key: string) => key
-  })
+  useAppearance: <T,>(selector?: (s: typeof appearanceState) => T) =>
+    selector ? selector(appearanceState) : (appearanceState as unknown as T),
+  useLanguage: <T,>(selector?: (s: typeof languageState) => T) =>
+    selector ? selector(languageState) : (languageState as unknown as T),
+  useLanguageStrings: () => languageState
 }))
 
 vi.mock('@app/ui/aiSendComposer/useAiSendComposerLayout', () => ({

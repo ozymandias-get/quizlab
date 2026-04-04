@@ -8,7 +8,7 @@ import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 vi.mock('@app/providers/ToastContext', () => ({
-  useToast: () => ({
+  useToastActions: () => ({
     showError: mockShowError,
     showSuccess: mockShowSuccess
   })
@@ -18,6 +18,10 @@ const mockT = vi.fn((key) => key)
 vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: () => ({
     t: mockT
+  }),
+  useLanguageStrings: () => ({
+    t: mockT,
+    language: 'en'
   })
 }))
 

@@ -4,7 +4,8 @@ import ColorPicker from '@features/settings/ui/ColorPicker'
 
 // Mock dependencies
 vi.mock('@app/providers', () => ({
-  useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 // Mock react-colorful

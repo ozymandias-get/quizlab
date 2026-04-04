@@ -1,7 +1,7 @@
 ﻿import { useCallback, useState, useRef, useEffect } from 'react'
 import { Logger } from '@shared/lib/logger'
-import { useLanguage } from '@app/providers/LanguageContext'
-import { useToast } from '@app/providers/ToastContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
+import { useToastActions } from '@app/providers/ToastContext'
 import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
 import { canonicalizeHostname, normalizeSubmitMode } from '@shared-core/selectorConfig'
@@ -21,8 +21,8 @@ const POLL_INTERVAL = 500
 
 export function useElementPicker(webviewInstance: WebviewInstance): UseElementPickerReturn {
   const [isPickerActive, setIsPickerActive] = useState<boolean>(false)
-  const { showError, showInfo } = useToast()
-  const { t } = useLanguage()
+  const { showError, showInfo } = useToastActions()
+  const { t } = useLanguageStrings()
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollInFlightRef = useRef(false)
   const pickerWebviewRef = useRef<WebviewInstance>(null)

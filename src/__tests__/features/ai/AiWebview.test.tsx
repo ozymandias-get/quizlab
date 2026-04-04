@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import AiWebview from '@features/ai/ui/AiWebview'
 
 interface MockAiState {
@@ -29,13 +29,16 @@ let mockAiState: MockAiState = {
 
 vi.mock('@app/providers/AiContext', () => ({
   useAi: () => mockAiState,
-  useAiState: () => ({
+  useAiTabsSliceState: () => ({
     tabs: mockAiState.tabs,
     activeTabId: mockAiState.activeTabId,
     aiViewRequestNonce: mockAiState.aiViewRequestNonce,
+    currentAI: 'gpt-4'
+  }),
+  useAiSessionUiPrefsState: () => ({
     isTutorialActive: mockAiState.isTutorialActive
   }),
-  useAiActions: () => ({
+  useAiCoreWorkspaceActions: () => ({
     setActiveTab: mockAiState.setActiveTab,
     addTab: mockAiState.addTab,
     openAiWorkspace: mockAiState.openAiWorkspace,
@@ -103,9 +106,7 @@ describe('AiWebview Component', () => {
   it('renders tutorial overlay when active', async () => {
     mockAiState.isTutorialActive = true
     render(<AiWebview isResizing={false} isBarHovered={false} />)
-    await waitFor(() => {
-      expect(screen.getByTestId('tutorial-overlay')).toBeInTheDocument()
-    })
+    expect(await screen.findByTestId('tutorial-overlay', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('applies pointer-events-none when resizing', () => {

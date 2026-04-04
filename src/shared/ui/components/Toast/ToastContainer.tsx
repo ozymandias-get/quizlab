@@ -1,11 +1,11 @@
 ﻿import { createPortal } from 'react-dom'
 import { AnimatePresence } from 'framer-motion'
 
-import { useToast } from '@app/providers'
+import { useToastList } from '@app/providers'
 import ToastItem from './ToastItem'
 
 function ToastContainer() {
-  const { toasts, removeToast } = useToast()
+  const { toasts, removeToast } = useToastList()
 
   const container = typeof document !== 'undefined' ? document.body : null
 

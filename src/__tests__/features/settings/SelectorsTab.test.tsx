@@ -74,32 +74,40 @@ const {
   } satisfies Record<string, AiSelectorConfig>
 }))
 
-vi.mock('@app/providers', () => ({
-  useLanguage: () => ({
-    t: (key: string, params?: Record<string, string>) => {
-      if (params?.host) {
-        return `${key}:${params.host}`
-      }
-      return key
+vi.mock('@app/providers', () => {
+  const t = (key: string, params?: Record<string, string>) => {
+    if (params?.host) {
+      return `${key}:${params.host}`
     }
-  }),
-  useToast: () => ({
-    showError: mockShowError,
-    showSuccess: mockShowSuccess,
-    showWarning: mockShowWarning
-  }),
-  useAppToolActions: () => ({
-    startPickerWhenReady: mockStartPickerWhenReady
-  })
-}))
+    return key
+  }
+  return {
+    useLanguage: () => ({ t }),
+    useLanguageStrings: () => ({ t, language: 'en' }),
+    useToastActions: () => ({
+      showError: mockShowError,
+      showSuccess: mockShowSuccess,
+      showWarning: mockShowWarning
+    }),
+    useAppToolActions: () => ({
+      startPickerWhenReady: mockStartPickerWhenReady
+    })
+  }
+})
 
 vi.mock('@app/providers/AiContext', () => ({
-  useAiState: () => ({
-    aiSites,
+  useAiTabsSliceState: () => ({
     tabs: [{ id: 'tab-chatgpt', modelId: 'chatgpt' }],
+    activeTabId: 'tab-chatgpt',
+    aiViewRequestNonce: 0,
     currentAI: 'chatgpt'
   }),
-  useAiActions: () => ({
+  useAiModelsCatalog: () => ({
+    aiSites,
+    enabledModels: [],
+    defaultAiModel: 'chatgpt'
+  }),
+  useAiCoreWorkspaceActions: () => ({
     startTutorial: mockStartTutorial,
     openAiWorkspace: mockOpenAiWorkspace
   }),

@@ -10,7 +10,12 @@ import {
 } from 'react'
 import type { AiSendOptions } from '@features/ai'
 import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
-import { useAiActions, useAiState, useAiWebview } from './AiContext'
+import {
+  useAiCoreWorkspaceActions,
+  useAiMessagingActions,
+  useAiSessionUiPrefsState,
+  useAiWebview
+} from './AiContext'
 import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 import { useGeminiWebOpenLogin } from '@platform/electron/api/useGeminiWebSessionApi'
 import type { GeminiWebSessionActionResult } from '@shared-core/types'
@@ -19,13 +24,20 @@ import type { AiDraftImageItem, AiDraftItem, AiSendResult } from './ai/types'
 
 type QueuedImageMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'>
 
-interface AppToolStateType {
+/** Queued AI drafts — changes often while composing; split from overlay flags so UI shells do not re-render. */
+export interface AppToolQueueState {
   pendingAiItems: AiDraftItem[]
-  isScreenshotMode: boolean
   autoSend: boolean
+}
+
+/** Screenshot / picker / Gemini login — orthogonal to the pending queue. */
+export interface AppToolFlagsState {
+  isScreenshotMode: boolean
   isPickerActive: boolean
   isGeminiWebLoginInProgress: boolean
 }
+
+export type AppToolStateType = AppToolQueueState & AppToolFlagsState
 
 interface AppToolActionsType {
   startScreenshot: (imageMeta?: QueuedImageMeta) => void
@@ -43,7 +55,8 @@ interface AppToolActionsType {
   startGeminiWebLogin: () => Promise<GeminiWebSessionActionResult>
 }
 
-const AppToolStateContext = createContext<AppToolStateType | null>(null)
+const AppToolQueueContext = createContext<AppToolQueueState | null>(null)
+const AppToolFlagsContext = createContext<AppToolFlagsState | null>(null)
 const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
 
 function buildPendingId(prefix: 'text' | 'image') {
@@ -64,8 +77,9 @@ function clearBrowserTextSelection() {
 }
 
 export function AppToolProvider({ children }: { children: ReactNode }) {
-  const { sendTextToAI, sendImageToAI, setAutoSend } = useAiActions()
-  const { autoSend } = useAiState()
+  const { sendTextToAI, sendImageToAI } = useAiMessagingActions()
+  const { setAutoSend } = useAiCoreWorkspaceActions()
+  const { autoSend } = useAiSessionUiPrefsState()
   const { webviewInstance } = useAiWebview()
   const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
   const [pickerStartNonce, setPickerStartNonce] = useState(0)
@@ -284,15 +298,18 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
   const { mutateAsync: startGeminiWebLogin, isPending: isGeminiWebLoginInProgress } =
     useGeminiWebOpenLogin()
 
-  const stateValue = useMemo<AppToolStateType>(
+  const queueState = useMemo<AppToolQueueState>(
+    () => ({ pendingAiItems, autoSend }),
+    [pendingAiItems, autoSend]
+  )
+
+  const flagsState = useMemo<AppToolFlagsState>(
     () => ({
-      pendingAiItems,
       isScreenshotMode,
-      autoSend,
       isPickerActive,
       isGeminiWebLoginInProgress
     }),
-    [pendingAiItems, isScreenshotMode, autoSend, isPickerActive, isGeminiWebLoginInProgress]
+    [isScreenshotMode, isPickerActive, isGeminiWebLoginInProgress]
   )
 
   const actionsValue = useMemo<AppToolActionsType>(
@@ -329,17 +346,25 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
   )
 
   return (
-    <AppToolStateContext.Provider value={stateValue}>
-      <AppToolActionsContext.Provider value={actionsValue}>
-        {children}
-      </AppToolActionsContext.Provider>
-    </AppToolStateContext.Provider>
+    <AppToolQueueContext.Provider value={queueState}>
+      <AppToolFlagsContext.Provider value={flagsState}>
+        <AppToolActionsContext.Provider value={actionsValue}>
+          {children}
+        </AppToolActionsContext.Provider>
+      </AppToolFlagsContext.Provider>
+    </AppToolQueueContext.Provider>
   )
 }
 
-export const useAppToolState = () => {
-  const context = useContext(AppToolStateContext)
-  if (!context) throw new Error('useAppToolState must be used within AppToolProvider')
+export const useAppToolQueueState = () => {
+  const context = useContext(AppToolQueueContext)
+  if (!context) throw new Error('useAppToolQueueState must be used within AppToolProvider')
+  return context
+}
+
+export const useAppToolFlagsState = () => {
+  const context = useContext(AppToolFlagsContext)
+  if (!context) throw new Error('useAppToolFlagsState must be used within AppToolProvider')
   return context
 }
 
@@ -350,14 +375,16 @@ export const useAppToolActions = () => {
 }
 
 export const useAppTools = () => {
-  const state = useAppToolState()
+  const queue = useAppToolQueueState()
+  const flags = useAppToolFlagsState()
   const actions = useAppToolActions()
 
   return useMemo(
     () => ({
-      ...state,
+      ...queue,
+      ...flags,
       ...actions
     }),
-    [state, actions]
+    [queue, flags, actions]
   )
 }

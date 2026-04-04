@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, type ChangeEvent, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { MagicWandIcon, CloseIcon } from '@ui/components/Icons'
 
 interface MagicSelectorTutorialProps {
@@ -17,7 +17,7 @@ interface HoveredRect {
 }
 
 export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSelectorTutorialProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   const [step, setStep] = useState(0)
 

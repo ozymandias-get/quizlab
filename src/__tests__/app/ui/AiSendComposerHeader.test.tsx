@@ -5,7 +5,8 @@ import AiSendComposerHeader from '@app/ui/aiSendComposer/AiSendComposerHeader'
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({
     t: (key: string) => key
-  })
+  }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 describe('AiSendComposerHeader', () => {

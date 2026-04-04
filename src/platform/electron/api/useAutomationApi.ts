@@ -1,12 +1,12 @@
 import { useElectronMutation } from '../useElectron'
 import type { AutomationConfig } from '@shared-core/types'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 
 /**
  * Generate Focus Script Mutation
  */
 export function useGenerateFocusScript() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<string | null, AutomationConfig>(
     (api, config) => api.automation.generateFocusScript(config),
@@ -21,7 +21,7 @@ export function useGenerateFocusScript() {
  * Generate Click & Send Script Mutation
  */
 export function useGenerateClickSendScript() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<string | null, AutomationConfig>(
     (api, config) => api.automation.generateClickSendScript(config),
@@ -36,7 +36,7 @@ export function useGenerateClickSendScript() {
  * Generate Auto Send Script Mutation
  */
 export function useGenerateAutoSendScript() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<
     string | null,
@@ -55,7 +55,7 @@ export function useGenerateAutoSendScript() {
  * Generate Validate Selectors Script Mutation
  */
 export function useGenerateValidateSelectorsScript() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<string | null, AutomationConfig>(
     (api, config) => api.automation.generateValidateSelectorsScript(config),
@@ -70,7 +70,7 @@ export function useGenerateValidateSelectorsScript() {
  * Generate submit-ready wait script
  */
 export function useGenerateWaitForSubmitReadyScript() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return useElectronMutation<
     string | null,
@@ -91,7 +91,7 @@ export function useGenerateWaitForSubmitReadyScript() {
  * Generate Picker Script Mutation
  */
 export function useGeneratePickerScript() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   return useElectronMutation<string | null, Record<string, string>>(
     (api, translations) => api.automation.generatePickerScript(translations),
     {

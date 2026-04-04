@@ -1,6 +1,6 @@
 import { memo, useState, useCallback, type CSSProperties } from 'react'
 import { Reorder } from 'framer-motion'
-import { useAiActions, useAiState } from '@app/providers/AiContext'
+import { useAiModelsCatalog, useAiCoreWorkspaceActions } from '@app/providers/AiContext'
 import { AIItem } from './AIItem'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { BottomBarPanelFrame } from './BottomBarPanelFrame'
@@ -14,8 +14,8 @@ interface ModelsPanelProps {
 
 export const ModelsPanel = memo(
   ({ isOpen, panelStyle, maxHeight, showOnlyIcons }: ModelsPanelProps) => {
-    const { enabledModels, aiSites } = useAiState()
-    const { addTab, setEnabledModels } = useAiActions()
+    const { enabledModels, aiSites } = useAiModelsCatalog()
+    const { addTab, setEnabledModels } = useAiCoreWorkspaceActions()
 
     const [activeDragItem, setActiveDragItem] = useState<string | null>(null)
 

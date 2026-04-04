@@ -1,7 +1,7 @@
 import { memo, useMemo, type PointerEventHandler } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Image as ImageIcon, Loader2, Quote, Send, X, Zap } from 'lucide-react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import type { AiDraftItem, AiDraftImageItem } from '@app/providers/ai/types'
 import { Button } from '@ui/components/button'
 
@@ -63,7 +63,7 @@ function AiSendComposerContent({
   onResizeMove,
   onResizeEnd
 }: AiSendComposerContentProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const prefersReducedMotion = useReducedMotion()
   const hasNoteText = noteText.trim().length > 0
   const hasImages = useMemo(() => items.some((i) => i.type === 'image'), [items])

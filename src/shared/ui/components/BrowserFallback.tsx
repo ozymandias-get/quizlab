@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion'
 import { AlertTriangle, Monitor, DownloadCloud } from 'lucide-react'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 
 function BrowserFallback() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-zinc-950 p-6 z-[9999] overflow-hidden">

@@ -10,7 +10,7 @@ import {
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { FileText, MoreHorizontal, Plus, X } from 'lucide-react'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
 import AiTabStripHomeButton from '@features/ai/ui/aiTabStrip/AiTabStripHomeButton'
 import { getAiIcon } from '@ui/components/Icons'
@@ -66,7 +66,7 @@ function PdfTabStrip({
   onAddTab,
   onHome
 }: PdfTabStripProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const overflowRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)

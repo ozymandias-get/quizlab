@@ -1,6 +1,7 @@
 import { useEffect, useCallback, memo, type MouseEvent as ReactMouseEvent } from 'react'
-import { useAppearance, useLanguage } from '@app/providers'
-import { useAiState } from '@app/providers/AiContext'
+import { useShallow } from 'zustand/react/shallow'
+import { useAppearance, useLanguageStrings } from '@app/providers'
+import { useAiTabsList } from '@app/providers/AiContext'
 import { CenterHub } from './CenterHub'
 import { ToolsPanel } from './ToolsPanel'
 import { ModelsPanel } from './ModelsPanel'
@@ -12,9 +13,17 @@ import type { BottomBarProps } from './types'
 
 function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
   const { bottomBarOpacity, bottomBarScale, showOnlyIcons, toggleLayoutSwap, isTourActive } =
-    useAppearance()
-  const { tabs } = useAiState()
-  const { t } = useLanguage()
+    useAppearance(
+      useShallow((s) => ({
+        bottomBarOpacity: s.bottomBarOpacity,
+        bottomBarScale: s.bottomBarScale,
+        showOnlyIcons: s.showOnlyIcons,
+        toggleLayoutSwap: s.toggleLayoutSwap,
+        isTourActive: s.isTourActive
+      }))
+    )
+  const { tabs } = useAiTabsList()
+  const { t, language } = useLanguageStrings()
   const {
     barRef,
     isOpen,
@@ -65,6 +74,7 @@ function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
     <>
       <div
         ref={barRef}
+        data-app-locale={language}
         className={`resizer-hub-container bottom-bar-shell ${isOpen ? 'resizer-hub-container--open' : ''}`}
         style={shellStyle}
         onMouseEnter={() => onHoverChange?.(true)}

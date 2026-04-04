@@ -11,7 +11,8 @@ vi.mock('@shared/lib/logger', () => ({
 }))
 
 vi.mock('@app/providers', () => ({
-  useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 // Mock useCaptureScreen hook

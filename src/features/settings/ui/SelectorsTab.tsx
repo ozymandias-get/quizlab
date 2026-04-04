@@ -1,7 +1,12 @@
 import { useCallback, useMemo, useState, memo } from 'react'
 import { motion } from 'framer-motion'
-import { useAppToolActions, useLanguage, useToast } from '@app/providers'
-import { useAiActions, useAiState, useAiWebview } from '@app/providers/AiContext'
+import { useAppToolActions, useLanguageStrings, useToastActions } from '@app/providers'
+import {
+  useAiModelsCatalog,
+  useAiCoreWorkspaceActions,
+  useAiTabsSliceState,
+  useAiWebview
+} from '@app/providers/AiContext'
 import { useAiConfig, useDeleteAiConfig, useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGenerateValidateSelectorsScript } from '@platform/electron/api/useAutomationApi'
 import { Logger } from '@shared/lib/logger'
@@ -207,12 +212,13 @@ function getHealthLabelKey(health: SelectorHealth | 'missing') {
 }
 
 const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
-  const { aiSites, tabs, currentAI } = useAiState()
+  const { tabs, currentAI } = useAiTabsSliceState()
+  const { aiSites } = useAiModelsCatalog()
   const { webviewInstance } = useAiWebview()
-  const { startTutorial, openAiWorkspace } = useAiActions()
+  const { startTutorial, openAiWorkspace } = useAiCoreWorkspaceActions()
   const { startPickerWhenReady } = useAppToolActions()
-  const { showError, showSuccess, showWarning } = useToast()
-  const { t } = useLanguage()
+  const { showError, showSuccess, showWarning } = useToastActions()
+  const { t } = useLanguageStrings()
   const { data: selectorsData } = useAiConfig()
   const { mutateAsync: deleteConfig, isPending: isDeleting } = useDeleteAiConfig()
   const { mutateAsync: saveAiConfig, isPending: isSaving } = useSaveAiConfig()

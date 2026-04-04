@@ -1,7 +1,7 @@
 import { memo, type PointerEventHandler } from 'react'
 import { Send, X } from 'lucide-react'
 import { cn } from '@shared/lib/uiUtils'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { Button } from '@ui/components/button'
 
 interface AiSendComposerHeaderProps {
@@ -25,7 +25,7 @@ function AiSendComposerHeader({
   onDragMove,
   onDragEnd
 }: AiSendComposerHeaderProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return (
     <div

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useAppToolState, useAppToolActions, useAppearance, useUpdate } from '@app/providers'
+import { useCallback, useMemo, useState } from 'react'
+import { useAppearance, useUpdate } from '@app/providers'
 import { usePanelResize, useWebviewMount } from '@shared/hooks'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useAppAnimations } from './useAppAnimations'
@@ -8,35 +8,37 @@ import { useOnlineStatus } from './useOnlineStatus'
 export function useAppShellState() {
   useOnlineStatus()
 
-  const appToolState = useAppToolState()
-  const appToolActions = useAppToolActions()
   const update = useUpdate()
-  const appearance = useAppearance()
+  const bottomBarScale = useAppearance((s) => s.bottomBarScale)
+  const isLayoutSwapped = useAppearance((s) => s.isLayoutSwapped)
+  const isTourActive = useAppearance((s) => s.isTourActive)
+  const setIsTourActive = useAppearance((s) => s.setIsTourActive)
   const [isBarHovered, setIsBarHovered] = useState(false)
   const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState(true)
 
   const resizerShellWidth = useMemo(() => {
-    const clampedBarScale = Math.min(1.3, Math.max(0.7, appearance.bottomBarScale))
+    const clampedBarScale = Math.min(1.3, Math.max(0.7, bottomBarScale))
     return Math.round(48 * clampedBarScale)
-  }, [appearance.bottomBarScale])
+  }, [bottomBarScale])
 
   const panelResize = usePanelResize({
     initialWidth: 50,
     minLeft: 300,
     minRight: 400,
     storageKey: STORAGE_KEYS.LEFT_PANEL_WIDTH,
-    isReversed: appearance.isLayoutSwapped,
+    isReversed: isLayoutSwapped,
     resizerWidth: resizerShellWidth
   })
 
-  const animations = useAppAnimations(appearance.isLayoutSwapped)
+  const animations = useAppAnimations(isLayoutSwapped)
   const isWebviewMounted = useWebviewMount()
 
+  const closeUpdateBanner = useCallback(() => setIsUpdateBannerVisible(false), [])
+  const closeTour = useCallback(() => setIsTourActive(false), [setIsTourActive])
+
   return {
-    appToolState,
-    appToolActions,
     update,
-    appearance,
+    isLayoutSwapped,
     animations,
     isWebviewMounted,
     panelResize,
@@ -46,11 +48,11 @@ export function useAppShellState() {
     },
     updateBanner: {
       isVisible: isUpdateBannerVisible,
-      close: () => setIsUpdateBannerVisible(false)
+      close: closeUpdateBanner
     },
     tour: {
-      isActive: appearance.isTourActive,
-      close: () => appearance.setIsTourActive(false)
+      isActive: isTourActive,
+      close: closeTour
     }
   }
 }

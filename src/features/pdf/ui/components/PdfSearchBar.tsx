@@ -1,7 +1,7 @@
 ﻿import { memo, useRef, useEffect, type KeyboardEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, FileText } from 'lucide-react'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 
 interface PdfSearchBarProps {
   isOpen: boolean
@@ -22,7 +22,7 @@ function PdfSearchBar({
   onClear,
   fileName
 }: PdfSearchBarProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {

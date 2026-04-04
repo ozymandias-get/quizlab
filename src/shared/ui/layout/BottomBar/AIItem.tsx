@@ -16,7 +16,7 @@ import { Pin, X } from 'lucide-react'
 import { getAiIcon } from '@ui/components/Icons'
 import { buttonBaseClass } from '@ui/components/button'
 import { cn } from '@shared/lib/uiUtils'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 
 const DEFAULT_BAR_COLOR = '#ffffff'
 const hexColorRegex = /^#([0-9A-F]{3}){1,2}$/i
@@ -168,7 +168,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
   onTogglePin,
   onRequestRename
 }: AIItemProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const isDraggingRef = useRef(false)
   const dragEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isHovered, setIsHovered] = useState(false)

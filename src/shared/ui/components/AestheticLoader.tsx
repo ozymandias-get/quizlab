@@ -1,8 +1,8 @@
 ﻿import { useState, useEffect } from 'react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 
 function AestheticLoader() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   const [msgIndex, setMsgIndex] = useState(1)
 

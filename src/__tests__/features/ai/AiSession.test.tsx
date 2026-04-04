@@ -4,21 +4,27 @@ import AiSession from '@features/ai/ui/AiSession'
 
 // Mock Hooks
 vi.mock('@app/providers/AiContext', () => ({
-  useAiState: () => ({
+  useAiRegistryMeta: () => ({
+    isRegistryLoaded: true,
+    chromeUserAgent: 'mock-user-agent'
+  }),
+  useAiModelsCatalog: () => ({
     aiSites: {
       'gpt-4': { url: 'https://chat.openai.com', displayName: 'ChatGPT' },
       'claude-3': { url: 'https://claude.ai', displayName: 'Claude' }
     },
-    chromeUserAgent: 'mock-user-agent'
+    enabledModels: [],
+    defaultAiModel: 'gpt-4'
   }),
-  useAiActions: () => ({
+  useAiWebviewHostActions: () => ({
     registerWebview: vi.fn()
   })
 }))
 
 vi.mock('@app/providers', () => ({
-  useToast: () => ({ showWarning: vi.fn() }),
-  useLanguage: () => ({ t: (key: string) => key })
+  useToastActions: () => ({ showWarning: vi.fn() }),
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 vi.mock('@shared/hooks/webview/useWebviewLifecycle', () => ({

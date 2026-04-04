@@ -27,7 +27,7 @@ vi.mock('@shared/lib/webviewUtils', () => ({
 }))
 
 vi.mock('@app/providers/ToastContext', () => ({
-  useToast: () => ({
+  useToastActions: () => ({
     showError: vi.fn(),
     showSuccess: vi.fn(),
     showInfo: vi.fn(),
@@ -37,6 +37,10 @@ vi.mock('@app/providers/ToastContext', () => ({
 
 vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: () => ({
+    t: (key: string) => key,
+    language: 'en'
+  }),
+  useLanguageStrings: () => ({
     t: (key: string) => key,
     language: 'en'
   })

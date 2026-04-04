@@ -42,7 +42,8 @@ vi.mock('@app/providers', () => ({
     selectionColor: '#00ff00',
     setSelectionColor: mockSetSelectionColor
   }),
-  useLanguage: () => ({ t: (key: string) => key })
+  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 vi.mock('@ui/components/Icons', () => ({

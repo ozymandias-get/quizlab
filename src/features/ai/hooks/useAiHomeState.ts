@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAiActions, useAiState } from '@app/providers/AiContext'
+import {
+  useAiModelsCatalog,
+  useAiCoreWorkspaceActions,
+  useAiTabsSliceState
+} from '@app/providers/AiContext'
 import { getEnabledAiIdsByType, getFeaturedAiIds, mergeOrderedIds } from '../model/home'
 import { useGridDragReorder } from './useGridDragReorder'
 import { useAiHomeLayout } from './useAiHomeLayout'
 
 export function useAiHomeState() {
-  const { tabs, activeTabId, aiSites = {}, enabledModels = [] } = useAiState()
-  const { setEnabledModels } = useAiActions()
+  const { tabs, activeTabId } = useAiTabsSliceState()
+  const { aiSites = {}, enabledModels = [] } = useAiModelsCatalog()
+  const { setEnabledModels } = useAiCoreWorkspaceActions()
   const pageRef = useRef<HTMLDivElement>(null)
   const layout = useAiHomeLayout(pageRef)
 
@@ -22,13 +27,16 @@ export function useAiHomeState() {
   const [modelOrder, setModelOrder] = useState<string[]>(modelIds)
   const [siteOrder, setSiteOrder] = useState<string[]>(siteIds)
 
+  const modelIdsKey = useMemo(() => modelIds.join('|'), [modelIds])
+  const siteIdsKey = useMemo(() => siteIds.join('|'), [siteIds])
+
   useEffect(() => {
     setModelOrder((previous) => mergeOrderedIds(previous, modelIds))
-  }, [modelIds.join('|')])
+  }, [modelIdsKey, modelIds])
 
   useEffect(() => {
     setSiteOrder((previous) => mergeOrderedIds(previous, siteIds))
-  }, [siteIds.join('|')])
+  }, [siteIdsKey, siteIds])
 
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [activeTabId, tabs])
   const activeModelIds = useMemo(() => new Set(tabs.map((tab) => tab.modelId)), [tabs])

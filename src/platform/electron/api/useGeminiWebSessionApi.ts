@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { UseQueryOptions } from '@tanstack/react-query'
 import { useElectronMutation, useElectronQuery } from '../useElectron'
 import type { GeminiWebSessionActionResult, GeminiWebSessionStatus } from '@shared-core/types'
-import { useLanguage } from '@app/providers/LanguageContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 
 const GEMINI_WEB_STATUS_KEY = ['gemini-web', 'status']
 
@@ -28,7 +28,7 @@ function useGeminiWebMutation<Payload>(
   errorKey: string,
   options?: { invalidateAiRegistry?: boolean }
 ) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const queryClient = useQueryClient()
 
   return useElectronMutation<GeminiWebSessionActionResult, Payload>(action, {

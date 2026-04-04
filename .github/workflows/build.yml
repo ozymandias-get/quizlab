@@ -64,6 +64,9 @@ jobs:
           npm --version
           npm install --ignore-optional
 
+      - name: Run Tests with Coverage
+        run: npm run test:coverage
+
       - name: Build and Package (Windows)
         if: matrix.platform == 'win'
         run: npm run build && npx electron-builder --win --publish never

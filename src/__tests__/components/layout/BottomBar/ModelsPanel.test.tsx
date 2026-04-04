@@ -19,19 +19,21 @@ vi.mock('framer-motion', () => ({
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({
     t: (key: string) => key
-  })
+  }),
+  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
 vi.mock('@app/providers/AiContext', () => ({
-  useAiState: () => ({
+  useAiModelsCatalog: () => ({
     enabledModels: ['chatgpt', 'gemini', 'youtube'],
+    defaultAiModel: 'chatgpt',
     aiSites: {
       chatgpt: { icon: 'chatgpt', displayName: 'ChatGPT' },
       gemini: { icon: 'gemini', displayName: 'Gemini' },
       youtube: { icon: 'youtube', displayName: 'YouTube' }
     }
   }),
-  useAiActions: () => ({
+  useAiCoreWorkspaceActions: () => ({
     addTab: mockAddTab,
     setEnabledModels: mockSetEnabledModels
   })

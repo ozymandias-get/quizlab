@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-/** Toast store: max 3 visible; `useToast()` API unchanged. */
+/** Toast store: max 3 visible. Prefer `useToastActions` when you only show toasts (avoids re-renders on toast list changes). */
 export interface Toast {
   id: string
   message: string
@@ -82,22 +82,20 @@ const useToastStore = create<ToastStoreState>((set, get) => {
   }
 })
 
-export function useToast() {
-  const toasts = useToastStore((state) => state.toasts)
+/** Subscribe only to stable action fns — not `toasts` — so new/dismissed toasts do not re-render callers. */
+export function useToastActions() {
   const addToast = useToastStore((state) => state.addToast)
-  const removeToast = useToastStore((state) => state.removeToast)
   const showSuccess = useToastStore((state) => state.showSuccess)
   const showError = useToastStore((state) => state.showError)
   const showWarning = useToastStore((state) => state.showWarning)
   const showInfo = useToastStore((state) => state.showInfo)
 
-  return {
-    toasts,
-    addToast,
-    removeToast,
-    showSuccess,
-    showError,
-    showWarning,
-    showInfo
-  }
+  return { addToast, showSuccess, showError, showWarning, showInfo }
+}
+
+/** For the toast stack UI only (`toasts` updates frequently). */
+export function useToastList() {
+  const toasts = useToastStore((state) => state.toasts)
+  const removeToast = useToastStore((state) => state.removeToast)
+  return { toasts, removeToast }
 }

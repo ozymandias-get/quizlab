@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Compass, Globe, Sparkles } from 'lucide-react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import type { Tab } from '@app/providers/AiContext'
 import type { AiSiteMap } from '../../model/home'
 import { OpenTabsToggle, StatChip } from './AiHomeCards'
@@ -34,7 +34,7 @@ export default function AiHomeHero({
   siteCount,
   tabs
 }: AiHomeHeroProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return (
     <motion.section

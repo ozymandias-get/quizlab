@@ -1,7 +1,7 @@
 import { useState, type DragEvent, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowUpRight, ChevronDown, Globe, Layers3, Sparkles } from 'lucide-react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import type { Tab } from '@app/providers/AiContext'
 import { hexToRgba } from '@shared/lib/uiUtils'
 import { getAiIcon } from '@ui/components/Icons'
@@ -25,7 +25,7 @@ function OpenTabCard({
   tabId: string
   title?: string
 }) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const accent = safeAiAccentColor(site?.color)
   const displayName = title || site?.displayName || site?.name || modelId
   const icon = getAiIcon(site?.icon || modelId)
@@ -108,7 +108,7 @@ function GridCard({
   site: NonNullable<AiSiteMap[string]>
   tone: SectionTone
 }) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const accent = safeAiAccentColor(site.color)
   const displayName = site.displayName || site.name || itemId
   const icon = getAiIcon(site.icon || itemId)
@@ -249,7 +249,7 @@ export function StatChip({
 }
 
 export function EmptySitesState() {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return (
     <div className="rounded-[32px] border border-dashed border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.03),rgba(0,0,0,0.18))] p-8 backdrop-blur-xl">
@@ -284,7 +284,7 @@ export function OpenTabsToggle({
   onSelectTab: (tabId: string) => void
   tabs: Tab[]
 }) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const [isOpen, setIsOpen] = useState(false)
   const accent = '#6ee7b7'
 

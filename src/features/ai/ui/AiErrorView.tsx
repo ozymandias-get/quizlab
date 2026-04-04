@@ -1,5 +1,5 @@
 ﻿import { memo } from 'react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { Button } from '@ui/components/button'
 
 interface AiErrorViewProps {
@@ -9,7 +9,7 @@ interface AiErrorViewProps {
 }
 
 const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
 
   return (
     <div className="absolute inset-0 bg-stone-900/95 backdrop-blur-sm flex items-center justify-center z-10 animate-in fade-in zoom-in duration-300">

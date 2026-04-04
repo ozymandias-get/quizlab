@@ -7,7 +7,7 @@ const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
 
 vi.mock('@app/providers/ToastContext', () => ({
-  useToast: () => ({
+  useToastActions: () => ({
     showSuccess: mockShowSuccess,
     showWarning: mockShowWarning
   })

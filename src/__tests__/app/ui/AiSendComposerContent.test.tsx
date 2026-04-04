@@ -2,23 +2,25 @@ import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import AiSendComposerContent from '@app/ui/aiSendComposer/AiSendComposerContent'
 
-vi.mock('@app/providers', () => ({
-  useLanguage: () => ({
-    t: (key: string, params?: Record<string, string>) => {
-      const translations: Record<string, string> = {
-        auto_send: 'auto_send',
-        ai_send_send_order_hint: 'Send order hint',
-        ai_send_page_item: `Sayfa ${params?.page ?? ''}`.trim(),
-        ai_send_page_selection_item: `Sayfa ${params?.page ?? ''} • Bir kisim`.trim(),
-        ai_send_image_item: `Gorsel ${params?.index ?? ''}`.trim(),
-        ai_send_selection_item: `Alinti ${params?.index ?? ''}`.trim(),
-        ai_send_item_count: `${params?.count ?? ''} oge`.trim()
-      }
-
-      return translations[key] ?? key
+vi.mock('@app/providers', () => {
+  const t = (key: string, params?: Record<string, string>) => {
+    const translations: Record<string, string> = {
+      auto_send: 'auto_send',
+      ai_send_send_order_hint: 'Send order hint',
+      ai_send_page_item: `Sayfa ${params?.page ?? ''}`.trim(),
+      ai_send_page_selection_item: `Sayfa ${params?.page ?? ''} • Bir kisim`.trim(),
+      ai_send_image_item: `Gorsel ${params?.index ?? ''}`.trim(),
+      ai_send_selection_item: `Alinti ${params?.index ?? ''}`.trim(),
+      ai_send_item_count: `${params?.count ?? ''} oge`.trim()
     }
-  })
-}))
+
+    return translations[key] ?? key
+  }
+  return {
+    useLanguage: () => ({ t }),
+    useLanguageStrings: () => ({ t, language: 'en' })
+  }
+})
 
 describe('AiSendComposerContent', () => {
   const baseProps = {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { useSettings } from '../../hooks/useSettings'
 import { buildSettingsTabDefs, toSettingsTabId, type SettingsTabId } from './settingsModalTabs'
 
@@ -16,7 +16,7 @@ export function useSettingsModalState({
   isOpen,
   onClose
 }: UseSettingsModalStateOptions) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const modalRef = useRef<HTMLDivElement>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
   const normalizedInitialTab = toSettingsTabId(initialTab)

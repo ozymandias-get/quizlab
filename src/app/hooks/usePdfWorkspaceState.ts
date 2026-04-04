@@ -1,5 +1,5 @@
 import { useCallback, useMemo, type ComponentProps, type DragEvent } from 'react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { useTextSelection } from '@app/hooks/useTextSelection'
 import { usePdfSelection } from '@features/pdf'
 import LeftPanel from '@ui/layout/LeftPanel'
@@ -9,7 +9,7 @@ interface UsePdfWorkspaceStateParams {
 }
 
 export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceStateParams) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const {
     pdfFile,
     pdfTabs,

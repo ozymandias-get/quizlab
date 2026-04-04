@@ -24,7 +24,7 @@ interface UsePromptsReturn {
  * Centralizes logic for fetching, adding, deleting and selecting prompts.
  */
 export function usePrompts(): UsePromptsReturn {
-  const { language } = useLanguage()
+  const language = useLanguage((s) => s.language)
   const [customPrompts, setCustomPrompts] = useLocalStorage<IPrompt[]>(
     STORAGE_KEYS.CUSTOM_PROMPTS,
     []

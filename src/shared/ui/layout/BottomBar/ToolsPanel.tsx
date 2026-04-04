@@ -1,6 +1,6 @@
 import { memo, type CSSProperties } from 'react'
 import { motion } from 'framer-motion'
-import { useLanguage, useAppToolActions, useAppToolState } from '@app/providers'
+import { useLanguageStrings, useAppToolActions, useAppToolFlagsState } from '@app/providers'
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { GeminiIcon, LoaderIcon, MagicWandIcon, SettingsIcon, SwapIcon } from '@ui/components/Icons'
@@ -26,8 +26,8 @@ export const ToolsPanel = memo(
     handleGeminiWebSettingsClick,
     toggleLayoutSwap
   }: ToolsPanelProps) => {
-    const { t } = useLanguage()
-    const { isPickerActive, isGeminiWebLoginInProgress } = useAppToolState()
+    const { t } = useLanguageStrings()
+    const { isPickerActive, isGeminiWebLoginInProgress } = useAppToolFlagsState()
     const { togglePicker, startPickerWhenReady, startGeminiWebLogin } = useAppToolActions()
     const { data: webSessionData, isLoading: isGeminiWebStatusLoading } = useGeminiWebStatus()
 

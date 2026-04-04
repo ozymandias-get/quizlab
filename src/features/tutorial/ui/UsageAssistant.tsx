@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useMemo, useCallback, memo, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 
 const STEP_CONFIG = [
   {
@@ -249,7 +249,7 @@ const Tooltip = memo<TooltipProps>(
 )
 
 function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const [step, setStep] = useState(0)
   const [rects, setRects] = useState<Rect[]>([])
 

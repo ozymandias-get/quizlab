@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Globe, Sparkles } from 'lucide-react'
-import { useLanguage } from '@app/providers'
+import { useLanguageStrings } from '@app/providers'
 import { useAiHomeState } from '../hooks/useAiHomeState'
 import AiHomeHero from './home/AiHomeHero'
 import { AiHomeCardGrid, EmptySitesState } from './home/AiHomeCards'
@@ -12,7 +12,7 @@ interface AiHomePageProps {
 }
 
 function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   const {
     activeModelIds,
     activeTab,

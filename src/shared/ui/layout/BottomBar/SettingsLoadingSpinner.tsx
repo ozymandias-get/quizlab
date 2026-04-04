@@ -1,7 +1,7 @@
-﻿import { useLanguage } from '@app/providers'
+﻿import { useLanguageStrings } from '@app/providers'
 
 export const SettingsLoadingSpinner = () => {
-  const { t } = useLanguage()
+  const { t } = useLanguageStrings()
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
       <div className="flex flex-col items-center gap-3">
