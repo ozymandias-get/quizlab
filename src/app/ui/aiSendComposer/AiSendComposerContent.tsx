@@ -1,4 +1,4 @@
-import { memo, useMemo, type PointerEventHandler } from 'react'
+import { memo, useCallback, useMemo, type KeyboardEvent, type PointerEventHandler } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Image as ImageIcon, Loader2, Quote, Send, X, Zap } from 'lucide-react'
 import { useLanguageStrings } from '@app/providers'
@@ -69,6 +69,59 @@ function AiSendComposerContent({
   const hasImages = useMemo(() => items.some((i) => i.type === 'image'), [items])
 
   const itemTransition = prefersReducedMotion ? ITEM_ENTER_REDUCED : ITEM_ENTER
+
+  const handleNoteKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.nativeEvent.isComposing) {
+        return
+      }
+      if (event.key !== 'Enter') {
+        return
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault()
+        const ta = event.currentTarget
+        const start = ta.selectionStart ?? 0
+        const end = ta.selectionEnd ?? 0
+        const v = ta.value
+        const next = `${v.slice(0, start)}\n${v.slice(end)}`
+        onNoteTextChange(next)
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = start + 1
+        })
+        return
+      }
+
+      if (isSubmitting) {
+        event.preventDefault()
+        return
+      }
+
+      if (totalItems === 0) {
+        return
+      }
+
+      event.preventDefault()
+
+      if (hasNoteText) {
+        if (event.shiftKey) {
+          onSubmit()
+        } else {
+          onSubmit({ forceAutoSend: true })
+        }
+        return
+      }
+
+      if (event.shiftKey) {
+        onSubmit({ forceAutoSend: true })
+        return
+      }
+
+      onSubmit()
+    },
+    [hasNoteText, isSubmitting, onNoteTextChange, onSubmit, totalItems]
+  )
 
   if (collapsed) {
     return null
@@ -229,6 +282,7 @@ function AiSendComposerContent({
             rows={3}
             value={noteText}
             onChange={(event) => onNoteTextChange(event.target.value)}
+            onKeyDown={handleNoteKeyDown}
             placeholder={hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')}
             className="w-full resize-none rounded-xl border border-white/[0.06] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none transition-all duration-200 placeholder:text-white/25 focus:border-white/[0.12] focus:ring-2 focus:ring-white/[0.04]"
             style={{

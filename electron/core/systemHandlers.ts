@@ -58,7 +58,6 @@ export function registerSystemHandlers() {
 
   const { IPC_CHANNELS } = APP_CONFIG
 
-  // App Quit - allows renderer (e.g. splash screen) to exit the app
   ipcMain.handle(IPC_CHANNELS.APP_QUIT, (event) => {
     if (!isTrustedMainWindowSender(event.sender)) return
     app.quit()
@@ -108,13 +107,10 @@ export function registerSystemHandlers() {
     try {
       const userDataPath = app.getPath('userData')
 
-      // Clear default session cache
       await session.defaultSession.clearCache()
 
-      // Collect all unique partitions from AI_REGISTRY + INACTIVE_PLATFORMS
       const allPartitions = new Set<string>()
 
-      // Constantly include the legacy APP_CONFIG.PARTITIONS.AI just in case
       if (APP_CONFIG.PARTITIONS.AI) allPartitions.add(APP_CONFIG.PARTITIONS.AI)
 
       Object.values(AI_REGISTRY).forEach((p) => p.partition && allPartitions.add(p.partition))
@@ -122,7 +118,6 @@ export function registerSystemHandlers() {
         (p) => p.partition && allPartitions.add(p.partition)
       )
 
-      // Clear AI session cache for all configured platforms
       const clearPromises = Array.from(allPartitions).map(async (partition) => {
         const pSession = session.fromPartition(partition)
         await pSession.clearCache()

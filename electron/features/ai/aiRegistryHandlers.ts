@@ -63,14 +63,13 @@ export function registerAiRegistryHandlers() {
         name,
         displayName: name,
         url: normalizedUrl,
-        icon: platformData.isSite ? 'globe' : 'globe', // Keep globe or customize later
+        icon: 'globe',
         selectors: { input: null, button: null, waitFor: null },
         isCustom: true,
         isSite: Boolean(platformData.isSite),
         color: undefined as string | undefined
       }
 
-      // Restore icon from inactive platforms if available
       const lowerUrl = normalizedUrl.toLowerCase()
       for (const key in INACTIVE_PLATFORMS) {
         const p = INACTIVE_PLATFORMS[key]
@@ -106,7 +105,6 @@ export function registerAiRegistryHandlers() {
 
     const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
 
-    // Google session-backed apps are managed only from Google Web Session settings.
     try {
       const geminiStatus = await geminiWebSessionManager.getStatus()
       const isGoogleWebEnabled = geminiStatus.featureEnabled && geminiStatus.enabled

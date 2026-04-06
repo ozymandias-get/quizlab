@@ -26,7 +26,8 @@ function App() {
   } = useAppShellState()
 
   const { t, leftPanelProps, rootDragHandlers } = usePdfWorkspaceState({
-    isInteractionBlocked: workspaceState.isBarHovered || panelResize.isResizing
+    isInteractionBlocked: workspaceState.isBarHovered || panelResize.isResizing,
+    isPanelResizing: panelResize.isResizing
   })
 
   return (

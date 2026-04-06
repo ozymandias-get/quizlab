@@ -1,8 +1,8 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { safeWebviewPaste } from '@shared/lib/webviewUtils'
+import type { WebviewController } from '@shared-core/types/webview'
 import { Logger } from '@shared/lib/logger'
 
-// Mock Logger to avoid clutter
 vi.mock('@shared/lib/logger', () => ({
   Logger: {
     error: vi.fn(),
@@ -23,7 +23,7 @@ describe('webviewUtils - safeWebviewPaste', () => {
   it('uses native paste() if available', () => {
     const mockWebview = {
       paste: vi.fn()
-    } as any
+    } as unknown as WebviewController
 
     expect(safeWebviewPaste(mockWebview)).toBe(true)
     expect(mockWebview.paste).toHaveBeenCalled()
@@ -34,7 +34,7 @@ describe('webviewUtils - safeWebviewPaste', () => {
       paste: vi.fn().mockImplementation(() => {
         throw new Error('Paste error')
       })
-    } as any
+    } as unknown as WebviewController
 
     expect(safeWebviewPaste(mockWebview)).toBe(false)
     expect(Logger.error).toHaveBeenCalledWith(
@@ -45,14 +45,8 @@ describe('webviewUtils - safeWebviewPaste', () => {
 
   it('falls back to input simulation if paste() is missing but sendInputEvent exists', () => {
     const mockWebview = {
-      // No paste method
       sendInputEvent: vi.fn()
-    } as any
-
-    // Assume platform is windows by default/mock
-    // The implementation checks: window.electronAPI?.platform or defaults?
-    // Let's see implementation: const modifier = (window.electronAPI?.platform === 'darwin') ? 'meta' : 'control';
-    // We can mock window.electronAPI
+    } as unknown as WebviewController
 
     Object.defineProperty(window, 'electronAPI', {
       value: { platform: 'win32' },
@@ -61,7 +55,6 @@ describe('webviewUtils - safeWebviewPaste', () => {
 
     expect(safeWebviewPaste(mockWebview)).toBe(true)
 
-    // Should send Ctrl+V (3 events: keyDown, char, keyUp)
     expect(mockWebview.sendInputEvent).toHaveBeenCalledTimes(3)
     expect(mockWebview.sendInputEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -75,7 +68,7 @@ describe('webviewUtils - safeWebviewPaste', () => {
   it('handles macos modifier key', () => {
     const mockWebview = {
       sendInputEvent: vi.fn()
-    } as any
+    } as unknown as WebviewController
 
     Object.defineProperty(window, 'electronAPI', {
       value: { platform: 'darwin' },
@@ -92,7 +85,7 @@ describe('webviewUtils - safeWebviewPaste', () => {
   })
 
   it('returns false if sendInputEvent is also missing', () => {
-    const mockWebview = {} as any // No methods
+    const mockWebview = {} as unknown as WebviewController
     expect(safeWebviewPaste(mockWebview)).toBe(false)
     expect(Logger.error).toHaveBeenCalledWith(expect.stringContaining('sendInputEvent API missing'))
   })

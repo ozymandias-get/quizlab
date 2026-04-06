@@ -1,4 +1,4 @@
-﻿import { useMemo, memo, useCallback } from 'react'
+﻿import { useMemo, memo, useCallback, useState, useEffect } from 'react'
 import { useToastActions, useLanguageStrings } from '@app/providers'
 import {
   useAiModelsCatalog,
@@ -8,6 +8,7 @@ import {
 import type { Tab } from '@app/providers/AiContext'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
+import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
 import AiErrorView from './AiErrorView'
 
 interface AiSessionProps {
@@ -26,6 +27,28 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
   const { showWarning } = useToastActions()
   const { t } = useLanguageStrings()
 
+  const [isSleeping, setIsSleeping] = useState(false)
+
+  // Hibernate the webview after 15 minutes of inactivity to save RAM
+  useEffect(() => {
+    let timeout: NodeJS.Timeout
+    if (!isActive) {
+      timeout = setTimeout(
+        () => {
+          setIsSleeping(true)
+        },
+        15 * 60 * 1000
+      )
+    } else {
+      setIsSleeping(false)
+    }
+    return () => clearTimeout(timeout)
+  }, [isActive])
+
+  const handleWakeUp = useCallback(() => {
+    setIsSleeping(false)
+  }, [])
+
   const registerInstance = useCallback(
     (instance: any) => {
       registerWebview(tab.id, instance)
@@ -33,9 +56,8 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
     [registerWebview, tab.id]
   )
 
-  // Use custom hook for lifecycle logic
   const { isLoading, error, onWebviewRef, handleRetry } = useWebviewLifecycle({
-    currentAI: tab.modelId, // Pass the tab's model ID
+    currentAI: tab.modelId,
     registerWebview: registerInstance,
     t,
     showWarning
@@ -51,21 +73,21 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
   }, [siteConfig, tab.id, tab.modelId])
 
   const webview = useMemo(() => {
-    if (!siteConfig) return null
+    if (!siteConfig || isSleeping) return null
 
     return (
       <webview
-        key={tab.modelId} // Reset webview if model changes in this tab
+        key={tab.modelId}
         ref={onWebviewRef}
         src={initialUrl}
         partition={partition}
         className="flex-1 w-full h-full"
-        allowpopups={'true' as any}
-        webpreferences="contextIsolation=yes, sandbox=yes"
+        allowpopups={WEBVIEW_ALLOW_POPUPS}
+        webpreferences="contextIsolation=yes, sandbox=yes, backgroundThrottling=yes"
         useragent={chromeUserAgent}
       />
     )
-  }, [chromeUserAgent, initialUrl, onWebviewRef, partition, siteConfig, tab.modelId])
+  }, [chromeUserAgent, initialUrl, isSleeping, onWebviewRef, partition, siteConfig, tab.modelId])
 
   return (
     <div
@@ -76,16 +98,42 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
       }}
     >
       <div className="flex-1 relative flex flex-col">
-        {webview}
+        {isSleeping ? (
+          <div
+            onClick={handleWakeUp}
+            className="flex-1 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm cursor-pointer select-none"
+          >
+            <div className="p-4 rounded-2xl bg-zinc-800/80 mb-4 border border-zinc-700/50 shadow-xl transition-transform hover:scale-105 active:scale-95">
+              <svg
+                className="w-8 h-8 text-zinc-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </div>
+            <p className="text-zinc-200 font-medium text-lg">Oturum Uyku Modunda</p>
+            <p className="text-sm text-zinc-500 mt-1 max-w-sm text-center">
+              Bellek tüketimini azaltmak için sekme uyutuldu. Kaldığınız yerden devam etmek ve
+              belleği tazelemek için tıklayın.
+            </p>
+          </div>
+        ) : (
+          webview
+        )}
 
         {/* Mouse Catcher: Prevents webview from swallowing mouse events when bar is hovered */}
-        {isBarHovered && isActive && (
+        {isBarHovered && isActive && !isSleeping && (
           <div className="absolute inset-0 z-[5] pointer-events-auto bg-transparent" />
         )}
 
-        {isLoading && isActive && <AestheticLoader />}
+        {isLoading && isActive && !isSleeping && <AestheticLoader />}
 
-        {error && isActive && (
+        {error && isActive && !isSleeping && (
           <AiErrorView error={error} onRetry={handleRetry} aiName={siteConfig?.displayName} />
         )}
       </div>

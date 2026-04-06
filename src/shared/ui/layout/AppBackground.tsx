@@ -21,7 +21,7 @@ const RandomBlob = memo(
 
     const getRandomAestheticColor = () => {
       const hue = Math.floor(Math.random() * 360)
-      return `hsl(${hue}, 40%, 15%)` // Dark, muted, premium tones
+      return `hsl(${hue}, 40%, 15%)`
     }
 
     useEffect(() => {
@@ -82,7 +82,7 @@ const RandomBlob = memo(
 
           left: index === 0 ? '-10%' : index === 1 ? '50%' : '20%',
           top: index === 0 ? '-10%' : index === 1 ? '50%' : '10%',
-          willChange: 'transform, border-radius, background-color', // GPU hints
+          willChange: 'transform, border-radius, background-color',
           backfaceVisibility: 'hidden' as CSSProperties['backfaceVisibility']
         }}
       />

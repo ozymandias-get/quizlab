@@ -109,7 +109,7 @@ describe('useAiSender', () => {
     pasteNative: vi.fn(() => true)
   }
 
-  const mockWebviewRef = { current: mockWebview } as any
+  const mockWebviewRef = { current: mockWebview } as unknown as Parameters<typeof useAiSender>[0]
   const mockAiRegistry = {
     'gpt-4': {
       input: '#input',
@@ -132,7 +132,7 @@ describe('useAiSender', () => {
       },
       copyImageToClipboard: mockCopyImageToClipboard,
       getAiConfig: mockGetAiConfig
-    } as any
+    } as unknown as Window['electronAPI']
 
     mockWebview.getURL.mockReturnValue('https://openai.com/chat')
     mockWebview.executeJavaScript.mockResolvedValue({
@@ -153,7 +153,14 @@ describe('useAiSender', () => {
 
   it('sends text successfully with diagnostics', async () => {
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -181,7 +188,14 @@ describe('useAiSender', () => {
   it('injects active prompt if present', async () => {
     mockUsePrompts.mockReturnValue({ activePromptText: 'Act as a expert' })
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -202,7 +216,14 @@ describe('useAiSender', () => {
   it('merges local prompt text with active prompt', async () => {
     mockUsePrompts.mockReturnValue({ activePromptText: 'Act as a expert' })
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -227,7 +248,14 @@ describe('useAiSender', () => {
     mockWebview.getURL.mockReturnValue('https://other.com')
 
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -248,7 +276,14 @@ describe('useAiSender', () => {
     mockGetAiConfig.mockResolvedValue({ input: '.custom-input', button: '.custom-btn' })
 
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -301,7 +336,14 @@ describe('useAiSender', () => {
       })
 
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', true, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          true,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -370,7 +412,14 @@ describe('useAiSender', () => {
       })
 
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -405,7 +454,14 @@ describe('useAiSender', () => {
       })
 
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -447,7 +503,14 @@ describe('useAiSender', () => {
       })
 
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -467,7 +530,14 @@ describe('useAiSender', () => {
   it('handles clipboard failure', async () => {
     mockCopyImageToClipboard.mockResolvedValue(false)
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry as any, 'tab-1'),
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
       {
         wrapper: createWrapper()
       }
@@ -484,9 +554,16 @@ describe('useAiSender', () => {
   })
 
   it('returns diagnostics when no webview is available', async () => {
-    const emptyRef = { current: null as any }
+    const emptyRef = { current: null } as unknown as Parameters<typeof useAiSender>[0]
     const { result } = renderHook(
-      () => useAiSender(emptyRef, 'gpt-4', false, mockAiRegistry as any, 'tab-stale'),
+      () =>
+        useAiSender(
+          emptyRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-stale'
+        ),
       {
         wrapper: createWrapper()
       }

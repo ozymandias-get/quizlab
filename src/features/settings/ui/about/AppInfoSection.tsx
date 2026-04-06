@@ -11,7 +11,6 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
     <header className="relative flex flex-col items-center p-10 rounded-[32px] bg-white/[0.02] border border-white/[0.05] overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none" />
 
-      {/* App Icon with soft glow */}
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

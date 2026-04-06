@@ -1,8 +1,4 @@
-﻿/* ============================================
-   SCREENSHOT TOOL STYLES - Ekran görüntüsü aracı
-   ============================================ */
-
-.screenshot-overlay {
+﻿.screenshot-overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;

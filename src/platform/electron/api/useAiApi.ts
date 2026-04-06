@@ -17,8 +17,8 @@ export function useAiRegistry() {
     key: AI_REGISTRY_KEY,
     queryFn: (api) => api.getAiRegistry(false),
     options: {
-      staleTime: Infinity, // Use React Query cache instead of preload
-      gcTime: 1000 * 60 * 60 * 24 // 24 hours
+      staleTime: Infinity,
+      gcTime: 1000 * 60 * 60 * 24
     }
   })
 }
@@ -108,7 +108,6 @@ export function useAddCustomAi() {
           t('toast_ai_added_title')
         )
       } else {
-        // Use showError directly - throwing inside onSuccess bypasses onError handler
         showError(result.error || t('toast_custom_ai_failed'), t('toast_ai_error_title'))
       }
     }

@@ -27,7 +27,6 @@ export class ConfigManager<T extends Record<string, any>> {
   public async read(force: boolean = false): Promise<T> {
     if (this.cache && !force) return this.cache
 
-    // Prevent concurrent reads
     if (this.readPromise && !force) return this.readPromise
 
     this.readPromise = (async () => {

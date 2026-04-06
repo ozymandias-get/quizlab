@@ -16,11 +16,11 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.quizlab.reader')
 }
 
-// Disable quota management and noisy/unsupported linux gpu features
 app.commandLine.appendSwitch(
   'disable-features',
-  'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder'
+  'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder,CalculateNativeWinOcclusion'
 )
+app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization')
 app.commandLine.appendSwitch('disable-site-isolation-trials')
 
 const allowMultiInstance = process.env.APP_ALLOW_MULTI_INSTANCE === '1'
@@ -49,13 +49,9 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist')
 app.commandLine.appendSwitch('enable-parallel-downloading')
 app.commandLine.appendSwitch('enable-quic')
 
-// Suppress non-critical Chromium output to console (fixes dbus/vaapi terminal spam on Linux)
 app.commandLine.appendSwitch('log-level', '3')
 
-// Per-monitor DPI: do not force scale factor — forcing 1.0 breaks layout when the window
-// moves between displays with different Windows scaling (PDF canvas/text layer drift).
 app.commandLine.appendSwitch('high-dpi-support', '1')
-// NOTE: `disable-features` was already set above. Do not override it here.
 
 let appCleanupPromise: Promise<void> | null = null
 let appCleanupComplete = false

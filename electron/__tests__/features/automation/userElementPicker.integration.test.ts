@@ -22,9 +22,7 @@ describe('userElementPicker integration', () => {
     if (pickerWindow._aiPickerCleanup) {
       try {
         pickerWindow._aiPickerCleanup()
-      } catch {
-        // no-op
-      }
+      } catch {}
     }
     delete pickerWindow._aiPickerResult
   })

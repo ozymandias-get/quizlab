@@ -7,6 +7,8 @@ export const IPC_CHANNELS = {
   COPY_TEXT: 'copy-text-to-clipboard',
   OPEN_EXTERNAL: 'open-external',
   SHOW_PDF_CONTEXT_MENU: 'show-pdf-context-menu',
+  /** PDF viewer internal zoom (not BrowserWindow webContents zoom). */
+  TRIGGER_PDF_VIEWER_ZOOM: 'trigger-pdf-viewer-zoom',
   TRIGGER_SCREENSHOT: 'trigger-screenshot',
   CHECK_FOR_UPDATES: 'check-for-updates',
   OPEN_RELEASES: 'open-releases-page',
@@ -15,14 +17,12 @@ export const IPC_CHANNELS = {
   SAVE_AI_CONFIG: 'save-ai-config',
   GET_AI_CONFIG: 'get-ai-config',
   DELETE_AI_CONFIG: 'delete-ai-config',
-  // AI Registry & Automation (Main Process Data)
   GET_AI_REGISTRY: 'get-ai-registry',
   GET_AUTOMATION_SCRIPTS: 'get-automation-scripts',
   ADD_CUSTOM_AI: 'add-custom-ai',
   DELETE_CUSTOM_AI: 'delete-custom-ai',
   IS_AUTH_DOMAIN: 'is-auth-domain',
   CLEAR_CACHE: 'clear-cache',
-  // Gemini Web Session
   GEMINI_WEB_OPEN_LOGIN: 'gemini-web-open-login',
   GEMINI_WEB_STATUS: 'gemini-web-status',
   GEMINI_WEB_CHECK_NOW: 'gemini-web-check-now',
@@ -30,6 +30,5 @@ export const IPC_CHANNELS = {
   GEMINI_WEB_RESET_PROFILE: 'gemini-web-reset-profile',
   GEMINI_WEB_SET_ENABLED: 'gemini-web-set-enabled',
   GEMINI_WEB_SET_ENABLED_APPS: 'gemini-web-set-enabled-apps',
-  // App lifecycle
   APP_QUIT: 'app-quit'
 }

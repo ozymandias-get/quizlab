@@ -1,6 +1,14 @@
 /// <reference types="vitest/globals" />
 /// <reference types="@testing-library/jest-dom" />
 
+import 'react'
+
+declare module 'react' {
+  interface WebViewHTMLAttributes<T> {
+    allowpopups?: string | boolean | undefined
+  }
+}
+
 interface ImportMetaEnv {
   readonly MODE: string
   readonly BASE_URL: string
@@ -14,8 +22,6 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
-// Image module declarations
-// Keep this file as declaration-only (no runtime behavior).
 declare module '*.png' {
   const src: string
   export default src
@@ -46,7 +52,6 @@ declare module '*.webp' {
   export default src
 }
 
-// PDF.js worker URL import
 declare module 'pdfjs-dist/build/pdf.worker.min.js?url' {
   const url: string
   export default url

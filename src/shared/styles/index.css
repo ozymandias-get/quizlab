@@ -1,13 +1,4 @@
-/* ============================================
-   MAIN STYLESHEET
-   Tüm modüler CSS dosyalarını içe aktarır
-   
-   NOT: @import ifadeleri dosyanın en başında olmalı!
-   ============================================ */
-
-/* CSS MODULES - Modüler dosya importları (ÖNCELİKLİ) */
 @import './modules/_fonts.css';
-/* Font tanımlamaları - EN ÖNCE */
 @import './modules/_base.css';
 @import './modules/_glass-panel.css';
 @import './modules/_pdf-viewer.css';
@@ -18,7 +9,6 @@
 @import './modules/_backgrounds.css';
 @import './modules/_utilities.css';
 
-/* Tailwind directives - İmportlardan SONRA */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

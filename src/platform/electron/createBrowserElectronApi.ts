@@ -234,6 +234,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     forcePaste: async () => false,
     showPdfContextMenu: () => {},
     onTriggerScreenshot: () => () => {},
+    onPdfViewerZoom: () => () => {},
 
     platform: getPlatform(),
     quitApp: async () => {},

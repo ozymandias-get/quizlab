@@ -2,7 +2,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 
-// Mock useToast
 const mockToast = {
   showSuccess: vi.fn(),
   showError: vi.fn(),
@@ -17,7 +16,6 @@ vi.mock('@app/providers/LanguageContext', () => ({
   useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
-// Mock Logger
 vi.mock('@shared/lib/logger', () => ({
   Logger: {
     error: vi.fn(),
@@ -25,7 +23,6 @@ vi.mock('@shared/lib/logger', () => ({
   }
 }))
 
-// Mock useAiApi and useAutomationApi hooks
 const mockSaveAiConfigMutate = vi.fn()
 const mockGeneratePickerScriptMutate = vi.fn()
 
@@ -53,7 +50,6 @@ describe('useElementPicker Hook', () => {
       getURL: vi.fn().mockReturnValue('https://example.com/foo')
     }
 
-    // Setup default mocks
     mockGeneratePickerScriptMutate.mockResolvedValue('// script')
     mockSaveAiConfigMutate.mockResolvedValue(true)
   })

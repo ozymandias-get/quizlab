@@ -50,7 +50,6 @@ const isAuthDomain = (hostname?: string) => {
   const normalized = hostname.toLowerCase().trim()
   if (AUTH_DOMAINS.has(normalized)) return true
 
-  // Check for subdomains
   return Array.from(AUTH_DOMAINS).some((domain) => normalized.endsWith('.' + domain))
 }
 
@@ -68,8 +67,6 @@ const enhancePlatform = (data: AiPlatform): EnhancedAiPlatform => {
   }
 }
 
-// Tüm platformların haritası
-// Active Platforms (Defaults)
 const platforms: AiRegistry = {
   chatgpt: enhancePlatform(chatgpt),
   gemini: enhancePlatform(gemini),
@@ -82,7 +79,6 @@ const platforms: AiRegistry = {
   kimi: enhancePlatform(kimi)
 }
 
-// Inactive/Removed Platforms (Kept for icon/meta recovery if user adds them back)
 const inactivePlatforms: InactivePlatforms = {
   copilot: {
     id: 'copilot',

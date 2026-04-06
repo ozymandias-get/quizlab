@@ -6,7 +6,6 @@
  * Import from '@shared-core/types' as before — this barrel re-exports everything.
  */
 
-// Automation & Selector types
 export type {
   SubmitMode,
   SelectorHealth,
@@ -20,7 +19,6 @@ export type {
   AutomationExecutionResult
 } from './automation'
 
-// AI Platform & Registry types
 export type {
   AiPlatformMeta,
   AiPlatform,
@@ -32,13 +30,16 @@ export type {
   CustomAiResult
 } from './ai'
 
-// PDF types
-export type { PdfSelectOptions, PdfSelection, PdfStreamResult, PdfFile } from './pdf'
+export type {
+  PdfSelectOptions,
+  PdfSelection,
+  PdfStreamResult,
+  PdfFile,
+  PdfViewerZoomAction
+} from './pdf'
 
-// System & Update types
 export type { UpdateCheckResult, ScreenshotType } from './system'
 
-// Gemini Web Session types
 export type {
   GeminiWebSessionState,
   GeminiWebSessionReasonCode,

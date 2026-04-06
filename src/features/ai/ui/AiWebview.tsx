@@ -41,7 +41,6 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
     })
   }, [activeTabId])
 
-  // Cleanup aliveTabIds when tabs are closed
   useEffect(() => {
     const currentTabIds = new Set(tabs.map((t) => t.id))
     setAliveTabIds((prev) => prev.filter((id) => currentTabIds.has(id)))
@@ -116,7 +115,6 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
         })}
       </div>
 
-      {/* Tutorial Simulation */}
       {isTutorialActive && (
         <div className="absolute inset-0 z-[100] bg-black">
           <Suspense fallback={null}>

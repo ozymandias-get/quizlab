@@ -68,7 +68,9 @@ describe('useWebviewLifecycle', () => {
 
     const mockWebview = createMockWebview()
     act(() => {
-      result.current.onWebviewRef(mockWebview as any)
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
     })
 
     expect(mockWebview.addEventListener).toHaveBeenCalledWith(
@@ -111,7 +113,9 @@ describe('useWebviewLifecycle', () => {
 
     const mockWebview = createMockWebview()
     act(() => {
-      result.current.onWebviewRef(mockWebview as any)
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
     })
 
     act(() => {
@@ -140,7 +144,9 @@ describe('useWebviewLifecycle', () => {
 
     const mockWebview = createMockWebview()
     act(() => {
-      result.current.onWebviewRef(mockWebview as any)
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
     })
 
     for (let i = 0; i < 3; i++) {
@@ -169,7 +175,9 @@ describe('useWebviewLifecycle', () => {
     const mockWebview = createMockWebview()
 
     act(() => {
-      result.current.onWebviewRef(mockWebview as any)
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
     })
 
     expect(mockRegisterWebview).toHaveBeenCalledWith(
@@ -192,7 +200,9 @@ describe('useWebviewLifecycle', () => {
 
     const mockWebview = createMockWebview()
     act(() => {
-      result.current.onWebviewRef(mockWebview as any)
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
     })
 
     act(() => {
@@ -214,7 +224,9 @@ describe('useWebviewLifecycle', () => {
 
     const mockWebview = createMockWebview()
     act(() => {
-      result.current.onWebviewRef(mockWebview as any)
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
     })
 
     await act(async () => {
@@ -239,7 +251,9 @@ describe('useWebviewLifecycle', () => {
 
     const mockWebview = createMockWebview()
     act(() => {
-      result.current.onWebviewRef(mockWebview as any)
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
     })
 
     const controller =

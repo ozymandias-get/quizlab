@@ -1,4 +1,4 @@
-﻿import {
+import {
   useQuery,
   useMutation,
   UseQueryOptions,
@@ -40,11 +40,13 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
     ...options,
     onError: (error, variables, context) => {
       if (options?.onError) {
-        // @ts-expect-error - React Query callback provides 3 args but internal options type may expect 4
-        options.onError(error, variables, context)
+        ;(options.onError as (err: Error, variables: TVariables, context: unknown) => void)(
+          error,
+          variables,
+          context
+        )
       }
       if (options?.showErrorToast !== false) {
-        // Explicitly pass undefined for optional parameters to satisfy strict linter checks
         showError(
           options?.errorMessage || (error as Error).message || 'An error occurred',
           'Mutation Error',

@@ -2,7 +2,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { usePrompts } from '@features/ai/hooks/usePrompts'
 
-// Mock dependencies
 const mockSetCustomPrompts = vi.fn()
 const mockSetSelectedPromptId = vi.fn()
 
@@ -35,14 +34,6 @@ describe('usePrompts', () => {
     vi.clearAllMocks()
   })
 
-  // Note: We are mocking useLocalStorage to return initial value.
-  // Testing state updates in hooks that use other hooks (like useLocalStorage)
-  // requires the mock to behave like a state.
-  // Since we mocked it to return [initial, setter], standard re-renders won't update the returned state
-  // unless we implement a fake state in the mock.
-
-  // For this test, verifying that the setter is called with correct arguments is sufficient for unit testing the logic.
-
   it('filters default prompts by language', () => {
     const { result } = renderHook(() => usePrompts())
 
@@ -60,32 +51,22 @@ describe('usePrompts', () => {
       result.current.addPrompt('New Prompt')
     })
 
-    // precise checking of the setter call
     expect(mockSetCustomPrompts).toHaveBeenCalled()
-    // The setter receives a function: (prev) => [...prev, new]
     const updateFn = mockSetCustomPrompts.mock.calls[0][0]
     const newState = updateFn([])
     expect(newState).toHaveLength(1)
     expect(newState[0].text).toBe('New Prompt')
 
-    // Should also select it
     expect(mockSetSelectedPromptId).toHaveBeenCalledWith(expect.stringContaining('custom_'))
   })
 
   it('toggles prompt selection', () => {
-    // Setup: mocking useLocalStorageString to return 'p1_en' initially?
-    // No, based on our simple mock it returns initial '' (from usePrompts default).
-
     const { result } = renderHook(() => usePrompts())
 
-    // Select
     act(() => {
       result.current.selectPrompt('p1_en')
     })
     expect(mockSetSelectedPromptId).toHaveBeenCalledWith('p1_en')
-
-    // To test toggle (deselect), we'd need the state to be 'p1_en'.
-    // We can't easily change the hook state with this static mock unless we re-mock between tests.
   })
 
   it('deletes a prompt', () => {
@@ -97,7 +78,6 @@ describe('usePrompts', () => {
 
     expect(mockSetCustomPrompts).toHaveBeenCalled()
     const updateFn = mockSetCustomPrompts.mock.calls[0][0]
-    // Simulate existing state
     const existing = [
       { id: 'custom_1', text: 'A' },
       { id: 'custom_2', text: 'B' }

@@ -111,9 +111,9 @@ describe('useSettings', () => {
   })
 
   it('handles default app version if undefined', () => {
-    mockUseAppVersion.mockReturnValue({ data: undefined }) // useAppVersion returns undefined data initially
+    mockUseAppVersion.mockReturnValue({ data: undefined })
 
     const { result } = renderHook(() => useSettings())
-    expect(result.current.appVersion).toBe('1.0.0') // Fallback in hook
+    expect(result.current.appVersion).toBe('1.0.0')
   })
 })

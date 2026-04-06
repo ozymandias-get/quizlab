@@ -106,7 +106,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
       } else {
         setProgress(newProgress)
       }
-    }, 100) // Reduced to 10fps for performance
+    }, 100)
   }
 
   useEffect(() => {
@@ -161,13 +161,10 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
                 transition-all duration-300
             `}
     >
-      {/* Multi-layered Glass Effect */}
       <div className="absolute inset-0 rounded-2xl bg-white/[0.02] pointer-events-none" />
 
-      {/* Status Icon */}
       <div className="flex-shrink-0 mt-0.5">{ICONS[toast.type] || ICONS.info}</div>
 
-      {/* Content */}
       <div className="flex-grow min-w-0">
         <h4 className="text-sm font-semibold mb-1 truncate">
           {toast.title ? t(toast.title, toast.params) : t(`toast.${toast.type}.title`)}
@@ -186,7 +183,6 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
         )}
       </div>
 
-      {/* Close Button */}
       <button
         onClick={handleClose}
         className="flex-shrink-0 opacity-40 hover:opacity-100 transition-opacity p-1 -mr-1"
@@ -203,9 +199,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
         </svg>
       </button>
 
-      {/* Progress Bar Container */}
       <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-black/10 rounded-full overflow-hidden mb-1">
-        {/* Visual Progress */}
         <motion.div
           className={`h-full ${PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info} shadow-[0_0_8px_rgba(0,0,0,0.2)]`}
           initial={{ width: '100%' }}

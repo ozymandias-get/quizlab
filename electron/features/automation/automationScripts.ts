@@ -740,9 +740,7 @@ function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject'): strin
         events.forEach(name => {
             try {
                 element.dispatchEvent(new Event(name, options));
-            } catch {
-                // Ignore lifecycle dispatch failures on third-party pages.
-            }
+            } catch {}
         });
 
         const tracker = element._valueTracker;

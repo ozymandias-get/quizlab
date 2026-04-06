@@ -28,11 +28,36 @@ function AiSendComposerToggle({
   const { t } = useLanguageStrings()
   const shouldAnimateLayout = !isDragging
   const handleToggleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Enter' && event.key !== ' ') {
+    if (event.key === ' ') {
+      if (autoSend) {
+        return
+      }
+      event.preventDefault()
+      onToggle()
+      return
+    }
+
+    if (event.key !== 'Enter') {
       return
     }
 
     event.preventDefault()
+
+    if (autoSend) {
+      if (event.shiftKey) {
+        onToggle()
+        return
+      }
+      if (!isSubmitting && !isSubmitDisabled) {
+        onSubmit()
+      }
+      return
+    }
+
+    if (event.shiftKey) {
+      return
+    }
+
     onToggle()
   }
 
@@ -113,7 +138,6 @@ function AiSendComposerToggle({
             </AnimatePresence>
           </motion.div>
 
-          {/* Pill switch */}
           <div
             className={cn(
               'relative flex h-[22px] w-[40px] shrink-0 items-center rounded-full border transition-all duration-300',

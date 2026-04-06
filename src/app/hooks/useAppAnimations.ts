@@ -93,7 +93,7 @@ export const useAppAnimations = (isLayoutSwapped: boolean = false) => {
 
   return {
     leftPanelVariants: isLayoutSwapped ? rightPanelVariants : leftPanelVariants,
-    rightPanelVariants: isLayoutSwapped ? leftPanelVariants : rightPanelVariants, // Swap logic handled here
+    rightPanelVariants: isLayoutSwapped ? leftPanelVariants : rightPanelVariants,
     resizerVariants,
     containerVariants,
     gpuAcceleratedStyle

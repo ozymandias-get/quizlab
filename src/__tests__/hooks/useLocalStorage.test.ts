@@ -70,14 +70,8 @@ describe('useLocalStorage Hooks', () => {
       const { result } = renderHook(() => useLocalStorageString('theme', 'light', validOptions))
 
       act(() => {
-        result.current[1]('blue') // Invalid
+        result.current[1]('blue')
       })
-      // Should ignore invalid update or keep previous/default?
-      // The implementation logs a warning and didn't update storage in the hook logic.
-      // Let's verify it didn't change the state effectively if the implementation blocks it.
-
-      // Re-reading implementation: if (validValues && !validValues.includes(value)) return
-      // So state shouldn't change.
       expect(result.current[0]).toBe('light')
     })
   })
@@ -93,7 +87,7 @@ describe('useLocalStorage Hooks', () => {
       const { result } = renderHook(() => useLocalStorageBoolean('toggle-key', false))
 
       act(() => {
-        result.current[2]() // toggle function
+        result.current[2]()
       })
 
       expect(result.current[0]).toBe(true)

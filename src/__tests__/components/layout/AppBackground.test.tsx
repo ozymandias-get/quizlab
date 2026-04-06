@@ -1,14 +1,11 @@
-﻿import { render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import AppBackground from '@ui/layout/AppBackground'
 
-// Mock dependencies
 vi.mock('@app/providers', () => ({
   useAppearance: vi.fn()
 }))
 
-// Mock framer-motion because it uses requestAnimationFrame which might be tricky
-// But here we want to test if blobs are rendered when mode is animated
 vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, className, style, ...props }: any) => (
@@ -28,7 +25,7 @@ describe('AppBackground', () => {
   })
 
   it('renders solid background when bgType is solid', () => {
-    ;(useAppearance as any).mockReturnValue({
+    vi.mocked(useAppearance).mockReturnValue({
       bgType: 'solid',
       bgSolidColor: '#123456',
       bgAnimatedColors: [],
@@ -37,16 +34,14 @@ describe('AppBackground', () => {
 
     const { container } = render(<AppBackground />)
 
-    // The container div should have the background color style
     const bgDiv = container.firstChild as HTMLElement
     expect(bgDiv).toHaveStyle({ backgroundColor: '#123456' })
 
-    // Should not render blobs
     expect(screen.queryByTestId('motion-div')).not.toBeInTheDocument()
   })
 
   it('renders animated blobs when bgType is animated', () => {
-    ;(useAppearance as any).mockReturnValue({
+    vi.mocked(useAppearance).mockReturnValue({
       bgType: 'animated',
       bgSolidColor: '#000000',
       bgAnimatedColors: ['#ff0000', '#00ff00'],
@@ -55,7 +50,6 @@ describe('AppBackground', () => {
 
     render(<AppBackground />)
 
-    // Should render blobs (RandomBlob uses motion.div)
     const blobs = screen.getAllByTestId('motion-div')
     expect(blobs.length).toBeGreaterThan(0)
   })

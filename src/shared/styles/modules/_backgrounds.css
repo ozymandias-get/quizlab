@@ -1,8 +1,4 @@
-﻿/* ============================================
-   APPLICATION BACKGROUNDS
-   ============================================ */
-
-.app-background {
+﻿.app-background {
   position: fixed;
   inset: 0;
   z-index: -10;
@@ -14,7 +10,6 @@
   display: none; /* Pixelation sorununu tamamen kökten çözmek için kaldırıldı */
 }
 
-/* Frosted glass layer for background depth */
 .glass-overlay {
   position: absolute;
   inset: 0;
@@ -25,7 +20,6 @@
   pointer-events: none;
 }
 
-/* Animated Gradient System */
 .animated-bg {
   position: absolute;
   inset: 0;

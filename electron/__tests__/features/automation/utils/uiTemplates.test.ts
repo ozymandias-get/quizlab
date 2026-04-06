@@ -34,7 +34,7 @@ describe('uiTemplates', () => {
 
     it('should return HTML for done step', () => {
       const { html, color } = getStepHtml('done', mockT)
-      expect(html).toContain('Completed!') // defaulting to English if key missing in mockT
+      expect(html).toContain('Completed!')
       expect(color).toBe('#a78bfa')
     })
   })

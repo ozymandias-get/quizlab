@@ -1,4 +1,4 @@
-﻿import { renderHook, act } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { useWebviewMount } from '@shared/hooks/useWebviewMount'
 
@@ -10,9 +10,8 @@ describe('useWebviewMount', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
-    // Clean up window properties
-    delete (window as any).requestIdleCallback
-    delete (window as any).cancelIdleCallback
+    delete (window as Partial<Window & { requestIdleCallback?: any }>).requestIdleCallback
+    delete (window as Partial<Window & { cancelIdleCallback?: any }>).cancelIdleCallback
   })
 
   it('should initialize as false', () => {
@@ -22,7 +21,6 @@ describe('useWebviewMount', () => {
 
   it('should use requestIdleCallback when available', () => {
     const requestIdleCallbackMock = vi.fn((cb) => {
-      // Simulate idle callback
       setTimeout(cb, 10)
       return 1
     })
@@ -38,7 +36,6 @@ describe('useWebviewMount', () => {
     expect(result.current).toBe(false)
     expect(requestIdleCallbackMock).toHaveBeenCalled()
 
-    // Advance timers to trigger the callback
     act(() => {
       vi.advanceTimersByTime(20)
     })
@@ -48,7 +45,6 @@ describe('useWebviewMount', () => {
 
   it('should callback properly when requestIdleCallback is used', () => {
     const requestIdleCallbackMock = vi.fn((cb) => {
-      // Immediately execute for this test case simplified
       cb()
       return 123
     })
@@ -61,14 +57,12 @@ describe('useWebviewMount', () => {
   })
 
   it('should fallback to setTimeout when requestIdleCallback is missing', () => {
-    // Ensure requestIdleCallback is undefined
-    ;(window as any).requestIdleCallback = undefined
+    ;(window as Partial<Window & { requestIdleCallback?: any }>).requestIdleCallback = undefined
 
     const { result } = renderHook(() => useWebviewMount())
 
     expect(result.current).toBe(false)
 
-    // Advance timers by 120ms (the fallback timeout)
     act(() => {
       vi.advanceTimersByTime(120)
     })
@@ -91,7 +85,7 @@ describe('useWebviewMount', () => {
   })
 
   it('should clean up on unmount (clearTimeout)', () => {
-    ;(window as any).requestIdleCallback = undefined
+    ;(window as Partial<Window & { requestIdleCallback?: any }>).requestIdleCallback = undefined
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
 
     const { unmount } = renderHook(() => useWebviewMount())

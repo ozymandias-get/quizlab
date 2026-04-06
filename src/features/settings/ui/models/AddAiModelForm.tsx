@@ -40,9 +40,7 @@ export function AddAiModelForm({
           onSuccess(result.id)
         }
       }
-    } catch {
-      // Error handled by mutation
-    }
+    } catch {}
   }
 
   return (

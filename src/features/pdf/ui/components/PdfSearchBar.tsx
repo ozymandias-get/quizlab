@@ -1,4 +1,4 @@
-﻿import { memo, useRef, useEffect, type KeyboardEvent } from 'react'
+import { memo, useRef, useEffect, type KeyboardEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, FileText } from 'lucide-react'
 import { useLanguageStrings } from '@app/providers/LanguageContext'
@@ -100,7 +100,6 @@ function PdfSearchBar({
                                    hover:border-white/[0.12] hover:from-white/[0.08]
                                    transition-all duration-300"
           >
-            {/* File Icon Box */}
             <div
               className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl
                                         bg-gradient-to-br from-amber-500/15 to-amber-600/5
@@ -111,7 +110,6 @@ function PdfSearchBar({
               <FileText className="w-4 h-4 text-amber-400 group-hover:text-amber-300 transition-colors duration-300" />
             </div>
 
-            {/* Text Content */}
             <div className="flex flex-col justify-center min-w-0 flex-1 text-left">
               <span className="text-[9px] uppercase tracking-[0.15em] font-semibold text-white/25 leading-none mb-0.5 group-hover:text-white/40 transition-colors duration-300 truncate">
                 {t('reading_now') === 'reading_now' ? 'READING' : t('reading_now')}
@@ -121,10 +119,8 @@ function PdfSearchBar({
               </span>
             </div>
 
-            {/* Divider */}
             <div className="flex-shrink-0 w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
 
-            {/* Search Action */}
             <div
               className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl
                                         hover:bg-white/[0.06]

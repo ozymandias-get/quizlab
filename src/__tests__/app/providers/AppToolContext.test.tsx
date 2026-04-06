@@ -7,7 +7,7 @@ const mockSendTextToAI = vi.fn()
 const mockSendImageToAI = vi.fn()
 const mockStartPicker = vi.fn()
 const mockWebviewState = {
-  instance: null as any
+  instance: null as unknown as Element | null
 }
 
 const mockAiState = {
@@ -245,8 +245,7 @@ describe('AppToolContext', () => {
     mockWebviewState.instance = {
       getURL: vi.fn(() => 'https://chat.openai.com'),
       executeJavaScript: vi.fn().mockResolvedValue('complete')
-    }
-
+    } as unknown as Element & { getURL: any; executeJavaScript: any }
     const { result } = renderHook(() => useAppTools(), { wrapper })
 
     act(() => {

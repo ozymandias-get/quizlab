@@ -45,7 +45,6 @@ export function AiModelList({
   setDefaultAiModel,
   t
 }: AiModelListProps) {
-  // Track local deleting state to show spinner on specific item
   const [localDeletingId, setLocalDeletingId] = useState<string | null>(null)
 
   const onDeleteClick = async (e: MouseEvent, id: string, name: string) => {
@@ -53,7 +52,6 @@ export function AiModelList({
     try {
       await handleDeleteAi(e, id, name)
     } catch {
-      // Parent handlers surface delete failures when needed.
     } finally {
       setLocalDeletingId(null)
     }
@@ -90,7 +88,6 @@ export function AiModelList({
                 onClick={() => !isLastModel && toggleModel(key)}
               >
                 <div className="flex items-center gap-4">
-                  {/* Model Icon */}
                   <div className="relative">
                     <div
                       className={`
@@ -104,7 +101,6 @@ export function AiModelList({
                     >
                       {getAiPlatformIcon(site, key, <GridIcon className="w-5 h-5" />)}
                     </div>
-                    {/* Status Dot */}
                     {isEnabled && (
                       <motion.div
                         initial={{ scale: 0 }}
@@ -114,7 +110,6 @@ export function AiModelList({
                     )}
                   </div>
 
-                  {/* Info */}
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
                       <Label
@@ -137,7 +132,6 @@ export function AiModelList({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* Default Model Button */}
                   {isEnabled && setDefaultAiModel && defaultAiModel !== undefined && (
                     <button
                       onClick={(e) => {
@@ -160,14 +154,12 @@ export function AiModelList({
                     </button>
                   )}
 
-                  {/* Toggle Switch */}
                   <SettingsToggleSwitch
                     checked={isEnabled}
                     onChange={() => !isLastModel && toggleModel(key)}
                     disabled={isLastModel}
                   />
 
-                  {/* Delete Custom AI Button */}
                   {isCustom && (
                     <button
                       onClick={(e) => onDeleteClick(e, site.id, site.name)}

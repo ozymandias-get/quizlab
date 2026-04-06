@@ -40,6 +40,7 @@ interface PdfViewerProps {
   lastReadingInfo?: LastReadingInfo[] | null
   onOpenGoogleDrive?: () => void
   isInteractionBlocked?: boolean
+  isPanelResizing?: boolean
 }
 
 function PdfViewer({
@@ -55,7 +56,8 @@ function PdfViewer({
   onReadingProgressChange,
   lastReadingInfo,
   onOpenGoogleDrive,
-  isInteractionBlocked = false
+  isInteractionBlocked = false,
+  isPanelResizing = false
 }: PdfViewerProps) {
   const { chromeUserAgent } = useAiRegistryMeta()
   const { autoSend } = useAiSessionUiPrefsState()
@@ -117,6 +119,7 @@ function PdfViewer({
       onToggleAutoSend={toggleAutoSend}
       startScreenshot={startScreenshot}
       queueImageForAi={queueImageForAi}
+      isPanelResizing={isPanelResizing}
     />
   )
 }

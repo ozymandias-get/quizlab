@@ -15,7 +15,8 @@ import type {
   GeminiWebSessionActionResult,
   ScreenshotType,
   AutomationConfig,
-  PdfFile
+  PdfFile,
+  PdfViewerZoomAction
 } from '@shared-core/types'
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
@@ -34,13 +35,13 @@ export type {
   GeminiWebSessionActionResult,
   ScreenshotType,
   AutomationConfig,
-  PdfFile
+  PdfFile,
+  PdfViewerZoomAction
 }
 
 declare global {
   interface Window {
     electronAPI: {
-      // AI & Automation
       getAiRegistry: (forceRefresh?: boolean) => Promise<AiRegistryResponse>
       isAuthDomain: (url: string) => Promise<boolean>
       automation: {
@@ -60,12 +61,10 @@ declare global {
         generatePickerScript: (translations: Record<string, string>) => Promise<string | null>
       }
 
-      // PDF
       selectPdf: (options: PdfSelectOptions) => Promise<PdfSelection | null>
       getPdfStreamUrl: (filePath: string) => Promise<PdfStreamResult | null>
       registerPdfPath: (filePath: string) => Promise<PdfSelection | null>
 
-      // Utilities
       captureScreen: (rect?: {
         x: number
         y: number
@@ -78,20 +77,17 @@ declare global {
       forcePaste: (webContentsId: number) => Promise<boolean>
       showPdfContextMenu: (labels: Partial<Record<string, string>>) => void
 
-      // Events
       onTriggerScreenshot: (callback: (type: ScreenshotType) => void) => () => void
+      onPdfViewerZoom: (callback: (action: PdfViewerZoomAction) => void) => () => void
 
-      // Meta
       platform: string
       quitApp: () => Promise<void>
 
-      // Updater
       checkForUpdates: () => Promise<UpdateCheckResult>
       openReleasesPage: () => Promise<void>
       getAppVersion: () => Promise<string>
       clearCache: () => Promise<boolean>
 
-      // AI Config
       saveAiConfig: (hostname: string, config: AiSelectorConfig) => Promise<boolean>
       getAiConfig: (
         hostname?: string
@@ -114,7 +110,6 @@ declare global {
     }
   }
 
-  // Electron Webview element type declaration for JSX
   namespace JSX {
     interface IntrinsicElements {
       webview: DetailedHTMLProps<

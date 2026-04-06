@@ -4,7 +4,6 @@ export interface IPrompt {
 }
 
 export const DEFAULT_PROMPTS: IPrompt[] = [
-  // --- Explain Simple ---
   {
     id: 'edu_explain_simple_tr',
     text: 'Bu metni ilkokul seviyesindeki bir öğrencinin merakını giderecek şekilde, günlük hayattan basit benzetmeler ve hikayeleştirme teknikleri kullanarak açıkla. Metindeki karmaşık terimleri parantez içinde basitçe tanımla. Anahtar fikirleri kalın yazarak vurgula.'
@@ -14,7 +13,6 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
     text: 'Explain this text in a way that satisfies the curiosity of a primary school student, using simple analogies from daily life and storytelling techniques. Define complex terms in the text simply within parentheses. Highlight key ideas in bold.'
   },
 
-  // --- Summary / Cheat Sheet ---
   {
     id: 'edu_summary_study_tr',
     text: 'Bu içeriği bir sınav hazırlık notu (cheat sheet) formatında düzenle. \n1. Temel Kavramlar: Metindeki en önemli 3 terimi tanımla.\n2. Kritik Noktalar: Önemli bilgileri madde madde sırala.\n3. Neden Önemli?: Bu bilginin gerçek dünyada veya literatürde neden önemli olduğunu 1 cümleyle özetle.'
@@ -24,7 +22,6 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
     text: 'Organize this content into an exam preparation note (cheat sheet) format. \n1. Key Concepts: Define the 3 most important terms in the text.\n2. Critical Points: List important information in bullet points.\n3. Why It Matters: Summarize in 1 sentence why this information is important in the real world or literature.'
   },
 
-  // --- Socratic Tutor ---
   {
     id: 'edu_socratic_tutor_tr',
     text: 'Sen sokratik bir öğretmensin. Bu metni doğrudan açıklamak yerine, öğrencinin (benim) konuyu kendi kendime keşfetmemi sağlayacak 3 adet düşündürücü soru sor. Sorular metindeki bilgileri birbiriyle ilişkilendirmemi gerektirsin.'
@@ -34,7 +31,6 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
     text: 'You are a Socratic teacher. Instead of explaining this text directly, ask 3 thought-provoking questions that will allow me (the student) to discover the topic on my own. The questions should require me to connect the information in the text.'
   },
 
-  // --- Analogy Master ---
   {
     id: 'edu_analogy_master_tr',
     text: "Bu metindeki temel mekanizmayı veya fikri, tamamen farklı bir alandan (örneğin trafik, yemek yapma veya spor) yaratıcı bir analoji (benzetme) kurarak anlat. 'X, Y gibidir çünkü...' kalıbını kullanarak benzerlikleri detaylandır."
@@ -43,7 +39,6 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
     id: 'edu_analogy_master_en',
     text: "Explain the core mechanism or idea in this text by creating a creative analogy from a completely different field (e.g., traffic, cooking, or sports). Detail the similarities using the 'X is like Y because...' pattern."
   },
-  // --- New Turkish Prompts ---
   {
     id: 'study_flashcards_tr',
     text: 'Metindeki önemli bilgileri soru-cevap formatında, bilgi kartı (flashcard) olarak kullanılabilecek şekilde listele. Her kart için ön yüz (soru) ve arka yüz (cevap) belirt.'
@@ -85,7 +80,6 @@ export const DEFAULT_PROMPTS: IPrompt[] = [
     text: 'Metindeki trendlere ve bilgilere dayanarak, bu konunun gelecekte (5-10 yıl içinde) nasıl bir yön alabileceğine dair 3 farklı senaryo üret.'
   },
 
-  // --- New English Prompts ---
   {
     id: 'study_flashcards_en',
     text: "Extract key information from the text and list it in a question-answer format suitable for flashcards. Specify 'Front' (Question) and 'Back' (Answer) for each card."

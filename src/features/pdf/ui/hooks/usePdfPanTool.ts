@@ -45,9 +45,7 @@ export function usePdfPanTool({ containerRef, isPanMode }: UsePdfPanToolOptions)
       if (scrollEl && typeof scrollEl.releasePointerCapture === 'function') {
         try {
           scrollEl.releasePointerCapture(e.pointerId)
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
       document.removeEventListener('pointermove', onPointerMove)
       document.removeEventListener('pointerup', onPointerUp)
@@ -73,9 +71,7 @@ export function usePdfPanTool({ containerRef, isPanMode }: UsePdfPanToolOptions)
 
       try {
         scrollHost.setPointerCapture(e.pointerId)
-      } catch {
-        // ignore
-      }
+      } catch {}
 
       document.addEventListener('pointermove', onPointerMove)
       document.addEventListener('pointerup', onPointerUp)

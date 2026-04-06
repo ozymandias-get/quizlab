@@ -2,13 +2,11 @@
 import { vi, describe, it, expect } from 'vitest'
 import ColorPicker from '@features/settings/ui/ColorPicker'
 
-// Mock dependencies
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({ t: (key: string) => key }),
   useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
-// Mock react-colorful
 vi.mock('react-colorful', () => ({
   HexColorPicker: ({ color, onChange }: any) => (
     <input
@@ -19,7 +17,6 @@ vi.mock('react-colorful', () => ({
   )
 }))
 
-// Mock headlessui
 vi.mock('@headlessui/react', () => {
   return {
     Popover: ({ children }: any) => (

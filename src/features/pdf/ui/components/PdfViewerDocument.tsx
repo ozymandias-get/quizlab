@@ -1,12 +1,4 @@
-import {
-  useRef,
-  useState,
-  memo,
-  useEffect,
-  useMemo,
-  type CSSProperties,
-  type WheelEvent
-} from 'react'
+import { useRef, useState, memo, useEffect, useMemo } from 'react'
 import { Maximize, Crop, ZoomIn, ZoomOut, RotateCcw, RefreshCw } from 'lucide-react'
 import { Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
 
@@ -19,8 +11,12 @@ import {
   usePdfTextSelection,
   usePdfScreenshot,
   usePdfContextMenu,
-  usePdfPanTool
+  usePdfPanTool,
+  usePdfResizeRefit,
+  usePdfCtrlWheelZoom,
+  usePdfViewerZoomIpc
 } from '../hooks'
+import { PDF_ZOOM_MIN_SCALE, PDF_ZOOM_STEP } from '@features/pdf/constants/pdfZoom'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import type { PdfFile } from '@shared-core/types'
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
@@ -42,6 +38,7 @@ export interface PdfViewerDocumentProps {
   onToggleAutoSend: () => void
   startScreenshot: (imageMeta?: ScreenshotMeta) => void
   queueImageForAi: (dataUrl: string, imageMeta?: ScreenshotMeta) => void
+  isPanelResizing?: boolean
 }
 
 function PdfViewerDocument({
@@ -57,7 +54,8 @@ function PdfViewerDocument({
   autoSend,
   onToggleAutoSend,
   startScreenshot,
-  queueImageForAi
+  queueImageForAi,
+  isPanelResizing = false
 }: PdfViewerDocumentProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scaleFactor, setScaleFactor] = useState(1)
@@ -89,6 +87,14 @@ function PdfViewerDocument({
     initialPage,
     onReadingProgressChange
   })
+
+  const documentReady = totalPages > 0
+
+  usePdfResizeRefit(containerRef, zoomTo, documentReady && !!pdfUrl, isPanelResizing)
+
+  usePdfCtrlWheelZoom(containerRef, zoomTo, scaleFactor, documentReady && !!pdfUrl, panMode)
+
+  usePdfViewerZoomIpc(zoomTo, scaleFactor, documentReady && !!pdfUrl)
 
   const { handleFullPageScreenshot } = usePdfScreenshot({
     currentPage,
@@ -135,19 +141,19 @@ function PdfViewerDocument({
       {
         label: t('ctx_zoom_in'),
         icon: ZoomIn,
-        onClick: () => zoomTo(scaleFactor + 0.1),
+        onClick: () => zoomTo(scaleFactor + PDF_ZOOM_STEP),
         shortcut: 'Ctrl+'
       },
       {
         label: t('ctx_zoom_out'),
         icon: ZoomOut,
-        onClick: () => zoomTo(Math.max(0.1, scaleFactor - 0.1)),
+        onClick: () => zoomTo(Math.max(PDF_ZOOM_MIN_SCALE, scaleFactor - PDF_ZOOM_STEP)),
         shortcut: 'Ctrl-'
       },
       {
         label: t('ctx_reset_zoom'),
         icon: RotateCcw,
-        onClick: () => zoomTo(SpecialZoomLevel.PageWidth),
+        onClick: () => zoomTo(SpecialZoomLevel.PageFit),
         shortcut: 'Ctrl+0'
       },
       { separator: true, label: '', onClick: () => {} },
@@ -169,27 +175,39 @@ function PdfViewerDocument({
         className={`flex-1 overflow-hidden pdf-viewer-container h-full min-h-0 relative flex flex-col${
           panMode ? ' pdf-pan-mode-active' : ''
         }${isPanDragging ? ' pdf-pan-mode-dragging' : ''}`}
-        style={{ '--scale-factor': scaleFactor } as CSSProperties}
-        onWheel={(e: WheelEvent<HTMLDivElement>) => {
-          if (e.ctrlKey || e.metaKey) {
-            return
-          }
-        }}
       >
         <Viewer
           key={`${pdfUrl}:${viewerReloadKey}`}
           fileUrl={pdfUrl}
           plugins={plugins}
-          defaultScale={SpecialZoomLevel.PageWidth}
+          defaultScale={SpecialZoomLevel.PageFit}
           initialPage={initialPage && initialPage > 1 ? initialPage - 1 : 0}
           scrollMode={ScrollMode.Page}
           onPageChange={handlePageChange}
-          onDocumentLoad={handleDocumentLoad}
+          onDocumentLoad={(e) => {
+            handleDocumentLoad(e)
+            // Force PageFit after initial render settles — fixes resume not fitting
+            requestAnimationFrame(() => {
+              zoomTo(SpecialZoomLevel.PageFit)
+            })
+          }}
           onZoom={(e) => setScaleFactor(e.scale)}
           transformGetDocumentParams={(params) => ({
             ...params,
             isEvalSupported: false
           })}
+          renderLoader={() => (
+            <div
+              data-pdf-page-loader
+              className="flex h-full min-h-[12rem] w-full items-center justify-center bg-transparent"
+            >
+              <div
+                className="h-9 w-9 rounded-full border-2 border-amber-500/25 border-t-amber-500 animate-spin"
+                role="status"
+                aria-label="Loading"
+              />
+            </div>
+          )}
           renderError={(error: LoadError) => (
             <div className="flex items-center justify-center h-full text-red-500 p-8 text-center bg-stone-950/50 backdrop-blur-sm">
               <p>

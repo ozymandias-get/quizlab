@@ -2,7 +2,6 @@
 import { vi, describe, it, expect } from 'vitest'
 import { SettingsLoadingSpinner } from '@ui/layout/BottomBar/SettingsLoadingSpinner'
 
-// Mock useLanguage
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({ t: (key: string) => key }),
   useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
@@ -14,7 +13,6 @@ describe('SettingsLoadingSpinner', () => {
 
     expect(screen.getByText('loading')).toBeInTheDocument()
 
-    // Check for specific class for backdrop
     const overlay = screen.getByText('loading').closest('.fixed')
     expect(overlay).toBeInTheDocument()
     expect(overlay).toHaveClass('backdrop-blur-[2px]')

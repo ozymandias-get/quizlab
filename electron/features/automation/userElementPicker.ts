@@ -23,7 +23,6 @@ import { getStepHtml, getHintHtml, type TranslationMap } from './utils/uiTemplat
 export const generatePickerScript = (translations: TranslationMap = {}): string => {
   return `
     (function() {
-        // Capture original console to avoid overridden methods
         const safeConsole = {
             info: (window.console && window.console.info) ? window.console.info.bind(window.console) : function(){},
             error: (window.console && window.console.error) ? window.console.error.bind(window.console) : function(){}
@@ -31,13 +30,9 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
 
         const TRANSLATIONS = ${JSON.stringify(translations)};
         
-        // Temizlik: Önceki picker kalıntılarını temizle
         if (window._aiPickerCleanup) window._aiPickerCleanup();
 
-        // Picker initialized
-
-        // Durum Yönetimi - 3 ADIM (tüm çerçeveler için tek paylaşılan durum)
-        let step = 'input'; // 'input' | 'typing' | 'submit' | 'done'
+        let step = 'input';
         const selectionData = {
             version: 2,
             input: null,
@@ -52,14 +47,12 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         let selectedInputElement = null;
         let typingAdvanceTimer = null;
 
-        // --- HELPER FUNCTIONS INJECTION ---
         const inferSendLikeControl = ${inferSendLikeControl.toString()};
         const getElementInfo = ${getElementInfo.toString()};
         const generateLocatorBundle = ${generateLocatorBundle.toString()};
         const getStepHtml = ${getStepHtml.toString()};
         const getHintHtml = ${getHintHtml.toString()};
 
-        // --- TRUSTED TYPES BYPASS ---
         let ttPolicy = { createHTML: s => s, createScript: s => s };
         if (typeof trustedTypes !== 'undefined' && trustedTypes.createPolicy) {
             try {
@@ -67,17 +60,12 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                     createHTML: s => s, 
                     createScript: s => s 
                 });
-            } catch (e) {
-                // Ignore if creating policy fails (due to strict CSP)
-            }
+            } catch (e) {}
         }
 
         const mainDoc = document;
         let styleEl = null;
 
-        // --- UI BİLEŞENLERİ (ana çerçeve — fixed overlay iframe üstünde görünür) ---
-
-        // 1. Ana Bilgi Paneli (SOL ÜST - daha az engelleyici)
         const infoBox = mainDoc.createElement('div');
         Object.assign(infoBox.style, {
             position: 'fixed', top: '20px', left: '20px', 
@@ -102,7 +90,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                 }
                 infoBox.style.borderTop = '3px solid ' + statusColor;
                 
-                // "Devam Et" butonuna event listener ekle
                 if (step === 'typing') {
                     const nextBtn = mainDoc.getElementById('_ai_picker_next_btn');
                     if (nextBtn) {
@@ -118,7 +105,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             }
         };
 
-        // 2. Element Etiketi (Mouse Yanında - daha küçük)
         const labelBox = mainDoc.createElement('div');
         Object.assign(labelBox.style, {
             position: 'fixed', padding: '6px 10px', 
@@ -144,7 +130,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             mainDoc.addEventListener('DOMContentLoaded', mountPickerUi, { once: true });
         }
 
-        // --- STYLES ---
         try {
             styleEl = mainDoc.createElement('style');
             try {
@@ -157,10 +142,8 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             safeConsole.error('Style injection failed', e);
         }
 
-        // --- EVENT HANDLERS ---
         let lastHovered = null;
 
-        // composedPath yalnızca bir kez; gönder tespiti path üzerinden (parentElement zinciri yerine)
         const getEventContext = (event) => {
             var path = null;
             var rawTarget = null;
@@ -226,7 +209,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         };
 
         const onMouseOver = (e) => {
-            // Sadece adım 1 ve 3'te hover aktif
             if (step !== 'input' && step !== 'submit') return;
             if (step === 'done') return;
             e.stopPropagation();
@@ -237,23 +219,19 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
 
                 if (lastHovered === target) return;
 
-                // Temizle
                 if (lastHovered && lastHovered !== selectedInputElement) {
                     lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
                 }
                 
                 lastHovered = target;
                 
-                // Element bilgisini al
                 const info = getElementInfo(target);
                 
-                // Adıma göre uygunluğu belirle
                 const isGoodChoice = (step === 'input' && info.category === 'input') || 
                                     (step === 'submit' && info.category === 'button');
                 const isMediumChoice = (step === 'input' && target.isContentEditable) ||
                                     (step === 'submit' && (info.category === 'container' || info.tag === 'a'));
                 
-                // Hover sınıfını ekle
                 let cls;
                 let labelBg;
                 if (isGoodChoice || info.confidence === 'high') {
@@ -271,24 +249,19 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                     target.classList.add(cls);
                 }
 
-                // Etiketi güncelle
                 const labelText = (info.labelKey && TRANSLATIONS[info.labelKey]) ? TRANSLATIONS[info.labelKey] : info.labelEN;
                 labelBox.textContent = labelText;
                 labelBox.style.background = labelBg;
                 labelBox.style.display = 'block';
                 positionLabelBox(e.clientX, e.clientY);
                 
-                // Ana paneli güncelle
                 updateInfoBox(info);
-            } catch (err) {
-                // Ignore hover errors
-            }
+            } catch (err) {}
         };
 
         const onMouseMove = (e) => {
             if (labelBox.style.display !== 'block') return;
             
-            // Throttle UI updates using requestAnimationFrame
             if (window._aiPickerRaf) cancelAnimationFrame(window._aiPickerRaf);
             
             window._aiPickerRaf = requestAnimationFrame(() => {
@@ -310,13 +283,11 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         
         const onMouseOut = () => {
             if (step === 'typing') return;
-            // Clear any pending RAF
             if (window._aiPickerRaf) cancelAnimationFrame(window._aiPickerRaf);
             labelBox.style.display = 'none';
         };
 
         const onClick = (e) => {
-            // Adım 2'de tıklama algılama
             if (step === 'done') return;
             
             e.preventDefault();
@@ -355,9 +326,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                 return;
             }
 
-            // Element selected
-
-            // Görsel onay
             try {
                 const flashColor = step === 'input' ? '#60a5fa' : '#4ade80';
                 target.style.transition = 'all 0.3s ease';
@@ -368,7 +336,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                 }, 300);
             } catch (err) {}
 
-            // ADIM 1: Input seçildi
             if (step === 'input') {
                 selectionData.input = locatorBundle.primarySelector;
                 selectionData.waitFor = locatorBundle.primarySelector;
@@ -381,7 +348,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                 labelBox.style.display = 'none';
                 updateInfoBox(null);
             } 
-            // ADIM 3: Submit seçildi
             else if (step === 'submit') {
                 try {
                     selectionData.button = locatorBundle.primarySelector;
@@ -393,7 +359,6 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                     labelBox.style.display = 'none';
                     updateInfoBox(null);
                     
-                    // Temizlik ve sonuç
                     setTimeout(() => {
                         try {
                             if (selectedInputElement) {
@@ -402,15 +367,13 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                         } catch (e) {}
 
 
-                        // Store result in global variable for polling
                         window._aiPickerResult = JSON.parse(JSON.stringify(selectionData));
                         
-                        // Delay cleanup to allow polling to pick up the result
                         setTimeout(() => { cleanup(); }, 300);
                     }, 500);
                 } catch (err) {
                     safeConsole.error('Submit step error', err);
-                    cleanup(); // Fail safe
+                    cleanup();
                 }
             }
         };

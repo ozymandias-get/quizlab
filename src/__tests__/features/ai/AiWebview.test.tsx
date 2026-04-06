@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import AiWebview from '@features/ai/ui/AiWebview'
 
@@ -55,7 +55,8 @@ vi.mock('@features/ai/ui/AiSession', () => ({
     isActive: boolean
   }) => (
     <div data-testid={`ai-session-${tab.id}`}>
-      {String((tab as any).title || tab.id)} - {isActive ? 'Active' : 'Inactive'}
+      {String((tab as unknown as Record<string, string>).title || tab.id)} -{' '}
+      {isActive ? 'Active' : 'Inactive'}
     </div>
   )
 }))

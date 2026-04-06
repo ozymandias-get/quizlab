@@ -6,9 +6,14 @@ import LeftPanel from '@ui/layout/LeftPanel'
 
 interface UsePdfWorkspaceStateParams {
   isInteractionBlocked: boolean
+  /** True while dragging the center hub to resize panels — PDF refit pauses to avoid loader flash. */
+  isPanelResizing: boolean
 }
 
-export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceStateParams) {
+export function usePdfWorkspaceState({
+  isInteractionBlocked,
+  isPanelResizing
+}: UsePdfWorkspaceStateParams) {
   const { t } = useLanguageStrings()
   const {
     pdfFile,
@@ -22,7 +27,7 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
     handlePdfDrop,
     updateReadingProgress,
     resumeLastPdf,
-    getRecentReadingInfo,
+    recentReadingInfo,
     clearLastReading,
     restoreRecentReading,
     addEmptyPdfTab,
@@ -32,7 +37,7 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
   } = usePdfSelection()
   const { handleTextSelection } = useTextSelection()
 
-  const lastReadingInfo = getRecentReadingInfo()
+  const lastReadingInfo = recentReadingInfo
 
   const handleResumePdf = useCallback(
     async (path?: string) => {
@@ -68,7 +73,8 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
       onAddEmptyPdfTab: addEmptyPdfTab,
       onOpenGoogleDrive: openGoogleDriveTab,
       onPdfHome: goToPdfHome,
-      isInteractionBlocked
+      isInteractionBlocked,
+      isPanelResizing
     }),
     [
       handlePdfDrop,
@@ -79,7 +85,7 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
       clearLastReading,
       restoreRecentReading,
       updateReadingProgress,
-      lastReadingInfo,
+      recentReadingInfo,
       activeTabInitialPage,
       activePdfTab,
       pdfTabs,
@@ -90,7 +96,8 @@ export function usePdfWorkspaceState({ isInteractionBlocked }: UsePdfWorkspaceSt
       addEmptyPdfTab,
       openGoogleDriveTab,
       goToPdfHome,
-      isInteractionBlocked
+      isInteractionBlocked,
+      isPanelResizing
     ]
   )
 

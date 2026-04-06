@@ -48,13 +48,15 @@ function PdfPlaceholder({
 
   return (
     <div className="h-full flex flex-col items-center justify-center gap-6 p-10 text-center bg-transparent animate-in fade-in zoom-in duration-700">
-      <div className="w-28 h-28 rounded-3xl bg-white/5 backdrop-blur-xl border-2 border-dashed border-white/10 flex items-center justify-center text-stone-500 transition-all duration-300 hover:border-amber-500/50 hover:text-amber-500/70 hover:bg-white/10 hover:shadow-2xl hover:shadow-amber-500/10">
+      <div className="group relative w-32 h-32 rounded-[2.5rem] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-2xl backdrop-saturate-200 border border-dashed border-white/20 flex flex-col items-center justify-center text-stone-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_12px_32px_rgba(0,0,0,0.3)] transition-all duration-500 ease-out hover:border-amber-400/50 hover:text-amber-400 hover:bg-amber-500/5 hover:-translate-y-1 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_16px_40px_rgba(245,158,11,0.25)] active:scale-95 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.05] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
         <svg
-          width="56"
-          height="56"
+          width="48"
+          height="48"
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
+          className="relative z-10 transition-transform duration-500 group-hover:scale-110"
         >
           <path
             d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"

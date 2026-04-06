@@ -39,7 +39,7 @@ function OpenTabCard({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className="group relative flex w-full items-center gap-3 overflow-hidden rounded-[32px] border px-4 py-3.5 text-left backdrop-blur-xl"
+      className="group relative flex w-full items-center gap-3 overflow-hidden rounded-[32px] border px-4 py-3.5 text-left backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_12px_28px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r before:from-transparent before:via-white/[0.04] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
       style={{
         borderColor: isActive ? hexToRgba(accent, 0.4) : 'rgba(255,255,255,0.08)',
         background: isActive
@@ -48,11 +48,11 @@ function OpenTabCard({
       }}
     >
       <div
-        className="absolute inset-y-3 left-0 w-[4px] rounded-full"
+        className="absolute inset-y-3 left-0 w-[4px] rounded-full z-10"
         style={{ background: isActive ? accent : 'transparent' }}
       />
       <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border shadow-sm ml-1"
+        className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] ml-1"
         style={{
           color: accent,
           borderColor: hexToRgba(accent, 0.28),
@@ -61,7 +61,7 @@ function OpenTabCard({
       >
         {icon || <span className="text-base font-semibold">{displayName.charAt(0)}</span>}
       </div>
-      <div className="min-w-0 flex-1 ml-1">
+      <div className="relative z-10 min-w-0 flex-1 ml-1">
         <div className="flex items-center gap-2">
           <p className="truncate text-[14px] font-semibold text-white/90">{displayName}</p>
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-white/35">
@@ -78,7 +78,7 @@ function OpenTabCard({
             : t('ai_home.ready_id', { id: tabId.slice(0, 8) })}
         </div>
       </div>
-      <div className="rounded-full border border-white/10 bg-black/20 p-1.5 text-white/30 transition-colors group-hover:text-white/60">
+      <div className="relative z-10 rounded-full border border-white/10 bg-black/20 p-1.5 text-white/30 transition-colors group-hover:text-white/60">
         <ArrowUpRight className="h-4 w-4" />
       </div>
     </motion.button>
@@ -131,7 +131,7 @@ function GridCard({
       animate={{ opacity: isDragging ? 0.45 : 1, y: 0, scale: isDragging ? 0.97 : 1 }}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.99 }}
-      className="group relative min-h-[96px] overflow-hidden rounded-[20px] border p-3 text-left backdrop-blur-2xl"
+      className="group relative min-h-[64px] overflow-hidden rounded-2xl border p-1.5 text-left backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_28px_rgba(0,0,0,0.35)] before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r before:from-transparent before:via-white/[0.04] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
       style={{
         borderColor: isActive ? hexToRgba(accent, 0.38) : 'rgba(255,255,255,0.09)',
         background: isActive
@@ -174,26 +174,24 @@ function GridCard({
             </div>
           </div>
         </div>
-        <div className="mt-2 flex flex-1 flex-col justify-between">
-          <div className="flex items-center gap-2.5">
+        <div className="mt-0.5 flex flex-1 flex-col justify-between">
+          <div className="flex items-center gap-2">
             <div
-              className="flex items-center [&>svg]:h-5 [&>svg]:w-5 shrink-0"
+              className="flex items-center [&>svg]:h-3.5 [&>svg]:w-3.5 shrink-0"
               style={{ color: accent, filter: `drop-shadow(0 4px 12px ${hexToRgba(accent, 0.4)})` }}
             >
-              {icon || <span className="text-[17px] font-semibold">{displayName.charAt(0)}</span>}
+              {icon || <span className="text-[15px] font-semibold">{displayName.charAt(0)}</span>}
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-[13px] font-semibold tracking-tight text-white/90">
+              <h3 className="truncate text-xs font-semibold tracking-tight text-white/90">
                 {displayName}
               </h3>
-              <p className="truncate mt-0.5 text-[10px] leading-relaxed text-white/42">
-                {subtitle}
-              </p>
+              <p className="truncate mt-0 text-[9.5px] leading-relaxed text-white/42">{subtitle}</p>
             </div>
           </div>
-          <div className="mt-2.5 flex items-center justify-between gap-2.5 text-[8px] uppercase tracking-[0.18em] text-white/28 font-medium">
+          <div className="mt-1 flex items-center justify-between gap-2 text-[7.5px] uppercase tracking-[0.18em] text-white/28 font-medium">
             <span className="truncate">{isActive ? t('ai_home.open') : t('ai_home.ready')}</span>
-            <span className="shrink-0 rounded-full border border-white/8 bg-white/[0.03] px-2 py-0.5">
+            <span className="shrink-0 rounded-full border border-white/8 bg-white/[0.03] px-1.5 py-[2px]">
               {t('ai_home.new_tab')}
             </span>
           </div>
@@ -218,7 +216,7 @@ export function StatChip({
 }) {
   return (
     <div
-      className={`rounded-[32px] border backdrop-blur-xl ${compact ? 'flex-1 min-w-[120px] px-3 py-2' : 'px-4 py-3'}`}
+      className={`rounded-[32px] border backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] ${compact ? 'flex-1 min-w-[120px] px-3 py-2' : 'px-4 py-3'}`}
       style={{
         borderColor: hexToRgba(accent, 0.2),
         background: `linear-gradient(160deg, ${hexToRgba(accent, 0.12)} 0%, rgba(255,255,255,0.04) 55%, rgba(0,0,0,0.16) 100%)`
@@ -252,7 +250,7 @@ export function EmptySitesState() {
   const { t } = useLanguageStrings()
 
   return (
-    <div className="rounded-[32px] border border-dashed border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.03),rgba(0,0,0,0.18))] p-8 backdrop-blur-xl">
+    <div className="rounded-[32px] border border-dashed border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-8 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02),0_8px_20px_rgba(0,0,0,0.15)]">
       <div className="flex flex-col items-start gap-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/28">
           <Globe className="h-6 w-6" />
@@ -291,7 +289,7 @@ export function OpenTabsToggle({
   return (
     <div className="col-span-1 sm:col-span-2 flex flex-col gap-2 relative">
       <div
-        className="rounded-[32px] border px-4 py-3.5 backdrop-blur-xl cursor-pointer transition-colors hover:bg-white/[0.02]"
+        className="rounded-[32px] border px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] cursor-pointer transition-all duration-300 hover:brightness-110 active:scale-95"
         style={{
           borderColor: hexToRgba(accent, 0.2),
           background: `linear-gradient(160deg, ${hexToRgba(accent, 0.12)} 0%, rgba(255,255,255,0.04) 55%, rgba(0,0,0,0.16) 100%)`

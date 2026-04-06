@@ -49,8 +49,6 @@ export function classifyAuthProbe(
     return buildOutcome('challenge')
   }
 
-  // Google Accounts pages are part of normal sign-in flow (including /signin/challenge/pwd).
-  // Escalate as verification challenge only with strong challenge text and no sign-in affordance.
   if (hostname && LOGIN_HOSTS.has(hostname)) {
     if (snapshot.hasChallengeText && !snapshot.hasLoginForm && !snapshot.hasSignInText) {
       return buildOutcome('challenge')
@@ -63,12 +61,10 @@ export function classifyAuthProbe(
   const matchedApp = APP_BY_HOST.get(hostname)
   const inGoogleAiWebApp = APP_HOSTS.has(hostname)
 
-  // If app host still contains sign-in affordances, treat as unauthenticated.
   if (inGoogleAiWebApp && (snapshot.hasLoginForm || snapshot.hasSignInText)) {
     return buildOutcome('login_redirect')
   }
 
-  // Strict success condition to avoid false-healthy detections that close login too early.
   if (
     matchedApp &&
     matchedApp.healthPathPrefixes.some((prefix) => pathname.startsWith(prefix)) &&

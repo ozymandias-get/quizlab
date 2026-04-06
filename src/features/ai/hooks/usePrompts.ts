@@ -34,7 +34,6 @@ export function usePrompts(): UsePromptsReturn {
     ''
   )
 
-  // Combine default and custom prompts
   const allPrompts = useMemo<Prompt[]>(() => {
     const filteredDefaults = DEFAULT_PROMPTS.filter((p) => p.id.endsWith(`_${language}`))
     return [
@@ -43,7 +42,6 @@ export function usePrompts(): UsePromptsReturn {
     ]
   }, [customPrompts, language])
 
-  // Get the currently selected prompt text
   const activePrompt = useMemo<Prompt | null>(() => {
     if (!selectedPromptId) return null
     return allPrompts.find((p) => p.id === selectedPromptId) || null
@@ -51,7 +49,6 @@ export function usePrompts(): UsePromptsReturn {
 
   const activePromptText = activePrompt?.text || null
 
-  // Actions
   const addPrompt = useCallback(
     (text: string) => {
       const newPrompt: IPrompt = {
@@ -59,7 +56,6 @@ export function usePrompts(): UsePromptsReturn {
         text: text.trim()
       }
       setCustomPrompts((prev: IPrompt[]) => [...prev, newPrompt])
-      // Auto select newly created prompt
       setSelectedPromptId(newPrompt.id)
       return { ...newPrompt, isDefault: false }
     },
@@ -78,7 +74,6 @@ export function usePrompts(): UsePromptsReturn {
 
   const selectPrompt = useCallback(
     (id: string) => {
-      // Toggle logic: if already selected, deselect
       if (selectedPromptId === id) {
         setSelectedPromptId('')
       } else {
@@ -93,13 +88,11 @@ export function usePrompts(): UsePromptsReturn {
   }, [setSelectedPromptId])
 
   return {
-    // State
     allPrompts,
     activePrompt,
     activePromptText,
     selectedPromptId: selectedPromptId || null,
 
-    // Actions
     addPrompt,
     deletePrompt,
     selectPrompt,

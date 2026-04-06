@@ -21,7 +21,6 @@ describe('i18n Translations', () => {
     const enKeys = getKeys(enTranslations).sort()
     const trKeys = getKeys(trTranslations).sort()
 
-    // Find missing keys in each
     const missingInTr = enKeys.filter((key) => !trKeys.includes(key))
     const missingInEn = trKeys.filter((key) => !enKeys.includes(key))
 

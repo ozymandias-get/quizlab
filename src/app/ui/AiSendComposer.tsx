@@ -242,7 +242,6 @@ function AiSendComposer({
             className="relative isolate overflow-hidden rounded-2xl text-white shadow-[0_16px_48px_-8px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl"
             style={{ background: panelShellBackground }}
           >
-            {/* Sending overlay */}
             <AnimatePresence>
               {isClosingAfterSubmit ? (
                 <motion.div
@@ -297,9 +296,7 @@ function AiSendComposer({
               ) : null}
             </AnimatePresence>
 
-            {/* Subtle top edge highlight */}
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
-            {/* Inner border */}
             <div className="pointer-events-none absolute inset-[1px] rounded-[calc(1rem-1px)] border border-white/[0.05]" />
 
             <motion.div variants={sectionVariants}>

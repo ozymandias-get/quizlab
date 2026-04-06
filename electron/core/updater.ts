@@ -1,7 +1,6 @@
 ﻿import { app, ipcMain, shell, net } from 'electron'
 import { APP_CONFIG } from '../app/constants'
 
-// Local state
 type LatestRelease = {
   version: string
   body: string
@@ -28,7 +27,6 @@ function isNewer(remote: string, current: string): boolean {
   const r = cleanRemote.split('.').map((num) => parseInt(num, 10))
   const c = cleanCurrent.split('.').map((num) => parseInt(num, 10))
 
-  // Compare major, minor, patch
   for (let i = 0; i < Math.max(r.length, c.length); i++) {
     const rVal = isNaN(r[i]) ? 0 : r[i]
     const cVal = isNaN(c[i]) ? 0 : c[i]
@@ -50,7 +48,6 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 12000)
 
-    // Attempt 1: Try with standard fetch
     const response = await globalThis.fetch(url, {
       headers: {
         'User-Agent': `Electron-App/${app.getVersion()}`, // Generic UA to avoid GitHub blocking
@@ -73,7 +70,6 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
       html_url?: string
     }
 
-    // Validate response structure
     if (!release || !release.tag_name) {
       return { error: 'Invalid release data' }
     }
@@ -89,8 +85,6 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
     const isAbort = err instanceof Error && err.name === 'AbortError'
     console.warn(`[Updater] Network error:`, message)
 
-    // Attempt 2: Fallback to Electron's native 'net' module.
-    // This also handles AbortError from fetch timeout on slow/proxied networks.
     return new Promise((resolve) => {
       const request = net.request(url)
       request.setHeader('User-Agent', `Electron-App/${app.getVersion()}`)
@@ -148,7 +142,6 @@ export function initUpdater() {
     if (isChecking) return { available: !!updateInfo, cached: true }
 
     const now = Date.now()
-    // Cache geçerlilik süresini kontrol et
     if (now - lastCheckTime < CHECK_DEBOUNCE_MS && updateInfo) {
       return {
         available: true,

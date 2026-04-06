@@ -1,8 +1,4 @@
-﻿/* ============================================
-   BASE STYLES - Temel stiller
-   ============================================ */
-
-* {
+﻿* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -31,7 +27,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Metin seçme rengi - Dinamik olarak değiştirilebilir */
 ::selection {
   background-color: var(--selection-color-strong, rgba(99, 102, 241, 0.58));
   color: #ffffff;
@@ -42,7 +37,6 @@ body {
   color: #ffffff;
 }
 
-/* Custom Font */
 .font-display {
   font-family: 'Playfair Display', Georgia, serif;
 }

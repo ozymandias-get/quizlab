@@ -2,14 +2,10 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import UsageAssistant from '@features/tutorial/ui/UsageAssistant'
 
-// Mock dependencies
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({ t: (key: string) => key }),
   useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
-
-// Mock step config by mocking the component's internal constant? No, can't easily.
-// Instead we mock document.getElementById to return elements so the assistant finds targets.
 
 describe('UsageAssistant Component', () => {
   it('renders nothing when not active', () => {
@@ -18,7 +14,6 @@ describe('UsageAssistant Component', () => {
   })
 
   it('renders first step when active', () => {
-    // Mock getElementById to return a fake element
     const mockElement = document.createElement('div')
     Object.defineProperty(mockElement, 'getBoundingClientRect', {
       value: () => ({ top: 100, left: 100, width: 50, height: 50, bottom: 150, right: 150 })
@@ -27,7 +22,6 @@ describe('UsageAssistant Component', () => {
 
     render(<UsageAssistant isActive={true} onClose={vi.fn()} />)
 
-    // It should render the first step
     expect(screen.getByText('ua_step1_title')).toBeInTheDocument()
     expect(screen.getByText('ua_step1_text')).toBeInTheDocument()
   })
@@ -44,7 +38,6 @@ describe('UsageAssistant Component', () => {
     const nextBtn = screen.getByText('ua_next')
     fireEvent.click(nextBtn)
 
-    // Should now show step 2
     expect(screen.getByText('ua_step2_title')).toBeInTheDocument()
   })
 

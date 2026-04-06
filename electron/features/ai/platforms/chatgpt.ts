@@ -2,7 +2,7 @@ export default {
   id: 'chatgpt',
   name: 'ChatGPT',
   url: 'https://chatgpt.com',
-  partition: 'persist:ai_chatgpt', // Isolated storage
+  partition: 'persist:ai_chatgpt',
   icon: 'chatgpt',
   color: '#10a37f',
   selectors: {
@@ -12,7 +12,7 @@ export default {
   },
   meta: {
     displayName: 'ChatGPT',
-    submitMode: 'mixed', // Enter or Click
+    submitMode: 'mixed',
     domainRegex: '^https://(chat\\.)?chatgpt\\.com(/.*)?$'
   }
 }

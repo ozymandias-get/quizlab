@@ -34,6 +34,7 @@ interface LeftPanelProps {
   onOpenGoogleDrive?: () => void
   onPdfHome?: () => void
   isInteractionBlocked?: boolean
+  isPanelResizing?: boolean
 }
 
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
@@ -73,7 +74,8 @@ function LeftPanel({
   onAddEmptyPdfTab,
   onOpenGoogleDrive,
   onPdfHome,
-  isInteractionBlocked
+  isInteractionBlocked,
+  isPanelResizing = false
 }: LeftPanelProps) {
   const { t } = useLanguageStrings()
 
@@ -133,6 +135,7 @@ function LeftPanel({
                       lastReadingInfo={lastReadingInfo}
                       onOpenGoogleDrive={onOpenGoogleDrive}
                       isInteractionBlocked={isInteractionBlocked}
+                      isPanelResizing={isPanelResizing}
                     />
                   </Worker>
                 </ErrorBoundary>

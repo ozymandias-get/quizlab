@@ -18,13 +18,7 @@ const MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS = 250
 const shouldOpenDevToolsOnStart = process.env.APP_OPEN_DEVTOOLS === '1'
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
 const ALLOWED_DEFAULT_PERMISSIONS = new Set(['notifications', 'media'])
-const ALLOWED_AI_PERMISSIONS = new Set([
-  'notifications',
-  'media',
-  'geolocation',
-  // Screen share in embedded AI sites (getDisplayMedia), distinct from camera/mic "media"
-  'display-capture'
-])
+const ALLOWED_AI_PERMISSIONS = new Set(['notifications', 'media', 'geolocation', 'display-capture'])
 const ALLOWED_WEBVIEW_PROTOCOLS = new Set(['https:'])
 
 /**
@@ -195,7 +189,6 @@ export function hardenWindowWebContents(window: BrowserWindow) {
       return
     }
 
-    // Never inherit host window privileges into guest content.
     delete webPreferences.preload
     delete (webPreferences as Record<string, unknown>).preloadURL
     webPreferences.nodeIntegration = false
@@ -307,7 +300,6 @@ async function saveWindowState(window: BrowserWindow | null) {
     if (!window || window.isDestroyed()) return
 
     const isMaximized = window.isMaximized()
-    // Use normalBounds if maximized to restore to proper size
     const bounds =
       isMaximized && window.getNormalBounds ? window.getNormalBounds() : window.getBounds()
 
@@ -323,9 +315,6 @@ async function saveWindowState(window: BrowserWindow | null) {
   }
 }
 
-// ============================================
-// MAIN WINDOW
-// ============================================
 let mainWindow: BrowserWindow | null = null
 
 export function getMainWindow() {
@@ -352,7 +341,6 @@ export async function createWindow() {
     backgroundColor: '#0c0a09',
     paintWhenInitiallyHidden: true,
     show: false,
-    // Hide from taskbar during boot to avoid dual-preview with splash.
     skipTaskbar: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -362,7 +350,6 @@ export async function createWindow() {
       webviewTag: true,
       webSecurity: true,
       spellcheck: false,
-      // Prevent storage/quota issues
       allowRunningInsecureContent: false,
       experimentalFeatures: false
     }
@@ -459,7 +446,6 @@ function setupSessions() {
   if (sessionsConfigured) return
 
   try {
-    // Configure default session to prevent quota database errors
     const defaultSession = session.defaultSession
     if (defaultSession) {
       defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
@@ -474,7 +460,6 @@ function setupSessions() {
     if (APP_CONFIG.PARTITIONS.AI) aiPartitions.add(APP_CONFIG.PARTITIONS.AI)
     Object.values(AI_REGISTRY).forEach((p) => p.partition && aiPartitions.add(p.partition))
 
-    // Optionally apply it to inactive platforms too in case users had a session before
     Object.values(INACTIVE_PLATFORMS).forEach((p) => p.partition && aiPartitions.add(p.partition))
 
     for (const partition of aiPartitions) {

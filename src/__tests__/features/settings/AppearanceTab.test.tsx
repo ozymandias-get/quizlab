@@ -2,7 +2,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import AppearanceTab from '@features/settings/ui/AppearanceTab'
 
-// Mock dependencies using vi.hoisted to ensure they are available in the mock factory
 const {
   mockSetShowOnlyIcons,
   mockSetBottomBarOpacity,
@@ -82,7 +81,6 @@ vi.mock('@ui/components/Slider', () => ({
   )
 }))
 
-// Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, className, ...props }: any) => (
@@ -117,7 +115,7 @@ describe('AppearanceTab', () => {
 
   it('changes opacity slider', () => {
     render(<AppearanceTab />)
-    const sliderInput = screen.getAllByTestId('slider-input')[0] // First slider is Opacity
+    const sliderInput = screen.getAllByTestId('slider-input')[0]
     fireEvent.change(sliderInput, { target: { value: '0.9' } })
     expect(mockSetBottomBarOpacity).toHaveBeenCalledWith(0.9)
   })
@@ -131,7 +129,6 @@ describe('AppearanceTab', () => {
 
   it('updates selection color', async () => {
     render(<AppearanceTab />)
-    // Find by value since we know the initial mock value is #00ff00
     const colorInput = await screen.findByDisplayValue('#00ff00')
     fireEvent.change(colorInput, { target: { value: '#ff0000' } })
     expect(mockSetSelectionColor).toHaveBeenCalledWith('#ff0000')

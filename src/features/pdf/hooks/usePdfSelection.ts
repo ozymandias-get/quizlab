@@ -128,9 +128,7 @@ export const usePdfSelection = () => {
       } else {
         localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
       }
-    } catch {
-      // ignore localStorage errors
-    }
+    } catch {}
 
     recentReadingInfoRef.current = items
     setRecentReadingInfo(items)
@@ -187,16 +185,20 @@ export const usePdfSelection = () => {
     [persistRecentReadingInfo]
   )
 
+  const flushPendingReadingProgress = useCallback(() => {
+    if (readingProgressDebounceRef.current) {
+      clearTimeout(readingProgressDebounceRef.current)
+      readingProgressDebounceRef.current = null
+    }
+    pendingReadingProgressApplyRef.current?.()
+    pendingReadingProgressApplyRef.current = null
+  }, [])
+
   useEffect(() => {
     return () => {
-      if (readingProgressDebounceRef.current) {
-        clearTimeout(readingProgressDebounceRef.current)
-        readingProgressDebounceRef.current = null
-      }
-      pendingReadingProgressApplyRef.current?.()
-      pendingReadingProgressApplyRef.current = null
+      flushPendingReadingProgress()
     }
-  }, [])
+  }, [flushPendingReadingProgress])
 
   useEffect(() => {
     pdfTabsRef.current = pdfTabs
@@ -391,6 +393,7 @@ export const usePdfSelection = () => {
 
   const resumeLastPdf = useCallback(
     async (path?: string): Promise<ResumePdfResult> => {
+      flushPendingReadingProgress()
       const history = recentReadingInfoRef.current
       const target = path ? history.find((item) => item.path === path) : history[0]
 
@@ -423,7 +426,7 @@ export const usePdfSelection = () => {
       showError('error_pdf_load')
       return 'error'
     },
-    [registerPdfPath, showError, openPdfInTab]
+    [registerPdfPath, showError, openPdfInTab, flushPendingReadingProgress]
   )
 
   const getLastReadingInfo = useCallback((): LastReadingInfo | null => {
@@ -505,6 +508,7 @@ export const usePdfSelection = () => {
     addEmptyPdfTab,
     openGoogleDriveTab,
     activeTabInitialPage,
-    goToPdfHome
+    goToPdfHome,
+    recentReadingInfo
   }
 }

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import { viteAliases } from './vite.aliases.mts'
 
 export default defineConfig({
   plugins: [react()],
@@ -45,16 +45,7 @@ export default defineConfig({
     }
   },
   resolve: {
-    alias: {
-      // Project aliases
-      '@app': path.resolve(__dirname, 'src/app'),
-      '@shared': path.resolve(__dirname, 'src/shared'),
-      '@shared-core': path.resolve(__dirname, 'shared'),
-      '@electron': path.resolve(__dirname, 'electron'),
-      '@ui': path.resolve(__dirname, 'src/shared/ui'),
-      '@features': path.resolve(__dirname, 'src/features'),
-      '@platform': path.resolve(__dirname, 'src/platform')
-    }
+    alias: viteAliases
   },
   server: {
     port: 5173,

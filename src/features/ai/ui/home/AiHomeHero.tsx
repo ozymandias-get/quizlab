@@ -41,7 +41,7 @@ export default function AiHomeHero({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.38 }}
-      className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015)_48%,rgba(0,0,0,0.16))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_34px_80px_-46px_rgba(0,0,0,0.95)] backdrop-blur-2xl sm:p-5"
+      className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_24px_64px_-16px_rgba(0,0,0,0.6)] backdrop-blur-2xl backdrop-saturate-200 sm:p-5"
     >
       <div className="flex flex-col gap-4">
         <div
@@ -94,10 +94,10 @@ export default function AiHomeHero({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/8 bg-black/20 p-4 backdrop-blur-xl sm:px-5">
+        <div className="rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-4 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)] sm:px-5">
           <div className={`flex gap-4 ${isCompact ? 'flex-col' : 'flex-row items-stretch'}`}>
             <div className="flex min-w-0 flex-1 items-center gap-3.5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/65 shadow-sm">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/75 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                 <Compass className="h-[17px] w-[17px]" />
               </div>
               <div className="min-w-0">
@@ -131,7 +131,7 @@ export default function AiHomeHero({
                     key={id}
                     type="button"
                     onClick={() => onOpenModel(id)}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[11px] text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white/90"
+                    className="rounded-full border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent px-3.5 py-1.5 text-[11px] text-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:border-white/20 hover:bg-white/[0.12] hover:text-white/95 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_8px_16px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
                   >
                     {aiSites[id]?.displayName || id}
                   </button>

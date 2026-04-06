@@ -38,7 +38,7 @@ function PdfRecentList({
 
   if (recentCount === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 text-left">
+      <div className="rounded-2xl border border-dashed border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent backdrop-blur-xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02),0_4px_16px_rgba(0,0,0,0.1)] p-4 text-left">
         <div className="text-sm font-semibold text-stone-300">{t('resume_empty_title')}</div>
         <p className="mt-1 text-xs text-stone-500">{t('resume_empty_desc')}</p>
       </div>
@@ -47,7 +47,7 @@ function PdfRecentList({
 
   if (processedCount === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 text-left text-xs text-stone-400">
+      <div className="rounded-2xl border border-dashed border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent backdrop-blur-xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02),0_4px_16px_rgba(0,0,0,0.1)] p-4 text-left text-xs text-stone-400">
         {t('search_no_results')}
       </div>
     )
@@ -94,18 +94,18 @@ function PdfRecentList({
                 }}
                 aria-label={`${t('continue_reading')}: ${item.name}`}
                 className={`
-                                    group w-full text-left rounded-2xl border px-3 py-2.5
-                                    backdrop-blur-md shadow-[0_8px_20px_rgba(0,0,0,0.2)]
-                                    transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80
+                                    group relative overflow-hidden w-full text-left rounded-2xl border px-3 py-2.5
+                                    backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)]
+                                    transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80
                                     ${
                                       isInvalid
-                                        ? 'bg-red-500/[0.07] border-red-500/30 text-stone-300/80'
-                                        : 'bg-white/[0.05] border-white/10 text-stone-200 hover:bg-white/[0.09] hover:border-amber-500/30 hover:shadow-[0_10px_24px_rgba(245,158,11,0.08)]'
+                                        ? 'bg-red-500/[0.05] border-red-500/20 text-stone-300/80 hover:border-red-500/30'
+                                        : 'bg-gradient-to-b from-white/[0.06] to-transparent border-white/5 text-stone-200 hover:border-white/15 hover:bg-white/5 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_32px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 active:scale-[0.99] active:translate-y-0 before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r before:from-transparent before:via-white/[0.04] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out'
                                     }
                                 `}
                 title={item.name}
               >
-                <div className="flex items-center gap-3">
+                <div className="relative z-10 flex items-center gap-3">
                   <div className="relative w-11 h-11 rounded-xl border border-white/10 overflow-hidden flex-shrink-0 bg-black/10">
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-400/25 via-orange-400/10 to-sky-300/20" />
                     <FileText className="relative z-10 w-5 h-5 m-3 text-amber-300/80" />
@@ -146,7 +146,7 @@ function PdfRecentList({
                         event.stopPropagation()
                         resumeItem(item)
                       }}
-                      className="h-8 px-2.5 rounded-lg border border-white/10 bg-white/5 text-stone-200 hover:bg-amber-500/20 hover:text-amber-100 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
+                      className="h-8 px-2.5 rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] text-stone-200 hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-100 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-300 ease-out active:scale-95"
                       aria-label={t('continue_reading')}
                     >
                       <Play className="w-3.5 h-3.5" />
@@ -158,7 +158,7 @@ function PdfRecentList({
                     {canClear && (
                       <button
                         type="button"
-                        className="h-8 w-8 rounded-lg border border-white/10 bg-white/5 text-stone-400 hover:text-red-200 hover:bg-red-500/20 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80"
+                        className="h-8 w-8 rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] text-stone-400 hover:border-red-500/30 hover:text-red-200 hover:bg-red-500/15 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-300 ease-out active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80"
                         onClick={(event) => {
                           event.stopPropagation()
                           onRemove(item)

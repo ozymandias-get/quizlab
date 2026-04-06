@@ -88,7 +88,6 @@ function sanitizeEnabledAppIds(value: unknown): string[] {
 
 export class GeminiWebSessionManager {
   private readonly profileDir: string
-  // Dedicated helper browser profile used only for login/refresh flows.
   private readonly playwrightProfileDir: string
   private readonly configPath: string
   private readonly lockPath: string
@@ -198,7 +197,6 @@ export class GeminiWebSessionManager {
     try {
       const previous = await this.readMetadata()
 
-      // Login in a dedicated external browser profile (Playwright + system Chrome/Chromium).
       const loginResult = await runPlaywrightLogin({
         profileDir: this.playwrightProfileDir,
         timeoutMs: LOGIN_TIMEOUT_MS
@@ -226,7 +224,6 @@ export class GeminiWebSessionManager {
       const targetSession = this.resolvePersistentSession()
       await importExternalCookies(targetSession, loginResult.cookies)
 
-      // Verify imported cookies with in-app probe.
       const probe = await this.runProbeAcrossApps({
         interactive: false,
         timeoutMs: HEALTH_TIMEOUT_MS
@@ -521,11 +518,6 @@ export class GeminiWebSessionManager {
         })
         let accountHash = firstProbe.outcome.healthy ? firstProbe.accountHash : current.accountHash
 
-        // Recovery order:
-        // 1. normal probe
-        // 2. silent refresh
-        // 3. headless Playwright refresh
-        // 4. surface reauth-required state to the user if still unhealthy
         if (this.shouldAttemptSilentRefresh(firstProbe.outcome, options.allowRetry)) {
           const refreshProbe = await this.runSilentRefreshProbe()
           if (refreshProbe.outcome.healthy) {
@@ -774,9 +766,7 @@ export class GeminiWebSessionManager {
               hasSignInText: !!cast.hasSignInText
             }
           }
-        } catch {
-          // Ignore DOM probing errors; caller will classify as unknown.
-        }
+        } catch {}
 
         return EMPTY_DOM_SNAPSHOT
       }

@@ -136,9 +136,7 @@ export function useGeminiWebSessionState() {
         if (options?.refetch) {
           await refetchWebSession()
         }
-      } catch {
-        // Errors are surfaced by the electron mutation helpers.
-      }
+      } catch {}
     },
     [refetchWebSession, showError]
   )

@@ -79,7 +79,10 @@ vi.mock('@features/pdf/ui/hooks', () => ({
     contextMenu: null,
     setContextMenu: vi.fn()
   }),
-  usePdfPanTool: () => ({ isDragging: false })
+  usePdfPanTool: () => ({ isDragging: false }),
+  usePdfResizeRefit: () => {},
+  usePdfCtrlWheelZoom: () => {},
+  usePdfViewerZoomIpc: () => {}
 }))
 
 vi.mock('@features/pdf/ui/components/PdfPlaceholder', () => ({

@@ -2,7 +2,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ScreenshotTool from '@features/screenshot/ui/ScreenshotTool'
 
-// Mock Logger
 vi.mock('@shared/lib/logger', () => ({
   Logger: {
     error: vi.fn(),
@@ -15,7 +14,6 @@ vi.mock('@app/providers', () => ({
   useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
-// Mock useCaptureScreen hook
 const mockCaptureScreenMutate = vi.fn()
 vi.mock('@platform/electron/api/useSystemApi', () => ({
   useCaptureScreen: () => ({
@@ -41,8 +39,6 @@ describe('ScreenshotTool Component', () => {
 
   it('renders overlay when active', () => {
     render(<ScreenshotTool isActive={true} onCapture={onCapture} onClose={onClose} />)
-    // Check for some element present when active.
-    // Look at the code, when active and not selecting, it shows 'cancel_with_esc'
     expect(screen.getByText('cancel_with_esc')).toBeInTheDocument()
   })
 
@@ -51,18 +47,12 @@ describe('ScreenshotTool Component', () => {
       <ScreenshotTool isActive={true} onCapture={onCapture} onClose={onClose} />
     )
 
-    // The overlay is the main div.
-    // It has check !isActive return null.
-    // Then returns a div with ref={overlayRef} className="screenshot-overlay"
     const overlay = container.firstChild as Element
 
-    // Start selection at (10, 10)
     fireEvent.mouseDown(overlay, { clientX: 10, clientY: 10, button: 0 })
 
-    // Drag to (110, 110) -> width 100, height 100
     fireEvent.mouseMove(overlay, { clientX: 110, clientY: 110 })
 
-    // Finish selection
     fireEvent.mouseUp(overlay)
 
     await waitFor(() => {
@@ -97,7 +87,6 @@ describe('ScreenshotTool Component', () => {
     )
     const overlay = container.firstChild as Element
 
-    // Small drag (5x5)
     fireEvent.mouseDown(overlay, { clientX: 10, clientY: 10, button: 0 })
     fireEvent.mouseMove(overlay, { clientX: 15, clientY: 15 })
     fireEvent.mouseUp(overlay)

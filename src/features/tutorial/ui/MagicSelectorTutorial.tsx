@@ -75,7 +75,6 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
       exit={{ opacity: 0 }}
       className="absolute inset-0 z-50 flex flex-col bg-[#212121] text-white overflow-hidden"
     >
-      {/* Top Bar (Simulated ChatGPT Header) */}
       <div className="flex items-center justify-between px-4 h-14 bg-[#212121] z-10">
         <div className="flex items-center gap-2 text-gray-300 font-medium cursor-pointer hover:bg-[#2f2f2f] px-3 py-2 rounded-lg transition-colors">
           <span>ChatGPT 5.2</span>
@@ -99,9 +98,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
         </div>
       </div>
 
-      {/* Main Content (Chat Area) */}
       <div ref={containerRef} className="flex-1 flex flex-col relative">
-        {/* Center Content (Empty State or Messages) */}
         <div className="flex-1 flex items-center justify-center flex-col p-4">
           <div className="w-12 h-12 bg-white rounded-full mb-6 flex items-center justify-center">
             <div className="w-8 h-8 rounded-full bg-black" />
@@ -111,9 +108,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
           </h2>
         </div>
 
-        {/* Input Area (Bottom) */}
         <div className="w-full max-w-3xl mx-auto px-4 pb-8 relative">
-          {/* Tutorial Instructions Overlay (Floating) */}
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -162,7 +157,6 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
             </motion.div>
           </AnimatePresence>
 
-          {/* Chat Input Simulation */}
           <div className="relative flex items-center gap-3 bg-[#2f2f2f] rounded-2xl p-3 border border-gray-700/50 shadow-lg">
             <div className="p-2 hover:bg-black/20 rounded-lg cursor-pointer text-gray-400">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -189,7 +183,6 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
               autoComplete="off"
             />
 
-            {/* Step 1 Guide: Pulsing Box around Input */}
             {step === 1 && (
               <div className="absolute inset-0 border-2 border-purple-500 rounded-2xl animate-pulse pointer-events-none z-20">
                 <div className="absolute -top-3 left-10 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">
@@ -233,7 +226,6 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
                       />
                     </svg>
 
-                    {/* Step 3 Guide: Box around Button */}
                     {step === 3 && (
                       <div className="absolute -inset-2 border-2 border-purple-500 rounded-xl animate-pulse pointer-events-none z-20">
                         <div className="absolute -top-8 -right-2 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded w-max">
@@ -249,7 +241,6 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
           <div className="text-center mt-2 text-xs text-gray-500">{t('tut_disclaimer')}</div>
         </div>
 
-        {/* Magic Selector Overlay (The Green Hover Box) */}
         {hoveredRect && (
           <motion.div
             layoutId="selector-highlight"

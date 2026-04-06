@@ -67,9 +67,7 @@ export async function importExternalCookies(
 
   try {
     targetSession.flushStorageData()
-  } catch {
-    // Ignore flush errors.
-  }
+  } catch {}
 }
 
 async function ensurePartitionStoragePath(targetSession: Session): Promise<void> {
@@ -102,8 +100,6 @@ export async function clearPersistentPartitionData(targetSession: Session): Prom
 
   try {
     targetSession.flushStorageData()
-  } catch {
-    // Ignore flush errors.
-  }
+  } catch {}
   await ensurePartitionStoragePath(targetSession)
 }

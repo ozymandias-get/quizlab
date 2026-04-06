@@ -16,7 +16,6 @@ export const hexToRgba = (hex: string, alpha: number = 1): string => {
 
   const cleanHex = hex.replace('#', '')
 
-  // Kısa hex (#RGB) desteği
   const fullHex =
     cleanHex.length === 3
       ? cleanHex

@@ -2,7 +2,6 @@
 import { vi, describe, it, expect } from 'vitest'
 import AestheticLoader from '@ui/components/AestheticLoader'
 
-// Mock useLanguage
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({ t: (key: string) => key }),
   useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })

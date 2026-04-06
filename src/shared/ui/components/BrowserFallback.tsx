@@ -7,7 +7,6 @@ function BrowserFallback() {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-zinc-950 p-6 z-[9999] overflow-hidden">
-      {/* Aesthetic Background Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none" />
 
@@ -17,10 +16,8 @@ function BrowserFallback() {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-10 max-w-lg w-full bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl flex flex-col items-center text-center overflow-hidden"
       >
-        {/* Accent Glow inside the card */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
 
-        {/* Icon Container */}
         <motion.div
           initial={{ rotate: -10 }}
           animate={{ rotate: 0 }}

@@ -1,4 +1,4 @@
-﻿import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { AiProvider, useAi } from '@app/providers/AiContext'
@@ -55,7 +55,7 @@ describe('AiContext', () => {
 
     window.electronAPI = {
       getAiRegistry: mockGetAiRegistry
-    } as any
+    } as unknown as Window['electronAPI']
 
     mockGetAiRegistry.mockResolvedValue({
       aiRegistry: {

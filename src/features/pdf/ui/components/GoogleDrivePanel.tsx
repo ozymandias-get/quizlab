@@ -3,6 +3,7 @@ import {
   GOOGLE_AI_WEB_SESSION_PARTITION,
   GOOGLE_DRIVE_WEB_APP
 } from '@shared-core/constants/google-ai-web-apps'
+import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
 interface GoogleDrivePanelProps {
@@ -55,7 +56,7 @@ function GoogleDrivePanel({
           src={webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
           partition={GOOGLE_AI_WEB_SESSION_PARTITION}
           className="flex-1 w-full h-full"
-          allowpopups={'true' as any}
+          allowpopups={WEBVIEW_ALLOW_POPUPS}
           webpreferences="contextIsolation=yes, sandbox=yes"
           useragent={chromeUserAgent}
         />

@@ -6,7 +6,6 @@ import type {
   WebviewInputEvent
 } from '@shared-core/types/webview'
 
-// Crash recovery constants
 const MAX_CRASH_RETRIES = 3
 const CRASH_RETRY_DELAY = 1000
 const ERROR_CODE_ABORTED = -3
@@ -93,7 +92,6 @@ export function useWebviewLifecycle({
     []
   )
 
-  // Reset state on AI change
   useEffect(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
@@ -104,7 +102,6 @@ export function useWebviewLifecycle({
     crashRetryCount.current = 0
   }, [currentAI])
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -118,7 +115,6 @@ export function useWebviewLifecycle({
     activeWebviewRef.current?.reload()
   }, [])
 
-  // Expose webview methods
   const webviewMethods = useMemo<WebviewController>(
     () => ({
       // Reflect.apply keeps the correct `this` for native webview bindings (avoids "Illegal invocation").
@@ -175,7 +171,6 @@ export function useWebviewLifecycle({
     }
   }, [registerWebview, webviewElement, webviewMethods])
 
-  // Event Handlers
   const handleStartLoading = useCallback(() => {
     setIsLoading(true)
     setError(null)
@@ -197,7 +192,7 @@ export function useWebviewLifecycle({
 
   const handleCrashed = useCallback(() => {
     const crashedWebview = activeWebviewRef.current
-    const crashedAiId = currentAI // Capture current AI ID
+    const crashedAiId = currentAI
     setIsLoading(false)
     if (crashRetryCount.current < MAX_CRASH_RETRIES) {
       crashRetryCount.current++
@@ -254,7 +249,6 @@ export function useWebviewLifecycle({
     }
   }, [])
 
-  // Event Listeners Binding
   useEffect(() => {
     const wv = webviewElement
     if (!wv) return

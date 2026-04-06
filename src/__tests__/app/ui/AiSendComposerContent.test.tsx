@@ -11,7 +11,10 @@ vi.mock('@app/providers', () => {
       ai_send_page_selection_item: `Sayfa ${params?.page ?? ''} • Bir kisim`.trim(),
       ai_send_image_item: `Gorsel ${params?.index ?? ''}`.trim(),
       ai_send_selection_item: `Alinti ${params?.index ?? ''}`.trim(),
-      ai_send_item_count: `${params?.count ?? ''} oge`.trim()
+      ai_send_item_count: `${params?.count ?? ''} oge`.trim(),
+      ai_send_note_label: 'Note',
+      ai_send_text_placeholder: 'Type note',
+      ai_send_image_placeholder: 'Image note'
     }
 
     return translations[key] ?? key
@@ -64,6 +67,95 @@ describe('AiSendComposerContent', () => {
     render(<AiSendComposerContent {...baseProps} noteText="   " />)
 
     expect(screen.queryByRole('button', { name: 'auto_send' })).not.toBeInTheDocument()
+  })
+
+  it('calls onSubmit with forceAutoSend on Enter from note textarea', () => {
+    const onSubmit = vi.fn()
+    render(
+      <AiSendComposerContent
+        {...baseProps}
+        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
+        noteText="hello"
+        onSubmit={onSubmit}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledWith({ forceAutoSend: true })
+  })
+
+  it('calls onSubmit without auto send on Shift+Enter from note textarea', () => {
+    const onSubmit = vi.fn()
+    render(
+      <AiSendComposerContent
+        {...baseProps}
+        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
+        noteText="hello"
+        onSubmit={onSubmit}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledWith()
+  })
+
+  it('calls onSubmit without auto send on Enter when note is empty', () => {
+    const onSubmit = vi.fn()
+    render(
+      <AiSendComposerContent
+        {...baseProps}
+        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
+        noteText=""
+        onSubmit={onSubmit}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledWith()
+  })
+
+  it('calls onSubmit with forceAutoSend on Shift+Enter when note is empty', () => {
+    const onSubmit = vi.fn()
+    render(
+      <AiSendComposerContent
+        {...baseProps}
+        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
+        noteText=""
+        onSubmit={onSubmit}
+      />
+    )
+
+    const textarea = screen.getByRole('textbox')
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledWith({ forceAutoSend: true })
+  })
+
+  it('does not submit on Enter when queue is empty', () => {
+    const onSubmit = vi.fn()
+    render(
+      <AiSendComposerContent
+        {...baseProps}
+        items={[]}
+        totalItems={0}
+        noteText="hello"
+        onSubmit={onSubmit}
+      />
+    )
+
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter', shiftKey: false })
+
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('shows page-based labels for full-page and selection images in queue order', () => {

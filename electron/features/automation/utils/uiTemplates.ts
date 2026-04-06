@@ -10,7 +10,6 @@ export const getStepHtml = (step: PickerStep, t: TranslationMap = {}) => {
   const labelStep = t.picker_step || 'Step'
   const labelDone = t.picker_done_btn || 'Done, Continue'
 
-  // ADIM 1: Mesaj yazma alanını seç
   if (step === 'input') {
     const title = t.picker_intro_title || 'Select Message Input'
     const text =
@@ -29,9 +28,7 @@ export const getStepHtml = (step: PickerStep, t: TranslationMap = {}) => {
             ${text}
             </div>
             </div>`
-  }
-  // ADIM 2: Test karakteri yaz
-  else if (step === 'typing') {
+  } else if (step === 'typing') {
     const title = t.picker_typing_title || 'Type a Letter'
     const text =
       t.picker_typing_text ||
@@ -53,9 +50,7 @@ export const getStepHtml = (step: PickerStep, t: TranslationMap = {}) => {
             <div style="margin-top:10px;text-align:center;">
             <div style="display:inline-block;background:#f59e0b;color:#000;padding:6px 16px;border-radius:6px;font-weight:600;font-size:12px;pointer-events:auto;cursor:pointer;" id="_ai_picker_next_btn">${labelDone}</div>
             </div>`
-  }
-  // ADIM 3: Gönder butonunu seç
-  else if (step === 'submit') {
+  } else if (step === 'submit') {
     const title = t.picker_submit_title || 'Click Send Button'
     const text = t.picker_submit_text || '<b>Click the send button</b> you use to send messages.'
 
@@ -72,9 +67,7 @@ export const getStepHtml = (step: PickerStep, t: TranslationMap = {}) => {
             ${text}
             </div>
             </div>`
-  }
-  // TAMAMLANDI
-  else {
+  } else {
     const completed = t.picker_completed || 'Completed!'
     const saving = t.picker_saving || 'Saving settings...'
 
@@ -104,14 +97,12 @@ export const getHintHtml = (
     low: '#f87171'
   }
 
-  // Map confidence levels to localized strings
   const confidenceLabels: Record<PickerConfidence, string> = {
     high: t.picker_good_choice || 'Good Choice',
     medium: t.picker_maybe || 'Maybe',
     low: t.picker_wrong || 'Wrong'
   }
 
-  // Determine if it's a good choice based on step and category
   const isGoodChoice =
     (step === 'input' && hoveredInfo.category === 'input') ||
     (step === 'submit' && hoveredInfo.category === 'button')
@@ -119,8 +110,6 @@ export const getHintHtml = (
   const bgColor = isGoodChoice ? 'rgba(74,222,128,0.12)' : 'rgba(251,191,36,0.12)'
   const textColor = isGoodChoice ? '#4ade80' : '#fbbf24'
 
-  // Get localized label
-  // Check if we have a translation key and translation available
   const labelText =
     hoveredInfo.labelKey && t[hoveredInfo.labelKey] ? t[hoveredInfo.labelKey] : hoveredInfo.labelEN
 
@@ -128,7 +117,6 @@ export const getHintHtml = (
   if (hoveredInfo.hintKey && t[hoveredInfo.hintKey]) {
     hintText = t[hoveredInfo.hintKey]
   } else {
-    // Fallback to existing logic if key is missing (during transition)
     hintText = hoveredInfo.hintEN || ''
   }
 

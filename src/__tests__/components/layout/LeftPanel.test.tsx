@@ -2,13 +2,11 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import LeftPanel from '@ui/layout/LeftPanel'
 
-// Mock dependencies
 vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: () => ({ t: (key: string) => key }),
   useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
 }))
 
-// Create a mock for useSharedDragDrop specific to this test file
 const mockUseSharedDragDrop = vi.fn()
 vi.mock('@shared/hooks/useSharedDragDrop', () => ({
   useSharedDragDrop: (onDrop: any) => mockUseSharedDragDrop(onDrop)
@@ -22,7 +20,6 @@ vi.mock('@react-pdf-viewer/core', () => ({
   Worker: ({ children }: any) => <div data-testid="pdf-worker">{children}</div>
 }))
 
-// Need to match the component structure precisely or just mock implementation
 vi.mock('@ui/components/ErrorBoundary', () => ({
   default: ({ children }: any) => <div data-testid="error-boundary">{children}</div>
 }))
@@ -42,7 +39,6 @@ describe('LeftPanel Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    // Default impl
     mockUseSharedDragDrop.mockReturnValue({
       isDragOver: false,
       containerRef: { current: null },

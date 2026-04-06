@@ -7,6 +7,7 @@ import type {
   PdfSelectOptions,
   PdfSelection,
   PdfStreamResult,
+  PdfViewerZoomAction,
   UpdateCheckResult,
   CustomAiInput,
   CustomAiResult,
@@ -15,7 +16,6 @@ import type {
 } from '@shared-core/types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // AI & Automation
   getAiRegistry: (forceRefresh: boolean = false): Promise<AiRegistryResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_AI_REGISTRY, forceRefresh),
   isAuthDomain: (url: string): Promise<boolean> =>
@@ -59,7 +59,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generatePickerScript', translations)
   },
 
-  // PDF
   selectPdf: (options: PdfSelectOptions): Promise<PdfSelection | null> =>
     ipcRenderer.invoke(IPC_CHANNELS.SELECT_PDF, options),
   getPdfStreamUrl: (filePath: string): Promise<PdfStreamResult | null> =>
@@ -67,7 +66,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   registerPdfPath: (filePath: string): Promise<PdfSelection | null> =>
     ipcRenderer.invoke(IPC_CHANNELS.PDF_REGISTER_PATH, filePath),
 
-  // Utilities
   captureScreen: (rect?: {
     x: number
     y: number
@@ -85,25 +83,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showPdfContextMenu: (labels: Partial<Record<string, string>>): void =>
     ipcRenderer.send(IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU, labels),
 
-  // Events
   onTriggerScreenshot: (callback: (type: string) => void) => {
     const handler = (_event: IpcRendererEvent, type: string) => callback(type)
     ipcRenderer.on(IPC_CHANNELS.TRIGGER_SCREENSHOT, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_SCREENSHOT, handler)
   },
+  onPdfViewerZoom: (callback: (action: PdfViewerZoomAction) => void) => {
+    const handler = (_event: IpcRendererEvent, action: PdfViewerZoomAction) => callback(action)
+    ipcRenderer.on(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handler)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handler)
+  },
 
-  // Meta
   platform: process.platform,
   quitApp: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.APP_QUIT),
 
-  // Updater
   checkForUpdates: (): Promise<UpdateCheckResult> =>
     ipcRenderer.invoke(IPC_CHANNELS.CHECK_FOR_UPDATES),
   openReleasesPage: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.OPEN_RELEASES),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.GET_APP_VERSION),
   clearCache: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.CLEAR_CACHE),
 
-  // AI Config
   saveAiConfig: (hostname: string, config: AiSelectorConfig): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.SAVE_AI_CONFIG, hostname, config),
   getAiConfig: (
@@ -117,7 +116,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteCustomAi: (id: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id),
 
-  // Gemini Web Session API
   geminiWeb: {
     getStatus: (): Promise<GeminiWebSessionStatus> =>
       ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_STATUS),

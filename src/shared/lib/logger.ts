@@ -91,8 +91,6 @@ export const Logger = {
   },
   error: (...args: unknown[]) => {
     pushToBuffer('error', args)
-    // Errors are critical, so we might want to keep them or at least log them uniquely.
-    // For now, we pass them through but we could wrap them if needed.
     console.error(...args)
   },
   info: (...args: unknown[]) => {

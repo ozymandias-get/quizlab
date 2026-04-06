@@ -17,7 +17,6 @@ describe('Logger Utility', () => {
   it('should log info/warn in development environment', async () => {
     process.env.NODE_ENV = 'development'
 
-    // Dynamic import to re-evaluate module with new ENV
     const { Logger } = await import('@shared/lib/logger')
 
     const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => {})
@@ -33,7 +32,6 @@ describe('Logger Utility', () => {
   it('should suppress info/warn in production/test environment', async () => {
     process.env.NODE_ENV = 'production'
 
-    // This relies on the module re-evaluating process.env.NODE_ENV at top level
     const { Logger } = await import('@shared/lib/logger')
 
     const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => {})

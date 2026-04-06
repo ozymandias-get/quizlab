@@ -81,7 +81,6 @@ const Pointer = memo<PointerProps>(({ rect, color = '#10b981' }) => {
       }}
     >
       <div className="relative">
-        {/* Glow aura */}
         <div
           className="absolute inset-x-0 bottom-0 h-10 blur-xl opacity-40 rounded-full"
           style={{ backgroundColor: color }}
@@ -137,7 +136,6 @@ const HighlightBox = memo<HighlightBoxProps>(({ rect, color = '#3b82f6' }) => {
         height: rect.height + 24
       }}
     >
-      {/* Animated focus border */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -148,7 +146,6 @@ const HighlightBox = memo<HighlightBoxProps>(({ rect, color = '#3b82f6' }) => {
         }}
       />
 
-      {/* Pulsing outer glow */}
       <motion.div
         animate={{
           opacity: [0.1, 0.3, 0.1],
@@ -162,7 +159,6 @@ const HighlightBox = memo<HighlightBoxProps>(({ rect, color = '#3b82f6' }) => {
         }}
       />
 
-      {/* Corner accents */}
       {[
         'top-0 left-0 border-t-4 border-l-4',
         'top-0 right-0 border-t-4 border-r-4',
@@ -189,10 +185,8 @@ const Tooltip = memo<TooltipProps>(
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         className="fixed z-[10002] left-1/2 bottom-[10%] -translate-x-1/2 w-[440px] p-8 rounded-[2rem] bg-slate-900/90 backdrop-blur-2xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] border border-white/10"
       >
-        {/* Gloss effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-[2rem] pointer-events-none" />
 
-        {/* Header */}
         <div className="relative flex items-center gap-5 mb-6">
           <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-xl font-black shadow-lg shadow-amber-500/20">
             {step + 1}
@@ -212,12 +206,10 @@ const Tooltip = memo<TooltipProps>(
           </div>
         </div>
 
-        {/* Body */}
         <div className="relative mb-8">
           <p className="text-base text-white/70 leading-relaxed font-medium">{text}</p>
         </div>
 
-        {/* Footer */}
         <div className="relative flex items-center justify-between pt-6 border-t border-white/5">
           <button
             onClick={onSkip}
@@ -330,11 +322,9 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
 
     updateRects()
 
-    // Event listeners for responsive updates
     window.addEventListener('resize', updateRects)
     window.addEventListener('scroll', updateRects, true) // Capture to detect any scroll
 
-    // Slower fallback interval for animations/layout shifts
     const intervalId = setInterval(updateRects, 500)
 
     return () => {
@@ -363,7 +353,6 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[9999] pointer-events-none">
-        {/* Tooltip - Ortada */}
         <div style={{ pointerEvents: 'auto' }}>
           <Tooltip
             step={step}
@@ -378,7 +367,6 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
           />
         </div>
 
-        {/* Highlight boxes ve oklar */}
         {rects.map((rect, index) => (
           <Fragment key={`${step}-${rect.id}-${index}`}>
             <HighlightBox rect={rect} color={colors[index % colors.length]} />

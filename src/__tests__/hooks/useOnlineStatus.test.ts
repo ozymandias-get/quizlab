@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useOnlineStatus } from '@app/hooks/useOnlineStatus'
 
-// Mock dependencies
 const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
 
@@ -16,7 +15,6 @@ vi.mock('@app/providers/ToastContext', () => ({
 describe('useOnlineStatus Hook', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Reset online status to true
     Object.defineProperty(navigator, 'onLine', { value: true, writable: true })
   })
 
@@ -39,13 +37,11 @@ describe('useOnlineStatus Hook', () => {
   it('should update status and show success when coming back online', () => {
     const { result } = renderHook(() => useOnlineStatus())
 
-    // First go offline
     act(() => {
       window.dispatchEvent(new Event('offline'))
     })
     expect(result.current).toBe(false)
 
-    // Then go online
     act(() => {
       window.dispatchEvent(new Event('online'))
     })

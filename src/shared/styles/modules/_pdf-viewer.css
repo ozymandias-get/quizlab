@@ -1,7 +1,3 @@
-/* ============================================
-   PDF VIEWER CUSTOM STYLES
-   ============================================ */
-
 .pdf-viewer-container {
   background: transparent;
   border-radius: 1.5rem 1.5rem 0 0;
@@ -10,26 +6,75 @@
   height: 100%;
 }
 
-/* PDF içeriği - scroll pozisyonunu koru */
 .pdf-viewer-container > * {
   position: relative;
 }
 
-/* React PDF Viewer Dark Theme Overrides */
+body.panel-resizing .pdf-viewer-container .rpv-core__inner-page,
+body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer {
+  transition: none !important;
+}
+
+/*
+ * Refit sırasında siyah flaş yerine geçici kağıt tonu: yalnızca canvas (sayfa pikselleri).
+ * inner-pages / inner-page / canvas-layer / page-layer / doc kutusu sayfadan büyük olabiliyor —
+ * onlara beyaz vermek PDF dışına taşan beyaz blok üretir; sarmalayıcılar şeffaf kalmalı.
+ * Kağıt tonu yalnızca <canvas> elementine uygulanır (boyutu = sayfa boyutu, taşmaz).
+ */
+body.panel-resizing .pdf-viewer-container .rpv-core__inner-pages,
+body.panel-resizing .pdf-viewer-container .rpv-core__inner-page,
+body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer,
+body.panel-resizing .pdf-viewer-container .rpv-core__page-layer,
+body.panel-resizing .pdf-viewer-container .rpv-core__doc,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__inner-pages,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__inner-page,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__page-layer,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__doc {
+  background-color: transparent !important;
+}
+
+body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer canvas,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer canvas {
+  background-color: #fafaf9 !important;
+}
+
 .pdf-viewer-container .rpv-core__viewer {
   background-color: transparent !important;
   height: 100% !important;
 }
 
-/* PDF sayfası - yumuşak geçişler (will-change kaldırıldı: ekstra layer taşıma/sürüklerken hizayı bozabiliyor) */
 .pdf-viewer-container .rpv-core__inner-page {
   transition:
-    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Layer geçişleri */
-.pdf-viewer-container .rpv-core__canvas-layer,
+.pdf-viewer-container .rpv-core__canvas-layer {
+  transition:
+    width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdf-viewer-container .rpv-core__inner-page {
+    transition-duration: 0.05s;
+  }
+
+  .pdf-viewer-container .rpv-core__canvas-layer {
+    transition:
+      width 0.05s ease,
+      height 0.05s ease,
+      opacity 0.05s ease;
+  }
+
+  .pdf-viewer-container .rpv-core__text-layer,
+  .pdf-viewer-container .rpv-core__annotation-layer {
+    transition-duration: 0.05s;
+  }
+}
+
 .pdf-viewer-container .rpv-core__text-layer,
 .pdf-viewer-container .rpv-core__annotation-layer {
   transition: opacity 0.3s ease;
@@ -39,13 +84,36 @@
   display: block;
 }
 
-/* Yükleme spinner'ını ve arka planı güzelleştir */
+body.panel-resizing .pdf-viewer-container [data-pdf-page-loader],
+body.panel-resizing .pdf-viewer-container .rpv-core__loader {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/*
+ * Sayfa katmanı spinner’ı (.rpv-core__spinner) — zoom/ölçek değişince core PageLayer page=null iken
+ * gösterilir; renderLoader sadece ilk belge yüklemesindedir (react-pdf-viewer core.js ~2257).
+ */
+body.panel-resizing .pdf-viewer-container .rpv-core__spinner,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  animation: none !important;
+}
+
 .pdf-viewer-container .rpv-core__loader {
   background: transparent !important;
 }
 
 .pdf-viewer-container .rpv-core__inner-pages {
   background-color: transparent !important;
+  scroll-snap-type: y mandatory !important;
+}
+
+.pdf-viewer-container .rpv-core__inner-page {
+  scroll-snap-align: start !important;
 }
 
 .pdf-viewer-container .rpv-core__text-layer {
@@ -57,7 +125,6 @@
   padding: 0.22rem 0.28rem;
 }
 
-/* Premium Text Selection */
 .pdf-viewer-container .rpv-core__text-layer span::selection {
   background-color: var(--selection-color-vivid, rgba(234, 179, 8, 0.82)) !important;
   color: transparent !important;
@@ -68,7 +135,6 @@
     0 0 0 999px var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
 }
 
-/* Firefox için */
 .pdf-viewer-container .rpv-core__text-layer span::-moz-selection {
   background-color: var(--selection-color-vivid, rgba(234, 179, 8, 0.82)) !important;
   color: transparent !important;
@@ -78,7 +144,6 @@
     0 0 0 999px var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
 }
 
-/* Text layer span'ları için ek stil */
 .pdf-viewer-container .rpv-core__text-layer span {
   cursor: text;
   user-select: text !important;
@@ -108,7 +173,6 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
 }
 
-/* Toolbar button overrides */
 .pdf-viewer-container .rpv-core__minimal-button {
   color: #a8a29e !important;
 }
@@ -118,7 +182,6 @@
   color: #fafaf9 !important;
 }
 
-/* Scrollbar styling */
 .pdf-viewer-container ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -137,7 +200,6 @@
   background: rgba(120, 113, 108, 0.6);
 }
 
-/* Pan (hand) tool — drag to scroll zoomed page */
 .pdf-viewer-container.pdf-pan-mode-active {
   cursor: grab;
 }

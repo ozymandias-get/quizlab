@@ -71,5 +71,4 @@ export type CustomAiResult = {
   error?: string
 }
 
-// Re-export AiSelectorConfig from automation for convenience
 export type { AiSelectorConfig } from './automation'

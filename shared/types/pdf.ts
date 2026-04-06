@@ -12,3 +12,6 @@ export type PdfFile = {
   streamUrl?: string | null
   size?: number | null
 }
+
+/** Native PDF menu → renderer (@react-pdf-viewer zoom). */
+export type PdfViewerZoomAction = 'in' | 'out' | 'reset'

@@ -8,6 +8,7 @@
   type RefObject,
   type SetStateAction
 } from 'react'
+import { PANEL_RESIZING_BODY_CLASS } from '@shared/constants/panelResize'
 import { useLocalStorage } from './useLocalStorage'
 
 const DEFAULT_RESIZER_WIDTH = 48
@@ -56,6 +57,8 @@ export function usePanelResize({
       e.preventDefault()
 
       isResizingRef.current = true
+
+      document.body.classList.add(PANEL_RESIZING_BODY_CLASS)
 
       setIsResizing(true)
 
@@ -125,6 +128,8 @@ export function usePanelResize({
         resizerRef.current.classList.remove('dragging')
       }
 
+      document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
+
       setIsResizing(false)
 
       setLeftPanelWidth(pendingWidthRef.current)
@@ -140,6 +145,8 @@ export function usePanelResize({
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current)
       }
+
+      document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
     }
   }, [minLeft, minRight, setLeftPanelWidth, isReversed, resizerWidth])
 

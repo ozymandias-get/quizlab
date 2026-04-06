@@ -1,4 +1,4 @@
-﻿import type { DragEvent } from 'react'
+import type { DragEvent } from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
@@ -51,7 +51,7 @@ describe('useSharedDragDrop Hook', () => {
         preventDefault: vi.fn(),
         stopPropagation: vi.fn(),
         dataTransfer: { types: ['Files'] }
-      } as any)
+      } as unknown as DragEvent)
     })
     expect(result.current.isDragOver).toBe(true)
 

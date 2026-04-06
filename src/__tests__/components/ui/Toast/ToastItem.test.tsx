@@ -2,7 +2,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import ToastItem from '@ui/components/Toast/ToastItem'
 
-// Mock dependencies
 vi.mock('@app/providers', () => {
   const t = (key: string, params?: any) => key + (params ? JSON.stringify(params) : '')
   return {
@@ -84,25 +83,20 @@ describe('ToastItem', () => {
 
     const container = screen.getAllByTestId('motion-div')[0]
 
-    // Advance 500ms
     act(() => {
       vi.advanceTimersByTime(500)
     })
 
-    // Pause
     fireEvent.mouseEnter(container)
 
-    // Advance 1000ms (should exceed original duration if not paused)
     act(() => {
       vi.advanceTimersByTime(1000)
     })
 
     expect(mockOnRemove).not.toHaveBeenCalled()
 
-    // Resume
     fireEvent.mouseLeave(container)
 
-    // Advance remaining 500ms + buffer
     act(() => {
       vi.advanceTimersByTime(600)
     })

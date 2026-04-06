@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -114,7 +114,7 @@ describe('usePdfSelection', () => {
     const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
 
     await act(async () => {
-      await result.current.handlePdfDrop(mockFile as any)
+      await result.current.handlePdfDrop(mockFile as unknown as File)
     })
 
     expect(mockRegisterPdfPathMutate).toHaveBeenCalledWith('/dropped/path.pdf')
@@ -129,7 +129,7 @@ describe('usePdfSelection', () => {
     const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
 
     await act(async () => {
-      await result.current.handlePdfDrop(mockFile as any)
+      await result.current.handlePdfDrop(mockFile as unknown as File)
     })
 
     expect(mockShowError).toHaveBeenCalledWith('error_invalid_pdf')
@@ -154,6 +154,32 @@ describe('usePdfSelection', () => {
     await waitFor(() => {
       expect(mockRegisterPdfPathMutate).toHaveBeenCalledWith('/resume/path.pdf')
       expect(result.current.pdfFile).toEqual(mockResult)
+    })
+  })
+
+  it('flushes debounced reading progress before resume so the latest page is kept', async () => {
+    const pdfPath = '/resume/path.pdf'
+    localStorageMock.setItem(
+      STORAGE_KEYS.LAST_PDF_READING,
+      JSON.stringify([{ name: 'resumed.pdf', path: pdfPath, page: 1, totalPages: 100 }])
+    )
+
+    const mockResult = { name: 'resumed.pdf', path: pdfPath, streamUrl: 'blob:x' }
+    mockRegisterPdfPathMutate.mockResolvedValue(mockResult)
+
+    const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
+
+    act(() => {
+      result.current.updateReadingProgress({ path: pdfPath, page: 9 })
+    })
+
+    await act(async () => {
+      await result.current.resumeLastPdf()
+    })
+
+    expect(result.current.getRecentReadingInfo()[0]).toMatchObject({
+      path: pdfPath,
+      page: 9
     })
   })
 

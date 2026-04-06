@@ -14,11 +14,9 @@
  */
 
 export const STORAGE_KEYS = {
-  // Panel Ayarlar�
   /** Sol panelin geni�lik y�zdesi (number) */
   LEFT_PANEL_WIDTH: 'leftPanelWidth',
 
-  // AI Ayarlar�
   /** Son se�ilen AI platformu (string: 'chatgpt' vb.) */
   LAST_SELECTED_AI: 'lastSelectedAI',
 
@@ -37,7 +35,6 @@ export const STORAGE_KEYS = {
   /** Pinlenmi� AI sekmeleri (JSON array: [{ id, modelId, title? }]) */
   PINNED_AI_TABS: 'pinnedAiTabs',
 
-  // G�r�n�m Ayarlar�
   /** Sadece ikonlar� g�ster (boolean) */
   SHOW_ONLY_ICONS: 'showOnlyIcons',
 
@@ -50,7 +47,6 @@ export const STORAGE_KEYS = {
   /** Pencere d�zeni de�i�tirildi mi (boolean) - Sol ve Sa� panel yer de�i�imi */
   IS_LAYOUT_SWAPPED: 'isLayoutSwapped',
 
-  // Arkaplan Ayarlar�
   /** Arkaplan tipi ('solid' | 'animated') */
   BG_TYPE: 'bgType',
   /** Sabit renk kodu (hex) */
@@ -63,18 +59,15 @@ export const STORAGE_KEYS = {
   /** Metin se�me ve AI butonu rengi (hex) */
   SELECTION_COLOR: 'selectionColor',
 
-  // Dil Ayarlar�
   /** Uygulama dili (string: 'tr' | 'en' | 'zh' | 'es' | 'ar') */
   APP_LANGUAGE: 'appLanguage',
 
-  // Prompt Ayarlar�
   /** Kay�tl� Promptlar (JSON Array) */
   CUSTOM_PROMPTS: 'customPrompts',
 
   /** Se�ili Prompt ID (string | null) */
   SELECTED_PROMPT_ID: 'selectedPromptId',
 
-  // Son Okuma Durumu
   /** Son okunan PDF dosya bilgisi ve sayfa numaras� (JSON: {name, path, page, streamUrl}) */
   LAST_PDF_READING: 'lastPdfReading'
 } as const

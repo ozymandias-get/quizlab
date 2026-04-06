@@ -18,7 +18,6 @@ export default {
   meta: {
     displayName: 'Gemini',
     submitMode: 'mixed',
-    // www + /app, /gems, vb. (Gems farklı path kullanır)
     domainRegex: '^https://(www\\.)?gemini\\.google\\.com(/.*)?$'
   }
 }

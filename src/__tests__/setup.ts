@@ -1,11 +1,9 @@
-// Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
 }
 
-// Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
   constructor() {}
   observe() {
@@ -17,9 +15,8 @@ global.IntersectionObserver = class IntersectionObserver {
   disconnect() {
     return null
   }
-} as any
+} as unknown as typeof IntersectionObserver
 
-// Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
@@ -37,7 +34,6 @@ Object.defineProperty(window, 'matchMedia', {
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-// Mock Electron
 vi.mock('electron', () => ({
   ipcRenderer: {
     on: vi.fn(),
@@ -47,7 +43,6 @@ vi.mock('electron', () => ({
   }
 }))
 
-// Mock window.fs
 Object.defineProperty(window, 'fs', {
   value: {
     readFile: vi.fn(),

@@ -92,7 +92,6 @@ function PdfToolbar({
       animate={{ y: 0, opacity: 1 }}
       className="flex-shrink-0 w-full bg-gradient-to-t from-[#050505] via-[#050505] to-[#080808] border-t border-white/[0.06] px-6 py-3 relative z-50 flex items-center justify-between gap-4 select-none"
     >
-      {/* Left: Tools Island */}
       <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
         <ToolbarButton onClick={onSelectPdf} icon={Upload} tooltip={t('select_pdf')} />
 
@@ -128,7 +127,6 @@ function PdfToolbar({
         />
       </div>
 
-      {/* Center: File Info & Search */}
       <div className="flex-1 mx-2 min-w-0 flex justify-center items-center">
         <PdfSearchBar
           isOpen={isSearchOpen}
@@ -141,9 +139,7 @@ function PdfToolbar({
         />
       </div>
 
-      {/* Right: Navigation & Zoom Groups */}
       <div className="flex items-center gap-2">
-        {/* Navigation Island */}
         <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
           <Button
             variant="ghost"
@@ -176,7 +172,6 @@ function PdfToolbar({
           </Button>
         </div>
 
-        {/* Zoom Island */}
         <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
           <ZoomOut>
             {(props: RenderChildProps) => (

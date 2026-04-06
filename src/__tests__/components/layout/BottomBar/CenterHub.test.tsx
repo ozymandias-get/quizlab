@@ -2,7 +2,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { CenterHub } from '@ui/layout/BottomBar/CenterHub'
 
-// Mock dependencies
 vi.mock('framer-motion', () => ({
   motion: {
     div: ({
@@ -62,12 +61,10 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>
 }))
 
-// Mock Icons
 vi.mock('@ui/components/Icons', () => ({
   AiHubIcon: () => <svg data-testid="ai-hub-icon" />
 }))
 
-// Mock animations
 vi.mock('@ui/layout/BottomBar/animations', () => ({
   hubIconVariants: {},
   hubIconTransition: {},
@@ -189,7 +186,6 @@ describe('CenterHub', () => {
 
     expect(screen.getByText('5')).toBeInTheDocument()
 
-    // Hide when open
     rerender(
       <CenterHub
         isOpen={true}
@@ -204,7 +200,6 @@ describe('CenterHub', () => {
 
     expect(screen.queryByText('5')).not.toBeInTheDocument()
 
-    // Hide when count <= 1
     rerender(
       <CenterHub
         isOpen={false}

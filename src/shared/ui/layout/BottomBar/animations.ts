@@ -1,6 +1,5 @@
 import { Easing, Transition, Variants } from 'framer-motion'
 
-// Smooth spring easing
 const smoothEase: Easing = [0.16, 1, 0.3, 1]
 
 export const panelVariantsVertical: Variants = {
@@ -8,13 +7,11 @@ export const panelVariantsVertical: Variants = {
     opacity: 0,
     scale: 0.88,
     y: 12
-    // filter: 'blur(8px)',
   },
   visible: {
     opacity: 1,
     scale: 1,
     y: 0,
-    // filter: 'blur(0px)',
     transition: {
       duration: 0.4,
       ease: smoothEase,
@@ -26,7 +23,6 @@ export const panelVariantsVertical: Variants = {
     opacity: 0,
     scale: 0.92,
     y: 8,
-    // filter: 'blur(6px)',
     transition: {
       duration: 0.25,
       ease: [0.4, 0, 1, 1],
@@ -36,25 +32,21 @@ export const panelVariantsVertical: Variants = {
   }
 }
 
-// ─── Panel transition (fallback) ───────────────────────────────────
 export const panelTransition: Transition = {
   duration: 0.35,
   ease: smoothEase
 }
 
-// ─── Individual tool item variants (stagger children) ──────────────
 export const toolItemVariants: Variants = {
   hidden: {
     opacity: 0,
     scale: 0.7,
     y: 8
-    // filter: 'blur(4px)',
   },
   visible: {
     opacity: 1,
     scale: 1,
     y: 0,
-    // filter: 'blur(0px)',
     transition: {
       type: 'spring',
       stiffness: 420,
@@ -66,7 +58,6 @@ export const toolItemVariants: Variants = {
     opacity: 0,
     scale: 0.8,
     y: 4,
-    // filter: 'blur(3px)',
     transition: {
       duration: 0.15,
       ease: [0.4, 0, 1, 1]
@@ -74,7 +65,6 @@ export const toolItemVariants: Variants = {
   }
 }
 
-// ─── Hub glow pulse animation ──────────────────────────────────────
 export const hubGlowVariants: Variants = {
   idle: {
     opacity: [0.15, 0.35, 0.15],
@@ -95,7 +85,6 @@ export const hubGlowVariants: Variants = {
   }
 }
 
-// ─── Hub icon rotation (open/close) ────────────────────────────────
 export const hubIconVariants: Variants = {
   closed: {
     rotate: 0,
@@ -114,7 +103,6 @@ export const hubIconTransition: Transition = {
   mass: 0.7
 }
 
-// ─── Tool List Staggering Container ────────────────────────────────
 export const toolListVariants: Variants = {
   hidden: {},
   visible: {
@@ -131,7 +119,6 @@ export const toolListVariants: Variants = {
   }
 }
 
-// ─── WebGL-like Icon Styles ────────────────────────────────────────
 export const iconStyleVariants: Variants = {
   closed: {
     color: 'rgba(226, 232, 240, 0.72)',

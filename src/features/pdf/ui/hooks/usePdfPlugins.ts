@@ -1,24 +1,17 @@
-﻿import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation'
 import { zoomPlugin } from '@react-pdf-viewer/zoom'
 import { scrollModePlugin } from '@react-pdf-viewer/scroll-mode'
 import { searchPlugin } from '@react-pdf-viewer/search'
 
-/**
- * PDF Viewer plugin'lerini yöneten custom hook.
- * Plugin instance'larını oluşturur ve API'lerini döner.
- */
 type JumpToPage = (pageIndex: number) => void
 
 export function usePdfPlugins() {
-  // Plugin instance'larını oluştur.
-  // DİKKAT: Bu fonksiyonlar içlerinde hook kullandığı için (react-pdf-viewer v3+)
-  // useMemo icinde CAGRILAMAZLAR. Dogrudan top-level'da cagrilmalilar.
   const pageNavigationPluginInstance = pageNavigationPlugin()
   const { jumpToPage } = pageNavigationPluginInstance
 
   const zoomPluginInstance = zoomPlugin({
-    enableShortcuts: false
+    enableShortcuts: true
   })
   const { ZoomIn, ZoomOut, CurrentScale, zoomTo } = zoomPluginInstance
 
@@ -42,7 +35,6 @@ export function usePdfPlugins() {
     ]
   )
 
-  // jumpToPage ref'i - useCallback içinde kullanmak için
   const jumpToPageRef = useRef<JumpToPage>(jumpToPage)
   useEffect(() => {
     jumpToPageRef.current = jumpToPage

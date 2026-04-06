@@ -2,7 +2,6 @@
 import { render, screen } from '@testing-library/react'
 import AiSession from '@features/ai/ui/AiSession'
 
-// Mock Hooks
 vi.mock('@app/providers/AiContext', () => ({
   useAiRegistryMeta: () => ({
     isRegistryLoaded: true,
@@ -54,7 +53,6 @@ vi.mock('@shared/hooks/webview/useWebviewLifecycle', () => ({
   }
 }))
 
-// Mock Components
 vi.mock('@ui/components/AestheticLoader', () => ({
   default: () => <div data-testid="aesthetic-loader">Loading...</div>
 }))
@@ -75,9 +73,6 @@ describe('AiSession', () => {
     const { container } = render(
       <AiSession tab={defaultTab} isActive={true} isBarHovered={false} />
     )
-    // Check if webview tag is rendered
-    // Since JSDOM doesn't support webview, render will produce <webview> element but without shadow DOM.
-    // We can check by tag name.
     const webview = container.querySelector('webview')
     expect(webview).toBeInTheDocument()
     expect(webview).toHaveAttribute('src', 'https://chat.openai.com')
@@ -117,15 +112,6 @@ describe('AiSession', () => {
 
   it('renders mouse catcher when bar is hovered', () => {
     const { container } = render(<AiSession tab={defaultTab} isActive={true} isBarHovered={true} />)
-    // The mouse catcher is absolute inset-0 z-[5] bg-transparent
-    // Hard to distinguish from other divs exactly without test-id or class.
-    // But we know structure: wrapper -> flex-1 relative -> ... -> mouse catcher
-    // Let's assume implementation details or add data-testid if needed.
-    // Or check count of children.
-
-    // Let's look for the one with pointer-events-auto
-    // But 'pointer-events-auto' is class name.
-    // We can query selector.
     const catcher = container.querySelector('.pointer-events-auto')
     expect(catcher).toBeInTheDocument()
   })

@@ -26,9 +26,27 @@ export function registerPdfHandlers() {
         })
       )
       menu.append(new MenuItem({ type: 'separator' }))
-      menu.append(new MenuItem({ label: labels.zoom_in || 'Zoom In', role: 'zoomIn' }))
-      menu.append(new MenuItem({ label: labels.zoom_out || 'Zoom Out', role: 'zoomOut' }))
-      menu.append(new MenuItem({ label: labels.reset_zoom || 'Reset Zoom', role: 'resetZoom' }))
+      menu.append(
+        new MenuItem({
+          label: labels.zoom_in || 'Zoom In',
+          accelerator: 'CmdOrCtrl+Plus',
+          click: () => win.webContents.send(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
+        })
+      )
+      menu.append(
+        new MenuItem({
+          label: labels.zoom_out || 'Zoom Out',
+          accelerator: 'CmdOrCtrl+-',
+          click: () => win.webContents.send(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'out')
+        })
+      )
+      menu.append(
+        new MenuItem({
+          label: labels.reset_zoom || 'Reset Zoom',
+          accelerator: 'CmdOrCtrl+0',
+          click: () => win.webContents.send(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'reset')
+        })
+      )
       menu.append(new MenuItem({ type: 'separator' }))
       menu.append(new MenuItem({ label: labels.reload || 'Reload', role: 'reload' }))
       menu.popup({ window: win })

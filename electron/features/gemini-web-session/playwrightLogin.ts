@@ -137,8 +137,6 @@ export function hasCompletedGoogleLogin(
   const hasSessionCookies = computeGoogleAccountHash(cookies) !== null
   if (!hasSessionCookies) return false
 
-  // My Account and generic Google landings often contain "sign in" text
-  // in nav/help/footer chrome even for authenticated users.
   if (hostname !== 'accounts.google.com') return true
 
   return !snapshot.hasSignInText

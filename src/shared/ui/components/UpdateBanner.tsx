@@ -21,12 +21,10 @@ function UpdateBanner({ updateAvailable, updateInfo, isVisible, onClose, t }: Up
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] max-w-2xl w-full mx-4 animate-in slide-in-from-top-4 fade-in duration-500">
       <div className="bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-emerald-500/5 backdrop-blur-xl border border-emerald-500/30 rounded-2xl shadow-2xl shadow-emerald-900/20 p-4 flex items-start gap-4">
-        {/* Icon */}
         <div className="flex-shrink-0 w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
           <UpdateIcon className="w-6 h-6 text-emerald-400" />
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -43,7 +41,6 @@ function UpdateBanner({ updateAvailable, updateInfo, isVisible, onClose, t }: Up
               </p>
             </div>
 
-            {/* Close Button */}
             <button
               onClick={onClose}
               className="flex-shrink-0 p-1.5 rounded-lg hover:bg-stone-800/50 transition-colors text-stone-500 hover:text-stone-300"
@@ -52,7 +49,6 @@ function UpdateBanner({ updateAvailable, updateInfo, isVisible, onClose, t }: Up
             </button>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-2 mt-3">
             <button
               onClick={() => openExternal(APP_CONSTANTS.GITHUB_RELEASES_URL)}

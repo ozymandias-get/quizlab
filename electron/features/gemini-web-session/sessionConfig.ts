@@ -42,7 +42,7 @@ export const PLAYWRIGHT_HEADLESS_REFRESH_COOLDOWN_MS = parseEnvNumber(
 
 export const LOGIN_TIMEOUT_MS = (() => {
   const rawEnv = process.env.GEMINI_WEB_LOGIN_TIMEOUT_MS?.trim()
-  if (!rawEnv) return 7_200_000 // 120 min default
+  if (!rawEnv) return 7_200_000
   const raw = Number(rawEnv)
   if (!Number.isFinite(raw)) return 7_200_000
   if (raw === 0) return 0

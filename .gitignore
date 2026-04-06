@@ -6,7 +6,15 @@ dist/
 dist-electron/
 release/
 .cache/
+.vite/
 *.tsbuildinfo
+
+# Tests & coverage
+coverage/
+.nyc_output/
+*.lcov
+playwright-report/
+test-results/
 
 # OS files
 .DS_Store

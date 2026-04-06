@@ -1,4 +1,4 @@
-﻿import type { MouseEvent as ReactMouseEvent } from 'react'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { usePanelResize } from '@shared/hooks/usePanelResize'
@@ -86,7 +86,7 @@ describe('usePanelResize Hook', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1000, writable: true })
 
     act(() => {
-      result.current.handleMouseDown({ preventDefault: vi.fn() } as any)
+      result.current.handleMouseDown({ preventDefault: vi.fn() } as unknown as ReactMouseEvent)
     })
 
     const mouseMoveEvent = new MouseEvent('mousemove', { clientX: 100, bubbles: true })

@@ -47,10 +47,8 @@ function stateForFailure(
   failureCount: number,
   maxConsecutiveFailures: number
 ): GeminiWebSessionState {
-  // Challenge-like responses should block immediately.
   if (kind === 'challenge') return 'reauth_required'
 
-  // Network failures are treated as degraded (retry path), not forced reauth.
   if (kind === 'network') return 'degraded'
 
   if (failureCount >= maxConsecutiveFailures) return 'reauth_required'

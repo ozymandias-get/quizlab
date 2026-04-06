@@ -2,7 +2,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 
-// Mock Logger
 vi.mock('@shared/lib/logger', () => ({
   Logger: {
     error: vi.fn()

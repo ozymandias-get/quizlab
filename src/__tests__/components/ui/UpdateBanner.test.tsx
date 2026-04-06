@@ -1,27 +1,26 @@
-﻿import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import UpdateBanner from '@ui/components/UpdateBanner'
 
-// Mock icons
 vi.mock('@ui/components/Icons', () => ({
   UpdateIcon: () => <div data-testid="icon-update" />,
   CloseIcon: () => <div data-testid="icon-close" />,
   DownloadIcon: () => <div data-testid="icon-download" />
 }))
 
-// Mock useOpenExternal so UpdateBanner doesn't need full provider tree
 const mockOpenExternal = vi.fn()
 vi.mock('@platform/electron/api/useSystemApi', () => ({
   useOpenExternal: () => ({ mutate: mockOpenExternal, isPending: false })
 }))
 
-// Mock t function
 const t = (key: string) => key
 
 describe('UpdateBanner', () => {
   const defaultProps = {
     updateAvailable: true,
-    updateInfo: { version: '1.2.3', releaseName: 'Cool Update' } as any,
+    updateInfo: { version: '1.2.3', releaseName: 'Cool Update' } as unknown as React.ComponentProps<
+      typeof UpdateBanner
+    >['updateInfo'],
     isVisible: true,
     onClose: vi.fn(),
     t
@@ -64,7 +63,6 @@ describe('UpdateBanner', () => {
   it('handles download action', async () => {
     render(<UpdateBanner {...defaultProps} />)
     fireEvent.click(screen.getByText('download_from_github'))
-    // useOpenExternal's mutate is called with the releases URL
     expect(mockOpenExternal).toHaveBeenCalled()
   })
 })
