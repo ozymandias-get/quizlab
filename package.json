@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "AI-powered PDF reader with a split-screen workspace: read documents alongside ChatGPT, Gemini, Claude, and more via embedded webviews, automation, and local-first privacy.",
   "main": "dist/electron/electron/app/index.js",
   "repository": {
