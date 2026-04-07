@@ -2,6 +2,7 @@ import { memo, useCallback, useState } from 'react'
 import { InfoIcon } from '@ui/components/Icons'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToastActions } from '@app/providers/ToastContext'
+import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import AboutActionCard from './AboutActionCard'
 
 interface IssueReportCardProps {
@@ -12,9 +13,9 @@ interface IssueReportCardProps {
 async function copyToClipboard(text: string): Promise<void> {
   const errors: string[] = []
 
-  if (typeof window !== 'undefined' && window.electronAPI?.copyTextToClipboard) {
+  if (hasElectronApi()) {
     try {
-      const copied = await window.electronAPI.copyTextToClipboard(text)
+      const copied = await getElectronApi().copyTextToClipboard(text)
       if (copied) return
       errors.push('IPC returned false')
     } catch (error) {

@@ -2,9 +2,15 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*'
-      - '*.*.*'
+  pull_request:
+    branches:
+      - main
+      - master
   workflow_dispatch:
     inputs:
       version:
@@ -13,11 +19,73 @@ on:
         default: ''
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          node --version
+          npm --version
+          npm ci
+
+      - name: Repository hygiene guard
+        run: npm run ci:check-hygiene
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format Check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run Tests with Coverage
+        run: npm run test:coverage
+
+  smoke-build:
+    needs: quality
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Smoke build (PR)
+        run: npm run build
+
   build:
+    needs: quality
     runs-on: ${{ matrix.os }}
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 45
 
     strategy:
       fail-fast: false
@@ -44,28 +112,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libfuse2 rpm
 
-      - name: Install dependencies (Windows)
+      - name: Install dependencies
         if: matrix.platform == 'win'
         shell: pwsh
         run: |
           node --version
           npm --version
           npm ci
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "npm ci failed due to lock validation; retrying with npm install."
-            npm install
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
 
-      - name: Install dependencies (Linux / macOS)
+      - name: Install dependencies
         if: matrix.platform != 'win'
         run: |
           node --version
           npm --version
-          npm install --ignore-optional
-
-      - name: Run Tests with Coverage
-        run: npm run test:coverage
+          npm ci
 
       - name: Build and Package (Windows)
         if: matrix.platform == 'win'
@@ -102,7 +162,7 @@ jobs:
             release/*.exe
             release/*.yml
             release/latest.yml
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'linux'
@@ -114,12 +174,13 @@ jobs:
             release/*.deb
             release/*.yml
             release/latest-linux.yml
-          if-no-files-found: warn
+          if-no-files-found: error
 
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 15
 
     permissions:
       contents: write
@@ -151,8 +212,6 @@ jobs:
             **Windows:** `PdfAiReader-Setup-*.exe` — run the installer.
 
             **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
-
-            **macOS:** `*.dmg` — open and drag to Applications.
 
             ## Features
             - **Embedded AI webviews** (ChatGPT, Gemini, Claude, and more)

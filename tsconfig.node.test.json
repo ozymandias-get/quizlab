@@ -1,10 +1,20 @@
 {
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
+    "composite": true,
+    "incremental": true,
     "noEmit": true,
     "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "tsBuildInfoFile": "./.cache/tsconfig.node.test.tsbuildinfo"
   },
   "include": ["electron/**/*", "shared/**/*"],
-  "exclude": ["dist/**/*", "node_modules/**/*"]
+  "exclude": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "release/**/*",
+    "coverage/**/*",
+    ".cache/**/*",
+    "node_modules/**/*"
+  ]
 }

@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { APP_CONFIG } from '../../app/constants'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { geminiWebSessionManager } from './sessionManager'
 
 let handlersRegistered = false
@@ -15,33 +16,40 @@ export function registerGeminiWebSessionHandlers(): void {
     console.error('[GeminiWebSession] Initialization failed:', message)
   })
 
-  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_STATUS, async () => {
+  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_STATUS, async (event) => {
+    if (!requireTrustedIpcSender(event)) return null
     return geminiWebSessionManager.getStatus()
   })
 
-  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_OPEN_LOGIN, async () => {
+  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_OPEN_LOGIN, async (event) => {
+    if (!requireTrustedIpcSender(event)) return false
     return geminiWebSessionManager.openLogin()
   })
 
-  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_CHECK_NOW, async () => {
+  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_CHECK_NOW, async (event) => {
+    if (!requireTrustedIpcSender(event)) return false
     return geminiWebSessionManager.checkNow()
   })
 
-  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_REAUTH, async () => {
+  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_REAUTH, async (event) => {
+    if (!requireTrustedIpcSender(event)) return false
     return geminiWebSessionManager.reauthenticate()
   })
 
-  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE, async () => {
+  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE, async (event) => {
+    if (!requireTrustedIpcSender(event)) return false
     return geminiWebSessionManager.resetProfile()
   })
 
-  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, async (_event, enabled: boolean) => {
+  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, async (event, enabled: boolean) => {
+    if (!requireTrustedIpcSender(event)) return false
     return geminiWebSessionManager.setEnabled(Boolean(enabled))
   })
 
   ipcMain.handle(
     IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS,
-    async (_event, enabledAppIds: string[]) => {
+    async (event, enabledAppIds: string[]) => {
+      if (!requireTrustedIpcSender(event)) return false
       return geminiWebSessionManager.setEnabledApps(
         Array.isArray(enabledAppIds) ? enabledAppIds : []
       )

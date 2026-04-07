@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { usePdfTextSelection } from '@features/pdf/ui/hooks/usePdfTextSelection'
 
@@ -240,11 +240,9 @@ describe('usePdfTextSelection', () => {
       document.dispatchEvent(new Event('selectionchange'))
     })
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 35))
+    await waitFor(() => {
+      expect(onTextSelection).toHaveBeenCalledWith('', null)
     })
-
-    expect(onTextSelection).toHaveBeenCalledWith('', null)
     expect(container.classList.contains('pdf-selection-active')).toBe(false)
     container.remove()
   })

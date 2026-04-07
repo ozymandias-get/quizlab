@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAddCustomAi } from '@platform/electron/api/useAiApi'
+import { Logger } from '@shared/lib/logger'
 
 interface AddAiModelFormProps {
   showAddForm: boolean
@@ -32,15 +33,15 @@ export function AddAiModelForm({
         isSite: isSite
       })
 
-      if (result.success) {
+      if (result.ok) {
         setNewAiName('')
         setNewAiUrl('')
         setShowAddForm(false)
-        if (result.id) {
-          onSuccess(result.id)
-        }
+        onSuccess(result.data.id)
       }
-    } catch {}
+    } catch (error) {
+      Logger.error('[AddAiModelForm] addCustomAi failed', error)
+    }
   }
 
   return (

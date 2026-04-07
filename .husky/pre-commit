@@ -1,1 +1,2 @@
+npm run ci:check-hygiene
 npx lint-staged

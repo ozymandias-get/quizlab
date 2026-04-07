@@ -1,5 +1,6 @@
 ﻿import { app, ipcMain, shell, net } from 'electron'
 import { APP_CONFIG } from '../app/constants'
+import { requireTrustedIpcSender } from './ipcSecurity'
 
 type LatestRelease = {
   version: string
@@ -138,7 +139,8 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
 export function initUpdater() {
   const { IPC_CHANNELS } = APP_CONFIG
 
-  ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async () => {
+  ipcMain.handle(IPC_CHANNELS.CHECK_FOR_UPDATES, async (event) => {
+    if (!requireTrustedIpcSender(event)) return { available: false, error: 'Unauthorized' }
     if (isChecking) return { available: !!updateInfo, cached: true }
 
     const now = Date.now()
@@ -184,11 +186,16 @@ export function initUpdater() {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.OPEN_RELEASES, async () => {
+  ipcMain.handle(IPC_CHANNELS.OPEN_RELEASES, async (event) => {
+    if (!requireTrustedIpcSender(event)) return false
     const { OWNER, REPO } = APP_CONFIG.GITHUB
     const url = updateInfo?.htmlUrl || `https://github.com/${OWNER}/${REPO}/releases/latest`
     await shell.openExternal(url)
+    return true
   })
 
-  ipcMain.handle(IPC_CHANNELS.GET_APP_VERSION, () => app.getVersion())
+  ipcMain.handle(IPC_CHANNELS.GET_APP_VERSION, (event) => {
+    if (!requireTrustedIpcSender(event)) return null
+    return app.getVersion()
+  })
 }

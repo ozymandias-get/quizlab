@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import { Logger } from '@shared/lib/logger'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
+import { hasElectronApi, getElectronApi } from '@shared/lib/electronApi'
 
 const { SCREENSHOT_TYPES } = APP_CONSTANTS
 
@@ -105,9 +106,9 @@ export function usePdfScreenshot({
   }, [currentPage, findPageCanvas, queueImageForAi])
 
   useEffect(() => {
-    if (!window.electronAPI?.onTriggerScreenshot) return
+    if (!hasElectronApi()) return
 
-    const removeListener = window.electronAPI.onTriggerScreenshot((type) => {
+    const removeListener = getElectronApi().onTriggerScreenshot((type) => {
       if (type === SCREENSHOT_TYPES.CROP) {
         startScreenshot({
           page: currentPage,

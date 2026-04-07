@@ -1,7 +1,11 @@
 ﻿import { useQueryClient } from '@tanstack/react-query'
 import { useElectronQuery, useElectronMutation } from '../useElectron'
-import type { AiRegistryResponse, CustomAiInput, CustomAiResult } from '@shared-core/types'
-import type { AiSelectorConfig } from '@electron/features/ai/aiManager'
+import type {
+  AiRegistryResponse,
+  CustomAiInput,
+  CustomAiResult,
+  AiSelectorConfig
+} from '@shared-core/types'
 import { useToastActions } from '@app/providers/ToastContext'
 import { useLanguageStrings } from '@app/providers/LanguageContext'
 
@@ -101,14 +105,14 @@ export function useAddCustomAi() {
   return useElectronMutation<CustomAiResult, CustomAiInput>((api, data) => api.addCustomAi(data), {
     errorMessage: t('toast_custom_ai_failed'),
     onSuccess: (result) => {
-      if (result.success) {
+      if (result.ok) {
         queryClient.invalidateQueries({ queryKey: AI_REGISTRY_KEY })
         showSuccess(
-          t('toast_custom_ai_added', { name: result.platform?.name || 'AI' }),
+          t('toast_custom_ai_added', { name: result.data.platform?.name || 'AI' }),
           t('toast_ai_added_title')
         )
       } else {
-        showError(result.error || t('toast_custom_ai_failed'), t('toast_ai_error_title'))
+        showError(result.error.message || t('toast_custom_ai_failed'), t('toast_ai_error_title'))
       }
     }
   })

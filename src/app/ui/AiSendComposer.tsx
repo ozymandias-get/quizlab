@@ -101,20 +101,11 @@ function AiSendComposer({
   )
 
   const accentStrong = hexToRgba(selectionColor, 0.9)
-  const accentGlow = hexToRgba(selectionColor, 0.12)
 
   const panelShellBackground = `
-    linear-gradient(180deg, rgba(12,16,24,0.92) 0%, rgba(8,11,17,0.96) 50%, rgba(5,7,12,0.98) 100%),
-    radial-gradient(ellipse 70% 40% at 50% 0%, ${accentGlow}, transparent 60%)
-  `
-  const sectionSurface = `
-    linear-gradient(180deg, rgba(18,23,33,0.65), rgba(12,16,24,0.8))
-  `
-  const cardSurface = `
-    linear-gradient(180deg, rgba(22,28,40,0.7), rgba(14,18,28,0.85))
-  `
-  const footerSurface = `
-    linear-gradient(180deg, rgba(10,13,20,0.85), rgba(6,8,13,0.95))
+    radial-gradient(ellipse 100% 50% at 50% 0%, ${hexToRgba(selectionColor, 0.22)}, transparent 70%),
+    radial-gradient(ellipse 60% 30% at 80% 100%, rgba(255,255,255,0.03), transparent 60%),
+    linear-gradient(170deg, #12161e 0%, #080a10 100%)
   `
 
   const panelVariants: Variants = useMemo(
@@ -239,7 +230,7 @@ function AiSendComposer({
         >
           <div
             ref={panelRef}
-            className="relative isolate overflow-hidden rounded-2xl text-white shadow-[0_16px_48px_-8px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl"
+            className="relative isolate overflow-hidden rounded-2xl text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_48px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl backdrop-saturate-200"
             style={{ background: panelShellBackground }}
           >
             <AnimatePresence>
@@ -296,8 +287,11 @@ function AiSendComposer({
               ) : null}
             </AnimatePresence>
 
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
-            <div className="pointer-events-none absolute inset-[1px] rounded-[calc(1rem-1px)] border border-white/[0.05]" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.18] to-transparent" />
+            <div
+              className="pointer-events-none absolute inset-[1px] rounded-[calc(1rem-1px)] border border-white/[0.07]"
+              style={{ boxShadow: `inset 0 0 32px -12px ${hexToRgba(selectionColor, 0.08)}` }}
+            />
 
             <motion.div variants={sectionVariants}>
               <AiSendComposerHeader
@@ -351,10 +345,6 @@ function AiSendComposer({
                   noteText={noteText}
                   isSubmitting={isSubmitting}
                   accentStrong={accentStrong}
-                  sectionSurface={sectionSurface}
-                  cardSurface={cardSurface}
-                  footerSurface={footerSurface}
-                  textareaInsetShadow={hexToRgba(selectionColor, 0.04)}
                   onRemoveItem={onRemoveItem}
                   onNoteTextChange={setNoteText}
                   onSubmit={(options) => {

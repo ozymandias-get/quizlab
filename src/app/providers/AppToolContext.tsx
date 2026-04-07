@@ -8,15 +8,15 @@ import {
   useState,
   type ReactNode
 } from 'react'
+import { useElementPicker } from '@features/automation'
 import type { AiSendOptions } from '@features/ai'
-import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
+import { useScreenshot } from '@features/screenshot'
 import {
   useAiCoreWorkspaceActions,
   useAiMessagingActions,
   useAiSessionUiPrefsState,
   useAiWebview
 } from './AiContext'
-import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 import { useGeminiWebOpenLogin } from '@platform/electron/api/useGeminiWebSessionApi'
 import type { GeminiWebSessionActionResult } from '@shared-core/types'
 import { planBulkAiSend } from './ai/planBulkAiSend'

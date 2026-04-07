@@ -3,9 +3,11 @@ import { useLanguageStrings } from '@app/providers'
 import { useAiModelsCatalog, useAiCoreWorkspaceActions } from '@app/providers/AiContext'
 import { GridIcon } from '@ui/components/Icons'
 import { useDeleteCustomAi } from '@platform/electron/api/useAiApi'
+import { Logger } from '@shared/lib/logger'
 import { AddAiModelForm } from './models/AddAiModelForm'
 import { AiModelList } from './models/AiModelList'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
+import { isCustomModelPlatform } from './shared/aiPlatformFilters'
 
 const ModelsTab = memo(() => {
   const { enabledModels, aiSites, defaultAiModel } = useAiModelsCatalog()
@@ -37,10 +39,7 @@ const ModelsTab = memo(() => {
   const modelsList = useMemo(
     () =>
       Object.values(aiSites)
-        .filter(
-          (site) =>
-            !site.isSite && !['gemini', 'notebooklm', 'aistudio', 'youtube'].includes(site.id)
-        )
+        .filter(isCustomModelPlatform)
         .map((site) => site.id),
     [aiSites]
   )
@@ -65,7 +64,9 @@ const ModelsTab = memo(() => {
             setDefaultAiModel(newModels[0])
           }
         }
-      } catch {}
+      } catch (error) {
+        Logger.error('[ModelsTab] deleteCustomAi failed', error)
+      }
     },
     [t, enabledModels, setEnabledModels, deleteCustomAi, defaultAiModel, setDefaultAiModel]
   )

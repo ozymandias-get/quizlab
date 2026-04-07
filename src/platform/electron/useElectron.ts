@@ -7,13 +7,14 @@ import {
 } from '@tanstack/react-query'
 import { useToastActions } from '@app/providers/ToastContext'
 import { getElectronApi } from '@shared/lib/electronApi'
+import type { ElectronApi } from '@shared-core/types/ipcContract'
 
 /**
  * Base hook for Electron queries
  */
 export function useElectronQuery<TData = unknown>(options: {
   key: QueryKey
-  queryFn: (api: typeof window.electronAPI) => Promise<TData>
+  queryFn: (api: ElectronApi) => Promise<TData>
   options?: Omit<UseQueryOptions<TData, Error, TData, QueryKey>, 'queryKey' | 'queryFn'>
 }) {
   return useQuery({
@@ -27,7 +28,7 @@ export function useElectronQuery<TData = unknown>(options: {
  * Base hook for Electron mutations with centralized error handling
  */
 export function useElectronMutation<TData = unknown, TVariables = void>(
-  mutationFn: (api: typeof window.electronAPI, variables: TVariables) => Promise<TData>,
+  mutationFn: (api: ElectronApi, variables: TVariables) => Promise<TData>,
   options?: UseMutationOptions<TData, Error, TVariables> & {
     errorMessage?: string
     showErrorToast?: boolean

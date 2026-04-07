@@ -9,6 +9,7 @@ import type { Tab } from '@app/providers/AiContext'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
 import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
+import type { WebviewController } from '@shared-core/types/webview'
 import AiErrorView from './AiErrorView'
 
 interface AiSessionProps {
@@ -50,7 +51,7 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
   }, [])
 
   const registerInstance = useCallback(
-    (instance: any) => {
+    (instance: WebviewController | null) => {
       registerWebview(tab.id, instance)
     },
     [registerWebview, tab.id]

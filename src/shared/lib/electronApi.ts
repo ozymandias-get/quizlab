@@ -5,3 +5,7 @@ export const getElectronApi = () => {
 
   return window.electronAPI
 }
+
+export const hasElectronApi = () => {
+  return typeof window !== 'undefined' && Boolean(window.electronAPI)
+}

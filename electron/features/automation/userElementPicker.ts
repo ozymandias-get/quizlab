@@ -64,6 +64,14 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         }
 
         const mainDoc = document;
+        const safeRequestAnimationFrame =
+            (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+                ? window.requestAnimationFrame.bind(window)
+                : function(callback) { return setTimeout(callback, 16); };
+        const safeCancelAnimationFrame =
+            (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function')
+                ? window.cancelAnimationFrame.bind(window)
+                : function(id) { clearTimeout(id); };
         let styleEl = null;
 
         const infoBox = mainDoc.createElement('div');
@@ -262,9 +270,9 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         const onMouseMove = (e) => {
             if (labelBox.style.display !== 'block') return;
             
-            if (window._aiPickerRaf) cancelAnimationFrame(window._aiPickerRaf);
+            if (window._aiPickerRaf) safeCancelAnimationFrame(window._aiPickerRaf);
             
-            window._aiPickerRaf = requestAnimationFrame(() => {
+            window._aiPickerRaf = safeRequestAnimationFrame(() => {
                 positionLabelBox(e.clientX, e.clientY);
             });
         };
@@ -283,7 +291,7 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         
         const onMouseOut = () => {
             if (step === 'typing') return;
-            if (window._aiPickerRaf) cancelAnimationFrame(window._aiPickerRaf);
+            if (window._aiPickerRaf) safeCancelAnimationFrame(window._aiPickerRaf);
             labelBox.style.display = 'none';
         };
 
@@ -445,7 +453,7 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
         const scheduleIframeScan = () => {
             if (scanIframesScheduled) return;
             scanIframesScheduled = true;
-            iframeScanRafId = requestAnimationFrame(function() {
+            iframeScanRafId = safeRequestAnimationFrame(function() {
                 iframeScanRafId = null;
                 scanIframesScheduled = false;
                 scanIframesImmediate();
@@ -463,7 +471,7 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
             try {
                 try { iframeObserver.disconnect(); } catch (e) {}
                 if (iframeScanRafId != null) {
-                    try { cancelAnimationFrame(iframeScanRafId); } catch (e) {}
+                    try { safeCancelAnimationFrame(iframeScanRafId); } catch (e) {}
                     iframeScanRafId = null;
                     scanIframesScheduled = false;
                 }
@@ -488,7 +496,7 @@ export const generatePickerScript = (translations: TranslationMap = {}): string 
                     typingAdvanceTimer = null;
                 }
                 if (window._aiPickerRaf) {
-                    cancelAnimationFrame(window._aiPickerRaf);
+                    safeCancelAnimationFrame(window._aiPickerRaf);
                     delete window._aiPickerRaf;
                 }
                 if (lastHovered) {

@@ -4,14 +4,10 @@ import { app, ipcMain, shell, webContents, session, clipboard } from 'electron'
 import { APP_CONFIG } from '../app/constants'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
 import { getMainWindow } from '../app/windowManager'
+import { requireTrustedIpcSender } from './ipcSecurity'
 
 const SAFE_CACHE_DIRS = ['Cache', 'Code Cache', 'GPUCache'] as const
 let handlersRegistered = false
-
-function isTrustedMainWindowSender(sender: Electron.WebContents): boolean {
-  const mainWindow = getMainWindow()
-  return !!mainWindow && sender === mainWindow.webContents
-}
 
 function isMainWindowGuestContents(contents: Electron.WebContents): boolean {
   const mainWindow = getMainWindow()
@@ -59,12 +55,12 @@ export function registerSystemHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
 
   ipcMain.handle(IPC_CHANNELS.APP_QUIT, (event) => {
-    if (!isTrustedMainWindowSender(event.sender)) return
+    if (!requireTrustedIpcSender(event)) return
     app.quit()
   })
 
   ipcMain.handle(IPC_CHANNELS.OPEN_EXTERNAL, async (event, url: string) => {
-    if (!isTrustedMainWindowSender(event.sender)) return false
+    if (!requireTrustedIpcSender(event)) return false
     if (!url || typeof url !== 'string') return false
     try {
       const parsedUrl = new URL(url)
@@ -83,7 +79,7 @@ export function registerSystemHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.FORCE_PASTE, async (event, webContentsId: number) => {
     try {
-      if (!isTrustedMainWindowSender(event.sender)) {
+      if (!requireTrustedIpcSender(event)) {
         console.warn('[IPC] FORCE_PASTE blocked: sender is not main window')
         return false
       }
@@ -103,7 +99,7 @@ export function registerSystemHandlers() {
   })
 
   ipcMain.handle(IPC_CHANNELS.CLEAR_CACHE, async (event) => {
-    if (!isTrustedMainWindowSender(event.sender)) return false
+    if (!requireTrustedIpcSender(event)) return false
     try {
       const userDataPath = app.getPath('userData')
 
@@ -135,7 +131,7 @@ export function registerSystemHandlers() {
   })
 
   ipcMain.handle(IPC_CHANNELS.COPY_TEXT, (event, text: string) => {
-    if (!isTrustedMainWindowSender(event.sender)) return false
+    if (!requireTrustedIpcSender(event)) return false
     try {
       if (typeof text !== 'string' || text.length === 0) return false
       clipboard.writeText(text)

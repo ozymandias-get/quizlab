@@ -1,44 +1,103 @@
 import { ipcMain } from 'electron'
 import { APP_CONFIG } from '../../app/constants'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity'
+import type {
+  AutomationScriptAction,
+  AutomationScriptArgsByAction,
+  AutomationScriptInvokeArgs
+} from '@shared-core/types/ipcContract'
 import {
   generateFocusScript,
   generateClickSendScript,
   generateAutoSendScript,
   generateValidateSelectorsScript,
-  generateWaitForSubmitReadyScript,
-  type AutomationConfig
+  generateWaitForSubmitReadyScript
 } from './automationScripts'
 import { generatePickerScript } from './userElementPicker'
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isOptionalObject(value: unknown): value is Record<string, unknown> | undefined {
+  return value === undefined || isObject(value)
+}
+
+const automationHandlers: {
+  [A in AutomationScriptAction]: (...args: AutomationScriptArgsByAction[A]) => string | null
+} = {
+  generateFocusScript: (config) => generateFocusScript(config),
+  generateClickSendScript: (config) => generateClickSendScript(config),
+  generateAutoSendScript: (config, text, submit, append) =>
+    generateAutoSendScript(config, text, submit, append === true),
+  generateValidateSelectorsScript: (config) => generateValidateSelectorsScript(config),
+  generateWaitForSubmitReadyScript: (config, options) =>
+    generateWaitForSubmitReadyScript(config, options),
+  generatePickerScript: (translations) => generatePickerScript(translations)
+}
+
 export function registerAutomationHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
-  const readConfig = (value: unknown) => (value || {}) as AutomationConfig
-  const handlers = {
-    generateFocusScript: (args: unknown[]) => generateFocusScript(readConfig(args[0])),
-    generateClickSendScript: (args: unknown[]) => generateClickSendScript(readConfig(args[0])),
-    generateAutoSendScript: (args: unknown[]) => {
-      const text = typeof args[1] === 'string' ? args[1] : ''
-      const submit = typeof args[2] === 'boolean' ? args[2] : true
-      const append = args[3] === true
-      return generateAutoSendScript(readConfig(args[0]), text, submit, append)
-    },
-    generateValidateSelectorsScript: (args: unknown[]) =>
-      generateValidateSelectorsScript(readConfig(args[0])),
-    generateWaitForSubmitReadyScript: (args: unknown[]) =>
-      generateWaitForSubmitReadyScript(
-        readConfig(args[0]),
-        (args[1] || {}) as { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number }
-      ),
-    generatePickerScript: (args: unknown[]) =>
-      generatePickerScript((args[0] || {}) as Record<string, string>)
-  } satisfies Record<string, (args: unknown[]) => string | null>
 
   ipcMain.handle(
     IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
-    (_event, action: string, ...args: unknown[]) => {
+    (event, ...invokeArgs: AutomationScriptInvokeArgs) => {
       try {
-        const handler = handlers[action as keyof typeof handlers]
-        return handler ? handler(args) : null
+        if (!requireTrustedIpcSender(event)) return null
+        const [action] = invokeArgs
+        switch (action) {
+          case 'generateFocusScript': {
+            const [, config] = invokeArgs as Extract<
+              AutomationScriptInvokeArgs,
+              ['generateFocusScript', ...unknown[]]
+            >
+            if (!isObject(config)) return null
+            return automationHandlers.generateFocusScript(config)
+          }
+          case 'generateClickSendScript': {
+            const [, config] = invokeArgs as Extract<
+              AutomationScriptInvokeArgs,
+              ['generateClickSendScript', ...unknown[]]
+            >
+            if (!isObject(config)) return null
+            return automationHandlers.generateClickSendScript(config)
+          }
+          case 'generateAutoSendScript': {
+            const [, config, text, submit, append] = invokeArgs as Extract<
+              AutomationScriptInvokeArgs,
+              ['generateAutoSendScript', ...unknown[]]
+            >
+            if (!isObject(config) || typeof text !== 'string' || typeof submit !== 'boolean')
+              return null
+            return automationHandlers.generateAutoSendScript(config, text, submit, append)
+          }
+          case 'generateValidateSelectorsScript': {
+            const [, config] = invokeArgs as Extract<
+              AutomationScriptInvokeArgs,
+              ['generateValidateSelectorsScript', ...unknown[]]
+            >
+            if (!isObject(config)) return null
+            return automationHandlers.generateValidateSelectorsScript(config)
+          }
+          case 'generateWaitForSubmitReadyScript': {
+            const [, config, options] = invokeArgs as Extract<
+              AutomationScriptInvokeArgs,
+              ['generateWaitForSubmitReadyScript', ...unknown[]]
+            >
+            if (!isObject(config) || !isOptionalObject(options)) return null
+            return automationHandlers.generateWaitForSubmitReadyScript(config, options)
+          }
+          case 'generatePickerScript': {
+            const [, translations] = invokeArgs as Extract<
+              AutomationScriptInvokeArgs,
+              ['generatePickerScript', ...unknown[]]
+            >
+            if (!isObject(translations)) return null
+            return automationHandlers.generatePickerScript(translations)
+          }
+          default:
+            return null
+        }
       } catch (error) {
         console.error('[IPC] Automation script error:', error)
         return null

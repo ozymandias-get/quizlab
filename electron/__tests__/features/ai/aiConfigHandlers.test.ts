@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APP_CONFIG } from '../../../app/constants'
 
 const ipcHandle = vi.fn()
+const trustedSender = { id: 1 }
+const trustedEvent = { sender: trustedSender, type: 'invoke' }
 
 const managerState: {
   data: Record<string, unknown>
@@ -12,6 +14,10 @@ const managerState: {
 }
 
 vi.mock('electron', () => ({
+  app: {
+    isPackaged: false,
+    getPath: vi.fn(() => 'C:/tmp')
+  },
   ipcMain: {
     handle: ipcHandle
   }
@@ -19,6 +25,12 @@ vi.mock('electron', () => ({
 
 vi.mock('../../../core/helpers', () => ({
   getAiConfigPath: vi.fn(() => 'C:/tmp/ai_custom_selectors.json')
+}))
+
+vi.mock('../../../app/windowManager', () => ({
+  getMainWindow: vi.fn(() => ({
+    webContents: trustedSender
+  }))
 }))
 
 vi.mock('../../../core/ConfigManager', () => ({
@@ -72,8 +84,8 @@ describe('aiConfigHandlers', () => {
 
     const getConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AI_CONFIG)
 
-    const allConfigs = await getConfigHandler?.({}, undefined)
-    const aliasConfig = await getConfigHandler?.({}, 'app.openai.com')
+    const allConfigs = await getConfigHandler?.(trustedEvent, undefined)
+    const aliasConfig = await getConfigHandler?.(trustedEvent, 'app.openai.com')
 
     expect(managerState.writes).toHaveLength(1)
     expect(allConfigs).toMatchObject({
@@ -110,7 +122,7 @@ describe('aiConfigHandlers', () => {
     registerAiConfigHandlers()
 
     const getConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AI_CONFIG)
-    const allConfigs = await getConfigHandler?.({}, undefined)
+    const allConfigs = await getConfigHandler?.(trustedEvent, undefined)
 
     expect(allConfigs).toMatchObject({
       'claude.ai': {
@@ -150,10 +162,10 @@ describe('aiConfigHandlers', () => {
     const saveConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SAVE_AI_CONFIG)
     const getConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AI_CONFIG)
 
-    const saved = await saveConfigHandler?.({}, 'claude.ai', {
+    const saved = await saveConfigHandler?.(trustedEvent, 'claude.ai', {
       submitMode: 'click'
     })
-    const config = await getConfigHandler?.({}, 'claude.ai')
+    const config = await getConfigHandler?.(trustedEvent, 'claude.ai')
 
     expect(saved).toBe(true)
     expect(config).toMatchObject({
@@ -166,5 +178,15 @@ describe('aiConfigHandlers', () => {
       submitMode: 'click',
       health: 'ready'
     })
+  })
+
+  it('blocks untrusted senders via ipc security', async () => {
+    const { registerAiConfigHandlers } = await import('../../../features/ai/aiConfigHandlers.js')
+    registerAiConfigHandlers()
+
+    const getConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AI_CONFIG)
+    const result = await getConfigHandler?.({ sender: { id: 999 }, type: 'invoke' }, 'claude.ai')
+
+    expect(result).toBeNull()
   })
 })

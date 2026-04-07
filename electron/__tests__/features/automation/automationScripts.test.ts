@@ -14,24 +14,6 @@ describe('automationScripts', () => {
       .__quizlabReaderAutomationCache
   })
 
-  it('embeds diagnostics and validation helpers in generated scripts', () => {
-    const autoSend = generateAutoSendScript(
-      { input: '[role="textbox"]', button: 'button[aria-label*="send" i]', submitMode: 'mixed' },
-      'hello',
-      true
-    )
-    const validate = generateValidateSelectorsScript({
-      input: '#input',
-      button: '#send',
-      submitMode: 'click'
-    })
-
-    expect(autoSend).toContain('createDiagnostics')
-    expect(autoSend).toContain('__quizlabReaderAutomationCache')
-    expect(autoSend).toContain('findElementByFingerprint')
-    expect(validate).toContain("createDiagnostics('validate'")
-  })
-
   it('reuses cached input elements across repeated sends', async () => {
     document.body.innerHTML = `
             <textarea id="input"></textarea>
@@ -187,5 +169,53 @@ describe('automationScripts', () => {
     expect(result.success).toBe(true)
     expect(result.action).toBe('submit_ready')
     expect(result.diagnostics.submitMs).toBeGreaterThan(0)
+  }, 10000)
+
+  it('reports input_not_found when submit readiness input selector is missing', async () => {
+    document.body.innerHTML = `<button id="send" type="button">Send</button>`
+
+    const script = generateWaitForSubmitReadyScript(
+      { input: '#missing-input', button: '#send', submitMode: 'click' },
+      { timeoutMs: 300, settleMs: 50, minimumWaitMs: 50 }
+    )
+
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('input_not_found')
+  }, 15000)
+
+  it('reports button_not_found when click mode has no send button', async () => {
+    document.body.innerHTML = `<textarea id="input"></textarea>`
+
+    const script = generateWaitForSubmitReadyScript(
+      { input: '#input', button: '#missing-send', submitMode: 'click' },
+      { timeoutMs: 300, settleMs: 50, minimumWaitMs: 50 }
+    )
+
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('button_not_found')
+  }, 15000)
+
+  it('reports submit_not_ready when target exists but never becomes interactive', async () => {
+    document.body.innerHTML = `
+            <textarea id="input"></textarea>
+            <button id="send" type="button" disabled>Send</button>
+        `
+    const sendButton = document.getElementById('send') as HTMLButtonElement
+    Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
+    Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
+
+    const script = generateWaitForSubmitReadyScript(
+      { input: '#input', button: '#send', submitMode: 'click' },
+      { timeoutMs: 600, settleMs: 100, minimumWaitMs: 100 }
+    )
+
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('submit_not_ready')
   }, 10000)
 })

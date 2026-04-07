@@ -257,7 +257,13 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       const name = data?.name?.trim()
       const url = data?.url?.trim()
       if (!name || !url) {
-        return { success: false, error: 'invalid_input' }
+        return {
+          ok: false,
+          error: {
+            code: 'invalid_input',
+            message: 'invalid_input'
+          }
+        }
       }
 
       const id = `custom-${Date.now()}`
@@ -271,7 +277,13 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         submitMode: 'enter_key'
       }
       customPlatforms.set(id, platform)
-      return { success: true, id, platform }
+      return {
+        ok: true,
+        data: {
+          id,
+          platform
+        }
+      }
     },
     deleteCustomAi: async (id) => customPlatforms.delete(id),
 

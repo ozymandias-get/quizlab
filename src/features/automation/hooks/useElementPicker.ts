@@ -69,7 +69,9 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
               'if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;'
             )
           }
-        } catch {}
+        } catch (error) {
+          Logger.warn('[ElementPicker] cleanup script failed', error)
+        }
 
         if (typeof webview.getURL !== 'function') {
           showError('picker_webview_not_found')
@@ -154,7 +156,8 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
             setIsPickerActive(false)
           }
         }
-      } catch {
+      } catch (error) {
+        Logger.warn('[ElementPicker] polling failed', error)
       } finally {
         pollInFlightRef.current = false
       }

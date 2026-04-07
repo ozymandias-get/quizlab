@@ -1,8 +1,10 @@
 import { ipcMain } from 'electron'
+import crypto from 'crypto'
 import { APP_CONFIG } from '../../app/constants'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { getCustomPlatformsPath } from '../../core/helpers'
 import { ConfigManager } from '../../core/ConfigManager'
-import type { AiPlatform } from '@shared-core/types'
+import type { AiPlatform, CustomAiResult } from '@shared-core/types'
 import { geminiWebSessionManager } from '../gemini-web-session/sessionManager'
 import {
   AI_REGISTRY,
@@ -17,6 +19,22 @@ type CustomPlatformsMap = Record<string, AiPlatform>
 export type AddCustomAiInput = { name: string; url: string; isSite?: boolean }
 const MAX_CUSTOM_AI_NAME = 80
 const MAX_CUSTOM_AI_URL = 2048
+
+const makeInvalidInput = (message: string): CustomAiResult => ({
+  ok: false,
+  error: {
+    code: 'invalid_input',
+    message
+  }
+})
+
+const makeInternalError = (message: string): CustomAiResult => ({
+  ok: false,
+  error: {
+    code: 'internal_error',
+    message
+  }
+})
 
 const normalizeCustomAiName = (name: unknown): string | null => {
   if (typeof name !== 'string') return null
@@ -48,15 +66,16 @@ export function registerAiRegistryHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
   const manager = new ConfigManager<CustomPlatformsMap>(getCustomPlatformsPath())
 
-  ipcMain.handle(IPC_CHANNELS.ADD_CUSTOM_AI, async (_event, platformData: AddCustomAiInput) => {
+  ipcMain.handle(IPC_CHANNELS.ADD_CUSTOM_AI, async (event, platformData: AddCustomAiInput) => {
     try {
+      if (!requireTrustedIpcSender(event)) return makeInvalidInput('Untrusted sender')
       const name = normalizeCustomAiName(platformData?.name)
       const normalizedUrl = normalizeCustomAiUrl(platformData?.url)
       if (!name || !normalizedUrl) {
-        return { success: false, error: 'Invalid custom AI input' }
+        return makeInvalidInput('Invalid custom AI input')
       }
 
-      const id = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const id = `custom_${crypto.randomUUID()}`
 
       let newPlatform: AiPlatform = {
         id,
@@ -85,22 +104,30 @@ export function registerAiRegistryHandlers() {
       }
 
       await manager.setItem(id, newPlatform)
-      return { success: true, id, platform: newPlatform }
+      return {
+        ok: true,
+        data: {
+          id,
+          platform: newPlatform
+        }
+      } satisfies CustomAiResult
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.error('[IPC] Failed to add custom AI:', message)
-      return { success: false, error: message }
+      return makeInternalError(message)
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.DELETE_CUSTOM_AI, async (_event, id: string) => {
+  ipcMain.handle(IPC_CHANNELS.DELETE_CUSTOM_AI, async (event, id: string) => {
+    if (!requireTrustedIpcSender(event)) return false
     if (typeof id !== 'string' || !id.startsWith('custom_') || id.length > 128) {
       return false
     }
     return manager.deleteItem(id)
   })
 
-  ipcMain.handle(IPC_CHANNELS.GET_AI_REGISTRY, async (_event, forceRefresh: boolean = false) => {
+  ipcMain.handle(IPC_CHANNELS.GET_AI_REGISTRY, async (event, forceRefresh: boolean = false) => {
+    if (!requireTrustedIpcSender(event)) return null
     const customPlatforms = await manager.read(forceRefresh)
 
     const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
@@ -115,7 +142,8 @@ export function registerAiRegistryHandlers() {
           delete mergedRegistry[appId]
         }
       }
-    } catch {
+    } catch (error) {
+      console.warn('[IPC] Failed to resolve gemini session status for AI registry:', error)
       for (const appId of GOOGLE_WEB_SESSION_REGISTRY_IDS) {
         delete mergedRegistry[appId]
       }
@@ -131,7 +159,8 @@ export function registerAiRegistryHandlers() {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.IS_AUTH_DOMAIN, (_event, urlOrHostname: string) => {
+  ipcMain.handle(IPC_CHANNELS.IS_AUTH_DOMAIN, (event, urlOrHostname: string) => {
+    if (!requireTrustedIpcSender(event)) return false
     try {
       const parsed = new URL(urlOrHostname)
       return isAuthDomain(parsed.hostname)

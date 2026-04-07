@@ -12,10 +12,6 @@ interface AiSendComposerContentProps {
   noteText: string
   isSubmitting: boolean
   accentStrong: string
-  sectionSurface: string
-  cardSurface: string
-  footerSurface: string
-  textareaInsetShadow: string
   bodyHeight: number
   onRemoveItem: (id: string) => void
   onNoteTextChange: (value: string) => void
@@ -51,10 +47,6 @@ function AiSendComposerContent({
   noteText,
   isSubmitting,
   accentStrong,
-  sectionSurface,
-  cardSurface,
-  footerSurface,
-  textareaInsetShadow,
   bodyHeight,
   onRemoveItem,
   onNoteTextChange,
@@ -169,38 +161,41 @@ function AiSendComposerContent({
                           }
                     }
                     transition={itemTransition}
-                    className="group relative overflow-hidden rounded-xl border border-white/[0.05] transition-colors duration-200 hover:border-white/[0.09]"
+                    className="group relative overflow-hidden rounded-2xl border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
                     style={{
-                      background: cardSurface,
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'
+                      background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
+                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
                     }}
                   >
                     <div
-                      className="absolute inset-y-0 left-0 w-[2.5px] opacity-70"
-                      style={{ background: accentStrong }}
+                      className="absolute inset-y-0 left-0 w-[3px] rounded-l-2xl"
+                      style={{
+                        background: `linear-gradient(180deg, ${accentStrong}, transparent)`,
+                        boxShadow: `0 0 12px 1px ${accentStrong}`
+                      }}
                     />
                     <div className="flex items-start justify-between gap-2 px-3 pb-2 pt-2.5">
                       <span className="flex items-center gap-1.5 pl-1">
                         <Quote
-                          className="h-3 w-3 opacity-60"
-                          style={{ color: accentStrong }}
+                          className="h-3 w-3"
+                          style={{ color: accentStrong, filter: `drop-shadow(0 0 4px ${accentStrong})` }}
                           strokeWidth={2}
                         />
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
                           {t('ai_send_selection_item', { index: String(textOrdinal) })}
                         </span>
                       </span>
                       <button
                         type="button"
                         onClick={() => onRemoveItem(item.id)}
-                        className="rounded-full p-1 text-white/25 transition-colors duration-150 hover:bg-white/[0.06] hover:text-white/60"
+                        className="rounded-full p-1 text-white/30 transition-all duration-200 hover:bg-white/[0.08] hover:text-white/70 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
                         title={t('ai_send_remove_item')}
                       >
                         <X className="h-3 w-3" strokeWidth={2.2} />
                       </button>
                     </div>
                     <p
-                      className="overflow-hidden px-3 pb-2.5 pl-4 text-[12.5px] leading-[1.55] text-white/65"
+                      className="overflow-hidden px-3 pb-2.5 pl-4 text-[12.5px] leading-[1.55] text-white/70"
                       style={{
                         display: '-webkit-box',
                         WebkitBoxOrient: 'vertical',
@@ -235,32 +230,25 @@ function AiSendComposerContent({
                         }
                   }
                   transition={itemTransition}
-                  className="group relative overflow-hidden rounded-xl border border-white/[0.05] transition-colors duration-200 hover:border-white/[0.09]"
+                  className="group relative overflow-hidden rounded-2xl border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
                   style={{
-                    background: cardSurface,
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)'
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
                   }}
                 >
                   <div className="flex items-center gap-1.5 px-3 py-2">
                     <ImageIcon className="h-3 w-3 text-emerald-400/70" strokeWidth={2} />
-                    <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
+                    <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
                       {getImageLabel(item, imageIndex, t)}
                     </span>
                     <button
                       type="button"
                       onClick={() => onRemoveItem(item.id)}
-                      className="ml-auto rounded-full p-1 text-white/25 transition-colors duration-150 hover:bg-white/[0.06] hover:text-white/60"
+                      className="ml-auto rounded-full p-1 text-white/30 transition-all duration-200 hover:bg-white/[0.08] hover:text-white/70 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
                       title={t('ai_send_remove_item')}
                     >
                       <X className="h-3 w-3" strokeWidth={2.2} />
                     </button>
-                  </div>
-                  <div className="overflow-hidden border-t border-white/[0.04]">
-                    <img
-                      src={item.blobUrl ?? item.dataUrl}
-                      alt={t('ai_send_image_preview_alt')}
-                      className="h-[4.2rem] w-full object-cover transition-transform duration-400 ease-out group-hover:scale-[1.03]"
-                    />
                   </div>
                 </motion.div>
               )
@@ -270,10 +258,10 @@ function AiSendComposerContent({
 
         <section className="space-y-1.5">
           <div className="flex items-center justify-between gap-3">
-            <label className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/35">
+            <label className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
               {t('ai_send_note_label')}
             </label>
-            <span className="tabular-nums text-[10px] font-medium text-white/30">
+            <span className="tabular-nums text-[10px] font-medium text-white/35">
               {t('ai_send_item_count', { count: String(totalItems) })}
             </span>
           </div>
@@ -284,20 +272,21 @@ function AiSendComposerContent({
             onChange={(event) => onNoteTextChange(event.target.value)}
             onKeyDown={handleNoteKeyDown}
             placeholder={hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')}
-            className="w-full resize-none rounded-xl border border-white/[0.06] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none transition-all duration-200 placeholder:text-white/25 focus:border-white/[0.12] focus:ring-2 focus:ring-white/[0.04]"
+            className="w-full resize-none rounded-2xl border border-white/[0.15] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.25] focus:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_0_0_3px_rgba(255,255,255,0.08)]"
             style={{
               minHeight: 80,
-              background: sectionSurface,
-              boxShadow: `inset 0 1px 0 ${textareaInsetShadow}`
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)',
+              boxShadow: `inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)`
             }}
           />
         </section>
       </div>
 
       <div
-        className="relative flex items-center justify-end gap-2 border-t border-white/[0.05] px-5 py-3"
-        style={{ background: footerSurface }}
+        className="relative flex items-center justify-end gap-2 px-5 py-3 backdrop-blur-2xl backdrop-saturate-200"
+        style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)' }}
       >
+        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
         <AnimatePresence initial={false}>
           {hasNoteText ? (
             <motion.div
@@ -318,7 +307,8 @@ function AiSendComposerContent({
                 disabled={isSubmitting || totalItems === 0}
                 variant="outline"
                 aria-label={t('auto_send')}
-                className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.1] px-3.5 py-2 text-[12px] font-semibold text-emerald-100/90 transition-all duration-200 hover:bg-emerald-500/[0.18] active:scale-[0.97] disabled:opacity-35"
+                className="rounded-2xl border border-emerald-400/25 px-3.5 py-2 text-[12px] font-semibold text-emerald-100/90 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-emerald-400/35 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_28px_rgba(0,0,0,0.35)] active:scale-[0.97] disabled:opacity-35"
+                style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.16) 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.12) 100%)' }}
               >
                 <Zap className="mr-1.5 h-3 w-3 opacity-70" strokeWidth={2.2} aria-hidden />
                 {t('auto_send')}
@@ -336,9 +326,10 @@ function AiSendComposerContent({
           }}
           disabled={isSubmitting || totalItems === 0}
           aria-label={isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
-          className="group relative overflow-hidden rounded-xl border border-white/[0.08] px-4 py-2 text-[12.5px] font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgba(0,0,0,0.5)] active:scale-[0.97] disabled:opacity-35"
+          className="group relative overflow-hidden rounded-2xl border border-white/[0.18] px-4 py-2.5 text-[12.5px] font-semibold text-white backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_0_0_0.5px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.35)] transition-all duration-300 hover:border-white/[0.28] hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.25),0_12px_32px_rgba(0,0,0,0.5)] active:scale-[0.97] disabled:opacity-35 before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.08] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
           style={{
-            background: `linear-gradient(140deg, ${accentStrong}, rgba(255,255,255,0.12))`
+            background: `linear-gradient(140deg, ${accentStrong} 0%, rgba(255,255,255,0.14) 70%, rgba(255,255,255,0.06) 100%)`,
+            boxShadow: `inset 0 1px 2px rgba(255,255,255,0.2), inset 0 0 0 0.5px rgba(255,255,255,0.1), 0 0 20px -4px ${accentStrong}, 0 8px 24px rgba(0,0,0,0.35)`
           }}
         >
           <span className="relative z-10 flex items-center gap-1.5">

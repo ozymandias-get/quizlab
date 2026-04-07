@@ -4,9 +4,10 @@ import path from 'path'
 /**
  * Generic JSON configuration manager for persistence
  */
-export class ConfigManager<T extends Record<string, any>> {
+export class ConfigManager<T extends object> {
   private filePath: string
   private cache: T | null = null
+  private writeQueue: Promise<unknown> = Promise.resolve()
 
   constructor(filePath: string) {
     this.filePath = filePath
@@ -47,6 +48,27 @@ export class ConfigManager<T extends Record<string, any>> {
   }
 
   public async write(data: T): Promise<boolean> {
+    return this.enqueueWrite(() => this.writeDirect(data))
+  }
+
+  public async update(updater: (current: T) => T | Promise<T>): Promise<boolean> {
+    return this.enqueueWrite(async () => {
+      const current = await this.read(true)
+      const updated = await updater(current)
+      return this.writeDirect(updated)
+    })
+  }
+
+  private async enqueueWrite<R>(task: () => Promise<R>): Promise<R> {
+    const run = this.writeQueue.then(task, task)
+    this.writeQueue = run.then(
+      () => undefined,
+      () => undefined
+    )
+    return run
+  }
+
+  private async writeDirect(data: T): Promise<boolean> {
     try {
       await this.ensureFile()
       const content = JSON.stringify(data, null, 2)
@@ -63,12 +85,6 @@ export class ConfigManager<T extends Record<string, any>> {
     }
   }
 
-  public async update(updater: (current: T) => T | Promise<T>): Promise<boolean> {
-    const current = await this.read()
-    const updated = await updater(current)
-    return this.write(updated)
-  }
-
   public async getItem<K extends keyof T>(key: K): Promise<T[K] | undefined> {
     const data = await this.read()
     return data[key]
@@ -81,7 +97,7 @@ export class ConfigManager<T extends Record<string, any>> {
     }))
   }
 
-  public async deleteItem(key: string): Promise<boolean> {
+  public async deleteItem(key: keyof T): Promise<boolean> {
     return this.update((current) => {
       const next = { ...current }
       delete next[key]

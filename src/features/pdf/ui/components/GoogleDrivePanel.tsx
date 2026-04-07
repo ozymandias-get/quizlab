@@ -5,6 +5,7 @@ import {
 } from '@shared-core/constants/google-ai-web-apps'
 import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
+import type { WebviewElement } from '@shared-core/types/webview'
 
 interface GoogleDrivePanelProps {
   tabId: string
@@ -25,7 +26,7 @@ function GoogleDrivePanel({
   reloadLabel,
   isInteractionBlocked
 }: GoogleDrivePanelProps) {
-  const driveWebviewRef = useRef<any>(null)
+  const driveWebviewRef = useRef<WebviewElement | null>(null)
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full min-h-0">

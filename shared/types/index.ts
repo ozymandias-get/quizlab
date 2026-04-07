@@ -27,8 +27,12 @@ export type {
   InactivePlatforms,
   AiRegistryResponse,
   CustomAiInput,
+  CustomAiPayload,
   CustomAiResult
 } from './ai'
+
+export type { IpcError, IpcErrorCode, IpcResult } from './ipc'
+export type { ElectronApi, IpcInvokeRequestMap, IpcInvokeChannel } from './ipcContract'
 
 export type {
   PdfSelectOptions,

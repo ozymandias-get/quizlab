@@ -16,6 +16,7 @@ import {
   useGeminiWebCheckNow,
   useGeminiWebReauth,
   useGeminiWebResetProfile,
+  useGeminiWebSetEnabledApps,
   useGeminiWebSetEnabled,
   useGeminiWebStatus
 } from '@platform/electron/api/useGeminiWebSessionApi'
@@ -54,6 +55,7 @@ export function useGeminiWebSessionState() {
   const { mutateAsync: resetWebProfile, isPending: isResettingWebProfile } =
     useGeminiWebResetProfile()
   const { mutateAsync: setWebEnabled, isPending: isTogglingWebEnabled } = useGeminiWebSetEnabled()
+  const { mutateAsync: setWebEnabledApps } = useGeminiWebSetEnabledApps()
   const [enabledGoogleApps, setEnabledGoogleApps] = useLocalStorage<GoogleWebSessionAppId[]>(
     'gwsEnabledApps',
     DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS
@@ -136,7 +138,10 @@ export function useGeminiWebSessionState() {
         if (options?.refetch) {
           await refetchWebSession()
         }
-      } catch {}
+      } catch (error) {
+        const message = error instanceof Error ? error.message : t('error_unknown_error')
+        showError(message)
+      }
     },
     [refetchWebSession, showError]
   )
@@ -168,6 +173,7 @@ export function useGeminiWebSessionState() {
             ).map((app) => app.id)
 
         setEnabledGoogleApps(nextEnabledAppIds)
+        void runSessionAction(() => setWebEnabledApps(nextEnabledAppIds), { refetch: true })
       }
     }),
     [
@@ -177,6 +183,7 @@ export function useGeminiWebSessionState() {
       reauthWeb,
       resetWebProfile,
       setWebEnabled,
+      setWebEnabledApps,
       status.userEnabled,
       enabledAppIds,
       setEnabledGoogleApps

@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { APP_CONFIG } from '../../app/constants'
 import { getAiConfigPath } from '../../core/helpers'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { ConfigManager } from '../../core/ConfigManager'
 import {
   canonicalizeHostname,
@@ -465,7 +466,8 @@ export function registerAiConfigHandlers() {
 
   ipcMain.handle(
     IPC_CHANNELS.SAVE_AI_CONFIG,
-    async (_event, hostname: string, config: AiSelectorConfig) => {
+    async (event, hostname: string, config: AiSelectorConfig) => {
+      if (!requireTrustedIpcSender(event)) return false
       const normalizedHostname = normalizeHostname(hostname)
       const sanitizedConfig = sanitizeConfig(config)
       if (!normalizedHostname || !sanitizedConfig) return false
@@ -487,13 +489,15 @@ export function registerAiConfigHandlers() {
     }
   )
 
-  ipcMain.handle(IPC_CHANNELS.GET_AI_CONFIG, async (_event, hostname?: string) => {
+  ipcMain.handle(IPC_CHANNELS.GET_AI_CONFIG, async (event, hostname?: string) => {
+    if (!requireTrustedIpcSender(event)) return null
     const configMap = await readMigratedConfigMap(manager)
     if (!hostname) return configMap
     return resolveConfigForHostname(configMap, hostname)
   })
 
-  ipcMain.handle(IPC_CHANNELS.DELETE_AI_CONFIG, async (_event, hostname: string) => {
+  ipcMain.handle(IPC_CHANNELS.DELETE_AI_CONFIG, async (event, hostname: string) => {
+    if (!requireTrustedIpcSender(event)) return false
     const normalizedHostname = normalizeHostname(hostname)
     if (!normalizedHostname) return false
     return manager.deleteItem(normalizedHostname)

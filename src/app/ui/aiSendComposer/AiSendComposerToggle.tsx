@@ -71,20 +71,22 @@ function AiSendComposerToggle({
         onKeyDown={handleToggleKeyDown}
         whileTap={{ scale: 0.985 }}
         className={cn(
-          'group relative w-full overflow-hidden rounded-2xl border px-4 py-3 text-left outline-none transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-emerald-500/40',
-          autoSend ? 'border-emerald-400/20' : 'border-white/[0.06] hover:border-white/[0.1]'
+          'group relative w-full overflow-hidden rounded-2xl border px-4 py-3 text-left outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-emerald-500/40 before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.06] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out',
+          autoSend
+            ? 'border-emerald-400/30 hover:border-emerald-400/45'
+            : 'border-white/[0.12] hover:border-white/[0.2]'
         )}
         style={
           autoSend
             ? {
                 background:
-                  'linear-gradient(150deg, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0.04) 60%, rgba(255,255,255,0.01) 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(16,185,129,0.06)'
+                  'linear-gradient(150deg, rgba(16,185,129,0.18) 0%, rgba(16,185,129,0.06) 60%, rgba(255,255,255,0.03) 100%)',
+                boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.1), inset 0 0 0 0.5px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.3)'
               }
             : {
                 background:
-                  'linear-gradient(150deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)'
+                  'linear-gradient(150deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 100%)',
+                boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.1), inset 0 0 0 0.5px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.25)'
               }
         }
       >

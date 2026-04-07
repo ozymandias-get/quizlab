@@ -12,10 +12,13 @@ import type {
   CustomAiInput,
   CustomAiResult,
   GeminiWebSessionStatus,
-  GeminiWebSessionActionResult
+  GeminiWebSessionActionResult,
+  ScreenshotType
 } from '@shared-core/types'
+import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/ipcContract'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
-contextBridge.exposeInMainWorld('electronAPI', {
+const electronApi: ElectronApi = {
   getAiRegistry: (forceRefresh: boolean = false): Promise<AiRegistryResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_AI_REGISTRY, forceRefresh),
   isAuthDomain: (url: string): Promise<boolean> =>
@@ -47,7 +50,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ),
     generateWaitForSubmitReadyScript: (
       config: AutomationConfig,
-      options?: { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number }
+      options?: WaitForSubmitReadyOptions
     ): Promise<string | null> =>
       ipcRenderer.invoke(
         IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
@@ -59,7 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generatePickerScript', translations)
   },
 
-  selectPdf: (options: PdfSelectOptions): Promise<PdfSelection | null> =>
+  selectPdf: (options?: PdfSelectOptions): Promise<PdfSelection | null> =>
     ipcRenderer.invoke(IPC_CHANNELS.SELECT_PDF, options),
   getPdfStreamUrl: (filePath: string): Promise<PdfStreamResult | null> =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_PDF_STREAM_URL, filePath),
@@ -83,8 +86,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showPdfContextMenu: (labels: Partial<Record<string, string>>): void =>
     ipcRenderer.send(IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU, labels),
 
-  onTriggerScreenshot: (callback: (type: string) => void) => {
-    const handler = (_event: IpcRendererEvent, type: string) => callback(type)
+  onTriggerScreenshot: (callback: (type: ScreenshotType) => void) => {
+    const handler = (_event: IpcRendererEvent, type: ScreenshotType) => callback(type)
     ipcRenderer.on(IPC_CHANNELS.TRIGGER_SCREENSHOT, handler)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_SCREENSHOT, handler)
   },
@@ -129,7 +132,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE),
     setEnabled: (enabled: boolean): Promise<GeminiWebSessionActionResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, enabled),
-    setEnabledApps: (enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> =>
+    setEnabledApps: (
+      enabledAppIds: GoogleWebSessionAppId[]
+    ): Promise<GeminiWebSessionActionResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS, enabledAppIds)
   }
-})
+}
+
+contextBridge.exposeInMainWorld('electronAPI', electronApi)

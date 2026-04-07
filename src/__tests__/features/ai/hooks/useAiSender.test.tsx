@@ -553,6 +553,74 @@ describe('useAiSender', () => {
     expect(res.diagnostics?.timings.clipboardMs).toBeDefined()
   })
 
+  it('returns autosend_failed_draft_saved when click step fails in image autosend', async () => {
+    const imageDataUrl = 'data:image/png;base64,xxxx'
+    mockCopyImageToClipboard.mockResolvedValue(true)
+    mockGenerateFocusScript.mockResolvedValue('focus()')
+    mockGenerateAutoSendScript.mockResolvedValue('send()')
+    mockGenerateWaitForSubmitReadyScript.mockResolvedValue('waitReady()')
+    mockGenerateClickSendScript.mockResolvedValue('click()')
+    mockUsePrompts.mockReturnValue({ activePromptText: 'Describe this' })
+    mockWebview.executeJavaScript
+      .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
+      .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
+      .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
+      .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
+      .mockResolvedValueOnce({ success: false, error: 'autosend_failed_draft_saved' })
+
+    const { result } = renderHook(
+      () =>
+        useAiSender(
+          mockWebviewRef,
+          'gpt-4',
+          true,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
+      { wrapper: createWrapper() }
+    )
+
+    let res: any
+    await act(async () => {
+      res = await result.current.sendImageToAI(imageDataUrl)
+    })
+
+    expect(res.success).toBe(false)
+    expect(res.error).toBe('autosend_failed_draft_saved')
+  })
+
+  it('returns webview_destroyed when scheduled webview changes before execution', async () => {
+    const swappedRef = {
+      current: mockWebview
+    } as unknown as Parameters<typeof useAiSender>[0]
+
+    const { result } = renderHook(
+      () =>
+        useAiSender(
+          swappedRef,
+          'gpt-4',
+          false,
+          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
+          'tab-1'
+        ),
+      { wrapper: createWrapper() }
+    )
+
+    const anotherWebview = { ...mockWebview, executeJavaScript: vi.fn() }
+    mockGenerateAutoSendScript.mockImplementationOnce(async () => {
+      swappedRef.current = anotherWebview as any
+      return 'send()'
+    })
+
+    let res: any
+    await act(async () => {
+      res = await result.current.sendTextToAI('hello')
+    })
+
+    expect(res.success).toBe(false)
+    expect(res.error).toBe('webview_destroyed')
+  })
+
   it('returns diagnostics when no webview is available', async () => {
     const emptyRef = { current: null } as unknown as Parameters<typeof useAiSender>[0]
     const { result } = renderHook(

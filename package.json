@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "AI-powered PDF reader with a split-screen workspace: read documents alongside ChatGPT, Gemini, Claude, and more via embedded webviews, automation, and local-first privacy.",
   "main": "dist/electron/electron/app/index.js",
   "repository": {
@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "ci:check-hygiene": "node scripts/check-repo-hygiene.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
@@ -24,8 +25,8 @@
     "build:backend": "tsc -b tsconfig.node.json --force",
     "build:renderer:web": "vite build",
     "build:renderer:electron": "node scripts/build-electron.mjs",
-    "build:web": "tsc && npm run build:renderer:web",
-    "build": "tsc && npm run build:renderer:electron && npm run build:backend",
+    "build:web": "tsc -b && npm run build:renderer:web",
+    "build": "tsc -b && npm run build:renderer:electron && npm run build:backend",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",

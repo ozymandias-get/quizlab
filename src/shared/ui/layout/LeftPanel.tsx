@@ -9,9 +9,7 @@ import type { PdfTab, LastReadingInfo, ResumePdfResult, ReadingProgressUpdate } 
 import { Worker } from '@react-pdf-viewer/core'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
-const PdfViewer = lazy(() =>
-  import('@features/pdf').then((module) => ({ default: module.PdfViewer }))
-)
+const PdfViewer = lazy(() => import('@features/pdf/ui/components/PdfViewer'))
 
 interface LeftPanelProps {
   onPdfDrop: (file: File) => void

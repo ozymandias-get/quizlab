@@ -4,6 +4,7 @@ import { SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { PDF_ZOOM_MIN_SCALE, PDF_ZOOM_STEP } from '@features/pdf/constants/pdfZoom'
 
 import type { PdfViewerZoomAction } from '@shared-core/types'
+import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
 type ZoomTo = (scale: number | SpecialZoomLevel) => void
 
@@ -17,11 +18,11 @@ export function usePdfViewerZoomIpc(zoomTo: ZoomTo, scaleFactor: number, enabled
   scaleRef.current = scaleFactor
 
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined' || !window.electronAPI?.onPdfViewerZoom) {
+    if (!enabled || !hasElectronApi()) {
       return
     }
 
-    const remove = window.electronAPI.onPdfViewerZoom((action: PdfViewerZoomAction) => {
+    const remove = getElectronApi().onPdfViewerZoom((action: PdfViewerZoomAction) => {
       if (action === 'reset') {
         zoomToRef.current(SpecialZoomLevel.PageFit)
         return

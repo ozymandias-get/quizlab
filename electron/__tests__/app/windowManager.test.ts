@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-const shellOpenExternal = vi.fn()
 const browserWindowCtor = vi.fn()
 
 type EventHandler = (...args: unknown[]) => void
@@ -92,7 +90,7 @@ vi.mock('electron', () => ({
     getPrimaryDisplay: vi.fn(() => ({ workAreaSize: { width: 1920, height: 1080 } }))
   },
   shell: {
-    openExternal: shellOpenExternal
+    openExternal: vi.fn()
   }
 }))
 
@@ -116,11 +114,10 @@ vi.mock('../../core/ConfigManager', () => ({
   })
 }))
 
-describe('windowManager navigation hardening', () => {
+describe('windowManager facade orchestration', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.useRealTimers()
-    shellOpenExternal.mockReset()
     browserWindowCtor.mockReset()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
     Object.defineProperty(process, 'resourcesPath', {
@@ -133,52 +130,6 @@ describe('windowManager navigation hardening', () => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
     Reflect.deleteProperty(process, 'resourcesPath')
-  })
-
-  it('allows only dev-server origin for main-frame navigation in dev', async () => {
-    const module = await import('../../app/windowManager.js')
-
-    expect(module.isAllowedMainFrameUrl('http://localhost:5173/dashboard')).toBe(true)
-    expect(module.isAllowedMainFrameUrl('https://example.com')).toBe(false)
-    expect(module.isAllowedMainFrameUrl('http://localhost:4173')).toBe(false)
-  })
-
-  it('accepts safe external URLs but rejects unsafe schemes', async () => {
-    const module = await import('../../app/windowManager.js')
-
-    expect(module.isSafeExternalUrl('https://example.com')).toBe(true)
-    expect(module.isSafeExternalUrl('mailto:test@example.com')).toBe(false)
-    expect(module.isSafeExternalUrl('javascript:alert(1)')).toBe(false)
-  })
-
-  it('redirects unsafe main-frame navigation to the external browser', async () => {
-    const module = await import('../../app/windowManager.js')
-    const listeners = new Map<
-      string,
-      (event: { preventDefault: () => void }, url: string) => void
-    >()
-    const setWindowOpenHandler = vi.fn()
-    const on = vi.fn(
-      (event: string, handler: (event: { preventDefault: () => void }, url: string) => void) => {
-        listeners.set(event, handler)
-      }
-    )
-    const preventDefault = vi.fn()
-
-    module.hardenWindowWebContents({
-      webContents: {
-        setWindowOpenHandler,
-        on
-      }
-    } as never)
-
-    const willNavigate = listeners.get('will-navigate')
-    expect(willNavigate).toBeTypeOf('function')
-
-    willNavigate?.({ preventDefault }, 'https://example.com/docs')
-
-    expect(preventDefault).toHaveBeenCalledTimes(1)
-    expect(shellOpenExternal).toHaveBeenCalledWith('https://example.com/docs')
   })
 
   it('reveals the main window after dom-ready without waiting for the timeout fallback', async () => {

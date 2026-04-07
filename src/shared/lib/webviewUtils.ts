@@ -1,5 +1,6 @@
 ﻿import { Logger } from './logger'
 import type { WebviewController, WebviewInputEvent } from '@shared-core/types/webview'
+import { getElectronApi, hasElectronApi } from './electronApi'
 
 /** Tries `webview.paste()`, then Ctrl/Cmd+V via `sendInputEvent`. */
 export const safeWebviewPaste = (webview: WebviewController | null): boolean => {
@@ -21,7 +22,7 @@ export const safeWebviewPaste = (webview: WebviewController | null): boolean => 
   Logger.warn('[WebviewUtils] webview.paste() not found, attempting input simulation.')
 
   try {
-    const modifier = window.electronAPI?.platform === 'darwin' ? 'meta' : 'control'
+    const modifier = hasElectronApi() && getElectronApi().platform === 'darwin' ? 'meta' : 'control'
 
     if (typeof webview.sendInputEvent === 'function') {
       const inputDef: Omit<WebviewInputEvent, 'type'> = {

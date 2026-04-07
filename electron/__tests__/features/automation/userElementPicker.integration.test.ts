@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { waitFor } from '@testing-library/dom'
 import {
   generateAutoSendScript,
   generateValidateSelectorsScript
@@ -10,9 +11,25 @@ type PickerWindow = Window & {
   _aiPickerCleanup?: () => void
 }
 
+async function waitForPickerResult(): Promise<Record<string, unknown> | null> {
+  await waitFor(() => {
+    expect((window as PickerWindow)._aiPickerResult).toBeTruthy()
+  })
+  return (window as PickerWindow)._aiPickerResult ?? null
+}
+
 describe('userElementPicker integration', () => {
   beforeEach(() => {
     vi.useRealTimers()
+    const raf = (cb: FrameRequestCallback) => setTimeout(() => cb(0), 16) as unknown as number
+    ;(
+      globalThis as typeof globalThis & {
+        requestAnimationFrame?: (cb: FrameRequestCallback) => number
+      }
+    ).requestAnimationFrame ??= raf
+    ;(
+      window as typeof window & { requestAnimationFrame?: (cb: FrameRequestCallback) => number }
+    ).requestAnimationFrame ??= raf
     document.body.innerHTML = ''
     document.head.innerHTML = ''
   })
@@ -65,9 +82,7 @@ describe('userElementPicker integration', () => {
       new MouseEvent('click', { bubbles: true, composed: true, cancelable: true })
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 900))
-
-    const pickerResult = (window as PickerWindow)._aiPickerResult
+    const pickerResult = await waitForPickerResult()
     expect(pickerResult).toBeTruthy()
     expect(pickerResult).toEqual(
       expect.objectContaining({
@@ -98,6 +113,10 @@ describe('userElementPicker integration', () => {
     if (!iframeDoc || !iframeDoc.body) {
       throw new Error('Test environment must expose iframe.contentDocument')
     }
+    if (iframe.contentWindow) {
+      iframe.contentWindow.requestAnimationFrame ??= (cb: FrameRequestCallback) =>
+        setTimeout(() => cb(0), 16) as unknown as number
+    }
 
     const textbox = iframeDoc.createElement('div')
     textbox.setAttribute('role', 'textbox')
@@ -127,9 +146,7 @@ describe('userElementPicker integration', () => {
       new MouseEvent('click', { bubbles: true, composed: true, cancelable: true })
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 900))
-
-    const pickerResult = (window as PickerWindow)._aiPickerResult
+    const pickerResult = await waitForPickerResult()
     expect(pickerResult).toBeTruthy()
     expect(pickerResult).toEqual(
       expect.objectContaining({

@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { useAiSender } from '@features/ai/hooks/useAiSender'
-import type { AiSendOptions } from '@features/ai'
+import { useAiSender, type AiSendOptions } from '@features/ai'
 import type { AiPlatform } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
