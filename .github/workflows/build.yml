@@ -43,7 +43,7 @@ jobs:
         run: |
           node --version
           npm --version
-          npm ci
+          npm install
 
       - name: Repository hygiene guard
         run: npm run ci:check-hygiene
@@ -76,7 +76,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Smoke build (PR)
         run: npm run build
@@ -118,14 +118,14 @@ jobs:
         run: |
           node --version
           npm --version
-          npm ci
+          npm install
 
       - name: Install dependencies
         if: matrix.platform != 'win'
         run: |
           node --version
           npm --version
-          npm ci
+          npm install
 
       - name: Build and Package (Windows)
         if: matrix.platform == 'win'
