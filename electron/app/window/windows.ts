@@ -36,7 +36,7 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
     show: false,
     skipTaskbar: true,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
