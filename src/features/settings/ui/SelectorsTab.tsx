@@ -60,7 +60,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         onSubmitModeChange={controller.handleSubmitModeChange}
         onTestSelectors={controller.handleTestSelectors}
         onDeleteSelectors={controller.handleDeleteSelectors}
-        t={t}
+        t={t as any}
       />
     </div>
   )

@@ -162,9 +162,9 @@ describe('sessionOrchestrator', () => {
 
   async function createOrchestrator() {
     const { SessionOrchestrator } =
-      await import('../../../features/gemini-web-session/sessionOrchestrator')
+      await import('../../../features/gemini-web-session/sessionOrchestrator.js')
     return new SessionOrchestrator({
-      config: { checkIntervalMs: 1000, jitterPct: 0.2, maxConsecutiveFailures: 3 },
+      config: { checkIntervalMs: 1000, jitterPct: 0.2, maxConsecutiveFailures: 3 } as any,
       paths: {
         profileDir: 'C:/tmp/profile',
         playwrightProfileDir: 'C:/tmp/playwright',
@@ -208,8 +208,8 @@ describe('sessionOrchestrator', () => {
 
     const result = await orchestrator.checkNow()
     expect(result.success).toBe(true)
-    expect(result.status.state).toBe('degraded')
-    expect(result.status.reasonCode).toBe('unknown')
+    expect(result.status!.state).toBe('degraded')
+    expect(result.status!.reasonCode).toBe('unknown')
   })
 
   it('uses silent refresh path when configured and healthy', async () => {
@@ -228,7 +228,7 @@ describe('sessionOrchestrator', () => {
 
     const result = await orchestrator.checkNow()
     expect(mocked.runSilentRefreshProbe).toHaveBeenCalledTimes(1)
-    expect(result.status.state).toBe('authenticated')
+    expect(result.status!.state).toBe('authenticated')
   })
 
   it('uses playwright fallback after failed silent refresh', async () => {
@@ -253,7 +253,7 @@ describe('sessionOrchestrator', () => {
 
     const result = await orchestrator.checkNow()
     expect(mocked.runPlaywrightHeadlessRefreshProbe).toHaveBeenCalledTimes(1)
-    expect(result.status.state).toBe('authenticated')
+    expect(result.status!.state).toBe('authenticated')
   })
 
   it('returns early from ensureAuthenticated for authenticated status', async () => {

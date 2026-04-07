@@ -51,7 +51,7 @@ describe('window/sessions', () => {
       { id: 'window:1', name: 'Window 1' }
     ])
     showDisplayMediaPicker.mockResolvedValue(1)
-    const module = await import('../../../app/window/sessions')
+    const module = await import('../../../app/window/sessions.js')
 
     module.setupSessions(() => ({}) as never)
 
@@ -59,7 +59,7 @@ describe('window/sessions', () => {
     expect(setPermissionCheckHandler).toHaveBeenCalled()
     expect(setDisplayMediaRequestHandler).toHaveBeenCalled()
 
-    const displayHandler = setDisplayMediaRequestHandler.mock.calls.at(-1)?.[0]
+    const displayHandler = setDisplayMediaRequestHandler.mock.calls[setDisplayMediaRequestHandler.mock.calls.length - 1]?.[0]
     const callback = vi.fn()
     displayHandler({ videoRequested: true }, callback)
     await new Promise((resolve) => setTimeout(resolve, 0))

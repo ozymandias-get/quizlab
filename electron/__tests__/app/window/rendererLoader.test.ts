@@ -21,7 +21,7 @@ describe('window/rendererLoader', () => {
 
   it('loads dev server URL when reachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
-    const module = await import('../../../app/window/rendererLoader')
+    const module = await import('../../../app/window/rendererLoader.js')
     const window = {
       loadURL: vi.fn().mockResolvedValue(undefined),
       loadFile: vi.fn(),
@@ -29,7 +29,7 @@ describe('window/rendererLoader', () => {
       webContents: {
         openDevTools: vi.fn()
       }
-    } as never
+    } as any
 
     await module.loadRenderer(window)
 
@@ -44,7 +44,7 @@ describe('window/rendererLoader', () => {
       DEV_SERVER_POLL_MS: 500,
       shouldOpenDevToolsOnStart: false
     }))
-    const module = await import('../../../app/window/rendererLoader')
+    const module = await import('../../../app/window/rendererLoader.js')
     const window = {
       loadURL: vi.fn(),
       loadFile: vi.fn().mockRejectedValue(new Error('missing')),
@@ -52,7 +52,7 @@ describe('window/rendererLoader', () => {
       webContents: {
         openDevTools: vi.fn()
       }
-    } as never
+    } as any
 
     await module.loadRenderer(window)
 

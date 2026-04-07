@@ -19,7 +19,7 @@ describe('window/security', () => {
   })
 
   it('accepts only safe external urls', async () => {
-    const module = await import('../../../app/window/security')
+    const module = await import('../../../app/window/security.js')
 
     expect(module.isSafeExternalUrl('https://example.com')).toBe(true)
     expect(module.isSafeExternalUrl('http://localhost:5173')).toBe(true)
@@ -27,7 +27,7 @@ describe('window/security', () => {
   })
 
   it('opens external navigation and denies popup creation', async () => {
-    const module = await import('../../../app/window/security')
+    const module = await import('../../../app/window/security.js')
     const setWindowOpenHandler = vi.fn()
     const listeners = new Map<
       string,

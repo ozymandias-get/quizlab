@@ -36,7 +36,7 @@ describe('window/state', () => {
       y: 'bad',
       isMaximized: true
     })
-    const module = await import('../../../app/window/state')
+    const module = await import('../../../app/window/state.js')
 
     await expect(module.loadWindowState()).resolves.toEqual({
       width: 1400,
@@ -48,7 +48,7 @@ describe('window/state', () => {
   })
 
   it('saves current bounds and maximize state', async () => {
-    const module = await import('../../../app/window/state')
+    const module = await import('../../../app/window/state.js')
     writeMock.mockResolvedValue(true)
     const mockWindow = {
       isDestroyed: () => false,

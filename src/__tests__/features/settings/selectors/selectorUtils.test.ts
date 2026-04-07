@@ -25,7 +25,7 @@ describe('selectorUtils', () => {
   })
 
   it('finds selector entry by direct host and source hostname fallback', () => {
-    const ai = { url: 'https://chat.openai.com' }
+    const ai = { id: 'test1', name: 'Test AI', url: 'https://chat.openai.com' } as any
     const direct = findSelectorEntry(ai, {
       'chat.openai.com': { version: 2, input: '#prompt' }
     })

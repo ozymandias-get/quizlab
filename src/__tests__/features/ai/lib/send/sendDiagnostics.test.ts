@@ -33,8 +33,8 @@ describe('sendDiagnostics', () => {
 
     const result = attachDiagnostics({ success: true }, diagnostics, 0)
     expect(result.success).toBe(true)
-    expect(result.diagnostics?.pipeline).toBe('image')
-    expect(typeof result.diagnostics?.timings.totalMs).toBe('number')
-    expect((result.diagnostics?.timings.totalMs ?? 0) >= 0).toBe(true)
+    expect((result as any).diagnostics?.pipeline).toBe('image')
+    expect(typeof (result as any).diagnostics?.timings.totalMs).toBe('number')
+    expect(((result as any).diagnostics?.timings.totalMs ?? 0) >= 0).toBe(true)
   })
 })

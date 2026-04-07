@@ -23,7 +23,7 @@ describe('probeRunner', () => {
         timedOut: false
       })
       .mockResolvedValueOnce({
-        outcome: { kind: 'none', healthy: true },
+        outcome: { kind: 'none' as any, healthy: true },
         accountHash: 'acc',
         timedOut: false
       })

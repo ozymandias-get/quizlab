@@ -77,7 +77,7 @@ describe('windowReveal', () => {
     const destroySplashWindow = vi.fn()
     const { window, windowEmitter, webContentsEmitter } = createWindowMock()
     configureWindowReveal({
-      window,
+      window: window as any,
       isDev: true,
       devServerUrl: 'http://localhost:5173',
       revealTimeoutMs: 1000,
@@ -100,7 +100,7 @@ describe('windowReveal', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { window, webContentsEmitter } = createWindowMock()
     configureWindowReveal({
-      window,
+      window: window as any,
       isDev: false,
       devServerUrl: 'http://localhost:5173',
       revealTimeoutMs: 1000,
