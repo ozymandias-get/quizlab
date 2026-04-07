@@ -207,13 +207,19 @@ jobs:
           prerelease: false
           generate_release_notes: true
           body: |
+            ## 🎉 General Enhancements & Updates (v3.0.3)
+            - **Stability & Performance:** Upgraded and fortified CI/CD pipelines, enforcing strict type-checking and maintaining hygiene across test suites.
+            - **Native Integration:** Improved Electron environment loaders and automated platform-native background dependencies gracefully.
+            - **Codebase Health:** Cleaned obsolete APIs and fixed UI edge case formatting rendering constraints.
+            - **Security & Scope:** Hardened component imports preventing private sub-module exposures.
+
             ## Download
 
-            **Windows:** `PdfAiReader-Setup-*.exe` — run the installer.
+            **Windows:** `QuizlabReader-Setup-*.exe` — run the installer.
 
             **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
 
-            ## Features
+            ## Core Features
             - **Embedded AI webviews** (ChatGPT, Gemini, Claude, and more)
             - **Magic Selector** for Universal AI Chat
             - **Multi-language support (EN, TR)**
