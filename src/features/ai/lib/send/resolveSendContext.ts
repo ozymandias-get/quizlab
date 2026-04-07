@@ -24,7 +24,9 @@ interface ResolveSendContextParams {
   configCache: ConfigCache
 }
 
-export function isSendError(result: ResolvedSendContext | SendTextResult): result is SendTextResult {
+export function isSendError(
+  result: ResolvedSendContext | SendTextResult
+): result is SendTextResult {
   return 'success' in result
 }
 

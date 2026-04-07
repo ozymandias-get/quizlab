@@ -28,7 +28,9 @@ export default function SelectorActionBar({
     <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
-        disabled={!hasSelectors || !canTestOnCurrentTab || isTesting || validation.status === 'loading'}
+        disabled={
+          !hasSelectors || !canTestOnCurrentTab || isTesting || validation.status === 'loading'
+        }
         onClick={onTestSelectors}
         className="
           flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2
@@ -41,7 +43,9 @@ export default function SelectorActionBar({
         ) : (
           <RefreshIcon className="h-3.5 w-3.5" />
         )}
-        <span className="text-[10px] font-bold uppercase tracking-wider">{t('selectors_test_current_tab')}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider">
+          {t('selectors_test_current_tab')}
+        </span>
       </button>
 
       {selectorEntry && (

@@ -43,7 +43,9 @@ describe('profile lock', () => {
   beforeEach(() => {
     fsMocks.writeFile.mockReset().mockResolvedValue(undefined)
     fsMocks.close.mockReset().mockResolvedValue(undefined)
-    fsMocks.open.mockReset().mockResolvedValue({ writeFile: fsMocks.writeFile, close: fsMocks.close })
+    fsMocks.open
+      .mockReset()
+      .mockResolvedValue({ writeFile: fsMocks.writeFile, close: fsMocks.close })
     fsMocks.readFile.mockReset().mockResolvedValue(JSON.stringify({ pid: 999999 }))
     fsMocks.rm.mockReset().mockResolvedValue(undefined)
   })

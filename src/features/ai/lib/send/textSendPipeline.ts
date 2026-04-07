@@ -90,7 +90,11 @@ export async function executeTextSendPipeline({
   }
 
   if (!canUseWebview(webview, scheduledWebview)) {
-    return attachDiagnostics({ success: false, error: 'webview_destroyed' }, diagnostics, requestStartedAt)
+    return attachDiagnostics(
+      { success: false, error: 'webview_destroyed' },
+      diagnostics,
+      requestStartedAt
+    )
   }
 
   const executeStartedAt = nowMs()

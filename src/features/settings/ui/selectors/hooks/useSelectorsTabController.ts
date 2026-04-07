@@ -139,7 +139,9 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
       }))
 
       try {
-        const script = await generateValidateSelectorsScript(toAutomationConfig(selectorEntry.config))
+        const script = await generateValidateSelectorsScript(
+          toAutomationConfig(selectorEntry.config)
+        )
         if (!script) {
           throw new Error('validate_script_missing')
         }

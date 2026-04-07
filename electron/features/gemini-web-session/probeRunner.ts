@@ -60,7 +60,10 @@ export class ProbeRunner {
         return result
       }
 
-      if (!bestFailure || probeSeverity(result.outcome.kind) > probeSeverity(bestFailure.outcome.kind)) {
+      if (
+        !bestFailure ||
+        probeSeverity(result.outcome.kind) > probeSeverity(bestFailure.outcome.kind)
+      ) {
         bestFailure = result
       }
     }
@@ -226,7 +229,10 @@ export class ProbeRunner {
 
       void win.loadURL(initialUrl).catch(async (error: unknown) => {
         hasNetworkError = true
-        console.error('[GeminiWebSession] Probe load failed:', toErrorMessage(error, 'unknown_error'))
+        console.error(
+          '[GeminiWebSession] Probe load failed:',
+          toErrorMessage(error, 'unknown_error')
+        )
         const result = await classifyCurrent()
         await safeResolve(result)
       })

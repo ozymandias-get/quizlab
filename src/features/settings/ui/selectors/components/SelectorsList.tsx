@@ -16,11 +16,7 @@ interface SelectorsListProps {
   onToggleExpanded: (id: string) => void
   onOpenRepick: (aiKey: string, cardId: string) => void
   onSubmitModeChange: (hostname: string, mode: SubmitMode) => void
-  onTestSelectors: (
-    aiKey: string,
-    selectorEntry: SelectorEntry | null,
-    cardId: string
-  ) => void
+  onTestSelectors: (aiKey: string, selectorEntry: SelectorEntry | null, cardId: string) => void
   onDeleteSelectors: (hostname: string) => void
   t: TranslateFn
 }

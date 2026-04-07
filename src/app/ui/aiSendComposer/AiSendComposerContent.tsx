@@ -163,8 +163,10 @@ function AiSendComposerContent({
                     transition={itemTransition}
                     className="group relative overflow-hidden rounded-2xl border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
-                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
+                      background:
+                        'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
+                      boxShadow:
+                        'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
                     }}
                   >
                     <div
@@ -178,7 +180,10 @@ function AiSendComposerContent({
                       <span className="flex items-center gap-1.5 pl-1">
                         <Quote
                           className="h-3 w-3"
-                          style={{ color: accentStrong, filter: `drop-shadow(0 0 4px ${accentStrong})` }}
+                          style={{
+                            color: accentStrong,
+                            filter: `drop-shadow(0 0 4px ${accentStrong})`
+                          }}
                           strokeWidth={2}
                         />
                         <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
@@ -232,8 +237,10 @@ function AiSendComposerContent({
                   transition={itemTransition}
                   className="group relative overflow-hidden rounded-2xl border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
-                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
+                    background:
+                      'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
+                    boxShadow:
+                      'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
                   }}
                 >
                   <div className="flex items-center gap-1.5 px-3 py-2">
@@ -275,7 +282,8 @@ function AiSendComposerContent({
             className="w-full resize-none rounded-2xl border border-white/[0.15] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.25] focus:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_0_0_3px_rgba(255,255,255,0.08)]"
             style={{
               minHeight: 80,
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)',
+              background:
+                'linear-gradient(145deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)',
               boxShadow: `inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)`
             }}
           />
@@ -284,7 +292,10 @@ function AiSendComposerContent({
 
       <div
         className="relative flex items-center justify-end gap-2 px-5 py-3 backdrop-blur-2xl backdrop-saturate-200"
-        style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)' }}
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)'
+        }}
       >
         <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
         <AnimatePresence initial={false}>
@@ -308,7 +319,10 @@ function AiSendComposerContent({
                 variant="outline"
                 aria-label={t('auto_send')}
                 className="rounded-2xl border border-emerald-400/25 px-3.5 py-2 text-[12px] font-semibold text-emerald-100/90 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-emerald-400/35 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_28px_rgba(0,0,0,0.35)] active:scale-[0.97] disabled:opacity-35"
-                style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.16) 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.12) 100%)' }}
+                style={{
+                  background:
+                    'linear-gradient(135deg, rgba(16,185,129,0.16) 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.12) 100%)'
+                }}
               >
                 <Zap className="mr-1.5 h-3 w-3 opacity-70" strokeWidth={2.2} aria-hidden />
                 {t('auto_send')}

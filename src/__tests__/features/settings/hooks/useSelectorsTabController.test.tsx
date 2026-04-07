@@ -66,7 +66,10 @@ describe('useSelectorsTabController', () => {
   })
 
   it('aborts delete when user does not confirm', async () => {
-    vi.stubGlobal('confirm', vi.fn(() => false))
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => false)
+    )
     const { result } = renderHook(() => useSelectorsTabController({}))
 
     await act(async () => {
@@ -77,7 +80,10 @@ describe('useSelectorsTabController', () => {
   })
 
   it('logs delete errors without throwing', async () => {
-    vi.stubGlobal('confirm', vi.fn(() => true))
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true)
+    )
     mocked.deleteConfig.mockRejectedValueOnce(new Error('delete-failed'))
     const { result } = renderHook(() => useSelectorsTabController({}))
 
@@ -85,10 +91,7 @@ describe('useSelectorsTabController', () => {
       await result.current.handleDeleteSelectors('site.com')
     })
 
-    expect(mocked.loggerError).toHaveBeenCalledWith(
-      'Failed to delete selectors',
-      expect.any(Error)
-    )
+    expect(mocked.loggerError).toHaveBeenCalledWith('Failed to delete selectors', expect.any(Error))
   })
 
   it('normalizes invalid submit mode to mixed', async () => {
@@ -137,7 +140,10 @@ describe('useSelectorsTabController', () => {
     await act(async () => {
       await result.current.handleTestSelectors(
         'gemini',
-        { hostname: 'site.com', config: { input: '#i', button: '#b', submitMode: 'mixed' } } as never,
+        {
+          hostname: 'site.com',
+          config: { input: '#i', button: '#b', submitMode: 'mixed' }
+        } as never,
         'card-b'
       )
     })
@@ -159,7 +165,10 @@ describe('useSelectorsTabController', () => {
     await act(async () => {
       await result.current.handleTestSelectors(
         'gemini',
-        { hostname: 'site.com', config: { input: '#i', button: '#b', submitMode: 'mixed' } } as never,
+        {
+          hostname: 'site.com',
+          config: { input: '#i', button: '#b', submitMode: 'mixed' }
+        } as never,
         'card-c'
       )
     })
@@ -182,7 +191,10 @@ describe('useSelectorsTabController', () => {
     await act(async () => {
       await result.current.handleTestSelectors(
         'gemini',
-        { hostname: 'site.com', config: { input: '#i', button: '#b', submitMode: 'mixed' } } as never,
+        {
+          hostname: 'site.com',
+          config: { input: '#i', button: '#b', submitMode: 'mixed' }
+        } as never,
         'card-d'
       )
     })
@@ -197,7 +209,10 @@ describe('useSelectorsTabController', () => {
     await act(async () => {
       await result.current.handleTestSelectors(
         'gemini',
-        { hostname: 'site.com', config: { input: '#i', button: '#b', submitMode: 'mixed' } } as never,
+        {
+          hostname: 'site.com',
+          config: { input: '#i', button: '#b', submitMode: 'mixed' }
+        } as never,
         'card-e'
       )
     })

@@ -38,7 +38,9 @@ export default function SelectorCardDetails({
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
               {t('selectors_saved_host_label')}
             </p>
-            <p className="mt-1 text-sm text-white/80">{savedHost || t('selectors_host_unavailable')}</p>
+            <p className="mt-1 text-sm text-white/80">
+              {savedHost || t('selectors_host_unavailable')}
+            </p>
           </div>
           {existingTab && (
             <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
@@ -54,7 +56,9 @@ export default function SelectorCardDetails({
         )}
 
         {!canTestOnCurrentTab && (
-          <p className="text-xs leading-relaxed text-white/40">{t('selectors_test_requires_active_tab')}</p>
+          <p className="text-xs leading-relaxed text-white/40">
+            {t('selectors_test_requires_active_tab')}
+          </p>
         )}
       </div>
 
@@ -71,7 +75,9 @@ export default function SelectorCardDetails({
                 type="button"
                 disabled={!hasSelectors || isSaving}
                 aria-pressed={isActive}
-                onClick={() => selectorEntry && onSubmitModeChange(selectorEntry.hostname, option.value)}
+                onClick={() =>
+                  selectorEntry && onSubmitModeChange(selectorEntry.hostname, option.value)
+                }
                 className={`
                   rounded-full border px-3 py-1.5 text-[11px] font-semibold tracking-wide transition
                   ${

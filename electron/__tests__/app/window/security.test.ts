@@ -29,13 +29,18 @@ describe('window/security', () => {
   it('opens external navigation and denies popup creation', async () => {
     const module = await import('../../../app/window/security')
     const setWindowOpenHandler = vi.fn()
-    const listeners = new Map<string, (event: { preventDefault: () => void }, url: string) => void>()
+    const listeners = new Map<
+      string,
+      (event: { preventDefault: () => void }, url: string) => void
+    >()
 
     module.hardenWindowWebContents({
       webContents: {
         setWindowOpenHandler,
-        on: (event: string, handler: (event: { preventDefault: () => void }, url: string) => void) =>
-          listeners.set(event, handler)
+        on: (
+          event: string,
+          handler: (event: { preventDefault: () => void }, url: string) => void
+        ) => listeners.set(event, handler)
       }
     } as never)
 

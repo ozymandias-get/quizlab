@@ -1,11 +1,7 @@
 export class SessionMonitor {
   private timer: NodeJS.Timeout | null = null
 
-  schedule(
-    baseDelayMs: number,
-    jitterPct: number,
-    callback: () => Promise<void> | void
-  ): void {
+  schedule(baseDelayMs: number, jitterPct: number, callback: () => Promise<void> | void): void {
     this.stop()
     const delayMs = this.getJitteredDelay(baseDelayMs, jitterPct)
     this.timer = setTimeout(async () => {

@@ -78,7 +78,10 @@ function AiSendComposerHeader({
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onClearAll}
             className="h-[30px] w-[30px] shrink-0 rounded-full border border-white/[0.09] text-white/40 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-white/[0.15] hover:text-white/70 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_8px_20px_rgba(0,0,0,0.3)]"
-            style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%)' }}
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%)'
+            }}
             title={t('close')}
           >
             <X className="h-3.5 w-3.5" strokeWidth={2.2} />

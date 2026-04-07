@@ -57,7 +57,9 @@ export default function SelectorCardHeader({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="truncate text-sm font-bold text-white/90">{getAiPlatformLabel(ai, key)}</h4>
+            <h4 className="truncate text-sm font-bold text-white/90">
+              {getAiPlatformLabel(ai, key)}
+            </h4>
             <span
               className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${tone.badge}`}
             >
@@ -66,7 +68,11 @@ export default function SelectorCardHeader({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-white/45">
             <span>{hasSelectors ? t('selectors_active') : t('no_selectors')}</span>
-            {savedHost && <span className="text-white/30">{t('selectors_saved_host', { host: savedHost })}</span>}
+            {savedHost && (
+              <span className="text-white/30">
+                {t('selectors_saved_host', { host: savedHost })}
+              </span>
+            )}
           </div>
         </div>
       </button>
@@ -80,7 +86,9 @@ export default function SelectorCardHeader({
           "
         >
           <ExternalLinkIcon className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">{t('selectors_open_repick')}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider">
+            {t('selectors_open_repick')}
+          </span>
         </button>
 
         <button
@@ -89,7 +97,9 @@ export default function SelectorCardHeader({
           className="rounded-lg border border-white/10 bg-black/10 p-2 text-white/50 transition hover:border-white/20 hover:text-white/80"
           aria-label={isExpanded ? t('ai_send_collapse') : t('ai_send_expand')}
         >
-          <ChevronRightIcon className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+          <ChevronRightIcon
+            className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+          />
         </button>
       </div>
     </div>

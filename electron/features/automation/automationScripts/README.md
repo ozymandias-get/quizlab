@@ -7,6 +7,7 @@ This folder contains the modular implementation behind `../automationScripts.ts`
 - `runtimeHelpers.ts`: Shared runtime helper block injected into generated scripts.
 
 Assembly order is deterministic in each generator:
+
 1. Common preamble and runtime helpers
 2. Action-specific injected helpers (for example `setInputValue` / `performSubmit`)
 3. Action body and result payload

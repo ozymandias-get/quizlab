@@ -22,11 +22,11 @@ export function hasSelectorLocator(config?: AiSelectorConfig | null) {
 
   return Boolean(
     config.input ||
-      config.button ||
-      config.inputCandidates?.length ||
-      config.buttonCandidates?.length ||
-      config.inputFingerprint ||
-      config.buttonFingerprint
+    config.button ||
+    config.inputCandidates?.length ||
+    config.buttonCandidates?.length ||
+    config.inputFingerprint ||
+    config.buttonFingerprint
   )
 }
 

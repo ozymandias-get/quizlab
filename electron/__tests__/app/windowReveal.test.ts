@@ -109,14 +109,7 @@ describe('windowReveal', () => {
       destroySplashWindow
     })
 
-    webContentsEmitter.emit(
-      'did-fail-load',
-      {},
-      -100,
-      'net error',
-      'https://example.com',
-      true
-    )
+    webContentsEmitter.emit('did-fail-load', {}, -100, 'net error', 'https://example.com', true)
 
     expect(destroySplashWindow).toHaveBeenCalledTimes(1)
     expect(window.show).toHaveBeenCalledTimes(1)

@@ -1,4 +1,5 @@
 export { default as PdfTabStrip } from './ui/components/PdfTabStrip'
+export { default as PdfViewer } from './ui/components/PdfViewer'
 export { usePdfSelection } from './hooks/usePdfSelection'
 export type {
   PdfTab,

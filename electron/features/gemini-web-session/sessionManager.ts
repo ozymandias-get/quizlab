@@ -60,7 +60,11 @@ export class GeminiWebSessionManager {
     return this.orchestrator.resetProfile()
   }
 
-  async ensureAuthenticated(): Promise<{ ok: boolean; error?: string; status: GeminiWebSessionStatus }> {
+  async ensureAuthenticated(): Promise<{
+    ok: boolean
+    error?: string
+    status: GeminiWebSessionStatus
+  }> {
     return this.orchestrator.ensureAuthenticated()
   }
 

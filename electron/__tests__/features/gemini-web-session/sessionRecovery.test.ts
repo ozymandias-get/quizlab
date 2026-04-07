@@ -22,12 +22,16 @@ describe('session recovery', () => {
   })
 
   it('runs silent refresh fallback probe when signin probe fails', async () => {
-    const runProbe = vi
-      .fn()
-      .mockResolvedValueOnce({ outcome: { healthy: false, kind: 'unknown' }, accountHash: null, timedOut: false })
-    const runProbeAcrossApps = vi
-      .fn()
-      .mockResolvedValueOnce({ outcome: { healthy: true, kind: 'none' }, accountHash: 'acc', timedOut: false })
+    const runProbe = vi.fn().mockResolvedValueOnce({
+      outcome: { healthy: false, kind: 'unknown' },
+      accountHash: null,
+      timedOut: false
+    })
+    const runProbeAcrossApps = vi.fn().mockResolvedValueOnce({
+      outcome: { healthy: true, kind: 'none' },
+      accountHash: 'acc',
+      timedOut: false
+    })
     const recovery = new SessionRecovery({
       probeRunner: { runProbe, runProbeAcrossApps } as never,
       playwrightProfileDir: 'C:/tmp/playwright',

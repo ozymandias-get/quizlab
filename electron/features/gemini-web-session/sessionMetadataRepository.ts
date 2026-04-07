@@ -1,7 +1,12 @@
 import { ConfigManager } from '../../core/ConfigManager'
 import type { GeminiWebSessionStatus } from '@shared-core/types'
 import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
-import { DEFAULT_USER_ENABLED, FEATURE_ENABLED, isReasonCode, isSessionState } from './sessionConfig'
+import {
+  DEFAULT_USER_ENABLED,
+  FEATURE_ENABLED,
+  isReasonCode,
+  isSessionState
+} from './sessionConfig'
 import { createDefaultStatus } from './stateMachine'
 import type { DisabledActionResult, SessionMetadata } from './sessionContracts'
 
@@ -47,7 +52,9 @@ export class SessionMetadataRepository {
         typeof raw.state === 'string' && isSessionState(raw.state) ? raw.state : fallback.state,
       lastHealthyAt: typeof raw.lastHealthyAt === 'string' ? raw.lastHealthyAt : null,
       lastCheckAt: typeof raw.lastCheckAt === 'string' ? raw.lastCheckAt : null,
-      consecutiveFailures: Number.isFinite(raw.consecutiveFailures) ? Number(raw.consecutiveFailures) : 0,
+      consecutiveFailures: Number.isFinite(raw.consecutiveFailures)
+        ? Number(raw.consecutiveFailures)
+        : 0,
       reasonCode:
         typeof raw.reasonCode === 'string' && isReasonCode(raw.reasonCode)
           ? raw.reasonCode

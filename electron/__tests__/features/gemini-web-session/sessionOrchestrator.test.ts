@@ -161,7 +161,8 @@ describe('sessionOrchestrator', () => {
   })
 
   async function createOrchestrator() {
-    const { SessionOrchestrator } = await import('../../../features/gemini-web-session/sessionOrchestrator')
+    const { SessionOrchestrator } =
+      await import('../../../features/gemini-web-session/sessionOrchestrator')
     return new SessionOrchestrator({
       config: { checkIntervalMs: 1000, jitterPct: 0.2, maxConsecutiveFailures: 3 },
       paths: {

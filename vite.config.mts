@@ -26,12 +26,7 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
           'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': [
-            '@headlessui/react',
-            'framer-motion',
-            'lucide-react',
-            'react-colorful'
-          ],
+          'vendor-ui': ['@headlessui/react', 'framer-motion', 'lucide-react', 'react-colorful'],
           'vendor-pdf': [
             'pdfjs-dist',
             '@react-pdf-viewer/core',

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getHealthLabelKey, getHealthTone } from '../../../../features/settings/ui/selectors/selectorMappings'
+import {
+  getHealthLabelKey,
+  getHealthTone
+} from '../../../../features/settings/ui/selectors/selectorMappings'
 
 describe('selectorMappings', () => {
   it('returns correct label keys for all health states', () => {

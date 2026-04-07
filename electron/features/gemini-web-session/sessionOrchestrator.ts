@@ -37,7 +37,12 @@ export class SessionOrchestrator {
 
   constructor(options: {
     config: GeminiWebSessionConfig
-    paths: { profileDir: string; playwrightProfileDir: string; configPath: string; lockPath: string }
+    paths: {
+      profileDir: string
+      playwrightProfileDir: string
+      configPath: string
+      lockPath: string
+    }
     resolvePersistentSession: () => Session
   }) {
     this.config = options.config
@@ -132,7 +137,11 @@ export class SessionOrchestrator {
 
     const lock = await this.profileLock.acquire()
     if (!lock.ok) {
-      return { success: false, error: lock.error || 'already_in_use', status: await this.getStatus() }
+      return {
+        success: false,
+        error: lock.error || 'already_in_use',
+        status: await this.getStatus()
+      }
     }
 
     try {
@@ -224,7 +233,11 @@ export class SessionOrchestrator {
     await this.initialize()
     const lock = await this.profileLock.acquire()
     if (!lock.ok) {
-      return { success: false, error: lock.error || 'already_in_use', status: await this.getStatus() }
+      return {
+        success: false,
+        error: lock.error || 'already_in_use',
+        status: await this.getStatus()
+      }
     }
     try {
       this.monitor.stop()
@@ -253,14 +266,21 @@ export class SessionOrchestrator {
       }
       return { success: true, status }
     } catch (error: unknown) {
-      console.error('[GeminiWebSession] Reset profile failed:', toErrorMessage(error, 'unknown_error'))
+      console.error(
+        '[GeminiWebSession] Reset profile failed:',
+        toErrorMessage(error, 'unknown_error')
+      )
       return { success: false, error: 'reset_failed', status: await this.getStatus() }
     } finally {
       await this.profileLock.release()
     }
   }
 
-  async ensureAuthenticated(): Promise<{ ok: boolean; error?: string; status: GeminiWebSessionStatus }> {
+  async ensureAuthenticated(): Promise<{
+    ok: boolean
+    error?: string
+    status: GeminiWebSessionStatus
+  }> {
     await this.initialize()
     const currentMetadata = await this.metadataRepository.readMetadata()
     const current = this.metadataRepository.toPublicStatus(currentMetadata)
@@ -269,10 +289,12 @@ export class SessionOrchestrator {
       return { ok: false, error: blocked.error, status: blocked.status }
     }
     if (current.state === 'authenticated') return { ok: true, status: current }
-    if (current.state === 'reauth_required') return { ok: false, error: 'reauth_required', status: current }
+    if (current.state === 'reauth_required')
+      return { ok: false, error: 'reauth_required', status: current }
     const result = await this.performHealthCheck({ allowRetry: true })
     if (result.state === 'authenticated') return { ok: true, status: result }
-    if (result.state === 'reauth_required') return { ok: false, error: 'reauth_required', status: result }
+    if (result.state === 'reauth_required')
+      return { ok: false, error: 'reauth_required', status: result }
     return { ok: false, error: 'session_unavailable', status: result }
   }
 
@@ -320,14 +342,19 @@ export class SessionOrchestrator {
       try {
         await this.performHealthCheck({ allowRetry: true })
       } catch (error: unknown) {
-        console.error('[GeminiWebSession] Monitor check failed:', toErrorMessage(error, 'unknown_error'))
+        console.error(
+          '[GeminiWebSession] Monitor check failed:',
+          toErrorMessage(error, 'unknown_error')
+        )
       } finally {
         this.scheduleMonitor()
       }
     })
   }
 
-  private async performHealthCheck(options: { allowRetry: boolean }): Promise<GeminiWebSessionStatus> {
+  private async performHealthCheck(options: {
+    allowRetry: boolean
+  }): Promise<GeminiWebSessionStatus> {
     if (this.activeCheck) return this.activeCheck
     this.activeCheck = (async () => {
       const currentBeforeCheck = await this.metadataRepository.readMetadata()
@@ -366,16 +393,26 @@ export class SessionOrchestrator {
               timestamp: nowIso(),
               maxConsecutiveFailures: this.config.maxConsecutiveFailures
             })
-            return this.metadataRepository.writeStatus(healedStatus, refreshProbe.accountHash || accountHash)
+            return this.metadataRepository.writeStatus(
+              healedStatus,
+              refreshProbe.accountHash || accountHash
+            )
           }
           firstProbe = refreshProbe
         }
 
-        if (this.recovery.shouldAttemptPlaywrightHeadlessRefresh(firstProbe.outcome, options.allowRetry)) {
+        if (
+          this.recovery.shouldAttemptPlaywrightHeadlessRefresh(
+            firstProbe.outcome,
+            options.allowRetry
+          )
+        ) {
           const playwrightProbe = await this.recovery.runPlaywrightHeadlessRefreshProbe(accountHash)
           if (playwrightProbe) {
             firstProbe = playwrightProbe
-            accountHash = firstProbe.outcome.healthy ? firstProbe.accountHash || accountHash : accountHash
+            accountHash = firstProbe.outcome.healthy
+              ? firstProbe.accountHash || accountHash
+              : accountHash
             if (firstProbe.outcome.healthy) {
               const recoveredStatus = applyProbeTransition({
                 previous: current,

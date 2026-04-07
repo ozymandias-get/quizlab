@@ -19,7 +19,12 @@ import {
   useGenerateWaitForSubmitReadyScript
 } from '@platform/electron/api/useAutomationApi'
 import { useCopyImageToClipboard } from '@platform/electron/api/useSystemApi'
-import { createSendDiagnostics, attachDiagnostics, nowMs, roundMs } from '../lib/send/sendDiagnostics'
+import {
+  createSendDiagnostics,
+  attachDiagnostics,
+  nowMs,
+  roundMs
+} from '../lib/send/sendDiagnostics'
 import { executeTextSendPipeline } from '../lib/send/textSendPipeline'
 import { executeImageSendPipeline } from '../lib/send/imageSendPipeline'
 
