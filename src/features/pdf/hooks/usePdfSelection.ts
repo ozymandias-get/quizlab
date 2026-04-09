@@ -31,9 +31,12 @@ export interface PdfTab {
   title?: string
   kind?: 'pdf' | 'drive'
   webviewUrl?: string
+  viewerSessionKey?: string
 }
 
 const MAX_RECENT_PDFS = 24
+
+const createViewerSessionKey = () => crypto.randomUUID()
 
 const normalizeTitle = (title?: string): string | undefined => {
   const normalized = title?.trim()
@@ -213,6 +216,7 @@ export const usePdfSelection = () => {
     (file: PdfFile, initialReadInfo?: LastReadingInfo) => {
       const normalizedFile = toPdfFile(file)
       const normalizedPath = normalizedFile.path || null
+      const viewerSessionKey = createViewerSessionKey()
       const currentTabs = pdfTabsRef.current
       const existingTab = normalizedPath
         ? currentTabs.find((tab) => tab.file?.path === normalizedPath)
@@ -222,7 +226,13 @@ export const usePdfSelection = () => {
         setPdfTabs(
           currentTabs.map((tab) =>
             tab.id === existingTab.id
-              ? { ...tab, file: normalizedFile, kind: 'pdf', webviewUrl: undefined }
+              ? {
+                  ...tab,
+                  file: normalizedFile,
+                  kind: 'pdf',
+                  webviewUrl: undefined,
+                  viewerSessionKey
+                }
               : tab
           )
         )
@@ -234,13 +244,22 @@ export const usePdfSelection = () => {
           setPdfTabs(
             currentTabs.map((tab) =>
               tab.id === activeTab.id
-                ? { ...tab, file: normalizedFile, kind: 'pdf', webviewUrl: undefined }
+                ? {
+                    ...tab,
+                    file: normalizedFile,
+                    kind: 'pdf',
+                    webviewUrl: undefined,
+                    viewerSessionKey
+                  }
                 : tab
             )
           )
         } else {
           const newTabId = crypto.randomUUID()
-          setPdfTabs([...currentTabs, { id: newTabId, file: normalizedFile, kind: 'pdf' }])
+          setPdfTabs([
+            ...currentTabs,
+            { id: newTabId, file: normalizedFile, kind: 'pdf', viewerSessionKey }
+          ])
           setActivePdfTabId(newTabId)
         }
       }

@@ -15,6 +15,8 @@ const mocked = vi.hoisted(() => {
 
   return {
     metadata: { ...baseMetadata },
+    runPlaywrightLogin: vi.fn(),
+    importExternalCookies: vi.fn().mockResolvedValue(undefined),
     ensureMetadata: vi.fn().mockResolvedValue(undefined),
     readMetadata: vi.fn(async () => ({ ...mocked.metadata })),
     writeStatus: vi.fn(async (status, accountHash) => ({ ...status, accountHash })),
@@ -27,9 +29,18 @@ const mocked = vi.hoisted(() => {
     runSilentRefreshProbe: vi.fn(),
     shouldAttemptPlaywrightHeadlessRefresh: vi.fn(() => false),
     runPlaywrightHeadlessRefreshProbe: vi.fn(),
+    canAttemptHeadlessRefresh: vi.fn(() => true),
+    isWithinRefreshGracePeriod: vi.fn(() => false),
+    markRefreshSuccess: vi.fn(),
     resetCooldowns: vi.fn(),
     schedule: vi.fn(),
     stop: vi.fn(),
+    inspectCookieExpiry: vi.fn().mockResolvedValue({
+      hasRelevantCookies: true,
+      hasExpiredCookie: false,
+      shouldRefresh: false,
+      earliestExpiry: null
+    }),
     clearPersistentPartitionData: vi.fn().mockResolvedValue(undefined),
     nowIso: vi.fn(() => '2026-04-07T19:30:00.000Z'),
     mkdir: vi.fn().mockResolvedValue(undefined),
@@ -73,7 +84,7 @@ vi.mock('fs', () => ({
 }))
 
 vi.mock('../../../features/gemini-web-session/playwrightLogin', () => ({
-  runPlaywrightLogin: vi.fn(),
+  runPlaywrightLogin: mocked.runPlaywrightLogin,
   runPlaywrightHeadlessRefresh: vi.fn()
 }))
 
@@ -112,6 +123,9 @@ vi.mock('../../../features/gemini-web-session/sessionRecovery', () => {
     runSilentRefreshProbe = mocked.runSilentRefreshProbe
     shouldAttemptPlaywrightHeadlessRefresh = mocked.shouldAttemptPlaywrightHeadlessRefresh
     runPlaywrightHeadlessRefreshProbe = mocked.runPlaywrightHeadlessRefreshProbe
+    canAttemptHeadlessRefresh = mocked.canAttemptHeadlessRefresh
+    isWithinRefreshGracePeriod = mocked.isWithinRefreshGracePeriod
+    markRefreshSuccess = mocked.markRefreshSuccess
     resetCooldowns = mocked.resetCooldowns
   }
   return { SessionRecovery }
@@ -121,13 +135,14 @@ vi.mock('../../../features/gemini-web-session/sessionMonitor', () => {
   class SessionMonitor {
     schedule = mocked.schedule
     stop = mocked.stop
+    inspectCookieExpiry = mocked.inspectCookieExpiry
   }
   return { SessionMonitor }
 })
 
 vi.mock('../../../features/gemini-web-session/sessionCookies', () => ({
   clearPersistentPartitionData: mocked.clearPersistentPartitionData,
-  importExternalCookies: vi.fn()
+  importExternalCookies: mocked.importExternalCookies
 }))
 
 vi.mock('../../../features/gemini-web-session/sessionUtils', () => ({
@@ -153,6 +168,14 @@ describe('sessionOrchestrator', () => {
       enabledAppIds: ['gemini'],
       accountHash: 'prev-hash'
     }
+    mocked.runPlaywrightLogin.mockReset()
+    mocked.importExternalCookies.mockReset().mockResolvedValue(undefined)
+    mocked.inspectCookieExpiry.mockReset().mockResolvedValue({
+      hasRelevantCookies: true,
+      hasExpiredCookie: false,
+      shouldRefresh: false,
+      earliestExpiry: null
+    })
     mocked.runProbeAcrossApps.mockResolvedValue({
       outcome: { healthy: true, kind: 'none' },
       accountHash: 'healthy-hash',
@@ -160,7 +183,7 @@ describe('sessionOrchestrator', () => {
     })
   })
 
-  async function createOrchestrator() {
+  async function createOrchestrator(resolvePersistentSession?: () => never) {
     const { SessionOrchestrator } =
       await import('../../../features/gemini-web-session/sessionOrchestrator.js')
     return new SessionOrchestrator({
@@ -171,7 +194,7 @@ describe('sessionOrchestrator', () => {
         configPath: 'C:/tmp/config.json',
         lockPath: 'C:/tmp/.lock'
       },
-      resolvePersistentSession: () => ({}) as never
+      resolvePersistentSession: resolvePersistentSession || (() => ({}) as never)
     })
   }
 
@@ -245,9 +268,12 @@ describe('sessionOrchestrator', () => {
     })
     mocked.shouldAttemptPlaywrightHeadlessRefresh.mockReturnValueOnce(true)
     mocked.runPlaywrightHeadlessRefreshProbe.mockResolvedValueOnce({
-      outcome: { healthy: true, kind: 'none' },
-      accountHash: 'pw-hash',
-      timedOut: false
+      success: true,
+      probe: {
+        outcome: { healthy: true, kind: 'none' },
+        accountHash: 'pw-hash',
+        timedOut: false
+      }
     })
     const orchestrator = await createOrchestrator()
 
@@ -300,5 +326,86 @@ describe('sessionOrchestrator', () => {
     expect(mocked.rm).toHaveBeenCalled()
     expect(mocked.resetCooldowns).toHaveBeenCalledTimes(1)
     expect(mocked.release).toHaveBeenCalled()
+  })
+
+  it('propagates exact playwright login errors from openLogin', async () => {
+    mocked.metadata.enabled = false
+    mocked.runPlaywrightLogin.mockResolvedValueOnce({
+      success: false,
+      outcome: { healthy: false, kind: 'challenge' },
+      timedOut: false,
+      cookies: [],
+      accountHash: null,
+      error: 'error_challenge_required'
+    })
+    const orchestrator = await createOrchestrator()
+
+    const result = await orchestrator.openLogin()
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('error_challenge_required')
+    expect(result.status!.state).toBe('auth_required')
+  })
+
+  it('maps post-import verification failures to error_login_verification_failed', async () => {
+    mocked.metadata.enabled = false
+    mocked.runPlaywrightLogin.mockResolvedValueOnce({
+      success: true,
+      outcome: { healthy: true, kind: 'authenticated' },
+      timedOut: false,
+      cookies: [{ name: 'SID', value: 'cookie', domain: '.google.com', path: '/' }],
+      accountHash: 'new-hash'
+    })
+    mocked.runProbeAcrossApps.mockResolvedValueOnce({
+      outcome: { healthy: false, kind: 'unknown' },
+      accountHash: null,
+      timedOut: false
+    })
+    const orchestrator = await createOrchestrator()
+
+    const result = await orchestrator.openLogin()
+
+    expect(mocked.importExternalCookies).toHaveBeenCalledTimes(1)
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('error_login_verification_failed')
+  })
+
+  it('joins concurrent refresh triggers into one headless refresh', async () => {
+    mocked.metadata.enabled = true
+    mocked.runPlaywrightHeadlessRefreshProbe.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () =>
+              resolve({
+                success: true,
+                probe: {
+                  outcome: { healthy: true, kind: 'none' },
+                  accountHash: 'pw-hash',
+                  timedOut: false
+                }
+              }),
+            20
+          )
+        })
+    )
+    const orchestrator = await createOrchestrator()
+
+    const p1 = orchestrator.triggerRefresh({ reason: 'http_401', url: 'https://gemini.google.com' })
+    const p2 = orchestrator.triggerRefresh({ reason: 'http_403', url: 'https://gemini.google.com' })
+
+    await Promise.all([p1, p2])
+
+    expect(mocked.runPlaywrightHeadlessRefreshProbe).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores reactive refresh signals inside the refresh grace period', async () => {
+    mocked.metadata.enabled = true
+    mocked.isWithinRefreshGracePeriod.mockReturnValueOnce(true)
+    const orchestrator = await createOrchestrator()
+
+    await orchestrator.triggerRefresh({ reason: 'http_401', url: 'https://gemini.google.com' })
+
+    expect(mocked.runPlaywrightHeadlessRefreshProbe).not.toHaveBeenCalled()
   })
 })

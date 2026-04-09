@@ -13,6 +13,7 @@ import type {
   CustomAiResult,
   GeminiWebSessionStatus,
   GeminiWebSessionActionResult,
+  GeminiWebSessionRefreshEvent,
   ScreenshotType
 } from '@shared-core/types'
 import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/ipcContract'
@@ -135,7 +136,35 @@ const electronApi: ElectronApi = {
     setEnabledApps: (
       enabledAppIds: GoogleWebSessionAppId[]
     ): Promise<GeminiWebSessionActionResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS, enabledAppIds)
+      ipcRenderer.invoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS, enabledAppIds),
+    onRefreshEvent: (callback: (event: GeminiWebSessionRefreshEvent) => void) => {
+      const handlers: Array<
+        [string, (event: IpcRendererEvent, payload: GeminiWebSessionRefreshEvent) => void]
+      > = [
+        [
+          IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED,
+          (_event: IpcRendererEvent, payload: GeminiWebSessionRefreshEvent) => callback(payload)
+        ],
+        [
+          IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_SUCCESS,
+          (_event: IpcRendererEvent, payload: GeminiWebSessionRefreshEvent) => callback(payload)
+        ],
+        [
+          IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED,
+          (_event: IpcRendererEvent, payload: GeminiWebSessionRefreshEvent) => callback(payload)
+        ]
+      ]
+
+      for (const [channel, handler] of handlers) {
+        ipcRenderer.on(channel, handler)
+      }
+
+      return () => {
+        for (const [channel, handler] of handlers) {
+          ipcRenderer.removeListener(channel, handler)
+        }
+      }
+    }
   }
 }
 

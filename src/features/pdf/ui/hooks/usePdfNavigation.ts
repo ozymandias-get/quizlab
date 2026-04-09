@@ -3,8 +3,8 @@ import {
   useEffect,
   useCallback,
   useRef,
-  type RefObject,
-  type MutableRefObject
+  type MutableRefObject,
+  type RefObject
 } from 'react'
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
 
@@ -19,6 +19,11 @@ interface UsePdfNavigationOptions {
   onReadingProgressChange?: (update: ReadingProgressUpdate) => void
 }
 
+const WHEEL_DELTA_THRESHOLD = 50
+const WHEEL_GESTURE_RESET_MS = 180
+const WHEEL_NAVIGATION_FALLBACK_MS = 500
+const WHEEL_POST_NAVIGATION_LOCK_MS = 320
+
 export function usePdfNavigation({
   containerRef,
   jumpToPageRef,
@@ -30,85 +35,112 @@ export function usePdfNavigation({
     initialPage && initialPage > 0 ? initialPage : 1
   )
   const [totalPages, setTotalPages] = useState(0)
-
-  const lastNavigationTime = useRef(0)
-  const lastWheelEventTime = useRef(0)
-  const accumulatedDelta = useRef(0)
-  const DELTA_THRESHOLD = 50
-  const THROTTLE_MS = 600
-
   const currentPageRef = useRef(currentPage)
+  const accumulatedDeltaRef = useRef(0)
+  const lastWheelEventAtRef = useRef(0)
+  const pendingTargetPageRef = useRef<number | null>(null)
+  const pendingNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wheelLockedUntilRef = useRef(0)
+
   useEffect(() => {
     currentPageRef.current = currentPage
   }, [currentPage])
 
-  const handleWheel = useCallback(
-    (e: WheelEvent) => {
-      if (totalPages === 0) return
+  const clearPendingNavigation = useCallback(() => {
+    if (pendingNavigationTimerRef.current) {
+      clearTimeout(pendingNavigationTimerRef.current)
+      pendingNavigationTimerRef.current = null
+    }
+    pendingTargetPageRef.current = null
+  }, [])
 
-      if (e.ctrlKey || e.metaKey) {
+  const resetWheelGesture = useCallback(() => {
+    accumulatedDeltaRef.current = 0
+    lastWheelEventAtRef.current = 0
+  }, [])
+
+  const lockWheelGesture = useCallback(() => {
+    wheelLockedUntilRef.current = Date.now() + WHEEL_POST_NAVIGATION_LOCK_MS
+    resetWheelGesture()
+  }, [resetWheelGesture])
+
+  useEffect(() => {
+    clearPendingNavigation()
+    resetWheelGesture()
+    setCurrentPage(initialPage && initialPage > 0 ? initialPage : 1)
+    setTotalPages(0)
+  }, [clearPendingNavigation, pdfPath, resetWheelGesture])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) {
+      return
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey || totalPages <= 0) {
+        return
+      }
+
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
         return
       }
 
       const now = Date.now()
-      const sinceLastWheelEvent = now - lastWheelEventTime.current
-      if (sinceLastWheelEvent > 220) {
-        accumulatedDelta.current = 0
-      }
-
-      accumulatedDelta.current += e.deltaY
-      lastWheelEventTime.current = now
-
-      if (Math.abs(accumulatedDelta.current) < DELTA_THRESHOLD) {
+      if (now < wheelLockedUntilRef.current) {
+        event.preventDefault()
+        event.stopPropagation()
         return
       }
 
-      if (now - lastNavigationTime.current < THROTTLE_MS) {
-        e.preventDefault()
-        accumulatedDelta.current = 0
+      if (now - lastWheelEventAtRef.current > WHEEL_GESTURE_RESET_MS) {
+        accumulatedDeltaRef.current = 0
+      }
+
+      accumulatedDeltaRef.current += event.deltaY
+      lastWheelEventAtRef.current = now
+
+      if (Math.abs(accumulatedDeltaRef.current) < WHEEL_DELTA_THRESHOLD) {
         return
       }
 
-      e.preventDefault()
       const current = currentPageRef.current
+      const direction = accumulatedDeltaRef.current > 0 ? 1 : -1
+      const targetPage = Math.min(totalPages, Math.max(1, current + direction))
+      accumulatedDeltaRef.current = 0
 
-      if (accumulatedDelta.current > 0) {
-        if (current < totalPages) {
-          jumpToPageRef.current(current)
-          lastNavigationTime.current = now
-        }
-      } else if (current > 1) {
-        jumpToPageRef.current(current - 2)
-        lastNavigationTime.current = now
+      if (targetPage === current || pendingTargetPageRef.current !== null) {
+        return
       }
 
-      accumulatedDelta.current = 0
-    },
-    [totalPages, jumpToPageRef]
-  )
+      event.preventDefault()
+      event.stopPropagation()
 
-  useEffect(() => {
-    lastNavigationTime.current = 0
-    lastWheelEventTime.current = 0
-    accumulatedDelta.current = 0
-    setCurrentPage(initialPage && initialPage > 0 ? initialPage : 1)
-    setTotalPages(0)
-  }, [pdfPath])
+      lockWheelGesture()
+      pendingTargetPageRef.current = targetPage
+      pendingNavigationTimerRef.current = setTimeout(() => {
+        clearPendingNavigation()
+      }, WHEEL_NAVIGATION_FALLBACK_MS)
 
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+      jumpToPageRef.current(targetPage - 1)
+    }
 
     container.addEventListener('wheel', handleWheel, { passive: false })
+
     return () => {
       container.removeEventListener('wheel', handleWheel)
+      clearPendingNavigation()
     }
-  }, [handleWheel, containerRef])
+  }, [clearPendingNavigation, containerRef, jumpToPageRef, lockWheelGesture, totalPages])
 
   const handlePageChange = useCallback(
     (e: PageChangeEvent) => {
       const newPage = e.currentPage + 1
       setCurrentPage(newPage)
+      if (pendingTargetPageRef.current === newPage) {
+        clearPendingNavigation()
+      }
+      lockWheelGesture()
       if (!pdfPath) return
 
       onReadingProgressChange?.({
@@ -117,7 +149,7 @@ export function usePdfNavigation({
         lastOpenedAt: Date.now()
       })
     },
-    [onReadingProgressChange, pdfPath]
+    [clearPendingNavigation, lockWheelGesture, onReadingProgressChange, pdfPath]
   )
 
   const handleDocumentLoad = useCallback(

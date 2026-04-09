@@ -1,6 +1,6 @@
 import path from 'path'
 import { existsSync } from 'fs'
-import { classifyAuthProbe } from './authHeuristics'
+import { classifyAuthProbe, isGoogleLoginRedirectUrl } from './authHeuristics'
 import type { ProbeOutcome } from './stateMachine'
 import { computeGoogleAccountHash } from './sessionUtils'
 import {
@@ -9,6 +9,7 @@ import {
   GOOGLE_AI_WEB_APP_URLS,
   GOOGLE_SIGNIN_URL
 } from './constants'
+import { PLAYWRIGHT_NETWORKIDLE_TIMEOUT_MS } from './sessionConfig'
 
 const UNKNOWN_OUTCOME: ProbeOutcome = { kind: 'unknown', healthy: false }
 const SESSION_COOKIE_SOURCE_URLS = Array.from(
@@ -21,7 +22,8 @@ const SESSION_COOKIE_SOURCE_URLS = Array.from(
 )
 const POST_LOGIN_HYDRATION_SETTLE_MS = 1_200
 const POST_LOGIN_HYDRATION_NAV_TIMEOUT_MS = 15_000
-const POST_LOGIN_HOSTS = new Set(['accounts.google.com', 'myaccount.google.com', 'www.google.com'])
+const GOOGLE_ACCOUNTS_HOST = 'accounts.google.com'
+const HEADLESS_REFRESH_INITIAL_URL = GOOGLE_AI_WEB_APP_URLS[0] || GOOGLE_SIGNIN_URL
 
 type ExternalSameSite = 'Strict' | 'Lax' | 'None' | undefined
 
@@ -121,25 +123,37 @@ function mapProbeError(outcome: ProbeOutcome, timedOut: boolean): string {
   if (timedOut) return 'error_login_timeout'
   if (outcome.kind === 'challenge') return 'error_challenge_required'
   if (outcome.kind === 'network') return 'error_network_login_failed'
-  if (outcome.kind === 'login_redirect') return 'error_login_not_completed'
+  if (outcome.kind === 'login_redirect') return 'error_login_verification_failed'
   return 'error_login_failed'
+}
+
+function mapHeadlessRefreshFailure(
+  snapshot: { hasLoginForm: boolean; hasChallengeText: boolean },
+  outcome: ProbeOutcome,
+  timedOut: boolean
+): string {
+  if (snapshot.hasLoginForm || snapshot.hasChallengeText || outcome.kind === 'challenge') {
+    return 'error_refresh_failed_requires_login'
+  }
+  return mapProbeError(outcome, timedOut)
 }
 
 export function hasCompletedGoogleLogin(
   currentUrl: string,
   snapshot: { hasLoginForm: boolean; hasSignInText: boolean; hasChallengeText: boolean },
-  cookies: ExternalBrowserCookie[]
+  cookies: ExternalBrowserCookie[],
+  outcome: ProbeOutcome,
+  hasExitedAccountsHost: boolean
 ): boolean {
   const hostname = getHostname(currentUrl)
-  if (!hostname || !POST_LOGIN_HOSTS.has(hostname)) return false
+  if (!hostname) return false
   if (snapshot.hasLoginForm || snapshot.hasChallengeText) return false
 
   const hasSessionCookies = computeGoogleAccountHash(cookies) !== null
   if (!hasSessionCookies) return false
 
-  if (hostname !== 'accounts.google.com') return true
-
-  return !snapshot.hasSignInText
+  if (hasExitedAccountsHost && hostname !== GOOGLE_ACCOUNTS_HOST) return true
+  return outcome.healthy && hostname !== GOOGLE_ACCOUNTS_HOST && !snapshot.hasSignInText
 }
 
 function mapContextCookies(cookiesRaw: any[]): ExternalBrowserCookie[] {
@@ -164,15 +178,20 @@ async function hydrateGoogleAiAppSession(
   page: any,
   context: any,
   startedAt: number,
-  timeoutMs: number
-): Promise<{ cookies: ExternalBrowserCookie[]; outcome: ProbeOutcome }> {
+  timeoutMs: number,
+  headless: boolean
+): Promise<{ cookies: ExternalBrowserCookie[]; outcome: ProbeOutcome; exhaustedBudget: boolean }> {
   let lastCookies = await collectSessionCookies(context).catch(() => [])
   let lastOutcome: ProbeOutcome = UNKNOWN_OUTCOME
+  let exhaustedBudget = false
 
   for (const targetUrl of GOOGLE_AI_WEB_APP_URLS) {
     const remainingMs =
       timeoutMs > 0 ? timeoutMs - (Date.now() - startedAt) : POST_LOGIN_HYDRATION_NAV_TIMEOUT_MS
-    if (timeoutMs > 0 && remainingMs <= 0) break
+    if (timeoutMs > 0 && remainingMs <= 0) {
+      exhaustedBudget = true
+      break
+    }
 
     const navTimeoutMs = Math.max(1_000, Math.min(remainingMs, POST_LOGIN_HYDRATION_NAV_TIMEOUT_MS))
 
@@ -182,6 +201,14 @@ async function hydrateGoogleAiAppSession(
         timeout: navTimeoutMs
       })
       .catch(() => {})
+
+    if (headless) {
+      await page
+        .waitForLoadState('networkidle', {
+          timeout: Math.min(navTimeoutMs, PLAYWRIGHT_NETWORKIDLE_TIMEOUT_MS)
+        })
+        .catch(() => {})
+    }
 
     await new Promise((resolve) => setTimeout(resolve, POST_LOGIN_HYDRATION_SETTLE_MS))
 
@@ -193,15 +220,25 @@ async function hydrateGoogleAiAppSession(
     if (lastOutcome.healthy) {
       return {
         cookies: lastCookies,
-        outcome: lastOutcome
+        outcome: lastOutcome,
+        exhaustedBudget
       }
     }
   }
 
   return {
     cookies: lastCookies,
-    outcome: lastOutcome
+    outcome: lastOutcome,
+    exhaustedBudget
   }
+}
+
+async function ensureActivePage(context: any): Promise<any | null> {
+  const pages = context.pages().filter((page: any) => !page.isClosed())
+  if (pages.length > 0) {
+    return pages[pages.length - 1]
+  }
+  return context.newPage().catch(() => null)
 }
 
 export async function runPlaywrightLogin({
@@ -226,7 +263,7 @@ export async function runPlaywrightHeadlessRefresh({
     timeoutMs,
     headless: true,
     successStreakTarget: 2,
-    initialUrl: GOOGLE_SIGNIN_URL
+    initialUrl: HEADLESS_REFRESH_INITIAL_URL
   })
 }
 
@@ -267,12 +304,18 @@ async function runPlaywrightSessionFlow({
     context.setDefaultTimeout(0)
     context.setDefaultNavigationTimeout(0)
 
-    const page = context.pages()[0] || (await context.newPage())
+    const page =
+      (context.pages()[0] && !context.pages()[0].isClosed() ? context.pages()[0] : null) ||
+      (await context.newPage().catch(() => null))
+    if (!page) {
+      return buildFailureResult(headless ? 'error_login_failed' : 'error_login_cancelled')
+    }
     await page.goto(initialUrl, { waitUntil: 'domcontentloaded' })
 
     const startedAt = Date.now()
     let streak = 0
     let lastOutcome: ProbeOutcome = UNKNOWN_OUTCOME
+    let sawAccountsHost = getHostname(initialUrl) === GOOGLE_ACCOUNTS_HOST
 
     while (true) {
       const elapsed = Date.now() - startedAt
@@ -280,27 +323,61 @@ async function runPlaywrightSessionFlow({
         return buildFailureResult(mapProbeError(lastOutcome, true), lastOutcome, true)
       }
 
-      const pages = context.pages().filter((p: any) => !p.isClosed())
-      if (pages.length === 0) {
-        const fallbackPage = await context.newPage().catch(() => null)
-        if (!fallbackPage) {
-          return buildFailureResult(headless ? 'error_login_failed' : 'error_login_cancelled')
-        }
-        pages.push(fallbackPage)
+      const activePage = await ensureActivePage(context)
+      if (!activePage) {
+        return buildFailureResult(headless ? 'error_login_failed' : 'error_login_cancelled')
       }
-
-      const activePage = pages[pages.length - 1]
       const currentUrl = activePage.url()
+      const currentHostname = getHostname(currentUrl)
+      if (currentHostname === GOOGLE_ACCOUNTS_HOST) {
+        sawAccountsHost = true
+      }
       const snapshot = await activePage
         .evaluate(DOM_SNAPSHOT_SCRIPT)
         .catch(() => EMPTY_DOM_SNAPSHOT)
       lastOutcome = classifyAuthProbe(currentUrl, snapshot, false)
+      if (headless && (snapshot.hasLoginForm || snapshot.hasChallengeText)) {
+        return buildFailureResult(
+          mapHeadlessRefreshFailure(snapshot, lastOutcome, false),
+          lastOutcome,
+          false
+        )
+      }
+      if (lastOutcome.kind === 'challenge') {
+        return buildFailureResult(
+          headless
+            ? mapHeadlessRefreshFailure(snapshot, lastOutcome, false)
+            : mapProbeError(lastOutcome, false),
+          lastOutcome,
+          false
+        )
+      }
 
       const cookies = await collectSessionCookies(context)
+      const hasExitedAccountsHost = sawAccountsHost && currentHostname !== GOOGLE_ACCOUNTS_HOST
 
-      if (hasCompletedGoogleLogin(currentUrl, snapshot, cookies)) {
-        const hydrated = await hydrateGoogleAiAppSession(activePage, context, startedAt, timeoutMs)
-        const hydratedCookies = hydrated.cookies.length > 0 ? hydrated.cookies : cookies
+      if (
+        hasCompletedGoogleLogin(currentUrl, snapshot, cookies, lastOutcome, hasExitedAccountsHost)
+      ) {
+        const hydrated = await hydrateGoogleAiAppSession(
+          activePage,
+          context,
+          startedAt,
+          timeoutMs,
+          headless
+        )
+        const hydratedCookies =
+          hydrated.cookies.length > 0 ? hydrated.cookies : hydrated.exhaustedBudget ? cookies : []
+        const accountHash = computeGoogleAccountHash(hydratedCookies)
+        if (!accountHash) {
+          return buildFailureResult(
+            headless
+              ? mapHeadlessRefreshFailure(snapshot, hydrated.outcome, hydrated.exhaustedBudget)
+              : mapProbeError(hydrated.outcome, hydrated.exhaustedBudget),
+            hydrated.outcome,
+            hydrated.exhaustedBudget
+          )
+        }
         return {
           success: true,
           timedOut: false,
@@ -308,19 +385,38 @@ async function runPlaywrightSessionFlow({
             ? hydrated.outcome
             : { kind: 'authenticated', healthy: true },
           cookies: hydratedCookies,
-          accountHash: computeGoogleAccountHash(hydratedCookies)
+          accountHash
         }
       }
 
       if (lastOutcome.healthy) {
         streak += 1
         if (streak >= successStreakTarget) {
+          const hydrated = await hydrateGoogleAiAppSession(
+            activePage,
+            context,
+            startedAt,
+            timeoutMs,
+            headless
+          )
+          const hydratedCookies =
+            hydrated.cookies.length > 0 ? hydrated.cookies : hydrated.exhaustedBudget ? cookies : []
+          const accountHash = computeGoogleAccountHash(hydratedCookies)
+          if (!accountHash) {
+            return buildFailureResult(
+              headless
+                ? mapHeadlessRefreshFailure(snapshot, hydrated.outcome, hydrated.exhaustedBudget)
+                : mapProbeError(hydrated.outcome, hydrated.exhaustedBudget),
+              hydrated.outcome,
+              hydrated.exhaustedBudget
+            )
+          }
           return {
             success: true,
             timedOut: false,
-            outcome: lastOutcome,
-            cookies,
-            accountHash: computeGoogleAccountHash(cookies)
+            outcome: hydrated.outcome.healthy ? hydrated.outcome : lastOutcome,
+            cookies: hydratedCookies,
+            accountHash
           }
         }
       } else {
@@ -330,12 +426,13 @@ async function runPlaywrightSessionFlow({
       await new Promise((resolve) => setTimeout(resolve, 1500))
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return buildFailureResult(
-      (error instanceof Error ? error.message : String(error)).includes(
-        'Target page, context or browser has been closed'
-      )
+      errorMessage.includes('Target page, context or browser has been closed')
         ? 'error_login_cancelled'
-        : 'error_login_failed'
+        : headless && isGoogleLoginRedirectUrl(errorMessage)
+          ? 'error_refresh_failed_requires_login'
+          : 'error_login_failed'
     )
   } finally {
     if (context) {

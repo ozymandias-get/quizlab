@@ -1,9 +1,16 @@
 import type { ReactNode } from 'react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import PdfViewer from '@features/pdf/ui/components/PdfViewer'
 
 const mockViewer = vi.fn()
+const mockHandleDocumentLoad = vi.fn()
+const mockZoomTo = vi.fn()
+const mockJumpToPage = vi.fn()
+const mockNavigationState = {
+  currentPage: 1,
+  totalPages: 10
+}
 
 vi.mock('@app/providers/AiContext', () => ({
   useAi: () => ({
@@ -55,19 +62,19 @@ vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
 vi.mock('@features/pdf/ui/hooks', () => ({
   usePdfPlugins: () => ({
     plugins: [],
-    jumpToPageRef: { current: vi.fn() },
+    jumpToPageRef: { current: mockJumpToPage },
     ZoomIn: () => <button>ZoomIn</button>,
     ZoomOut: () => <button>ZoomOut</button>,
-    zoomTo: vi.fn(),
+    zoomTo: mockZoomTo,
     CurrentScale: () => <span>100%</span>,
     highlight: { current: vi.fn() },
     clearHighlights: { current: vi.fn() }
   }),
   usePdfNavigation: () => ({
-    currentPage: 1,
-    totalPages: 10,
+    currentPage: mockNavigationState.currentPage,
+    totalPages: mockNavigationState.totalPages,
     handlePageChange: vi.fn(),
-    handleDocumentLoad: vi.fn(),
+    handleDocumentLoad: mockHandleDocumentLoad,
     goToPreviousPage: vi.fn(),
     goToNextPage: vi.fn()
   }),
@@ -99,10 +106,20 @@ vi.mock('@react-pdf-viewer/core', () => ({
   },
   SpecialZoomLevel: { PageWidth: 'PageWidth' },
   ScrollMode: { Page: 'Page' },
+  ViewMode: { SinglePage: 'SinglePage' },
   Worker: ({ children }: { children: ReactNode }) => <>{children}</>
 }))
 
 describe('PdfViewer Component', () => {
+  beforeEach(() => {
+    mockViewer.mockClear()
+    mockHandleDocumentLoad.mockClear()
+    mockZoomTo.mockClear()
+    mockJumpToPage.mockClear()
+    mockNavigationState.currentPage = 1
+    mockNavigationState.totalPages = 10
+  })
+
   it('renders placeholder when no PDF is provided', () => {
     render(<PdfViewer pdfFile={null} onSelectPdf={vi.fn()} />)
     expect(screen.getByText('PDF Placeholder')).toBeInTheDocument()
@@ -121,6 +138,12 @@ describe('PdfViewer Component', () => {
 
     expect(screen.getByText('PDF Viewer Content')).toBeInTheDocument()
     expect(screen.getByText('PDF Toolbar')).toBeInTheDocument()
+    expect(mockViewer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        defaultScale: 'PageWidth',
+        viewMode: 'SinglePage'
+      })
+    )
   })
 
   it('passes the saved page to the viewer initialPage prop', () => {
@@ -139,5 +162,64 @@ describe('PdfViewer Component', () => {
         initialPage: 7
       })
     )
+  })
+
+  it('uses handleDocumentLoad directly without a resume zoom hack', () => {
+    const mockPdfFile = {
+      path: 'resume.pdf',
+      name: 'resume.pdf',
+      size: 1000,
+      lastModified: 0,
+      streamUrl: 'blob:resume'
+    }
+
+    render(<PdfViewer pdfFile={mockPdfFile} initialPage={3} onSelectPdf={vi.fn()} />)
+
+    const viewerProps = mockViewer.mock.lastCall?.[0]
+    const loadEvent = { doc: { numPages: 12 } }
+    const zoomCallCountBeforeLoad = mockZoomTo.mock.calls.length
+
+    viewerProps.onDocumentLoad(loadEvent)
+
+    expect(mockHandleDocumentLoad).toHaveBeenCalledWith(loadEvent)
+    expect(mockZoomTo).toHaveBeenCalledTimes(zoomCallCountBeforeLoad)
+  })
+
+  it('aligns resume to the saved page when viewer state is out of sync', () => {
+    const mockPdfFile = {
+      path: 'resume.pdf',
+      name: 'resume.pdf',
+      size: 1000,
+      lastModified: 0,
+      streamUrl: 'blob:resume'
+    }
+
+    render(<PdfViewer pdfFile={mockPdfFile} initialPage={3} onSelectPdf={vi.fn()} />)
+
+    expect(mockZoomTo).toHaveBeenCalledWith('PageWidth')
+    expect(mockJumpToPage).toHaveBeenCalledWith(2)
+  })
+
+  it('does not force the saved page again after the initial resume sync', () => {
+    const mockPdfFile = {
+      path: 'resume.pdf',
+      name: 'resume.pdf',
+      size: 1000,
+      lastModified: 0,
+      streamUrl: 'blob:resume'
+    }
+
+    const { rerender } = render(
+      <PdfViewer pdfFile={mockPdfFile} initialPage={3} onSelectPdf={vi.fn()} />
+    )
+
+    expect(mockJumpToPage).toHaveBeenCalledTimes(1)
+
+    mockNavigationState.currentPage = 4
+
+    rerender(<PdfViewer pdfFile={mockPdfFile} initialPage={3} onSelectPdf={vi.fn()} />)
+
+    expect(mockJumpToPage).toHaveBeenCalledTimes(1)
+    expect(mockZoomTo).toHaveBeenCalledTimes(1)
   })
 })

@@ -29,6 +29,11 @@ type ExposedApi = {
   }
   onTriggerScreenshot: (callback: (type: 'selection' | 'window' | 'screen') => void) => () => void
   onPdfViewerZoom: (callback: (action: 'in' | 'out' | 'reset') => void) => () => void
+  geminiWeb: {
+    onRefreshEvent: (
+      callback: (event: { phase: 'started' | 'success' | 'failed'; reason: string }) => void
+    ) => () => void
+  }
 }
 
 describe('preload electronAPI', () => {
@@ -114,5 +119,38 @@ describe('preload electronAPI', () => {
 
     unsubscribe()
     expect(removeListener).toHaveBeenCalledWith(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handler)
+  })
+
+  it('subscribes and unsubscribes gemini web refresh events', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+    const callback = vi.fn()
+
+    const unsubscribe = api.geminiWeb.onRefreshEvent(callback)
+
+    expect(on).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED,
+      expect.any(Function)
+    )
+    expect(on).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_SUCCESS,
+      expect.any(Function)
+    )
+    expect(on).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED,
+      expect.any(Function)
+    )
+
+    const handler = on.mock.calls.find(
+      ([channel]) => channel === IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED
+    )?.[1] as ((event: unknown, payload: { phase: 'failed'; reason: string }) => void) | undefined
+    handler?.({}, { phase: 'failed', reason: 'login_redirect' })
+    expect(callback).toHaveBeenCalledWith({ phase: 'failed', reason: 'login_redirect' })
+
+    unsubscribe()
+    expect(removeListener).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED,
+      handler
+    )
   })
 })

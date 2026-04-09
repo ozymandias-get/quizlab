@@ -1,11 +1,23 @@
 import type { ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppToolProvider, useAppTools } from '@app/providers/AppToolContext'
 
 const mockSendTextToAI = vi.fn()
 const mockSendImageToAI = vi.fn()
 const mockStartPicker = vi.fn()
+const mockShowError = vi.fn()
+const mockInvalidateQueries = vi.fn().mockResolvedValue(undefined)
+const mockOnRefreshEvent = vi.fn<
+  (
+    callback: (event: {
+      phase: 'started' | 'success' | 'failed'
+      reason: string
+      error?: string
+    }) => void
+  ) => () => void
+>(() => () => {})
 const mockWebviewState = {
   instance: null as unknown as Element | null
 }
@@ -34,6 +46,12 @@ vi.mock('@app/providers/AiContext', () => ({
   })
 }))
 
+vi.mock('@app/providers/ToastContext', () => ({
+  useToastActions: () => ({
+    showError: mockShowError
+  })
+}))
+
 vi.mock('@features/screenshot/hooks/useScreenshot', () => ({
   useScreenshot: () => ({
     isScreenshotMode: false,
@@ -52,16 +70,40 @@ vi.mock('@features/automation/hooks/useElementPicker', () => ({
 }))
 
 vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
+  GEMINI_WEB_STATUS_KEY: ['gemini-web', 'status'],
   useGeminiWebOpenLogin: () => ({
     mutateAsync: vi.fn(),
     isPending: false
   })
 }))
 
+vi.mock('@shared/lib/electronApi', () => ({
+  getElectronApi: () => ({
+    geminiWeb: {
+      onRefreshEvent: mockOnRefreshEvent
+    }
+  })
+}))
+
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
+  return {
+    ...actual,
+    useQueryClient: () => ({
+      invalidateQueries: mockInvalidateQueries
+    })
+  }
+})
+
 describe('AppToolContext', () => {
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <AppToolProvider>{children}</AppToolProvider>
-  )
+  const wrapper = ({ children }: { children: ReactNode }) => {
+    const client = new QueryClient()
+    return (
+      <QueryClientProvider client={client}>
+        <AppToolProvider>{children}</AppToolProvider>
+      </QueryClientProvider>
+    )
+  }
   const mockRemoveAllRanges = vi.fn()
 
   beforeEach(() => {
@@ -69,6 +111,9 @@ describe('AppToolContext', () => {
     vi.useFakeTimers()
     mockAiState.autoSend = false
     mockWebviewState.instance = null
+    mockShowError.mockReset()
+    mockInvalidateQueries.mockReset().mockResolvedValue(undefined)
+    mockOnRefreshEvent.mockReset().mockReturnValue(() => {})
     mockStartPicker.mockResolvedValue(undefined)
     Object.defineProperty(window, 'getSelection', {
       configurable: true,
@@ -184,6 +229,37 @@ describe('AppToolContext', () => {
       promptText: undefined
     })
     expect(mockSendTextToAI).not.toHaveBeenCalled()
+  })
+
+  it('tracks gemini web refresh overlay state from refresh events', async () => {
+    let refreshCallback:
+      | ((event: {
+          phase: 'started' | 'success' | 'failed'
+          reason: string
+          error?: string
+        }) => void)
+      | undefined
+    mockOnRefreshEvent.mockImplementation((callback) => {
+      refreshCallback = callback
+      return () => {}
+    })
+
+    const { result } = renderHook(() => useAppTools(), { wrapper })
+
+    act(() => {
+      refreshCallback?.({ phase: 'started', reason: 'http_401' })
+    })
+    expect(result.current.isGeminiWebSessionRefreshing).toBe(true)
+
+    act(() => {
+      refreshCallback?.({
+        phase: 'failed',
+        reason: 'login_redirect',
+        error: 'error_refresh_failed_requires_login'
+      })
+    })
+    expect(result.current.isGeminiWebSessionRefreshing).toBe(false)
+    expect(mockShowError).toHaveBeenCalledWith('error_refresh_failed_requires_login')
   })
 
   it('sends text then image then trailing text with ordered segments', async () => {

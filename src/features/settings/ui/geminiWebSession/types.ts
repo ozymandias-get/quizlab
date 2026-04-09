@@ -1,9 +1,15 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type {
+  GeminiWebSessionReasonCode,
+  GeminiWebSessionRefreshReason,
+  GeminiWebSessionState
+} from '@shared-core/types'
 
 export interface GeminiWebSessionStatusView {
-  state: string
-  reason: string
+  state: GeminiWebSessionState
+  reason: GeminiWebSessionReasonCode
   checking: boolean
+  isRefreshing: boolean
   featureEnabled: boolean
   userEnabled: boolean
   webEnabled: boolean
@@ -11,6 +17,10 @@ export interface GeminiWebSessionStatusView {
   needsReauth: boolean
   isDegraded: boolean
   lastCheckAt: string | null
+  lastRefreshedAt: string | null
+  lastRefreshReason: GeminiWebSessionRefreshReason | null
+  requiresManualLogin: boolean
+  showReauthAlert: boolean
 }
 
 export interface GeminiWebSessionActionState {
@@ -19,6 +29,7 @@ export interface GeminiWebSessionActionState {
   isReauthingWeb: boolean
   isResettingWebProfile: boolean
   isTogglingWebEnabled: boolean
+  isRefreshing: boolean
 }
 
 export interface GeminiWebSessionHandlers {

@@ -5,7 +5,7 @@ import type { GeminiWebSessionActionResult, GeminiWebSessionStatus } from '@shar
 import { useLanguageStrings } from '@app/providers/LanguageContext'
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
-const GEMINI_WEB_STATUS_KEY = ['gemini-web', 'status']
+export const GEMINI_WEB_STATUS_KEY = ['gemini-web', 'status'] as const
 
 export function useGeminiWebStatus(
   options?: Omit<

@@ -41,3 +41,18 @@ export type GeminiWebSessionActionResult = {
   error?: string
   status?: GeminiWebSessionStatus
 }
+
+export type GeminiWebSessionRefreshReason =
+  | 'proactive_expiry'
+  | 'http_401'
+  | 'http_403'
+  | 'login_redirect'
+  | 'unknown'
+
+export type GeminiWebSessionRefreshPhase = 'started' | 'success' | 'failed'
+
+export interface GeminiWebSessionRefreshEvent {
+  phase: GeminiWebSessionRefreshPhase
+  reason: GeminiWebSessionRefreshReason
+  error?: string
+}

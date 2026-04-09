@@ -3,12 +3,18 @@ import type { Session } from 'electron'
 import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
+  GeminiWebSessionRefreshReason,
   GeminiWebSessionStatus
 } from '@shared-core/types'
 import { createDefaultStatus, applyProbeTransition } from './stateMachine'
 import { runPlaywrightLogin } from './playwrightLogin'
 import { clearPersistentPartitionData, importExternalCookies } from './sessionCookies'
-import { FEATURE_ENABLED, HEALTH_TIMEOUT_MS, LOGIN_TIMEOUT_MS } from './sessionConfig'
+import {
+  COOKIE_REFRESH_THRESHOLD_MS,
+  FEATURE_ENABLED,
+  HEALTH_TIMEOUT_MS,
+  LOGIN_TIMEOUT_MS
+} from './sessionConfig'
 import { nowIso } from './sessionUtils'
 import { toErrorMessage } from './sessionErrors'
 import { SessionMetadataRepository, sanitizeEnabledAppIds } from './sessionMetadataRepository'
@@ -16,10 +22,16 @@ import { ProfileLock } from './profileLock'
 import { ProbeRunner } from './probeRunner'
 import { SessionRecovery } from './sessionRecovery'
 import { SessionMonitor } from './sessionMonitor'
+import { GOOGLE_AI_WEB_APP_URLS } from './constants'
+import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps'
+import { isGoogleLoginRedirectUrl } from './authHeuristics'
+import type { ReactiveRefreshSignal, RefreshEventEmitter } from './sessionContracts'
 
 function logSuppressedError(context: string, error: unknown): void {
   console.warn(`[GeminiWebSession] ${context}:`, toErrorMessage(error, 'unknown_error'))
 }
+
+const REACTIVE_REFRESH_DEBOUNCE_MS = 1_500
 
 export class SessionOrchestrator {
   private readonly config: GeminiWebSessionConfig
@@ -31,9 +43,13 @@ export class SessionOrchestrator {
   private readonly recovery: SessionRecovery
   private readonly monitor: SessionMonitor
   private readonly resolvePersistentSession: () => Session
+  private readonly emitRefreshEvent: RefreshEventEmitter
 
   private initialized = false
   private activeCheck: Promise<GeminiWebSessionStatus> | null = null
+  private activeRefresh: Promise<void> | null = null
+  private reactiveListenersConfigured = false
+  private lastReactiveTriggerAtByKey = new Map<string, number>()
 
   constructor(options: {
     config: GeminiWebSessionConfig
@@ -44,6 +60,7 @@ export class SessionOrchestrator {
       lockPath: string
     }
     resolvePersistentSession: () => Session
+    emitRefreshEvent?: RefreshEventEmitter
   }) {
     this.config = options.config
     this.profileDir = options.paths.profileDir
@@ -64,6 +81,7 @@ export class SessionOrchestrator {
       resolvePersistentSession: () => this.resolvePersistentSession()
     })
     this.monitor = new SessionMonitor()
+    this.emitRefreshEvent = options.emitRefreshEvent || (() => {})
   }
 
   getConfig(): GeminiWebSessionConfig {
@@ -74,6 +92,7 @@ export class SessionOrchestrator {
     if (this.initialized) return
     await this.ensureProfileDirectory()
     await this.metadataRepository.ensureMetadata()
+    this.configureReactiveRefreshListeners()
     this.initialized = true
     const metadata = await this.metadataRepository.readMetadata()
     if (FEATURE_ENABLED && metadata.enabled) {
@@ -300,6 +319,12 @@ export class SessionOrchestrator {
 
   async dispose(): Promise<void> {
     this.monitor.stop()
+    if (this.activeRefresh) {
+      await this.activeRefresh.catch((error) => {
+        logSuppressedError('active refresh join failed during dispose', error)
+      })
+      this.activeRefresh = null
+    }
     if (this.activeCheck) {
       await this.activeCheck.catch((error) => {
         logSuppressedError('active check join failed during dispose', error)
@@ -340,6 +365,18 @@ export class SessionOrchestrator {
     if (!FEATURE_ENABLED) return
     this.monitor.schedule(this.config.checkIntervalMs, this.config.jitterPct, async () => {
       try {
+        const targetSession = this.resolvePersistentSession()
+        const cookieExpiry = await this.monitor.inspectCookieExpiry(
+          targetSession,
+          COOKIE_REFRESH_THRESHOLD_MS
+        )
+        if (cookieExpiry.shouldRefresh) {
+          await this.triggerRefresh({
+            reason: 'proactive_expiry'
+          })
+          return
+        }
+
         await this.performHealthCheck({ allowRetry: true })
       } catch (error: unknown) {
         console.error(
@@ -349,6 +386,156 @@ export class SessionOrchestrator {
       } finally {
         this.scheduleMonitor()
       }
+    })
+  }
+
+  async triggerRefresh(signal: ReactiveRefreshSignal): Promise<void> {
+    await this.initialize()
+    const current = await this.metadataRepository.readMetadata()
+    if (!FEATURE_ENABLED || !current.enabled) return
+
+    if (this.activeCheck) {
+      await this.activeCheck.catch((error) => {
+        logSuppressedError('active check join failed before refresh', error)
+      })
+    }
+
+    if (
+      signal.reason !== 'proactive_expiry' &&
+      this.recovery.isWithinRefreshGracePeriod() &&
+      current.state !== 'reauth_required'
+    ) {
+      return
+    }
+
+    if (this.activeRefresh) {
+      await this.activeRefresh.catch((error) => {
+        logSuppressedError('active refresh join failed', error)
+      })
+      return
+    }
+
+    if (!this.recovery.canAttemptHeadlessRefresh()) {
+      return
+    }
+
+    const debounceKey = `${signal.reason}:${signal.statusCode || 0}:${signal.url || ''}`
+    const now = Date.now()
+    const lastTriggeredAt = this.lastReactiveTriggerAtByKey.get(debounceKey) || 0
+    if (now - lastTriggeredAt < REACTIVE_REFRESH_DEBOUNCE_MS) {
+      return
+    }
+    this.lastReactiveTriggerAtByKey.set(debounceKey, now)
+
+    this.activeRefresh = this.executeRefresh(signal).finally(() => {
+      this.activeRefresh = null
+    })
+    await this.activeRefresh
+  }
+
+  private async executeRefresh(signal: ReactiveRefreshSignal): Promise<void> {
+    const lock = await this.profileLock.acquire()
+    if (!lock.ok) {
+      if (lock.error === 'already_in_use') return
+      throw new Error(lock.error || 'lock_error')
+    }
+
+    this.emitRefreshEvent({
+      phase: 'started',
+      reason: signal.reason
+    })
+
+    try {
+      const current = await this.metadataRepository.readMetadata()
+      const refreshResult = await this.recovery.runPlaywrightHeadlessRefreshProbe(
+        current.accountHash
+      )
+
+      if (refreshResult.success && refreshResult.probe?.outcome.healthy) {
+        const transitioned = applyProbeTransition({
+          previous: current,
+          outcome: refreshResult.probe.outcome,
+          timestamp: nowIso(),
+          maxConsecutiveFailures: this.config.maxConsecutiveFailures
+        })
+        await this.metadataRepository.writeStatus(
+          { ...transitioned, state: 'authenticated' },
+          refreshResult.probe.accountHash || current.accountHash
+        )
+        this.recovery.markRefreshSuccess()
+        this.emitRefreshEvent({
+          phase: 'success',
+          reason: signal.reason
+        })
+        return
+      }
+
+      const error = refreshResult.error || 'error_refresh_failed_requires_login'
+      const nextState =
+        error === 'error_refresh_failed_requires_login' ? 'reauth_required' : 'auth_required'
+      await this.metadataRepository.writeStatus(
+        {
+          ...current,
+          state: nextState,
+          reasonCode:
+            error === 'error_refresh_failed_requires_login' ? 'login_redirect' : current.reasonCode,
+          lastCheckAt: nowIso()
+        },
+        current.accountHash
+      )
+      this.emitRefreshEvent({
+        phase: 'failed',
+        reason: signal.reason,
+        error
+      })
+    } finally {
+      await this.profileLock.release()
+    }
+  }
+
+  private configureReactiveRefreshListeners(): void {
+    if (this.reactiveListenersConfigured) return
+
+    const targetSession = this.resolvePersistentSession()
+    if (
+      !targetSession?.webRequest ||
+      typeof targetSession.webRequest.onCompleted !== 'function' ||
+      typeof targetSession.webRequest.onBeforeRedirect !== 'function'
+    ) {
+      return
+    }
+
+    this.reactiveListenersConfigured = true
+    const managedHostFilters = GOOGLE_AI_WEB_APPS.flatMap((app) => [
+      `https://${app.hostname}/*`,
+      `http://${app.hostname}/*`
+    ])
+    const filter = {
+      urls: [...managedHostFilters, 'https://accounts.google.com/*']
+    }
+
+    targetSession.webRequest.onCompleted(filter, (details) => {
+      if (details.statusCode !== 401 && details.statusCode !== 403) return
+      const reason: GeminiWebSessionRefreshReason =
+        details.statusCode === 401 ? 'http_401' : 'http_403'
+      void this.triggerRefresh({
+        reason,
+        url: details.url,
+        statusCode: details.statusCode
+      }).catch((error) => {
+        logSuppressedError('reactive onCompleted refresh failed', error)
+      })
+    })
+
+    targetSession.webRequest.onBeforeRedirect(filter, (details) => {
+      const candidateUrl = details.redirectURL || details.url
+      if (!isGoogleLoginRedirectUrl(candidateUrl)) return
+      void this.triggerRefresh({
+        reason: 'login_redirect',
+        url: candidateUrl
+      }).catch((error) => {
+        logSuppressedError('reactive redirect refresh failed', error)
+      })
     })
   }
 
@@ -408,12 +595,13 @@ export class SessionOrchestrator {
           )
         ) {
           const playwrightProbe = await this.recovery.runPlaywrightHeadlessRefreshProbe(accountHash)
-          if (playwrightProbe) {
-            firstProbe = playwrightProbe
+          if (playwrightProbe.probe) {
+            firstProbe = playwrightProbe.probe
             accountHash = firstProbe.outcome.healthy
               ? firstProbe.accountHash || accountHash
               : accountHash
             if (firstProbe.outcome.healthy) {
+              this.recovery.markRefreshSuccess()
               const recoveredStatus = applyProbeTransition({
                 previous: current,
                 outcome: firstProbe.outcome,
@@ -422,6 +610,16 @@ export class SessionOrchestrator {
               })
               return this.metadataRepository.writeStatus(recoveredStatus, accountHash)
             }
+          } else if (playwrightProbe.error === 'error_refresh_failed_requires_login') {
+            return this.metadataRepository.writeStatus(
+              {
+                ...current,
+                state: 'reauth_required',
+                reasonCode: 'login_redirect',
+                lastCheckAt: nowIso()
+              },
+              accountHash
+            )
           }
         }
 

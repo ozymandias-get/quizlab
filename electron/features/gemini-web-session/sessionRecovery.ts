@@ -5,12 +5,13 @@ import {
   HEALTH_TIMEOUT_MS,
   PLAYWRIGHT_HEADLESS_REFRESH_COOLDOWN_MS,
   PLAYWRIGHT_HEADLESS_REFRESH_TIMEOUT_MS,
+  REFRESH_GRACE_PERIOD_MS,
   SILENT_REFRESH_COOLDOWN_MS,
   SILENT_REFRESH_TIMEOUT_MS
 } from './sessionConfig'
 import { runPlaywrightHeadlessRefresh } from './playwrightLogin'
 import type { ProbeOutcome } from './stateMachine'
-import type { ProbeExecutionResult } from './sessionContracts'
+import type { ProbeExecutionResult, RefreshExecutionResult } from './sessionContracts'
 import type { ProbeRunner } from './probeRunner'
 
 export class SessionRecovery {
@@ -19,6 +20,7 @@ export class SessionRecovery {
   private readonly resolvePersistentSession: () => Session
   private lastSilentRefreshAttemptAt = 0
   private lastPlaywrightRefreshAttemptAt = 0
+  private lastRefreshSucceededAt = 0
 
   constructor(options: {
     probeRunner: ProbeRunner
@@ -33,6 +35,15 @@ export class SessionRecovery {
   resetCooldowns(): void {
     this.lastSilentRefreshAttemptAt = 0
     this.lastPlaywrightRefreshAttemptAt = 0
+    this.lastRefreshSucceededAt = 0
+  }
+
+  markRefreshSuccess(): void {
+    this.lastRefreshSucceededAt = Date.now()
+  }
+
+  isWithinRefreshGracePeriod(): boolean {
+    return Date.now() - this.lastRefreshSucceededAt < REFRESH_GRACE_PERIOD_MS
   }
 
   shouldAttemptSilentRefresh(outcome: ProbeOutcome, allowRetry: boolean): boolean {
@@ -61,6 +72,12 @@ export class SessionRecovery {
     return true
   }
 
+  canAttemptHeadlessRefresh(): boolean {
+    return (
+      Date.now() - this.lastPlaywrightRefreshAttemptAt >= PLAYWRIGHT_HEADLESS_REFRESH_COOLDOWN_MS
+    )
+  }
+
   async runSilentRefreshProbe(): Promise<ProbeExecutionResult> {
     this.lastSilentRefreshAttemptAt = Date.now()
 
@@ -79,7 +96,7 @@ export class SessionRecovery {
 
   async runPlaywrightHeadlessRefreshProbe(
     previousAccountHash: string | null
-  ): Promise<ProbeExecutionResult | null> {
+  ): Promise<RefreshExecutionResult> {
     this.lastPlaywrightRefreshAttemptAt = Date.now()
 
     const refreshResult = await runPlaywrightHeadlessRefresh({
@@ -88,7 +105,10 @@ export class SessionRecovery {
     })
 
     if (!refreshResult.success) {
-      return null
+      return {
+        success: false,
+        error: refreshResult.error || 'error_login_failed'
+      }
     }
 
     const targetSession = this.resolvePersistentSession()
@@ -98,11 +118,25 @@ export class SessionRecovery {
       interactive: false,
       timeoutMs: HEALTH_TIMEOUT_MS
     })
-    return {
+    const probe: ProbeExecutionResult = {
       ...verificationProbe,
       accountHash: verificationProbe.outcome.healthy
         ? verificationProbe.accountHash || refreshResult.accountHash || previousAccountHash
         : previousAccountHash
+    }
+
+    return {
+      success: probe.outcome.healthy,
+      error: probe.outcome.healthy
+        ? undefined
+        : refreshResult.error === 'error_refresh_failed_requires_login'
+          ? refreshResult.error
+          : probe.outcome.kind === 'challenge'
+            ? 'error_refresh_failed_requires_login'
+            : probe.timedOut
+              ? 'error_login_timeout'
+              : 'error_login_verification_failed',
+      probe
     }
   }
 }

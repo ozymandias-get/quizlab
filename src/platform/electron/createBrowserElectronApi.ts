@@ -316,7 +316,8 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
 
         geminiWebEnabledAppIds = nextIds
         return { success: true, status: getGeminiStatus() }
-      }
+      },
+      onRefreshEvent: () => () => {}
     }
   }
 }

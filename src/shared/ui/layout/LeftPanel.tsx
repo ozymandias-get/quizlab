@@ -119,7 +119,7 @@ function LeftPanel({
                 <ErrorBoundary title={t('error_pdf_viewer')}>
                   <Worker workerUrl={pdfjsWorkerUrl}>
                     <PdfViewer
-                      key={`${activePdfTabId}-${pdfFile?.streamUrl || 'empty'}`}
+                      key={`${activePdfTabId}-${activePdfTab?.viewerSessionKey || pdfFile?.streamUrl || 'empty'}`}
                       pdfFile={pdfFile}
                       activePdfTab={activePdfTab}
                       onSelectPdf={onSelectPdf}

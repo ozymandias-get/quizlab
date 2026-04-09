@@ -8,6 +8,7 @@ const GeminiWebSessionTab = memo(() => {
     t,
     status,
     reasonText,
+    refreshReasonText,
     stateText,
     enabledAppIds,
     riskItems,
@@ -22,6 +23,7 @@ const GeminiWebSessionTab = memo(() => {
         t={t}
         status={status}
         reasonText={reasonText}
+        refreshReasonText={refreshReasonText}
         stateText={stateText}
         enabledAppIds={enabledAppIds}
         actionState={actionState}

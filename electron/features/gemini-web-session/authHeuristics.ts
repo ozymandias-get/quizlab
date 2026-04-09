@@ -4,6 +4,8 @@ import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps
 const CHALLENGE_HOSTS = new Set(['challenge.google.com', 'sorry.google.com'])
 
 const LOGIN_HOSTS = new Set(['accounts.google.com'])
+const LOGIN_PATH_REGEX =
+  /^\/(servicelogin|v3\/signin(?:\/|$)|checkcookie(?:\/|$)|interactivelogin(?:\/|$))/i
 
 const APP_HOSTS = new Set(GOOGLE_AI_WEB_APPS.map((app) => app.hostname))
 const APP_BY_HOST = new Map(GOOGLE_AI_WEB_APPS.map((app) => [app.hostname, app]))
@@ -35,6 +37,12 @@ function buildOutcome(kind: ProbeKind): ProbeOutcome {
   return { kind, healthy: kind === 'authenticated' }
 }
 
+export function isGoogleLoginRedirectUrl(rawUrl: string): boolean {
+  const hostname = getHostname(rawUrl)
+  const pathname = getPathname(rawUrl)
+  return !!hostname && LOGIN_HOSTS.has(hostname) && LOGIN_PATH_REGEX.test(pathname)
+}
+
 export function classifyAuthProbe(
   rawUrl: string,
   snapshot: DomProbeSnapshot,
@@ -49,7 +57,7 @@ export function classifyAuthProbe(
     return buildOutcome('challenge')
   }
 
-  if (hostname && LOGIN_HOSTS.has(hostname)) {
+  if (isGoogleLoginRedirectUrl(rawUrl)) {
     if (snapshot.hasChallengeText && !snapshot.hasLoginForm && !snapshot.hasSignInText) {
       return buildOutcome('challenge')
     }

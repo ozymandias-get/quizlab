@@ -68,6 +68,27 @@ describe('session recovery', () => {
       timeoutMs: expect.any(Number)
     })
     expect(recoveryMocks.importExternalCookies).toHaveBeenCalledTimes(1)
-    expect(result?.accountHash).toBe('from_refresh')
+    expect(result.success).toBe(true)
+    expect(result.probe?.accountHash).toBe('from_refresh')
+  })
+
+  it('propagates requires-login refresh failures without probing', async () => {
+    recoveryMocks.runPlaywrightHeadlessRefresh.mockResolvedValue({
+      success: false,
+      error: 'error_refresh_failed_requires_login'
+    })
+    const runProbeAcrossApps = vi.fn()
+
+    const recovery = new SessionRecovery({
+      probeRunner: { runProbe: vi.fn(), runProbeAcrossApps } as never,
+      playwrightProfileDir: 'C:/tmp/playwright',
+      resolvePersistentSession: () => ({ cookies: {} }) as never
+    })
+
+    const result = await recovery.runPlaywrightHeadlessRefreshProbe('old')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('error_refresh_failed_requires_login')
+    expect(runProbeAcrossApps).not.toHaveBeenCalled()
   })
 })

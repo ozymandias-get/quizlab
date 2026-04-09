@@ -215,7 +215,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
   return {
     layout,
     isDragging,
-    bodyHeight: Math.max(96, layout.height - 210),
+    bodyHeight: Math.max(96, layout.height - 232),
     panelRef,
     handleDragStart,
     handleDragMove,

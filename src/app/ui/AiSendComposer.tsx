@@ -230,9 +230,14 @@ function AiSendComposer({
         >
           <div
             ref={panelRef}
-            className="relative isolate overflow-hidden rounded-2xl text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_48px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl backdrop-saturate-200"
+            className="relative isolate overflow-hidden rounded-[28px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_48px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl backdrop-saturate-200"
             style={{ background: panelShellBackground }}
           >
+            <div
+              className="pointer-events-none absolute -right-14 -top-12 h-40 w-40 rounded-full blur-3xl"
+              style={{ background: hexToRgba(selectionColor, 0.16) }}
+            />
+            <div className="pointer-events-none absolute -left-12 bottom-8 h-32 w-32 rounded-full bg-white/[0.03] blur-3xl" />
             <AnimatePresence>
               {isClosingAfterSubmit ? (
                 <motion.div
@@ -289,7 +294,7 @@ function AiSendComposer({
 
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.18] to-transparent" />
             <div
-              className="pointer-events-none absolute inset-[1px] rounded-[calc(1rem-1px)] border border-white/[0.07]"
+              className="pointer-events-none absolute inset-[1px] rounded-[calc(1.75rem-1px)] border border-white/[0.07]"
               style={{ boxShadow: `inset 0 0 32px -12px ${hexToRgba(selectionColor, 0.08)}` }}
             />
 

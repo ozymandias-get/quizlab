@@ -40,6 +40,10 @@ function getImageLabel(
 const ITEM_ENTER = { type: 'spring' as const, stiffness: 420, damping: 30, mass: 0.55 }
 const ITEM_ENTER_REDUCED = { duration: 0.15 }
 
+function getImagePreviewSrc(item: AiDraftImageItem) {
+  return item.blobUrl ?? item.dataUrl
+}
+
 function AiSendComposerContent({
   items,
   totalItems,
@@ -122,12 +126,12 @@ function AiSendComposerContent({
   return (
     <>
       <div
-        className="relative space-y-2.5 overflow-y-auto px-5 pb-3 pt-3"
+        className="relative space-y-3 overflow-y-auto px-5 pb-3 pt-3"
         style={{ height: bodyHeight }}
       >
         {items.length > 1 ? (
           <motion.p
-            className="text-[10px] font-medium tracking-wide text-white/30"
+            className="text-[10px] font-medium tracking-[0.1em] text-white/30"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -161,7 +165,7 @@ function AiSendComposerContent({
                           }
                     }
                     transition={itemTransition}
-                    className="group relative overflow-hidden rounded-2xl border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
+                    className="group relative overflow-hidden rounded-[22px] border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-[22px] before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
                     style={{
                       background:
                         'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
@@ -169,6 +173,10 @@ function AiSendComposerContent({
                         'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
                     }}
                   >
+                    <div
+                      className="pointer-events-none absolute -right-8 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full blur-3xl"
+                      style={{ background: `${accentStrong}22` }}
+                    />
                     <div
                       className="absolute inset-y-0 left-0 w-[3px] rounded-l-2xl"
                       style={{
@@ -186,7 +194,7 @@ function AiSendComposerContent({
                           }}
                           strokeWidth={2}
                         />
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                        <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
                           {t('ai_send_selection_item', { index: String(textOrdinal) })}
                         </span>
                       </span>
@@ -200,11 +208,11 @@ function AiSendComposerContent({
                       </button>
                     </div>
                     <p
-                      className="overflow-hidden px-3 pb-2.5 pl-4 text-[12.5px] leading-[1.55] text-white/70"
+                      className="overflow-hidden px-3 pb-3 pl-4 text-[12.5px] leading-[1.6] text-white/76"
                       style={{
                         display: '-webkit-box',
                         WebkitBoxOrient: 'vertical',
-                        WebkitLineClamp: 3
+                        WebkitLineClamp: 4
                       }}
                     >
                       {item.text}
@@ -216,6 +224,8 @@ function AiSendComposerContent({
               const imageIndex = items
                 .slice(0, index)
                 .filter((entry) => entry.type === 'image').length
+
+              const imageLabel = getImageLabel(item, imageIndex, t)
 
               return (
                 <motion.div
@@ -235,7 +245,7 @@ function AiSendComposerContent({
                         }
                   }
                   transition={itemTransition}
-                  className="group relative overflow-hidden rounded-2xl border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
+                  className="group relative overflow-hidden rounded-[22px] border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-[22px] before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
                   style={{
                     background:
                       'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
@@ -243,11 +253,27 @@ function AiSendComposerContent({
                       'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
                   }}
                 >
-                  <div className="flex items-center gap-1.5 px-3 py-2">
-                    <ImageIcon className="h-3 w-3 text-emerald-400/70" strokeWidth={2} />
-                    <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
-                      {getImageLabel(item, imageIndex, t)}
-                    </span>
+                  <div className="pointer-events-none absolute -right-8 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-emerald-300/10 blur-3xl" />
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-white/[0.12] bg-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_6px_18px_rgba(0,0,0,0.26)]">
+                      <img
+                        src={getImagePreviewSrc(item)}
+                        alt={imageLabel}
+                        className="h-full w-full object-cover"
+                        draggable={false}
+                      />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/[0.08]" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <ImageIcon className="h-3 w-3 text-emerald-400/70" strokeWidth={2} />
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                          {imageLabel}
+                        </span>
+                      </div>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => onRemoveItem(item.id)}
@@ -263,30 +289,35 @@ function AiSendComposerContent({
           </AnimatePresence>
         </div>
 
-        <section className="space-y-1.5">
-          <div className="flex items-center justify-between gap-3">
-            <label className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
-              {t('ai_send_note_label')}
-            </label>
-            <span className="tabular-nums text-[10px] font-medium text-white/35">
-              {t('ai_send_item_count', { count: String(totalItems) })}
-            </span>
-          </div>
+        <section className="space-y-2">
+          <div className="rounded-[22px] border border-white/[0.1] bg-[linear-gradient(145deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.03)_100%)] p-3 shadow-[inset_0_1px_2px_rgba(255,255,255,0.08),0_10px_28px_rgba(0,0,0,0.2)]">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                {t('ai_send_note_label')}
+              </label>
+              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 tabular-nums text-[10px] font-medium text-white/40">
+                {t('ai_send_item_count', { count: String(totalItems) })}
+              </span>
+            </div>
 
-          <textarea
-            rows={3}
-            value={noteText}
-            onChange={(event) => onNoteTextChange(event.target.value)}
-            onKeyDown={handleNoteKeyDown}
-            placeholder={hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')}
-            className="w-full resize-none rounded-2xl border border-white/[0.15] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.25] focus:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_0_0_3px_rgba(255,255,255,0.08)]"
-            style={{
-              minHeight: 80,
-              background:
-                'linear-gradient(145deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)',
-              boxShadow: `inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)`
-            }}
-          />
+            <textarea
+              rows={3}
+              value={noteText}
+              onChange={(event) => onNoteTextChange(event.target.value)}
+              onKeyDown={handleNoteKeyDown}
+              placeholder={
+                hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')
+              }
+              className="w-full resize-none rounded-2xl border border-white/[0.15] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.25] focus:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_0_0_3px_rgba(255,255,255,0.08)]"
+              style={{
+                minHeight: 88,
+                background:
+                  'linear-gradient(145deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)',
+                boxShadow:
+                  'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
+              }}
+            />
+          </div>
         </section>
       </div>
 

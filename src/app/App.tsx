@@ -86,7 +86,13 @@ const GeminiWebLoginLayer = memo(function GeminiWebLoginLayer({
   t: (key: string, params?: Record<string, string>) => string
 }) {
   const { isGeminiWebLoginInProgress } = useAppToolFlagsState()
-  return <GeminiWebLoginOverlay isVisible={isGeminiWebLoginInProgress} t={t} />
+  const { isGeminiWebSessionRefreshing } = useAppToolFlagsState()
+  return (
+    <GeminiWebLoginOverlay
+      isVisible={isGeminiWebLoginInProgress || isGeminiWebSessionRefreshing}
+      t={t}
+    />
+  )
 })
 
 const PendingAiSendLayer = memo(function PendingAiSendLayer() {

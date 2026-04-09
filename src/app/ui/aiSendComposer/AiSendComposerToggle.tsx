@@ -71,7 +71,7 @@ function AiSendComposerToggle({
         onKeyDown={handleToggleKeyDown}
         whileTap={{ scale: 0.985 }}
         className={cn(
-          'group relative w-full overflow-hidden rounded-2xl border px-4 py-3 text-left outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-emerald-500/40 before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.06] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out',
+          'group relative w-full overflow-hidden rounded-[22px] border px-4 py-3.5 text-left outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-emerald-500/40 before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-[22px] before:bg-gradient-to-r before:from-transparent before:via-white/[0.06] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out',
           autoSend
             ? 'border-emerald-400/30 hover:border-emerald-400/45'
             : 'border-white/[0.12] hover:border-white/[0.2]'
@@ -92,12 +92,31 @@ function AiSendComposerToggle({
               }
         }
       >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.15] to-transparent" />
+        <div
+          className={cn(
+            'pointer-events-none absolute -right-6 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full blur-3xl transition-opacity duration-300',
+            autoSend ? 'opacity-100' : 'opacity-50'
+          )}
+          style={{
+            background: autoSend ? accentStrong : 'rgba(255,255,255,0.08)'
+          }}
+        />
+
         <motion.div
           layout={shouldAnimateLayout}
           className="relative z-10 flex items-center justify-between gap-3"
         >
           <motion.div layout={shouldAnimateLayout} className="min-w-0 flex-1">
             <motion.div layout={shouldAnimateLayout} className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'inline-flex h-2.5 w-2.5 rounded-full transition-all duration-300',
+                  autoSend
+                    ? 'bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.9)]'
+                    : 'bg-white/30'
+                )}
+              />
               <span
                 className={cn(
                   'text-[13px] font-semibold leading-none tracking-[0.005em] transition-colors duration-300',
@@ -144,18 +163,23 @@ function AiSendComposerToggle({
 
           <div
             className={cn(
-              'relative flex h-[22px] w-[40px] shrink-0 items-center rounded-full border transition-all duration-300',
+              'relative flex h-[24px] w-[44px] shrink-0 items-center rounded-full border shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] transition-all duration-300',
               autoSend
                 ? 'border-emerald-400/25 bg-emerald-500/30'
                 : 'border-white/[0.08] bg-white/[0.06]'
             )}
+            style={{
+              boxShadow: autoSend
+                ? `inset 0 1px 1px rgba(255,255,255,0.08), 0 0 18px -6px ${accentStrong}`
+                : 'inset 0 1px 1px rgba(255,255,255,0.08)'
+            }}
           >
             <motion.span
               className={cn(
-                'absolute h-[16px] w-[16px] rounded-full shadow-sm',
+                'absolute h-[17px] w-[17px] rounded-full shadow-sm',
                 autoSend ? 'bg-emerald-300' : 'bg-white/40'
               )}
-              animate={{ x: autoSend ? 19 : 3 }}
+              animate={{ x: autoSend ? 22 : 3 }}
               transition={SPRING_SNAPPY}
             />
           </div>
@@ -181,7 +205,7 @@ function AiSendComposerToggle({
                     onSubmit()
                   }}
                   disabled={isSubmitting || isSubmitDisabled}
-                  className="w-full rounded-xl border-0 py-2 text-[12px] font-semibold tracking-[0.01em] text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-35"
+                  className="w-full rounded-2xl border-0 py-2.5 text-[12px] font-semibold tracking-[0.01em] text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-35"
                   style={{
                     background: `linear-gradient(135deg, ${accentStrong}, rgba(45,212,191,0.65) 70%, rgba(255,255,255,0.18))`
                   }}

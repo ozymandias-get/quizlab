@@ -49,5 +49,8 @@ export type {
   GeminiWebSessionReasonCode,
   GeminiWebSessionStatus,
   GeminiWebSessionConfig,
-  GeminiWebSessionActionResult
+  GeminiWebSessionActionResult,
+  GeminiWebSessionRefreshReason,
+  GeminiWebSessionRefreshPhase,
+  GeminiWebSessionRefreshEvent
 } from './gemini-web'

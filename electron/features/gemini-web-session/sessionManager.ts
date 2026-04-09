@@ -1,6 +1,7 @@
 import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
+  GeminiWebSessionRefreshEvent,
   GeminiWebSessionStatus
 } from '@shared-core/types'
 import { PROFILE_PARTITION } from './sessionConfig'
@@ -10,6 +11,8 @@ import {
   resolvePersistentSession
 } from './sessionContext'
 import { SessionOrchestrator } from './sessionOrchestrator'
+import { getMainWindow } from '../../app/windowManager'
+import { APP_CONFIG } from '../../app/constants'
 
 export class GeminiWebSessionManager {
   private readonly orchestrator: SessionOrchestrator
@@ -20,7 +23,24 @@ export class GeminiWebSessionManager {
     this.orchestrator = new SessionOrchestrator({
       config,
       paths,
-      resolvePersistentSession: () => resolvePersistentSession(PROFILE_PARTITION)
+      resolvePersistentSession: () => resolvePersistentSession(PROFILE_PARTITION),
+      emitRefreshEvent: (event: GeminiWebSessionRefreshEvent) => {
+        const mainWindow = getMainWindow()
+        if (
+          !mainWindow ||
+          (typeof mainWindow.isDestroyed === 'function' && mainWindow.isDestroyed())
+        )
+          return
+
+        const channel =
+          event.phase === 'started'
+            ? APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED
+            : event.phase === 'success'
+              ? APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_SUCCESS
+              : APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED
+
+        mainWindow.webContents.send(channel, event)
+      }
     })
   }
 

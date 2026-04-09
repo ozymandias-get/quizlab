@@ -1,11 +1,16 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useAppToolActions,
   useAppToolFlagsState,
   useLanguageStrings,
   useToastActions
 } from '@app/providers'
-import type { GeminiWebSessionActionResult } from '@shared-core/types'
+import { getElectronApi } from '@shared/lib/electronApi'
+import type {
+  GeminiWebSessionActionResult,
+  GeminiWebSessionRefreshEvent,
+  GeminiWebSessionRefreshReason
+} from '@shared-core/types'
 import {
   DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS,
   GOOGLE_WEB_SESSION_APPS,
@@ -27,6 +32,14 @@ import type {
 } from './types'
 
 const MANAGED_APP_IDS = new Set(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
+const REQUIRES_LOGIN_ERROR = 'error_refresh_failed_requires_login'
+
+const resultRequiresManualLogin = (result?: GeminiWebSessionActionResult | null) => {
+  if (!result) return false
+  if (result.error === REQUIRES_LOGIN_ERROR) return true
+  if (result.status?.state === 'reauth_required') return true
+  return false
+}
 
 export function useGeminiWebSessionState() {
   const { t } = useLanguageStrings()
@@ -36,17 +49,7 @@ export function useGeminiWebSessionState() {
     isLoading: isWebSessionLoading,
     isRefetching: isWebSessionRefetching,
     refetch: refetchWebSession
-  } = useGeminiWebStatus({
-    refetchInterval: (query) => {
-      const state = query.state.data?.state
-      const available = query.state.data?.featureEnabled
-      const enabled = query.state.data?.enabled
-
-      if (!available || !enabled) return false
-      if (state === 'authenticated') return false
-      return 60_000
-    }
-  })
+  } = useGeminiWebStatus()
 
   const { isGeminiWebLoginInProgress } = useAppToolFlagsState()
   const { startGeminiWebLogin } = useAppToolActions()
@@ -60,6 +63,52 @@ export function useGeminiWebSessionState() {
     'gwsEnabledApps',
     DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS
   )
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastRefreshReason, setLastRefreshReason] = useState<GeminiWebSessionRefreshReason | null>(
+    null
+  )
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null)
+  const [requiresManualLogin, setRequiresManualLogin] = useState(false)
+  const isRefreshingRef = useRef(isRefreshing)
+
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing
+  }, [isRefreshing])
+
+  useEffect(() => {
+    const electronApi = getElectronApi()
+    const unsubscribe = electronApi.geminiWeb.onRefreshEvent(
+      (event: GeminiWebSessionRefreshEvent) => {
+        setLastRefreshReason(event.reason)
+
+        switch (event.phase) {
+          case 'started':
+            setIsRefreshing(true)
+            setRequiresManualLogin(false)
+            break
+          case 'success':
+            setIsRefreshing(false)
+            setLastRefreshedAt(new Date().toISOString())
+            setRequiresManualLogin(false)
+            void refetchWebSession()
+            break
+          case 'failed':
+            setIsRefreshing(false)
+            if (event.error === REQUIRES_LOGIN_ERROR) {
+              setRequiresManualLogin(true)
+            }
+            void refetchWebSession()
+            break
+          default:
+            break
+        }
+      }
+    )
+
+    return () => {
+      unsubscribe()
+    }
+  }, [refetchWebSession])
 
   const enabledAppIds = useMemo(
     () => new Set(enabledGoogleApps.filter((appId) => MANAGED_APP_IDS.has(appId))),
@@ -73,20 +122,35 @@ export function useGeminiWebSessionState() {
     const featureEnabled = !!webSessionData?.featureEnabled
     const userEnabled = !!webSessionData?.enabled
     const webEnabled = featureEnabled && userEnabled
+    const needsReauth = state === 'reauth_required'
 
     return {
       state,
       reason,
       checking,
+      isRefreshing,
       featureEnabled,
       userEnabled,
       webEnabled,
       isAuthenticated: state === 'authenticated',
-      needsReauth: state === 'reauth_required',
+      needsReauth,
       isDegraded: state === 'degraded',
-      lastCheckAt: webSessionData?.lastCheckAt || null
+      lastCheckAt: webSessionData?.lastCheckAt || null,
+      lastRefreshedAt,
+      lastRefreshReason,
+      requiresManualLogin,
+      showReauthAlert: requiresManualLogin || needsReauth
     }
-  }, [webSessionData, isWebSessionLoading, isWebSessionRefetching, isCheckingWebNow])
+  }, [
+    webSessionData,
+    isWebSessionLoading,
+    isWebSessionRefetching,
+    isCheckingWebNow,
+    isRefreshing,
+    lastRefreshedAt,
+    lastRefreshReason,
+    requiresManualLogin
+  ])
 
   const reasonText = useMemo(() => {
     const reasonKey = `gws_reason_${status.reason}`
@@ -94,9 +158,17 @@ export function useGeminiWebSessionState() {
     return translated === reasonKey ? status.reason : translated
   }, [status.reason, t])
 
+  const refreshReasonText = useMemo(() => {
+    if (!status.lastRefreshReason) return null
+    const reasonKey = `gws_refresh_reason_${status.lastRefreshReason}`
+    const translated = t(reasonKey)
+    return translated === reasonKey ? status.lastRefreshReason : translated
+  }, [status.lastRefreshReason, t])
+
   const stateText = useMemo(() => {
     if (!status.featureEnabled) return t('gws_feature_disabled')
     if (!status.userEnabled) return t('gws_state_disabled')
+    if (status.isRefreshing) return t('gws_state_refreshing')
     if (status.isAuthenticated) return t('gws_state_authenticated')
     if (status.needsReauth) return t('gws_state_reauth_required')
     if (status.isDegraded) return t('gws_state_degraded')
@@ -138,26 +210,35 @@ export function useGeminiWebSessionState() {
         if (options?.refetch) {
           await refetchWebSession()
         }
+        return result
       } catch (error) {
         const message = error instanceof Error ? error.message : t('error_unknown_error')
         showError(message)
+        return null
       }
     },
-    [refetchWebSession, showError]
+    [refetchWebSession, showError, t]
   )
 
   const handlers = useMemo<GeminiWebSessionHandlers>(
     () => ({
       onOpenWebLogin: () => {
+        setRequiresManualLogin(false)
         void runSessionAction(startGeminiWebLogin)
       },
       onCheckWebNow: () => {
-        void runSessionAction(checkWebNow, { refetch: true })
+        void runSessionAction(checkWebNow, { refetch: true }).then((result) => {
+          if (!isRefreshingRef.current && resultRequiresManualLogin(result)) {
+            setRequiresManualLogin(true)
+          }
+        })
       },
       onReauthWeb: () => {
+        setRequiresManualLogin(false)
         void runSessionAction(reauthWeb)
       },
       onResetWebProfile: () => {
+        setRequiresManualLogin(false)
         void runSessionAction(resetWebProfile)
       },
       onToggleWebEnabled: () => {
@@ -196,14 +277,16 @@ export function useGeminiWebSessionState() {
       isCheckingWebNow,
       isReauthingWeb,
       isResettingWebProfile,
-      isTogglingWebEnabled
+      isTogglingWebEnabled,
+      isRefreshing
     }),
     [
       isGeminiWebLoginInProgress,
       isCheckingWebNow,
       isReauthingWeb,
       isResettingWebProfile,
-      isTogglingWebEnabled
+      isTogglingWebEnabled,
+      isRefreshing
     ]
   )
 
@@ -211,6 +294,7 @@ export function useGeminiWebSessionState() {
     t,
     status,
     reasonText,
+    refreshReasonText,
     stateText,
     enabledAppIds,
     riskItems,

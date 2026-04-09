@@ -30,5 +30,8 @@ export const IPC_CHANNELS = {
   GEMINI_WEB_RESET_PROFILE: 'gemini-web-reset-profile',
   GEMINI_WEB_SET_ENABLED: 'gemini-web-set-enabled',
   GEMINI_WEB_SET_ENABLED_APPS: 'gemini-web-set-enabled-apps',
+  GEMINI_WEB_SESSION_REFRESH_STARTED: 'gemini-web-session-refresh-started',
+  GEMINI_WEB_SESSION_REFRESH_SUCCESS: 'gemini-web-session-refresh-success',
+  GEMINI_WEB_SESSION_REFRESH_FAILED: 'gemini-web-session-refresh-failed',
   APP_QUIT: 'app-quit'
 }

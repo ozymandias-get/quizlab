@@ -6,6 +6,7 @@ import type {
   CustomAiInput,
   CustomAiResult,
   GeminiWebSessionActionResult,
+  GeminiWebSessionRefreshEvent,
   GeminiWebSessionStatus,
   PdfSelectOptions,
   PdfSelection,
@@ -184,7 +185,20 @@ export interface IpcInvokeRequestMap {
   }
 }
 
+export interface IpcEventMap {
+  [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED]: {
+    args: [payload: GeminiWebSessionRefreshEvent]
+  }
+  [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_SUCCESS]: {
+    args: [payload: GeminiWebSessionRefreshEvent]
+  }
+  [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED]: {
+    args: [payload: GeminiWebSessionRefreshEvent]
+  }
+}
+
 export type IpcInvokeChannel = keyof IpcInvokeRequestMap
+export type IpcEventChannel = keyof IpcEventMap
 export type AutomationScriptAction =
   | 'generateFocusScript'
   | 'generateClickSendScript'
@@ -275,5 +289,6 @@ export interface ElectronApi {
     setEnabledApps: (
       enabledAppIds: GoogleWebSessionAppId[]
     ) => Promise<GeminiWebSessionActionResult>
+    onRefreshEvent: (callback: (event: GeminiWebSessionRefreshEvent) => void) => () => void
   }
 }

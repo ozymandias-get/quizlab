@@ -24,7 +24,7 @@ export function usePdfViewerZoomIpc(zoomTo: ZoomTo, scaleFactor: number, enabled
 
     const remove = getElectronApi().onPdfViewerZoom((action: PdfViewerZoomAction) => {
       if (action === 'reset') {
-        zoomToRef.current(SpecialZoomLevel.PageFit)
+        zoomToRef.current(SpecialZoomLevel.PageWidth)
         return
       }
       if (action === 'in') {

@@ -39,6 +39,24 @@ export const PLAYWRIGHT_HEADLESS_REFRESH_COOLDOWN_MS = parseEnvNumber(
   60_000,
   2 * 60 * 60 * 1000
 )
+export const REFRESH_GRACE_PERIOD_MS = parseEnvNumber(
+  'GEMINI_WEB_REFRESH_GRACE_PERIOD_MS',
+  5_000,
+  1_000,
+  30_000
+)
+export const COOKIE_REFRESH_THRESHOLD_MS = parseEnvNumber(
+  'GEMINI_WEB_COOKIE_REFRESH_THRESHOLD_MS',
+  5 * 60 * 1000,
+  60_000,
+  60 * 60 * 1000
+)
+export const PLAYWRIGHT_NETWORKIDLE_TIMEOUT_MS = parseEnvNumber(
+  'GEMINI_WEB_NETWORKIDLE_TIMEOUT_MS',
+  12_000,
+  5_000,
+  20_000
+)
 
 export const LOGIN_TIMEOUT_MS = (() => {
   const rawEnv = process.env.GEMINI_WEB_LOGIN_TIMEOUT_MS?.trim()

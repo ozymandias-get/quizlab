@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useElementPicker } from '@features/automation'
 import type { AiSendOptions } from '@features/ai'
 import { useScreenshot } from '@features/screenshot'
@@ -17,10 +18,15 @@ import {
   useAiSessionUiPrefsState,
   useAiWebview
 } from './AiContext'
-import { useGeminiWebOpenLogin } from '@platform/electron/api/useGeminiWebSessionApi'
+import {
+  GEMINI_WEB_STATUS_KEY,
+  useGeminiWebOpenLogin
+} from '@platform/electron/api/useGeminiWebSessionApi'
+import { getElectronApi } from '@shared/lib/electronApi'
 import type { GeminiWebSessionActionResult } from '@shared-core/types'
 import { planBulkAiSend } from './ai/planBulkAiSend'
 import type { AiDraftImageItem, AiDraftItem, AiSendResult } from './ai/types'
+import { useToastActions } from './ToastContext'
 
 type QueuedImageMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'>
 
@@ -35,6 +41,7 @@ export interface AppToolFlagsState {
   isScreenshotMode: boolean
   isPickerActive: boolean
   isGeminiWebLoginInProgress: boolean
+  isGeminiWebSessionRefreshing: boolean
 }
 
 export type AppToolStateType = AppToolQueueState & AppToolFlagsState
@@ -80,8 +87,11 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
   const { sendTextToAI, sendImageToAI } = useAiMessagingActions()
   const { setAutoSend } = useAiCoreWorkspaceActions()
   const { autoSend } = useAiSessionUiPrefsState()
+  const { showError } = useToastActions()
+  const queryClient = useQueryClient()
   const { webviewInstance } = useAiWebview()
   const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
+  const [isGeminiWebSessionRefreshing, setIsGeminiWebSessionRefreshing] = useState(false)
   const [pickerStartNonce, setPickerStartNonce] = useState(0)
   const pendingPickerStartRef = useRef(false)
   const screenshotMetaRef = useRef<QueuedImageMeta | null>(null)
@@ -298,6 +308,25 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
   const { mutateAsync: startGeminiWebLogin, isPending: isGeminiWebLoginInProgress } =
     useGeminiWebOpenLogin()
 
+  useEffect(() => {
+    const unsubscribe = getElectronApi().geminiWeb.onRefreshEvent((event) => {
+      if (event.phase === 'started') {
+        setIsGeminiWebSessionRefreshing(true)
+      } else {
+        setIsGeminiWebSessionRefreshing(false)
+      }
+
+      void queryClient.invalidateQueries({ queryKey: GEMINI_WEB_STATUS_KEY })
+      if (event.phase === 'failed' && event.error === 'error_refresh_failed_requires_login') {
+        showError(event.error)
+      }
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [queryClient, showError])
+
   const queueState = useMemo<AppToolQueueState>(
     () => ({ pendingAiItems, autoSend }),
     [pendingAiItems, autoSend]
@@ -307,9 +336,10 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
     () => ({
       isScreenshotMode,
       isPickerActive,
-      isGeminiWebLoginInProgress
+      isGeminiWebLoginInProgress,
+      isGeminiWebSessionRefreshing
     }),
-    [isScreenshotMode, isPickerActive, isGeminiWebLoginInProgress]
+    [isScreenshotMode, isPickerActive, isGeminiWebLoginInProgress, isGeminiWebSessionRefreshing]
   )
 
   const actionsValue = useMemo<AppToolActionsType>(

@@ -1,6 +1,6 @@
 import { useRef, useState, memo, useEffect, useMemo } from 'react'
 import { Maximize, Crop, ZoomIn, ZoomOut, RotateCcw, RefreshCw } from 'lucide-react'
-import { Viewer, SpecialZoomLevel, ScrollMode, LoadError } from '@react-pdf-viewer/core'
+import { Viewer, SpecialZoomLevel, ScrollMode, LoadError, ViewMode } from '@react-pdf-viewer/core'
 
 import PdfToolbar from './PdfToolbar'
 import { ContextMenu, MenuItem } from './ContextMenu'
@@ -61,6 +61,7 @@ function PdfViewerDocument({
   const [scaleFactor, setScaleFactor] = useState(1)
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
   const [panMode, setPanMode] = useState(false)
+  const appliedResumeSyncKeyRef = useRef<string | null>(null)
 
   const {
     plugins,
@@ -119,6 +120,21 @@ function PdfViewerDocument({
     setViewerReloadKey(0)
   }, [pdfUrl])
 
+  useEffect(() => {
+    if (!documentReady || !pdfUrl || !initialPage || initialPage < 2) {
+      return
+    }
+
+    const syncKey = `${pdfUrl}:${viewerReloadKey}:${initialPage}`
+    if (appliedResumeSyncKeyRef.current === syncKey) {
+      return
+    }
+
+    appliedResumeSyncKeyRef.current = syncKey
+    zoomTo(SpecialZoomLevel.PageWidth)
+    jumpToPageRef.current(initialPage - 1)
+  }, [documentReady, initialPage, jumpToPageRef, pdfUrl, viewerReloadKey, zoomTo])
+
   const menuItems: MenuItem[] = useMemo(
     () => [
       {
@@ -153,7 +169,7 @@ function PdfViewerDocument({
       {
         label: t('ctx_reset_zoom'),
         icon: RotateCcw,
-        onClick: () => zoomTo(SpecialZoomLevel.PageFit),
+        onClick: () => zoomTo(SpecialZoomLevel.PageWidth),
         shortcut: 'Ctrl+0'
       },
       { separator: true, label: '', onClick: () => {} },
@@ -180,17 +196,12 @@ function PdfViewerDocument({
           key={`${pdfUrl}:${viewerReloadKey}`}
           fileUrl={pdfUrl}
           plugins={plugins}
-          defaultScale={SpecialZoomLevel.PageFit}
+          defaultScale={SpecialZoomLevel.PageWidth}
           initialPage={initialPage && initialPage > 1 ? initialPage - 1 : 0}
           scrollMode={ScrollMode.Page}
+          viewMode={ViewMode.SinglePage}
           onPageChange={handlePageChange}
-          onDocumentLoad={(e) => {
-            handleDocumentLoad(e)
-            // Force PageFit after initial render settles — fixes resume not fitting
-            requestAnimationFrame(() => {
-              zoomTo(SpecialZoomLevel.PageFit)
-            })
-          }}
+          onDocumentLoad={handleDocumentLoad}
           onZoom={(e) => setScaleFactor(e.scale)}
           transformGetDocumentParams={(params) => ({
             ...params,
