@@ -86,7 +86,7 @@ describe('AiWebview Component', () => {
     }
   })
 
-  it('hibernates completely inactive/unpinned tabs to save RAM', () => {
+  it('mounts only the active tab session on initial render (others hibernated)', () => {
     mockAiState.activeTabId = '1'
     mockAiState.tabs = [
       { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
@@ -99,7 +99,8 @@ describe('AiWebview Component', () => {
 
     expect(screen.getByText('GPT-4 - Active')).toBeInTheDocument()
 
-    expect(screen.getByText('Claude 3 - Inactive')).toBeInTheDocument()
+    // Only the active tab mounts until other tab ids enter `aliveTabIds` (e.g. after switching).
+    expect(screen.queryByText('Claude 3 - Inactive')).not.toBeInTheDocument()
 
     expect(screen.queryByText('DeepSeek - Inactive')).not.toBeInTheDocument()
   })

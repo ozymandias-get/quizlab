@@ -54,7 +54,7 @@ const CompactModeToggle = memo(({ showOnlyIcons, setShowOnlyIcons, t }: CompactM
             <Label className="text-ql-14 font-bold text-white cursor-pointer">
               {t('show_only_icons')}
             </Label>
-            <Description className="text-ql-10 text-white/40 font-medium uppercase tracking-wider">
+            <Description className="text-ql-11 font-medium tracking-ql-fine text-white/42">
               {t('show_only_icons_desc')}
             </Description>
           </div>

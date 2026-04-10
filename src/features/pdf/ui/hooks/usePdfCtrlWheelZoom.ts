@@ -37,9 +37,10 @@ export function usePdfCtrlWheelZoom(
       zoomToRef.current(next)
     }
 
-    el.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    const listenerOptions = { passive: false, capture: true } as const
+    el.addEventListener('wheel', onWheel, listenerOptions)
     return () => {
-      el.removeEventListener('wheel', onWheel, { capture: true })
+      el.removeEventListener('wheel', onWheel, listenerOptions)
     }
   }, [containerRef, enabled, panMode])
 }

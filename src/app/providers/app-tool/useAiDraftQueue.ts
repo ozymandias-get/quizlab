@@ -1,14 +1,32 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AiDraftItem, AiDraftImageItem } from '../ai/types'
 import { buildPendingId, clearBrowserTextSelection } from './appToolUtils'
 
 export type QueuedImageMeta = Partial<Pick<AiDraftImageItem, 'page' | 'captureKind'>>
+
+function revokeDraftItemBlob(item: AiDraftItem) {
+  if (item.type === 'image' && item.blobUrl) {
+    URL.revokeObjectURL(item.blobUrl)
+  }
+}
+
+function revokeDraftBlobUrls(items: AiDraftItem[]) {
+  for (const item of items) {
+    revokeDraftItemBlob(item)
+  }
+}
 
 export function useAiDraftQueue() {
   const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
 
   const pendingAiItemsRef = useRef(pendingAiItems)
   pendingAiItemsRef.current = pendingAiItems
+
+  useEffect(() => {
+    return () => {
+      revokeDraftBlobUrls(pendingAiItemsRef.current)
+    }
+  }, [])
 
   const queueTextForAi = useCallback((text: string) => {
     const normalized = text.trim()
@@ -56,9 +74,7 @@ export function useAiDraftQueue() {
   const removePendingAiItem = useCallback((id: string) => {
     setPendingAiItems((current) => {
       const removed = current.find((item) => item.id === id)
-      if (removed?.type === 'image' && removed.blobUrl) {
-        URL.revokeObjectURL(removed.blobUrl)
-      }
+      if (removed) revokeDraftItemBlob(removed)
       return current.filter((item) => item.id !== id)
     })
   }, [])
@@ -66,11 +82,7 @@ export function useAiDraftQueue() {
   const clearPendingAiItems = useCallback(() => {
     clearBrowserTextSelection()
     setPendingAiItems((current) => {
-      for (const item of current) {
-        if (item.type === 'image' && item.blobUrl) {
-          URL.revokeObjectURL(item.blobUrl)
-        }
-      }
+      revokeDraftBlobUrls(current)
       return []
     })
   }, [])

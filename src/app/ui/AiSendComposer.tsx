@@ -230,14 +230,13 @@ function AiSendComposer({
         >
           <div
             ref={panelRef}
-            className="relative isolate overflow-hidden rounded-[28px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_48px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl backdrop-saturate-200"
+            className="relative isolate overflow-hidden rounded-[20px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_-10px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.05)] backdrop-blur-2xl backdrop-saturate-200"
             style={{ background: panelShellBackground }}
           >
             <div
-              className="pointer-events-none absolute -right-14 -top-12 h-40 w-40 rounded-full blur-3xl"
-              style={{ background: hexToRgba(selectionColor, 0.16) }}
+              className="pointer-events-none absolute -right-10 -top-8 h-28 w-28 rounded-full blur-3xl"
+              style={{ background: hexToRgba(selectionColor, 0.14) }}
             />
-            <div className="pointer-events-none absolute -left-12 bottom-8 h-32 w-32 rounded-full bg-white/[0.03] blur-3xl" />
             <AnimatePresence>
               {isClosingAfterSubmit ? (
                 <motion.div
@@ -259,10 +258,10 @@ function AiSendComposer({
                         ? { duration: 0.15 }
                         : { type: 'spring', stiffness: 320, damping: 28, mass: 0.65 }
                     }
-                    className="flex flex-col items-center gap-2.5"
+                    className="flex flex-col items-center gap-2"
                   >
                     <motion.div
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06]"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06]"
                       animate={
                         prefersReducedMotion
                           ? {}
@@ -281,12 +280,12 @@ function AiSendComposer({
                       }}
                     >
                       <Loader2
-                        className="h-4.5 w-4.5 text-white/80 animate-spin"
+                        className="h-3.5 w-3.5 text-white/80 animate-spin"
                         strokeWidth={2}
                         aria-hidden
                       />
                     </motion.div>
-                    <p className="text-ql-14 font-medium text-white/70">{t('sending_to_ai')}</p>
+                    <p className="text-ql-11 font-medium text-white/70">{t('sending_to_ai')}</p>
                   </motion.div>
                 </motion.div>
               ) : null}
@@ -294,7 +293,7 @@ function AiSendComposer({
 
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.18] to-transparent" />
             <div
-              className="pointer-events-none absolute inset-[1px] rounded-[calc(1.75rem-1px)] border border-white/[0.07]"
+              className="pointer-events-none absolute inset-[1px] rounded-[calc(1.25rem-1px)] border border-white/[0.07]"
               style={{ boxShadow: `inset 0 0 32px -12px ${hexToRgba(selectionColor, 0.08)}` }}
             />
 

@@ -48,7 +48,7 @@ function PdfPlaceholder({
 
   return (
     <div className="h-full flex flex-col items-center justify-center gap-6 p-10 text-center bg-transparent animate-in fade-in zoom-in duration-700">
-      <div className="group relative w-32 h-32 rounded-[2.5rem] bg-gradient-to-b from-white/[0.08] to-transparent backdrop-blur-2xl backdrop-saturate-200 border border-dashed border-white/20 flex flex-col items-center justify-center text-stone-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_12px_32px_rgba(0,0,0,0.3)] transition-all duration-500 ease-out hover:border-amber-400/50 hover:text-amber-400 hover:bg-amber-500/5 hover:-translate-y-1 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_16px_40px_rgba(245,158,11,0.25)] active:scale-95 overflow-hidden">
+      <div className="glass-tier-2 group relative flex h-32 w-32 flex-col items-center justify-center overflow-hidden rounded-[2.5rem] border-dashed border-white/[0.16] text-stone-400 transition-all duration-500 ease-out hover:-translate-y-1 hover:border-amber-400/40 hover:text-amber-400 active:scale-95">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.05] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
         <svg
           width="48"

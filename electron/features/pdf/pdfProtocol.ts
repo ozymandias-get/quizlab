@@ -16,6 +16,33 @@ type AllowListMap = Record<string, boolean>
 const ALLOWLIST_FILE = path.join(app.getPath('userData'), 'pdf-allowlist.json')
 const allowListManager = new ConfigManager<AllowListMap>(ALLOWLIST_FILE)
 
+function toWebStream(nodeStream: fs.ReadStream): ReadableStream<Uint8Array> {
+  return Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
+}
+
+function parseByteRange(
+  rangeHeader: string,
+  totalSize: number
+): { start: number; end: number } | null {
+  const match = /^bytes=(\d+)-(\d*)$/i.exec(rangeHeader.trim())
+  if (!match) {
+    return null
+  }
+
+  const start = Number.parseInt(match[1], 10)
+  const end = match[2] ? Number.parseInt(match[2], 10) : totalSize - 1
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
+    return null
+  }
+
+  if (start >= totalSize || end >= totalSize) {
+    return null
+  }
+
+  return { start, end }
+}
+
 const MAX_AGE_MS = 24 * 60 * 60 * 1000
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000
 
@@ -93,14 +120,8 @@ export function registerPdfProtocol() {
       }
 
       if (rangeHeader) {
-        const parts = rangeHeader.replace(/bytes=/, '').split('-')
-        const partialStart = parts[0]
-        const partialEnd = parts[1]
-
-        const start = parseInt(partialStart, 10)
-        const end = partialEnd ? parseInt(partialEnd, 10) : stats.size - 1
-
-        if (start >= stats.size || end >= stats.size) {
+        const range = parseByteRange(rangeHeader, stats.size)
+        if (!range) {
           headers['Content-Range'] = `bytes */${stats.size}`
           return new Response(null, {
             status: 416,
@@ -108,9 +129,11 @@ export function registerPdfProtocol() {
           })
         }
 
+        const { start, end } = range
         const chunksize = end - start + 1
-        const nodeStream = fs.createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 })
-        const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
+        const webStream = toWebStream(
+          fs.createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 })
+        )
 
         headers['Content-Range'] = `bytes ${start}-${end}/${stats.size}`
         headers['Content-Length'] = String(chunksize)
@@ -120,8 +143,7 @@ export function registerPdfProtocol() {
           headers
         })
       } else {
-        const nodeStream = fs.createReadStream(filePath, { highWaterMark: 1024 * 1024 })
-        const webStream = Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
+        const webStream = toWebStream(fs.createReadStream(filePath, { highWaterMark: 1024 * 1024 }))
 
         headers['Content-Length'] = String(stats.size)
 

@@ -16,9 +16,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
   return (
     <div className="relative flex flex-col gap-2">
       {label && (
-        <span className="text-ql-10 uppercase tracking-ql-soft text-white/30 font-bold ml-1">
-          {label}
-        </span>
+        <span className="ml-1 text-ql-11 font-medium tracking-ql-fine text-white/36">{label}</span>
       )}
 
       <Popover className="relative w-full">
@@ -39,7 +37,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
                 style={{ backgroundColor: color }}
               />
               <div className="flex flex-col items-start gap-0.5">
-                <span className="text-ql-12 font-mono text-white/60 uppercase tracking-ql-caps font-medium">
+                <span className="text-ql-12 font-mono font-medium tracking-ql-fine text-white/60">
                   {color}
                 </span>
               </div>
@@ -66,12 +64,10 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
                       style={{ backgroundColor: color }}
                     />
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-ql-10 text-white/40 uppercase font-black tracking-tighter">
+                      <span className="text-ql-10 font-medium tracking-ql-fine text-white/40">
                         {t('value')}
                       </span>
-                      <span className="text-ql-14 font-mono text-white/80 uppercase truncate">
-                        {color}
-                      </span>
+                      <span className="truncate text-ql-12 font-mono text-white/80">{color}</span>
                     </div>
                   </div>
                 </div>

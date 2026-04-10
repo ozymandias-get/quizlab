@@ -35,7 +35,7 @@ export default function SelectorCardDetails({
       <div className="space-y-2 rounded-2xl border border-white/[0.06] bg-black/10 p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-ql-10 font-semibold uppercase tracking-ql-standard text-white/35">
+            <p className="text-ql-10 font-medium tracking-ql-fine text-white/38">
               {t('selectors_saved_host_label')}
             </p>
             <p className="mt-1 text-ql-14 text-white/80">
@@ -43,7 +43,7 @@ export default function SelectorCardDetails({
             </p>
           </div>
           {existingTab && (
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-ql-10 font-semibold uppercase tracking-ql-dense text-white/45">
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-ql-10 font-medium tracking-ql-fine text-white/45">
               {t('selectors_tab_ready')}
             </span>
           )}
@@ -63,7 +63,7 @@ export default function SelectorCardDetails({
       </div>
 
       <div className="rounded-2xl border border-white/[0.06] bg-black/10 p-3">
-        <p className="text-ql-10 font-semibold uppercase tracking-ql-standard text-white/35">
+        <p className="text-ql-10 font-medium tracking-ql-fine text-white/38">
           {t('selectors_submit_mode_label')}
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -79,7 +79,7 @@ export default function SelectorCardDetails({
                   selectorEntry && onSubmitModeChange(selectorEntry.hostname, option.value)
                 }
                 className={`
-                  rounded-full border px-3 py-1.5 text-ql-12 font-semibold tracking-wide transition
+                  rounded-full border px-3 py-1.5 text-ql-11 font-medium transition
                   ${
                     isActive
                       ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100'

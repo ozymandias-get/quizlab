@@ -138,7 +138,7 @@ function PdfRecentList({
                         event.stopPropagation()
                         resumeItem(item)
                       }}
-                      className="h-8 px-2.5 rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] text-stone-200 hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-100 opacity-100 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-300 ease-out active:scale-95"
+                      className="glass-tier-3 glass-interactive h-8 rounded-lg border-white/[0.1] px-2.5 text-stone-200 opacity-100 transition-all duration-300 ease-out hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-100 active:scale-95 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                       aria-label={t('continue_reading')}
                     >
                       <Play className="w-3.5 h-3.5" />
@@ -150,7 +150,7 @@ function PdfRecentList({
                     {canClear && (
                       <button
                         type="button"
-                        className="h-8 w-8 rounded-lg border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] text-stone-400 hover:border-red-500/30 hover:text-red-200 hover:bg-red-500/15 opacity-100 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-300 ease-out active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80"
+                        className="glass-tier-3 glass-interactive h-8 w-8 rounded-lg border-white/[0.1] text-stone-400 opacity-100 transition-all duration-300 ease-out hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                         onClick={(event) => {
                           event.stopPropagation()
                           onRemove(item)

@@ -40,12 +40,12 @@ function OpenTabCard({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className="group relative flex w-full items-center gap-3 overflow-hidden rounded-[32px] border px-4 py-3.5 text-left backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_12px_28px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r before:from-transparent before:via-white/[0.04] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
+      className="glass-tier-3 glass-interactive group relative flex w-full items-center gap-3 overflow-hidden rounded-[32px] border px-4 py-3.5 text-left shadow-none before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r before:from-transparent before:via-white/[0.04] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
       style={{
         borderColor: isActive ? hexToRgba(accent, 0.4) : 'rgba(255,255,255,0.08)',
         background: isActive
-          ? `linear-gradient(135deg, ${hexToRgba(accent, 0.16)} 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.12) 100%)`
-          : 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.018) 52%, rgba(0,0,0,0.12) 100%)'
+          ? `linear-gradient(135deg, ${hexToRgba(accent, 0.11)} 0%, rgba(255,255,255,0.02) 46%, rgba(0,0,0,0.16) 100%)`
+          : 'linear-gradient(135deg, rgba(255,255,255,0.036) 0%, rgba(255,255,255,0.012) 48%, rgba(0,0,0,0.16) 100%)'
       }}
     >
       <div
@@ -65,7 +65,7 @@ function OpenTabCard({
       <div className="relative z-10 min-w-0 flex-1 ml-1">
         <div className="flex items-center gap-2">
           <p className="truncate text-ql-14 font-semibold text-white/90">{displayName}</p>
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-ql-10 uppercase tracking-ql-standard text-white/35">
+          <span className="rounded-full border border-white/8 bg-white/[0.025] px-2.5 py-0.5 text-ql-10 uppercase tracking-ql-standard text-white/35">
             {t('ai_home.tab')}
           </span>
         </div>
@@ -138,14 +138,14 @@ function GridCard({
         style={{
           borderColor: isActive ? hexToRgba(accent, 0.38) : undefined,
           background: isActive
-            ? `linear-gradient(145deg, ${hexToRgba(accent, 0.16)} 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.14) 100%)`
+            ? `linear-gradient(145deg, ${hexToRgba(accent, 0.1)} 0%, rgba(255,255,255,0.02) 46%, rgba(0,0,0,0.16) 100%)`
             : undefined
         }}
       >
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.45] transition-opacity duration-500 group-hover:opacity-100"
+          className="pointer-events-none absolute inset-0 opacity-[0.32] transition-opacity duration-500 group-hover:opacity-[0.7]"
           style={{
-            background: `radial-gradient(circle at top right, ${hexToRgba(accent, 0.18)} 0%, transparent 48%)`
+            background: `radial-gradient(circle at top right, ${hexToRgba(accent, 0.12)} 0%, transparent 42%)`
           }}
         />
         <div className="relative z-10 flex h-full flex-col">
@@ -155,7 +155,7 @@ function GridCard({
               style={{
                 color: isActive ? accent : 'rgba(255,255,255,0.4)',
                 borderColor: isActive ? hexToRgba(accent, 0.26) : 'rgba(255,255,255,0.08)',
-                background: isActive ? hexToRgba(accent, 0.12) : 'rgba(255,255,255,0.03)'
+                background: isActive ? hexToRgba(accent, 0.08) : 'rgba(255,255,255,0.02)'
               }}
             >
               {tone === 'site' ? (
@@ -227,7 +227,7 @@ export function StatChip({
       className={`relative overflow-hidden ${compact ? 'flex-1 min-w-[120px] p-2 sm:p-2' : 'p-3 sm:p-4'}`}
       style={{
         borderColor: hexToRgba(accent, 0.2),
-        background: `linear-gradient(160deg, ${hexToRgba(accent, 0.12)} 0%, rgba(255,255,255,0.04) 55%, rgba(0,0,0,0.16) 100%)`
+        background: `linear-gradient(160deg, ${hexToRgba(accent, 0.08)} 0%, rgba(255,255,255,0.022) 52%, rgba(0,0,0,0.18) 100%)`
       }}
     >
       <ActionRow contentClassName={compact ? 'gap-2' : 'gap-3'}>
@@ -236,7 +236,7 @@ export function StatChip({
           style={{
             color: accent,
             borderColor: hexToRgba(accent, 0.24),
-            background: `linear-gradient(160deg, ${hexToRgba(accent, 0.18)} 0%, ${hexToRgba(accent, 0.05)} 100%)`
+            background: `linear-gradient(160deg, ${hexToRgba(accent, 0.14)} 0%, ${hexToRgba(accent, 0.035)} 100%)`
           }}
         >
           {icon}
@@ -289,34 +289,34 @@ export function OpenTabsToggle({
   return (
     <div className="col-span-1 sm:col-span-2 flex flex-col gap-2 relative">
       <div
-        className="rounded-[32px] border px-4 py-3.5 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] cursor-pointer transition-all duration-300 hover:brightness-110 active:scale-95"
+        className="glass-tier-3 glass-interactive rounded-[32px] border px-4 py-3.5 cursor-pointer shadow-none hover:brightness-110 active:scale-95"
         style={{
           borderColor: hexToRgba(accent, 0.2),
-          background: `linear-gradient(160deg, ${hexToRgba(accent, 0.12)} 0%, rgba(255,255,255,0.04) 55%, rgba(0,0,0,0.16) 100%)`
+          background: `linear-gradient(160deg, ${hexToRgba(accent, 0.08)} 0%, rgba(255,255,255,0.022) 52%, rgba(0,0,0,0.18) 100%)`
         }}
         onClick={() => setIsOpen((current) => !current)}
       >
         <div className="flex items-center gap-3.5">
           <div
-            className="flex h-11 w-11 items-center justify-center rounded-full border shadow-sm"
+            className="glass-tier-3 flex h-11 w-11 items-center justify-center rounded-full border shadow-none"
             style={{
               color: accent,
               borderColor: hexToRgba(accent, 0.24),
-              background: `linear-gradient(160deg, ${hexToRgba(accent, 0.18)} 0%, ${hexToRgba(accent, 0.05)} 100%)`
+              background: `linear-gradient(160deg, ${hexToRgba(accent, 0.14)} 0%, ${hexToRgba(accent, 0.035)} 100%)`
             }}
           >
             <Layers3 className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1 ml-1">
             <div className="truncate text-ql-16 font-semibold tracking-tight text-white/90">
-              {tabs.length}
+              {(tabs || []).length}
             </div>
             <div className="text-ql-10 uppercase tracking-ql-standard text-white/32">
               {t('ai_home.open_tab')}
             </div>
           </div>
           <div
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.04] text-white/40 transition-transform duration-300"
+            className="glass-tier-3 flex h-7 w-7 items-center justify-center rounded-full border-white/[0.1] text-white/44 transition-transform duration-300 shadow-none"
             style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
           >
             <ChevronDown className="h-4 w-4" />
@@ -330,7 +330,7 @@ export function OpenTabsToggle({
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className="overflow-hidden"
       >
-        {tabs.length > 0 ? (
+        {(tabs || []).length > 0 ? (
           <div className="grid gap-2 mb-1">
             {tabs.map((tab, index) => (
               <OpenTabCard

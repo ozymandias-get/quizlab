@@ -36,7 +36,7 @@ function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/80 backdrop-blur-xl will-change-[opacity]"
+        className="absolute inset-0 bg-[rgba(2,6,12,0.72)] backdrop-blur-2xl will-change-[opacity]"
       />
 
       <motion.div
@@ -44,11 +44,7 @@ function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
         initial={{ opacity: 0, scale: 0.96, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-        className="relative w-full max-w-6xl h-[min(680px,calc(100vh-1.5rem))] overflow-hidden rounded-[24px] 
-                           bg-gradient-to-b from-[#0b0b0b] via-[#080808] to-[#050505]
-                           border border-white/[0.09] flex
-                           shadow-[0_40px_120px_-50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.04)]
-                           will-change-[transform,opacity]"
+        className="glass-tier-1 relative flex h-[min(680px,calc(100vh-1.5rem))] w-full max-w-6xl overflow-hidden rounded-[24px] will-change-[transform,opacity]"
       >
         <div className="flex w-full h-full">
           <SettingsModalSidebar

@@ -1,79 +1,229 @@
-/* 
- * 3-Tier Visual Priority System 
- */
+:root {
+  --glass-ease: cubic-bezier(0.2, 0.9, 0.22, 1);
 
-/* 
- * Katman 1 — Primary
- * Tek güçlü accent, yüksek kontrast, net glow. Sadece ana aksiyonlarda ve odakta kullanılır.
- */
-.glass-tier-1 {
-  background-color: #050505;
-  background-image: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0.015) 42%,
-    #050505 100%
-  );
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.08); /* Belirgin border */
-  border-radius: 1.5rem;
-  backdrop-filter: blur(12px);
-  box-shadow:
-    0 28px 56px -14px rgba(0, 0, 0, 0.8),
-    /* Derin karanlık gölge */ -10px -10px 36px -12px rgba(255, 255, 255, 0.03),
-    /* Dış glow */ 10px 10px 36px -12px rgba(255, 255, 255, 0.02),
-    inset 0 1px 2px rgba(255, 255, 255, 0.08),
-    /* Güçlü iç ışık */ inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-  z-index: 10;
+  --glass-border-primary: rgba(255, 255, 255, 0.11);
+  --glass-border-secondary: rgba(255, 255, 255, 0.09);
+  --glass-border-tertiary: rgba(255, 255, 255, 0.078);
 
-  transform: translateZ(0);
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  perspective: 1000px;
+  --glass-hover-border-primary: rgba(255, 255, 255, 0.13);
+  --glass-hover-border-secondary: rgba(255, 255, 255, 0.11);
+  --glass-hover-border-tertiary: rgba(255, 255, 255, 0.095);
+
+  --glass-shadow-primary:
+    0 30px 68px -34px rgba(0, 0, 0, 0.92), 0 18px 34px -24px rgba(7, 10, 18, 0.78),
+    inset 0 10px 20px -30px rgba(255, 255, 255, 0.008),
+    inset 0 -18px 30px -28px rgba(15, 23, 42, 0.44);
+  --glass-shadow-primary-hover:
+    0 36px 78px -36px rgba(0, 0, 0, 0.96), 0 24px 44px -26px rgba(7, 10, 18, 0.82),
+    inset 0 10px 24px -28px rgba(255, 255, 255, 0.01);
+
+  --glass-shadow-secondary:
+    0 22px 42px -28px rgba(0, 0, 0, 0.82), 0 10px 24px -18px rgba(5, 8, 16, 0.62),
+    inset 0 8px 18px -28px rgba(255, 255, 255, 0.006),
+    inset 0 -14px 24px -24px rgba(15, 23, 42, 0.32);
+  --glass-shadow-secondary-hover:
+    0 28px 52px -30px rgba(0, 0, 0, 0.88), 0 16px 28px -18px rgba(5, 8, 16, 0.68),
+    inset 0 8px 18px -28px rgba(255, 255, 255, 0.008);
+
+  --glass-shadow-tertiary:
+    0 10px 24px -18px rgba(0, 0, 0, 0.54), 0 6px 14px -12px rgba(5, 8, 16, 0.46),
+    inset 0 6px 14px -18px rgba(255, 255, 255, 0.004);
+  --glass-shadow-tertiary-hover:
+    0 14px 28px -18px rgba(0, 0, 0, 0.62), 0 10px 18px -12px rgba(5, 8, 16, 0.52),
+    inset 0 6px 14px -18px rgba(255, 255, 255, 0.006);
 }
 
-/* 
- * Katman 2 — Secondary
- * Sakin border, düşük kontrast yüzey, az gradient. Ana paneller ve listeler için.
- */
-.glass-tier-2 {
-  background-color: #050505;
-  background-image: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.02) 0%,
-    rgba(255, 255, 255, 0.005) 60%,
-    rgba(0, 0, 0, 0.4) 100%
-  );
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.03); /* Çok ince, sakin border */
-  border-radius: 1.5rem;
-  backdrop-filter: blur(8px);
-  box-shadow:
-    0 12px 24px -10px rgba(0, 0, 0, 0.6),
-    /* Sadece hacim veren gölge, glow yok */ inset 0 1px 1px rgba(255, 255, 255, 0.03); /* Hafif iç ışık */
-
-  transform: translateZ(0);
-  will-change: transform;
-}
-
-/* 
- * Katman 3 — Passive
- * Neredeyse düz yüzey, sadece ayrım için ince çizgi / ton farkı. Arka planlar, çoklu kartlar.
- */
+.glass-tier-1,
+.glass-tier-2,
 .glass-tier-3 {
-  background-color: transparent;
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, transparent 100%);
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.015); /* Neredeyse görünmez */
-  border-radius: 1rem; /* Daha alt bileşen genelde daha az radius ister */
-  backdrop-filter: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.01); /* Ton farkı yaratan mikroskobik ışık */
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  background-color: rgba(1, 1, 1, 0.9);
+  background-image: var(--glass-surface);
+  background-clip: padding-box;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 106%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 106%));
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
 }
 
-/* Geriye dönüklük ve şekil varyantları */
-.glass-tier-card {
+.glass-tier-1::after,
+.glass-tier-2::after,
+.glass-tier-3::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--glass-highlight);
+  opacity: 0.18;
+  z-index: 0;
+}
+
+.glass-tier-1 > *,
+.glass-tier-2 > *,
+.glass-tier-3 > * {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-tier-1 {
+  --glass-border: var(--glass-border-primary);
+  --glass-blur: 19px;
+  --glass-saturate: 106%;
+  --glass-surface:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.028) 0%,
+      rgba(255, 255, 255, 0.008) 10%,
+      rgba(8, 8, 8, 0.9) 34%,
+      rgba(1, 1, 1, 0.985) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(20, 18, 16, 0.07) 0%,
+      rgba(10, 9, 8, 0.04) 22%,
+      rgba(1, 1, 1, 0.88) 100%
+    ),
+    radial-gradient(circle at top left, rgba(78, 56, 32, 0.034) 0%, transparent 22%),
+    radial-gradient(circle at bottom right, rgba(52, 38, 24, 0.018) 0%, transparent 18%);
+  --glass-highlight:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.022) 0%,
+      rgba(255, 255, 255, 0.006) 6%,
+      transparent 13%
+    ),
+    linear-gradient(
+      105deg,
+      rgba(255, 255, 255, 0.009) 0%,
+      transparent 12%,
+      transparent 86%,
+      rgba(255, 255, 255, 0.004) 100%
+    ),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.012) 0%, transparent 15%);
+  --glass-shadow: var(--glass-shadow-primary);
+  --glass-hover-shadow: var(--glass-shadow-primary-hover);
+  --glass-hover-border: var(--glass-hover-border-primary);
+  z-index: 10;
+  border-radius: 1.5rem;
+}
+
+.glass-tier-2 {
+  --glass-border: var(--glass-border-secondary);
+  --glass-blur: 12px;
+  --glass-saturate: 104%;
+  --glass-surface:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.024) 0%,
+      rgba(255, 255, 255, 0.008) 9%,
+      rgba(8, 8, 8, 0.88) 42%,
+      rgba(2, 2, 2, 0.975) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(18, 16, 14, 0.06) 0%,
+      rgba(10, 9, 8, 0.03) 21%,
+      rgba(1, 1, 1, 0.8) 100%
+    ),
+    radial-gradient(circle at top left, rgba(74, 58, 40, 0.03) 0%, transparent 16%);
+  --glass-highlight:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.018) 0%,
+      rgba(255, 255, 255, 0.004) 6%,
+      transparent 13%
+    ),
+    linear-gradient(
+      108deg,
+      rgba(255, 255, 255, 0.007) 0%,
+      transparent 12%,
+      transparent 88%,
+      rgba(255, 255, 255, 0.003) 100%
+    );
+  --glass-shadow: var(--glass-shadow-secondary);
+  --glass-hover-shadow: var(--glass-shadow-secondary-hover);
+  --glass-hover-border: var(--glass-hover-border-secondary);
+  border-radius: 1.5rem;
+}
+
+.glass-tier-3 {
+  --glass-border: var(--glass-border-tertiary);
+  --glass-blur: 6px;
+  --glass-saturate: 102%;
+  --glass-surface:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      rgba(255, 255, 255, 0.007) 9%,
+      rgba(8, 8, 8, 0.82) 50%,
+      rgba(2, 2, 2, 0.95) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.01) 0%,
+      rgba(255, 255, 255, 0.004) 9%,
+      rgba(4, 4, 4, 0.11) 100%
+    );
+  --glass-highlight:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.014) 0%,
+      rgba(255, 255, 255, 0.003) 6%,
+      transparent 13%
+    ),
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.005) 0%,
+      transparent 12%,
+      transparent 88%,
+      rgba(255, 255, 255, 0.002) 100%
+    );
+  --glass-shadow: var(--glass-shadow-tertiary);
+  --glass-hover-shadow: var(--glass-shadow-tertiary-hover);
+  --glass-hover-border: var(--glass-hover-border-tertiary);
   border-radius: 1rem;
 }
+
+.glass-interactive {
+  transition:
+    border-color 220ms var(--glass-ease),
+    box-shadow 220ms var(--glass-ease),
+    transform 220ms var(--glass-ease),
+    background-color 220ms var(--glass-ease);
+}
+
+.glass-interactive:hover,
+.glass-interactive:focus-visible {
+  border-color: var(--glass-hover-border, rgba(255, 255, 255, 0.14));
+  box-shadow: var(--glass-hover-shadow, var(--glass-shadow));
+}
+
+.glass-interactive:focus-visible {
+  outline: none;
+}
+
+.glass-tier-card {
+  border-radius: 1.125rem;
+}
+
 .glass-tier-toolbar {
-  border-radius: 0.875rem;
+  border-radius: 1rem;
+}
+
+.glass-tier-control {
+  border-radius: 999px;
+}
+
+.glass-tier-tabstrip {
+  border-radius: 1.5rem 1.5rem 0 0;
+}
+
+.glass-tier-tabstrip::after {
+  opacity: 0;
 }

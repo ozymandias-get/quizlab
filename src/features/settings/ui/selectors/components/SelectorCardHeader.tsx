@@ -61,7 +61,7 @@ export default function SelectorCardHeader({
               {getAiPlatformLabel(ai, key)}
             </h4>
             <span
-              className={`rounded-full border px-2 py-1 text-ql-10 font-semibold uppercase tracking-ql-standard ${tone.badge}`}
+              className={`rounded-full border px-2 py-1 text-ql-10 font-medium tracking-ql-fine ${tone.badge}`}
             >
               {t(getHealthLabelKey(selectorHealth))}
             </span>
@@ -86,9 +86,7 @@ export default function SelectorCardHeader({
           "
         >
           <ExternalLinkIcon className="h-3.5 w-3.5" />
-          <span className="text-ql-10 font-bold uppercase tracking-wider">
-            {t('selectors_open_repick')}
-          </span>
+          <span className="text-ql-11 font-semibold">{t('selectors_open_repick')}</span>
         </button>
 
         <button

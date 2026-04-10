@@ -106,12 +106,12 @@ const SitesTab = memo(() => {
       }
       footer={
         <div className="flex border-t border-white/10 p-4">
-          <p className="flex w-1/2 items-center justify-center gap-2 text-ql-14 text-white/50">
+          <p className="flex w-1/2 items-center justify-center gap-2 text-ql-12 text-white/50">
             <span className="h-2 w-2 rounded-full bg-blue-500" />
             {t('active_sites')}: {enabledSitesCount} / {sitesList.length} {t('sites_count')}
           </p>
           <div className="mx-2 w-px bg-white/10" />
-          <p className="flex w-1/2 items-center justify-center gap-2 text-ql-14 text-white/50">
+          <p className="flex w-1/2 items-center justify-center gap-2 text-ql-12 text-white/50">
             <GridIcon className="w-4 h-4" />
             {t('total')}: {sitesList.length} {t('sites_count')}
           </p>

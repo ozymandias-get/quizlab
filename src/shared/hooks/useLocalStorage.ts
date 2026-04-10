@@ -2,6 +2,8 @@
 import { Logger } from '@shared/lib/logger'
 
 const isClient = typeof window !== 'undefined'
+const LOCAL_STORAGE_SYNC_EVENT = 'local-storage'
+const INVALID_STORED_VALUE = Symbol('INVALID_STORED_VALUE')
 
 const getStorageItem = (key: string): string | null => {
   if (!isClient) return null
@@ -17,7 +19,11 @@ const setStorageItem = (key: string, value: string): boolean => {
   if (!isClient) return false
   try {
     localStorage.setItem(key, value)
-    window.dispatchEvent(new CustomEvent('local-storage', { detail: { key, value } }))
+    window.dispatchEvent(
+      new CustomEvent<LocalStorageChangeDetail>(LOCAL_STORAGE_SYNC_EVENT, {
+        detail: { key, value }
+      })
+    )
     return true
   } catch (error) {
     Logger.warn(`localStorage yazma hatası (set "${key}"):`, error)
@@ -30,6 +36,49 @@ type SetValue<T> = Dispatch<SetStateAction<T>>
 interface LocalStorageChangeDetail {
   key: string
   value: string
+}
+
+const isLocalStorageChangeEvent = (
+  event: Event
+): event is CustomEvent<LocalStorageChangeDetail> => {
+  return (
+    'detail' in event &&
+    typeof (event as CustomEvent<LocalStorageChangeDetail>).detail?.key === 'string' &&
+    typeof (event as CustomEvent<LocalStorageChangeDetail>).detail?.value === 'string'
+  )
+}
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+const matchesInitialShape = (initialValue: unknown, parsed: unknown): boolean => {
+  if (initialValue === null || initialValue === undefined) {
+    return true
+  }
+
+  if (Array.isArray(initialValue)) {
+    return Array.isArray(parsed)
+  }
+
+  if (isPlainObject(initialValue)) {
+    return isPlainObject(parsed)
+  }
+
+  return typeof parsed === typeof initialValue
+}
+
+const parseJsonValue = <T>(rawValue: string): T | typeof INVALID_STORED_VALUE => {
+  try {
+    return JSON.parse(rawValue) as T
+  } catch {
+    return INVALID_STORED_VALUE
+  }
 }
 
 const safeStringify = <T>(value: T): string | null => {
@@ -48,25 +97,27 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
       const item = getStorageItem(key)
       if (item === null) return initialValue
 
-      const parsed = JSON.parse(item)
+      const parsed = parseJsonValue<T>(item)
+      if (parsed === INVALID_STORED_VALUE) {
+        Logger.warn(`useLocalStorage: "${key}" için değer okunamadı.`)
+        return initialValue
+      }
 
-      if (initialValue !== null && initialValue !== undefined) {
-        const initialType = typeof initialValue
-        const parsedType = typeof parsed
-
-        if (Array.isArray(initialValue)) {
-          if (!Array.isArray(parsed)) {
-            Logger.warn(
-              `useLocalStorage: Type mismatch for key "${key}". Expected Array, got ${parsedType}. Resetting to initial.`
-            )
-            return initialValue
-          }
-        } else if (parsedType !== initialType) {
-          Logger.warn(
-            `useLocalStorage: Type mismatch for key "${key}". Expected ${initialType}, got ${parsedType}. Resetting to initial.`
-          )
-          return initialValue
-        }
+      if (!matchesInitialShape(initialValue, parsed)) {
+        const initialType = Array.isArray(initialValue)
+          ? 'Array'
+          : isPlainObject(initialValue)
+            ? 'Object'
+            : typeof initialValue
+        const parsedType = Array.isArray(parsed)
+          ? 'Array'
+          : isPlainObject(parsed)
+            ? 'Object'
+            : typeof parsed
+        Logger.warn(
+          `useLocalStorage: Type mismatch for key "${key}". Expected ${initialType}, got ${parsedType}. Resetting to initial.`
+        )
+        return initialValue
       }
 
       return parsed
@@ -89,33 +140,35 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === key && e.newValue !== null) {
         if (e.newValue === serializedValueRef.current) return
-        try {
-          setStoredValue(JSON.parse(e.newValue))
-        } catch (error) {
-          Logger.warn(`useLocalStorage: "${key}" için cross-window sync başarısız:`, error)
+        const parsed = parseJsonValue<T>(e.newValue)
+        if (parsed === INVALID_STORED_VALUE || !matchesInitialShape(initialValue, parsed)) {
+          Logger.warn(`useLocalStorage: "${key}" için cross-window sync başarısız.`)
+          return
         }
+        setStoredValue(parsed)
       } else if (e.key === key && e.newValue === null) {
         setStoredValue(initialValue)
       }
     }
 
     const handleLocalChange = (e: Event) => {
-      const customEvent = e as CustomEvent<LocalStorageChangeDetail>
-      if (customEvent.detail.key === key) {
-        if (customEvent.detail.value === serializedValueRef.current) return
-        try {
-          setStoredValue(JSON.parse(customEvent.detail.value))
-        } catch (error) {
-          Logger.warn(`useLocalStorage: "${key}" için local sync başarısız:`, error)
-        }
+      if (!isLocalStorageChangeEvent(e) || e.detail.key !== key) {
+        return
       }
+      if (e.detail.value === serializedValueRef.current) return
+      const parsed = parseJsonValue<T>(e.detail.value)
+      if (parsed === INVALID_STORED_VALUE || !matchesInitialShape(initialValue, parsed)) {
+        Logger.warn(`useLocalStorage: "${key}" için local sync başarısız.`)
+        return
+      }
+      setStoredValue(parsed)
     }
 
     window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('local-storage', handleLocalChange)
+    window.addEventListener(LOCAL_STORAGE_SYNC_EVENT, handleLocalChange)
     return () => {
       window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('local-storage', handleLocalChange)
+      window.removeEventListener(LOCAL_STORAGE_SYNC_EVENT, handleLocalChange)
     }
   }, [key, initialValue])
 
@@ -194,22 +247,22 @@ export function useLocalStorageString(
     }
 
     const handleLocalChange = (e: Event) => {
-      const customEvent = e as CustomEvent<LocalStorageChangeDetail>
-      if (customEvent.detail.key === key) {
-        const newValue = customEvent.detail.value
-        if (newValue === storedValueRef.current) return
-        if (validValues && validValues.length > 0 && !validValues.includes(newValue)) {
-          return
-        }
-        setStoredValue(newValue)
+      if (!isLocalStorageChangeEvent(e) || e.detail.key !== key) {
+        return
       }
+      const newValue = e.detail.value
+      if (newValue === storedValueRef.current) return
+      if (validValues && validValues.length > 0 && !validValues.includes(newValue)) {
+        return
+      }
+      setStoredValue(newValue)
     }
 
     window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('local-storage', handleLocalChange)
+    window.addEventListener(LOCAL_STORAGE_SYNC_EVENT, handleLocalChange)
     return () => {
       window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('local-storage', handleLocalChange)
+      window.removeEventListener(LOCAL_STORAGE_SYNC_EVENT, handleLocalChange)
     }
   }, [key, initialValue, validValues])
 
@@ -293,19 +346,19 @@ export function useLocalStorageBoolean(
     }
 
     const handleLocalChange = (e: Event) => {
-      const customEvent = e as CustomEvent<LocalStorageChangeDetail>
-      if (customEvent.detail.key === key) {
-        const nextValue = customEvent.detail.value === 'true'
-        if (nextValue === storedValueRef.current) return
-        setStoredValue(nextValue)
+      if (!isLocalStorageChangeEvent(e) || e.detail.key !== key) {
+        return
       }
+      const nextValue = e.detail.value === 'true'
+      if (nextValue === storedValueRef.current) return
+      setStoredValue(nextValue)
     }
 
     window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('local-storage', handleLocalChange)
+    window.addEventListener(LOCAL_STORAGE_SYNC_EVENT, handleLocalChange)
     return () => {
       window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('local-storage', handleLocalChange)
+      window.removeEventListener(LOCAL_STORAGE_SYNC_EVENT, handleLocalChange)
     }
   }, [key, initialValue])
 

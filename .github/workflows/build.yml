@@ -43,7 +43,7 @@ jobs:
         run: |
           node --version
           npm --version
-          npm install
+          npm ci
 
       - name: Repository hygiene guard
         run: npm run ci:check-hygiene
@@ -67,7 +67,7 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -79,10 +79,16 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Smoke build (PR)
         run: npm run build
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke (preview)
+        run: npm run test:e2e:smoke
 
   build:
     needs: quality
@@ -121,14 +127,14 @@ jobs:
         run: |
           node --version
           npm --version
-          npm install
+          npm ci
 
       - name: Install dependencies
         if: matrix.platform != 'win'
         run: |
           node --version
           npm --version
-          npm install
+          npm ci
 
       - name: Build and Package (Windows)
         if: matrix.platform == 'win'

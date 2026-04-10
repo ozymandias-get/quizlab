@@ -40,10 +40,28 @@ export default defineConfig({
       ],
       reporter: ['text', 'lcov'],
       thresholds: {
-        lines: 50,
-        functions: 40,
-        statements: 50,
-        branches: 40
+        lines: 54,
+        statements: 53,
+        functions: 46,
+        branches: 47,
+        'electron/features/gemini-web-session/**/*.ts': {
+          lines: 58,
+          statements: 55,
+          branches: 44,
+          functions: 41
+        },
+        '**/features/pdf/**/*.ts': {
+          lines: 48,
+          statements: 47,
+          branches: 42,
+          functions: 42
+        },
+        'electron/features/automation/**/*.ts': {
+          lines: 65,
+          statements: 63,
+          branches: 55,
+          functions: 66
+        }
       }
     }
   },

@@ -41,7 +41,7 @@ export const useAppearance = create<AppearanceState>()(
       setBgType: (type) => set({ bgType: type }),
       bgSolidColor: '#000000',
       setBgSolidColor: (color) => set({ bgSolidColor: color }),
-      bgAnimatedColors: ['#130a21', '#0a1d21', '#1a1010'],
+      bgAnimatedColors: ['#140f0b', '#10100d', '#080808'],
       setBgAnimatedColors: (colors) => set({ bgAnimatedColors: colors }),
       bgRandomMode: false,
       setBgRandomMode: (value) => set({ bgRandomMode: value }),

@@ -1,4 +1,12 @@
-import { useEffect, useState, useRef, forwardRef, type MouseEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  forwardRef,
+  type MouseEvent,
+  type ReactNode
+} from 'react'
 import { motion } from 'framer-motion'
 import { useLanguageStrings, type Toast } from '@app/providers'
 
@@ -92,22 +100,25 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
   const remainingTimeRef = useRef(toast.duration || 5000)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const startTimer = () => {
+  const duration = toast.duration || 5000
+  const toastId = toast.id
+
+  const startTimer = useCallback(() => {
     startTimeRef.current = Date.now()
     timerRef.current = setInterval(() => {
       const elapsedTime = Date.now() - startTimeRef.current
       const newRemaining = remainingTimeRef.current - elapsedTime
 
-      const newProgress = (newRemaining / (toast.duration || 5000)) * 100
+      const newProgress = (newRemaining / duration) * 100
 
       if (newProgress <= 0) {
         if (timerRef.current) clearInterval(timerRef.current)
-        onRemove(toast.id)
+        onRemove(toastId)
       } else {
         setProgress(newProgress)
       }
     }, 100)
-  }
+  }, [duration, toastId, onRemove])
 
   useEffect(() => {
     if (!isPaused) {
@@ -116,7 +127,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [isPaused])
+  }, [isPaused, startTimer])
 
   const handleMouseEnter = () => {
     setIsPaused(true)
@@ -154,8 +165,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
       className={`
                 relative group pointer-events-auto
                 w-80 md:w-96 p-4 mb-3
-                rounded-2xl border backdrop-blur-xl
-                shadow-[0_8px_32px_rgba(0,0,0,0.3)]
+                glass-tier-2 glass-tier-card
                 flex items-start gap-4
                 ${STYLES[toast.type] || STYLES.info}
                 transition-all duration-300

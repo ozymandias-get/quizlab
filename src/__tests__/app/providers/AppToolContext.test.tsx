@@ -318,10 +318,21 @@ describe('AppToolContext', () => {
   })
 
   it('starts the picker once the active webview becomes ready', async () => {
+    vi.useRealTimers()
+    const mockWebviewEl = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      isDestroyed: () => false
+    }
     mockWebviewState.instance = {
+      getWebview: () => mockWebviewEl,
       getURL: vi.fn(() => 'https://chat.openai.com'),
       executeJavaScript: vi.fn().mockResolvedValue('complete')
-    } as unknown as Element & { getURL: any; executeJavaScript: any }
+    } as unknown as Element & {
+      getWebview: () => typeof mockWebviewEl
+      getURL: () => string
+      executeJavaScript: (s: string) => Promise<unknown>
+    }
     const { result } = renderHook(() => useAppTools(), { wrapper })
 
     act(() => {
@@ -329,9 +340,11 @@ describe('AppToolContext', () => {
     })
 
     await act(async () => {
-      await vi.runAllTimersAsync()
+      await Promise.resolve()
+      await Promise.resolve()
     })
 
     expect(mockStartPicker).toHaveBeenCalledTimes(1)
+    vi.useFakeTimers()
   })
 })

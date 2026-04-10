@@ -14,7 +14,7 @@ import {
 } from '@shared/ui/tabStripChrome'
 import AiOverflowMenu from './aiTabStrip/AiOverflowMenu'
 import AiTabContextMenu from './aiTabStrip/AiTabContextMenu'
-import AiTabStripHomeButton from './aiTabStrip/AiTabStripHomeButton'
+import { TabStripHomeButton } from '@shared/ui/components/primitives'
 import AiTabStripRefreshButton from './aiTabStrip/AiTabStripRefreshButton'
 import AiVisibleTabButton from './aiTabStrip/AiVisibleTabButton'
 import { useAiTabStripState } from './aiTabStrip/useAiTabStripState'
@@ -48,14 +48,10 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
   return (
     <div className={TAB_STRIP_BAR_CLASS}>
       <div className={TAB_STRIP_ROW_CLASS}>
-        <AiTabStripHomeButton
-          showHome={showHome}
-          title={t('ai_home.home')}
-          onShowHome={onShowHome}
-        />
+        <TabStripHomeButton isActive={showHome} tooltip={t('ai_home.home')} onClick={onShowHome} />
 
         <AiTabStripRefreshButton
-          disabled={Boolean(showHome) || tabs.length === 0 || !hasActiveWebview}
+          disabled={Boolean(showHome) || (tabs || []).length === 0 || !hasActiveWebview}
           title={t('ai_home.refresh_page')}
           onRefresh={reloadActiveWebview}
         />
@@ -106,7 +102,7 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
       <AiTabContextMenu
         contextMenu={state.contextMenu}
         contextMenuTab={state.contextMenuTab}
-        tabsCount={tabs.length}
+        tabsCount={(tabs || []).length}
         contextMenuRef={refs.contextMenuRef}
         tr={helpers.tr}
         onBeginRename={actions.beginRename}

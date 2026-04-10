@@ -118,13 +118,13 @@ export function AiModelList({
                         {getAiPlatformLabel(site, key, t)}
                       </Label>
                       {isCustom && (
-                        <span className="px-1.5 py-0.5 rounded text-ql-10 font-bold bg-blue-500/20 text-blue-300 border border-blue-500/20">
+                        <span className="rounded border border-blue-500/20 bg-blue-500/20 px-1.5 py-0.5 text-ql-10 font-medium text-blue-300">
                           {t('custom_badge')}
                         </span>
                       )}
                     </div>
                     <Description
-                      className={`text-ql-10 uppercase tracking-ql-caps font-bold transition-colors duration-300 ${isEnabled ? 'text-emerald-400/60' : 'text-white/20'}`}
+                      className={`text-ql-10 font-medium tracking-ql-fine transition-colors duration-300 ${isEnabled ? 'text-emerald-400/60' : 'text-white/24'}`}
                     >
                       {isEnabled ? t('model_active') : t('model_inactive')}
                     </Description>

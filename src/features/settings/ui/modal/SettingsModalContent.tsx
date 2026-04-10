@@ -38,12 +38,12 @@ export default function SettingsModalContent({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="text-ql-20 font-bold text-white/90 tracking-tight"
+              className="text-ql-16 font-semibold text-white/90 tracking-tight"
             >
               {activeTabLabel}
             </motion.h3>
           </AnimatePresence>
-          <p className="text-ql-10 text-white/30 uppercase tracking-ql-caps font-medium">
+          <p className="text-ql-11 font-medium tracking-ql-fine text-white/36">
             {t('configure_settings')}
           </p>
         </div>
@@ -52,9 +52,7 @@ export default function SettingsModalContent({
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="group h-9 w-9 rounded-xl transition-all duration-200 
-                             bg-white/[0.03] border border-white/[0.09]
-                             hover:bg-white/[0.08] hover:border-white/[0.18] hover:scale-105 active:scale-95"
+          className="glass-tier-3 glass-interactive group h-9 w-9 rounded-xl border-white/[0.1] bg-transparent transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <CloseIcon className="w-4 h-4 text-white/35 group-hover:text-white/80 transition-colors" />
         </Button>

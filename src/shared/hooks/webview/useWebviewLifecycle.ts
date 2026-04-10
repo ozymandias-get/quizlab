@@ -50,6 +50,10 @@ interface UseWebviewLifecycleProps {
   registerWebview?: (methods: WebviewController | null) => void
   t: (key: string) => string
   showWarning: (key: string) => void
+  /** Fires on top-level and in-page navigations (for session URL restore). */
+  onUrlChange?: (url: string) => void
+  /** Fires after page finishes loading (did-stop-loading). */
+  onPageSettled?: (webview: WebviewElement) => void
 }
 
 type FailLoadEvent = {
@@ -62,6 +66,11 @@ type NewWindowEvent = {
   preventDefault: () => void
 }
 
+function extractEventUrl(event: Event): string | undefined {
+  const url = (event as Event & { url?: unknown }).url
+  return typeof url === 'string' && url.length > 0 ? url : undefined
+}
+
 /**
  * Webview Lifecycle Hook
  * Manages loading states, errors, crashes and exposes webview methods.
@@ -70,7 +79,9 @@ export function useWebviewLifecycle({
   currentAI,
   registerWebview,
   t,
-  showWarning
+  showWarning,
+  onUrlChange,
+  onPageSettled
 }: UseWebviewLifecycleProps) {
   const activeWebviewRef = useRef<WebviewElement | null>(null)
   const crashRetryCount = useRef(0)
@@ -79,6 +90,13 @@ export function useWebviewLifecycle({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [webviewElement, setWebviewElement] = useState<WebviewElement | null>(null)
+
+  const clearCrashRetryTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+  }, [])
 
   const withActiveWebview = useCallback(
     <T>(operation: (webview: WebviewElement) => T): T | undefined => {
@@ -93,27 +111,25 @@ export function useWebviewLifecycle({
   )
 
   useEffect(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
-    }
+    clearCrashRetryTimeout()
     setIsLoading(true)
     setError(null)
     crashRetryCount.current = 0
-  }, [currentAI])
+  }, [clearCrashRetryTimeout, currentAI])
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      clearCrashRetryTimeout()
       activeWebviewRef.current = null
       if (registerWebview) registerWebview(null)
     }
-  }, [registerWebview])
+  }, [clearCrashRetryTimeout, registerWebview])
 
   const handleRetry = useCallback(() => {
+    clearCrashRetryTimeout()
     setError(null)
     activeWebviewRef.current?.reload()
-  }, [])
+  }, [clearCrashRetryTimeout])
 
   const webviewMethods = useMemo<WebviewController>(
     () => ({
@@ -178,7 +194,11 @@ export function useWebviewLifecycle({
 
   const handleStopLoading = useCallback(() => {
     setIsLoading(false)
-  }, [])
+    if (onPageSettled) {
+      const wv = activeWebviewRef.current
+      if (wv) onPageSettled(wv)
+    }
+  }, [onPageSettled])
 
   const handleFailLoad = useCallback(
     (event: Event) => {
@@ -197,7 +217,7 @@ export function useWebviewLifecycle({
     if (crashRetryCount.current < MAX_CRASH_RETRIES) {
       crashRetryCount.current++
       showWarning('webview_crashed_retrying')
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      clearCrashRetryTimeout()
       timeoutRef.current = setTimeout(() => {
         // Only reload if BOTH webview and AI ID haven't changed
         if (activeWebviewRef.current === crashedWebview && currentAI === crashedAiId) {
@@ -207,7 +227,7 @@ export function useWebviewLifecycle({
     } else {
       setError(t('webview_crashed_max'))
     }
-  }, [currentAI, showWarning, t])
+  }, [clearCrashRetryTimeout, currentAI, showWarning, t])
 
   const handleNewWindow = useCallback(async (event: Event) => {
     event.preventDefault()
@@ -221,33 +241,72 @@ export function useWebviewLifecycle({
         activeWebviewRef.current?.loadURL?.(newWindowEvent.url)
         return
       }
+
+      const currentRawUrl = activeWebviewRef.current?.getURL?.()
+      if (currentRawUrl) {
+        try {
+          if (new URL(currentRawUrl).origin === targetUrl.origin) {
+            activeWebviewRef.current?.loadURL?.(newWindowEvent.url)
+            return
+          }
+        } catch {}
+      }
+
       await api.openExternal(newWindowEvent.url)
     } catch (err) {
       console.error('[Webview] New window error:', err)
     }
   }, [])
 
+  const handleDidNavigate = useCallback(
+    (event: Event) => {
+      const url = extractEventUrl(event)
+      if (url && onUrlChange) onUrlChange(url)
+    },
+    [onUrlChange]
+  )
+
+  const handleDidNavigateInPage = useCallback(
+    (event: Event) => {
+      const url = extractEventUrl(event)
+      if (!url) return
+      if (onUrlChange) onUrlChange(url)
+      if (onPageSettled) {
+        const wv = activeWebviewRef.current
+        if (wv) onPageSettled(wv)
+      }
+    },
+    [onUrlChange, onPageSettled]
+  )
+
   const handleDomReady = useCallback(() => {
-    activeWebviewRef.current?.insertCSS?.(WEBVIEW_SCROLLBAR_CSS).catch(() => {})
-  }, [])
-
-  const onWebviewRef = useCallback((element: WebviewElement | null) => {
-    if (activeWebviewRef.current === element) return
-
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
+    const wv = activeWebviewRef.current
+    wv?.insertCSS?.(WEBVIEW_SCROLLBAR_CSS).catch(() => {})
+    if (onUrlChange) {
+      const url = wv?.getURL?.()
+      if (typeof url === 'string' && url.length > 0) {
+        onUrlChange(url)
+      }
     }
+  }, [onUrlChange])
 
-    activeWebviewRef.current = element
-    setWebviewElement(element)
+  const onWebviewRef = useCallback(
+    (element: WebviewElement | null) => {
+      if (activeWebviewRef.current === element) return
 
-    if (!element) {
-      crashRetryCount.current = 0
-      setError(null)
-      setIsLoading(true)
-    }
-  }, [])
+      clearCrashRetryTimeout()
+
+      activeWebviewRef.current = element
+      setWebviewElement(element)
+
+      if (!element) {
+        crashRetryCount.current = 0
+        setError(null)
+        setIsLoading(true)
+      }
+    },
+    [clearCrashRetryTimeout]
+  )
 
   useEffect(() => {
     const wv = webviewElement
@@ -259,6 +318,10 @@ export function useWebviewLifecycle({
     wv.addEventListener('new-window', handleNewWindow)
     wv.addEventListener('dom-ready', handleDomReady)
     wv.addEventListener('render-process-gone', handleCrashed)
+    if (onUrlChange) {
+      wv.addEventListener('did-navigate', handleDidNavigate)
+    }
+    wv.addEventListener('did-navigate-in-page', handleDidNavigateInPage)
 
     return () => {
       wv.removeEventListener('did-start-loading', handleStartLoading)
@@ -267,14 +330,21 @@ export function useWebviewLifecycle({
       wv.removeEventListener('new-window', handleNewWindow)
       wv.removeEventListener('dom-ready', handleDomReady)
       wv.removeEventListener('render-process-gone', handleCrashed)
+      if (onUrlChange) {
+        wv.removeEventListener('did-navigate', handleDidNavigate)
+      }
+      wv.removeEventListener('did-navigate-in-page', handleDidNavigateInPage)
     }
   }, [
     handleCrashed,
+    handleDidNavigate,
+    handleDidNavigateInPage,
     handleDomReady,
     handleFailLoad,
     handleNewWindow,
     handleStartLoading,
     handleStopLoading,
+    onUrlChange,
     webviewElement
   ])
 

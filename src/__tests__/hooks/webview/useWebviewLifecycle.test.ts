@@ -239,6 +239,34 @@ describe('useWebviewLifecycle', () => {
     )
   })
 
+  it('reports URL changes from dom-ready and in-page navigation', async () => {
+    const onUrlChange = vi.fn()
+    const { result } = renderHook(() =>
+      useWebviewLifecycle({
+        currentAI: 'test-ai',
+        t: mockT,
+        showWarning: mockShowWarning,
+        registerWebview: mockRegisterWebview,
+        onUrlChange
+      })
+    )
+
+    const mockWebview = createMockWebview()
+    act(() => {
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
+    })
+
+    await act(async () => {
+      mockWebview._trigger('dom-ready')
+      mockWebview._trigger('did-navigate-in-page', { url: 'https://example.com/chat' })
+    })
+
+    expect(onUrlChange).toHaveBeenNthCalledWith(1, 'https://example.com')
+    expect(onUrlChange).toHaveBeenNthCalledWith(2, 'https://example.com/chat')
+  })
+
   it('returns undefined from controller access after the webview ref is cleared', () => {
     const { result } = renderHook(() =>
       useWebviewLifecycle({

@@ -41,6 +41,19 @@ const resultRequiresManualLogin = (result?: GeminiWebSessionActionResult | null)
   return false
 }
 
+const getNextEnabledManagedAppIds = (
+  appId: GoogleWebSessionAppId,
+  enabledAppIds: Set<GoogleWebSessionAppId>
+) => {
+  return enabledAppIds.has(appId)
+    ? GOOGLE_WEB_SESSION_APPS.filter((app) => app.id !== appId && enabledAppIds.has(app.id)).map(
+        (app) => app.id
+      )
+    : GOOGLE_WEB_SESSION_APPS.filter((app) => enabledAppIds.has(app.id) || app.id === appId).map(
+        (app) => app.id
+      )
+}
+
 export function useGeminiWebSessionState() {
   const { t } = useLanguageStrings()
   const { showError } = useToastActions()
@@ -75,6 +88,10 @@ export function useGeminiWebSessionState() {
     isRefreshingRef.current = isRefreshing
   }, [isRefreshing])
 
+  const safeRefetchWebSession = useCallback(() => {
+    void refetchWebSession().catch(() => {})
+  }, [refetchWebSession])
+
   useEffect(() => {
     const electronApi = getElectronApi()
     const unsubscribe = electronApi.geminiWeb.onRefreshEvent(
@@ -90,14 +107,14 @@ export function useGeminiWebSessionState() {
             setIsRefreshing(false)
             setLastRefreshedAt(new Date().toISOString())
             setRequiresManualLogin(false)
-            void refetchWebSession()
+            safeRefetchWebSession()
             break
           case 'failed':
             setIsRefreshing(false)
             if (event.error === REQUIRES_LOGIN_ERROR) {
               setRequiresManualLogin(true)
             }
-            void refetchWebSession()
+            safeRefetchWebSession()
             break
           default:
             break
@@ -108,7 +125,7 @@ export function useGeminiWebSessionState() {
     return () => {
       unsubscribe()
     }
-  }, [refetchWebSession])
+  }, [safeRefetchWebSession])
 
   const enabledAppIds = useMemo(
     () => new Set(enabledGoogleApps.filter((appId) => MANAGED_APP_IDS.has(appId))),
@@ -227,11 +244,13 @@ export function useGeminiWebSessionState() {
         void runSessionAction(startGeminiWebLogin)
       },
       onCheckWebNow: () => {
-        void runSessionAction(checkWebNow, { refetch: true }).then((result) => {
-          if (!isRefreshingRef.current && resultRequiresManualLogin(result)) {
-            setRequiresManualLogin(true)
-          }
-        })
+        void runSessionAction(checkWebNow, { refetch: true })
+          .then((result) => {
+            if (!isRefreshingRef.current && resultRequiresManualLogin(result)) {
+              setRequiresManualLogin(true)
+            }
+          })
+          .catch(() => {})
       },
       onReauthWeb: () => {
         setRequiresManualLogin(false)
@@ -245,16 +264,17 @@ export function useGeminiWebSessionState() {
         void runSessionAction(() => setWebEnabled(!status.userEnabled))
       },
       onToggleManagedApp: (appId: GoogleWebSessionAppId) => {
-        const nextEnabledAppIds = enabledAppIds.has(appId)
-          ? GOOGLE_WEB_SESSION_APPS.filter(
-              (app) => app.id !== appId && enabledAppIds.has(app.id)
-            ).map((app) => app.id)
-          : GOOGLE_WEB_SESSION_APPS.filter(
-              (app) => enabledAppIds.has(app.id) || app.id === appId
-            ).map((app) => app.id)
+        const nextEnabledAppIds = getNextEnabledManagedAppIds(appId, enabledAppIds)
+        const previousEnabledGoogleApps = enabledGoogleApps
 
         setEnabledGoogleApps(nextEnabledAppIds)
-        void runSessionAction(() => setWebEnabledApps(nextEnabledAppIds), { refetch: true })
+        void runSessionAction(() => setWebEnabledApps(nextEnabledAppIds), { refetch: true }).then(
+          (result) => {
+            if (!result?.success) {
+              setEnabledGoogleApps(previousEnabledGoogleApps)
+            }
+          }
+        )
       }
     }),
     [
@@ -266,6 +286,7 @@ export function useGeminiWebSessionState() {
       setWebEnabled,
       setWebEnabledApps,
       status.userEnabled,
+      enabledGoogleApps,
       enabledAppIds,
       setEnabledGoogleApps
     ]

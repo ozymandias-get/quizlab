@@ -55,3 +55,6 @@ export type WebviewController = {
   focus?: () => void
   isDestroyed?: () => boolean
 }
+
+/** Webview controller reference used by picker and messaging hooks (nullable when no tab). */
+export type WebviewLike = WebviewController | null

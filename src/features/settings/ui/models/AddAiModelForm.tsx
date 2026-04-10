@@ -71,9 +71,7 @@ export function AddAiModelForm({
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-ql-10 uppercase font-bold text-white/40 tracking-wider pl-1">
-                {t('name')}
-              </label>
+              <label className="pl-1 text-ql-11 font-medium text-white/45">{t('name')}</label>
               <input
                 type="text"
                 value={newAiName}
@@ -83,9 +81,7 @@ export function AddAiModelForm({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-ql-10 uppercase font-bold text-white/40 tracking-wider pl-1">
-                {t('url')}
-              </label>
+              <label className="pl-1 text-ql-11 font-medium text-white/45">{t('url')}</label>
               <input
                 type="text"
                 value={newAiUrl}
@@ -99,7 +95,7 @@ export function AddAiModelForm({
             <button
               type="submit"
               disabled={isAdding || !newAiName || !newAiUrl}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-ql-12 font-bold rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all"
+              className="rounded-xl bg-blue-600 px-6 py-2 text-ql-11 font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500 disabled:opacity-50"
             >
               {isAdding ? t('adding') : t('save_platform')}
             </button>

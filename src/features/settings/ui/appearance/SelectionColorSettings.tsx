@@ -24,9 +24,7 @@ const SelectionColorSettings = memo(
           </div>
           <div className="space-y-0.5">
             <h3 className="text-ql-14 font-bold text-white/90">{t('selection_color_settings')}</h3>
-            <p className="text-ql-10 text-white/30 uppercase tracking-ql-caps">
-              {t('selection_color_desc')}
-            </p>
+            <p className="text-ql-11 text-white/34 tracking-ql-fine">{t('selection_color_desc')}</p>
           </div>
         </div>
 

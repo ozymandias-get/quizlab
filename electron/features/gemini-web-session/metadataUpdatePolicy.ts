@@ -2,7 +2,7 @@ import { toStrictBoolean } from '../../core/ipcPayloadGuards'
 import { nowIso } from './sessionUtils'
 import { FEATURE_ENABLED } from './sessionConfig'
 import { sanitizeEnabledAppIds, type SessionMetadataRepository } from './sessionMetadataRepository'
-import type { GeminiWebSessionActionResult } from '@shared-core/types'
+import type { HealthCheckResult, SessionActionLike } from '@shared-core/types'
 import type { SessionMonitor } from './sessionMonitor'
 
 export interface MetadataUpdateContext {
@@ -10,7 +10,7 @@ export interface MetadataUpdateContext {
   monitor: SessionMonitor
   initialize: () => Promise<void>
   scheduleMonitor: () => void
-  performHealthCheck: (options: { allowRetry: boolean }) => Promise<any>
+  performHealthCheck: (options: { allowRetry: boolean }) => Promise<HealthCheckResult>
 }
 
 function toErrorMessage(error: unknown, fallback: string): string {
@@ -26,7 +26,7 @@ function logSuppressedError(context: string, error: unknown): void {
 export class MetadataUpdatePolicy {
   constructor(private context: MetadataUpdateContext) {}
 
-  async setEnabled(enabled: unknown): Promise<GeminiWebSessionActionResult> {
+  async setEnabled(enabled: unknown): Promise<SessionActionLike> {
     const { initialize, metadataRepository, monitor, scheduleMonitor, performHealthCheck } =
       this.context
     await initialize()
@@ -53,7 +53,7 @@ export class MetadataUpdatePolicy {
     return { success: true, status }
   }
 
-  async setEnabledApps(enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> {
+  async setEnabledApps(enabledAppIds: string[]): Promise<SessionActionLike> {
     const { initialize, metadataRepository } = this.context
     await initialize()
     const current = await metadataRepository.readMetadata()

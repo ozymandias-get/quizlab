@@ -100,7 +100,7 @@ const PendingAiSendLayer = memo(function PendingAiSendLayer() {
   const { setAutoSend, removePendingAiItem, clearPendingAiItems, sendPendingAiItems } =
     useAppToolActions()
 
-  if (pendingAiItems.length === 0) {
+  if (!pendingAiItems || pendingAiItems.length === 0) {
     return null
   }
 

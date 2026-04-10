@@ -18,18 +18,18 @@ function SettingsAddToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition-all duration-300 ${
+      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-ql-11 font-semibold transition-all duration-300 ${
         expanded
           ? 'border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20'
           : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
       }`}
     >
       {expanded ? (
-        <span className="text-ql-12 font-bold">{cancelLabel}</span>
+        <span>{cancelLabel}</span>
       ) : (
         <>
           <PlusIcon className="w-4 h-4" />
-          <span className="text-ql-12 font-bold">{addLabel}</span>
+          <span>{addLabel}</span>
         </>
       )}
     </button>

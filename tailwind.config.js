@@ -76,12 +76,13 @@ module.exports = {
       },
       // Quizlab UI type scale — prefer text-ql-* over arbitrary text-[Npx]
       fontSize: {
-        'ql-10': ['10px', { lineHeight: '1.4' }],
-        'ql-12': ['12px', { lineHeight: '1.5' }],
-        'ql-14': ['14px', { lineHeight: '1.5' }],
-        'ql-16': ['16px', { lineHeight: '1.45' }],
-        'ql-20': ['20px', { lineHeight: '1.25' }],
-        'ql-28': ['28px', { lineHeight: '1.15' }]
+        'ql-10': ['10px', { lineHeight: '1.35' }],
+        'ql-11': ['11px', { lineHeight: '1.4' }],
+        'ql-12': ['12px', { lineHeight: '1.45' }],
+        'ql-14': ['13px', { lineHeight: '1.45' }],
+        'ql-16': ['15px', { lineHeight: '1.4' }],
+        'ql-20': ['18px', { lineHeight: '1.25' }],
+        'ql-28': ['24px', { lineHeight: '1.15' }]
       },
       // Pairs with uppercase micro labels — prefer tracking-ql-* over tracking-[Nem]
       letterSpacing: {

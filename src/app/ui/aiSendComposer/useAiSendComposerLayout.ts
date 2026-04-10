@@ -6,13 +6,13 @@ const STORAGE_KEY = 'aiSendDockLayout'
 const DEFAULT_LAYOUT: DockLayout = {
   x: 28,
   y: 0,
-  width: 356,
-  height: 332
+  width: 248,
+  height: 210
 }
-const MIN_WIDTH = 312
-const MAX_WIDTH = 560
-const MIN_HEIGHT = 260
-const MAX_HEIGHT = 640
+const MIN_WIDTH = 232
+const MAX_WIDTH = 460
+const MIN_HEIGHT = 180
+const MAX_HEIGHT = 500
 const BOTTOM_OFFSET = 92
 const VIEWPORT_PADDING = 0
 
@@ -58,9 +58,33 @@ function createDefaultLayout(): DockLayout {
   })
 }
 
+const LEGACY_DEFAULT_WIDTH = 356
+const LEGACY_DEFAULT_HEIGHT = 332
+const PREV_DEFAULT_WIDTH = 320
+const PREV_DEFAULT_HEIGHT = 296
+const PREV2_DEFAULT_WIDTH = 292
+const PREV2_DEFAULT_HEIGHT = 264
+
 export function useAiSendComposerLayout(itemsLength: number) {
   const [layout, setLayout] = useLocalStorage<DockLayout>(STORAGE_KEY, createDefaultLayout())
   const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    setLayout((current) => {
+      const isLegacy =
+        current.width === LEGACY_DEFAULT_WIDTH && current.height === LEGACY_DEFAULT_HEIGHT
+      const isPrev = current.width === PREV_DEFAULT_WIDTH && current.height === PREV_DEFAULT_HEIGHT
+      const isPrev2 =
+        current.width === PREV2_DEFAULT_WIDTH && current.height === PREV2_DEFAULT_HEIGHT
+      if (!isLegacy && !isPrev && !isPrev2) {
+        return current
+      }
+      return clampLayout(
+        { ...current, width: DEFAULT_LAYOUT.width, height: DEFAULT_LAYOUT.height },
+        current.height
+      )
+    })
+  }, [setLayout])
   const panelRef = useRef<HTMLDivElement>(null)
   const dragStateRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null)
   const resizeStateRef = useRef<{
@@ -215,7 +239,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
   return {
     layout,
     isDragging,
-    bodyHeight: Math.max(96, layout.height - 232),
+    bodyHeight: Math.max(64, layout.height - 160),
     panelRef,
     handleDragStart,
     handleDragMove,

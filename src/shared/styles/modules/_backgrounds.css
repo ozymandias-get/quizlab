@@ -1,4 +1,4 @@
-﻿.app-background {
+.app-background {
   position: fixed;
   inset: 0;
   z-index: -10;
@@ -7,15 +7,34 @@
 }
 
 .bg-noise {
-  display: none; /* Pixelation sorununu tamamen kökten çözmek için kaldırıldı */
+  position: absolute;
+  inset: -12%;
+  opacity: 0.022;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.18) 0.55px, transparent 0.8px),
+    radial-gradient(rgba(0, 0, 0, 0.22) 0.55px, transparent 0.9px);
+  background-size:
+    4px 4px,
+    5px 5px;
+  background-position:
+    0 0,
+    2px 1px;
+  mix-blend-mode: soft-light;
+  mask-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.9) 0%, transparent 78%);
+  z-index: 4;
+  pointer-events: none;
 }
 
 .glass-overlay {
   position: absolute;
   inset: 0;
-  backdrop-filter: blur(50px) saturate(140%);
-  -webkit-backdrop-filter: blur(50px) saturate(140%);
-  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.2) 100%);
+  backdrop-filter: blur(52px) saturate(112%);
+  -webkit-backdrop-filter: blur(52px) saturate(112%);
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.02) 0%, transparent 18%),
+    radial-gradient(circle at 18% 20%, rgba(74, 44, 20, 0.036) 0%, transparent 22%),
+    radial-gradient(circle at 82% 18%, rgba(44, 36, 24, 0.024) 0%, transparent 18%),
+    linear-gradient(180deg, rgba(4, 4, 4, 0.28) 0%, rgba(2, 2, 2, 0.58) 100%);
   z-index: 3;
   pointer-events: none;
 }
@@ -23,7 +42,10 @@
 .animated-bg {
   position: absolute;
   inset: 0;
-  background: #08070b;
+  background:
+    radial-gradient(circle at top, rgba(22, 18, 12, 0.12) 0%, transparent 18%),
+    radial-gradient(circle at bottom right, rgba(16, 12, 8, 0.18) 0%, transparent 22%),
+    linear-gradient(180deg, #070605 0%, #030303 52%, #010101 100%);
   overflow: hidden;
 }
 
@@ -33,9 +55,9 @@
   height: 80vw;
   max-width: 1200px;
   max-height: 1200px;
-  filter: blur(150px);
-  opacity: 0.4;
-  mix-blend-mode: screen;
+  filter: blur(194px);
+  opacity: 0.2;
+  mix-blend-mode: lighten;
   will-change: transform, border-radius;
   pointer-events: none;
 }

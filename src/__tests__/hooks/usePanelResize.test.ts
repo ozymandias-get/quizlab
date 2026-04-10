@@ -24,6 +24,19 @@ describe('usePanelResize Hook', () => {
     expect(result.current.leftPanelWidth).toBe(50)
   })
 
+  it('should not attach document resize listeners before dragging starts', () => {
+    const addEventListenerSpy = vi.spyOn(document, 'addEventListener')
+
+    renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
+
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+      'mousemove',
+      expect.any(Function),
+      expect.anything()
+    )
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith('mouseup', expect.any(Function))
+  })
+
   it('should start resizing on mouse down', () => {
     const { result } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
 

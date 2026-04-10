@@ -28,6 +28,9 @@ export interface GeminiWebSessionStatus {
   enabledAppIds: string[]
 }
 
+/** Result of a session health / probe check (same shape as public session status). */
+export type HealthCheckResult = GeminiWebSessionStatus
+
 export interface GeminiWebSessionConfig {
   profileDir: string
   checkIntervalMs: number
@@ -41,6 +44,9 @@ export type GeminiWebSessionActionResult = {
   error?: string
   status?: GeminiWebSessionStatus
 }
+
+/** Session IPC / UI action outcome (alias for readability at call sites). */
+export type SessionActionLike = GeminiWebSessionActionResult
 
 export type GeminiWebSessionRefreshReason =
   | 'proactive_expiry'

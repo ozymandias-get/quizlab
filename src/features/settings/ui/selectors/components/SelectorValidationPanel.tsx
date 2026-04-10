@@ -24,7 +24,7 @@ export default function SelectorValidationPanel({ validation, t }: SelectorValid
       `}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-ql-12 font-semibold uppercase tracking-ql-standard text-white/50">
+        <span className="text-ql-11 font-medium tracking-ql-fine text-white/50">
           {t('selectors_test_result_label')}
         </span>
         <span
@@ -47,7 +47,7 @@ export default function SelectorValidationPanel({ validation, t }: SelectorValid
       {validation.diagnostics && (
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           <div className="rounded-xl border border-white/10 bg-black/10 p-3">
-            <p className="text-ql-10 font-semibold uppercase tracking-ql-dense text-white/35">
+            <p className="text-ql-10 font-medium tracking-ql-fine text-white/38">
               {t('input_label')}
             </p>
             <p className="mt-1 text-ql-14 text-white/80">{validation.diagnostics.input.strategy}</p>
@@ -59,7 +59,7 @@ export default function SelectorValidationPanel({ validation, t }: SelectorValid
           </div>
 
           <div className="rounded-xl border border-white/10 bg-black/10 p-3">
-            <p className="text-ql-10 font-semibold uppercase tracking-ql-dense text-white/35">
+            <p className="text-ql-10 font-medium tracking-ql-fine text-white/38">
               {t('picker_el_submit')}
             </p>
             <p className="mt-1 text-ql-14 text-white/80">

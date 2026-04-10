@@ -19,7 +19,7 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
             {t('gws_warning_intro')}
           </p>
 
-          <p className="mt-3 text-ql-12 font-bold uppercase tracking-wider text-rose-200/80">
+          <p className="mt-3 text-ql-11 font-semibold tracking-ql-fine text-rose-200/80">
             {t('gws_risk_list_title')}
           </p>
           <div className="mt-1.5 space-y-1.5">
@@ -30,7 +30,7 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
             ))}
           </div>
 
-          <p className="mt-3 text-ql-12 font-bold uppercase tracking-wider text-rose-200/80">
+          <p className="mt-3 text-ql-11 font-semibold tracking-ql-fine text-rose-200/80">
             {t('gws_mitigation_title')}
           </p>
           <div className="mt-1.5 space-y-1.5">

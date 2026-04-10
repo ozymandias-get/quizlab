@@ -60,10 +60,10 @@ export default function SettingsModalSidebar({
               <SettingsIcon className="h-[18px] w-[18px]" />
             </div>
             <div className="min-w-0">
-              <div className="inline-flex items-center rounded-full border border-white/[0.1] bg-white/[0.03] px-2.5 py-1 text-ql-10 font-semibold uppercase tracking-ql-spread text-white/42">
+              <div className="inline-flex items-center rounded-full border border-white/[0.1] bg-white/[0.03] px-2.5 py-1 text-ql-10 font-medium tracking-ql-fine text-white/48">
                 {t('app_name')}
               </div>
-              <h2 className="mt-2 text-ql-28 font-semibold leading-none tracking-tight text-white/92">
+              <h2 className="mt-2 text-ql-20 font-semibold leading-none tracking-tight text-white/92">
                 {t('settings_title')}
               </h2>
             </div>
@@ -86,7 +86,7 @@ export default function SettingsModalSidebar({
           <nav aria-label={t('settings_title')} className="flex flex-col gap-5">
             {sidebarSections.map((section) => (
               <section key={section.id} className="flex flex-col gap-2">
-                <h3 className="px-1 text-ql-10 font-semibold uppercase tracking-ql-standard text-white/40">
+                <h3 className="px-1 text-ql-11 font-medium tracking-ql-fine text-white/42">
                   {section.label}
                 </h3>
                 <div className="flex flex-col gap-2">

@@ -235,4 +235,24 @@ describe('useGeminiWebSessionState', () => {
     expect(result.current.status.isRefreshing).toBe(true)
     expect(result.current.status.requiresManualLogin).toBe(false)
   })
+
+  it('rolls back enabled apps when managed app update fails', async () => {
+    mockSetEnabledApps.mockResolvedValue({
+      success: false,
+      error: 'failed_to_save'
+    })
+
+    const { result } = renderHook(() => useGeminiWebSessionState(), { wrapper })
+
+    expect(result.current.enabledAppIds.has('gemini')).toBe(true)
+
+    await act(async () => {
+      result.current.handlers.onToggleManagedApp('gemini')
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(result.current.enabledAppIds.has('gemini')).toBe(true)
+    })
+  })
 })

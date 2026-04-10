@@ -56,6 +56,12 @@ describe('useLocalStorage Hooks', () => {
 
       expect(result2.current[0]).toBe('updated')
     })
+
+    it('should reset to initial value when stored JSON shape does not match', () => {
+      window.localStorage.setItem('test-key', JSON.stringify(['unexpected']))
+      const { result } = renderHook(() => useLocalStorage('test-key', { foo: 'bar' }))
+      expect(result.current[0]).toEqual({ foo: 'bar' })
+    })
   })
 
   describe('useLocalStorageString', () => {

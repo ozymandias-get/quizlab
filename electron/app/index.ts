@@ -139,15 +139,25 @@ const handleSeriousError = (type: string, error: unknown) => {
   }
 }
 
+function isWebviewNavigationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const code = 'code' in error ? (error as NodeJS.ErrnoException).code : undefined
+  if (code === 'ERR_ABORTED') return true
+  const message = error instanceof Error ? error.message : ''
+  return message.includes('GUEST_VIEW_MANAGER_CALL')
+}
+
 process.on('uncaughtException', (err: unknown) => {
   const code =
     err && typeof err === 'object' && 'code' in err
       ? (err as NodeJS.ErrnoException).code
       : undefined
   if (code === 'EPIPE') return
+  if (isWebviewNavigationError(err)) return
   handleSeriousError('Uncaught Exception', err)
 })
 
 process.on('unhandledRejection', (reason: unknown) => {
+  if (isWebviewNavigationError(reason)) return
   handleSeriousError('Unhandled Rejection', reason)
 })

@@ -32,9 +32,7 @@ const BarAppearanceSettings = memo(
           </div>
           <div className="space-y-0.5">
             <h3 className="text-ql-14 font-bold text-white/90">{t('bar_appearance')}</h3>
-            <p className="text-ql-10 text-white/30 uppercase tracking-ql-caps">
-              {t('opacity_scale')}
-            </p>
+            <p className="text-ql-11 text-white/34 tracking-ql-fine">{t('opacity_scale')}</p>
           </div>
         </div>
 

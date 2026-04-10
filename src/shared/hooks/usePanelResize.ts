@@ -75,6 +75,10 @@ export function usePanelResize({
   )
 
   useEffect(() => {
+    if (!isResizing) {
+      return
+    }
+
     const effectiveResizerWidth = Math.max(28, resizerWidth)
 
     const updatePanelWidth = (percentage: number) => {
@@ -146,9 +150,15 @@ export function usePanelResize({
         cancelAnimationFrame(rafIdRef.current)
       }
 
+      if (resizerRef.current) {
+        resizerRef.current.classList.remove('dragging')
+      }
+
       document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
-  }, [minLeft, minRight, setLeftPanelWidth, isReversed, resizerWidth])
+  }, [isResizing, minLeft, minRight, setLeftPanelWidth, isReversed, resizerWidth])
 
   return {
     leftPanelWidth,

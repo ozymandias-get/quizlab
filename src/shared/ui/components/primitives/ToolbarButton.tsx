@@ -1,6 +1,7 @@
 import { type ElementType, forwardRef } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@ui/components/button'
+import { cn } from '@shared/lib/uiUtils'
 
 interface ToolbarButtonProps {
   onClick?: () => void
@@ -28,19 +29,19 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
     return (
       <Button
         ref={ref}
-        variant={isActive ? 'default' : 'ghost'}
+        variant="ghost"
         size="icon"
         onClick={onClick}
         title={tooltip}
         disabled={disabled}
-        className={`
-          w-8 h-8 rounded-xl transition-all duration-300
-          ${
-            isActive
-              ? activeClassName || 'bg-white/15 text-white shadow-lg'
-              : className || 'text-white/40 hover:text-white hover:bg-white/[0.08]'
-          }
-        `}
+        className={cn(
+          'glass-tier-3 glass-tier-toolbar glass-interactive h-8 w-8 border-white/[0.08] text-white/55 shadow-none transition-all duration-300',
+          isActive
+            ? activeClassName ||
+                'border-white/[0.16] bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] text-white shadow-[0_14px_28px_-20px_rgba(0,0,0,0.72)]'
+            : className || 'hover:text-white hover:border-white/[0.14] hover:bg-white/[0.08]',
+          disabled && 'opacity-35'
+        )}
         asChild
       >
         <motion.button

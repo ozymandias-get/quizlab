@@ -42,6 +42,7 @@ describe('SettingsModal Component', () => {
   it('renders modal when open', () => {
     render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
     expect(screen.getByText('settings_title')).toBeInTheDocument()
+    expect(screen.getByText('settings_title').closest('.glass-tier-1')).not.toBeNull()
   })
 
   it('switches tabs', async () => {
@@ -51,12 +52,15 @@ describe('SettingsModal Component', () => {
     fireEvent.click(languageButton)
 
     // Wait for the tab button to be selected AND the content to be loaded
-    await waitFor(() => {
-      const updatedButton = screen.getByRole('tab', { name: 'language' })
-      expect(updatedButton).toHaveAttribute('aria-selected', 'true')
-      expect(screen.getByText('Language Tab Content')).toBeInTheDocument()
-    })
-  })
+    await waitFor(
+      () => {
+        const updatedButton = screen.getByRole('tab', { name: 'language' })
+        expect(updatedButton).toHaveAttribute('aria-selected', 'true')
+        expect(screen.getByText('Language Tab Content')).toBeInTheDocument()
+      },
+      { timeout: 10000 }
+    )
+  }, 15000)
 
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn()

@@ -50,6 +50,8 @@ export type {
   GeminiWebSessionStatus,
   GeminiWebSessionConfig,
   GeminiWebSessionActionResult,
+  HealthCheckResult,
+  SessionActionLike,
   GeminiWebSessionRefreshReason,
   GeminiWebSessionRefreshPhase,
   GeminiWebSessionRefreshEvent

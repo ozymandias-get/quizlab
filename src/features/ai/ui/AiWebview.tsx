@@ -1,4 +1,4 @@
-import { memo, lazy, Suspense, useEffect, useState } from 'react'
+import { memo, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAiCoreWorkspaceActions,
@@ -7,6 +7,7 @@ import {
 } from '@app/providers/AiContext'
 import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
+import { MAX_ALIVE_UNPINNED_TABS } from '@features/ai/constants/aiWebviewLifecycle'
 
 const AiHomePage = lazy(() => import('./AiHomePage'))
 const MagicSelectorTutorial = lazy(() => import('@features/tutorial/ui/MagicSelectorTutorial'))
@@ -16,14 +17,17 @@ interface AiWebviewProps {
   isBarHovered: boolean
 }
 
-const MAX_ALIVE_UNPINNED_TABS = 3
-
 function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
   const { tabs, activeTabId, aiViewRequestNonce } = useAiTabsSliceState()
   const { isTutorialActive } = useAiSessionUiPrefsState()
   const { setActiveTab, openAiWorkspace, stopTutorial } = useAiCoreWorkspaceActions()
   const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
   const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
+  const tabUrlCacheRef = useRef<Record<string, { url: string; modelId: string }>>({})
+
+  const handleTabUrlChange = useCallback((tabId: string, modelId: string, url: string) => {
+    tabUrlCacheRef.current[tabId] = { url, modelId }
+  }, [])
 
   useEffect(() => {
     if (tabs.length === 0 || !activeTabId) {
@@ -44,6 +48,12 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
   useEffect(() => {
     const currentTabIds = new Set(tabs.map((t) => t.id))
     setAliveTabIds((prev) => prev.filter((id) => currentTabIds.has(id)))
+    const cache = tabUrlCacheRef.current
+    for (const id of Object.keys(cache)) {
+      if (!currentTabIds.has(id)) {
+        delete cache[id]
+      }
+    }
   }, [tabs])
 
   useEffect(() => {
@@ -100,9 +110,12 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
         </AnimatePresence>
 
         {tabs.map((tab) => {
-          const isMounted = tab.pinned || tab.id === activeTabId || aliveTabIds.includes(tab.id)
+          const isMounted = tab.id === activeTabId || aliveTabIds.includes(tab.id)
 
           if (!isMounted) return null
+
+          const cached = tabUrlCacheRef.current[tab.id]
+          const restoredUrl = cached && cached.modelId === tab.modelId ? cached.url : undefined
 
           return (
             <AiSession
@@ -110,6 +123,8 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
               tab={tab}
               isActive={tab.id === activeTabId && !showHome}
               isBarHovered={isBarHovered}
+              restoredUrl={restoredUrl}
+              onTabUrlRecorded={handleTabUrlChange}
             />
           )
         })}

@@ -126,12 +126,12 @@ function AiSendComposerContent({
   return (
     <>
       <div
-        className="relative space-y-3 overflow-y-auto px-5 pb-3 pt-3"
+        className="relative space-y-1.5 overflow-y-auto px-3 pb-1.5 pt-1.5"
         style={{ height: bodyHeight }}
       >
         {items.length > 1 ? (
           <motion.p
-            className="text-ql-10 font-medium tracking-ql-caps text-white/30"
+            className="text-[9px] font-medium tracking-wide text-white/30"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -140,7 +140,7 @@ function AiSendComposerContent({
           </motion.p>
         ) : null}
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <AnimatePresence initial={false} mode="popLayout">
             {items.map((item, index) => {
               if (item.type === 'text') {
@@ -151,7 +151,7 @@ function AiSendComposerContent({
                   <motion.div
                     key={item.id}
                     initial={
-                      prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }
+                      prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.97 }
                     }
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={
@@ -160,59 +160,51 @@ function AiSendComposerContent({
                         : {
                             opacity: 0,
                             scale: 0.95,
-                            x: -8,
-                            transition: { duration: 0.16, ease: [0.32, 0, 0.67, 0] }
+                            x: -6,
+                            transition: { duration: 0.14, ease: [0.32, 0, 0.67, 0] }
                           }
                     }
                     transition={itemTransition}
-                    className="group relative overflow-hidden rounded-[22px] border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-[22px] before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
+                    className="group relative overflow-hidden rounded-xl border border-white/[0.15] backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.25]"
                     style={{
                       background:
-                        'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
-                      boxShadow:
-                        'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
+                        'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.05) 48%, rgba(0,0,0,0.06) 100%)',
+                      boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.2)'
                     }}
                   >
                     <div
-                      className="pointer-events-none absolute -right-8 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full blur-3xl"
-                      style={{ background: `${accentStrong}22` }}
-                    />
-                    <div
-                      className="absolute inset-y-0 left-0 w-[3px] rounded-l-2xl"
+                      className="absolute inset-y-0 left-0 w-[2px] rounded-l-xl"
                       style={{
                         background: `linear-gradient(180deg, ${accentStrong}, transparent)`,
-                        boxShadow: `0 0 12px 1px ${accentStrong}`
+                        boxShadow: `0 0 8px 1px ${accentStrong}`
                       }}
                     />
-                    <div className="flex items-start justify-between gap-2 px-3 pb-2 pt-2.5">
-                      <span className="flex items-center gap-1.5 pl-1">
+                    <div className="flex items-center justify-between gap-1 px-2 py-1.5">
+                      <span className="flex items-center gap-1 pl-0.5">
                         <Quote
-                          className="h-3 w-3"
-                          style={{
-                            color: accentStrong,
-                            filter: `drop-shadow(0 0 4px ${accentStrong})`
-                          }}
+                          className="h-2 w-2"
+                          style={{ color: accentStrong }}
                           strokeWidth={2}
                         />
-                        <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-ql-10 font-semibold uppercase tracking-ql-label text-white/45">
+                        <span className="text-[9px] font-semibold uppercase text-white/45">
                           {t('ai_send_selection_item', { index: String(textOrdinal) })}
                         </span>
                       </span>
                       <button
                         type="button"
                         onClick={() => onRemoveItem(item.id)}
-                        className="rounded-full p-1 text-white/[0.55] transition-all duration-200 group-hover:text-white/75 hover:bg-white/[0.08] hover:text-white/85 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                        className="rounded-full p-0.5 text-white/[0.45] transition-colors hover:text-white/75"
                         title={t('ai_send_remove_item')}
                       >
-                        <X className="h-3 w-3" strokeWidth={2.2} />
+                        <X className="h-2.5 w-2.5" strokeWidth={2.2} />
                       </button>
                     </div>
                     <p
-                      className="overflow-hidden px-3 pb-3 pl-4 text-ql-12 leading-relaxed text-white/76"
+                      className="overflow-hidden px-2 pb-1.5 pl-2.5 text-ql-10 leading-snug text-white/70"
                       style={{
                         display: '-webkit-box',
                         WebkitBoxOrient: 'vertical',
-                        WebkitLineClamp: 4
+                        WebkitLineClamp: 2
                       }}
                     >
                       {item.text}
@@ -231,7 +223,7 @@ function AiSendComposerContent({
                 <motion.div
                   key={item.id}
                   initial={
-                    prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }
+                    prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.97 }
                   }
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={
@@ -240,35 +232,32 @@ function AiSendComposerContent({
                       : {
                           opacity: 0,
                           scale: 0.95,
-                          x: -8,
-                          transition: { duration: 0.16, ease: [0.32, 0, 0.67, 0] }
+                          x: -6,
+                          transition: { duration: 0.14, ease: [0.32, 0, 0.67, 0] }
                         }
                   }
                   transition={itemTransition}
-                  className="group relative overflow-hidden rounded-[22px] border border-white/[0.15] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.25] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_12px_28px_rgba(0,0,0,0.4)] before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-[22px] before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
+                  className="group relative overflow-hidden rounded-xl border border-white/[0.15] backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.25]"
                   style={{
                     background:
-                      'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.08) 100%)',
-                    boxShadow:
-                      'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
+                      'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.05) 48%, rgba(0,0,0,0.06) 100%)',
+                    boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.2)'
                   }}
                 >
-                  <div className="pointer-events-none absolute -right-8 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-emerald-300/10 blur-3xl" />
-                  <div className="flex items-center gap-3 px-3 py-3">
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-white/[0.12] bg-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_6px_18px_rgba(0,0,0,0.26)]">
+                  <div className="flex items-center gap-2 px-2 py-1.5">
+                    <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-white/[0.12] bg-black/20">
                       <img
                         src={getImagePreviewSrc(item)}
                         alt={imageLabel}
                         className="h-full w-full object-cover"
                         draggable={false}
                       />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-white/[0.08]" />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <ImageIcon className="h-3 w-3 text-emerald-400/70" strokeWidth={2} />
-                        <span className="text-ql-10 font-semibold uppercase tracking-ql-label text-white/45">
+                      <div className="flex items-center gap-1">
+                        <ImageIcon className="h-2 w-2 text-emerald-400/70" strokeWidth={2} />
+                        <span className="text-[9px] font-semibold uppercase text-white/45">
                           {imageLabel}
                         </span>
                       </div>
@@ -277,10 +266,10 @@ function AiSendComposerContent({
                     <button
                       type="button"
                       onClick={() => onRemoveItem(item.id)}
-                      className="ml-auto rounded-full p-1 text-white/[0.55] transition-all duration-200 group-hover:text-white/75 hover:bg-white/[0.08] hover:text-white/85 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                      className="ml-auto rounded-full p-0.5 text-white/[0.45] transition-colors hover:text-white/75"
                       title={t('ai_send_remove_item')}
                     >
-                      <X className="h-3 w-3" strokeWidth={2.2} />
+                      <X className="h-2.5 w-2.5" strokeWidth={2.2} />
                     </button>
                   </div>
                 </motion.div>
@@ -289,32 +278,30 @@ function AiSendComposerContent({
           </AnimatePresence>
         </div>
 
-        <section className="space-y-2">
-          <div className="rounded-[22px] border border-white/[0.1] bg-[linear-gradient(145deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.03)_100%)] p-3 shadow-[inset_0_1px_2px_rgba(255,255,255,0.08),0_10px_28px_rgba(0,0,0,0.2)]">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <label className="text-ql-10 font-semibold uppercase tracking-ql-label text-white/45">
+        <section>
+          <div className="rounded-xl border border-white/[0.1] bg-[linear-gradient(145deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.02)_100%)] p-2">
+            <div className="mb-1 flex items-center justify-between gap-1.5">
+              <label className="text-[9px] font-semibold uppercase tracking-wide text-white/45">
                 {t('ai_send_note_label')}
               </label>
-              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 tabular-nums text-ql-10 font-medium text-white/40">
+              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-px tabular-nums text-[9px] font-medium text-white/40">
                 {t('ai_send_item_count', { count: String(totalItems) })}
               </span>
             </div>
 
             <textarea
-              rows={3}
+              rows={2}
               value={noteText}
               onChange={(event) => onNoteTextChange(event.target.value)}
               onKeyDown={handleNoteKeyDown}
               placeholder={
                 hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')
               }
-              className="w-full resize-none rounded-2xl border border-white/[0.15] px-3.5 py-3 text-ql-12 leading-relaxed text-white/85 outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.25] focus:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_0_0_3px_rgba(255,255,255,0.08)]"
+              className="w-full resize-none rounded-lg border border-white/[0.12] px-2 py-1.5 text-ql-11 leading-snug text-white/85 outline-none backdrop-blur-2xl transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.2]"
               style={{
-                minHeight: 88,
+                minHeight: 40,
                 background:
-                  'linear-gradient(145deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)',
-                boxShadow:
-                  'inset 0 1px 2px rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)'
+                  'linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 100%)'
               }}
             />
           </div>
@@ -322,13 +309,13 @@ function AiSendComposerContent({
       </div>
 
       <div
-        className="relative flex items-center justify-end gap-2 px-5 py-3 backdrop-blur-2xl backdrop-saturate-200"
+        className="relative flex items-center justify-end gap-1 px-3 py-1.5 backdrop-blur-2xl"
         style={{
           background:
-            'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)'
+            'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)'
         }}
       >
-        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
         <AnimatePresence initial={false}>
           {hasNoteText ? (
             <motion.div
@@ -349,13 +336,13 @@ function AiSendComposerContent({
                 disabled={isSubmitting || totalItems === 0}
                 variant="outline"
                 aria-label={t('auto_send')}
-                className="rounded-2xl border border-emerald-400/25 px-3.5 py-2 text-ql-12 font-semibold text-emerald-100/90 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-emerald-400/35 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_28px_rgba(0,0,0,0.35)] active:scale-[0.97] disabled:opacity-35"
+                className="rounded-lg border border-emerald-400/25 px-2 py-1 text-ql-10 font-semibold text-emerald-100/90 transition-all duration-300 hover:border-emerald-400/35 active:scale-[0.97] disabled:opacity-35"
                 style={{
                   background:
-                    'linear-gradient(135deg, rgba(16,185,129,0.16) 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.12) 100%)'
+                    'linear-gradient(135deg, rgba(16,185,129,0.14) 0%, rgba(255,255,255,0.03) 100%)'
                 }}
               >
-                <Zap className="mr-1.5 h-3 w-3 opacity-70" strokeWidth={2.2} aria-hidden />
+                <Zap className="mr-1 h-2.5 w-2.5 opacity-70" strokeWidth={2.2} aria-hidden />
                 {t('auto_send')}
               </Button>
             </motion.div>
@@ -371,25 +358,21 @@ function AiSendComposerContent({
           }}
           disabled={isSubmitting || totalItems === 0}
           aria-label={isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
-          className="group relative overflow-hidden rounded-2xl border border-white/[0.18] px-4 py-2.5 text-ql-12 font-semibold text-white backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_0_0_0.5px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.35)] transition-all duration-300 hover:border-white/[0.28] hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.25),0_12px_32px_rgba(0,0,0,0.5)] active:scale-[0.97] disabled:opacity-35 before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.08] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
+          className="group relative overflow-hidden rounded-lg border border-white/[0.18] px-2.5 py-1.5 text-ql-10 font-semibold text-white backdrop-blur-2xl transition-all duration-300 hover:border-white/[0.28] active:scale-[0.97] disabled:opacity-35"
           style={{
-            background: `linear-gradient(140deg, ${accentStrong} 0%, rgba(255,255,255,0.14) 70%, rgba(255,255,255,0.06) 100%)`,
-            boxShadow: `inset 0 1px 2px rgba(255,255,255,0.2), inset 0 0 0 0.5px rgba(255,255,255,0.1), 0 0 20px -4px ${accentStrong}, 0 8px 24px rgba(0,0,0,0.35)`
+            background: `linear-gradient(140deg, ${accentStrong} 0%, rgba(255,255,255,0.12) 70%, rgba(255,255,255,0.05) 100%)`,
+            boxShadow: `inset 0 1px 1px rgba(255,255,255,0.15), 0 0 12px -4px ${accentStrong}, 0 4px 12px rgba(0,0,0,0.25)`
           }}
         >
-          <span className="relative z-10 flex items-center gap-1.5">
+          <span className="relative z-10 flex items-center gap-1">
             {isSubmitting ? (
               <>
-                <Loader2
-                  className="h-3.5 w-3.5 shrink-0 animate-spin"
-                  strokeWidth={2}
-                  aria-hidden
-                />
+                <Loader2 className="h-3 w-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
                 {t('sending_to_ai')}
               </>
             ) : (
               <>
-                <Send className="h-3.5 w-3.5 shrink-0 opacity-80" strokeWidth={2} aria-hidden />
+                <Send className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2} aria-hidden />
                 {t('send_to_ai')}
               </>
             )}
@@ -403,12 +386,12 @@ function AiSendComposerContent({
         onPointerMove={onResizeMove}
         onPointerUp={onResizeEnd}
         onPointerCancel={onResizeEnd}
-        className="absolute bottom-1.5 right-1.5 flex h-6 w-6 cursor-nwse-resize items-end justify-end rounded-full text-white/20 transition-colors duration-150 hover:text-white/45"
+        className="absolute bottom-1 right-1 flex h-5 w-5 cursor-nwse-resize items-end justify-end rounded-full text-white/20 transition-colors duration-150 hover:text-white/45"
         title={t('ai_send_resize')}
       >
-        <span className="relative block h-3.5 w-3.5">
-          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-br-[0.4rem] border-b-[1.5px] border-r-[1.5px] border-current" />
-          <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-br-[0.35rem] border-b-[1.5px] border-r-[1.5px] border-current opacity-50" />
+        <span className="relative block h-3 w-3">
+          <span className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-br-[0.3rem] border-b-[1.5px] border-r-[1.5px] border-current" />
+          <span className="absolute bottom-0.5 right-0.5 h-1 w-1 rounded-br-[0.25rem] border-b-[1.5px] border-r-[1.5px] border-current opacity-50" />
         </span>
       </button>
     </>

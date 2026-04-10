@@ -21,6 +21,17 @@ import { cloneScriptDiagnostics, normalizeExecutionResult } from './scriptExecut
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 
+function webviewDestroyedError(
+  diagnostics: AiSendDiagnostics,
+  requestStartedAt: number
+): SendImageResult {
+  return attachDiagnostics(
+    { success: false, error: 'webview_destroyed' },
+    diagnostics,
+    requestStartedAt
+  )
+}
+
 interface ImageSendPipelineParams {
   webviewRef: RefObject<WebviewController | null>
   webview: WebviewController
@@ -142,11 +153,7 @@ export async function executeImageSendPipeline({
   }
 
   if (!canUseWebview(webview, scheduledWebview)) {
-    return attachDiagnostics(
-      { success: false, error: 'webview_destroyed' },
-      diagnostics,
-      requestStartedAt
-    )
+    return webviewDestroyedError(diagnostics, requestStartedAt)
   }
 
   const focusExecuteStartedAt = nowMs()
@@ -184,11 +191,7 @@ export async function executeImageSendPipeline({
 
   if (!pasteSuccess) {
     if (!canUseWebview(webview, scheduledWebview)) {
-      return attachDiagnostics(
-        { success: false, error: 'webview_destroyed' },
-        diagnostics,
-        requestStartedAt
-      )
+      return webviewDestroyedError(diagnostics, requestStartedAt)
     }
     pasteSuccess = safeWebviewPaste(webview)
   }
@@ -217,11 +220,7 @@ export async function executeImageSendPipeline({
     }
 
     if (!canUseWebview(webview, scheduledWebview)) {
-      return attachDiagnostics(
-        { success: false, error: 'webview_destroyed' },
-        diagnostics,
-        requestStartedAt
-      )
+      return webviewDestroyedError(diagnostics, requestStartedAt)
     }
 
     const refocusExecuteStartedAt = nowMs()
@@ -237,9 +236,7 @@ export async function executeImageSendPipeline({
       )
     }
 
-    await sleep(280)
-
-    await sleep(POST_PASTE_PROMPT_DELAY)
+    await sleep(280 + POST_PASTE_PROMPT_DELAY)
     diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
 
     const promptScriptGenerationStartedAt = nowMs()
@@ -257,11 +254,7 @@ export async function executeImageSendPipeline({
 
     if (promptScript) {
       if (!canUseWebview(webview, scheduledWebview)) {
-        return attachDiagnostics(
-          { success: false, error: 'webview_destroyed' },
-          diagnostics,
-          requestStartedAt
-        )
+        return webviewDestroyedError(diagnostics, requestStartedAt)
       }
 
       const promptExecuteStartedAt = nowMs()
@@ -311,11 +304,7 @@ export async function executeImageSendPipeline({
     }
 
     if (!canUseWebview(webview, scheduledWebview)) {
-      return attachDiagnostics(
-        { success: false, error: 'webview_destroyed' },
-        diagnostics,
-        requestStartedAt
-      )
+      return webviewDestroyedError(diagnostics, requestStartedAt)
     }
 
     const submitReadyExecuteStartedAt = nowMs()
@@ -353,11 +342,7 @@ export async function executeImageSendPipeline({
     }
 
     if (!canUseWebview(webview, scheduledWebview)) {
-      return attachDiagnostics(
-        { success: false, error: 'webview_destroyed' },
-        diagnostics,
-        requestStartedAt
-      )
+      return webviewDestroyedError(diagnostics, requestStartedAt)
     }
 
     const clickExecuteStartedAt = nowMs()

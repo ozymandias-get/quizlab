@@ -109,11 +109,12 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
 
 .pdf-viewer-container .rpv-core__inner-pages {
   background-color: transparent !important;
-  scroll-snap-type: y mandatory !important;
+  /* Programmatic jumpToPage is the scroll authority; snap fought native scroll + custom nav */
+  scroll-snap-type: none !important;
 }
 
 .pdf-viewer-container .rpv-core__inner-page {
-  scroll-snap-align: start !important;
+  scroll-snap-align: none !important;
 }
 
 .pdf-viewer-container .rpv-core__text-layer {

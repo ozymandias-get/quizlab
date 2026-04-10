@@ -1,4 +1,4 @@
-import { memo, Suspense, lazy } from 'react'
+import { memo, Suspense, lazy, useMemo } from 'react'
 import { useLanguageStrings } from '@app/providers/LanguageContext'
 import type { PdfFile } from '@shared-core/types'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
@@ -10,6 +10,19 @@ import { Worker } from '@react-pdf-viewer/core'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 const PdfViewer = lazy(() => import('@features/pdf').then((m) => ({ default: m.PdfViewer })))
+
+/** Stable across tab switches; changes when document identity or viewerSessionKey bumps. Exported for tests. */
+export function getPdfViewerRemountKey(
+  activePdfTab: PdfTab | null | undefined,
+  pdfFile: PdfFile | null
+): string {
+  if (activePdfTab?.kind === 'drive') return 'drive'
+  if (!pdfFile) return 'empty'
+  const path = pdfFile.path ?? ''
+  const stream = pdfFile.streamUrl ?? ''
+  const session = activePdfTab?.viewerSessionKey ?? ''
+  return `${session}|${path}|${stream}`
+}
 
 interface LeftPanelProps {
   onPdfDrop: (file: File) => void
@@ -81,11 +94,16 @@ function LeftPanel({
     onPdfDrop(file as File)
   })
 
+  const pdfViewerRemountKey = useMemo(
+    () => getPdfViewerRemountKey(activePdfTab, pdfFile),
+    [activePdfTab?.kind, activePdfTab?.viewerSessionKey, pdfFile?.path, pdfFile?.streamUrl]
+  )
+
   return (
     <div
       ref={containerRef}
       {...dragHandlers}
-      className="glass-tier-2 h-full w-full flex flex-col overflow-hidden relative"
+      className="glass-tier-1 h-full w-full flex flex-col overflow-hidden relative"
       style={{
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden'
@@ -95,7 +113,7 @@ function LeftPanel({
 
       <ErrorBoundary title={t('error_pdf_handler')}>
         <div className="flex-1 overflow-hidden relative h-full flex flex-col">
-          {pdfTabs.length > 0 && onSetActivePdfTab && onClosePdfTab && onRenamePdfTab && (
+          {pdfTabs?.length > 0 && onSetActivePdfTab && onClosePdfTab && onRenamePdfTab && (
             <PdfTabStrip
               tabs={pdfTabs}
               activeTabId={activePdfTabId}
@@ -119,7 +137,7 @@ function LeftPanel({
                 <ErrorBoundary title={t('error_pdf_viewer')}>
                   <Worker workerUrl={pdfjsWorkerUrl}>
                     <PdfViewer
-                      key={`${activePdfTabId}-${activePdfTab?.viewerSessionKey || pdfFile?.streamUrl || 'empty'}`}
+                      key={pdfViewerRemountKey}
                       pdfFile={pdfFile}
                       activePdfTab={activePdfTab}
                       onSelectPdf={onSelectPdf}

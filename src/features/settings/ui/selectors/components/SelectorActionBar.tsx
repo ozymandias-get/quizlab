@@ -43,9 +43,7 @@ export default function SelectorActionBar({
         ) : (
           <RefreshIcon className="h-3.5 w-3.5" />
         )}
-        <span className="text-ql-10 font-bold uppercase tracking-wider">
-          {t('selectors_test_current_tab')}
-        </span>
+        <span className="text-ql-11 font-semibold">{t('selectors_test_current_tab')}</span>
       </button>
 
       {selectorEntry && (
@@ -61,7 +59,7 @@ export default function SelectorActionBar({
           "
         >
           <TrashIcon className="h-3.5 w-3.5" />
-          <span className="text-ql-10 font-bold uppercase tracking-wider">{t('reset')}</span>
+          <span className="text-ql-11 font-semibold">{t('reset')}</span>
         </button>
       )}
     </div>

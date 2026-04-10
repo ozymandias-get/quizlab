@@ -69,7 +69,7 @@ const PromptsTab = () => {
             onSubmit={handleAddPrompt}
           >
             <div className="space-y-1.5">
-              <label className="pl-1 text-ql-10 font-bold uppercase tracking-wider text-white/40">
+              <label className="pl-1 text-ql-11 font-medium text-white/45">
                 {t('prompt_text')}
               </label>
               <textarea
@@ -83,7 +83,7 @@ const PromptsTab = () => {
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className="rounded-xl bg-purple-600 px-6 py-2 text-ql-12 font-bold text-white shadow-lg shadow-purple-500/20 transition-all hover:bg-purple-500"
+                className="rounded-xl bg-purple-600 px-6 py-2 text-ql-11 font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:bg-purple-500"
               >
                 {t('save_prompt')}
               </button>
@@ -94,7 +94,7 @@ const PromptsTab = () => {
 
       <div className="px-1">
         <p className="text-ql-12 leading-relaxed text-white/40">{t('prompts_description')}</p>
-        <div className="mt-2 text-ql-10 font-bold uppercase tracking-ql-caps text-white/30">
+        <div className="mt-2 text-ql-11 font-medium tracking-ql-fine text-white/34">
           {selectedPromptId ? t('active_prompt') : t('no_prompt_selected')}
         </div>
       </div>
@@ -132,7 +132,7 @@ const PromptsTab = () => {
                   {prompt.text}
                 </p>
                 {prompt.isDefault && (
-                  <span className="mt-2 inline-block rounded border border-white/5 bg-white/5 px-1.5 py-0.5 text-ql-10 font-bold text-white/30">
+                  <span className="mt-2 inline-block rounded border border-white/5 bg-white/5 px-1.5 py-0.5 text-ql-10 font-medium text-white/38">
                     {t('default_prompts')}
                   </span>
                 )}
@@ -156,7 +156,7 @@ const PromptsTab = () => {
         <div className="flex justify-center pt-4">
           <button
             onClick={clearSelection}
-            className="rounded-lg px-4 py-2 text-ql-12 font-bold text-white/30 transition-colors hover:bg-white/5 hover:text-white/60"
+            className="rounded-lg px-4 py-2 text-ql-11 font-medium text-white/34 transition-colors hover:bg-white/5 hover:text-white/60"
           >
             {t('no_prompt_selected')}
           </button>

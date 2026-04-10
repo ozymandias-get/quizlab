@@ -226,13 +226,6 @@ function PdfViewerDocument({
               </p>
             </div>
           )}
-          renderPage={(props) => (
-            <>
-              {props.canvasLayer.children}
-              {props.textLayer.children}
-              {props.annotationLayer.children}
-            </>
-          )}
           theme={{
             theme: 'dark'
           }}

@@ -1,11 +1,4 @@
-import {
-  memo,
-  useState,
-  useCallback,
-  type ComponentType,
-  type ElementType,
-  type ReactElement
-} from 'react'
+import { memo, useState, useCallback, type ComponentType, type ReactElement } from 'react'
 import { motion } from 'framer-motion'
 import {
   Upload,
@@ -21,6 +14,7 @@ import {
 import { useLanguageStrings } from '@app/providers/LanguageContext'
 import PdfSearchBar from './PdfSearchBar'
 import type { PdfFile } from '@shared-core/types'
+import { ToolbarButton } from '@shared/ui/components/primitives'
 import { Button } from '@ui/components/button'
 
 interface RenderChildProps {
@@ -90,9 +84,9 @@ function PdfToolbar({
     <motion.div
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="flex-shrink-0 w-full bg-gradient-to-t from-[#050505] via-[#050505] to-[#080808] border-t border-white/[0.06] px-6 py-3 relative z-50 flex items-center justify-between gap-4 select-none"
+      className="flex-shrink-0 relative z-50 flex w-full items-center justify-between gap-4 border-t border-white/[0.08] bg-gradient-to-t from-[#05070d] via-[#05070d]/95 to-transparent px-6 py-3 select-none"
     >
-      <div className="glass-tier-2 glass-tier-toolbar flex items-center gap-1 p-1.5">
+      <div className="glass-tier-3 glass-tier-toolbar flex items-center gap-1 p-1.5">
         <ToolbarButton onClick={onSelectPdf} icon={Upload} tooltip={t('select_pdf')} />
 
         <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-0.5" />
@@ -101,8 +95,8 @@ function PdfToolbar({
           icon={Hand}
           tooltip={t('pdf_pan_mode')}
           isActive={panMode}
-          activeClassName="bg-gradient-to-br from-sky-600 to-cyan-700 text-white shadow-[0_0_18px_-4px_rgba(34,211,238,0.55)]"
-          className="text-sky-400/80 hover:text-sky-200 hover:bg-sky-500/15"
+          activeClassName="bg-gradient-to-br from-sky-900 to-cyan-950 text-white shadow-[0_0_18px_-6px_rgba(34,97,148,0.35)]"
+          className="text-sky-500/70 hover:text-sky-300 hover:bg-sky-900/30"
         />
 
         <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-0.5" />
@@ -123,7 +117,7 @@ function PdfToolbar({
           icon={Send}
           tooltip={autoSend ? t('auto_send_on') : t('auto_send_off')}
           isActive={autoSend}
-          activeClassName="bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]"
+          activeClassName="bg-gradient-to-br from-indigo-800 to-violet-900 text-white shadow-[0_0_18px_-6px_rgba(76,84,164,0.34)]"
         />
       </div>
 
@@ -140,7 +134,7 @@ function PdfToolbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="glass-tier-2 glass-tier-toolbar flex items-center gap-1 p-1.5">
+        <div className="glass-tier-3 glass-tier-toolbar flex items-center gap-1 p-1.5">
           <Button
             variant="ghost"
             size="icon"
@@ -172,7 +166,7 @@ function PdfToolbar({
           </Button>
         </div>
 
-        <div className="glass-tier-2 glass-tier-toolbar flex items-center gap-1 p-1.5">
+        <div className="glass-tier-3 glass-tier-toolbar flex items-center gap-1 p-1.5">
           <ZoomOut>
             {(props: RenderChildProps) => (
               <Button
@@ -191,7 +185,7 @@ function PdfToolbar({
 
           <CurrentScale>
             {(props: { scale: number }) => (
-              <div className="px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/15">
+              <div className="glass-tier-3 rounded-lg border-amber-400/18 bg-[linear-gradient(145deg,rgba(245,158,11,0.12),rgba(255,255,255,0.03))] px-2 py-1">
                 <span className="text-ql-12 font-semibold text-amber-400 min-w-[40px] text-center tabular-nums select-none">
                   {Math.round(props.scale * 100)}%
                 </span>
@@ -217,46 +211,6 @@ function PdfToolbar({
         </div>
       </div>
     </motion.div>
-  )
-}
-
-interface ToolbarButtonProps {
-  onClick: () => void
-  icon: ElementType
-  tooltip: string
-  isActive?: boolean
-  className?: string
-  activeClassName?: string
-}
-
-function ToolbarButton({
-  onClick,
-  icon: Icon,
-  tooltip,
-  isActive,
-  className,
-  activeClassName
-}: ToolbarButtonProps) {
-  return (
-    <Button
-      variant={isActive ? 'default' : 'ghost'}
-      size="icon"
-      onClick={onClick}
-      title={tooltip}
-      className={`
-                w-8 h-8 rounded-xl transition-all duration-300
-                ${
-                  isActive
-                    ? activeClassName || 'bg-white/15 text-white shadow-lg'
-                    : className || 'text-white/40 hover:text-white hover:bg-white/[0.08]'
-                }
-            `}
-      asChild
-    >
-      <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}>
-        <Icon className="w-4 h-4" />
-      </motion.button>
-    </Button>
   )
 }
 

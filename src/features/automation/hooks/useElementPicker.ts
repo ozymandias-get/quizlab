@@ -18,44 +18,73 @@ interface UseElementPickerReturn {
 }
 
 const POLL_INTERVAL = 500
+const PICKER_RESET_SCRIPT = 'delete window._aiPickerResult; delete window._aiPickerCancelled;'
+const PICKER_CLEANUP_SCRIPT =
+  'if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;'
+const PICKER_STATUS_SCRIPT = `
+  (function() {
+    if (window._aiPickerResult) {
+      var r = JSON.stringify(window._aiPickerResult);
+      return JSON.stringify({ type: 'result', data: r });
+    }
+    if (window._aiPickerCancelled) {
+      delete window._aiPickerCancelled;
+      return JSON.stringify({ type: 'cancelled' });
+    }
+    return null;
+  })()
+`
 
 export function useElementPicker(webviewInstance: WebviewInstance): UseElementPickerReturn {
   const [isPickerActive, setIsPickerActive] = useState<boolean>(false)
   const { showError, showInfo } = useToastActions()
   const { t } = useLanguageStrings()
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollInFlightRef = useRef(false)
+  const pollSessionRef = useRef(0)
   const pickerWebviewRef = useRef<WebviewInstance>(null)
+  const isMountedRef = useRef(true)
 
   const { mutateAsync: saveAiConfig } = useSaveAiConfig()
   const { mutateAsync: generatePickerScript } = useGeneratePickerScript()
 
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current)
-        pollRef.current = null
+  const resetPickerArtifacts = useCallback(async (webview: WebviewInstance) => {
+    try {
+      if (webview && typeof webview.executeJavaScript === 'function') {
+        await webview.executeJavaScript(PICKER_CLEANUP_SCRIPT)
       }
-      pollInFlightRef.current = false
+    } catch (error) {
+      Logger.warn('[ElementPicker] cleanup script failed', error)
     }
   }, [])
 
   const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
+    pollSessionRef.current += 1
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current)
+      pollTimeoutRef.current = null
     }
     pollInFlightRef.current = false
   }, [])
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+      stopPolling()
+      void resetPickerArtifacts(pickerWebviewRef.current)
+    }
+  }, [resetPickerArtifacts, stopPolling])
 
   useEffect(() => {
     if (!isPickerActive) return
     if (pickerWebviewRef.current === webviewInstance) return
 
     stopPolling()
+    void resetPickerArtifacts(pickerWebviewRef.current)
     pickerWebviewRef.current = webviewInstance
     setIsPickerActive(false)
-  }, [isPickerActive, stopPolling, webviewInstance])
+  }, [isPickerActive, resetPickerArtifacts, stopPolling, webviewInstance])
 
   const savePickerResult = useCallback(
     async (config: AiSelectorConfig) => {
@@ -63,15 +92,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
       if (!webview) return
 
       try {
-        try {
-          if (typeof webview.executeJavaScript === 'function') {
-            await webview.executeJavaScript(
-              'if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;'
-            )
-          }
-        } catch (error) {
-          Logger.warn('[ElementPicker] cleanup script failed', error)
-        }
+        await resetPickerArtifacts(webview)
 
         if (typeof webview.getURL !== 'function') {
           showError('picker_webview_not_found')
@@ -101,47 +122,62 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
       } catch (err) {
         const message = err instanceof Error ? err.message : t('error_unknown_error')
         Logger.error('[ElementPicker] Save error:', err)
-        showError('toast_pdf_load_error', undefined, { error: message })
+        if (isMountedRef.current) {
+          showError('toast_pdf_load_error', undefined, { error: message })
+        }
       } finally {
-        setIsPickerActive(false)
+        if (isMountedRef.current) {
+          setIsPickerActive(false)
+        }
       }
     },
-    [webviewInstance, saveAiConfig, showError, t]
+    [webviewInstance, resetPickerArtifacts, saveAiConfig, showError, t]
   )
 
   const startPolling = useCallback(() => {
     stopPolling()
+    const sessionId = pollSessionRef.current
 
-    pollRef.current = setInterval(async () => {
-      if (pollInFlightRef.current) return
+    const scheduleNextPoll = () => {
+      if (!isMountedRef.current || pollSessionRef.current !== sessionId) {
+        return
+      }
+      pollTimeoutRef.current = setTimeout(() => {
+        pollTimeoutRef.current = null
+        void pollOnce()
+      }, POLL_INTERVAL)
+    }
+
+    const pollOnce = async () => {
+      if (pollSessionRef.current !== sessionId || pollInFlightRef.current) {
+        return
+      }
 
       const webview = webviewInstance
-      if (!webview || typeof webview.executeJavaScript !== 'function') return
+      if (!webview || typeof webview.executeJavaScript !== 'function') {
+        scheduleNextPoll()
+        return
+      }
 
       pollInFlightRef.current = true
       try {
-        const status = await webview.executeJavaScript(`
-                    (function() {
-                        if (window._aiPickerResult) {
-                            var r = JSON.stringify(window._aiPickerResult);
-                            return JSON.stringify({ type: 'result', data: r });
-                        }
-                        if (window._aiPickerCancelled) {
-                            delete window._aiPickerCancelled;
-                            return JSON.stringify({ type: 'cancelled' });
-                        }
-                        return null;
-                    })()
-                `)
-
-        if (!status) return
+        const status = await webview.executeJavaScript(PICKER_STATUS_SCRIPT)
+        if (pollSessionRef.current !== sessionId) {
+          return
+        }
+        if (!status) {
+          scheduleNextPoll()
+          return
+        }
 
         const parsed = typeof status === 'string' ? JSON.parse(status) : status
 
         if (parsed.type === 'cancelled') {
           stopPolling()
-          setIsPickerActive(false)
-          showInfo('picker_cancelled')
+          if (isMountedRef.current) {
+            setIsPickerActive(false)
+            showInfo('picker_cancelled')
+          }
           return
         }
 
@@ -151,17 +187,25 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
 
           if (config && config.inputFingerprint && config.buttonFingerprint) {
             await savePickerResult(config)
-          } else {
+          } else if (isMountedRef.current) {
             showError('picker_selection_missing')
             setIsPickerActive(false)
           }
+          return
         }
+
+        scheduleNextPoll()
       } catch (error) {
         Logger.warn('[ElementPicker] polling failed', error)
+        scheduleNextPoll()
       } finally {
-        pollInFlightRef.current = false
+        if (pollSessionRef.current === sessionId) {
+          pollInFlightRef.current = false
+        }
       }
-    }, POLL_INTERVAL)
+    }
+
+    scheduleNextPoll()
   }, [webviewInstance, stopPolling, savePickerResult, showError, showInfo])
 
   const startPicker = useCallback(async () => {
@@ -218,9 +262,8 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         throw new Error('Webview executeJavaScript not available')
       }
 
-      await webviewInstance.executeJavaScript(
-        'delete window._aiPickerResult; delete window._aiPickerCancelled;'
-      )
+      await resetPickerArtifacts(webviewInstance)
+      await webviewInstance.executeJavaScript(PICKER_RESET_SCRIPT)
       await webviewInstance.executeJavaScript(script)
 
       pickerWebviewRef.current = webviewInstance
@@ -233,21 +276,31 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
       setIsPickerActive(false)
       stopPolling()
     }
-  }, [webviewInstance, showError, showInfo, t, startPolling, stopPolling, generatePickerScript])
+  }, [
+    webviewInstance,
+    showError,
+    showInfo,
+    t,
+    startPolling,
+    stopPolling,
+    generatePickerScript,
+    resetPickerArtifacts
+  ])
 
   const stopPicker = useCallback(async () => {
     stopPolling()
     pickerWebviewRef.current = null
-    if (!webviewInstance) return
+    if (!webviewInstance) {
+      setIsPickerActive(false)
+      return
+    }
 
     try {
       if (typeof webviewInstance.executeJavaScript !== 'function') {
         throw new Error('Webview executeJavaScript not available')
       }
 
-      await webviewInstance.executeJavaScript(
-        'if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;'
-      )
+      await webviewInstance.executeJavaScript(PICKER_CLEANUP_SCRIPT)
       setIsPickerActive(false)
       showInfo('picker_cancelled')
     } catch (err) {

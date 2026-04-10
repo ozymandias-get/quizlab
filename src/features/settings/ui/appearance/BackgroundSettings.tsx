@@ -43,20 +43,20 @@ const BackgroundSettings = memo(
             </div>
             <div className="space-y-0.5">
               <h3 className="text-ql-14 font-bold text-white/90">{t('background_settings')}</h3>
-              <p className="text-ql-10 text-white/30 uppercase tracking-ql-caps">{t('bg_desc')}</p>
+              <p className="text-ql-11 text-white/34 tracking-ql-fine">{t('bg_desc')}</p>
             </div>
           </div>
 
           <div className="flex p-0.5 bg-white/[0.04] rounded-lg border border-white/[0.06]">
             <button
               onClick={() => setBgType('animated')}
-              className={`px-3 py-1.5 text-ql-10 font-bold uppercase tracking-wider rounded-md transition-all ${bgType === 'animated' ? 'bg-white/[0.1] text-white shadow' : 'text-white/30 hover:text-white/60'}`}
+              className={`rounded-md px-3 py-1.5 text-ql-11 font-medium transition-all ${bgType === 'animated' ? 'bg-white/[0.1] text-white shadow' : 'text-white/30 hover:text-white/60'}`}
             >
               {t('bg_animated')}
             </button>
             <button
               onClick={() => setBgType('solid')}
-              className={`px-3 py-1.5 text-ql-10 font-bold uppercase tracking-wider rounded-md transition-all ${bgType === 'solid' ? 'bg-white/[0.1] text-white shadow' : 'text-white/30 hover:text-white/60'}`}
+              className={`rounded-md px-3 py-1.5 text-ql-11 font-medium transition-all ${bgType === 'solid' ? 'bg-white/[0.1] text-white shadow' : 'text-white/30 hover:text-white/60'}`}
             >
               {t('bg_solid')}
             </button>

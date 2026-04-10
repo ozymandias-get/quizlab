@@ -50,7 +50,7 @@ export function useBottomBarController(isTourActive: boolean) {
   )
 
   const handleToggle = useCallback(
-    (event?: MouseEvent) => {
+    (event?: MouseEvent | PointerEvent) => {
       if (isAnimating) {
         event?.stopPropagation()
         return
@@ -78,7 +78,7 @@ export function useBottomBarController(isTourActive: boolean) {
       const dy = Math.abs(event.clientY - pointerStart.current.y)
 
       if (dx < 5 && dy < 5) {
-        handleToggle(event as unknown as MouseEvent)
+        handleToggle(event)
       }
     },
     [handleToggle]

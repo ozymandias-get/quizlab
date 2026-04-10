@@ -118,6 +118,21 @@ const revokeTrackedObjectUrls = () => {
   objectUrls.clear()
 }
 
+const parseUrlWithAllowedProtocols = (
+  rawUrl: string,
+  allowedProtocols: readonly string[]
+): URL | null => {
+  try {
+    const parsedUrl = new URL(rawUrl.trim())
+    if (!allowedProtocols.includes(parsedUrl.protocol)) {
+      return null
+    }
+    return parsedUrl
+  } catch {
+    return null
+  }
+}
+
 const selectPdfInBrowser = (): Promise<PdfSelection | null> => {
   return new Promise((resolve) => {
     const input = document.createElement('input')
@@ -219,17 +234,12 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       }
     },
     openExternal: async (url: string) => {
-      try {
-        const parsedUrl = new URL(url)
-        const allowedProtocols = new Set(['http:', 'https:', 'mailto:'])
-        if (!allowedProtocols.has(parsedUrl.protocol)) {
-          return false
-        }
-        window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer')
-        return true
-      } catch {
+      const parsedUrl = parseUrlWithAllowedProtocols(url, ['http:', 'https:', 'mailto:'])
+      if (!parsedUrl) {
         return false
       }
+      window.open(parsedUrl.toString(), '_blank', 'noopener,noreferrer')
+      return true
     },
     forcePaste: async () => false,
     showPdfContextMenu: () => {},
@@ -256,7 +266,8 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     addCustomAi: async (data: CustomAiInput): Promise<CustomAiResult> => {
       const name = data?.name?.trim()
       const url = data?.url?.trim()
-      if (!name || !url) {
+      const parsedUrl = url ? parseUrlWithAllowedProtocols(url, ['http:', 'https:']) : null
+      if (!name || !parsedUrl) {
         return {
           ok: false,
           error: {
@@ -271,7 +282,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         id,
         name,
         displayName: name,
-        url,
+        url: parsedUrl.toString(),
         isSite: data.isSite ?? true,
         isCustom: true,
         submitMode: 'enter_key'

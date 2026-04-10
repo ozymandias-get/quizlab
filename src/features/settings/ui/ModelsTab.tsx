@@ -119,7 +119,7 @@ const ModelsTab = memo(() => {
       }
       footer={
         <div className="border-t border-white/[0.04] px-1 pt-4">
-          <p className="text-ql-10 uppercase tracking-ql-caps text-white/20">
+          <p className="text-ql-11 tracking-ql-fine text-white/28">
             {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
           </p>
         </div>

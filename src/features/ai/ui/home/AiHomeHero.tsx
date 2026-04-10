@@ -41,7 +41,7 @@ export default function AiHomeHero({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.38 }}
-      className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_24px_64px_-16px_rgba(0,0,0,0.6)] backdrop-blur-2xl backdrop-saturate-200 sm:p-5"
+      className="glass-tier-2 relative overflow-hidden rounded-[32px] p-4 sm:p-5"
     >
       <div className="flex flex-col gap-4">
         <div
@@ -73,7 +73,7 @@ export default function AiHomeHero({
                 icon={<Sparkles className="h-3.5 w-3.5" />}
                 value={String(modelCount)}
                 label={t('ai_home.ready_model')}
-                accent="#7c8cff"
+                accent="#8e7755"
               />
               <StatChip
                 compact
@@ -86,10 +86,10 @@ export default function AiHomeHero({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-4 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)] sm:px-5">
+        <div className="glass-tier-3 rounded-[28px] p-4 sm:px-5">
           <div className={`flex gap-4 ${isCompact ? 'flex-col' : 'flex-row items-stretch'}`}>
             <div className="flex min-w-0 flex-1 items-center gap-3.5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/75 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+              <div className="glass-tier-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-white/[0.12] text-white/75 shadow-none">
                 <Compass className="h-[17px] w-[17px]" />
               </div>
               <div className="min-w-0">
@@ -109,7 +109,7 @@ export default function AiHomeHero({
             </div>
 
             <div
-              className={`shrink-0 bg-white/[0.06] ${isCompact ? 'h-px w-full' : 'hidden w-px self-stretch sm:block'}`}
+              className={`shrink-0 bg-gradient-to-b from-transparent via-white/[0.12] to-transparent ${isCompact ? 'h-px w-full bg-gradient-to-r from-transparent via-white/[0.12] to-transparent' : 'hidden w-px self-stretch sm:block'}`}
               aria-hidden
             />
 
@@ -123,7 +123,7 @@ export default function AiHomeHero({
                     key={id}
                     type="button"
                     onClick={() => onOpenModel(id)}
-                    className="rounded-full border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent px-3.5 py-1.5 text-ql-12 text-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:border-white/20 hover:bg-white/[0.12] hover:text-white/95 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_8px_16px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
+                    className="glass-tier-3 glass-tier-control glass-interactive rounded-full border-white/[0.12] px-3.5 py-1.5 text-ql-12 text-white/72 shadow-none hover:text-white/95 active:scale-95 active:translate-y-0"
                   >
                     {aiSites[id]?.displayName || id}
                   </button>

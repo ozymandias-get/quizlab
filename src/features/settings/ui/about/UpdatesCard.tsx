@@ -31,7 +31,7 @@ function UpdatesActionButton({ children, icon, onClick, tone }: UpdatesActionBut
   return (
     <button
       onClick={onClick}
-      className={`group relative flex-1 overflow-hidden rounded-2xl px-6 py-4 text-ql-14 font-bold transition-all duration-300 ${UPDATE_ACTION_BUTTON_CLASSES[tone]}`}
+      className={`group relative flex-1 overflow-hidden rounded-2xl px-5 py-3.5 text-ql-12 font-semibold transition-all duration-300 ${UPDATE_ACTION_BUTTON_CLASSES[tone]}`}
     >
       <span className="relative z-10 flex items-center justify-center gap-2">
         {icon}
@@ -79,7 +79,7 @@ function renderUpdateStatusContent(
             </span>
           </div>
           {updateInfo.releaseName && (
-            <p className="text-ql-10 font-bold uppercase tracking-ql-caps italic text-white/30">
+            <p className="text-ql-10 font-medium tracking-ql-fine italic text-white/30">
               "{updateInfo.releaseName}"
             </p>
           )}
@@ -153,7 +153,7 @@ const UpdatesCard = memo(
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-ql-10 font-bold uppercase tracking-ql-caps text-emerald-400/80"
+                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-ql-10 font-medium tracking-ql-fine text-emerald-400/80"
               >
                 {t('update_available')}
               </motion.span>

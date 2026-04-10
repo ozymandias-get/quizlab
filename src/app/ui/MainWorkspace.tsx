@@ -79,7 +79,7 @@ function MainWorkspace({
 
       <motion.div
         variants={rightPanelVariants}
-        className="glass-tier-2 flex-1 min-w-[350px] flex flex-col overflow-hidden relative"
+        className="glass-tier-1 flex-1 min-w-[350px] flex flex-col overflow-hidden relative"
         style={gpuAcceleratedStyle}
       >
         {isWebviewMounted ? (

@@ -26,6 +26,17 @@ describe('createBrowserElectronApi', () => {
     ).toBe(true)
   })
 
+  it('rejects custom AI entries with unsafe protocols', async () => {
+    const api = createBrowserElectronApi()
+    const result = await api.addCustomAi({
+      name: 'Unsafe Tool',
+      url: 'javascript:alert(1)',
+      isSite: true
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
   it('uses clipboard writeText in browser fallback copy', async () => {
     const writeText = vi.fn(async () => {})
     Object.defineProperty(navigator, 'clipboard', {

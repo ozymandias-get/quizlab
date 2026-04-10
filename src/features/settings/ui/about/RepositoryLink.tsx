@@ -19,7 +19,7 @@ const RepositoryLink = memo(({ t }: RepositoryLinkProps) => {
       className="group shadow-sm hover:bg-white/[0.08]"
       bodyClassName="space-y-0.5"
       titleClassName="transition-colors group-hover:text-white"
-      descriptionClassName="text-ql-10 font-bold uppercase tracking-ql-caps leading-none italic text-white/40"
+      descriptionClassName="text-ql-10 font-medium tracking-ql-fine leading-none italic text-white/40"
       leading={
         <div className="rounded-xl border border-white/[.15] bg-white/[0.08] p-2.5 text-white/60 shadow-md transition-all group-hover:scale-110 group-hover:bg-white/[0.15] group-hover:text-white">
           <GithubIcon className="w-6 h-6" />

@@ -71,7 +71,7 @@ const LanguageTab = memo(() => {
                     {lang.nativeName}
                   </Label>
                   <span
-                    className={`block text-ql-10 font-bold uppercase tracking-ql-caps transition-colors duration-300 ${checked ? 'text-white/40' : 'text-white/20'}`}
+                    className={`block text-ql-11 font-medium tracking-ql-fine transition-colors duration-300 ${checked ? 'text-white/44' : 'text-white/26'}`}
                   >
                     {lang.name}
                   </span>
@@ -98,7 +98,7 @@ const LanguageTab = memo(() => {
       </RadioGroup>
 
       <div className="border-t border-white/[0.04] px-1 pt-4">
-        <p className="text-ql-10 uppercase tracking-ql-caps text-white/20">
+        <p className="text-ql-11 tracking-ql-fine text-white/28">
           {t('current_language')}: {languages[language]?.nativeName || language}
         </p>
       </div>

@@ -2,19 +2,19 @@ import { useMemo, type CSSProperties } from 'react'
 
 const HUB_VISUAL_TOKENS = {
   openBackground: `linear-gradient(155deg,
-        rgba(14, 30, 42, var(--hub-open-bg-a, 0.92)) 0%,
-        rgba(34, 27, 47, var(--hub-open-bg-b, 0.94)) 52%,
-        rgba(58, 39, 21, var(--hub-open-bg-c, 0.92)) 100%)`,
+        rgba(12, 10, 8, var(--hub-open-bg-a, 0.92)) 0%,
+        rgba(18, 16, 14, var(--hub-open-bg-b, 0.94)) 52%,
+        rgba(40, 28, 18, var(--hub-open-bg-c, 0.92)) 100%)`,
   closedBackground: `linear-gradient(155deg,
-        rgba(20, 24, 30, var(--hub-closed-bg-a, 0.86)) 0%,
-        rgba(10, 13, 18, var(--hub-closed-bg-b, 0.9)) 100%)`,
+        rgba(22, 20, 18, var(--hub-closed-bg-a, 0.86)) 0%,
+        rgba(10, 10, 10, var(--hub-closed-bg-b, 0.9)) 100%)`,
   openShadow: `
-        0 0 0 1px rgba(56, 189, 248, 0.3),
-        0 0 28px -7px rgba(56, 189, 248, 0.45),
-        0 0 42px -16px rgba(245, 158, 11, 0.38),
-        inset 0 1px 0 rgba(255, 255, 255, 0.24),
-        inset 0 -10px 18px rgba(3, 7, 18, 0.42),
-        inset 0 0 20px rgba(56, 189, 248, 0.12)
+        0 0 0 1px rgba(136, 102, 58, 0.2),
+        0 0 24px -8px rgba(102, 76, 42, 0.2),
+        0 0 34px -18px rgba(176, 118, 54, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        inset 0 -10px 18px rgba(8, 7, 6, 0.42),
+        inset 0 0 16px rgba(124, 90, 48, 0.06)
     `,
   closedShadow: `
         0 14px 26px -14px rgba(0, 0, 0, 0.62),
@@ -62,17 +62,19 @@ export const useBottomBarStyles = (
   const panelStyle = useMemo<CSSProperties>(
     () => ({
       background: `linear-gradient(165deg,
-            rgba(30, 30, 36, ${Math.min(0.92, 0.12 + clampedOpacity * 0.76)}) 0%,
-            rgba(19, 19, 24, ${Math.min(0.95, 0.1 + clampedOpacity * 0.8)}) 58%,
-            rgba(12, 12, 16, ${Math.min(0.98, 0.12 + clampedOpacity * 0.82)}) 100%)`,
-      backdropFilter: 'blur(24px) saturate(190%)',
-      WebkitBackdropFilter: 'blur(24px) saturate(190%)',
-      border: `1px solid rgba(255, 255, 255, ${0.03 + clampedOpacity * 0.09})`,
+            rgba(24, 20, 16, ${Math.min(0.9, 0.18 + clampedOpacity * 0.6)}) 0%,
+            rgba(14, 12, 10, ${Math.min(0.94, 0.15 + clampedOpacity * 0.68)}) 42%,
+            rgba(5, 5, 5, ${Math.min(0.97, 0.2 + clampedOpacity * 0.72)}) 100%)`,
+      backdropFilter: 'blur(16px) saturate(118%)',
+      WebkitBackdropFilter: 'blur(16px) saturate(118%)',
+      border: `1px solid rgba(255, 255, 255, ${0.06 + clampedOpacity * 0.06})`,
       boxShadow: `
-            0 24px 45px -28px rgba(0,0,0,${0.52 + clampedOpacity * 0.38}),
-            0 0 0 1px rgba(0,0,0,${0.18 + clampedOpacity * 0.34}),
-            inset 0 1px 0 rgba(255,255,255,${0.05 + clampedOpacity * 0.12}),
-            inset 0 -12px 24px -22px rgba(148,163,184,${0.08 + clampedOpacity * 0.22})
+            0 24px 48px -28px rgba(0,0,0,${0.6 + clampedOpacity * 0.28}),
+            0 14px 30px -24px rgba(8,12,20,${0.46 + clampedOpacity * 0.22}),
+            0 0 0 1px rgba(255,255,255,${0.014 + clampedOpacity * 0.03}),
+            inset 0 1px 0 rgba(255,255,255,${0.07 + clampedOpacity * 0.08}),
+            inset 0 12px 20px -28px rgba(255,255,255,${0.05 + clampedOpacity * 0.05}),
+            inset 0 -18px 28px -24px rgba(15,23,42,${0.16 + clampedOpacity * 0.16})
         `,
       borderRadius: Math.max(10, Math.round(14 * clampedScale)),
       transform: 'translateZ(0)',

@@ -38,8 +38,8 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
     >
       <div className="relative min-h-full px-4 py-4 sm:px-5 sm:py-5">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-[-10%] top-4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(240,74,137,0.16),transparent_72%)] blur-3xl" />
-          <div className="absolute right-[-6%] bottom-8 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(0,194,255,0.13),transparent_72%)] blur-3xl" />
+          <div className="absolute left-[-10%] top-4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(171,112,56,0.12),transparent_72%)] blur-3xl" />
+          <div className="absolute right-[-6%] bottom-8 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(92,70,42,0.08),transparent_68%)] blur-3xl" />
         </div>
 
         <div className="relative z-10 flex flex-col gap-3.5">
@@ -62,7 +62,7 @@ function AiHomePage({ onSelectTab, onOpenModel }: AiHomePageProps) {
             title={t('ai_home.models_title')}
             detail={t('ai_home.models_detail')}
             icon={<Sparkles className="h-4 w-4" />}
-            accent="#7c8cff"
+            accent="#8e7755"
             delay={0.09}
             defaultOpen={true}
           >

@@ -45,7 +45,7 @@ function AboutActionCard({
   )
 
   const rootClassName = cn(
-    'flex items-center justify-between rounded-[24px] border border-white/[0.12] bg-white/[0.04] p-6',
+    'flex items-center justify-between rounded-[24px] border border-white/[0.12] bg-white/[0.04] p-5',
     interactive && 'transition-all duration-300',
     className
   )

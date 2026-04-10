@@ -43,8 +43,11 @@ export const usePdfSelection = () => {
   // Provide enhanced setActivePdfTab that triggers history timestamp updates
   const setActivePdfTab = useCallback(
     (tabId: string) => {
+      if (activePdfTabId === tabId) {
+        return
+      }
       rawSetActivePdfTab(tabId)
-      const tab = pdfTabs.find((item) => item.id === tabId)
+      const tab = (pdfTabs || []).find((item) => item.id === tabId)
       if (tab?.file?.path && tab?.file?.name) {
         updateReadingProgress({
           path: tab.file.path,
@@ -52,14 +55,14 @@ export const usePdfSelection = () => {
         })
       }
     },
-    [rawSetActivePdfTab, pdfTabs, updateReadingProgress]
+    [activePdfTabId, rawSetActivePdfTab, pdfTabs, updateReadingProgress]
   )
 
   const activeTabInitialPage = useMemo(() => {
     if (!activePdfTabId) return undefined
     if (activePdfTab?.kind !== 'pdf' || !activePdfTab?.file?.path) return undefined
 
-    const existing = recentReadingInfo.find((item) => item.path === activePdfTab.file?.path)
+    const existing = (recentReadingInfo || []).find((item) => item.path === activePdfTab.file?.path)
     return existing?.page
   }, [activePdfTabId, activePdfTab, recentReadingInfo])
 

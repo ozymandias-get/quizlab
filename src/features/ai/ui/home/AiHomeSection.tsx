@@ -31,10 +31,10 @@ export default function AiHomeSection({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.34, delay }}
-      className="overflow-hidden rounded-[32px] border border-white/8 bg-[linear-gradient(145deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012)_52%,rgba(0,0,0,0.16))] backdrop-blur-2xl"
+      className="glass-tier-2 overflow-hidden rounded-[32px]"
     >
       <div
-        className="flex cursor-pointer select-none flex-wrap items-center gap-3.5 px-5 py-4 transition-colors hover:bg-white/[0.02]"
+        className="flex cursor-pointer select-none flex-wrap items-center gap-3.5 px-5 py-4 transition-colors hover:bg-white/[0.03]"
         onClick={() => setIsOpen((current) => !current)}
       >
         <div
@@ -54,7 +54,7 @@ export default function AiHomeSection({
           <div className="mt-0.5 text-ql-14 text-white/56">{detail}</div>
         </div>
         <div
-          className="flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-white/35"
+          className="glass-tier-3 flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-full border-white/[0.1] text-white/42 shadow-none"
           title={t('ai_home.drag_drop')}
           aria-label={t('ai_home.drag_drop')}
           onClick={(event) => event.stopPropagation()}
@@ -62,7 +62,7 @@ export default function AiHomeSection({
           <Grip className="h-3.5 w-3.5" aria-hidden />
         </div>
         <div
-          className="ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.04] text-white/40 transition-transform duration-300"
+          className="glass-tier-3 ml-1 flex h-7 w-7 items-center justify-center rounded-full border-white/[0.1] text-white/44 transition-transform duration-300 shadow-none"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
         >
           <ChevronDown className="h-4 w-4" />

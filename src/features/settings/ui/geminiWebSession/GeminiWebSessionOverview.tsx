@@ -71,11 +71,11 @@ function GeminiWebSessionOverview({
     actionState.isResettingWebProfile ||
     actionState.isTogglingWebEnabled
   const loginButtonClass = status.showReauthAlert
-    ? 'inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-ql-14 font-bold text-white shadow-lg transition-all hover:bg-rose-400 disabled:opacity-50'
-    : 'inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-ql-14 font-bold text-gray-800 shadow-lg transition-all hover:bg-gray-100 disabled:opacity-50'
+    ? 'inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-ql-12 font-semibold text-white shadow-lg transition-all hover:bg-rose-400 disabled:opacity-50'
+    : 'inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-ql-12 font-semibold text-gray-800 shadow-lg transition-all hover:bg-gray-100 disabled:opacity-50'
   const reauthButtonClass = status.showReauthAlert
-    ? 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2.5 text-ql-14 font-bold text-rose-100 transition-all hover:bg-rose-500/30 disabled:opacity-50'
-    : 'inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/20 px-4 py-2.5 text-ql-14 font-bold text-amber-300 transition-all hover:bg-amber-500/30 disabled:opacity-50'
+    ? 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2.5 text-ql-12 font-semibold text-rose-100 transition-all hover:bg-rose-500/30 disabled:opacity-50'
+    : 'inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/20 px-4 py-2.5 text-ql-12 font-semibold text-amber-300 transition-all hover:bg-amber-500/30 disabled:opacity-50'
 
   return (
     <motion.div
@@ -198,7 +198,7 @@ function GeminiWebSessionOverview({
           <button
             onClick={handlers.onCheckWebNow}
             disabled={!status.webEnabled || disableSessionMutations}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-ql-14 font-bold text-white/80 transition-all hover:bg-white/20 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-ql-12 font-semibold text-white/80 transition-all hover:bg-white/20 disabled:opacity-50"
           >
             {actionState.isCheckingWebNow || status.isRefreshing ? (
               <LoaderIcon className="h-4 w-4 animate-spin" />
@@ -224,7 +224,7 @@ function GeminiWebSessionOverview({
           <button
             onClick={handlers.onResetWebProfile}
             disabled={!status.webEnabled || disableSessionMutations}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/20 px-4 py-2.5 text-ql-14 font-bold text-red-300 transition-all hover:bg-red-500/30 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/20 px-4 py-2.5 text-ql-12 font-semibold text-red-300 transition-all hover:bg-red-500/30 disabled:opacity-50"
           >
             {actionState.isResettingWebProfile || status.isRefreshing ? (
               <LoaderIcon className="h-4 w-4 animate-spin" />
@@ -238,7 +238,7 @@ function GeminiWebSessionOverview({
         <div className="rounded-2xl border border-white/10 bg-black/10 p-4 backdrop-blur-sm">
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-ql-12 font-bold uppercase tracking-wider text-white/55">
+              <p className="text-ql-11 font-semibold tracking-ql-fine text-white/55">
                 {t('gws_supported_apps_title')}
               </p>
               <span className="text-ql-12 text-white/35">{t('gws_supported_apps_desc')}</span>
@@ -271,7 +271,7 @@ function GeminiWebSessionOverview({
                         <p className="truncate text-ql-14 font-bold text-white/90">{app.name}</p>
                         <p className="truncate text-ql-12 text-white/45">{app.hostname}</p>
                         <p
-                          className={`mt-1 text-ql-10 uppercase tracking-ql-standard ${isEnabled ? 'text-emerald-300/70' : 'text-white/30'}`}
+                          className={`mt-1 text-ql-10 font-medium tracking-ql-fine ${isEnabled ? 'text-emerald-300/70' : 'text-white/30'}`}
                         >
                           {isEnabled ? t('gws_app_enabled') : t('gws_app_disabled')}
                         </p>

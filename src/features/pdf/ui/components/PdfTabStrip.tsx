@@ -12,10 +12,9 @@ import { motion } from 'framer-motion'
 import { FileText, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useLanguageStrings } from '@app/providers/LanguageContext'
 import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
-import AiTabStripHomeButton from '@features/ai/ui/aiTabStrip/AiTabStripHomeButton'
 import { getAiIcon } from '@ui/components/Icons'
 import { TAB_STRIP_BAR_CLASS, TAB_STRIP_ROW_CLASS } from '@shared/ui/tabStripChrome'
-import { ToolbarButton } from '@shared/ui/components/primitives'
+import { TabStripHomeButton, ToolbarButton } from '@shared/ui/components/primitives'
 
 interface PdfTabStripProps {
   tabs: PdfTab[]
@@ -35,9 +34,9 @@ interface ContextMenuState {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
-const getVisibleTabIds = (tabs: PdfTab[], activeTabId: string): Set<string> => {
-  if (tabs.length <= 3) {
-    return new Set(tabs.map((tab) => tab.id))
+const getVisibleTabIds = (tabs: PdfTab[] = [], activeTabId: string): Set<string> => {
+  if (!tabs || tabs.length <= 3) {
+    return new Set((tabs || []).map((tab) => tab.id))
   }
 
   const activeIndex = tabs.findIndex((tab) => tab.id === activeTabId)
@@ -45,8 +44,8 @@ const getVisibleTabIds = (tabs: PdfTab[], activeTabId: string): Set<string> => {
     return new Set([tabs[0].id, tabs[1].id, tabs[2].id])
   }
 
-  if (activeIndex >= tabs.length - 1) {
-    const last = tabs.length - 1
+  if (activeIndex >= (tabs?.length || 0) - 1) {
+    const last = (tabs?.length || 0) - 1
     return new Set([tabs[last - 2].id, tabs[last - 1].id, tabs[last].id])
   }
 
@@ -94,7 +93,7 @@ function PdfTabStrip({
   }, [tabs, visibleTabIds])
 
   const pdfHomeTabId = useMemo(() => {
-    if (tabs.length === 0) return ''
+    if (!tabs || tabs.length === 0) return ''
     const landing = tabs.find((tab) => !tab.file && tab.kind !== 'drive')
     return landing?.id ?? ''
   }, [tabs])
@@ -188,7 +187,7 @@ function PdfTabStrip({
     return () => document.removeEventListener('mousedown', handlePointerDown)
   }, [contextMenu, isOverflowOpen])
 
-  if (tabs.length === 0) return null
+  if (!tabs || tabs.length === 0) return null
 
   const contextMenuTab = contextMenu ? tabs.find((tab) => tab.id === contextMenu.tabId) : undefined
 
@@ -196,10 +195,10 @@ function PdfTabStrip({
     <div className={TAB_STRIP_BAR_CLASS}>
       <div className={TAB_STRIP_ROW_CLASS}>
         {onHome && (
-          <AiTabStripHomeButton
-            showHome={isPdfHomeActive}
-            title={t('ai_home.home')}
-            onShowHome={onHome}
+          <TabStripHomeButton
+            isActive={isPdfHomeActive}
+            tooltip={t('ai_home.home')}
+            onClick={onHome}
           />
         )}
         {visibleTabs.map((tab) => {
@@ -218,7 +217,7 @@ function PdfTabStrip({
                 transition: { type: 'spring', stiffness: 380, damping: 24 }
               }}
               whileTap={{ scale: 0.99 }}
-              className="group relative flex h-8 min-w-0 max-w-[250px] items-center gap-2 rounded-full border px-3.5 pr-10 transition-all duration-200"
+              className="glass-tier-3 glass-tier-control glass-interactive group relative flex h-8 min-w-0 max-w-[250px] items-center gap-2 rounded-full border px-3.5 pr-10 transition-all duration-200"
               style={
                 isActive
                   ? {
@@ -296,7 +295,7 @@ function PdfTabStrip({
           )
         })}
 
-        {overflowTabs.length > 0 && (
+        {(overflowTabs || []).length > 0 && (
           <div ref={overflowRef} className="relative ml-auto shrink-0">
             <ToolbarButton
               icon={MoreHorizontal}
@@ -312,7 +311,7 @@ function PdfTabStrip({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.96 }}
                 transition={{ duration: 0.16 }}
-                className="absolute right-0 top-10 z-40 w-[250px] max-h-56 overflow-y-auto rounded-xl border border-white/15 bg-[#080808]/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-1.5"
+                className="glass-tier-2 absolute right-0 top-10 z-40 w-[250px] max-h-56 overflow-y-auto rounded-xl border-white/[0.12] p-1.5"
               >
                 {overflowTabs.map((tab) => {
                   const label = getTabLabel(tab)
@@ -373,7 +372,7 @@ function PdfTabStrip({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ duration: 0.16 }}
-            className="fixed z-[1200] min-w-[170px] rounded-xl border border-white/15 bg-[#080808]/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-1.5"
+            className="glass-tier-2 fixed z-[1200] min-w-[170px] rounded-xl border-white/[0.12] p-1.5"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button

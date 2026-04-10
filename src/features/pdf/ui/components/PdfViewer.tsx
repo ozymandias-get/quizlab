@@ -75,6 +75,7 @@ function PdfViewer({
   const isGoogleDriveEnabled =
     !!webSessionData?.featureEnabled &&
     !!webSessionData?.enabled &&
+    Array.isArray(enabledGoogleApps) &&
     enabledGoogleApps.includes('gdrive')
 
   if (activePdfTab?.kind === 'drive') {

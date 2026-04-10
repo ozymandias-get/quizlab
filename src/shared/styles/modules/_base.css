@@ -13,6 +13,10 @@ body,
   overflow: hidden;
 }
 
+html {
+  font-size: 15px;
+}
+
 body {
   font-family:
     'Inter',
@@ -25,6 +29,19 @@ body {
   color: #fafaf9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@media (max-width: 1280px) {
+  html {
+    font-size: 14px;
+  }
 }
 
 ::selection {

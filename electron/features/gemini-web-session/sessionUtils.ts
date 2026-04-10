@@ -17,8 +17,13 @@ export function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
-  } catch (error: any) {
-    return error?.code === 'EPERM'
+  } catch (error: unknown) {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'EPERM'
+    )
   }
 }
 

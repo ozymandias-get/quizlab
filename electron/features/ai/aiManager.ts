@@ -36,13 +36,16 @@ export type {
 const { CHROME_USER_AGENT } = APP_CONFIG
 
 const AUTH_DOMAINS = new Set([
+  'accounts.google.com',
+  'myaccount.google.com',
   'auth.openai.com',
   'auth0.openai.com',
   'platform.openai.com',
   'login.microsoftonline.com',
   'login.live.com',
   'login.x.com',
-  'challenges.cloudflare.com'
+  'challenges.cloudflare.com',
+  'cdn.cloudflare.com'
 ])
 
 const isAuthDomain = (hostname?: string) => {

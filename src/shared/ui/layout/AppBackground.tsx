@@ -20,8 +20,14 @@ const RandomBlob = memo(
     })
 
     const getRandomAestheticColor = () => {
-      const hue = Math.floor(Math.random() * 360)
-      return `hsl(${hue}, 40%, 15%)`
+      const palette = [
+        'hsl(24, 28%, 11%)',
+        'hsl(36, 18%, 10%)',
+        'hsl(18, 22%, 9%)',
+        'hsl(44, 16%, 8%)',
+        'hsl(0, 0%, 8%)'
+      ]
+      return palette[Math.floor(Math.random() * palette.length)]
     }
 
     useEffect(() => {
@@ -114,7 +120,7 @@ function AppBackground() {
   )
 
   const baseStyle = {
-    backgroundColor: bgType === 'solid' ? bgSolidColor : '#050505',
+    backgroundColor: bgType === 'solid' ? bgSolidColor : '#020202',
     transition: 'background-color 2s ease'
   }
 

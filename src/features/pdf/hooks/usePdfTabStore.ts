@@ -17,6 +17,25 @@ const toPdfFile = (file: PdfFile): PdfFile => ({
   size: file.size
 })
 
+const samePdfStreamIdentity = (prev: PdfFile | null | undefined, next: PdfFile): boolean => {
+  const pPath = prev?.path ?? ''
+  const nPath = next.path ?? ''
+  if (pPath !== nPath) return false
+  return (prev?.streamUrl ?? '') === (next.streamUrl ?? '')
+}
+
+const sameNormalizedPdfFile = (a: PdfFile | null | undefined, b: PdfFile): boolean => {
+  if (!a) return false
+  const na = toPdfFile(a)
+  const nb = toPdfFile(b)
+  return (
+    (na.path ?? '') === (nb.path ?? '') &&
+    (na.streamUrl ?? '') === (nb.streamUrl ?? '') &&
+    (na.name ?? '') === (nb.name ?? '') &&
+    (na.size ?? null) === (nb.size ?? null)
+  )
+}
+
 export const usePdfTabStore = () => {
   const [pdfTabs, setPdfTabs] = useState<PdfTab[]>([])
   const [activePdfTabId, setActivePdfTabId] = useState<string>('')
@@ -32,7 +51,6 @@ export const usePdfTabStore = () => {
   const openPdfInTab = useCallback((file: PdfFile): PdfTab => {
     const normalizedFile = toPdfFile(file)
     const normalizedPath = normalizedFile.path || null
-    const viewerSessionKey = createViewerSessionKey()
     const currentTabs = pdfTabsRef.current
 
     const existingTab = normalizedPath
@@ -40,42 +58,48 @@ export const usePdfTabStore = () => {
       : undefined
 
     if (existingTab) {
-      setPdfTabs(
-        currentTabs.map((tab) =>
-          tab.id === existingTab.id
-            ? {
-                ...tab,
-                file: normalizedFile,
-                kind: 'pdf',
-                webviewUrl: undefined,
-                viewerSessionKey
-              }
-            : tab
-        )
-      )
+      if (
+        existingTab.file &&
+        sameNormalizedPdfFile(existingTab.file, normalizedFile) &&
+        activePdfTabIdRef.current === existingTab.id
+      ) {
+        return existingTab
+      }
+
+      const identityUnchanged = samePdfStreamIdentity(existingTab.file, normalizedFile)
+      const nextViewerSessionKey = identityUnchanged
+        ? (existingTab.viewerSessionKey ?? createViewerSessionKey())
+        : createViewerSessionKey()
+
+      const updatedTab: PdfTab = {
+        ...existingTab,
+        file: normalizedFile,
+        kind: 'pdf',
+        webviewUrl: undefined,
+        viewerSessionKey: nextViewerSessionKey
+      }
+
+      setPdfTabs(currentTabs.map((tab) => (tab.id === existingTab.id ? updatedTab : tab)))
       setActivePdfTabId(existingTab.id)
-      return existingTab
+      return updatedTab
     } else {
       const currentActiveId = activePdfTabIdRef.current
       const activeTab = currentTabs.find((tab) => tab.id === currentActiveId)
 
       if (activeTab && activeTab.file === null) {
-        setPdfTabs(
-          currentTabs.map((tab) =>
-            tab.id === activeTab.id
-              ? {
-                  ...tab,
-                  file: normalizedFile,
-                  kind: 'pdf',
-                  webviewUrl: undefined,
-                  viewerSessionKey
-                }
-              : tab
-          )
-        )
-        return activeTab
+        const viewerSessionKey = createViewerSessionKey()
+        const updatedTab: PdfTab = {
+          ...activeTab,
+          file: normalizedFile,
+          kind: 'pdf',
+          webviewUrl: undefined,
+          viewerSessionKey
+        }
+        setPdfTabs(currentTabs.map((tab) => (tab.id === activeTab.id ? updatedTab : tab)))
+        return updatedTab
       } else {
         const newTabId = crypto.randomUUID()
+        const viewerSessionKey = createViewerSessionKey()
         const newTab: PdfTab = { id: newTabId, file: normalizedFile, kind: 'pdf', viewerSessionKey }
         setPdfTabs([...currentTabs, newTab])
         setActivePdfTabId(newTabId)
@@ -85,6 +109,7 @@ export const usePdfTabStore = () => {
   }, [])
 
   const setActivePdfTab = useCallback((tabId: string) => {
+    if (activePdfTabIdRef.current === tabId) return
     const tab = pdfTabsRef.current.find((item) => item.id === tabId)
     if (!tab) return
     setActivePdfTabId(tabId)
@@ -129,6 +154,9 @@ export const usePdfTabStore = () => {
     const currentTabs = pdfTabsRef.current
     const existingTab = currentTabs.find((tab) => tab.kind === 'drive')
     if (existingTab) {
+      if (activePdfTabIdRef.current === existingTab.id) {
+        return
+      }
       setActivePdfTabId(existingTab.id)
       return
     }
@@ -156,7 +184,9 @@ export const usePdfTabStore = () => {
   const renamePdfTab = useCallback((tabId: string, title?: string) => {
     const normalizedTitle = normalizeTitle(title)
     setPdfTabs((prevTabs) =>
-      prevTabs.map((tab) => (tab.id === tabId ? { ...tab, title: normalizedTitle } : tab))
+      prevTabs.map((tab) =>
+        tab.id === tabId && tab.title !== normalizedTitle ? { ...tab, title: normalizedTitle } : tab
+      )
     )
   }, [])
 
