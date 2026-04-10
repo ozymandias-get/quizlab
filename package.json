@@ -32,7 +32,7 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
     "preview": "vite preview",
-    "tag:push": "powershell -Command \"$v=(Get-Content package.json | ConvertFrom-Json).version; git tag | ForEach-Object { git tag -d $_; git push origin --delete $_ }; git tag $v; git push origin $v\"",
+    "tag:push": "powershell -Command \"$v='v' + (Get-Content package.json | ConvertFrom-Json).version; git tag | ForEach-Object { git tag -d $_; git push origin --delete $_ }; git tag $v; git push origin $v\"",
     "prepare": "husky"
   },
   "build": {
