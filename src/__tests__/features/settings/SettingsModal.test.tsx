@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SettingsModal from '@features/settings/ui/SettingsModal'
 
+const tMock = (key: string) => key
 vi.mock('@app/providers', () => ({
-  useLanguage: () => ({ t: (key: string) => key }),
-  useLanguageStrings: () => ({ t: (key: string) => key, language: 'en' })
+  useLanguage: () => ({ t: tMock }),
+  useLanguageStrings: () => ({ t: tMock, language: 'en' })
 }))
 
 vi.mock('@features/settings/hooks/useSettings', () => ({
@@ -46,13 +47,14 @@ describe('SettingsModal Component', () => {
   it('switches tabs', async () => {
     render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
 
-    const languageButton = screen.getByRole('button', { name: 'language' })
-    await act(async () => {
-      fireEvent.click(languageButton)
-    })
+    const languageButton = screen.getByRole('tab', { name: 'language' })
+    fireEvent.click(languageButton)
 
+    // Wait for the tab button to be selected AND the content to be loaded
     await waitFor(() => {
-      expect(languageButton).toHaveAttribute('aria-current', 'page')
+      const updatedButton = screen.getByRole('tab', { name: 'language' })
+      expect(updatedButton).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByText('Language Tab Content')).toBeInTheDocument()
     })
   })
 
