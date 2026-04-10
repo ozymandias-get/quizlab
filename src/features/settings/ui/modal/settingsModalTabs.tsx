@@ -20,8 +20,18 @@ const SelectorsTab = lazy(() => import('../SelectorsTab'))
 const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
 const PromptsTab = lazy(() => import('../PromptsTab'))
 
+export const SETTINGS_SIDEBAR_GROUP_ORDER = [
+  'workspace',
+  'integration',
+  'preferences',
+  'app'
+] as const
+
+export type SettingsTabGroup = (typeof SETTINGS_SIDEBAR_GROUP_ORDER)[number]
+
 interface SettingsTabMeta {
   id: string
+  group: SettingsTabGroup
   labelKey: string
   descriptionKey: string
   icon: typeof SettingsIcon
@@ -33,6 +43,7 @@ interface SettingsTabMeta {
 const SETTINGS_TABS = [
   {
     id: 'prompts',
+    group: 'workspace',
     labelKey: 'prompts',
     descriptionKey: 'prompts_description',
     icon: MagicWandIcon,
@@ -41,6 +52,7 @@ const SETTINGS_TABS = [
   },
   {
     id: 'models',
+    group: 'workspace',
     labelKey: 'models',
     descriptionKey: 'models_description',
     icon: GridIcon,
@@ -49,6 +61,7 @@ const SETTINGS_TABS = [
   },
   {
     id: 'sites',
+    group: 'workspace',
     labelKey: 'ai_sites',
     fallbackLabel: 'Siteler',
     descriptionKey: 'sites_description',
@@ -58,6 +71,7 @@ const SETTINGS_TABS = [
   },
   {
     id: 'gemini-web',
+    group: 'integration',
     labelKey: 'gws_title',
     descriptionKey: 'gws_state_authenticated',
     icon: GeminiIcon,
@@ -66,6 +80,7 @@ const SETTINGS_TABS = [
   },
   {
     id: 'selectors',
+    group: 'integration',
     labelKey: 'selectors',
     descriptionKey: 'selectors_description_simple',
     icon: SelectorIcon,
@@ -74,6 +89,7 @@ const SETTINGS_TABS = [
   },
   {
     id: 'appearance',
+    group: 'preferences',
     labelKey: 'appearance',
     descriptionKey: 'appearance_description',
     icon: EyeIcon,
@@ -82,6 +98,7 @@ const SETTINGS_TABS = [
   },
   {
     id: 'language',
+    group: 'preferences',
     labelKey: 'language',
     descriptionKey: 'language_description',
     icon: LanguageIcon,
@@ -90,6 +107,7 @@ const SETTINGS_TABS = [
   },
   {
     id: 'about',
+    group: 'app',
     labelKey: 'about',
     descriptionKey: 'configure_settings',
     icon: InfoIcon,
@@ -113,6 +131,19 @@ export interface TabDef {
   icon: (typeof SETTINGS_TABS)[number]['icon']
   accent: string
   glow: string
+}
+
+export interface SettingsSidebarSection {
+  id: SettingsTabGroup
+  label: string
+  tabs: TabDef[]
+}
+
+/** Stable id for the single settings content panel (all nav buttons reference via aria-controls). */
+export const SETTINGS_MODAL_MAIN_PANEL_ID = 'settings-modal-main-panel'
+
+export function settingsTabButtonId(tabId: SettingsTabId): string {
+  return `settings-tab-${tabId}`
 }
 
 const DEFAULT_SETTINGS_TAB: SettingsTabId = 'prompts'
@@ -154,5 +185,16 @@ export function buildSettingsTabDefs(t: (key: string) => string): TabDef[] {
     icon: tab.icon,
     accent: tab.accent,
     glow: tab.glow
+  }))
+}
+
+export function buildSettingsSidebarSections(t: (key: string) => string): SettingsSidebarSection[] {
+  const tabDefs = buildSettingsTabDefs(t)
+  const byId = new Map(tabDefs.map((def) => [def.id, def]))
+
+  return SETTINGS_SIDEBAR_GROUP_ORDER.map((groupId) => ({
+    id: groupId,
+    label: t(`settings_group_${groupId}`),
+    tabs: SETTINGS_TABS.filter((tab) => tab.group === groupId).map((tab) => byId.get(tab.id)!)
   }))
 }

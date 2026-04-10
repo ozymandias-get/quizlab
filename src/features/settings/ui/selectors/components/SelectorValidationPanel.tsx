@@ -24,11 +24,11 @@ export default function SelectorValidationPanel({ validation, t }: SelectorValid
       `}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/50">
+        <span className="text-ql-12 font-semibold uppercase tracking-ql-standard text-white/50">
           {t('selectors_test_result_label')}
         </span>
         <span
-          className={`text-sm font-semibold ${
+          className={`text-ql-14 font-semibold ${
             validation.status === 'success'
               ? 'text-emerald-200'
               : validation.status === 'loading'
@@ -47,11 +47,11 @@ export default function SelectorValidationPanel({ validation, t }: SelectorValid
       {validation.diagnostics && (
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           <div className="rounded-xl border border-white/10 bg-black/10 p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+            <p className="text-ql-10 font-semibold uppercase tracking-ql-dense text-white/35">
               {t('input_label')}
             </p>
-            <p className="mt-1 text-sm text-white/80">{validation.diagnostics.input.strategy}</p>
-            <p className="mt-1 text-xs text-white/40">
+            <p className="mt-1 text-ql-14 text-white/80">{validation.diagnostics.input.strategy}</p>
+            <p className="mt-1 text-ql-12 text-white/40">
               {validation.diagnostics.input.matchedSelector ||
                 validation.diagnostics.input.requestedSelector ||
                 t('selectors_no_match')}
@@ -59,13 +59,13 @@ export default function SelectorValidationPanel({ validation, t }: SelectorValid
           </div>
 
           <div className="rounded-xl border border-white/10 bg-black/10 p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+            <p className="text-ql-10 font-semibold uppercase tracking-ql-dense text-white/35">
               {t('picker_el_submit')}
             </p>
-            <p className="mt-1 text-sm text-white/80">
+            <p className="mt-1 text-ql-14 text-white/80">
               {validation.diagnostics.button?.strategy || t('selectors_no_match')}
             </p>
-            <p className="mt-1 text-xs text-white/40">
+            <p className="mt-1 text-ql-12 text-white/40">
               {validation.diagnostics.button?.matchedSelector ||
                 validation.diagnostics.button?.requestedSelector ||
                 t('selectors_no_match')}

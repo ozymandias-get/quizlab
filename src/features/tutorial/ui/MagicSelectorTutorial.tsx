@@ -1,4 +1,4 @@
-﻿import { useState, useRef, type ChangeEvent, type MouseEvent } from 'react'
+import { useState, useRef, type ChangeEvent, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguageStrings } from '@app/providers'
 import { MagicWandIcon, CloseIcon } from '@ui/components/Icons'
@@ -103,7 +103,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
           <div className="w-12 h-12 bg-white rounded-full mb-6 flex items-center justify-center">
             <div className="w-8 h-8 rounded-full bg-black" />
           </div>
-          <h2 className="text-2xl font-semibold mb-8 text-center text-white max-w-lg">
+          <h2 className="text-ql-20 font-semibold mb-8 text-center text-white max-w-lg">
             {t('tut_example_site_desc')}
           </h2>
         </div>
@@ -129,7 +129,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
                     {step === 3 && t('tut_select_btn_title')}
                     {step === 4 && t('tut_success_title')}
                   </h4>
-                  <p className="text-sm text-gray-300 leading-relaxed max-w-sm">
+                  <p className="text-ql-14 text-gray-300 leading-relaxed max-w-sm">
                     {step === 0 && t('tut_welcome_desc')}
                     {step === 1 && t('tut_select_input_desc')}
                     {step === 2 && t('tut_type_msg_desc')}
@@ -139,7 +139,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
                   {step === 0 && (
                     <button
                       onClick={() => setStep(1)}
-                      className="mt-3 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition-colors"
+                      className="mt-3 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-ql-12 font-bold rounded-lg transition-colors"
                     >
                       {t('tut_start')}
                     </button>
@@ -147,7 +147,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
                   {step === 4 && (
                     <button
                       onClick={onComplete || onClose}
-                      className="mt-3 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-lg transition-colors"
+                      className="mt-3 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-ql-12 font-bold rounded-lg transition-colors"
                     >
                       {t('tut_finish')}
                     </button>
@@ -176,7 +176,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
               onChange={handleInputChange}
               disabled={step === 4}
               placeholder={t('tut_placeholder')}
-              className={`flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400 text-base ${step === 1 ? 'cursor-pointer' : ''}`}
+              className={`flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400 text-ql-16 ${step === 1 ? 'cursor-pointer' : ''}`}
               onMouseEnter={(e) => handleElementHover(e, 'input')}
               onMouseLeave={handleMouseLeave}
               onClick={() => handleElementClick('input')}
@@ -185,7 +185,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
 
             {step === 1 && (
               <div className="absolute inset-0 border-2 border-purple-500 rounded-2xl animate-pulse pointer-events-none z-20">
-                <div className="absolute -top-3 left-10 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                <div className="absolute -top-3 left-10 bg-purple-500 text-white text-ql-10 font-bold px-2 py-0.5 rounded">
                   {t('tut_click_input')}
                 </div>
               </div>
@@ -228,7 +228,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
 
                     {step === 3 && (
                       <div className="absolute -inset-2 border-2 border-purple-500 rounded-xl animate-pulse pointer-events-none z-20">
-                        <div className="absolute -top-8 -right-2 bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded w-max">
+                        <div className="absolute -top-8 -right-2 bg-purple-500 text-white text-ql-10 font-bold px-2 py-0.5 rounded w-max">
                           {t('tut_click_btn')}
                         </div>
                       </div>
@@ -238,7 +238,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
               </AnimatePresence>
             </div>
           </div>
-          <div className="text-center mt-2 text-xs text-gray-500">{t('tut_disclaimer')}</div>
+          <div className="text-center mt-2 text-ql-12 text-gray-500">{t('tut_disclaimer')}</div>
         </div>
 
         {hoveredRect && (
@@ -255,7 +255,7 @@ export default function MagicSelectorTutorial({ onClose, onComplete }: MagicSele
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="absolute -top-6 left-0 bg-emerald-500 text-black text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+            <div className="absolute -top-6 left-0 bg-emerald-500 text-black text-ql-10 font-bold px-2 py-0.5 rounded uppercase tracking-wider">
               {hoveredRect.type === 'input' ? t('tut_input_label') : t('tut_btn_label')}
             </div>
           </motion.div>

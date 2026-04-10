@@ -48,6 +48,9 @@ jobs:
       - name: Repository hygiene guard
         run: npm run ci:check-hygiene
 
+      - name: Version consistency
+        run: npm run ci:check-version
+
       - name: Lint
         run: npm run lint
 
@@ -207,19 +210,15 @@ jobs:
           prerelease: false
           generate_release_notes: true
           body: |
-            ## 🎉 General Enhancements & Updates (v3.0.3)
-            - **Stability & Performance:** Upgraded and fortified CI/CD pipelines, enforcing strict type-checking and maintaining hygiene across test suites.
-            - **Native Integration:** Improved Electron environment loaders and automated platform-native background dependencies gracefully.
-            - **Codebase Health:** Cleaned obsolete APIs and fixed UI edge case formatting rendering constraints.
-            - **Security & Scope:** Hardened component imports preventing private sub-module exposures.
+            ## Quizlab Reader ${{ github.ref_name }}
 
-            ## Download
+            ### Download
 
             **Windows:** `QuizlabReader-Setup-*.exe` — run the installer.
 
             **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
 
-            ## Core Features
+            ### Core Features
             - **Embedded AI webviews** (ChatGPT, Gemini, Claude, and more)
             - **Magic Selector** for Universal AI Chat
             - **Multi-language support (EN, TR)**

@@ -57,16 +57,16 @@ export default function SelectorCardHeader({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="truncate text-sm font-bold text-white/90">
+            <h4 className="truncate text-ql-14 font-bold text-white/90">
               {getAiPlatformLabel(ai, key)}
             </h4>
             <span
-              className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${tone.badge}`}
+              className={`rounded-full border px-2 py-1 text-ql-10 font-semibold uppercase tracking-ql-standard ${tone.badge}`}
             >
               {t(getHealthLabelKey(selectorHealth))}
             </span>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-white/45">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-ql-12 text-white/45">
             <span>{hasSelectors ? t('selectors_active') : t('no_selectors')}</span>
             {savedHost && (
               <span className="text-white/30">
@@ -86,7 +86,7 @@ export default function SelectorCardHeader({
           "
         >
           <ExternalLinkIcon className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">
+          <span className="text-ql-10 font-bold uppercase tracking-wider">
             {t('selectors_open_repick')}
           </span>
         </button>

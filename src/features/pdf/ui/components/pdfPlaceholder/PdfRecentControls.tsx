@@ -33,8 +33,8 @@ function PdfRecentControls({
     <>
       <div className="flex items-start justify-between gap-3 px-1">
         <div className="min-w-0 text-left">
-          <h3 className="text-sm font-semibold text-stone-200">{t('resume_reading')}</h3>
-          <p className="mt-0.5 text-[11px] text-stone-500">{t('resume_reading_desc')}</p>
+          <h3 className="text-ql-14 font-semibold text-stone-200">{t('resume_reading')}</h3>
+          <p className="mt-0.5 text-ql-12 text-stone-500">{t('resume_reading_desc')}</p>
         </div>
         {recentCount > 0 && canClear && (
           <Button
@@ -42,7 +42,7 @@ function PdfRecentControls({
             variant="ghost"
             size="sm"
             onClick={onClearAll}
-            className="h-8 px-3 rounded-xl text-[11px] font-medium tracking-wide text-stone-300/80 hover:text-red-200 bg-gradient-to-b from-white/[0.05] to-transparent backdrop-blur-2xl backdrop-saturate-200 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:border-red-500/30 hover:bg-red-500/10 hover:shadow-[0_4px_16px_rgba(239,68,68,0.15)] active:scale-95"
+            className="h-8 px-3 rounded-xl text-ql-12 font-medium tracking-wide text-stone-300/80 hover:text-red-200 bg-gradient-to-b from-white/[0.05] to-transparent backdrop-blur-2xl backdrop-saturate-200 border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:border-red-500/30 hover:bg-red-500/10 hover:shadow-[0_4px_16px_rgba(239,68,68,0.15)] active:scale-95"
             aria-label={t('clear_recent')}
           >
             {t('clear_recent')}
@@ -71,7 +71,7 @@ function PdfRecentControls({
                 value={searchQuery}
                 onChange={(event) => onSearchQueryChange(event.target.value)}
                 placeholder={t('search_recent_placeholder')}
-                className="w-36 sm:w-44 bg-transparent text-xs text-stone-200 placeholder:text-stone-500 focus:outline-none"
+                className="w-36 sm:w-44 bg-transparent text-ql-12 text-stone-200 placeholder:text-stone-500 focus:outline-none"
                 aria-label={t('search_recent')}
               />
             </label>
@@ -82,7 +82,7 @@ function PdfRecentControls({
             <select
               value={sortMode}
               onChange={(event) => onSortModeChange(event.target.value as SortMode)}
-              className="relative h-8 pl-8 pr-7 rounded-xl bg-gradient-to-b from-white/[0.05] to-transparent backdrop-blur-2xl backdrop-saturate-200 border border-white/10 text-xs text-stone-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] cursor-pointer transition-all duration-300 ease-out hover:border-white/20 hover:bg-white/5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)] focus:outline-none focus:ring-2 focus:ring-amber-400/70 appearance-none"
+              className="relative h-8 pl-8 pr-7 rounded-xl bg-gradient-to-b from-white/[0.05] to-transparent backdrop-blur-2xl backdrop-saturate-200 border border-white/10 text-ql-12 text-stone-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] cursor-pointer transition-all duration-300 ease-out hover:border-white/20 hover:bg-white/5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)] focus:outline-none focus:ring-2 focus:ring-amber-400/70 appearance-none"
               aria-label={t('sort_recent_list')}
             >
               <option value="recent">{t('sort_recent')}</option>

@@ -2,8 +2,8 @@ import type { MouseEvent as ReactMouseEvent, RefObject } from 'react'
 import { motion } from 'framer-motion'
 import { MoreHorizontal, X } from 'lucide-react'
 import type { Tab } from '@app/providers/AiContext'
-import { TAB_STRIP_CHROME_BTN_WIDE } from '@shared/ui/tabStripChrome'
 import { getAiIcon } from '@ui/components/Icons'
+import { ToolbarButton } from '@shared/ui/components/primitives'
 
 interface AiOverflowMenuProps {
   overflowTabs: Tab[]
@@ -36,15 +36,13 @@ function AiOverflowMenu({
 
   return (
     <div ref={overflowRef} className="relative ml-auto shrink-0">
-      <button
-        type="button"
-        className={`${TAB_STRIP_CHROME_BTN_WIDE} text-white/75`}
-        aria-label={tr('tab_more', 'More tabs')}
-        title={tr('tab_more', 'More tabs')}
+      <ToolbarButton
+        icon={MoreHorizontal}
+        className="!w-auto min-w-[36px] px-1.5 text-white/75 hover:bg-white/[0.08] hover:text-white"
+        tooltip={tr('tab_more', 'More tabs')}
+        isActive={isOverflowOpen}
         onClick={onToggleOpen}
-      >
-        <MoreHorizontal className="w-4 h-4" />
-      </button>
+      />
 
       {isOverflowOpen && (
         <motion.div
@@ -67,10 +65,10 @@ function AiOverflowMenu({
               >
                 <span className="text-white/85 shrink-0">
                   {getAiIcon(getIconKey(tab)) || (
-                    <span className="text-[10px] font-bold uppercase">{label.charAt(0)}</span>
+                    <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
                   )}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[11px] text-white/85">{label}</span>
+                <span className="min-w-0 flex-1 truncate text-ql-12 text-white/85">{label}</span>
                 <span
                   role="button"
                   tabIndex={-1}

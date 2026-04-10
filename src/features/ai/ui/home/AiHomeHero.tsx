@@ -26,8 +26,8 @@ export default function AiHomeHero({
   aiSites,
   featuredIds,
   isCompact,
-  isNarrow,
-  isUltraNarrow,
+  isNarrow: _isNarrow,
+  isUltraNarrow: _isUltraNarrow,
   modelCount,
   onOpenModel,
   onSelectTab,
@@ -48,19 +48,11 @@ export default function AiHomeHero({
           className={`flex gap-4 ${isCompact ? 'flex-col' : 'flex-row items-start justify-between'}`}
         >
           <div className={isCompact ? 'max-w-none' : 'max-w-2xl'}>
-            <h1
-              className={`font-semibold tracking-tight text-white/92 ${
-                isUltraNarrow
-                  ? 'text-[22px] leading-[1.18]'
-                  : isNarrow
-                    ? 'text-[26px] leading-[1.16]'
-                    : 'text-[24px] sm:text-[30px]'
-              }`}
-            >
+            <h1 className="font-semibold tracking-tight text-white/92 text-ql-20 sm:text-ql-28">
               {t('ai_home.title')}
             </h1>
             <p
-              className={`mt-2.5 text-[13.5px] leading-relaxed text-white/48 ${isCompact ? 'max-w-none' : 'max-w-xl'} sm:text-[14.5px]`}
+              className={`mt-2.5 text-ql-14 leading-relaxed text-white/48 ${isCompact ? 'max-w-none' : 'max-w-xl'}`}
             >
               {t('ai_home.description')}
             </p>
@@ -101,14 +93,14 @@ export default function AiHomeHero({
                 <Compass className="h-[17px] w-[17px]" />
               </div>
               <div className="min-w-0">
-                <div className="text-[14px] font-semibold text-white/84">
+                <div className="text-ql-14 font-semibold text-white/84">
                   {activeTab
                     ? t('ai_home.active_ready_title', {
                         name: aiSites[activeTab.modelId]?.displayName || activeTab.modelId
                       })
                     : t('ai_home.home_state')}
                 </div>
-                <div className="mt-1 text-[12.5px] leading-relaxed text-white/42">
+                <div className="mt-1 text-ql-12 leading-relaxed text-white/42">
                   {activeTab
                     ? t('ai_home.active_ready_description')
                     : t('ai_home.home_state_description')}
@@ -122,7 +114,7 @@ export default function AiHomeHero({
             />
 
             <div className="min-w-0 flex-1 flex flex-col justify-center">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/32">
+              <div className="text-ql-10 uppercase tracking-ql-spread text-white/32">
                 {t('ai_home.featured')}
               </div>
               <div className="mt-2.5 flex flex-wrap gap-2">
@@ -131,7 +123,7 @@ export default function AiHomeHero({
                     key={id}
                     type="button"
                     onClick={() => onOpenModel(id)}
-                    className="rounded-full border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent px-3.5 py-1.5 text-[11px] text-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:border-white/20 hover:bg-white/[0.12] hover:text-white/95 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_8px_16px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
+                    className="rounded-full border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent px-3.5 py-1.5 text-ql-12 text-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out hover:border-white/20 hover:bg-white/[0.12] hover:text-white/95 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_8px_16px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 active:scale-95 active:translate-y-0"
                   >
                     {aiSites[id]?.displayName || id}
                   </button>

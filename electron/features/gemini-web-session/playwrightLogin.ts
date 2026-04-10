@@ -1,6 +1,10 @@
 import path from 'path'
 import { existsSync } from 'fs'
-import { classifyAuthProbe, isGoogleLoginRedirectUrl } from './authHeuristics'
+import {
+  classifyAuthProbe,
+  isGoogleLoginRedirectUrl,
+  type DomProbeSnapshot
+} from './authHeuristics'
 import type { ProbeOutcome } from './stateMachine'
 import { computeGoogleAccountHash } from './sessionUtils'
 import {
@@ -26,6 +30,37 @@ const GOOGLE_ACCOUNTS_HOST = 'accounts.google.com'
 const HEADLESS_REFRESH_INITIAL_URL = GOOGLE_AI_WEB_APP_URLS[0] || GOOGLE_SIGNIN_URL
 
 type ExternalSameSite = 'Strict' | 'Lax' | 'None' | undefined
+
+/** Minimal Playwright cookie shape from `BrowserContext#cookies` (structural typing). */
+interface CookieLike {
+  name: string
+  value: string
+  domain: string
+  path?: string
+  secure?: boolean
+  httpOnly?: boolean
+  sameSite?: unknown
+  expires?: number
+}
+
+/** Methods used from Playwright `Page` in this module only. */
+interface PageLike {
+  goto(url: string, options?: { waitUntil?: string; timeout?: number }): Promise<unknown>
+  url(): string
+  evaluate(script: string): Promise<unknown>
+  waitForLoadState(state: string, options?: { timeout: number }): Promise<unknown>
+  isClosed(): boolean
+}
+
+/** Methods used from Playwright `BrowserContext` in this module only. */
+interface BrowserContextLike {
+  cookies(urls: readonly string[]): Promise<unknown>
+  pages(): PageLike[]
+  newPage(): Promise<PageLike>
+  setDefaultTimeout(timeout: number): void
+  setDefaultNavigationTimeout(timeout: number): void
+  close(): Promise<unknown>
+}
 
 export interface ExternalBrowserCookie {
   name: string
@@ -156,27 +191,50 @@ export function hasCompletedGoogleLogin(
   return outcome.healthy && hostname !== GOOGLE_ACCOUNTS_HOST && !snapshot.hasSignInText
 }
 
-function mapContextCookies(cookiesRaw: any[]): ExternalBrowserCookie[] {
-  return cookiesRaw.map((cookie: any) => ({
-    name: cookie.name,
-    value: cookie.value,
-    domain: cookie.domain,
-    path: cookie.path || '/',
-    secure: !!cookie.secure,
-    httpOnly: !!cookie.httpOnly,
-    sameSite: cookie.sameSite,
-    expires: typeof cookie.expires === 'number' ? cookie.expires : undefined
-  }))
+function isCookieLike(raw: unknown): raw is CookieLike {
+  if (typeof raw !== 'object' || raw === null) return false
+  const c = raw as Record<string, unknown>
+  return typeof c.name === 'string' && typeof c.value === 'string' && typeof c.domain === 'string'
 }
 
-async function collectSessionCookies(context: any): Promise<ExternalBrowserCookie[]> {
+function normalizeSameSite(value: unknown): ExternalSameSite {
+  if (value === 'Strict' || value === 'Lax' || value === 'None') return value
+  return undefined
+}
+
+function mapContextCookies(cookiesRaw: unknown[]): ExternalBrowserCookie[] {
+  const out: ExternalBrowserCookie[] = []
+  for (const raw of cookiesRaw) {
+    if (!isCookieLike(raw)) continue
+    out.push({
+      name: raw.name,
+      value: raw.value,
+      domain: raw.domain,
+      path: typeof raw.path === 'string' ? raw.path : '/',
+      secure: !!raw.secure,
+      httpOnly: !!raw.httpOnly,
+      sameSite: normalizeSameSite(raw.sameSite),
+      expires: typeof raw.expires === 'number' ? raw.expires : undefined
+    })
+  }
+  return out
+}
+
+function asDomProbeSnapshot(value: unknown): DomProbeSnapshot {
+  return (value ?? EMPTY_DOM_SNAPSHOT) as DomProbeSnapshot
+}
+
+async function collectSessionCookies(
+  context: BrowserContextLike
+): Promise<ExternalBrowserCookie[]> {
   const cookiesRaw = await context.cookies(SESSION_COOKIE_SOURCE_URLS)
+  if (!Array.isArray(cookiesRaw)) return []
   return mapContextCookies(cookiesRaw)
 }
 
 async function hydrateGoogleAiAppSession(
-  page: any,
-  context: any,
+  page: PageLike,
+  context: BrowserContextLike,
   startedAt: number,
   timeoutMs: number,
   headless: boolean
@@ -213,7 +271,9 @@ async function hydrateGoogleAiAppSession(
     await new Promise((resolve) => setTimeout(resolve, POST_LOGIN_HYDRATION_SETTLE_MS))
 
     const currentUrl = page.url()
-    const snapshot = await page.evaluate(DOM_SNAPSHOT_SCRIPT).catch(() => EMPTY_DOM_SNAPSHOT)
+    const snapshot = asDomProbeSnapshot(
+      await page.evaluate(DOM_SNAPSHOT_SCRIPT).catch(() => EMPTY_DOM_SNAPSHOT)
+    )
     lastOutcome = classifyAuthProbe(currentUrl, snapshot, false)
     lastCookies = await collectSessionCookies(context).catch(() => lastCookies)
 
@@ -233,8 +293,8 @@ async function hydrateGoogleAiAppSession(
   }
 }
 
-async function ensureActivePage(context: any): Promise<any | null> {
-  const pages = context.pages().filter((page: any) => !page.isClosed())
+async function ensureActivePage(context: BrowserContextLike): Promise<PageLike | null> {
+  const pages = context.pages().filter((page) => !page.isClosed())
   if (pages.length > 0) {
     return pages[pages.length - 1]
   }
@@ -274,7 +334,7 @@ async function runPlaywrightSessionFlow({
   successStreakTarget,
   initialUrl
 }: SessionFlowOptions): Promise<PlaywrightLoginResult> {
-  let context: any = null
+  let context: BrowserContextLike | null = null
 
   try {
     const executablePath = resolveSystemBrowserPath()
@@ -288,7 +348,7 @@ async function runPlaywrightSessionFlow({
     }
 
     const { chromium } = moduleRef
-    context = await chromium.launchPersistentContext(profileDir, {
+    const browserContext = (await chromium.launchPersistentContext(profileDir, {
       executablePath,
       headless,
       viewport: { width: 1280, height: 880 },
@@ -299,14 +359,17 @@ async function runPlaywrightSessionFlow({
         '--no-default-browser-check',
         '--disable-blink-features=AutomationControlled'
       ]
-    })
+    })) as BrowserContextLike
 
-    context.setDefaultTimeout(0)
-    context.setDefaultNavigationTimeout(0)
+    context = browserContext
+
+    browserContext.setDefaultTimeout(0)
+    browserContext.setDefaultNavigationTimeout(0)
 
     const page =
-      (context.pages()[0] && !context.pages()[0].isClosed() ? context.pages()[0] : null) ||
-      (await context.newPage().catch(() => null))
+      (browserContext.pages()[0] && !browserContext.pages()[0].isClosed()
+        ? browserContext.pages()[0]
+        : null) || (await browserContext.newPage().catch(() => null))
     if (!page) {
       return buildFailureResult(headless ? 'error_login_failed' : 'error_login_cancelled')
     }
@@ -323,7 +386,7 @@ async function runPlaywrightSessionFlow({
         return buildFailureResult(mapProbeError(lastOutcome, true), lastOutcome, true)
       }
 
-      const activePage = await ensureActivePage(context)
+      const activePage = await ensureActivePage(browserContext)
       if (!activePage) {
         return buildFailureResult(headless ? 'error_login_failed' : 'error_login_cancelled')
       }
@@ -332,9 +395,9 @@ async function runPlaywrightSessionFlow({
       if (currentHostname === GOOGLE_ACCOUNTS_HOST) {
         sawAccountsHost = true
       }
-      const snapshot = await activePage
-        .evaluate(DOM_SNAPSHOT_SCRIPT)
-        .catch(() => EMPTY_DOM_SNAPSHOT)
+      const snapshot = asDomProbeSnapshot(
+        await activePage.evaluate(DOM_SNAPSHOT_SCRIPT).catch(() => EMPTY_DOM_SNAPSHOT)
+      )
       lastOutcome = classifyAuthProbe(currentUrl, snapshot, false)
       if (headless && (snapshot.hasLoginForm || snapshot.hasChallengeText)) {
         return buildFailureResult(
@@ -353,7 +416,7 @@ async function runPlaywrightSessionFlow({
         )
       }
 
-      const cookies = await collectSessionCookies(context)
+      const cookies = await collectSessionCookies(browserContext)
       const hasExitedAccountsHost = sawAccountsHost && currentHostname !== GOOGLE_ACCOUNTS_HOST
 
       if (
@@ -361,7 +424,7 @@ async function runPlaywrightSessionFlow({
       ) {
         const hydrated = await hydrateGoogleAiAppSession(
           activePage,
-          context,
+          browserContext,
           startedAt,
           timeoutMs,
           headless
@@ -394,7 +457,7 @@ async function runPlaywrightSessionFlow({
         if (streak >= successStreakTarget) {
           const hydrated = await hydrateGoogleAiAppSession(
             activePage,
-            context,
+            browserContext,
             startedAt,
             timeoutMs,
             headless

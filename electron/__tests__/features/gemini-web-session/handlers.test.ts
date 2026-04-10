@@ -76,6 +76,21 @@ describe('gemini web session handlers', () => {
     expect(setEnabledApps).toHaveBeenNthCalledWith(2, [])
   })
 
+  it('normalizes setEnabled IPC payload to strict booleans', async () => {
+    const { registerGeminiWebSessionHandlers } =
+      await import('../../../features/gemini-web-session/handlers.js')
+    registerGeminiWebSessionHandlers()
+
+    const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_SET_ENABLED)
+    await setEnabledHandler?.(trustedEvent, true)
+    await setEnabledHandler?.(trustedEvent, 'false')
+    await setEnabledHandler?.(trustedEvent, false)
+
+    expect(setEnabled).toHaveBeenNthCalledWith(1, true)
+    expect(setEnabled).toHaveBeenNthCalledWith(2, false)
+    expect(setEnabled).toHaveBeenNthCalledWith(3, false)
+  })
+
   it('blocks untrusted sender requests', async () => {
     const { registerGeminiWebSessionHandlers } =
       await import('../../../features/gemini-web-session/handlers.js')

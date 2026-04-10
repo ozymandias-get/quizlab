@@ -25,11 +25,11 @@ function SettingsAddToggleButton({
       }`}
     >
       {expanded ? (
-        <span className="text-xs font-bold">{cancelLabel}</span>
+        <span className="text-ql-12 font-bold">{cancelLabel}</span>
       ) : (
         <>
           <PlusIcon className="w-4 h-4" />
-          <span className="text-xs font-bold">{addLabel}</span>
+          <span className="text-ql-12 font-bold">{addLabel}</span>
         </>
       )}
     </button>

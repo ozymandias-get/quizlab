@@ -92,7 +92,7 @@ function PdfToolbar({
       animate={{ y: 0, opacity: 1 }}
       className="flex-shrink-0 w-full bg-gradient-to-t from-[#050505] via-[#050505] to-[#080808] border-t border-white/[0.06] px-6 py-3 relative z-50 flex items-center justify-between gap-4 select-none"
     >
-      <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
+      <div className="glass-tier-2 glass-tier-toolbar flex items-center gap-1 p-1.5">
         <ToolbarButton onClick={onSelectPdf} icon={Upload} tooltip={t('select_pdf')} />
 
         <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent mx-0.5" />
@@ -140,7 +140,7 @@ function PdfToolbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
+        <div className="glass-tier-2 glass-tier-toolbar flex items-center gap-1 p-1.5">
           <Button
             variant="ghost"
             size="icon"
@@ -154,7 +154,7 @@ function PdfToolbar({
 
           <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
 
-          <span className="px-3 text-xs font-medium text-white/70 min-w-[60px] text-center select-none tabular-nums">
+          <span className="px-3 text-ql-12 font-medium text-white/70 min-w-[60px] text-center select-none tabular-nums">
             {currentPage} <span className="text-white/20 mx-0.5">/</span> {totalPages}
           </span>
 
@@ -172,7 +172,7 @@ function PdfToolbar({
           </Button>
         </div>
 
-        <div className="glass-surface glass-surface--toolbar flex items-center gap-1 p-1.5">
+        <div className="glass-tier-2 glass-tier-toolbar flex items-center gap-1 p-1.5">
           <ZoomOut>
             {(props: RenderChildProps) => (
               <Button
@@ -192,7 +192,7 @@ function PdfToolbar({
           <CurrentScale>
             {(props: { scale: number }) => (
               <div className="px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/15">
-                <span className="text-xs font-semibold text-amber-400 min-w-[40px] text-center tabular-nums select-none">
+                <span className="text-ql-12 font-semibold text-amber-400 min-w-[40px] text-center tabular-nums select-none">
                   {Math.round(props.scale * 100)}%
                 </span>
               </div>

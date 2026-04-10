@@ -1,4 +1,4 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { SliderIcon } from '@ui/components/Icons'
 import { Slider } from '@ui/components/Slider'
@@ -31,15 +31,15 @@ const BarAppearanceSettings = memo(
             <SliderIcon className="w-4 h-4" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="text-sm font-bold text-white/90">{t('bar_appearance')}</h3>
-            <p className="text-[10px] text-white/30 uppercase tracking-widest">
+            <h3 className="text-ql-14 font-bold text-white/90">{t('bar_appearance')}</h3>
+            <p className="text-ql-10 text-white/30 uppercase tracking-ql-caps">
               {t('opacity_scale')}
             </p>
           </div>
         </div>
 
         <div className="space-y-3">
-          <div className="flex justify-between items-center text-xs font-medium">
+          <div className="flex justify-between items-center text-ql-12 font-medium">
             <span className="text-white/70">Opacity</span>
             <span className="text-white/40">{Math.round(bottomBarOpacity * 100)}%</span>
           </div>
@@ -53,7 +53,7 @@ const BarAppearanceSettings = memo(
         </div>
 
         <div className="space-y-3">
-          <div className="flex justify-between items-center text-xs font-medium">
+          <div className="flex justify-between items-center text-ql-12 font-medium">
             <span className="text-white/70">Scale</span>
             <span className="text-white/40">x{bottomBarScale.toFixed(2)}</span>
           </div>

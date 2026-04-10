@@ -29,10 +29,10 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
             <circle cx="12" cy="16" r="0.5" fill="currentColor" />
           </svg>
         </div>
-        <h3 className="font-display text-xl font-semibold text-stone-200">
+        <h3 className="font-display text-ql-20 font-semibold text-stone-200">
           {t('ai_error_title', { name: aiName || 'AI' })}
         </h3>
-        <p className="text-stone-500 text-sm leading-relaxed">{error}</p>
+        <p className="text-stone-500 text-ql-14 leading-relaxed">{error}</p>
         <Button
           type="button"
           variant="outline"

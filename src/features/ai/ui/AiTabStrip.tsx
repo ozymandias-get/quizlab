@@ -70,7 +70,6 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
             tabColor={helpers.getTabColor(tab)}
             isActive={tab.id === activeTabId}
             isEditing={tab.id === state.editingTabId}
-            isHovered={state.hoveredTabId === tab.id}
             editingValue={state.editingValue}
             renameInputRef={refs.renameInputRef}
             skipBlurSaveRef={refs.skipBlurSaveRef}
@@ -79,8 +78,6 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
             onSelect={() => handleSelectTab(tab.id)}
             onBeginRename={() => actions.beginRename(tab)}
             onContextMenu={(event) => actions.handleOpenContextMenu(event, tab.id)}
-            onHoverStart={() => actions.setHoveredTabId(tab.id)}
-            onHoverEnd={() => actions.setHoveredTabId((prev) => (prev === tab.id ? null : prev))}
             onEditingValueChange={actions.setEditingValue}
             onCommitRename={(value) => actions.commitRename(tab.id, value)}
             onCancelRename={actions.cancelRename}

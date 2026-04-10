@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useCallback, memo, Fragment } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguageStrings } from '@app/providers'
 
@@ -188,11 +188,11 @@ const Tooltip = memo<TooltipProps>(
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-[2rem] pointer-events-none" />
 
         <div className="relative flex items-center gap-5 mb-6">
-          <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-xl font-black shadow-lg shadow-amber-500/20">
+          <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-ql-20 font-black shadow-lg shadow-amber-500/20">
             {step + 1}
           </div>
           <div className="flex-1">
-            <h3 className="text-xl font-black text-white tracking-tight">{title}</h3>
+            <h3 className="text-ql-20 font-black text-white tracking-tight">{title}</h3>
             <div className="flex items-center gap-1.5 mt-1">
               {Array.from({ length: totalSteps }).map((_, i) => (
                 <div
@@ -207,20 +207,20 @@ const Tooltip = memo<TooltipProps>(
         </div>
 
         <div className="relative mb-8">
-          <p className="text-base text-white/70 leading-relaxed font-medium">{text}</p>
+          <p className="text-ql-16 text-white/70 leading-relaxed font-medium">{text}</p>
         </div>
 
         <div className="relative flex items-center justify-between pt-6 border-t border-white/5">
           <button
             onClick={onSkip}
-            className="px-5 py-2.5 text-sm font-bold text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest"
+            className="px-5 py-2.5 text-ql-14 font-bold text-white/30 hover:text-white/60 transition-colors uppercase tracking-ql-caps"
           >
             {skipText}
           </button>
 
           <button
             onClick={onNext}
-            className="group px-7 py-3 rounded-2xl bg-white text-slate-900 text-sm font-black transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-xl shadow-white/10"
+            className="group px-7 py-3 rounded-2xl bg-white text-slate-900 text-ql-14 font-black transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-xl shadow-white/10"
           >
             {step === totalSteps - 1 ? finishText : nextText}
             <motion.svg

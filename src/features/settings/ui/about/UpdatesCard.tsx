@@ -31,7 +31,7 @@ function UpdatesActionButton({ children, icon, onClick, tone }: UpdatesActionBut
   return (
     <button
       onClick={onClick}
-      className={`group relative flex-1 overflow-hidden rounded-2xl px-6 py-4 text-sm font-bold transition-all duration-300 ${UPDATE_ACTION_BUTTON_CLASSES[tone]}`}
+      className={`group relative flex-1 overflow-hidden rounded-2xl px-6 py-4 text-ql-14 font-bold transition-all duration-300 ${UPDATE_ACTION_BUTTON_CLASSES[tone]}`}
     >
       <span className="relative z-10 flex items-center justify-center gap-2">
         {icon}
@@ -48,17 +48,19 @@ function renderUpdateStatusContent(
 ) {
   switch (status) {
     case 'idle':
-      return <p className="text-xs font-medium italic text-white/30">{t('update_not_available')}</p>
+      return (
+        <p className="text-ql-12 font-medium italic text-white/30">{t('update_not_available')}</p>
+      )
     case 'latest':
       return (
-        <div className="flex items-center gap-3 text-xs font-bold text-emerald-400">
+        <div className="flex items-center gap-3 text-ql-12 font-bold text-emerald-400">
           <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
           {t('you_have_latest')}
         </div>
       )
     case 'checking':
       return (
-        <div className="flex items-center gap-3 text-xs font-bold text-white/40">
+        <div className="flex items-center gap-3 text-ql-12 font-bold text-white/40">
           <LoaderIcon className="w-4 h-4 opacity-40" />
           {t('checking_updates')}
         </div>
@@ -71,13 +73,13 @@ function renderUpdateStatusContent(
       return (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-emerald-400">{t('new_version')}:</span>
-            <span className="text-xs font-mono font-bold text-white/80 transition-colors">
+            <span className="text-ql-12 font-bold text-emerald-400">{t('new_version')}:</span>
+            <span className="text-ql-12 font-mono font-bold text-white/80 transition-colors">
               {updateInfo.version}
             </span>
           </div>
           {updateInfo.releaseName && (
-            <p className="text-[10px] font-bold uppercase tracking-widest italic text-white/30">
+            <p className="text-ql-10 font-bold uppercase tracking-ql-caps italic text-white/30">
               "{updateInfo.releaseName}"
             </p>
           )}
@@ -85,7 +87,7 @@ function renderUpdateStatusContent(
       )
     case 'error':
       return (
-        <div className="flex items-center gap-3 text-xs font-bold text-rose-400">
+        <div className="flex items-center gap-3 text-ql-12 font-bold text-rose-400">
           <div className="h-2 w-2 rounded-full bg-rose-400" />
           {t('update_error')}
         </div>
@@ -143,7 +145,7 @@ const UpdatesCard = memo(
             <div className="rounded-xl border border-white/[0.1] bg-white/[0.06] p-2.5 text-white/50">
               <RefreshIcon className="w-5 h-5" />
             </div>
-            <h4 className="text-sm font-bold tracking-wide text-white">{t('updates')}</h4>
+            <h4 className="text-ql-14 font-bold tracking-wide text-white">{t('updates')}</h4>
           </div>
 
           <AnimatePresence mode="wait">
@@ -151,7 +153,7 @@ const UpdatesCard = memo(
               <motion.span
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400/80"
+                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-ql-10 font-bold uppercase tracking-ql-caps text-emerald-400/80"
               >
                 {t('update_available')}
               </motion.span>

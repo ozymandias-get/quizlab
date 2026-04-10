@@ -1,26 +1,29 @@
-.glass-panel {
-  /*
-   * Opaque neutral base so animated blobs don’t tint left vs right differently
-   * (backdrop blur was picking up purple/cyan from the background per region).
-   */
+/* 
+ * 3-Tier Visual Priority System 
+ */
+
+/* 
+ * Katman 1 — Primary
+ * Tek güçlü accent, yüksek kontrast, net glow. Sadece ana aksiyonlarda ve odakta kullanılır.
+ */
+.glass-tier-1 {
   background-color: #050505;
   background-image: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.038) 0%,
-    rgba(255, 255, 255, 0.01) 42%,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.015) 42%,
     #050505 100%
   );
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Belirgin border */
   border-radius: 1.5rem;
-  backdrop-filter: none;
+  backdrop-filter: blur(12px);
   box-shadow:
-    0 28px 56px -14px rgba(0, 0, 0, 0.78),
-    -10px -10px 36px -12px rgba(255, 255, 255, 0.025),
-    10px 10px 36px -12px rgba(255, 255, 255, 0.02),
-    0 0 0 1px rgba(255, 255, 255, 0.03),
-    inset 0 1px 2px rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    0 28px 56px -14px rgba(0, 0, 0, 0.8),
+    /* Derin karanlık gölge */ -10px -10px 36px -12px rgba(255, 255, 255, 0.03),
+    /* Dış glow */ 10px 10px 36px -12px rgba(255, 255, 255, 0.02),
+    inset 0 1px 2px rgba(255, 255, 255, 0.08),
+    /* Güçlü iç ışık */ inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   z-index: 10;
 
   transform: translateZ(0);
@@ -29,19 +32,48 @@
   perspective: 1000px;
 }
 
-.glass-surface {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
+/* 
+ * Katman 2 — Secondary
+ * Sakin border, düşük kontrast yüzey, az gradient. Ana paneller ve listeler için.
+ */
+.glass-tier-2 {
+  background-color: #050505;
+  background-image: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    rgba(255, 255, 255, 0.005) 60%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.03); /* Çok ince, sakin border */
+  border-radius: 1.5rem;
+  backdrop-filter: blur(8px);
   box-shadow:
-    0 18px 40px -16px rgba(0, 0, 0, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 12px 24px -10px rgba(0, 0, 0, 0.6),
+    /* Sadece hacim veren gölge, glow yok */ inset 0 1px 1px rgba(255, 255, 255, 0.03); /* Hafif iç ışık */
+
+  transform: translateZ(0);
+  will-change: transform;
 }
 
-.glass-surface--card {
+/* 
+ * Katman 3 — Passive
+ * Neredeyse düz yüzey, sadece ayrım için ince çizgi / ton farkı. Arka planlar, çoklu kartlar.
+ */
+.glass-tier-3 {
+  background-color: transparent;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, transparent 100%);
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.015); /* Neredeyse görünmez */
+  border-radius: 1rem; /* Daha alt bileşen genelde daha az radius ister */
+  backdrop-filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.01); /* Ton farkı yaratan mikroskobik ışık */
+}
+
+/* Geriye dönüklük ve şekil varyantları */
+.glass-tier-card {
   border-radius: 1rem;
 }
-
-.glass-surface--toolbar {
+.glass-tier-toolbar {
   border-radius: 0.875rem;
 }

@@ -45,7 +45,7 @@ const LanguageTab = memo(() => {
                 <div className="relative">
                   <div
                     className={`
-                                            flex h-12 w-12 items-center justify-center rounded-2xl border text-2xl transition-all duration-300
+                                            flex h-12 w-12 items-center justify-center rounded-2xl border text-ql-20 transition-all duration-300
                                             ${
                                               checked
                                                 ? 'border-white/20 bg-gradient-to-br from-white/[0.1] to-white/[0.05] shadow-lg'
@@ -66,12 +66,12 @@ const LanguageTab = memo(() => {
 
                 <div className="flex-1 space-y-0.5">
                   <Label
-                    className={`block text-sm font-bold transition-colors duration-300 ${checked ? 'text-white' : 'text-white/50 group-hover:text-white/70'}`}
+                    className={`block text-ql-14 font-bold transition-colors duration-300 ${checked ? 'text-white' : 'text-white/50 group-hover:text-white/70'}`}
                   >
                     {lang.nativeName}
                   </Label>
                   <span
-                    className={`block text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${checked ? 'text-white/40' : 'text-white/20'}`}
+                    className={`block text-ql-10 font-bold uppercase tracking-ql-caps transition-colors duration-300 ${checked ? 'text-white/40' : 'text-white/20'}`}
                   >
                     {lang.name}
                   </span>
@@ -98,7 +98,7 @@ const LanguageTab = memo(() => {
       </RadioGroup>
 
       <div className="border-t border-white/[0.04] px-1 pt-4">
-        <p className="text-[10px] uppercase tracking-widest text-white/20">
+        <p className="text-ql-10 uppercase tracking-ql-caps text-white/20">
           {t('current_language')}: {languages[language]?.nativeName || language}
         </p>
       </div>

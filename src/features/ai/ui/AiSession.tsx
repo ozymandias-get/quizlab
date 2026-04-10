@@ -117,8 +117,8 @@ const AiSession = memo(({ tab, isActive, isBarHovered }: AiSessionProps) => {
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
               </svg>
             </div>
-            <p className="text-zinc-200 font-medium text-lg">Oturum Uyku Modunda</p>
-            <p className="text-sm text-zinc-500 mt-1 max-w-sm text-center">
+            <p className="text-zinc-200 font-medium text-ql-20">Oturum Uyku Modunda</p>
+            <p className="text-ql-14 text-zinc-500 mt-1 max-w-sm text-center">
               Bellek tüketimini azaltmak için sekme uyutuldu. Kaldığınız yerden devam etmek ve
               belleği tazelemek için tıklayın.
             </p>

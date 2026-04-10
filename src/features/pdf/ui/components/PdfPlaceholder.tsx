@@ -78,8 +78,10 @@ function PdfPlaceholder({
       </div>
 
       <div className="space-y-3">
-        <h2 className="font-display text-2xl font-semibold text-stone-200">{t('no_pdf_loaded')}</h2>
-        <p className="text-stone-500 text-sm max-w-[200px]">{t('drop_pdf_here')}</p>
+        <h2 className="font-display text-ql-20 font-semibold text-stone-200">
+          {t('no_pdf_loaded')}
+        </h2>
+        <p className="text-stone-500 text-ql-14 max-w-[200px]">{t('drop_pdf_here')}</p>
       </div>
 
       <PdfPlaceholderActions

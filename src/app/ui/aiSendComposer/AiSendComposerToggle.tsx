@@ -119,7 +119,7 @@ function AiSendComposerToggle({
               />
               <span
                 className={cn(
-                  'text-[13px] font-semibold leading-none tracking-[0.005em] transition-colors duration-300',
+                  'text-ql-14 font-semibold leading-none tracking-ql-tune transition-colors duration-300',
                   autoSend ? 'text-emerald-50' : 'text-white/75 group-hover:text-white/90'
                 )}
               >
@@ -133,7 +133,7 @@ function AiSendComposerToggle({
                   exit={{ opacity: 0, scale: 0.85, filter: 'blur(4px)' }}
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                   className={cn(
-                    'inline-flex rounded-md px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em]',
+                    'inline-flex rounded-md px-2 py-0.5 text-ql-10 font-bold uppercase tracking-ql-strong',
                     autoSend
                       ? 'bg-emerald-400/15 text-emerald-300/90'
                       : 'bg-white/[0.05] text-white/35'
@@ -152,7 +152,7 @@ function AiSendComposerToggle({
                 exit={{ opacity: 0, y: -3 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
                 className={cn(
-                  'mt-1.5 text-[11px] leading-[1.45]',
+                  'mt-1.5 text-ql-12 leading-snug',
                   autoSend ? 'text-emerald-200/50' : 'text-white/35'
                 )}
               >
@@ -205,7 +205,7 @@ function AiSendComposerToggle({
                     onSubmit()
                   }}
                   disabled={isSubmitting || isSubmitDisabled}
-                  className="w-full rounded-2xl border-0 py-2.5 text-[12px] font-semibold tracking-[0.01em] text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-35"
+                  className="w-full rounded-2xl border-0 py-2.5 text-ql-12 font-semibold tracking-ql-fine text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-35"
                   style={{
                     background: `linear-gradient(135deg, ${accentStrong}, rgba(45,212,191,0.65) 70%, rgba(255,255,255,0.18))`
                   }}

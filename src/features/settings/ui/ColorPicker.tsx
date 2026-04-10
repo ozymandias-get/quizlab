@@ -1,4 +1,4 @@
-﻿import { Fragment, memo } from 'react'
+import { Fragment, memo } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import { Popover, PopoverButton, PopoverPanel, Transition } from '@headlessui/react'
 import { useLanguageStrings } from '@app/providers'
@@ -16,7 +16,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
   return (
     <div className="relative flex flex-col gap-2">
       {label && (
-        <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-bold ml-1">
+        <span className="text-ql-10 uppercase tracking-ql-soft text-white/30 font-bold ml-1">
           {label}
         </span>
       )}
@@ -39,7 +39,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
                 style={{ backgroundColor: color }}
               />
               <div className="flex flex-col items-start gap-0.5">
-                <span className="text-[11px] font-mono text-white/60 uppercase tracking-widest font-medium">
+                <span className="text-ql-12 font-mono text-white/60 uppercase tracking-ql-caps font-medium">
                   {color}
                 </span>
               </div>
@@ -66,10 +66,10 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
                       style={{ backgroundColor: color }}
                     />
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-[10px] text-white/40 uppercase font-black tracking-tighter">
+                      <span className="text-ql-10 text-white/40 uppercase font-black tracking-tighter">
                         {t('value')}
                       </span>
-                      <span className="text-sm font-mono text-white/80 uppercase truncate">
+                      <span className="text-ql-14 font-mono text-white/80 uppercase truncate">
                         {color}
                       </span>
                     </div>

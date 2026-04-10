@@ -39,4 +39,5 @@ export interface HealthTone {
 
 export type SelectorHealthState = SelectorHealth | 'missing'
 
-export type TranslateFn = (key: string, params?: unknown) => string
+/** Matches `useLanguage` / `LanguageContext` `t` (nested keys resolved at runtime). */
+export type TranslateFn = (key: string, params?: Record<string, string>) => string

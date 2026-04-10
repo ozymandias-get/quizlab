@@ -84,7 +84,7 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
         <button
           onClick={handleCopy}
           disabled={isCopying}
-          className="flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-5 py-2.5 text-xs font-bold text-blue-400 transition-all hover:bg-blue-500/20 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-5 py-2.5 text-ql-12 font-bold text-blue-400 transition-all hover:bg-blue-500/20 disabled:opacity-60"
         >
           <InfoIcon className="w-4 h-4" />
           {isCopying ? t('loading') : t('copy_logs')}

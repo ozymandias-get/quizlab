@@ -24,7 +24,7 @@ function SettingsTabIntro({
 
       {description && !hideDescription && (
         <div className="px-1">
-          <p className="text-xs leading-relaxed text-white/40">{description}</p>
+          <p className="text-ql-12 leading-relaxed text-white/40">{description}</p>
         </div>
       )}
     </>

@@ -63,17 +63,17 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             </svg>
           </div>
 
-          <h3 className="text-lg font-bold text-stone-200 mb-2">
+          <h3 className="text-ql-20 font-bold text-stone-200 mb-2">
             {this.props.title || translate('error_boundary_title')}
           </h3>
 
-          <p className="text-sm text-stone-400 mb-6 max-w-sm mx-auto">
+          <p className="text-ql-14 text-stone-400 mb-6 max-w-sm mx-auto">
             {this.state.error?.message || translate('unexpected_error')}
           </p>
 
           <button
             onClick={this.handleRetry}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-ql-14 font-medium text-white bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -87,10 +87,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           </button>
 
           <details className="mt-8 text-left w-full max-w-md bg-black/20 p-3 rounded-lg border border-white/5">
-            <summary className="text-xs text-stone-500 cursor-pointer hover:text-stone-300 transition-colors uppercase font-bold tracking-widest">
+            <summary className="text-ql-12 text-stone-500 cursor-pointer hover:text-stone-300 transition-colors uppercase font-bold tracking-ql-caps">
               {translate('technical_details')}
             </summary>
-            <pre className="mt-2 text-[10px] text-red-300/70 overflow-x-auto whitespace-pre-wrap font-mono p-4 rounded-lg bg-black/40">
+            <pre className="mt-2 text-ql-10 text-red-300/70 overflow-x-auto whitespace-pre-wrap font-mono p-4 rounded-lg bg-black/40">
               {this.state.errorInfo?.componentStack || translate('no_stack_trace')}
             </pre>
           </details>

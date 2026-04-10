@@ -54,3 +54,42 @@ describe('Logger Utility', () => {
     expect(consoleError).toHaveBeenCalledWith('critical error')
   })
 })
+
+describe('createIssueLogReport', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('formats report with environment, unknown user agent when navigator is missing, and empty logs placeholder', async () => {
+    vi.stubGlobal('navigator', undefined)
+    const { createIssueLogReport } = await import('@shared/lib/logger')
+
+    const report = createIssueLogReport({ appVersion: '3.0.5', language: 'en' })
+
+    expect(report).toContain('# Quizlab Reader Error Report')
+    expect(report).toContain('- App Version: 3.0.5')
+    expect(report).toContain('- Language: en')
+    expect(report).toContain('- User Agent: unknown')
+    expect(report).toContain('## Recent Logs')
+    expect(report).toContain('No buffered logs yet.')
+  })
+
+  it('embeds buffered warn and error lines', async () => {
+    process.env.NODE_ENV = 'production'
+    const { Logger, createIssueLogReport } = await import('@shared/lib/logger')
+
+    Logger.warn('line one')
+    Logger.error('line two')
+
+    const report = createIssueLogReport({ appVersion: '1.0.0', language: 'tr' })
+
+    expect(report).toContain('- App Version: 1.0.0')
+    expect(report).toContain('- Language: tr')
+    expect(report).toMatch(/\[WARN\].*line one/s)
+    expect(report).toMatch(/\[ERROR\].*line two/s)
+  })
+})

@@ -10,7 +10,6 @@ interface AiVisibleTabButtonProps {
   tabColor: string
   isActive: boolean
   isEditing: boolean
-  isHovered: boolean
   editingValue: string
   renameInputRef: RefObject<HTMLInputElement | null>
   skipBlurSaveRef: RefObject<boolean>
@@ -19,8 +18,6 @@ interface AiVisibleTabButtonProps {
   onSelect: () => void
   onBeginRename: () => void
   onContextMenu: (event: ReactMouseEvent) => void
-  onHoverStart: () => void
-  onHoverEnd: () => void
   onEditingValueChange: (value: string) => void
   onCommitRename: (value: string) => void
   onCancelRename: () => void
@@ -34,7 +31,6 @@ function AiVisibleTabButton({
   tabColor,
   isActive,
   isEditing,
-  isHovered,
   editingValue,
   renameInputRef,
   skipBlurSaveRef,
@@ -43,8 +39,6 @@ function AiVisibleTabButton({
   onSelect,
   onBeginRename,
   onContextMenu,
-  onHoverStart,
-  onHoverEnd,
   onEditingValueChange,
   onCommitRename,
   onCancelRename,
@@ -61,7 +55,7 @@ function AiVisibleTabButton({
         transition: { type: 'spring', stiffness: 400, damping: 26 }
       }}
       whileTap={{ scale: 0.99 }}
-      className="relative flex h-8 min-w-0 max-w-[260px] items-center gap-2 rounded-full border px-3.5 pr-16 transition-all duration-200"
+      className="group relative flex h-8 min-w-0 max-w-[260px] items-center gap-2 rounded-full border px-3.5 pr-16 transition-all duration-200"
       style={
         isActive
           ? {
@@ -82,13 +76,11 @@ function AiVisibleTabButton({
         onBeginRename()
       }}
       onContextMenu={onContextMenu}
-      onMouseEnter={onHoverStart}
-      onMouseLeave={onHoverEnd}
       title={label}
     >
       <span className="text-white/90 shrink-0">
         {getAiIcon(iconKey || tab.modelId) || (
-          <span className="text-[10px] font-bold uppercase">{label.charAt(0)}</span>
+          <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
         )}
       </span>
 
@@ -116,50 +108,46 @@ function AiVisibleTabButton({
             }
           }}
           placeholder={tr('tab_rename_placeholder', 'Tab name...')}
-          className="min-w-0 w-full bg-transparent text-[11px] text-white outline-none placeholder:text-white/45"
+          className="min-w-0 w-full bg-transparent text-ql-12 text-white outline-none placeholder:text-white/45"
         />
       ) : (
-        <span className="min-w-0 truncate text-[11px] text-white/85">{label}</span>
+        <span className="min-w-0 truncate text-ql-12 text-white/85">{label}</span>
       )}
 
       <div className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1">
-        {(tab.pinned || isHovered) && (
-          <span
-            role="button"
-            tabIndex={-1}
-            aria-label={tab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
-            title={tab.pinned ? tr('tab_pinned', 'Pinned') : tr('tab_pin', 'Pin')}
-            className={`flex items-center justify-center rounded-md border p-1 transition-colors ${
-              tab.pinned
-                ? 'text-white bg-white/15 border-white/25'
-                : 'text-white/60 bg-black/35 border-white/15 hover:text-white'
-            }`}
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onTogglePin()
-            }}
-          >
-            <Pin className="w-3 h-3" fill={tab.pinned ? 'currentColor' : 'none'} />
-          </span>
-        )}
+        <span
+          role="button"
+          tabIndex={-1}
+          aria-label={tab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
+          title={tab.pinned ? tr('tab_pinned', 'Pinned') : tr('tab_pin', 'Pin')}
+          className={`flex items-center justify-center rounded-md border p-1 transition-opacity ${
+            tab.pinned
+              ? 'text-white bg-white/15 border-white/25'
+              : 'text-white/60 bg-black/35 border-white/15 opacity-[0.55] hover:text-white hover:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100'
+          }`}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onTogglePin()
+          }}
+        >
+          <Pin className="w-3 h-3" fill={tab.pinned ? 'currentColor' : 'none'} />
+        </span>
 
-        {isHovered && (
-          <span
-            role="button"
-            tabIndex={-1}
-            aria-label={tr('tab_close', 'Close')}
-            title={tr('tab_close', 'Close')}
-            className="flex items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 hover:text-white transition-colors"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onClose()
-            }}
-          >
-            <X className="w-3 h-3" />
-          </span>
-        )}
+        <span
+          role="button"
+          tabIndex={-1}
+          aria-label={tr('tab_close', 'Close')}
+          title={tr('tab_close', 'Close')}
+          className="flex items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 opacity-[0.55] transition-opacity hover:opacity-100 hover:text-white group-hover:opacity-100 group-focus-within:opacity-100"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onClose()
+          }}
+        >
+          <X className="w-3 h-3" />
+        </span>
       </div>
     </motion.button>
   )

@@ -98,7 +98,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                   onClose()
                 }}
                 className={`
-                                    w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all duration-200 group relative overflow-hidden
+                                    w-full flex items-center justify-between px-3 py-2 text-ql-14 rounded-lg transition-all duration-200 group relative overflow-hidden
                                     ${
                                       item.danger
                                         ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
@@ -120,7 +120,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                 </div>
                 {item.shortcut && (
                   <span
-                    className={`text-[10px] uppercase tracking-wider font-semibold opacity-50 relative z-10 ${
+                    className={`text-ql-10 uppercase tracking-wider font-semibold opacity-50 relative z-10 ${
                       item.danger ? 'text-red-400' : 'text-stone-500 group-hover:text-stone-400'
                     }`}
                   >

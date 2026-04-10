@@ -56,7 +56,7 @@ export class GeminiWebSessionManager {
     return this.orchestrator.getStatus()
   }
 
-  async setEnabled(enabled: boolean): Promise<GeminiWebSessionActionResult> {
+  async setEnabled(enabled: unknown): Promise<GeminiWebSessionActionResult> {
     return this.orchestrator.setEnabled(enabled)
   }
 

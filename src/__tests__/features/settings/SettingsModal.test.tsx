@@ -46,16 +46,13 @@ describe('SettingsModal Component', () => {
   it('switches tabs', async () => {
     render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
 
-    const languageTab = screen.getByText('language').closest('[role="tab"]') as HTMLElement
+    const languageButton = screen.getByRole('button', { name: 'language' })
     await act(async () => {
-      languageTab.focus()
-      fireEvent.mouseDown(languageTab, { button: 0, ctrlKey: false })
-      fireEvent.mouseUp(languageTab)
-      fireEvent.click(languageTab)
+      fireEvent.click(languageButton)
     })
 
     await waitFor(() => {
-      expect(languageTab).toHaveAttribute('data-state', 'active')
+      expect(languageButton).toHaveAttribute('aria-current', 'page')
     })
   })
 

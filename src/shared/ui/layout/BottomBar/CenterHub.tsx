@@ -104,7 +104,7 @@ export const CenterHub = memo(
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
-              className="hub-center-btn__badge absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] leading-none font-bold text-white shadow-lg pointer-events-none z-20"
+              className="hub-center-btn__badge absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-ql-10 leading-none font-bold text-white shadow-lg pointer-events-none z-20"
             >
               {tabsCount}
             </motion.div>

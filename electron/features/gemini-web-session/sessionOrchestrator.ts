@@ -3,35 +3,28 @@ import type { Session } from 'electron'
 import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
-  GeminiWebSessionRefreshReason,
   GeminiWebSessionStatus
 } from '@shared-core/types'
-import { createDefaultStatus, applyProbeTransition } from './stateMachine'
-import { runPlaywrightLogin } from './playwrightLogin'
-import { clearPersistentPartitionData, importExternalCookies } from './sessionCookies'
-import {
-  COOKIE_REFRESH_THRESHOLD_MS,
-  FEATURE_ENABLED,
-  HEALTH_TIMEOUT_MS,
-  LOGIN_TIMEOUT_MS
-} from './sessionConfig'
+import { createDefaultStatus } from './stateMachine'
+import { clearPersistentPartitionData } from './sessionCookies'
+import { COOKIE_REFRESH_THRESHOLD_MS, FEATURE_ENABLED } from './sessionConfig'
 import { nowIso } from './sessionUtils'
 import { toErrorMessage } from './sessionErrors'
-import { SessionMetadataRepository, sanitizeEnabledAppIds } from './sessionMetadataRepository'
+import { SessionMetadataRepository } from './sessionMetadataRepository'
 import { ProfileLock } from './profileLock'
 import { ProbeRunner } from './probeRunner'
 import { SessionRecovery } from './sessionRecovery'
 import { SessionMonitor } from './sessionMonitor'
-import { GOOGLE_AI_WEB_APP_URLS } from './constants'
-import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps'
-import { isGoogleLoginRedirectUrl } from './authHeuristics'
-import type { ReactiveRefreshSignal, RefreshEventEmitter } from './sessionContracts'
+import type { RefreshEventEmitter, ReactiveRefreshSignal } from './sessionContracts'
+
+import { HealthCheckPolicy } from './healthCheckPolicy'
+import { RefreshTriggerPolicy } from './refreshTriggerPolicy'
+import { LoginFlowPolicy } from './loginFlowPolicy'
+import { MetadataUpdatePolicy } from './metadataUpdatePolicy'
 
 function logSuppressedError(context: string, error: unknown): void {
   console.warn(`[GeminiWebSession] ${context}:`, toErrorMessage(error, 'unknown_error'))
 }
-
-const REACTIVE_REFRESH_DEBOUNCE_MS = 1_500
 
 export class SessionOrchestrator {
   private readonly config: GeminiWebSessionConfig
@@ -46,10 +39,11 @@ export class SessionOrchestrator {
   private readonly emitRefreshEvent: RefreshEventEmitter
 
   private initialized = false
-  private activeCheck: Promise<GeminiWebSessionStatus> | null = null
-  private activeRefresh: Promise<void> | null = null
-  private reactiveListenersConfigured = false
-  private lastReactiveTriggerAtByKey = new Map<string, number>()
+
+  private healthCheckPolicy: HealthCheckPolicy
+  private refreshTriggerPolicy: RefreshTriggerPolicy
+  private loginFlowPolicy: LoginFlowPolicy
+  private metadataUpdatePolicy: MetadataUpdatePolicy
 
   constructor(options: {
     config: GeminiWebSessionConfig
@@ -82,6 +76,44 @@ export class SessionOrchestrator {
     })
     this.monitor = new SessionMonitor()
     this.emitRefreshEvent = options.emitRefreshEvent || (() => {})
+
+    this.healthCheckPolicy = new HealthCheckPolicy({
+      metadataRepository: this.metadataRepository,
+      profileLock: this.profileLock,
+      probeRunner: this.probeRunner,
+      recovery: this.recovery,
+      config: this.config
+    })
+
+    this.refreshTriggerPolicy = new RefreshTriggerPolicy({
+      metadataRepository: this.metadataRepository,
+      profileLock: this.profileLock,
+      recovery: this.recovery,
+      config: this.config,
+      resolvePersistentSession: this.resolvePersistentSession,
+      emitRefreshEvent: this.emitRefreshEvent,
+      initialize: () => this.initialize(),
+      getActiveCheck: () => this.healthCheckPolicy.getActiveCheck()
+    })
+
+    this.loginFlowPolicy = new LoginFlowPolicy({
+      metadataRepository: this.metadataRepository,
+      profileLock: this.profileLock,
+      probeRunner: this.probeRunner,
+      config: this.config,
+      playwrightProfileDir: this.playwrightProfileDir,
+      resolvePersistentSession: this.resolvePersistentSession,
+      initialize: () => this.initialize(),
+      getStatus: () => this.getStatus()
+    })
+
+    this.metadataUpdatePolicy = new MetadataUpdatePolicy({
+      metadataRepository: this.metadataRepository,
+      monitor: this.monitor,
+      initialize: () => this.initialize(),
+      scheduleMonitor: () => this.scheduleMonitor(),
+      performHealthCheck: (opts) => this.healthCheckPolicy.performHealthCheck(opts)
+    })
   }
 
   getConfig(): GeminiWebSessionConfig {
@@ -92,12 +124,14 @@ export class SessionOrchestrator {
     if (this.initialized) return
     await this.ensureProfileDirectory()
     await this.metadataRepository.ensureMetadata()
-    this.configureReactiveRefreshListeners()
+
+    this.refreshTriggerPolicy.configureReactiveRefreshListeners()
+
     this.initialized = true
     const metadata = await this.metadataRepository.readMetadata()
     if (FEATURE_ENABLED && metadata.enabled) {
       this.scheduleMonitor()
-      void this.performHealthCheck({ allowRetry: false }).catch((error) => {
+      void this.healthCheckPolicy.performHealthCheck({ allowRetry: false }).catch((error) => {
         logSuppressedError('initial health check failed', error)
       })
     }
@@ -109,122 +143,16 @@ export class SessionOrchestrator {
     return this.metadataRepository.toPublicStatus(metadata)
   }
 
-  async setEnabled(enabled: boolean): Promise<GeminiWebSessionActionResult> {
-    await this.initialize()
-    const current = await this.metadataRepository.readMetadata()
-    const nextEnabled = FEATURE_ENABLED ? !!enabled : false
-    const status = await this.metadataRepository.writeStatus(
-      {
-        ...current,
-        enabled: nextEnabled,
-        featureEnabled: FEATURE_ENABLED,
-        lastCheckAt: nowIso()
-      },
-      current.accountHash
-    )
-    if (!nextEnabled) {
-      this.monitor.stop()
-    }
-    if (nextEnabled) {
-      this.scheduleMonitor()
-      void this.performHealthCheck({ allowRetry: false }).catch((error) => {
-        logSuppressedError('setEnabled health check failed', error)
-      })
-    }
-    return { success: true, status }
+  async setEnabled(enabled: unknown): Promise<GeminiWebSessionActionResult> {
+    return this.metadataUpdatePolicy.setEnabled(enabled)
   }
 
   async setEnabledApps(enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> {
-    await this.initialize()
-    const current = await this.metadataRepository.readMetadata()
-    const status = await this.metadataRepository.writeStatus(
-      {
-        ...current,
-        enabledAppIds: sanitizeEnabledAppIds(enabledAppIds),
-        lastCheckAt: nowIso()
-      },
-      current.accountHash
-    )
-    return { success: true, status }
+    return this.metadataUpdatePolicy.setEnabledApps(enabledAppIds)
   }
 
   async openLogin(): Promise<GeminiWebSessionActionResult> {
-    await this.initialize()
-    const current = await this.metadataRepository.readMetadata()
-    const blocked = this.metadataRepository.getDisabledActionResult(current)
-    if (blocked) return blocked
-
-    const lock = await this.profileLock.acquire()
-    if (!lock.ok) {
-      return {
-        success: false,
-        error: lock.error || 'already_in_use',
-        status: await this.getStatus()
-      }
-    }
-
-    try {
-      const previous = await this.metadataRepository.readMetadata()
-      const loginResult = await runPlaywrightLogin({
-        profileDir: this.playwrightProfileDir,
-        timeoutMs: LOGIN_TIMEOUT_MS
-      })
-      if (!loginResult.success) {
-        const transitioned = applyProbeTransition({
-          previous,
-          outcome: loginResult.outcome,
-          timestamp: nowIso(),
-          maxConsecutiveFailures: this.config.maxConsecutiveFailures
-        })
-        const failureStatus = await this.metadataRepository.writeStatus(
-          { ...transitioned, state: 'auth_required' },
-          previous.accountHash
-        )
-        return {
-          success: false,
-          error: loginResult.error || 'error_login_failed',
-          status: failureStatus
-        }
-      }
-
-      const targetSession = this.resolvePersistentSession()
-      await importExternalCookies(targetSession, loginResult.cookies)
-
-      const probe = await this.probeRunner.runProbeAcrossApps({
-        interactive: false,
-        timeoutMs: HEALTH_TIMEOUT_MS
-      })
-      const transitioned = applyProbeTransition({
-        previous,
-        outcome: probe.outcome,
-        timestamp: nowIso(),
-        maxConsecutiveFailures: this.config.maxConsecutiveFailures
-      })
-      const status = await this.metadataRepository.writeStatus(
-        probe.outcome.healthy
-          ? { ...transitioned, state: 'authenticated' }
-          : { ...transitioned, state: 'auth_required' },
-        probe.outcome.healthy ? probe.accountHash || loginResult.accountHash : previous.accountHash
-      )
-      if (probe.outcome.healthy) {
-        return { success: true, status }
-      }
-      const error =
-        probe.outcome.kind === 'challenge'
-          ? 'error_challenge_required'
-          : probe.outcome.kind === 'network'
-            ? 'error_network_login_failed'
-            : probe.timedOut
-              ? 'error_login_timeout'
-              : 'error_login_verification_failed'
-      return { success: false, error, status }
-    } catch (error: unknown) {
-      const status = await this.getStatus()
-      console.error('[GeminiWebSession] Login failed:', toErrorMessage(error, 'unknown_error'))
-      return { success: false, error: 'error_login_failed', status }
-    } finally {
-      await this.profileLock.release()
-    }
+    return this.loginFlowPolicy.openLogin()
   }
 
   async checkNow(): Promise<GeminiWebSessionActionResult> {
@@ -232,20 +160,12 @@ export class SessionOrchestrator {
     const current = await this.metadataRepository.readMetadata()
     const blocked = this.metadataRepository.getDisabledActionResult(current)
     if (blocked) return blocked
-    const status = await this.performHealthCheck({ allowRetry: true })
+    const status = await this.healthCheckPolicy.performHealthCheck({ allowRetry: true })
     return { success: true, status }
   }
 
   async reauthenticate(): Promise<GeminiWebSessionActionResult> {
-    await this.initialize()
-    const current = await this.metadataRepository.readMetadata()
-    const blocked = this.metadataRepository.getDisabledActionResult(current)
-    if (blocked) return blocked
-    await this.metadataRepository.writeStatus(
-      { ...current, state: 'auth_required', reasonCode: 'login_redirect' },
-      current.accountHash
-    )
-    return this.openLogin()
+    return this.loginFlowPolicy.reauthenticate()
   }
 
   async resetProfile(): Promise<GeminiWebSessionActionResult> {
@@ -260,11 +180,14 @@ export class SessionOrchestrator {
     }
     try {
       this.monitor.stop()
-      if (this.activeCheck) {
-        await this.activeCheck.catch((error) => {
+
+      const activeCheck = this.healthCheckPolicy.getActiveCheck()
+      if (activeCheck) {
+        await activeCheck.catch((error) => {
           logSuppressedError('active check join failed during checkNow', error)
         })
       }
+
       const current = await this.metadataRepository.readMetadata()
       await this.clearPersistentPartitionData()
       await this.clearPlaywrightProfileData()
@@ -310,7 +233,7 @@ export class SessionOrchestrator {
     if (current.state === 'authenticated') return { ok: true, status: current }
     if (current.state === 'reauth_required')
       return { ok: false, error: 'reauth_required', status: current }
-    const result = await this.performHealthCheck({ allowRetry: true })
+    const result = await this.healthCheckPolicy.performHealthCheck({ allowRetry: true })
     if (result.state === 'authenticated') return { ok: true, status: result }
     if (result.state === 'reauth_required')
       return { ok: false, error: 'reauth_required', status: result }
@@ -319,18 +242,23 @@ export class SessionOrchestrator {
 
   async dispose(): Promise<void> {
     this.monitor.stop()
-    if (this.activeRefresh) {
-      await this.activeRefresh.catch((error) => {
+
+    const activeRefresh = this.refreshTriggerPolicy.getActiveRefresh()
+    if (activeRefresh) {
+      await activeRefresh.catch((error) => {
         logSuppressedError('active refresh join failed during dispose', error)
       })
-      this.activeRefresh = null
+      this.refreshTriggerPolicy.clearActiveRefresh()
     }
-    if (this.activeCheck) {
-      await this.activeCheck.catch((error) => {
+
+    const activeCheck = this.healthCheckPolicy.getActiveCheck()
+    if (activeCheck) {
+      await activeCheck.catch((error) => {
         logSuppressedError('active check join failed during dispose', error)
       })
-      this.activeCheck = null
+      this.healthCheckPolicy.clearActiveCheck()
     }
+
     await this.profileLock.release()
   }
 
@@ -377,7 +305,7 @@ export class SessionOrchestrator {
           return
         }
 
-        await this.performHealthCheck({ allowRetry: true })
+        await this.healthCheckPolicy.performHealthCheck({ allowRetry: true })
       } catch (error: unknown) {
         console.error(
           '[GeminiWebSession] Monitor check failed:',
@@ -390,254 +318,6 @@ export class SessionOrchestrator {
   }
 
   async triggerRefresh(signal: ReactiveRefreshSignal): Promise<void> {
-    await this.initialize()
-    const current = await this.metadataRepository.readMetadata()
-    if (!FEATURE_ENABLED || !current.enabled) return
-
-    if (this.activeCheck) {
-      await this.activeCheck.catch((error) => {
-        logSuppressedError('active check join failed before refresh', error)
-      })
-    }
-
-    if (
-      signal.reason !== 'proactive_expiry' &&
-      this.recovery.isWithinRefreshGracePeriod() &&
-      current.state !== 'reauth_required'
-    ) {
-      return
-    }
-
-    if (this.activeRefresh) {
-      await this.activeRefresh.catch((error) => {
-        logSuppressedError('active refresh join failed', error)
-      })
-      return
-    }
-
-    if (!this.recovery.canAttemptHeadlessRefresh()) {
-      return
-    }
-
-    const debounceKey = `${signal.reason}:${signal.statusCode || 0}:${signal.url || ''}`
-    const now = Date.now()
-    const lastTriggeredAt = this.lastReactiveTriggerAtByKey.get(debounceKey) || 0
-    if (now - lastTriggeredAt < REACTIVE_REFRESH_DEBOUNCE_MS) {
-      return
-    }
-    this.lastReactiveTriggerAtByKey.set(debounceKey, now)
-
-    this.activeRefresh = this.executeRefresh(signal).finally(() => {
-      this.activeRefresh = null
-    })
-    await this.activeRefresh
-  }
-
-  private async executeRefresh(signal: ReactiveRefreshSignal): Promise<void> {
-    const lock = await this.profileLock.acquire()
-    if (!lock.ok) {
-      if (lock.error === 'already_in_use') return
-      throw new Error(lock.error || 'lock_error')
-    }
-
-    this.emitRefreshEvent({
-      phase: 'started',
-      reason: signal.reason
-    })
-
-    try {
-      const current = await this.metadataRepository.readMetadata()
-      const refreshResult = await this.recovery.runPlaywrightHeadlessRefreshProbe(
-        current.accountHash
-      )
-
-      if (refreshResult.success && refreshResult.probe?.outcome.healthy) {
-        const transitioned = applyProbeTransition({
-          previous: current,
-          outcome: refreshResult.probe.outcome,
-          timestamp: nowIso(),
-          maxConsecutiveFailures: this.config.maxConsecutiveFailures
-        })
-        await this.metadataRepository.writeStatus(
-          { ...transitioned, state: 'authenticated' },
-          refreshResult.probe.accountHash || current.accountHash
-        )
-        this.recovery.markRefreshSuccess()
-        this.emitRefreshEvent({
-          phase: 'success',
-          reason: signal.reason
-        })
-        return
-      }
-
-      const error = refreshResult.error || 'error_refresh_failed_requires_login'
-      const nextState =
-        error === 'error_refresh_failed_requires_login' ? 'reauth_required' : 'auth_required'
-      await this.metadataRepository.writeStatus(
-        {
-          ...current,
-          state: nextState,
-          reasonCode:
-            error === 'error_refresh_failed_requires_login' ? 'login_redirect' : current.reasonCode,
-          lastCheckAt: nowIso()
-        },
-        current.accountHash
-      )
-      this.emitRefreshEvent({
-        phase: 'failed',
-        reason: signal.reason,
-        error
-      })
-    } finally {
-      await this.profileLock.release()
-    }
-  }
-
-  private configureReactiveRefreshListeners(): void {
-    if (this.reactiveListenersConfigured) return
-
-    const targetSession = this.resolvePersistentSession()
-    if (
-      !targetSession?.webRequest ||
-      typeof targetSession.webRequest.onCompleted !== 'function' ||
-      typeof targetSession.webRequest.onBeforeRedirect !== 'function'
-    ) {
-      return
-    }
-
-    this.reactiveListenersConfigured = true
-    const managedHostFilters = GOOGLE_AI_WEB_APPS.flatMap((app) => [
-      `https://${app.hostname}/*`,
-      `http://${app.hostname}/*`
-    ])
-    const filter = {
-      urls: [...managedHostFilters, 'https://accounts.google.com/*']
-    }
-
-    targetSession.webRequest.onCompleted(filter, (details) => {
-      if (details.statusCode !== 401 && details.statusCode !== 403) return
-      const reason: GeminiWebSessionRefreshReason =
-        details.statusCode === 401 ? 'http_401' : 'http_403'
-      void this.triggerRefresh({
-        reason,
-        url: details.url,
-        statusCode: details.statusCode
-      }).catch((error) => {
-        logSuppressedError('reactive onCompleted refresh failed', error)
-      })
-    })
-
-    targetSession.webRequest.onBeforeRedirect(filter, (details) => {
-      const candidateUrl = details.redirectURL || details.url
-      if (!isGoogleLoginRedirectUrl(candidateUrl)) return
-      void this.triggerRefresh({
-        reason: 'login_redirect',
-        url: candidateUrl
-      }).catch((error) => {
-        logSuppressedError('reactive redirect refresh failed', error)
-      })
-    })
-  }
-
-  private async performHealthCheck(options: {
-    allowRetry: boolean
-  }): Promise<GeminiWebSessionStatus> {
-    if (this.activeCheck) return this.activeCheck
-    this.activeCheck = (async () => {
-      const currentBeforeCheck = await this.metadataRepository.readMetadata()
-      if (!FEATURE_ENABLED || !currentBeforeCheck.enabled) {
-        return this.metadataRepository.toPublicStatus(currentBeforeCheck)
-      }
-      const lock = await this.profileLock.acquire()
-      if (!lock.ok) {
-        const current = await this.metadataRepository.readMetadata()
-        const degradedStatus: GeminiWebSessionStatus = {
-          state: 'degraded',
-          reasonCode: 'unknown',
-          lastCheckAt: nowIso(),
-          lastHealthyAt: current.lastHealthyAt,
-          consecutiveFailures: current.consecutiveFailures,
-          featureEnabled: FEATURE_ENABLED,
-          enabled: current.enabled,
-          enabledAppIds: current.enabledAppIds
-        }
-        return this.metadataRepository.writeStatus(degradedStatus, current.accountHash)
-      }
-      try {
-        const current = await this.metadataRepository.readMetadata()
-        let firstProbe = await this.probeRunner.runProbeAcrossApps({
-          interactive: false,
-          timeoutMs: HEALTH_TIMEOUT_MS
-        })
-        let accountHash = firstProbe.outcome.healthy ? firstProbe.accountHash : current.accountHash
-
-        if (this.recovery.shouldAttemptSilentRefresh(firstProbe.outcome, options.allowRetry)) {
-          const refreshProbe = await this.recovery.runSilentRefreshProbe()
-          if (refreshProbe.outcome.healthy) {
-            const healedStatus = applyProbeTransition({
-              previous: current,
-              outcome: refreshProbe.outcome,
-              timestamp: nowIso(),
-              maxConsecutiveFailures: this.config.maxConsecutiveFailures
-            })
-            return this.metadataRepository.writeStatus(
-              healedStatus,
-              refreshProbe.accountHash || accountHash
-            )
-          }
-          firstProbe = refreshProbe
-        }
-
-        if (
-          this.recovery.shouldAttemptPlaywrightHeadlessRefresh(
-            firstProbe.outcome,
-            options.allowRetry
-          )
-        ) {
-          const playwrightProbe = await this.recovery.runPlaywrightHeadlessRefreshProbe(accountHash)
-          if (playwrightProbe.probe) {
-            firstProbe = playwrightProbe.probe
-            accountHash = firstProbe.outcome.healthy
-              ? firstProbe.accountHash || accountHash
-              : accountHash
-            if (firstProbe.outcome.healthy) {
-              this.recovery.markRefreshSuccess()
-              const recoveredStatus = applyProbeTransition({
-                previous: current,
-                outcome: firstProbe.outcome,
-                timestamp: nowIso(),
-                maxConsecutiveFailures: this.config.maxConsecutiveFailures
-              })
-              return this.metadataRepository.writeStatus(recoveredStatus, accountHash)
-            }
-          } else if (playwrightProbe.error === 'error_refresh_failed_requires_login') {
-            return this.metadataRepository.writeStatus(
-              {
-                ...current,
-                state: 'reauth_required',
-                reasonCode: 'login_redirect',
-                lastCheckAt: nowIso()
-              },
-              accountHash
-            )
-          }
-        }
-
-        const status = applyProbeTransition({
-          previous: current,
-          outcome: firstProbe.outcome,
-          timestamp: nowIso(),
-          maxConsecutiveFailures: this.config.maxConsecutiveFailures
-        })
-        return this.metadataRepository.writeStatus(status, accountHash)
-      } finally {
-        await this.profileLock.release()
-      }
-    })()
-    try {
-      return await this.activeCheck
-    } finally {
-      this.activeCheck = null
-    }
+    return this.refreshTriggerPolicy.triggerRefresh(signal)
   }
 }

@@ -43,14 +43,14 @@ function AiTabContextMenu({
     >
       <button
         type="button"
-        className="w-full text-left px-3 py-2 text-xs text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+        className="w-full text-left px-3 py-2 text-ql-12 text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
         onClick={() => onBeginRename(contextMenuTab)}
       >
         {tr('tab_rename', 'Rename')}
       </button>
       <button
         type="button"
-        className="w-full text-left px-3 py-2 text-xs text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+        className="w-full text-left px-3 py-2 text-ql-12 text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
         onClick={() => {
           onTogglePin(contextMenuTab.id)
           onDismiss()
@@ -60,7 +60,7 @@ function AiTabContextMenu({
       </button>
       <button
         type="button"
-        className="w-full text-left px-3 py-2 text-xs text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full text-left px-3 py-2 text-ql-12 text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         disabled={tabsCount <= 1}
         onClick={() => {
           onCloseTab(contextMenuTab.id)

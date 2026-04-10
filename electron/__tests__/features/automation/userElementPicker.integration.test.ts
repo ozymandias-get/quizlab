@@ -44,6 +44,17 @@ describe('userElementPicker integration', () => {
     delete pickerWindow._aiPickerResult
   })
 
+  describe('script smoke', () => {
+    it('includes shadow-aware target resolution helpers', () => {
+      const script = generatePickerScript()
+
+      expect(script).toContain('getElementInfo')
+      expect(script).toContain('generateLocatorBundle')
+      expect(script).toContain('getEventContext')
+      expect(script).toContain('_ai_picker_next_btn')
+    })
+  })
+
   it('captures rich selector data and validates on the same shadow DOM composer', async () => {
     const host = document.createElement('div')
     host.id = 'gemini-shell'

@@ -74,6 +74,33 @@ module.exports = {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)'
       },
+      // Quizlab UI type scale — prefer text-ql-* over arbitrary text-[Npx]
+      fontSize: {
+        'ql-10': ['10px', { lineHeight: '1.4' }],
+        'ql-12': ['12px', { lineHeight: '1.5' }],
+        'ql-14': ['14px', { lineHeight: '1.5' }],
+        'ql-16': ['16px', { lineHeight: '1.45' }],
+        'ql-20': ['20px', { lineHeight: '1.25' }],
+        'ql-28': ['28px', { lineHeight: '1.15' }]
+      },
+      // Pairs with uppercase micro labels — prefer tracking-ql-* over tracking-[Nem]
+      letterSpacing: {
+        'ql-tune': '0.005em',
+        'ql-fine': '0.01em',
+        'ql-mono': '0.03em',
+        'ql-micro': '0.06em',
+        'ql-chrome': '0.08em',
+        'ql-caps': '0.1em',
+        'ql-strong': '0.12em',
+        'ql-label': '0.14em',
+        'ql-soft': '0.15em',
+        'ql-dense': '0.16em',
+        'ql-standard': '0.18em',
+        'ql-spread': '0.2em',
+        'ql-section': '0.22em',
+        'ql-eyebrow': '0.3em',
+        'ql-kicker': '0.32em'
+      },
       keyframes: {
         'accordion-down': {
           from: {

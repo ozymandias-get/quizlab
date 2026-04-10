@@ -7,6 +7,7 @@ import { hexToRgba } from '@shared/lib/uiUtils'
 import { getAiIcon } from '@ui/components/Icons'
 import type { GridDragReorderState } from '@features/ai/hooks/useGridDragReorder'
 import { safeAiAccentColor, type AiSiteMap, type SectionTone } from '../../model/home'
+import { EmptyState, ListItemCard, SurfaceCard, ActionRow } from '@shared/ui/components/primitives'
 
 function OpenTabCard({
   index,
@@ -59,16 +60,16 @@ function OpenTabCard({
           background: `linear-gradient(160deg, ${hexToRgba(accent, 0.18)} 0%, ${hexToRgba(accent, 0.05)} 100%)`
         }}
       >
-        {icon || <span className="text-base font-semibold">{displayName.charAt(0)}</span>}
+        {icon || <span className="text-ql-16 font-semibold">{displayName.charAt(0)}</span>}
       </div>
       <div className="relative z-10 min-w-0 flex-1 ml-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-[14px] font-semibold text-white/90">{displayName}</p>
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[9px] uppercase tracking-[0.18em] text-white/35">
+          <p className="truncate text-ql-14 font-semibold text-white/90">{displayName}</p>
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-ql-10 uppercase tracking-ql-standard text-white/35">
             {t('ai_home.tab')}
           </span>
         </div>
-        <div className="mt-1 flex items-center gap-2 text-[11px] text-white/42">
+        <div className="mt-1 flex items-center gap-2 text-ql-12 text-white/42">
           <span
             className="inline-block h-1.5 w-1.5 rounded-full"
             style={{ background: isActive ? accent : 'rgba(255,255,255,0.24)' }}
@@ -78,7 +79,7 @@ function OpenTabCard({
             : t('ai_home.ready_id', { id: tabId.slice(0, 8) })}
         </div>
       </div>
-      <div className="relative z-10 rounded-full border border-white/10 bg-black/20 p-1.5 text-white/30 transition-colors group-hover:text-white/60">
+      <div className="relative z-10 rounded-full border border-white/10 bg-black/20 p-1.5 text-white/[0.55] transition-colors group-hover:text-white/80">
         <ArrowUpRight className="h-4 w-4" />
       </div>
     </motion.button>
@@ -119,85 +120,91 @@ function GridCard({
       : t('ai_home.ready_flow')
 
   return (
-    <motion.button
-      type="button"
+    <motion.div
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
-      onClick={onClick}
       initial={{ opacity: 0, y: 16, scale: 0.98 }}
       animate={{ opacity: isDragging ? 0.45 : 1, y: 0, scale: isDragging ? 0.97 : 1 }}
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.99 }}
-      className="group relative min-h-[64px] overflow-hidden rounded-2xl border p-1.5 text-left backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_28px_rgba(0,0,0,0.35)] before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r before:from-transparent before:via-white/[0.04] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
-      style={{
-        borderColor: isActive ? hexToRgba(accent, 0.38) : 'rgba(255,255,255,0.09)',
-        background: isActive
-          ? `linear-gradient(145deg, ${hexToRgba(accent, 0.16)} 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.14) 100%)`
-          : 'linear-gradient(145deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.018) 48%, rgba(0,0,0,0.16) 100%)'
-      }}
     >
-      <div
-        className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+      <ListItemCard
+        onClick={onClick}
+        active={isActive}
+        className="group relative min-h-[64px] overflow-hidden text-left shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r before:from-transparent before:via-white/[0.04] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out p-2.5"
         style={{
-          background: `radial-gradient(circle at top right, ${hexToRgba(accent, 0.18)} 0%, transparent 48%)`
+          borderColor: isActive ? hexToRgba(accent, 0.38) : undefined,
+          background: isActive
+            ? `linear-gradient(145deg, ${hexToRgba(accent, 0.16)} 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.14) 100%)`
+            : undefined
         }}
-      />
-      <div className="relative z-10 flex h-full flex-col">
-        <div className="flex items-start justify-between gap-2">
-          <div
-            className="inline-flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[7.5px] font-medium uppercase tracking-[0.18em]"
-            style={{
-              color: isActive ? accent : 'rgba(255,255,255,0.4)',
-              borderColor: isActive ? hexToRgba(accent, 0.26) : 'rgba(255,255,255,0.08)',
-              background: isActive ? hexToRgba(accent, 0.12) : 'rgba(255,255,255,0.03)'
-            }}
-          >
-            {tone === 'site' ? (
-              <Globe className="h-[8px] w-[8px]" />
-            ) : (
-              <Sparkles className="h-[8px] w-[8px]" />
-            )}
-            <span className="leading-none pt-[1px]">{toneLabel}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {isActive && (
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ background: accent, boxShadow: `0 0 16px ${hexToRgba(accent, 0.9)}` }}
-              />
-            )}
-            <div className="rounded-full border border-white/8 bg-black/15 p-[2px] text-white/24 transition-colors group-hover:text-white/55">
-              <ArrowUpRight className="h-2.5 w-2.5" />
-            </div>
-          </div>
-        </div>
-        <div className="mt-0.5 flex flex-1 flex-col justify-between">
-          <div className="flex items-center gap-2">
+      >
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.45] transition-opacity duration-500 group-hover:opacity-100"
+          style={{
+            background: `radial-gradient(circle at top right, ${hexToRgba(accent, 0.18)} 0%, transparent 48%)`
+          }}
+        />
+        <div className="relative z-10 flex h-full flex-col">
+          <div className="flex items-start justify-between gap-2">
             <div
-              className="flex items-center [&>svg]:h-3.5 [&>svg]:w-3.5 shrink-0"
-              style={{ color: accent, filter: `drop-shadow(0 4px 12px ${hexToRgba(accent, 0.4)})` }}
+              className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-ql-10 font-medium uppercase tracking-ql-standard"
+              style={{
+                color: isActive ? accent : 'rgba(255,255,255,0.4)',
+                borderColor: isActive ? hexToRgba(accent, 0.26) : 'rgba(255,255,255,0.08)',
+                background: isActive ? hexToRgba(accent, 0.12) : 'rgba(255,255,255,0.03)'
+              }}
             >
-              {icon || <span className="text-[15px] font-semibold">{displayName.charAt(0)}</span>}
+              {tone === 'site' ? (
+                <Globe className="h-[8px] w-[8px]" />
+              ) : (
+                <Sparkles className="h-[8px] w-[8px]" />
+              )}
+              <span className="leading-none pt-[1px]">{toneLabel}</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate text-xs font-semibold tracking-tight text-white/90">
-                {displayName}
-              </h3>
-              <p className="truncate mt-0 text-[9.5px] leading-relaxed text-white/42">{subtitle}</p>
+            <div className="flex items-center gap-1.5">
+              {isActive && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ background: accent, boxShadow: `0 0 16px ${hexToRgba(accent, 0.9)}` }}
+                />
+              )}
+              <div className="rounded-full border border-white/8 bg-black/15 p-[2px] text-white/[0.55] transition-colors group-hover:text-white/80">
+                <ArrowUpRight className="h-2.5 w-2.5" />
+              </div>
             </div>
           </div>
-          <div className="mt-1 flex items-center justify-between gap-2 text-[7.5px] uppercase tracking-[0.18em] text-white/28 font-medium">
-            <span className="truncate">{isActive ? t('ai_home.open') : t('ai_home.ready')}</span>
-            <span className="shrink-0 rounded-full border border-white/8 bg-white/[0.03] px-1.5 py-[2px]">
-              {t('ai_home.new_tab')}
-            </span>
+          <div className="mt-0.5 flex flex-1 flex-col justify-between">
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center [&>svg]:h-3.5 [&>svg]:w-3.5 shrink-0"
+                style={{
+                  color: accent,
+                  filter: `drop-shadow(0 4px 12px ${hexToRgba(accent, 0.4)})`
+                }}
+              >
+                {icon || <span className="text-ql-16 font-semibold">{displayName.charAt(0)}</span>}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-ql-12 font-semibold tracking-tight text-white/90">
+                  {displayName}
+                </h3>
+                <p className="truncate mt-0 text-ql-10 leading-relaxed text-white/42">{subtitle}</p>
+              </div>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2 text-ql-10 uppercase tracking-ql-standard text-white/28 font-medium">
+              <span className="truncate">{isActive ? t('ai_home.open') : t('ai_home.ready')}</span>
+              <span className="shrink-0 rounded-full border border-white/8 bg-white/[0.03] px-1.5 py-0.5">
+                {t('ai_home.new_tab')}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    </motion.button>
+      </ListItemCard>
+    </motion.div>
   )
 }
 
@@ -215,14 +222,15 @@ export function StatChip({
   value: string
 }) {
   return (
-    <div
-      className={`rounded-[32px] border backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_20px_rgba(0,0,0,0.2)] ${compact ? 'flex-1 min-w-[120px] px-3 py-2' : 'px-4 py-3'}`}
+    <SurfaceCard
+      tier={3}
+      className={`relative overflow-hidden ${compact ? 'flex-1 min-w-[120px] p-2 sm:p-2' : 'p-3 sm:p-4'}`}
       style={{
         borderColor: hexToRgba(accent, 0.2),
         background: `linear-gradient(160deg, ${hexToRgba(accent, 0.12)} 0%, rgba(255,255,255,0.04) 55%, rgba(0,0,0,0.16) 100%)`
       }}
     >
-      <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`}>
+      <ActionRow contentClassName={compact ? 'gap-2' : 'gap-3'}>
         <div
           className={`flex shrink-0 items-center justify-center rounded-full border shadow-sm ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}
           style={{
@@ -235,14 +243,14 @@ export function StatChip({
         </div>
         <div className="min-w-0">
           <div
-            className={`truncate font-semibold tracking-tight text-white/90 ${compact ? 'text-sm' : 'text-base'}`}
+            className={`truncate font-semibold tracking-tight text-white/90 ${compact ? 'text-ql-14' : 'text-ql-16'}`}
           >
             {value}
           </div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-white/32">{label}</div>
+          <div className="text-ql-10 uppercase tracking-ql-standard text-white/32">{label}</div>
         </div>
-      </div>
-    </div>
+      </ActionRow>
+    </SurfaceCard>
   )
 }
 
@@ -250,24 +258,16 @@ export function EmptySitesState() {
   const { t } = useLanguageStrings()
 
   return (
-    <div className="rounded-[32px] border border-dashed border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-8 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02),0_8px_20px_rgba(0,0,0,0.15)]">
-      <div className="flex flex-col items-start gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/28">
-          <Globe className="h-6 w-6" />
-        </div>
-        <div>
-          <div className="text-base font-semibold tracking-tight text-white/78">
-            {t('ai_home.empty_sites_title')}
-          </div>
-          <div className="mt-1.5 max-w-md text-[13px] leading-relaxed text-white/42">
-            {t('ai_home.empty_sites_description')}
-          </div>
-        </div>
-        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-white/28">
+    <EmptyState
+      icon={Globe}
+      title={t('ai_home.empty_sites_title')}
+      description={t('ai_home.empty_sites_description')}
+      action={
+        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-ql-10 uppercase tracking-ql-standard text-white/28">
           {t('ai_home.empty_sites_hint')}
         </div>
-      </div>
-    </div>
+      }
+    />
   )
 }
 
@@ -308,10 +308,10 @@ export function OpenTabsToggle({
             <Layers3 className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1 ml-1">
-            <div className="truncate text-base font-semibold tracking-tight text-white/90">
+            <div className="truncate text-ql-16 font-semibold tracking-tight text-white/90">
               {tabs.length}
             </div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-white/32">
+            <div className="text-ql-10 uppercase tracking-ql-standard text-white/32">
               {t('ai_home.open_tab')}
             </div>
           </div>
@@ -346,7 +346,7 @@ export function OpenTabsToggle({
             ))}
           </div>
         ) : (
-          <div className="rounded-[18px] border border-white/8 bg-white/[0.02] p-3 text-center text-[11px] text-white/40 mb-1">
+          <div className="rounded-[18px] border border-white/8 bg-white/[0.02] p-3 text-center text-ql-12 text-white/40 mb-1">
             {t('ai_home.open_tabs_title')} bulunmuyor
           </div>
         )}

@@ -71,7 +71,7 @@ export function AddAiModelForm({
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider pl-1">
+              <label className="text-ql-10 uppercase font-bold text-white/40 tracking-wider pl-1">
                 {t('name')}
               </label>
               <input
@@ -79,11 +79,11 @@ export function AddAiModelForm({
                 value={newAiName}
                 onChange={(e) => setNewAiName(e.target.value)}
                 placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
-                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none transition-colors"
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-ql-14 text-white focus:border-blue-500/50 focus:outline-none transition-colors"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider pl-1">
+              <label className="text-ql-10 uppercase font-bold text-white/40 tracking-wider pl-1">
                 {t('url')}
               </label>
               <input
@@ -91,7 +91,7 @@ export function AddAiModelForm({
                 value={newAiUrl}
                 onChange={(e) => setNewAiUrl(e.target.value)}
                 placeholder="https://..."
-                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500/50 focus:outline-none transition-colors"
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-ql-14 text-white focus:border-blue-500/50 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -99,7 +99,7 @@ export function AddAiModelForm({
             <button
               type="submit"
               disabled={isAdding || !newAiName || !newAiUrl}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all"
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-ql-12 font-bold rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all"
             >
               {isAdding ? t('adding') : t('save_platform')}
             </button>

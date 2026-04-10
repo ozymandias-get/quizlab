@@ -48,10 +48,10 @@ export default function AiHomeSection({
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[10.5px] uppercase tracking-[0.22em] text-white/35 font-medium">
+          <div className="text-ql-10 uppercase tracking-ql-section text-white/35 font-medium">
             {title}
           </div>
-          <div className="mt-0.5 text-[13px] text-white/56">{detail}</div>
+          <div className="mt-0.5 text-ql-14 text-white/56">{detail}</div>
         </div>
         <div
           className="flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-white/35"

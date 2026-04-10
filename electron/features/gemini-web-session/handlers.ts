@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { APP_CONFIG } from '../../app/constants'
+import { toStrictBoolean } from '../../core/ipcPayloadGuards'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { geminiWebSessionManager } from './sessionManager'
 
@@ -41,9 +42,9 @@ export function registerGeminiWebSessionHandlers(): void {
     return geminiWebSessionManager.resetProfile()
   })
 
-  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, async (event, enabled: boolean) => {
+  ipcMain.handle(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, async (event, enabled: unknown) => {
     if (!requireTrustedIpcSender(event)) return false
-    return geminiWebSessionManager.setEnabled(Boolean(enabled))
+    return geminiWebSessionManager.setEnabled(toStrictBoolean(enabled))
   })
 
   ipcMain.handle(

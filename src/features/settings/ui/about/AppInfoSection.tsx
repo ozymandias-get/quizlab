@@ -26,12 +26,12 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
       </motion.div>
 
       <div className="text-center relative z-10 space-y-3">
-        <h3 className="text-3xl font-black text-white tracking-tight">{t('app_name')}</h3>
+        <h3 className="text-ql-28 font-black text-white tracking-tight">{t('app_name')}</h3>
         <div className="flex items-center justify-center gap-2">
-          <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">
+          <span className="text-ql-10 font-bold text-white/40 uppercase tracking-ql-spread">
             {t('version')}
           </span>
-          <span className="text-[11px] font-mono font-bold text-white px-3 py-1 rounded-lg bg-white/10 border border-white/20 shadow-lg">
+          <span className="text-ql-12 font-mono font-bold text-white px-3 py-1 rounded-lg bg-white/10 border border-white/20 shadow-lg">
             {appVersion}
           </span>
         </div>

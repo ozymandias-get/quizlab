@@ -1,4 +1,4 @@
-﻿import { useState, type MouseEvent } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Field, Label, Description } from '@headlessui/react'
 import { GridIcon, TrashIcon } from '@ui/components/Icons'
@@ -113,18 +113,18 @@ export function AiModelList({
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
                       <Label
-                        className={`text-sm font-bold transition-colors duration-300 ${isEnabled ? 'text-white' : 'text-white/50'}`}
+                        className={`text-ql-14 font-bold transition-colors duration-300 ${isEnabled ? 'text-white' : 'text-white/50'}`}
                       >
                         {getAiPlatformLabel(site, key, t)}
                       </Label>
                       {isCustom && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/20">
+                        <span className="px-1.5 py-0.5 rounded text-ql-10 font-bold bg-blue-500/20 text-blue-300 border border-blue-500/20">
                           {t('custom_badge')}
                         </span>
                       )}
                     </div>
                     <Description
-                      className={`text-[10px] uppercase tracking-widest font-bold transition-colors duration-300 ${isEnabled ? 'text-emerald-400/60' : 'text-white/20'}`}
+                      className={`text-ql-10 uppercase tracking-ql-caps font-bold transition-colors duration-300 ${isEnabled ? 'text-emerald-400/60' : 'text-white/20'}`}
                     >
                       {isEnabled ? t('model_active') : t('model_inactive')}
                     </Description>
@@ -164,7 +164,7 @@ export function AiModelList({
                     <button
                       onClick={(e) => onDeleteClick(e, site.id, site.name)}
                       disabled={isDeleting || isCurrentlyDeleting}
-                      className="p-2 mr-[-8px] rounded-full hover:bg-red-500/20 text-white/20 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2 mr-[-8px] rounded-full hover:bg-red-500/20 text-white/20 hover:text-red-400 transition-all opacity-[0.55] group-hover:opacity-100 group-focus-within:opacity-100"
                       title={t('delete_custom_ai')}
                     >
                       {isCurrentlyDeleting ? (

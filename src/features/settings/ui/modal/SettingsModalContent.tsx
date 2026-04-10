@@ -2,9 +2,10 @@ import { Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Button } from '@ui/components/button'
 import { CloseIcon } from '@ui/components/Icons'
-import { TabsContent } from '@ui/components/tabs'
 import {
+  SETTINGS_MODAL_MAIN_PANEL_ID,
   SETTINGS_TAB_RENDERERS,
+  settingsTabButtonId,
   type SettingsState,
   type SettingsTabId,
   type TabDef
@@ -37,12 +38,12 @@ export default function SettingsModalContent({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="text-lg md:text-xl font-bold text-white/90 tracking-tight"
+              className="text-ql-20 font-bold text-white/90 tracking-tight"
             >
               {activeTabLabel}
             </motion.h3>
           </AnimatePresence>
-          <p className="text-[10px] text-white/30 uppercase tracking-widest font-medium">
+          <p className="text-ql-10 text-white/30 uppercase tracking-ql-caps font-medium">
             {t('configure_settings')}
           </p>
         </div>
@@ -61,30 +62,29 @@ export default function SettingsModalContent({
 
       <div className="mx-6 md:mx-8 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 py-5 md:py-6">
-        {tabDefs.map((tab) => (
-          <TabsContent
-            key={tab.id}
-            value={tab.id}
-            className="focus:outline-none h-full m-0 data-[state=active]:block data-[state=inactive]:hidden"
+      <div
+        id={SETTINGS_MODAL_MAIN_PANEL_ID}
+        role="tabpanel"
+        aria-labelledby={settingsTabButtonId(activeTab)}
+        className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 py-5 md:py-6"
+      >
+        <Suspense
+          key={activeTab}
+          fallback={
+            <div className="flex items-center justify-center p-12 h-full">
+              <div className="w-6 h-6 rounded-full border-2 border-white/15 border-t-white/50 animate-spin" />
+            </div>
+          }
+        >
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
           >
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center p-12 h-full">
-                  <div className="w-6 h-6 rounded-full border-2 border-white/15 border-t-white/50 animate-spin" />
-                </div>
-              }
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-              >
-                {SETTINGS_TAB_RENDERERS[tab.id]({ onClose, settings })}
-              </motion.div>
-            </Suspense>
-          </TabsContent>
-        ))}
+            {SETTINGS_TAB_RENDERERS[activeTab]({ onClose, settings })}
+          </motion.div>
+        </Suspense>
       </div>
     </main>
   )

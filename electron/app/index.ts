@@ -55,6 +55,7 @@ app.commandLine.appendSwitch('high-dpi-support', '1')
 
 let appCleanupPromise: Promise<void> | null = null
 let appCleanupComplete = false
+let quitAfterCleanup = false
 
 async function performAppCleanup() {
   if (appCleanupComplete) return
@@ -112,15 +113,18 @@ app.on('activate', async () => {
 })
 
 app.on('window-all-closed', () => {
-  void performAppCleanup()
-
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-app.on('before-quit', () => {
-  void performAppCleanup()
+app.on('before-quit', (event) => {
+  if (quitAfterCleanup) return
+  event.preventDefault()
+  void performAppCleanup().finally(() => {
+    quitAfterCleanup = true
+    app.quit()
+  })
 })
 
 const handleSeriousError = (type: string, error: unknown) => {

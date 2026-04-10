@@ -131,7 +131,7 @@ function AiSendComposerContent({
       >
         {items.length > 1 ? (
           <motion.p
-            className="text-[10px] font-medium tracking-[0.1em] text-white/30"
+            className="text-ql-10 font-medium tracking-ql-caps text-white/30"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -194,21 +194,21 @@ function AiSendComposerContent({
                           }}
                           strokeWidth={2}
                         />
-                        <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                        <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-ql-10 font-semibold uppercase tracking-ql-label text-white/45">
                           {t('ai_send_selection_item', { index: String(textOrdinal) })}
                         </span>
                       </span>
                       <button
                         type="button"
                         onClick={() => onRemoveItem(item.id)}
-                        className="rounded-full p-1 text-white/30 transition-all duration-200 hover:bg-white/[0.08] hover:text-white/70 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                        className="rounded-full p-1 text-white/[0.55] transition-all duration-200 group-hover:text-white/75 hover:bg-white/[0.08] hover:text-white/85 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
                         title={t('ai_send_remove_item')}
                       >
                         <X className="h-3 w-3" strokeWidth={2.2} />
                       </button>
                     </div>
                     <p
-                      className="overflow-hidden px-3 pb-3 pl-4 text-[12.5px] leading-[1.6] text-white/76"
+                      className="overflow-hidden px-3 pb-3 pl-4 text-ql-12 leading-relaxed text-white/76"
                       style={{
                         display: '-webkit-box',
                         WebkitBoxOrient: 'vertical',
@@ -268,7 +268,7 @@ function AiSendComposerContent({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <ImageIcon className="h-3 w-3 text-emerald-400/70" strokeWidth={2} />
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                        <span className="text-ql-10 font-semibold uppercase tracking-ql-label text-white/45">
                           {imageLabel}
                         </span>
                       </div>
@@ -277,7 +277,7 @@ function AiSendComposerContent({
                     <button
                       type="button"
                       onClick={() => onRemoveItem(item.id)}
-                      className="ml-auto rounded-full p-1 text-white/30 transition-all duration-200 hover:bg-white/[0.08] hover:text-white/70 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                      className="ml-auto rounded-full p-1 text-white/[0.55] transition-all duration-200 group-hover:text-white/75 hover:bg-white/[0.08] hover:text-white/85 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)]"
                       title={t('ai_send_remove_item')}
                     >
                       <X className="h-3 w-3" strokeWidth={2.2} />
@@ -292,10 +292,10 @@ function AiSendComposerContent({
         <section className="space-y-2">
           <div className="rounded-[22px] border border-white/[0.1] bg-[linear-gradient(145deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.03)_100%)] p-3 shadow-[inset_0_1px_2px_rgba(255,255,255,0.08),0_10px_28px_rgba(0,0,0,0.2)]">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <label className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
+              <label className="text-ql-10 font-semibold uppercase tracking-ql-label text-white/45">
                 {t('ai_send_note_label')}
               </label>
-              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 tabular-nums text-[10px] font-medium text-white/40">
+              <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-1 tabular-nums text-ql-10 font-medium text-white/40">
                 {t('ai_send_item_count', { count: String(totalItems) })}
               </span>
             </div>
@@ -308,7 +308,7 @@ function AiSendComposerContent({
               placeholder={
                 hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')
               }
-              className="w-full resize-none rounded-2xl border border-white/[0.15] px-3.5 py-3 text-[12.5px] leading-relaxed text-white/85 outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.25] focus:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_0_0_3px_rgba(255,255,255,0.08)]"
+              className="w-full resize-none rounded-2xl border border-white/[0.15] px-3.5 py-3 text-ql-12 leading-relaxed text-white/85 outline-none backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 placeholder:text-white/25 focus:border-white/[0.25] focus:shadow-[inset_0_1px_2px_rgba(255,255,255,0.18),0_0_0_3px_rgba(255,255,255,0.08)]"
               style={{
                 minHeight: 88,
                 background:
@@ -349,7 +349,7 @@ function AiSendComposerContent({
                 disabled={isSubmitting || totalItems === 0}
                 variant="outline"
                 aria-label={t('auto_send')}
-                className="rounded-2xl border border-emerald-400/25 px-3.5 py-2 text-[12px] font-semibold text-emerald-100/90 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-emerald-400/35 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_28px_rgba(0,0,0,0.35)] active:scale-[0.97] disabled:opacity-35"
+                className="rounded-2xl border border-emerald-400/25 px-3.5 py-2 text-ql-12 font-semibold text-emerald-100/90 backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06),0_8px_20px_rgba(0,0,0,0.2)] transition-all duration-300 hover:border-emerald-400/35 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_12px_28px_rgba(0,0,0,0.35)] active:scale-[0.97] disabled:opacity-35"
                 style={{
                   background:
                     'linear-gradient(135deg, rgba(16,185,129,0.16) 0%, rgba(255,255,255,0.035) 48%, rgba(0,0,0,0.12) 100%)'
@@ -371,7 +371,7 @@ function AiSendComposerContent({
           }}
           disabled={isSubmitting || totalItems === 0}
           aria-label={isSubmitting ? t('sending_to_ai') : t('send_to_ai')}
-          className="group relative overflow-hidden rounded-2xl border border-white/[0.18] px-4 py-2.5 text-[12.5px] font-semibold text-white backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_0_0_0.5px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.35)] transition-all duration-300 hover:border-white/[0.28] hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.25),0_12px_32px_rgba(0,0,0,0.5)] active:scale-[0.97] disabled:opacity-35 before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.08] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
+          className="group relative overflow-hidden rounded-2xl border border-white/[0.18] px-4 py-2.5 text-ql-12 font-semibold text-white backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_0_0_0.5px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.35)] transition-all duration-300 hover:border-white/[0.28] hover:shadow-[inset_0_1px_3px_rgba(255,255,255,0.25),0_12px_32px_rgba(0,0,0,0.5)] active:scale-[0.97] disabled:opacity-35 before:pointer-events-none before:absolute before:inset-0 before:z-0 before:rounded-2xl before:bg-gradient-to-r before:from-transparent before:via-white/[0.08] before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out"
           style={{
             background: `linear-gradient(140deg, ${accentStrong} 0%, rgba(255,255,255,0.14) 70%, rgba(255,255,255,0.06) 100%)`,
             boxShadow: `inset 0 1px 2px rgba(255,255,255,0.2), inset 0 0 0 0.5px rgba(255,255,255,0.1), 0 0 20px -4px ${accentStrong}, 0 8px 24px rgba(0,0,0,0.35)`

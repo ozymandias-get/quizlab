@@ -31,7 +31,6 @@ export function useAiTabStripState({
   const renameInputRef = useRef<HTMLInputElement>(null)
   const skipBlurSaveRef = useRef(false)
 
-  const [hoveredTabId, setHoveredTabId] = useState<string | null>(null)
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -161,7 +160,6 @@ export function useAiTabStripState({
       skipBlurSaveRef
     },
     state: {
-      hoveredTabId,
       editingTabId,
       editingValue,
       contextMenu,
@@ -176,7 +174,6 @@ export function useAiTabStripState({
       getTabColor
     },
     actions: {
-      setHoveredTabId,
       setEditingValue,
       setContextMenu,
       setIsOverflowOpen,

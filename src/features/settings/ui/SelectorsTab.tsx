@@ -31,14 +31,14 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
             <MagicWandIcon className="w-6 h-6" />
           </div>
           <div className="text-left">
-            <h4 className="text-sm font-bold text-white/90 transition-colors group-hover:text-purple-300">
+            <h4 className="text-ql-14 font-bold text-white/90 transition-colors group-hover:text-purple-300">
               {t('tutorial_button_title')}
             </h4>
-            <p className="text-xs text-white/40 transition-colors group-hover:text-white/60">
+            <p className="text-ql-12 text-white/40 transition-colors group-hover:text-white/60">
               {t('tutorial_button_desc')}
             </p>
           </div>
-          <div className="ml-auto text-purple-400 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="ml-auto text-purple-400 opacity-[0.55] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
             <ChevronRightIcon className="w-5 h-5" />
           </div>
         </button>
@@ -60,7 +60,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         onSubmitModeChange={controller.handleSubmitModeChange}
         onTestSelectors={controller.handleTestSelectors}
         onDeleteSelectors={controller.handleDeleteSelectors}
-        t={t as any}
+        t={t}
       />
     </div>
   )

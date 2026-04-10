@@ -44,8 +44,8 @@ const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) =>
           <ImportIcon className="w-8 h-8" />
         </div>
         <div className="text-center">
-          <h3 className="text-emerald-400 font-bold text-lg">{t('drop_pdf_title')}</h3>
-          <p className="text-stone-400 text-sm mt-1">{t('drop_pdf_desc')}</p>
+          <h3 className="text-emerald-400 font-bold text-ql-20">{t('drop_pdf_title')}</h3>
+          <p className="text-stone-400 text-ql-14 mt-1">{t('drop_pdf_desc')}</p>
         </div>
       </div>
     </div>
@@ -85,7 +85,7 @@ function LeftPanel({
     <div
       ref={containerRef}
       {...dragHandlers}
-      className="glass-panel h-full w-full flex flex-col overflow-hidden relative"
+      className="glass-tier-2 h-full w-full flex flex-col overflow-hidden relative"
       style={{
         transform: 'translateZ(0)',
         backfaceVisibility: 'hidden'

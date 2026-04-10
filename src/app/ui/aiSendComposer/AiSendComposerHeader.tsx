@@ -51,10 +51,10 @@ function AiSendComposerHeader({
             </div>
 
             <div className="min-w-0">
-              <p className="truncate text-[14.5px] font-semibold tracking-[-0.015em] text-white">
+              <p className="truncate text-ql-14 font-semibold tracking-[-0.015em] text-white">
                 {t('ai_send_panel_title')}
               </p>
-              <p className="mt-1 text-[11px] tabular-nums tracking-[0.03em] text-white/42">
+              <p className="mt-1 text-ql-12 tabular-nums tracking-ql-mono text-white/42">
                 {`${textCount} ${t('ai_send_text_count_label')} / ${imageCount} ${t('ai_send_image_count_label')}`}
               </p>
             </div>
@@ -67,7 +67,7 @@ function AiSendComposerHeader({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onToggleAutoSend}
               className={cn(
-                'h-[31px] rounded-full border px-3 text-[10.5px] font-semibold tracking-[0.06em] uppercase backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300',
+                'h-[31px] rounded-full border px-3 text-ql-10 font-semibold tracking-ql-micro uppercase backdrop-blur-2xl backdrop-saturate-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-300',
                 autoSend
                   ? 'border-emerald-400/25 text-emerald-200/90 hover:border-emerald-400/35 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_8px_20px_rgba(0,0,0,0.3)]'
                   : 'border-white/[0.09] text-white/50 hover:border-white/[0.15] hover:text-white/70 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_8px_20px_rgba(0,0,0,0.3)]'
@@ -101,12 +101,12 @@ function AiSendComposerHeader({
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em] text-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-ql-10 font-semibold tracking-ql-chrome text-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]">
             <Type className="h-3 w-3 text-white/40" strokeWidth={2.1} />
             <span className="tabular-nums">{textCount}</span>
             <span>{t('ai_send_text_count_label')}</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em] text-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-ql-10 font-semibold tracking-ql-chrome text-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]">
             <ImageIcon className="h-3 w-3 text-emerald-300/70" strokeWidth={2.1} />
             <span className="tabular-nums">{imageCount}</span>
             <span>{t('ai_send_image_count_label')}</span>

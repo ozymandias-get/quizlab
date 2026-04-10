@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLanguageStrings } from '@app/providers'
 import { useSettings } from '../../hooks/useSettings'
-import { buildSettingsTabDefs, toSettingsTabId, type SettingsTabId } from './settingsModalTabs'
+import {
+  buildSettingsSidebarSections,
+  buildSettingsTabDefs,
+  toSettingsTabId,
+  type SettingsTabId
+} from './settingsModalTabs'
 
 const CLICK_OUTSIDE_DELAY = 100
 
@@ -68,6 +73,7 @@ export function useSettingsModalState({
   }, [isOpen, normalizedInitialTab])
 
   const tabDefs = useMemo(() => buildSettingsTabDefs(t), [t])
+  const sidebarSections = useMemo(() => buildSettingsSidebarSections(t), [t])
   const activeTabMeta = tabDefs.find((tab) => tab.id === activeTab) ?? tabDefs[0]
 
   return {
@@ -77,6 +83,7 @@ export function useSettingsModalState({
     setActiveTab: (value: string) => setActiveTab(toSettingsTabId(value)),
     settings,
     sidebarScrollRef,
+    sidebarSections,
     t,
     tabDefs
   }

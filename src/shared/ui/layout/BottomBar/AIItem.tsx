@@ -176,8 +176,8 @@ export const AIItem = memo<AIItemProps>(function AIItem({
 
   const isBeingDragged = activeDragItem === modelKey
   const hasTabControls = Boolean(onClose || onTogglePin)
-  const shouldShowPin = Boolean(onTogglePin) && (isPinned || isHovered)
-  const shouldShowClose = Boolean(onClose) && isHovered
+  const shouldShowPin = Boolean(onTogglePin)
+  const shouldShowClose = Boolean(onClose)
 
   const buttonStyle = useMemo(
     () => getButtonStyle({ isSelected, isBeingDragged, isHovered, safeColor }),
@@ -272,7 +272,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
       whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
       className={cn(
         buttonBaseClass,
-        'relative rounded-xl transition-all duration-150',
+        'group relative rounded-xl transition-all duration-150',
         showOnlyIcons ? 'w-[40px] h-[40px] p-2.5' : 'px-3 py-2 gap-2.5 min-w-[100px]'
       )}
       style={{
@@ -285,7 +285,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
     >
       {renderedIcon || (
         <div
-          className="w-4 h-4 flex items-center justify-center font-bold text-[10px]"
+          className="w-4 h-4 flex items-center justify-center font-bold text-ql-10"
           style={FALLBACK_ICON_STYLE}
         >
           {translatedName.charAt(0) || '?'}
@@ -293,7 +293,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
       )}
 
       {!showOnlyIcons && (
-        <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
+        <span className="text-ql-10 font-bold uppercase tracking-wider opacity-80 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
           {translatedName}
         </span>
       )}
@@ -309,11 +309,12 @@ export const AIItem = memo<AIItemProps>(function AIItem({
               tabIndex={-1}
               aria-label={isPinned ? t('tab_unpin') : t('tab_pin')}
               title={isPinned ? t('tab_pinned') : t('tab_pin')}
-              className={`flex items-center justify-center rounded-md border px-1 py-1 transition-all duration-150 ${
+              className={cn(
+                'flex items-center justify-center rounded-md border px-1 py-1 transition-all duration-150',
                 isPinned
                   ? 'text-white bg-white/18 border-white/25 shadow-sm'
-                  : 'text-white/65 bg-black/35 border-white/15 hover:text-white hover:bg-white/14'
-              }`}
+                  : 'text-white/65 bg-black/35 border-white/15 opacity-[0.55] hover:opacity-100 hover:text-white hover:bg-white/14 group-hover:opacity-100 group-focus-within:opacity-100'
+              )}
               onClick={handlePinClick}
             >
               <Pin className="w-2.5 h-2.5" fill={isPinned ? 'currentColor' : 'none'} />
@@ -326,7 +327,7 @@ export const AIItem = memo<AIItemProps>(function AIItem({
               tabIndex={-1}
               aria-label={t('tab_close')}
               title={t('tab_close')}
-              className="flex items-center justify-center rounded-md border border-white/15 px-1 py-1 text-white/70 bg-black/35 hover:text-white hover:bg-white/14 transition-all duration-150"
+              className="flex items-center justify-center rounded-md border border-white/15 px-1 py-1 text-white/70 bg-black/35 opacity-[0.55] transition-opacity duration-150 hover:opacity-100 hover:text-white hover:bg-white/14 group-hover:opacity-100 group-focus-within:opacity-100"
               onClick={handleCloseClick}
             >
               <X className="w-2.5 h-2.5" />

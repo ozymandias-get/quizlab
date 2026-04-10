@@ -60,7 +60,7 @@ function PdfSearchBar({
                 onChange={(e) => onKeywordChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="w-full pl-9 pr-3 py-2 text-xs bg-black/40 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50 focus:bg-black/60 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-inner"
+                className="w-full pl-9 pr-3 py-2 text-ql-12 bg-black/40 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50 focus:bg-black/60 focus:ring-1 focus:ring-amber-500/20 transition-all shadow-inner"
                 autoFocus
               />
             </div>
@@ -111,10 +111,10 @@ function PdfSearchBar({
             </div>
 
             <div className="flex flex-col justify-center min-w-0 flex-1 text-left">
-              <span className="text-[9px] uppercase tracking-[0.15em] font-semibold text-white/25 leading-none mb-0.5 group-hover:text-white/40 transition-colors duration-300 truncate">
+              <span className="text-ql-10 uppercase tracking-ql-soft font-semibold text-white/25 leading-none mb-0.5 group-hover:text-white/40 transition-colors duration-300 truncate">
                 {t('reading_now') === 'reading_now' ? 'READING' : t('reading_now')}
               </span>
-              <span className="text-xs font-medium text-white/70 truncate leading-tight group-hover:text-white/90 transition-colors duration-300 block w-full">
+              <span className="text-ql-12 font-medium text-white/70 truncate leading-tight group-hover:text-white/90 transition-colors duration-300 block w-full">
                 {fileName || t('pdf_document')}
               </span>
             </div>

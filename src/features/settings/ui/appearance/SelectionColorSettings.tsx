@@ -1,4 +1,4 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { SelectionIcon } from '@ui/components/Icons'
 import ColorPicker from '../ColorPicker'
@@ -23,8 +23,8 @@ const SelectionColorSettings = memo(
             <SelectionIcon className="w-4 h-4" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="text-sm font-bold text-white/90">{t('selection_color_settings')}</h3>
-            <p className="text-[10px] text-white/30 uppercase tracking-widest">
+            <h3 className="text-ql-14 font-bold text-white/90">{t('selection_color_settings')}</h3>
+            <p className="text-ql-10 text-white/30 uppercase tracking-ql-caps">
               {t('selection_color_desc')}
             </p>
           </div>
@@ -41,7 +41,7 @@ const SelectionColorSettings = memo(
               className="w-10 h-6 rounded-md shadow-lg"
               style={{ backgroundColor: selectionColor }}
             />
-            <span className="text-[10px] text-white/40 font-medium">
+            <span className="text-ql-10 text-white/40 font-medium">
               {t('selection_color_preview_hint')}
             </span>
           </div>

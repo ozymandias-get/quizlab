@@ -286,7 +286,7 @@ function AiSendComposer({
                         aria-hidden
                       />
                     </motion.div>
-                    <p className="text-[13px] font-medium text-white/70">{t('sending_to_ai')}</p>
+                    <p className="text-ql-14 font-medium text-white/70">{t('sending_to_ai')}</p>
                   </motion.div>
                 </motion.div>
               ) : null}

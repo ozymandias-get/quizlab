@@ -36,14 +36,14 @@ function GoogleDrivePanel({
             {getAiIcon('gdrive')}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-stone-200">{title}</div>
-            <div className="truncate text-[11px] text-stone-500">{description}</div>
+            <div className="truncate text-ql-14 font-semibold text-stone-200">{title}</div>
+            <div className="truncate text-ql-12 text-stone-500">{description}</div>
           </div>
         </div>
         <button
           type="button"
           onClick={() => driveWebviewRef.current?.reload?.()}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-stone-200 transition-colors hover:bg-white/10"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-ql-12 font-semibold text-stone-200 transition-colors hover:bg-white/10"
         >
           <RefreshIcon className="w-4 h-4" />
           {reloadLabel}

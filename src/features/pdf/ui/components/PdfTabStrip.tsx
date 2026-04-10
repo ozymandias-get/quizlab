@@ -14,12 +14,8 @@ import { useLanguageStrings } from '@app/providers/LanguageContext'
 import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
 import AiTabStripHomeButton from '@features/ai/ui/aiTabStrip/AiTabStripHomeButton'
 import { getAiIcon } from '@ui/components/Icons'
-import {
-  TAB_STRIP_BAR_CLASS,
-  TAB_STRIP_CHROME_BTN,
-  TAB_STRIP_CHROME_BTN_WIDE,
-  TAB_STRIP_ROW_CLASS
-} from '@shared/ui/tabStripChrome'
+import { TAB_STRIP_BAR_CLASS, TAB_STRIP_ROW_CLASS } from '@shared/ui/tabStripChrome'
+import { ToolbarButton } from '@shared/ui/components/primitives'
 
 interface PdfTabStripProps {
   tabs: PdfTab[]
@@ -72,7 +68,6 @@ function PdfTabStrip({
   const renameInputRef = useRef<HTMLInputElement>(null)
   const skipBlurSaveRef = useRef(false)
 
-  const [hoveredTabId, setHoveredTabId] = useState<string | null>(null)
   const [isOverflowOpen, setIsOverflowOpen] = useState(false)
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
@@ -210,7 +205,6 @@ function PdfTabStrip({
         {visibleTabs.map((tab) => {
           const label = getTabLabel(tab)
           const isActive = tab.id === activeTabId
-          const isHovered = hoveredTabId === tab.id
           const isEditing = editingTabId === tab.id
 
           return (
@@ -224,7 +218,7 @@ function PdfTabStrip({
                 transition: { type: 'spring', stiffness: 380, damping: 24 }
               }}
               whileTap={{ scale: 0.99 }}
-              className="relative flex h-8 min-w-0 max-w-[250px] items-center gap-2 rounded-full border px-3.5 pr-10 transition-all duration-200"
+              className="group relative flex h-8 min-w-0 max-w-[250px] items-center gap-2 rounded-full border px-3.5 pr-10 transition-all duration-200"
               style={
                 isActive
                   ? {
@@ -248,8 +242,6 @@ function PdfTabStrip({
                 beginRename(tab)
               }}
               onContextMenu={(event) => handleOpenContextMenu(event, tab.id)}
-              onMouseEnter={() => setHoveredTabId(tab.id)}
-              onMouseLeave={() => setHoveredTabId((prev) => (prev === tab.id ? null : prev))}
               title={label}
             >
               <span className="flex items-center [&>svg]:w-3.5 [&>svg]:h-3.5 shrink-0 text-white/85">
@@ -280,43 +272,39 @@ function PdfTabStrip({
                     }
                   }}
                   placeholder={tr('tab_rename_placeholder', 'Tab name...')}
-                  className="min-w-0 w-full bg-transparent text-[11px] text-white outline-none placeholder:text-white/45"
+                  className="min-w-0 w-full bg-transparent text-ql-12 text-white outline-none placeholder:text-white/45"
                 />
               ) : (
-                <span className="min-w-0 truncate text-[11px] text-white/85">{label}</span>
+                <span className="min-w-0 truncate text-ql-12 text-white/85">{label}</span>
               )}
 
-              {isHovered && (
-                <span
-                  role="button"
-                  tabIndex={-1}
-                  aria-label={tr('tab_close', 'Close')}
-                  title={tr('tab_close', 'Close')}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 hover:text-white transition-colors"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    onCloseTab(tab.id)
-                  }}
-                >
-                  <X className="w-3 h-3" />
-                </span>
-              )}
+              <span
+                role="button"
+                tabIndex={-1}
+                aria-label={tr('tab_close', 'Close')}
+                title={tr('tab_close', 'Close')}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 opacity-[0.55] transition-opacity hover:opacity-100 hover:text-white group-hover:opacity-100 group-focus-within:opacity-100"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onCloseTab(tab.id)
+                }}
+              >
+                <X className="w-3 h-3" />
+              </span>
             </motion.button>
           )
         })}
 
         {overflowTabs.length > 0 && (
           <div ref={overflowRef} className="relative ml-auto shrink-0">
-            <button
-              type="button"
-              className={`${TAB_STRIP_CHROME_BTN_WIDE} text-white/75`}
-              aria-label={tr('tab_more', 'More tabs')}
-              title={tr('tab_more', 'More tabs')}
+            <ToolbarButton
+              icon={MoreHorizontal}
+              className="!w-auto min-w-[36px] px-1.5 text-white/75 hover:bg-white/[0.08] hover:text-white"
+              tooltip={tr('tab_more', 'More tabs')}
+              isActive={isOverflowOpen}
               onClick={() => setIsOverflowOpen((prev) => !prev)}
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
+            />
 
             {isOverflowOpen && (
               <motion.div
@@ -343,7 +331,7 @@ function PdfTabStrip({
                       <span className="flex items-center [&>svg]:w-3.5 [&>svg]:h-3.5 shrink-0 text-white/85">
                         {getTabIcon(tab)}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[11px] text-white/85">
+                      <span className="min-w-0 flex-1 truncate text-ql-12 text-white/85">
                         {label}
                       </span>
                       <span
@@ -366,15 +354,14 @@ function PdfTabStrip({
           </div>
         )}
 
-        <button
-          type="button"
-          className={`${TAB_STRIP_CHROME_BTN} shrink-0 text-white/75`}
-          title={t('add_pdf')}
-          aria-label={t('add_pdf')}
-          onClick={onAddTab}
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        <div className="shrink-0">
+          <ToolbarButton
+            icon={Plus}
+            tooltip={t('add_pdf')}
+            onClick={onAddTab}
+            className="text-white/75 hover:bg-white/[0.08] hover:text-white"
+          />
+        </div>
       </div>
 
       {contextMenu &&
@@ -391,14 +378,14 @@ function PdfTabStrip({
           >
             <button
               type="button"
-              className="w-full text-left px-3 py-2 text-xs text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              className="w-full text-left px-3 py-2 text-ql-12 text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
               onClick={() => beginRename(contextMenuTab)}
             >
               {tr('tab_rename', 'Rename')}
             </button>
             <button
               type="button"
-              className="w-full text-left px-3 py-2 text-xs text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              className="w-full text-left px-3 py-2 text-ql-12 text-white/85 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
               onClick={() => {
                 onCloseTab(contextMenuTab.id)
                 setContextMenu(null)

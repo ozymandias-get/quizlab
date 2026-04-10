@@ -28,10 +28,10 @@ function UpdateBanner({ updateAvailable, updateInfo, isVisible, onClose, t }: Up
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-emerald-100 font-semibold text-sm mb-1">
+              <h3 className="text-emerald-100 font-semibold text-ql-14 mb-1">
                 {t('update_available')}
               </h3>
-              <p className="text-stone-400 text-xs leading-relaxed">
+              <p className="text-stone-400 text-ql-12 leading-relaxed">
                 {t('new_version')}{' '}
                 <span className="text-emerald-400 font-medium">{updateInfo.version}</span>{' '}
                 {t('is_available')}
@@ -52,14 +52,14 @@ function UpdateBanner({ updateAvailable, updateInfo, isVisible, onClose, t }: Up
           <div className="flex gap-2 mt-3">
             <button
               onClick={() => openExternal(APP_CONSTANTS.GITHUB_RELEASES_URL)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-medium rounded-lg transition-all hover:scale-105"
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-ql-12 font-medium rounded-lg transition-all hover:scale-105"
             >
               <DownloadIcon className="w-4 h-4" />
               {t('download_from_github')}
             </button>
             <button
               onClick={onClose}
-              className="px-3 py-1.5 hover:bg-stone-800/50 text-stone-400 hover:text-stone-300 text-xs font-medium rounded-lg transition-colors"
+              className="px-3 py-1.5 hover:bg-stone-800/50 text-stone-400 hover:text-stone-300 text-ql-12 font-medium rounded-lg transition-colors"
             >
               {t('later')}
             </button>

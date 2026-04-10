@@ -1,4 +1,4 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { Field, Label, Description } from '@headlessui/react'
 import { EyeIcon } from '@ui/components/Icons'
@@ -51,10 +51,10 @@ const CompactModeToggle = memo(({ showOnlyIcons, setShowOnlyIcons, t }: CompactM
             )}
           </div>
           <div className="space-y-0.5">
-            <Label className="text-sm font-bold text-white cursor-pointer">
+            <Label className="text-ql-14 font-bold text-white cursor-pointer">
               {t('show_only_icons')}
             </Label>
-            <Description className="text-[10px] text-white/40 font-medium uppercase tracking-wider">
+            <Description className="text-ql-10 text-white/40 font-medium uppercase tracking-wider">
               {t('show_only_icons_desc')}
             </Description>
           </div>

@@ -13,10 +13,10 @@ function SettingsTabHeader({ icon, eyebrow, title, action }: SettingsTabHeaderPr
       <div className="flex items-center gap-3">
         {icon}
         <div className="space-y-0.5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
+          <p className="text-ql-10 font-bold uppercase tracking-ql-eyebrow text-white/30">
             {eyebrow}
           </p>
-          <h4 className="text-sm font-bold tracking-wide text-white/90">{title}</h4>
+          <h4 className="text-ql-14 font-bold tracking-wide text-white/90">{title}</h4>
         </div>
       </div>
 

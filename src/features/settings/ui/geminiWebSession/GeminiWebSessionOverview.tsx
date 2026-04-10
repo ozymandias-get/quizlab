@@ -71,11 +71,11 @@ function GeminiWebSessionOverview({
     actionState.isResettingWebProfile ||
     actionState.isTogglingWebEnabled
   const loginButtonClass = status.showReauthAlert
-    ? 'inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-rose-400 disabled:opacity-50'
-    : 'inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-800 shadow-lg transition-all hover:bg-gray-100 disabled:opacity-50'
+    ? 'inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-ql-14 font-bold text-white shadow-lg transition-all hover:bg-rose-400 disabled:opacity-50'
+    : 'inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-ql-14 font-bold text-gray-800 shadow-lg transition-all hover:bg-gray-100 disabled:opacity-50'
   const reauthButtonClass = status.showReauthAlert
-    ? 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2.5 text-sm font-bold text-rose-100 transition-all hover:bg-rose-500/30 disabled:opacity-50'
-    : 'inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/20 px-4 py-2.5 text-sm font-bold text-amber-300 transition-all hover:bg-amber-500/30 disabled:opacity-50'
+    ? 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2.5 text-ql-14 font-bold text-rose-100 transition-all hover:bg-rose-500/30 disabled:opacity-50'
+    : 'inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/20 px-4 py-2.5 text-ql-14 font-bold text-amber-300 transition-all hover:bg-amber-500/30 disabled:opacity-50'
 
   return (
     <motion.div
@@ -102,11 +102,11 @@ function GeminiWebSessionOverview({
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <h4 className="text-sm font-bold text-white/90">{t('gws_title')}</h4>
-                <p className="mt-1 text-xs leading-relaxed text-white/60">{stateText}</p>
+                <h4 className="text-ql-14 font-bold text-white/90">{t('gws_title')}</h4>
+                <p className="mt-1 text-ql-12 leading-relaxed text-white/60">{stateText}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-[11px] text-white/55 backdrop-blur-sm lg:min-w-[260px]">
+              <div className="rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-ql-12 text-white/55 backdrop-blur-sm lg:min-w-[260px]">
                 <div>
                   {t('gws_reason_prefix')}: <span className="text-white/78">{reasonText}</span>
                 </div>
@@ -131,21 +131,21 @@ function GeminiWebSessionOverview({
         </div>
 
         {status.isRefreshing && (
-          <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 px-3.5 py-3 text-[12px] text-sky-100">
+          <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 px-3.5 py-3 text-ql-12 text-sky-100">
             <div className="flex items-center gap-2 font-semibold">
               <LoaderIcon className="h-4 w-4 animate-spin" />
               <span>{t('gws_refreshing_inline')}</span>
             </div>
-            <p className="mt-1 text-[11px] leading-relaxed text-sky-100/75">
+            <p className="mt-1 text-ql-12 leading-relaxed text-sky-100/75">
               {t('gws_refreshing_inline_desc')}
             </p>
           </div>
         )}
 
         {status.showReauthAlert && !status.isRefreshing && (
-          <div className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3.5 py-3 text-[12px] text-rose-50">
+          <div className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3.5 py-3 text-ql-12 text-rose-50">
             <div className="font-semibold">{t('gws_reauth_alert_title')}</div>
-            <p className="mt-1 text-[11px] leading-relaxed text-rose-100/80">
+            <p className="mt-1 text-ql-12 leading-relaxed text-rose-100/80">
               {t('gws_reauth_alert_body')}
             </p>
           </div>
@@ -156,9 +156,9 @@ function GeminiWebSessionOverview({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <GeminiIcon className="h-4 w-4 text-white/80" />
-                <span className="text-xs font-bold text-white/85">{t('gws_toggle_label')}</span>
+                <span className="text-ql-12 font-bold text-white/85">{t('gws_toggle_label')}</span>
               </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+              <p className="mt-1 text-ql-12 leading-relaxed text-white/45">
                 {t('gws_supported_apps_hint')}
               </p>
             </div>
@@ -198,7 +198,7 @@ function GeminiWebSessionOverview({
           <button
             onClick={handlers.onCheckWebNow}
             disabled={!status.webEnabled || disableSessionMutations}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-bold text-white/80 transition-all hover:bg-white/20 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-ql-14 font-bold text-white/80 transition-all hover:bg-white/20 disabled:opacity-50"
           >
             {actionState.isCheckingWebNow || status.isRefreshing ? (
               <LoaderIcon className="h-4 w-4 animate-spin" />
@@ -224,7 +224,7 @@ function GeminiWebSessionOverview({
           <button
             onClick={handlers.onResetWebProfile}
             disabled={!status.webEnabled || disableSessionMutations}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/20 px-4 py-2.5 text-sm font-bold text-red-300 transition-all hover:bg-red-500/30 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/20 px-4 py-2.5 text-ql-14 font-bold text-red-300 transition-all hover:bg-red-500/30 disabled:opacity-50"
           >
             {actionState.isResettingWebProfile || status.isRefreshing ? (
               <LoaderIcon className="h-4 w-4 animate-spin" />
@@ -238,12 +238,12 @@ function GeminiWebSessionOverview({
         <div className="rounded-2xl border border-white/10 bg-black/10 p-4 backdrop-blur-sm">
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-white/55">
+              <p className="text-ql-12 font-bold uppercase tracking-wider text-white/55">
                 {t('gws_supported_apps_title')}
               </p>
-              <span className="text-[11px] text-white/35">{t('gws_supported_apps_desc')}</span>
+              <span className="text-ql-12 text-white/35">{t('gws_supported_apps_desc')}</span>
             </div>
-            <p className="text-[11px] leading-relaxed text-white/42">
+            <p className="text-ql-12 leading-relaxed text-white/42">
               {t('gws_supported_apps_hint')}
             </p>
           </div>
@@ -268,10 +268,10 @@ function GeminiWebSessionOverview({
                         {getAiIcon(app.icon) || <GeminiIcon className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-white/90">{app.name}</p>
-                        <p className="truncate text-[11px] text-white/45">{app.hostname}</p>
+                        <p className="truncate text-ql-14 font-bold text-white/90">{app.name}</p>
+                        <p className="truncate text-ql-12 text-white/45">{app.hostname}</p>
                         <p
-                          className={`mt-1 text-[10px] uppercase tracking-[0.18em] ${isEnabled ? 'text-emerald-300/70' : 'text-white/30'}`}
+                          className={`mt-1 text-ql-10 uppercase tracking-ql-standard ${isEnabled ? 'text-emerald-300/70' : 'text-white/30'}`}
                         >
                           {isEnabled ? t('gws_app_enabled') : t('gws_app_disabled')}
                         </p>
@@ -299,7 +299,7 @@ function GeminiWebSessionOverview({
             })}
           </div>
 
-          <p className="mt-3 text-[11px] leading-relaxed text-white/40">
+          <p className="mt-3 text-ql-12 leading-relaxed text-white/40">
             {t('gws_shared_account_note')}
           </p>
         </div>

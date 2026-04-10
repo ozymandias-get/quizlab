@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.2.8-blue.svg?style=flat-square" alt="Quizlab Reader version 2.2.8" />
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&amp;query=%24.version&amp;label=version&amp;style=flat-square" alt="Current package version from package.json on main branch" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License open source" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Cross-platform desktop app for Windows macOS Linux" />
   <img src="https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Built with Electron React TypeScript" />

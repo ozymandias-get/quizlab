@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { Tabs } from '@ui/components/tabs'
 import SettingsModalContent from './modal/SettingsModalContent'
 import SettingsModalSidebar from './modal/SettingsModalSidebar'
 import { useSettingsModalState } from './modal/useSettingsModalState'
@@ -18,6 +17,7 @@ function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
     setActiveTab,
     settings,
     sidebarScrollRef,
+    sidebarSections,
     t,
     tabDefs
   } = useSettingsModalState({
@@ -50,13 +50,14 @@ function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
                            shadow-[0_40px_120px_-50px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.04)]
                            will-change-[transform,opacity]"
       >
-        <Tabs className="flex w-full h-full" value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex w-full h-full">
           <SettingsModalSidebar
             activeTab={activeTab}
             activeTabMeta={activeTabMeta}
+            setActiveTab={setActiveTab}
             sidebarScrollRef={sidebarScrollRef}
+            sidebarSections={sidebarSections}
             t={t}
-            tabDefs={tabDefs}
           />
           <SettingsModalContent
             activeTab={activeTab}
@@ -65,7 +66,7 @@ function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
             t={t}
             tabDefs={tabDefs}
           />
-        </Tabs>
+        </div>
       </motion.div>
     </div>
   )

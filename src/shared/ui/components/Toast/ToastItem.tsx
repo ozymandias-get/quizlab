@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef, forwardRef, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useState, useRef, forwardRef, type MouseEvent, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { useLanguageStrings, type Toast } from '@app/providers'
 
@@ -166,17 +166,17 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
       <div className="flex-shrink-0 mt-0.5">{ICONS[toast.type] || ICONS.info}</div>
 
       <div className="flex-grow min-w-0">
-        <h4 className="text-sm font-semibold mb-1 truncate">
+        <h4 className="text-ql-14 font-semibold mb-1 truncate">
           {toast.title ? t(toast.title, toast.params) : t(`toast.${toast.type}.title`)}
         </h4>
-        <p className="text-xs opacity-80 leading-relaxed break-words">
+        <p className="text-ql-12 opacity-80 leading-relaxed break-words">
           {t(toast.message, toast.params)}
         </p>
         {toast.actionLabel && (
           <button
             type="button"
             onClick={handleAction}
-            className="mt-2 text-[11px] font-semibold uppercase tracking-wide opacity-90 hover:opacity-100 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm"
+            className="mt-2 text-ql-12 font-semibold uppercase tracking-wide opacity-90 hover:opacity-100 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm"
           >
             {t(toast.actionLabel)}
           </button>

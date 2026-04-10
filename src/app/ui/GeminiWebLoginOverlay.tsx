@@ -31,12 +31,14 @@ function GeminiWebLoginOverlay({ isVisible, t }: GeminiWebLoginOverlayProps) {
                 <LoaderIcon className="absolute -right-4 -top-4 h-5 w-5 text-emerald-300" />
               </div>
             </div>
-            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.32em] text-emerald-200/70">
+            <p className="mt-6 text-ql-12 font-semibold uppercase tracking-ql-kicker text-emerald-200/70">
               {t('gws_toolbar_title')}
             </p>
-            <h2 className="mt-3 text-3xl font-semibold text-white">{t('gws_overlay_title')}</h2>
-            <p className="mt-3 text-sm leading-7 text-white/70">{t('gws_overlay_description')}</p>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs text-white/55">
+            <h2 className="mt-3 text-ql-28 font-semibold text-white">{t('gws_overlay_title')}</h2>
+            <p className="mt-3 text-ql-14 leading-7 text-white/70">
+              {t('gws_overlay_description')}
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2 text-ql-12 text-white/55">
               <LoaderIcon className="h-3.5 w-3.5" />
               <span>{t('gws_toolbar_checking')}</span>
             </div>

@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/s%C3%BCr%C3%BCm-2.2.8-blue.svg?style=flat-square" alt="Quizlab Reader sürüm 2.2.8" />
+  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&amp;query=%24.version&amp;label=s%C3%BCr%C3%BCm&amp;style=flat-square" alt="Ana daldaki package.json sürümü" />
   <img src="https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square" alt="MIT Lisansı açık kaynak" />
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Windows macOS Linux çapraz platform masaüstü uygulaması" />
   <img src="https://img.shields.io/badge/teknoloji-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Electron React TypeScript ile geliştirildi" />

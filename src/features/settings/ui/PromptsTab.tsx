@@ -69,7 +69,7 @@ const PromptsTab = () => {
             onSubmit={handleAddPrompt}
           >
             <div className="space-y-1.5">
-              <label className="pl-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
+              <label className="pl-1 text-ql-10 font-bold uppercase tracking-wider text-white/40">
                 {t('prompt_text')}
               </label>
               <textarea
@@ -77,13 +77,13 @@ const PromptsTab = () => {
                 onChange={(e) => setNewPromptText(e.target.value)}
                 placeholder={t('prompt_placeholder')}
                 rows={3}
-                className="w-full resize-none rounded-xl border border-white/10 bg-black/20 px-4 py-2.5 text-sm text-white transition-colors focus:border-purple-500/50 focus:outline-none"
+                className="w-full resize-none rounded-xl border border-white/10 bg-black/20 px-4 py-2.5 text-ql-14 text-white transition-colors focus:border-purple-500/50 focus:outline-none"
               />
             </div>
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className="rounded-xl bg-purple-600 px-6 py-2 text-xs font-bold text-white shadow-lg shadow-purple-500/20 transition-all hover:bg-purple-500"
+                className="rounded-xl bg-purple-600 px-6 py-2 text-ql-12 font-bold text-white shadow-lg shadow-purple-500/20 transition-all hover:bg-purple-500"
               >
                 {t('save_prompt')}
               </button>
@@ -93,8 +93,8 @@ const PromptsTab = () => {
       </AnimatePresence>
 
       <div className="px-1">
-        <p className="text-xs leading-relaxed text-white/40">{t('prompts_description')}</p>
-        <div className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/30">
+        <p className="text-ql-12 leading-relaxed text-white/40">{t('prompts_description')}</p>
+        <div className="mt-2 text-ql-10 font-bold uppercase tracking-ql-caps text-white/30">
           {selectedPromptId ? t('active_prompt') : t('no_prompt_selected')}
         </div>
       </div>
@@ -127,12 +127,12 @@ const PromptsTab = () => {
 
               <div className="min-w-0 flex-1">
                 <p
-                  className={`text-sm leading-relaxed transition-colors ${isSelected ? 'font-medium text-white' : 'text-white/70'}`}
+                  className={`text-ql-14 leading-relaxed transition-colors ${isSelected ? 'font-medium text-white' : 'text-white/70'}`}
                 >
                   {prompt.text}
                 </p>
                 {prompt.isDefault && (
-                  <span className="mt-2 inline-block rounded border border-white/5 bg-white/5 px-1.5 py-0.5 text-[9px] font-bold text-white/30">
+                  <span className="mt-2 inline-block rounded border border-white/5 bg-white/5 px-1.5 py-0.5 text-ql-10 font-bold text-white/30">
                     {t('default_prompts')}
                   </span>
                 )}
@@ -141,7 +141,7 @@ const PromptsTab = () => {
               {!prompt.isDefault && (
                 <button
                   onClick={(e) => handleDeletePrompt(e, prompt.id)}
-                  className="-mr-2 -mt-2 rounded-lg p-2 text-white/20 opacity-0 transition-colors group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400"
+                  className="-mr-2 -mt-2 rounded-lg p-2 text-white/20 opacity-[0.55] transition-colors group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-red-500/10 hover:text-red-400"
                   title={t('delete')}
                 >
                   <TrashIcon className="w-4 h-4" />
@@ -156,7 +156,7 @@ const PromptsTab = () => {
         <div className="flex justify-center pt-4">
           <button
             onClick={clearSelection}
-            className="rounded-lg px-4 py-2 text-xs font-bold text-white/30 transition-colors hover:bg-white/5 hover:text-white/60"
+            className="rounded-lg px-4 py-2 text-ql-12 font-bold text-white/30 transition-colors hover:bg-white/5 hover:text-white/60"
           >
             {t('no_prompt_selected')}
           </button>

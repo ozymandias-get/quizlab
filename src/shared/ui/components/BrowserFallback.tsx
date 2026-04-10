@@ -31,7 +31,7 @@ function BrowserFallback() {
           </div>
         </motion.div>
 
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
+        <h1 className="text-ql-20 sm:text-ql-28 font-bold tracking-tight text-white mb-4">
           {t('browser_fallback_title')}
         </h1>
 
