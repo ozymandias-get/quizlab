@@ -90,8 +90,9 @@ Arayüz genel sohbet odaklı değil; okuma ve araştırma akışları için tasa
 - Yapay zeka destekli PDF okuyucu: belge bağlamından kopmadan okuma ve inceleme
 - Prompt kütüphanesi ve otomasyon: yapılandırılmış promptlarla yapay zekaya gönderim
 - Bölünmüş ekran masaüstü düzeni: solda PDF, sağda yapay zeka
+- Premium Glassmorphism Arayüzü: Yönsel ışıklandırma ve derinlik hissi veren modern tasarım
 - Yerel odaklı Electron uygulaması: dosyalar cihazda kalır, AI erişimi kendi hesaplarınızla olur
-- Çoklu AI desteği: Gemini, ChatGPT, Claude, DeepSeek, Qwen, Kimi, NotebookLM ve AI Studio
+- Çoklu AI desteği: ChatGPT, Gemini, Claude, Mistral, Perplexity, Grok, DeepSeek ve daha fazlası
 
 ## Temel Özellikler
 
@@ -107,15 +108,20 @@ Arayüz genel sohbet odaklı değil; okuma ve araştırma akışları için tasa
 
 Yerleşik AI kaydı şu platformları içerir:
 
-- ChatGPT
-- Gemini
+- ChatGPT / GPT-4o
+- Gemini / Gemini Pro 1.5
+- Claude 3 / 3.5
+- DeepSeek-V3 / R1
+- Mistral / Le Chat
+- Perplexity
+- Grok (xAI)
+- Manus AI
 - NotebookLM
 - AI Studio
-- YouTube
-- Claude
-- DeepSeek
+- HuggingChat
 - Qwen
 - Kimi
+- YouTube
 
 Uygulama ayrıca özel AI veya site eklemeyi, gerekirse seçici tabanlı web otomasyonunu da destekler.
 
@@ -158,8 +164,10 @@ Uygulama, Google tabanlı yüzeyler için ayrı bir Gemini web oturumu yönetimi
 
 ### Görünüm, Dil Desteği ve Çalışma Deneyimi
 
+- Yönsel ışıklandırma ve 3D derinlik içeren Premium Glassmorphism arayüzü
 - Ayarlanabilir alt bar boyutu ve opaklığı
-- Panel yer değiştirme desteği
+- Panel yer değiştirme desteği (PDF/AI sağ-sol değişimi)
+- Zarif taş tonlarıyla zenginleştirilmiş koyu mod (Dark Mode)
 - Animasyonlu veya düz arka plan
 - Özelleştirilebilir seçim rengi
 - Rehberli ilk kullanım turu

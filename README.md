@@ -90,8 +90,9 @@ The UI is designed around real reading and research workflows, not generic chat.
 - AI PDF reader: read, search, navigate, and inspect documents without leaving context
 - Prompt library and automation: send structured prompts to your AI session
 - Split-screen desktop workspace: PDF on one side, AI on the other
+- Premium Glassmorphism UI: Modern, state-of-the-art interface with directional lighting and depth
 - Local-first Electron app: your files stay local and AI access happens through your own accounts
-- Multi-platform AI support: Gemini, ChatGPT, Claude, DeepSeek, Qwen, Kimi, NotebookLM, and AI Studio
+- Multi-platform AI support: ChatGPT, Gemini, Claude, Mistral, Perplexity, Grok, DeepSeek, and more
 
 ## Core Features
 
@@ -107,15 +108,20 @@ The UI is designed around real reading and research workflows, not generic chat.
 
 Built-in AI registry currently includes:
 
-- ChatGPT
-- Gemini
+- ChatGPT / GPT-4o
+- Gemini / Gemini Pro 1.5
+- Claude 3 / 3.5
+- DeepSeek-V3 / R1
+- Mistral / Le Chat
+- Perplexity
+- Grok (xAI)
+- Manus AI
 - NotebookLM
 - AI Studio
-- YouTube
-- Claude
-- DeepSeek
+- HuggingChat
 - Qwen
 - Kimi
+- YouTube
 
 The app also supports custom AI or website entries, plus selector-based automation for web UIs that need custom input or send button targeting.
 
@@ -158,8 +164,10 @@ The app includes a dedicated Gemini web session management area for Google-backe
 
 ### Appearance, Localization, and Study UX
 
+- Premium Glassmorphic UI with directional lighting and 3D depth
 - Adjustable bottom bar scale and opacity
-- Layout swap support
+- Layout swap support (PDF/AI left-right toggle)
+- Refined Dark Mode with elegant stone tones
 - Animated or solid backgrounds
 - Custom selection highlight color
 - Guided onboarding tutorial
