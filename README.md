@@ -276,36 +276,42 @@ npm run build
 - The current dev flow preserves the existing Electron and Chromium profile instead of clearing web session data
 - GPU acceleration flags are enabled at startup in the Electron main process
 
-## Architecture
-
-The project uses a layered Electron plus React architecture.
+## Project Structure
 
 ```text
-electron/
-  app/                     Main-process entry, windows, IPC registration
-  core/                    Config, updater, helpers
-  features/
-    ai/                    AI registry and platform definitions
-    automation/            Modular script generators and DOM helpers
-    gemini-web-session/    Playwright-backed Google session management
-    pdf/                   Secure PDF protocol and stream-based handlers
-    screenshot/            Native capture and crop handlers
-  preload/                 Context bridge API
-
-src/
-  app/                     App shell and providers
-  features/
-    ai/                    AI home page, sessions, webviews
-    pdf/                   PDF viewer and reading flows
-    settings/              Settings modal and tabs
-    screenshot/            Screenshot UI
-    tutorial/              Onboarding
-  platform/electron/       Renderer to preload bridge
-  shared/                  Shared renderer UI, hooks, constants, i18n
-
-shared/
-  constants/               Cross-process constants
-  types/                   Shared contracts and IPC types
+quizlab/
+├── .github/               # GitHub workflows and issue templates
+├── docs/                  # Documentation, architecture, and roadmaps
+├── electron/              # Electron main process source
+│   ├── __tests__/         # Main process unit and integration tests
+│   ├── app/               # Window management, sessions, and IPC registration
+│   ├── core/              # Config, updater, and startup helpers
+│   ├── features/          # Domain-specific main-process logic
+│   │   ├── ai/            # AI registry, platform definitions, and handlers
+│   │   ├── automation/    # Modular script generators and DOM helpers
+│   │   ├── gemini-web-session/ # Playwright-backed Google session management
+│   │   ├── pdf/           # Secure PDF protocol and stream-based handlers
+│   │   └── screenshot/    # Native capture and crop handlers
+│   └── preload/           # Context bridge and secure IPC API definition
+├── resources/             # Static assets (app icons, build resources)
+├── scripts/               # Build, development, and maintenance scripts
+├── shared/                # Cross-process shared contracts
+│   ├── constants/         # Shared constant definitions (IPC, storage, etc.)
+│   └── types/             # Shared TypeScript interfaces and types
+├── src/                   # React renderer source (Vite)
+│   ├── __tests__/         # Renderer unit and component tests
+│   ├── app/               # App shell, composition root, and global providers
+│   ├── features/          # Domain-specific UI and business logic
+│   │   ├── ai/            # AI home page, session management, and webviews
+│   │   ├── automation/    # Automation hooks and picker UI
+│   │   ├── pdf/           # PDF viewer workspace and document flows
+│   │   ├── screenshot/    # Capture and crop UI components
+│   │   ├── settings/      # Settings modal and configuration panels
+│   │   └── tutorial/      # Onboarding and guided tours
+│   ├── platform/          # Platform-specific adapters (Electron bridge)
+│   └── shared/            # Reusable UI components, hooks, i18n, and styles
+├── package.json           # Project dependencies, metadata, and scripts
+└── tsconfig.json          # TypeScript configuration
 ```
 
 ## Security and Privacy

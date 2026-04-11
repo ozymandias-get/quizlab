@@ -276,36 +276,42 @@ npm run build
 - Güncel dev akışı, mevcut Electron ve Chromium profilini korur; web oturum verilerini otomatik silmez
 - GPU hızlandırma bayrakları Electron açılışında etkinleştirilir
 
-## Mimari
-
-Proje katmanlı bir Electron ve React mimarisi kullanır.
+## Proje Yapısı
 
 ```text
-electron/
-  app/                     Ana süreç girişi, pencereler, IPC kaydı
-  core/                    Yapılandırma, güncelleyici, yardımcılar
-  features/
-    ai/                    AI kaydı ve platform tanımları
-    automation/            Modüler betik oluşturucular ve DOM yardımcıları
-    gemini-web-session/    Playwright tabanlı Google oturum yönetimi
-    pdf/                   Güvenli PDF protokolü ve akış tabanlı handlerlar
-    screenshot/            Yerel yakalama ve kırpma handlerları
-  preload/                 Context bridge API
-
-src/
-  app/                     Uygulama kabuğu ve providerlar
-  features/
-    ai/                    AI anasayfası, oturumlar, webviewler
-    pdf/                   PDF görüntüleyici ve okuma akışları
-    settings/              Ayarlar modal ve sekmeleri
-    screenshot/            Ekran görüntüsü UI
-    tutorial/              İlk kullanım
-  platform/electron/       Renderer ile preload köprüsü
-  shared/                  Ortak UI, hook, sabit, i18n
-
-shared/
-  constants/               Süreçler arası sabitler
-  types/                   Ortak kontratlar ve IPC tipleri
+quizlab/
+├── .github/               # GitHub iş akışları ve issue şablonları
+├── docs/                  # Dokümantasyon, mimari ve yol haritaları
+├── electron/              # Electron ana süreç (main process) kaynak kodu
+│   ├── __tests__/         # Ana süreç birim ve entegrasyon testleri
+│   ├── app/               # Pencere yönetimi, oturumlar ve IPC kaydı
+│   ├── core/              # Yapılandırma, güncelleyici ve başlangıç yardımcıları
+│   ├── features/          # Alan odaklı ana süreç mantığı
+│   │   ├── ai/            # AI kaydı, platform tanımları ve handlerlar
+│   │   ├── automation/    # Modüler betik oluşturucular ve DOM yardımcıları
+│   │   ├── gemini-web-session/ # Playwright tabanlı Google oturum yönetimi
+│   │   ├── pdf/           # Güvenli PDF protokolü ve akış tabanlı handlerlar
+│   │   └── screenshot/    # Yerel yakalama ve kırpma handlerları
+│   └── preload/           # Context bridge ve güvenli IPC API tanımları
+├── resources/             # Statik varlıklar (uygulama ikonları, kaynaklar)
+├── scripts/               # Derleme, geliştirme ve bakım betikleri
+├── shared/                # Süreçler arası ortak kontratlar
+│   ├── constants/         # Ortak sabit tanımları (IPC, depolama vb.)
+│   └── types/             # Ortak TypeScript arayüzleri ve tipleri
+├── src/                   # React arayüz (renderer) kaynak kodu (Vite)
+│   ├── __tests__/         # Arayüz birim ve bileşen testleri
+│   ├── app/               # Uygulama kabuğu, ana bileşen ve global providerlar
+│   ├── features/          # Alan odaklı UI ve iş mantığı
+│   │   ├── ai/            # AI ana sayfası, oturum yönetimi ve webviewlar
+│   │   ├── automation/    # Otomasyon hookları ve seçici UI
+│   │   ├── pdf/           # PDF görüntüleyici çalışma alanı ve belge akışları
+│   │   ├── screenshot/    # Ekran yakalama ve kırpma UI bileşenleri
+│   │   ├── settings/      # Ayarlar modalı ve yapılandırma panelleri
+│   │   └── tutorial/      # Kullanım kılavuzu ve rehberli turlar
+│   ├── platform/          # Platforma özel adaptörler (Electron köprüsü)
+│   └── shared/            # Yeniden kullanılabilir UI bileşenleri, hooklar, i18n ve stiller
+├── package.json           # Proje bağımlılıkları, meta veriler ve betikler
+└── tsconfig.json          # TypeScript yapılandırması
 ```
 
 ## Güvenlik ve Gizlilik
