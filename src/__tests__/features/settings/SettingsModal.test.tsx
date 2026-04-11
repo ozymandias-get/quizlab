@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import SettingsModal from '@features/settings/ui/SettingsModal'
 
 const tMock = (key: string) => key
@@ -17,6 +17,31 @@ vi.mock('@features/settings/hooks/useSettings', () => ({
     openReleasesPage: vi.fn()
   })
 }))
+
+vi.mock('framer-motion', () => {
+  const createMotionComponent =
+    (Component: keyof HTMLElementTagNameMap) =>
+    ({ children, initial, animate, exit, transition, layoutId, ...props }: any) => {
+      void initial
+      void animate
+      void exit
+      void transition
+      void layoutId
+
+      const Tag = Component as any
+      return <Tag {...props}>{children}</Tag>
+    }
+
+  return {
+    motion: {
+      div: createMotionComponent('div'),
+      h3: createMotionComponent('h3'),
+      p: createMotionComponent('p'),
+      span: createMotionComponent('span')
+    },
+    AnimatePresence: ({ children }: any) => <>{children}</>
+  }
+})
 
 vi.mock('@features/settings/ui/LanguageTab', () => ({
   default: () => <div>Language Tab Content</div>
@@ -39,10 +64,11 @@ describe('SettingsModal Component', () => {
     expect(screen.queryByText('settings_title')).not.toBeInTheDocument()
   })
 
-  it('renders modal when open', () => {
+  it('renders modal when open', async () => {
     render(<SettingsModal isOpen={true} onClose={vi.fn()} />)
     expect(screen.getByText('settings_title')).toBeInTheDocument()
     expect(screen.getByText('settings_title').closest('.glass-tier-1')).not.toBeNull()
+    expect(await screen.findByText('Prompts Tab Content')).toBeInTheDocument()
   })
 
   it('switches tabs', async () => {
@@ -51,16 +77,9 @@ describe('SettingsModal Component', () => {
     const languageButton = screen.getByRole('tab', { name: 'language' })
     fireEvent.click(languageButton)
 
-    // Wait for the tab button to be selected AND the content to be loaded
-    await waitFor(
-      () => {
-        const updatedButton = screen.getByRole('tab', { name: 'language' })
-        expect(updatedButton).toHaveAttribute('aria-selected', 'true')
-        expect(screen.getByText('Language Tab Content')).toBeInTheDocument()
-      },
-      { timeout: 10000 }
-    )
-  }, 15000)
+    expect(screen.getByRole('tab', { name: 'language' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText('Language Tab Content')).toBeInTheDocument()
+  })
 
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn()
