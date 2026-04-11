@@ -32,7 +32,7 @@ If applicable, add screenshots to help explain your problem.
 ## Environment
 
 - **OS**: [e.g., Windows 11, macOS 14, Ubuntu 22.04]
-- **App Version**: [e.g., 2.0.4]
+- **App Version**: [e.g., 3.0.7]
 - **Node.js Version**: [e.g., 20.11.0] (if running from source)
 
 ## Additional Context

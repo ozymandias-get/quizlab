@@ -6,8 +6,8 @@ We actively support and provide security updates for the following versions:
 
 | Version | Supported |
 | ------- | --------- |
-| 2.1.x   | Yes       |
-| 2.0.x   | No        |
+| 3.0.x   | Yes       |
+| 2.x.x   | No        |
 | 1.x.x   | No        |
 
 ## Reporting a Vulnerability
@@ -65,7 +65,7 @@ When reporting a vulnerability, please provide:
 
 - Context isolation via preload script
 - No direct Node.js access in renderer
-- Custom `pdfstream://` protocol for PDF loading
+- Custom `local-pdf://` protocol for PDF loading
 - Content Security Policy configuration
 - External links opened via `shell.openExternal()`
 
@@ -80,4 +80,4 @@ When we receive a security report:
 
 ---
 
-Last updated: 2026-02-28
+Last updated: 2026-04-11
