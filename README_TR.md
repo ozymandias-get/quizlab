@@ -135,6 +135,15 @@ Güncel sürümde özel bir AI anasayfası ve gelişmiş sekme yönetimi bulunur
 - Izgara tabanlı model sıralama
 - Aktif AI sekmesi kalmadığında otomatik anasayfaya dönüş
 
+### Performans ve Mimari (v3.0.7)
+
+Son sürüm, daha yüksek güvenilirlik için önemli dahili yeniden yapılandırmalar içerir:
+
+- **Modüler AI Pipeline'lar**: Metin ve görüntü gönderim mantığı, özel ve test edilebilir pipeline'lara ayrıldı.
+- **İyileştirilmiş Hook Yaşam Döngüsü**: Dev boyutlu hooklar, render sürelerini azaltmak için odaklanmış alt hooklara (`useWebviewMethods`, `useWebviewEvents`, `useWebviewCrasher`) bölündü.
+- **Atomik Otomasyon**: Otomasyon motoru, daha küçük ve deterministik betik oluşturucular kullanacak şekilde yenilendi.
+- **PDF Protokol Optimizasyonu**: Güvenli `local-pdf://` protokolü, daha hızlı belge yükleme ve daha iyi hata kurtarma için geliştirildi.
+
 ### Gemini Web Oturum Yönetim Araçları
 
 Uygulama, Google tabanlı yüzeyler için ayrı bir Gemini web oturumu yönetimi sunar.
@@ -277,10 +286,10 @@ electron/
   core/                    Yapılandırma, güncelleyici, yardımcılar
   features/
     ai/                    AI kaydı ve platform tanımları
-    automation/            Seçici ve otomasyon yardımcıları
-    gemini-web-session/    Paylaşılan Google web oturumu yönetimi
-    pdf/                   Güvenli PDF protokolü ve handlerlar
-    screenshot/            Yakalayıcı handlerlar
+    automation/            Modüler betik oluşturucular ve DOM yardımcıları
+    gemini-web-session/    Playwright tabanlı Google oturum yönetimi
+    pdf/                   Güvenli PDF protokolü ve akış tabanlı handlerlar
+    screenshot/            Yerel yakalama ve kırpma handlerları
   preload/                 Context bridge API
 
 src/

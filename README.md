@@ -135,6 +135,15 @@ The current app includes a dedicated AI home page and improved tab management:
 - Grid-based model ordering
 - Automatic navigation back to the AI home page when no session tab is active
 
+### Performance and Architecture (v3.0.7)
+
+The latest version includes significant internal refactoring for better reliability:
+
+- **Modular AI Pipelines**: Extracted text and image sending logic into specialized, testable pipelines.
+- **Improved Hook Lifecycle**: Modularized monolithic hooks into focused sub-hooks (`useWebviewMethods`, `useWebviewEvents`, `useWebviewCrasher`) to reduce re-renders.
+- **Atomic Automation**: Refactored the automation engine to use smaller, deterministic script generators.
+- **PDF Protocol Optimization**: Enhanced the secure `local-pdf://` protocol for faster document loading and better error recovery.
+
 ### Gemini Web Session Management Tools
 
 The app includes a dedicated Gemini web session management area for Google-backed surfaces.
@@ -277,10 +286,10 @@ electron/
   core/                    Config, updater, helpers
   features/
     ai/                    AI registry and platform definitions
-    automation/            Selector and automation helpers
-    gemini-web-session/    Shared Google web session management
-    pdf/                   Secure PDF protocol and handlers
-    screenshot/            Capture handlers
+    automation/            Modular script generators and DOM helpers
+    gemini-web-session/    Playwright-backed Google session management
+    pdf/                   Secure PDF protocol and stream-based handlers
+    screenshot/            Native capture and crop handlers
   preload/                 Context bridge API
 
 src/
