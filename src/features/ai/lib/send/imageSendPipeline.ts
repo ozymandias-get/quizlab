@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
-import { Logger } from '@shared/lib/logger'
+import { Logger, reportSuppressedError } from '@shared/lib/logger'
 import { safeWebviewPaste } from '@shared/lib/webviewUtils'
 import type { WebviewController } from '@shared-core/types/webview'
 import type { AiSendDiagnostics, SendImageResult } from '../../model/types'
@@ -10,27 +10,16 @@ import {
   IMAGE_SUBMIT_READY_TIMEOUT_BUFFER,
   IMAGE_UPLOAD_WAIT_DELAY,
   POST_PASTE_PROMPT_DELAY,
-  normalizeSendErrorCode,
   sleep,
   toAutomationConfig,
   type AiConfig,
   type ConfigCache
 } from '../aiSenderSupport'
 import { mergePromptText } from '../aiSenderSupport'
-import { cloneScriptDiagnostics, normalizeExecutionResult } from './scriptExecution'
+import { cloneScriptDiagnostics } from './scriptExecution'
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
 import { isSendError, resolveSendContext } from './resolveSendContext'
-
-function webviewDestroyedError(
-  diagnostics: AiSendDiagnostics,
-  requestStartedAt: number
-): SendImageResult {
-  return attachDiagnostics(
-    { success: false, error: 'webview_destroyed' },
-    diagnostics,
-    requestStartedAt
-  )
-}
+import { executePipelineStep } from './pipelineUtils'
 
 interface ImageSendPipelineParams {
   webviewRef: RefObject<WebviewController | null>
@@ -63,28 +52,32 @@ interface ImageSendPipelineParams {
   generateClickSendScript: (config: ReturnType<typeof toAutomationConfig>) => Promise<string | null>
 }
 
-export async function executeImageSendPipeline({
-  webviewRef,
-  webview,
-  scheduledWebview,
-  aiRegistry,
-  currentAI,
-  queryClient,
-  configCache,
-  activePromptText,
-  promptText,
-  appendPromptAfterPaste,
-  imageDataUrl,
-  effectiveAutoSend,
-  requestStartedAt,
-  diagnostics,
-  canUseWebview,
-  copyImageToClipboard,
-  generateAutoSendScript,
-  generateFocusScript,
-  generateWaitForSubmitReadyScript,
-  generateClickSendScript
-}: ImageSendPipelineParams): Promise<SendImageResult> {
+export async function executeImageSendPipeline(
+  params: ImageSendPipelineParams
+): Promise<SendImageResult> {
+  const {
+    webviewRef,
+    webview,
+    scheduledWebview,
+    aiRegistry,
+    currentAI,
+    queryClient,
+    configCache,
+    activePromptText,
+    promptText,
+    appendPromptAfterPaste,
+    imageDataUrl,
+    effectiveAutoSend,
+    requestStartedAt,
+    diagnostics,
+    canUseWebview,
+    copyImageToClipboard,
+    generateAutoSendScript,
+    generateFocusScript,
+    generateWaitForSubmitReadyScript,
+    generateClickSendScript
+  } = params
+
   if (!imageDataUrl.startsWith('data:image/')) {
     Logger.error('[useAiSender] Invalid image format')
     return attachDiagnostics(
@@ -137,40 +130,30 @@ export async function executeImageSendPipeline({
     if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
       webview.focus()
     }
-  } catch {}
+  } catch (err) {
+    reportSuppressedError('imageSend.webviewFocus', { cause: err })
+  }
 
   await sleep(100)
 
-  const focusScriptGenerationStartedAt = nowMs()
-  const focusScript = await generateFocusScript(toAutomationConfig(resolved.aiConfig))
-  diagnostics.timings.focusScriptGenerationMs = roundMs(nowMs() - focusScriptGenerationStartedAt)
-  if (!focusScript) {
-    return attachDiagnostics(
-      { success: false, error: 'focus_script_failed' },
-      diagnostics,
-      requestStartedAt
-    )
-  }
-
-  if (!canUseWebview(webview, scheduledWebview)) {
-    return webviewDestroyedError(diagnostics, requestStartedAt)
-  }
-
-  const focusExecuteStartedAt = nowMs()
-  const rawFocusResult = await webview.executeJavaScript(focusScript)
-  diagnostics.timings.focusExecuteJavaScriptMs = roundMs(nowMs() - focusExecuteStartedAt)
-  const focusResult = normalizeExecutionResult(rawFocusResult)
-  diagnostics.focusScript = cloneScriptDiagnostics(focusResult?.diagnostics)
-  if (!focusResult?.success) {
-    return attachDiagnostics(
-      { success: false, error: normalizeSendErrorCode(focusResult?.error, 'focus_failed') },
-      diagnostics,
-      requestStartedAt
-    )
-  }
+  // 1. Initial Focus
+  const focusStep = await executePipelineStep<SendImageResult>({
+    name: 'Focus',
+    webview,
+    scheduledWebview,
+    diagnostics,
+    requestStartedAt,
+    canUseWebview,
+    generateScript: () => generateFocusScript(toAutomationConfig(resolved.aiConfig)),
+    onTiming: (ms) => (diagnostics.timings.focusScriptGenerationMs = ms),
+    onExecuteTiming: (ms) => (diagnostics.timings.focusExecuteJavaScriptMs = ms),
+    onResult: (res) => (diagnostics.focusScript = cloneScriptDiagnostics(res?.diagnostics))
+  })
+  if (!focusStep.success) return focusStep.error
 
   await sleep(CLIPBOARD_WAIT_DELAY)
 
+  // 2. Paste Image
   let pasteSuccess = false
   const pasteStartedAt = nowMs()
   if (
@@ -184,14 +167,19 @@ export async function executeImageSendPipeline({
         const result = webview.pasteNative(webContentsId)
         pasteSuccess = typeof result === 'boolean' ? result : await result
       }
-    } catch {
+    } catch (err) {
+      reportSuppressedError('imageSend.nativePaste', { cause: err })
       pasteSuccess = false
     }
   }
 
   if (!pasteSuccess) {
     if (!canUseWebview(webview, scheduledWebview)) {
-      return webviewDestroyedError(diagnostics, requestStartedAt)
+      return attachDiagnostics(
+        { success: false, error: 'webview_destroyed' },
+        diagnostics,
+        requestStartedAt
+      )
     }
     pasteSuccess = safeWebviewPaste(webview)
   }
@@ -205,157 +193,114 @@ export async function executeImageSendPipeline({
     )
   }
 
+  // 3. Optional Prompt
   if (effectivePromptText) {
-    const refocusScriptGenerationStartedAt = nowMs()
-    const refocusScript = await generateFocusScript(toAutomationConfig(resolved.aiConfig))
-    diagnostics.timings.refocusScriptGenerationMs = roundMs(
-      nowMs() - refocusScriptGenerationStartedAt
-    )
-    if (!refocusScript) {
-      return attachDiagnostics(
-        { success: false, error: 'focus_script_failed' },
-        diagnostics,
-        requestStartedAt
-      )
-    }
-
-    if (!canUseWebview(webview, scheduledWebview)) {
-      return webviewDestroyedError(diagnostics, requestStartedAt)
-    }
-
-    const refocusExecuteStartedAt = nowMs()
-    const rawRefocusResult = await webview.executeJavaScript(refocusScript)
-    diagnostics.timings.refocusExecuteJavaScriptMs = roundMs(nowMs() - refocusExecuteStartedAt)
-    const refocusResult = normalizeExecutionResult(rawRefocusResult)
-    diagnostics.refocusScript = cloneScriptDiagnostics(refocusResult?.diagnostics)
-    if (!refocusResult?.success) {
-      return attachDiagnostics(
-        { success: false, error: normalizeSendErrorCode(refocusResult?.error, 'focus_failed') },
-        diagnostics,
-        requestStartedAt
-      )
-    }
+    const refocusStep = await executePipelineStep<SendImageResult>({
+      name: 'Focus',
+      webview,
+      scheduledWebview,
+      diagnostics,
+      requestStartedAt,
+      canUseWebview,
+      generateScript: () => generateFocusScript(toAutomationConfig(resolved.aiConfig)),
+      onTiming: (ms) => (diagnostics.timings.refocusScriptGenerationMs = ms),
+      onExecuteTiming: (ms) => (diagnostics.timings.refocusExecuteJavaScriptMs = ms),
+      onResult: (res) => (diagnostics.refocusScript = cloneScriptDiagnostics(res?.diagnostics))
+    })
+    if (!refocusStep.success) return refocusStep.error
 
     await sleep(280 + POST_PASTE_PROMPT_DELAY)
     diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
 
-    const promptScriptGenerationStartedAt = nowMs()
     const shouldAppendPromptAfterPaste =
       resolved.aiConfig.appendPromptAfterPaste !== false && appendPromptAfterPaste !== false
-    const promptScript = await generateAutoSendScript({
-      config: toAutomationConfig(resolved.aiConfig),
-      text: effectivePromptText,
-      submit: false,
-      append: shouldAppendPromptAfterPaste
+
+    const promptStep = await executePipelineStep<SendImageResult>({
+      name: 'Script',
+      webview,
+      scheduledWebview,
+      diagnostics,
+      requestStartedAt,
+      canUseWebview,
+      generateScript: () =>
+        generateAutoSendScript({
+          config: toAutomationConfig(resolved.aiConfig),
+          text: effectivePromptText,
+          submit: false,
+          append: shouldAppendPromptAfterPaste
+        }),
+      onTiming: (ms) => (diagnostics.timings.promptScriptGenerationMs = ms),
+      onExecuteTiming: (ms) => (diagnostics.timings.promptExecuteJavaScriptMs = ms),
+      onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
     })
-    diagnostics.timings.promptScriptGenerationMs = roundMs(
-      nowMs() - promptScriptGenerationStartedAt
-    )
 
-    if (promptScript) {
-      if (!canUseWebview(webview, scheduledWebview)) {
-        return webviewDestroyedError(diagnostics, requestStartedAt)
-      }
+    if (!promptStep.success) return promptStep.error
 
-      const promptExecuteStartedAt = nowMs()
-      const rawPromptResult = await webview.executeJavaScript(promptScript)
-      diagnostics.timings.promptExecuteJavaScriptMs = roundMs(nowMs() - promptExecuteStartedAt)
-      const promptResult = normalizeExecutionResult(rawPromptResult)
-      diagnostics.promptScript = cloneScriptDiagnostics(promptResult?.diagnostics)
-      if (!promptResult?.success) {
-        return attachDiagnostics(
-          { success: false, error: normalizeSendErrorCode(promptResult?.error, 'script_failed') },
-          diagnostics,
-          requestStartedAt
-        )
-      }
-
-      promptApplied = true
-
-      if (!effectiveAutoSend) {
-        return attachDiagnostics(
-          { success: true, mode: 'paste_and_prompt' },
-          diagnostics,
-          requestStartedAt
-        )
-      }
+    promptApplied = true
+    if (!effectiveAutoSend) {
+      return attachDiagnostics(
+        { success: true, mode: 'paste_and_prompt' },
+        diagnostics,
+        requestStartedAt
+      )
     }
   }
 
+  // 4. Auto-send (Wait for upload + Click)
   if (effectiveAutoSend) {
-    const submitReadyScriptGenerationStartedAt = nowMs()
-    const submitReadyScript = await generateWaitForSubmitReadyScript({
-      config: toAutomationConfig(resolved.aiConfig),
-      options: {
-        timeoutMs: submitReadyTimeoutMs,
-        settleMs: IMAGE_SUBMIT_READY_SETTLE_DELAY,
-        minimumWaitMs: minimumReadyWaitMs
+    const submitReadyStep = await executePipelineStep<SendImageResult>({
+      name: 'Submit_ready',
+      webview,
+      scheduledWebview,
+      diagnostics,
+      requestStartedAt,
+      canUseWebview,
+      generateScript: () =>
+        generateWaitForSubmitReadyScript({
+          config: toAutomationConfig(resolved.aiConfig),
+          options: {
+            timeoutMs: submitReadyTimeoutMs,
+            settleMs: IMAGE_SUBMIT_READY_SETTLE_DELAY,
+            minimumWaitMs: minimumReadyWaitMs
+          }
+        }),
+      onTiming: (ms) => (diagnostics.timings.submitReadyScriptGenerationMs = ms),
+      onExecuteTiming: (ms) => (diagnostics.timings.submitReadyExecuteJavaScriptMs = ms),
+      onResult: (res) => {
+        diagnostics.submitReadyScript = cloneScriptDiagnostics(res?.diagnostics)
+        diagnostics.timings.imageUploadWaitMs = roundMs(
+          res?.diagnostics?.totalMs ??
+            diagnostics.timings.submitReadyExecuteJavaScriptMs ??
+            minimumReadyWaitMs
+        )
       }
     })
-    diagnostics.timings.submitReadyScriptGenerationMs = roundMs(
-      nowMs() - submitReadyScriptGenerationStartedAt
-    )
-    if (!submitReadyScript) {
+    if (!submitReadyStep.success) {
+      if (submitReadyStep.scriptResult?.error) {
+        return submitReadyStep.error
+      }
       return attachDiagnostics(
-        { success: false, error: 'submit_ready_script_failed' },
+        { success: false, error: 'submit_not_ready' },
         diagnostics,
         requestStartedAt
       )
     }
 
-    if (!canUseWebview(webview, scheduledWebview)) {
-      return webviewDestroyedError(diagnostics, requestStartedAt)
-    }
-
-    const submitReadyExecuteStartedAt = nowMs()
-    const rawSubmitReadyResult = await webview.executeJavaScript(submitReadyScript)
-    diagnostics.timings.submitReadyExecuteJavaScriptMs = roundMs(
-      nowMs() - submitReadyExecuteStartedAt
-    )
-    const submitReadyResult = normalizeExecutionResult(rawSubmitReadyResult)
-    diagnostics.submitReadyScript = cloneScriptDiagnostics(submitReadyResult?.diagnostics)
-    diagnostics.timings.imageUploadWaitMs = roundMs(
-      submitReadyResult?.diagnostics?.totalMs ??
-        diagnostics.timings.submitReadyExecuteJavaScriptMs ??
-        minimumReadyWaitMs
-    )
-    if (!submitReadyResult?.success) {
+    const clickStep = await executePipelineStep<SendImageResult>({
+      name: 'Click',
+      webview,
+      scheduledWebview,
+      diagnostics,
+      requestStartedAt,
+      canUseWebview,
+      generateScript: () => generateClickSendScript(toAutomationConfig(resolved.aiConfig)),
+      onTiming: (ms) => (diagnostics.timings.clickScriptGenerationMs = ms),
+      onExecuteTiming: (ms) => (diagnostics.timings.clickExecuteJavaScriptMs = ms),
+      onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
+    })
+    if (!clickStep.success) {
       return attachDiagnostics(
-        {
-          success: false,
-          error: normalizeSendErrorCode(submitReadyResult?.error, 'submit_not_ready')
-        },
-        diagnostics,
-        requestStartedAt
-      )
-    }
-
-    const clickScriptGenerationStartedAt = nowMs()
-    const clickScript = await generateClickSendScript(toAutomationConfig(resolved.aiConfig))
-    diagnostics.timings.clickScriptGenerationMs = roundMs(nowMs() - clickScriptGenerationStartedAt)
-    if (!clickScript) {
-      return attachDiagnostics(
-        { success: false, error: 'click_script_failed' },
-        diagnostics,
-        requestStartedAt
-      )
-    }
-
-    if (!canUseWebview(webview, scheduledWebview)) {
-      return webviewDestroyedError(diagnostics, requestStartedAt)
-    }
-
-    const clickExecuteStartedAt = nowMs()
-    const rawClickResult = await webview.executeJavaScript(clickScript)
-    diagnostics.timings.clickExecuteJavaScriptMs = roundMs(nowMs() - clickExecuteStartedAt)
-    const clickResult = normalizeExecutionResult(rawClickResult)
-    diagnostics.clickScript = cloneScriptDiagnostics(clickResult?.diagnostics)
-    if (!clickResult?.success) {
-      return attachDiagnostics(
-        {
-          success: false,
-          error: normalizeSendErrorCode(clickResult?.error, 'autosend_failed_draft_saved')
-        },
+        { success: false, error: 'autosend_failed_draft_saved' },
         diagnostics,
         requestStartedAt
       )

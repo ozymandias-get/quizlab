@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { reportSuppressedError } from '@shared/lib/logger'
 import type { AiDraftItem, AiDraftImageItem } from '../ai/types'
 import { buildPendingId, clearBrowserTextSelection } from './appToolUtils'
 
@@ -58,7 +59,9 @@ export function useAiDraftQueue() {
         buf[i] = byteString.charCodeAt(i)
       }
       blobUrl = URL.createObjectURL(new Blob([buf], { type: mime }))
-    } catch {}
+    } catch (err) {
+      reportSuppressedError('draftQueue.imageBlobUrl', { cause: err })
+    }
 
     const item: AiDraftItem = {
       id: buildPendingId('image'),

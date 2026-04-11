@@ -6,6 +6,7 @@ import {
   useToastActions
 } from '@app/providers'
 import { getElectronApi } from '@shared/lib/electronApi'
+import { reportSuppressedError } from '@shared/lib/logger'
 import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionRefreshEvent,
@@ -89,7 +90,9 @@ export function useGeminiWebSessionState() {
   }, [isRefreshing])
 
   const safeRefetchWebSession = useCallback(() => {
-    void refetchWebSession().catch(() => {})
+    void refetchWebSession().catch((err) =>
+      reportSuppressedError('geminiWeb.refetchWebSession', { cause: err })
+    )
   }, [refetchWebSession])
 
   useEffect(() => {
@@ -250,7 +253,7 @@ export function useGeminiWebSessionState() {
               setRequiresManualLogin(true)
             }
           })
-          .catch(() => {})
+          .catch((err) => reportSuppressedError('geminiWeb.checkWebNow', { cause: err }))
       },
       onReauthWeb: () => {
         setRequiresManualLogin(false)

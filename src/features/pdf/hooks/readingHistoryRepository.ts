@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { reportSuppressedError } from '@shared/lib/logger'
 import type { LastReadingInfo } from './types'
 
 export const MAX_RECENT_PDFS = 24
@@ -36,7 +37,8 @@ export const parseReadingHistory = (stored: string | null): LastReadingInfo[] =>
 
     const legacySingle = sanitizeReadingInfo(parsed)
     return legacySingle ? [legacySingle] : []
-  } catch {
+  } catch (err) {
+    reportSuppressedError('readingHistory.parse', { cause: err })
     return []
   }
 }
@@ -44,7 +46,8 @@ export const parseReadingHistory = (stored: string | null): LastReadingInfo[] =>
 export const readReadingHistory = (): LastReadingInfo[] => {
   try {
     return parseReadingHistory(localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING))
-  } catch {
+  } catch (err) {
+    reportSuppressedError('readingHistory.read', { cause: err })
     return []
   }
 }
@@ -56,7 +59,9 @@ export const writeReadingHistory = (items: LastReadingInfo[]): void => {
     } else {
       localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
     }
-  } catch {}
+  } catch (err) {
+    reportSuppressedError('readingHistory.write', { cause: err })
+  }
 }
 
 export const upsertRecentHistory = (

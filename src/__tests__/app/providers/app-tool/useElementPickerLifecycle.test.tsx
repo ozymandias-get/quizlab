@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { WebviewController, WebviewElement } from '@shared-core/types/webview'
 import { useElementPickerLifecycle } from '@app/providers/app-tool/useElementPickerLifecycle'
 
 const mockStartPicker = vi.fn()
@@ -37,11 +37,24 @@ function getMockElement(controller: WebviewController): MockWebviewElement {
 
 function createController(overrides: Partial<WebviewController> = {}): WebviewController {
   const el = createMockWebviewElement()
-  return {
-    getWebview: () => el as unknown as import('@shared-core/types/webview').WebviewElement,
-    executeJavaScript: vi.fn().mockResolvedValue('loading'),
-    ...overrides
+  const state = {
+    element: el as unknown as WebviewElement,
+    subs: new Set<(e: WebviewElement | null) => void>()
   }
+
+  const base: WebviewController = {
+    getWebview: () => state.element,
+    executeJavaScript: vi.fn().mockResolvedValue('loading'),
+    subscribeWebviewElement: (listener) => {
+      state.subs.add(listener)
+      listener(state.element)
+      return () => {
+        state.subs.delete(listener)
+      }
+    }
+  }
+
+  return { ...base, ...overrides }
 }
 
 describe('useElementPickerLifecycle', () => {
@@ -256,5 +269,50 @@ describe('useElementPickerLifecycle', () => {
     })
 
     expect(mockStartPicker).not.toHaveBeenCalled()
+  })
+
+  it('waits for subscribeWebviewElement when getWebview is initially null', async () => {
+    const el = createMockWebviewElement()
+    const state = {
+      element: null as WebviewElement | null,
+      subs: new Set<(e: WebviewElement | null) => void>()
+    }
+
+    const notify = () => {
+      state.subs.forEach((l) => l(state.element))
+    }
+
+    const controller: WebviewController = {
+      getWebview: () => state.element,
+      executeJavaScript: vi.fn().mockResolvedValue('complete'),
+      subscribeWebviewElement: (listener) => {
+        state.subs.add(listener)
+        listener(state.element)
+        return () => {
+          state.subs.delete(listener)
+        }
+      }
+    }
+
+    const { result } = renderHook(() => useElementPickerLifecycle(controller))
+
+    await act(async () => {
+      result.current.startPickerWhenReady()
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockStartPicker).not.toHaveBeenCalled()
+
+    await act(async () => {
+      state.element = el as unknown as WebviewElement
+      notify()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockStartPicker).toHaveBeenCalledTimes(1)
   })
 })

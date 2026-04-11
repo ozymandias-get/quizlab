@@ -115,13 +115,21 @@ export function usePdfWorkspaceState({
     [handlePdfDrop]
   )
 
-  return {
-    t,
-    pdfFile,
-    leftPanelProps,
-    rootDragHandlers: {
+  const rootDragHandlers = useMemo(
+    () => ({
       onDragOver: handleRootDragOver,
       onDrop: handleRootDrop
-    }
-  }
+    }),
+    [handleRootDragOver, handleRootDrop]
+  )
+
+  return useMemo(
+    () => ({
+      t,
+      pdfFile,
+      leftPanelProps,
+      rootDragHandlers
+    }),
+    [t, pdfFile, leftPanelProps, rootDragHandlers]
+  )
 }

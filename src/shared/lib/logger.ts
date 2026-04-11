@@ -19,11 +19,15 @@ function normalizeArgs(args: unknown[]): string {
   return args
     .map((arg) => {
       if (arg instanceof Error) {
-        return `${arg.name}: ${arg.message}${arg.stack ? `\n${arg.stack}` : ''}`
+        const stack = arg.stack ? `\n${arg.stack}` : ''
+        return `${arg.name}: ${arg.message}${stack}`
       }
       if (typeof arg === 'string') return arg
+      if (arg === null) return 'null'
+      if (arg === undefined) return 'undefined'
+
       try {
-        return JSON.stringify(arg)
+        return JSON.stringify(arg, null, 2)
       } catch {
         return String(arg)
       }
@@ -46,6 +50,18 @@ function pushToBuffer(level: LogLevel, args: unknown[]) {
 function getRecentLogs(limit: number = 120): LogEntry[] {
   if (limit <= 0) return []
   return logBuffer.slice(-limit)
+}
+
+/**
+ * Record intentionally suppressed errors in the issue-report buffer without surfacing them to users.
+ */
+export function reportSuppressedError(scope: string, options?: { cause?: unknown }): void {
+  const cause = options?.cause
+  pushToBuffer('info', [`[Suppressed:${scope}]`, cause !== undefined ? cause : '(no cause)'])
+
+  if (isDev) {
+    console.debug('[Suppressed]', scope, cause)
+  }
 }
 
 export function createIssueLogReport(params: { appVersion: string; language: string }): string {

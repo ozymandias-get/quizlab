@@ -1,4 +1,4 @@
-﻿import { app, ipcMain, shell, net } from 'electron'
+import { app, ipcMain, shell, net } from 'electron'
 import { APP_CONFIG } from '../app/constants'
 import { requireTrustedIpcSender } from './ipcSecurity'
 
@@ -38,6 +38,26 @@ function isNewer(remote: string, current: string): boolean {
   return false
 }
 
+type ReleasePayload = {
+  tag_name?: string
+  name?: string
+  body?: string
+  html_url?: string
+}
+
+function parseReleasePayload(raw: unknown): LatestReleaseResult {
+  const release = raw as ReleasePayload
+  if (!release || !release.tag_name) {
+    return { error: 'Invalid release data' }
+  }
+  return {
+    version: release.tag_name,
+    releaseName: release.name || release.tag_name,
+    body: release.body || 'New version available.',
+    htmlUrl: release.html_url
+  }
+}
+
 /**
  * Fetch latest release from GitHub
  */
@@ -64,26 +84,9 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
       return { error: `HTTP ${response.status}` }
     }
 
-    const release = (await response.json()) as {
-      tag_name?: string
-      name?: string
-      body?: string
-      html_url?: string
-    }
-
-    if (!release || !release.tag_name) {
-      return { error: 'Invalid release data' }
-    }
-
-    return {
-      version: release.tag_name,
-      releaseName: release.name || release.tag_name,
-      body: release.body || 'New version available.',
-      htmlUrl: release.html_url
-    }
+    return parseReleasePayload(await response.json())
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    const isAbort = err instanceof Error && err.name === 'AbortError'
     console.warn(`[Updater] Network error:`, message)
 
     return new Promise((resolve) => {
@@ -99,22 +102,7 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
             if (response.statusCode !== 200) {
               resolve({ error: `HTTP ${response.statusCode}` })
             } else {
-              const release = JSON.parse(data) as {
-                tag_name?: string
-                name?: string
-                body?: string
-                html_url?: string
-              }
-              if (!release.tag_name) {
-                resolve({ error: 'Invalid release data' })
-                return
-              }
-              resolve({
-                version: release.tag_name,
-                releaseName: release.name || release.tag_name,
-                body: release.body || 'New version available.',
-                htmlUrl: release.html_url
-              })
+              resolve(parseReleasePayload(JSON.parse(data)))
             }
           } catch {
             resolve({ error: 'Parse error' })
@@ -122,10 +110,6 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
         })
       })
       request.on('error', (error) => {
-        if (isAbort) {
-          resolve({ error: 'Request timed out' })
-          return
-        }
         resolve({ error: error.message })
       })
       request.end()

@@ -49,7 +49,9 @@ async function handleDisplayMediaRequest(
     callback({
       video: { id: picked.id, name: picked.name }
     })
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('[Sessions] Display media request handler error:', message)
     callback({})
   }
 }

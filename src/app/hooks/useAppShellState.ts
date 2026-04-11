@@ -36,23 +36,50 @@ export function useAppShellState() {
   const closeUpdateBanner = useCallback(() => setIsUpdateBannerVisible(false), [])
   const closeTour = useCallback(() => setIsTourActive(false), [setIsTourActive])
 
-  return {
-    update,
-    isLayoutSwapped,
-    animations,
-    isWebviewMounted,
-    panelResize,
-    workspaceState: {
+  const workspaceState = useMemo(
+    () => ({
       isBarHovered,
       setIsBarHovered
-    },
-    updateBanner: {
+    }),
+    [isBarHovered]
+  )
+
+  const updateBanner = useMemo(
+    () => ({
       isVisible: isUpdateBannerVisible,
       close: closeUpdateBanner
-    },
-    tour: {
+    }),
+    [isUpdateBannerVisible, closeUpdateBanner]
+  )
+
+  const tour = useMemo(
+    () => ({
       isActive: isTourActive,
       close: closeTour
-    }
-  }
+    }),
+    [isTourActive, closeTour]
+  )
+
+  return useMemo(
+    () => ({
+      update,
+      isLayoutSwapped,
+      animations,
+      isWebviewMounted,
+      panelResize,
+      workspaceState,
+      updateBanner,
+      tour
+    }),
+    [
+      update,
+      isLayoutSwapped,
+      animations,
+      isWebviewMounted,
+      panelResize,
+      workspaceState,
+      updateBanner,
+      tour
+    ]
+  )
 }

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
@@ -11,8 +11,7 @@ import AiSendComposerHeader from './aiSendComposer/AiSendComposerHeader'
 import AiSendComposerToggle from './aiSendComposer/AiSendComposerToggle'
 import type { AiSendComposerProps } from './aiSendComposer/types'
 import { useAiSendComposerLayout } from './aiSendComposer/useAiSendComposerLayout'
-
-const DISMISS_AFTER_SUBMIT_MS = 320
+import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
 
 function AiSendComposer({
   items,
@@ -25,10 +24,17 @@ function AiSendComposer({
   const selectionColor = useAppearance((s) => s.selectionColor)
   const { t, language } = useLanguageStrings()
   const prefersReducedMotion = useReducedMotion()
-  const [noteText, setNoteText] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isClosingAfterSubmit, setIsClosingAfterSubmit] = useState(false)
-  const [isDismissed, setIsDismissed] = useState(false)
+
+  const {
+    noteText,
+    setNoteText,
+    isSubmitting,
+    isClosingAfterSubmit,
+    isDismissed,
+    handleSubmit,
+    clearNote
+  } = useAiSendComposerState({ items, onSend })
+
   const {
     layout,
     isDragging,
@@ -50,58 +56,8 @@ function AiSendComposer({
     () => items.filter((item): item is AiDraftImageItem => item.type === 'image'),
     [items]
   )
-  const resetDismissState = useCallback((dismissTimer: ReturnType<typeof setTimeout> | null) => {
-    if (dismissTimer) {
-      clearTimeout(dismissTimer)
-    }
-    setIsClosingAfterSubmit(false)
-    setIsDismissed(false)
-  }, [])
-
-  const handleSubmit = useCallback(
-    async (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => {
-      if (isSubmitting || items.length === 0) {
-        return
-      }
-
-      const forcedAutoSend = options?.forceAutoSend === true || options?.autoSend === true
-
-      let dismissTimer: ReturnType<typeof setTimeout> | null = null
-
-      try {
-        setIsSubmitting(true)
-        setIsClosingAfterSubmit(true)
-        dismissTimer = setTimeout(() => {
-          setIsDismissed(true)
-        }, DISMISS_AFTER_SUBMIT_MS)
-
-        const result = await onSend({
-          noteText: noteText.trim() || undefined,
-          ...(forcedAutoSend ? { forceAutoSend: true as const } : {})
-        })
-
-        const wasSuccessful =
-          typeof result === 'object' && result !== null && 'success' in result
-            ? Boolean((result as { success?: boolean }).success)
-            : true
-
-        if (wasSuccessful) {
-          setNoteText('')
-          return
-        }
-
-        resetDismissState(dismissTimer)
-      } catch {
-        resetDismissState(dismissTimer)
-      } finally {
-        setIsSubmitting(false)
-      }
-    },
-    [isSubmitting, items.length, noteText, onSend, resetDismissState]
-  )
 
   const accentStrong = hexToRgba(selectionColor, 0.9)
-
   const panelShellBackground = `
     radial-gradient(ellipse 100% 50% at 50% 0%, ${hexToRgba(selectionColor, 0.22)}, transparent 70%),
     radial-gradient(ellipse 60% 30% at 80% 100%, rgba(255,255,255,0.03), transparent 60%),
@@ -113,24 +69,11 @@ function AiSendComposer({
       prefersReducedMotion
         ? {
             hidden: { opacity: 0, y: 6 },
-            visible: {
-              opacity: 1,
-              y: 0,
-              transition: { duration: 0.18, ease: 'easeOut' }
-            },
-            exit: {
-              opacity: 0,
-              y: 4,
-              transition: { duration: 0.12, ease: 'easeIn' }
-            }
+            visible: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' } },
+            exit: { opacity: 0, y: 4, transition: { duration: 0.12, ease: 'easeIn' } }
           }
         : {
-            hidden: {
-              opacity: 0,
-              y: 24,
-              scale: 0.95,
-              filter: 'blur(8px)'
-            },
+            hidden: { opacity: 0, y: 24, scale: 0.95, filter: 'blur(8px)' },
             visible: {
               opacity: 1,
               y: 0,
@@ -150,10 +93,7 @@ function AiSendComposer({
               y: 16,
               scale: 0.97,
               filter: 'blur(6px)',
-              transition: {
-                duration: 0.22,
-                ease: [0.32, 0, 0.67, 0]
-              }
+              transition: { duration: 0.22, ease: [0.32, 0, 0.67, 0] }
             }
           },
     [prefersReducedMotion]
@@ -171,45 +111,30 @@ function AiSendComposer({
             visible: {
               opacity: 1,
               y: 0,
-              transition: {
-                type: 'spring' as const,
-                stiffness: 400,
-                damping: 32,
-                mass: 0.6
-              }
+              transition: { type: 'spring' as const, stiffness: 400, damping: 32, mass: 0.6 }
             }
           },
     [prefersReducedMotion]
   )
 
   useEffect(() => {
-    if (typeof document === 'undefined') {
-      return
-    }
+    if (typeof document === 'undefined') return
 
     const handlePointerDownOutside = (event: PointerEvent) => {
       const panelElement = panelRef.current
       const target = event.target
+      if (!panelElement || !(target instanceof Node)) return
+      if (panelElement.contains(target)) return
 
-      if (!panelElement || !(target instanceof Node)) {
-        return
-      }
-
-      if (panelElement.contains(target)) {
-        return
-      }
-
-      setNoteText('')
+      clearNote()
       onClearAll()
     }
 
     document.addEventListener('pointerdown', handlePointerDownOutside, true)
     return () => document.removeEventListener('pointerdown', handlePointerDownOutside, true)
-  }, [onClearAll, panelRef])
+  }, [onClearAll, panelRef, clearNote])
 
-  if (typeof document === 'undefined') {
-    return null
-  }
+  if (typeof document === 'undefined') return null
 
   return createPortal(
     <AnimatePresence initial={false}>
@@ -222,11 +147,7 @@ function AiSendComposer({
           exit="exit"
           variants={panelVariants}
           className="fixed z-[110] will-change-transform"
-          style={{
-            left: layout.x,
-            top: layout.y,
-            width: layout.width
-          }}
+          style={{ left: layout.x, top: layout.y, width: layout.width }}
         >
           <div
             ref={panelRef}
@@ -237,6 +158,7 @@ function AiSendComposer({
               className="pointer-events-none absolute -right-10 -top-8 h-28 w-28 rounded-full blur-3xl"
               style={{ background: hexToRgba(selectionColor, 0.14) }}
             />
+
             <AnimatePresence>
               {isClosingAfterSubmit ? (
                 <motion.div
@@ -273,11 +195,7 @@ function AiSendComposer({
                               ]
                             }
                       }
-                      transition={{
-                        duration: 1.6,
-                        repeat: Number.POSITIVE_INFINITY,
-                        ease: 'easeInOut'
-                      }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
                     >
                       <Loader2
                         className="h-3.5 w-3.5 text-white/80 animate-spin"

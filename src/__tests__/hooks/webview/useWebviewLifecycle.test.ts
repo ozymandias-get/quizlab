@@ -267,6 +267,46 @@ describe('useWebviewLifecycle', () => {
     expect(onUrlChange).toHaveBeenNthCalledWith(2, 'https://example.com/chat')
   })
 
+  it('notifies subscribeWebviewElement on attach and detach', () => {
+    const { result } = renderHook(() =>
+      useWebviewLifecycle({
+        currentAI: 'test-ai',
+        t: mockT,
+        showWarning: mockShowWarning,
+        registerWebview: mockRegisterWebview
+      })
+    )
+
+    const mockWebview = createMockWebview()
+    const listener = vi.fn()
+
+    act(() => {
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
+    })
+
+    const controller =
+      mockRegisterWebview.mock.calls[mockRegisterWebview.mock.calls.length - 1]?.[0]
+    expect(controller?.subscribeWebviewElement).toEqual(expect.any(Function))
+
+    act(() => {
+      controller.subscribeWebviewElement(listener)
+    })
+
+    expect(listener).toHaveBeenLastCalledWith(
+      mockWebview as unknown as Parameters<typeof listener>[0]
+    )
+
+    listener.mockClear()
+
+    act(() => {
+      result.current.onWebviewRef(null)
+    })
+
+    expect(listener).toHaveBeenLastCalledWith(null)
+  })
+
   it('returns undefined from controller access after the webview ref is cleared', () => {
     const { result } = renderHook(() =>
       useWebviewLifecycle({

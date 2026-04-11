@@ -91,11 +91,21 @@ export const useAppAnimations = (isLayoutSwapped: boolean = false) => {
     []
   )
 
-  return {
-    leftPanelVariants: isLayoutSwapped ? rightPanelVariants : leftPanelVariants,
-    rightPanelVariants: isLayoutSwapped ? leftPanelVariants : rightPanelVariants,
-    resizerVariants,
-    containerVariants,
-    gpuAcceleratedStyle
-  }
+  return useMemo(
+    () => ({
+      leftPanelVariants: isLayoutSwapped ? rightPanelVariants : leftPanelVariants,
+      rightPanelVariants: isLayoutSwapped ? leftPanelVariants : rightPanelVariants,
+      resizerVariants,
+      containerVariants,
+      gpuAcceleratedStyle
+    }),
+    [
+      isLayoutSwapped,
+      rightPanelVariants,
+      leftPanelVariants,
+      resizerVariants,
+      containerVariants,
+      gpuAcceleratedStyle
+    ]
+  )
 }

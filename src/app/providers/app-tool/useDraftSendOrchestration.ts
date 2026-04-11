@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { Logger } from '@shared/lib/logger'
 import type { AiSendOptions } from '@features/ai'
 import { planBulkAiSend } from '../ai/planBulkAiSend'
 import type { AiDraftItem, AiSendResult } from '../ai/types'
@@ -14,6 +15,10 @@ interface UseDraftSendOrchestrationProps {
   setPendingAiItems: (items: AiDraftItem[]) => void
 }
 
+/**
+ * Hook to orchestrate the sending of drafted AI items (text and images).
+ * Handles planning bulk sends and sequential execution.
+ */
 export function useDraftSendOrchestration({
   autoSend,
   sendTextToAI,
@@ -48,6 +53,10 @@ export function useDraftSendOrchestration({
         }
 
         if (!result.success) {
+          Logger.warn(
+            `[DraftOrchestration] Multi-segment send failed at segment: ${segment.kind}`,
+            result.error
+          )
           return result
         }
       }
@@ -67,12 +76,15 @@ export function useDraftSendOrchestration({
       const result = await executeDraftSend(items, options)
 
       if (result.success) {
+        // Cleanup blob URLs for image items before clearing the queue
         for (const item of items) {
           if (item.type === 'image' && item.blobUrl) {
             URL.revokeObjectURL(item.blobUrl)
           }
         }
         setPendingAiItems([])
+      } else {
+        Logger.error('[DraftOrchestration] Failed to send pending items:', result.error)
       }
 
       return result

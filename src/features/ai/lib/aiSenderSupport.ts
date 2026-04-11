@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 import { getElectronApi } from '@shared/lib/electronApi'
+import { reportSuppressedError } from '@shared/lib/logger'
 import { normalizeSubmitMode } from '@shared-core/selectorConfig'
 import type { AiSelectorConfig, AutomationConfig, SelectorHealth } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
@@ -41,14 +42,43 @@ const webviewQueues = new WeakMap<WebviewController, Promise<unknown>>()
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Maps browser/runtime messages (e.g. TypeError "Illegal invocation" from native
- * DOM/Electron bindings) to stable error codes used for toasts and diagnostics.
+ * Maps browser/runtime messages to stable error codes.
  */
 export function normalizeSendErrorCode(raw: unknown, fallback: string): string {
-  const e = typeof raw === 'string' ? raw.trim() : typeof raw === 'number' ? String(raw) : ''
-  if (!e) return fallback
-  if (e === 'Illegal invocation') return fallback
-  return e
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed === 'Illegal invocation') return fallback
+    return trimmed
+  }
+  if (typeof raw === 'number') return String(raw)
+  return fallback
+}
+
+/**
+ * Merges two AiConfigs, prioritizing the second one (override) if properties are defined.
+ */
+export function mergeAiConfigs(base: AiConfig, override: AiConfig | null | undefined): AiConfig {
+  if (!override || typeof override !== 'object') return base
+
+  const merged: AiConfig = { ...base }
+  const keys = Object.keys(override) as (keyof AiConfig)[]
+
+  for (const key of keys) {
+    const value = override[key]
+    if (value !== undefined) {
+      if (key === 'appendPromptAfterPaste') {
+        merged[key] = value !== false
+      } else {
+        ;(merged as any)[key] = value
+      }
+    }
+  }
+
+  // Handle submitMode normalization specifically if it changed
+  merged.submitMode =
+    normalizeSubmitMode(override.submitMode) || normalizeSubmitMode(base.submitMode) || 'mixed'
+
+  return merged
 }
 
 export function queueForWebview<T>(webview: WebviewController, task: () => Promise<T>): Promise<T> {
@@ -148,43 +178,7 @@ export async function getCachedAiConfig(options: {
 
     const selectorConfig = customConfig && typeof customConfig === 'object' ? customConfig : null
 
-    const finalConfig: AiConfig = {
-      ...baseConfig,
-      ...(selectorConfig?.input !== undefined ? { input: selectorConfig.input } : {}),
-      ...(selectorConfig?.button !== undefined ? { button: selectorConfig.button } : {}),
-      ...(selectorConfig?.waitFor !== undefined ? { waitFor: selectorConfig.waitFor } : {}),
-      ...(selectorConfig?.inputCandidates !== undefined
-        ? { inputCandidates: selectorConfig.inputCandidates }
-        : {}),
-      ...(selectorConfig?.buttonCandidates !== undefined
-        ? { buttonCandidates: selectorConfig.buttonCandidates }
-        : {}),
-      ...(selectorConfig?.inputFingerprint !== undefined
-        ? { inputFingerprint: selectorConfig.inputFingerprint }
-        : {}),
-      ...(selectorConfig?.buttonFingerprint !== undefined
-        ? { buttonFingerprint: selectorConfig.buttonFingerprint }
-        : {}),
-      ...(selectorConfig?.sourceUrl !== undefined ? { sourceUrl: selectorConfig.sourceUrl } : {}),
-      ...(selectorConfig?.sourceHostname !== undefined
-        ? { sourceHostname: selectorConfig.sourceHostname }
-        : {}),
-      ...(selectorConfig?.canonicalHostname !== undefined
-        ? { canonicalHostname: selectorConfig.canonicalHostname }
-        : {}),
-      ...(selectorConfig?.health !== undefined
-        ? { health: selectorConfig.health as SelectorHealth }
-        : {}),
-      ...(selectorConfig?.appendPromptAfterPaste !== undefined
-        ? {
-            appendPromptAfterPaste: selectorConfig.appendPromptAfterPaste !== false
-          }
-        : {}),
-      submitMode:
-        normalizeSubmitMode(selectorConfig?.submitMode) ||
-        normalizeSubmitMode(baseConfig.submitMode) ||
-        'mixed'
-    }
+    const finalConfig = mergeAiConfigs(baseConfig, selectorConfig)
 
     const data = {
       config: finalConfig,
@@ -194,7 +188,8 @@ export async function getCachedAiConfig(options: {
     configCache.key = cacheKey
     configCache.data = data
     return data
-  } catch {
+  } catch (err) {
+    reportSuppressedError('getCachedAiConfig', { cause: err })
     return { config: baseConfig, regex: null }
   }
 }

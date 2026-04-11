@@ -1,4 +1,4 @@
-﻿import { Logger } from './logger'
+import { Logger } from './logger'
 import type { WebviewController, WebviewInputEvent } from '@shared-core/types/webview'
 import { getElectronApi, hasElectronApi } from './electronApi'
 
@@ -27,7 +27,7 @@ export const safeWebviewPaste = (webview: WebviewController | null): boolean => 
     if (typeof webview.sendInputEvent === 'function') {
       const inputDef: Omit<WebviewInputEvent, 'type'> = {
         keyCode: 'v',
-        modifiers: [modifier.toLowerCase() as string]
+        modifiers: [modifier]
       }
 
       webview.sendInputEvent({ type: 'keyDown', ...inputDef })

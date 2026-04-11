@@ -54,6 +54,11 @@ export type WebviewController = {
   ) => void
   focus?: () => void
   isDestroyed?: () => boolean
+  /**
+   * Notified when the backing webview element attaches or detaches.
+   * Implementations should invoke the listener immediately with the current element (or null).
+   */
+  subscribeWebviewElement?: (listener: (el: WebviewElement | null) => void) => () => void
 }
 
 /** Webview controller reference used by picker and messaging hooks (nullable when no tab). */

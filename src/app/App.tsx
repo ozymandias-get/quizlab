@@ -85,8 +85,7 @@ const GeminiWebLoginLayer = memo(function GeminiWebLoginLayer({
 }: {
   t: (key: string, params?: Record<string, string>) => string
 }) {
-  const { isGeminiWebLoginInProgress } = useAppToolFlagsState()
-  const { isGeminiWebSessionRefreshing } = useAppToolFlagsState()
+  const { isGeminiWebLoginInProgress, isGeminiWebSessionRefreshing } = useAppToolFlagsState()
   return (
     <GeminiWebLoginOverlay
       isVisible={isGeminiWebLoginInProgress || isGeminiWebSessionRefreshing}

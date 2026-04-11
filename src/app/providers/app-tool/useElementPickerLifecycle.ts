@@ -2,21 +2,34 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useElementPicker } from '@features/automation'
 import { Logger } from '@shared/lib/logger'
 import type { WebviewLike } from '@shared-core/types/webview'
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
 
-import { subscribeWebviewPickerReadiness } from './webviewPickerReadiness'
+import { oncePickerReady, waitForWebviewElement } from './webviewPickerReadiness'
 
-const MAX_ELEMENT_BIND_RETRIES = 12
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
 
+/**
+ * Hook to manage the automatic arming and injection of the element picker into a webview.
+ * Handles waiting for the webview content to be ready before starting the picker.
+ */
 export function useElementPickerLifecycle(webviewInstance: WebviewLike) {
   const { isPickerActive, startPicker, togglePicker } = useElementPicker(webviewInstance)
 
   const [armVersion, setArmVersion] = useState(0)
-  const [bindRetryTick, setBindRetryTick] = useState(0)
   const pendingPickerStartRef = useRef(false)
   const requestSeqRef = useRef(0)
-  const elementBindRetriesRef = useRef(0)
-  /** Reset element bind retries when the active controller instance changes (e.g. tab switch). */
-  const lastWebviewForBindRef = useRef<WebviewLike>(null)
+
+  const clearPendingRequest = useCallback((requestId: number) => {
+    if (requestSeqRef.current === requestId) {
+      pendingPickerStartRef.current = false
+    }
+  }, [])
+
+  const isCurrentPendingRequest = useCallback((requestId: number) => {
+    return requestSeqRef.current === requestId && pendingPickerStartRef.current
+  }, [])
 
   const startPickerWhenReady = useCallback(() => {
     if (!webviewInstance) {
@@ -24,7 +37,6 @@ export function useElementPickerLifecycle(webviewInstance: WebviewLike) {
       return
     }
     requestSeqRef.current += 1
-    elementBindRetriesRef.current = 0
     pendingPickerStartRef.current = true
     setArmVersion((v) => v + 1)
   }, [webviewInstance])
@@ -34,108 +46,84 @@ export function useElementPickerLifecycle(webviewInstance: WebviewLike) {
       return
     }
 
-    if (lastWebviewForBindRef.current !== webviewInstance) {
-      lastWebviewForBindRef.current = webviewInstance
-      elementBindRetriesRef.current = 0
-    }
-
     const requestId = requestSeqRef.current
     const controller = webviewInstance
     const abortController = new AbortController()
+    const { signal } = abortController
 
-    let disposeSubscription: (() => void) | null = null
-    let bindRetryTimeout: ReturnType<typeof setTimeout> | null = null
+    const runLifecycle = async () => {
+      try {
+        // 1. Wait for webview element to exist in DOM
+        const el = await waitForWebviewElement(controller, signal)
 
-    const cleanup = () => {
-      if (bindRetryTimeout !== null) {
-        clearTimeout(bindRetryTimeout)
-        bindRetryTimeout = null
-      }
-      abortController.abort()
-      disposeSubscription?.()
-      disposeSubscription = null
-    }
-
-    const arm = () => {
-      const el = controller.getWebview?.()
-      if (!el) {
-        if (elementBindRetriesRef.current >= MAX_ELEMENT_BIND_RETRIES) {
-          Logger.warn('[ElementPickerLifecycle] webview element still not bound, giving up', {
+        if (signal.aborted || !isCurrentPendingRequest(requestId)) {
+          Logger.info('[ElementPickerLifecycle] stale request cancelled during element wait', {
             requestId
           })
-          pendingPickerStartRef.current = false
           return
         }
-        elementBindRetriesRef.current += 1
-        Logger.info('[ElementPickerLifecycle] webview element not bound, waiting', { requestId })
-        bindRetryTimeout = setTimeout(() => {
-          bindRetryTimeout = null
-          setBindRetryTick((t) => t + 1)
-        }, 0)
-        return
-      }
 
-      elementBindRetriesRef.current = 0
+        if (typeof el.isDestroyed === 'function' && el.isDestroyed()) {
+          Logger.info('[ElementPickerLifecycle] webview disposed, request cancelled', { requestId })
+          clearPendingRequest(requestId)
+          return
+        }
 
-      if (typeof el.isDestroyed === 'function' && el.isDestroyed()) {
-        Logger.info('[ElementPickerLifecycle] webview disposed, pending request cancelled', {
+        Logger.info('[ElementPickerLifecycle] awaiting readiness for picker injection', {
           requestId
         })
-        pendingPickerStartRef.current = false
-        return
-      }
 
-      Logger.info('[ElementPickerLifecycle] picker requested, awaiting readiness', { requestId })
+        // 2. Wait for content readiness (dom-ready, did-stop-loading, or catchup)
+        const reason = await oncePickerReady(controller, signal)
 
-      disposeSubscription = subscribeWebviewPickerReadiness(controller, {
-        signal: abortController.signal,
-        onReady: (reason) => {
-          if (abortController.signal.aborted) {
-            return
-          }
-          if (requestSeqRef.current !== requestId || !pendingPickerStartRef.current) {
-            Logger.info('[ElementPickerLifecycle] stale readiness ignored', {
-              requestId,
-              current: requestSeqRef.current,
-              reason
-            })
-            return
-          }
-          const currentEl = controller.getWebview?.()
-          if (currentEl !== el || (typeof el.isDestroyed === 'function' && el.isDestroyed())) {
-            Logger.info('[ElementPickerLifecycle] stale webview instance, ignoring readiness', {
-              requestId,
-              reason
-            })
-            pendingPickerStartRef.current = false
-            return
-          }
-
-          Logger.info('[ElementPickerLifecycle] readiness received from event', {
+        if (signal.aborted || !isCurrentPendingRequest(requestId)) {
+          Logger.info('[ElementPickerLifecycle] stale request ignored during readiness', {
             requestId,
             reason
           })
-
-          pendingPickerStartRef.current = false
-
-          void (async () => {
-            try {
-              await startPicker()
-              Logger.info('[ElementPickerLifecycle] picker start accepted', { requestId })
-            } catch (error) {
-              Logger.warn('[ElementPickerLifecycle] picker injection failed', error)
-            }
-          })()
+          return
         }
-      })
+
+        const currentEl = controller.getWebview?.()
+        if (currentEl !== el || (typeof el.isDestroyed === 'function' && el.isDestroyed())) {
+          Logger.info('[ElementPickerLifecycle] stale webview instance, ignoring readiness', {
+            requestId,
+            reason
+          })
+          clearPendingRequest(requestId)
+          return
+        }
+
+        Logger.info('[ElementPickerLifecycle] webview ready, injecting picker', {
+          requestId,
+          reason
+        })
+
+        clearPendingRequest(requestId)
+
+        // 3. Perform final injection
+        try {
+          await startPicker()
+          Logger.info('[ElementPickerLifecycle] picker started successfully', { requestId })
+        } catch (error) {
+          Logger.warn('[ElementPickerLifecycle] picker start failed:', error)
+        }
+      } catch (error) {
+        if (isAbortError(error)) {
+          return
+        }
+        const message = ensureErrorMessage(error)
+        Logger.warn('[ElementPickerLifecycle] lifecycle failed:', message)
+        clearPendingRequest(requestId)
+      }
     }
 
-    arm()
+    void runLifecycle()
 
     return () => {
-      cleanup()
+      abortController.abort()
     }
-  }, [armVersion, bindRetryTick, startPicker, webviewInstance])
+  }, [armVersion, clearPendingRequest, isCurrentPendingRequest, startPicker, webviewInstance])
 
   return {
     isPickerActive,

@@ -27,6 +27,7 @@ import {
 } from '../lib/send/sendDiagnostics'
 import { executeTextSendPipeline } from '../lib/send/textSendPipeline'
 import { executeImageSendPipeline } from '../lib/send/imageSendPipeline'
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
 
 export function useAiSender(
   webviewRef: RefObject<WebviewController | null>,
@@ -48,6 +49,22 @@ export function useAiSender(
     (webview: WebviewController, expected?: WebviewController | null) =>
       isWebviewUsable(webviewRef, webview, expected),
     [webviewRef]
+  )
+
+  const handlePipelineError = useCallback(
+    (error: unknown, diagnostics: any, startedAt: number, context: string) => {
+      const message = ensureErrorMessage(error)
+      Logger.error(`[useAiSender] ${context} error:`, error)
+      return attachDiagnostics(
+        {
+          success: false,
+          error: normalizeSendErrorCode(message, 'send_failed')
+        },
+        diagnostics,
+        startedAt
+      )
+    },
+    []
   )
 
   const sendTextToAI = useCallback(
@@ -95,16 +112,7 @@ export function useAiSender(
             generateAutoSendScript
           })
         } catch (error) {
-          const raw = error instanceof Error ? error.message : String(error)
-          Logger.error('[useAiSender] Hata:', error)
-          return attachDiagnostics(
-            {
-              success: false,
-              error: normalizeSendErrorCode(raw, 'send_failed')
-            },
-            diagnostics,
-            requestStartedAt
-          )
+          return handlePipelineError(error, diagnostics, requestStartedAt, 'Text pipeline')
         }
       }
 
@@ -112,15 +120,7 @@ export function useAiSender(
         try {
           return await execute(scheduledWebview)
         } catch (error) {
-          const raw = error instanceof Error ? error.message : String(error)
-          return attachDiagnostics(
-            {
-              success: false,
-              error: normalizeSendErrorCode(raw, 'send_failed')
-            },
-            diagnostics,
-            requestStartedAt
-          )
+          return handlePipelineError(error, diagnostics, requestStartedAt, 'Text queue')
         }
       })
     },
@@ -133,7 +133,8 @@ export function useAiSender(
       currentAI,
       generateAutoSendScript,
       queryClient,
-      webviewRef
+      webviewRef,
+      handlePipelineError
     ]
   )
 
@@ -187,16 +188,7 @@ export function useAiSender(
             generateClickSendScript
           })
         } catch (error) {
-          const raw = error instanceof Error ? error.message : String(error)
-          Logger.error('[useAiSender] Image send error:', error)
-          return attachDiagnostics(
-            {
-              success: false,
-              error: normalizeSendErrorCode(raw, 'send_failed')
-            },
-            diagnostics,
-            requestStartedAt
-          )
+          return handlePipelineError(error, diagnostics, requestStartedAt, 'Image pipeline')
         }
       }
 
@@ -204,16 +196,7 @@ export function useAiSender(
         try {
           return await execute(scheduledWebview)
         } catch (error) {
-          Logger.error('[useAiSender] Image queue error:', error)
-          const raw = error instanceof Error ? error.message : String(error)
-          return attachDiagnostics(
-            {
-              success: false,
-              error: normalizeSendErrorCode(raw, 'send_failed')
-            },
-            diagnostics,
-            requestStartedAt
-          )
+          return handlePipelineError(error, diagnostics, requestStartedAt, 'Image queue')
         }
       })
     },
@@ -230,7 +213,8 @@ export function useAiSender(
       generateFocusScript,
       generateWaitForSubmitReadyScript,
       queryClient,
-      webviewRef
+      webviewRef,
+      handlePipelineError
     ]
   )
 

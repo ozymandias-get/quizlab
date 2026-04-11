@@ -1,4 +1,4 @@
-﻿import { useMemo, memo, useCallback, useState, useEffect, useRef } from 'react'
+import { useMemo, memo, useCallback, useState, useEffect, useRef } from 'react'
 import { useToastActions, useLanguageStrings } from '@app/providers'
 import {
   useAiModelsCatalog,
@@ -9,6 +9,7 @@ import type { Tab } from '@app/providers/AiContext'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
 import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
+import { reportSuppressedError } from '@shared/lib/logger'
 import type { WebviewController, WebviewElement } from '@shared-core/types/webview'
 import AiErrorView from './AiErrorView'
 import { AI_TAB_SLEEP_MS } from '@features/ai/constants/aiWebviewLifecycle'
@@ -124,23 +125,27 @@ const AiSession = memo(
         }
 
         let checks = 0
-        const maxChecks = 7
+        const maxChecks = 5
 
         const runCheck = async () => {
-          if (cancelled || checks >= maxChecks) return
+          if (cancelled || checks >= maxChecks || !wv) return
           checks++
 
           try {
             const currentUrl = wv.getURL?.()
-            if (!currentUrl) return
+            if (!currentUrl) {
+              scheduleNext()
+              return
+            }
 
             const c = new URL(currentUrl)
             const b = new URL(initialUrl)
             if (
               c.origin === b.origin &&
               c.pathname.replace(/\/$/, '') === b.pathname.replace(/\/$/, '')
-            )
+            ) {
               return
+            }
 
             const isStale = await wv.executeJavaScript(STALE_CONTENT_DETECTION_SCRIPT)
             if (isStale) {
@@ -148,10 +153,14 @@ const AiSession = memo(
               wv.loadURL?.(initialUrl)
               return
             }
-          } catch {
-            /* webview may have been destroyed */
+          } catch (error) {
+            reportSuppressedError('aiSession.staleContentCheck', { cause: error })
           }
 
+          scheduleNext()
+        }
+
+        function scheduleNext() {
           if (!cancelled && checks < maxChecks) {
             pendingTimeout = setTimeout(runCheck, STALE_CONTENT_CHECK_DELAY_MS)
           }
