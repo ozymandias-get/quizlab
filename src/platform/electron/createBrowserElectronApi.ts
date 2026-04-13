@@ -253,6 +253,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     openReleasesPage: async () => {},
     getAppVersion: async () => 'dev-web',
     clearCache: async () => true,
+    clearAiModelData: async () => true,
 
     saveAiConfig: async (hostname, config) => {
       aiConfigs.set(hostname, config)

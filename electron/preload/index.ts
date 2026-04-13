@@ -11,6 +11,7 @@ import type {
   UpdateCheckResult,
   CustomAiInput,
   CustomAiResult,
+  ClearAiModelDataInput,
   GeminiWebSessionStatus,
   GeminiWebSessionActionResult,
   GeminiWebSessionRefreshEvent,
@@ -106,6 +107,8 @@ const electronApi: ElectronApi = {
   openReleasesPage: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.OPEN_RELEASES),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.GET_APP_VERSION),
   clearCache: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.CLEAR_CACHE),
+  clearAiModelData: (input: ClearAiModelDataInput): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.CLEAR_AI_MODEL_DATA, input),
 
   saveAiConfig: (hostname: string, config: AiSelectorConfig): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.SAVE_AI_CONFIG, hostname, config),

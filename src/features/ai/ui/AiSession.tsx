@@ -58,6 +58,8 @@ const AiSession = memo(
     const { t } = useLanguageStrings()
 
     const [isSleeping, setIsSleeping] = useState(false)
+    const [webviewRecoveryKey, setWebviewRecoveryKey] = useState(0)
+    const staleCheckHandle = useRef<{ cancel: () => void } | null>(null)
 
     useEffect(() => {
       let timeout: NodeJS.Timeout
@@ -73,6 +75,11 @@ const AiSession = memo(
 
     const handleWakeUp = useCallback(() => {
       setIsSleeping(false)
+    }, [])
+
+    const handleCrashRecovery = useCallback(() => {
+      staleCheckHandle.current?.cancel()
+      setWebviewRecoveryKey((current) => current + 1)
     }, [])
 
     const reportNavigationUrl = useCallback(
@@ -98,8 +105,6 @@ const AiSession = memo(
     // (which update the URL cache ref) from changing the src attribute and
     // causing the webview to re-navigate to its own current URL.
     const webviewSrc = useMemo(() => restoredUrl ?? initialUrl, [tab.modelId, isSleeping])
-
-    const staleCheckHandle = useRef<{ cancel: () => void } | null>(null)
 
     useEffect(() => {
       return () => {
@@ -177,7 +182,8 @@ const AiSession = memo(
       t,
       showWarning,
       onUrlChange: onTabUrlRecorded ? reportNavigationUrl : undefined,
-      onPageSettled: handlePageSettled
+      onPageSettled: handlePageSettled,
+      onCrashRecoveryRequested: handleCrashRecovery
     })
     const partition = useMemo(() => {
       if (!siteConfig) return 'persist:ai_session'
@@ -193,7 +199,7 @@ const AiSession = memo(
 
       return (
         <webview
-          key={tab.modelId}
+          key={`${tab.modelId}:${webviewRecoveryKey}`}
           ref={onWebviewRef}
           src={webviewSrc}
           partition={partition}
@@ -203,7 +209,15 @@ const AiSession = memo(
           useragent={chromeUserAgent}
         />
       )
-    }, [canRenderWebview, chromeUserAgent, webviewSrc, onWebviewRef, partition, tab.modelId])
+    }, [
+      canRenderWebview,
+      chromeUserAgent,
+      webviewSrc,
+      onWebviewRef,
+      partition,
+      tab.modelId,
+      webviewRecoveryKey
+    ])
 
     return (
       <div

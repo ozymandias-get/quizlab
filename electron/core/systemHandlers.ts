@@ -7,6 +7,16 @@ import { getMainWindow } from '../app/windowManager'
 import { requireTrustedIpcSender } from './ipcSecurity'
 
 const SAFE_CACHE_DIRS = ['Cache', 'Code Cache', 'GPUCache'] as const
+const MODEL_STORAGE_TYPES = [
+  'cookies',
+  'filesystem',
+  'indexdb',
+  'localstorage',
+  'shadercache',
+  'websql',
+  'serviceworkers',
+  'cachestorage'
+] as const
 let handlersRegistered = false
 
 function isMainWindowGuestContents(contents: Electron.WebContents): boolean {
@@ -46,6 +56,29 @@ async function clearSafeCacheDirectories(userDataPath: string, partitions: Set<s
       )
     )
   )
+}
+
+function normalizeClearablePartition(input: unknown): string | null {
+  if (typeof input !== 'string') return null
+  const normalized = input.trim()
+  if (!normalized || normalized.length > 128) return null
+  if (normalized !== APP_CONFIG.PARTITIONS.AI && !/^persist:ai_[a-z0-9_-]+$/i.test(normalized)) {
+    return null
+  }
+  return normalized
+}
+
+function getRegisteredAiPartition(id: unknown): string | null {
+  if (typeof id !== 'string' || id.length === 0 || id.length > 128) return null
+  const platform = AI_REGISTRY[id] || INACTIVE_PLATFORMS[id]
+  return normalizeClearablePartition(platform?.partition)
+}
+
+function resolveAiModelPartition(input: { id?: unknown; partition?: unknown }): string | null {
+  const registeredPartition = getRegisteredAiPartition(input.id)
+  if (registeredPartition) return registeredPartition
+
+  return normalizeClearablePartition(input.partition)
 }
 
 export function registerSystemHandlers() {
@@ -129,6 +162,29 @@ export function registerSystemHandlers() {
       return false
     }
   })
+
+  ipcMain.handle(
+    IPC_CHANNELS.CLEAR_AI_MODEL_DATA,
+    async (event, input: { id?: unknown; partition?: unknown }) => {
+      if (!requireTrustedIpcSender(event)) return false
+      try {
+        const partition = resolveAiModelPartition(input || {})
+        if (!partition) return false
+
+        const userDataPath = app.getPath('userData')
+        const pSession = session.fromPartition(partition)
+
+        await pSession.clearCache()
+        await pSession.clearStorageData({ storages: [...MODEL_STORAGE_TYPES] })
+        await clearSafeCacheDirectories(userDataPath, new Set([partition]))
+
+        return true
+      } catch (error) {
+        console.error('[IPC] Failed to clear AI model data:', error)
+        return false
+      }
+    }
+  )
 
   ipcMain.handle(IPC_CHANNELS.COPY_TEXT, (event, text: string) => {
     if (!requireTrustedIpcSender(event)) return false

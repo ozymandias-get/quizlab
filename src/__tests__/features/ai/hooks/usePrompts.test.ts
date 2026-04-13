@@ -4,6 +4,7 @@ import { usePrompts } from '@features/ai/hooks/usePrompts'
 
 const mockSetCustomPrompts = vi.fn()
 const mockSetSelectedPromptId = vi.fn()
+const mockCustomPrompts = vi.hoisted(() => ({ value: [] as Array<{ id: string; text: string }> }))
 
 vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: (selector?: (s: { language: string }) => string) => {
@@ -13,7 +14,10 @@ vi.mock('@app/providers/LanguageContext', () => ({
 }))
 
 vi.mock('@shared/hooks/useLocalStorage', () => ({
-  useLocalStorage: (_key: string, initial: any) => [initial, mockSetCustomPrompts],
+  useLocalStorage: (_key: string, initial: any) => [
+    mockCustomPrompts.value.length ? mockCustomPrompts.value : initial,
+    mockSetCustomPrompts
+  ],
   useLocalStorageString: (_key: string, initial: any) => [initial, mockSetSelectedPromptId]
 }))
 
@@ -32,6 +36,7 @@ vi.mock('@shared/constants/prompts', () => ({
 describe('usePrompts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockCustomPrompts.value = []
   })
 
   it('filters default prompts by language', () => {
@@ -58,6 +63,32 @@ describe('usePrompts', () => {
     expect(newState[0].text).toBe('New Prompt')
 
     expect(mockSetSelectedPromptId).toHaveBeenCalledWith(expect.stringContaining('custom_'))
+  })
+
+  it('places custom prompts before default prompts', () => {
+    mockCustomPrompts.value = [
+      { id: 'custom_1', text: 'Custom Prompt' },
+      { id: 'custom_2', text: 'Older Custom Prompt' }
+    ]
+
+    const { result } = renderHook(() => usePrompts())
+
+    expect(result.current.allPrompts[0].id).toBe('custom_1')
+    expect(result.current.allPrompts[1].id).toBe('custom_2')
+    expect(result.current.allPrompts[2].isDefault).toBe(true)
+  })
+
+  it('adds new prompts to the top of custom prompts', () => {
+    const { result } = renderHook(() => usePrompts())
+
+    act(() => {
+      result.current.addPrompt('Newest Prompt')
+    })
+
+    const updateFn = mockSetCustomPrompts.mock.calls[0][0]
+    const newState = updateFn([{ id: 'custom_old', text: 'Old Prompt' }])
+    expect(newState[0].text).toBe('Newest Prompt')
+    expect(newState[1].id).toBe('custom_old')
   })
 
   it('toggles prompt selection', () => {

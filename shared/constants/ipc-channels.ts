@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   DELETE_CUSTOM_AI: 'delete-custom-ai',
   IS_AUTH_DOMAIN: 'is-auth-domain',
   CLEAR_CACHE: 'clear-cache',
+  CLEAR_AI_MODEL_DATA: 'clear-ai-model-data',
   GEMINI_WEB_OPEN_LOGIN: 'gemini-web-open-login',
   GEMINI_WEB_STATUS: 'gemini-web-status',
   GEMINI_WEB_CHECK_NOW: 'gemini-web-check-now',

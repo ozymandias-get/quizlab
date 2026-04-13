@@ -42,7 +42,7 @@ vi.mock('electron', () => ({
 
 vi.mock('../../features/ai/aiManager', () => ({
   AI_REGISTRY: {
-    chatgpt: { partition: 'persist:chatgpt' }
+    chatgpt: { partition: 'persist:ai_chatgpt' }
   },
   INACTIVE_PLATFORMS: {
     legacy: { partition: 'persist:legacy' }
@@ -74,7 +74,7 @@ describe('systemHandlers', () => {
     registerSystemHandlers()
     registerSystemHandlers()
 
-    expect(ipcHandle).toHaveBeenCalledTimes(5)
+    expect(ipcHandle).toHaveBeenCalledTimes(6)
   })
 
   it('blocks quit requests from non-main-window senders', async () => {
@@ -142,5 +142,46 @@ describe('systemHandlers', () => {
 
     await expect(forcePasteHandler?.({ sender: trustedSender }, 42)).resolves.toBe(false)
     expect(paste).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears storage for a registered AI model partition', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const trustedSender = { id: 'trusted' }
+    getMainWindow.mockReturnValue({ webContents: trustedSender })
+
+    registerSystemHandlers()
+    const clearModelDataHandler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.CLEAR_AI_MODEL_DATA
+    )?.[1]
+
+    await expect(
+      clearModelDataHandler?.({ sender: trustedSender }, { id: 'chatgpt' })
+    ).resolves.toBe(true)
+
+    expect(fromPartition).toHaveBeenCalledWith('persist:ai_chatgpt')
+    expect(partitionClearCache).toHaveBeenCalledTimes(1)
+    expect(partitionClearStorageData).toHaveBeenCalledWith({
+      storages: expect.arrayContaining(['cookies', 'localstorage', 'indexdb'])
+    })
+  })
+
+  it('rejects AI model data clear requests for unsafe partitions', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const trustedSender = { id: 'trusted' }
+    getMainWindow.mockReturnValue({ webContents: trustedSender })
+
+    registerSystemHandlers()
+    const clearModelDataHandler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.CLEAR_AI_MODEL_DATA
+    )?.[1]
+
+    await expect(
+      clearModelDataHandler?.(
+        { sender: trustedSender },
+        { id: 'custom_unsafe', partition: 'persist:../../bad' }
+      )
+    ).resolves.toBe(false)
+
+    expect(fromPartition).not.toHaveBeenCalled()
   })
 })

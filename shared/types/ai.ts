@@ -72,4 +72,9 @@ export type CustomAiPayload = {
 
 export type CustomAiResult = IpcResult<CustomAiPayload>
 
+export type ClearAiModelDataInput = {
+  id: string
+  partition?: string
+}
+
 export type { AiSelectorConfig } from './automation'

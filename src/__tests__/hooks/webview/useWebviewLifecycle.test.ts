@@ -132,6 +132,61 @@ describe('useWebviewLifecycle', () => {
     expect(mockWebview.reload).toHaveBeenCalled()
   })
 
+  it('should request webview remount when crash recovery callback is provided', () => {
+    const onCrashRecoveryRequested = vi.fn()
+    const { result } = renderHook(() =>
+      useWebviewLifecycle({
+        currentAI: 'test-ai',
+        t: mockT,
+        showWarning: mockShowWarning,
+        registerWebview: mockRegisterWebview,
+        onCrashRecoveryRequested
+      })
+    )
+
+    const mockWebview = createMockWebview()
+    act(() => {
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
+    })
+
+    act(() => {
+      mockWebview._trigger('render-process-gone', { reason: 'crashed' })
+      vi.runAllTimers()
+    })
+
+    expect(onCrashRecoveryRequested).toHaveBeenCalledTimes(1)
+    expect(mockWebview.reload).not.toHaveBeenCalled()
+  })
+
+  it('should ignore clean renderer exits', () => {
+    const { result } = renderHook(() =>
+      useWebviewLifecycle({
+        currentAI: 'test-ai',
+        t: mockT,
+        showWarning: mockShowWarning,
+        registerWebview: mockRegisterWebview
+      })
+    )
+
+    const mockWebview = createMockWebview()
+    act(() => {
+      result.current.onWebviewRef(
+        mockWebview as unknown as Parameters<typeof result.current.onWebviewRef>[0]
+      )
+    })
+
+    act(() => {
+      mockWebview._trigger('render-process-gone', { reason: 'clean-exit' })
+      vi.runAllTimers()
+    })
+
+    expect(mockShowWarning).not.toHaveBeenCalledWith('webview_crashed_retrying')
+    expect(mockWebview.reload).not.toHaveBeenCalled()
+    expect(result.current.error).toBeNull()
+  })
+
   it('should show max retries error if crashes continue', () => {
     const { result } = renderHook(() =>
       useWebviewLifecycle({

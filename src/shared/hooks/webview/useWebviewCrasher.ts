@@ -4,13 +4,18 @@ import type { WebviewElement } from '@shared-core/types/webview'
 
 const MAX_CRASH_RETRIES = 3
 const CRASH_RETRY_DELAY = 1000
+const NON_CRASH_REASONS = new Set(['clean-exit', 'killed'])
 
 interface UseWebviewCrasherProps {
   activeWebviewRef: RefObject<WebviewElement | null>
   currentAI: string
   showWarning: (key: string) => void
   onCrashMaxReached: () => void
-  onReloadRequested: () => void
+  onRecoveryRequested: () => void
+}
+
+type RenderProcessGoneEvent = Event & {
+  reason?: string
 }
 
 /**
@@ -21,7 +26,7 @@ export function useWebviewCrasher({
   currentAI,
   showWarning,
   onCrashMaxReached,
-  onReloadRequested
+  onRecoveryRequested
 }: UseWebviewCrasherProps) {
   const crashRetryCount = useRef(0)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -38,32 +43,38 @@ export function useWebviewCrasher({
     crashRetryCount.current = 0
   }, [clearCrashRetryTimeout])
 
-  const handleCrashed = useCallback(() => {
-    const crashedWebview = activeWebviewRef.current
-    const crashedAiId = currentAI
+  const handleCrashed = useCallback(
+    (event?: Event) => {
+      const reason = (event as RenderProcessGoneEvent | undefined)?.reason
+      if (reason && NON_CRASH_REASONS.has(reason)) return
 
-    if (crashRetryCount.current < MAX_CRASH_RETRIES) {
-      crashRetryCount.current++
-      showWarning('webview_crashed_retrying')
-      clearCrashRetryTimeout()
+      const crashedWebview = activeWebviewRef.current
+      const crashedAiId = currentAI
 
-      timeoutRef.current = setTimeout(() => {
-        // Only reload if BOTH webview and AI ID haven't changed
-        if (activeWebviewRef.current === crashedWebview && currentAI === crashedAiId) {
-          onReloadRequested()
-        }
-      }, CRASH_RETRY_DELAY)
-    } else {
-      onCrashMaxReached()
-    }
-  }, [
-    activeWebviewRef,
-    currentAI,
-    showWarning,
-    clearCrashRetryTimeout,
-    onReloadRequested,
-    onCrashMaxReached
-  ])
+      if (crashRetryCount.current < MAX_CRASH_RETRIES) {
+        crashRetryCount.current++
+        showWarning('webview_crashed_retrying')
+        clearCrashRetryTimeout()
+
+        timeoutRef.current = setTimeout(() => {
+          // Only recover if BOTH webview and AI ID haven't changed.
+          if (activeWebviewRef.current === crashedWebview && currentAI === crashedAiId) {
+            onRecoveryRequested()
+          }
+        }, CRASH_RETRY_DELAY)
+      } else {
+        onCrashMaxReached()
+      }
+    },
+    [
+      activeWebviewRef,
+      currentAI,
+      showWarning,
+      clearCrashRetryTimeout,
+      onRecoveryRequested,
+      onCrashMaxReached
+    ]
+  )
 
   return {
     handleCrashed,

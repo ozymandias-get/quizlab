@@ -135,7 +135,7 @@ The current app includes a dedicated AI home page and improved tab management:
 - Grid-based model ordering
 - Automatic navigation back to the AI home page when no session tab is active
 
-### Performance and Architecture (v3.0.7)
+### Performance and Architecture (v3.0.8)
 
 The latest version includes significant internal refactoring for better reliability:
 

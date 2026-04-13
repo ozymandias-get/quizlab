@@ -2,6 +2,7 @@
 import { useElectronQuery, useElectronMutation } from '../useElectron'
 import type {
   AiRegistryResponse,
+  ClearAiModelDataInput,
   CustomAiInput,
   CustomAiResult,
   AiSelectorConfig
@@ -133,4 +134,30 @@ export function useDeleteCustomAi() {
       showSuccess(t('toast_custom_ai_deleted'), t('toast_ai_deleted_title'))
     }
   })
+}
+
+/**
+ * Clear AI Model Data Mutation
+ */
+export function useClearAiModelData() {
+  const queryClient = useQueryClient()
+  const { showSuccess } = useToastActions()
+  const { t } = useLanguageStrings()
+
+  return useElectronMutation<boolean, ClearAiModelDataInput>(
+    async (api, input) => {
+      const result = await api.clearAiModelData(input)
+      if (!result) {
+        throw new Error(t('toast_ai_model_data_clear_failed'))
+      }
+      return result
+    },
+    {
+      errorMessage: t('toast_ai_model_data_clear_failed'),
+      onSuccess: () => {
+        queryClient.invalidateQueries()
+        showSuccess(t('toast_ai_model_data_cleared'), t('toast_system_title'))
+      }
+    }
+  )
 }

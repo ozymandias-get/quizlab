@@ -50,6 +50,7 @@ interface UseWebviewLifecycleProps {
   showWarning: (key: string) => void
   onUrlChange?: (url: string) => void
   onPageSettled?: (webview: WebviewElement) => void
+  onCrashRecoveryRequested?: () => void
 }
 
 type FailLoadEvent = {
@@ -77,7 +78,8 @@ export function useWebviewLifecycle({
   t,
   showWarning,
   onUrlChange,
-  onPageSettled
+  onPageSettled,
+  onCrashRecoveryRequested
 }: UseWebviewLifecycleProps) {
   const activeWebviewRef = useRef<WebviewElement | null>(null)
   const webviewElementListenersRef = useRef(new Set<(el: WebviewElement | null) => void>())
@@ -105,7 +107,15 @@ export function useWebviewLifecycle({
     currentAI,
     showWarning,
     onCrashMaxReached: () => setError(t('webview_crashed_max')),
-    onReloadRequested: () => activeWebviewRef.current?.reload()
+    onRecoveryRequested: () => {
+      setIsLoading(true)
+      setError(null)
+      if (onCrashRecoveryRequested) {
+        onCrashRecoveryRequested()
+        return
+      }
+      activeWebviewRef.current?.reload()
+    }
   })
 
   // Global cleanup & identity reset

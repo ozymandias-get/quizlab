@@ -18,6 +18,7 @@ vi.mock('electron', () => ({
 }))
 
 type ExposedApi = {
+  clearAiModelData: (input: { id: string; partition?: string }) => Promise<boolean>
   automation: {
     generateAutoSendScript: (
       config: Record<string, unknown>,
@@ -58,6 +59,7 @@ describe('preload electronAPI', () => {
     await api.automation.generateAutoSendScript(config, 'hello', false, true)
     await api.automation.generatePickerScript({ pickInput: 'Pick input' })
     await api.automation.generateAutoSendScript(config, 'hello-2', true)
+    await api.clearAiModelData({ id: 'chatgpt', partition: 'persist:ai_chatgpt' })
 
     expect(invoke).toHaveBeenNthCalledWith(
       1,
@@ -83,6 +85,10 @@ describe('preload electronAPI', () => {
       true,
       false
     )
+    expect(invoke).toHaveBeenNthCalledWith(4, IPC_CHANNELS.CLEAR_AI_MODEL_DATA, {
+      id: 'chatgpt',
+      partition: 'persist:ai_chatgpt'
+    })
   })
 
   it('subscribes and unsubscribes trigger screenshot events', async () => {

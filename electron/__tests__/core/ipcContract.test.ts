@@ -32,6 +32,7 @@ describe('IPC contract', () => {
     assertInvokeChannel(IPC_CHANNELS.OPEN_EXTERNAL)
     assertInvokeChannel(IPC_CHANNELS.FORCE_PASTE)
     assertInvokeChannel(IPC_CHANNELS.CLEAR_CACHE)
+    assertInvokeChannel(IPC_CHANNELS.CLEAR_AI_MODEL_DATA)
     assertInvokeChannel(IPC_CHANNELS.CHECK_FOR_UPDATES)
     assertInvokeChannel(IPC_CHANNELS.OPEN_RELEASES)
     assertInvokeChannel(IPC_CHANNELS.GET_APP_VERSION)

@@ -37,8 +37,8 @@ export function usePrompts(): UsePromptsReturn {
   const allPrompts = useMemo<Prompt[]>(() => {
     const filteredDefaults = DEFAULT_PROMPTS.filter((p) => p.id.endsWith(`_${language}`))
     return [
-      ...filteredDefaults.map((p) => ({ ...p, isDefault: true })),
-      ...customPrompts.map((p: IPrompt) => ({ ...p, isDefault: false }))
+      ...customPrompts.map((p: IPrompt) => ({ ...p, isDefault: false })),
+      ...filteredDefaults.map((p) => ({ ...p, isDefault: true }))
     ]
   }, [customPrompts, language])
 
@@ -55,7 +55,7 @@ export function usePrompts(): UsePromptsReturn {
         id: `custom_${Date.now()}`,
         text: text.trim()
       }
-      setCustomPrompts((prev: IPrompt[]) => [...prev, newPrompt])
+      setCustomPrompts((prev: IPrompt[]) => [newPrompt, ...prev])
       setSelectedPromptId(newPrompt.id)
       return { ...newPrompt, isDefault: false }
     },

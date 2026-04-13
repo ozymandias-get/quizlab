@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Field, Label, Description } from '@headlessui/react'
-import { GridIcon, TrashIcon } from '@ui/components/Icons'
+import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 import type { AiPlatform } from '@shared-core/types'
 import { getAiPlatformIcon, getAiPlatformLabel } from '../shared/aiPlatformPresentation'
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
@@ -26,7 +26,9 @@ interface AiModelListProps {
   aiSites: Record<string, AiPlatform>
   toggleModel: (key: string) => void
   handleDeleteAi: (e: MouseEvent, id: string, name: string) => Promise<void>
+  handleClearModelData?: (e: MouseEvent, id: string, name: string) => Promise<void>
   isDeleting: boolean
+  isClearingModelData?: boolean
   minEnabledModels: number
   defaultAiModel?: string
   setDefaultAiModel?: (model: string) => void
@@ -39,13 +41,16 @@ export function AiModelList({
   aiSites,
   toggleModel,
   handleDeleteAi,
+  handleClearModelData,
   isDeleting,
+  isClearingModelData,
   minEnabledModels,
   defaultAiModel,
   setDefaultAiModel,
   t
 }: AiModelListProps) {
   const [localDeletingId, setLocalDeletingId] = useState<string | null>(null)
+  const [localClearingId, setLocalClearingId] = useState<string | null>(null)
 
   const onDeleteClick = async (e: MouseEvent, id: string, name: string) => {
     setLocalDeletingId(id)
@@ -54,6 +59,17 @@ export function AiModelList({
     } catch {
     } finally {
       setLocalDeletingId(null)
+    }
+  }
+
+  const onClearDataClick = async (e: MouseEvent, id: string, name: string) => {
+    if (!handleClearModelData) return
+    setLocalClearingId(id)
+    try {
+      await handleClearModelData(e, id, name)
+    } catch {
+    } finally {
+      setLocalClearingId(null)
     }
   }
 
@@ -66,6 +82,7 @@ export function AiModelList({
           const site = aiSites[key]
           const isCustom = site.isCustom
           const isCurrentlyDeleting = localDeletingId === site.id
+          const isCurrentlyClearing = localClearingId === site.id
 
           return (
             <motion.div
@@ -159,6 +176,21 @@ export function AiModelList({
                     onChange={() => !isLastModel && toggleModel(key)}
                     disabled={isLastModel}
                   />
+
+                  {handleClearModelData && (
+                    <button
+                      onClick={(e) => onClearDataClick(e, site.id, site.name)}
+                      disabled={isClearingModelData || isCurrentlyClearing}
+                      className="p-2 rounded-full hover:bg-amber-500/20 text-white/20 hover:text-amber-300 transition-all opacity-[0.55] group-hover:opacity-100 group-focus-within:opacity-100"
+                      title={t('clear_ai_model_data')}
+                    >
+                      {isCurrentlyClearing ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <RefreshIcon className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
 
                   {isCustom && (
                     <button

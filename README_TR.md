@@ -135,7 +135,7 @@ Güncel sürümde özel bir AI anasayfası ve gelişmiş sekme yönetimi bulunur
 - Izgara tabanlı model sıralama
 - Aktif AI sekmesi kalmadığında otomatik anasayfaya dönüş
 
-### Performans ve Mimari (v3.0.7)
+### Performans ve Mimari (v3.0.8)
 
 Son sürüm, daha yüksek güvenilirlik için önemli dahili yeniden yapılandırmalar içerir:
 

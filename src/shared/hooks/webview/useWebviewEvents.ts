@@ -8,7 +8,7 @@ interface UseWebviewEventsProps {
   onFailLoad: (event: Event) => void
   onNewWindow: (event: Event) => void
   onDomReady: () => void
-  onCrashed: () => void
+  onCrashed: (event?: Event) => void
   onDidNavigate?: (event: Event) => void
   onDidNavigateInPage: (event: Event) => void
 }

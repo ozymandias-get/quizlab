@@ -57,8 +57,8 @@ function GoogleDrivePanel({
           src={webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
           partition={GOOGLE_AI_WEB_SESSION_PARTITION}
           className="flex-1 w-full h-full"
-          allowpopups={WEBVIEW_ALLOW_POPUPS}
-          webpreferences="contextIsolation=yes, sandbox=yes"
+          allowpopups={WEBVIEW_ALLOW_POPUPS as any}
+          webpreferences="contextIsolation=yes, sandbox=no"
           useragent={chromeUserAgent}
         />
         {isInteractionBlocked && (

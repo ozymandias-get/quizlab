@@ -144,7 +144,10 @@ function isWebviewNavigationError(error: unknown): boolean {
   const code = 'code' in error ? (error as NodeJS.ErrnoException).code : undefined
   if (code === 'ERR_ABORTED') return true
   const message = error instanceof Error ? error.message : ''
-  return message.includes('GUEST_VIEW_MANAGER_CALL')
+  return (
+    message.includes('GUEST_VIEW_MANAGER_CALL') ||
+    message.includes('Render frame was disposed before WebFrameMain could be accessed')
+  )
 }
 
 process.on('uncaughtException', (err: unknown) => {

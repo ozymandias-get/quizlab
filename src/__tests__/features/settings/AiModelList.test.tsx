@@ -31,6 +31,9 @@ vi.mock('@ui/components/Icons', () => ({
   TrashIcon: ({ className }: { className?: string }) => (
     <span className={className}>TrashIcon</span>
   ),
+  RefreshIcon: ({ className }: { className?: string }) => (
+    <span className={className}>RefreshIcon</span>
+  ),
   getAiIcon: vi.fn((icon: string) => (icon === 'chatgpt' ? <span>ChatGptIcon</span> : null))
 }))
 
@@ -67,7 +70,9 @@ describe('AiModelList', () => {
       aiSites,
       toggleModel: vi.fn(),
       handleDeleteAi: vi.fn(() => Promise.resolve()),
+      handleClearModelData: vi.fn(() => Promise.resolve()),
       isDeleting: false,
+      isClearingModelData: false,
       minEnabledModels: 1,
       defaultAiModel: 'chatgpt',
       setDefaultAiModel: vi.fn(),
@@ -79,7 +84,8 @@ describe('AiModelList', () => {
           custom_badge: 'Custom',
           is_default_model: 'Default model',
           set_as_default: 'Set default',
-          delete_custom_ai: 'Delete custom AI'
+          delete_custom_ai: 'Delete custom AI',
+          clear_ai_model_data: 'Clear cookies and data'
         }
         return translations[key] ?? key
       },
@@ -122,5 +128,19 @@ describe('AiModelList', () => {
     })
 
     expect(handleDeleteAi).toHaveBeenCalledWith(expect.any(Object), 'custom-model', 'Custom Name')
+  })
+
+  it('clears model data without toggling the row', async () => {
+    const handleClearModelData = vi.fn(() => Promise.resolve())
+    const props = createProps({ handleClearModelData })
+
+    render(<AiModelList {...props} />)
+
+    fireEvent.click(screen.getAllByTitle('Clear cookies and data')[0])
+
+    await waitFor(() => {
+      expect(handleClearModelData).toHaveBeenCalledWith(expect.any(Object), 'chatgpt', 'ChatGPT')
+    })
+    expect(props.toggleModel).not.toHaveBeenCalled()
   })
 })

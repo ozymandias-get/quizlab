@@ -28,7 +28,8 @@ export type {
   AiRegistryResponse,
   CustomAiInput,
   CustomAiPayload,
-  CustomAiResult
+  CustomAiResult,
+  ClearAiModelDataInput
 } from './ai'
 
 export type { IpcError, IpcErrorCode, IpcResult } from './ipc'

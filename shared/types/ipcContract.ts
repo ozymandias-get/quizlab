@@ -3,6 +3,7 @@ import type {
   AiRegistryResponse,
   AiSelectorConfig,
   AutomationConfig,
+  ClearAiModelDataInput,
   CustomAiInput,
   CustomAiResult,
   GeminiWebSessionActionResult,
@@ -83,6 +84,11 @@ export interface IpcInvokeRequestMap {
 
   [IPC_CHANNELS.CLEAR_CACHE]: {
     args: []
+    result: boolean
+  }
+
+  [IPC_CHANNELS.CLEAR_AI_MODEL_DATA]: {
+    args: [input: ClearAiModelDataInput]
     result: boolean
   }
 
@@ -272,6 +278,7 @@ export interface ElectronApi {
   openReleasesPage: () => Promise<void>
   getAppVersion: () => Promise<string>
   clearCache: () => Promise<boolean>
+  clearAiModelData: (input: ClearAiModelDataInput) => Promise<boolean>
   saveAiConfig: (hostname: string, config: AiSelectorConfig) => Promise<boolean>
   getAiConfig: (
     hostname?: string

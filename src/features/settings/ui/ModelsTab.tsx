@@ -1,8 +1,12 @@
 import { useState, useMemo, useCallback, memo, type MouseEvent } from 'react'
 import { useLanguageStrings } from '@app/providers'
-import { useAiModelsCatalog, useAiCoreWorkspaceActions } from '@app/providers/AiContext'
+import {
+  useAiModelsCatalog,
+  useAiCoreWorkspaceActions,
+  useAiWebviewHostActions
+} from '@app/providers/AiContext'
 import { GridIcon } from '@ui/components/Icons'
-import { useDeleteCustomAi } from '@platform/electron/api/useAiApi'
+import { useClearAiModelData, useDeleteCustomAi } from '@platform/electron/api/useAiApi'
 import { Logger } from '@shared/lib/logger'
 import { AddAiModelForm } from './models/AddAiModelForm'
 import { AiModelList } from './models/AiModelList'
@@ -12,8 +16,10 @@ import { isCustomModelPlatform } from './shared/aiPlatformFilters'
 const ModelsTab = memo(() => {
   const { enabledModels, aiSites, defaultAiModel } = useAiModelsCatalog()
   const { setEnabledModels, setDefaultAiModel } = useAiCoreWorkspaceActions()
+  const { reloadActiveWebview } = useAiWebviewHostActions()
   const { t } = useLanguageStrings()
   const { mutateAsync: deleteCustomAi, isPending: isDeleting } = useDeleteCustomAi()
+  const { mutateAsync: clearAiModelData, isPending: isClearingModelData } = useClearAiModelData()
   const [showAddForm, setShowAddForm] = useState(false)
   const MIN_ENABLED_MODELS = 1
 
@@ -45,8 +51,8 @@ const ModelsTab = memo(() => {
   )
 
   const enabledModelsCount = useMemo(
-    () => enabledModels.filter((id) => aiSites[id] && !aiSites[id].isSite).length,
-    [enabledModels, aiSites]
+    () => modelsList.filter((id) => enabledModels.includes(id)).length,
+    [enabledModels, modelsList]
   )
 
   const handleDeleteAi = useCallback(
@@ -80,6 +86,25 @@ const ModelsTab = memo(() => {
     [enabledModels, setEnabledModels]
   )
 
+  const handleClearModelData = useCallback(
+    async (e: MouseEvent, id: string, name: string) => {
+      e.stopPropagation()
+      if (!confirm(t('confirm_clear_ai_model_data', { name }))) return
+
+      try {
+        const platform = aiSites[id]
+        await clearAiModelData({
+          id,
+          partition: platform?.partition || (platform?.isSite ? undefined : 'persist:ai_session')
+        })
+        reloadActiveWebview()
+      } catch (error) {
+        Logger.error('[ModelsTab] clearAiModelData failed', error)
+      }
+    },
+    [t, aiSites, clearAiModelData, reloadActiveWebview]
+  )
+
   return (
     <SettingsCollectionTabShell
       icon={
@@ -110,7 +135,9 @@ const ModelsTab = memo(() => {
           aiSites={aiSites}
           toggleModel={toggleModel}
           handleDeleteAi={handleDeleteAi}
+          handleClearModelData={handleClearModelData}
           isDeleting={isDeleting}
+          isClearingModelData={isClearingModelData}
           minEnabledModels={MIN_ENABLED_MODELS}
           defaultAiModel={defaultAiModel}
           setDefaultAiModel={setDefaultAiModel}
@@ -121,6 +148,9 @@ const ModelsTab = memo(() => {
         <div className="border-t border-white/[0.04] px-1 pt-4">
           <p className="text-ql-11 tracking-ql-fine text-white/28">
             {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
+          </p>
+          <p className="mt-1 text-ql-11 tracking-ql-fine text-white/24">
+            {t('google_models_managed_separately')}
           </p>
         </div>
       }
