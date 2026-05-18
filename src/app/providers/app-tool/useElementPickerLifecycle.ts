@@ -14,8 +14,10 @@ function isAbortError(error: unknown): boolean {
  * Hook to manage the automatic arming and injection of the element picker into a webview.
  * Handles waiting for the webview content to be ready before starting the picker.
  */
-export function useElementPickerLifecycle(webviewInstance: WebviewLike) {
-  const { isPickerActive, startPicker, togglePicker } = useElementPicker(webviewInstance)
+export function useElementPickerLifecycle(
+  getWebviewInstance: () => WebviewLike | null | undefined
+) {
+  const { isPickerActive, startPicker, togglePicker } = useElementPicker(getWebviewInstance)
 
   const [armVersion, setArmVersion] = useState(0)
   const pendingPickerStartRef = useRef(false)
@@ -32,22 +34,23 @@ export function useElementPickerLifecycle(webviewInstance: WebviewLike) {
   }, [])
 
   const startPickerWhenReady = useCallback(() => {
-    if (!webviewInstance) {
+    if (!getWebviewInstance()) {
       pendingPickerStartRef.current = false
       return
     }
     requestSeqRef.current += 1
     pendingPickerStartRef.current = true
     setArmVersion((v) => v + 1)
-  }, [webviewInstance])
+  }, [getWebviewInstance])
 
   useEffect(() => {
-    if (!pendingPickerStartRef.current || !webviewInstance) {
+    const currentInstance = getWebviewInstance()
+    if (!pendingPickerStartRef.current || !currentInstance) {
       return
     }
 
     const requestId = requestSeqRef.current
-    const controller = webviewInstance
+    const controller = currentInstance
     const abortController = new AbortController()
     const { signal } = abortController
 
@@ -123,7 +126,7 @@ export function useElementPickerLifecycle(webviewInstance: WebviewLike) {
     return () => {
       abortController.abort()
     }
-  }, [armVersion, clearPendingRequest, isCurrentPendingRequest, startPicker, webviewInstance])
+  }, [armVersion, clearPendingRequest, isCurrentPendingRequest, startPicker, getWebviewInstance])
 
   return {
     isPickerActive,

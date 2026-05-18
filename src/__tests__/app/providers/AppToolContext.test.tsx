@@ -42,7 +42,7 @@ vi.mock('@app/providers/AiContext', () => ({
     isTutorialActive: false
   }),
   useAiWebview: () => ({
-    webviewInstance: mockWebviewState.instance
+    getWebviewInstance: () => mockWebviewState.instance
   })
 }))
 
@@ -115,6 +115,20 @@ describe('AppToolContext', () => {
     mockInvalidateQueries.mockReset().mockResolvedValue(undefined)
     mockOnRefreshEvent.mockReset().mockReturnValue(() => {})
     mockStartPicker.mockResolvedValue(undefined)
+
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    global.URL.revokeObjectURL = vi.fn()
+
+    global.fetch = vi.fn(async (url: RequestInfo | URL) => {
+      const urlStr = typeof url === 'string' ? url : url.toString()
+      if (urlStr.startsWith('blob:')) {
+        return {
+          blob: async () => new Blob(['mockData'], { type: 'image/png' })
+        }
+      }
+      throw new Error(`fetch not mocked for ${urlStr}`)
+    }) as any
+
     Object.defineProperty(window, 'getSelection', {
       configurable: true,
       value: vi.fn(() => ({
@@ -134,7 +148,7 @@ describe('AppToolContext', () => {
     act(() => {
       result.current.queueTextForAi('First excerpt')
       result.current.queueTextForAi('Second excerpt')
-      result.current.queueImageForAi('data:image/png;base64,one', {
+      result.current.queueImageForAi('blob:mock-url', {
         page: 12,
         captureKind: 'selection'
       })
@@ -174,7 +188,7 @@ describe('AppToolContext', () => {
     const { result } = renderHook(() => useAppTools(), { wrapper })
 
     act(() => {
-      result.current.queueImageForAi('data:image/png;base64,xx', {
+      result.current.queueImageForAi('blob:mock-url', {
         page: 5,
         captureKind: 'full-page'
       })
@@ -189,7 +203,7 @@ describe('AppToolContext', () => {
 
   it('queues consecutive full-page captures even when data URLs match (e.g. PDF canvas reuse)', () => {
     const { result } = renderHook(() => useAppTools(), { wrapper })
-    const samePixels = 'data:image/png;base64,identical'
+    const samePixels = 'blob:mock-url-identical'
 
     act(() => {
       result.current.queueImageForAi(samePixels, { page: 12, captureKind: 'full-page' })
@@ -206,28 +220,37 @@ describe('AppToolContext', () => {
   })
 
   it('sends multiple images in order with note on the first image and autoSend on each', async () => {
+    vi.useRealTimers()
     mockSendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
     const { result } = renderHook(() => useAppTools(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('First excerpt')
       result.current.queueTextForAi('Second excerpt')
-      result.current.queueImageForAi('data:image/png;base64,one')
-      result.current.queueImageForAi('data:image/png;base64,two')
+      result.current.queueImageForAi('blob:mock-url-one')
+      result.current.queueImageForAi('blob:mock-url-two')
     })
 
     await act(async () => {
       await result.current.sendPendingAiItems({ promptText: 'Summarize these', autoSend: true })
     })
 
-    expect(mockSendImageToAI).toHaveBeenNthCalledWith(1, 'data:image/png;base64,one', {
-      autoSend: true,
-      promptText: 'Summarize these\n\nFirst excerpt\n\n---\n\nSecond excerpt'
-    })
-    expect(mockSendImageToAI).toHaveBeenNthCalledWith(2, 'data:image/png;base64,two', {
-      autoSend: true,
-      promptText: undefined
-    })
+    expect(mockSendImageToAI).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('data:image/png;base64'),
+      {
+        autoSend: true,
+        promptText: 'Summarize these\n\nFirst excerpt\n\n---\n\nSecond excerpt'
+      }
+    )
+    expect(mockSendImageToAI).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('data:image/png;base64'),
+      {
+        autoSend: true,
+        promptText: undefined
+      }
+    )
     expect(mockSendTextToAI).not.toHaveBeenCalled()
   })
 
@@ -263,13 +286,14 @@ describe('AppToolContext', () => {
   })
 
   it('sends text then image then trailing text with ordered segments', async () => {
+    vi.useRealTimers()
     mockSendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
     mockSendTextToAI.mockResolvedValue({ success: true, mode: 'mixed' })
     const { result } = renderHook(() => useAppTools(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('Before shot')
-      result.current.queueImageForAi('data:image/png;base64,one')
+      result.current.queueImageForAi('blob:mock-url-one')
       result.current.queueTextForAi('After shot')
     })
 
@@ -278,14 +302,18 @@ describe('AppToolContext', () => {
     })
 
     expect(mockSendImageToAI).toHaveBeenCalledTimes(1)
-    expect(mockSendImageToAI).toHaveBeenCalledWith('data:image/png;base64,one', {
-      autoSend: false,
-      promptText: 'Task\n\nBefore shot'
-    })
+    expect(mockSendImageToAI).toHaveBeenCalledWith(
+      expect.stringContaining('data:image/png;base64'),
+      {
+        autoSend: false,
+        promptText: 'Task\n\nBefore shot'
+      }
+    )
     expect(mockSendTextToAI).toHaveBeenCalledWith('After shot', { autoSend: false })
   })
 
   it('sends text-only drafts as a single message', async () => {
+    vi.useRealTimers()
     mockSendTextToAI.mockResolvedValue({ success: true, mode: 'mixed' })
     const { result } = renderHook(() => useAppTools(), { wrapper })
 

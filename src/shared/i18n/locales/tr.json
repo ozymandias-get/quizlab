@@ -467,6 +467,8 @@
   "settings_group_app": "Uygulama",
   "show_only_icons": "Kompakt Mod",
   "show_only_icons_desc": "Metin etiketlerini gizler, sadece ikonları gösterir.",
+  "performance_mode": "Düşük Performans Modu",
+  "performance_mode_desc": "Daha akıcı bir çalışma için yüksek GPU kullanan arkaplan animasyonlarını ve saydamlık efektlerini kapatır.",
   "splash_initializing": "SİNİRSEL MOTOR HAZIRLANIYOR",
   "splash_exit": "Çıkış Yap",
   "loader_msg_1": "Sinirsel Bağlantılar Eşitleniyor...",

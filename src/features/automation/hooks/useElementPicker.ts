@@ -29,7 +29,9 @@ function isPickerConfig(value: unknown): value is AiSelectorConfig {
 /**
  * Hook to manage the Element Picker lifecycle and result processing.
  */
-export function useElementPicker(webviewInstance: WebviewInstance): UseElementPickerReturn {
+export function useElementPicker(
+  getWebviewInstance: () => WebviewController | null | undefined
+): UseElementPickerReturn {
   const [isPickerActive, setIsPickerActive] = useState<boolean>(false)
   const { showError, showInfo } = useToastActions()
   const { t } = useLanguageStrings()
@@ -52,7 +54,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
 
   const savePickerResult = useCallback(
     async (config: AiSelectorConfig) => {
-      const webview = webviewInstance
+      const webview = getWebviewInstance()
       if (!webview) return
 
       try {
@@ -95,11 +97,11 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         }
       }
     },
-    [webviewInstance, resetPickerArtifacts, saveAiConfig, showError, t]
+    [getWebviewInstance, resetPickerArtifacts, saveAiConfig, showError, t]
   )
 
   const { startPolling, stopPolling } = usePickerPolling({
-    webviewInstance,
+    getWebviewInstance,
     isMounted: isMountedRef.current,
     onResult: async (data) => {
       if (isPickerConfig(data)) {
@@ -130,17 +132,19 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
   }, [resetPickerArtifacts, stopPolling])
 
   useEffect(() => {
+    const webview = getWebviewInstance() || null
     if (!isPickerActive) return
-    if (pickerWebviewRef.current === webviewInstance) return
+    if (pickerWebviewRef.current === webview) return
 
     stopPolling()
     void resetPickerArtifacts(pickerWebviewRef.current)
-    pickerWebviewRef.current = webviewInstance
+    pickerWebviewRef.current = webview
     setIsPickerActive(false)
-  }, [isPickerActive, resetPickerArtifacts, stopPolling, webviewInstance])
+  }, [isPickerActive, resetPickerArtifacts, stopPolling, getWebviewInstance])
 
   const startPicker = useCallback(async () => {
-    if (!webviewInstance) {
+    const webview = getWebviewInstance()
+    if (!webview) {
       showError('picker_webview_not_found')
       return
     }
@@ -155,15 +159,15 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
         throw new Error('Failed to generate picker script')
       }
 
-      if (typeof webviewInstance.executeJavaScript !== 'function') {
+      if (typeof webview.executeJavaScript !== 'function') {
         throw new Error('Webview executeJavaScript not available')
       }
 
-      await resetPickerArtifacts(webviewInstance)
-      await webviewInstance.executeJavaScript(PICKER_SCRIPTS.RESET)
-      await webviewInstance.executeJavaScript(script)
+      await resetPickerArtifacts(webview)
+      await webview.executeJavaScript(PICKER_SCRIPTS.RESET)
+      await webview.executeJavaScript(script)
 
-      pickerWebviewRef.current = webviewInstance
+      pickerWebviewRef.current = webview || null
       setIsPickerActive(true)
       showInfo('picker_started_hint')
       startPolling()
@@ -174,7 +178,7 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
       stopPolling()
     }
   }, [
-    webviewInstance,
+    getWebviewInstance,
     showError,
     showInfo,
     t,
@@ -187,24 +191,25 @@ export function useElementPicker(webviewInstance: WebviewInstance): UseElementPi
   const stopPicker = useCallback(async () => {
     stopPolling()
     pickerWebviewRef.current = null
-    if (!webviewInstance) {
+    const webview = getWebviewInstance()
+    if (!webview) {
       setIsPickerActive(false)
       return
     }
 
     try {
-      if (typeof webviewInstance.executeJavaScript !== 'function') {
+      if (typeof webview.executeJavaScript !== 'function') {
         throw new Error('Webview executeJavaScript not available')
       }
 
-      await webviewInstance.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
+      await webview.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
       setIsPickerActive(false)
       showInfo('picker_cancelled')
     } catch (err) {
       Logger.error('Failed to stop picker:', err)
       setIsPickerActive(false)
     }
-  }, [webviewInstance, showInfo, stopPolling])
+  }, [getWebviewInstance, showInfo, stopPolling])
 
   const togglePicker = useCallback(async () => {
     if (isPickerActive) {

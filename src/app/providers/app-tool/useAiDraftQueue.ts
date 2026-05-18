@@ -44,30 +44,35 @@ export function useAiDraftQueue() {
     setPendingAiItems((current) => [...current, item])
   }, [])
 
-  const queueImageForAi = useCallback((dataUrl: string, imageMeta?: QueuedImageMeta) => {
-    if (!dataUrl.startsWith('data:image/')) {
-      return
-    }
+  const queueImageForAi = useCallback((imageUri: string, imageMeta?: QueuedImageMeta) => {
+    let blobUrl = ''
+    let dataUrl: string | undefined
 
-    let blobUrl: string | undefined
-    try {
-      const byteString = atob(dataUrl.split(',')[1])
-      const mimeMatch = dataUrl.match(/data:([^;]+);/)
-      const mime = mimeMatch?.[1] ?? 'image/png'
-      const buf = new Uint8Array(byteString.length)
-      for (let i = 0; i < byteString.length; i++) {
-        buf[i] = byteString.charCodeAt(i)
+    if (imageUri.startsWith('blob:')) {
+      blobUrl = imageUri
+    } else if (imageUri.startsWith('data:image/')) {
+      try {
+        const byteString = atob(imageUri.split(',')[1])
+        const mimeMatch = imageUri.match(/data:([^;]+);/)
+        const mime = mimeMatch?.[1] ?? 'image/png'
+        const buf = new Uint8Array(byteString.length)
+        for (let i = 0; i < byteString.length; i++) {
+          buf[i] = byteString.charCodeAt(i)
+        }
+        blobUrl = URL.createObjectURL(new Blob([buf], { type: mime }))
+      } catch (err) {
+        reportSuppressedError('draftQueue.imageBlobUrl', { cause: err })
+        dataUrl = imageUri
       }
-      blobUrl = URL.createObjectURL(new Blob([buf], { type: mime }))
-    } catch (err) {
-      reportSuppressedError('draftQueue.imageBlobUrl', { cause: err })
+    } else {
+      return
     }
 
     const item: AiDraftItem = {
       id: buildPendingId('image'),
       type: 'image',
-      dataUrl,
-      ...(blobUrl ? { blobUrl } : {}),
+      ...(dataUrl ? { dataUrl } : {}),
+      blobUrl,
       ...imageMeta
     }
 

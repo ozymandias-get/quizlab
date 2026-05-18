@@ -1,136 +1,117 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { Logger } from '@shared/lib/logger'
-import type { WebviewController } from '@shared-core/types/webview'
-
-const POLL_INTERVAL = 500
-const PICKER_STATUS_SCRIPT = `
-  (function() {
-    if (window._aiPickerResult) {
-      return { type: 'result', data: window._aiPickerResult };
-    }
-    if (window._aiPickerCancelled) {
-      delete window._aiPickerCancelled;
-      return { type: 'cancelled' };
-    }
-    return null;
-  })()
-`
-
-type PickerPollStatus = { type: 'cancelled' } | { type: 'result'; data: unknown } | null
+import type { WebviewController, WebviewElement } from '@shared-core/types/webview'
 
 interface UsePickerPollingProps {
-  webviewInstance: WebviewController | null
+  getWebviewInstance: () => WebviewController | null | undefined
   onResult: (data: unknown) => void
   onCancelled: () => void
   onError: (error: unknown) => void
   isMounted: boolean
 }
 
-function parseJsonValue(value: unknown): unknown {
-  if (typeof value !== 'string') return value
-  try {
-    return JSON.parse(value)
-  } catch {
-    return value
-  }
-}
-
-function parsePickerPollStatus(value: unknown): PickerPollStatus {
-  const parsed = parseJsonValue(value)
-  if (!parsed || typeof parsed !== 'object') return null
-
-  const candidate = parsed as { type?: unknown; data?: unknown }
-  if (candidate.type === 'cancelled') {
-    return { type: 'cancelled' }
-  }
-  if (candidate.type === 'result') {
-    return { type: 'result', data: parseJsonValue(candidate.data) }
-  }
-
-  return null
-}
-
 /**
- * Specialized hook to manage the polling logic for the Element Picker.
+ * Event-driven communication for the Element Picker.
+ * Replaces polling with listeners for the webview's 'console-message' events.
  */
 export function usePickerPolling({
-  webviewInstance,
+  getWebviewInstance,
   onResult,
   onCancelled,
-  onError,
   isMounted
 }: UsePickerPollingProps) {
-  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const pollInFlightRef = useRef(false)
-  const pollSessionRef = useRef(0)
+  const activeWebviewElementRef = useRef<WebviewElement | null>(null)
+  const isListeningRef = useRef(false)
+  const unsubscribeRef = useRef<(() => void) | null>(null)
 
   const stopPolling = useCallback(() => {
-    pollSessionRef.current += 1
-    if (pollTimeoutRef.current) {
-      clearTimeout(pollTimeoutRef.current)
-      pollTimeoutRef.current = null
+    isListeningRef.current = false
+
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current()
+      unsubscribeRef.current = null
     }
-    pollInFlightRef.current = false
+
+    const el = activeWebviewElementRef.current
+    if (el) {
+      try {
+        el.removeEventListener('console-message', handleConsoleMessage)
+      } catch (err) {
+        Logger.warn('[PickerListening] Error removing console listener:', err)
+      }
+      activeWebviewElementRef.current = null
+    }
   }, [])
+
+  const handleConsoleMessage = useCallback(
+    (e: Event) => {
+      if (!isListeningRef.current) return
+
+      const consoleEvent = e as unknown as { message: string }
+      const msg = consoleEvent.message
+      if (!msg || !msg.startsWith('_aiPicker:')) return
+
+      if (msg === '_aiPicker:cancelled') {
+        stopPolling()
+        if (isMounted) onCancelled()
+      } else if (msg.startsWith('_aiPicker:result:')) {
+        const dataStr = msg.slice('_aiPicker:result:'.length)
+        try {
+          const data = JSON.parse(dataStr)
+          stopPolling()
+          if (isMounted) onResult(data)
+        } catch (err) {
+          Logger.warn('[PickerListening] Failed to parse result:', err)
+        }
+      }
+    },
+    [isMounted, onCancelled, onResult, stopPolling]
+  )
 
   const startPolling = useCallback(() => {
     stopPolling()
-    const sessionId = pollSessionRef.current
 
-    const scheduleNextPoll = () => {
-      if (!isMounted || pollSessionRef.current !== sessionId) return
-      pollTimeoutRef.current = setTimeout(() => {
-        pollTimeoutRef.current = null
-        void pollOnce()
-      }, POLL_INTERVAL)
-    }
+    const controller = getWebviewInstance()
+    if (!controller) return
 
-    const pollOnce = async () => {
-      if (pollSessionRef.current !== sessionId || pollInFlightRef.current) return
+    isListeningRef.current = true
 
-      const webview = webviewInstance
-      if (!webview || typeof webview.executeJavaScript !== 'function') {
-        scheduleNextPoll()
-        return
+    const attachToElement = (el: WebviewElement | null) => {
+      if (activeWebviewElementRef.current === el) return
+
+      // Clean up previous element if any
+      if (activeWebviewElementRef.current) {
+        try {
+          activeWebviewElementRef.current.removeEventListener(
+            'console-message',
+            handleConsoleMessage
+          )
+        } catch (err) {
+          // ignore
+        }
       }
 
-      pollInFlightRef.current = true
-      try {
-        const rawStatus = await webview.executeJavaScript(PICKER_STATUS_SCRIPT)
-        if (pollSessionRef.current !== sessionId) return
+      activeWebviewElementRef.current = el
 
-        const status = parsePickerPollStatus(rawStatus)
-        if (!status) {
-          scheduleNextPoll()
-          return
-        }
-
-        if (status.type === 'cancelled') {
-          stopPolling()
-          if (isMounted) onCancelled()
-          return
-        }
-
-        if (status.type === 'result') {
-          stopPolling()
-          if (isMounted) onResult(status.data)
-          return
-        }
-
-        scheduleNextPoll()
-      } catch (error) {
-        Logger.warn('[PickerPolling] Polling failed:', error)
-        if (isMounted) onError(error)
-        scheduleNextPoll()
-      } finally {
-        if (pollSessionRef.current === sessionId) {
-          pollInFlightRef.current = false
+      if (el && isListeningRef.current) {
+        try {
+          el.addEventListener('console-message', handleConsoleMessage)
+        } catch (err) {
+          Logger.warn('[PickerListening] Error adding console listener:', err)
         }
       }
     }
 
-    scheduleNextPoll()
-  }, [webviewInstance, isMounted, onResult, onCancelled, onError, stopPolling])
+    // Subscribe to element updates to handle dynamic mounting/unmounting
+    if (controller.subscribeWebviewElement) {
+      unsubscribeRef.current = controller.subscribeWebviewElement((el) => {
+        attachToElement(el)
+      })
+    } else {
+      const el = controller.getWebview?.() ?? null
+      attachToElement(el)
+    }
+  }, [getWebviewInstance, handleConsoleMessage, stopPolling])
 
   useEffect(() => {
     return () => {

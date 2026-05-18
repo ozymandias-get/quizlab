@@ -12,6 +12,15 @@ describe('usePdfScreenshot', () => {
       configurable: true,
       value: () => 'data:image/png;base64,mockScreenshotData'
     })
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      configurable: true,
+      value: (callback: BlobCallback, type?: string) => {
+        const mockBlob = new Blob(['mockBlobData'], { type: type || 'image/png' })
+        callback(mockBlob)
+      }
+    })
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    global.URL.revokeObjectURL = vi.fn()
   })
 
   afterEach(() => {
@@ -49,12 +58,9 @@ describe('usePdfScreenshot', () => {
     await result.current.handleFullPageScreenshot()
 
     expect(queueImageForAi).toHaveBeenCalledTimes(1)
-    expect(queueImageForAi).toHaveBeenCalledWith(
-      expect.stringMatching(/^data:image\/png;base64,/),
-      {
-        page: 13,
-        captureKind: 'full-page'
-      }
-    )
+    expect(queueImageForAi).toHaveBeenCalledWith('blob:mock-url', {
+      page: 13,
+      captureKind: 'full-page'
+    })
   })
 })

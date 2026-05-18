@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react'
+import { useEffect } from 'react'
 import { useAppearance } from '../providers/AppearanceContext'
 import { useLanguage } from '../providers/LanguageContext'
 import { LANGUAGES, DEFAULT_LANGUAGE } from '@shared/i18n/translations'
@@ -23,12 +23,22 @@ export function AppEffects() {
   const language = useLanguage((state) => state.language)
   const selectionColor = useAppearance((state) => state.selectionColor)
   const setIsTourActive = useAppearance((state) => state.setIsTourActive)
+  const performanceMode = useAppearance((state) => state.performanceMode)
 
   useEffect(() => {
     const root = document.documentElement
     root.classList.add('dark')
     root.classList.remove('light')
   }, [])
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (performanceMode) {
+      root.classList.add('low-perf')
+    } else {
+      root.classList.remove('low-perf')
+    }
+  }, [performanceMode])
 
   useEffect(() => {
     const langConfig = LANGUAGES[language] || LANGUAGES[DEFAULT_LANGUAGE]

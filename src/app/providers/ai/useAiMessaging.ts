@@ -4,7 +4,7 @@ import type { AiPlatform } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
 interface UseAiMessagingParams {
-  webviewInstance: WebviewController | null
+  getWebviewInstance: (tabId?: string) => WebviewController | null
   currentAI: string
   activeTabId: string
   autoSend: boolean
@@ -27,7 +27,7 @@ function toErrorToastKey(errorKey: string | undefined): string {
 }
 
 export function useAiMessaging({
-  webviewInstance,
+  getWebviewInstance,
   currentAI,
   activeTabId,
   autoSend,
@@ -35,7 +35,14 @@ export function useAiMessaging({
   showSuccess,
   showWarning
 }: UseAiMessagingParams) {
-  const webviewRefProxy = useMemo(() => ({ current: webviewInstance }), [webviewInstance])
+  const webviewRefProxy = useMemo(
+    () => ({
+      get current() {
+        return getWebviewInstance()
+      }
+    }),
+    [getWebviewInstance]
+  )
   const { sendTextToAI: rawSendText, sendImageToAI: rawSendImage } = useAiSender(
     webviewRefProxy,
     currentAI,

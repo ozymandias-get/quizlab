@@ -266,6 +266,7 @@ describe('useAiSender', () => {
       res = await result.current.sendTextToAI('hello')
     })
 
+    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('wrong_url')
     expect(res.diagnostics?.currentUrl).toBe('https://other.com')
@@ -498,6 +499,10 @@ describe('useAiSender', () => {
       })
       .mockResolvedValueOnce({
         success: true,
+        diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
+      })
+      .mockResolvedValueOnce({
+        success: true,
         action: 'input_only',
         diagnostics: { ...mockScriptDiagnostics, kind: 'auto_send', submitMs: 0 }
       })
@@ -548,6 +553,7 @@ describe('useAiSender', () => {
       res = await result.current.sendImageToAI('data:image/png;base64,xx')
     })
 
+    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('clipboard_failed')
     expect(res.diagnostics?.timings.clipboardMs).toBeDefined()
@@ -562,7 +568,6 @@ describe('useAiSender', () => {
     mockGenerateClickSendScript.mockResolvedValue('click()')
     mockUsePrompts.mockReturnValue({ activePromptText: 'Describe this' })
     mockWebview.executeJavaScript
-      .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
       .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
       .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
       .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
@@ -617,6 +622,7 @@ describe('useAiSender', () => {
       res = await result.current.sendTextToAI('hello')
     })
 
+    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('webview_destroyed')
   })
@@ -642,6 +648,7 @@ describe('useAiSender', () => {
       res = await result.current.sendTextToAI('hello')
     })
 
+    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('invalid_input')
     expect(res.diagnostics?.tabId).toBe('tab-stale')

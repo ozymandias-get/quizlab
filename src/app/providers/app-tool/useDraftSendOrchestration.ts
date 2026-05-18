@@ -15,6 +15,17 @@ interface UseDraftSendOrchestrationProps {
   setPendingAiItems: (items: AiDraftItem[]) => void
 }
 
+async function blobUrlToDataUrl(blobUrl: string): Promise<string> {
+  const response = await fetch(blobUrl)
+  const blob = await response.blob()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
 /**
  * Hook to orchestrate the sending of drafted AI items (text and images).
  * Handles planning bulk sends and sequential execution.
@@ -46,7 +57,19 @@ export function useDraftSendOrchestration({
         if (segment.kind === 'text') {
           result = await sendTextToAI(segment.payload, { autoSend: effectiveAutoSend })
         } else {
-          result = await sendImageToAI(segment.dataUrl, {
+          let dataUrl = segment.dataUrl
+          if (!dataUrl && segment.blobUrl) {
+            try {
+              dataUrl = await blobUrlToDataUrl(segment.blobUrl)
+            } catch (err) {
+              Logger.error('[DraftOrchestration] Failed to convert blob URL:', err)
+              return { success: false, error: 'invalid_image_format' }
+            }
+          }
+          if (!dataUrl) {
+            return { success: false, error: 'invalid_input' }
+          }
+          result = await sendImageToAI(dataUrl, {
             autoSend: effectiveAutoSend,
             promptText: segment.promptText
           })

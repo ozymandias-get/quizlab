@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, memo, forwardRef, type CSSProperties } from 'react'
+import { useState, useEffect, memo, forwardRef, type CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppearance } from '@app/providers'
@@ -110,14 +110,18 @@ const AnimatedBlobs = memo(({ colors, isRandomMode }: AnimatedBlobsProps) => (
 ))
 
 function AppBackground() {
-  const { bgType, bgSolidColor, bgAnimatedColors, bgRandomMode } = useAppearance(
+  const { bgType, bgSolidColor, bgAnimatedColors, bgRandomMode, performanceMode } = useAppearance(
     useShallow((s) => ({
       bgType: s.bgType,
       bgSolidColor: s.bgSolidColor,
       bgAnimatedColors: s.bgAnimatedColors,
-      bgRandomMode: s.bgRandomMode
+      bgRandomMode: s.bgRandomMode,
+      performanceMode: s.performanceMode
     }))
   )
+
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const effectivePerformanceMode = performanceMode || prefersReducedMotion
 
   const baseStyle = {
     backgroundColor: bgType === 'solid' ? bgSolidColor : '#020202',
@@ -126,7 +130,7 @@ function AppBackground() {
 
   return (
     <div className="app-background animated-bg" style={baseStyle}>
-      {bgType === 'animated' && (
+      {bgType === 'animated' && !effectivePerformanceMode && (
         <AnimatedBlobs colors={bgAnimatedColors} isRandomMode={bgRandomMode} />
       )}
 

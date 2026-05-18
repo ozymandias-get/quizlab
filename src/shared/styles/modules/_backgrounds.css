@@ -61,3 +61,15 @@
   will-change: transform, border-radius;
   pointer-events: none;
 }
+
+/* Low performance mode overrides */
+.low-perf .glass-overlay {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(2, 2, 2, 0.94) !important;
+}
+
+.low-perf .bg-blob {
+  display: none !important;
+}
+

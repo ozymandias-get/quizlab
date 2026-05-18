@@ -72,7 +72,7 @@ describe('useElementPickerLifecycle', () => {
       executeJavaScript: vi.fn().mockResolvedValue('complete')
     })
 
-    const { result } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()
@@ -92,7 +92,7 @@ describe('useElementPickerLifecycle', () => {
     })
     const el = getMockElement(controller)
 
-    const { result } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()
@@ -117,7 +117,7 @@ describe('useElementPickerLifecycle', () => {
     })
     const el = getMockElement(controller)
 
-    const { result } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()
@@ -146,7 +146,7 @@ describe('useElementPickerLifecycle', () => {
     const elB = getMockElement(controllerB)
 
     const { result, rerender } = renderHook(
-      ({ wv }: { wv: WebviewController | null }) => useElementPickerLifecycle(wv),
+      ({ wv }: { wv: WebviewController | null }) => useElementPickerLifecycle(() => wv),
       {
         initialProps: { wv: controllerA as WebviewController | null }
       }
@@ -191,7 +191,7 @@ describe('useElementPickerLifecycle', () => {
     })
     const el = getMockElement(controller)
 
-    const { result, unmount } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result, unmount } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()
@@ -216,7 +216,7 @@ describe('useElementPickerLifecycle', () => {
     })
     const el = getMockElement(controller)
 
-    const { result, unmount } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result, unmount } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()
@@ -237,7 +237,7 @@ describe('useElementPickerLifecycle', () => {
       executeJavaScript: vi.fn().mockResolvedValue('complete')
     })
 
-    const { result } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()
@@ -258,7 +258,7 @@ describe('useElementPickerLifecycle', () => {
     const el = getMockElement(controller)
     el.isDestroyed.mockReturnValue(true)
 
-    const { result } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()
@@ -294,7 +294,7 @@ describe('useElementPickerLifecycle', () => {
       }
     }
 
-    const { result } = renderHook(() => useElementPickerLifecycle(controller))
+    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
     await act(async () => {
       result.current.startPickerWhenReady()

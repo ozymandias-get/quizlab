@@ -5,7 +5,6 @@ import { safeWebviewPaste } from '@shared/lib/webviewUtils'
 import type { WebviewController } from '@shared-core/types/webview'
 import type { AiSendDiagnostics, SendImageResult } from '../../model/types'
 import {
-  CLIPBOARD_WAIT_DELAY,
   IMAGE_SUBMIT_READY_SETTLE_DELAY,
   IMAGE_SUBMIT_READY_TIMEOUT_BUFFER,
   IMAGE_UPLOAD_WAIT_DELAY,
@@ -134,8 +133,6 @@ export async function executeImageSendPipeline(
     reportSuppressedError('imageSend.webviewFocus', { cause: err })
   }
 
-  await sleep(100)
-
   // 1. Initial Focus
   const focusStep = await executePipelineStep<SendImageResult>({
     name: 'Focus',
@@ -150,8 +147,6 @@ export async function executeImageSendPipeline(
     onResult: (res) => (diagnostics.focusScript = cloneScriptDiagnostics(res?.diagnostics))
   })
   if (!focusStep.success) return focusStep.error
-
-  await sleep(CLIPBOARD_WAIT_DELAY)
 
   // 2. Paste Image
   let pasteSuccess = false
@@ -209,7 +204,7 @@ export async function executeImageSendPipeline(
     })
     if (!refocusStep.success) return refocusStep.error
 
-    await sleep(280 + POST_PASTE_PROMPT_DELAY)
+    await sleep(POST_PASTE_PROMPT_DELAY)
     diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
 
     const shouldAppendPromptAfterPaste =

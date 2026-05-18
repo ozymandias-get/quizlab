@@ -37,7 +37,8 @@ vi.mock('@app/providers/AiContext', () => ({
   }),
   useAiModelsCatalog: () => ({ aiSites: mocked.aiSites }),
   useAiTabsSliceState: () => ({ tabs: mocked.tabs, currentAI: mocked.currentAI }),
-  useAiWebview: () => ({ webviewInstance: mocked.webviewInstance })
+  useAiWebview: () => ({ getWebviewInstance: () => mocked.webviewInstance }),
+  useAiWebviewPresence: () => ({ hasActiveWebview: true })
 }))
 
 vi.mock('@platform/electron/api/useAiApi', () => ({

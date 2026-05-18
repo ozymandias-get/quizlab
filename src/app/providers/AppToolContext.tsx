@@ -55,7 +55,7 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
   const { setAutoSend } = useAiCoreWorkspaceActions()
   const { autoSend } = useAiSessionUiPrefsState()
   const { showError } = useToastActions()
-  const { webviewInstance } = useAiWebview()
+  const { getWebviewInstance } = useAiWebview()
 
   const {
     pendingAiItems,
@@ -86,7 +86,7 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
   })
 
   const { isPickerActive, startPicker, startPickerWhenReady, togglePicker } =
-    useElementPickerLifecycle(webviewInstance)
+    useElementPickerLifecycle(getWebviewInstance)
 
   const { isGeminiWebSessionRefreshing, isGeminiWebLoginInProgress, startGeminiWebLogin } =
     useGeminiSessionRefreshListeners({ showError })

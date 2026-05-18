@@ -2,7 +2,12 @@ import type { AiDraftItem } from './types'
 
 export type BulkTextSegment = { kind: 'text'; payload: string }
 
-export type BulkImageSegment = { kind: 'image'; dataUrl: string; promptText?: string }
+export type BulkImageSegment = {
+  kind: 'image'
+  dataUrl?: string
+  blobUrl?: string
+  promptText?: string
+}
 
 export type BulkSegment = BulkTextSegment | BulkImageSegment
 
@@ -45,7 +50,7 @@ export function planBulkAiSend(pending: AiDraftItem[], composerNote?: string): B
       const merged = mergeExcerpts(textBuffer)
       textBuffer = []
       const promptText = consumeNoteWith(merged)
-      segments.push({ kind: 'image', dataUrl: item.dataUrl, promptText })
+      segments.push({ kind: 'image', dataUrl: item.dataUrl, blobUrl: item.blobUrl, promptText })
     }
   }
 

@@ -84,10 +84,11 @@ export function AiProvider({ children }: { children: ReactNode }) {
     setPinnedTabs
   })
 
-  const { registerWebview, webviewInstance } = useAiWebviewRegistry(activeTabId)
+  const { registerWebview, getWebviewInstance, hasActiveWebview } =
+    useAiWebviewRegistry(activeTabId)
 
   const { sendTextToAI, sendImageToAI } = useAiMessaging({
-    webviewInstance,
+    getWebviewInstance,
     currentAI,
     activeTabId,
     autoSend,
@@ -105,8 +106,8 @@ export function AiProvider({ children }: { children: ReactNode }) {
   )
 
   const reloadActiveWebview = useCallback(() => {
-    webviewInstance?.reload?.()
-  }, [webviewInstance])
+    getWebviewInstance()?.reload?.()
+  }, [getWebviewInstance])
 
   const startTutorial = useCallback(() => {
     setIsTutorialActive(true)
@@ -163,9 +164,8 @@ export function AiProvider({ children }: { children: ReactNode }) {
     [autoSend, isTutorialActive]
   )
 
-  const webviewValue = useMemo<AiWebviewState>(() => ({ webviewInstance }), [webviewInstance])
+  const webviewValue = useMemo<AiWebviewState>(() => ({ getWebviewInstance }), [getWebviewInstance])
 
-  const hasActiveWebview = webviewInstance != null
   const webviewPresenceValue = useMemo<AiWebviewPresenceState>(
     () => ({ hasActiveWebview }),
     [hasActiveWebview]

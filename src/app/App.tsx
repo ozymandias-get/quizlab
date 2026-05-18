@@ -1,14 +1,19 @@
 import type { RefObject } from 'react'
-import { memo } from 'react'
+import { memo, lazy, Suspense } from 'react'
 import { AnimatePresence, LayoutGroup } from 'framer-motion'
-import { ScreenshotTool } from '@features/screenshot'
-import { UsageAssistant } from '@features/tutorial'
-import UpdateBanner from '@ui/components/UpdateBanner'
 import AppBackground from '@ui/layout/AppBackground'
 import ToastContainer from '@ui/components/Toast/ToastContainer'
-import GeminiWebLoginOverlay from '@app/ui/GeminiWebLoginOverlay'
-import AiSendComposer from '@app/ui/AiSendComposer'
 import MainWorkspace from '@app/ui/MainWorkspace'
+
+const ScreenshotTool = lazy(() =>
+  import('@features/screenshot').then((m) => ({ default: m.ScreenshotTool }))
+)
+const UsageAssistant = lazy(() =>
+  import('@features/tutorial').then((m) => ({ default: m.UsageAssistant }))
+)
+const UpdateBanner = lazy(() => import('@ui/components/UpdateBanner'))
+const GeminiWebLoginOverlay = lazy(() => import('@app/ui/GeminiWebLoginOverlay'))
+const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolFlagsState, useAppToolQueueState } from '@app/providers'
@@ -40,13 +45,15 @@ function App() {
 
         <ToastContainer />
 
-        <UpdateBanner
-          updateAvailable={update.updateAvailable}
-          updateInfo={update.updateInfo}
-          isVisible={updateBanner.isVisible}
-          onClose={updateBanner.close}
-          t={t}
-        />
+        <Suspense fallback={null}>
+          <UpdateBanner
+            updateAvailable={update.updateAvailable}
+            updateInfo={update.updateInfo}
+            isVisible={updateBanner.isVisible}
+            onClose={updateBanner.close}
+            t={t}
+          />
+        </Suspense>
 
         <AnimatePresence mode="wait" initial={false}>
           <MainWorkspace
@@ -68,13 +75,21 @@ function App() {
           />
         </AnimatePresence>
 
-        <GeminiWebLoginLayer t={t} />
+        <Suspense fallback={null}>
+          <GeminiWebLoginLayer t={t} />
+        </Suspense>
 
-        <PendingAiSendLayer />
+        <Suspense fallback={null}>
+          <PendingAiSendLayer />
+        </Suspense>
 
-        <ScreenshotToolLayer />
+        <Suspense fallback={null}>
+          <ScreenshotToolLayer />
+        </Suspense>
 
-        <UsageAssistant isActive={tour.isActive} onClose={tour.close} />
+        <Suspense fallback={null}>
+          <UsageAssistant isActive={tour.isActive} onClose={tour.close} />
+        </Suspense>
       </div>
     </LayoutGroup>
   )

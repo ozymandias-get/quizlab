@@ -163,6 +163,7 @@ export function buildPickerHandlersBlock(): string {
                         } catch (e) { safePickerLog('submit.selectedInputClass', e); }
 
 
+                        console.log('_aiPicker:result:' + JSON.stringify(selectionData));
                         window._aiPickerResult = JSON.parse(JSON.stringify(selectionData));
                         
                         setTimeout(() => { cleanup(); }, 300);
@@ -179,6 +180,7 @@ export function buildPickerHandlersBlock(): string {
             e.preventDefault();
             e.stopPropagation();
 
+            console.log('_aiPicker:cancelled');
             window._aiPickerCancelled = true;
             cleanup();
         };

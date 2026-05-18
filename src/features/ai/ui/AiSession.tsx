@@ -14,27 +14,58 @@ import type { WebviewController, WebviewElement } from '@shared-core/types/webvi
 import AiErrorView from './AiErrorView'
 import { AI_TAB_SLEEP_MS } from '@features/ai/constants/aiWebviewLifecycle'
 
-const STALE_CONTENT_CHECK_DELAY_MS = 2500
 const STALE_CONTENT_DETECTION_SCRIPT = `
-(() => {
-  const hasComposer = Boolean(
-    document.querySelector(
-      'textarea, [contenteditable="true"][role="textbox"], div[role="textbox"]'
-    )
-  );
-  if (hasComposer) return false;
-  const t = (document.body?.innerText || '').toLowerCase();
-  return (
-    t.includes('could not be loaded') ||
-    t.includes("couldn't be loaded") ||
-    t.includes('yüklenemedi') ||
-    t.includes("doesn't exist") ||
-    t.includes('mevcut değil') ||
-    t.includes('no longer available') ||
-    t.includes('conversation not found') ||
-    t.includes('silinmiş')
-  );
-})()
+new Promise((resolve) => {
+  if (document.hidden) return resolve(false);
+
+  const check = () => {
+    const hasComposer = Boolean(
+      document.querySelector(
+        'textarea, [contenteditable="true"][role="textbox"], div[role="textbox"]'
+      )
+    );
+    if (hasComposer) return false;
+    
+    const container = document.querySelector('main, #root, #__next, .error-page') || document.body;
+    if (!container) return false;
+    
+    const t = (container.textContent || '').toLowerCase();
+    return (
+      t.includes('could not be loaded') ||
+      t.includes("couldn't be loaded") ||
+      t.includes('yüklenemedi') ||
+      t.includes("doesn't exist") ||
+      t.includes('mevcut değil') ||
+      t.includes('no longer available') ||
+      t.includes('conversation not found') ||
+      t.includes('silinmiş')
+    );
+  };
+
+  if (check()) return resolve(true);
+
+  let observer;
+  let timeout;
+
+  const cleanup = () => {
+    if (observer) observer.disconnect();
+    if (timeout) clearTimeout(timeout);
+  };
+
+  observer = new MutationObserver(() => {
+    if (check()) {
+      cleanup();
+      resolve(true);
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+  timeout = setTimeout(() => {
+    cleanup();
+    resolve(false);
+  }, 12500);
+})
 `
 
 interface AiSessionProps {
@@ -118,28 +149,18 @@ const AiSession = memo(
         if (!initialUrl) return
 
         let cancelled = false
-        let pendingTimeout: ReturnType<typeof setTimeout> | null = null
         staleCheckHandle.current = {
           cancel: () => {
             cancelled = true
-            if (pendingTimeout !== null) {
-              clearTimeout(pendingTimeout)
-              pendingTimeout = null
-            }
           }
         }
 
-        let checks = 0
-        const maxChecks = 5
-
         const runCheck = async () => {
-          if (cancelled || checks >= maxChecks || !wv) return
-          checks++
+          if (cancelled || !wv) return
 
           try {
             const currentUrl = wv.getURL?.()
             if (!currentUrl) {
-              scheduleNext()
               return
             }
 
@@ -153,25 +174,18 @@ const AiSession = memo(
             }
 
             const isStale = await wv.executeJavaScript(STALE_CONTENT_DETECTION_SCRIPT)
+            if (cancelled) return
+
             if (isStale) {
-              cancelled = true
               wv.loadURL?.(initialUrl)
-              return
             }
           } catch (error) {
             reportSuppressedError('aiSession.staleContentCheck', { cause: error })
           }
-
-          scheduleNext()
         }
 
-        function scheduleNext() {
-          if (!cancelled && checks < maxChecks) {
-            pendingTimeout = setTimeout(runCheck, STALE_CONTENT_CHECK_DELAY_MS)
-          }
-        }
-
-        pendingTimeout = setTimeout(runCheck, STALE_CONTENT_CHECK_DELAY_MS)
+        // Slight delay to allow for initial rendering before attaching the observer
+        setTimeout(runCheck, 500)
       },
       [initialUrl]
     )
@@ -204,7 +218,7 @@ const AiSession = memo(
           src={webviewSrc}
           partition={partition}
           className="flex-1 w-full h-full"
-          allowpopups={WEBVIEW_ALLOW_POPUPS}
+          allowpopups={(WEBVIEW_ALLOW_POPUPS ? 'true' : undefined) as any}
           webpreferences="contextIsolation=yes, sandbox=yes, backgroundThrottling=yes"
           useragent={chromeUserAgent}
         />

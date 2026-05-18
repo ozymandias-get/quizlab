@@ -95,11 +95,17 @@ export function usePdfScreenshot({
         return
       }
 
-      const dataUrl = targetCanvas.toDataURL('image/png')
-      queueImageForAi(dataUrl, {
-        page: currentPage,
-        captureKind: 'full-page'
-      })
+      targetCanvas.toBlob((blob) => {
+        if (!blob) {
+          Logger.warn('[PdfScreenshot] Canvas toBlob failed.')
+          return
+        }
+        const blobUrl = URL.createObjectURL(blob)
+        queueImageForAi(blobUrl, {
+          page: currentPage,
+          captureKind: 'full-page'
+        })
+      }, 'image/png')
     } catch (error) {
       Logger.error('[PdfScreenshot] Full page capture error:', error)
     }

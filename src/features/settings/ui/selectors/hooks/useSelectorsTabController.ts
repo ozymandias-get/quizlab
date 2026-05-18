@@ -4,7 +4,8 @@ import {
   useAiCoreWorkspaceActions,
   useAiModelsCatalog,
   useAiTabsSliceState,
-  useAiWebview
+  useAiWebview,
+  useAiWebviewPresence
 } from '@app/providers/AiContext'
 import { useAiConfig, useDeleteAiConfig, useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGenerateValidateSelectorsScript } from '@platform/electron/api/useAutomationApi'
@@ -26,7 +27,8 @@ interface UseSelectorsTabControllerOptions {
 export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabControllerOptions) {
   const { tabs, currentAI } = useAiTabsSliceState()
   const { aiSites } = useAiModelsCatalog()
-  const { webviewInstance } = useAiWebview()
+  const { getWebviewInstance } = useAiWebview()
+  const { hasActiveWebview } = useAiWebviewPresence()
   const { startTutorial, openAiWorkspace } = useAiCoreWorkspaceActions()
   const { startPickerWhenReady } = useAppToolActions()
   const { showError, showSuccess, showWarning } = useToastActions()
@@ -119,6 +121,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
         return
       }
 
+      const webviewInstance = getWebviewInstance()
       if (
         !webviewInstance ||
         currentAI !== aiKey ||
@@ -193,7 +196,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
       showSuccess,
       showWarning,
       t,
-      webviewInstance
+      getWebviewInstance
     ]
   )
 
@@ -201,7 +204,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     t,
     tabs,
     currentAI,
-    webviewInstance,
+    webviewInstance: hasActiveWebview ? {} : null,
     selectors,
     aiEntries,
     expandedIds,

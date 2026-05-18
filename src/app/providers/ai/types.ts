@@ -27,7 +27,7 @@ export interface AiDraftTextItem {
 export interface AiDraftImageItem {
   id: string
   type: 'image'
-  dataUrl: string
+  dataUrl?: string
   /** Lightweight blob URL for preview; prefer over dataUrl for rendering. */
   blobUrl?: string
   page?: number
@@ -81,7 +81,7 @@ export type AiSessionUiPrefsSliceState = Pick<AiContextState, 'autoSend' | 'isTu
 export type AiRegistryPrefsSliceState = AiCatalogSliceState & AiSessionUiPrefsSliceState
 
 export interface AiWebviewState {
-  webviewInstance: WebviewController | null
+  getWebviewInstance: (tabId?: string) => WebviewController | null
 }
 
 /** Aktif sekmede webview var mı (referans değişiminden bağımsız; şerit yenile butonu için). */

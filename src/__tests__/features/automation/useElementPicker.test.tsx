@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useElementPicker } from '@features/automation/hooks/useElementPicker'
 
@@ -59,7 +59,7 @@ describe('useElementPicker Hook', () => {
   })
 
   it('starts picker successfully', async () => {
-    const { result } = renderHook(() => useElementPicker(mockWebview))
+    const { result } = renderHook(() => useElementPicker(() => mockWebview))
 
     await act(async () => {
       await result.current.startPicker()

@@ -112,7 +112,10 @@ vi.mock('@app/providers/AiContext', () => ({
     openAiWorkspace: mockOpenAiWorkspace
   }),
   useAiWebview: () => ({
-    webviewInstance: mockWebview
+    getWebviewInstance: () => mockWebview
+  }),
+  useAiWebviewPresence: () => ({
+    hasActiveWebview: true
   })
 }))
 

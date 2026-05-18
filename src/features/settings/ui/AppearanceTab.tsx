@@ -1,9 +1,10 @@
-﻿import { memo } from 'react'
+import { memo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppearance, useLanguageStrings } from '@app/providers'
 import { EyeIcon } from '@ui/components/Icons'
 
 import CompactModeToggle from './appearance/CompactModeToggle'
+import PerformanceModeToggle from './appearance/PerformanceModeToggle'
 import BarAppearanceSettings from './appearance/BarAppearanceSettings'
 import SelectionColorSettings from './appearance/SelectionColorSettings'
 import BackgroundSettings from './appearance/BackgroundSettings'
@@ -13,6 +14,8 @@ const AppearanceTab = memo(() => {
   const {
     showOnlyIcons,
     setShowOnlyIcons,
+    performanceMode,
+    setPerformanceMode,
     bottomBarOpacity,
     setBottomBarOpacity,
     bottomBarScale,
@@ -31,6 +34,8 @@ const AppearanceTab = memo(() => {
     useShallow((s) => ({
       showOnlyIcons: s.showOnlyIcons,
       setShowOnlyIcons: s.setShowOnlyIcons,
+      performanceMode: s.performanceMode,
+      setPerformanceMode: s.setPerformanceMode,
       bottomBarOpacity: s.bottomBarOpacity,
       setBottomBarOpacity: s.setBottomBarOpacity,
       bottomBarScale: s.bottomBarScale,
@@ -64,6 +69,12 @@ const AppearanceTab = memo(() => {
       />
 
       <CompactModeToggle showOnlyIcons={showOnlyIcons} setShowOnlyIcons={setShowOnlyIcons} t={t} />
+
+      <PerformanceModeToggle
+        performanceMode={performanceMode}
+        setPerformanceMode={setPerformanceMode}
+        t={t}
+      />
 
       <BarAppearanceSettings
         bottomBarOpacity={bottomBarOpacity}

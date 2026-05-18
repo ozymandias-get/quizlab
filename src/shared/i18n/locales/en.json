@@ -467,6 +467,8 @@
   "settings_group_app": "App",
   "show_only_icons": "Compact Mode",
   "show_only_icons_desc": "Hide text labels, show only icons.",
+  "performance_mode": "Low Performance Mode",
+  "performance_mode_desc": "Disable high-GPU background animations and backdrop-filter blur for smoother operation.",
   "splash_initializing": "INITIALISING NEURAL ENGINE",
   "splash_exit": "Exit App",
   "loader_msg_1": "Synchronizing Neural Links...",

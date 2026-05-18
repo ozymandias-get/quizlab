@@ -1,35 +1,37 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { WebviewController } from '@shared-core/types/webview'
 
 export function useAiWebviewRegistry(activeTabId: string) {
-  const [webviewInstances, setWebviewInstances] = useState<Record<string, WebviewController>>({})
+  const webviewInstancesRef = useRef<Record<string, WebviewController>>({})
+  const [activeWebviewCount, setActiveWebviewCount] = useState(0)
 
   const registerWebview = useCallback((id: string, instance: WebviewController | null) => {
-    setWebviewInstances((prev) => {
-      if (prev[id] === instance) {
-        return prev
+    const prev = webviewInstancesRef.current
+    if (prev[id] === instance) {
+      return
+    }
+
+    if (instance === null) {
+      if (!(id in prev)) {
+        return
       }
-
-      if (instance === null) {
-        if (!(id in prev)) {
-          return prev
-        }
-
-        const { [id]: _, ...rest } = prev
-        return rest
-      }
-
-      return { ...prev, [id]: instance }
-    })
+      delete prev[id]
+    } else {
+      prev[id] = instance
+    }
+    setActiveWebviewCount(Object.keys(prev).length)
   }, [])
 
-  const webviewInstance = useMemo(
-    () => webviewInstances[activeTabId] || null,
-    [webviewInstances, activeTabId]
+  const getWebviewInstance = useCallback(
+    (tabId?: string): WebviewController | null => {
+      return webviewInstancesRef.current[tabId || activeTabId] || null
+    },
+    [activeTabId]
   )
 
   return {
     registerWebview,
-    webviewInstance
+    getWebviewInstance,
+    hasActiveWebview: activeWebviewCount > 0
   }
 }

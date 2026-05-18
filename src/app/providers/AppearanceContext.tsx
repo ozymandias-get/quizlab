@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand'
+import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 interface AppearanceState {
@@ -25,6 +25,8 @@ interface AppearanceState {
   isTourActive: boolean
   setIsTourActive: (value: boolean) => void
   startTour: () => void
+  performanceMode: boolean
+  setPerformanceMode: (value: boolean) => void
 }
 
 export const useAppearance = create<AppearanceState>()(
@@ -53,7 +55,9 @@ export const useAppearance = create<AppearanceState>()(
 
       isTourActive: false,
       setIsTourActive: (value) => set({ isTourActive: value }),
-      startTour: () => set({ isTourActive: true })
+      startTour: () => set({ isTourActive: true }),
+      performanceMode: false,
+      setPerformanceMode: (value) => set({ performanceMode: value })
     }),
     {
       name: 'appearance-storage',
@@ -67,7 +71,8 @@ export const useAppearance = create<AppearanceState>()(
         bgAnimatedColors: state.bgAnimatedColors,
         bgRandomMode: state.bgRandomMode,
         selectionColor: state.selectionColor,
-        isLayoutSwapped: state.isLayoutSwapped
+        isLayoutSwapped: state.isLayoutSwapped,
+        performanceMode: state.performanceMode
       })
     }
   )
