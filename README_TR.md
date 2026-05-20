@@ -29,7 +29,7 @@
 
 <p align="center">
   <a href="https://github.com/ozymandias-get/quizlab/releases">
-    <img src="https://img.shields.io/github/v/release/ozymandias-get/quizlab?style=flat-square&logo=github&color=6b5b4c" alt="GitHub Sürümü">
+    <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&query=%24.version&label=s%C3%BCr%C3%BCm&style=flat-square&color=6b5b4c" alt="Mevcut sürüm">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/lisans-MIT-green.svg?style=flat-square&color=8c7a6b" alt="MIT Lisansı">
