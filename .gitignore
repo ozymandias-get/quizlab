@@ -86,7 +86,7 @@ pdf-cache/
 # Screenshots, recordings, diagnostics
 screenshots/
 recordings/
-diagnostics/
+/diagnostics/
 *.heapsnapshot
 *.trace.json
 *.cpuprofile
