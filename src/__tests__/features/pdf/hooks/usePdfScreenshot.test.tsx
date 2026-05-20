@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { usePdfScreenshot } from '@features/pdf/ui/hooks/usePdfScreenshot'
+import { usePdfCaptureActions } from '@features/pdf/capture/usePdfCaptureActions'
 
-describe('usePdfScreenshot', () => {
+describe('usePdfCaptureActions', () => {
   const queueImageForAi = vi.fn()
   const startScreenshot = vi.fn()
 
@@ -48,7 +48,7 @@ describe('usePdfScreenshot', () => {
     document.body.appendChild(page13Layer)
 
     const { result } = renderHook(() =>
-      usePdfScreenshot({
+      usePdfCaptureActions({
         currentPage: 13,
         queueImageForAi,
         startScreenshot

@@ -74,10 +74,20 @@ const ICONS: Record<ToastType, ReactNode> = {
 }
 
 const STYLES: Record<ToastType, string> = {
-  success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  error: 'bg-red-500/10 text-red-400 border-red-500/20',
-  warning: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  info: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+  success:
+    'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shadow-[0_4px_24px_-4px_rgba(16,185,129,0.15)]',
+  error:
+    'bg-red-500/10 text-red-300 border border-red-500/20 shadow-[0_4px_24px_-4px_rgba(239,68,68,0.15)]',
+  warning:
+    'bg-amber-500/10 text-amber-300 border border-amber-500/20 shadow-[0_4px_24px_-4px_rgba(245,158,11,0.15)]',
+  info: 'bg-blue-500/10 text-blue-300 border border-blue-500/20 shadow-[0_4px_24px_-4px_rgba(59,130,246,0.15)]'
+}
+
+const ACCENT_COLORS: Record<ToastType, string> = {
+  success: 'bg-emerald-500',
+  error: 'bg-red-500',
+  warning: 'bg-amber-500',
+  info: 'bg-blue-500'
 }
 
 const PROGRESS_COLORS: Record<ToastType, string> = {
@@ -95,11 +105,12 @@ interface ToastItemProps {
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove }, ref) => {
   const { t } = useLanguageStrings()
   const [isPaused, setIsPaused] = useState(false)
-  const [pausedWidth, setPausedWidth] = useState<number | null>(null)
+  const [progressPercent, setProgressPercent] = useState(100)
   const [resumeKey, setResumeKey] = useState(0)
   const remainingTimeRef = useRef(toast.duration || 5000)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const timerStartRef = useRef<number>(0)
+  const progressRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const duration = toast.duration || 5000
   const toastId = toast.id
@@ -109,17 +120,33 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
       clearTimeout(timerRef.current)
       timerRef.current = null
     }
+    if (progressRef.current !== null) {
+      clearInterval(progressRef.current)
+      progressRef.current = null
+    }
   }, [])
+
+  const startProgress = useCallback(() => {
+    if (progressRef.current !== null) {
+      clearInterval(progressRef.current)
+    }
+    progressRef.current = setInterval(() => {
+      const elapsed = Date.now() - timerStartRef.current
+      const remaining = Math.max(0, remainingTimeRef.current - elapsed)
+      const percent = (remaining / duration) * 100
+      setProgressPercent(percent)
+    }, 16)
+  }, [duration])
 
   const startTimer = useCallback(() => {
     clearTimer()
-    setPausedWidth(null)
     timerStartRef.current = Date.now()
+    startProgress()
     timerRef.current = setTimeout(() => {
       timerRef.current = null
       onRemove(toastId)
     }, remainingTimeRef.current)
-  }, [clearTimer, toastId, onRemove])
+  }, [clearTimer, toastId, onRemove, startProgress])
 
   useEffect(() => {
     if (!isPaused) {
@@ -135,8 +162,6 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
     const elapsed = Date.now() - timerStartRef.current
     const remaining = remainingTimeRef.current - elapsed
     remainingTimeRef.current = Math.max(0, remaining)
-    const widthPercent = Math.max(0, (remainingTimeRef.current / duration) * 100)
-    setPausedWidth(widthPercent)
     clearTimer()
   }
 
@@ -163,36 +188,43 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
     <motion.div
       ref={ref}
       layout
-      initial={{ opacity: 0, x: 50, scale: 0.9 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 20, scale: 0.95, transition: { duration: 0.2 } }}
+      initial={{ opacity: 0, y: -24, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{
+        opacity: 0,
+        y: -16,
+        scale: 0.96,
+        transition: { duration: 0.2, ease: 'easeOut' }
+      }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={`
-                relative group pointer-events-auto
-                w-80 md:w-96 p-4 mb-3
-                glass-tier-2 glass-tier-card
-                flex items-start gap-4
-                ${STYLES[toast.type] || STYLES.info}
-                transition-all duration-300
-            `}
+        relative group pointer-events-auto
+        w-full p-3.5 mb-2 rounded-xl
+        backdrop-blur-md
+        flex items-start gap-3
+        ${STYLES[toast.type] || STYLES.info}
+      `}
     >
-      <div className="absolute inset-0 rounded-2xl bg-white/[0.02] pointer-events-none" />
+      <div
+        className={`absolute left-0 top-2 bottom-2 w-1 rounded-full ${ACCENT_COLORS[toast.type] || ACCENT_COLORS.info}`}
+      />
 
       <div className="flex-shrink-0 mt-0.5">{ICONS[toast.type] || ICONS.info}</div>
 
-      <div className="flex-grow min-w-0">
-        <h4 className="text-ql-14 font-semibold mb-1 truncate">
+      <div className="flex-grow min-w-0 pr-5">
+        <h4 className="text-sm font-semibold mb-0.5 truncate">
           {toast.title ? t(toast.title, toast.params) : t(`toast.${toast.type}.title`)}
         </h4>
-        <p className="text-ql-12 opacity-80 leading-relaxed break-words">
+        <p className="text-xs opacity-80 leading-relaxed break-words line-clamp-2">
           {t(toast.message, toast.params)}
         </p>
         {toast.actionLabel && (
           <button
             type="button"
             onClick={handleAction}
-            className="mt-2 text-ql-12 font-semibold uppercase tracking-wide opacity-90 hover:opacity-100 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm"
+            className="mt-1.5 text-xs font-semibold uppercase tracking-wide opacity-90 hover:opacity-100 underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm"
           >
             {t(toast.actionLabel)}
           </button>
@@ -201,10 +233,11 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
 
       <button
         onClick={handleClose}
-        className="flex-shrink-0 opacity-40 hover:opacity-100 transition-opacity p-1 -mr-1"
+        className="absolute top-2 right-2 flex-shrink-0 opacity-40 hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-white/5"
+        aria-label="Close notification"
       >
         <svg
-          className="w-4 h-4"
+          className="w-3.5 h-3.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -215,13 +248,12 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
         </svg>
       </button>
 
-      <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-black/10 rounded-full overflow-hidden mb-1">
-        <div
+      <div className="absolute bottom-0 left-3 right-3 h-[2px] bg-black/20 rounded-full overflow-hidden">
+        <motion.div
           key={resumeKey}
-          className={`h-full ${PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info} shadow-[0_0_8px_rgba(0,0,0,0.2)]`}
+          className={`h-full ${PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info}`}
           style={{
-            width: isPaused && pausedWidth !== null ? `${pausedWidth}%` : '100%',
-            transition: isPaused ? 'none' : `width ${remainingTimeRef.current}ms linear`
+            width: `${progressPercent}%`
           }}
         />
       </div>

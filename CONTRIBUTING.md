@@ -1,41 +1,55 @@
 # Contributing to Quizlab Reader
 
-Thank you for your interest in contributing to Quizlab Reader. This guide reflects the current repository layout and contribution workflow.
+Thank you for your interest in contributing. This guide reflects the current repository layout and workflow.
+
+## Table of Contents
+
+- [Development Setup](#development-setup)
+- [Branch Strategy](#branch-strategy)
+- [Commit Message Guidelines](#commit-message-guidelines)
+- [Pull Request Checklist](#pull-request-checklist)
+- [Project Structure](#project-structure)
+- [Import Boundaries](#import-boundaries)
+- [Quality Commands](#quality-commands)
+- [Reporting Bugs](#reporting-bugs)
+- [Feature Requests](#feature-requests)
+
+---
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Node.js 18+** (recommended: 20+)
+- **Node.js 20+** (recommended: 22)
 - **npm**
-- **Google Account** (optional, for Gemini Web and Google AI surfaces in the embedded browser)
 - **Git**
+- **Google Account** (optional, for Gemini Web and Google AI surfaces)
 
 ### Initial Setup
 
 ```bash
-# Fork the repository on GitHub, then clone your fork
+# Fork the repository, then clone your fork
 git clone https://github.com/YOUR_USERNAME/quizlab.git
 cd quizlab
 
 # Install dependencies
 npm install
 
-# Run in development mode
+# Start development mode (Electron + Vite)
 npm run dev
 ```
 
-Optional Electron dev environment variables (all optional):
+Optional environment variables (see `.env.example`):
 
-| Variable                     | Effect                                                             |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `APP_ALLOW_MULTI_INSTANCE=1` | Allow more than one running instance (default is single-instance). |
-| `APP_RENDERER_URL`           | Dev server URL for the renderer (default `http://localhost:5173`). |
-| `APP_OPEN_DEVTOOLS=1`        | Open DevTools when the main window loads.                          |
+| Variable                     | Effect                                                      |
+| ---------------------------- | ----------------------------------------------------------- |
+| `APP_ALLOW_MULTI_INSTANCE=1` | Allow multiple instances (default: single-instance).        |
+| `APP_RENDERER_URL`           | Renderer dev server URL (default: `http://localhost:5173`). |
+| `APP_OPEN_DEVTOOLS=1`        | Open DevTools on startup.                                   |
+
+---
 
 ## Branch Strategy
-
-We use a simple branching model:
 
 | Branch      | Purpose                      |
 | ----------- | ---------------------------- |
@@ -46,7 +60,7 @@ We use a simple branching model:
 
 ### Workflow
 
-1. Create a new branch from `master`:
+1. Create a branch from `master`:
 
    ```bash
    git checkout master
@@ -54,12 +68,14 @@ We use a simple branching model:
    git checkout -b feature/your-feature-name
    ```
 
-2. Make your changes and commit.
+2. Make changes and commit.
 3. Push to your fork and open a Pull Request to `master`.
+
+---
 
 ## Commit Message Guidelines
 
-We follow conventional commit format:
+We follow conventional commits:
 
 ```text
 <type>(<scope>): <subject>
@@ -71,82 +87,108 @@ We follow conventional commit format:
 
 ### Types
 
-| Type       | Description                                       |
-| ---------- | ------------------------------------------------- |
-| `feat`     | New feature                                       |
-| `fix`      | Bug fix                                           |
-| `docs`     | Documentation changes                             |
-| `style`    | Code style changes (formatting, semicolons, etc.) |
-| `refactor` | Code refactoring                                  |
-| `perf`     | Performance improvements                          |
-| `test`     | Adding or updating tests                          |
-| `chore`    | Build process or auxiliary tool changes           |
+| Type       | Description                               |
+| ---------- | ----------------------------------------- |
+| `feat`     | New feature                               |
+| `fix`      | Bug fix                                   |
+| `docs`     | Documentation changes                     |
+| `style`    | Code style (formatting, semicolons, etc.) |
+| `refactor` | Code refactoring                          |
+| `perf`     | Performance improvements                  |
+| `test`     | Adding or updating tests                  |
+| `chore`    | Build process or auxiliary tool changes   |
+
+---
 
 ## Pull Request Checklist
 
-Before submitting your PR, please ensure:
+Before submitting your PR:
 
-- [ ] Code follows the project's TypeScript and React conventions
-- [ ] Checks pass: `npm run typecheck`, `npm run lint`, `npx vitest run`
-- [ ] Documentation is updated if behavior or structure changed
-- [ ] Commit messages follow the convention
+- [ ] Code follows project TypeScript and React conventions
+- [ ] All checks pass: `npm run typecheck`, `npm run lint`, `npm run test`
+- [ ] Documentation updated if behavior or structure changed
+- [ ] Commit messages follow conventional format
+- [ ] No unused imports or dead code
 - [ ] PR description clearly explains the changes
-- [ ] No unused imports or variables left behind
+
+---
 
 ## Project Structure
 
-When adding new work, follow the current layered architecture:
-
-```text
+```
 src/
   app/                         # App shell, providers, effects
   features/
     your-feature/
       ui/                      # Feature UI components
       hooks/                   # Feature hooks
-      model/                   # Feature types/constants/domain
+      model/                   # Types, constants, domain logic
       api/                     # Optional feature API surface
       index.ts                 # Public feature entry point
-  shared/                      # Renderer-shared UI/hooks/lib/constants/i18n
-  platform/electron/           # Renderer <-> Electron bridge
+  shared/                      # Renderer-shared UI, hooks, i18n, constants
+  platform/                    # Electron bridge adapters
 
-electron/features/your-feature/  # Main-process feature handlers/services
-shared/                          # Cross-process constants/types
+electron/features/             # Main-process feature handlers
+shared/                        # Cross-process constants and types
 ```
 
-Import boundaries:
+---
 
-- Use feature public API imports (for example, `@features/settings`) outside `src/features/**`.
-- Avoid deep feature imports such as `@features/<feature>/ui/*` from non-feature layers.
-- Use `@shared/*` for renderer shared code and `@shared-core/*` for cross-process contracts.
-- Do not introduce deprecated `@src/*` imports.
+## Import Boundaries
 
-## Testing
+- Use feature public API imports (`@features/settings`) outside `src/features/**`
+- Avoid deep imports like `@features/<feature>/ui/*` from non-feature layers
+- Use `@shared/*` for renderer shared code and `@shared-core/*` for cross-process contracts
+- Do not use `@src/*` (deprecated)
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full boundary policy.
+
+---
+
+## Quality Commands
 
 ```bash
+# TypeScript type checking
 npm run typecheck
+
+# ESLint (zero warnings required)
 npm run lint
-npx vitest run
+
+# Run tests
+npm run test
+
+# Full build
 npm run build
+
+# Format code
+npm run format
 ```
+
+Pre-commit hooks are set up via **Husky** and **lint-staged** — they run lint and format automatically on staged files.
+
+---
 
 ## Reporting Bugs
 
-Please use GitHub Issues and include:
+Open a [GitHub Issue](https://github.com/ozymandias-get/quizlab/issues/new?template=bug_report.md) and include:
 
 - Clear description of the bug
 - Steps to reproduce
 - Expected vs actual behavior
 - Screenshots (if applicable)
-- System info (OS, app version)
+- OS and app version
+
+---
 
 ## Feature Requests
 
-We welcome feature suggestions. Please:
+We welcome suggestions. Please:
 
-- Check existing issues first
+- [Check existing issues](https://github.com/ozymandias-get/quizlab/issues) first
 - Describe the use case clearly
 - Explain why it would be valuable
+
+---
 
 ## Code of Conduct
 
@@ -155,9 +197,13 @@ We welcome feature suggestions. Please:
 - Focus on what is best for the community
 - Show empathy towards others
 
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+---
+
 ## Questions
 
-Feel free to open a GitHub Discussion or comment on related issues.
+Open a [GitHub Discussion](https://github.com/ozymandias-get/quizlab/discussions) or comment on related issues.
 
 ---
 

@@ -10,12 +10,14 @@ export interface Toast {
   duration?: number
   actionLabel?: string
   onAction?: () => void
+  createdAt: number
 }
 
 interface ToastStoreState {
   toasts: Toast[]
-  addToast: (toast: Omit<Toast, 'id'>) => string
+  addToast: (toast: Omit<Toast, 'id' | 'createdAt'>) => string
   removeToast: (id: string) => void
+  clearAll: () => void
   showSuccess: (
     message: string,
     title?: string,
@@ -44,6 +46,21 @@ interface ToastStoreState {
 
 const MAX_TOASTS = 3
 const DEFAULT_DURATION = 5000
+const DEDUPE_WINDOW_MS = 1000
+
+let toastCounter = 0
+
+function generateId(): string {
+  toastCounter += 1
+  return `toast-${Date.now()}-${toastCounter}`
+}
+
+function isDuplicate(existing: Toast[], message: string, type: Toast['type']): boolean {
+  const now = Date.now()
+  return existing.some(
+    (t) => t.message === message && t.type === type && now - t.createdAt < DEDUPE_WINDOW_MS
+  )
+}
 
 const useToastStore = create<ToastStoreState>((set, get) => {
   const showTyped =
@@ -53,6 +70,10 @@ const useToastStore = create<ToastStoreState>((set, get) => {
 
   return {
     toasts: [],
+
+    clearAll: () => {
+      set({ toasts: [] })
+    },
 
     removeToast: (id: string) => {
       set((prev) => ({ toasts: prev.toasts.filter((toast) => toast.id !== id) }))
@@ -64,11 +85,18 @@ const useToastStore = create<ToastStoreState>((set, get) => {
       type = 'info',
       params = {},
       duration = DEFAULT_DURATION
-    }: Omit<Toast, 'id'>) => {
-      const id = Math.random().toString(36).substring(2, 9)
+    }: Omit<Toast, 'id' | 'createdAt'>) => {
+      if (isDuplicate(get().toasts, message, type)) {
+        return ''
+      }
+
+      const id = generateId()
 
       set((prev) => {
-        const next = [...prev.toasts, { id, message, title, type, params, duration }]
+        const next = [
+          ...prev.toasts,
+          { id, message, title, type, params, duration, createdAt: Date.now() }
+        ]
         return { toasts: next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next }
       })
 
@@ -85,12 +113,14 @@ const useToastStore = create<ToastStoreState>((set, get) => {
 /** Subscribe only to stable action fns — not `toasts` — so new/dismissed toasts do not re-render callers. */
 export function useToastActions() {
   const addToast = useToastStore((state) => state.addToast)
+  const removeToast = useToastStore((state) => state.removeToast)
+  const clearAll = useToastStore((state) => state.clearAll)
   const showSuccess = useToastStore((state) => state.showSuccess)
   const showError = useToastStore((state) => state.showError)
   const showWarning = useToastStore((state) => state.showWarning)
   const showInfo = useToastStore((state) => state.showInfo)
 
-  return { addToast, showSuccess, showError, showWarning, showInfo }
+  return { addToast, removeToast, clearAll, showSuccess, showError, showWarning, showInfo }
 }
 
 /** For the toast stack UI only (`toasts` updates frequently). */

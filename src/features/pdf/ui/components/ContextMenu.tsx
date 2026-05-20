@@ -78,10 +78,9 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         className="fixed z-[9999] origin-top-left"
         style={{ top: adjustedPosition.y, left: adjustedPosition.x }}
       >
-        {/* 
-                  Visual styling wrapper separated from motion.div
-                  This prevents framer-motion from trying to animate backdrop-blur or other filters
-                  which can cause "Invalid keyframe value for property filter: blur(-0.01679px)" errors
+        {/*
+                  Visual styling wrapper separated from motion.div to prevent
+                  framer-motion backdrop-blur animation artifacts.
                 */}
         <div className="min-w-[220px] bg-[#1a1a1a]/90 backdrop-blur-lg border border-white/10 rounded-xl shadow-2xl shadow-black/80 p-1.5 overflow-hidden ring-1 ring-white/5">
           {items.map((item, index) => {

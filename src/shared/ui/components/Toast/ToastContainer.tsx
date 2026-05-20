@@ -14,8 +14,9 @@ function ToastContainer() {
   return createPortal(
     <div
       id="toast-root"
-      className="fixed top-6 right-6 z-[99999] flex flex-col items-end pointer-events-none"
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center pointer-events-none w-full max-w-md px-4"
       aria-live="polite"
+      role="status"
     >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (

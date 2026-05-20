@@ -7,6 +7,7 @@ import {
   type RefObject
 } from 'react'
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
+import { getScrollContainer } from '../../viewport/scrollUtils'
 
 type PageChangeEvent = { currentPage: number }
 type DocumentLoadEvent = { doc: { numPages: number } }
@@ -56,14 +57,6 @@ const normalizeWheelDelta = (delta: number, deltaMode: number) => {
 const claimWheelEvent = (event: WheelEvent) => {
   event.preventDefault()
   event.stopPropagation()
-}
-
-const getScrollContainer = (root: HTMLElement | null): HTMLElement | null => {
-  if (!root) return null
-  return (
-    root.querySelector<HTMLElement>('[data-testid="core__inner-container"]') ||
-    root.querySelector<HTMLElement>('.rpv-core__inner-pages')
-  )
 }
 
 export function usePdfNavigation({

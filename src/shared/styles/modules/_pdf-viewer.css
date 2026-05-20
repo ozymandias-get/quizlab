@@ -1,5 +1,5 @@
 .pdf-viewer-container {
-  background: transparent;
+  background: #0a0a0a;
   border-radius: 1.5rem 1.5rem 0 0;
   position: relative;
   overflow: hidden;
@@ -31,7 +31,7 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__inner-page,
 body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer,
 body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__page-layer,
 body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__doc {
-  background-color: transparent !important;
+  background-color: #0a0a0a !important;
 }
 
 body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer canvas,
@@ -40,8 +40,26 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer
 }
 
 .pdf-viewer-container .rpv-core__viewer {
-  background-color: transparent !important;
+  background-color: #0a0a0a !important;
   height: 100% !important;
+}
+
+.pdf-viewer-container .rpv-core__inner-pages {
+  background-color: #0a0a0a !important;
+  /* Programmatic jumpToPage is the scroll authority; snap fought native scroll + custom nav */
+  scroll-snap-type: none !important;
+}
+
+.pdf-viewer-container .rpv-core__inner-page {
+  background-color: #0a0a0a !important;
+}
+
+.pdf-viewer-container .rpv-core__page-layer {
+  background-color: #0a0a0a !important;
+}
+
+.pdf-viewer-container .rpv-core__doc {
+  background-color: #0a0a0a !important;
 }
 
 .pdf-viewer-container .rpv-core__inner-page {

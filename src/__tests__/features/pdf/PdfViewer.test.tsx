@@ -89,10 +89,6 @@ vi.mock('@features/pdf/ui/hooks', () => ({
     goToPreviousPage: vi.fn(),
     goToNextPage: vi.fn()
   }),
-  usePdfScreenshot: () => ({
-    handleFullPageScreenshot: vi.fn()
-  }),
-  usePdfTextSelection: () => ({}),
   usePdfContextMenu: () => ({
     contextMenu: null,
     setContextMenu: vi.fn()
@@ -101,9 +97,12 @@ vi.mock('@features/pdf/ui/hooks', () => ({
   usePdfResizeRefit: () => {},
   usePdfCtrlWheelZoom: () => {},
   usePdfViewerZoomIpc: () => {},
-  usePdfPageTextExtraction: () => ({
-    extractCurrentPageText: vi.fn(),
-    hasTextLayer: () => true
+  usePdfTextActions: () => ({
+    extractCurrentPageText: vi.fn()
+  }),
+  usePdfCaptureActions: () => ({
+    handleFullPageScreenshot: vi.fn(),
+    handleAreaScreenshot: vi.fn()
   })
 }))
 

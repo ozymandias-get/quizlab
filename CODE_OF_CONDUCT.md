@@ -8,7 +8,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 ## Our Standards
 
-Examples of behavior that contributes to a positive environment:
+### Positive behavior
 
 - Using welcoming and inclusive language
 - Being respectful of differing viewpoints and experiences
@@ -16,7 +16,7 @@ Examples of behavior that contributes to a positive environment:
 - Focusing on what is best for the community
 - Showing empathy towards other community members
 
-Examples of unacceptable behavior:
+### Unacceptable behavior
 
 - The use of sexualized language or imagery
 - Trolling, insulting/derogatory comments, and personal attacks
@@ -34,7 +34,12 @@ This Code of Conduct applies within all community spaces and also applies when a
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the project team. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by:
+
+- Opening a [GitHub Issue](https://github.com/ozymandias-get/quizlab/issues)
+- Starting a [GitHub Discussion](https://github.com/ozymandias-get/quizlab/discussions)
+
+All complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution
 

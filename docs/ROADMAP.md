@@ -1,25 +1,29 @@
 # Quizlab Reader Roadmap
 
-This document outlines planned directions and improvements. The GitHub repository may still use the legacy `quizlab` name; the product is distributed as **Quizlab Reader**.
+> Current version: **4.0.0** &nbsp;•&nbsp; [View releases](https://github.com/ozymandias-get/quizlab/releases)
+
+This document outlines planned directions and improvements.
 
 ## Vision
 
 A local-first desktop workspace that pairs deep PDF reading with embedded AI web sessions, automation, and clear privacy boundaries.
 
-## Near-term focus
+## Near-Term Focus
 
-- PDF reading quality: performance, navigation, and selection UX
-- AI workspace reliability: webview lifecycle, session health, selector automation
-- Settings and onboarding: clearer defaults and safer Google web-session flows
-- Documentation and tests aligned with the current feature set
+| Area                                                                              | Priority  |
+| --------------------------------------------------------------------------------- | --------- |
+| PDF reading quality (performance, navigation, selection UX)                       | 🔴 High   |
+| AI workspace reliability (webview lifecycle, session health, selector automation) | 🔴 High   |
+| Settings and onboarding (clearer defaults, safer Google web-session flows)        | 🟡 Medium |
+| Documentation and tests aligned with the current feature set                      | 🟡 Medium |
 
-## Medium-term ideas
+## Medium-Term Ideas
 
-- Richer PDF annotation workflows (highlights, notes) where feasible
+- Richer PDF annotation workflows (highlights, notes)
 - Optional integrations and export paths for study notes
 - Broader localization and accessibility improvements
 
-## How to contribute
+## How to Contribute
 
 - [GitHub Issues](https://github.com/ozymandias-get/quizlab/issues)
 - [GitHub Discussions](https://github.com/ozymandias-get/quizlab/discussions)

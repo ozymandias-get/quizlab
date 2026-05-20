@@ -646,7 +646,7 @@ describe('useAiSender', () => {
     })
 
     expect(res.success).toBe(false)
-    expect(res.error).toBe('invalid_input')
+    expect(res.error).toBe('webview_not_ready')
     expect(res.diagnostics?.tabId).toBe('tab-stale')
   })
 })

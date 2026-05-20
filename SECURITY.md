@@ -6,7 +6,8 @@ We actively support and provide security updates for the following versions:
 
 | Version | Supported |
 | ------- | --------- |
-| 3.0.x   | Yes       |
+| 4.0.x   | Yes       |
+| 3.0.x   | No        |
 | 2.x.x   | No        |
 | 1.x.x   | No        |
 

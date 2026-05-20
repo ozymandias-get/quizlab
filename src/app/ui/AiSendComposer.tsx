@@ -33,10 +33,19 @@ function AiSendComposer({
 
   const prevItemsLengthRef = useRef(items.length)
 
-  const { noteText, setNoteText, isSubmitting, isDismissed, clearNote } = useAiSendComposerState({
-    items,
-    onSend
-  })
+  const { noteText, setNoteText, isSubmitting, isDismissed, setIsSubmitting, clearNote } =
+    useAiSendComposerState()
+
+  const mountedRef = useRef(true)
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    }
+  }, [])
 
   const {
     layout,
@@ -47,8 +56,9 @@ function AiSendComposer({
     handleDragMove,
     handleDragEnd,
     handleResizeStart,
-    handleResizeMove,
-    handleResizeEnd
+    getResizeCursor,
+    resizeHandlers,
+    edgeThickness
   } = useAiSendComposerLayout(items.length, isExpanded)
 
   const textCount = useMemo(
@@ -66,28 +76,23 @@ function AiSendComposer({
     () =>
       prefersReducedMotion
         ? {
-            hidden: { opacity: 0, y: 6 },
-            visible: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' } },
-            exit: { opacity: 0, y: 4, transition: { duration: 0.12, ease: 'easeIn' } }
+            hidden: { opacity: 0 },
+            visible: { opacity: 1, transition: { duration: 0.08 } },
+            exit: { opacity: 0, transition: { duration: 0.06 } }
           }
         : {
-            hidden: { opacity: 0, y: 12, scale: 0.97 },
+            hidden: { opacity: 0, scale: 0.94, y: 8 },
             visible: {
               opacity: 1,
-              y: 0,
               scale: 1,
-              transition: {
-                type: 'spring' as const,
-                stiffness: 340,
-                damping: 30,
-                mass: 0.7
-              }
+              y: 0,
+              transition: { type: 'spring', stiffness: 500, damping: 28, mass: 0.5 }
             },
             exit: {
               opacity: 0,
+              scale: 0.94,
               y: 8,
-              scale: 0.98,
-              transition: { duration: 0.18, ease: [0.32, 0, 0.67, 0] }
+              transition: { duration: 0.1, ease: [0.32, 0, 0.67, 0] }
             }
           },
     [prefersReducedMotion]
@@ -97,9 +102,9 @@ function AiSendComposer({
     async (options?: { forceAutoSend?: boolean }) => {
       if (isSubmitting) return
 
+      setIsSubmitting(true)
       setSendFeedback('sending')
       setLastError(null)
-
       setIsExpanded(false)
       setStoredExpanded(false)
 
@@ -108,6 +113,9 @@ function AiSendComposer({
           noteText: noteText.trim() || undefined,
           ...options
         })
+
+        if (!mountedRef.current) return
+
         const wasSuccessful =
           result &&
           typeof result === 'object' &&
@@ -116,24 +124,29 @@ function AiSendComposer({
 
         if (wasSuccessful) {
           setSendFeedback('success')
-          setTimeout(() => {
-            setSendFeedback('idle')
+          feedbackTimerRef.current = setTimeout(() => {
+            if (mountedRef.current) setSendFeedback('idle')
           }, 1500)
         } else {
           setSendFeedback('error')
-          setLastError(
+          const rawError =
             typeof result === 'object' && result && 'error' in result
               ? String((result as { error?: string }).error)
               : null
-          )
+          const errorKey = rawError ? `error_${rawError}` : 'unknown_error'
+          const localizedError = t(errorKey)
+          setLastError(localizedError === errorKey ? rawError : localizedError)
           setIsExpanded(true)
           setStoredExpanded(true)
         }
       } catch {
+        if (!mountedRef.current) return
         setSendFeedback('error')
         setLastError('unknown_error')
         setIsExpanded(true)
         setStoredExpanded(true)
+      } finally {
+        if (mountedRef.current) setIsSubmitting(false)
       }
     },
     [noteText, onSend, isSubmitting, setStoredExpanded]
@@ -162,17 +175,33 @@ function AiSendComposer({
 
   useEffect(() => {
     if (typeof document === 'undefined') return
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isDismissed && !isSubmitting) {
         event.preventDefault()
         handleToggleExpand()
       }
     }
-
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isDismissed, isSubmitting, handleToggleExpand])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (isDismissed || isSubmitting || items.length === 0) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const el = asideRef.current
+      if (!el) return
+      const panel = el.querySelector('[data-panel]')
+      if (panel && panel.contains(event.target as Node)) return
+      if (el.contains(event.target as Node)) return
+      clearNote()
+      onClearAll()
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isDismissed, isSubmitting, items.length, clearNote, onClearAll])
 
   useEffect(() => {
     if (items.length > prevItemsLengthRef.current && items.length > 0) {
@@ -185,6 +214,7 @@ function AiSendComposer({
   if (typeof document === 'undefined') return null
 
   const showContent = isExpanded && sendFeedback !== 'sending'
+  const totalItems = textCount + imageCount
 
   return createPortal(
     <AnimatePresence initial={false}>
@@ -198,15 +228,28 @@ function AiSendComposer({
           exit="exit"
           variants={panelVariants}
           className="fixed z-[110]"
-          style={{ left: layout.x, top: layout.y, width: layout.width }}
+          style={{
+            left: layout.x,
+            top: layout.y,
+            width: layout.width,
+            height: layout.height,
+            willChange: 'left, top, width, height'
+          }}
           role="dialog"
           aria-label={t('ai_send_panel_title')}
         >
           <div
             ref={panelRef}
-            className="relative isolate overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#0e1118] text-white shadow-lg"
+            data-panel
+            className="relative h-full overflow-hidden rounded-2xl text-white"
+            style={{
+              boxShadow: '0 25px 50px rgba(0,0,0,0.95)',
+              border: '1px solid rgba(0,0,0,0.8)',
+              background: '#000',
+              backdropFilter: 'none'
+            }}
           >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
 
             <AiSendComposerHeader
               textCount={textCount}
@@ -217,11 +260,9 @@ function AiSendComposer({
               onToggleAutoSend={() => onAutoSendChange(!autoSend)}
               onToggleExpand={handleToggleExpand}
               onClearAll={handleClearAll}
-              onSend={() => {
-                void handleSend({ forceAutoSend: true })
-              }}
+              onSend={() => void handleSend({ forceAutoSend: true })}
               isSubmitting={isSubmitting}
-              isSendDisabled={items.length === 0}
+              isSendDisabled={totalItems === 0}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
@@ -233,16 +274,17 @@ function AiSendComposer({
                   key="expanded-content"
                   initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
                   animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
                   transition={
                     prefersReducedMotion
-                      ? { duration: 0.12 }
-                      : { duration: 0.15, ease: [0.32, 0, 0.67, 0] }
+                      ? { duration: 0.08 }
+                      : { duration: 0.1, ease: [0.32, 0, 0.67, 0] }
                   }
+                  className="h-full"
                 >
                   <AiSendComposerContent
                     items={items}
-                    totalItems={items.length}
+                    totalItems={totalItems}
                     noteText={noteText}
                     isSubmitting={isSubmitting}
                     sendFeedback={sendFeedback}
@@ -253,13 +295,12 @@ function AiSendComposer({
                     onAutoSendChange={() => onAutoSendChange(!autoSend)}
                     onRemoveItem={onRemoveItem}
                     onNoteTextChange={setNoteText}
-                    onSubmit={(options) => {
-                      void handleSend(options)
-                    }}
+                    onSubmit={(options) => void handleSend(options)}
                     onRetry={handleRetry}
                     onResizeStart={handleResizeStart}
-                    onResizeMove={handleResizeMove}
-                    onResizeEnd={handleResizeEnd}
+                    getResizeCursor={getResizeCursor}
+                    resizeHandlers={resizeHandlers}
+                    edgeThickness={edgeThickness}
                   />
                 </motion.div>
               ) : null}
@@ -272,11 +313,11 @@ function AiSendComposer({
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center justify-center gap-1.5 border-t border-white/[0.06] px-3 py-1.5"
+                  transition={{ duration: 0.08 }}
+                  className="flex items-center justify-center gap-2 border-t border-white/[0.06] px-4 py-2"
                 >
-                  <CheckCircle2 className="h-3 w-3 text-emerald-400/80" strokeWidth={2} />
-                  <span className="text-[10px] font-medium text-emerald-300/80">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" strokeWidth={2} />
+                  <span className="text-[11px] font-semibold text-emerald-400/90">
                     {t('ai_send_sent')}
                   </span>
                 </motion.div>
@@ -290,11 +331,11 @@ function AiSendComposer({
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center justify-center gap-1.5 border-t border-white/[0.06] px-3 py-1.5"
+                  transition={{ duration: 0.08 }}
+                  className="flex items-center justify-center gap-2 border-t border-white/[0.06] px-4 py-2"
                 >
-                  <AlertCircle className="h-3 w-3 text-red-400/80" strokeWidth={2} />
-                  <span className="text-[10px] font-medium text-red-300/80">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-400" strokeWidth={2} />
+                  <span className="text-[11px] font-semibold text-red-400/90">
                     {t('ai_send_error')}
                   </span>
                 </motion.div>

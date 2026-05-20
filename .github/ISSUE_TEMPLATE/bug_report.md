@@ -13,8 +13,8 @@ A clear and concise description of what the bug is.
 ## Steps to Reproduce
 
 1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
+2. Click on '...'
+3. Scroll down to '...'
 4. See error
 
 ## Expected Behavior
@@ -31,17 +31,15 @@ If applicable, add screenshots to help explain your problem.
 
 ## Environment
 
-- **OS**: [e.g., Windows 11, macOS 14, Ubuntu 22.04]
-- **App Version**: [e.g., 3.0.7]
-- **Node.js Version**: [e.g., 20.11.0] (if running from source)
+- **OS**: (e.g., Windows 11, macOS 14, Ubuntu 22.04)
+- **App Version**: (e.g., 4.0.0)
+- **Node.js Version**: (e.g., 22.x — if running from source)
 
 ## Additional Context
 
-Add any other context about the problem here, such as:
-
 - Does it happen consistently or intermittently?
-- Any error messages in the console (DevTools: Ctrl+Shift+I)
-- Recent changes made to the system or app
+- Any error messages in the console? (DevTools: `Ctrl+Shift+I`)
+- Recent changes made to the system or app?
 
 ## Possible Solution
 

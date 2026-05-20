@@ -2,6 +2,8 @@ import type { AiDraftItem, AiDraftImageItem, AiDraftTextItem } from '@app/provid
 
 export type SendFeedback = 'idle' | 'sending' | 'success' | 'error'
 
+export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+
 export interface ComposerPayload {
   noteText?: string
   autoSend?: boolean

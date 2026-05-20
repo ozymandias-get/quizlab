@@ -15,14 +15,13 @@ import { ContextMenu, MenuItem } from './ContextMenu'
 import {
   usePdfPlugins,
   usePdfNavigation,
-  usePdfTextSelection,
-  usePdfScreenshot,
   usePdfContextMenu,
   usePdfPanTool,
   usePdfResizeRefit,
   usePdfCtrlWheelZoom,
   usePdfViewerZoomIpc,
-  usePdfPageTextExtraction
+  usePdfTextActions,
+  usePdfCaptureActions
 } from '../hooks'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import type { PdfFile } from '@shared-core/types'
@@ -31,6 +30,8 @@ import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 import { useToastActions } from '@app/providers/ToastContext'
 import { useLanguageStrings } from '@app/providers/LanguageContext'
+import { hasElectronApi, getElectronApi } from '@shared/lib/electronApi'
+import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
 type ScreenshotMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'>
 
@@ -118,7 +119,7 @@ function PdfViewerDocument({
 
   usePdfViewerZoomIpc(zoomTo, scaleFactor, documentReady && !!pdfUrl)
 
-  const { handleFullPageScreenshot } = usePdfScreenshot({
+  const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({
     currentPage,
     queueImageForAi,
     startScreenshot
@@ -129,30 +130,44 @@ function PdfViewerDocument({
     isPanMode: panMode
   })
 
-  usePdfTextSelection({
+  const { extractCurrentPageText } = usePdfTextActions({
     containerRef,
+    currentPage,
     onTextSelection: (text, position) => {
       onTextSelection?.(text, position)
     },
-    enabled: !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !panMode
-  })
-
-  const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
-
-  const { extractCurrentPageText } = usePdfPageTextExtraction({
-    currentPage,
     onTextExtracted: (text) => {
       queueTextForAi(text)
       showSuccess(tt('pdf_text_added_to_ai'))
     },
     onNoTextFound: () => {
       showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
-    }
+    },
+    textSelectionEnabled:
+      !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !panMode
   })
+
+  const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
 
   useEffect(() => {
     setViewerReloadKey(0)
   }, [pdfUrl])
+
+  useEffect(() => {
+    if (!hasElectronApi()) return
+
+    const removeListener = getElectronApi().onTriggerScreenshot((type) => {
+      if (type === APP_CONSTANTS.SCREENSHOT_TYPES.CROP) {
+        handleAreaScreenshot()
+      } else if (type === APP_CONSTANTS.SCREENSHOT_TYPES.FULL) {
+        void handleFullPageScreenshot()
+      }
+    })
+
+    return () => {
+      if (typeof removeListener === 'function') removeListener()
+    }
+  }, [currentPage, handleFullPageScreenshot, handleAreaScreenshot])
 
   useEffect(() => {
     if (!documentReady || !pdfUrl || !initialPage || initialPage < 2) {
@@ -192,11 +207,7 @@ function PdfViewerDocument({
       {
         label: tt('ctx_crop_screenshot_ai'),
         icon: Crop,
-        onClick: () =>
-          startScreenshot({
-            page: currentPage,
-            captureKind: 'selection'
-          })
+        onClick: () => handleAreaScreenshot()
       },
       { separator: true, label: '', onClick: () => {} },
       {
@@ -207,7 +218,7 @@ function PdfViewerDocument({
         danger: true
       }
     ],
-    [t, tt, handleAddCurrentPageTextToAi, handleSendPageAsImageToAi, startScreenshot, currentPage]
+    [t, tt, handleAddCurrentPageTextToAi, handleSendPageAsImageToAi, handleAreaScreenshot]
   )
 
   return (
@@ -272,12 +283,7 @@ function PdfViewerDocument({
       <PdfToolbar
         pdfFile={pdfFile}
         onSelectPdf={onSelectPdf}
-        onStartScreenshot={() =>
-          startScreenshot({
-            page: currentPage,
-            captureKind: 'selection'
-          })
-        }
+        onStartScreenshot={handleAreaScreenshot}
         onFullPageScreenshot={handleFullPageScreenshot}
         autoSend={autoSend}
         onToggleAutoSend={onToggleAutoSend}

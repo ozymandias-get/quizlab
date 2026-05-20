@@ -7,7 +7,7 @@ import {
   stopPdfCleanupInterval,
   clearAllPdfPaths
 } from '../features/pdf/pdfProtocol'
-import { createWindow, createSplashWindow, getMainWindow } from './windowManager'
+import { createWindow, getMainWindow } from './windowManager'
 import { registerGeneralHandlers } from './ipcHandlers'
 import { initUpdater } from '../core/updater'
 import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
@@ -50,7 +50,8 @@ app.commandLine.appendSwitch('enable-parallel-downloading')
 app.commandLine.appendSwitch('enable-quic')
 
 if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('use-gl', 'egl')
+  app.commandLine.appendSwitch('use-gl', 'angle')
+  app.commandLine.appendSwitch('angle', 'opengl')
 }
 
 app.commandLine.appendSwitch('log-level', '3')
@@ -85,8 +86,6 @@ async function performAppCleanup() {
 }
 
 async function initializeApp() {
-  createSplashWindow()
-
   registerPdfProtocol()
   registerPdfProtocolHandlers()
   registerGeneralHandlers()

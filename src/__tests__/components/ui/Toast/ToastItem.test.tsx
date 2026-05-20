@@ -40,7 +40,8 @@ describe('ToastItem', () => {
     type: 'success' as const,
     title: 'Success Title',
     message: 'Success Message',
-    duration: 1000
+    duration: 1000,
+    createdAt: Date.now()
   }
 
   beforeEach(() => {

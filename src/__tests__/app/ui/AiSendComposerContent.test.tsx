@@ -49,8 +49,9 @@ describe('AiSendComposerContent', () => {
     onSubmit: vi.fn(),
     onRetry: vi.fn(),
     onResizeStart: vi.fn(),
-    onResizeMove: vi.fn(),
-    onResizeEnd: vi.fn()
+    getResizeCursor: vi.fn(() => 'default'),
+    resizeHandlers: { onResizeMove: vi.fn(), onResizeEnd: vi.fn() },
+    edgeThickness: 6
   }
 
   it('shows send mode bar with auto-send option', () => {

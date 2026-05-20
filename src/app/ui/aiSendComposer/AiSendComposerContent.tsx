@@ -1,13 +1,18 @@
 import { memo, useCallback, useMemo, useState, type PointerEventHandler } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { useLanguageStrings } from '@app/providers'
 import type { AiDraftItem } from '@app/providers/ai/types'
+import type { ResizeDirection } from './types'
 import QueueTextItem from './QueueTextItem'
 import QueueImageItem from './QueueImageItem'
 import NoteSection from './NoteSection'
 import ComposerFooter from './ComposerFooter'
 import SendModeBar from './SendModeBar'
 import { useNoteKeyboardHandler, useQueueItemOrdinals } from './useNoteKeyboardHandler'
+
+interface ResizeHandlers {
+  onResizeMove: (event: React.PointerEvent) => void
+  onResizeEnd: (event: React.PointerEvent) => void
+}
 
 interface AiSendComposerContentProps {
   items: AiDraftItem[]
@@ -24,9 +29,10 @@ interface AiSendComposerContentProps {
   onNoteTextChange: (value: string) => void
   onSubmit: (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => void
   onRetry: () => void
-  onResizeStart: PointerEventHandler<HTMLButtonElement>
-  onResizeMove: PointerEventHandler<HTMLButtonElement>
-  onResizeEnd: PointerEventHandler<HTMLButtonElement>
+  onResizeStart: (direction: ResizeDirection) => PointerEventHandler<HTMLDivElement>
+  getResizeCursor: (dir: ResizeDirection) => string
+  resizeHandlers: ResizeHandlers
+  edgeThickness: number
 }
 
 function AiSendComposerContent({
@@ -45,10 +51,10 @@ function AiSendComposerContent({
   onSubmit,
   onRetry,
   onResizeStart,
-  onResizeMove,
-  onResizeEnd
+  getResizeCursor,
+  resizeHandlers,
+  edgeThickness
 }: AiSendComposerContentProps) {
-  const { t } = useLanguageStrings()
   const hasImages = useMemo(() => items.some((i) => i.type === 'image'), [items])
   const itemOrdinals = useQueueItemOrdinals(items)
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
@@ -65,8 +71,68 @@ function AiSendComposerContent({
     onSubmit
   })
 
+  const resizeEdges = useMemo(() => {
+    const dirs: { dir: ResizeDirection; position: React.CSSProperties; cursor: string }[] = [
+      {
+        dir: 'n',
+        position: { top: 0, left: edgeThickness, right: edgeThickness, height: edgeThickness },
+        cursor: getResizeCursor('n')
+      },
+      {
+        dir: 's',
+        position: { bottom: 0, left: edgeThickness, right: edgeThickness, height: edgeThickness },
+        cursor: getResizeCursor('s')
+      },
+      {
+        dir: 'e',
+        position: { top: edgeThickness, right: 0, bottom: edgeThickness, width: edgeThickness },
+        cursor: getResizeCursor('e')
+      },
+      {
+        dir: 'w',
+        position: { top: edgeThickness, left: 0, bottom: edgeThickness, width: edgeThickness },
+        cursor: getResizeCursor('w')
+      },
+      {
+        dir: 'ne',
+        position: { top: 0, right: 0, width: edgeThickness * 2, height: edgeThickness * 2 },
+        cursor: getResizeCursor('ne')
+      },
+      {
+        dir: 'nw',
+        position: { top: 0, left: 0, width: edgeThickness * 2, height: edgeThickness * 2 },
+        cursor: getResizeCursor('nw')
+      },
+      {
+        dir: 'se',
+        position: { bottom: 0, right: 0, width: edgeThickness * 2, height: edgeThickness * 2 },
+        cursor: getResizeCursor('se')
+      },
+      {
+        dir: 'sw',
+        position: { bottom: 0, left: 0, width: edgeThickness * 2, height: edgeThickness * 2 },
+        cursor: getResizeCursor('sw')
+      }
+    ]
+    return dirs
+  }, [edgeThickness, getResizeCursor])
+
   return (
     <>
+      {/* Resize edges */}
+      {resizeEdges.map(({ dir, position, cursor }) => (
+        <div
+          key={dir}
+          data-resize
+          onPointerDown={onResizeStart(dir)}
+          onPointerMove={resizeHandlers.onResizeMove}
+          onPointerUp={resizeHandlers.onResizeEnd}
+          onPointerCancel={resizeHandlers.onResizeEnd}
+          className="absolute z-20"
+          style={{ ...position, cursor }}
+        />
+      ))}
+
       <SendModeBar autoSend={autoSend} onToggle={onAutoSendChange} />
 
       <NoteSection
@@ -77,11 +143,11 @@ function AiSendComposerContent({
       />
 
       <div
-        className="relative space-y-2 overflow-y-auto px-3.5 pb-2"
+        className="relative space-y-2.5 overflow-y-auto px-4 pb-2.5"
         style={{
-          height: Math.max(100, bodyHeight),
+          height: Math.max(80, bodyHeight),
           scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(255,255,255,0.1) transparent'
+          scrollbarColor: 'rgba(255,255,255,0.12) transparent'
         }}
       >
         <AnimatePresence initial={false} mode="popLayout">
@@ -118,8 +184,8 @@ function AiSendComposerContent({
         </AnimatePresence>
 
         {sendFeedback === 'error' && lastError && (
-          <div className="rounded-lg border border-red-400/15 bg-red-500/[0.05] px-2.5 py-2">
-            <p className="text-[10px] font-medium text-red-300/70">{lastError}</p>
+          <div className="rounded-xl border border-red-400/20 bg-red-500/[0.08] px-3 py-2.5">
+            <p className="text-[11px] font-medium text-red-300/80">{lastError}</p>
           </div>
         )}
       </div>
@@ -133,22 +199,6 @@ function AiSendComposerContent({
         onSubmit={onSubmit}
         onRetry={onRetry}
       />
-
-      <button
-        type="button"
-        onPointerDown={onResizeStart}
-        onPointerMove={onResizeMove}
-        onPointerUp={onResizeEnd}
-        onPointerCancel={onResizeEnd}
-        className="absolute bottom-1 right-1 flex h-5 w-5 cursor-nwse-resize items-end justify-end rounded-full text-white/10 transition-colors duration-150 hover:text-white/25"
-        title={t('ai_send_resize')}
-        aria-label={t('ai_send_resize')}
-      >
-        <span className="relative block h-3 w-3">
-          <span className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-br-[0.3rem] border-b-[1.5px] border-r-[1.5px] border-current" />
-          <span className="absolute bottom-0.5 right-0.5 h-1 w-1 rounded-br-[0.25rem] border-b-[1.5px] border-r-[1.5px] border-current opacity-50" />
-        </span>
-      </button>
     </>
   )
 }

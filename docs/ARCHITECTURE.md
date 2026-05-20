@@ -1,42 +1,48 @@
 # Architecture Guardrails
 
-This document defines stable architectural boundaries for the post-refactor structure.
+This document defines stable architectural boundaries for the Quizlab Reader codebase.
 
 ## Layers
 
-- `src/app`: Application shell, composition root, providers, app-level effects/hooks.
-- `src/features`: Domain features (`ai`, `pdf`, `settings`, `screenshot`, `automation`, `tutorial`).
-- `src/shared`: Renderer-shared UI, hooks, constants, i18n, styles, utility libraries, renderer-only types.
-- `src/platform`: Platform adapters (Electron bridge hooks/APIs).
-- `shared` (`@shared-core/*`): Cross-process shared contracts (IPC channels, shared types).
+| Layer           | Path                         | Purpose                                                                           |
+| --------------- | ---------------------------- | --------------------------------------------------------------------------------- |
+| **App Shell**   | `src/app/`                   | Composition root, providers, app-level effects                                    |
+| **Features**    | `src/features/`              | Domain features (`ai`, `pdf`, `settings`, `screenshot`, `automation`, `tutorial`) |
+| **Shared**      | `src/shared/`                | Renderer-shared UI, hooks, constants, i18n, styles, utilities                     |
+| **Platform**    | `src/platform/`              | Platform adapters (Electron bridge hooks/APIs)                                    |
+| **Shared Core** | `shared/` (`@shared-core/*`) | Cross-process contracts (IPC channels, shared types)                              |
+
+### AI Send Queue
 
 The AI send draft queue (`pendingAiItems` → `planBulkAiSend`) delivers excerpts to the active tab **in user order**, with the composer UI reflecting that same sequence.
 
 ## Alias Policy
 
-- `@app/*` -> `src/app/*`
-- `@features/*` -> `src/features/*`
-- `@platform/*` -> `src/platform/*`
-- `@ui/*` -> `src/shared/ui/*`
-- `@shared/*` -> `src/shared/*`
-- `@shared-core/*` -> `shared/*`
-- `@src/*` -> forbidden
+| Alias            | Path              |
+| ---------------- | ----------------- |
+| `@app/*`         | `src/app/*`       |
+| `@features/*`    | `src/features/*`  |
+| `@platform/*`    | `src/platform/*`  |
+| `@ui/*`          | `src/shared/ui/*` |
+| `@shared/*`      | `src/shared/*`    |
+| `@shared-core/*` | `shared/*`        |
+| `@src/*`         | ❌ Forbidden      |
 
-Note: To avoid GitHub mention-like rendering, always write aliases in docs with backticks (for example, `@features/*`).
+> Note: To avoid GitHub mention-like rendering, always write aliases in backticks (e.g., `` `@features/*` ``).
 
 ## Import Boundary Rules
 
 ### Feature Public API
 
-- Feature internals (`ui`, `model`, `api`) are private from outside `src/features`.
-- External consumers must import feature entry points (for example `@features/pdf`, `@features/ai`).
-- Forbidden outside `src/features`: deep imports such as `@features/<feature>/ui/*` unless the feature’s public API explicitly re-exports them.
+- Feature internals (`ui/`, `model/`, `api/`) are private from outside `src/features/`
+- External consumers **must** import feature entry points (e.g., `` `@features/pdf` ``, `` `@features/ai` ``)
+- **Forbidden** outside `src/features/`: deep imports like `` `@features/<feature>/ui/*` `` unless the feature's public API explicitly re-exports them
 
 ### Shared vs Shared-Core
 
-- `@shared/*` is renderer-side shared code.
-- `@shared-core/*` is runtime-agnostic cross-process contract code.
-- `shared/` must not depend on Electron or DOM globals.
+- `` `@shared/*` `` is renderer-side shared code
+- `` `@shared-core/*` `` is runtime-agnostic cross-process contract code
+- `shared/` must not depend on Electron or DOM globals
 
 ## Do / Don't Examples
 
@@ -58,11 +64,11 @@ import { app } from 'electron'
 
 ## Validation Commands
 
-Run these checks locally before committing structural changes:
+Run these checks before committing structural changes:
 
 ```bash
 npm run typecheck
 npm run lint
-npx vitest run
+npm run test
 npm run build
 ```

@@ -3,8 +3,7 @@ import { useAppToolActions } from '@app/providers/AppToolContext'
 
 export function useTextSelection() {
   const { queueTextForAi } = useAppToolActions()
-  const lastQueuedSignatureRef = useRef<string | null>(null)
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastQueuedTextRef = useRef<string | null>(null)
 
   const handleTextSelection = useCallback(
     (text: string, position: { top: number; left: number } | null) => {
@@ -13,21 +12,12 @@ export function useTextSelection() {
         return
       }
 
-      const signature = `${normalizedText}::${Math.round(position.top)}:${Math.round(position.left)}`
-      if (signature === lastQueuedSignatureRef.current) {
+      if (normalizedText === lastQueuedTextRef.current) {
         return
       }
 
-      lastQueuedSignatureRef.current = signature
+      lastQueuedTextRef.current = normalizedText
       queueTextForAi(normalizedText)
-
-      if (resetTimerRef.current) {
-        clearTimeout(resetTimerRef.current)
-      }
-
-      resetTimerRef.current = setTimeout(() => {
-        lastQueuedSignatureRef.current = null
-      }, 250)
     },
     [queueTextForAi]
   )

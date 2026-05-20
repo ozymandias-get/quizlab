@@ -1,420 +1,311 @@
-# Quizlab Reader — AI PDF reader and study workspace
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="src/public/icon.png">
+    <img src="src/public/icon.png" alt="Quizlab Reader" width="120" style="border-radius: 28px;">
+  </picture>
+</p>
+
+<h1 align="center">Quizlab Reader</h1>
 
 <p align="center">
-  <img src="resources/icon.png" alt="Quizlab Reader icon" width="120" />
+  <strong>AI-Powered PDF Study Workspace</strong>
+  <br>
+  <sub>Read, highlight, and send content to ChatGPT, Gemini, Claude &mdash; all in one split-screen desktop app.</sub>
 </p>
 
 <p align="center">
-  <strong>Quizlab Reader is a desktop app for reading PDFs alongside ChatGPT, Gemini, Claude, and other AI sites in a split-screen workspace.</strong>
+  <a href="README_TR.md">🇹🇷 Türkçe</a>
+  &nbsp;•&nbsp;
+  <a href="https://github.com/ozymandias-get/quizlab/releases">📦 Releases</a>
+  &nbsp;•&nbsp;
+  <a href="CONTRIBUTING.md">🤝 Contributing</a>
+  &nbsp;•&nbsp;
+  <a href="SECURITY.md">🔒 Security</a>
+  &nbsp;•&nbsp;
+  <a href="docs/ARCHITECTURE.md">📐 Architecture</a>
+  &nbsp;•&nbsp;
+  <a href="docs/ROADMAP.md">🗺️ Roadmap</a>
 </p>
 
 <p align="center">
-  <a href="README_TR.md">Türkçe README</a> |
-  <a href="https://github.com/ozymandias-get/quizlab/releases">Latest Release</a> |
-  <a href="CONTRIBUTING.md">Contributing</a> |
-  <a href="SECURITY.md">Security</a> |
-  <a href="docs/ARCHITECTURE.md">Architecture</a> |
-  <a href="docs/ROADMAP.md">Roadmap</a>
+  <a href="https://github.com/ozymandias-get/quizlab/releases">
+    <img src="https://img.shields.io/github/v/release/ozymandias-get/quizlab?style=flat-square&logo=github&color=6b5b4c" alt="GitHub Release">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square&color=8c7a6b" alt="MIT License">
+  </a>
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&color=bda48f" alt="Cross-platform">
+  <img src="https://img.shields.io/badge/Electron-40-47848F?style=flat-square&logo=electron&logoColor=white&color=443e38" alt="Electron">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white&color=443e38" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white&color=443e38" alt="TypeScript">
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&amp;query=%24.version&amp;label=version&amp;style=flat-square" alt="Current package version from package.json on main branch" />
-  <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License open source" />
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square" alt="Cross-platform desktop app for Windows macOS Linux" />
-  <img src="https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20TypeScript-24292f?style=flat-square" alt="Built with Electron React TypeScript" />
-</p>
+---
 
-## Screenshots
+## 📋 Table of Contents
 
-### Split-Screen PDF Workspace and AI Home Dashboard
+- [✨ Features](#-features)
+- [🖼️ Screenshots](#️-screenshots)
+- [📖 Overview](#-overview)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📦 Installation](#-installation)
+- [⚙️ Developer Guide](#️-developer-guide)
+- [📂 Project Structure](#-project-structure)
+- [🔒 Security & Privacy](#-security--privacy)
+- [📄 License](#-license)
 
-Shows the main split layout with the PDF reader on the left and the AI home dashboard on the right.
+---
 
-<p align="center">
-  <img src="docs/images/workspace-home-overview.png" alt="Quizlab Reader PDF workspace and AI home dashboard" width="900" />
-</p>
+## ✨ Features
 
-### Built-in AI Models and Custom Sites
+<table>
+  <tr>
+    <td width="50%">
+      <h4>📑 Multi-Tab PDF Workspace</h4>
+      Open, read, search, and swap layouts in a fully customizable pane with smooth scrolling and fast rendering.
+    </td>
+    <td width="50%">
+      <h4>🤖 Multi-AI Integration</h4>
+      Built-in support for <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, and custom web endpoints — all accessible from one workspace.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h4>⚡ Instant Handoff Pipelines</h4>
+      Drag screenshots or send highlighted text straight into the active AI tab with zero context-switching.
+    </td>
+    <td width="50%">
+      <h4>🔐 Privacy-First Architecture</h4>
+      Your PDFs, credentials, and session data remain strictly local. No telemetry, no cloud uploads.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h4>🎨 Glassmorphic UI</h4>
+      Dynamic background animations, adjustable glass scales, directionally-lit panels, and refined stone tones.
+    </td>
+    <td width="50%">
+      <h4>📚 Prompt Library</h4>
+      Store context prompts, design study macros, and configure automated data-flow routines for quick recall.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h4>🛡️ Secure PDF Protocol</h4>
+      Custom <code>local-pdf://</code> stream protocol for bulletproof security and fast rendering.
+    </td>
+    <td width="50%">
+      <h4>🌐 Custom Sites</h4>
+      Easily configure and save custom web endpoints with targeted CSS input hooks for any AI surface.
+    </td>
+  </tr>
+</table>
 
-Shows the screen where ready-to-use AI models and custom sites are listed in the workspace.
+---
 
-<p align="center">
-  <img src="docs/images/ai-models-and-sites.png" alt="Quizlab Reader AI models and custom sites management view" width="900" />
-</p>
+## 🖼️ Screenshots
 
-### Prompt Library and Automation Settings
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><strong>Split-Screen Workspace</strong></td>
+      <td align="center"><strong>AI Models &amp; Custom Sites</strong></td>
+    </tr>
+    <tr>
+      <td><img src="docs/images/workspace-home-overview.png" alt="Split-Screen PDF Workspace" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/ai-models-and-sites.png" alt="AI Models and Sites" width="400" style="border-radius: 8px;"></td>
+    </tr>
+    <tr>
+      <td align="center"><strong>Prompt Library</strong></td>
+      <td align="center"><strong>PDF Quick Actions</strong></td>
+    </tr>
+    <tr>
+      <td><img src="docs/images/prompts-settings-library.png" alt="Prompt Library" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/pdf-chatgpt-quick-actions.png" alt="PDF Quick Actions" width="400" style="border-radius: 8px;"></td>
+    </tr>
+    <tr>
+      <td align="center"><strong>Draft Review Modal</strong></td>
+      <td align="center"><strong>Auto-Send Workflow</strong></td>
+    </tr>
+    <tr>
+      <td><img src="docs/images/auto-send-draft-review.png" alt="Draft Review" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/auto-send-enabled.png" alt="Auto-Send Workflow" width="400" style="border-radius: 8px;"></td>
+    </tr>
+  </table>
+</div>
 
-Shows the settings screen for managing saved prompts and selecting an automatic prompt workflow.
+---
 
-<p align="center">
-  <img src="docs/images/prompts-settings-library.png" alt="Quizlab Reader prompt library settings screen" width="900" />
-</p>
+## 📖 Overview
 
-### PDF Reader with ChatGPT Quick Actions
+**Quizlab Reader** is a state-of-the-art, open-source, local-first desktop workspace that brings native document reading and multiple AI interfaces together under a unified Glassmorphic UI. Designed specifically for **academics, researchers, and professional students**, it eliminates constant app-switching and tab-clutter.
 
-Shows the PDF reader together with the ChatGPT panel and the quick action tools beside the document.
+---
 
-<p align="center">
-  <img src="docs/images/pdf-chatgpt-quick-actions.png" alt="Quizlab Reader PDF view with ChatGPT and quick actions" width="900" />
-</p>
+## 🛠️ Tech Stack
 
-### AI Send Draft Review Modal
+<table>
+  <tr>
+    <th align="left">Category</th>
+    <th align="left">Technology</th>
+  </tr>
+  <tr>
+    <td><strong>Desktop Framework</strong></td>
+    <td>
+      <a href="https://www.electronjs.org/">Electron 40</a>
+      <img src="https://img.shields.io/badge/-47848F?logo=electron&logoColor=white" alt="Electron" style="vertical-align: middle;">
+    </td>
+  </tr>
+  <tr>
+    <td><strong>UI Library</strong></td>
+    <td>
+      <a href="https://react.dev/">React 19</a>
+      <img src="https://img.shields.io/badge/-61DAFB?logo=react&logoColor=white" alt="React" style="vertical-align: middle;">
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Language</strong></td>
+    <td>
+      <a href="https://www.typescriptlang.org/">TypeScript 5.9</a>
+      <img src="https://img.shields.io/badge/-3178C6?logo=typescript&logoColor=white" alt="TypeScript" style="vertical-align: middle;">
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Bundler</strong></td>
+    <td><a href="https://vitejs.dev/">Vite 7</a></td>
+  </tr>
+  <tr>
+    <td><strong>PDF Rendering</strong></td>
+    <td><a href="https://mozilla.github.io/pdf.js/">pdfjs-dist 3.11</a> + <a href="https://react-pdf-viewer.dev/">@react-pdf-viewer</a></td>
+  </tr>
+  <tr>
+    <td><strong>State Management</strong></td>
+    <td><a href="https://zustand-demo.pmnd.rs/">Zustand</a> + <a href="https://tanstack.com/query/latest">TanStack Query</a></td>
+  </tr>
+  <tr>
+    <td><strong>Styling</strong></td>
+    <td><a href="https://tailwindcss.com/">Tailwind CSS 3</a> + <a href="https://www.framer.com/motion/">Framer Motion</a></td>
+  </tr>
+  <tr>
+    <td><strong>AI Automation</strong></td>
+    <td><a href="https://playwright.dev/">Playwright</a> (webview session management)</td>
+  </tr>
+  <tr>
+    <td><strong>Testing</strong></td>
+    <td><a href="https://vitest.dev/">Vitest</a> + <a href="https://testing-library.com/">Testing Library</a></td>
+  </tr>
+</table>
 
-Shows the review modal where selected PDF content is prepared before being sent to the active AI tab.
+---
 
-<p align="center">
-  <img src="docs/images/auto-send-draft-review.png" alt="Quizlab Reader AI send draft review modal" width="900" />
-</p>
+## 📦 Installation
 
-### Auto Send to AI Workflow
+### Requirements
 
-Shows the auto-send mode where selected content is delivered directly to the active AI session.
+| Metric       | Minimum                                 | Recommended                           |
+| :----------- | :-------------------------------------- | :------------------------------------ |
+| **OS**       | Windows 10 / macOS 10.15 / Ubuntu 20.04 | Windows 11 / macOS 13+ / Ubuntu 22.04 |
+| **RAM**      | 4 GB                                    | 8 GB+                                 |
+| **Storage**  | 500 MB                                  | 2 GB+                                 |
+| **Internet** | Required for AI features                | High-speed broadband                  |
 
-<p align="center">
-  <img src="docs/images/auto-send-enabled.png" alt="Quizlab Reader auto send enabled workflow" width="900" />
-</p>
+### Download
 
-## Overview
+Download the latest installer for your platform from the [Releases page](https://github.com/ozymandias-get/quizlab/releases):
 
-Quizlab Reader is a free, open-source, cross-platform desktop application that combines a PDF reader with an embedded AI web workspace in one Electron app. It is built for students, researchers, and anyone who reads long PDFs and wants to send excerpts, screenshots, and notes to AI without juggling multiple windows.
+| Platform   | Format                                       |
+| :--------- | :------------------------------------------- |
+| 🪟 Windows | `QuizlabReader-Setup-<version>.exe`          |
+| 🍏 macOS   | `QuizlabReader-<version>.dmg`                |
+| 🐧 Linux   | `QuizlabReader-<version>.AppImage` or `.deb` |
 
-Instead of switching between a PDF app, browser tabs, and notes, you keep the core loop in one place:
+---
 
-- Open and manage PDF tabs
-- Select text and send it to AI instantly
-- Capture screenshots and forward them to the active AI tab
-- Keep your AI sessions and local study data on your machine
+## ⚙️ Developer Guide
 
-## Why Quizlab Reader
-
-The UI is designed around real reading and research workflows, not generic chat.
-
-- AI PDF reader: read, search, navigate, and inspect documents without leaving context
-- Prompt library and automation: send structured prompts to your AI session
-- Split-screen desktop workspace: PDF on one side, AI on the other
-- Premium Glassmorphism UI: Modern, state-of-the-art interface with directional lighting and depth
-- Local-first Electron app: your files stay local and AI access happens through your own accounts
-- Multi-platform AI support: ChatGPT, Gemini, Claude, Mistral, Perplexity, Grok, DeepSeek, and more
-
-## Core Features
-
-### Split-Screen PDF Reader and AI Workspace
-
-- Multi-tab PDF reading
-- Drag and drop PDF opening
-- Page navigation, zoom, search, and text selection
-- Persistent reading state for recent documents
-- Instant send-to-AI actions from selected text
-
-### Multi-Platform AI Webview Workspace
-
-Built-in AI registry currently includes:
-
-- ChatGPT / GPT-4o
-- Gemini / Gemini Pro 1.5
-- Claude 3 / 3.5
-- DeepSeek-V3 / R1
-- Mistral / Le Chat
-- Perplexity
-- Grok (xAI)
-- Manus AI
-- NotebookLM
-- AI Studio
-- HuggingChat
-- Qwen
-- Kimi
-- YouTube
-
-The app also supports custom AI or website entries, plus selector-based automation for web UIs that need custom input or send button targeting.
-
-### AI Home Page and Pinned Tab Management
-
-The current app includes a dedicated AI home page and improved tab management:
-
-- Home page for open tabs, built-in AI models, and custom sites
-- Pinned AI tabs restored on startup
-- Cleaner startup behavior with fewer unnecessary webviews
-- Grid-based model ordering
-- Automatic navigation back to the AI home page when no session tab is active
-
-### Performance and Architecture (v4.0.0)
-
-The latest version includes significant internal refactoring for better reliability:
-
-- **Modular AI Pipelines**: Extracted text and image sending logic into specialized, testable pipelines.
-- **Improved Hook Lifecycle**: Modularized monolithic hooks into focused sub-hooks (`useWebviewMethods`, `useWebviewEvents`, `useWebviewCrasher`) to reduce re-renders.
-- **Atomic Automation**: Refactored the automation engine to use smaller, deterministic script generators.
-- **PDF Protocol Optimization**: Enhanced the secure `local-pdf://` protocol for faster document loading and better error recovery.
-
-### Gemini Web Session Management Tools
-
-The app includes a dedicated Gemini web session management area for Google-backed surfaces.
-
-- Session status monitoring
-- Manual re-check and re-auth flows
-- Shared Google sign-in experience for Gemini-family surfaces
-- Support for Gemini, NotebookLM, AI Studio, and related Google web surfaces
-
-> **⚠️ Important: Google Session Notice**
->
-> The Gemini web session feature uses a **persistent local Chromium profile** to maintain your Google sign-in state. Please be aware of the following:
->
-> - **Google account login is required** to use Gemini, NotebookLM, AI Studio, and other Google-backed AI surfaces in the app.
-> - **Session data is stored locally** on your device inside the application data directory. The app does **not** transmit your credentials or session data to any external server.
-> - **Session may expire or degrade** over time. Google may require re-authentication due to security policies, cookie expiration, or account activity. Use `Settings > Gemini Web > Check Now` to verify session health.
-> - **Shared session across Google surfaces**: signing into one Google AI surface (e.g., Gemini) will share the session with other Google surfaces (NotebookLM, AI Studio). Logging out or resetting the profile will affect all Google surfaces.
-> - **Profile reset is irreversible**: using the "Reset Profile" option will clear all Google session data and require a fresh login.
-> - This project is **not affiliated with Google**. AI interactions happen through your own Google account and are subject to Google's Terms of Service and Privacy Policy.
-
-### Screenshot to AI Workflow
-
-- Full-page capture
-- Cropped capture
-- Quick handoff to the active AI session
-- Useful for diagrams, figures, and non-copyable PDF content
-
-### Appearance, Localization, and Study UX
-
-- Premium Glassmorphic UI with directional lighting and 3D depth
-- Adjustable bottom bar scale and opacity
-- Layout swap support (PDF/AI left-right toggle)
-- Refined Dark Mode with elegant stone tones
-- Animated or solid backgrounds
-- Custom selection highlight color
-- Guided onboarding tutorial
-- English and Turkish localization
-
-## Installation
-
-### System requirements
-
-| Item     | Minimum                               | Recommended                        |
-| -------- | ------------------------------------- | ---------------------------------- |
-| OS       | Windows 10, macOS 10.15, Ubuntu 20.04 | Windows 11, macOS 13, Ubuntu 22.04 |
-| RAM      | 4 GB                                  | 8 GB or more                       |
-| Storage  | 500 MB                                | 2 GB or more                       |
-| Internet | Required for AI features              | Stable broadband                   |
-
-### Download prebuilt releases
-
-Download the latest installer from the GitHub releases page:
-
-[Quizlab Reader Releases](https://github.com/ozymandias-get/quizlab/releases)
-
-Typical artifacts:
-
-- Windows: `QuizlabReader-Setup-<version>.exe`
-- macOS: `QuizlabReader-<version>.dmg`
-- Linux: `QuizlabReader-<version>.AppImage`
-
-### Build from source
-
-> **Windows Users**: This repository enforces `LF` line endings across the source tree. Before cloning or committing, we recommend setting this Git configuration to prevent formatting conflicts:
->
-> ```bash
-> git config --global core.autocrlf input
-> ```
+> [!TIP]
+> **Windows Users**: This repository enforces `LF` line endings. Run <code>git config --global core.autocrlf input</code> before cloning.
 
 ```bash
+# Clone & install
 git clone https://github.com/ozymandias-get/quizlab.git
 cd quizlab
 npm install
+
+# Development
 npm run dev
+
+# Quality checks
+npm run typecheck    # TypeScript
+npm run lint         # ESLint (zero warnings required)
+npm run test         # Vitest (629+ tests)
+
+# Build for production
+npm run build:win    # Windows installer
+npm run build:mac    # macOS bundle
+npm run build:linux  # Linux package
 ```
 
-Production build:
+---
 
-```bash
-npm run build
+## 📂 Project Structure
+
 ```
-
-Platform packages:
-
-```bash
-npm run build:win
-npm run build:mac
-npm run build:linux
-```
-
-## Quick Start
-
-### 1. Open the app and load a PDF
-
-- Click the PDF picker, or drag a PDF into the window
-- Use recent reading state to jump back into previous documents
-
-### 2. Choose an AI workspace
-
-- Open a built-in AI tab from the home page
-- Or add a custom AI or site entry in settings
-
-### 3. Use web session tools when needed
-
-If you use Google AI surfaces, open the Gemini Web settings tab to:
-
-- check session health
-- trigger re-auth
-- manage the shared Google session state
-
-## Development
-
-### Common commands
-
-```bash
-npm run dev
-npm run dev:web
-npm run build:backend
-npm run typecheck
-npm run lint
-npm run test
-npm run build
-```
-
-### Current dev workflow notes
-
-- `npm run dev` starts the Vite renderer and Electron app together
-- The dev script can reuse an existing Vite dev server on port `5173`
-- The current dev flow preserves the existing Electron and Chromium profile instead of clearing web session data
-- GPU acceleration flags are enabled at startup in the Electron main process
-
-## Project Structure
-
-```text
 quizlab/
-├── .github/               # GitHub workflows and issue templates
-├── docs/                  # Documentation, architecture, and roadmaps
-├── electron/              # Electron main process source
-│   ├── __tests__/         # Main process unit and integration tests
-│   ├── app/               # Window management, sessions, and IPC registration
-│   ├── core/              # Config, updater, and startup helpers
-│   ├── features/          # Domain-specific main-process logic
-│   │   ├── ai/            # AI registry, platform definitions, and handlers
-│   │   ├── automation/    # Modular script generators and DOM helpers
-│   │   ├── gemini-web-session/ # Playwright-backed Google session management
-│   │   ├── pdf/           # Secure PDF protocol and stream-based handlers
-│   │   └── screenshot/    # Native capture and crop handlers
-│   └── preload/           # Context bridge and secure IPC API definition
-├── resources/             # Static assets (app icons, build resources)
-├── scripts/               # Build, development, and maintenance scripts
-├── shared/                # Cross-process shared contracts
-│   ├── constants/         # Shared constant definitions (IPC, storage, etc.)
-│   └── types/             # Shared TypeScript interfaces and types
-├── src/                   # React renderer source (Vite)
-│   ├── __tests__/         # Renderer unit and component tests
-│   ├── app/               # App shell, composition root, and global providers
-│   ├── features/          # Domain-specific UI and business logic
-│   │   ├── ai/            # AI home page, session management, and webviews
-│   │   ├── automation/    # Automation hooks and picker UI
-│   │   ├── pdf/           # PDF viewer workspace and document flows
-│   │   ├── screenshot/    # Capture and crop UI components
-│   │   ├── settings/      # Settings modal and configuration panels
-│   │   └── tutorial/      # Onboarding and guided tours
-│   ├── platform/          # Platform-specific adapters (Electron bridge)
-│   └── shared/            # Reusable UI components, hooks, i18n, and styles
-├── package.json           # Project dependencies, metadata, and scripts
-└── tsconfig.json          # TypeScript configuration
+├── .github/               # Issue templates, CI workflows
+├── docs/                  # Roadmaps, architecture docs, screenshots
+├── electron/              # Main process (Electron)
+│   ├── app/               # Entrypoints, IPC handlers, window management
+│   ├── core/              # Configs, updaters, system utilities
+│   ├── features/          # Feature handlers (AI, Automation, Gemini, PDF, Screenshot)
+│   ├── preload/           # Context bridge scripts
+│   └── __tests__/         # Main-process tests
+├── installer/             # NSIS Windows installer script
+├── resources/             # Static installer assets, app icons
+├── scripts/               # Dev/build automation scripts
+├── shared/                # Cross-process contracts (IPC channels, types)
+│   ├── constants/
+│   └── types/
+├── src/                   # Renderer UI (React + Vite)
+│   ├── app/               # Shell, providers, global contexts, effects
+│   ├── features/          # Feature modules (AI, PDF, Settings, Screenshot, Automation, Tutorial, Diagnostics)
+│   ├── platform/          # Electron bridge adapters
+│   ├── public/            # Static assets (app icon, etc.)
+│   ├── shared/            # Shared UI components, hooks, i18n, styles, lib
+│   ├── types/             # Global type declarations
+│   └── __tests__/         # Renderer tests
+├── package.json
+└── tsconfig.json
 ```
 
-## Security and Privacy
+---
 
-The app is local-first by design.
+## 🔒 Security & Privacy
 
-- PDF files are handled locally
-- Renderer code is isolated behind a preload bridge
-- Electron IPC is validated in the main process
-- AI usage happens through your own logged-in web sessions in the embedded webviews
-- Custom PDF loading uses a dedicated Electron protocol instead of exposing arbitrary file paths
+- **No Telemetry** &mdash; zero data collection
+- **Isolated Renderer** &mdash; strict `contextIsolation: true`, `nodeIntegration: false`
+- **Secure PDF Protocol** &mdash; content served via `local-pdf://` stream protocol
+- **Session Safety** &mdash; encrypted cookies within isolated Chromium session profiles
+- **Minimal Preload** &mdash; only explicit IPC channels exposed via context bridge
 
-See [SECURITY.md](SECURITY.md) for the current security policy and reporting process.
+See [SECURITY.md](SECURITY.md) for our security policy and vulnerability reporting guidelines.
 
-## Configuration
+---
 
-### Environment Variables
+## 📄 License
 
-Copy `.env.example` to `.env` or `.env.local` and adjust as needed.
-All variables are **optional** — the app runs with sensible defaults.
-
-| Variable                                  | Description                                        | Default                 |
-| ----------------------------------------- | -------------------------------------------------- | ----------------------- |
-| `APP_ALLOW_MULTI_INSTANCE`                | Allow multiple app instances (`1` = yes, `0` = no) | `0`                     |
-| `APP_RENDERER_URL`                        | Renderer dev server URL                            | `http://localhost:5173` |
-| `APP_OPEN_DEVTOOLS`                       | Open DevTools on startup (`1` = yes, `0` = no)     | `0`                     |
-| `GEMINI_WEB_SESSION_ENABLED`              | Enable Gemini web session health checks            | `true`                  |
-| `GEMINI_WEB_SESSION_DEFAULT_ENABLED`      | Auto-enable Gemini web sessions for new users      | `true`                  |
-| `GEMINI_WEB_LOGIN_TIMEOUT_MS`             | Google sign-in flow timeout (ms)                   | `7200000`               |
-| `GEMINI_WEB_CHECK_INTERVAL_MS`            | Session health check interval (ms)                 | `300000`                |
-| `GEMINI_WEB_CHECK_JITTER_PCT`             | Random jitter for health checks (%)                | `10`                    |
-| `GEMINI_WEB_RETRY_DELAY_MS`               | Retry delay after failed health check (ms)         | `30000`                 |
-| `GEMINI_WEB_MAX_CONSECUTIVE_FAILURES`     | Max failures before degraded state                 | `2`                     |
-| `GEMINI_WEB_NETWORKIDLE_TIMEOUT_MS`       | Playwright network idle timeout (ms)               | `12000`                 |
-| `GEMINI_WEB_SILENT_REFRESH_TIMEOUT_MS`    | Silent cookie refresh timeout (ms)                 | `25000`                 |
-| `GEMINI_WEB_SILENT_REFRESH_COOLDOWN_MS`   | Cooldown between silent refreshes (ms)             | `600000`                |
-| `GEMINI_WEB_HEADLESS_REFRESH_TIMEOUT_MS`  | Headless refresh timeout (ms)                      | `45000`                 |
-| `GEMINI_WEB_HEADLESS_REFRESH_COOLDOWN_MS` | Cooldown between headless refreshes (ms)           | `900000`                |
-| `GEMINI_WEB_REFRESH_GRACE_PERIOD_MS`      | Grace period after refresh (ms)                    | `5000`                  |
-| `GEMINI_WEB_COOKIE_REFRESH_THRESHOLD_MS`  | Cookie age trigger for refresh (ms)                | `300000`                |
-
-### Settings Areas
-
-Main settings areas include:
-
-- Prompts
-- Models
-- Sites
-- Gemini Web
-- Selectors
-- Appearance
-- Language
-- About
-
-Examples of persisted local data include:
-
-- AI registry custom entries
-- Gemini web session state
-- recent reading state
-- pinned AI tabs
-- layout and appearance preferences
-
-## Troubleshooting
-
-### AI page is blank or not sending prompts
-
-- Refresh the active AI tab
-- Check whether the platform requires login
-- Reconfigure selectors for custom sites
-- Verify the target service is still using the expected input flow
-
-### Gemini web session shows degraded or re-auth required
-
-- Open Settings > Gemini Web
-- Run a manual check
-- Re-authenticate the Google session
-- Reset the profile only if you intentionally want a clean Google web session
-
-### `npm run dev` uses an existing server
-
-This is expected if a Vite dev server is already running on port `5173`.
-
-## Contributing
-
-Contributions are welcome for features, documentation, bug fixes, tests, and platform improvements.
-
-Before opening a pull request, run:
-
-```bash
-npm run typecheck
-npm run lint
-npm run test
-```
-
-Contribution details live in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-Quizlab Reader is released under the [MIT License](LICENSE).
+This project is open-source and licensed under the [MIT License](LICENSE).
 
 ---
 
 <p align="center">
-  <strong>Keywords:</strong> AI PDF reader, study tool, Electron app, split-screen PDF viewer, Gemini AI, ChatGPT integration, open source workspace, PDF viewer, AI-powered learning, cross-platform desktop app
+  <sub>
+    <a href="https://github.com/ozymandias-get/quizlab/issues">Report Bug</a>
+    &nbsp;•&nbsp;
+    <a href="https://github.com/ozymandias-get/quizlab/discussions">Discussions</a>
+    &nbsp;•&nbsp;
+    <a href="CONTRIBUTING.md">Contributing Guide</a>
+  </sub>
+  <br>
+  <sub>Built with ❤️ for academics, researchers, and lifelong learners.</sub>
 </p>

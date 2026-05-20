@@ -60,7 +60,9 @@ export function useAiSender(
   const handlePipelineError = useCallback(
     (error: unknown, diagnostics: AiSendDiagnostics, startedAt: number, context: string) => {
       const message = ensureErrorMessage(error)
-      Logger.error(`[useAiSender] ${context} error:`, error)
+      if (!message.includes('webview_not_ready') && !message.includes('webview_destroyed')) {
+        Logger.error(`[useAiSender] ${context} error:`, error)
+      }
 
       const emitEvent = useDiagnosticsStore.getState().emitEvent
       emitEvent({
@@ -112,11 +114,16 @@ export function useAiSender(
           provider: currentAI,
           severity: 'error',
           pipelineStage: 'error',
-          message: 'Invalid input: no webview or empty text'
+          message: !scheduledWebview
+            ? 'AI webview not available'
+            : 'Invalid input: no webview or empty text'
         })
         return Promise.resolve(
           attachDiagnostics(
-            { success: false, error: 'invalid_input' },
+            {
+              success: false,
+              error: !scheduledWebview ? 'webview_not_ready' : 'empty_text'
+            },
             diagnostics,
             requestStartedAt
           )

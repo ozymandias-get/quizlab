@@ -1,4 +1,5 @@
 import { memo, useState, type KeyboardEvent } from 'react'
+import { Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib/uiUtils'
 import { useLanguageStrings } from '@app/providers'
 import PromptPresets from './PromptPresets'
@@ -15,23 +16,24 @@ function NoteSection({ noteText, hasImages, onNoteTextChange, onKeyDown }: NoteS
   const [showPresets, setShowPresets] = useState(false)
 
   return (
-    <section className="px-3.5 pb-2">
+    <section className="px-4 pb-2">
       <div className="mb-1.5 flex items-center justify-between">
-        <label className="text-[10px] font-medium text-white/60">{t('ai_send_note_label')}</label>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setShowPresets((v) => !v)}
-            className={cn(
-              'rounded px-1.5 py-px text-[9px] font-medium transition-colors',
-              showPresets ? 'text-white/65 bg-white/[0.08]' : 'text-white/40 hover:text-white/60'
-            )}
-            aria-label={t('ai_send_presets')}
-            aria-expanded={showPresets}
-          >
-            {t('ai_send_presets')}
-          </button>
-        </div>
+        <label className="text-[11px] font-semibold text-white/80">{t('ai_send_note_label')}</label>
+        <button
+          type="button"
+          onClick={() => setShowPresets((v) => !v)}
+          className={cn(
+            'flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition-all',
+            showPresets
+              ? 'text-amber-400 bg-amber-400/15'
+              : 'text-white/55 hover:text-white/75 hover:bg-white/[0.06]'
+          )}
+          aria-label={t('ai_send_presets')}
+          aria-expanded={showPresets}
+        >
+          <Sparkles className="h-3 w-3" strokeWidth={2} />
+          {t('ai_send_presets')}
+        </button>
       </div>
 
       {showPresets && (
@@ -54,8 +56,8 @@ function NoteSection({ noteText, hasImages, onNoteTextChange, onKeyDown }: NoteS
         onChange={(event) => onNoteTextChange(event.target.value)}
         onKeyDown={onKeyDown}
         placeholder={hasImages ? t('ai_send_image_placeholder') : t('ai_send_text_placeholder')}
-        className="w-full resize-none rounded-lg border border-white/[0.1] bg-white/[0.04] px-2.5 py-2 text-[11px] leading-snug text-white/85 outline-none transition-colors placeholder:text-white/35 focus:border-white/[0.18] focus:bg-white/[0.05]"
-        style={{ minHeight: 48 }}
+        className="w-full resize-none rounded-xl border border-white/[0.1] bg-white/[0.04] px-3 py-2.5 text-[11px] leading-relaxed text-white/90 outline-none transition-all placeholder:text-white/35 focus:border-white/[0.18] focus:bg-white/[0.05]"
+        style={{ minHeight: 52 }}
       />
     </section>
   )

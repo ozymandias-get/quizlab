@@ -20,13 +20,13 @@ function PromptPresets({ onSelect }: PromptPresetsProps) {
   ]
 
   return (
-    <div className="mb-2 flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-1.5">
       {presets.map((preset) => (
         <button
           key={preset.key}
           type="button"
           onClick={() => onSelect(preset.value)}
-          className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-white/45 transition-colors hover:border-white/[0.14] hover:text-white/70"
+          className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-white/60 transition-all hover:border-white/[0.15] hover:bg-white/[0.08] hover:text-white/85"
         >
           {preset.label}
         </button>

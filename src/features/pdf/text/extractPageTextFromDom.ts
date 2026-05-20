@@ -1,19 +1,8 @@
-import { useCallback, useRef } from 'react'
-
-interface UsePdfPageTextExtractionOptions {
-  currentPage: number
-  onTextExtracted?: (text: string) => void
-  onNoTextFound?: () => void
-}
-
-function normalizeText(raw: string): string {
-  return raw
-    .replace(/\r\n/g, '\n')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n[ \t]+/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
+/**
+ * Extracts text content from a specific PDF page's DOM layer.
+ * Module-level cache for page layer lookups (cache invalidation is caller's responsibility).
+ */
+import { normalizePdfText } from './normalizePdfText'
 
 const PAGE_LAYER_CACHE = new Map<string, HTMLElement>()
 
@@ -65,10 +54,6 @@ function getPageLayer(pageNumber: number): HTMLElement | null {
   return null
 }
 
-function invalidatePageCache(pageNumber: number): void {
-  PAGE_LAYER_CACHE.delete(getPageLayerKey(pageNumber))
-}
-
 function collectTextFromElement(el: HTMLElement): string {
   const tc = el.textContent?.trim()
   if (tc && tc.length > 5) return tc
@@ -102,7 +87,7 @@ function collectTextFromElement(el: HTMLElement): string {
   return innerText || ''
 }
 
-function extractTextFromPageLayer(pageNumber: number): string | null {
+export function extractPageTextFromDom(pageNumber: number): string | null {
   const pageLayer = getPageLayer(pageNumber)
   if (!pageLayer) return null
 
@@ -112,54 +97,19 @@ function extractTextFromPageLayer(pageNumber: number): string | null {
 
   if (textLayer) {
     const text = collectTextFromElement(textLayer)
-    if (text && text.length > 5) return normalizeText(text)
+    if (text && text.length > 5) return normalizePdfText(text)
   }
 
   const text = collectTextFromElement(pageLayer)
-  if (text && text.length > 5) return normalizeText(text)
+  if (text && text.length > 5) return normalizePdfText(text)
 
   return null
 }
 
-export function usePdfPageTextExtraction({
-  currentPage,
-  onTextExtracted,
-  onNoTextFound
-}: UsePdfPageTextExtractionOptions) {
-  const onTextExtractedRef = useRef(onTextExtracted)
-  const onNoTextFoundRef = useRef(onNoTextFound)
+export function invalidatePageCache(pageNumber: number): void {
+  PAGE_LAYER_CACHE.delete(getPageLayerKey(pageNumber))
+}
 
-  onTextExtractedRef.current = onTextExtracted
-  onNoTextFoundRef.current = onNoTextFound
-
-  const prevPageRef = useRef(currentPage)
-  if (prevPageRef.current !== currentPage) {
-    invalidatePageCache(prevPageRef.current)
-    prevPageRef.current = currentPage
-  }
-
-  const extractCurrentPageText = useCallback(() => {
-    const extract = () => {
-      const text = extractTextFromPageLayer(currentPage)
-
-      if (!text) {
-        onNoTextFoundRef.current?.()
-        return null
-      }
-
-      onTextExtractedRef.current?.(text)
-      return text
-    }
-
-    if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(extract, { timeout: 100 })
-      return null
-    }
-
-    return setTimeout(extract, 0) as unknown as null
-  }, [currentPage])
-
-  return {
-    extractCurrentPageText
-  }
+export function clearPageCache(): void {
+  PAGE_LAYER_CACHE.clear()
 }

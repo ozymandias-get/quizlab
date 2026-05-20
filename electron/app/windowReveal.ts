@@ -30,7 +30,6 @@ interface ConfigureWindowRevealOptions {
   revealTimeoutMs: number
   domReadyRevealDelayMs: number
   didFinishLoadRevealDelayMs: number
-  destroySplashWindow: () => void
 }
 
 type RevealReason = 'dom-ready' | 'did-fail-load' | 'did-finish-load' | 'ready-to-show' | 'timeout'
@@ -42,8 +41,7 @@ export function configureWindowReveal(options: ConfigureWindowRevealOptions): ()
     devServerUrl,
     revealTimeoutMs,
     domReadyRevealDelayMs,
-    didFinishLoadRevealDelayMs,
-    destroySplashWindow
+    didFinishLoadRevealDelayMs
   } = options
 
   let revealTimer: NodeJS.Timeout | null = null
@@ -65,7 +63,6 @@ export function configureWindowReveal(options: ConfigureWindowRevealOptions): ()
         '[Window] Main window did not report readiness in time; revealing it as a fallback.'
       )
     }
-    destroySplashWindow()
     window.setSkipTaskbar(false)
     if (!window.isVisible()) {
       window.show()

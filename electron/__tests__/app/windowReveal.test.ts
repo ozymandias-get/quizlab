@@ -74,7 +74,6 @@ describe('windowReveal', () => {
   })
 
   it('reveals once when ready-to-show wins the race', () => {
-    const destroySplashWindow = vi.fn()
     const { window, windowEmitter, webContentsEmitter } = createWindowMock()
     configureWindowReveal({
       window: window as any,
@@ -82,21 +81,18 @@ describe('windowReveal', () => {
       devServerUrl: 'http://localhost:5173',
       revealTimeoutMs: 1000,
       domReadyRevealDelayMs: 100,
-      didFinishLoadRevealDelayMs: 150,
-      destroySplashWindow
+      didFinishLoadRevealDelayMs: 150
     })
 
     windowEmitter.emit('ready-to-show')
     webContentsEmitter.emit('dom-ready')
     webContentsEmitter.emit('did-finish-load')
 
-    expect(destroySplashWindow).toHaveBeenCalledTimes(1)
     expect(window.show).toHaveBeenCalledTimes(1)
     expect(window.setSkipTaskbar).toHaveBeenCalledWith(false)
   })
 
   it('reveals on did-fail-load for main frame errors', () => {
-    const destroySplashWindow = vi.fn()
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { window, webContentsEmitter } = createWindowMock()
     configureWindowReveal({
@@ -105,13 +101,11 @@ describe('windowReveal', () => {
       devServerUrl: 'http://localhost:5173',
       revealTimeoutMs: 1000,
       domReadyRevealDelayMs: 100,
-      didFinishLoadRevealDelayMs: 150,
-      destroySplashWindow
+      didFinishLoadRevealDelayMs: 150
     })
 
     webContentsEmitter.emit('did-fail-load', {}, -100, 'net error', 'https://example.com', true)
 
-    expect(destroySplashWindow).toHaveBeenCalledTimes(1)
     expect(window.show).toHaveBeenCalledTimes(1)
     expect(errorSpy).toHaveBeenCalled()
     expect(showErrorBox).toHaveBeenCalledTimes(1)

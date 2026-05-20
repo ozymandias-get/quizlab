@@ -78,10 +78,12 @@ export function useDraftSendOrchestration({
         }
 
         if (!result.success) {
-          Logger.warn(
-            `[DraftOrchestration] Multi-segment send failed at segment: ${segment.kind}`,
-            result.error
-          )
+          if (result.error !== 'webview_not_ready') {
+            Logger.warn(
+              `[DraftOrchestration] Multi-segment send failed at segment: ${segment.kind}`,
+              result.error
+            )
+          }
           return result
         }
       }
@@ -114,7 +116,9 @@ export function useDraftSendOrchestration({
           }
           setPendingAiItems([])
         } else {
-          Logger.error('[DraftOrchestration] Failed to send pending items:', result.error)
+          if (result.error !== 'webview_not_ready') {
+            Logger.error('[DraftOrchestration] Failed to send pending items:', result.error)
+          }
         }
 
         return result

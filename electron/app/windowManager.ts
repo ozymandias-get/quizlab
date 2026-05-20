@@ -16,7 +16,7 @@ import {
 } from './window/security'
 import { setupSessions } from './window/sessions'
 import { clampWindowStateToDisplay, loadWindowState, saveWindowState } from './window/state'
-import { createMainBrowserWindow, createSplashBrowserWindow } from './window/windows'
+import { createMainBrowserWindow } from './window/windows'
 
 export { hardenWindowWebContents, isAllowedMainFrameUrl, isSafeExternalUrl }
 
@@ -48,13 +48,7 @@ export async function createWindow() {
     devServerUrl: DEV_SERVER_URL,
     revealTimeoutMs: MAIN_WINDOW_REVEAL_TIMEOUT_MS,
     domReadyRevealDelayMs: MAIN_WINDOW_DOM_READY_REVEAL_DELAY_MS,
-    didFinishLoadRevealDelayMs: MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS,
-    destroySplashWindow: () => {
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.destroy()
-        splashWindow = null
-      }
-    }
+    didFinishLoadRevealDelayMs: MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS
   })
 
   mainWindow.on('close', () => saveWindowState(mainWindow))
@@ -66,22 +60,4 @@ export async function createWindow() {
   setupSessions(getMainWindow)
 
   return mainWindow
-}
-
-let splashWindow: BrowserWindow | null = null
-
-export function getSplashWindow() {
-  return splashWindow
-}
-
-export function createSplashWindow() {
-  splashWindow = createSplashBrowserWindow()
-  splashWindow.once('ready-to-show', () => {
-    splashWindow?.show()
-  })
-  splashWindow.on('closed', () => {
-    splashWindow = null
-  })
-
-  return splashWindow
 }
