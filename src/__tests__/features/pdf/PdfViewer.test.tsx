@@ -39,7 +39,17 @@ vi.mock('@app/providers/AiContext', () => ({
 vi.mock('@app/providers/AppToolContext', () => ({
   useAppToolActions: () => ({
     startScreenshot: vi.fn(),
-    queueImageForAi: vi.fn()
+    queueImageForAi: vi.fn(),
+    queueTextForAi: vi.fn()
+  })
+}))
+
+vi.mock('@app/providers/ToastContext', () => ({
+  useToastActions: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showWarning: vi.fn(),
+    showInfo: vi.fn()
   })
 }))
 
@@ -68,7 +78,8 @@ vi.mock('@features/pdf/ui/hooks', () => ({
     zoomTo: mockZoomTo,
     CurrentScale: () => <span>100%</span>,
     highlight: { current: vi.fn() },
-    clearHighlights: { current: vi.fn() }
+    clearHighlights: { current: vi.fn() },
+    renderPage: () => null
   }),
   usePdfNavigation: () => ({
     currentPage: mockNavigationState.currentPage,
@@ -89,7 +100,11 @@ vi.mock('@features/pdf/ui/hooks', () => ({
   usePdfPanTool: () => ({ isDragging: false }),
   usePdfResizeRefit: () => {},
   usePdfCtrlWheelZoom: () => {},
-  usePdfViewerZoomIpc: () => {}
+  usePdfViewerZoomIpc: () => {},
+  usePdfPageTextExtraction: () => ({
+    extractCurrentPageText: vi.fn(),
+    hasTextLayer: () => true
+  })
 }))
 
 vi.mock('@features/pdf/ui/components/PdfPlaceholder', () => ({

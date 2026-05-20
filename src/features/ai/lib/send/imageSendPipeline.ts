@@ -19,6 +19,7 @@ import { cloneScriptDiagnostics } from './scriptExecution'
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { executePipelineStep } from './pipelineUtils'
+import { useDiagnosticsStore } from '@features/diagnostics'
 
 interface ImageSendPipelineParams {
   webviewRef: RefObject<WebviewController | null>
@@ -77,8 +78,25 @@ export async function executeImageSendPipeline(
     generateClickSendScript
   } = params
 
+  const emitEvent = useDiagnosticsStore.getState().emitEvent
+
+  emitEvent({
+    type: 'SEND_START',
+    provider: currentAI,
+    severity: 'info',
+    pipelineStage: 'queue',
+    message: 'Image send pipeline started'
+  })
+
   if (!imageDataUrl.startsWith('data:image/')) {
     Logger.error('[useAiSender] Invalid image format')
+    emitEvent({
+      type: 'PIPELINE_ERROR',
+      provider: currentAI,
+      severity: 'error',
+      pipelineStage: 'error',
+      message: 'Invalid image format'
+    })
     return attachDiagnostics(
       { success: false, error: 'invalid_image_format' },
       diagnostics,
@@ -102,8 +120,24 @@ export async function executeImageSendPipeline(
     if (resolved.actualUrl) {
       diagnostics.currentUrl = resolved.actualUrl
     }
+    emitEvent({
+      type: 'PIPELINE_ERROR',
+      provider: currentAI,
+      severity: 'error',
+      pipelineStage: 'config_resolve',
+      message: resolved.error || 'Config resolution failed'
+    })
     return attachDiagnostics(resolved, diagnostics, requestStartedAt)
   }
+
+  emitEvent({
+    type: 'CONFIG_RESOLVED',
+    provider: currentAI,
+    severity: 'info',
+    pipelineStage: 'config_resolve',
+    duration: diagnostics.timings.configResolveMs,
+    selectorUsed: resolved.aiConfig?.input || undefined
+  })
 
   diagnostics.currentUrl = resolved.currentUrl
   const effectivePromptText = mergePromptText(activePromptText, promptText)
@@ -118,12 +152,28 @@ export async function executeImageSendPipeline(
   const copied = await copyImageToClipboard(imageDataUrl)
   diagnostics.timings.clipboardMs = roundMs(nowMs() - clipboardStartedAt)
   if (!copied) {
+    emitEvent({
+      type: 'CLIPBOARD_FAILED',
+      provider: currentAI,
+      severity: 'error',
+      pipelineStage: 'clipboard',
+      duration: diagnostics.timings.clipboardMs,
+      message: 'Clipboard copy failed'
+    })
     return attachDiagnostics(
       { success: false, error: 'clipboard_failed' },
       diagnostics,
       requestStartedAt
     )
   }
+
+  emitEvent({
+    type: 'CLIPBOARD_SUCCESS',
+    provider: currentAI,
+    severity: 'info',
+    pipelineStage: 'clipboard',
+    duration: diagnostics.timings.clipboardMs
+  })
 
   try {
     if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
@@ -179,6 +229,25 @@ export async function executeImageSendPipeline(
     pasteSuccess = safeWebviewPaste(webview)
   }
   diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
+
+  if (pasteSuccess) {
+    emitEvent({
+      type: 'PASTE_SUCCESS',
+      provider: currentAI,
+      severity: 'info',
+      pipelineStage: 'paste',
+      duration: diagnostics.timings.pasteMs
+    })
+  } else {
+    emitEvent({
+      type: 'PASTE_FAILED',
+      provider: currentAI,
+      severity: 'error',
+      pipelineStage: 'paste',
+      duration: diagnostics.timings.pasteMs,
+      message: 'Paste operation failed'
+    })
+  }
 
   if (!pasteSuccess) {
     return attachDiagnostics(
@@ -271,14 +340,7 @@ export async function executeImageSendPipeline(
       }
     })
     if (!submitReadyStep.success) {
-      if (submitReadyStep.scriptResult?.error) {
-        return submitReadyStep.error
-      }
-      return attachDiagnostics(
-        { success: false, error: 'submit_not_ready' },
-        diagnostics,
-        requestStartedAt
-      )
+      return submitReadyStep.error
     }
 
     const clickStep = await executePipelineStep<SendImageResult>({
@@ -294,12 +356,29 @@ export async function executeImageSendPipeline(
       onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
     })
     if (!clickStep.success) {
+      emitEvent({
+        type: 'PIPELINE_ERROR',
+        provider: currentAI,
+        severity: 'error',
+        pipelineStage: 'click',
+        message: 'Auto-send click failed',
+        duration: diagnostics.timings.totalMs
+      })
       return attachDiagnostics(
         { success: false, error: 'autosend_failed_draft_saved' },
         diagnostics,
         requestStartedAt
       )
     }
+
+    emitEvent({
+      type: 'SEND_SUCCESS',
+      provider: currentAI,
+      severity: 'info',
+      pipelineStage: 'complete',
+      duration: diagnostics.timings.totalMs,
+      message: 'Image send completed successfully'
+    })
 
     return attachDiagnostics(
       { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },

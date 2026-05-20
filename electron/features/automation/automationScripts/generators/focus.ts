@@ -8,7 +8,7 @@ const generateFocusScript = (config: AutomationConfig): string => {
   return `
     ${createScriptPreamble('focus', serialized)}
         try {
-            const result = await waitForElement(config.waitFor, 'input', diagnostics.input, 10000, false);
+            const result = await waitForElement(config.waitFor, 'input', diagnostics.input, config, 10000, false);
             const element = result.element;
             if (!element) {
                 const error = resolveLookupError(config.waitFor, 'input_not_found', config.health);

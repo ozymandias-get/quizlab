@@ -30,7 +30,7 @@ function GoogleDrivePanel({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full min-h-0">
-      <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-4 py-3 backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-4 py-3 backdrop-blur-md">
         <div className="min-w-0 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-[#1a73e8]/15 text-[#1a73e8]">
             {getAiIcon('gdrive')}

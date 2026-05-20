@@ -23,7 +23,7 @@ ${buildSetInputValueScript()}
 ${performSubmitScript}
 
         try {
-            const inputResult = await waitForElement(config.input, 'input', diagnostics.input, 10000, false);
+            const inputResult = await waitForElement(config.input, 'input', diagnostics.input, config, 10000, false);
             const inputElement = inputResult.element;
             if (!inputElement) {
                 const error = resolveLookupError(config.input, 'input_not_found', config.health);

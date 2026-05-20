@@ -215,3 +215,13 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
   -webkit-user-select: none !important;
   cursor: inherit;
 }
+
+/* Recent PDF list items — force dark background over glass-tier-3 */
+.pdf-recent-item.glass-tier-3 {
+  background-color: rgba(28, 25, 23, 0.85) !important;
+  background-image: none !important;
+}
+
+.pdf-recent-item.glass-tier-3::after {
+  opacity: 0.06 !important;
+}

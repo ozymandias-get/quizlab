@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useCallback, memo, Fragment } from 'react'
+import { useEffect, useMemo, memo, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguageStrings } from '@app/providers'
+import { useTargetRects, useTourNavigation } from './useTourNavigation'
 
 const STEP_CONFIG = [
   {
@@ -183,7 +184,7 @@ const Tooltip = memo<TooltipProps>(
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="fixed z-[10002] left-1/2 bottom-[10%] -translate-x-1/2 w-[440px] p-8 rounded-[2rem] bg-slate-900/90 backdrop-blur-2xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] border border-white/10"
+        className="fixed z-[10002] left-1/2 bottom-[10%] -translate-x-1/2 w-[440px] p-8 rounded-[2rem] bg-slate-900/90 backdrop-blur-xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] border border-white/10"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-[2rem] pointer-events-none" />
 
@@ -197,7 +198,7 @@ const Tooltip = memo<TooltipProps>(
               {Array.from({ length: totalSteps }).map((_, i) => (
                 <div
                   key={i}
-                  className={`h-1 rounded-full transition-all duration-500 ${
+                  className={`h-1 rounded-full transition-width duration-300 ${
                     i === step ? 'bg-amber-400 w-6' : 'bg-white/10 w-2'
                   }`}
                 />
@@ -242,113 +243,26 @@ const Tooltip = memo<TooltipProps>(
 
 function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
   const { t } = useLanguageStrings()
-  const [step, setStep] = useState(0)
-  const [rects, setRects] = useState<Rect[]>([])
+  const { step, handleNext, handleSkip, resetStep } = useTourNavigation({
+    totalSteps: STEP_CONFIG.length,
+    onClose
+  })
 
-  useEffect(() => {
-    if (isActive) {
-      setStep(0)
-      setRects([])
-    }
-  }, [isActive])
-
-  const areRectsSame = (r1: Rect[], r2: Rect[]) => {
-    if (r1.length !== r2.length) return false
-    return r1.every((rect, i) => {
-      const other = r2[i]
-      return (
-        rect.targetId === other.targetId &&
-        Math.abs(rect.top - other.top) < 1 &&
-        Math.abs(rect.left - other.left) < 1 &&
-        Math.abs(rect.width - other.width) < 1 &&
-        Math.abs(rect.height - other.height) < 1
-      )
-    })
-  }
-
-  const updateRects = useCallback(() => {
-    if (!isActive) return
-
-    const config = STEP_CONFIG[step]
-    if (!config) return
-
-    const newRects: Rect[] = []
-
-    if (config.targetId) {
-      const el = document.getElementById(config.targetId)
-      if (el) {
-        const rect = el.getBoundingClientRect()
-        if (rect.width > 0 && rect.height > 0) {
-          newRects.push({
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-            id: config.targetId,
-            targetId: config.targetId
-          })
-        }
-      }
-    }
-
-    if (config.targetIds) {
-      config.targetIds.forEach((id, index) => {
-        const el = document.getElementById(id)
-        if (el) {
-          const rect = el.getBoundingClientRect()
-          if (rect.width > 0 && rect.height > 0) {
-            newRects.push({
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height,
-              id,
-              index,
-              targetId: id
-            })
-          }
-        }
-      })
-    }
-
-    setRects((prev) => {
-      if (areRectsSame(prev, newRects)) return prev
-      return newRects
-    })
-  }, [isActive, step])
-
-  useEffect(() => {
-    if (!isActive) return
-
-    updateRects()
-
-    window.addEventListener('resize', updateRects)
-    window.addEventListener('scroll', updateRects, true) // Capture to detect any scroll
-
-    const intervalId = setInterval(updateRects, 500)
-
-    return () => {
-      window.removeEventListener('resize', updateRects)
-      window.removeEventListener('scroll', updateRects, true)
-      clearInterval(intervalId)
-    }
-  }, [isActive, updateRects])
-
-  const handleNext = () => {
-    if (step < STEP_CONFIG.length - 1) {
-      setStep((s) => s + 1)
-    } else {
-      onClose()
-    }
-  }
+  const stepConfig = STEP_CONFIG[step]
+  const rects = useTargetRects({ isActive, stepConfig })
 
   const colors = useMemo(() => ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'], [])
 
+  useEffect(() => {
+    if (isActive) {
+      resetStep()
+    }
+  }, [isActive, resetStep])
+
   if (!isActive) return null
 
-  const config = STEP_CONFIG[step]
-  const title = t(config?.titleKey) || `Step ${step + 1}`
-  const text = t(config?.textKey) || ''
+  const title = t(stepConfig?.titleKey) || `Step ${step + 1}`
+  const text = t(stepConfig?.textKey) || ''
 
   return (
     <AnimatePresence>
@@ -360,7 +274,7 @@ function UsageAssistant({ isActive, onClose }: UsageAssistantProps) {
             title={title}
             text={text}
             onNext={handleNext}
-            onSkip={onClose}
+            onSkip={handleSkip}
             finishText={t('ua_finish')}
             nextText={t('ua_next')}
             skipText={t('ua_skip')}

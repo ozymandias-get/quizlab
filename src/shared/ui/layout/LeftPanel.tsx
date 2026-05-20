@@ -6,8 +6,6 @@ import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
 import { PdfTabStrip } from '@features/pdf'
 import type { PdfTab, LastReadingInfo, ResumePdfResult, ReadingProgressUpdate } from '@features/pdf'
-import { Worker } from '@react-pdf-viewer/core'
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 const PdfViewer = lazy(() => import('@features/pdf').then((m) => ({ default: m.PdfViewer })))
 
@@ -135,25 +133,23 @@ function LeftPanel({
             >
               <div className="absolute inset-0 w-full h-full animate-in fade-in duration-300">
                 <ErrorBoundary title={t('error_pdf_viewer')}>
-                  <Worker workerUrl={pdfjsWorkerUrl}>
-                    <PdfViewer
-                      key={pdfViewerRemountKey}
-                      pdfFile={pdfFile}
-                      activePdfTab={activePdfTab}
-                      onSelectPdf={onSelectPdf}
-                      onTextSelection={onTextSelection}
-                      t={t}
-                      initialPage={initialPage}
-                      onResumePdf={onResumePdf}
-                      onClearResumePdf={onClearResumePdf}
-                      onRestoreResumePdf={onRestoreResumePdf}
-                      onReadingProgressChange={onReadingProgressChange}
-                      lastReadingInfo={lastReadingInfo}
-                      onOpenGoogleDrive={onOpenGoogleDrive}
-                      isInteractionBlocked={isInteractionBlocked}
-                      isPanelResizing={isPanelResizing}
-                    />
-                  </Worker>
+                  <PdfViewer
+                    key={pdfViewerRemountKey}
+                    pdfFile={pdfFile}
+                    activePdfTab={activePdfTab}
+                    onSelectPdf={onSelectPdf}
+                    onTextSelection={onTextSelection}
+                    t={t}
+                    initialPage={initialPage}
+                    onResumePdf={onResumePdf}
+                    onClearResumePdf={onClearResumePdf}
+                    onRestoreResumePdf={onRestoreResumePdf}
+                    onReadingProgressChange={onReadingProgressChange}
+                    lastReadingInfo={lastReadingInfo}
+                    onOpenGoogleDrive={onOpenGoogleDrive}
+                    isInteractionBlocked={isInteractionBlocked}
+                    isPanelResizing={isPanelResizing}
+                  />
                 </ErrorBoundary>
               </div>
             </Suspense>

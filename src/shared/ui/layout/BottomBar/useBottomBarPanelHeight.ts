@@ -1,4 +1,6 @@
-import { useLayoutEffect, useState, type RefObject } from 'react'
+import { useLayoutEffect, useState, useRef, useCallback, type RefObject } from 'react'
+
+const MEASURE_THROTTLE_MS = 32
 
 export function useBottomBarPanelHeight(
   barRef: RefObject<HTMLDivElement | null>,
@@ -6,70 +8,76 @@ export function useBottomBarPanelHeight(
   bottomBarScale: number
 ) {
   const [panelHeight, setPanelHeight] = useState(0)
+  const isOpenRef = useRef(isOpen)
+  isOpenRef.current = isOpen
+  const lastMeasureRef = useRef(0)
+  const pendingFrameRef = useRef<number | null>(null)
 
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      setPanelHeight((prev) => (prev === 0 ? prev : 0))
-      return
-    }
-
+  const measure = useCallback(() => {
     const shell = barRef.current
     if (!shell) return
 
-    let frameId: number | null = null
+    const hub = shell.querySelector<HTMLButtonElement>('.hub-center-btn')
+    if (!hub) return
 
-    const measure = () => {
-      const hub = shell.querySelector<HTMLButtonElement>('.hub-center-btn')
-      if (!hub) return
+    const toolsScrollArea = shell.querySelector<HTMLElement>(
+      '[data-testid="tools-panel-scroll-area"]'
+    )
+    const modelsScrollArea = shell.querySelector<HTMLElement>(
+      '[data-testid="models-panel-scroll-area"]'
+    )
+    const shellRect = shell.getBoundingClientRect()
+    const hubRect = hub.getBoundingClientRect()
+    const edgePadding = 12
+    const panelGap = 10
+    const availableTopHeight = Math.max(0, hubRect.top - shellRect.top - edgePadding - panelGap)
+    const availableBottomHeight = Math.max(
+      0,
+      shellRect.bottom - hubRect.bottom - edgePadding - panelGap
+    )
 
-      const toolsScrollArea = shell.querySelector<HTMLElement>(
-        '[data-testid="tools-panel-scroll-area"]'
-      )
-      const modelsScrollArea = shell.querySelector<HTMLElement>(
-        '[data-testid="models-panel-scroll-area"]'
-      )
-      const shellRect = shell.getBoundingClientRect()
-      const hubRect = hub.getBoundingClientRect()
-      const edgePadding = 12
-      const panelGap = 10
-      const availableTopHeight = Math.max(0, hubRect.top - shellRect.top - edgePadding - panelGap)
-      const availableBottomHeight = Math.max(
-        0,
-        shellRect.bottom - hubRect.bottom - edgePadding - panelGap
-      )
-      const sharedHeight = Math.max(
-        0,
-        Math.floor(
-          Math.min(
-            availableTopHeight,
-            availableBottomHeight,
-            toolsScrollArea?.scrollHeight ?? Number.POSITIVE_INFINITY,
-            modelsScrollArea?.scrollHeight ?? Number.POSITIVE_INFINITY
-          )
-        )
-      )
+    const minContentHeight = Math.min(
+      toolsScrollArea?.scrollHeight ?? 0,
+      modelsScrollArea?.scrollHeight ?? 0
+    )
 
-      setPanelHeight((prev) => (prev === sharedHeight ? prev : sharedHeight))
+    const sharedHeight = Math.max(
+      0,
+      Math.floor(
+        Math.min(availableTopHeight, availableBottomHeight, Math.max(minContentHeight, 48))
+      )
+    )
+
+    setPanelHeight((prev) => (prev === sharedHeight ? prev : sharedHeight))
+  }, [barRef])
+
+  const scheduleMeasure = useCallback(() => {
+    const now = performance.now()
+    if (now - lastMeasureRef.current < MEASURE_THROTTLE_MS) return
+
+    lastMeasureRef.current = now
+
+    if (pendingFrameRef.current !== null) {
+      cancelAnimationFrame(pendingFrameRef.current)
     }
 
-    const scheduleMeasure = () => {
-      if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
-        measure()
-        return
-      }
+    pendingFrameRef.current = requestAnimationFrame(() => {
+      pendingFrameRef.current = null
+      measure()
+    })
+  }, [measure])
 
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId)
-      }
+  useLayoutEffect(() => {
+    const id = requestAnimationFrame(() => {
+      lastMeasureRef.current = performance.now()
+      measure()
+    })
+    return () => cancelAnimationFrame(id)
+  }, [measure])
 
-      frameId = window.requestAnimationFrame(() => {
-        frameId = null
-        measure()
-      })
-    }
-
-    measure()
-    window.addEventListener('resize', scheduleMeasure)
+  useLayoutEffect(() => {
+    const shell = barRef.current
+    if (!shell) return
 
     const resizeObserver =
       typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleMeasure) : null
@@ -83,14 +91,18 @@ export function useBottomBarPanelHeight(
 
     observedElements.forEach((element) => resizeObserver?.observe(element))
 
+    const handleResize = scheduleMeasure
+    window.addEventListener('resize', handleResize)
+
     return () => {
-      window.removeEventListener('resize', scheduleMeasure)
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId)
+      window.removeEventListener('resize', handleResize)
+      if (pendingFrameRef.current !== null) {
+        cancelAnimationFrame(pendingFrameRef.current)
+        pendingFrameRef.current = null
       }
       resizeObserver?.disconnect()
     }
-  }, [barRef, bottomBarScale, isOpen])
+  }, [barRef, bottomBarScale, scheduleMeasure])
 
   return panelHeight
 }

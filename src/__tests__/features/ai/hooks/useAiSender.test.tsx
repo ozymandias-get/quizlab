@@ -266,7 +266,6 @@ describe('useAiSender', () => {
       res = await result.current.sendTextToAI('hello')
     })
 
-    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('wrong_url')
     expect(res.diagnostics?.currentUrl).toBe('https://other.com')
@@ -553,7 +552,6 @@ describe('useAiSender', () => {
       res = await result.current.sendImageToAI('data:image/png;base64,xx')
     })
 
-    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('clipboard_failed')
     expect(res.diagnostics?.timings.clipboardMs).toBeDefined()
@@ -622,7 +620,6 @@ describe('useAiSender', () => {
       res = await result.current.sendTextToAI('hello')
     })
 
-    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('webview_destroyed')
   })
@@ -648,7 +645,6 @@ describe('useAiSender', () => {
       res = await result.current.sendTextToAI('hello')
     })
 
-    console.log('RES:', res)
     expect(res.success).toBe(false)
     expect(res.error).toBe('invalid_input')
     expect(res.diagnostics?.tabId).toBe('tab-stale')

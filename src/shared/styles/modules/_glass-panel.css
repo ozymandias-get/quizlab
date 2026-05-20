@@ -10,27 +10,27 @@
   --glass-hover-border-tertiary: rgba(255, 255, 255, 0.095);
 
   --glass-shadow-primary:
-    0 30px 68px -34px rgba(0, 0, 0, 0.92), 0 18px 34px -24px rgba(7, 10, 18, 0.78),
-    inset 0 10px 20px -30px rgba(255, 255, 255, 0.008),
-    inset 0 -18px 30px -28px rgba(15, 23, 42, 0.44);
+    0 20px 48px -24px rgba(0, 0, 0, 0.82), 0 10px 20px -16px rgba(7, 10, 18, 0.62),
+    inset 0 6px 14px -20px rgba(255, 255, 255, 0.006),
+    inset 0 -12px 22px -22px rgba(15, 23, 42, 0.32);
   --glass-shadow-primary-hover:
-    0 36px 78px -36px rgba(0, 0, 0, 0.96), 0 24px 44px -26px rgba(7, 10, 18, 0.82),
-    inset 0 10px 24px -28px rgba(255, 255, 255, 0.01);
+    0 24px 56px -26px rgba(0, 0, 0, 0.86), 0 14px 28px -18px rgba(7, 10, 18, 0.66),
+    inset 0 6px 16px -20px rgba(255, 255, 255, 0.008);
 
   --glass-shadow-secondary:
-    0 22px 42px -28px rgba(0, 0, 0, 0.82), 0 10px 24px -18px rgba(5, 8, 16, 0.62),
-    inset 0 8px 18px -28px rgba(255, 255, 255, 0.006),
-    inset 0 -14px 24px -24px rgba(15, 23, 42, 0.32);
+    0 14px 28px -18px rgba(0, 0, 0, 0.72), 0 6px 14px -12px rgba(5, 8, 16, 0.48),
+    inset 0 4px 12px -20px rgba(255, 255, 255, 0.004),
+    inset 0 -10px 18px -18px rgba(15, 23, 42, 0.24);
   --glass-shadow-secondary-hover:
-    0 28px 52px -30px rgba(0, 0, 0, 0.88), 0 16px 28px -18px rgba(5, 8, 16, 0.68),
-    inset 0 8px 18px -28px rgba(255, 255, 255, 0.008);
+    0 18px 36px -20px rgba(0, 0, 0, 0.78), 0 10px 18px -12px rgba(5, 8, 16, 0.54),
+    inset 0 4px 12px -20px rgba(255, 255, 255, 0.006);
 
   --glass-shadow-tertiary:
-    0 10px 24px -18px rgba(0, 0, 0, 0.54), 0 6px 14px -12px rgba(5, 8, 16, 0.46),
-    inset 0 6px 14px -18px rgba(255, 255, 255, 0.004);
+    0 6px 14px -10px rgba(0, 0, 0, 0.42), 0 3px 8px -6px rgba(5, 8, 16, 0.32),
+    inset 0 3px 8px -12px rgba(255, 255, 255, 0.003);
   --glass-shadow-tertiary-hover:
-    0 14px 28px -18px rgba(0, 0, 0, 0.62), 0 10px 18px -12px rgba(5, 8, 16, 0.52),
-    inset 0 6px 14px -18px rgba(255, 255, 255, 0.006);
+    0 8px 18px -12px rgba(0, 0, 0, 0.5), 0 5px 10px -8px rgba(5, 8, 16, 0.38),
+    inset 0 3px 8px -12px rgba(255, 255, 255, 0.004);
 }
 
 .glass-tier-1,
@@ -48,16 +48,25 @@
   -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 106%));
   transform: translateZ(0);
   backface-visibility: hidden;
-  will-change: transform, opacity;
 }
 
 /* Low performance mode glass tier overrides */
 .low-perf .glass-tier-1,
 .low-perf .glass-tier-2,
-.low-perf .low-perf .glass-tier-3 {
+.low-perf .glass-tier-3 {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   background-color: rgba(8, 8, 8, 0.97) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+.low-perf .glass-interactive {
+  transition: border-color 150ms ease !important;
+}
+
+.low-perf .glass-interactive:hover,
+.low-perf .glass-interactive:focus-visible {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
 }
 
 .glass-tier-1::after,
@@ -82,8 +91,8 @@
 
 .glass-tier-1 {
   --glass-border: var(--glass-border-primary);
-  --glass-blur: 19px;
-  --glass-saturate: 106%;
+  --glass-blur: 12px;
+  --glass-saturate: 104%;
   --glass-surface:
     linear-gradient(
       165deg,
@@ -124,8 +133,8 @@
 
 .glass-tier-2 {
   --glass-border: var(--glass-border-secondary);
-  --glass-blur: 12px;
-  --glass-saturate: 104%;
+  --glass-blur: 8px;
+  --glass-saturate: 102%;
   --glass-surface:
     linear-gradient(
       165deg,
@@ -163,8 +172,8 @@
 
 .glass-tier-3 {
   --glass-border: var(--glass-border-tertiary);
-  --glass-blur: 6px;
-  --glass-saturate: 102%;
+  --glass-blur: 4px;
+  --glass-saturate: 100%;
   --glass-surface:
     linear-gradient(
       165deg,

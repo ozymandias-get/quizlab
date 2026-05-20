@@ -91,12 +91,12 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
   const { isGeminiWebSessionRefreshing, isGeminiWebLoginInProgress, startGeminiWebLogin } =
     useGeminiSessionRefreshListeners({ showError })
 
-  const queueState = useMemo<AppToolQueueState>(
+  const queueValue = useMemo<AppToolQueueState>(
     () => ({ pendingAiItems, autoSend }),
     [pendingAiItems, autoSend]
   )
 
-  const flagsState = useMemo<AppToolFlagsState>(
+  const flagsValue = useMemo<AppToolFlagsState>(
     () => ({
       isScreenshotMode,
       isPickerActive,
@@ -123,25 +123,25 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
       startGeminiWebLogin
     }),
     [
-      clearPendingAiItems,
+      startScreenshot,
       closeScreenshot,
       handleCapture,
-      queueImageForAi,
       queueTextForAi,
+      queueImageForAi,
       removePendingAiItem,
+      clearPendingAiItems,
       sendPendingAiItems,
       setAutoSend,
-      startGeminiWebLogin,
       startPicker,
       startPickerWhenReady,
-      startScreenshot,
-      togglePicker
+      togglePicker,
+      startGeminiWebLogin
     ]
   )
 
   return (
-    <AppToolQueueContext.Provider value={queueState}>
-      <AppToolFlagsContext.Provider value={flagsState}>
+    <AppToolQueueContext.Provider value={queueValue}>
+      <AppToolFlagsContext.Provider value={flagsValue}>
         <AppToolActionsContext.Provider value={actionsValue}>
           {children}
         </AppToolActionsContext.Provider>

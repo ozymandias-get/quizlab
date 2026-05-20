@@ -1,4 +1,4 @@
-﻿import { useCallback, memo } from 'react'
+import { useCallback, memo, useRef, useEffect } from 'react'
 import { useLanguageStrings, useAppearance, type UpdateInfo } from '@app/providers'
 import { useClearCache } from '@platform/electron/api/useSystemApi'
 
@@ -7,6 +7,7 @@ import UpdatesCard from './about/UpdatesCard'
 import RepositoryLink from './about/RepositoryLink'
 import CacheControl from './about/CacheControl'
 import IssueReportCard from './about/IssueReportCard'
+import DiagnosticsQuickView from './about/DiagnosticsQuickView'
 
 interface AboutTabProps {
   appVersion: string
@@ -30,10 +31,23 @@ const AboutTab = memo(
     const startTour = useAppearance((s) => s.startTour)
 
     const { mutate: clearCache, isPending: isClearing, isSuccess: isClearSuccess } = useClearCache()
+    const tourTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+      return () => {
+        if (tourTimerRef.current) {
+          clearTimeout(tourTimerRef.current)
+        }
+      }
+    }, [])
 
     const handleStartTour = useCallback(() => {
+      if (tourTimerRef.current) {
+        clearTimeout(tourTimerRef.current)
+      }
       if (onClose) onClose()
-      setTimeout(() => {
+      tourTimerRef.current = setTimeout(() => {
+        tourTimerRef.current = null
         startTour()
       }, 300)
     }, [onClose, startTour])
@@ -64,6 +78,8 @@ const AboutTab = memo(
             isClearing={isClearing}
             isClearSuccess={isClearSuccess}
           />
+
+          <DiagnosticsQuickView t={t} />
 
           <IssueReportCard t={t} appVersion={appVersion} />
         </div>

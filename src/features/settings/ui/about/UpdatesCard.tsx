@@ -145,7 +145,9 @@ const UpdatesCard = memo(
             <div className="rounded-xl border border-white/[0.1] bg-white/[0.06] p-2.5 text-white/50">
               <RefreshIcon className="w-5 h-5" />
             </div>
-            <h4 className="text-ql-14 font-bold tracking-wide text-white">{t('updates')}</h4>
+            <h4 className="text-ql-13 font-semibold tracking-normal text-white/80">
+              {t('updates')}
+            </h4>
           </div>
 
           <AnimatePresence mode="wait">

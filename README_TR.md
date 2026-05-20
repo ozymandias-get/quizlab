@@ -12,7 +12,9 @@
   <a href="README.md">English README</a> |
   <a href="https://github.com/ozymandias-get/quizlab/releases">Son Sürüm</a> |
   <a href="CONTRIBUTING.md">Katkı</a> |
-  <a href="SECURITY.md">Güvenlik</a>
+  <a href="SECURITY.md">Güvenlik</a> |
+  <a href="docs/ARCHITECTURE.md">Mimari</a> |
+  <a href="docs/ROADMAP.md">Yol Haritası</a>
 </p>
 
 <p align="center">
@@ -135,7 +137,7 @@ Güncel sürümde özel bir AI anasayfası ve gelişmiş sekme yönetimi bulunur
 - Izgara tabanlı model sıralama
 - Aktif AI sekmesi kalmadığında otomatik anasayfaya dönüş
 
-### Performans ve Mimari (v3.0.9)
+### Performans ve Mimari (v4.0.0)
 
 Son sürüm, daha yüksek güvenilirlik için önemli dahili yeniden yapılandırmalar içerir:
 
@@ -265,7 +267,6 @@ npm run build:backend
 npm run typecheck
 npm run lint
 npm run test
-npm run test:e2e
 npm run build
 ```
 

@@ -67,7 +67,9 @@ vi.mock('@ui/layout/BottomBar/ToolButton', () => ({
 vi.mock('@ui/layout/BottomBar/animations', () => ({
   panelVariantsVertical: {},
   panelTransition: {},
-  toolListVariants: {}
+  toolListVariants: {},
+  panelSpring: {},
+  smoothEase: [0.16, 1, 0.3, 1]
 }))
 
 describe('ToolsPanel', () => {

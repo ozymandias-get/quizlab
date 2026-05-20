@@ -1,7 +1,8 @@
-import { Suspense } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Button } from '@ui/components/button'
 import { CloseIcon } from '@ui/components/Icons'
+import { useAppearance } from '@app/providers'
 import {
   SETTINGS_MODAL_MAIN_PANEL_ID,
   SETTINGS_TAB_RENDERERS,
@@ -26,7 +27,20 @@ export default function SettingsModalContent({
   t,
   tabDefs
 }: SettingsModalContentProps) {
+  const performanceMode = useAppearance((s) => s.performanceMode)
   const activeTabLabel = tabDefs.find((tab) => tab.id === activeTab)?.label
+
+  // Visited tabs set to lazy-load and keep loaded tabs in memory
+  const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTabId>>(new Set([activeTab]))
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev
+      const next = new Set(prev)
+      next.add(activeTab)
+      return next
+    })
+  }, [activeTab])
 
   return (
     <main className="relative flex-1 flex flex-col min-w-0 bg-gradient-to-b from-white/[0.01] to-transparent">
@@ -35,9 +49,10 @@ export default function SettingsModalContent({
           <AnimatePresence mode="wait">
             <motion.h3
               key={activeTab}
-              initial={{ opacity: 0, y: -10 }}
+              initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
+              exit={performanceMode ? { opacity: 0 } : { opacity: 0, y: 6 }}
+              transition={performanceMode ? { duration: 0.1 } : { duration: 0.2 }}
               className="text-ql-16 font-semibold text-white/90 tracking-tight"
             >
               {activeTabLabel}
@@ -66,23 +81,34 @@ export default function SettingsModalContent({
         aria-labelledby={settingsTabButtonId(activeTab)}
         className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 py-5 md:py-6"
       >
-        <Suspense
-          key={activeTab}
-          fallback={
-            <div className="flex items-center justify-center p-12 h-full">
-              <div className="w-6 h-6 rounded-full border-2 border-white/15 border-t-white/50 animate-spin" />
+        {[...visitedTabs].map((tabId) => {
+          const isActive = activeTab === tabId
+          return (
+            <div
+              key={tabId}
+              className={isActive ? 'block' : 'hidden'}
+              style={{ display: isActive ? 'block' : 'none' }}
+            >
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center p-12 h-full">
+                    <div className="w-6 h-6 rounded-full border-2 border-white/15 border-t-white/50 animate-spin" />
+                  </div>
+                }
+              >
+                <motion.div
+                  initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                  animate={isActive ? { opacity: 1, y: 0 } : {}}
+                  transition={
+                    performanceMode ? { duration: 0.1 } : { duration: 0.24, ease: 'easeOut' }
+                  }
+                >
+                  {SETTINGS_TAB_RENDERERS[tabId]({ onClose, settings, t })}
+                </motion.div>
+              </Suspense>
             </div>
-          }
-        >
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
-            {SETTINGS_TAB_RENDERERS[activeTab]({ onClose, settings })}
-          </motion.div>
-        </Suspense>
+          )
+        })}
       </div>
     </main>
   )

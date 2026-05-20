@@ -13,7 +13,7 @@ export const ListItemCard = forwardRef<HTMLDivElement, ListItemCardProps>(
       ? 'border-white/[0.16] text-white/90 shadow-[0_14px_28px_-22px_rgba(0,0,0,0.72)]'
       : 'border-white/[0.08] text-white/72'
     const interactiveClasses = interactive
-      ? 'glass-interactive cursor-pointer hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.985]'
+      ? 'glass-interactive cursor-pointer hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.985] active:bg-white/[0.04]'
       : ''
 
     return (

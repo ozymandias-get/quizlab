@@ -5,7 +5,8 @@ import SettingsModal from '@features/settings/ui/SettingsModal'
 const tMock = (key: string) => key
 vi.mock('@app/providers', () => ({
   useLanguage: () => ({ t: tMock }),
-  useLanguageStrings: () => ({ t: tMock, language: 'en' })
+  useLanguageStrings: () => ({ t: tMock, language: 'en' }),
+  useAppearance: (selector: any) => selector({ performanceMode: false })
 }))
 
 vi.mock('@features/settings/hooks/useSettings', () => ({

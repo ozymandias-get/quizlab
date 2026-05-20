@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useMemo } from 'react'
 import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation'
 import { zoomPlugin } from '@react-pdf-viewer/zoom'
 import { scrollModePlugin } from '@react-pdf-viewer/scroll-mode'
@@ -29,12 +29,6 @@ const safeRenderHighlights = (props: RenderHighlightsProps) => {
 }
 
 export function usePdfPlugins() {
-  // Plugin factories use React hooks internally (useMemo, useState, useEffect
-  // via useSearch, etc.) so they MUST be called unconditionally at the top level
-  // — never inside useMemo/useCallback. Wrapping them caused a Rules-of-Hooks
-  // violation that corrupted hook state, leading to "Cannot read properties of
-  // undefined (reading 'length')" when the search plugin's keyword state
-  // resolved to undefined instead of [].
   const pageNavigationPluginInstance = pageNavigationPlugin()
   const { jumpToPage } = pageNavigationPluginInstance
 
@@ -48,12 +42,20 @@ export function usePdfPlugins() {
   })
   const { highlight, clearHighlights } = searchPluginInstance
 
-  const plugins = [
-    pageNavigationPluginInstance,
-    zoomPluginInstance,
-    scrollModePluginInstance,
-    searchPluginInstance
-  ]
+  const plugins = useMemo(
+    () => [
+      pageNavigationPluginInstance,
+      zoomPluginInstance,
+      scrollModePluginInstance,
+      searchPluginInstance
+    ],
+    [
+      pageNavigationPluginInstance,
+      zoomPluginInstance,
+      scrollModePluginInstance,
+      searchPluginInstance
+    ]
+  )
 
   const jumpToPageRef = useRef<JumpToPage>(jumpToPage)
   useEffect(() => {

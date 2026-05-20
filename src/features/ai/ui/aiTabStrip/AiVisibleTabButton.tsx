@@ -48,14 +48,13 @@ function AiVisibleTabButton({
   return (
     <motion.button
       type="button"
-      layout
       whileHover={{
         y: -0.5,
         scale: 1.005,
-        transition: { type: 'spring', stiffness: 400, damping: 26 }
+        transition: { type: 'tween', duration: 0.15 }
       }}
-      whileTap={{ scale: 0.99 }}
-      className="group relative flex h-8 min-w-0 max-w-[260px] items-center gap-2 rounded-full border px-3.5 pr-16 transition-all duration-200"
+      whileTap={{ scale: 0.99, transition: { duration: 0.08 } }}
+      className="group relative flex h-8 min-w-0 max-w-[260px] items-center gap-2 rounded-full border px-3.5 pr-16 transition-colors transition-shadow duration-150"
       style={
         isActive
           ? {

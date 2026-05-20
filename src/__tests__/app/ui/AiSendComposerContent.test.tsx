@@ -14,7 +14,14 @@ vi.mock('@app/providers', () => {
       ai_send_item_count: `${params?.count ?? ''} oge`.trim(),
       ai_send_note_label: 'Note',
       ai_send_text_placeholder: 'Type note',
-      ai_send_image_placeholder: 'Image note'
+      ai_send_image_placeholder: 'Image note',
+      ai_send_presets: 'Presets',
+      ai_send_mode_send_now: 'Send now',
+      ai_send_mode_auto: 'Auto-send',
+      ai_send_image_ready: 'Ready to send',
+      ai_send_ready: 'Ready',
+      ai_send_error: 'Send error',
+      close: 'Close'
     }
 
     return translations[key] ?? key
@@ -29,44 +36,36 @@ describe('AiSendComposerContent', () => {
   const baseProps = {
     items: [] as { id: string; type: 'text'; text: string }[],
     totalItems: 1,
-    collapsed: false,
     noteText: '',
     isSubmitting: false,
+    sendFeedback: 'idle' as const,
+    lastError: null,
     accentStrong: '#10b981',
-    sectionSurface: 'rgba(0,0,0,0.2)',
-    cardSurface: 'rgba(0,0,0,0.2)',
-    footerSurface: 'rgba(0,0,0,0.2)',
-    textareaInsetShadow: 'rgba(255,255,255,0.04)',
     bodyHeight: 240,
+    autoSend: false,
+    onAutoSendChange: vi.fn(),
     onRemoveItem: vi.fn(),
     onNoteTextChange: vi.fn(),
     onSubmit: vi.fn(),
+    onRetry: vi.fn(),
     onResizeStart: vi.fn(),
     onResizeMove: vi.fn(),
     onResizeEnd: vi.fn()
   }
 
-  it('shows auto send action when there is extra note text', () => {
-    const onSubmit = vi.fn()
+  it('shows send mode bar with auto-send option', () => {
+    render(<AiSendComposerContent {...baseProps} autoSend={false} />)
 
-    render(
-      <AiSendComposerContent
-        {...baseProps}
-        noteText="Bunu kısa ve maddeli ozetle"
-        onSubmit={onSubmit}
-      />
-    )
-
-    const autoSendButton = screen.getByRole('button', { name: 'auto_send' })
-    fireEvent.click(autoSendButton)
-
-    expect(onSubmit).toHaveBeenCalledWith({ forceAutoSend: true })
+    expect(screen.getByText('Send now')).toBeInTheDocument()
+    expect(screen.getByText('Auto-send')).toBeInTheDocument()
   })
 
-  it('hides auto send action when note text is empty', () => {
-    render(<AiSendComposerContent {...baseProps} noteText="   " />)
+  it('calls onAutoSendChange when auto-send mode is clicked', () => {
+    const onAutoSendChange = vi.fn()
+    render(<AiSendComposerContent {...baseProps} onAutoSendChange={onAutoSendChange} />)
 
-    expect(screen.queryByRole('button', { name: 'auto_send' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Auto-send'))
+    expect(onAutoSendChange).toHaveBeenCalledTimes(1)
   })
 
   it('calls onSubmit with forceAutoSend on Enter from note textarea', () => {
@@ -182,9 +181,8 @@ describe('AiSendComposerContent', () => {
       />
     )
 
-    expect(screen.getByText('Send order hint')).toBeInTheDocument()
-    expect(screen.getByText('Sayfa 34')).toBeInTheDocument()
-    expect(screen.getByText('Sayfa 34 • Bir kisim')).toBeInTheDocument()
-    expect(screen.getByText('2 oge')).toBeInTheDocument()
+    expect(screen.getAllByText(/Sayfa 34/).length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText(/Sayfa 34 • Bir kisim/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Ready to send/).length).toBeGreaterThanOrEqual(2)
   })
 })

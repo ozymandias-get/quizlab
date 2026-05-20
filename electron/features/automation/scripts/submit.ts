@@ -5,7 +5,7 @@ interface BuildPerformSubmitScriptOptions {
 export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOptions): string {
   const inputLookup = options.includeInputLookupForEnter
     ? `
-                const inputResult = await waitForElement(config.input, 'input', diagnostics.input, 10000, false);
+                const inputResult = await waitForElement(config.input, 'input', diagnostics.input, config, 10000, false);
                 const inputElement = inputResult.element;
 
                 if (inputElement) {
@@ -52,7 +52,7 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
             let error = null;
 
             if (mode === 'click' || mode === 'mixed') {
-                const buttonResult = await waitForElement(config.button, 'button', diagnostics.button, 15000, true);
+                const buttonResult = await waitForElement(config.button, 'button', diagnostics.button, config, 15000, true);
                 const button = buttonResult.element;
 
                 if (button) {

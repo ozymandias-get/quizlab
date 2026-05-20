@@ -17,11 +17,19 @@ vi.mock('@app/providers', () => ({
   useLanguageStrings: () => languageState
 }))
 
+vi.mock('@shared/hooks', () => {
+  const { useState } = require('react')
+  return {
+    useLocalStorage: <T,>(_key: string, initialValue: T) => useState(initialValue)
+  }
+})
+
 vi.mock('@app/ui/aiSendComposer/useAiSendComposerLayout', () => ({
   useAiSendComposerLayout: () => ({
     layout: { x: 0, y: 0, width: 420, height: 320 },
     bodyHeight: 240,
     panelRef: { current: null },
+    asideRef: { current: null },
     handleDragStart: vi.fn(),
     handleDragMove: vi.fn(),
     handleDragEnd: vi.fn(),
@@ -32,7 +40,19 @@ vi.mock('@app/ui/aiSendComposer/useAiSendComposerLayout', () => ({
 }))
 
 vi.mock('@app/ui/aiSendComposer/AiSendComposerHeader', () => ({
-  default: () => <div>Composer Header</div>
+  default: ({
+    sendFeedback,
+    isExpanded
+  }: {
+    sendFeedback: 'idle' | 'sending' | 'success' | 'error'
+    isExpanded: boolean
+  }) => (
+    <div>
+      Composer Header
+      {sendFeedback === 'sending' && <span>sending_to_ai</span>}
+      {isExpanded && <span>expanded</span>}
+    </div>
+  )
 }))
 
 vi.mock('@app/ui/aiSendComposer/AiSendComposerToggle', () => ({
@@ -40,15 +60,9 @@ vi.mock('@app/ui/aiSendComposer/AiSendComposerToggle', () => ({
 }))
 
 vi.mock('@app/ui/aiSendComposer/AiSendComposerContent', () => ({
-  default: ({
-    onSubmit,
-    isSubmitting
-  }: {
-    onSubmit: (options?: { autoSend?: boolean }) => void
-    isSubmitting: boolean
-  }) => (
+  default: ({ onSubmit }: { onSubmit: (options?: { autoSend?: boolean }) => void }) => (
     <button type="button" onClick={() => onSubmit()}>
-      {isSubmitting ? 'sending_to_ai' : 'Submit Draft'}
+      Submit Draft
     </button>
   )
 }))
@@ -71,7 +85,7 @@ vi.mock('framer-motion', () => {
 })
 
 describe('AiSendComposer', () => {
-  it('shows sending state briefly, then dismisses without waiting for the promise', async () => {
+  it('shows sending state in header, then shows success', async () => {
     vi.useFakeTimers()
     let resolveSend: ((value: { success: boolean }) => void) | null = null
     const onSend = vi.fn(
@@ -99,19 +113,35 @@ describe('AiSendComposer', () => {
     })
 
     expect(onSend).toHaveBeenCalledTimes(1)
-    expect(screen.getAllByText('sending_to_ai').length).toBeGreaterThan(0)
-    expect(screen.getByText('Composer Header')).toBeInTheDocument()
+    expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
 
     await act(async () => {
       vi.advanceTimersByTime(320)
     })
-
-    expect(screen.queryByText('Composer Header')).not.toBeInTheDocument()
 
     await act(async () => {
       resolveSend?.({ success: true })
     })
 
     vi.useRealTimers()
+  })
+
+  it('does not clear queue on outside click', () => {
+    const onClearAll = vi.fn()
+    const onSend = vi.fn().mockResolvedValue({ success: true })
+
+    render(
+      <AiSendComposer
+        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
+        autoSend={false}
+        onAutoSendChange={vi.fn()}
+        onRemoveItem={vi.fn()}
+        onClearAll={onClearAll}
+        onSend={onSend}
+      />
+    )
+
+    expect(screen.getByText('Composer Header')).toBeInTheDocument()
+    expect(onClearAll).not.toHaveBeenCalled()
   })
 })

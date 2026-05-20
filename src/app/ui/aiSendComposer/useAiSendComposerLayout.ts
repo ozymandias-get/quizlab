@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
-import { useLocalStorage } from '@shared/hooks'
 import type { DockLayout } from './types'
 
 const STORAGE_KEY = 'aiSendDockLayout'
 const DEFAULT_LAYOUT: DockLayout = {
   x: 28,
   y: 0,
-  width: 248,
-  height: 210
+  width: 280,
+  height: 260
 }
-const MIN_WIDTH = 232
-const MAX_WIDTH = 460
-const MIN_HEIGHT = 180
-const MAX_HEIGHT = 500
+const MIN_WIDTH = 260
+const MAX_WIDTH = 480
+const MIN_HEIGHT = 200
+const MAX_HEIGHT = 520
 const BOTTOM_OFFSET = 92
 const VIEWPORT_PADDING = 0
+
+const COMPACT_HEIGHT = 56
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -58,50 +59,57 @@ function createDefaultLayout(): DockLayout {
   })
 }
 
-const LEGACY_DEFAULT_WIDTH = 356
-const LEGACY_DEFAULT_HEIGHT = 332
-const PREV_DEFAULT_WIDTH = 320
-const PREV_DEFAULT_HEIGHT = 296
-const PREV2_DEFAULT_WIDTH = 292
-const PREV2_DEFAULT_HEIGHT = 264
-
-export function useAiSendComposerLayout(itemsLength: number) {
-  const [layout, setLayout] = useLocalStorage<DockLayout>(STORAGE_KEY, createDefaultLayout())
-  const [isDragging, setIsDragging] = useState(false)
-
-  useEffect(() => {
-    setLayout((current) => {
-      const isLegacy =
-        current.width === LEGACY_DEFAULT_WIDTH && current.height === LEGACY_DEFAULT_HEIGHT
-      const isPrev = current.width === PREV_DEFAULT_WIDTH && current.height === PREV_DEFAULT_HEIGHT
-      const isPrev2 =
-        current.width === PREV2_DEFAULT_WIDTH && current.height === PREV2_DEFAULT_HEIGHT
-      if (!isLegacy && !isPrev && !isPrev2) {
-        return current
+function loadStoredLayout(): DockLayout {
+  if (typeof window === 'undefined') return createDefaultLayout()
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as DockLayout
+      if (
+        typeof parsed.x === 'number' &&
+        typeof parsed.y === 'number' &&
+        typeof parsed.width === 'number' &&
+        typeof parsed.height === 'number'
+      ) {
+        return clampLayout(parsed)
       }
-      return clampLayout(
-        { ...current, width: DEFAULT_LAYOUT.width, height: DEFAULT_LAYOUT.height },
-        current.height
-      )
-    })
-  }, [setLayout])
+    }
+  } catch {
+    // ignore
+  }
+  return createDefaultLayout()
+}
+
+function saveLayoutToStorage(layout: DockLayout) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout))
+  } catch {
+    // ignore
+  }
+}
+
+export function useAiSendComposerLayout(_itemsLength: number, isExpanded: boolean) {
+  const [layout, setLayout] = useState<DockLayout>(loadStoredLayout)
   const panelRef = useRef<HTMLDivElement>(null)
-  const dragStateRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null)
+  const asideRef = useRef<HTMLElement | null>(null)
+  const dragStateRef = useRef<{ offsetX: number; offsetY: number } | null>(null)
   const resizeStateRef = useRef<{
-    pointerId: number
     startX: number
     startY: number
     startWidth: number
     startHeight: number
   } | null>(null)
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
 
   const getPanelHeight = useCallback(() => {
-    return panelRef.current?.getBoundingClientRect().height ?? layout.height
-  }, [layout.height])
+    return panelRef.current?.getBoundingClientRect().height ?? layoutRef.current.height
+  }, [])
 
   useEffect(() => {
     setLayout((current) => clampLayout(current, getPanelHeight()))
-  }, [getPanelHeight, itemsLength, setLayout])
+  }, [getPanelHeight])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -114,7 +122,7 @@ export function useAiSendComposerLayout(itemsLength: number) {
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [getPanelHeight, setLayout])
+  }, [getPanelHeight])
 
   useEffect(() => {
     const panelElement = panelRef.current
@@ -122,18 +130,30 @@ export function useAiSendComposerLayout(itemsLength: number) {
       return
     }
 
+    let resizeObserverTimer: ReturnType<typeof setTimeout> | null = null
     const resizeObserver = new ResizeObserver((entries) => {
       const [entry] = entries
-      if (!entry) {
-        return
-      }
+      if (!entry) return
 
-      setLayout((current) => clampLayout(current, entry.contentRect.height))
+      if (resizeObserverTimer) clearTimeout(resizeObserverTimer)
+      resizeObserverTimer = setTimeout(() => {
+        setLayout((current) => clampLayout(current, entry.contentRect.height))
+      }, 50)
     })
 
     resizeObserver.observe(panelElement)
-    return () => resizeObserver.disconnect()
-  }, [setLayout])
+    return () => {
+      resizeObserver.disconnect()
+      if (resizeObserverTimer) clearTimeout(resizeObserverTimer)
+    }
+  }, [])
+
+  const applyDirectPosition = useCallback((x: number, y: number) => {
+    const el = asideRef.current
+    if (!el) return
+    el.style.left = `${x}px`
+    el.style.top = `${y}px`
+  }, [])
 
   const handleDragStart = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -143,12 +163,21 @@ export function useAiSendComposerLayout(itemsLength: number) {
       }
 
       event.preventDefault()
-      setIsDragging(true)
+
+      const el = asideRef.current
+      const rect = el?.getBoundingClientRect()
+      const currentX = rect?.left ?? layout.x
+      const currentY = rect?.top ?? layout.y
+
       dragStateRef.current = {
-        pointerId: event.pointerId,
-        offsetX: event.clientX - layout.x,
-        offsetY: event.clientY - layout.y
+        offsetX: event.clientX - currentX,
+        offsetY: event.clientY - currentY
       }
+
+      if (el) {
+        el.style.transition = 'none'
+      }
+
       event.currentTarget.setPointerCapture(event.pointerId)
     },
     [layout.x, layout.y]
@@ -156,39 +185,55 @@ export function useAiSendComposerLayout(itemsLength: number) {
 
   const handleDragMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
-      if (!dragStateRef.current || dragStateRef.current.pointerId !== event.pointerId) {
-        return
-      }
+      if (!dragStateRef.current) return
 
       event.preventDefault()
-      setLayout(
-        clampLayout(
-          {
-            ...layout,
-            x: event.clientX - dragStateRef.current.offsetX,
-            y: event.clientY - dragStateRef.current.offsetY
-          },
-          getPanelHeight()
-        )
-      )
+
+      const newX = event.clientX - dragStateRef.current.offsetX
+      const newY = event.clientY - dragStateRef.current.offsetY
+
+      applyDirectPosition(newX, newY)
     },
-    [getPanelHeight, layout, setLayout]
+    [applyDirectPosition]
   )
 
-  const handleDragEnd = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (!dragStateRef.current || dragStateRef.current.pointerId !== event.pointerId) {
-      return
-    }
+  const handleDragEnd = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!dragStateRef.current) return
 
-    dragStateRef.current = null
-    setIsDragging(false)
-    event.currentTarget.releasePointerCapture(event.pointerId)
-  }, [])
+      const newX = event.clientX - dragStateRef.current.offsetX
+      const newY = event.clientY - dragStateRef.current.offsetY
+
+      const panelHeight = getPanelHeight()
+      const maxX = Math.max(VIEWPORT_PADDING, window.innerWidth - layout.width - VIEWPORT_PADDING)
+      const maxY = Math.max(VIEWPORT_PADDING, window.innerHeight - panelHeight - VIEWPORT_PADDING)
+
+      const finalLayout = clampLayout(
+        {
+          x: clamp(newX, VIEWPORT_PADDING, maxX),
+          y: clamp(newY, VIEWPORT_PADDING, maxY),
+          width: layout.width,
+          height: layout.height
+        },
+        panelHeight
+      )
+
+      setLayout(finalLayout)
+      saveLayoutToStorage(finalLayout)
+
+      if (asideRef.current) {
+        asideRef.current.style.transition = ''
+      }
+
+      dragStateRef.current = null
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    },
+    [layout.width, layout.height, getPanelHeight]
+  )
 
   const handleResizeStart = useCallback(
     (event: PointerEvent<HTMLButtonElement>) => {
       resizeStateRef.current = {
-        pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
         startWidth: layout.width,
@@ -200,47 +245,68 @@ export function useAiSendComposerLayout(itemsLength: number) {
     [layout.height, layout.width]
   )
 
-  const handleResizeMove = useCallback(
-    (event: PointerEvent<HTMLButtonElement>) => {
-      if (!resizeStateRef.current || resizeStateRef.current.pointerId !== event.pointerId) {
-        return
-      }
+  const handleResizeMove = useCallback((event: PointerEvent<HTMLButtonElement>) => {
+    if (!resizeStateRef.current) return
 
-      const width =
-        resizeStateRef.current.startWidth + (event.clientX - resizeStateRef.current.startX)
-      const height =
-        resizeStateRef.current.startHeight + (event.clientY - resizeStateRef.current.startY)
+    const width = clamp(
+      resizeStateRef.current.startWidth + (event.clientX - resizeStateRef.current.startX),
+      MIN_WIDTH,
+      MAX_WIDTH
+    )
+    const height = clamp(
+      resizeStateRef.current.startHeight + (event.clientY - resizeStateRef.current.startY),
+      MIN_HEIGHT,
+      MAX_HEIGHT
+    )
 
-      setLayout((current) =>
-        clampLayout(
-          {
-            ...current,
-            width,
-            height
-          },
-          getPanelHeight()
-        )
-      )
-      event.stopPropagation()
-    },
-    [getPanelHeight, setLayout]
-  )
-
-  const handleResizeEnd = useCallback((event: PointerEvent<HTMLButtonElement>) => {
-    if (!resizeStateRef.current || resizeStateRef.current.pointerId !== event.pointerId) {
-      return
+    const el = panelRef.current
+    if (el) {
+      el.style.width = `${width}px`
+      el.style.height = `${height}px`
     }
 
-    resizeStateRef.current = null
-    event.currentTarget.releasePointerCapture(event.pointerId)
     event.stopPropagation()
   }, [])
 
+  const handleResizeEnd = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      if (!resizeStateRef.current) return
+
+      const width = clamp(
+        resizeStateRef.current.startWidth + (event.clientX - resizeStateRef.current.startX),
+        MIN_WIDTH,
+        MAX_WIDTH
+      )
+      const height = clamp(
+        resizeStateRef.current.startHeight + (event.clientY - resizeStateRef.current.startY),
+        MIN_HEIGHT,
+        MAX_HEIGHT
+      )
+
+      const finalLayout = clampLayout({ x: layout.x, y: layout.y, width, height })
+      setLayout(finalLayout)
+      saveLayoutToStorage(finalLayout)
+
+      if (panelRef.current) {
+        panelRef.current.style.width = ''
+        panelRef.current.style.height = ''
+      }
+
+      resizeStateRef.current = null
+      event.currentTarget.releasePointerCapture(event.pointerId)
+      event.stopPropagation()
+    },
+    [layout.x, layout.y]
+  )
+
+  const effectiveHeight = isExpanded ? layout.height : COMPACT_HEIGHT
+  const bodyHeight = Math.max(100, layout.height - 180)
+
   return {
-    layout,
-    isDragging,
-    bodyHeight: Math.max(64, layout.height - 160),
+    layout: { ...layout, height: effectiveHeight },
+    bodyHeight,
     panelRef,
+    asideRef,
     handleDragStart,
     handleDragMove,
     handleDragEnd,

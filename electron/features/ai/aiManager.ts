@@ -4,7 +4,6 @@ import type {
   AiSelectorConfig,
   AiPlatformMeta,
   AiPlatform,
-  EnhancedAiPlatform,
   AiRegistry,
   InactivePlatforms
 } from '@shared-core/types'
@@ -24,7 +23,6 @@ export type {
   AiSelectorConfig,
   AiPlatformMeta,
   AiPlatform,
-  EnhancedAiPlatform,
   AiRegistry,
   InactivePlatforms
 }
@@ -56,7 +54,7 @@ const isAuthDomain = (hostname?: string) => {
   return Array.from(AUTH_DOMAINS).some((domain) => normalized.endsWith('.' + domain))
 }
 
-const enhancePlatform = (data: AiPlatform): EnhancedAiPlatform => {
+const enhancePlatform = (data: AiPlatform): AiPlatform => {
   return {
     ...data,
     displayName: data.meta?.displayName || data.name,
@@ -162,7 +160,7 @@ const AI_REGISTRY: AiRegistry = platforms
 
 const DEFAULT_AI_ID = 'chatgpt'
 
-const GET_AI_CONFIG = (id: string): EnhancedAiPlatform => {
+const GET_AI_CONFIG = (id: string): AiPlatform => {
   return platforms[id] || platforms[DEFAULT_AI_ID]
 }
 

@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import { motion } from 'framer-motion'
 import { SettingsIcon, ChevronRightIcon } from '@ui/components/Icons'
 import { hexToRgba } from '@shared/lib/uiUtils'
+import { useAppearance } from '@app/providers'
 import {
   SETTINGS_MODAL_MAIN_PANEL_ID,
   settingsTabButtonId,
@@ -28,22 +29,28 @@ export default function SettingsModalSidebar({
   sidebarSections,
   t
 }: SettingsModalSidebarProps) {
+  const performanceMode = useAppearance((s) => s.performanceMode)
+
   return (
     <aside className="relative w-72 shrink-0 flex flex-col border-r border-white/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(0,0,0,0.08)_100%)] max-[900px]:w-full max-[900px]:border-r-0 max-[900px]:border-b">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03)_0%,transparent_22%,transparent_100%)]" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-white/[0.12] to-transparent max-[900px]:hidden" />
-      <div
-        className="pointer-events-none absolute -left-10 top-6 h-44 w-44 rounded-full blur-3xl"
-        style={{
-          background: `radial-gradient(circle, ${hexToRgba(activeTabMeta.glow, 0.22)} 0%, transparent 72%)`
-        }}
-      />
-      <div
-        className="pointer-events-none absolute -right-12 top-36 h-40 w-40 rounded-full blur-3xl"
-        style={{
-          background: `radial-gradient(circle, ${hexToRgba(activeTabMeta.glow, 0.12)} 0%, transparent 74%)`
-        }}
-      />
+      {!performanceMode && (
+        <>
+          <div
+            className="pointer-events-none absolute -left-10 top-6 h-44 w-44 rounded-full blur-3xl"
+            style={{
+              background: `radial-gradient(circle, ${hexToRgba(activeTabMeta.glow, 0.22)} 0%, transparent 72%)`
+            }}
+          />
+          <div
+            className="pointer-events-none absolute -right-12 top-36 h-40 w-40 rounded-full blur-3xl"
+            style={{
+              background: `radial-gradient(circle, ${hexToRgba(activeTabMeta.glow, 0.12)} 0%, transparent 74%)`
+            }}
+          />
+        </>
+      )}
 
       <div className="relative flex h-full min-h-0 flex-col p-4 md:p-5">
         <SurfaceCard tier={2} className="relative shrink-0 overflow-hidden !rounded-[24px]">
@@ -70,9 +77,9 @@ export default function SettingsModalSidebar({
           </div>
           <motion.p
             key={activeTabMeta.id}
-            initial={{ opacity: 0, y: 6 }}
+            initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.24, ease: 'easeOut' }}
+            transition={performanceMode ? { duration: 0.1 } : { duration: 0.24, ease: 'easeOut' }}
             className="mt-4 text-ql-12 leading-5 text-white/46"
           >
             {activeTabMeta.description}
@@ -119,7 +126,7 @@ export default function SettingsModalSidebar({
                         <span
                           className={`pointer-events-none absolute inset-0 bg-gradient-to-r transition-opacity duration-300 ${tab.accent} ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-80'}`}
                         />
-                        {selected && (
+                        {selected && !performanceMode && (
                           <motion.span
                             initial={{ x: '-140%' }}
                             animate={{ x: '160%' }}
@@ -164,11 +171,13 @@ export default function SettingsModalSidebar({
                         </ActionRow>
                         {selected && (
                           <motion.div
-                            layoutId="active-indicator"
+                            layoutId={performanceMode ? undefined : 'active-indicator'}
                             className="pointer-events-none absolute left-0 inset-y-3 w-[3px] rounded-full max-[900px]:left-3 max-[900px]:right-3 max-[900px]:top-auto max-[900px]:bottom-0 max-[900px]:h-[3px] max-[900px]:w-auto"
                             style={{
                               background: `linear-gradient(180deg, ${hexToRgba(tab.glow, 0.95)} 0%, ${hexToRgba(tab.glow, 0.35)} 100%)`,
-                              boxShadow: `0 0 14px ${hexToRgba(tab.glow, 0.45)}`
+                              boxShadow: performanceMode
+                                ? undefined
+                                : `0 0 14px ${hexToRgba(tab.glow, 0.45)}`
                             }}
                           />
                         )}

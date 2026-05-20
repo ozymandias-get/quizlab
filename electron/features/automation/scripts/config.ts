@@ -12,6 +12,7 @@ export interface SerializedAutomationConfig {
   waitFor: ScriptLookupConfig
   submitMode: string
   health: AutomationConfig['health'] | null
+  version: number
 }
 
 /**
@@ -61,6 +62,7 @@ export function serializeAutomationConfig(config: AutomationConfig): SerializedA
       fingerprint: config.inputFingerprint || null
     },
     submitMode: normalizeSubmitMode(config.submitMode) || 'mixed',
-    health: config.health || null
+    health: config.health || null,
+    version: config.version || 1
   }
 }

@@ -1,9 +1,10 @@
 import type { AiDraftItem, AiDraftImageItem, AiDraftTextItem } from '@app/providers/ai/types'
 
+export type SendFeedback = 'idle' | 'sending' | 'success' | 'error'
+
 export interface ComposerPayload {
   noteText?: string
   autoSend?: boolean
-  /** Tek seferlik gönder (otomatik gönder anahtarı kapalıyken yeşil buton) */
   forceAutoSend?: boolean
 }
 

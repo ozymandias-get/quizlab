@@ -58,6 +58,14 @@ const claimWheelEvent = (event: WheelEvent) => {
   event.stopPropagation()
 }
 
+const getScrollContainer = (root: HTMLElement | null): HTMLElement | null => {
+  if (!root) return null
+  return (
+    root.querySelector<HTMLElement>('[data-testid="core__inner-container"]') ||
+    root.querySelector<HTMLElement>('.rpv-core__inner-pages')
+  )
+}
+
 export function usePdfNavigation({
   containerRef,
   jumpToPageRef,
@@ -122,6 +130,27 @@ export function usePdfNavigation({
       const deltaX = normalizeWheelDelta(event.deltaX, event.deltaMode)
       if (Math.abs(deltaY) <= Math.abs(deltaX)) {
         return
+      }
+
+      // Check if we can scroll vertically within the PDF pages container (if zoomed in).
+      const scrollContainer = getScrollContainer(containerRef.current)
+      if (scrollContainer) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainer
+        if (scrollHeight > clientHeight + 5) {
+          if (deltaY > 0) {
+            // Scrolling down. If we have not reached the bottom, allow native scroll
+            if (scrollTop + clientHeight < scrollHeight - 5) {
+              resetWheelIntent()
+              return
+            }
+          } else if (deltaY < 0) {
+            // Scrolling up. If we have not reached the top, allow native scroll
+            if (scrollTop > 5) {
+              resetWheelIntent()
+              return
+            }
+          }
+        }
       }
 
       claimWheelEvent(event)

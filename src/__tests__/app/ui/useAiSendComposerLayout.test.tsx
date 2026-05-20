@@ -15,7 +15,7 @@ describe('useAiSendComposerLayout', () => {
   it('does not mutate body userSelect while dragging the composer', () => {
     document.body.style.userSelect = 'text'
 
-    const { result } = renderHook(() => useAiSendComposerLayout(1))
+    const { result } = renderHook(() => useAiSendComposerLayout(1, true))
     const setPointerCapture = vi.fn()
     const releasePointerCapture = vi.fn()
 

@@ -191,7 +191,7 @@ export function usePdfTextSelection({
         if (!text || text.length === 0) {
           clearSelectionState()
         }
-      }, 24)
+      }, 50)
     }
 
     document.addEventListener('pointerdown', handlePointerDown, true)

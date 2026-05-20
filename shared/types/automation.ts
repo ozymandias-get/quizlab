@@ -2,7 +2,7 @@
  * Automation & Selector Types
  */
 
-export type SubmitMode = 'click' | 'enter_key' | 'mixed' | string
+export type SubmitMode = 'click' | 'enter_key' | 'mixed' | (string & {})
 
 export type SelectorHealth = 'ready' | 'migrated' | 'needs_repick'
 
@@ -48,24 +48,20 @@ export type AiSelectorConfig = {
   [key: string]: unknown
 }
 
-export type AutomationConfig = {
-  version?: 2
-  input?: string | null
-  button?: string | null
-  waitFor?: string | null
-  submitMode?: SubmitMode
-  inputCandidates?: string[] | null
-  buttonCandidates?: string[] | null
-  inputFingerprint?: AutomationElementFingerprint | null
-  buttonFingerprint?: AutomationElementFingerprint | null
-  sourceUrl?: string | null
-  sourceHostname?: string | null
-  canonicalHostname?: string | null
-  health?: SelectorHealth
-  [key: string]: unknown
-}
+export type AutomationConfig = AiSelectorConfig
 
-export type AutomationLookupStrategy = 'cache' | 'direct' | 'recursive' | 'fingerprint' | 'none'
+export type AutomationLookupStrategy =
+  | 'cache'
+  | 'direct'
+  | 'recursive'
+  | 'fingerprint'
+  | 'none'
+  | 'candidate'
+  | 'semantic'
+  | 'provider'
+  | 'heuristic'
+
+export type ConfidenceLevel = 'high' | 'medium' | 'low'
 
 export interface AutomationSelectorDiagnostics {
   requestedSelector: string | null
@@ -76,6 +72,9 @@ export interface AutomationSelectorDiagnostics {
   cacheHits: number
   cacheInvalidations: number
   interactiveRequired: boolean
+  confidenceScore?: number
+  confidenceLevel?: ConfidenceLevel
+  fallbackAttempts?: number
 }
 
 export interface AutomationExecutionDiagnostics {

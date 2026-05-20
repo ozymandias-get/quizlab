@@ -2,7 +2,12 @@ import { useCallback, useRef, type RefObject } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Logger } from '@shared/lib/logger'
 import type { WebviewController } from '@shared-core/types/webview'
-import type { AiSendOptions, SendImageResult, SendTextResult } from '../model/types'
+import type {
+  AiSendDiagnostics,
+  AiSendOptions,
+  SendImageResult,
+  SendTextResult
+} from '../model/types'
 import {
   isWebviewUsable,
   queueForWebview,
@@ -28,6 +33,7 @@ import {
 import { executeTextSendPipeline } from '../lib/send/textSendPipeline'
 import { executeImageSendPipeline } from '../lib/send/imageSendPipeline'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
+import { useDiagnosticsStore } from '@features/diagnostics'
 
 export function useAiSender(
   webviewRef: RefObject<WebviewController | null>,
@@ -52,9 +58,20 @@ export function useAiSender(
   )
 
   const handlePipelineError = useCallback(
-    (error: unknown, diagnostics: any, startedAt: number, context: string) => {
+    (error: unknown, diagnostics: AiSendDiagnostics, startedAt: number, context: string) => {
       const message = ensureErrorMessage(error)
       Logger.error(`[useAiSender] ${context} error:`, error)
+
+      const emitEvent = useDiagnosticsStore.getState().emitEvent
+      emitEvent({
+        type: 'PIPELINE_ERROR',
+        provider: diagnostics.currentAI,
+        severity: 'error',
+        pipelineStage: 'error',
+        message: message,
+        duration: roundMs(nowMs() - startedAt)
+      })
+
       return attachDiagnostics(
         {
           success: false,
@@ -80,7 +97,23 @@ export function useAiSender(
         autoSend: effectiveAutoSend
       })
 
-      if (!scheduledWebview || !text) {
+      const emitEvent = useDiagnosticsStore.getState().emitEvent
+      emitEvent({
+        type: 'SEND_START',
+        provider: currentAI,
+        severity: 'info',
+        pipelineStage: 'queue',
+        message: 'Text send queued'
+      })
+
+      if (!scheduledWebview || !text.trim()) {
+        emitEvent({
+          type: 'PIPELINE_ERROR',
+          provider: currentAI,
+          severity: 'error',
+          pipelineStage: 'error',
+          message: 'Invalid input: no webview or empty text'
+        })
         return Promise.resolve(
           attachDiagnostics(
             { success: false, error: 'invalid_input' },
@@ -151,7 +184,23 @@ export function useAiSender(
         autoSend: effectiveAutoSend
       })
 
-      if (!scheduledWebview || !imageDataUrl) {
+      const emitEvent = useDiagnosticsStore.getState().emitEvent
+      emitEvent({
+        type: 'SEND_START',
+        provider: currentAI,
+        severity: 'info',
+        pipelineStage: 'queue',
+        message: 'Image send queued'
+      })
+
+      if (!scheduledWebview || !imageDataUrl.trim()) {
+        emitEvent({
+          type: 'PIPELINE_ERROR',
+          provider: currentAI,
+          severity: 'error',
+          pipelineStage: 'error',
+          message: 'Invalid input: no webview or empty image'
+        })
         return Promise.resolve(
           attachDiagnostics(
             { success: false, error: 'invalid_input' },

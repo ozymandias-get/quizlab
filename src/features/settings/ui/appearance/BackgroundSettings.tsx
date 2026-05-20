@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Field, Label } from '@headlessui/react'
 import { PaletteIcon, ShuffleIcon } from '@ui/components/Icons'
+import { useAppearance } from '@app/providers'
 import ColorPicker from '../ColorPicker'
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 
@@ -29,11 +30,13 @@ const BackgroundSettings = memo(
     setBgRandomMode,
     t
   }: BackgroundSettingsProps) => {
+    const performanceMode = useAppearance((s) => s.performanceMode)
+
     return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
+        transition={performanceMode ? { duration: 0.05 } : { delay: 0.25 }}
         className="p-5 rounded-[20px] bg-white/[0.02] border border-white/[0.05] space-y-5"
       >
         <div className="flex items-center justify-between">
@@ -67,9 +70,10 @@ const BackgroundSettings = memo(
           {bgType === 'solid' ? (
             <motion.div
               key="solid-picker"
-              initial={{ opacity: 0, scale: 0.98 }}
+              initial={performanceMode ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
+              exit={performanceMode ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+              transition={performanceMode ? { duration: 0.05 } : undefined}
               className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl"
             >
               <ColorPicker
@@ -81,9 +85,10 @@ const BackgroundSettings = memo(
           ) : (
             <motion.div
               key="animated-settings"
-              initial={{ opacity: 0, y: 10 }}
+              initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
+              exit={performanceMode ? { opacity: 0 } : { opacity: 0, y: 10 }}
+              transition={performanceMode ? { duration: 0.05 } : undefined}
               className="space-y-4"
             >
               <Field
@@ -116,8 +121,9 @@ const BackgroundSettings = memo(
 
               {!bgRandomMode && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
+                  initial={performanceMode ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
+                  transition={performanceMode ? { duration: 0.05 } : undefined}
                   className="grid grid-cols-3 gap-3"
                 >
                   {bgAnimatedColors.map((color, index) => (

@@ -106,7 +106,8 @@ export class ProbeRunner {
           contextIsolation: true,
           nodeIntegration: false,
           sandbox: false,
-          spellcheck: false
+          spellcheck: false,
+          backgroundThrottling: false
         }
       })
 

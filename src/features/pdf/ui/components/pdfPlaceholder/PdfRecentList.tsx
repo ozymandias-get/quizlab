@@ -92,7 +92,7 @@ function PdfRecentList({
                 }}
                 aria-label={`${t('continue_reading')}: ${item.name}`}
                 title={item.name}
-                className={`group ${isInvalid ? 'bg-red-500/[0.05] border border-red-500/20 text-stone-300/80 hover:border-red-500/30' : ''}`}
+                className={`pdf-recent-item group ${isInvalid ? 'bg-red-500/[0.05] border border-red-500/20 text-stone-300/80 hover:border-red-500/30' : ''}`}
                 interactive={!isInvalid}
               >
                 <div className="relative z-10 flex items-center gap-3 w-full">
@@ -138,7 +138,7 @@ function PdfRecentList({
                         event.stopPropagation()
                         resumeItem(item)
                       }}
-                      className="glass-tier-3 glass-interactive h-8 rounded-lg border-white/[0.1] px-2.5 text-stone-200 opacity-100 transition-all duration-300 ease-out hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-100 active:scale-95 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                      className="glass-tier-3 glass-interactive h-8 rounded-lg border-white/[0.1] px-2.5 text-stone-200 opacity-100 transition-colors transition-opacity duration-200 ease-out hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-100 active:scale-95 active:bg-amber-500/15 active:border-amber-400/40 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                       aria-label={t('continue_reading')}
                     >
                       <Play className="w-3.5 h-3.5" />
@@ -150,7 +150,7 @@ function PdfRecentList({
                     {canClear && (
                       <button
                         type="button"
-                        className="glass-tier-3 glass-interactive h-8 w-8 rounded-lg border-white/[0.1] text-stone-400 opacity-100 transition-all duration-300 ease-out hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                        className="glass-tier-3 glass-interactive h-8 w-8 rounded-lg border-white/[0.1] text-stone-400 opacity-100 transition-all duration-300 ease-out hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-200 active:scale-95 active:bg-red-500/20 active:border-red-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/80 md:opacity-[0.55] md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                         onClick={(event) => {
                           event.stopPropagation()
                           onRemove(item)

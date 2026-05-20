@@ -43,18 +43,7 @@ export type AiPlatform = {
   [key: string]: unknown
 }
 
-export type EnhancedAiPlatform = AiPlatform & {
-  displayName?: string
-  submitMode?: SubmitMode
-  domainRegex?: string
-  imageWaitTime?: number
-  appendPromptAfterPaste?: boolean
-  input?: string | null
-  button?: string | null
-  waitFor?: string | null
-}
-
-export type AiRegistry = Record<string, EnhancedAiPlatform>
+export type AiRegistry = Record<string, AiPlatform>
 export type InactivePlatforms = Record<string, AiPlatform>
 
 export type AiRegistryResponse = {

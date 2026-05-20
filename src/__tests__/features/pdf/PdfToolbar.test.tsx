@@ -34,6 +34,6 @@ describe('PdfToolbar', () => {
       />
     )
 
-    expect(container.querySelectorAll('.glass-tier-3.glass-tier-toolbar.p-1\\.5')).toHaveLength(3)
+    expect(container.querySelectorAll('.glass-tier-3.glass-tier-toolbar.p-1\\.5')).toHaveLength(4)
   })
 })

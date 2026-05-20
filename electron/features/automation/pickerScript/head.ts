@@ -16,7 +16,6 @@ export function buildPickerScriptHead(
                 void _logError;
             }
         };
-        const ignoreDomAccessError = (_error) => {};
 
         const TRANSLATIONS = ${translationsJSON};
         

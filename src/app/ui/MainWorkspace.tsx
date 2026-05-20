@@ -74,7 +74,11 @@ function MainWorkspace({
         className="h-full flex-shrink-0 relative z-30"
         style={gpuAcceleratedStyle}
       >
-        <BottomBar onHoverChange={onBarHoverChange} onMouseDown={handleMouseDown} />
+        <BottomBar
+          onHoverChange={onBarHoverChange}
+          onMouseDown={handleMouseDown}
+          isResizing={isResizing}
+        />
       </motion.div>
 
       <motion.div

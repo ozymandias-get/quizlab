@@ -11,8 +11,6 @@ const generatedPatterns = [
   /^dist-electron[\\/]/,
   /^release[\\/]/,
   /^coverage[\\/]/,
-  /^playwright-report[\\/]/,
-  /^test-results[\\/]/,
   /^\.nyc_output[\\/]/,
   /^\.cache[\\/]/,
   /\.tsbuildinfo$/

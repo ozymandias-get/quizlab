@@ -29,8 +29,10 @@ export function useSettingsModalState({
   const settings = useSettings()
 
   useEffect(() => {
+    if (!isOpen) return
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
+      if (event.key === 'Escape') {
         onClose()
       }
     }

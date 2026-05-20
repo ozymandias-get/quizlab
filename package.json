@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "3.0.9",
+  "version": "4.0.0",
   "description": "AI-powered PDF reader with a split-screen workspace: read documents alongside ChatGPT, Gemini, Claude, and more via embedded webviews, automation, and local-first privacy.",
   "main": "dist/electron/electron/app/index.js",
   "repository": {
@@ -14,8 +14,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
-    "test:e2e:smoke": "playwright test e2e/smoke.spec.ts",
     "ci:check-hygiene": "node scripts/check-repo-hygiene.mjs",
     "ci:check-version": "node scripts/check-version-consistency.mjs",
     "typecheck": "tsc -b",
@@ -33,7 +31,6 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
     "preview": "vite preview",
-    "tag:push": "powershell -Command \"$v='v' + (Get-Content package.json | ConvertFrom-Json).version; git tag | ForEach-Object { git tag -d $_; git push origin --delete $_ }; git tag $v; git push origin $v\"",
     "prepare": "husky"
   },
   "build": {
@@ -135,7 +132,6 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.16.0",
-    "@playwright/test": "^1.58.2",
     "@rollup/plugin-terser": "^1.0.0",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@testing-library/dom": "^10.4.1",

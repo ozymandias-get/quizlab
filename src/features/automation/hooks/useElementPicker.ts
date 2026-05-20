@@ -102,7 +102,7 @@ export function useElementPicker(
 
   const { startPolling, stopPolling } = usePickerPolling({
     getWebviewInstance,
-    isMounted: isMountedRef.current,
+    mountedRef: isMountedRef,
     onResult: async (data) => {
       if (isPickerConfig(data)) {
         await savePickerResult(data)
@@ -190,8 +190,8 @@ export function useElementPicker(
 
   const stopPicker = useCallback(async () => {
     stopPolling()
+    const webview = pickerWebviewRef.current ?? getWebviewInstance()
     pickerWebviewRef.current = null
-    const webview = getWebviewInstance()
     if (!webview) {
       setIsPickerActive(false)
       return

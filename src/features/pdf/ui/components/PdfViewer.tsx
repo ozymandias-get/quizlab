@@ -18,6 +18,8 @@ import '@react-pdf-viewer/page-navigation/lib/styles/index.css'
 import '@react-pdf-viewer/zoom/lib/styles/index.css'
 import '@react-pdf-viewer/search/lib/styles/index.css'
 
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
+
 import GoogleDrivePanel from './GoogleDrivePanel'
 import PdfPlaceholder from './PdfPlaceholder'
 import PdfViewerDocument from './PdfViewerDocument'
@@ -121,6 +123,7 @@ function PdfViewer({
       startScreenshot={startScreenshot}
       queueImageForAi={queueImageForAi}
       isPanelResizing={isPanelResizing}
+      workerUrl={pdfjsWorkerUrl}
     />
   )
 }

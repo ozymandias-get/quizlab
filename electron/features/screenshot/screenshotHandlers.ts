@@ -2,6 +2,8 @@
 import { APP_CONFIG } from '../../app/constants'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 
+const MAX_CAPTURE_DIMENSION = 16384
+
 export function registerScreenshotHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
 
@@ -10,6 +12,22 @@ export function registerScreenshotHandlers() {
       if (!requireTrustedIpcSender(event)) return null
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win || win.isDestroyed()) return null
+
+      if (rect) {
+        if (
+          rect.width > MAX_CAPTURE_DIMENSION ||
+          rect.height > MAX_CAPTURE_DIMENSION ||
+          rect.width <= 0 ||
+          rect.height <= 0
+        ) {
+          console.warn('[Screenshot] Capture rejected: dimensions exceed safe limits', {
+            width: rect.width,
+            height: rect.height
+          })
+          return null
+        }
+      }
+
       const image = await win.webContents.capturePage(rect)
       return image.toDataURL()
     } catch (error) {

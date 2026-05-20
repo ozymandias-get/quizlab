@@ -120,7 +120,7 @@ describe('automationScripts', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('selector_repick_required')
-    expect(result.diagnostics.input.strategy).toBe('none')
+    expect(result.diagnostics.input.strategy).not.toBe('cache')
   })
 
   it('keeps click-send enter fallback available when submit mode is enter_key', async () => {

@@ -1,4 +1,4 @@
-﻿import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { CenterHub } from '@ui/layout/BottomBar/CenterHub'
 
@@ -69,7 +69,9 @@ vi.mock('@ui/layout/BottomBar/animations', () => ({
   hubIconVariants: {},
   hubIconTransition: {},
   iconStyleVariants: {},
-  hubGlowVariants: {}
+  hubGlowVariants: {},
+  smoothEase: [0.16, 1, 0.3, 1],
+  panelSpring: {}
 }))
 
 describe('CenterHub', () => {

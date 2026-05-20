@@ -5,7 +5,8 @@ import {
   hubIconVariants,
   hubIconTransition,
   iconStyleVariants,
-  hubGlowVariants
+  hubGlowVariants,
+  smoothEase
 } from './animations'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
@@ -15,9 +16,11 @@ interface CenterHubProps {
   onClick: () => void
   onMouseDown?: (e: MouseEvent) => void
   isOpen: boolean
+  isResizing?: boolean
   hubStyle: CSSProperties
   tabsCount?: number
   ariaLabel?: string
+  performanceMode?: boolean
 }
 
 export const CenterHub = memo(
@@ -27,9 +30,11 @@ export const CenterHub = memo(
     onClick,
     onMouseDown,
     isOpen,
+    isResizing = false,
     hubStyle,
     tabsCount = 0,
-    ariaLabel = 'Toggle hub'
+    ariaLabel = 'Toggle hub',
+    performanceMode = false
   }: CenterHubProps) => {
     return (
       <motion.button
@@ -43,33 +48,48 @@ export const CenterHub = memo(
           }
         }}
         onMouseDown={!isOpen ? onMouseDown : undefined}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={performanceMode ? undefined : { scale: 1.05 }}
+        whileTap={
+          performanceMode
+            ? undefined
+            : {
+                scale: 0.94,
+                transition: { duration: 0.1 }
+              }
+        }
         className={`hub-center-btn ${isOpen ? 'hub-center-btn--open' : 'hub-center-btn--closed'}`}
         style={hubStyle}
         aria-expanded={isOpen}
         aria-label={ariaLabel}
         aria-controls={`${APP_CONSTANTS.TOUR_TARGETS.TOOLS_PANEL} ${APP_CONSTANTS.TOUR_TARGETS.MODELS_LIST}`}
       >
-        <motion.div
-          variants={hubGlowVariants}
-          animate={isOpen ? 'active' : 'idle'}
-          className={`hub-center-btn__glow ${isOpen ? 'hub-center-btn__glow--open' : 'hub-center-btn__glow--closed'} absolute inset-0 rounded-[16px] pointer-events-none`}
-        />
+        {!performanceMode && isResizing && (
+          <motion.div
+            variants={hubGlowVariants}
+            initial="idle"
+            animate="active"
+            exit="idle"
+            className="hub-center-btn__glow hub-center-btn__glow--open absolute inset-0 rounded-[16px] pointer-events-none"
+            style={{ transform: 'translateZ(0)' }}
+          />
+        )}
 
-        <motion.div
-          animate={{
-            rotate: isOpen ? 360 : 0,
-            opacity: isOpen ? 0.5 : 0,
-            scale: isOpen ? 1 : 0.8
-          }}
-          transition={{
-            rotate: { duration: 8, repeat: Infinity, ease: 'linear' },
-            opacity: { duration: 0.4 },
-            scale: { duration: 0.4 }
-          }}
-          className="hub-center-btn__ring absolute -inset-[1px] rounded-[17px] pointer-events-none"
-        />
+        {!performanceMode && (
+          <motion.div
+            animate={{
+              rotate: isOpen ? 360 : 0,
+              opacity: isResizing ? 0.45 : isOpen ? 0.1 : 0,
+              scale: isResizing ? 1.05 : isOpen ? 1 : 0.9
+            }}
+            transition={{
+              rotate: { duration: 20, repeat: Infinity, ease: 'linear' },
+              opacity: { duration: 0.5, ease: smoothEase },
+              scale: { duration: 0.5, ease: smoothEase }
+            }}
+            className="hub-center-btn__ring absolute -inset-[1px] rounded-[17px] pointer-events-none"
+            style={{ transform: 'translateZ(0)' }}
+          />
+        )}
 
         <motion.div
           variants={hubIconVariants}
@@ -85,7 +105,9 @@ export const CenterHub = memo(
             style={{
               width: 'calc(2.25rem * var(--bar-scale-factor, 1))',
               height: 'calc(2.25rem * var(--bar-scale-factor, 1))',
-              borderRadius: 'calc(0.6875rem * var(--bar-scale-factor, 1))'
+              borderRadius: 'calc(0.6875rem * var(--bar-scale-factor, 1))',
+              transition:
+                'background 0.6s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.6s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
           >
             <AiHubIcon

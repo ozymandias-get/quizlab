@@ -7,7 +7,8 @@ import {
   EyeIcon,
   MagicWandIcon,
   SelectorIcon,
-  GeminiIcon
+  GeminiIcon,
+  TerminalIcon
 } from '@ui/components/Icons'
 import { useSettings } from '../../hooks/useSettings'
 
@@ -19,6 +20,7 @@ const AppearanceTab = lazy(() => import('../AppearanceTab'))
 const SelectorsTab = lazy(() => import('../SelectorsTab'))
 const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
 const PromptsTab = lazy(() => import('../PromptsTab'))
+const DiagnosticsTab = lazy(() => import('@features/diagnostics/ui/DiagnosticsTab'))
 
 export const SETTINGS_SIDEBAR_GROUP_ORDER = [
   'workspace',
@@ -38,6 +40,7 @@ interface SettingsTabMeta {
   accent: string
   glow: string
   fallbackLabel?: string
+  fallbackDescription?: string
 }
 
 const SETTINGS_TABS = [
@@ -113,6 +116,17 @@ const SETTINGS_TABS = [
     icon: InfoIcon,
     accent: 'from-slate-200/24 via-white/8 to-transparent',
     glow: '#94a3b8'
+  },
+  {
+    id: 'diagnostics',
+    group: 'app',
+    labelKey: 'diagnostics',
+    fallbackLabel: 'Diagnostics',
+    descriptionKey: 'diagnostics_description',
+    fallbackDescription: 'AI pipeline diagnostics for developers',
+    icon: TerminalIcon,
+    accent: 'from-emerald-300/24 via-green-200/10 to-transparent',
+    glow: '#34d399'
   }
 ] as const satisfies readonly SettingsTabMeta[]
 
@@ -122,6 +136,7 @@ export type SettingsState = ReturnType<typeof useSettings>
 interface SettingsContext {
   onClose: () => void
   settings: SettingsState
+  t: (key: string) => string
 }
 
 export interface TabDef {
@@ -173,7 +188,8 @@ export const SETTINGS_TAB_RENDERERS: Record<
       openReleasesPage={settings.openReleasesPage}
       onClose={onClose}
     />
-  )
+  ),
+  diagnostics: ({ t }) => <DiagnosticsTab t={t} />
 }
 
 export function buildSettingsTabDefs(t: (key: string) => string): TabDef[] {

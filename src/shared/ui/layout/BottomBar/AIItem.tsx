@@ -80,6 +80,9 @@ function getButtonStyle({
   isHovered: boolean
   safeColor: string
 }): CSSProperties {
+  const transition =
+    'background 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+
   if (isSelected || isBeingDragged) {
     return {
       background: `linear-gradient(145deg, ${safeColor}25, ${safeColor}35)`,
@@ -87,18 +90,20 @@ function getButtonStyle({
       boxShadow: `0 4px 16px -4px ${safeColor}45, inset 0 1px 0 rgba(255,255,255,0.15)`,
       color: '#fff',
       textShadow: 'none',
-      willChange: 'transform'
+      willChange: 'transform',
+      transition
     }
   }
 
   if (isHovered) {
     return {
-      background: 'linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
-      border: '1px solid rgba(255,255,255,0.15)',
-      boxShadow: '0 6px 16px -6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1)',
+      background: 'linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
+      border: '1px solid rgba(255,255,255,0.18)',
+      boxShadow: '0 6px 18px -6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12)',
       color: '#fff',
       textShadow: 'none',
-      willChange: 'transform'
+      willChange: 'transform',
+      transition
     }
   }
 
@@ -110,7 +115,8 @@ function getButtonStyle({
     textShadow: 'none',
     willChange: 'transform',
     transform: 'translateZ(0)',
-    backfaceVisibility: 'hidden'
+    backfaceVisibility: 'hidden',
+    transition
   }
 }
 

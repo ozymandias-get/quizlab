@@ -94,49 +94,55 @@ interface ToastItemProps {
 
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove }, ref) => {
   const { t } = useLanguageStrings()
-  const [progress, setProgress] = useState(100)
   const [isPaused, setIsPaused] = useState(false)
-  const startTimeRef = useRef(Date.now())
+  const [pausedWidth, setPausedWidth] = useState<number | null>(null)
+  const [resumeKey, setResumeKey] = useState(0)
   const remainingTimeRef = useRef(toast.duration || 5000)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timerStartRef = useRef<number>(0)
 
   const duration = toast.duration || 5000
   const toastId = toast.id
 
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }, [])
+
   const startTimer = useCallback(() => {
-    startTimeRef.current = Date.now()
-    timerRef.current = setInterval(() => {
-      const elapsedTime = Date.now() - startTimeRef.current
-      const newRemaining = remainingTimeRef.current - elapsedTime
-
-      const newProgress = (newRemaining / duration) * 100
-
-      if (newProgress <= 0) {
-        if (timerRef.current) clearInterval(timerRef.current)
-        onRemove(toastId)
-      } else {
-        setProgress(newProgress)
-      }
-    }, 100)
-  }, [duration, toastId, onRemove])
+    clearTimer()
+    setPausedWidth(null)
+    timerStartRef.current = Date.now()
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null
+      onRemove(toastId)
+    }, remainingTimeRef.current)
+  }, [clearTimer, toastId, onRemove])
 
   useEffect(() => {
     if (!isPaused) {
       startTimer()
     }
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+      clearTimer()
     }
-  }, [isPaused, startTimer])
+  }, [isPaused, startTimer, clearTimer])
 
   const handleMouseEnter = () => {
     setIsPaused(true)
-    remainingTimeRef.current -= Date.now() - startTimeRef.current
-    if (timerRef.current) clearInterval(timerRef.current)
+    const elapsed = Date.now() - timerStartRef.current
+    const remaining = remainingTimeRef.current - elapsed
+    remainingTimeRef.current = Math.max(0, remaining)
+    const widthPercent = Math.max(0, (remainingTimeRef.current / duration) * 100)
+    setPausedWidth(widthPercent)
+    clearTimer()
   }
 
   const handleMouseLeave = () => {
     setIsPaused(false)
+    setResumeKey((k) => k + 1)
   }
 
   const handleClose = (e: MouseEvent) => {
@@ -210,11 +216,13 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove 
       </button>
 
       <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-black/10 rounded-full overflow-hidden mb-1">
-        <motion.div
+        <div
+          key={resumeKey}
           className={`h-full ${PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info} shadow-[0_0_8px_rgba(0,0,0,0.2)]`}
-          initial={{ width: '100%' }}
-          animate={{ width: `${progress}%` }}
-          transition={{ ease: 'linear', duration: 0.1 }}
+          style={{
+            width: isPaused && pausedWidth !== null ? `${pausedWidth}%` : '100%',
+            transition: isPaused ? 'none' : `width ${remainingTimeRef.current}ms linear`
+          }}
         />
       </div>
     </motion.div>

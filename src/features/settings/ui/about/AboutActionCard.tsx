@@ -35,7 +35,7 @@ function AboutActionCard({
       <div className="flex items-center gap-4">
         {leading}
         <div className={cn('space-y-1', bodyClassName)}>
-          <h4 className={cn('text-ql-14 font-bold text-white', titleClassName)}>{title}</h4>
+          <h4 className={cn('text-ql-13 font-semibold text-white/80', titleClassName)}>{title}</h4>
           <p className={cn('text-ql-12 text-white/40', descriptionClassName)}>{description}</p>
         </div>
       </div>

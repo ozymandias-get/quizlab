@@ -12,7 +12,9 @@
   <a href="README_TR.md">Türkçe README</a> |
   <a href="https://github.com/ozymandias-get/quizlab/releases">Latest Release</a> |
   <a href="CONTRIBUTING.md">Contributing</a> |
-  <a href="SECURITY.md">Security</a>
+  <a href="SECURITY.md">Security</a> |
+  <a href="docs/ARCHITECTURE.md">Architecture</a> |
+  <a href="docs/ROADMAP.md">Roadmap</a>
 </p>
 
 <p align="center">
@@ -135,7 +137,7 @@ The current app includes a dedicated AI home page and improved tab management:
 - Grid-based model ordering
 - Automatic navigation back to the AI home page when no session tab is active
 
-### Performance and Architecture (v3.0.9)
+### Performance and Architecture (v4.0.0)
 
 The latest version includes significant internal refactoring for better reliability:
 
@@ -265,7 +267,6 @@ npm run build:backend
 npm run typecheck
 npm run lint
 npm run test
-npm run test:e2e
 npm run build
 ```
 
@@ -327,6 +328,33 @@ The app is local-first by design.
 See [SECURITY.md](SECURITY.md) for the current security policy and reporting process.
 
 ## Configuration
+
+### Environment Variables
+
+Copy `.env.example` to `.env` or `.env.local` and adjust as needed.
+All variables are **optional** — the app runs with sensible defaults.
+
+| Variable                                  | Description                                        | Default                 |
+| ----------------------------------------- | -------------------------------------------------- | ----------------------- |
+| `APP_ALLOW_MULTI_INSTANCE`                | Allow multiple app instances (`1` = yes, `0` = no) | `0`                     |
+| `APP_RENDERER_URL`                        | Renderer dev server URL                            | `http://localhost:5173` |
+| `APP_OPEN_DEVTOOLS`                       | Open DevTools on startup (`1` = yes, `0` = no)     | `0`                     |
+| `GEMINI_WEB_SESSION_ENABLED`              | Enable Gemini web session health checks            | `true`                  |
+| `GEMINI_WEB_SESSION_DEFAULT_ENABLED`      | Auto-enable Gemini web sessions for new users      | `true`                  |
+| `GEMINI_WEB_LOGIN_TIMEOUT_MS`             | Google sign-in flow timeout (ms)                   | `7200000`               |
+| `GEMINI_WEB_CHECK_INTERVAL_MS`            | Session health check interval (ms)                 | `300000`                |
+| `GEMINI_WEB_CHECK_JITTER_PCT`             | Random jitter for health checks (%)                | `10`                    |
+| `GEMINI_WEB_RETRY_DELAY_MS`               | Retry delay after failed health check (ms)         | `30000`                 |
+| `GEMINI_WEB_MAX_CONSECUTIVE_FAILURES`     | Max failures before degraded state                 | `2`                     |
+| `GEMINI_WEB_NETWORKIDLE_TIMEOUT_MS`       | Playwright network idle timeout (ms)               | `12000`                 |
+| `GEMINI_WEB_SILENT_REFRESH_TIMEOUT_MS`    | Silent cookie refresh timeout (ms)                 | `25000`                 |
+| `GEMINI_WEB_SILENT_REFRESH_COOLDOWN_MS`   | Cooldown between silent refreshes (ms)             | `600000`                |
+| `GEMINI_WEB_HEADLESS_REFRESH_TIMEOUT_MS`  | Headless refresh timeout (ms)                      | `45000`                 |
+| `GEMINI_WEB_HEADLESS_REFRESH_COOLDOWN_MS` | Cooldown between headless refreshes (ms)           | `900000`                |
+| `GEMINI_WEB_REFRESH_GRACE_PERIOD_MS`      | Grace period after refresh (ms)                    | `5000`                  |
+| `GEMINI_WEB_COOKIE_REFRESH_THRESHOLD_MS`  | Cookie age trigger for refresh (ms)                | `300000`                |
+
+### Settings Areas
 
 Main settings areas include:
 

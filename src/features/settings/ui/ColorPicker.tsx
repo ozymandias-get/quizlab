@@ -24,7 +24,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
           <>
             <PopoverButton
               className={`
-                                w-full group flex items-center gap-3 p-1.5 rounded-2xl border transition-all duration-300 outline-none
+                                w-full group flex items-center gap-3 p-1.5 rounded-2xl border transition-colors transition-shadow duration-200 outline-none
                                 ${
                                   open
                                     ? 'bg-white/[0.08] border-white/20 shadow-lg'
@@ -53,7 +53,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
               leaveTo="opacity-0 translate-y-2 scale-95"
             >
               <PopoverPanel className="absolute left-0 bottom-full mb-4 z-[100] outline-none">
-                <div className="bg-[#121212] p-4 rounded-[24px] border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.6)] backdrop-blur-3xl">
+                <div className="bg-[#121212] p-4 rounded-[24px] border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl">
                   <div className="custom-color-picker">
                     <HexColorPicker color={color} onChange={onChange} />
                   </div>

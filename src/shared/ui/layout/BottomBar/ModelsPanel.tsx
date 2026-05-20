@@ -15,7 +15,7 @@ interface ModelsPanelProps {
 export const ModelsPanel = memo(
   ({ isOpen, panelStyle, maxHeight, showOnlyIcons }: ModelsPanelProps) => {
     const { enabledModels, aiSites } = useAiModelsCatalog()
-    const { addTab, setEnabledModels } = useAiCoreWorkspaceActions()
+    const { openAiWorkspace, setEnabledModels } = useAiCoreWorkspaceActions()
 
     const [activeDragItem, setActiveDragItem] = useState<string | null>(null)
 
@@ -53,7 +53,7 @@ export const ModelsPanel = memo(
                 modelKey={modelKey}
                 site={site}
                 isSelected={false}
-                setCurrentAI={addTab}
+                setCurrentAI={openAiWorkspace}
                 setActiveDragItem={setActiveDragItem}
                 activeDragItem={activeDragItem}
                 showOnlyIcons={showOnlyIcons}

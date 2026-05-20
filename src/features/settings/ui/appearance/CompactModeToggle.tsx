@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { Field, Label, Description } from '@headlessui/react'
 import { EyeIcon } from '@ui/components/Icons'
+import { useAppearance } from '@app/providers'
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 
 interface CompactModeToggleProps {
@@ -11,11 +12,12 @@ interface CompactModeToggleProps {
 }
 
 const CompactModeToggle = memo(({ showOnlyIcons, setShowOnlyIcons, t }: CompactModeToggleProps) => {
+  const performanceMode = useAppearance((s) => s.performanceMode)
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
+      transition={performanceMode ? { duration: 0.05 } : { delay: 0.1 }}
     >
       <Field
         className={`
@@ -46,7 +48,7 @@ const CompactModeToggle = memo(({ showOnlyIcons, setShowOnlyIcons, t }: CompactM
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#0a0a0a] shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+                className={`absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#0a0a0a] ${performanceMode ? '' : 'shadow-[0_0_8px_rgba(16,185,129,0.6)]'}`}
               />
             )}
           </div>

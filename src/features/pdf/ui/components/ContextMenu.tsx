@@ -10,6 +10,7 @@ export interface MenuItem {
   shortcut?: string
   danger?: boolean
   separator?: boolean
+  disabled?: boolean
 }
 
 interface ContextMenuProps {
@@ -38,13 +39,14 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     window.addEventListener('resize', handleResize)
 
     const preventDefault = (e: Event) => e.preventDefault()
-    menuRef.current?.addEventListener('contextmenu', preventDefault)
+    const menuNode = menuRef.current
+    menuNode?.addEventListener('contextmenu', preventDefault)
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       window.removeEventListener('scroll', handleScroll, true)
       window.removeEventListener('resize', handleResize)
-      menuRef.current?.removeEventListener('contextmenu', preventDefault)
+      menuNode?.removeEventListener('contextmenu', preventDefault)
     }
   }, [onClose])
 
@@ -81,7 +83,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                   This prevents framer-motion from trying to animate backdrop-blur or other filters
                   which can cause "Invalid keyframe value for property filter: blur(-0.01679px)" errors
                 */}
-        <div className="min-w-[220px] bg-[#1a1a1a]/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/80 p-1.5 overflow-hidden ring-1 ring-white/5">
+        <div className="min-w-[220px] bg-[#1a1a1a]/90 backdrop-blur-lg border border-white/10 rounded-xl shadow-2xl shadow-black/80 p-1.5 overflow-hidden ring-1 ring-white/5">
           {items.map((item, index) => {
             if (item.separator) {
               return <div key={index} className="h-[1px] bg-white/10 my-1 mx-2" />
@@ -93,16 +95,20 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
               <button
                 key={index}
                 onClick={(e) => {
+                  if (item.disabled) return
                   e.stopPropagation()
                   item.onClick()
                   onClose()
                 }}
+                disabled={item.disabled}
                 className={`
-                                    w-full flex items-center justify-between px-3 py-2 text-ql-14 rounded-lg transition-all duration-200 group relative overflow-hidden
+                                    w-full flex items-center justify-between px-3 py-2 text-ql-14 rounded-lg transition-colors transition-shadow duration-150 group relative overflow-hidden
                                     ${
-                                      item.danger
-                                        ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
-                                        : 'text-stone-300 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+                                      item.disabled
+                                        ? 'text-stone-600 cursor-not-allowed opacity-40'
+                                        : item.danger
+                                          ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
+                                          : 'text-stone-300 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]'
                                     }
                                 `}
               >
@@ -112,7 +118,11 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                       size={15}
                       strokeWidth={2}
                       className={`transition-colors duration-200 ${
-                        item.danger ? 'text-red-400' : 'text-stone-500 group-hover:text-cyan-400'
+                        item.disabled
+                          ? 'text-stone-600'
+                          : item.danger
+                            ? 'text-red-400'
+                            : 'text-stone-500 group-hover:text-cyan-400'
                       }`}
                     />
                   )}

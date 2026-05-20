@@ -44,7 +44,8 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
       webSecurity: true,
       spellcheck: false,
       allowRunningInsecureContent: false,
-      experimentalFeatures: false
+      experimentalFeatures: false,
+      backgroundThrottling: false
     }
   })
 }

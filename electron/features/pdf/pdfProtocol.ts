@@ -1,7 +1,6 @@
 import { protocol, ipcMain, dialog, app } from 'electron'
 import path from 'path'
 import fs from 'fs'
-import { Readable } from 'stream'
 import crypto from 'crypto'
 import { APP_CONFIG } from '../../app/constants'
 import { ConfigManager } from '../../core/ConfigManager'
@@ -32,10 +31,6 @@ function logSuppressedError(scope: string, error: unknown): void {
   console.warn('[PDFProtocol] Suppressed:', scope, error)
 }
 
-function toWebStream(nodeStream: fs.ReadStream): ReadableStream<Uint8Array> {
-  return Readable.toWeb(nodeStream) as unknown as ReadableStream<Uint8Array>
-}
-
 function parseByteRange(
   rangeHeader: string,
   totalSize: number
@@ -64,9 +59,6 @@ const CLEANUP_INTERVAL_MS = 10 * 60 * 1000
 
 let cleanupInterval: NodeJS.Timeout | null = null
 
-/**
- * Generate a unique ID for the PDF stream
- */
 function generateId() {
   return `pdf_${crypto.randomBytes(6).toString('hex')}_${Date.now()}`
 }
@@ -111,9 +103,17 @@ function createPdfStreamResponse(
 
     const { start, end } = range
     const chunkSize = end - start + 1
-    const webStream = toWebStream(
-      fs.createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 })
-    )
+    const fileStream = fs.createReadStream(filePath, { start, end, highWaterMark: 1024 * 1024 })
+    const webStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        fileStream.on('data', (chunk) => controller.enqueue(new Uint8Array(chunk as Buffer)))
+        fileStream.on('end', () => controller.close())
+        fileStream.on('error', (err) => controller.error(err))
+      },
+      cancel() {
+        fileStream.destroy()
+      }
+    })
 
     headers['Content-Range'] = `bytes ${start}-${end}/${stats.size}`
     headers['Content-Length'] = String(chunkSize)
@@ -124,7 +124,17 @@ function createPdfStreamResponse(
     })
   }
 
-  const webStream = toWebStream(fs.createReadStream(filePath, { highWaterMark: 1024 * 1024 }))
+  const fileStream = fs.createReadStream(filePath, { highWaterMark: 1024 * 1024 })
+  const webStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      fileStream.on('data', (chunk) => controller.enqueue(new Uint8Array(chunk as Buffer)))
+      fileStream.on('end', () => controller.close())
+      fileStream.on('error', (err) => controller.error(err))
+    },
+    cancel() {
+      fileStream.destroy()
+    }
+  })
   headers['Content-Length'] = String(stats.size)
 
   return new Response(webStream, {
@@ -133,14 +143,22 @@ function createPdfStreamResponse(
   })
 }
 
-/**
- * Cleanup old registry entries to free up memory
- */
 function runCleanup() {
   const now = Date.now()
+  let expiredCount = 0
   for (const [id, data] of pdfRegistry.entries()) {
     if (now - data.createdAt > MAX_AGE_MS) {
       pdfRegistry.delete(id)
+      expiredCount++
+    }
+  }
+
+  if (expiredCount > 0) {
+    const activePaths = new Set(Array.from(pdfRegistry.values()).map((d) => d.path))
+    for (const allowedPath of sessionAllowedPdfPaths) {
+      if (!activePaths.has(allowedPath)) {
+        sessionAllowedPdfPaths.delete(allowedPath)
+      }
     }
   }
 }

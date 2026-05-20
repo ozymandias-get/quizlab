@@ -18,7 +18,7 @@ if (process.platform === 'win32') {
 
 app.commandLine.appendSwitch(
   'disable-features',
-  'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder,CalculateNativeWinOcclusion'
+  'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder,CalculateNativeWinOcclusion,Vulkan'
 )
 app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization')
 app.commandLine.appendSwitch('disable-site-isolation-trials')
@@ -48,6 +48,10 @@ app.commandLine.appendSwitch('enable-zero-copy')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
 app.commandLine.appendSwitch('enable-parallel-downloading')
 app.commandLine.appendSwitch('enable-quic')
+
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('use-gl', 'egl')
+}
 
 app.commandLine.appendSwitch('log-level', '3')
 

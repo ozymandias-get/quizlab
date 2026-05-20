@@ -7,6 +7,7 @@ export { usePdfPanTool } from './usePdfPanTool'
 export { usePdfResizeRefit } from './usePdfResizeRefit'
 export { usePdfCtrlWheelZoom } from './usePdfCtrlWheelZoom'
 export { usePdfViewerZoomIpc } from './usePdfViewerZoomIpc'
+export { usePdfPageTextExtraction } from './usePdfPageTextExtraction'
 export {
   getScrollableAncestor,
   isScrollableElement,

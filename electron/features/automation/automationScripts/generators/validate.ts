@@ -8,8 +8,8 @@ const generateValidateSelectorsScript = (config: AutomationConfig): string => {
   return `
     ${createScriptPreamble('validate', serialized, true)}
         try {
-            const inputResult = await waitForElement(config.input, 'input', diagnostics.input, 2000, false);
-            const buttonResult = await waitForElement(config.button, 'button', diagnostics.button, 2000, true);
+            const inputResult = await waitForElement(config.input, 'input', diagnostics.input, config, 2000, false);
+            const buttonResult = await waitForElement(config.button, 'button', diagnostics.button, config, 2000, true);
             const inputFound = Boolean(inputResult.element);
             const buttonFound = Boolean(buttonResult.element);
             const error = !inputFound

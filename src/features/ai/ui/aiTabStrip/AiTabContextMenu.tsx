@@ -38,7 +38,7 @@ function AiTabContextMenu({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 6, scale: 0.96 }}
       transition={{ duration: 0.16 }}
-      className="fixed z-[1200] min-w-[170px] rounded-xl border border-white/15 bg-[#080808]/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-1.5"
+      className="fixed z-[1200] min-w-[170px] rounded-xl border border-white/15 bg-[#080808]/95 backdrop-blur-lg shadow-xl shadow-black/60 p-1.5"
       style={{ left: contextMenu.x, top: contextMenu.y }}
     >
       <button

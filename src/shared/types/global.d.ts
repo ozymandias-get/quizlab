@@ -60,6 +60,7 @@ declare global {
 
   interface Window {
     electronAPI: ElectronApi
+    __APP_VERSION__: string
   }
 
   namespace JSX {

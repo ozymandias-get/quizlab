@@ -91,9 +91,10 @@ const AiSession = memo(
     const [isSleeping, setIsSleeping] = useState(false)
     const [webviewRecoveryKey, setWebviewRecoveryKey] = useState(0)
     const staleCheckHandle = useRef<{ cancel: () => void } | null>(null)
+    const staleCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
-      let timeout: NodeJS.Timeout
+      let timeout: ReturnType<typeof setTimeout> | undefined
       if (!isActive) {
         timeout = setTimeout(() => {
           setIsSleeping(true)
@@ -101,7 +102,9 @@ const AiSession = memo(
       } else {
         setIsSleeping(false)
       }
-      return () => clearTimeout(timeout)
+      return () => {
+        if (timeout !== undefined) clearTimeout(timeout)
+      }
     }, [isActive])
 
     const handleWakeUp = useCallback(() => {
@@ -140,13 +143,22 @@ const AiSession = memo(
     useEffect(() => {
       return () => {
         staleCheckHandle.current?.cancel()
+        if (staleCheckTimerRef.current !== null) {
+          clearTimeout(staleCheckTimerRef.current)
+          staleCheckTimerRef.current = null
+        }
       }
     }, [])
 
     const handlePageSettled = useCallback(
       (wv: WebviewElement) => {
         staleCheckHandle.current?.cancel()
+        if (staleCheckTimerRef.current !== null) {
+          clearTimeout(staleCheckTimerRef.current)
+          staleCheckTimerRef.current = null
+        }
         if (!initialUrl) return
+        if (!isActive) return
 
         let cancelled = false
         staleCheckHandle.current = {
@@ -156,6 +168,7 @@ const AiSession = memo(
         }
 
         const runCheck = async () => {
+          staleCheckTimerRef.current = null
           if (cancelled || !wv) return
 
           try {
@@ -184,8 +197,7 @@ const AiSession = memo(
           }
         }
 
-        // Slight delay to allow for initial rendering before attaching the observer
-        setTimeout(runCheck, 500)
+        staleCheckTimerRef.current = setTimeout(runCheck, 500)
       },
       [initialUrl]
     )
@@ -260,10 +272,9 @@ const AiSession = memo(
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                 </svg>
               </div>
-              <p className="text-zinc-200 font-medium text-ql-20">Oturum Uyku Modunda</p>
+              <p className="text-zinc-200 font-medium text-ql-20">{t('ai_session.sleep_title')}</p>
               <p className="text-ql-14 text-zinc-500 mt-1 max-w-sm text-center">
-                Bellek tüketimini azaltmak için sekme uyutuldu. Kaldığınız yerden devam etmek ve
-                belleği tazelemek için tıklayın.
+                {t('ai_session.sleep_description')}
               </p>
             </div>
           ) : (

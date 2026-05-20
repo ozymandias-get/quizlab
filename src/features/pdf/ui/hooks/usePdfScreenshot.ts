@@ -1,10 +1,12 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import { Logger } from '@shared/lib/logger'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { hasElectronApi, getElectronApi } from '@shared/lib/electronApi'
 
 const { SCREENSHOT_TYPES } = APP_CONSTANTS
+
+const MAX_CANVAS_AREA = 16_000_000 // ~16 MP cap to prevent OOM on high-zoom PDFs
 
 interface UsePdfScreenshotOptions {
   currentPage: number
@@ -20,6 +22,7 @@ export function usePdfScreenshot({
   queueImageForAi,
   startScreenshot
 }: UsePdfScreenshotOptions) {
+  const pendingBlobUrlRef = useRef<string | null>(null)
   const findPageCanvas = useCallback((): HTMLCanvasElement | null => {
     const pageNumberCandidates = [currentPage, currentPage - 1]
 
@@ -95,17 +98,33 @@ export function usePdfScreenshot({
         return
       }
 
-      targetCanvas.toBlob((blob) => {
-        if (!blob) {
-          Logger.warn('[PdfScreenshot] Canvas toBlob failed.')
-          return
-        }
-        const blobUrl = URL.createObjectURL(blob)
-        queueImageForAi(blobUrl, {
-          page: currentPage,
-          captureKind: 'full-page'
-        })
-      }, 'image/png')
+      const canvasArea = targetCanvas.width * targetCanvas.height
+      const useJpeg = canvasArea > MAX_CANVAS_AREA
+      const mimeType = useJpeg ? 'image/jpeg' : 'image/png'
+      const quality = useJpeg ? 0.85 : undefined
+
+      targetCanvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            Logger.warn('[PdfScreenshot] Canvas toBlob failed.')
+            return
+          }
+
+          if (pendingBlobUrlRef.current) {
+            URL.revokeObjectURL(pendingBlobUrlRef.current)
+            pendingBlobUrlRef.current = null
+          }
+
+          const blobUrl = URL.createObjectURL(blob)
+          pendingBlobUrlRef.current = blobUrl
+          queueImageForAi(blobUrl, {
+            page: currentPage,
+            captureKind: 'full-page'
+          })
+        },
+        mimeType,
+        quality
+      )
     } catch (error) {
       Logger.error('[PdfScreenshot] Full page capture error:', error)
     }
@@ -127,6 +146,10 @@ export function usePdfScreenshot({
 
     return () => {
       if (typeof removeListener === 'function') removeListener()
+      if (pendingBlobUrlRef.current) {
+        URL.revokeObjectURL(pendingBlobUrlRef.current)
+        pendingBlobUrlRef.current = null
+      }
     }
   }, [currentPage, handleFullPageScreenshot, startScreenshot])
 

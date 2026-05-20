@@ -14,6 +14,7 @@ export type {
   AiSelectorConfig,
   AutomationConfig,
   AutomationLookupStrategy,
+  ConfidenceLevel,
   AutomationSelectorDiagnostics,
   AutomationExecutionDiagnostics,
   AutomationExecutionResult
@@ -22,7 +23,6 @@ export type {
 export type {
   AiPlatformMeta,
   AiPlatform,
-  EnhancedAiPlatform,
   AiRegistry,
   InactivePlatforms,
   AiRegistryResponse,

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, type MutableRefObject } from 'react'
 import { Logger } from '@shared/lib/logger'
 import type { WebviewController, WebviewElement } from '@shared-core/types/webview'
 
@@ -7,7 +7,7 @@ interface UsePickerPollingProps {
   onResult: (data: unknown) => void
   onCancelled: () => void
   onError: (error: unknown) => void
-  isMounted: boolean
+  mountedRef: MutableRefObject<boolean>
 }
 
 /**
@@ -18,11 +18,29 @@ export function usePickerPolling({
   getWebviewInstance,
   onResult,
   onCancelled,
-  isMounted
+  onError,
+  mountedRef
 }: UsePickerPollingProps) {
   const activeWebviewElementRef = useRef<WebviewElement | null>(null)
   const isListeningRef = useRef(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
+
+  const onResultRef = useRef(onResult)
+  const onCancelledRef = useRef(onCancelled)
+  const onErrorRef = useRef(onError)
+  useEffect(() => {
+    onResultRef.current = onResult
+    onCancelledRef.current = onCancelled
+    onErrorRef.current = onError
+  })
+
+  const stableConsoleHandlerRef = useRef<(e: Event) => void>(() => {})
+
+  const stableConsoleHandler = useCallback((e: Event) => {
+    stableConsoleHandlerRef.current(e)
+  }, [])
+
+  const stopPollingRef = useRef<() => void>(() => {})
 
   const stopPolling = useCallback(() => {
     isListeningRef.current = false
@@ -35,16 +53,18 @@ export function usePickerPolling({
     const el = activeWebviewElementRef.current
     if (el) {
       try {
-        el.removeEventListener('console-message', handleConsoleMessage)
+        el.removeEventListener('console-message', stableConsoleHandler)
       } catch (err) {
         Logger.warn('[PickerListening] Error removing console listener:', err)
       }
       activeWebviewElementRef.current = null
     }
-  }, [])
+  }, [stableConsoleHandler])
 
-  const handleConsoleMessage = useCallback(
-    (e: Event) => {
+  stopPollingRef.current = stopPolling
+
+  useEffect(() => {
+    stableConsoleHandlerRef.current = (e: Event) => {
       if (!isListeningRef.current) return
 
       const consoleEvent = e as unknown as { message: string }
@@ -52,21 +72,21 @@ export function usePickerPolling({
       if (!msg || !msg.startsWith('_aiPicker:')) return
 
       if (msg === '_aiPicker:cancelled') {
-        stopPolling()
-        if (isMounted) onCancelled()
+        stopPollingRef.current()
+        if (mountedRef.current) onCancelledRef.current()
       } else if (msg.startsWith('_aiPicker:result:')) {
         const dataStr = msg.slice('_aiPicker:result:'.length)
         try {
           const data = JSON.parse(dataStr)
-          stopPolling()
-          if (isMounted) onResult(data)
+          stopPollingRef.current()
+          if (mountedRef.current) onResultRef.current(data)
         } catch (err) {
           Logger.warn('[PickerListening] Failed to parse result:', err)
+          if (mountedRef.current) onErrorRef.current(err)
         }
       }
-    },
-    [isMounted, onCancelled, onResult, stopPolling]
-  )
+    }
+  }, [mountedRef])
 
   const startPolling = useCallback(() => {
     stopPolling()
@@ -84,7 +104,7 @@ export function usePickerPolling({
         try {
           activeWebviewElementRef.current.removeEventListener(
             'console-message',
-            handleConsoleMessage
+            stableConsoleHandler
           )
         } catch (err) {
           // ignore
@@ -95,7 +115,7 @@ export function usePickerPolling({
 
       if (el && isListeningRef.current) {
         try {
-          el.addEventListener('console-message', handleConsoleMessage)
+          el.addEventListener('console-message', stableConsoleHandler)
         } catch (err) {
           Logger.warn('[PickerListening] Error adding console listener:', err)
         }
@@ -111,7 +131,7 @@ export function usePickerPolling({
       const el = controller.getWebview?.() ?? null
       attachToElement(el)
     }
-  }, [getWebviewInstance, handleConsoleMessage, stopPolling])
+  }, [getWebviewInstance, stableConsoleHandler, stopPolling])
 
   useEffect(() => {
     return () => {

@@ -13,9 +13,9 @@ const PerformanceModeToggle = memo(
   ({ performanceMode, setPerformanceMode, t }: PerformanceModeToggleProps) => {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
+        transition={performanceMode ? { duration: 0.05 } : { delay: 0.15 }}
       >
         <Field
           className={`
@@ -57,7 +57,7 @@ const PerformanceModeToggle = memo(
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-[#0a0a0a] shadow-[0_0_8px_rgba(245,158,11,0.6)]"
+                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-[#0a0a0a]"
                 />
               )}
             </div>

@@ -1,6 +1,13 @@
-import { useRef, useState, memo, useEffect, useMemo } from 'react'
-import { Maximize, Crop, ZoomIn, ZoomOut, RotateCcw, RefreshCw } from 'lucide-react'
-import { Viewer, SpecialZoomLevel, ScrollMode, LoadError, ViewMode } from '@react-pdf-viewer/core'
+import { useRef, useState, memo, useEffect, useMemo, useCallback } from 'react'
+import { Crop, RefreshCw, Type, Image as ImageIcon } from 'lucide-react'
+import {
+  Viewer,
+  SpecialZoomLevel,
+  ScrollMode,
+  LoadError,
+  ViewMode,
+  Worker
+} from '@react-pdf-viewer/core'
 
 import PdfToolbar from './PdfToolbar'
 import { ContextMenu, MenuItem } from './ContextMenu'
@@ -14,13 +21,16 @@ import {
   usePdfPanTool,
   usePdfResizeRefit,
   usePdfCtrlWheelZoom,
-  usePdfViewerZoomIpc
+  usePdfViewerZoomIpc,
+  usePdfPageTextExtraction
 } from '../hooks'
-import { PDF_ZOOM_MIN_SCALE, PDF_ZOOM_STEP } from '@features/pdf/constants/pdfZoom'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import type { PdfFile } from '@shared-core/types'
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/usePdfSelection'
 import type { PdfTab } from '@features/pdf/hooks/usePdfSelection'
+import { useAppToolActions } from '@app/providers/AppToolContext'
+import { useToastActions } from '@app/providers/ToastContext'
+import { useLanguageStrings } from '@app/providers/LanguageContext'
 
 type ScreenshotMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'>
 
@@ -39,6 +49,7 @@ export interface PdfViewerDocumentProps {
   startScreenshot: (imageMeta?: ScreenshotMeta) => void
   queueImageForAi: (dataUrl: string, imageMeta?: ScreenshotMeta) => void
   isPanelResizing?: boolean
+  workerUrl: string
 }
 
 function PdfViewerDocument({
@@ -55,13 +66,19 @@ function PdfViewerDocument({
   onToggleAutoSend,
   startScreenshot,
   queueImageForAi,
-  isPanelResizing = false
+  isPanelResizing = false,
+  workerUrl
 }: PdfViewerDocumentProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const currentPageRef = useRef(0)
   const [scaleFactor, setScaleFactor] = useState(1)
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
   const [panMode, setPanMode] = useState(false)
   const appliedResumeSyncKeyRef = useRef<string | null>(null)
+
+  const { queueTextForAi } = useAppToolActions()
+  const { showSuccess, showWarning } = useToastActions()
+  const { t: tt } = useLanguageStrings()
 
   const {
     plugins,
@@ -89,6 +106,10 @@ function PdfViewerDocument({
     onReadingProgressChange
   })
 
+  useEffect(() => {
+    currentPageRef.current = currentPage
+  }, [currentPage])
+
   const documentReady = totalPages > 0
 
   usePdfResizeRefit(containerRef, zoomTo, documentReady && !!pdfUrl, isPanelResizing)
@@ -110,11 +131,24 @@ function PdfViewerDocument({
 
   usePdfTextSelection({
     containerRef,
-    onTextSelection: onTextSelection || (() => {}),
+    onTextSelection: (text, position) => {
+      onTextSelection?.(text, position)
+    },
     enabled: !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !panMode
   })
 
   const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
+
+  const { extractCurrentPageText } = usePdfPageTextExtraction({
+    currentPage,
+    onTextExtracted: (text) => {
+      queueTextForAi(text)
+      showSuccess(tt('pdf_text_added_to_ai'))
+    },
+    onNoTextFound: () => {
+      showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
+    }
+  })
 
   useEffect(() => {
     setViewerReloadKey(0)
@@ -135,42 +169,34 @@ function PdfViewerDocument({
     jumpToPageRef.current(initialPage - 1)
   }, [documentReady, initialPage, jumpToPageRef, pdfUrl, viewerReloadKey, zoomTo])
 
+  const handleAddCurrentPageTextToAi = useCallback(() => {
+    extractCurrentPageText()
+  }, [extractCurrentPageText])
+
+  const handleSendPageAsImageToAi = useCallback(() => {
+    handleFullPageScreenshot()
+  }, [handleFullPageScreenshot])
+
   const menuItems: MenuItem[] = useMemo(
     () => [
       {
-        label: t('ctx_full_page_screenshot'),
-        icon: Maximize,
-        onClick: handleFullPageScreenshot,
-        shortcut: 'Ctrl+S'
+        label: tt('pdf_add_current_page_text_to_ai'),
+        icon: Type,
+        onClick: handleAddCurrentPageTextToAi
       },
       {
-        label: t('ctx_crop_screenshot'),
+        label: tt('pdf_send_page_as_image'),
+        icon: ImageIcon,
+        onClick: handleSendPageAsImageToAi
+      },
+      {
+        label: tt('ctx_crop_screenshot_ai'),
         icon: Crop,
         onClick: () =>
           startScreenshot({
             page: currentPage,
             captureKind: 'selection'
-          }),
-        shortcut: 'Shift+S'
-      },
-      { separator: true, label: '', onClick: () => {} },
-      {
-        label: t('ctx_zoom_in'),
-        icon: ZoomIn,
-        onClick: () => zoomTo(scaleFactor + PDF_ZOOM_STEP),
-        shortcut: 'Ctrl+'
-      },
-      {
-        label: t('ctx_zoom_out'),
-        icon: ZoomOut,
-        onClick: () => zoomTo(Math.max(PDF_ZOOM_MIN_SCALE, scaleFactor - PDF_ZOOM_STEP)),
-        shortcut: 'Ctrl-'
-      },
-      {
-        label: t('ctx_reset_zoom'),
-        icon: RotateCcw,
-        onClick: () => zoomTo(SpecialZoomLevel.PageWidth),
-        shortcut: 'Ctrl+0'
+          })
       },
       { separator: true, label: '', onClick: () => {} },
       {
@@ -181,7 +207,7 @@ function PdfViewerDocument({
         danger: true
       }
     ],
-    [t, handleFullPageScreenshot, startScreenshot, zoomTo, scaleFactor, currentPage]
+    [t, tt, handleAddCurrentPageTextToAi, handleSendPageAsImageToAi, startScreenshot, currentPage]
   )
 
   return (
@@ -192,44 +218,46 @@ function PdfViewerDocument({
           panMode ? ' pdf-pan-mode-active' : ''
         }${isPanDragging ? ' pdf-pan-mode-dragging' : ''}`}
       >
-        <Viewer
-          key={`${pdfUrl}:${viewerReloadKey}`}
-          fileUrl={pdfUrl}
-          plugins={plugins}
-          defaultScale={SpecialZoomLevel.PageWidth}
-          initialPage={initialPage && initialPage > 1 ? initialPage - 1 : 0}
-          scrollMode={ScrollMode.Page}
-          viewMode={ViewMode.SinglePage}
-          onPageChange={handlePageChange}
-          onDocumentLoad={handleDocumentLoad}
-          onZoom={(e) => setScaleFactor(e.scale)}
-          transformGetDocumentParams={(params) => ({
-            ...params,
-            isEvalSupported: false
-          })}
-          renderLoader={() => (
-            <div
-              data-pdf-page-loader
-              className="flex h-full min-h-[12rem] w-full items-center justify-center bg-transparent"
-            >
+        <Worker workerUrl={workerUrl}>
+          <Viewer
+            key={`${pdfUrl}:${viewerReloadKey}`}
+            fileUrl={pdfUrl}
+            plugins={plugins}
+            defaultScale={SpecialZoomLevel.PageWidth}
+            initialPage={initialPage && initialPage > 1 ? initialPage - 1 : 0}
+            scrollMode={ScrollMode.Page}
+            viewMode={ViewMode.SinglePage}
+            onPageChange={handlePageChange}
+            onDocumentLoad={handleDocumentLoad}
+            onZoom={(e) => setScaleFactor(e.scale)}
+            transformGetDocumentParams={(params) => ({
+              ...params,
+              isEvalSupported: false
+            })}
+            renderLoader={() => (
               <div
-                className="h-9 w-9 rounded-full border-2 border-amber-500/25 border-t-amber-500 animate-spin"
-                role="status"
-                aria-label="Loading"
-              />
-            </div>
-          )}
-          renderError={(error: LoadError) => (
-            <div className="flex items-center justify-center h-full text-red-500 p-8 text-center bg-stone-950/50 backdrop-blur-sm">
-              <p>
-                {t('pdf_load_error')}: {error.message || t('error_unknown_error')}
-              </p>
-            </div>
-          )}
-          theme={{
-            theme: 'dark'
-          }}
-        />
+                data-pdf-page-loader
+                className="flex h-full min-h-[12rem] w-full items-center justify-center bg-transparent"
+              >
+                <div
+                  className="h-9 w-9 rounded-full border-2 border-amber-500/25 border-t-amber-500 animate-spin"
+                  role="status"
+                  aria-label="Loading"
+                />
+              </div>
+            )}
+            renderError={(error: LoadError) => (
+              <div className="flex items-center justify-center h-full text-red-500 p-8 text-center bg-stone-950/50 backdrop-blur-sm">
+                <p>
+                  {t('pdf_load_error')}: {error.message || t('error_unknown_error')}
+                </p>
+              </div>
+            )}
+            theme={{
+              theme: 'dark'
+            }}
+          />
+        </Worker>
 
         {contextMenu && (
           <ContextMenu
@@ -264,6 +292,7 @@ function PdfViewerDocument({
         ZoomIn={PluginZoomIn}
         ZoomOut={PluginZoomOut}
         CurrentScale={CurrentScale}
+        onAddCurrentPageTextToAi={handleAddCurrentPageTextToAi}
       />
     </div>
   )

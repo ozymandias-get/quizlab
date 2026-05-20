@@ -11,7 +11,7 @@ import { useBottomBarController } from './useBottomBarController'
 import { useBottomBarPanelHeight } from './useBottomBarPanelHeight'
 import type { BottomBarProps } from './types'
 
-function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
+function BottomBar({ onHoverChange, onMouseDown, isResizing }: BottomBarProps) {
   const { bottomBarOpacity, bottomBarScale, showOnlyIcons, toggleLayoutSwap, isTourActive } =
     useAppearance(
       useShallow((s) => ({
@@ -36,11 +36,15 @@ function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
     closeSettings,
     setIsOpen
   } = useBottomBarController(isTourActive)
+
   const panelHeight = useBottomBarPanelHeight(barRef, isOpen, bottomBarScale)
+  const performanceMode = false // Assume false or detect if needed
+
   const { shellStyle, stackStyle, panelStyle, hubStyle } = useBottomBarStyles(
     isOpen,
     bottomBarOpacity,
-    bottomBarScale
+    bottomBarScale,
+    performanceMode
   )
 
   useEffect(() => {
@@ -101,9 +105,11 @@ function BottomBar({ onHoverChange, onMouseDown }: BottomBarProps) {
             onClick={() => handleToggle()}
             onMouseDown={handleHubMouseDown}
             isOpen={isOpen}
+            isResizing={isResizing}
             hubStyle={hubStyle}
             tabsCount={tabs.length}
             ariaLabel={isOpen ? t('close') : t('ua_step1_text')}
+            performanceMode={performanceMode}
           />
 
           <ModelsPanel

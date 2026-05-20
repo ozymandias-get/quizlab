@@ -9,6 +9,7 @@ import { isSendError, resolveSendContext } from './resolveSendContext'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ConfigCache } from '../aiSenderSupport'
 import { executePipelineStep } from './pipelineUtils'
+import { useDiagnosticsStore } from '@features/diagnostics'
 
 interface TextSendPipelineParams {
   webviewRef: RefObject<WebviewController | null>
@@ -54,6 +55,16 @@ export async function executeTextSendPipeline(
     generateAutoSendScript
   } = params
 
+  const emitEvent = useDiagnosticsStore.getState().emitEvent
+
+  emitEvent({
+    type: 'SEND_START',
+    provider: currentAI,
+    severity: 'info',
+    pipelineStage: 'queue',
+    message: 'Text send pipeline started'
+  })
+
   const resolveStartedAt = nowMs()
   const resolved = await resolveSendContext({
     webviewRef,
@@ -70,8 +81,24 @@ export async function executeTextSendPipeline(
     if (resolved.actualUrl) {
       diagnostics.currentUrl = resolved.actualUrl
     }
+    emitEvent({
+      type: 'PIPELINE_ERROR',
+      provider: currentAI,
+      severity: 'error',
+      pipelineStage: 'config_resolve',
+      message: resolved.error || 'Config resolution failed'
+    })
     return attachDiagnostics(resolved, diagnostics, requestStartedAt)
   }
+
+  emitEvent({
+    type: 'CONFIG_RESOLVED',
+    provider: currentAI,
+    severity: 'info',
+    pipelineStage: 'config_resolve',
+    duration: diagnostics.timings.configResolveMs,
+    selectorUsed: resolved.aiConfig?.input || undefined
+  })
 
   diagnostics.currentUrl = resolved.currentUrl
 
@@ -96,7 +123,26 @@ export async function executeTextSendPipeline(
     onResult: (res) => (diagnostics.script = cloneScriptDiagnostics(res?.diagnostics))
   })
 
-  if (!sendStep.success) return sendStep.error
+  if (!sendStep.success) {
+    emitEvent({
+      type: 'PIPELINE_ERROR',
+      provider: currentAI,
+      severity: 'error',
+      pipelineStage: 'script_execution',
+      message: sendStep.error.error || 'Text send pipeline failed',
+      duration: diagnostics.timings.totalMs
+    })
+    return sendStep.error
+  }
+
+  emitEvent({
+    type: 'SEND_SUCCESS',
+    provider: currentAI,
+    severity: 'info',
+    pipelineStage: 'complete',
+    duration: diagnostics.timings.totalMs,
+    message: 'Text send completed successfully'
+  })
 
   return attachDiagnostics(
     {

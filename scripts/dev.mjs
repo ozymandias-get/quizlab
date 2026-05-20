@@ -147,7 +147,8 @@ function launchElectron() {
       if (
         msg.includes('vaapi_video_decoder') ||
         msg.includes('object_proxy.cc') ||
-        msg.includes('media/gpu/')
+        msg.includes('media/gpu/') ||
+        msg.includes('wayland_surface_factory.cc')
       ) {
         return
       }

@@ -20,7 +20,7 @@ const generateWaitForSubmitReadyScript = (
             } else {
                 diagnostics.input.interactiveRequired = true;
             }
-            const inputResult = await waitForElement(config.input, 'input', diagnostics.input, 10000, false);
+            const inputResult = await waitForElement(config.input, 'input', diagnostics.input, config, 10000, false);
             const inputElement = inputResult.element;
 
             if (!inputElement) {
@@ -35,7 +35,7 @@ const generateWaitForSubmitReadyScript = (
             }
 
             const buttonResult = buttonConfigured
-                ? await waitForElement(config.button, 'button', diagnostics.button, 10000, false)
+                ? await waitForElement(config.button, 'button', diagnostics.button, config, 10000, false)
                 : { element: null };
             const buttonElement = buttonResult.element;
 
@@ -59,7 +59,7 @@ const generateWaitForSubmitReadyScript = (
                     const targetDiagnostics = buttonConfigured ? diagnostics.button : diagnostics.input;
                     const targetLookup = buttonConfigured ? config.button : config.input;
                     const targetKind = buttonConfigured ? 'button' : 'input';
-                    const targetResult = findElement(targetLookup, targetKind, targetDiagnostics);
+                    const targetResult = findElement(targetLookup, targetKind, targetDiagnostics, config);
                     const targetElement = targetResult.element;
                     const isInteractive = Boolean(targetElement && isReadyForInteraction(targetElement));
                     const settledForMs = now() - observer.getLastMutationAt();
@@ -84,7 +84,7 @@ const generateWaitForSubmitReadyScript = (
             const targetDiagnostics = buttonConfigured ? diagnostics.button : diagnostics.input;
             const targetLookup = buttonConfigured ? config.button : config.input;
             const targetKind = buttonConfigured ? 'button' : 'input';
-            const targetResult = findElement(targetLookup, targetKind, targetDiagnostics);
+            const targetResult = findElement(targetLookup, targetKind, targetDiagnostics, config);
             const error = targetResult.element
                 ? 'submit_not_ready'
                 : resolveLookupError(targetLookup, buttonConfigured ? 'button_not_found' : 'input_not_found', config.health);

@@ -12,6 +12,7 @@ import { PANEL_RESIZING_BODY_CLASS } from '@shared/constants/panelResize'
 import { useLocalStorage } from './useLocalStorage'
 
 const DEFAULT_RESIZER_WIDTH = 48
+const WIDTH_CHANGE_THRESHOLD = 0.05
 
 interface UsePanelResizeOptions {
   initialWidth?: number
@@ -47,32 +48,34 @@ export function usePanelResize({
   const resizerRef = useRef<HTMLElement | null>(null)
 
   const pendingWidthRef = useRef<number>(leftPanelWidth)
+  const startWidthRef = useRef<number>(leftPanelWidth)
 
   const isResizingRef = useRef<boolean>(false)
 
   const rafIdRef = useRef<number | null>(null)
 
-  const handleMouseDown = useCallback(
-    (e: ReactMouseEvent) => {
-      e.preventDefault()
+  const leftPanelWidthRef = useRef(leftPanelWidth)
+  leftPanelWidthRef.current = leftPanelWidth
 
-      isResizingRef.current = true
+  const handleMouseDown = useCallback((e: ReactMouseEvent) => {
+    e.preventDefault()
 
-      document.body.classList.add(PANEL_RESIZING_BODY_CLASS)
+    isResizingRef.current = true
 
-      setIsResizing(true)
+    document.body.classList.add(PANEL_RESIZING_BODY_CLASS)
 
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
+    setIsResizing(true)
 
-      if (resizerRef.current) {
-        resizerRef.current.classList.add('dragging')
-      }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
 
-      pendingWidthRef.current = leftPanelWidth
-    },
-    [leftPanelWidth]
-  )
+    if (resizerRef.current) {
+      resizerRef.current.classList.add('dragging')
+    }
+
+    pendingWidthRef.current = leftPanelWidthRef.current
+    startWidthRef.current = leftPanelWidthRef.current
+  }, [])
 
   useEffect(() => {
     if (!isResizing) {
@@ -134,9 +137,14 @@ export function usePanelResize({
 
       document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
 
+      const finalWidth = pendingWidthRef.current
+      const widthDiff = Math.abs(finalWidth - startWidthRef.current)
+
       setIsResizing(false)
 
-      setLeftPanelWidth(pendingWidthRef.current)
+      if (widthDiff >= WIDTH_CHANGE_THRESHOLD) {
+        setLeftPanelWidth(finalWidth)
+      }
     }
 
     document.addEventListener('mousemove', handleMouseMove, { passive: true })

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { reportSuppressedError } from '@shared/lib/logger'
+import { Logger, reportSuppressedError } from '@shared/lib/logger'
 import type { AiDraftItem, AiDraftImageItem } from '../ai/types'
 import { buildPendingId, clearBrowserTextSelection } from './appToolUtils'
 
 export type QueuedImageMeta = Partial<Pick<AiDraftImageItem, 'page' | 'captureKind'>>
+
+const MAX_QUEUE_SIZE = 20
 
 function revokeDraftItemBlob(item: AiDraftItem) {
   if (item.type === 'image' && item.blobUrl) {
@@ -68,15 +70,34 @@ export function useAiDraftQueue() {
       return
     }
 
-    const item: AiDraftItem = {
-      id: buildPendingId('image'),
-      type: 'image',
-      ...(dataUrl ? { dataUrl } : {}),
-      blobUrl,
-      ...imageMeta
-    }
-
-    setPendingAiItems((current) => [...current, item])
+    setPendingAiItems((current) => {
+      if (current.length >= MAX_QUEUE_SIZE) {
+        const dropped = current[0]
+        revokeDraftItemBlob(dropped)
+        Logger?.warn?.(`[DraftQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest item`)
+        const trimmed = current.slice(1)
+        return [
+          ...trimmed,
+          {
+            id: buildPendingId('image'),
+            type: 'image',
+            ...(dataUrl ? { dataUrl } : {}),
+            blobUrl,
+            ...imageMeta
+          }
+        ]
+      }
+      return [
+        ...current,
+        {
+          id: buildPendingId('image'),
+          type: 'image',
+          ...(dataUrl ? { dataUrl } : {}),
+          blobUrl,
+          ...imageMeta
+        }
+      ]
+    })
   }, [])
 
   const removePendingAiItem = useCallback((id: string) => {

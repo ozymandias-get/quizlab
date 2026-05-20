@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { SliderIcon } from '@ui/components/Icons'
 import { Slider } from '@ui/components/Slider'
+import { useAppearance } from '@app/providers'
 
 interface BarAppearanceSettingsProps {
   bottomBarOpacity: number
@@ -19,11 +20,13 @@ const BarAppearanceSettings = memo(
     setBottomBarScale,
     t
   }: BarAppearanceSettingsProps) => {
+    const performanceMode = useAppearance((s) => s.performanceMode)
+
     return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={performanceMode ? { duration: 0.05 } : { delay: 0.2 }}
         className="p-5 rounded-[20px] bg-white/[0.02] border border-white/[0.05] space-y-6"
       >
         <div className="flex items-center gap-3">

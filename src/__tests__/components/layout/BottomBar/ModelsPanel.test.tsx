@@ -45,7 +45,9 @@ vi.mock('@ui/layout/BottomBar/AIItem', () => ({
 
 vi.mock('@ui/layout/BottomBar/animations', () => ({
   panelVariantsVertical: {},
-  panelTransition: {}
+  panelTransition: {},
+  panelSpring: {},
+  smoothEase: [0.16, 1, 0.3, 1]
 }))
 
 describe('ModelsPanel', () => {

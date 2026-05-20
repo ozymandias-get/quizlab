@@ -47,20 +47,23 @@ function SettingsToggleSwitch({
       onChange={onChange}
       disabled={disabled}
       className={cn(
-        'relative flex items-center rounded-full border transition-all duration-300',
+        'relative flex items-center rounded-full border transition-all duration-200 outline-none',
+        'focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080808]',
         sizeClasses.root,
-        checked ? 'border-emerald-500/30 bg-emerald-500/20' : 'border-white/[0.08] bg-white/[0.04]',
-        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+        checked
+          ? 'border-emerald-500/30 bg-emerald-500/20 hover:border-emerald-500/45 hover:bg-emerald-500/25'
+          : 'border-white/[0.08] bg-white/[0.04] hover:border-white/[0.14] hover:bg-white/[0.08]',
+        disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
         className
       )}
     >
       <span
         className={cn(
-          'pointer-events-none inline-block transform rounded-full ring-0 transition duration-300 ease-in-out',
+          'pointer-events-none inline-block transform rounded-full ring-0 transition duration-200 ease-in-out',
           sizeClasses.knob,
           checked
-            ? `${sizeClasses.checked} bg-emerald-500`
-            : `${sizeClasses.unchecked} bg-white/20`,
+            ? `${sizeClasses.checked} bg-emerald-400`
+            : `${sizeClasses.unchecked} bg-white/40`,
           knobClassName
         )}
       />

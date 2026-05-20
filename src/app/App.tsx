@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import { memo, lazy, Suspense } from 'react'
-import { AnimatePresence, LayoutGroup } from 'framer-motion'
+import { LayoutGroup } from 'framer-motion'
 import AppBackground from '@ui/layout/AppBackground'
 import ToastContainer from '@ui/components/Toast/ToastContainer'
 import MainWorkspace from '@app/ui/MainWorkspace'
@@ -14,6 +14,9 @@ const UsageAssistant = lazy(() =>
 const UpdateBanner = lazy(() => import('@ui/components/UpdateBanner'))
 const GeminiWebLoginOverlay = lazy(() => import('@app/ui/GeminiWebLoginOverlay'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
+const DiagnosticsPanel = lazy(() =>
+  import('@features/diagnostics').then((m) => ({ default: m.DiagnosticsPanel }))
+)
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolFlagsState, useAppToolQueueState } from '@app/providers'
@@ -55,25 +58,23 @@ function App() {
           />
         </Suspense>
 
-        <AnimatePresence mode="wait" initial={false}>
-          <MainWorkspace
-            isLayoutSwapped={isLayoutSwapped}
-            leftPanelWidth={panelResize.leftPanelWidth}
-            leftPanelRef={panelResize.leftPanelRef as RefObject<HTMLDivElement>}
-            resizerRef={panelResize.resizerRef as RefObject<HTMLDivElement>}
-            containerVariants={animations.containerVariants}
-            leftPanelVariants={animations.leftPanelVariants}
-            rightPanelVariants={animations.rightPanelVariants}
-            resizerVariants={animations.resizerVariants}
-            gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
-            handleMouseDown={panelResize.handleMouseDown}
-            isWebviewMounted={isWebviewMounted}
-            isResizing={panelResize.isResizing}
-            isBarHovered={workspaceState.isBarHovered}
-            onBarHoverChange={workspaceState.setIsBarHovered}
-            leftPanelProps={leftPanelProps}
-          />
-        </AnimatePresence>
+        <MainWorkspace
+          isLayoutSwapped={isLayoutSwapped}
+          leftPanelWidth={panelResize.leftPanelWidth}
+          leftPanelRef={panelResize.leftPanelRef as RefObject<HTMLDivElement>}
+          resizerRef={panelResize.resizerRef as RefObject<HTMLDivElement>}
+          containerVariants={animations.containerVariants}
+          leftPanelVariants={animations.leftPanelVariants}
+          rightPanelVariants={animations.rightPanelVariants}
+          resizerVariants={animations.resizerVariants}
+          gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
+          handleMouseDown={panelResize.handleMouseDown}
+          isWebviewMounted={isWebviewMounted}
+          isResizing={panelResize.isResizing}
+          isBarHovered={workspaceState.isBarHovered}
+          onBarHoverChange={workspaceState.setIsBarHovered}
+          leftPanelProps={leftPanelProps}
+        />
 
         <Suspense fallback={null}>
           <GeminiWebLoginLayer t={t} />
@@ -89,6 +90,10 @@ function App() {
 
         <Suspense fallback={null}>
           <UsageAssistant isActive={tour.isActive} onClose={tour.close} />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <DiagnosticsPanel />
         </Suspense>
       </div>
     </LayoutGroup>

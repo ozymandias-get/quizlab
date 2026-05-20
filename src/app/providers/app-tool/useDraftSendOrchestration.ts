@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { Logger } from '@shared/lib/logger'
 import type { AiSendOptions } from '@features/ai'
 import { planBulkAiSend } from '../ai/planBulkAiSend'
@@ -37,6 +37,8 @@ export function useDraftSendOrchestration({
   pendingAiItemsRef,
   setPendingAiItems
 }: UseDraftSendOrchestrationProps) {
+  const sendingRef = useRef(false)
+
   const executeDraftSend = useCallback(
     async (items: AiDraftItem[], options?: AiSendOptions): Promise<AiSendResult> => {
       if (items.length === 0) {
@@ -91,26 +93,34 @@ export function useDraftSendOrchestration({
 
   const sendPendingAiItems = useCallback(
     async (options?: AiSendOptions): Promise<AiSendResult> => {
+      if (sendingRef.current) {
+        return { success: false, error: 'send_in_progress' }
+      }
+
       const items = pendingAiItemsRef.current
       if (items.length === 0) {
         return { success: false, error: 'invalid_input' }
       }
 
-      const result = await executeDraftSend(items, options)
+      sendingRef.current = true
+      try {
+        const result = await executeDraftSend(items, options)
 
-      if (result.success) {
-        // Cleanup blob URLs for image items before clearing the queue
-        for (const item of items) {
-          if (item.type === 'image' && item.blobUrl) {
-            URL.revokeObjectURL(item.blobUrl)
+        if (result.success) {
+          for (const item of items) {
+            if (item.type === 'image' && item.blobUrl) {
+              URL.revokeObjectURL(item.blobUrl)
+            }
           }
+          setPendingAiItems([])
+        } else {
+          Logger.error('[DraftOrchestration] Failed to send pending items:', result.error)
         }
-        setPendingAiItems([])
-      } else {
-        Logger.error('[DraftOrchestration] Failed to send pending items:', result.error)
-      }
 
-      return result
+        return result
+      } finally {
+        sendingRef.current = false
+      }
     },
     [executeDraftSend, pendingAiItemsRef, setPendingAiItems]
   )

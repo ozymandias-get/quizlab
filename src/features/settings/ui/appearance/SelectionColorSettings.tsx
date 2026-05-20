@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { SelectionIcon } from '@ui/components/Icons'
+import { useAppearance } from '@app/providers'
 import ColorPicker from '../ColorPicker'
 
 interface SelectionColorSettingsProps {
@@ -11,11 +12,13 @@ interface SelectionColorSettingsProps {
 
 const SelectionColorSettings = memo(
   ({ selectionColor, setSelectionColor, t }: SelectionColorSettingsProps) => {
+    const performanceMode = useAppearance((s) => s.performanceMode)
+
     return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={performanceMode ? { opacity: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.22 }}
+        transition={performanceMode ? { duration: 0.05 } : { delay: 0.22 }}
         className="p-5 rounded-[20px] bg-white/[0.02] border border-white/[0.05] space-y-5"
       >
         <div className="flex items-center gap-3">

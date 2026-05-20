@@ -57,7 +57,7 @@ const RandomBlob = memo(
           setBlobColor(getRandomAestheticColor())
         }
 
-        timeoutId = setTimeout(updateTarget, 10000 + Math.random() * 10000)
+        timeoutId = setTimeout(updateTarget, 16000 + Math.random() * 14000)
       }
 
       updateTarget()
@@ -79,8 +79,8 @@ const RandomBlob = memo(
           backgroundColor: blobColor
         }}
         transition={{
-          backgroundColor: { duration: 8, ease: 'easeInOut' },
-          duration: 12,
+          backgroundColor: { duration: 12, ease: 'easeInOut' },
+          duration: 16,
           ease: 'linear'
         }}
         style={{
@@ -88,7 +88,6 @@ const RandomBlob = memo(
 
           left: index === 0 ? '-10%' : index === 1 ? '50%' : '20%',
           top: index === 0 ? '-10%' : index === 1 ? '50%' : '10%',
-          willChange: 'transform, border-radius, background-color',
           backfaceVisibility: 'hidden' as CSSProperties['backfaceVisibility']
         }}
       />
@@ -104,7 +103,12 @@ interface AnimatedBlobsProps {
 const AnimatedBlobs = memo(({ colors, isRandomMode }: AnimatedBlobsProps) => (
   <AnimatePresence mode="popLayout">
     {colors.map((color, index) => (
-      <RandomBlob key={index} color={color} index={index} isRandomMode={isRandomMode} />
+      <RandomBlob
+        key={`${color}-${index}`}
+        color={color}
+        index={index}
+        isRandomMode={isRandomMode}
+      />
     ))}
   </AnimatePresence>
 ))
