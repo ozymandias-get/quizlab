@@ -123,22 +123,22 @@
     </tr>
     <tr>
       <td><img src="docs/images/workspace-home-overview.png" alt="Bölünmüş Ekran PDF Çalışma Alanı" width="400" style="border-radius: 8px;"></td>
-      <td><img src="docs/images/ai-models-and-sites.png" alt="Yapay Zeka Modelleri ve Siteler" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/prompts-settings-library.png" alt="Yapay Zeka Modelleri ve Siteler" width="400" style="border-radius: 8px;"></td>
     </tr>
     <tr>
       <td align="center"><strong>Prompt Kütüphanesi</strong></td>
       <td align="center"><strong>PDF Hızlı İşlemler</strong></td>
     </tr>
     <tr>
-      <td><img src="docs/images/prompts-settings-library.png" alt="Prompt Kütüphanesi" width="400" style="border-radius: 8px;"></td>
-      <td><img src="docs/images/pdf-chatgpt-quick-actions.png" alt="PDF Hızlı İşlemler" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/ai-models-and-sites.png" alt="Prompt Kütüphanesi" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/auto-send-draft-review.png" alt="PDF Hızlı İşlemler" width="400" style="border-radius: 8px;"></td>
     </tr>
     <tr>
       <td align="center"><strong>Taslak İnceleme Penceresi</strong></td>
       <td align="center"><strong>Otomatik Gönderim İş Akışı</strong></td>
     </tr>
     <tr>
-      <td><img src="docs/images/auto-send-draft-review.png" alt="Taslak İnceleme" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/pdf-chatgpt-quick-actions.png" alt="Taslak İnceleme" width="400" style="border-radius: 8px;"></td>
       <td><img src="docs/images/auto-send-enabled.png" alt="Otomatik Gönderim" width="400" style="border-radius: 8px;"></td>
     </tr>
   </table>

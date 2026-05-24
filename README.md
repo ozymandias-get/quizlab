@@ -123,22 +123,22 @@
     </tr>
     <tr>
       <td><img src="docs/images/workspace-home-overview.png" alt="Split-Screen PDF Workspace" width="400" style="border-radius: 8px;"></td>
-      <td><img src="docs/images/ai-models-and-sites.png" alt="AI Models and Sites" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/prompts-settings-library.png" alt="AI Models and Sites" width="400" style="border-radius: 8px;"></td>
     </tr>
     <tr>
       <td align="center"><strong>Prompt Library</strong></td>
       <td align="center"><strong>PDF Quick Actions</strong></td>
     </tr>
     <tr>
-      <td><img src="docs/images/prompts-settings-library.png" alt="Prompt Library" width="400" style="border-radius: 8px;"></td>
-      <td><img src="docs/images/pdf-chatgpt-quick-actions.png" alt="PDF Quick Actions" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/ai-models-and-sites.png" alt="Prompt Library" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/auto-send-draft-review.png" alt="PDF Quick Actions" width="400" style="border-radius: 8px;"></td>
     </tr>
     <tr>
       <td align="center"><strong>Draft Review Modal</strong></td>
       <td align="center"><strong>Auto-Send Workflow</strong></td>
     </tr>
     <tr>
-      <td><img src="docs/images/auto-send-draft-review.png" alt="Draft Review" width="400" style="border-radius: 8px;"></td>
+      <td><img src="docs/images/pdf-chatgpt-quick-actions.png" alt="Draft Review" width="400" style="border-radius: 8px;"></td>
       <td><img src="docs/images/auto-send-enabled.png" alt="Auto-Send Workflow" width="400" style="border-radius: 8px;"></td>
     </tr>
   </table>
