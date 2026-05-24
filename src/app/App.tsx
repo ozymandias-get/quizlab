@@ -14,9 +14,6 @@ const UsageAssistant = lazy(() =>
 const UpdateBanner = lazy(() => import('@ui/components/UpdateBanner'))
 const GeminiWebLoginOverlay = lazy(() => import('@app/ui/GeminiWebLoginOverlay'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
-const DiagnosticsPanel = lazy(() =>
-  import('@features/diagnostics').then((m) => ({ default: m.DiagnosticsPanel }))
-)
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolFlagsState, useAppToolQueueState } from '@app/providers'
@@ -90,10 +87,6 @@ function App() {
 
         <Suspense fallback={null}>
           <UsageAssistant isActive={tour.isActive} onClose={tour.close} />
-        </Suspense>
-
-        <Suspense fallback={null}>
-          <DiagnosticsPanel />
         </Suspense>
       </div>
     </LayoutGroup>

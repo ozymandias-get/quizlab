@@ -1,5 +1,4 @@
 export { useDiagnosticsStore } from './store/diagnosticsStore'
-export { default as DiagnosticsPanel } from './ui/DiagnosticsPanel'
 export { default as DiagnosticsTab } from './ui/DiagnosticsTab'
 export type {
   PipelineStage,

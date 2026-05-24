@@ -34,5 +34,9 @@ export const IPC_CHANNELS = {
   GEMINI_WEB_SESSION_REFRESH_STARTED: 'gemini-web-session-refresh-started',
   GEMINI_WEB_SESSION_REFRESH_SUCCESS: 'gemini-web-session-refresh-success',
   GEMINI_WEB_SESSION_REFRESH_FAILED: 'gemini-web-session-refresh-failed',
-  APP_QUIT: 'app-quit'
+  APP_QUIT: 'app-quit',
+  GET_API_CHAT_CONFIG: 'get-api-chat-config',
+  SAVE_API_CHAT_CONFIG: 'save-api-chat-config',
+  SEND_API_CHAT_REQUEST: 'send-api-chat-request',
+  FETCH_API_CHAT_MODELS: 'fetch-api-chat-models'
 }

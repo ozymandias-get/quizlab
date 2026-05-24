@@ -1,10 +1,6 @@
-/**
- * React hook for PDF capture actions: full-page screenshot and area selection.
- * Uses the Capture Engine for canvas discovery and blob lifecycle.
- */
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback } from 'react'
 import { findPageCanvas } from './findPageCanvas'
-import { captureCanvasAsBlob, revokeCaptureUrl } from './captureCanvasAsBlob'
+import { captureCanvasAsBlob } from './captureCanvasAsBlob'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 
 interface UsePdfCaptureActionsOptions {
@@ -21,8 +17,6 @@ export function usePdfCaptureActions({
   queueImageForAi,
   startScreenshot
 }: UsePdfCaptureActionsOptions) {
-  const pendingBlobUrlRef = useRef<string | null>(null)
-
   const handleFullPageScreenshot = useCallback(async () => {
     try {
       let targetCanvas = findPageCanvas(currentPage)
@@ -42,11 +36,6 @@ export function usePdfCaptureActions({
 
       const result = await captureCanvasAsBlob(targetCanvas)
 
-      if (pendingBlobUrlRef.current) {
-        revokeCaptureUrl(pendingBlobUrlRef.current)
-      }
-
-      pendingBlobUrlRef.current = result.blobUrl
       queueImageForAi(result.blobUrl, {
         page: currentPage,
         captureKind: 'full-page'
@@ -62,15 +51,6 @@ export function usePdfCaptureActions({
       captureKind: 'selection'
     })
   }, [currentPage, startScreenshot])
-
-  useEffect(() => {
-    return () => {
-      if (pendingBlobUrlRef.current) {
-        revokeCaptureUrl(pendingBlobUrlRef.current)
-        pendingBlobUrlRef.current = null
-      }
-    }
-  }, [])
 
   return { handleFullPageScreenshot, handleAreaScreenshot }
 }

@@ -10,6 +10,7 @@ import {
   GeminiIcon,
   TerminalIcon
 } from '@ui/components/Icons'
+import { AiIcon } from '@ui/components/icons/AiIcon'
 import { useSettings } from '../../hooks/useSettings'
 
 const LanguageTab = lazy(() => import('../LanguageTab'))
@@ -21,6 +22,11 @@ const SelectorsTab = lazy(() => import('../SelectorsTab'))
 const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
 const PromptsTab = lazy(() => import('../PromptsTab'))
 const DiagnosticsTab = lazy(() => import('@features/diagnostics/ui/DiagnosticsTab'))
+const ApiChatTab = lazy(() => import('../ApiSettingsTab'))
+
+function ApiChatIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return <AiIcon modelKey="api-chat" className={className} />
+}
 
 export const SETTINGS_SIDEBAR_GROUP_ORDER = [
   'workspace',
@@ -71,6 +77,17 @@ const SETTINGS_TABS = [
     icon: GridIcon,
     accent: 'from-emerald-300/28 via-teal-200/12 to-transparent',
     glow: '#34d399'
+  },
+  {
+    id: 'api-chat',
+    group: 'integration',
+    labelKey: 'api_chat_settings_title',
+    fallbackLabel: 'API Chat',
+    descriptionKey: 'api_chat_settings_desc',
+    fallbackDescription: 'Manage your API providers and connection settings',
+    icon: ApiChatIcon,
+    accent: 'from-amber-300/28 via-amber-200/12 to-transparent',
+    glow: '#f59e0b'
   },
   {
     id: 'gemini-web',
@@ -189,7 +206,8 @@ export const SETTINGS_TAB_RENDERERS: Record<
       onClose={onClose}
     />
   ),
-  diagnostics: ({ t }) => <DiagnosticsTab t={t} />
+  diagnostics: ({ t }) => <DiagnosticsTab t={t} />,
+  'api-chat': () => <ApiChatTab />
 }
 
 export function buildSettingsTabDefs(t: (key: string) => string): TabDef[] {

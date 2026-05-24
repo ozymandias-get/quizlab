@@ -6,6 +6,7 @@ import { createBrowserElectronApi } from '@platform/electron/createBrowserElectr
 import { hasElectronApi } from '@shared/lib/electronApi'
 
 import BrowserFallback from '@ui/components/BrowserFallback'
+import ErrorBoundary from '@ui/components/ErrorBoundary'
 
 const rootElement = document.getElementById('root') as HTMLElement
 const root = createRoot(rootElement)
@@ -22,7 +23,9 @@ if (!isElectron && !isWebDevMode) {
 } else {
   root.render(
     <AppProviders>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </AppProviders>
   )
 }

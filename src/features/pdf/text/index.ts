@@ -4,9 +4,5 @@
  */
 
 export { normalizePdfText } from './normalizePdfText'
-export {
-  extractPageTextFromDom,
-  invalidatePageCache,
-  clearPageCache
-} from './extractPageTextFromDom'
+export { extractPageTextFromDom, invalidatePageCache } from './extractPageTextFromDom'
 export { extractSelectedText } from './extractSelectedText'

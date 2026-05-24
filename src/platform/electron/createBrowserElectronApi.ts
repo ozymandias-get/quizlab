@@ -20,27 +20,48 @@ const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
     id: 'chatgpt',
     name: 'ChatGPT',
     displayName: 'ChatGPT',
-    url: 'https://chat.openai.com',
-    isSite: true,
+    url: 'https://chatgpt.com',
     color: '#10a37f',
-    submitMode: 'enter_key'
+    submitMode: 'mixed'
   },
   gemini: {
     id: 'gemini',
     name: 'Gemini',
     displayName: 'Gemini',
-    url: 'https://gemini.google.com',
-    isSite: true,
+    url: 'https://gemini.google.com/app',
     color: '#4285f4',
-    submitMode: 'enter_key'
+    submitMode: 'mixed'
   },
   claude: {
     id: 'claude',
     name: 'Claude',
     displayName: 'Claude',
     url: 'https://claude.ai',
-    isSite: true,
     color: '#d97706',
+    submitMode: 'click'
+  },
+  deepseek: {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    displayName: 'DeepSeek',
+    url: 'https://chat.deepseek.com',
+    color: '#4f46e5',
+    submitMode: 'mixed'
+  },
+  qwen: {
+    id: 'qwen',
+    name: 'Qwen',
+    displayName: 'Qwen',
+    url: 'https://chat.qwenlm.ai',
+    color: '#6366f1',
+    submitMode: 'click'
+  },
+  kimi: {
+    id: 'kimi',
+    name: 'Kimi',
+    displayName: 'Kimi',
+    url: 'https://kimi.com',
+    color: '#f97316',
     submitMode: 'enter_key'
   },
   notebooklm: {
@@ -70,6 +91,15 @@ const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
     isSite: true,
     color: '#ff0033',
     submitMode: 'mixed'
+  },
+  'api-chat': {
+    id: 'api-chat',
+    name: 'API Chat',
+    displayName: 'API Chat',
+    url: '',
+    icon: 'api-chat',
+    color: '#f59e0b',
+    submitMode: 'enter_key'
   }
 }
 
@@ -330,6 +360,22 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         return { success: true, status: getGeminiStatus() }
       },
       onRefreshEvent: () => () => {}
-    }
+    },
+    getApiChatConfig: async () => ({
+      providers: [],
+      generalPrompt: '',
+      memoryPrompt: '',
+      characterPrompt: '',
+      selectedProviderId: '',
+      selectedModel: ''
+    }),
+    saveApiChatConfig: async () => true,
+    sendApiChatRequest: async () => ({
+      id: `msg-${Date.now()}`,
+      role: 'assistant',
+      content: 'API Chat is not available in browser mode. Please run the app in Electron.',
+      timestamp: Date.now()
+    }),
+    fetchApiChatModels: async () => []
   }
 }

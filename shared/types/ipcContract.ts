@@ -2,6 +2,8 @@ import { IPC_CHANNELS } from '../constants/ipc-channels'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
+  ApiConfig,
+  ApiChatMessage,
   AutomationConfig,
   ClearAiModelDataInput,
   CustomAiInput,
@@ -80,6 +82,31 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.APP_QUIT]: {
     args: []
     result: void
+  }
+
+  [IPC_CHANNELS.GET_API_CHAT_CONFIG]: {
+    args: []
+    result: ApiConfig
+  }
+
+  [IPC_CHANNELS.SAVE_API_CHAT_CONFIG]: {
+    args: [config: ApiConfig]
+    result: boolean
+  }
+
+  [IPC_CHANNELS.SEND_API_CHAT_REQUEST]: {
+    args: [
+      messages: ApiChatMessage[],
+      selectedModel?: string,
+      generalPrompt?: string,
+      providerId?: string
+    ]
+    result: ApiChatMessage
+  }
+
+  [IPC_CHANNELS.FETCH_API_CHAT_MODELS]: {
+    args: [providerId: string]
+    result: string[]
   }
 
   [IPC_CHANNELS.CLEAR_CACHE]: {
@@ -286,6 +313,15 @@ export interface ElectronApi {
   deleteAiConfig: (hostname: string) => Promise<boolean>
   addCustomAi: (data: CustomAiInput) => Promise<CustomAiResult>
   deleteCustomAi: (id: string) => Promise<boolean>
+  getApiChatConfig: () => Promise<ApiConfig>
+  saveApiChatConfig: (config: ApiConfig) => Promise<boolean>
+  sendApiChatRequest: (
+    messages: ApiChatMessage[],
+    selectedModel?: string,
+    generalPrompt?: string,
+    providerId?: string
+  ) => Promise<ApiChatMessage>
+  fetchApiChatModels: (providerId: string) => Promise<string[]>
   geminiWeb: {
     getStatus: () => Promise<GeminiWebSessionStatus>
     openLogin: () => Promise<GeminiWebSessionActionResult>

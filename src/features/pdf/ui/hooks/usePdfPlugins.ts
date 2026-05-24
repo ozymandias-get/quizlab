@@ -29,17 +29,28 @@ const safeRenderHighlights = (props: RenderHighlightsProps) => {
 }
 
 export function usePdfPlugins() {
-  const pageNavigationPluginInstance = pageNavigationPlugin()
+  const {
+    pageNavigationPluginInstance,
+    zoomPluginInstance,
+    scrollModePluginInstance,
+    searchPluginInstance
+  } = useMemo(() => {
+    const pageNav = pageNavigationPlugin()
+    const zoom = zoomPlugin({ enableShortcuts: true })
+    const scrollMode = scrollModePlugin()
+    const search = searchPlugin({
+      renderHighlights: safeRenderHighlights
+    })
+    return {
+      pageNavigationPluginInstance: pageNav,
+      zoomPluginInstance: zoom,
+      scrollModePluginInstance: scrollMode,
+      searchPluginInstance: search
+    }
+  }, [])
+
   const { jumpToPage } = pageNavigationPluginInstance
-
-  const zoomPluginInstance = zoomPlugin({ enableShortcuts: true })
   const { ZoomIn, ZoomOut, CurrentScale, zoomTo } = zoomPluginInstance
-
-  const scrollModePluginInstance = scrollModePlugin()
-
-  const searchPluginInstance = searchPlugin({
-    renderHighlights: safeRenderHighlights
-  })
   const { highlight, clearHighlights } = searchPluginInstance
 
   const plugins = useMemo(

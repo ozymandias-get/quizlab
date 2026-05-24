@@ -43,6 +43,8 @@ export type {
   PdfViewerZoomAction
 } from './pdf'
 
+export type { ApiConfig, ApiProviderConfig, ApiChatMessage } from './apiChat'
+
 export type { UpdateCheckResult, ScreenshotType } from './system'
 
 export type {

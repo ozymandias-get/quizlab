@@ -60,12 +60,3 @@ export function groupErrors(events: DiagnosticsEvent[]): GroupedError[] {
 
   return allGroups.sort((a, b) => b.lastSeen - a.lastSeen)
 }
-
-export function getEscalatedSeverity(
-  count: number,
-  base: 'info' | 'warn' | 'error'
-): 'info' | 'warn' | 'error' {
-  if (count >= 10) return 'error'
-  if (count >= 5 && base !== 'error') return 'warn'
-  return base
-}

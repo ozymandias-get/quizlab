@@ -3,6 +3,7 @@ import { registerSystemHandlers } from '../core/systemHandlers'
 import { registerPdfHandlers } from '../features/pdf/pdfHandlers'
 import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers'
+import { registerApiChatHandlers } from '../features/ai/apiChatHandlers'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers'
 import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
 
@@ -12,6 +13,7 @@ export function registerGeneralHandlers() {
   registerPdfHandlers()
   registerAiConfigHandlers()
   registerAiRegistryHandlers()
+  registerApiChatHandlers()
   registerAutomationHandlers()
   registerGeminiWebSessionHandlers()
 }

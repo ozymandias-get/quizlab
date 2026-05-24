@@ -3,6 +3,8 @@ import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
 import type {
   AiSelectorConfig,
   AiRegistryResponse,
+  ApiConfig,
+  ApiChatMessage,
   AutomationConfig,
   PdfSelectOptions,
   PdfSelection,
@@ -122,6 +124,25 @@ const electronApi: ElectronApi = {
     ipcRenderer.invoke(IPC_CHANNELS.ADD_CUSTOM_AI, data),
   deleteCustomAi: (id: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id),
+
+  getApiChatConfig: (): Promise<ApiConfig> => ipcRenderer.invoke(IPC_CHANNELS.GET_API_CHAT_CONFIG),
+  saveApiChatConfig: (config: ApiConfig): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SAVE_API_CHAT_CONFIG, config),
+  sendApiChatRequest: (
+    messages: ApiChatMessage[],
+    selectedModel?: string,
+    generalPrompt?: string,
+    providerId?: string
+  ): Promise<ApiChatMessage> =>
+    ipcRenderer.invoke(
+      IPC_CHANNELS.SEND_API_CHAT_REQUEST,
+      messages,
+      selectedModel,
+      generalPrompt,
+      providerId
+    ),
+  fetchApiChatModels: (providerId: string): Promise<string[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.FETCH_API_CHAT_MODELS, providerId),
 
   geminiWeb: {
     getStatus: (): Promise<GeminiWebSessionStatus> =>

@@ -1,6 +1,6 @@
 {
   "name": "quizlab-reader",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "private": true,
   "description": "AI-powered PDF reader with a split-screen workspace: read documents alongside ChatGPT, Gemini, Claude, and more via embedded webviews, automation, and local-first privacy.",
   "main": "dist/electron/electron/app/index.js",
@@ -133,7 +133,6 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.16.0",
-    "@rollup/plugin-terser": "^1.0.0",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -150,9 +149,7 @@
     "electron-builder": "^26.7.0",
     "eslint": "^9.16.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-electron": "^7.0.0",
-    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -163,6 +160,7 @@
     "jsdom": "^28.1.0",
     "lint-staged": "^16.3.3",
     "postcss": "^8.4.32",
+    "postcss-import": "^16.1.1",
     "prettier": "^3.8.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.9.3",
@@ -189,23 +187,14 @@
     "lucide-react": "^0.563.0",
     "pdfjs-dist": "3.11.174",
     "playwright-core": "^1.58.2",
-    "postcss-import": "^16.1.1",
     "react": "^19.2.4",
     "react-colorful": "^5.6.1",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
-    "tar": "7.5.11",
     "zustand": "^5.0.11"
   },
   "overrides": {
-    "@rollup/plugin-terser": {
-      "serialize-javascript": "^7.0.3"
-    },
-    "rollup-plugin-terser": {
-      "serialize-javascript": "^7.0.3"
-    },
-    "tar": "7.5.11",
     "yauzl": ">=3.2.1"
   },
   "lint-staged": {

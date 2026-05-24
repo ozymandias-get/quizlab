@@ -7,11 +7,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    environmentMatchGlobs: [
-      ['electron/**/*.dom.test.{ts,tsx,js,jsx,mts,cts,mjs,cjs}', 'jsdom'],
-      ['electron/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}', 'node'],
-      ['**/*.node.test.{ts,tsx,js,jsx,mts,cts,mjs,cjs}', 'node']
-    ],
     setupFiles: './src/__tests__/setup.ts',
     include: [
       'src/__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
@@ -28,7 +23,6 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      all: true,
       include: ['src/**/*.{ts,tsx}', 'electron/**/*.ts', 'shared/**/*.ts'],
       exclude: [
         '**/*.d.ts',

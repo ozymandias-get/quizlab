@@ -47,7 +47,7 @@ export function getHealthStatusColor(status: ProviderHealthStatus): string {
   }
 }
 
-export function createHealthSignal(
+function createHealthSignal(
   type: ProviderHealthSignal['type'],
   provider: string,
   weight = 1

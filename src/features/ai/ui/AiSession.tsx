@@ -12,61 +12,12 @@ import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
 import { reportSuppressedError } from '@shared/lib/logger'
 import type { WebviewController, WebviewElement } from '@shared-core/types/webview'
 import AiErrorView from './AiErrorView'
-import { AI_TAB_SLEEP_MS } from '@features/ai/constants/aiWebviewLifecycle'
-
-const STALE_CONTENT_DETECTION_SCRIPT = `
-new Promise((resolve) => {
-  if (document.hidden) return resolve(false);
-
-  const check = () => {
-    const hasComposer = Boolean(
-      document.querySelector(
-        'textarea, [contenteditable="true"][role="textbox"], div[role="textbox"]'
-      )
-    );
-    if (hasComposer) return false;
-    
-    const container = document.querySelector('main, #root, #__next, .error-page') || document.body;
-    if (!container) return false;
-    
-    const t = (container.textContent || '').toLowerCase();
-    return (
-      t.includes('could not be loaded') ||
-      t.includes("couldn't be loaded") ||
-      t.includes('yüklenemedi') ||
-      t.includes("doesn't exist") ||
-      t.includes('mevcut değil') ||
-      t.includes('no longer available') ||
-      t.includes('conversation not found') ||
-      t.includes('silinmiş')
-    );
-  };
-
-  if (check()) return resolve(true);
-
-  let observer;
-  let timeout;
-
-  const cleanup = () => {
-    if (observer) observer.disconnect();
-    if (timeout) clearTimeout(timeout);
-  };
-
-  observer = new MutationObserver(() => {
-    if (check()) {
-      cleanup();
-      resolve(true);
-    }
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-
-  timeout = setTimeout(() => {
-    cleanup();
-    resolve(false);
-  }, 12500);
-})
-`
+import ApiChatPage from './ApiChatPage'
+import {
+  AI_TAB_SLEEP_MS,
+  STALE_CONTENT_DETECTION_SCRIPT
+} from '@features/ai/constants/aiWebviewLifecycle'
+import { SleepPlaceholderView } from './SleepPlaceholderView'
 
 interface AiSessionProps {
   tab: Tab
@@ -218,6 +169,8 @@ const AiSession = memo(
       return 'persist:ai_session'
     }, [siteConfig, tab.id, tab.modelId])
 
+    const isApiChat = tab.modelId === 'api-chat'
+
     const canRenderWebview = Boolean(siteConfig) && !isSleeping
 
     const webview = useMemo(() => {
@@ -253,42 +206,23 @@ const AiSession = memo(
           zIndex: isActive ? 1 : 0
         }}
       >
-        <div className="flex-1 relative flex flex-col">
-          {isSleeping ? (
-            <div
-              onClick={handleWakeUp}
-              className="flex-1 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm cursor-pointer select-none"
-            >
-              <div className="p-4 rounded-2xl bg-zinc-800/80 mb-4 border border-zinc-700/50 shadow-xl transition-transform hover:scale-105 active:scale-95">
-                <svg
-                  className="w-8 h-8 text-zinc-400"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                </svg>
-              </div>
-              <p className="text-zinc-200 font-medium text-ql-20">{t('ai_session.sleep_title')}</p>
-              <p className="text-ql-14 text-zinc-500 mt-1 max-w-sm text-center">
-                {t('ai_session.sleep_description')}
-              </p>
-            </div>
+        <div className="flex-1 relative flex flex-col min-h-0">
+          {isApiChat ? (
+            <ApiChatPage tabId={tab.id} />
+          ) : isSleeping ? (
+            <SleepPlaceholderView onWakeUp={handleWakeUp} t={t} />
           ) : (
             webview
           )}
 
           {/* Mouse Catcher: Prevents webview from swallowing mouse events when bar is hovered */}
-          {isBarHovered && isActive && !isSleeping && (
+          {isBarHovered && isActive && !isSleeping && !isApiChat && (
             <div className="absolute inset-0 z-[5] pointer-events-auto bg-transparent" />
           )}
 
-          {isLoading && isActive && !isSleeping && <AestheticLoader />}
+          {isLoading && isActive && !isSleeping && !isApiChat && <AestheticLoader />}
 
-          {error && isActive && !isSleeping && (
+          {error && isActive && !isSleeping && !isApiChat && (
             <AiErrorView error={error} onRetry={handleRetry} aiName={siteConfig?.displayName} />
           )}
         </div>

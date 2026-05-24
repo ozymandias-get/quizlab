@@ -21,7 +21,8 @@ const AI_ICON_KEYS = new Set([
   'youtube',
   'gdrive',
   'huggingchat',
-  'globe'
+  'globe',
+  'api-chat'
 ])
 
 const lazyByKey = new Map<string, LazyExoticComponent<ComponentType<IconProps>>>()

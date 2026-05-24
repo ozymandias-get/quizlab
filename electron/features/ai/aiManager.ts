@@ -77,7 +77,16 @@ const platforms: AiRegistry = {
   deepseek: enhancePlatform(deepseek),
   qwen: enhancePlatform(qwen),
   claude: enhancePlatform(claude),
-  kimi: enhancePlatform(kimi)
+  kimi: enhancePlatform(kimi),
+  'api-chat': {
+    id: 'api-chat',
+    name: 'API Chat',
+    displayName: 'API Chat',
+    url: '',
+    icon: 'api-chat',
+    color: '#f59e0b',
+    submitMode: 'enter_key'
+  }
 }
 
 const inactivePlatforms: InactivePlatforms = {
