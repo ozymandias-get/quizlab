@@ -99,6 +99,16 @@
       Herhangi bir yapay zeka arayüzü için hedef CSS giriş alanlarıyla özel web uç noktalarını kolayca yapılandırın ve kaydedin.
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <h4>💬 Yerel API Sohbet Arayüzü</h4>
+      Kendi API anahtarlarınızı (Gemini, ChatGPT, Claude) kullanarak yapay zeka modelleriyle doğrudan, gizlilik odaklı bir arayüzde sohbet edin.
+    </td>
+    <td width="50%">
+      <h4>⚙️ Esnek Anahtar Yönetimi</h4>
+      Özel API anahtarlarınızı ve model parametrelerinizi doğrudan ayarlar panelinden güvenli bir şekilde yapılandırın, test edin ve kaydedin.
+    </td>
+  </tr>
 </table>
 
 ---
@@ -238,7 +248,7 @@ npm run dev
 # Kalite kontrolleri
 npm run typecheck    # TypeScript
 npm run lint         # ESLint (sıfır uyarı)
-npm run test         # Vitest (629+ test)
+npm run test         # Vitest (610+ test)
 
 # Derleme
 npm run build:win    # Windows yükleyicisi

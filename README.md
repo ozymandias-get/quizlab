@@ -99,6 +99,16 @@
       Easily configure and save custom web endpoints with targeted CSS input hooks for any AI surface.
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <h4>💬 Custom API Chat Interface</h4>
+      Chat directly with AI models using your own API keys (Gemini, ChatGPT, Claude) in a native, privacy-first interface.
+    </td>
+    <td width="50%">
+      <h4>⚙️ Flexible Key Management</h4>
+      Securely configure, test, and save your custom API keys and model parameters directly from the settings panel.
+    </td>
+  </tr>
 </table>
 
 ---
@@ -238,7 +248,7 @@ npm run dev
 # Quality checks
 npm run typecheck    # TypeScript
 npm run lint         # ESLint (zero warnings required)
-npm run test         # Vitest (629+ tests)
+npm run test         # Vitest (610+ tests)
 
 # Build for production
 npm run build:win    # Windows installer
