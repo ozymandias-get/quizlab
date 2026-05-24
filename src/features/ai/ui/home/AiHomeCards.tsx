@@ -6,7 +6,7 @@ import type { GridDragReorderState } from '@features/ai/hooks/useGridDragReorder
 import type { AiSiteMap, SectionTone } from '../../model/home'
 import { GridCard } from './aiHomeCards/GridCard'
 
-export { StatChip, EmptySitesState, OpenTabsToggle } from './aiHomeCards'
+export { StatChip, EmptySitesState, OpenTabsToggle } from './aiHomeCards/index'
 
 interface AiHomeCardGridProps {
   activeModelIds: Set<string>
