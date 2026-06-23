@@ -3,7 +3,7 @@ import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
-import { onEvent, typedInvoke, unwrapIpcResult } from '../../shared/lib/typedIpcPreload'
+import { onEvent, typedInvoke, unwrapIpcResult } from './typedIpcPreload'
 
 const electronApi: ElectronApi = {
   getAiRegistry: (forceRefresh?) =>
@@ -66,16 +66,16 @@ const electronApi: ElectronApi = {
   showPdfContextMenu: (labels) => ipcRenderer.send(IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU, labels),
 
   onTriggerScreenshot: (callback) => {
-    const handler = (_event: IpcRendererEvent, type: unknown) =>
+    const handleIpcMessage = (_event: IpcRendererEvent, type: unknown) =>
       callback(type as Parameters<Parameters<ElectronApi['onTriggerScreenshot']>[0]>[0])
-    ipcRenderer.on(IPC_CHANNELS.TRIGGER_SCREENSHOT, handler)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_SCREENSHOT, handler)
+    ipcRenderer.on(IPC_CHANNELS.TRIGGER_SCREENSHOT, handleIpcMessage)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_SCREENSHOT, handleIpcMessage)
   },
   onPdfViewerZoom: (callback) => {
-    const handler = (_event: IpcRendererEvent, action: unknown) =>
+    const handleIpcAction = (_event: IpcRendererEvent, action: unknown) =>
       callback(action as Parameters<Parameters<ElectronApi['onPdfViewerZoom']>[0]>[0])
-    ipcRenderer.on(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handler)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handler)
+    ipcRenderer.on(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handleIpcAction)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handleIpcAction)
   },
 
   get platform() {
@@ -97,7 +97,7 @@ const electronApi: ElectronApi = {
   getAiConfig: (hostname?) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_AI_CONFIG, hostname)),
   deleteAiConfig: (hostname) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.DELETE_AI_CONFIG, hostname)),
-  addCustomAi: (data) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.ADD_CUSTOM_AI, data)),
+  addCustomAi: (input) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.ADD_CUSTOM_AI, input)),
   deleteCustomAi: (id) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id)),
 
   getApiChatConfig: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_API_CHAT_CONFIG)),

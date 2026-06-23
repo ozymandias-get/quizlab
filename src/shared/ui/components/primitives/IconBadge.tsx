@@ -1,6 +1,6 @@
 import { cn } from '@shared/lib/uiUtils'
 
-import { type ElementType } from 'react'
+import type { ElementType } from 'react'
 
 interface IconBadgeProps {
   icon: ElementType

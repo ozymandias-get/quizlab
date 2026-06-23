@@ -282,25 +282,27 @@ const FocusPdfBody = memo(function FocusPdfBody() {
     recentReadingInfoRef
   })
 
+  const readingHistoryRef = useRef(recentReadingInfo)
+  readingHistoryRef.current = recentReadingInfo
+
   const activeTabInitialPage = useMemo(() => {
     if (!activePdfTabId) return undefined
     if (activePdfTab?.kind !== 'pdf' || !activePdfTab?.file) return undefined
 
     const file = activePdfTab.file
     if (file.path) {
-      const existing = (recentReadingInfo || []).find((item) => item.path === file.path)
+      const existing = (readingHistoryRef.current || []).find((entry) => entry.path === file.path)
       return existing?.page
     }
     return undefined
-  }, [activePdfTabId, activePdfTab, recentReadingInfo])
+  }, [activePdfTabId, activePdfTab])
 
-  const lastReadingInfoRef = useRef(recentReadingInfo)
-  lastReadingInfoRef.current = recentReadingInfo
+  const lastReadingInfoRef = readingHistoryRef
 
   const handleResumePdf = useCallback(
     async (path?: string): Promise<ResumePdfResult> => {
       const current = lastReadingInfoRef.current
-      const target = path ? current.find((item) => item.path === path) : current[0]
+      const target = path ? current.find((entry) => entry.path === path) : current[0]
       if (target) {
         return await resumeLastPdf(target.path)
       }

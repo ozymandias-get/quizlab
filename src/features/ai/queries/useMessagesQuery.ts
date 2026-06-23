@@ -35,11 +35,11 @@ export function useDeleteMessageMutation() {
       persistSessions(updated)
       return { sessionId, allSessions: updated }
     },
-    onSuccess: (result) => {
-      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, result.allSessions)
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, data.allSessions)
       queryClient.setQueryData(
-        QUERY_KEYS.AI.MESSAGES(result.sessionId),
-        getMessagesBySessionId(result.allSessions, result.sessionId)
+        QUERY_KEYS.AI.MESSAGES(data.sessionId),
+        getMessagesBySessionId(data.allSessions, data.sessionId)
       )
     }
   })

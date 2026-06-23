@@ -1,7 +1,7 @@
 ﻿import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export const SettingsLoadingSpinner = memo(() => {
+const SettingsLoadingSpinner = memo(() => {
   const { t } = useTranslation()
   return (
     <div className="z-overlay fixed inset-0 flex items-center justify-center bg-zinc-950">
@@ -14,3 +14,5 @@ export const SettingsLoadingSpinner = memo(() => {
     </div>
   )
 })
+
+export default SettingsLoadingSpinner

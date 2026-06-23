@@ -18,9 +18,9 @@ interface ModelListItem {
   id: string
 }
 
-const isValidChatContentItem = (item: unknown): item is ChatContentItem => {
-  if (!item || typeof item !== 'object') return false
-  const i = item as Record<string, unknown>
+const isValidChatContentItem = (content: unknown): content is ChatContentItem => {
+  if (!content || typeof content !== 'object') return false
+  const i = content as Record<string, unknown>
   if (i.type === 'text') {
     return typeof i.text === 'string'
   }

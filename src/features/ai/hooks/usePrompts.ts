@@ -1,11 +1,11 @@
-﻿import { DEFAULT_PROMPTS, type IPrompt } from '@shared/constants/prompts'
+﻿import { DEFAULT_PROMPTS, type Prompt as BasePrompt } from '@shared/constants/prompts'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useLocalStorage, useLocalStorageString } from '@shared/hooks/useLocalStorage'
 import { useLanguage } from '@shared/stores/languageStore'
 
 import { useCallback, useMemo } from 'react'
 
-interface Prompt extends IPrompt {
+interface Prompt extends BasePrompt {
   isDefault?: boolean
 }
 
@@ -25,7 +25,7 @@ interface UsePromptsReturn {
  */
 export function usePrompts(): UsePromptsReturn {
   const language = useLanguage((s) => s.language)
-  const [customPrompts, setCustomPrompts] = useLocalStorage<IPrompt[]>(
+  const [customPrompts, setCustomPrompts] = useLocalStorage<BasePrompt[]>(
     STORAGE_KEYS.CUSTOM_PROMPTS,
     []
   )
@@ -50,7 +50,7 @@ export function usePrompts(): UsePromptsReturn {
 
   const addPrompt = useCallback(
     (text: string) => {
-      const newPrompt: IPrompt = {
+      const newPrompt: BasePrompt = {
         id: `custom_${Date.now()}`,
         text: text.trim()
       }

@@ -6,7 +6,7 @@ import {
 
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
 
-import { type UpdateInfo } from '@app/providers'
+import type { UpdateInfo } from '@app/providers'
 
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'

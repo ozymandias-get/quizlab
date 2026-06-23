@@ -101,9 +101,9 @@ export function useDraftSendOrchestration({
         const result = await executeDraftSend(items, options)
 
         if (result.success) {
-          for (const item of items) {
-            if (item.type === 'image' && item.blobUrl) {
-              URL.revokeObjectURL(item.blobUrl)
+          for (const draft of items) {
+            if (draft.type === 'image' && draft.blobUrl) {
+              URL.revokeObjectURL(draft.blobUrl)
             }
           }
           setPendingAiItems(() => [])

@@ -37,10 +37,10 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         whileTap={!disabled ? { scale: 0.95 } : {}}
         className={cn(
           className,
-          'inline-flex shrink-0 items-center justify-center rounded-2xl border text-sm font-medium whitespace-nowrap transition-all outline-none select-none',
+          'inline-flex shrink-0 items-center justify-center rounded-full border text-sm font-medium whitespace-nowrap transition-all outline-none select-none',
           'focus-visible:border-ring focus-visible:ring-ring/30 focus-visible:ring-3',
           'disabled:pointer-events-none disabled:opacity-35',
-          'glass-tier-3 glass-tier-toolbar glass-interactive h-8 min-h-11 w-8 min-w-11 border-white/[0.08] text-white/55 shadow-none',
+          'glass-tier-3 glass-interactive h-8 min-h-8 w-8 min-w-8 border-white/[0.08] text-white/55 shadow-none',
           isActive
             ? activeClassName ||
                 'border-white/[0.16] bg-[linear-gradient(145deg,rgba(255,255,255,0.12),rgba(255,255,255,0.05))] text-white shadow-[0_14px_28px_-20px_rgba(0,0,0,0.72)]'

@@ -32,8 +32,8 @@ export function useCreateSessionMutation() {
       persistSessions(updated)
       return { session: newSession, allSessions: updated }
     },
-    onSuccess: (result) => {
-      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, result.allSessions)
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, data.allSessions)
     }
   })
 }
@@ -48,8 +48,8 @@ export function useDeleteSessionMutation() {
       persistSessions(updated)
       return { deletedId: sessionId, allSessions: updated }
     },
-    onSuccess: (result) => {
-      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, result.allSessions)
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, data.allSessions)
     }
   })
 }

@@ -1,6 +1,7 @@
-import { getPendingLogEntries, getLogBufferLength } from '../../src/shared/lib/logger'
 import fs from 'fs'
 import path from 'path'
+
+import { getLogBufferLength, getPendingLogEntries } from '../../src/shared/lib/logger'
 
 let diskLogPath: string | null = null
 let lastFlushedIndex = 0

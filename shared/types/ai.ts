@@ -2,8 +2,8 @@
  * AI Platform & Registry Types
  */
 
-import type { SubmitMode } from './automation'
 import type { IpcResult } from '../lib/typedIpc'
+import type { SubmitMode } from './automation'
 
 export type AiPlatformMeta = {
   displayName?: string
@@ -65,5 +65,3 @@ export type ClearAiModelDataInput = {
   id: string
   partition?: string
 }
-
-

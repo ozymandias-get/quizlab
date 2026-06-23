@@ -86,7 +86,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
 
-import { AppToolProvider, useAppTools } from '@app/providers/AppToolContext'
+import AppToolProvider, { useAppTools } from '@app/providers/AppToolContext'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'

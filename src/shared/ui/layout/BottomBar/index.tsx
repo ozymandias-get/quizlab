@@ -12,14 +12,12 @@ import {
 } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
-import { FloatingDockInner } from './FloatingDockInner'
+import FloatingDockInner from './FloatingDockInner'
 import SettingsModalPortal from './SettingsModalPortal'
 import type { BottomBarProps } from './types'
 import { useBottomBarStyles } from './useBottomBarStyles'
 
-const SparklesCore = lazy(() =>
-  import('@app/components/ui/sparkles').then((m) => ({ default: m.SparklesCore }))
-)
+const SparklesCore = lazy(() => import('@app/components/ui/sparkles'))
 
 /**
  * Hoisted JSX for the resize handlebar visual cue (vertical line + grab dots).
@@ -78,11 +76,11 @@ function BottomBar({
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
 
-    const handler = (e: MediaQueryListEvent) => {
+    const handleMediaQuery = (e: MediaQueryListEvent) => {
       setPrefersReducedMotion(e.matches)
     }
-    mediaQuery.addEventListener('change', handler)
-    return () => mediaQuery.removeEventListener('change', handler)
+    mediaQuery.addEventListener('change', handleMediaQuery)
+    return () => mediaQuery.removeEventListener('change', handleMediaQuery)
   }, [])
 
   const { shellStyle, stackStyle } = useBottomBarStyles(bottomBarOpacity, bottomBarScale)

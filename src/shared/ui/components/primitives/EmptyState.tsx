@@ -1,6 +1,6 @@
 import { cn } from '@shared/lib/uiUtils'
 
-import { type ElementType, type ReactNode } from 'react'
+import type { ElementType, ReactNode } from 'react'
 
 interface EmptyStateProps {
   icon?: ElementType

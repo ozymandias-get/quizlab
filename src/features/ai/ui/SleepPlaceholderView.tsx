@@ -33,3 +33,5 @@ function SleepPlaceholderViewImpl({ onWakeUp, t }: SleepPlaceholderViewProps) {
 
 export const SleepPlaceholderView = memo(SleepPlaceholderViewImpl)
 SleepPlaceholderView.displayName = 'SleepPlaceholderView'
+
+export default SleepPlaceholderView

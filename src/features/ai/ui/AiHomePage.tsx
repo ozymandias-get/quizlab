@@ -5,7 +5,7 @@ import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useAiHomeState } from '../hooks/useAiHomeState'
-import { AiHomeCardGrid, EmptySitesState } from './home/AiHomeCards'
+import AiHomeCardGrid, { EmptySitesState } from './home/AiHomeCards'
 import AiHomeHero from './home/AiHomeHero'
 import AiHomeSection from './home/AiHomeSection'
 

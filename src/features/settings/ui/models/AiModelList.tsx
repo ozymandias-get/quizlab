@@ -25,7 +25,7 @@ interface AiModelListProps {
   t: (key: string) => string
 }
 
-export const AiModelList = memo(function AiModelList({
+const AiModelList = memo(function AiModelList({
   modelsList,
   enabledModels,
   aiSites,
@@ -205,3 +205,5 @@ export const AiModelList = memo(function AiModelList({
     </div>
   )
 })
+
+export default AiModelList

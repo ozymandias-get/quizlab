@@ -20,7 +20,7 @@ interface SelectorCardProps {
   selectors: Record<string, AiSelectorConfig>
   tabs: Array<{ modelId: string }>
   currentAI: string | null
-  webviewPresent: boolean
+  hasWebview: boolean
   isSaving: boolean
   isDeleting: boolean
   isTesting: boolean
@@ -44,7 +44,7 @@ export default memo(function SelectorCard({
   selectors,
   tabs,
   currentAI,
-  webviewPresent,
+  hasWebview,
   isSaving,
   isDeleting,
   isTesting,
@@ -67,7 +67,7 @@ export default memo(function SelectorCard({
     selectorConfig?.canonicalHostname ||
     null
   const submitMode = normalizeSubmitMode(selectorConfig?.submitMode) || 'mixed'
-  const canTestOnCurrentTab = Boolean(hasSelectors && webviewPresent && currentAI === key)
+  const canTestOnCurrentTab = Boolean(hasSelectors && hasWebview && currentAI === key)
   const existingTab = tabs.some((tab) => tab.modelId === key)
 
   return (

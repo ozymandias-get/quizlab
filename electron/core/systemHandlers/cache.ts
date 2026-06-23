@@ -5,7 +5,7 @@ import path from 'path'
 import { APP_CONFIG } from '../../app/constants'
 import { getMainWindow } from '../../app/windowManager'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager'
-import { type getCacheInfo } from '../cacheCleanup'
+import type { getCacheInfo } from '../cacheCleanup'
 import { Logger } from '../logger'
 
 const SAFE_CACHE_DIRS = APP_CONFIG.CLEANUP.SAFE_CACHE_DIRS

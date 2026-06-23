@@ -2,7 +2,7 @@ import { Globe } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export const EmptySitesState = memo(function EmptySitesState() {
+const EmptySitesState = memo(function EmptySitesState() {
   const { t } = useTranslation()
 
   return (
@@ -17,3 +17,5 @@ export const EmptySitesState = memo(function EmptySitesState() {
     </div>
   )
 })
+
+export default EmptySitesState

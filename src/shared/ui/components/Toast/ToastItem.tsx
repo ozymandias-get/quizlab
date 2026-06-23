@@ -1,4 +1,4 @@
-import { type Toast } from '@app/providers'
+import type { Toast } from '@app/providers'
 import { cn } from '@shared/lib/uiUtils'
 
 import { AlertTriangle, Check, Info, X, XCircle } from 'lucide-react'

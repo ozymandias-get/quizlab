@@ -24,7 +24,7 @@ vi.mock('electron', () => ({
   }
 }))
 
-vi.mock('../../../core/helpers', () => ({
+vi.mock('../../../core/coreHelpers', () => ({
   getAiConfigPath: vi.fn(() => '/tmp/quizlab-test/ai_custom_selectors.json')
 }))
 

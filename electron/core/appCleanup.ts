@@ -7,6 +7,8 @@
  * shared mechanism without creating circular dependencies.
  */
 
+import { Logger } from './logger'
+
 let cleanupFn: (() => Promise<void>) | null = null
 let cleanupPromise: Promise<void> | null = null
 let cleanupComplete = false
@@ -34,7 +36,7 @@ export async function runCleanup(): Promise<void> {
 
   cleanupPromise = cleanupFn()
     .catch((error: unknown) => {
-      console.error('[AppCleanup] Cleanup failed:', error)
+      Logger.error('[AppCleanup] Cleanup failed:', error)
     })
     .finally(() => {
       cleanupComplete = true

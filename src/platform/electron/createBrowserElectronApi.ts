@@ -162,9 +162,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       return toMapRecord(aiConfigs)
     },
     deleteAiConfig: async (hostname) => aiConfigs.delete(hostname),
-    addCustomAi: async (data: CustomAiInput): Promise<CustomAiResult> => {
-      const name = data?.name?.trim()
-      const url = data?.url?.trim()
+    addCustomAi: async (input: CustomAiInput): Promise<CustomAiResult> => {
+      const name = input?.name?.trim()
+      const url = input?.url?.trim()
       const parsedUrl = url ? parseUrlWithAllowedProtocols(url, ['http:', 'https:']) : null
       if (!name || !parsedUrl) {
         return { ok: false, error: { code: 'invalid_input', message: 'invalid_input' } }
@@ -176,7 +176,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         name,
         displayName: name,
         url: parsedUrl.toString(),
-        isSite: data.isSite ?? true,
+        isSite: input.isSite ?? true,
         isCustom: true,
         submitMode: 'enter_key'
       }

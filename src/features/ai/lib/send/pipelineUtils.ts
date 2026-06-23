@@ -21,7 +21,7 @@ export interface PipelineStepParams {
   generateScript: () => Promise<string | null>
   onTiming: (ms: number) => void
   onExecuteTiming: (ms: number) => void
-  onResult: (result: AutomationExecutionResult | null) => void
+  onResult: (executionResult: AutomationExecutionResult | null) => void
 }
 
 type PipelineStepResult<TFail> =

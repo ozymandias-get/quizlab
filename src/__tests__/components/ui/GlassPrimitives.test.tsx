@@ -25,7 +25,7 @@ describe('glass primitives', () => {
     expect(screen.getByTestId('list-card')).toHaveClass('rounded-lg', 'border', 'bg-card')
     expect(screen.getByTitle('toolbar action')).toHaveClass(
       'glass-tier-3',
-      'glass-tier-toolbar',
+      'rounded-full',
       'glass-interactive'
     )
   })

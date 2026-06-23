@@ -7,7 +7,7 @@ interface DragOverlayProps {
   onDrop: (e: React.DragEvent) => void
 }
 
-export const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: DragOverlayProps) {
+const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: DragOverlayProps) {
   const { t } = useTranslation()
 
   return (
@@ -35,3 +35,5 @@ export const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: Dr
     </div>
   )
 })
+
+export default DragOverlay

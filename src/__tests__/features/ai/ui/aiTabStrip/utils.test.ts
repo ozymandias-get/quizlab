@@ -1,4 +1,4 @@
-import { clamp, getVisibleTabIds } from '@features/ai/ui/aiTabStrip/utils'
+import { clamp, getVisibleTabIds } from '@features/ai/ui/aiTabStrip/aiTabStripUtils'
 
 import type { Tab } from '@app/providers/AiContext'
 import { isValidHexColor } from '@shared/lib/uiUtils'

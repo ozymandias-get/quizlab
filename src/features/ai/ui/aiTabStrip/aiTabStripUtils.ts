@@ -9,7 +9,7 @@ export const clamp = (value: number, min: number, max: number) =>
  * tab is shown together with its immediate neighbors (or the first/last 3
  * when the active tab is at either end).
  */
-export const getVisibleTabIds = (tabs: Tab[] = [], activeTabId: string): Set<string> => {
+export function getVisibleTabIds(tabs: Tab[] = [], activeTabId: string): Set<string> {
   if (tabs.length <= 3) {
     return new Set(tabs.map((tab) => tab.id))
   }

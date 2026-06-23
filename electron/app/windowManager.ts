@@ -1,4 +1,4 @@
-import { type BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 
 import { APP_CONFIG } from './constants'
 import {

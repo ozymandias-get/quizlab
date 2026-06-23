@@ -23,8 +23,8 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const language = i18n.language
   const prefersReducedMotion = useReducedMotion()
 
-  const [storedExpanded, setStoredExpanded] = useLocalStorage<boolean>(EXPANDED_PREF_KEY, true)
-  const [isExpanded, setIsExpanded] = useState(storedExpanded)
+  const [isStoredExpanded, setStoredExpanded] = useLocalStorage<boolean>(EXPANDED_PREF_KEY, true)
+  const [isExpanded, setIsExpanded] = useState(isStoredExpanded)
   const effectiveAutoSend = !isExpanded
   const [sendFeedback, setSendFeedback] = useState<SendFeedback>('idle')
   const [lastError, setLastError] = useState<string | null>(null)
@@ -76,8 +76,8 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const { textCount, imageCount } = useMemo(() => {
     let text = 0
     let image = 0
-    for (const item of items) {
-      if (item.type === 'text') text += 1
+    for (const draft of items) {
+      if (draft.type === 'text') text += 1
       else image += 1
     }
     return { textCount: text, imageCount: image }

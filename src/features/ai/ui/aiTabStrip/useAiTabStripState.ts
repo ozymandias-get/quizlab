@@ -12,8 +12,8 @@ import {
   useState
 } from 'react'
 
+import { clamp, getVisibleTabIds } from './aiTabStripUtils'
 import type { ContextMenuState } from './types'
-import { clamp, getVisibleTabIds } from './utils'
 
 interface UseAiTabStripStateParams {
   tabs: Tab[]

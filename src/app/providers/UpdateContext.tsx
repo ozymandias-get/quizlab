@@ -25,7 +25,7 @@ interface UpdateContextType {
 const UPDATE_CHECK_DELAY = 5000
 const UpdateContext = createContext<UpdateContextType | null>(null)
 
-export function UpdateProvider({ children }: { children: ReactNode }) {
+function UpdateProvider({ children }: { children: ReactNode }) {
   const [isEnabled, setIsEnabled] = useState(false)
 
   useEffect(() => {
@@ -56,6 +56,8 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
 
   return <UpdateContext.Provider value={value}>{children}</UpdateContext.Provider>
 }
+
+export default UpdateProvider
 
 export function useUpdate(): UpdateContextType {
   const context = useContext(UpdateContext)

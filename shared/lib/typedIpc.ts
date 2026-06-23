@@ -13,8 +13,8 @@ export type IpcError = {
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: IpcError }
 
-export function success<T>(data: T): IpcResult<T> {
-  return { ok: true, data }
+export function success<T>(payload: T): IpcResult<T> {
+  return { ok: true, data: payload }
 }
 
 export function failure(

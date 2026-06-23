@@ -1,6 +1,6 @@
 import type { AiPlatform } from '@shared-core/types'
 
-import { AiModelList } from '@features/settings/ui/models/AiModelList'
+import AiModelList from '@features/settings/ui/models/AiModelList'
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ComponentProps, ReactNode } from 'react'

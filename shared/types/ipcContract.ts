@@ -21,7 +21,7 @@ import type {
 } from '@shared-core/types'
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
-import { type IPC_CHANNELS } from '../constants/ipc-channels'
+import type { IPC_CHANNELS } from '../constants/ipc-channels'
 import type { IpcResult } from '../lib/typedIpc'
 
 /**

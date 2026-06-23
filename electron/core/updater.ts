@@ -1,10 +1,10 @@
 import { app, net, shell } from 'electron'
 
 import { failure, success } from '../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../app/constants'
 import { requireTrustedIpcSender } from './ipcSecurity'
 import { Logger } from './logger'
+import { registerIpcHandler } from './typedIpcMain'
 
 type LatestRelease = {
   version: string

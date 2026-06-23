@@ -1,4 +1,4 @@
-import { cn } from '@app/lib/utils'
+import { cn } from '@app/lib/appUtils'
 
 import type { ISourceOptions } from '@tsparticles/engine'
 import { type Container, tsParticles } from '@tsparticles/engine'
@@ -19,7 +19,7 @@ type ParticlesProps = {
   particleColor?: string
   particleDensity?: number
 }
-export const SparklesCore = (props: ParticlesProps) => {
+const SparklesCore = (props: ParticlesProps) => {
   const { id, className, background, minSize, maxSize, speed, particleColor, particleDensity } =
     props
   const [init, setInit] = useState(false)
@@ -432,3 +432,5 @@ export const SparklesCore = (props: ParticlesProps) => {
     </motion.div>
   )
 }
+
+export default SparklesCore

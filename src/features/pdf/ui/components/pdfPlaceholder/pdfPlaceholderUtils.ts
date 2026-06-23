@@ -2,7 +2,7 @@ import type { RecentItemGroup, RecentItemView, SortMode } from './types'
 
 const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000
 
-export const formatRelativeTime = (timestamp: number, language: string): string => {
+export function formatRelativeTime(timestamp: number, language: string): string {
   const locale = language === 'en' ? 'en-US' : 'tr-TR'
   const diffMs = timestamp - Date.now()
   const absMs = Math.abs(diffMs)
@@ -17,18 +17,18 @@ export const formatRelativeTime = (timestamp: number, language: string): string 
   return rtf.format(Math.round(diffMs / WEEK_IN_MS), 'week')
 }
 
-export const getProgressRatio = (page: number, totalPages: number): number => {
+export function getProgressRatio(page: number, totalPages: number): number {
   if (!totalPages || totalPages <= 0) return 0.08
   const ratio = page / totalPages
   return Math.max(0.08, Math.min(ratio, 1))
 }
 
-export const processRecentItems = (
+export function processRecentItems(
   recentItems: RecentItemView[],
   searchQuery: string,
   sortMode: SortMode,
   language: string
-) => {
+) {
   const query = searchQuery.trim().toLowerCase()
   const filtered =
     query.length > 0
@@ -47,7 +47,7 @@ export const processRecentItems = (
   })
 }
 
-export const groupRecentItems = (processedItems: RecentItemView[]): RecentItemGroup[] => {
+export function groupRecentItems(processedItems: RecentItemView[]): RecentItemGroup[] {
   const hasTimestamp = processedItems.some(
     (item) => typeof item.lastOpenedAt === 'number' && item.lastOpenedAt > 0
   )

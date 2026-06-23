@@ -44,4 +44,4 @@ export const EMPTY_DOM_SNAPSHOT: DomProbeSnapshot = {
   hasComposer: false,
   hasChallengeText: false,
   hasSignInText: false
-}
+} as const

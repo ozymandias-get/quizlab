@@ -67,7 +67,7 @@ type PdfTabStore = PdfTabState & PdfTabActions
 /**
  * Resets the PDF tab store to its initial empty state. Test-only helper.
  */
-export const resetPdfTabStore = (): void => {
+export function resetPdfTabStore(): void {
   usePdfTabStore.setState({ pdfTabs: [], activePdfTabId: '' })
 }
 
@@ -104,8 +104,8 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         return existingTab
       }
 
-      const identityUnchanged = isSamePdfStream(existingTab.file, normalizedFile)
-      const nextViewerSessionKey = identityUnchanged
+      const isIdentityUnchanged = isSamePdfStream(existingTab.file, normalizedFile)
+      const nextViewerSessionKey = isIdentityUnchanged
         ? (existingTab.viewerSessionKey ?? createViewerSessionKey())
         : createViewerSessionKey()
 
@@ -153,7 +153,7 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
 
   setActivePdfTab: (tabId) => {
     if (get().activePdfTabId === tabId) return
-    if (!get().pdfTabs.some((item) => item.id === tabId)) return
+    if (!get().pdfTabs.some((tab) => tab.id === tabId)) return
     set({ activePdfTabId: tabId })
   },
 
@@ -246,7 +246,7 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
  * Backwards-compatible hook that returns the PDF tab state with derived
  * `activeTab` and `pdfFile` values, matching the previous useState-based API.
  */
-export const usePdfTabState = () => {
+export function usePdfTabState() {
   // Use a single subscription for state values (which change), and individual
   // subscriptions for stable action references. This minimizes re-renders.
   const { pdfTabs, activePdfTabId } = usePdfTabStore(
@@ -272,17 +272,32 @@ export const usePdfTabState = () => {
     return activeTab?.kind === 'drive' ? null : activeTab?.file || null
   }, [activeTab])
 
-  return {
-    pdfTabs,
-    activePdfTabId,
-    activePdfTab: activeTab,
-    pdfFile,
-    setActivePdfTab,
-    openPdfInTab,
-    closePdfTab,
-    addEmptyPdfTab,
-    goToPdfHome,
-    openGoogleDriveTab,
-    renamePdfTab
-  }
+  return useMemo(
+    () => ({
+      pdfTabs,
+      activePdfTabId,
+      activePdfTab: activeTab,
+      pdfFile,
+      setActivePdfTab,
+      openPdfInTab,
+      closePdfTab,
+      addEmptyPdfTab,
+      goToPdfHome,
+      openGoogleDriveTab,
+      renamePdfTab
+    }),
+    [
+      pdfTabs,
+      activePdfTabId,
+      activeTab,
+      pdfFile,
+      setActivePdfTab,
+      openPdfInTab,
+      closePdfTab,
+      addEmptyPdfTab,
+      goToPdfHome,
+      openGoogleDriveTab,
+      renamePdfTab
+    ]
+  )
 }

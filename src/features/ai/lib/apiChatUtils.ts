@@ -7,7 +7,7 @@ export const VISION_MODEL_PATTERNS = [
   /gemini-1\.5-pro/i,
   /gemini-2/i,
   /gemini-1\.5-flash/i
-]
+] as const
 
 export function isVisionCapable(modelId: string): boolean {
   return VISION_MODEL_PATTERNS.some((re) => re.test(modelId))

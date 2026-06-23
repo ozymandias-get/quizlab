@@ -44,4 +44,4 @@ export const APP_CONFIG = {
   },
   IPC_CHANNELS,
   SCREENSHOT_TYPES
-}
+} as const

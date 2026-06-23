@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback } from '@app/components/ui/avatar'
 import { Bot, User } from 'lucide-react'
 import { memo } from 'react'
 
-import { formatTime } from './utils'
+import { formatTime } from './chatUtils'
 
 export const AiAvatar = memo(function AiAvatar() {
   return (
@@ -39,3 +39,5 @@ export const Timestamp = memo(function Timestamp({ ts }: { ts: number }) {
     </span>
   )
 })
+
+export default AiAvatar

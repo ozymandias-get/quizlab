@@ -1,11 +1,11 @@
-import { cn } from '@app/lib/utils'
+import { cn } from '@app/lib/appUtils'
 
 interface AuroraBackgroundProps {
   className?: string
   showRadialGradient?: boolean
 }
 
-export function AuroraBackground({ className, showRadialGradient = true }: AuroraBackgroundProps) {
+function AuroraBackground({ className, showRadialGradient = true }: AuroraBackgroundProps) {
   return (
     <div
       className={cn('pointer-events-none absolute inset-0 overflow-hidden', className)}
@@ -35,3 +35,5 @@ export function AuroraBackground({ className, showRadialGradient = true }: Auror
     </div>
   )
 }
+
+export default AuroraBackground

@@ -43,7 +43,7 @@ import {
   AiWebviewPresenceContext
 } from './contexts'
 
-export function AiProvider({ children }: { children: ReactNode }) {
+function AiProvider({ children }: { children: ReactNode }) {
   const { showSuccess, showWarning } = useToastActions()
   const { data: registryData, isLoading, isError } = useAiRegistry()
   const { data: geminiWebStatus } = useGeminiWebStatus()
@@ -313,3 +313,5 @@ export function AiProvider({ children }: { children: ReactNode }) {
     </AiSitesContext.Provider>
   )
 }
+
+export default AiProvider

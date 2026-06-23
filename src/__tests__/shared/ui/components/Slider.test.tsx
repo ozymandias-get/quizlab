@@ -1,7 +1,7 @@
 /**
  * Tests for src/shared/ui/components/Slider.tsx
  */
-import { Slider } from '@shared/ui/components/Slider'
+import Slider from '@shared/ui/components/Slider'
 
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'

@@ -144,7 +144,7 @@ app.on('before-quit', (event) => {
   })
 })
 
-const handleSeriousError = (type: string, error: unknown) => {
+function handleSeriousError(type: string, error: unknown) {
   Logger.error(type, error)
 
   // Flush logs to disk before showing error dialog

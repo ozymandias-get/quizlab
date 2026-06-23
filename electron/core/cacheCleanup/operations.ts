@@ -11,7 +11,7 @@ import {
   deleteDirectoryContents,
   formatBytes,
   safeDeleteFile
-} from './helpers'
+} from './cacheCleanupHelpers'
 import type { CleanupResult } from './types'
 
 const {

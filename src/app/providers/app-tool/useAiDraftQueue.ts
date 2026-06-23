@@ -9,15 +9,15 @@ export type QueuedImageMeta = Partial<Pick<AiDraftImageItem, 'page' | 'captureKi
 
 const MAX_QUEUE_SIZE = 20
 
-function revokeDraftItemBlob(item: AiDraftItem) {
-  if (item.type === 'image' && item.blobUrl) {
-    URL.revokeObjectURL(item.blobUrl)
+function revokeDraftItemBlob(draft: AiDraftItem) {
+  if (draft.type === 'image' && draft.blobUrl) {
+    URL.revokeObjectURL(draft.blobUrl)
   }
 }
 
 function revokeDraftBlobUrls(items: AiDraftItem[]) {
-  for (const item of items) {
-    revokeDraftItemBlob(item)
+  for (const draft of items) {
+    revokeDraftItemBlob(draft)
   }
 }
 
@@ -39,13 +39,13 @@ export function useAiDraftQueue() {
       return
     }
 
-    const item: AiDraftItem = {
+    const draft: AiDraftItem = {
       id: buildPendingId('text'),
       type: 'text',
       text: normalized
     }
 
-    setPendingAiItems((current) => [...current, item])
+    setPendingAiItems((current) => [...current, draft])
   }, [])
 
   const queueImageForAi = useCallback((imageUri: string, imageMeta?: QueuedImageMeta) => {
@@ -101,9 +101,9 @@ export function useAiDraftQueue() {
 
   const removePendingAiItem = useCallback((id: string) => {
     setPendingAiItems((current) => {
-      const removed = current.find((item) => item.id === id)
+      const removed = current.find((draft) => draft.id === id)
       if (removed) revokeDraftItemBlob(removed)
-      return current.filter((item) => item.id !== id)
+      return current.filter((draft) => draft.id !== id)
     })
   }, [])
 

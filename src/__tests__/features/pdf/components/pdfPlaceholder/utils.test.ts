@@ -4,7 +4,7 @@ import {
   getProgressRatio,
   groupRecentItems,
   processRecentItems
-} from '@features/pdf/ui/components/pdfPlaceholder/utils'
+} from '@features/pdf/ui/components/pdfPlaceholder/pdfPlaceholderUtils'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

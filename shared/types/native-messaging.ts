@@ -16,5 +16,3 @@ export interface ChromeExtensionCookie {
   sameSite?: 'strict' | 'lax' | 'no_restriction' | 'unspecified'
   expires?: number
 }
-
-

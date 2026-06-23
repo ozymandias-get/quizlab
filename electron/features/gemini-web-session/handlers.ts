@@ -7,11 +7,11 @@ import {
   type GoogleWebSessionAppId
 } from '../../../shared/constants/google-ai-web-apps'
 import { failure, success } from '../../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../../app/constants'
 import { toStrictBoolean } from '../../core/ipcPayloadGuards'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { Logger } from '../../core/logger'
+import { registerIpcHandler } from '../../core/typedIpcMain'
 import { geminiWebSessionManager } from './sessionManager'
 
 let handlersRegistered = false
@@ -107,9 +107,9 @@ export function registerGeminiWebSessionHandlers(): void {
       if (!Array.isArray(enabledAppIds)) return success({ success: false, error: 'Unauthorized' })
       const valid: GoogleWebSessionAppId[] = []
       const validSet = new Set<string>(GOOGLE_WEB_SESSION_APPS.map((a) => a.id))
-      for (const item of enabledAppIds) {
-        if (typeof item === 'string' && validSet.has(item)) {
-          valid.push(item as GoogleWebSessionAppId)
+      for (const appId of enabledAppIds) {
+        if (typeof appId === 'string' && validSet.has(appId)) {
+          valid.push(appId as GoogleWebSessionAppId)
         }
       }
 

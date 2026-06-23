@@ -19,12 +19,12 @@ interface UsePdfOpenActionsProps {
   recentReadingInfoRef: { current: LastReadingInfo[] }
 }
 
-export const usePdfOpenActions = ({
+export function usePdfOpenActions({
   openPdfInTab,
   upsertLastReadingInfo,
   flushPendingReadingProgress,
   recentReadingInfoRef
-}: UsePdfOpenActionsProps) => {
+}: UsePdfOpenActionsProps) {
   const { showError, showSuccess } = useToastActions()
   const { t } = useTranslation()
 
@@ -94,7 +94,7 @@ export const usePdfOpenActions = ({
     async (path?: string): Promise<ResumePdfResult> => {
       flushPendingReadingProgress()
       const history = recentReadingInfoRef.current
-      const target = path ? history.find((item) => item.path === path) : history[0]
+      const target = path ? history.find((entry) => entry.path === path) : history[0]
 
       if (!target) {
         return 'missing'

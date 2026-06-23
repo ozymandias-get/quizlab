@@ -74,7 +74,8 @@ vi.mock('@ui/components/Icons', () => ({
 }))
 
 vi.mock('@app/components/ui/sparkles', () => ({
-  SparklesCore: () => <div data-testid="sparkles-core" />
+  SparklesCore: () => <div data-testid="sparkles-core" />,
+  default: () => <div data-testid="sparkles-core" />
 }))
 
 vi.mock('motion/react', () => {

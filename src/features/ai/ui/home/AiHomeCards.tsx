@@ -8,9 +8,9 @@ import { type DragEvent, memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { AiSiteMap, SectionTone } from '../../model/home'
-import { GridCard } from './aiHomeCards/GridCard'
+import GridCard from './aiHomeCards/GridCard'
 
-export { EmptySitesState } from './aiHomeCards/EmptySitesState'
+export { default as EmptySitesState } from './aiHomeCards/EmptySitesState'
 
 interface AiHomeCardGridProps {
   activeModelIds: Set<string>
@@ -22,7 +22,7 @@ interface AiHomeCardGridProps {
   tone: SectionTone
 }
 
-export const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
+const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
   activeModelIds,
   aiSites,
   cardColumns,
@@ -113,3 +113,5 @@ export const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid(
     </div>
   )
 })
+
+export default AiHomeCardGrid

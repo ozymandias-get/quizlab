@@ -1,6 +1,6 @@
 import { memo } from 'react'
 
-export const StreamingIndicator = memo(function StreamingIndicator() {
+const StreamingIndicator = memo(function StreamingIndicator() {
   return (
     <div className="flex justify-start">
       <div className="relative rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/[0.06] to-amber-500/[0.02] px-4 py-3 shadow-sm shadow-amber-500/5 backdrop-blur-md">
@@ -22,3 +22,5 @@ export const StreamingIndicator = memo(function StreamingIndicator() {
     </div>
   )
 })
+
+export default StreamingIndicator

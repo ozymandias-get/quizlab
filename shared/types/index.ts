@@ -6,6 +6,7 @@
  * Import from '@shared-core/types' as before — this barrel re-exports everything.
  */
 
+export type { IpcError, IpcErrorCode, IpcResult } from '../lib/typedIpc'
 export type {
   AiPlatform,
   AiPlatformMeta,
@@ -40,7 +41,6 @@ export type {
   HealthCheckResult,
   SessionActionLike
 } from './gemini-web'
-export type { IpcError, IpcErrorCode, IpcResult } from '../lib/typedIpc'
 export type {
   CacheInfoResponse,
   ElectronApi,

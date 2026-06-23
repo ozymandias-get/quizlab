@@ -1,12 +1,12 @@
 import { ipcRenderer } from 'electron'
 
+import { failure, type IpcResult } from '../../shared/lib/typedIpc'
 import type {
   IpcEventChannel,
   IpcEventMap,
   IpcInvokeChannel,
   IpcInvokeRequestMap
 } from '../../shared/types/ipcContract'
-import { failure, type IpcResult } from '../../shared/lib/typedIpc'
 
 const MAX_IPC_ARG_SIZE = 1024 * 512
 
@@ -57,9 +57,9 @@ export function onEvent<C extends IpcEventChannel>(
   channel: C,
   callback: (...args: IpcEventMap[C]['args']) => void
 ): () => void {
-  const handler = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => {
+  const handleIpcInvoke = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => {
     callback(...(args as IpcEventMap[C]['args']))
   }
-  ipcRenderer.on(channel, handler)
-  return () => ipcRenderer.removeListener(channel, handler)
+  ipcRenderer.on(channel, handleIpcInvoke)
+  return () => ipcRenderer.removeListener(channel, handleIpcInvoke)
 }

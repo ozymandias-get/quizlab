@@ -91,8 +91,8 @@ export function useCaptureScreen() {
     { x: number; y: number; width: number; height: number } | undefined
   >((api, rect) => api.captureScreen(rect), {
     errorMessage: t('toast_capture_failed'),
-    onSuccess: (result) => {
-      if (result) {
+    onSuccess: (data) => {
+      if (data) {
         showSuccess(t('toast_screenshot_captured'), t('toast_system_title'))
       }
     }

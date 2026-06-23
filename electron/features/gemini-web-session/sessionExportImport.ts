@@ -179,10 +179,12 @@ export class SessionExportImport {
     }
   }
 
-  private async applyImportedData(data: SessionExportDataV1): Promise<SessionImportResult> {
+  private async applyImportedData(importData: SessionExportDataV1): Promise<SessionImportResult> {
     try {
-      if (data.storageState) {
-        await this.snapshotRepository?.writeStorageStateSnapshot(data.storageState).catch(() => {})
+      if (importData.storageState) {
+        await this.snapshotRepository
+          ?.writeStorageStateSnapshot(importData.storageState)
+          .catch(() => {})
       }
 
       const probe = await this.probeRunner.runProbeAcrossApps({
@@ -203,7 +205,7 @@ export class SessionExportImport {
             enabled: true,
             enabledAppIds: currentMetadata.enabledAppIds
           },
-          data.accountHash
+          importData.accountHash
         )
         return { success: true, status }
       }

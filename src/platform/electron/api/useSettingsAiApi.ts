@@ -55,20 +55,23 @@ export function useAddCustomAi() {
   const { showSuccess, showError } = useToastActions()
   const { t } = useTranslation()
 
-  return useElectronMutation<CustomAiResult, CustomAiInput>((api, data) => api.addCustomAi(data), {
-    errorMessage: t('toast_custom_ai_failed'),
-    onSuccess: (result) => {
-      if (result.ok) {
-        queryClient.invalidateQueries({ queryKey: AI_REGISTRY_KEY })
-        showSuccess(
-          t('toast_custom_ai_added', { name: result.data.platform?.name || 'AI' }),
-          t('toast_ai_added_title')
-        )
-      } else {
-        showError(result.error.message || t('toast_custom_ai_failed'), t('toast_ai_error_title'))
+  return useElectronMutation<CustomAiResult, CustomAiInput>(
+    (api, input) => api.addCustomAi(input),
+    {
+      errorMessage: t('toast_custom_ai_failed'),
+      onSuccess: (data) => {
+        if (data.ok) {
+          queryClient.invalidateQueries({ queryKey: AI_REGISTRY_KEY })
+          showSuccess(
+            t('toast_custom_ai_added', { name: data.data.platform?.name || 'AI' }),
+            t('toast_ai_added_title')
+          )
+        } else {
+          showError(data.error.message || t('toast_custom_ai_failed'), t('toast_ai_error_title'))
+        }
       }
     }
-  })
+  )
 }
 
 /**

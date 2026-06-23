@@ -8,7 +8,7 @@ import {
   PDF_ZOOM_STEP
 } from '@features/pdf/constants/pdfZoom'
 
-import { type SpecialZoomLevel } from '@react-pdf-viewer/core'
+import type { SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { type RefObject, useEffect, useRef } from 'react'
 
 type ZoomTo = (scale: number | SpecialZoomLevel) => void

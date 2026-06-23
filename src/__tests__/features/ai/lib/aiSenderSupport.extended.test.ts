@@ -71,10 +71,10 @@ describe('resolveAutoSend', () => {
 })
 
 describe('getCachedAiConfig', () => {
-  let cache: { key: string | null; data: any }
+  let cache: { key: string | null; cache: any }
 
   beforeEach(() => {
-    cache = { key: null, data: null }
+    cache = { key: null, cache: null }
   })
 
   it('returns base config when webview has no getURL method', async () => {
@@ -121,7 +121,7 @@ describe('getCachedAiConfig', () => {
     expect(result.regex).toBeInstanceOf(RegExp)
     // Cache should be populated
     expect(cache.key).toContain('chatgpt')
-    expect(cache.data).toBe(result)
+    expect(cache.cache).toBe(result)
   })
 
   it('returns cached entry on second call with the same key', async () => {

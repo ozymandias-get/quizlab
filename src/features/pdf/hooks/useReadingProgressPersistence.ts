@@ -57,7 +57,7 @@ const persistRecentReadingInfo = (items: LastReadingInfo[]): void => {
 const updateReadingProgress = (update: ReadingProgressUpdate): void => {
   const { path, page, totalPages, lastOpenedAt } = update
   const current = useReadingProgressStore.getState().recentReadingInfo
-  const existing = current.find((item) => item.path === path)
+  const existing = current.find((entry) => entry.path === path)
 
   if (!existing) {
     if (!path) return
@@ -115,12 +115,12 @@ const clearLastReading = (path?: string): void => {
     persistRecentReadingInfo([])
     return
   }
-  persistRecentReadingInfo(current.filter((item) => item.path !== path))
+  persistRecentReadingInfo(current.filter((entry) => entry.path !== path))
 }
 
 const restoreRecentReading = (info: LastReadingInfo, index = 0): void => {
   const current = useReadingProgressStore.getState().recentReadingInfo
-  const history = current.filter((item) => item.path !== info.path)
+  const history = current.filter((entry) => entry.path !== info.path)
   const safeIndex = Math.max(0, Math.min(index, history.length))
   const restored: LastReadingInfo = {
     ...info,

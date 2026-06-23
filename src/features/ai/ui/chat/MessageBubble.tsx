@@ -1,6 +1,6 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
-import { MessageContent } from '@features/ai/lib/parseMessageContent'
+import MessageContent from '@features/ai/lib/parseMessageContent'
 
 import { Textarea } from '@app/components/ui/textarea'
 
@@ -29,7 +29,7 @@ interface MessageBubbleProps {
   onRegenerate?: () => void
 }
 
-export const MessageBubble = memo(function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   message,
   isUser,
   onDelete,
@@ -84,7 +84,8 @@ export const MessageBubble = memo(function MessageBubble({
           <div className="relative mb-2 flex flex-wrap gap-2">
             {message.images.map((img, i) => (
               <img
-                // eslint-disable-next-line react/no-array-index-key
+                // Images have no stable id — index is safe for static attachment list
+                // eslint-disable-next-line react/no-array-index-key -- Static content parts, stable order
                 key={i}
                 src={img}
                 alt=""
@@ -190,3 +191,5 @@ export const MessageBubble = memo(function MessageBubble({
     </div>
   )
 })
+
+export default MessageBubble

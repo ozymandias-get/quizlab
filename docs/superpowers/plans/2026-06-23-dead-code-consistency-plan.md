@@ -24,35 +24,37 @@
 
 ### Files to modify:
 
-| Task | File | Change |
-|------|------|--------|
-| 1 | `shared/lib/typedIpc.ts:30-32` | Remove unused `isSuccess()` function |
-| 1 | `shared/lib/typedIpcPreload.ts:4` | Remove unused `isFailure` import (only `failure` remains) |
-| 1 | `shared/lib/typedIpcPreload.ts:61-66` | Remove unused `sendEvent()` function |
-| 2 | `electron/features/ai/apiChatHandlers/config.ts:84` | Remove `MAX_PROMPT_LENGTH` from export (keep const, it's used internally) |
-| 3 | `shared/types/ipc.ts` | Delete deprecated file (types re-exported from `typedIpc`) |
-| 3 | `shared/types/index.ts` | Remove re-exports of deleted types |
-| 4 | `electron/features/ai/apiChatHandlers/handlers.ts:22` | Wrap `loadConfig()` in `success()` |
-| 5 | 8 test files in `electron/__tests__/` | Fix Prettier formatting |
-| 6 | `shared/lib/typedIpcPreload.ts` | Fix import order |
-| 7 | `shared/lib/typedIpcMain.ts` | Remove direct `electron` import (move to `electron/core/`) |
-| 7 | `shared/lib/typedIpcPreload.ts` | Remove direct `electron` import (move to `electron/preload/`) |
-| 8 | `electron/` | Create `electron/core/typedIpcMain.ts` (Electron-aware wrapper) |
-| 8 | `electron/preload/` | Create `electron/preload/typedIpcPreload.ts` (Electron-aware wrapper) |
-| 8 | `shared/lib/typedIpcMain.ts` | Strip to pure types, delegate to Electron wrapper |
-| 8 | `shared/lib/typedIpcPreload.ts` | Strip to pure types, delegate to Electron wrapper |
-| 9 | Files importing `src/shared/lib/logger.ts` from renderer | Replace Node.js `path`/`fs` usage with renderer-safe alternatives |
-| 10 | `src/app/providers/app-tool/useElementPickerLifecycle.ts` | Break circular dependency |
+| Task | File                                                      | Change                                                                    |
+| ---- | --------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1    | `shared/lib/typedIpc.ts:30-32`                            | Remove unused `isSuccess()` function                                      |
+| 1    | `shared/lib/typedIpcPreload.ts:4`                         | Remove unused `isFailure` import (only `failure` remains)                 |
+| 1    | `shared/lib/typedIpcPreload.ts:61-66`                     | Remove unused `sendEvent()` function                                      |
+| 2    | `electron/features/ai/apiChatHandlers/config.ts:84`       | Remove `MAX_PROMPT_LENGTH` from export (keep const, it's used internally) |
+| 3    | `shared/types/ipc.ts`                                     | Delete deprecated file (types re-exported from `typedIpc`)                |
+| 3    | `shared/types/index.ts`                                   | Remove re-exports of deleted types                                        |
+| 4    | `electron/features/ai/apiChatHandlers/handlers.ts:22`     | Wrap `loadConfig()` in `success()`                                        |
+| 5    | 8 test files in `electron/__tests__/`                     | Fix Prettier formatting                                                   |
+| 6    | `shared/lib/typedIpcPreload.ts`                           | Fix import order                                                          |
+| 7    | `shared/lib/typedIpcMain.ts`                              | Remove direct `electron` import (move to `electron/core/`)                |
+| 7    | `shared/lib/typedIpcPreload.ts`                           | Remove direct `electron` import (move to `electron/preload/`)             |
+| 8    | `electron/`                                               | Create `electron/core/typedIpcMain.ts` (Electron-aware wrapper)           |
+| 8    | `electron/preload/`                                       | Create `electron/preload/typedIpcPreload.ts` (Electron-aware wrapper)     |
+| 8    | `shared/lib/typedIpcMain.ts`                              | Strip to pure types, delegate to Electron wrapper                         |
+| 8    | `shared/lib/typedIpcPreload.ts`                           | Strip to pure types, delegate to Electron wrapper                         |
+| 9    | Files importing `src/shared/lib/logger.ts` from renderer  | Replace Node.js `path`/`fs` usage with renderer-safe alternatives         |
+| 10   | `src/app/providers/app-tool/useElementPickerLifecycle.ts` | Break circular dependency                                                 |
 
 ---
 
 ### Task 1: Remove Unused Exports — `isSuccess`, `sendEvent`, `isFailure` import
 
 **Files:**
+
 - Modify: `shared/lib/typedIpc.ts:30-32`
 - Modify: `shared/lib/typedIpcPreload.ts:4, 61-66`
 
 **Interfaces:**
+
 - Consumes: Knip analysis — `isSuccess` and `sendEvent` are never imported by any file
 - Consumes: `isFailure` is used in `typedIpcPreload.ts:53` but `isSuccess` is unused
 - Produces: Cleaner `shared/lib/typedIpc.ts` with only `success`, `failure`, `isFailure` remaining
@@ -65,6 +67,7 @@ Search for imports of `isSuccess` across the project to confirm zero usage:
 ```bash
 rg "isSuccess" --include "*.ts" --include "*.tsx"
 ```
+
 Expected: only the definition in `typedIpc.ts` and the `isFailure` line. No external imports.
 
 Delete lines 30-32:
@@ -78,10 +81,13 @@ export function isSuccess<T>(result: IpcResult<T>): result is { ok: true; data: 
 - [ ] **Step 2: Remove unused `isFailure` import and `sendEvent` from `shared/lib/typedIpcPreload.ts`**
 
 Change line 9 import from:
+
 ```ts
 import { failure, isFailure, type IpcResult } from './typedIpc'
 ```
+
 To:
+
 ```ts
 import { failure, type IpcResult } from './typedIpc'
 ```
@@ -100,10 +106,12 @@ export function sendEvent<C extends IpcEventChannel>(
 - [ ] **Step 3: Verify no remaining references**
 
 Run:
+
 ```bash
 rg "isSuccess" --include "*.ts" --include "*.tsx" --no-filename
 rg "sendEvent" --include "*.ts" --include "*.tsx" --no-filename
 ```
+
 Expected: no matches (or only in dist/ which is generated).
 
 - [ ] **Step 4: Run typecheck and tests**
@@ -112,6 +120,7 @@ Expected: no matches (or only in dist/ which is generated).
 npm run typecheck
 npm run test -- --run src/__tests__/shared-constants.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 5: Run knip to verify dead items are gone**
@@ -119,6 +128,7 @@ Expected: PASS
 ```bash
 npm run analyze:knip
 ```
+
 Expected: `isSuccess` and `sendEvent` no longer appear in "Unused exports"
 
 - [ ] **Step 6: Commit**
@@ -133,9 +143,11 @@ git commit -m "chore: remove unused isSuccess, sendEvent, and isFailure import"
 ### Task 2: Remove Dead Export `MAX_PROMPT_LENGTH`
 
 **Files:**
+
 - Modify: `electron/features/ai/apiChatHandlers/config.ts:84`
 
 **Interfaces:**
+
 - Produces: `MAX_PROMPT_LENGTH` is no longer exported (still used internally)
 
 - [ ] **Step 1: Confirm no external imports of `MAX_PROMPT_LENGTH`**
@@ -143,15 +155,19 @@ git commit -m "chore: remove unused isSuccess, sendEvent, and isFailure import"
 ```bash
 rg "MAX_PROMPT_LENGTH" --include "*.ts" --include "*.tsx"
 ```
+
 Expected: only matches in `config.ts` (definition + 6 usages) and `dist/electron/...`
 
 - [ ] **Step 2: Remove `MAX_PROMPT_LENGTH` from export line**
 
 Change line 84 from:
+
 ```ts
 export { loadConfig, MAX_PROMPT_LENGTH, sanitizeApiKey, saveConfig }
 ```
+
 To:
+
 ```ts
 export { loadConfig, sanitizeApiKey, saveConfig }
 ```
@@ -161,6 +177,7 @@ export { loadConfig, sanitizeApiKey, saveConfig }
 ```bash
 npm run typecheck
 ```
+
 Expected: PASS
 
 - [ ] **Step 4: Commit**
@@ -175,16 +192,19 @@ git commit -m "chore: remove unused export MAX_PROMPT_LENGTH"
 ### Task 3: Remove Unused Type Exports
 
 **Files:**
+
 - Delete: `shared/types/ipc.ts` (deprecated re-export file)
 - Modify: `shared/types/index.ts`
 
 **Interfaces:**
+
 - Consumes: Knip identified 40 unused exported types across `shared/types/`, `src/app/providers/ai/types.ts`, `src/features/pdf/index.ts`
 - Produces: Cleaned type exports
 
 - [ ] **Step 1: Audit all 40 knip-reported unused types**
 
 For each type, check if it's used anywhere in the project:
+
 ```bash
 rg "CustomAiPayload" --include "*.ts" --include "*.tsx"
 rg "AiSelectorConfig" --include "*.ts" --include "*.tsx"
@@ -208,6 +228,7 @@ For each type with zero non-definition matches, it's safe to remove.
 - [ ] **Step 2: Delete deprecated `shared/types/ipc.ts`**
 
 This file re-exports from `typedIpc.ts`. Check contents:
+
 ```bash
 Get-Content "shared/types/ipc.ts"
 ```
@@ -227,6 +248,7 @@ For each type in `src/app/providers/ai/types.ts` and `src/features/pdf/index.ts`
 ```bash
 npm run typecheck
 ```
+
 Expected: PASS
 
 - [ ] **Step 6: Run knip to confirm reduction**
@@ -234,6 +256,7 @@ Expected: PASS
 ```bash
 npm run analyze:knip
 ```
+
 Expected: Unused type count reduced from 40 toward 0.
 
 - [ ] **Step 7: Commit**
@@ -248,9 +271,11 @@ git commit -m "chore: remove 40 unused type exports"
 ### Task 4: Fix TypeScript Error — `handlers.ts:22`
 
 **Files:**
+
 - Modify: `electron/features/ai/apiChatHandlers/handlers.ts:22`
 
 **Interfaces:**
+
 - Consumes: `loadConfig()` returns `Promise<ApiConfig>` (not `IpcResult<ApiConfig>`)
 - Consumes: `IpcInvokeRequestMap` expects `IpcResult<ApiConfig>` for `GET_API_CHAT_CONFIG`
 - Produces: Handler wraps `loadConfig()` in `success()` to match contract
@@ -264,10 +289,13 @@ rg -n "GET_API_CHAT_CONFIG" electron/features/ai/apiChatHandlers/handlers.ts
 - [ ] **Step 2: Fix the handler return**
 
 Change line 22 from:
+
 ```ts
 async () => loadConfig(),
 ```
+
 To:
+
 ```ts
 async () => success(await loadConfig()),
 ```
@@ -277,6 +305,7 @@ async () => success(await loadConfig()),
 ```bash
 npm run typecheck
 ```
+
 Expected: PASS — the TS2322 error is gone.
 
 - [ ] **Step 4: Run tests**
@@ -284,6 +313,7 @@ Expected: PASS — the TS2322 error is gone.
 ```bash
 npm run test -- --run electron/__tests__/features/ai/aiConfigHandlers.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -298,6 +328,7 @@ git commit -m "fix: wrap loadConfig() in success() to fix type mismatch in apiCh
 ### Task 5: Fix Prettier Formatting in 8 Test Files
 
 **Files:**
+
 - Modify: `electron/__tests__/core/systemHandlers.test.ts`
 - Modify: `electron/__tests__/features/ai/aiConfigHandlers.test.ts`
 - Modify: `electron/__tests__/features/automation/automationHandlers.test.ts`
@@ -318,11 +349,13 @@ npx prettier --write "electron/__tests__/**/*.test.ts"
 ```bash
 npx prettier --check "electron/__tests__/**/*.test.ts"
 ```
+
 Expected: All files pass formatting check.
 
 ```bash
 npm run test -- --run
 ```
+
 Expected: All tests still pass after formatting changes.
 
 - [ ] **Step 3: Commit**
@@ -337,6 +370,7 @@ git commit -m "style: fix prettier formatting in 8 test files"
 ### Task 6: Fix Import Order in `typedIpcPreload.ts`
 
 **Files:**
+
 - Modify: `shared/lib/typedIpcPreload.ts:1-9`
 
 - [ ] **Step 1: Read current imports**
@@ -346,6 +380,7 @@ Line 1-9 shows `import { ipcRenderer } from 'electron'` before type imports from
 - [ ] **Step 2: Reorder imports**
 
 Change from:
+
 ```ts
 import { ipcRenderer } from 'electron'
 
@@ -357,7 +392,9 @@ import type {
 } from '../types/ipcContract'
 import { failure, type IpcResult } from './typedIpc'
 ```
+
 To (if Task 1 already removed `isFailure`):
+
 ```ts
 import { ipcRenderer } from 'electron'
 
@@ -381,6 +418,7 @@ npx eslint shared/lib/typedIpcPreload.ts --rule 'simple-import-sort/imports: err
 ```bash
 npm run lint shared/lib/typedIpcPreload.ts -- --max-warnings=0
 ```
+
 Expected: PASS (no errors)
 
 - [ ] **Step 4: Commit**
@@ -395,6 +433,7 @@ git commit -m "style: fix import order in typedIpcPreload.ts"
 ### Task 7: Remove Electron Imports from `shared/` — Create Electron-Safe Wrappers
 
 **Files:**
+
 - Create: `electron/core/typedIpcMain.ts`
 - Create: `electron/preload/typedIpcPreload.ts`
 - Modify: `shared/lib/typedIpcMain.ts`
@@ -402,12 +441,14 @@ git commit -m "style: fix import order in typedIpcPreload.ts"
 - Modify: All files importing from `shared/lib/typedIpcMain` and `shared/lib/typedIpcPreload`
 
 **Interfaces:**
+
 - Consumes: `registerIpcHandler` from `shared/lib/typedIpcMain`, `typedInvoke`/`onEvent` from `shared/lib/typedIpcPreload`
 - Produces: Same public API but the Electron dependency lives in `electron/` — `shared/` exposes only pure types
 
 - [ ] **Step 1: Create `electron/core/typedIpcMain.ts`**
 
 Move the Electron-specific implementation here:
+
 ```ts
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 
@@ -436,6 +477,7 @@ export function registerIpcHandler<C extends IpcInvokeChannel>(
 - [ ] **Step 2: Update `shared/lib/typedIpcMain.ts`**
 
 Remove the `import { ipcMain } from 'electron'` and re-export from the Electron wrapper:
+
 ```ts
 export { registerIpcHandler } from '../../electron/core/typedIpcMain'
 ```
@@ -451,6 +493,7 @@ All these files already run in the Electron main process, so they'll transparent
 - [ ] **Step 4: Create `electron/preload/typedIpcPreload.ts`**
 
 Move the Electron preload-specific implementation here:
+
 ```ts
 import { ipcRenderer } from 'electron'
 
@@ -522,6 +565,7 @@ export function onEvent<C extends IpcEventChannel>(
 - [ ] **Step 5: Update `shared/lib/typedIpcPreload.ts`**
 
 Re-export from the Electron wrapper:
+
 ```ts
 export { typedInvoke, unwrapIpcResult, onEvent } from '../../electron/preload/typedIpcPreload'
 ```
@@ -537,6 +581,7 @@ npm run typecheck
 npm run lint -- --max-warnings=596
 npm run test -- --run
 ```
+
 All should PASS.
 
 - [ ] **Step 8: Commit**
@@ -551,10 +596,12 @@ git commit -m "refactor: move Electron IPC implementations out of shared/ into e
 ### Task 8: Fix Renderer-to-Electron Direct Imports
 
 **Files:**
+
 - Modify: `src/features/ai/lib/aiSenderSupport.ts` — replace `electron/features/automation/automationScripts/lib/errorClassifier.ts` import
 - Modify: `src/__tests__/electron/platforms.test.ts` — move or refactor
 
 **Interfaces:**
+
 - Consumes: Dependency cruiser report — 12 renderer-to-electron direct imports
 - Produces: All renderer code communicates with main process exclusively via IPC
 
@@ -565,6 +612,7 @@ rg "from ['\"]\.\.\/\.\.\/electron\|from ['\"]electron\/" src/ --include "*.ts" 
 ```
 
 For each violation, determine if:
+
 - (a) The imported code can be moved to `shared/` (pure types/logic)
 - (b) The import should be replaced with an IPC call
 - (c) It's only test code that can be refactored
@@ -584,6 +632,7 @@ npm run typecheck
 npm run test -- --run
 npx depcruise --config .dependency-cruiser.cjs --output-type err --do-not-follow 'node_modules' src electron shared
 ```
+
 Expected: `renderer-no-electron-direct` violations count reduced.
 
 - [ ] **Step 5: Commit**
@@ -598,11 +647,13 @@ git commit -m "refactor: remove direct renderer-to-electron imports, use IPC ins
 ### Task 9: Fix Node.js Imports in Browser Code
 
 **Files:**
+
 - Modify: `src/shared/lib/logger.ts`
 - Modify: `src/__tests__/helpers/factories.ts`
 - Modify: `src/__tests__/helpers/factories.test.ts`
 
 **Interfaces:**
+
 - Consumes: Dependency cruiser report — 6 `no-nodejs-from-browser` violations
 - Produces: Browser code no longer imports `fs`, `path`, `os`
 
@@ -613,6 +664,7 @@ rg "from ['\"]fs['\"]|from ['\"]path['\"]" src/shared/lib/logger.ts
 ```
 
 If logger uses `path`/`fs` for file logging, split into:
+
 - `src/shared/lib/logger.ts` — browser-safe logger (console only)
 - `electron/core/logger.ts` — Electron logger with file I/O
 
@@ -621,6 +673,7 @@ Or make the Node.js imports lazy/dynamic so they only resolve in Electron contex
 - [ ] **Step 2: Audit `src/__tests__/helpers/factories.ts` and `.test.ts`**
 
 These test helpers import `path` and `os`. Since these run under Node.js (vitest), these imports are technically fine for tests. The fix is to either:
+
 - Move to `electron/__tests__/helpers/` if they're Electron-specific
 - Relax the depcruise rule for `__tests__/` directories
 - Use `vi.mock()` to stub Node.js modules
@@ -645,6 +698,7 @@ Create `electron/core/logger.ts` if file-logging functionality was there.
 npm run typecheck
 npx depcruise --config .dependency-cruiser.cjs --output-type err --do-not-follow 'node_modules' src electron shared
 ```
+
 Expected: `no-nodejs-from-browser` count reduced.
 
 - [ ] **Step 5: Commit**
@@ -659,11 +713,13 @@ git commit -m "refactor: remove Node.js imports from browser code"
 ### Task 10: Break Circular Dependency in `AppToolContext`
 
 **Files:**
+
 - Modify: `src/app/providers/app-tool/useElementPickerLifecycle.ts`
 - Modify: `src/app/providers/index.ts`
 - Modify: `src/app/providers/AppToolContext.tsx`
 
 **Interfaces:**
+
 - Consumes: Dependency cruiser report — 1 circular dependency
 - Consumes: Chain: `useElementPickerLifecycle.ts` → `../index.ts` → `AppToolContext.tsx` → `./useElementPickerLifecycle.ts`
 - Produces: No circular dependency
@@ -688,6 +744,7 @@ Option C: Use lazy import or dynamic import in one direction.
 npm run typecheck
 npx depcruise --config .dependency-cruiser.cjs --output-type err --do-not-follow 'node_modules' src electron shared
 ```
+
 Expected: `no-circular` count is 0.
 
 - [ ] **Step 4: Commit**
@@ -702,6 +759,7 @@ git commit -m "refactor: break circular dependency in AppToolContext provider ch
 ## Self-Review
 
 **1. Spec coverage:**
+
 - Task 1-3: dead code removal (all knip findings covered)
 - Task 4: TS error fix (the only TypeScript error covered)
 - Task 5-6: lint/format errors (all 40 ESLint errors covered)

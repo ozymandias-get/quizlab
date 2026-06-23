@@ -24,11 +24,11 @@ const TURKISH_REPLACE_REGEX = /[\u00B8\u02C6\u02DC]/g
  * IMPORTANT: These replacements are only applied when the text is detected
  * as likely Turkish (contains other Turkish-specific characters).
  */
-const TURKISH_CORRUPTION_MAP: Record<string, string> = {
+const TURKISH_CORRUPTION_MAP = {
   '\u02C6': 'ö', // MODIFIER LETTER CIRCUMFLEX ACCENT → ö
   '\u00B8': 'ü', // CEDILLA → ü (most common in Turkish context)
   '\u02DC': 'ğ' // SMALL TILDE → ğ (less common but possible)
-}
+} as const satisfies Record<string, string>
 
 /**
  * Checks whether a string likely contains Turkish text by looking for

@@ -40,14 +40,13 @@ export function usePdfWorkspaceState({
   } = usePdfSelection()
   const { handleTextSelection } = useTextSelection()
 
-  const lastReadingInfo = recentReadingInfo
-  const lastReadingInfoRef = useRef(lastReadingInfo)
-  lastReadingInfoRef.current = lastReadingInfo
+  const lastReadingInfoRef = useRef(recentReadingInfo)
+  lastReadingInfoRef.current = recentReadingInfo
 
   const handleResumePdf = useCallback(
     async (path?: string) => {
       const current = lastReadingInfoRef.current
-      const target = path ? current.find((item) => item.path === path) : current[0]
+      const target = path ? current.find((entry) => entry.path === path) : current[0]
 
       if (target) {
         return await resumeLastPdf(target.path)
@@ -68,7 +67,7 @@ export function usePdfWorkspaceState({
   const handleRelinkPdf = useCallback(
     async (oldPath: string): Promise<boolean> => {
       const current = lastReadingInfoRef.current
-      const target = current.find((item) => item.path === oldPath)
+      const target = current.find((entry) => entry.path === oldPath)
       if (!target) return false
 
       try {
@@ -130,9 +129,7 @@ export function usePdfWorkspaceState({
       onClosePdfTab: closePdfTab,
       onRenamePdfTab: renamePdfTab,
       onAddEmptyPdfTab: addEmptyPdfTab,
-      onPdfHome: goToPdfHome,
-      isInteractionBlocked,
-      isPanelResizing
+      onPdfHome: goToPdfHome
     }),
     [
       handlePdfDrop,
@@ -146,15 +143,12 @@ export function usePdfWorkspaceState({
       closePdfTab,
       renamePdfTab,
       addEmptyPdfTab,
-      goToPdfHome,
-      isInteractionBlocked,
-      isPanelResizing
+      goToPdfHome
     ]
   )
 
   const readingProps = useMemo(
     () => ({
-      lastReadingInfo,
       onReadingProgressChange: updateReadingProgress,
       onResumePdf: handleResumePdf,
       onClearResumePdf: handleClearResumePdf,
@@ -163,7 +157,6 @@ export function usePdfWorkspaceState({
       initialPage: activeTabInitialPage
     }),
     [
-      recentReadingInfo,
       updateReadingProgress,
       handleResumePdf,
       handleClearResumePdf,
@@ -200,8 +193,10 @@ export function usePdfWorkspaceState({
       t,
       leftPanelProps,
       readingProps,
-      rootDragHandlers
+      rootDragHandlers,
+      isInteractionBlocked,
+      isPanelResizing
     }),
-    [t, leftPanelProps, readingProps, rootDragHandlers]
+    [t, leftPanelProps, readingProps, rootDragHandlers, isInteractionBlocked, isPanelResizing]
   )
 }

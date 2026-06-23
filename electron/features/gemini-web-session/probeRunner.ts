@@ -109,7 +109,7 @@ export class ProbeRunner {
 
       win.webContents.setUserAgent(APP_CONFIG.CHROME_USER_AGENT)
 
-      const safeResolve = async (result: ProbeExecutionResult) => {
+      const safeResolve = async (probeResult: ProbeExecutionResult) => {
         if (done) return
         done = true
         clearTimeout(timeoutId)
@@ -117,7 +117,7 @@ export class ProbeRunner {
         try {
           if (!win.isDestroyed()) win.close()
         } catch {}
-        resolve(result)
+        resolve(probeResult)
       }
 
       const captureSnapshot = async (): Promise<DomProbeSnapshot> => {

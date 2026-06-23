@@ -110,30 +110,30 @@ describe('languageStore', () => {
     })
   })
 
-    describe('onboarding', () => {
-      it('defaults isOnboardingDone to false', () => {
-        expect(useLanguage.getState().isOnboardingDone).toBe(false)
-      })
-
-      it('completeOnboarding sets isOnboardingDone to true and persists', () => {
-        useLanguage.getState().completeOnboarding()
-        expect(useLanguage.getState().isOnboardingDone).toBe(true)
-        expect(window.localStorage.getItem('app-language-onboarding-done')).toBe('true')
-      })
-
-      it('reads persisted onboarding state from localStorage', () => {
-        window.localStorage.setItem('app-language-onboarding-done', 'true')
-        expect(getInitialOnboardingDone()).toBe(true)
-        window.localStorage.removeItem('app-language-onboarding-done')
-        expect(getInitialOnboardingDone()).toBe(false)
-      })
+  describe('onboarding', () => {
+    it('defaults isOnboardingDone to false', () => {
+      expect(useLanguage.getState().isOnboardingDone).toBe(false)
     })
 
-    describe('_requestSeq', () => {
-      it('increments on each setLanguage call', async () => {
-        const seqBefore = useLanguage.getState()._requestSeq
-        await useLanguage.getState().setLanguage('tr')
-        expect(useLanguage.getState()._requestSeq).toBe(seqBefore + 1)
-      })
+    it('completeOnboarding sets isOnboardingDone to true and persists', () => {
+      useLanguage.getState().completeOnboarding()
+      expect(useLanguage.getState().isOnboardingDone).toBe(true)
+      expect(window.localStorage.getItem('app-language-onboarding-done')).toBe('true')
     })
+
+    it('reads persisted onboarding state from localStorage', () => {
+      window.localStorage.setItem('app-language-onboarding-done', 'true')
+      expect(getInitialOnboardingDone()).toBe(true)
+      window.localStorage.removeItem('app-language-onboarding-done')
+      expect(getInitialOnboardingDone()).toBe(false)
+    })
+  })
+
+  describe('_requestSeq', () => {
+    it('increments on each setLanguage call', async () => {
+      const seqBefore = useLanguage.getState()._requestSeq
+      await useLanguage.getState().setLanguage('tr')
+      expect(useLanguage.getState()._requestSeq).toBe(seqBefore + 1)
+    })
+  })
 })

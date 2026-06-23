@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { createLocalStorageAdapter } from './utils'
+import { createLocalStorageAdapter } from './storeUtils'
 
 type FocusMode = 'pdf' | 'ai' | null
 export type BackgroundMode = 'ambient' | 'solid'

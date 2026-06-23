@@ -19,7 +19,7 @@ interface GoogleAppIntegrationCardProps {
   onToggleManagedApp: (appId: GoogleWebSessionAppId) => void
 }
 
-export const GoogleAppIntegrationCard = memo(function GoogleAppIntegrationCard({
+const GoogleAppIntegrationCard = memo(function GoogleAppIntegrationCard({
   app,
   isEnabled,
   disabled,
@@ -86,3 +86,5 @@ export const GoogleAppIntegrationCard = memo(function GoogleAppIntegrationCard({
     </div>
   )
 })
+
+export default GoogleAppIntegrationCard

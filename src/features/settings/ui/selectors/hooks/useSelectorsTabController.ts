@@ -79,7 +79,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     onCloseSettings?.()
   }, [onCloseSettings, startTutorial])
 
-  const toggleExpanded = useCallback((id: string) => {
+  const handleToggleExpanded = useCallback((id: string) => {
     setExpandedIds((current) =>
       current.includes(id) ? current.filter((entryId) => entryId !== id) : [...current, id]
     )
@@ -187,7 +187,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     t,
     tabs,
     currentAI,
-    webviewPresent: hasActiveWebview,
+    hasWebview: hasActiveWebview,
     selectors,
     aiEntries,
     expandedIds,
@@ -197,7 +197,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     isTesting,
     handleDeleteSelectors,
     handleStartTutorial,
-    toggleExpanded,
+    handleToggleExpanded,
     handleSubmitModeChange,
     handleOpenRepick,
     handleTestSelectors

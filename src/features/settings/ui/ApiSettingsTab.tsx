@@ -7,7 +7,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import ApiProviderCard from './apiSettings/ApiProviderCard'
-import { PromptSettingsSection } from './apiSettings/PromptSettingsSection'
+import PromptSettingsSection from './apiSettings/PromptSettingsSection'
 
 const DEFAULT_PROVIDER_TEMPLATES: Record<
   string,

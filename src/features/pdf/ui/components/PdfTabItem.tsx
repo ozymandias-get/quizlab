@@ -64,14 +64,14 @@ function PdfTabItem({
     const el = closeBtnRef.current
     if (!el) return
 
-    const handler = (e: PointerEvent) => {
+    const handlePointerUp = (e: PointerEvent) => {
       e.stopPropagation()
       e.preventDefault()
       onCloseTabRef.current(tab.id)
     }
 
-    el.addEventListener('pointerdown', handler)
-    return () => el.removeEventListener('pointerdown', handler)
+    el.addEventListener('pointerdown', handlePointerUp)
+    return () => el.removeEventListener('pointerdown', handlePointerUp)
     // tab.id değiştiğinde eski listener kalkıp yenisi eklenir.
     // onCloseTabRef üzerinden okunduğu için dep olarak eklenmez.
   }, [tab.id])
@@ -85,12 +85,12 @@ function PdfTabItem({
       // yükü oluşturuyordu. Animasyon ihtiyacı durumunda layout
       // yalnızca aktif-sekme göstergesine (layoutId) eklenmeli.
       whileHover={{
-        y: -0.5,
-        scale: 1.005,
-        transition: { type: 'spring', stiffness: 380, damping: 24 }
+        y: -1,
+        scale: 1.015,
+        transition: { type: 'tween', duration: 0.18, ease: 'easeOut' }
       }}
-      whileTap={{ scale: 0.99 }}
-      className="glass-tier-3 glass-tier-control glass-interactive group focus-visible:ring-offset-background relative flex h-8 max-w-[250px] min-w-0 items-center gap-2 rounded-full border px-3.5 pr-10 transition-[border-color,box-shadow] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2"
+      whileTap={{ scale: 0.98 }}
+      className={`glass-tier-3 glass-tier-control glass-interactive group focus-visible:ring-offset-background relative flex h-8 max-w-[250px] min-w-0 items-center gap-2 rounded-full border px-3.5 pr-10 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2 ${isActive ? '' : 'opacity-60 hover:opacity-100'}`}
       style={
         isActive
           ? {
@@ -120,6 +120,9 @@ function PdfTabItem({
           background: 'linear-gradient(145deg, oklch(0.7 0.15 160 / 0.08), oklch(1 0 0 / 0.02))'
         }}
       />
+      {isActive && (
+        <div className="pointer-events-none absolute -bottom-[1px] left-1/2 h-[2px] w-[60%] -translate-x-1/2 rounded-full bg-gradient-to-r from-emerald-500/0 via-emerald-400/70 to-emerald-500/0" />
+      )}
       <span className="flex shrink-0 items-center text-white/85 [&>svg]:h-3.5 [&>svg]:w-3.5">
         {getTabIcon(tab)}
       </span>
@@ -136,7 +139,11 @@ function PdfTabItem({
           className="text-ql-12 h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
         />
       ) : (
-        <span className="text-ql-12 min-w-0 truncate text-white/85">{label}</span>
+        <span
+          className={`text-ql-12 min-w-0 truncate ${isActive ? 'text-white' : 'text-white/70'}`}
+        >
+          {label}
+        </span>
       )}
 
       <span
@@ -145,7 +152,7 @@ function PdfTabItem({
         tabIndex={-1}
         aria-label={tr('tab_close', 'Close')}
         title={tr('tab_close', 'Close')}
-        className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 opacity-[0.55] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-white hover:opacity-100"
+        className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 opacity-0 transition-all duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:border-red-500/30 hover:bg-red-500/20 hover:text-red-400 hover:opacity-100"
       >
         <X className="h-3 w-3" />
       </span>

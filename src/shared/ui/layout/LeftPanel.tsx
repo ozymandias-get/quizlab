@@ -1,5 +1,6 @@
 import type { PdfFile } from '@shared-core/types'
 
+import { useReadingProgressPersistence } from '@features/pdf/hooks/useReadingProgressPersistence'
 import type {
   LastReadingInfo,
   PdfTab,
@@ -42,7 +43,6 @@ interface LeftPanelProps {
   onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void
   onRelinkPdf?: (oldPath: string) => Promise<boolean>
   onReadingProgressChange?: (update: ReadingProgressUpdate) => void
-  lastReadingInfo?: LastReadingInfo[] | null
   initialPage?: number
   activePdfTab?: PdfTab | null
   pdfTabs?: PdfTab[]
@@ -81,7 +81,6 @@ function LeftPanel({
   onRestoreResumePdf,
   onRelinkPdf,
   onReadingProgressChange,
-  lastReadingInfo,
   initialPage,
   activePdfTab,
   pdfTabs = [],
@@ -95,6 +94,7 @@ function LeftPanel({
   isPanelResizing = false
 }: LeftPanelProps) {
   const { t } = useTranslation()
+  const { recentReadingInfo } = useReadingProgressPersistence()
 
   const { isDragOver, containerRef, dragHandlers } = useSharedDragDrop((file) => {
     onPdfDrop(file as File)
@@ -149,7 +149,7 @@ function LeftPanel({
                         onRestoreResumePdf={onRestoreResumePdf}
                         onRelinkPdf={onRelinkPdf}
                         onReadingProgressChange={onReadingProgressChange}
-                        lastReadingInfo={lastReadingInfo}
+                        lastReadingInfo={recentReadingInfo}
                         isInteractionBlocked={isInteractionBlocked}
                         isPanelResizing={isPanelResizing}
                       />
