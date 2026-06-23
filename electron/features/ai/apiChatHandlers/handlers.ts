@@ -19,7 +19,7 @@ export function registerApiChatHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.GET_API_CHAT_CONFIG,
-    async () => loadConfig(),
+    async () => success(await loadConfig()),
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
   )
