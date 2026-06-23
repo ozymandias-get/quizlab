@@ -110,12 +110,12 @@ export async function deleteDirectoryContents(
         })
       )
 
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          totalDeleted += result.value.deleted
-          totalFreed += result.value.freed
-          totalErrors += result.value.errors
-        } else if (result.status === 'rejected') {
+      for (const settledResult of results) {
+        if (settledResult.status === 'fulfilled' && settledResult.value) {
+          totalDeleted += settledResult.value.deleted
+          totalFreed += settledResult.value.freed
+          totalErrors += settledResult.value.errors
+        } else if (settledResult.status === 'rejected') {
           totalErrors++
         }
       }

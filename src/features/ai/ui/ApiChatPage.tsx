@@ -88,8 +88,8 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
   useEffect(() => {
     if (activeSessionId) return
     if (sessions.length === 0) {
-      createSessionMutation().then((result) => {
-        setActiveSessionId(tabId, result.session.id)
+      createSessionMutation().then((session) => {
+        setActiveSessionId(tabId, session.session.id)
       })
       return
     }

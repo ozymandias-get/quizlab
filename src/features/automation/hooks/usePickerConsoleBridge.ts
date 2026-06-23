@@ -19,7 +19,7 @@ function isConsoleMessageEvent(e: unknown): e is ConsoleMessageEvent {
 
 interface UsePickerConsoleBridgeProps {
   getWebviewInstance: () => WebviewController | null | undefined
-  onResult: (result: unknown) => void
+  onResult: (pickerResult: unknown) => void
   onCancelled: () => void
   onError: (error: unknown) => void
   mountedRef: MutableRefObject<boolean>

@@ -117,10 +117,10 @@ export async function classifyAiSendError(raw: unknown): Promise<AiErrorClassifi
  *   if (cls && cls.isUserActionable) showRepickDialog()
  */
 export async function classifyResultError(
-  result: SendTextResult | SendImageResult | null | undefined
+  sendResult: SendTextResult | SendImageResult | null | undefined
 ): Promise<AiErrorClassification | null> {
-  if (!result || !result.error) return null
-  return classifyAiSendError(result.error)
+  if (!sendResult || !sendResult.error) return null
+  return classifyAiSendError(sendResult.error)
 }
 
 /**

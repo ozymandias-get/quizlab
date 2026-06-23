@@ -63,11 +63,11 @@ function shouldLog(level: LogLevel): boolean {
  * Redact sensitive data patterns from a string before logging.
  */
 export function redactSensitive(text: string): string {
-  let result = text
+  let sanitized = text
   for (const { pattern, replacement } of REDACT_PATTERNS) {
-    result = result.replace(pattern, replacement)
+    sanitized = sanitized.replace(pattern, replacement)
   }
-  return result
+  return sanitized
 }
 
 function normalizeArgs(args: unknown[]): string {
