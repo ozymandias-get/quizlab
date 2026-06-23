@@ -25,10 +25,8 @@ export function useSettingsModalState({
   const { t } = useTranslation()
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
   const normalizedInitialTab = toSettingsTabId(initialTab)
-  // eslint-disable-next-line react/hook-use-state
-  const [activeTab, setActiveTabState] = useState<SettingsTabId>(normalizedInitialTab)
+  const [activeTab, setActiveTabState] = useState<SettingsTabId | null>(normalizedInitialTab)
   const [selectedGroup, setSelectedGroup] = useState<SettingsTabGroup | null>(QUICK_SETTINGS_GROUP)
-  const [isOverviewMode, setIsOverviewMode] = useState(true)
   const settings = useSettings()
 
   const onCloseRef = useRef(onClose)
@@ -52,7 +50,6 @@ export function useSettingsModalState({
 
     setActiveTab(normalizedInitialTab)
     setSelectedGroup(QUICK_SETTINGS_GROUP)
-    setIsOverviewMode(true)
 
     if (sidebarScrollRef.current) {
       sidebarScrollRef.current.scrollTop = 0
@@ -62,7 +59,7 @@ export function useSettingsModalState({
   const tabDefs = useMemo(() => buildSettingsTabDefs(t), [t])
   const sidebarSections = useMemo(() => buildSettingsSidebarSections(t), [t])
   const activeTabMeta = useMemo(
-    () => tabDefs.find((tab) => tab.id === activeTab) ?? tabDefs[0],
+    () => tabDefs.find((tab) => tab.id === activeTab) ?? null,
     [tabDefs, activeTab]
   )
 
@@ -70,7 +67,6 @@ export function useSettingsModalState({
     (value: string) => {
       const id = toSettingsTabId(value)
       setActiveTabState(id)
-      setIsOverviewMode(false)
 
       const meta = tabDefs.find((tab) => tab.id === id)
       if (meta) {
@@ -82,14 +78,13 @@ export function useSettingsModalState({
 
   const selectGroup = useCallback((group: SettingsTabGroup) => {
     setSelectedGroup(group)
-    setIsOverviewMode(true)
+    setActiveTabState(null)
   }, [])
 
   return {
     activeTab,
     activeTabMeta,
     selectedGroup,
-    isOverviewMode,
     setActiveTab,
     selectGroup,
     settings,
