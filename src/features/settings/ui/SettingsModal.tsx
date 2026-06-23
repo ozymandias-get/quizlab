@@ -5,9 +5,11 @@ import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
 import { motion } from 'motion/react'
 import { memo } from 'react'
 
+import ResizableHandle from './modal/ResizableHandle'
 import SettingsListPanel from './modal/SettingsListPanel'
 import SettingsModalContent from './modal/SettingsModalContent'
 import SettingsModalSidebar from './modal/SettingsModalSidebar'
+import { useResizableColumns } from './modal/useResizableColumns'
 import { useSettingsModalState } from './modal/useSettingsModalState'
 
 interface SettingsModalProps {
@@ -36,6 +38,8 @@ const SettingsModal = memo(function SettingsModal({
     isOpen,
     onClose
   })
+
+  const { sidebarWidth, listWidth, handleSidebarResize, handleListResize } = useResizableColumns()
 
   if (!isOpen) {
     return null
@@ -76,29 +80,43 @@ const SettingsModal = memo(function SettingsModal({
 
         <Separator />
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <SettingsModalSidebar
-            selectedGroup={selectedGroup}
-            selectGroup={selectGroup}
-            sidebarScrollRef={sidebarScrollRef}
-            sidebarSections={sidebarSections}
-            t={t}
-          />
+          <div style={{ width: sidebarWidth }} className="shrink-0 max-[900px]:hidden">
+            <SettingsModalSidebar
+              selectedGroup={selectedGroup}
+              selectGroup={selectGroup}
+              sidebarScrollRef={sidebarScrollRef}
+              sidebarSections={sidebarSections}
+              t={t}
+            />
+          </div>
 
-          <SettingsListPanel
-            selectedGroup={selectedGroup}
-            activeTab={activeTab}
-            sidebarSections={sidebarSections}
-            setActiveTab={setActiveTab}
-            t={t}
-          />
+          <div className="max-[900px]:hidden">
+            <ResizableHandle onResize={handleSidebarResize} />
+          </div>
 
-          <SettingsModalContent
-            activeTab={activeTab}
-            onClose={onClose}
-            settings={settings}
-            t={t}
-            tabDefs={tabDefs}
-          />
+          <div style={{ width: listWidth }} className="shrink-0 max-[1100px]:hidden">
+            <SettingsListPanel
+              selectedGroup={selectedGroup}
+              activeTab={activeTab}
+              sidebarSections={sidebarSections}
+              setActiveTab={setActiveTab}
+              t={t}
+            />
+          </div>
+
+          <div className="max-[1100px]:hidden">
+            <ResizableHandle onResize={handleListResize} />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <SettingsModalContent
+              activeTab={activeTab}
+              onClose={onClose}
+              settings={settings}
+              t={t}
+              tabDefs={tabDefs}
+            />
+          </div>
         </div>
       </motion.div>
     </div>
