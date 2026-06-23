@@ -10,11 +10,11 @@
 
 export {
   createIssueLogReport,
-  flushToDisk,
   getRecentElectronLogs,
-  initLogger,
   Logger,
   pushToLoggerBuffer,
   redactSensitive,
   reportSuppressedError
 } from '../../src/shared/lib/logger'
+
+export { initLogger, flushToDisk } from './diskLogger'
