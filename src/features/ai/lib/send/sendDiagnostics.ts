@@ -42,12 +42,12 @@ function finalizeDiagnostics(diagnostics: AiSendDiagnostics, requestStartedAt: n
 }
 
 export function attachDiagnostics<T extends SendTextResult | SendImageResult>(
-  result: T,
+  sendResult: T,
   diagnostics: AiSendDiagnostics,
   requestStartedAt: number
 ): T & { diagnostics: AiSendDiagnostics } {
   return {
-    ...result,
+    ...sendResult,
     diagnostics: finalizeDiagnostics(diagnostics, requestStartedAt)
   }
 }

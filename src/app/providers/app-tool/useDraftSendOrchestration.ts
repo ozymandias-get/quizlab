@@ -45,11 +45,11 @@ export function useDraftSendOrchestration({
         return { success: false, error: 'invalid_input' }
       }
 
-      let result: AiSendResult = { success: true }
+      let sendResult: AiSendResult = { success: true }
 
       for (const segment of segments) {
         if (segment.kind === 'text') {
-          result = await sendTextToAI(segment.payload, { autoSend: effectiveAutoSend })
+          sendResult = await sendTextToAI(segment.payload, { autoSend: effectiveAutoSend })
         } else {
           let dataUrl = segment.dataUrl
           if (!dataUrl && segment.blobUrl) {
@@ -63,24 +63,24 @@ export function useDraftSendOrchestration({
           if (!dataUrl) {
             return { success: false, error: 'invalid_input' }
           }
-          result = await sendImageToAI(dataUrl, {
+          sendResult = await sendImageToAI(dataUrl, {
             autoSend: effectiveAutoSend,
             promptText: segment.promptText
           })
         }
 
-        if (!result.success) {
-          if (result.error !== 'webview_not_ready') {
+        if (!sendResult.success) {
+          if (sendResult.error !== 'webview_not_ready') {
             Logger.warn(
               `[DraftOrchestration] Multi-segment send failed at segment: ${segment.kind}`,
-              result.error
+              sendResult.error
             )
           }
-          return result
+          return sendResult
         }
       }
 
-      return result
+      return sendResult
     },
     [sendImageToAI, sendTextToAI]
   )

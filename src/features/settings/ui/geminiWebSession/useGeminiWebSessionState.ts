@@ -37,10 +37,10 @@ import type {
 
 const MANAGED_APP_IDS = new Set(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
 
-const resultRequiresManualLogin = (result?: GeminiWebSessionActionResult | null) => {
-  if (!result) return false
-  if (result.error === GEMINI_WEB_REQUIRES_LOGIN_ERROR) return true
-  if (result.status?.state === 'reauth_required') return true
+const resultRequiresManualLogin = (actionResult?: GeminiWebSessionActionResult | null) => {
+  if (!actionResult) return false
+  if (actionResult.error === GEMINI_WEB_REQUIRES_LOGIN_ERROR) return true
+  if (actionResult.status?.state === 'reauth_required') return true
   return false
 }
 

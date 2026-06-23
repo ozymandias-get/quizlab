@@ -28,9 +28,9 @@ interface ResolveSendContextParams {
 }
 
 export function isSendError(
-  result: ResolvedSendContext | SendTextResult
-): result is SendTextResult {
-  return 'success' in result
+  sendContextOrError: ResolvedSendContext | SendTextResult
+): sendContextOrError is SendTextResult {
+  return 'success' in sendContextOrError
 }
 
 export async function resolveSendContext({
