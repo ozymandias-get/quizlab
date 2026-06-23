@@ -1,5 +1,4 @@
 import { hexToRgba } from '@shared/lib/uiUtils'
-import { SettingsIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
 import { memo, type RefObject, useCallback } from 'react'

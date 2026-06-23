@@ -8,7 +8,6 @@ import {
   SETTINGS_MODAL_MAIN_PANEL_ID,
   SETTINGS_TAB_COMPONENTS,
   type SettingsState,
-  settingsTabButtonId,
   type SettingsTabGroup,
   type SettingsTabId,
   type TabDef
@@ -16,7 +15,6 @@ import {
 
 interface SettingsModalContentProps {
   activeTab: SettingsTabId | null
-  selectedGroup: SettingsTabGroup | null
   onClose: () => void
   settings: SettingsState
   t: (key: string) => string
@@ -25,7 +23,6 @@ interface SettingsModalContentProps {
 
 export default memo(function SettingsModalContent({
   activeTab,
-  selectedGroup,
   onClose,
   settings,
   t,
@@ -80,7 +77,7 @@ export default memo(function SettingsModalContent({
                 <div className="text-muted-foreground/50 text-ql-10 font-semibold tracking-widest uppercase">
                   {activeTabMeta.group === QUICK_SETTINGS_GROUP
                     ? t('quick_settings')
-                    : tabDefs.find((t) => t.group === activeTabMeta.group)?.group ?? ''}
+                    : t('settings_group_' + activeTabMeta.group)}
                 </div>
                 <h3 className="text-foreground text-base font-semibold tracking-tight">
                   {activeTabMeta.label}
