@@ -20,8 +20,8 @@ const UpdateBanner = lazy(() => import('@ui/components/UpdateBanner'))
 const GeminiWebLoginOverlay = lazy(() => import('@app/ui/GeminiWebLoginOverlay'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
 const LanguageSelectionDialog = lazy(() =>
-  import('@features/onboarding/ui/LanguageSelectionDialog').then((m) => ({
-    default: m.default ?? m.LanguageSelectionDialog
+  import('@features/onboarding').then((m) => ({
+    default: m.LanguageSelectionDialog
   }))
 )
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
