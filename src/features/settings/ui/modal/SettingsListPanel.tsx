@@ -32,7 +32,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
   const activeSection = sidebarSections.find((s) => s.id === selectedGroup)
 
   return (
-    <div className="border-border relative flex w-[280px] shrink-0 flex-col border-r max-[1100px]:hidden">
+    <div className="border-border relative flex flex-1 flex-col border-r max-[1100px]:hidden">
       <ScrollArea className="min-h-0 flex-1 px-4 py-4">
         <AnimatePresence mode="wait">
           {isQuickSettings ? (
