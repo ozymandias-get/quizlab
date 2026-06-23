@@ -25,9 +25,9 @@ import {
 import { WEB_AI_REGISTRY } from './web-ai-registry'
 
 const stubReturn =
-  <T>(value: T) =>
+  <T>(val: T) =>
   async () =>
-    value
+    val
 
 const webDevOnlyError = (): GeminiWebSessionActionResult => ({
   success: false,

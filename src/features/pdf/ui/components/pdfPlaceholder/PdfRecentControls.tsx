@@ -21,8 +21,8 @@ interface PdfRecentControlsProps {
   sortMode: SortMode
   isMobileSearchOpen: boolean
   canClear: boolean
-  onSearchQueryChange: (value: string) => void
-  onSortModeChange: (value: SortMode) => void
+  onSearchQueryChange: (searchQuery: string) => void
+  onSortModeChange: (sortValue: SortMode) => void
   onToggleMobileSearch: () => void
   onClearAll: () => void
 }
@@ -45,7 +45,7 @@ function PdfRecentControls({
     [onSearchQueryChange]
   )
   const handleSortChange = useCallback(
-    (value: string) => onSortModeChange(value as SortMode),
+    (sortValue: string) => onSortModeChange(sortValue as SortMode),
     [onSortModeChange]
   )
 

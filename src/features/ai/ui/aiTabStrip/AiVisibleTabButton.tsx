@@ -27,8 +27,8 @@ interface AiVisibleTabButtonProps {
   onSelect: (tabId: string) => void
   onBeginRename: (tabId: string) => void
   onContextMenu: (event: ReactMouseEvent, tabId: string) => void
-  onEditingValueChange: (value: string) => void
-  onCommitRename: (tabId: string, value: string) => void
+  onEditingValueChange: (newValue: string) => void
+  onCommitRename: (tabId: string, tabTitle: string) => void
   onCancelRename: () => void
   onTogglePin: (tabId: string) => void
   onClose: (tabId: string) => void

@@ -22,9 +22,9 @@ const SAFE_CLASS_TOKEN_REGEX = /^[A-Za-z][\w-]{0,63}$/
  * escaped with a backslash. This prevents malformed selectors like
  * [attr=""value""] when the attribute value contains quotes.
  */
-export function escapeCssStringValue(value: string): string {
-  if (typeof value !== 'string' || !value) return ''
-  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')
+export function escapeCssStringValue(str: string): string {
+  if (typeof str !== 'string' || !str) return ''
+  return str.replaceAll('\\', '\\\\').replaceAll('"', '\\"')
 }
 
 /**
@@ -79,9 +79,9 @@ export function getPrimaryAttribute(el: Element, kind: 'input' | 'button') {
       : ['data-testid', 'aria-label', 'title', 'name']
 
   for (const attribute of candidates) {
-    const value = el.getAttribute(attribute)
-    if (value && value.trim() && value.length < 256) {
-      return { attribute, value: value.trim() }
+    const val = el.getAttribute(attribute)
+    if (val && val.trim() && val.length < 256) {
+      return { attribute, value: val.trim() }
     }
   }
 

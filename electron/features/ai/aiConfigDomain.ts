@@ -109,9 +109,9 @@ export function mergeConfig(
     if (PROHIBITED_KEYS.has(key)) continue
 
     if (key in incoming) {
-      const value = incoming[key]
-      if (value !== undefined) {
-        writableMerged[key] = value
+      const val = incoming[key]
+      if (val !== undefined) {
+        writableMerged[key] = val
       }
     }
   }

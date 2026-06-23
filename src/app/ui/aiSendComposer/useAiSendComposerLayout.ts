@@ -23,8 +23,8 @@ const COMPACT_HEIGHT = 56
 const HEADER_RESERVED_HEIGHT = 200
 const MIN_BODY_HEIGHT = 80
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
+function clamp(n: number, min: number, max: number) {
+  return Math.min(Math.max(n, min), max)
 }
 
 function clampLayout(layout: DockLayout): DockLayout {

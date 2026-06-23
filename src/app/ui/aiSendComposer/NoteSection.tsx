@@ -10,7 +10,7 @@ import PromptPresets from './PromptPresets'
 interface NoteSectionProps {
   noteText: string
   hasImages: boolean
-  onNoteTextChange: (value: string) => void
+  onNoteTextChange: (text: string) => void
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
 }
 

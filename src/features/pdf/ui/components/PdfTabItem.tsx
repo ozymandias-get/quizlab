@@ -18,9 +18,9 @@ interface PdfTabItemProps {
   onCloseTab: (tabId: string) => void
   onBeginRename: (tab: PdfTab) => void
   onOpenContextMenu: (event: ReactMouseEvent, tabId: string) => void
-  onEditingValueChange: (value: string) => void
-  onEditingBlur: (tabId: string, value: string) => void
-  onEditingKeyDown: (event: React.KeyboardEvent, tabId: string, value: string) => void
+  onEditingValueChange: (newValue: string) => void
+  onEditingBlur: (tabId: string, tabTitle: string) => void
+  onEditingKeyDown: (event: React.KeyboardEvent, tabId: string, tabTitle: string) => void
   renameInputRef?: RefObject<HTMLInputElement | null>
 }
 

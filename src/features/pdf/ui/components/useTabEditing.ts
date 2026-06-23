@@ -47,12 +47,12 @@ export function useTabEditing(): UseTabEditingResult {
   }, [])
 
   const handleEditingBlur = useCallback(
-    (tabId: string, value: string, onRenameTab: (tabId: string, title?: string) => void) => {
+    (tabId: string, tabTitle: string, onRenameTab: (tabId: string, title?: string) => void) => {
       if (skipBlurSaveRef.current) {
         skipBlurSaveRef.current = false
         return
       }
-      commitRename(tabId, value, onRenameTab)
+      commitRename(tabId, tabTitle, onRenameTab)
     },
     [commitRename]
   )
@@ -61,13 +61,13 @@ export function useTabEditing(): UseTabEditingResult {
     (
       event: React.KeyboardEvent,
       tabId: string,
-      value: string,
+      tabTitle: string,
       onRenameTab: (tabId: string, title?: string) => void
     ) => {
       if (event.key === 'Enter') {
         event.preventDefault()
         skipBlurSaveRef.current = true
-        commitRename(tabId, value, onRenameTab)
+        commitRename(tabId, tabTitle, onRenameTab)
       }
       if (event.key === 'Escape') {
         event.preventDefault()

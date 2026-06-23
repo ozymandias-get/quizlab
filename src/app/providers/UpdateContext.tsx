@@ -43,7 +43,7 @@ function UpdateProvider({ children }: { children: ReactNode }) {
     return result.data ?? { available: false, error: 'Refetch failed' }
   }, [refetch])
 
-  const value = useMemo(
+  const contextValue = useMemo(
     () => ({
       updateAvailable,
       updateInfo,
@@ -54,7 +54,7 @@ function UpdateProvider({ children }: { children: ReactNode }) {
     [updateAvailable, updateInfo, isLoading, isEnabled, isFetched, checkForUpdates]
   )
 
-  return <UpdateContext.Provider value={value}>{children}</UpdateContext.Provider>
+  return <UpdateContext.Provider value={contextValue}>{children}</UpdateContext.Provider>
 }
 
 export default UpdateProvider

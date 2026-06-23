@@ -13,23 +13,23 @@ import { useEffect, useState } from 'react'
  *   const debouncedSearch = useDebouncedValue(search, 200)
  *   // `debouncedSearch` is the value to feed into expensive filters.
  */
-export function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value)
+export function useDebouncedValue<T>(input: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(input)
 
   useEffect(() => {
     if (delayMs <= 0) {
-      setDebounced(value)
+      setDebounced(input)
       return
     }
 
     const handle = window.setTimeout(() => {
-      setDebounced(value)
+      setDebounced(input)
     }, delayMs)
 
     return () => {
       window.clearTimeout(handle)
     }
-  }, [value, delayMs])
+  }, [input, delayMs])
 
   return debounced
 }

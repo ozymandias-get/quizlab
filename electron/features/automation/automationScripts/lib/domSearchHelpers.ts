@@ -3,9 +3,9 @@ export const domSearchHelpers = `    /**
      * Unlike CSS.escape (identifier escaping), this applies CSS string escaping
      * rules: backslash and double-quote must be escaped with a backslash.
      */
-    const __escapeCssStr = (value) => {
-        if (typeof value !== 'string') return '';
-        return value.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"');
+    const __escapeCssStr = (str) => {
+        if (typeof str !== 'string') return '';
+        return str.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"');
     };
 
     const collectShadowRoots = (root, accumulator, visitedHosts) => {

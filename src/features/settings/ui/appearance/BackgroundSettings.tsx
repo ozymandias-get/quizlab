@@ -38,14 +38,14 @@ const BackgroundSettings = memo(
         </div>
 
         <div className="flex gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] p-1">
-          {MODES.map(({ value, labelKey, icon: Icon }) => (
+          {MODES.map(({ value: mode, labelKey, icon: Icon }) => (
             <button
               type="button"
-              key={value}
-              onClick={() => setBgMode(value)}
+              key={mode}
+              onClick={() => setBgMode(mode)}
               className={cn(
                 'text-ql-12 flex flex-1 items-center gap-2 rounded-lg px-3 py-2 font-medium transition-all duration-200',
-                bgMode === value
+                bgMode === mode
                   ? 'text-foreground bg-white/[0.08] shadow-sm'
                   : 'text-muted-foreground/60 hover:text-foreground/80 hover:bg-white/[0.03]'
               )}

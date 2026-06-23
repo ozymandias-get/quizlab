@@ -133,8 +133,8 @@ export function useAiTabStripState({
   renameTabRef.current = renameTab
 
   const commitRename = useCallback(
-    (tabId: string, value: string) => {
-      renameTabRef.current(tabId, value)
+    (tabId: string, tabTitle: string) => {
+      renameTabRef.current(tabId, tabTitle)
       setEditingTabId(null)
       setEditingValue('')
     },
