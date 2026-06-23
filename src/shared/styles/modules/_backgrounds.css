@@ -1,0 +1,131 @@
+.app-ambient-background {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-negative-10);
+  pointer-events: none;
+  overflow: hidden;
+  contain: layout style paint;
+  background:
+    radial-gradient(
+      circle at 20% 20%,
+      var(--ambient-1, oklch(0.4 0.15 270 / 0.14)),
+      transparent 34%
+    ),
+    radial-gradient(circle at 80% 70%, var(--ambient-2, oklch(0.5 0.1 190 / 0.1)), transparent 36%),
+    linear-gradient(
+      135deg,
+      oklch(0.1 0.01 260 / 0.5) 0%,
+      oklch(0.12 0.02 280 / 0.5) 45%,
+      oklch(0.1 0.01 260 / 0.5) 100%
+    );
+}
+
+.app-ambient-background::before,
+.app-ambient-background::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  filter: blur(70px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  will-change: transform;
+  pointer-events: none;
+  backface-visibility: hidden;
+  transition: opacity var(--duration-slower) ease-in-out;
+}
+
+.app-ambient-background::before {
+  background:
+    radial-gradient(
+      circle at 30% 30%,
+      var(--ambient-3, oklch(0.5 0.2 300 / 0.26)),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 70% 60%,
+      var(--ambient-4, oklch(0.6 0.15 190 / 0.18)),
+      transparent 30%
+    );
+  animation: ambientDriftA var(--anim-speed-a, 32s) ease-in-out infinite alternate;
+  animation-play-state: var(--ambient-paused, running);
+}
+
+.app-ambient-background::after {
+  background: linear-gradient(
+    115deg,
+    transparent 18%,
+    var(--ambient-beam-1, oklch(0.4 0.15 270 / 0.13)) 38%,
+    var(--ambient-beam-2, oklch(0.5 0.2 330 / 0.1)) 52%,
+    transparent 72%
+  );
+  transform: rotate(-8deg) translateZ(0);
+  animation: ambientDriftB var(--anim-speed-b, 40s) ease-in-out infinite alternate;
+  animation-play-state: var(--ambient-paused, running);
+}
+
+@keyframes ambientDriftA {
+  0% {
+    transform: translate3d(-3%, -2%, 0);
+    opacity: 0.42;
+  }
+
+  50% {
+    transform: translate3d(3%, 2%, 0);
+    opacity: 0.58;
+  }
+
+  100% {
+    transform: translate3d(1%, -3%, 0);
+    opacity: 0.48;
+  }
+}
+
+@keyframes ambientDriftB {
+  0% {
+    transform: translate3d(4%, -2%, 0) rotate(-8deg);
+    opacity: 0.2;
+  }
+
+  100% {
+    transform: translate3d(-4%, 3%, 0) rotate(-4deg);
+    opacity: 0.32;
+  }
+}
+
+.bg-noise {
+  position: absolute;
+  inset: -12%;
+  opacity: 0.022;
+  background-image:
+    radial-gradient(oklch(1 0 0 / 0.18) 0.55px, transparent 0.8px),
+    radial-gradient(oklch(0 0 0 / 0.22) 0.55px, transparent 0.9px);
+  background-size:
+    4px 4px,
+    5px 5px;
+  background-position:
+    0 0,
+    2px 1px;
+  mix-blend-mode: soft-light;
+  mask-image: radial-gradient(circle at center, oklch(1 0 0 / 0.9) 0%, transparent 78%);
+  z-index: var(--z-surface-4);
+  pointer-events: none;
+}
+
+.app-ambient-background[data-bg-mode='solid']::before,
+.app-ambient-background[data-bg-mode='solid']::after {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-ambient-background[data-bg-mode='solid'] .bg-noise {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slower) ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-ambient-background::before,
+  .app-ambient-background::after {
+    animation: none !important;
+  }
+}

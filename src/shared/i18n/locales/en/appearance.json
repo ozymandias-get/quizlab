@@ -1,0 +1,19 @@
+{
+  "appearance": "Appearance",
+  "appearance_description": "Customize app appearance, bar position and background settings.",
+  "appearance_settings": "Appearance Settings",
+  "background_settings": "Background",
+  "bg_desc": "Personalize your workspace background.",
+  "bg_ambient": "Ambient Glow",
+  "bg_solid": "Solid Color",
+  "bg_solid_desc": "Flat solid color background.",
+  "selection_color_desc": "Personalize text selection and AI send button color.",
+  "selection_color_preview_hint": "Preview (Check by selecting text)",
+  "selection_color_settings": "Selector Color",
+  "ai_add_failed": "Failed to add AI",
+  "ai_added_success": "AI Added Successfully",
+  "ai_delete_failed": "Failed to delete AI",
+  "ai_deleted_success": "AI Deleted",
+  "ai_error_title": "Error: {name}",
+  "custom_prompts": "Custom Prompts"
+}

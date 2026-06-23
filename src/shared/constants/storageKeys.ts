@@ -1,0 +1,20 @@
+export const STORAGE_KEYS = {
+  LEFT_PANEL_WIDTH: 'leftPanelWidth',
+  LAST_SELECTED_AI: 'lastSelectedAI',
+  AUTO_SEND_ENABLED: 'autoSendEnabled',
+  ENABLED_MODELS: 'enabledModels',
+  BUILT_IN_SITE_BOOTSTRAP: 'builtInSiteBootstrap',
+  DEFAULT_AI_MODEL: 'defaultAiModel',
+  PINNED_AI_TABS: 'pinnedAiTabs',
+  APP_LANGUAGE: 'appLanguage',
+  CUSTOM_PROMPTS: 'customPrompts',
+  SELECTED_PROMPT_ID: 'selectedPromptId',
+  LAST_PDF_READING: 'lastPdfReading',
+  AI_MAX_ALIVE_TABS: 'aiMaxAliveTabs',
+  AI_SLEEP_TIMEOUT_MS: 'aiSleepTimeoutMs',
+  AI_NEVER_SLEEP_SITES: 'aiNeverSleepSites',
+  TEXT_INPUT_MODE: 'textInputMode',
+  TYPING_SPEED: 'typingSpeed',
+  TUTORIAL_COMPLETION: 'tutorial-completion',
+  TUTORIAL_ONBOARDING_DONE: 'tutorial-onboarding-done'
+} as const

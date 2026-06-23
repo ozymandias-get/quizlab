@@ -1,0 +1,71 @@
+{
+  "toast_api_unavailable": "System feature (API) is currently unavailable",
+  "toast_registry_load_error": "Failed to load AI services",
+  "toast_folder_created": "\"{folderName}\" folder created",
+  "toast_invalid_folder_name": "You entered an invalid folder name",
+  "toast_opened": "\"{fileName}\" successfully opened",
+  "toast_pdf_corrupt": "PDF file is corrupt!",
+  "toast_pdf_load_error": "Error occurred while loading PDF: {error}",
+  "toast_pdf_loaded": "PDF loaded",
+  "toast_config_saved": "Configuration Saved",
+  "toast_config_deleted": "Configuration Deleted",
+  "toast_login_open_failed": "Failed to open login page",
+  "toast_logout_failed": "Failed to logout",
+  "toast_logout_success": "Logged out successfully",
+  "toast_auth_title": "Auth",
+  "toast_gws_login_failed": "Google AI web login could not be started",
+  "toast_gws_check_failed": "Google AI web session check failed",
+  "toast_gws_reauth_failed": "Google AI web reauthentication failed",
+  "toast_gws_reset_failed": "Google AI web profile reset failed",
+  "toast_gws_toggle_failed": "Google AI web enable/disable update failed",
+  "toast_gws_apps_failed": "Google AI app visibility update failed",
+  "toast_cache_cleared": "Application cache cleared",
+  "toast_cache_cleared_failed": "Failed to clear cache",
+  "toast_ai_model_data_cleared": "Model cookies and data cleared",
+  "toast_ai_model_data_clear_failed": "Failed to clear model cookies and data",
+  "toast_cache_warning_title": "Storage Warning",
+  "toast_cache_warning_message": "Cache is at {used} MB / {limit} MB. Consider clearing unused partitions.",
+  "toast_system_title": "System",
+  "toast_open_link_failed": "Failed to open external link",
+  "toast_copy_failed": "Failed to copy image to clipboard",
+  "toast_clipboard_failed": "Failed to copy text to clipboard",
+  "toast_capture_failed": "Failed to capture screen",
+  "toast_screenshot_captured": "Screenshot captured",
+  "toast_logs_copied": "Diagnostic logs copied to clipboard",
+  "toast_ai_config_saved": "AI configuration saved successfully",
+  "toast_ai_config_save_failed": "Failed to save AI configuration",
+  "toast_ai_config_deleted": "AI configuration deleted successfully",
+  "toast_ai_config_delete_failed": "Failed to delete AI configuration",
+  "toast_custom_ai_added": "Added custom AI: {name}",
+  "toast_ai_added_title": "AI Added",
+  "toast_custom_ai_failed": "Failed to add custom AI",
+  "toast_custom_ai_delete_failed": "Failed to delete custom AI",
+  "toast_ai_error_title": "AI Error",
+  "toast_custom_ai_deleted": "Custom AI deleted successfully",
+  "toast_ai_deleted_title": "AI Deleted",
+  "toast_focus_script_failed": "Failed to generate focus script",
+  "toast_focus_script_gen": "Focus script generated",
+  "toast_automation_title": "Automation",
+  "toast_click_script_failed": "Failed to generate click script",
+  "toast_click_script_gen": "Click script generated",
+  "toast_autosend_script_failed": "Failed to generate auto-send script",
+  "toast_autosend_script_gen": "Auto-send script generated",
+  "toast_validate_script_failed": "Failed to generate selector validation script",
+  "toast_submit_ready_script_failed": "Failed to generate submit-ready wait script",
+  "toast_picker_script_failed": "Failed to generate picker script",
+  "picker_save_failed": "Couldn't save the selected elements: {error}",
+  "toast": {
+    "error": {
+      "title": "Error"
+    },
+    "info": {
+      "title": "Info"
+    },
+    "success": {
+      "title": "Success"
+    },
+    "warning": {
+      "title": "Warning"
+    }
+  }
+}

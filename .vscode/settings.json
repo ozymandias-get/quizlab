@@ -1,0 +1,39 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always",
+    "source.fixAll.stylelint": "always"
+  },
+  "editor.rulers": [100],
+  "editor.tabSize": 2,
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.trimFinalNewlines": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "typescript.preferences.quoteStyle": "single",
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["javascript", "typescript", "typescriptreact"],
+  "stylelint.validate": ["css"],
+  "tailwindCSS.experimental.classRegex": [["cn\\(([^)]*)\\)", "\"([^\"]*)\""]],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "stylelint.vscode-stylelint"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "auto_send": "Otomatik Gönder",
+  "auto_send_off": "Otomatik Gönder: KAPALI",
+  "auto_send_on": "Otomatik Gönder: AÇIK",
+  "auto_send_state_off": "Kapalı",
+  "auto_send_state_on": "Açık",
+  "auto_send_hint_off": "Göndermeden önce notunu gözden geçir.",
+  "auto_send_hint_on": "Seçimler doğrudan aktif AI sekmesine iletilir."
+}

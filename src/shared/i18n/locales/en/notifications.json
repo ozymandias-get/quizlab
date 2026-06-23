@@ -1,0 +1,17 @@
+{
+  "notifications": "Notifications",
+  "notification_settings": "Notification Settings",
+  "notifications_description": "Choose which notification types you want to receive. Toggle each type on or off.",
+  "notification_success_title": "Success",
+  "notification_success_description": "Shown when an operation completes successfully.",
+  "notification_error_title": "Error",
+  "notification_error_description": "Shown when something goes wrong or an operation fails.",
+  "notification_warning_title": "Warning",
+  "notification_warning_description": "Shown for important alerts that need your attention.",
+  "notification_info_title": "Info",
+  "notification_info_description": "Shown for general information and status updates.",
+  "notification_test_success": "Test",
+  "notification_test_error": "Test",
+  "notification_test_warning": "Test",
+  "notification_test_info": "Test"
+}

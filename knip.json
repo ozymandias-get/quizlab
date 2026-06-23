@@ -1,0 +1,14 @@
+{
+  "$schema": "https://knip.dev/schema.json",
+  "entry": [
+    "src/index.html",
+    "src/shared/styles/index.css",
+    "electron/preload/index.ts",
+    "electron/preload/displayMediaPickerPreload.ts",
+    "scripts/{dev,build-electron,check-repo-hygiene,check-version-consistency}.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx,css}", "electron/**/*.{ts,tsx}", "shared/**/*.ts"],
+  "exclude": ["unlisted", "unresolved"],
+  "ignore": ["src/shared/types/global.d.ts", "src/types/assets.d.ts"],
+  "ignoreDependencies": []
+}

@@ -1,0 +1,81 @@
+/* Glass tiers mapped to oklch theme tokens */
+
+.glass-tier-1,
+.glass-tier-2,
+.glass-tier-3 {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid oklch(var(--border));
+  background-color: oklch(var(--card));
+  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-md);
+  transform: translateZ(0);
+  contain: layout style paint;
+}
+
+.glass-tier-1 {
+  border-radius: var(--radius-2xl);
+}
+
+.glass-tier-2 {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-lg);
+}
+
+.glass-tier-3 {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-xl);
+}
+
+.glass-interactive {
+  transition:
+    border-color var(--duration-normal) var(--ease-glass),
+    box-shadow var(--duration-normal) var(--ease-glass),
+    transform var(--duration-normal) var(--ease-glass);
+}
+
+.glass-interactive:hover,
+.glass-interactive:focus-visible {
+  border-color: oklch(var(--ring) / 30%);
+}
+
+.glass-tier-card {
+  border-radius: var(--radius-xl);
+}
+
+.glass-tier-toolbar {
+  border-radius: var(--radius-lg);
+}
+
+.glass-tier-control {
+  border-radius: var(--radius-full);
+}
+
+.glass-tier-tabstrip {
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+}
+
+/* 3D Panel Effects */
+
+.panel-3d-wrapper {
+  position: relative;
+  isolation: isolate;
+}
+
+.glass-tier-1.panel-3d-left {
+  box-shadow: none;
+  background-color: oklch(var(--card));
+}
+
+.glass-tier-1.panel-3d-right {
+  box-shadow: none;
+  background-color: oklch(var(--card));
+}
+
+.panel-glow-left,
+.panel-glow-right {
+  position: absolute;
+  pointer-events: none;
+  z-index: var(--z-negative-1);
+  opacity: 1;
+}

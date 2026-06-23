@@ -1,0 +1,160 @@
+rules:
+  # Güvenlik Kuralları
+  - id: eval-usage
+    pattern: eval(...)
+    message: |
+      eval() kullanımı güvenlik açığı yaratabilir. 
+      Kullanıcı girişini eval ile çalıştırmayın.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: 'CWE-95: Eval Injection'
+
+  - id: function-constructor
+    pattern: Function(...)
+    message: |
+      Function() constructor'u eval benzeri güvenlik açığı yaratır.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: 'CWE-95: Eval Injection'
+
+  - id: inner-html-usage
+    pattern: innerHTML = $VALUE
+    message: |
+      innerHTML kullanımı XSS açığı yaratabilir.
+      Bunun yerine textContent veya güvenli HTML rendering kullanın.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: 'CWE-79: Cross-site Scripting'
+
+  - id: dangerouslysetinnerhtml
+    pattern: 'dangerouslySetInnerHTML={{ __html: $VALUE }}'
+    message: |
+      dangerouslySetInnerHTML XSS açığı yaratabilir.
+      Girişleri doğrulayın ve sanitize edin.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: 'CWE-79: Cross-site Scripting'
+
+  # Electron Güvenlik Kuralları
+  - id: electron-node-integration
+    pattern: |
+      new BrowserWindow({
+        ...,
+        webPreferences: {
+          nodeIntegration: true,
+          ...
+        }
+      })
+    message: |
+      nodeIntegration: true kullanımı güvenlik açığı yaratabilir.
+      nodeIntegration: false ve contextIsolation: true kullanın.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: electron-security
+      cwe: 'CWE-94: Code Injection'
+
+  - id: electron-context-isolation-disabled
+    pattern: |
+      new BrowserWindow({
+        ...,
+        webPreferences: {
+          contextIsolation: false,
+          ...
+        }
+      })
+    message: |
+      contextIsolation: false kullanımı güvenlik açığı yaratabilir.
+      contextIsolation: true kullanın.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: electron-security
+      cwe: 'CWE-94: Code Injection'
+
+  - id: electron-remote-module
+    pattern: require('electron').remote
+    message: |
+      remote modülü güvenlik açığı yaratabilir.
+      preload bridge ve contextBridge kullanın.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: electron-security
+      cwe: 'CWE-94: Code Injection'
+
+  # Güvensiz IPC Kullanımı
+  - id: unsafe-ipc-invoke
+    pattern: ipcRenderer.invoke($CHANNEL, ...)
+    message: |
+      IPC kanallarını doğrulayın ve izin verilen listeler kullanın.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: electron-security
+
+  # Dynamic Function Kullanımı
+  - id: dynamic-require
+    pattern: require($EXPR)
+    message: |
+      Dinamik require kullanımı güvenlik açığı yaratabilir.
+      Statik import tercih edin.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+
+  - id: dynamic-import
+    pattern: import($EXPR)
+    message: |
+      Dinamik import'ta userInput doğrulaması yapın.
+    languages: [typescript, javascript]
+    severity: INFO
+    metadata:
+      category: security
+
+  # Genel Güvenlik Kuralları
+  - id: hardcoded-secret
+    pattern-regex: "(password|secret|api_key|apikey|token)\\s*[=:]\\s*['\"][^'\"]+['\"]"
+    message: |
+      Hardcoded secret tespit edildi. Environment variables kullanın.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: 'CWE-798: Hard-coded Credentials'
+
+  - id: http-usage
+    pattern-regex: "http://[^\"'\\s]+"
+    message: |
+      HTTP kullanımı tespit edildi. HTTPS tercih edin.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+
+  - id: console-log-usage
+    pattern: console.log(...)
+    message: |
+      Production kodunda console.log kullanımı Logger.info() ile değiştirilmeli.
+    languages: [typescript, javascript]
+    severity: INFO
+    metadata:
+      category: code-quality
+
+  - id: console-error-usage
+    pattern: console.error(...)
+    message: |
+      Production kodunda console.error kullanımı Logger.error() ile değiştirilmeli.
+    languages: [typescript, javascript]
+    severity: INFO
+    metadata:
+      category: code-quality

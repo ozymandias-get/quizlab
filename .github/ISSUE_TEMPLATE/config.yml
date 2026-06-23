@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/ozymandias-get/quizlab/discussions
+    about: Please ask and answer questions here
+  - name: Documentation
+    url: https://github.com/ozymandias-get/quizlab/blob/main/README.md
+    about: Check the README for common questions
+  - name: Contributing Guidelines
+    url: https://github.com/ozymandias-get/quizlab/blob/main/CONTRIBUTING.md
+    about: Please read before submitting PRs

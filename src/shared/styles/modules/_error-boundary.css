@@ -1,0 +1,335 @@
+/* ── Aesthetic ErrorBoundary ─────────────────────────────────────────── */
+/* Re-uses the visual language of `.aesthetic-loader-modern` and the    */
+/* glass tier system, but the palette is shifted to a warm rose / amber  */
+/* range so an error screen reads as "something is wrong" at a glance.   */
+
+.aesthetic-error-boundary {
+  position: relative;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  padding: 24px;
+  background: oklch(0 0 0);
+  isolation: isolate;
+  text-align: center;
+}
+
+.aesthetic-error-boundary .err-ambient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 50% at 20% 20%, oklch(0.7 0.18 20 / 0.18) 0%, transparent 60%),
+    radial-gradient(50% 60% at 80% 80%, oklch(0.75 0.15 35 / 0.12) 0%, transparent 65%),
+    oklch(0 0 0);
+  z-index: var(--z-negative-2);
+  pointer-events: none;
+}
+
+.aesthetic-error-boundary .err-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(oklch(0.7 0.1 20 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.7 0.1 20 / 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black 38%, transparent 95%);
+  opacity: 0.7;
+  z-index: var(--z-negative-1);
+  pointer-events: none;
+}
+
+.aesthetic-error-boundary .err-shell {
+  position: relative;
+  width: min(560px, 100%);
+  border-radius: var(--radius-2xl);
+  padding: 36px 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  background: oklch(0.12 0.02 10 / 0.78);
+  border: 1px solid oklch(0.7 0.1 20 / 0.18);
+  box-shadow:
+    0 32px 90px oklch(0.05 0.03 10 / 0.72),
+    inset 0 1px 0 oklch(1 0 0 / 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: errShellEntrance 0.55s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+.aesthetic-error-boundary .err-shell::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 23px;
+  border: 1px solid oklch(1 0 0 / 0.04);
+  pointer-events: none;
+}
+
+.aesthetic-error-boundary .err-accent-line {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(0.7 0.2 25) 35%,
+    oklch(0.75 0.18 45) 65%,
+    transparent 100%
+  );
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.aesthetic-error-boundary .err-markWrap {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aesthetic-error-boundary .err-markGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    oklch(0.7 0.2 25 / 0.55) 0%,
+    oklch(0.7 0.2 25 / 0) 65%
+  );
+  filter: blur(6px);
+  animation: errPulse 3.4s ease-in-out infinite;
+}
+
+.aesthetic-error-boundary .err-mark {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: linear-gradient(
+    160deg,
+    oklch(0.15 0.03 10 / 0.95) 0%,
+    oklch(0.08 0.02 10 / 0.95) 100%
+  );
+  border: 1px solid oklch(0.7 0.1 20 / 0.18);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.05),
+    0 10px 24px -10px oklch(0.7 0.25 20 / 0.35);
+  color: oklch(0.7 0.2 25);
+}
+
+.aesthetic-error-boundary .err-title {
+  margin: 0;
+  font-size: clamp(20px, 2.4vw, 24px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: oklch(0.98 0.01 10);
+  background: linear-gradient(
+    105deg,
+    oklch(1 0 0) 0%,
+    oklch(0.95 0.04 25) 50%,
+    oklch(0.88 0.08 40) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.aesthetic-error-boundary .err-message {
+  margin: 0;
+  max-width: 30rem;
+  color: oklch(0.85 0.04 20 / 0.78);
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.aesthetic-error-boundary .err-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.aesthetic-error-boundary .err-btn-primary,
+.aesthetic-error-boundary .err-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.aesthetic-error-boundary .err-btn-primary {
+  background: linear-gradient(135deg, oklch(0.7 0.2 25) 0%, oklch(0.75 0.18 45) 100%);
+  color: oklch(0.1 0.02 20);
+  border-color: oklch(1 0 0 / 0.18);
+  box-shadow:
+    0 10px 24px -10px oklch(0.7 0.2 25 / 0.55),
+    inset 0 1px 0 oklch(1 0 0 / 0.25);
+}
+
+.aesthetic-error-boundary .err-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 30px -12px oklch(0.7 0.2 25 / 0.7),
+    inset 0 1px 0 oklch(1 0 0 / 0.3);
+}
+
+.aesthetic-error-boundary .err-btn-primary:active {
+  transform: translateY(0);
+}
+
+.aesthetic-error-boundary .err-btn-primary:focus-visible {
+  outline: 2px solid oklch(0.9 0.04 25);
+  outline-offset: 2px;
+}
+
+.aesthetic-error-boundary .err-btn-secondary {
+  background: oklch(1 0 0 / 0.04);
+  color: oklch(0.85 0.04 20 / 0.78);
+  border-color: oklch(1 0 0 / 0.08);
+}
+
+.aesthetic-error-boundary .err-btn-secondary:hover {
+  background: oklch(1 0 0 / 0.08);
+  border-color: oklch(1 0 0 / 0.14);
+  color: oklch(0.98 0.01 10);
+}
+
+.aesthetic-error-boundary .err-btn-secondary:focus-visible {
+  outline: 2px solid oklch(0.9 0.04 25 / 0.6);
+  outline-offset: 2px;
+}
+
+.aesthetic-error-boundary .err-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: oklch(0.1 0.02 20 / 0.85);
+  background: oklch(1 0 0 / 0.78);
+  border-radius: 5px;
+  border: 1px solid oklch(1 0 0 / 0.4);
+  box-shadow: 0 1px 0 oklch(0 0 0 / 0.08);
+}
+
+.aesthetic-error-boundary .err-hint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(0.85 0.04 20 / 0.5);
+}
+
+.aesthetic-error-boundary .err-details {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: oklch(0 0 0 / 0.32);
+  border: 1px solid oklch(1 0 0 / 0.06);
+  text-align: left;
+}
+
+.aesthetic-error-boundary .err-details summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: oklch(0.85 0.04 20 / 0.5);
+  transition: color 180ms ease;
+}
+
+.aesthetic-error-boundary .err-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.aesthetic-error-boundary .err-details summary::before {
+  content: '\25B8';
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 180ms ease;
+}
+
+.aesthetic-error-boundary .err-details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.aesthetic-error-boundary .err-details summary:hover {
+  color: oklch(0.85 0.04 20 / 0.78);
+}
+
+.aesthetic-error-boundary .err-stack {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: oklch(0.8 0.05 20 / 0.7);
+  background: oklch(0 0 0 / 0.4);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  max-height: 220px;
+}
+
+@keyframes errShellEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes errPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}

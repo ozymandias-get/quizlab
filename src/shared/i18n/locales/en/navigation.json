@@ -1,0 +1,18 @@
+{
+  "tab_close": "Close",
+  "tab_more": "More tabs",
+  "tab_pin": "Pin",
+  "tab_pinned": "Pinned",
+  "tab_rename": "Rename",
+  "tab_rename_placeholder": "Tab name...",
+  "tab_unpin": "Unpin",
+  "new_tab": "New tab",
+  "new_tab_title": "New Tab",
+  "new_folder": "New Folder",
+  "bar_appearance": "Bar Appearance",
+  "bar_drag_hint": "Drag to reposition the menu button",
+  "bar_layout": "Bar Layout",
+  "bar_layout_desc": "Position and alignment",
+  "bar_layout_direction": "Menu Orientation",
+  "open_tabs": "Active"
+}

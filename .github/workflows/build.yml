@@ -1,0 +1,229 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.1)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          node --version
+          npm --version
+          npm ci
+
+      - name: Repository hygiene guard
+        run: npm run ci:check-hygiene
+
+      - name: Version consistency
+        run: npm run ci:check-version
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format Check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Architecture (dependency-cruiser)
+        run: npm run analyze:architecture
+
+      - name: CSS Lint
+        run: npm run analyze:css
+
+      - name: File Size Check
+        continue-on-error: true
+        run: npm run analyze:file-sizes
+
+      - name: Run Tests with Coverage
+        run: npm run test:coverage
+
+      - name: Type Coverage (guard)
+        run: npm run analyze:types:ci
+
+      - name: Spell Check (non-blocking)
+        continue-on-error: true
+        run: npm run analyze:spell:ci
+
+      - name: Duplicate Code Detection
+        run: npm run analyze:duplicates
+
+      - name: Circular Dependency Check
+        run: npm run analyze:circular
+
+  build:
+    needs: quality
+    runs-on: ${{ matrix.os }}
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+          - os: ubuntu-22.04
+            platform: linux
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 rpm
+
+      - name: Install dependencies
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          node --version
+          npm --version
+          npm ci
+
+      - name: Install dependencies
+        if: matrix.platform != 'win'
+        run: |
+          node --version
+          npm --version
+          npm ci
+
+      - name: Build and Package (Windows)
+        if: matrix.platform == 'win'
+        run: npm run build && npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Package (Linux)
+        if: matrix.platform == 'linux'
+        run: npm run build && npx electron-builder --linux --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: 'electron-builder'
+
+      - name: List release files (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          if (Test-Path release) { Get-ChildItem -Recurse release }
+
+      - name: List release files (Linux / macOS)
+        if: matrix.platform != 'win'
+        run: |
+          if [ -d release ]; then
+            ls -laR release
+          fi
+
+      - name: Upload artifacts (Windows)
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            release/*.exe
+            release/*.yml
+            release/latest.yml
+          if-no-files-found: error
+
+      - name: Upload artifacts (Linux)
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.yml
+            release/latest-linux.yml
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 15
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: release-*
+          merge-multiple: true
+
+      - name: List downloaded files
+        run: find artifacts -type f
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Quizlab Reader ${{ github.ref_name }}
+
+            ### Download
+
+            **Windows:** `QuizlabReader-Setup-*.exe` — run the installer.
+
+            **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
+
+            ### Core Features
+            - **Embedded AI webviews** (ChatGPT, Gemini, Claude, and more)
+            - **Magic Selector** for Universal AI Chat
+            - **Multi-language support (EN, TR)**
+            - **Dual-Pane PDF Reader**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

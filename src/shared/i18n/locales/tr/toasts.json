@@ -1,0 +1,71 @@
+{
+  "toast_api_unavailable": "Sistem özelliği (API) şu an kullanılamıyor",
+  "toast_registry_load_error": "AI listesi yüklenemedi",
+  "toast_folder_created": "\"{folderName}\" klasörü oluşturuldu",
+  "toast_invalid_folder_name": "Geçersiz klasör adı girdiniz",
+  "toast_opened": "\"{fileName}\" başarıyla açıldı",
+  "toast_pdf_corrupt": "PDF dosyası bozuk!",
+  "toast_pdf_load_error": "PDF yüklenirken hata oluştu: {error}",
+  "toast_pdf_loaded": "PDF yüklendi",
+  "toast_config_saved": "Yapılandırma Kaydedildi",
+  "toast_config_deleted": "Yapılandırma Silindi",
+  "toast_login_open_failed": "Giriş sayfası açılamadı",
+  "toast_logout_failed": "Çıkış yapılamadı",
+  "toast_logout_success": "Başarıyla çıkış yapıldı",
+  "toast_auth_title": "Kimlik Doğrulama",
+  "toast_gws_login_failed": "Google AI web girişi başlatılamadı",
+  "toast_gws_check_failed": "Google AI web oturum kontrolü başarısız",
+  "toast_gws_reauth_failed": "Google AI web yeniden doğrulama başarısız",
+  "toast_gws_reset_failed": "Google AI web profil sıfırlama başarısız",
+  "toast_gws_toggle_failed": "Google AI web aç/kapat güncellenemedi",
+  "toast_gws_apps_failed": "Google AI uygulama görünürlüğü güncellenemedi",
+  "toast_cache_cleared": "Uygulama önbelleği temizlendi",
+  "toast_cache_cleared_failed": "Önbellek temizlenemedi",
+  "toast_ai_model_data_cleared": "Model çerezleri ve verileri temizlendi",
+  "toast_ai_model_data_clear_failed": "Model çerezleri ve verileri temizlenemedi",
+  "toast_cache_warning_title": "Depolama Uyarısı",
+  "toast_cache_warning_message": "Önbellek {used} MB / {limit} MB seviyesinde. Kullanılmayan partition'ları temizlemeyi düşünün.",
+  "toast_system_title": "Sistem",
+  "toast_open_link_failed": "Harici bağlantı açılamadı",
+  "toast_copy_failed": "Resim panoya kopyalanamadı",
+  "toast_clipboard_failed": "Metin panoya kopyalanamadı",
+  "toast_capture_failed": "Ekran görüntüsü alınamadı",
+  "toast_screenshot_captured": "Ekran görüntüsü alındı",
+  "toast_logs_copied": "Tanılama logları panoya kopyalandı",
+  "toast_ai_config_saved": "AI yapılandırması başarıyla kaydedildi",
+  "toast_ai_config_save_failed": "AI yapılandırması kaydedilemedi",
+  "toast_ai_config_deleted": "AI yapılandırması başarıyla silindi",
+  "toast_ai_config_delete_failed": "AI yapılandırması silinemedi",
+  "toast_custom_ai_added": "Özel AI eklendi: {name}",
+  "toast_ai_added_title": "AI Eklendi",
+  "toast_custom_ai_failed": "Özel AI eklenemedi",
+  "toast_custom_ai_delete_failed": "Özel AI silinemedi",
+  "toast_ai_error_title": "AI Hatası",
+  "toast_custom_ai_deleted": "Özel AI başarıyla silindi",
+  "toast_ai_deleted_title": "AI Silindi",
+  "toast_focus_script_failed": "Odaklanma komutu oluşturulamadı",
+  "toast_focus_script_gen": "Odaklanma komutu oluşturuldu",
+  "toast_automation_title": "Otomasyon",
+  "toast_click_script_failed": "Tıklama komutu oluşturulamadı",
+  "toast_click_script_gen": "Tıklama komutu oluşturuldu",
+  "toast_autosend_script_failed": "Otomatik gönderme komutu oluşturulamadı",
+  "toast_autosend_script_gen": "Otomatik gönderme komutu oluşturuldu",
+  "toast_validate_script_failed": "Selektör doğrulama komutu oluşturulamadı",
+  "toast_submit_ready_script_failed": "Gönderim hazır bekleme komutu oluşturulamadı",
+  "toast_picker_script_failed": "Seçici komutu oluşturulamadı",
+  "picker_save_failed": "Seçilen öğeler kaydedilemedi: {error}",
+  "toast": {
+    "error": {
+      "title": "Hata"
+    },
+    "info": {
+      "title": "Bilgi"
+    },
+    "success": {
+      "title": "Başarılı"
+    },
+    "warning": {
+      "title": "Uyarı"
+    }
+  }
+}
