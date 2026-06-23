@@ -62,7 +62,8 @@ module.exports = {
       severity: 'error',
       comment: 'Browser kodu Node.js modülü import etmemeli',
       from: {
-        path: '^src/'
+        path: '^src/',
+        pathNot: '(^src/__tests__/|\\.test\\.(ts|tsx)$)'
       },
       to: {
         path: '^(fs|path|child_process|os|crypto|net|http|https|stream|events|buffer|util|assert|url|querystring|zlib|tls|cluster|dgram|dns|readline|repl|vm|v8|worker_threads)$'
