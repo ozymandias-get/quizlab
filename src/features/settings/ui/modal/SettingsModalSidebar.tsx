@@ -40,7 +40,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
   )
 
   return (
-    <aside className="border-border bg-muted/20 relative flex flex-1 flex-col border-r max-[900px]:hidden">
+    <aside className="border-border bg-muted/20 relative flex min-w-0 flex-1 flex-col border-r max-[900px]:hidden">
       <div className="relative flex h-full min-h-0 flex-col p-4">
         <div className="relative min-h-0 flex-1">
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
