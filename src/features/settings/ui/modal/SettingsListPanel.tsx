@@ -33,7 +33,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
 
   return (
     <div className="border-border relative flex flex-1 flex-col border-r max-[1100px]:hidden">
-      <ScrollArea className="min-h-0 flex-1 px-3 py-3">
+      <ScrollArea className="min-h-0 flex-1 px-4 py-4">
         <AnimatePresence mode="wait">
           {isQuickSettings ? (
             <motion.div
@@ -43,7 +43,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.12 }}
             >
-              <div className="mb-3 px-1">
+              <div className="mb-4 px-1">
                 <div className="text-muted-foreground text-ql-10 font-semibold tracking-widest uppercase">
                   {t('quick_settings')}
                 </div>
@@ -66,7 +66,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.12 }}
             >
-              <div className="mb-3 flex items-center justify-between px-1">
+              <div className="mb-4 flex items-center justify-between px-1">
                 <div className="text-muted-foreground text-ql-10 font-semibold tracking-widest uppercase">
                   {activeSection.label}
                   <span className="text-muted-foreground/50 ml-1.5 font-normal">
@@ -75,7 +75,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 {activeSection.tabs.map((tab) => {
                   const isSelected = activeTab === tab.id
                   return (
@@ -83,7 +83,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative flex w-full items-center gap-2.5 rounded-lg border p-2.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                      className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                         isSelected
                           ? 'border-ring/30 bg-accent'
                           : 'border-border hover:border-border hover:bg-accent/50 bg-transparent'
@@ -97,12 +97,12 @@ const SettingsListPanel = memo(function SettingsListPanel({
                       }
                     >
                       <div
-                        className="h-2 w-2 shrink-0 rounded-full"
+                        className="h-3 w-3 shrink-0 rounded-full"
                         style={{ backgroundColor: tab.glow }}
                       />
                       <div className="min-w-0 flex-1">
                         <div
-                          className={`text-xs font-medium leading-tight transition-colors ${
+                          className={`text-sm font-medium leading-tight transition-colors ${
                             isSelected
                               ? 'text-foreground'
                               : 'text-muted-foreground group-hover:text-foreground/70'
@@ -111,12 +111,12 @@ const SettingsListPanel = memo(function SettingsListPanel({
                           {tab.label}
                         </div>
                         {tab.description && (
-                          <div className="text-muted-foreground/60 mt-0.5 truncate text-[11px] leading-tight">
+                          <div className="text-muted-foreground/60 mt-0.5 truncate text-xs leading-tight">
                             {tab.description}
                           </div>
                         )}
                       </div>
-                      <span className="text-muted-foreground/30 text-xs">›</span>
+                      <span className="text-muted-foreground/30 text-base">›</span>
                     </button>
                   )
                 })}
