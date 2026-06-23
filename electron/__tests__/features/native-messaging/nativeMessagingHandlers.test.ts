@@ -111,7 +111,10 @@ describe('registerNativeMessagingHandlers', () => {
       const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_STATUS)
       const result = await handler({ sender: { id: 404 }, type: 'invoke' })
 
-      expect(result).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
+      expect(result).toEqual({
+        ok: false,
+        error: { code: 'unauthorized', message: 'Not authorized' }
+      })
       expect(getExtensionInfo).not.toHaveBeenCalled()
     })
   })
@@ -189,15 +192,18 @@ describe('registerNativeMessagingHandlers', () => {
       const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG)
       const result = await handler({ sender: { id: 1 }, type: 'invoke' })
 
-      expect(result).toEqual({ ok: true, data: {
-        port: 51999,
-        host: '127.0.0.1',
-        secret: 'abc123',
-        endpoints: {
-          cookies: '/api/cookies',
-          health: '/api/health'
+      expect(result).toEqual({
+        ok: true,
+        data: {
+          port: 51999,
+          host: '127.0.0.1',
+          secret: 'abc123',
+          endpoints: {
+            cookies: '/api/cookies',
+            health: '/api/health'
+          }
         }
-      } })
+      })
     })
 
     it('returns null when sender is untrusted', async () => {
@@ -210,7 +216,10 @@ describe('registerNativeMessagingHandlers', () => {
       const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG)
       const result = await handler({ sender: { id: 404 }, type: 'invoke' })
 
-      expect(result).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
+      expect(result).toEqual({
+        ok: false,
+        error: { code: 'unauthorized', message: 'Not authorized' }
+      })
     })
   })
 })

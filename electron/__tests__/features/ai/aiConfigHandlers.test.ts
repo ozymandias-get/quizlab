@@ -208,6 +208,9 @@ describe('aiConfigHandlers', () => {
     const getConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AI_CONFIG)
     const result = await getConfigHandler?.({ sender: { id: 999 }, type: 'invoke' }, 'claude.ai')
 
-    expect(result).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
   })
 })

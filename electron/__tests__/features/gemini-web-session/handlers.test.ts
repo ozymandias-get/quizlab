@@ -107,7 +107,10 @@ describe('gemini web session handlers', () => {
     const statusHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_STATUS)
     const result = await statusHandler?.({ sender: { id: 404 }, type: 'invoke' })
 
-    expect(result).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
     expect(getStatus).not.toHaveBeenCalled()
   })
 })

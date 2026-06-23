@@ -122,9 +122,9 @@ describe('systemHandlers', () => {
     await expect(
       openExternalHandler?.({ sender: trustedSender }, 'https://example.com')
     ).resolves.toEqual({ ok: true, data: true })
-    await expect(openExternalHandler?.({ sender: trustedSender }, 'file:///secret')).resolves.toEqual(
-      { ok: true, data: false }
-    )
+    await expect(
+      openExternalHandler?.({ sender: trustedSender }, 'file:///secret')
+    ).resolves.toEqual({ ok: true, data: false })
     await expect(
       openExternalHandler?.({ sender: { id: 'attacker' } }, 'https://example.com')
     ).resolves.toEqual({ ok: true, data: false })
@@ -153,7 +153,10 @@ describe('systemHandlers', () => {
       ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.FORCE_PASTE
     )?.[1]
 
-    await expect(forcePasteHandler?.({ sender: trustedSender }, 42)).resolves.toEqual({ ok: true, data: true })
+    await expect(forcePasteHandler?.({ sender: trustedSender }, 42)).resolves.toEqual({
+      ok: true,
+      data: true
+    })
 
     fromId.mockReturnValue({
       isDestroyed: vi.fn(() => false),
@@ -162,7 +165,10 @@ describe('systemHandlers', () => {
       paste
     })
 
-    await expect(forcePasteHandler?.({ sender: trustedSender }, 42)).resolves.toEqual({ ok: true, data: false })
+    await expect(forcePasteHandler?.({ sender: trustedSender }, 42)).resolves.toEqual({
+      ok: true,
+      data: false
+    })
     expect(paste).toHaveBeenCalledTimes(1)
   })
 

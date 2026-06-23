@@ -1,1 +1,3 @@
-BASE_COMMIT=ea9f62330fdececb361ceefeca77f04ef1207d8e
+Task 1: complete (commits initial..389d19c, review clean)
+Task 2: complete (review clean)
+Task 4: complete (typecheck now clean, review clean)
