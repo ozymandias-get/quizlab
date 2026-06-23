@@ -1,5 +1,6 @@
 import { useLanguage } from '@shared/stores/languageStore'
-import { AnimatePresence, motion } from 'motion/react'
+
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 
 let globalScrollLockCount = 0
@@ -7,6 +8,7 @@ let globalScrollLockOriginal: string | null = null
 
 export function LanguageSelectionDialog() {
   const { isOnboardingDone, languages, setLanguage, completeOnboarding } = useLanguage()
+  const prefersReducedMotion = useReducedMotion()
   const [selectedLang, setSelectedLang] = useState<string | null>(null)
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -121,9 +123,9 @@ export function LanguageSelectionDialog() {
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            initial={{ opacity: 0, y: 18, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            initial={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 18, scale: 0.96 }) }}
+            animate={{ opacity: 1, ...(prefersReducedMotion ? {} : { y: 0, scale: 1 }) }}
+            exit={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 8, scale: 0.98 }) }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
             className="glass-tier-1 glass-tier-card mx-6 w-full max-w-md rounded-[2rem] p-8 text-center outline-none"
           >
@@ -150,12 +152,8 @@ export function LanguageSelectionDialog() {
                       {lang.flag}
                     </span>
                     <div className="flex flex-col">
-                      <span className="text-ql-16 font-semibold text-white">
-                        {lang.nativeName}
-                      </span>
-                      <span className="text-ql-13 text-white/50">
-                        {lang.name}
-                      </span>
+                      <span className="text-ql-16 font-semibold text-white">{lang.nativeName}</span>
+                      <span className="text-ql-13 text-white/50">{lang.name}</span>
                     </div>
                     {isSelected && (
                       <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400 text-xs text-white">
@@ -171,13 +169,7 @@ export function LanguageSelectionDialog() {
               type="button"
               onClick={handleContinue}
               disabled={!selectedLang}
-              className="
-                mt-8 inline-flex w-full items-center justify-center rounded-full px-6 py-3
-                text-ql-14 font-semibold transition-all
-                focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:outline-none
-                disabled:cursor-not-allowed disabled:opacity-40
-                enabled:bg-emerald-400/90 enabled:text-white enabled:hover:bg-emerald-400
-              "
+              className="text-ql-14 mt-8 inline-flex w-full items-center justify-center rounded-full px-6 py-3 font-semibold transition-all focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:outline-none enabled:bg-emerald-400/90 enabled:text-white enabled:hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Continue &rarr;
             </button>

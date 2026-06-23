@@ -11,7 +11,13 @@ vi.mock('@shared/stores/languageStore', () => ({
         language: 'en',
         isOnboardingDone: false,
         languages: {
-          en: { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧', dir: 'ltr' as const },
+          en: {
+            code: 'en',
+            name: 'English',
+            nativeName: 'English',
+            flag: '🇬🇧',
+            dir: 'ltr' as const
+          },
           tr: { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷', dir: 'ltr' as const }
         },
         setLanguage: mockSetLanguage,
@@ -19,7 +25,9 @@ vi.mock('@shared/stores/languageStore', () => ({
       }
       return selector ? selector(state) : state
     },
-    { getState: () => ({ completeOnboarding: mockCompleteOnboarding, setLanguage: mockSetLanguage }) }
+    {
+      getState: () => ({ completeOnboarding: mockCompleteOnboarding, setLanguage: mockSetLanguage })
+    }
   )
 }))
 
@@ -46,5 +54,16 @@ describe('LanguageSelectionDialog', () => {
   it('has role="dialog" and aria-modal', () => {
     render(<LanguageSelectionDialog />)
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true')
+  })
+
+  it('calls setLanguage and completeOnboarding on continue', async () => {
+    render(<LanguageSelectionDialog />)
+    fireEvent.click(screen.getByText('Türkçe'))
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+    await vi.waitFor(() => {
+      expect(mockSetLanguage).toHaveBeenCalledWith('tr')
+      expect(mockCompleteOnboarding).toHaveBeenCalled()
+    })
   })
 })
