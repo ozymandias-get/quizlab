@@ -1,0 +1,69 @@
+﻿389d19c chore: remove unused isSuccess, sendEvent, and isFailure import
+--
+ .superpowers/sdd/ledger.md    | 1 +
+ shared/lib/typedIpc.ts        | 5 -----
+ shared/lib/typedIpcPreload.ts | 7 -------
+ 3 files changed, 1 insertion(+), 12 deletions(-)
+--
+diff --git a/.superpowers/sdd/ledger.md b/.superpowers/sdd/ledger.md
+new file mode 100644
+index 0000000..d8da2a5
+--- /dev/null
++++ b/.superpowers/sdd/ledger.md
+@@ -0,0 +1 @@
++BASE_COMMIT=ea9f62330fdececb361ceefeca77f04ef1207d8e
+diff --git a/shared/lib/typedIpc.ts b/shared/lib/typedIpc.ts
+index ccac8a8..ac69699 100644
+--- a/shared/lib/typedIpc.ts
++++ b/shared/lib/typedIpc.ts
+@@ -19,18 +19,13 @@ export function success<T>(data: T): IpcResult<T> {
+   return { ok: true, data }
+ }
+ 
+ export function failure(
+   code: IpcErrorCode,
+   message: string,
+   details?: Record<string, unknown>
+ ): IpcResult<never> {
+   return { ok: false, error: { code, message, details } }
+ }
+-
+-export function isSuccess<T>(result: IpcResult<T>): result is { ok: true; data: T } {
+-  return result.ok
+-}
+-
+ export function isFailure<T>(result: IpcResult<T>): result is { ok: false; error: IpcError } {
+   return !result.ok
+ }
+diff --git a/shared/lib/typedIpcPreload.ts b/shared/lib/typedIpcPreload.ts
+index f7e7389..feed37c 100644
+--- a/shared/lib/typedIpcPreload.ts
++++ b/shared/lib/typedIpcPreload.ts
+@@ -51,27 +51,20 @@ export function typedInvoke<C extends IpcInvokeChannel>(
+ export async function unwrapIpcResult<T>(promise: Promise<IpcResult<T>>): Promise<T> {
+   const result = await promise
+   if (isFailure(result)) {
+     const error = new Error(result.error.message)
+     ;(error as unknown as Record<string, unknown>).code = result.error.code
+     throw error
+   }
+   return result.data
+ }
+ 
+-export function sendEvent<C extends IpcEventChannel>(
+-  channel: C,
+-  ...args: IpcEventMap[C]['args']
+-): void {
+-  ipcRenderer.send(channel, ...args)
+-}
+-
+ export function onEvent<C extends IpcEventChannel>(
+   channel: C,
+   callback: (...args: IpcEventMap[C]['args']) => void
+ ): () => void {
+   const handler = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => {
+     callback(...(args as IpcEventMap[C]['args']))
+   }
+   ipcRenderer.on(channel, handler)
+   return () => ipcRenderer.removeListener(channel, handler)
+ }

@@ -81,4 +81,4 @@ async function saveConfig(config: ApiConfig): Promise<boolean> {
   }
 }
 
-export { loadConfig, MAX_PROMPT_LENGTH, sanitizeApiKey, saveConfig }
+export { loadConfig, sanitizeApiKey, saveConfig }
