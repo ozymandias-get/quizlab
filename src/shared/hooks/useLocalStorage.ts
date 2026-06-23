@@ -20,13 +20,13 @@ const getStorageItem = (key: string): string | null => {
   }
 }
 
-const setStorageItem = (key: string, value: string): boolean => {
+const setStorageItem = (key: string, str: string): boolean => {
   if (!isClient) return false
   try {
-    localStorage.setItem(key, value)
+    localStorage.setItem(key, str)
     window.dispatchEvent(
       new CustomEvent<LocalStorageChangeDetail>(LOCAL_STORAGE_SYNC_EVENT, {
-        detail: { key, value }
+        detail: { key, value: str }
       })
     )
     return true
@@ -76,9 +76,9 @@ const parseJsonValue = <T>(rawValue: string): T | typeof INVALID_STORED_VALUE =>
   }
 }
 
-const safeStringify = <T>(value: T): string | null => {
+const safeStringify = <T>(val: T): string | null => {
   try {
-    return JSON.stringify(value)
+    return JSON.stringify(val)
   } catch {
     return null
   }
@@ -168,9 +168,9 @@ function useBaseStorage<T>({
   }, [key, syncState])
 
   const setValue: SetValue<T> = useCallback(
-    (value) => {
+    (val) => {
       try {
-        const valueToStore = value instanceof Function ? value(storedValueRef.current) : value
+        const valueToStore = val instanceof Function ? val(storedValueRef.current) : val
         const serialized = serialize(valueToStore)
 
         if (validate && !validate(valueToStore)) {

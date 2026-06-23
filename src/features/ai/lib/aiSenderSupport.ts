@@ -174,12 +174,12 @@ export function mergeAiConfigs(base: AiConfig, override: AiConfig | null | undef
   const keys = Object.keys(override) as (keyof AiConfig)[]
 
   for (const key of keys) {
-    const value = override[key]
-    if (value !== undefined) {
+    const val = override[key]
+    if (val !== undefined) {
       if (key === 'appendPromptAfterPaste') {
-        merged[key] = value !== false
+        merged[key] = val !== false
       } else {
-        ;(merged as any)[key] = value
+        ;(merged as any)[key] = val
       }
     }
   }

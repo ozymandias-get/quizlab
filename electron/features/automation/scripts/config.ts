@@ -27,9 +27,9 @@ export interface SerializedAutomationConfig {
 function uniqueSelectors(values: Array<string | null | undefined>) {
   const selectors: string[] = []
 
-  for (const value of values) {
-    if (typeof value !== 'string') continue
-    const normalized = value.trim()
+  for (const v of values) {
+    if (typeof v !== 'string') continue
+    const normalized = v.trim()
     if (!normalized || selectors.includes(normalized)) continue
     selectors.push(normalized)
   }

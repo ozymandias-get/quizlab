@@ -20,7 +20,7 @@ interface AiSendComposerContentProps {
   sendFeedback: 'idle' | 'sending' | 'success' | 'error'
   lastError: string | null
   accentStrong: string
-  onNoteTextChange: (value: string) => void
+  onNoteTextChange: (text: string) => void
   onSubmit: (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => void
   onRetry: () => void
   onResizeStart: (direction: ResizeDirection) => PointerEventHandler<HTMLDivElement>

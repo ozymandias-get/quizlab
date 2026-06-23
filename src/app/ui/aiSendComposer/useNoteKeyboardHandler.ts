@@ -5,7 +5,7 @@ interface UseNoteKeyboardHandlerOptions {
   hasNoteText: boolean
   isSubmitting: boolean
   totalItems: number
-  onNoteTextChange: (value: string) => void
+  onNoteTextChange: (text: string) => void
   onSubmit: (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => void
 }
 

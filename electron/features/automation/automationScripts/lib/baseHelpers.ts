@@ -4,14 +4,14 @@ export const getBaseHelpers = (ambiguousSelectorBehavior: 'pick' | 'reject') => 
     const now = () => (typeof performance !== 'undefined' && typeof performance.now === 'function'
         ? performance.now()
         : Date.now());
-    const roundMs = (value) => Math.round(value * 100) / 100;
+    const roundMs = (ms) => Math.round(ms * 100) / 100;
     const normalizeText = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
 
     const uniqueStrings = (values) => {
         const unique = [];
-        for (const value of Array.isArray(values) ? values : []) {
-            if (typeof value !== 'string') continue;
-            const normalized = value.trim();
+        for (const v of Array.isArray(values) ? values : []) {
+            if (typeof v !== 'string') continue;
+            const normalized = v.trim();
             if (!normalized || unique.includes(normalized)) continue;
             unique.push(normalized);
         }

@@ -168,9 +168,9 @@ function PdfToolbar({
   const handleOpenSearch = useCallback(() => setIsSearchOpen(true), [])
 
   const handleKeywordChange = useCallback(
-    (value: string) => {
-      setSearchKeyword(value)
-      scheduleHighlight(value)
+    (keyword: string) => {
+      setSearchKeyword(keyword)
+      scheduleHighlight(keyword)
     },
     [scheduleHighlight]
   )

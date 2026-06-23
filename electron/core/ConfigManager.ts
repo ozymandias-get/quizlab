@@ -12,11 +12,11 @@ const PROHIBITED_CONFIG_KEYS = new Set(['__proto__', 'constructor', 'prototype']
  */
 function safeParse<T>(raw: string, fallback: T): T {
   try {
-    const parsed = JSON.parse(raw, (key: string, value: unknown) => {
+    const parsed = JSON.parse(raw, (key: string, val: unknown) => {
       if (PROHIBITED_CONFIG_KEYS.has(key)) {
         return undefined
       }
-      return value
+      return val
     })
     return (parsed !== null && typeof parsed === 'object' ? parsed : fallback) as T
   } catch {
@@ -138,10 +138,10 @@ export class ConfigManager<T extends object> {
     return data[key]
   }
 
-  public async setItem<K extends keyof T>(key: K, value: T[K]): Promise<boolean> {
+  public async setItem<K extends keyof T>(key: K, val: T[K]): Promise<boolean> {
     return this.update((current) => ({
       ...current,
-      [key]: value
+      [key]: val
     }))
   }
 

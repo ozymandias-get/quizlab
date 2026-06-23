@@ -1,7 +1,6 @@
 import type { Tab } from '@app/providers/AiContext'
 
-export const clamp = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value))
+export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
 /**
  * Returns the set of tab ids that should be rendered in the tab strip.

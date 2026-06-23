@@ -145,8 +145,8 @@ function sanitizeHostChain(value: unknown): AutomationHostDescriptor[] | null | 
 }
 
 /** Sets a key only when the value is not undefined, eliminating verbose ternary spreads. */
-function setIfDefined<K extends string, V>(key: K, value: V | undefined): { [P in K]: V } | {} {
-  return value !== undefined ? ({ [key]: value } as { [P in K]: V }) : {}
+function setIfDefined<K extends string, V>(key: K, val: V | undefined): { [P in K]: V } | {} {
+  return val !== undefined ? ({ [key]: val } as { [P in K]: V }) : {}
 }
 
 function sanitizeFingerprint(value: unknown): AutomationElementFingerprint | null | undefined {

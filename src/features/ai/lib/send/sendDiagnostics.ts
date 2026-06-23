@@ -13,8 +13,8 @@ export function nowMs() {
     : Date.now()
 }
 
-export function roundMs(value: number) {
-  return Math.round(value * 100) / 100
+export function roundMs(ms: number) {
+  return Math.round(ms * 100) / 100
 }
 
 export function createSendDiagnostics({

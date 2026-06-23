@@ -9,7 +9,7 @@ interface PdfSearchBarProps {
   isOpen: boolean
   onToggle: () => void
   keyword: string
-  onKeywordChange: (value: string) => void
+  onKeywordChange: (keyword: string) => void
   onSearch: () => void
   onClear: () => void
   fileName?: string

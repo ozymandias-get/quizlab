@@ -82,7 +82,7 @@ export class SessionMonitor {
     const now = Date.now()
     const finiteExpiries = relevantCookies
       .map(getCookieExpiresAtMs)
-      .filter((value): value is number => typeof value === 'number')
+      .filter((v): v is number => typeof v === 'number')
 
     if (finiteExpiries.length === 0) {
       return {

@@ -42,7 +42,7 @@ interface ContextMenuState {
   y: number
 }
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
 function getMaxVisibleTabs(containerWidth: number, hasHome: boolean): number {
   const reservedButtons =
@@ -167,12 +167,12 @@ function PdfTabStrip({
   // memo and re-rendering every open tab (and its tooltip/listener wiring) on
   // every parent state change (e.g. contextMenu toggle, editing focus, etc.).
   const handleTabEditingBlur = useCallback(
-    (tabId: string, value: string) => handleEditingBlur(tabId, value, onRenameTab),
+    (tabId: string, tabTitle: string) => handleEditingBlur(tabId, tabTitle, onRenameTab),
     [handleEditingBlur, onRenameTab]
   )
   const handleTabEditingKeyDown = useCallback(
-    (event: React.KeyboardEvent, tabId: string, value: string) =>
-      handleEditingKeyDown(event, tabId, value, onRenameTab),
+    (event: React.KeyboardEvent, tabId: string, tabTitle: string) =>
+      handleEditingKeyDown(event, tabId, tabTitle, onRenameTab),
     [handleEditingKeyDown, onRenameTab]
   )
 
