@@ -10,9 +10,9 @@ const PROHIBITED_CONFIG_KEYS = new Set(['__proto__', 'constructor', 'prototype']
  * Strips __proto__, constructor, and prototype keys during parsing
  * to prevent pollution attacks via malicious config files.
  */
-function safeParse<T>(data: string, fallback: T): T {
+function safeParse<T>(raw: string, fallback: T): T {
   try {
-    const parsed = JSON.parse(data, (key: string, value: unknown) => {
+    const parsed = JSON.parse(raw, (key: string, value: unknown) => {
       if (PROHIBITED_CONFIG_KEYS.has(key)) {
         return undefined
       }
@@ -86,17 +86,17 @@ export class ConfigManager<T extends object> {
     })
   }
 
-  public async write(data: T): Promise<boolean> {
+  public async write(config: T): Promise<boolean> {
     return this.enqueue(async () => {
       try {
         await this.ensureFile()
-        const content = JSON.stringify(data, null, 2)
+        const content = JSON.stringify(config, null, 2)
 
         const tempPath = `${this.filePath}.tmp`
         await fs.writeFile(tempPath, content, 'utf8')
         await fs.rename(tempPath, this.filePath)
 
-        this.cache = data
+        this.cache = config
         return true
       } catch (error) {
         Logger.error(`[ConfigManager] Failed to write ${this.filePath}:`, error)

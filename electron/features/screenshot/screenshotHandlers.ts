@@ -1,10 +1,10 @@
 ﻿import { BrowserWindow, clipboard, nativeImage } from 'electron'
 
 import { failure, success } from '../../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../../app/constants'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { Logger } from '../../core/logger'
+import { registerIpcHandler } from '../../core/typedIpcMain'
 
 const MAX_CAPTURE_DIMENSION = 16384
 const MAX_DATA_URL_LENGTH = 50 * 1024 * 1024 // 50 MB — prevents memory exhaustion via oversized base64 payloads

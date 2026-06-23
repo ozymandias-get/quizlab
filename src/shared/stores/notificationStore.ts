@@ -1,4 +1,4 @@
-import { createPersistedStore } from './utils'
+import { createPersistedStore } from './storeUtils'
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info'
 

@@ -94,8 +94,8 @@ describe('usePdfWorkspaceState', () => {
       const { result } = renderHook(() =>
         usePdfWorkspaceState({ isInteractionBlocked: true, isPanelResizing: true })
       )
-      expect(result.current.leftPanelProps.isInteractionBlocked).toBe(true)
-      expect(result.current.leftPanelProps.isPanelResizing).toBe(true)
+      expect(result.current.isInteractionBlocked).toBe(true)
+      expect(result.current.isPanelResizing).toBe(true)
     })
 
     it('onSelectPdf calls handleSelectPdf', () => {
@@ -116,9 +116,10 @@ describe('usePdfWorkspaceState', () => {
   })
 
   describe('readingProps', () => {
-    it('includes recent reading info', () => {
+    it('includes reading progress callbacks without lastReadingInfo', () => {
       const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      expect(result.current.readingProps.lastReadingInfo).toEqual([])
+      expect(result.current.readingProps).toHaveProperty('onReadingProgressChange')
+      expect(result.current.readingProps).not.toHaveProperty('lastReadingInfo')
     })
 
     it('onResumePdf calls resumeLastPdf', async () => {

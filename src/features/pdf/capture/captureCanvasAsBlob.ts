@@ -12,9 +12,9 @@ export function captureCanvasAsBlob(
 ): Promise<CaptureResult> {
   const maxCanvasArea = options?.maxCanvasArea ?? DEFAULT_MAX_CANVAS_AREA
   const canvasArea = canvas.width * canvas.height
-  const useJpeg = canvasArea > maxCanvasArea
-  const mimeType = options?.mimeType ?? (useJpeg ? 'image/jpeg' : 'image/png')
-  const quality = options?.quality ?? (useJpeg ? 0.85 : undefined)
+  const shouldUseJpeg = canvasArea > maxCanvasArea
+  const mimeType = options?.mimeType ?? (shouldUseJpeg ? 'image/jpeg' : 'image/png')
+  const quality = options?.quality ?? (shouldUseJpeg ? 0.85 : undefined)
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(

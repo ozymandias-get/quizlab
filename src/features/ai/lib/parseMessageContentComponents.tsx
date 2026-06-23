@@ -38,7 +38,8 @@ export function Table({ headers, rows }: { headers: string[]; rows: string[][] }
           <tr className="border-b border-white/8 bg-white/[0.03]">
             {headers.map((h, i) => (
               <th
-                // eslint-disable-next-line react/no-array-index-key
+                // Static headers — items never reorder
+                // eslint-disable-next-line react/no-array-index-key -- Static code snippet elements, no stable ids
                 key={i}
                 className="px-3 py-2 text-left font-medium whitespace-nowrap text-white/60"
               >
@@ -49,10 +50,12 @@ export function Table({ headers, rows }: { headers: string[]; rows: string[][] }
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            // eslint-disable-next-line react/no-array-index-key
+            // Table rows have no stable id — index is safe for static markdown rendering
+            // eslint-disable-next-line react/no-array-index-key -- Static aria label parts, stable order
             <tr key={ri} className="border-b border-white/[0.04] last:border-0">
               {row.map((cell, ci) => (
-                // eslint-disable-next-line react/no-array-index-key
+                // Table cells have no stable id — index is safe for static markdown rendering
+                // eslint-disable-next-line react/no-array-index-key -- Static code elements, stable order
                 <td key={ci} className="px-3 py-1.5 whitespace-nowrap text-white/70">
                   {cell.trim()}
                 </td>
@@ -64,3 +67,5 @@ export function Table({ headers, rows }: { headers: string[]; rows: string[][] }
     </div>
   )
 }
+
+export default CodeBlock

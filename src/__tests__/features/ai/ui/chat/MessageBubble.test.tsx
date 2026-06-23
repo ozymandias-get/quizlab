@@ -16,7 +16,7 @@
  */
 import type { ApiChatMessage } from '@shared-core/types'
 
-import { MessageBubble } from '@features/ai/ui/chat/MessageBubble'
+import MessageBubble from '@features/ai/ui/chat/MessageBubble'
 
 import { describe, expect, it, vi } from 'vitest'
 

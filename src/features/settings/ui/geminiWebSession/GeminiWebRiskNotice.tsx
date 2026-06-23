@@ -24,7 +24,7 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
           </p>
           <div className="mt-1.5 space-y-1.5">
             {riskItems.map((item, index) => (
-              // eslint-disable-next-line react/no-array-index-key
+              // eslint-disable-next-line react/no-array-index-key -- Static risk items, stable render order
               <p key={`risk-${index}`} className="text-ql-12 leading-relaxed text-rose-100/70">
                 {index + 1}. {item}
               </p>
@@ -37,7 +37,7 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
           <div className="mt-1.5 space-y-1.5">
             {mitigationItems.map((item, index) => (
               <p
-                // eslint-disable-next-line react/no-array-index-key
+                // eslint-disable-next-line react/no-array-index-key -- Static mitigation items, stable render order
                 key={`mitigation-${index}`}
                 className="text-ql-12 leading-relaxed text-rose-100/70"
               >

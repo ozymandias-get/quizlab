@@ -20,7 +20,7 @@ const safeRenderHighlights = (props: RenderHighlightsProps) => {
       const baseStyle =
         typeof props.getCssProperties === 'function' ? props.getCssProperties(area) : {}
       return createElement('div', {
-        // eslint-disable-next-line react/no-array-index-key
+        // eslint-disable-next-line react/no-array-index-key -- Plugin highlight areas, no stable ids
         key: index,
         className: 'rpv-search__highlight',
         'data-index': index,

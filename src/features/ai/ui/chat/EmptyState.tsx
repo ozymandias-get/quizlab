@@ -38,7 +38,7 @@ const ICONS = [Info, Code, PenTool, Box]
 // activeProviderName, activeModelName, onSuggestionClick) change. The parent
 // (ApiChatPage) re-renders the parent div tree on each keystroke, but the
 // suggestions grid, status badge, and decorative elements stay stable.
-export const EmptyState = memo(function EmptyState({
+const EmptyState = memo(function EmptyState({
   hasProvider,
   activeProviderName,
   activeModelName,
@@ -92,7 +92,8 @@ export const EmptyState = memo(function EmptyState({
           <div className="animate-app-enter grid w-full max-w-xl grid-cols-1 gap-3 text-left sm:grid-cols-2">
             {suggestions.map((s, i) => (
               <div
-                // eslint-disable-next-line react/no-array-index-key
+                // Static suggestions list — items never reorder
+                // eslint-disable-next-line react/no-array-index-key -- Static suggestion buttons, stable order
                 key={i}
                 role="button"
                 tabIndex={0}
@@ -134,3 +135,5 @@ export const EmptyState = memo(function EmptyState({
     </div>
   )
 })
+
+export default EmptyState

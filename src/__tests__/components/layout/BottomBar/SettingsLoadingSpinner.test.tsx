@@ -1,4 +1,4 @@
-﻿import { SettingsLoadingSpinner } from '@ui/layout/BottomBar/SettingsLoadingSpinner'
+﻿import SettingsLoadingSpinner from '@ui/layout/BottomBar/SettingsLoadingSpinner'
 
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'

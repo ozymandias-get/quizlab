@@ -1,4 +1,4 @@
-import { type LucideIcon } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -20,7 +20,7 @@ interface ContextMenuProps {
   onClose: () => void
 }
 
-export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
+function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [adjustedPosition, setAdjustedPosition] = useState({ x, y })
   const [isReady, setIsReady] = useState(false)
@@ -91,7 +91,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         <div className="min-w-[220px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900/90 p-1.5 shadow-2xl ring-1 shadow-black/80 ring-white/5 backdrop-blur-lg">
           {items.map((item, index) => {
             if (item.separator) {
-              // eslint-disable-next-line react/no-array-index-key
+              // eslint-disable-next-line react/no-array-index-key -- Static menu items, stable order
               return <div key={index} className="mx-2 my-1 h-[1px] bg-white/10" />
             }
 
@@ -99,7 +99,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
 
             return (
               <button
-                // eslint-disable-next-line react/no-array-index-key
+                // eslint-disable-next-line react/no-array-index-key -- Static menu items, stable order
                 key={index}
                 type="button"
                 onClick={(e) => {
@@ -151,3 +151,5 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     document.body
   )
 }
+
+export default ContextMenu

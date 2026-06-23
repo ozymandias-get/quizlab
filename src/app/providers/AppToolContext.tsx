@@ -64,7 +64,7 @@ const AppToolPickerContext = createContext<AppToolPickerState | null>(null)
 const AppToolGeminiSessionContext = createContext<AppToolGeminiSessionState | null>(null)
 const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
 
-export function AppToolProvider({ children }: { children: ReactNode }) {
+function AppToolProvider({ children }: { children: ReactNode }) {
   const { sendTextToAI, sendImageToAI, cancelOngoing } = useAiMessagingActions()
   const { setAutoSend } = useAiSessionActions()
   const { autoSend } = useAiSessionUiPrefsState()
@@ -201,6 +201,8 @@ export function AppToolProvider({ children }: { children: ReactNode }) {
     </AppToolQueueContext.Provider>
   )
 }
+
+export default AppToolProvider
 
 export const useAppToolQueueState = () => {
   const context = useContext(AppToolQueueContext)

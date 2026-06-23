@@ -1,5 +1,5 @@
 import { SliderIcon } from '@ui/components/Icons'
-import { Slider } from '@ui/components/Slider'
+import Slider from '@ui/components/Slider'
 
 import { motion } from 'motion/react'
 import { memo, useCallback } from 'react'

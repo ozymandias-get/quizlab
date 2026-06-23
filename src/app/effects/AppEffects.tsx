@@ -29,7 +29,7 @@ function pauseAmbientAnimations(paused: boolean) {
   ;(bg as HTMLElement).style.setProperty('--ambient-paused', paused ? 'paused' : 'running')
 }
 
-export function AppEffects() {
+function AppEffects() {
   const language = useLanguage((state) => state.language)
   const selectionColor = useAppearance((state) => state.selectionColor)
   const { onboardingDone, startTutorial, markOnboardingDone } = useTutorialStore(
@@ -107,3 +107,5 @@ export function AppEffects() {
 
   return null
 }
+
+export default AppEffects

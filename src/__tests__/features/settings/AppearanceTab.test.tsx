@@ -50,8 +50,8 @@ vi.mock('@features/settings/ui/ColorPicker', () => ({
   )
 }))
 
-vi.mock('@ui/components/Slider', () => ({
-  Slider: ({ label, value, onValueChange }: any) => (
+vi.mock('@ui/components/Slider', () => {
+  const MockSlider = ({ label, value, onValueChange }: any) => (
     <div data-testid="slider">
       <label>{label}</label>
       <input
@@ -62,7 +62,8 @@ vi.mock('@ui/components/Slider', () => ({
       />
     </div>
   )
-}))
+  return { Slider: MockSlider, default: MockSlider }
+})
 
 vi.mock('motion/react', () => ({
   motion: {

@@ -14,7 +14,7 @@ interface TutorialOverlayProps {
   onClose: () => void
 }
 
-const HIGHLIGHT_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899']
+const HIGHLIGHT_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'] as const
 
 const TutorialOverlay = memo(function TutorialOverlay({
   tutorialId,

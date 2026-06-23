@@ -54,7 +54,7 @@ const TutorialHighlight = memo(function TutorialHighlight({
         'bottom-0 right-0 border-b-4 border-r-4'
       ].map((cls, i) => (
         <div
-          // eslint-disable-next-line react/no-array-index-key
+          // eslint-disable-next-line react/no-array-index-key -- Static corners, fixed array
           key={i}
           className={`absolute h-4 w-4 rounded-sm ${cls}`}
           style={{ borderColor: color }}

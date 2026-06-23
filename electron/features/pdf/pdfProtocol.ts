@@ -4,11 +4,11 @@ import fs from 'fs'
 import path from 'path'
 
 import { failure, success } from '../../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../../app/constants'
 import { ConfigManager } from '../../core/ConfigManager'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { Logger } from '../../core/logger'
+import { registerIpcHandler } from '../../core/typedIpcMain'
 
 interface PDFData {
   path: string

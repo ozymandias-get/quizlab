@@ -5,7 +5,7 @@ import '@shared/i18n/i18next'
 import { createBrowserElectronApi } from '@platform/electron/createBrowserElectronApi'
 
 import App from '@app/App'
-import { AppProviders } from '@app/providers/AppProviders'
+import AppProviders from '@app/providers/AppProviders'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { hasElectronApi } from '@shared/lib/electronApi'
 import { useLanguageInit } from '@shared/stores/languageStore'

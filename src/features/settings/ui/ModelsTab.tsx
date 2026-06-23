@@ -12,8 +12,8 @@ import { GridIcon } from '@ui/components/Icons'
 import { memo, type MouseEvent, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { AddAiModelForm } from './models/AddAiModelForm'
-import { AiModelList } from './models/AiModelList'
+import AddAiModelForm from './models/AddAiModelForm'
+import AiModelList from './models/AiModelList'
 import { isCustomModelPlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 

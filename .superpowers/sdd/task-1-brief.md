@@ -1,81 +1,127 @@
-# Task 1: Remove Unused Exports — `isSuccess`, `sendEvent`, `isFailure` import
+### Task 1: Update Settings Modal State Hook
 
 **Files:**
-- Modify: `shared/lib/typedIpc.ts:30-32`
-- Modify: `shared/lib/typedIpcPreload.ts:4, 61-66`
+- Modify: `src/features/settings/ui/modal/useSettingsModalState.ts`
 
 **Interfaces:**
-- Consumes: Knip analysis — `isSuccess` and `sendEvent` are never imported by any file
-- Consumes: `isFailure` is used in `typedIpcPreload.ts:53` but `isSuccess` is unused
-- Produces: Cleaner `shared/lib/typedIpc.ts` with only `success`, `failure`, `isFailure` remaining
-- Produces: Cleaner `shared/lib/typedIpcPreload.ts` with `sendEvent` removed
+- Consumes: existing `SettingsTabGroup`, `SettingsTabId`, `QUICK_SETTINGS_GROUP`
+- Produces: updated hook with `activeTab` nullable (`<string | null>`), no `isOverviewMode`
 
-- [ ] **Step 1: Remove `isSuccess` from `shared/lib/typedIpc.ts`**
+- [ ] **Step 1: Read current file**
 
-Search for imports of `isSuccess` across the project to confirm zero usage:
+- [ ] **Step 2: Edit hook to remove overview mode and allow null active tab**
 
-```bash
-rg "isSuccess" --include "*.ts" --include "*.tsx"
-```
-Expected: only the definition in `typedIpc.ts` and the `isFailure` line. No external imports.
+```typescript
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-Delete lines 30-32:
+import { useSettings } from '../../hooks/useSettings'
+import {
+  buildSettingsSidebarSections,
+  buildSettingsTabDefs,
+  QUICK_SETTINGS_GROUP,
+  type SettingsTabGroup,
+  type SettingsTabId,
+  toSettingsTabId
+} from './settingsModalTabs'
 
-```ts
-export function isSuccess<T>(result: IpcResult<T>): result is { ok: true; data: T } {
-  return result.ok
+interface UseSettingsModalStateOptions {
+  initialTab?: string
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function useSettingsModalState({
+  initialTab,
+  isOpen,
+  onClose
+}: UseSettingsModalStateOptions) {
+  const { t } = useTranslation()
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+  const normalizedInitialTab = toSettingsTabId(initialTab)
+  const [activeTab, setActiveTabState] = useState<SettingsTabId | null>(normalizedInitialTab)
+  const [selectedGroup, setSelectedGroup] = useState<SettingsTabGroup | null>(QUICK_SETTINGS_GROUP)
+  const settings = useSettings()
+
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCloseRef.current()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    setActiveTab(normalizedInitialTab)
+    setSelectedGroup(QUICK_SETTINGS_GROUP)
+
+    if (sidebarScrollRef.current) {
+      sidebarScrollRef.current.scrollTop = 0
+    }
+  }, [isOpen, normalizedInitialTab])
+
+  const tabDefs = useMemo(() => buildSettingsTabDefs(t), [t])
+  const sidebarSections = useMemo(() => buildSettingsSidebarSections(t), [t])
+  const activeTabMeta = useMemo(
+    () => tabDefs.find((tab) => tab.id === activeTab) ?? null,
+    [tabDefs, activeTab]
+  )
+
+  const setActiveTab = useCallback(
+    (value: string) => {
+      const id = toSettingsTabId(value)
+      setActiveTabState(id)
+
+      const meta = tabDefs.find((tab) => tab.id === id)
+      if (meta) {
+        setSelectedGroup(meta.group as SettingsTabGroup)
+      }
+    },
+    [tabDefs]
+  )
+
+  const selectGroup = useCallback((group: SettingsTabGroup) => {
+    setSelectedGroup(group)
+    setActiveTabState(null)
+  }, [])
+
+  return {
+    activeTab,
+    activeTabMeta,
+    selectedGroup,
+    setActiveTab,
+    selectGroup,
+    settings,
+    sidebarScrollRef,
+    sidebarSections,
+    t,
+    tabDefs
+  }
 }
 ```
 
-- [ ] **Step 2: Remove unused `isFailure` import and `sendEvent` from `shared/lib/typedIpcPreload.ts`**
+- [ ] **Step 3: Verify types compile**
 
-Change line 9 import from:
-```ts
-import { failure, isFailure, type IpcResult } from './typedIpc'
-```
-To:
-```ts
-import { failure, type IpcResult } from './typedIpc'
-```
+Run: `npx tsc --noEmit --pretty 2>&1 | Select-String -Pattern "useSettingsModalState"`
+Expected: No type errors related to the hook.
 
-Delete lines 61-66 (`sendEvent` function):
-
-```ts
-export function sendEvent<C extends IpcEventChannel>(
-  channel: C,
-  ...args: IpcEventMap[C]['args']
-): void {
-  ipcRenderer.send(channel, ...args)
-}
-```
-
-- [ ] **Step 3: Verify no remaining references**
-
-Run:
-```bash
-rg "isSuccess" --include "*.ts" --include "*.tsx" --no-filename
-rg "sendEvent" --include "*.ts" --include "*.tsx" --no-filename
-```
-Expected: no matches (or only in dist/ which is generated).
-
-- [ ] **Step 4: Run typecheck and tests**
+- [ ] **Step 4: Commit**
 
 ```bash
-npm run typecheck
-npm run test -- --run src/__tests__/shared-constants.test.ts
+git add src/features/settings/ui/modal/useSettingsModalState.ts
+git commit -m "refactor(settings): remove overview mode, allow null active tab"
 ```
-Expected: PASS
 
-- [ ] **Step 5: Run knip to verify dead items are gone**
+---
 
-```bash
-npm run analyze:knip
-```
-Expected: `isSuccess` and `sendEvent` no longer appear in "Unused exports"
 
-- [ ] **Step 6: Commit**
-
-```bash
-git add -A
-git commit -m "chore: remove unused isSuccess, sendEvent, and isFailure import"
-```

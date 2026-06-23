@@ -1,6 +1,6 @@
 import { useCheckForUpdates } from '@platform/electron/api/useSystemApi'
 
-import { UpdateProvider, useUpdate } from '@app/providers/UpdateContext'
+import UpdateProvider, { useUpdate } from '@app/providers/UpdateContext'
 
 import { act, render, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

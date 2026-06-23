@@ -96,7 +96,7 @@ const TutorialTooltip = memo(function TutorialTooltip({
           >
             {Array.from({ length: totalSteps }).map((_, i) => (
               <div
-                // eslint-disable-next-line react/no-array-index-key
+                // eslint-disable-next-line react/no-array-index-key -- Static step dots, stable order
                 key={i}
                 className={`h-1 rounded-full transition-all duration-300 ${
                   i === step ? 'w-6 bg-amber-400' : 'w-2 bg-white/10'

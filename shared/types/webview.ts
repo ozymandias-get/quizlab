@@ -17,12 +17,12 @@ export type WebviewElement = HTMLElement & {
   getWebContentsId?: () => number | undefined
   addEventListener: (
     event: string,
-    handler: EventListenerOrEventListenerObject,
+    listener: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions
   ) => void
   removeEventListener: (
     event: string,
-    handler: EventListenerOrEventListenerObject,
+    listener: EventListenerOrEventListenerObject,
     options?: boolean | EventListenerOptions
   ) => void
   isDestroyed?: () => boolean
@@ -44,12 +44,12 @@ export type WebviewController = {
   pasteNative?: (id: number) => Promise<boolean> | boolean
   addEventListener?: (
     event: string,
-    handler: EventListenerOrEventListenerObject,
+    listener: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions
   ) => void
   removeEventListener?: (
     event: string,
-    handler: EventListenerOrEventListenerObject,
+    listener: EventListenerOrEventListenerObject,
     options?: boolean | EventListenerOptions
   ) => void
   focus?: () => void

@@ -5,26 +5,26 @@ import type { LastReadingInfo } from './types'
 
 export const MAX_RECENT_PDFS = 24
 
-export const sanitizeReadingInfo = (data: unknown): LastReadingInfo | null => {
-  if (!data || typeof data !== 'object') return null
-  const item = data as Partial<LastReadingInfo>
-  if (!item.path || !item.name) return null
+export function sanitizeReadingInfo(info: unknown): LastReadingInfo | null {
+  if (!info || typeof info !== 'object') return null
+  const entry = info as Partial<LastReadingInfo>
+  if (!entry.path || !entry.name) return null
 
   const parsedLastOpenedAt =
-    typeof item.lastOpenedAt === 'number' && Number.isFinite(item.lastOpenedAt)
-      ? item.lastOpenedAt
+    typeof entry.lastOpenedAt === 'number' && Number.isFinite(entry.lastOpenedAt)
+      ? entry.lastOpenedAt
       : undefined
 
   return {
-    name: item.name,
-    page: item.page || 1,
-    totalPages: item.totalPages || 0,
-    path: item.path,
+    name: entry.name,
+    page: entry.page || 1,
+    totalPages: entry.totalPages || 0,
+    path: entry.path,
     ...(parsedLastOpenedAt !== undefined ? { lastOpenedAt: parsedLastOpenedAt } : {})
   }
 }
 
-export const migrateReadingHistory = (): void => {
+export function migrateReadingHistory(): void {
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
     if (!stored) return
@@ -53,7 +53,7 @@ export const migrateReadingHistory = (): void => {
   }
 }
 
-export const parseReadingHistory = (stored: string | null): LastReadingInfo[] => {
+export function parseReadingHistory(stored: string | null): LastReadingInfo[] {
   if (!stored) return []
 
   try {
@@ -73,7 +73,7 @@ export const parseReadingHistory = (stored: string | null): LastReadingInfo[] =>
   }
 }
 
-export const readReadingHistory = (): LastReadingInfo[] => {
+export function readReadingHistory(): LastReadingInfo[] {
   try {
     return parseReadingHistory(localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING))
   } catch (err) {
@@ -82,7 +82,7 @@ export const readReadingHistory = (): LastReadingInfo[] => {
   }
 }
 
-export const writeReadingHistory = (items: LastReadingInfo[]): void => {
+export function writeReadingHistory(items: LastReadingInfo[]): void {
   try {
     if (items.length > 0) {
       localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(items))
@@ -94,10 +94,10 @@ export const writeReadingHistory = (items: LastReadingInfo[]): void => {
   }
 }
 
-export const upsertRecentHistory = (
+export function upsertRecentHistory(
   history: LastReadingInfo[],
   info: LastReadingInfo
-): LastReadingInfo[] => {
+): LastReadingInfo[] {
   const filtered = history.filter((item) => item.path !== info.path)
   return [info, ...filtered].slice(0, MAX_RECENT_PDFS)
 }

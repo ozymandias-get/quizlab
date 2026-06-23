@@ -16,7 +16,7 @@
   "menuAccent": "subtle",
   "aliases": {
     "components": "@app/components",
-    "utils": "@app/lib/utils",
+    "utils": "@app/lib/appUtils",
     "ui": "@app/components/ui",
     "lib": "@app/lib",
     "hooks": "@app/hooks"

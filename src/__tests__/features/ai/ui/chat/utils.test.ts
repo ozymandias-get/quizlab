@@ -7,7 +7,7 @@ import type { ApiChatMessage } from '@shared-core/types'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatDate, formatTime, groupMessages } from '../../../../../features/ai/ui/chat/utils'
+import { formatDate, formatTime, groupMessages } from '../../../../../features/ai/ui/chat/chatUtils'
 
 function makeMessage(
   timestamp: number,

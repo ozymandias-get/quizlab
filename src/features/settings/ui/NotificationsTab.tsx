@@ -15,8 +15,8 @@ interface NotificationTypeConfig {
   color: string
   bg: string
   icon: typeof Check
-  enabled: boolean
-  setEnabled: (value: boolean) => void
+  isEnabled: boolean
+  setIsEnabled: (value: boolean) => void
   testKey: string
   testTitleKey: string
 }
@@ -73,8 +73,8 @@ const NotificationsTab = memo(() => {
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/15 border-emerald-500/20',
       icon: Check,
-      enabled: successEnabled,
-      setEnabled: setSuccessEnabled,
+      isEnabled: successEnabled,
+      setIsEnabled: setSuccessEnabled,
       testKey: 'notification_test_success',
       testTitleKey: 'notification_success_title'
     },
@@ -83,8 +83,8 @@ const NotificationsTab = memo(() => {
       color: 'text-red-400',
       bg: 'bg-red-500/15 border-red-500/20',
       icon: XCircle,
-      enabled: errorEnabled,
-      setEnabled: setErrorEnabled,
+      isEnabled: errorEnabled,
+      setIsEnabled: setErrorEnabled,
       testKey: 'notification_test_error',
       testTitleKey: 'notification_error_title'
     },
@@ -93,8 +93,8 @@ const NotificationsTab = memo(() => {
       color: 'text-amber-400',
       bg: 'bg-amber-500/15 border-amber-500/20',
       icon: AlertTriangle,
-      enabled: warningEnabled,
-      setEnabled: setWarningEnabled,
+      isEnabled: warningEnabled,
+      setIsEnabled: setWarningEnabled,
       testKey: 'notification_test_warning',
       testTitleKey: 'notification_warning_title'
     },
@@ -103,8 +103,8 @@ const NotificationsTab = memo(() => {
       color: 'text-blue-400',
       bg: 'bg-blue-500/15 border-blue-500/20',
       icon: Info,
-      enabled: infoEnabled,
-      setEnabled: setInfoEnabled,
+      isEnabled: infoEnabled,
+      setIsEnabled: setInfoEnabled,
       testKey: 'notification_test_info',
       testTitleKey: 'notification_info_title'
     }
@@ -155,8 +155,8 @@ const NotificationsTab = memo(() => {
                   {t(config.testKey)}
                 </button>
                 <SettingsToggleSwitch
-                  checked={config.enabled}
-                  onChange={config.setEnabled}
+                  checked={config.isEnabled}
+                  onChange={config.setIsEnabled}
                   size="sm"
                 />
               </div>

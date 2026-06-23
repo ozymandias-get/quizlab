@@ -26,7 +26,7 @@ interface HistorySessionItemProps {
   onConfirmEdit: (sessionId: string) => void
 }
 
-export const HistorySessionItem = memo(function HistorySessionItem({
+const HistorySessionItem = memo(function HistorySessionItem({
   session,
   isActive,
   onSelect,
@@ -183,3 +183,5 @@ export const HistorySessionItem = memo(function HistorySessionItem({
     </div>
   )
 })
+
+export default HistorySessionItem

@@ -4,7 +4,7 @@ import { usePdfOpenActions } from './usePdfOpenActions'
 import { usePdfTabState, usePdfTabStore } from './usePdfTabStore'
 import { useReadingProgressPersistence } from './useReadingProgressPersistence'
 
-export const usePdfSelection = () => {
+export function usePdfSelection() {
   const {
     pdfTabs,
     activePdfTabId,
@@ -47,7 +47,7 @@ export const usePdfSelection = () => {
       const { activePdfTabId: currentActiveId, pdfTabs: currentTabs } = usePdfTabStore.getState()
       if (currentActiveId === tabId) return
       rawSetActivePdfTab(tabId)
-      const tab = (currentTabs || []).find((item) => item.id === tabId)
+      const tab = (currentTabs || []).find((t) => t.id === tabId)
       if (tab?.file?.path && tab?.file?.name) {
         updateReadingProgress({
           path: tab.file.path,
@@ -64,7 +64,7 @@ export const usePdfSelection = () => {
 
     const file = activePdfTab.file
     if (file.path) {
-      const existing = (recentReadingInfo || []).find((item) => item.path === file.path)
+      const existing = (recentReadingInfo || []).find((entry) => entry.path === file.path)
       return existing?.page
     }
     return undefined

@@ -212,9 +212,9 @@ async function ensurePartitionStoragePath(targetSession: Session): Promise<void>
 async function detachPartitionWebContents(targetSession: Session): Promise<void> {
   const contents = webContents
     .getAllWebContents()
-    .filter((item) => !item.isDestroyed() && item.session === targetSession)
+    .filter((wc) => !wc.isDestroyed() && wc.session === targetSession)
 
-  await Promise.all(contents.map((item) => item.loadURL('about:blank').catch(() => {})))
+  await Promise.all(contents.map((wc) => wc.loadURL('about:blank').catch(() => {})))
 }
 
 export async function clearPersistentPartitionData(targetSession: Session): Promise<void> {

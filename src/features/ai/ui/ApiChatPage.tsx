@@ -16,15 +16,13 @@ import {
   useSessionsQuery
 } from '../queries/useSessionsQuery'
 import { useChatUiStore } from '../store/chatUiStore'
-import { ChatHeader } from './chat/ChatHeader'
-import { ChatInput } from './chat/ChatInput'
-import { DragOverlay } from './chat/DragOverlay'
-import { EmptyState } from './chat/EmptyState'
-import { MessageList } from './chat/MessageList'
+import ChatHeader from './chat/ChatHeader'
+import ChatInput from './chat/ChatInput'
+import DragOverlay from './chat/DragOverlay'
+import EmptyState from './chat/EmptyState'
+import MessageList from './chat/MessageList'
 
-const HistoryModal = lazy(() =>
-  import('./chat/HistoryModal').then((m) => ({ default: m.HistoryModal }))
-)
+const HistoryModal = lazy(() => import('./chat/HistoryModal'))
 
 const EMPTY_MSGS: ApiChatMessage[] = []
 const EMPTY_ATTACH: string[] = []

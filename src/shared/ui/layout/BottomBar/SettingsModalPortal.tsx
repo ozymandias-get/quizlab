@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 
-import { SettingsLoadingSpinner } from './SettingsLoadingSpinner'
+import SettingsLoadingSpinner from './SettingsLoadingSpinner'
 
 const SettingsModal = lazy(() =>
   import('@features/settings').then((module) => ({ default: module.SettingsModal }))

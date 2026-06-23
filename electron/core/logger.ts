@@ -16,5 +16,4 @@ export {
   redactSensitive,
   reportSuppressedError
 } from '../../src/shared/lib/logger'
-
-export { initLogger, flushToDisk } from './diskLogger'
+export { flushToDisk, initLogger } from './diskLogger'

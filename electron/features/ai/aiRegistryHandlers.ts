@@ -7,12 +7,12 @@ import path from 'path'
 
 import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
 import { failure, success } from '../../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../../app/constants'
 import { ConfigManager } from '../../core/ConfigManager'
-import { getCustomPlatformsPath } from '../../core/helpers'
+import { getCustomPlatformsPath } from '../../core/coreHelpers'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
 import { Logger } from '../../core/logger'
+import { registerIpcHandler } from '../../core/typedIpcMain'
 import { geminiWebSessionManager } from '../gemini-web-session/sessionManager'
 import {
   AI_REGISTRY,

@@ -1,4 +1,4 @@
-import { cn } from '@app/lib/utils'
+import { cn } from '@app/lib/appUtils'
 
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Slot } from 'radix-ui'

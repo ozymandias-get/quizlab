@@ -2,8 +2,8 @@ import fs from 'fs'
 import path from 'path'
 
 import type { ApiConfig, ApiProviderConfig } from '../../../../shared/types'
+import { getApiChatConfigPath } from '../../../core/coreHelpers'
 import { decryptValue, encryptValue } from '../../../core/encryption'
-import { getApiChatConfigPath } from '../../../core/helpers'
 import { Logger } from '../../../core/logger'
 
 const MAX_PROMPT_LENGTH = 4000

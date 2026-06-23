@@ -15,7 +15,7 @@ interface AddAiModelFormProps {
   isSite?: boolean
 }
 
-export const AddAiModelForm = memo(function AddAiModelForm({
+const AddAiModelForm = memo(function AddAiModelForm({
   showAddForm,
   setShowAddForm,
   onSuccess,
@@ -106,3 +106,5 @@ export const AddAiModelForm = memo(function AddAiModelForm({
     </AnimatePresence>
   )
 })
+
+export default AddAiModelForm

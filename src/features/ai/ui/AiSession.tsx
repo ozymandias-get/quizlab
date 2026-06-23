@@ -24,7 +24,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { SleepPlaceholderView } from './SleepPlaceholderView'
+import SleepPlaceholderView from './SleepPlaceholderView'
 
 const AiErrorView = lazy(() => import('./AiErrorView'))
 const ApiChatPage = lazy(() => import('./ApiChatPage'))

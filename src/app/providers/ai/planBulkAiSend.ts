@@ -43,14 +43,14 @@ export function planBulkAiSend(pending: AiDraftItem[], composerNote?: string): B
     return text
   }
 
-  for (const item of pending) {
-    if (item.type === 'text') {
-      textBuffer.push(item.text)
+  for (const draft of pending) {
+    if (draft.type === 'text') {
+      textBuffer.push(draft.text)
     } else {
       const merged = mergeExcerpts(textBuffer)
       textBuffer = []
       const promptText = consumeNoteWith(merged)
-      segments.push({ kind: 'image', dataUrl: item.dataUrl, blobUrl: item.blobUrl, promptText })
+      segments.push({ kind: 'image', dataUrl: draft.dataUrl, blobUrl: draft.blobUrl, promptText })
     }
   }
 

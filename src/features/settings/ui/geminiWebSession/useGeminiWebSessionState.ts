@@ -254,8 +254,8 @@ export function useGeminiWebSessionState() {
       },
       onCheckWebNow: () => {
         void runSessionAction(checkWebNow, { refetch: true })
-          .then((result) => {
-            if (!isRefreshingRef.current && resultRequiresManualLogin(result)) {
+          .then((data) => {
+            if (!isRefreshingRef.current && resultRequiresManualLogin(data)) {
               setRequiresManualLogin(true)
             }
           })

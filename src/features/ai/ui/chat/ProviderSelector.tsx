@@ -11,7 +11,7 @@ interface ProviderSelectorProps {
   onSelectProvider: (id: string) => void
 }
 
-export const ProviderSelector = memo(function ProviderSelector({
+const ProviderSelector = memo(function ProviderSelector({
   config,
   activeProvider,
   activeProviderId,
@@ -71,3 +71,5 @@ export const ProviderSelector = memo(function ProviderSelector({
     </div>
   )
 })
+
+export default ProviderSelector

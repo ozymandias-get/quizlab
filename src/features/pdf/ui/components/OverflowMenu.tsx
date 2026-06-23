@@ -66,7 +66,7 @@ function OverflowMenu({
               <button
                 key={tab.id}
                 type="button"
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/10"
+                className="group flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all hover:-translate-y-0.5 hover:bg-white/[0.15]"
                 onClick={() => {
                   onSetActiveTab(tab.id)
                   setIsOpen(false)
@@ -83,7 +83,7 @@ function OverflowMenu({
                   role="button"
                   tabIndex={-1}
                   aria-label={tr('tab_close', 'Close tab')}
-                  className="shrink-0 rounded-md border border-white/15 bg-black/35 p-1 text-white/60 transition-colors hover:text-white"
+                  className="shrink-0 rounded-md border border-white/15 bg-black/35 p-1 text-white/60 opacity-0 transition-all group-hover:opacity-100 hover:border-red-500/30 hover:bg-red-500/20 hover:text-red-400"
                   onClick={(event) => {
                     event.preventDefault()
                     event.stopPropagation()

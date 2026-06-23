@@ -8,8 +8,7 @@ import {
   QUICK_SETTINGS_GROUP,
   type SettingsSidebarSection,
   type SettingsTabGroup,
-  type SettingsTabId,
-  type TabDef
+  type SettingsTabId
 } from './settingsModalTabs'
 
 const QuickSettings = lazy(() => import('../QuickSettings'))
@@ -17,20 +16,16 @@ const QuickSettings = lazy(() => import('../QuickSettings'))
 interface SettingsListPanelProps {
   selectedGroup: SettingsTabGroup | null
   activeTab: SettingsTabId | null
-  tabDefs: TabDef[]
   sidebarSections: SettingsSidebarSection[]
   setActiveTab: (id: string) => void
-  selectGroup: (group: SettingsTabGroup) => void
   t: (key: string) => string
 }
 
 const SettingsListPanel = memo(function SettingsListPanel({
   selectedGroup,
   activeTab,
-  tabDefs,
   sidebarSections,
   setActiveTab,
-  selectGroup,
   t
 }: SettingsListPanelProps) {
   const isQuickSettings = selectedGroup === QUICK_SETTINGS_GROUP

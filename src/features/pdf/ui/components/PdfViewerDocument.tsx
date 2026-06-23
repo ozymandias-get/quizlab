@@ -26,7 +26,7 @@ import {
   usePdfViewerZoomIpc,
   usePdfWheelNavigation
 } from '../hooks'
-import { ContextMenu, type MenuItem } from './ContextMenu'
+import ContextMenu, { type MenuItem } from './ContextMenu'
 import PdfToolbar from './PdfToolbar'
 import PdfViewerElement from './PdfViewerElement'
 import { useContainerSize, useFitScale, useLastNavigationTime } from './usePdfViewerLayout'
@@ -69,8 +69,8 @@ function PdfViewerDocument({
   const isTransitioningRef = useRef(false)
   const [scaleFactor, setScaleFactor] = useState(1)
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
-  const [panMode, setPanMode] = useState(false)
-  const handleTogglePanMode = useCallback(() => setPanMode((v) => !v), [])
+  const [isPanMode, setIsPanMode] = useState(false)
+  const handleTogglePanMode = useCallback(() => setIsPanMode((v) => !v), [])
   const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(
     null
   )
@@ -126,7 +126,7 @@ function PdfViewerDocument({
   }, [])
 
   const lastNavigationTimeRef = useLastNavigationTime(currentPage)
-  const documentReady = totalPages > 0
+  const isDocumentReady = totalPages > 0
   const containerSize = useContainerSize(containerRef, lastNavigationTimeRef, isPanelResizing)
 
   // Deduct padding to avoid triggering scrollbars due to react-pdf-viewer page margins/paddings
@@ -143,27 +143,27 @@ function PdfViewerDocument({
   usePdfResizeRefit(
     containerRef,
     zoomTo,
-    documentReady && !!pdfUrl,
+    isDocumentReady && !!pdfUrl,
     isPanelResizing,
     fitScale,
     lastNavigationTimeRef
   )
-  usePdfViewerZoomIpc(zoomTo, scaleFactor, documentReady && !!pdfUrl)
-  usePdfCtrlWheelZoom(containerRef, zoomTo, scaleFactor, documentReady && !!pdfUrl, panMode)
+  usePdfViewerZoomIpc(zoomTo, scaleFactor, isDocumentReady && !!pdfUrl)
+  usePdfCtrlWheelZoom(containerRef, zoomTo, scaleFactor, isDocumentReady && !!pdfUrl, isPanMode)
   // Fare tekerleği ile sayfa geçişi (Ctrl olmadan). Pan mode aktifken devre dışı.
   usePdfWheelNavigation(
     containerRef,
     goToNextPage,
     goToPreviousPage,
-    documentReady && !!pdfUrl && !panMode
+    isDocumentReady && !!pdfUrl && !isPanMode
   )
 
   // Fit-scale zoom
   useEffect(() => {
-    if (!documentReady || !pdfUrl || fitScale === null) return
+    if (!isDocumentReady || !pdfUrl || fitScale === null) return
     if (!isMountedRef.current) return
     zoomToRef.current(fitScale)
-  }, [documentReady, fitScale, pdfUrl])
+  }, [isDocumentReady, fitScale, pdfUrl])
 
   const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({
     currentPage,
@@ -171,7 +171,7 @@ function PdfViewerDocument({
     startScreenshot
   })
 
-  const { isDragging: isPanDragging } = usePdfPanTool({ containerRef, isPanMode: panMode })
+  const { isDragging: isPanDragging } = usePdfPanTool({ containerRef, isPanMode: isPanMode })
 
   const { extractCurrentPageText } = usePdfTextActions({
     containerRef,
@@ -185,7 +185,7 @@ function PdfViewerDocument({
       showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
     },
     textSelectionEnabled:
-      !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !panMode
+      !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !isPanMode
   })
 
   const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
@@ -232,13 +232,13 @@ function PdfViewerDocument({
   }, [startScreenshot])
 
   useEffect(() => {
-    if (!documentReady || !pdfUrl || !initialPage || initialPage < 2) return
+    if (!isDocumentReady || !pdfUrl || !initialPage || initialPage < 2) return
     const syncKey = `${pdfUrl}:${viewerReloadKey}:${initialPage}`
     if (appliedResumeSyncKeyRef.current === syncKey) return
     appliedResumeSyncKeyRef.current = syncKey
     zoomToRef.current(fitScale ?? SpecialZoomLevel.PageWidth)
     jumpToPageFromNav(initialPage)
-  }, [documentReady, fitScale, initialPage, jumpToPageFromNav, pdfUrl, viewerReloadKey])
+  }, [isDocumentReady, fitScale, initialPage, jumpToPageFromNav, pdfUrl, viewerReloadKey])
 
   handleFullPageScreenshotRef.current = handleFullPageScreenshot
   extractCurrentPageTextRef.current = extractCurrentPageText
@@ -316,7 +316,7 @@ function PdfViewerDocument({
         ref={containerRef}
         data-tour-id="tour-target-pdf-viewer"
         className={`pdf-viewer-container relative flex h-full min-h-0 flex-1 flex-col overflow-hidden scrollbar-gutter-stable${
-          panMode ? 'pdf-pan-mode-active' : ''
+          isPanMode ? 'pdf-pan-mode-active' : ''
         }${isPanDragging ? 'pdf-pan-mode-dragging' : ''}`}
       >
         {viewerElement}
@@ -337,7 +337,7 @@ function PdfViewerDocument({
         onFullPageScreenshot={handleFullPageScreenshot}
         autoSend={autoSend}
         onToggleAutoSend={onToggleAutoSend}
-        panMode={panMode}
+        panMode={isPanMode}
         onTogglePanMode={handleTogglePanMode}
         currentPage={currentPage}
         totalPages={totalPages}

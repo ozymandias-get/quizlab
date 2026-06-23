@@ -46,17 +46,17 @@ const isAuthDomain = (hostname?: string) => {
   return [...AUTH_DOMAINS].some((domain) => normalized.endsWith('.' + domain))
 }
 
-const enhancePlatform = (data: AiPlatform): AiPlatform => {
+const enhancePlatform = (platform: AiPlatform): AiPlatform => {
   return {
-    ...data,
-    displayName: data.meta?.displayName || data.name,
-    submitMode: normalizeSubmitMode(data.meta?.submitMode) || 'mixed',
-    domainRegex: data.meta?.domainRegex,
-    imageWaitTime: data.meta?.imageWaitTime,
-    appendPromptAfterPaste: data.meta?.appendPromptAfterPaste !== false,
-    input: data.selectors?.input,
-    button: data.selectors?.button,
-    waitFor: data.selectors?.waitFor
+    ...platform,
+    displayName: platform.meta?.displayName || platform.name,
+    submitMode: normalizeSubmitMode(platform.meta?.submitMode) || 'mixed',
+    domainRegex: platform.meta?.domainRegex,
+    imageWaitTime: platform.meta?.imageWaitTime,
+    appendPromptAfterPaste: platform.meta?.appendPromptAfterPaste !== false,
+    input: platform.selectors?.input,
+    button: platform.selectors?.button,
+    waitFor: platform.selectors?.waitFor
   }
 }
 
@@ -79,7 +79,7 @@ const platforms: AiRegistry = {
     color: '#f59e0b',
     submitMode: 'enter_key'
   }
-}
+} as const
 
 const inactivePlatforms: InactivePlatforms = {
   copilot: {
@@ -155,7 +155,7 @@ const inactivePlatforms: InactivePlatforms = {
       domainRegex: '^https://(www\\.)?perplexity\\.ai(/search(/[a-zA-Z0-9-]+)?)?/?$'
     }
   }
-}
+} as const
 
 const AI_REGISTRY: AiRegistry = platforms
 

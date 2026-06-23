@@ -20,7 +20,7 @@ interface GridCardProps {
   tone: SectionTone
 }
 
-export const GridCard = memo<GridCardProps>(function GridCard({
+const GridCard = memo<GridCardProps>(function GridCard({
   isActive,
   isDragging,
   itemId,
@@ -95,3 +95,5 @@ export const GridCard = memo<GridCardProps>(function GridCard({
     </div>
   )
 })
+
+export default GridCard

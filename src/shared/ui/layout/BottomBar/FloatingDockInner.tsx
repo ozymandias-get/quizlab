@@ -44,7 +44,7 @@ interface FloatingDockInnerProps {
   onOpenSettings: (tab: string) => void
 }
 
-export const FloatingDockInner = memo(function FloatingDockInner({
+const FloatingDockInner = memo(function FloatingDockInner({
   onOpenSettings
 }: FloatingDockInnerProps) {
   const mouseY = useMotionValue(Infinity)
@@ -337,3 +337,5 @@ const FloatingDockIcon = memo(function FloatingDockIcon({
     </motion.div>
   )
 })
+
+export default FloatingDockInner

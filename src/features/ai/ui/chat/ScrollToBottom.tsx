@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export const ScrollToBottom = memo(function ScrollToBottom({
+const ScrollToBottom = memo(function ScrollToBottom({
   onClick,
   visible
 }: {
@@ -22,3 +22,5 @@ export const ScrollToBottom = memo(function ScrollToBottom({
     </button>
   )
 })
+
+export default ScrollToBottom

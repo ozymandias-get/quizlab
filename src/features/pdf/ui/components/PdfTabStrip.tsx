@@ -22,8 +22,8 @@ import TabContextMenu from './TabContextMenu'
 import { useTabEditing } from './useTabEditing'
 
 const MIN_TAB_WIDTH = 140
-const HOME_BUTTON_WIDTH = 44
-const ADD_BUTTON_WIDTH = 44
+const HOME_BUTTON_WIDTH = 32
+const ADD_BUTTON_WIDTH = 32
 const OVERFLOW_BUTTON_WIDTH = 44
 
 interface PdfTabStripProps {
@@ -230,6 +230,7 @@ function PdfTabStrip({
             isActive={isPdfHomeActive}
             tooltip={t('ai_home.home')}
             onClick={onHome}
+            className="rounded-full"
           />
         )}
         {visibleTabs.map((tab) => (

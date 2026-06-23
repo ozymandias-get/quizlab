@@ -1,4 +1,4 @@
-import { type Easing, type Transition, type Variants } from 'motion/react'
+import type { Easing, Transition, Variants } from 'motion/react'
 
 const smoothEase: Easing = [0.16, 1, 0.3, 1]
 

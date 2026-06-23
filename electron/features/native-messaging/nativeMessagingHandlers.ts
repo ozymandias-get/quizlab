@@ -1,7 +1,7 @@
 import { failure, success } from '../../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../../app/constants'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
+import { registerIpcHandler } from '../../core/typedIpcMain'
 import { nativeMessagingManager } from './nativeMessagingManager'
 
 let handlersRegistered = false

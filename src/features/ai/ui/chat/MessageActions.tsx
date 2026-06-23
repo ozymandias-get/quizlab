@@ -176,3 +176,5 @@ export const DeleteButton = memo(function DeleteButton({
     </button>
   )
 })
+
+export default CopyButton

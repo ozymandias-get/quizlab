@@ -1,6 +1,6 @@
 ﻿import { useOpenExternal } from '@platform/electron/api/useSystemApi'
 
-import { type UpdateInfo } from '@app/providers'
+import type { UpdateInfo } from '@app/providers'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 
 import { memo } from 'react'

@@ -3,11 +3,11 @@ import type { ApiChatMessage } from '@shared-core/types'
 import { memo, useMemo } from 'react'
 
 import { AiAvatar, UserAvatar } from './Avatars'
-import { DateSeparator } from './DateSeparator'
-import { MessageBubble } from './MessageBubble'
-import { ScrollToBottom } from './ScrollToBottom'
-import { StreamingIndicator } from './StreamingIndicator'
-import { groupMessages } from './utils'
+import { groupMessages } from './chatUtils'
+import DateSeparator from './DateSeparator'
+import MessageBubble from './MessageBubble'
+import ScrollToBottom from './ScrollToBottom'
+import StreamingIndicator from './StreamingIndicator'
 
 interface MessageListProps {
   messages: ApiChatMessage[]
@@ -21,7 +21,7 @@ interface MessageListProps {
   endRef: React.RefObject<HTMLDivElement | null>
 }
 
-export const MessageList = memo(function MessageList({
+const MessageList = memo(function MessageList({
   messages,
   isStreaming,
   isScrolledUp,
@@ -49,13 +49,15 @@ export const MessageList = memo(function MessageList({
       <div className="relative min-h-full px-4 py-4 sm:px-6 lg:px-8">
         {messageGroups.map((group, gi) => {
           if (group.kind === 'date') {
-            // eslint-disable-next-line react/no-array-index-key
+            // Date separators have no stable id — index is safe for grouped rendering
+            // eslint-disable-next-line react/no-array-index-key -- Static message list, stable render order
             return <DateSeparator key={`d-${gi}`} ts={group.timestamp} />
           }
 
           const isUser = group.messages[0].role === 'user'
           return (
-            // eslint-disable-next-line react/no-array-index-key
+            // Message groups have no stable id — index is safe for grouped rendering
+            // eslint-disable-next-line react/no-array-index-key -- Static separator items, stable order
             <div key={`g-${gi}`} className="mb-3">
               {group.messages.map((msg, mi) => {
                 const isLastAssistant = !isUser && msg.id === lastAssistantId
@@ -122,3 +124,5 @@ export const MessageList = memo(function MessageList({
     </div>
   )
 })
+
+export default MessageList

@@ -14,7 +14,7 @@ describe('resolveSendContext', () => {
   const webviewRef = { current: null as any }
   const webview = { getURL: vi.fn(() => 'https://openai.com/chat') } as any
   const queryClient = {} as any
-  const configCache = { key: null, data: null }
+  const configCache = { key: null, cache: null }
   const aiRegistry = {
     'gpt-4': { input: '#input', button: '#send', submitMode: 'click', domainRegex: 'openai\\.com' }
   } as any

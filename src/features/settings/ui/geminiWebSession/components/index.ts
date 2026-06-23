@@ -1,2 +1,2 @@
 export { default as ExtensionStatusCard } from './ExtensionStatusCard'
-export { GoogleAppIntegrationCard } from './GoogleAppIntegrationCard'
+export { default as GoogleAppIntegrationCard } from './GoogleAppIntegrationCard'

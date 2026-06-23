@@ -12,7 +12,7 @@ import {
   useSessionsQuery
 } from '../../queries/useSessionsQuery'
 import { useChatUiStore } from '../../store/chatUiStore'
-import { HistorySessionItem } from './HistorySessionItem'
+import HistorySessionItem from './HistorySessionItem'
 
 // Search debounce: each keystroke would otherwise trigger a full scan over
 // every session's messages, which is O(sessions × messages-per-session) —
@@ -25,11 +25,7 @@ interface HistoryModalProps {
   tabId: string
 }
 
-export const HistoryModal = memo(function HistoryModal({
-  isOpen,
-  onClose,
-  tabId
-}: HistoryModalProps) {
+const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: HistoryModalProps) {
   const { t } = useTranslation()
   const { data: sessions = [] } = useSessionsQuery()
   const activeSessionId = useChatUiStore((s) => s.activeSessionIdByTab[tabId])
@@ -237,3 +233,5 @@ export const HistoryModal = memo(function HistoryModal({
 })
 
 HistoryModal.displayName = 'HistoryModal'
+
+export default HistoryModal

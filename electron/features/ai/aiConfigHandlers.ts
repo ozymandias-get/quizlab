@@ -1,11 +1,11 @@
 import type { AiSelectorConfig } from '@shared-core/types'
 
 import { failure, success } from '../../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../../app/constants'
 import { ConfigManager } from '../../core/ConfigManager'
-import { getAiConfigPath } from '../../core/helpers'
+import { getAiConfigPath } from '../../core/coreHelpers'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity'
+import { registerIpcHandler } from '../../core/typedIpcMain'
 import { CONFIG_VERSION } from './aiConfigConstants'
 import type { AiConfigMap } from './aiConfigDomain'
 import {

@@ -13,7 +13,7 @@ interface PromptSettingsSectionProps {
   }) => void
 }
 
-export function PromptSettingsSection({
+function PromptSettingsSection({
   memoryPrompt,
   characterPrompt,
   generalPrompt,
@@ -52,3 +52,5 @@ export function PromptSettingsSection({
     </div>
   )
 }
+
+export default PromptSettingsSection

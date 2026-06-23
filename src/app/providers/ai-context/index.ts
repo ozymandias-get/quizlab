@@ -1,4 +1,4 @@
 export type { Tab } from '../ai/types'
-export * from './AiProvider'
+export { default as AiProvider } from './AiProvider'
 export * from './contexts'
 export * from './hooks'

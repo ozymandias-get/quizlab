@@ -18,11 +18,11 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
     validationState,
     tabs,
     currentAI,
-    webviewPresent,
+    hasWebview,
     isSaving,
     isDeleting,
     isTesting,
-    toggleExpanded,
+    handleToggleExpanded,
     handleOpenRepick,
     handleSubmitModeChange,
     handleTestSelectors,
@@ -72,11 +72,11 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         validationState={validationState}
         tabs={tabs}
         currentAI={currentAI}
-        webviewPresent={webviewPresent}
+        hasWebview={hasWebview}
         isSaving={isSaving}
         isDeleting={isDeleting}
         isTesting={isTesting}
-        onToggleExpanded={toggleExpanded}
+        onToggleExpanded={handleToggleExpanded}
         onOpenRepick={handleOpenRepick}
         onSubmitModeChange={handleSubmitModeChange}
         onTestSelectors={handleTestSelectors}

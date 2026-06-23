@@ -5,8 +5,8 @@ import { useToastActions } from '@app/providers'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { groupRecentItems, processRecentItems } from './pdfPlaceholderUtils'
 import type { RecentItemView, SortMode } from './types'
-import { groupRecentItems, processRecentItems } from './utils'
 
 interface UsePdfPlaceholderStateParams {
   onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult

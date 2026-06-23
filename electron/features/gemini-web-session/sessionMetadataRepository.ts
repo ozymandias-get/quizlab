@@ -18,12 +18,12 @@ export function sanitizeEnabledAppIds(value: unknown): string[] {
   const seenIds = new Set<string>()
   const sanitized: string[] = []
 
-  for (const item of value) {
-    if (typeof item !== 'string') continue
-    if (!validIds.has(item as (typeof GOOGLE_WEB_SESSION_REGISTRY_IDS)[number])) continue
-    if (seenIds.has(item)) continue
-    seenIds.add(item)
-    sanitized.push(item)
+  for (const id of value) {
+    if (typeof id !== 'string') continue
+    if (!validIds.has(id as (typeof GOOGLE_WEB_SESSION_REGISTRY_IDS)[number])) continue
+    if (seenIds.has(id)) continue
+    seenIds.add(id)
+    sanitized.push(id)
   }
 
   return sanitized

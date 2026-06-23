@@ -3,9 +3,9 @@ import { Separator } from '@app/components/ui/separator'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { formatDate } from './utils'
+import { formatDate } from './chatUtils'
 
-export const DateSeparator = memo(function DateSeparator({ ts }: { ts: number }) {
+const DateSeparator = memo(function DateSeparator({ ts }: { ts: number }) {
   const { t } = useTranslation()
   return (
     <div className="my-4 flex items-center gap-3">
@@ -17,3 +17,5 @@ export const DateSeparator = memo(function DateSeparator({ ts }: { ts: number })
     </div>
   )
 })
+
+export default DateSeparator

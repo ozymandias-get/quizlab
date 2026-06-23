@@ -12,7 +12,7 @@ interface ModelSelectorProps {
   onSelectModel: (model: string) => void
 }
 
-export const ModelSelector = memo(function ModelSelector({
+const ModelSelector = memo(function ModelSelector({
   activeProvider,
   selectedModel,
   onSelectModel
@@ -109,3 +109,5 @@ export const ModelSelector = memo(function ModelSelector({
     </div>
   )
 })
+
+export default ModelSelector

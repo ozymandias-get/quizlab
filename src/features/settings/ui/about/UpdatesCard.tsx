@@ -1,5 +1,5 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
-import { type UpdateInfo } from '@app/providers'
+import type { UpdateInfo } from '@app/providers'
 import { DownloadIcon, InfoIcon, LoaderIcon, RefreshIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'

@@ -1,6 +1,7 @@
 import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
 
 import { Button } from '@app/components/ui/button'
+import { Logger } from '@shared/lib/logger'
 import { EmptyState, IconBadge, ListItemCard } from '@shared/ui/components/primitives'
 
 import { FileText, FolderOpen, History, Play, Search, Trash2 } from 'lucide-react'
@@ -12,8 +13,8 @@ import {
   useRef
 } from 'react'
 
+import { formatRelativeTime, getProgressRatio } from './pdfPlaceholderUtils'
 import type { RecentItemGroup, RecentItemView } from './types'
-import { formatRelativeTime, getProgressRatio } from './utils'
 
 interface PdfRecentListProps {
   t: (key: string) => string
@@ -50,7 +51,7 @@ function PdfRecentList({
   const resumeItem = useCallback(
     (item: RecentItemView) => {
       void onResume(item)['catch']((error: unknown) => {
-        console.error('Failed to resume PDF:', item.path, error)
+        Logger.error('Failed to resume PDF:', item.path, error)
       })
     },
     [onResume]

@@ -7,7 +7,6 @@ import type {
 } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
-import type * as ErrorClassifier from '../../../../shared/lib/errorClassifier'
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 
 import { getElectronApi } from '@shared/lib/electronApi'
@@ -16,6 +15,7 @@ import { reportSuppressedError } from '@shared/lib/logger'
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
 
+import type * as ErrorClassifier from '../../../../shared/lib/errorClassifier'
 import type {
   AiErrorClassification,
   AiSendOptions,
@@ -26,8 +26,7 @@ import type {
 let errorClassifierPromise: Promise<typeof ErrorClassifier> | null = null
 function loadErrorClassifier() {
   if (!errorClassifierPromise) {
-    errorClassifierPromise =
-      import('../../../../shared/lib/errorClassifier')
+    errorClassifierPromise = import('../../../../shared/lib/errorClassifier')
   }
   return errorClassifierPromise
 }
@@ -47,7 +46,7 @@ interface CacheData {
 
 export interface ConfigCache {
   key: string | null
-  data: CacheData | null
+  cache: CacheData | null
 }
 
 export interface UseAiSenderReturn {
@@ -298,8 +297,8 @@ export async function getCachedAiConfig(options: {
   const configSignature = JSON.stringify(baseConfig || {})
   const cacheKey = `${currentUrl}::${currentAI}::${configSignature}`
 
-  if (configCache.key === cacheKey && configCache.data) {
-    return configCache.data
+  if (configCache.key === cacheKey && configCache.cache) {
+    return configCache.cache
   }
 
   try {
@@ -324,7 +323,7 @@ export async function getCachedAiConfig(options: {
     }
 
     configCache.key = cacheKey
-    configCache.data = data
+    configCache.cache = data
     return data
   } catch (err) {
     reportSuppressedError('getCachedAiConfig', { cause: err })

@@ -4,7 +4,7 @@ import { Clock, Plus } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export const ChatHeader = memo(function ChatHeader({
+const ChatHeader = memo(function ChatHeader({
   activeProvider,
   selectedModel,
   providerName,
@@ -73,3 +73,5 @@ export const ChatHeader = memo(function ChatHeader({
     </div>
   )
 })
+
+export default ChatHeader

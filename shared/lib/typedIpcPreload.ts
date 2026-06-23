@@ -1,2 +1,1 @@
-// eslint-disable-next-line no-restricted-imports
-export { onEvent, typedInvoke, unwrapIpcResult } from '../../electron/preload/typedIpcPreload'
+// Re-export removed. Import directly from 'electron/preload/typedIpcPreload'.

@@ -1,9 +1,9 @@
-export interface IPrompt {
+export interface Prompt {
   id: string
   text: string
 }
 
-export const DEFAULT_PROMPTS: IPrompt[] = [
+export const DEFAULT_PROMPTS: Prompt[] = [
   {
     id: 'edu_explain_simple_tr',
     text: 'Bu metni ilkokul seviyesindeki bir öğrencinin merakını giderecek şekilde, günlük hayattan basit benzetmeler ve hikayeleştirme teknikleri kullanarak açıkla. Metindeki karmaşık terimleri parantez içinde basitçe tanımla. Anahtar fikirleri kalın yazarak vurgula.'

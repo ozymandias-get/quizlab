@@ -8,8 +8,8 @@ import { Image as ImageIcon, Send, Trash2 } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { ModelSelector } from './ModelSelector'
-import { ProviderSelector } from './ProviderSelector'
+import ModelSelector from './ModelSelector'
+import ProviderSelector from './ProviderSelector'
 
 interface ChatInputProps {
   inputValue: string
@@ -32,7 +32,7 @@ interface ChatInputProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>
 }
 
-export const ChatInput = memo(function ChatInput({
+const ChatInput = memo(function ChatInput({
   inputValue,
   attachments,
   selectedModel,
@@ -77,7 +77,8 @@ export const ChatInput = memo(function ChatInput({
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2.5 border-b border-white/[0.04] px-4 pt-3.5 pb-2">
               {attachments.map((data, i) => (
-                // eslint-disable-next-line react/no-array-index-key
+                // Attachments are local state — no stable id available
+                // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order
                 <div key={i} className="group/attach animate-app-enter relative">
                   <div className="h-16 w-16 transform overflow-hidden rounded-xl shadow-lg ring-1 ring-white/15 transition-colors duration-300 hover:scale-105 hover:ring-amber-500/40">
                     <img src={data} alt="" className="h-full w-full object-cover" />
@@ -187,3 +188,5 @@ export const ChatInput = memo(function ChatInput({
     </div>
   )
 })
+
+export default ChatInput

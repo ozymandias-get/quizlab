@@ -1,4 +1,4 @@
-import { AuroraBackground } from '@app/components/ui/aurora-background'
+import AuroraBackground from '@app/components/ui/aurora-background'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import BottomBar from '@ui/layout/BottomBar'
 import LeftPanel from '@ui/layout/LeftPanel'
@@ -33,6 +33,8 @@ interface MainWorkspaceProps {
   isBarHovered: boolean
   onBarHoverChange: (isHovered: boolean) => void
   leftPanelProps: ComponentProps<typeof LeftPanel>
+  isInteractionBlocked?: boolean
+  isPanelResizing?: boolean
   bgMode: 'ambient' | 'solid'
 }
 
@@ -53,6 +55,8 @@ function MainWorkspace({
   isBarHovered,
   onBarHoverChange,
   leftPanelProps,
+  isInteractionBlocked,
+  isPanelResizing,
   bgMode
 }: MainWorkspaceProps) {
   return (
@@ -78,7 +82,11 @@ function MainWorkspace({
           flexShrink: 0
         }}
       >
-        <LeftPanel {...leftPanelProps} />
+        <LeftPanel
+          {...leftPanelProps}
+          isInteractionBlocked={isInteractionBlocked}
+          isPanelResizing={isPanelResizing}
+        />
       </motion.div>
 
       <motion.div

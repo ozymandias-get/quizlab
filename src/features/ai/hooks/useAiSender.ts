@@ -56,7 +56,7 @@ export function useAiSender(
   const { mutateAsync: generateClickSendScript } = useGenerateClickSendScript()
   const { mutateAsync: generateWaitForSubmitReadyScript } = useGenerateWaitForSubmitReadyScript()
   const { mutateAsync: copyImageToClipboard } = useCopyImageToClipboard()
-  const configCache = useRef<ConfigCache>({ key: null, data: null })
+  const configCache = useRef<ConfigCache>({ key: null, cache: null })
 
   const canUseWebview = useCallback(
     (webview: WebviewController, expected?: WebviewController | null) =>

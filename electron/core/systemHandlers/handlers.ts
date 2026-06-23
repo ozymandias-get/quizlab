@@ -1,9 +1,9 @@
 import { app, clipboard, ipcMain, session, shell, webContents } from 'electron'
 
 import { success } from '../../../shared/lib/typedIpc'
-import { registerIpcHandler } from '../../../shared/lib/typedIpcMain'
 import { APP_CONFIG } from '../../app/constants'
 import { getMainWindow } from '../../app/windowManager'
+import { registerIpcHandler } from '../../core/typedIpcMain'
 import { runCleanup } from '../appCleanup'
 import { getCacheInfo, runManualCleanup } from '../cacheCleanup'
 import { requireTrustedIpcSender } from '../ipcSecurity'
