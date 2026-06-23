@@ -58,13 +58,6 @@ export async function unwrapIpcResult<T>(promise: Promise<IpcResult<T>>): Promis
   return result.data
 }
 
-export function sendEvent<C extends IpcEventChannel>(
-  channel: C,
-  ...args: IpcEventMap[C]['args']
-): void {
-  ipcRenderer.send(channel, ...args)
-}
-
 export function onEvent<C extends IpcEventChannel>(
   channel: C,
   callback: (...args: IpcEventMap[C]['args']) => void

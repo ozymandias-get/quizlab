@@ -26,11 +26,6 @@ export function failure(
 ): IpcResult<never> {
   return { ok: false, error: { code, message, details } }
 }
-
-export function isSuccess<T>(result: IpcResult<T>): result is { ok: true; data: T } {
-  return result.ok
-}
-
 export function isFailure<T>(result: IpcResult<T>): result is { ok: false; error: IpcError } {
   return !result.ok
 }
