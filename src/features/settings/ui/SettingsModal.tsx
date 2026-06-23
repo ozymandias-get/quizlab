@@ -94,7 +94,6 @@ const SettingsModal = memo(function SettingsModal({
 
           <SettingsModalContent
             activeTab={activeTab}
-            selectedGroup={selectedGroup}
             onClose={onClose}
             settings={settings}
             t={t}
