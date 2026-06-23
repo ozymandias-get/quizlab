@@ -5,6 +5,7 @@ import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
 import { motion } from 'motion/react'
 import { memo } from 'react'
 
+import SettingsListPanel from './modal/SettingsListPanel'
 import SettingsModalContent from './modal/SettingsModalContent'
 import SettingsModalSidebar from './modal/SettingsModalSidebar'
 import { useSettingsModalState } from './modal/useSettingsModalState'
@@ -23,7 +24,6 @@ const SettingsModal = memo(function SettingsModal({
   const {
     activeTab,
     selectedGroup,
-    isOverviewMode,
     setActiveTab,
     selectGroup,
     settings,
@@ -84,17 +84,21 @@ const SettingsModal = memo(function SettingsModal({
             t={t}
           />
 
+          <SettingsListPanel
+            selectedGroup={selectedGroup}
+            activeTab={activeTab}
+            sidebarSections={sidebarSections}
+            setActiveTab={setActiveTab}
+            t={t}
+          />
+
           <SettingsModalContent
             activeTab={activeTab}
             selectedGroup={selectedGroup}
-            isOverviewMode={isOverviewMode}
             onClose={onClose}
             settings={settings}
             t={t}
             tabDefs={tabDefs}
-            sidebarSections={sidebarSections}
-            setActiveTab={setActiveTab}
-            selectGroup={selectGroup}
           />
         </div>
       </motion.div>
