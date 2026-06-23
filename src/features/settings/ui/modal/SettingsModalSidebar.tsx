@@ -15,6 +15,7 @@ interface SettingsModalSidebarProps {
   sidebarScrollRef: RefObject<HTMLDivElement | null>
   sidebarSections: SettingsSidebarSection[]
   t: (key: string) => string
+  sidebarWidth: number
 }
 
 const categoryIcons: Record<string, string> = {
@@ -30,7 +31,8 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
   selectGroup,
   sidebarScrollRef,
   sidebarSections,
-  t
+  t,
+  sidebarWidth
 }: SettingsModalSidebarProps) {
   const isQuickActive = selectedGroup === QUICK_SETTINGS_GROUP
   const handleQuickClick = useCallback(() => selectGroup(QUICK_SETTINGS_GROUP), [selectGroup])
@@ -40,7 +42,10 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
   )
 
   return (
-    <aside className="border-border bg-muted/20 relative flex min-w-0 flex-1 flex-col border-r max-[900px]:hidden">
+    <aside
+      className="border-border bg-muted/20 relative flex min-w-0 shrink-0 flex-col border-r max-[900px]:hidden"
+      style={{ width: sidebarWidth }}
+    >
       <div className="relative flex h-full min-h-0 flex-col p-4">
         <div className="relative min-h-0 flex-1">
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">

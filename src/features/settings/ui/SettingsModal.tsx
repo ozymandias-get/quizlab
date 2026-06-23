@@ -80,43 +80,39 @@ const SettingsModal = memo(function SettingsModal({
 
         <Separator />
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div style={{ width: sidebarWidth }} className="shrink-0 max-[900px]:hidden">
-            <SettingsModalSidebar
-              selectedGroup={selectedGroup}
-              selectGroup={selectGroup}
-              sidebarScrollRef={sidebarScrollRef}
-              sidebarSections={sidebarSections}
-              t={t}
-            />
-          </div>
+          <SettingsModalSidebar
+            selectedGroup={selectedGroup}
+            selectGroup={selectGroup}
+            sidebarScrollRef={sidebarScrollRef}
+            sidebarSections={sidebarSections}
+            t={t}
+            sidebarWidth={sidebarWidth}
+          />
 
           <div className="max-[900px]:hidden">
             <ResizableHandle onResize={handleSidebarResize} />
           </div>
 
-          <div style={{ width: listWidth }} className="shrink-0 max-[1100px]:hidden">
-            <SettingsListPanel
-              selectedGroup={selectedGroup}
-              activeTab={activeTab}
-              sidebarSections={sidebarSections}
-              setActiveTab={setActiveTab}
-              t={t}
-            />
-          </div>
+          <SettingsListPanel
+            selectedGroup={selectedGroup}
+            activeTab={activeTab}
+            sidebarSections={sidebarSections}
+            setActiveTab={setActiveTab}
+            t={t}
+            listWidth={listWidth}
+          />
 
           <div className="max-[1100px]:hidden">
             <ResizableHandle onResize={handleListResize} />
           </div>
 
-          <div className="min-w-0 flex-1">
-            <SettingsModalContent
-              activeTab={activeTab}
-              onClose={onClose}
-              settings={settings}
-              t={t}
-              tabDefs={tabDefs}
-            />
-          </div>
+          <SettingsModalContent
+            activeTab={activeTab}
+            onClose={onClose}
+            settings={settings}
+            t={t}
+            tabDefs={tabDefs}
+          />
         </div>
       </motion.div>
     </div>
