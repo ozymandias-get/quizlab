@@ -83,7 +83,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                      className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative flex w-full items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                         isSelected
                           ? 'border-ring/30 bg-accent'
                           : 'border-border hover:border-border hover:bg-accent/50 bg-transparent'
@@ -97,12 +97,12 @@ const SettingsListPanel = memo(function SettingsListPanel({
                       }
                     >
                       <div
-                        className="h-3.5 w-3.5 shrink-0 rounded-full"
+                        className="h-3 w-3 shrink-0 rounded-full"
                         style={{ backgroundColor: tab.glow }}
                       />
                       <div className="min-w-0 flex-1">
                         <div
-                          className={`text-[15px] font-medium leading-snug transition-colors ${
+                          className={`truncate text-sm font-medium leading-snug transition-colors ${
                             isSelected
                               ? 'text-foreground'
                               : 'text-muted-foreground group-hover:text-foreground/70'
@@ -111,12 +111,12 @@ const SettingsListPanel = memo(function SettingsListPanel({
                           {tab.label}
                         </div>
                         {tab.description && (
-                          <div className="text-muted-foreground/60 mt-1 truncate text-sm leading-snug">
+                          <div className="text-muted-foreground/60 mt-0.5 truncate text-xs leading-snug">
                             {tab.description}
                           </div>
                         )}
                       </div>
-                      <span className="text-muted-foreground/30 text-lg">›</span>
+                      <span className="text-muted-foreground/30 text-base">›</span>
                     </button>
                   )
                 })}
