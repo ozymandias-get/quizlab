@@ -1,7 +1,8 @@
-Task 1: complete (commits d619ccf..386fb78, review clean)
-Task 2: complete (commits 386fb78..6460052, review clean)
-Task 3: complete (ab8f644, 2 files, 1 test passing)
-Task 3: complete (commits 6460052..ab8f644, review clean)
-Fix round: complete (commits d619ccf..6e9a2c9, all 24 tests passing)
-Task 1: complete (commits 6e9a2c9..79b1b98, review clean)
-Task 2: complete (commits 79b1b98..1586614, review clean, minor: unused import + aria-labels)
+# SDD Progress Ledger
+
+Started: 2026-06-23
+Base: f8f5eef
+
+
+Task A: complete (commits f8f5eef..9a1134b, review clean, all 38 renames)
+Task B: complete (commits c8044ff..d241e36, review clean, all 9 renames)
