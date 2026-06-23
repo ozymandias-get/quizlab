@@ -13,7 +13,7 @@ export type IpcError = {
 
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: IpcError }
 
-export type UnwrapIpcResult<R> = R extends IpcResult<infer T> ? T : R
+type UnwrapIpcResult<R> = R extends IpcResult<infer T> ? T : R
 
 export function success<T>(data: T): IpcResult<T> {
   return { ok: true, data }

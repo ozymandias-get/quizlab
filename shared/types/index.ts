@@ -13,7 +13,6 @@ export type {
   AiRegistryResponse,
   ClearAiModelDataInput,
   CustomAiInput,
-  CustomAiPayload,
   CustomAiResult,
   InactivePlatforms
 } from './ai'
@@ -25,9 +24,6 @@ export type {
   AutomationExecutionDiagnostics,
   AutomationExecutionResult,
   AutomationHostDescriptor,
-  AutomationLookupStrategy,
-  AutomationSelectorDiagnostics,
-  ConfidenceLevel,
   SelectorHealth,
   SubmitMode,
   TextInputMode
@@ -38,14 +34,13 @@ export type {
   GeminiWebSessionConfig,
   GeminiWebSessionReasonCode,
   GeminiWebSessionRefreshEvent,
-  GeminiWebSessionRefreshPhase,
   GeminiWebSessionRefreshReason,
   GeminiWebSessionState,
   GeminiWebSessionStatus,
   HealthCheckResult,
   SessionActionLike
 } from './gemini-web'
-export type { IpcError, IpcErrorCode, IpcResult } from './ipc'
+export type { IpcError, IpcErrorCode, IpcResult } from '../lib/typedIpc'
 export type {
   CacheInfoResponse,
   ElectronApi,
@@ -54,12 +49,8 @@ export type {
 } from './ipcContract'
 export type {
   ChromeExtensionCookie,
-  NativeMessagingAck,
   NativeMessagingConnectionStatus,
-  NativeMessagingCookieMessage,
-  NativeMessagingExtensionInfo,
-  NativeMessagingHealthMessage,
-  NativeMessagingRefreshRequest
+  NativeMessagingExtensionInfo
 } from './native-messaging'
 export type {
   PdfFile,

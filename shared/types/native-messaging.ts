@@ -17,33 +17,33 @@ export interface ChromeExtensionCookie {
   expires?: number
 }
 
-export interface NativeMessagingCookieMessage {
+interface NativeMessagingCookieMessage {
   type: 'SESSION_COOKIES'
   cookies: ChromeExtensionCookie[]
   accountHash?: string
   timestamp: number
 }
 
-export interface NativeMessagingHealthMessage {
+interface NativeMessagingHealthMessage {
   type: 'SESSION_HEALTH'
   healthy: boolean
   expiresAt?: number
   timestamp: number
 }
 
-export interface NativeMessagingRefreshRequest {
+interface NativeMessagingRefreshRequest {
   type: 'REQUEST_COOKIE_REFRESH'
   reason: string
   timestamp: number
 }
 
-export interface NativeMessagingAck {
+interface NativeMessagingAck {
   type: 'ACK'
   status: string
   error?: string
   timestamp: number
 }
 
-export type NativeMessagingHostMessage = NativeMessagingCookieMessage | NativeMessagingHealthMessage
+type NativeMessagingHostMessage = NativeMessagingCookieMessage | NativeMessagingHealthMessage
 
-export type NativeMessagingExtensionMessage = NativeMessagingRefreshRequest | NativeMessagingAck
+type NativeMessagingExtensionMessage = NativeMessagingRefreshRequest | NativeMessagingAck

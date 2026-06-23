@@ -42,7 +42,7 @@ import type { IpcResult } from '../lib/typedIpc'
  * - The structure is designed to be easy to reference in both tests and typings.
  */
 
-export type IpcChannelValue = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
+type IpcChannelValue = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
 
 export interface IpcInvokeRequestMap {
   // PDF selection / streaming
@@ -278,7 +278,7 @@ export interface IpcInvokeRequestMap {
   }
 }
 
-export type CacheInfoBreakdown = {
+type CacheInfoBreakdown = {
   chromiumCache: number
   codeCache: number
   gpuCache: number

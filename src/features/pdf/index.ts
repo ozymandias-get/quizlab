@@ -18,5 +18,4 @@
  * Use `import type { ... } from '@features/pdf/types'` for zero-runtime cost.
  */
 
-export type { LastReadingInfo, PdfTab, ReadingProgressUpdate, ResumePdfResult } from './hooks/types'
 export { usePdfSelection } from './hooks/usePdfSelection'

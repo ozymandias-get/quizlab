@@ -7,7 +7,7 @@ import type {
 } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
-import type * as ErrorClassifier from '@electron/features/automation/automationScripts/lib/errorClassifier'
+import type * as ErrorClassifier from '../../../../shared/lib/errorClassifier'
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 
 import { getElectronApi } from '@shared/lib/electronApi'
@@ -27,7 +27,7 @@ let errorClassifierPromise: Promise<typeof ErrorClassifier> | null = null
 function loadErrorClassifier() {
   if (!errorClassifierPromise) {
     errorClassifierPromise =
-      import('@electron/features/automation/automationScripts/lib/errorClassifier')
+      import('../../../../shared/lib/errorClassifier')
   }
   return errorClassifierPromise
 }

@@ -7,15 +7,15 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import aistudio from '../../../electron/features/ai/platforms/aistudio'
-import chatgpt from '../../../electron/features/ai/platforms/chatgpt'
-import claude from '../../../electron/features/ai/platforms/claude'
-import deepseek from '../../../electron/features/ai/platforms/deepseek'
-import gemini from '../../../electron/features/ai/platforms/gemini'
-import kimi from '../../../electron/features/ai/platforms/kimi'
-import qwen from '../../../electron/features/ai/platforms/qwen'
-import youtube from '../../../electron/features/ai/platforms/youtube'
-import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../shared/constants/google-ai-web-apps'
+import aistudio from '../../../features/ai/platforms/aistudio'
+import chatgpt from '../../../features/ai/platforms/chatgpt'
+import claude from '../../../features/ai/platforms/claude'
+import deepseek from '../../../features/ai/platforms/deepseek'
+import gemini from '../../../features/ai/platforms/gemini'
+import kimi from '../../../features/ai/platforms/kimi'
+import qwen from '../../../features/ai/platforms/qwen'
+import youtube from '../../../features/ai/platforms/youtube'
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps'
 
 describe('AI platform configs - structural invariants', () => {
   const platforms: Record<string, any> = {
