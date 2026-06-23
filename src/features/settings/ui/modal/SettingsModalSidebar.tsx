@@ -41,14 +41,14 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
 
   return (
     <aside className="border-border bg-muted/20 relative flex flex-1 flex-col border-r max-[900px]:hidden">
-      <div className="relative flex h-full min-h-0 flex-col p-3">
+      <div className="relative flex h-full min-h-0 flex-col p-4">
         <div className="relative min-h-0 flex-1">
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
-            <nav aria-label={t('settings_title')} className="flex flex-col gap-1">
+            <nav aria-label={t('settings_title')} className="flex flex-col gap-1.5">
               <button
                 type="button"
                 onClick={handleQuickClick}
-                className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-2.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-3 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                   isQuickActive
                     ? 'border-ring/30 bg-accent'
                     : 'border-border hover:border-border hover:bg-accent/50 bg-transparent'
@@ -73,10 +73,10 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
-                <div className="flex items-center gap-2.5">
-                  <span className="text-base">{categoryIcons[QUICK_SETTINGS_GROUP]}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{categoryIcons[QUICK_SETTINGS_GROUP]}</span>
                   <span
-                    className={`block text-xs font-semibold tracking-wide transition-colors duration-200 ${
+                    className={`block text-sm font-semibold tracking-wide transition-colors duration-200 ${
                       isQuickActive
                         ? 'text-foreground'
                         : 'text-muted-foreground group-hover:text-foreground/70'
@@ -87,7 +87,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                 </div>
               </button>
 
-              <div className="bg-border my-1 h-px" />
+              <div className="bg-border my-2 h-px" />
 
               {sidebarSections.map((section) => {
                 const isActive = selectedGroup === section.id
@@ -98,7 +98,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                     type="button"
                     key={section.id}
                     onClick={handleSectionClick(section.id)}
-                    className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-2.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                    className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-3 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                       isActive
                         ? 'border-ring/30 bg-accent'
                         : 'border-border hover:border-border hover:bg-accent/50 bg-transparent'
@@ -121,10 +121,10 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                       />
                     )}
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-base">{categoryIcons[section.id] ?? '📄'}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{categoryIcons[section.id] ?? '📄'}</span>
                       <span
-                        className={`block text-xs font-semibold tracking-wide transition-colors duration-200 ${
+                        className={`block text-sm font-semibold tracking-wide transition-colors duration-200 ${
                           isActive
                             ? 'text-foreground'
                             : 'text-muted-foreground group-hover:text-foreground/70'
