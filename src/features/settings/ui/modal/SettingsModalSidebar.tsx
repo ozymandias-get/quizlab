@@ -1,5 +1,4 @@
 import { hexToRgba } from '@shared/lib/uiUtils'
-import { SurfaceCard } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
@@ -19,6 +18,14 @@ interface SettingsModalSidebarProps {
   t: (key: string) => string
 }
 
+const categoryIcons: Record<string, string> = {
+  [QUICK_SETTINGS_GROUP]: '⚡',
+  workspace: '🧩',
+  integration: '🔗',
+  preferences: '🎨',
+  app: '📦'
+}
+
 const SettingsModalSidebar = memo(function SettingsModalSidebar({
   selectedGroup,
   selectGroup,
@@ -34,34 +41,15 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
   )
 
   return (
-    <aside className="border-border bg-muted/20 relative flex w-[280px] shrink-0 flex-col border-r max-[900px]:hidden">
-      <div className="relative flex h-full min-h-0 flex-col p-4">
-        <SurfaceCard
-          variant="default"
-          className="relative mb-4 shrink-0 overflow-hidden rounded-xl"
-        >
-          <div className="flex items-center gap-3">
-            <div className="border-border bg-card text-muted-foreground relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
-              <SettingsIcon className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="border-border bg-card text-muted-foreground text-ql-10 inline-flex items-center rounded-full border px-2 py-0.5 font-medium tracking-wider">
-                {t('app_name')}
-              </div>
-              <h2 className="text-foreground mt-1.5 text-base leading-none font-semibold tracking-tight">
-                {t('settings_title')}
-              </h2>
-            </div>
-          </div>
-        </SurfaceCard>
-
+    <aside className="border-border bg-muted/20 relative flex w-[220px] shrink-0 flex-col border-r max-[900px]:hidden">
+      <div className="relative flex h-full min-h-0 flex-col p-3">
         <div className="relative min-h-0 flex-1">
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
-            <nav aria-label={t('settings_title')} className="flex flex-col gap-1.5">
+            <nav aria-label={t('settings_title')} className="flex flex-col gap-1">
               <button
                 type="button"
                 onClick={handleQuickClick}
-                className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-3.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-2.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                   isQuickActive
                     ? 'border-ring/30 bg-accent'
                     : 'border-border hover:border-border hover:bg-accent/50 bg-transparent'
@@ -86,15 +74,18 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
-                <span
-                  className={`block text-xs font-semibold tracking-widest uppercase transition-colors duration-200 ${
-                    isQuickActive
-                      ? 'text-foreground'
-                      : 'text-muted-foreground group-hover:text-foreground/70'
-                  }`}
-                >
-                  {t('quick_settings')}
-                </span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">{categoryIcons[QUICK_SETTINGS_GROUP]}</span>
+                  <span
+                    className={`block text-xs font-semibold tracking-wide transition-colors duration-200 ${
+                      isQuickActive
+                        ? 'text-foreground'
+                        : 'text-muted-foreground group-hover:text-foreground/70'
+                    }`}
+                  >
+                    {t('quick_settings')}
+                  </span>
+                </div>
               </button>
 
               <div className="bg-border my-1 h-px" />
@@ -108,7 +99,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                     type="button"
                     key={section.id}
                     onClick={handleSectionClick(section.id)}
-                    className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-3.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                    className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative isolate overflow-hidden rounded-lg border p-2.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
                       isActive
                         ? 'border-ring/30 bg-accent'
                         : 'border-border hover:border-border hover:bg-accent/50 bg-transparent'
@@ -131,15 +122,18 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                       />
                     )}
-                    <span
-                      className={`block text-xs font-semibold tracking-widest uppercase transition-colors duration-200 ${
-                        isActive
-                          ? 'text-foreground'
-                          : 'text-muted-foreground group-hover:text-foreground/70'
-                      }`}
-                    >
-                      {section.label}
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-base">{categoryIcons[section.id] ?? '📄'}</span>
+                      <span
+                        className={`block text-xs font-semibold tracking-wide transition-colors duration-200 ${
+                          isActive
+                            ? 'text-foreground'
+                            : 'text-muted-foreground group-hover:text-foreground/70'
+                        }`}
+                      >
+                        {section.label}
+                      </span>
+                    </div>
                   </button>
                 )
               })}
