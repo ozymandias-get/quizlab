@@ -39,6 +39,8 @@ interface LanguageState {
   languages: typeof LANGUAGES
   _requestSeq: number
   lastError: string | null
+  isOnboardingDone: boolean
+  completeOnboarding: () => void
 }
 
 const getInitialLanguage = (): string => {
@@ -50,11 +52,20 @@ const getInitialLanguage = (): string => {
   }
 }
 
+export const getInitialOnboardingDone = (): boolean => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE_ONBOARDING_DONE) === 'true'
+  } catch {
+    return false
+  }
+}
+
 export const useLanguage = create<LanguageState>((set, get) => ({
   language: getInitialLanguage(),
   languages: LANGUAGES,
   _requestSeq: 0,
   lastError: null,
+  isOnboardingDone: getInitialOnboardingDone(),
   setLanguage: async (newLang: string) => {
     if (!VALID_LANGUAGES.includes(newLang)) return
     const seq = get()._requestSeq + 1
@@ -69,6 +80,14 @@ export const useLanguage = create<LanguageState>((set, get) => ({
     if (get()._requestSeq === seq) {
       set({ language: newLang, lastError: get().lastError })
     }
+  },
+  completeOnboarding: () => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE_ONBOARDING_DONE, 'true')
+    } catch (error) {
+      Logger.warn('LocalStorage onboarding save failed:', error)
+    }
+    set({ isOnboardingDone: true })
   }
 }))
 

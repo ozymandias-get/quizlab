@@ -4,7 +4,12 @@
  * Zustand store for i18n language management with localStorage persistence.
  */
 
-import { DEFAULT_LANGUAGE, LANGUAGES, useLanguage } from '@shared/stores/languageStore'
+import {
+  DEFAULT_LANGUAGE,
+  LANGUAGES,
+  getInitialOnboardingDone,
+  useLanguage
+} from '@shared/stores/languageStore'
 
 import i18next from 'i18next'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -23,7 +28,8 @@ beforeEach(() => {
   useLanguage.setState({
     language: DEFAULT_LANGUAGE,
     _requestSeq: 0,
-    lastError: null
+    lastError: null,
+    isOnboardingDone: false
   })
   vi.clearAllMocks()
 })
@@ -104,11 +110,30 @@ describe('languageStore', () => {
     })
   })
 
-  describe('_requestSeq', () => {
-    it('increments on each setLanguage call', async () => {
-      const seqBefore = useLanguage.getState()._requestSeq
-      await useLanguage.getState().setLanguage('tr')
-      expect(useLanguage.getState()._requestSeq).toBe(seqBefore + 1)
+    describe('onboarding', () => {
+      it('defaults isOnboardingDone to false', () => {
+        expect(useLanguage.getState().isOnboardingDone).toBe(false)
+      })
+
+      it('completeOnboarding sets isOnboardingDone to true and persists', () => {
+        useLanguage.getState().completeOnboarding()
+        expect(useLanguage.getState().isOnboardingDone).toBe(true)
+        expect(window.localStorage.getItem('app-language-onboarding-done')).toBe('true')
+      })
+
+      it('reads persisted onboarding state from localStorage', () => {
+        window.localStorage.setItem('app-language-onboarding-done', 'true')
+        expect(getInitialOnboardingDone()).toBe(true)
+        window.localStorage.removeItem('app-language-onboarding-done')
+        expect(getInitialOnboardingDone()).toBe(false)
+      })
     })
-  })
+
+    describe('_requestSeq', () => {
+      it('increments on each setLanguage call', async () => {
+        const seqBefore = useLanguage.getState()._requestSeq
+        await useLanguage.getState().setLanguage('tr')
+        expect(useLanguage.getState()._requestSeq).toBe(seqBefore + 1)
+      })
+    })
 })

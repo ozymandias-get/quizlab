@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   DEFAULT_AI_MODEL: 'defaultAiModel',
   PINNED_AI_TABS: 'pinnedAiTabs',
   APP_LANGUAGE: 'appLanguage',
+  APP_LANGUAGE_ONBOARDING_DONE: 'app-language-onboarding-done',
   CUSTOM_PROMPTS: 'customPrompts',
   SELECTED_PROMPT_ID: 'selectedPromptId',
   LAST_PDF_READING: 'lastPdfReading',
