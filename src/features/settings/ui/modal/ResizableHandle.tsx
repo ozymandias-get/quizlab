@@ -39,7 +39,7 @@ const ResizableHandle = memo(function ResizableHandle({ onResize }: ResizableHan
       role="separator"
       aria-orientation="vertical"
       tabIndex={0}
-      className="group relative w-1.5 shrink-0 cursor-col-resize"
+      className="group relative w-3 shrink-0 cursor-col-resize outline-none select-none"
       onMouseDown={(e) => {
         e.preventDefault()
         isDragging.current = true
@@ -55,8 +55,9 @@ const ResizableHandle = memo(function ResizableHandle({ onResize }: ResizableHan
         }
       }}
     >
-      <div className="bg-border group-hover:bg-ring/50 absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
-      <div className="group-hover:bg-ring/10 absolute inset-y-0 left-1/2 -ml-1 w-2 translate-x-0 rounded-sm transition-colors" />
+      <div className="bg-border absolute inset-y-0 left-1/2 w-px -translate-x-1/2" />
+      <div className="group-hover:bg-ring/10 absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 rounded-sm transition-colors" />
+      <div className="bg-ring/50 absolute inset-y-0 left-1/2 hidden w-0.5 -translate-x-1/2 rounded-full transition-all group-hover:block group-hover:w-px" />
     </div>
   )
 })
