@@ -174,8 +174,14 @@ describe('automationHandlers', () => {
 
     expect(waitOk).toEqual({ ok: true, data: 'wait-script' })
     expect(generateWaitForSubmitReadyScript).toHaveBeenCalledWith(config, undefined)
-    expect(waitInvalid).toEqual({ ok: false, error: { code: 'invalid_input', message: 'Invalid action or arguments' } })
-    expect(pickerInvalid).toEqual({ ok: false, error: { code: 'invalid_input', message: 'Invalid action or arguments' } })
+    expect(waitInvalid).toEqual({
+      ok: false,
+      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
+    })
+    expect(pickerInvalid).toEqual({
+      ok: false,
+      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
+    })
   })
 
   it('returns null for unknown automation actions', async () => {
@@ -186,7 +192,10 @@ describe('automationHandlers', () => {
     const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
     const result = await handler?.(trustedEvent, 'unknown-action' as never)
 
-    expect(result).toEqual({ ok: false, error: { code: 'invalid_input', message: 'Invalid action or arguments' } })
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
+    })
   })
 
   it('returns null when action args are malformed', async () => {
@@ -198,7 +207,10 @@ describe('automationHandlers', () => {
     const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
     const result = await handler?.(trustedEvent, 'generateAutoSendScript', null, 123, 'yes')
 
-    expect(result).toEqual({ ok: false, error: { code: 'invalid_input', message: 'Invalid action or arguments' } })
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
+    })
     expect(generateAutoSendScript).not.toHaveBeenCalled()
   })
 
@@ -234,7 +246,10 @@ describe('automationHandlers', () => {
       true
     )
 
-    expect(result).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
     expect(generateAutoSendScript).not.toHaveBeenCalled()
     expect(generateFocusScript).not.toHaveBeenCalled()
     expect(generateClickSendScript).not.toHaveBeenCalled()

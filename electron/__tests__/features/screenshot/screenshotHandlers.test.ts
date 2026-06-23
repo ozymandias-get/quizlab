@@ -42,8 +42,14 @@ describe('screenshotHandlers', () => {
     const captureHandler = getHandler(APP_CONFIG.IPC_CHANNELS.CAPTURE_SCREEN)
     const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
 
-    expect(await captureHandler?.({ sender: {} })).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
-    await expect(copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')).resolves.toEqual({ ok: true, data: false })
+    expect(await captureHandler?.({ sender: {} })).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
+    await expect(copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')).resolves.toEqual({
+      ok: true,
+      data: false
+    })
   })
 
   it('copies image when data URL is valid and image is non-empty', async () => {
@@ -68,9 +74,18 @@ describe('screenshotHandlers', () => {
     registerScreenshotHandlers()
 
     const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
-    await expect(copyHandler?.({ sender: {} }, 'data:text/html;base64,abc')).resolves.toEqual({ ok: true, data: false })
-    await expect(copyHandler?.({ sender: {} }, 'data:audio/mp3;base64,abc')).resolves.toEqual({ ok: true, data: false })
-    await expect(copyHandler?.({ sender: {} }, 'javascript:alert(1)')).resolves.toEqual({ ok: true, data: false })
+    await expect(copyHandler?.({ sender: {} }, 'data:text/html;base64,abc')).resolves.toEqual({
+      ok: true,
+      data: false
+    })
+    await expect(copyHandler?.({ sender: {} }, 'data:audio/mp3;base64,abc')).resolves.toEqual({
+      ok: true,
+      data: false
+    })
+    await expect(copyHandler?.({ sender: {} }, 'javascript:alert(1)')).resolves.toEqual({
+      ok: true,
+      data: false
+    })
     expect(createFromDataURL).not.toHaveBeenCalled()
     expect(writeImage).not.toHaveBeenCalled()
     consoleWarn.mockRestore()
@@ -84,7 +99,10 @@ describe('screenshotHandlers', () => {
     registerScreenshotHandlers()
 
     const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
-    await expect(copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')).resolves.toEqual({ ok: true, data: false })
+    await expect(copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')).resolves.toEqual({
+      ok: true,
+      data: false
+    })
     expect(writeImage).not.toHaveBeenCalled()
   })
 
@@ -97,7 +115,10 @@ describe('screenshotHandlers', () => {
 
     const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
     const oversized = 'data:image/png;base64,' + 'A'.repeat(50 * 1024 * 1024)
-    await expect(copyHandler?.({ sender: {} }, oversized)).resolves.toEqual({ ok: true, data: false })
+    await expect(copyHandler?.({ sender: {} }, oversized)).resolves.toEqual({
+      ok: true,
+      data: false
+    })
     expect(createFromDataURL).not.toHaveBeenCalled()
     expect(writeImage).not.toHaveBeenCalled()
     consoleWarn.mockRestore()
@@ -126,7 +147,10 @@ describe('screenshotHandlers', () => {
     registerScreenshotHandlers()
 
     const captureHandler = getHandler(APP_CONFIG.IPC_CHANNELS.CAPTURE_SCREEN)
-    expect(await captureHandler?.({ sender: {} })).toEqual({ ok: false, error: { code: 'internal_error', message: 'Window not available' } })
+    expect(await captureHandler?.({ sender: {} })).toEqual({
+      ok: false,
+      error: { code: 'internal_error', message: 'Window not available' }
+    })
   })
 
   it('returns null and rejects oversized rect dimensions', async () => {
@@ -141,15 +165,28 @@ describe('screenshotHandlers', () => {
     const captureHandler = getHandler(APP_CONFIG.IPC_CHANNELS.CAPTURE_SCREEN)
     expect(
       await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: 99999, height: 100 })
-    ).toEqual({ ok: false, error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' } })
+    ).toEqual({
+      ok: false,
+      error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' }
+    })
     expect(
       await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: 100, height: 99999 })
-    ).toEqual({ ok: false, error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' } })
-    expect(await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: 0, height: 100 })).toEqual({ ok: false, error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' } })
-    expect(await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: 100, height: 0 })).toEqual({ ok: false, error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' } })
-    expect(
-      await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: -1, height: 100 })
-    ).toEqual({ ok: false, error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' } })
+    ).toEqual({
+      ok: false,
+      error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' }
+    })
+    expect(await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: 0, height: 100 })).toEqual({
+      ok: false,
+      error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' }
+    })
+    expect(await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: 100, height: 0 })).toEqual({
+      ok: false,
+      error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' }
+    })
+    expect(await captureHandler?.({ sender: {} }, { x: 0, y: 0, width: -1, height: 100 })).toEqual({
+      ok: false,
+      error: { code: 'internal_error', message: 'Invalid or out-of-bounds rect' }
+    })
     expect(capturePage).not.toHaveBeenCalled()
     consoleWarn.mockRestore()
   })

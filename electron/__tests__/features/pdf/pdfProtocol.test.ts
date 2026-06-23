@@ -83,7 +83,10 @@ describe('pdfProtocol handlers', () => {
     const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_PDF_STREAM_URL)
     const result = await handler?.({ sender: {} }, '/outside/secret.pdf')
 
-    expect(result).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Pdf not in allowlist' } })
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Pdf not in allowlist' }
+    })
     // Security warning is routed through the shared Logger (dev only console
     // output, always buffered). Verify the buffer grew with the warning.
     const logs = getRecentElectronLogs()
@@ -118,9 +121,18 @@ describe('pdfProtocol handlers', () => {
     const getUrlHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_PDF_STREAM_URL)
     const registerHandler = getHandler(APP_CONFIG.IPC_CHANNELS.PDF_REGISTER_PATH)
 
-    expect(await selectHandler?.({ sender: {} }, {})).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
-    expect(await getUrlHandler?.({ sender: {} }, '/x/y.pdf')).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
-    expect(await registerHandler?.({ sender: {} }, '/x/y.pdf')).toEqual({ ok: false, error: { code: 'unauthorized', message: 'Not authorized' } })
+    expect(await selectHandler?.({ sender: {} }, {})).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
+    expect(await getUrlHandler?.({ sender: {} }, '/x/y.pdf')).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
+    expect(await registerHandler?.({ sender: {} }, '/x/y.pdf')).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
   })
 
   it('register path grants session-only access and persists allowlist', async () => {

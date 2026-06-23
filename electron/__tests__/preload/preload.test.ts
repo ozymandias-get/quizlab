@@ -175,7 +175,9 @@ describe('preload electronAPI', () => {
 
     // Create text that exceeds 512KB (524288 bytes)
     const oversized = 'x'.repeat(500_000)
-    await expect((automation.generateAutoSendScript as Function)(config, oversized, true)).rejects.toThrow()
+    await expect(
+      (automation.generateAutoSendScript as Function)(config, oversized, true)
+    ).rejects.toThrow()
     expect(invoke).not.toHaveBeenCalled()
   })
 
