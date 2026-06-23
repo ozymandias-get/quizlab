@@ -1,0 +1,79 @@
+webview {
+  width: 100%;
+  height: 100%;
+  /* Ensure webview renders at native resolution inside 3D-transformed containers */
+  transform-style: flat;
+  -webkit-backface-visibility: visible;
+  backface-visibility: visible;
+}
+
+.custom-scrollbar {
+  content-visibility: auto;
+  contain-intrinsic-size: 400px;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 3px;
+  transition: background var(--duration-slow) ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-thumb-hover);
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.scrollbar-hidden.scrollable-panel {
+  content-visibility: auto;
+  contain-intrinsic-size: 400px;
+}
+
+/* ColorPicker (react-colorful) overrides */
+
+.custom-color-picker .react-colorful {
+  width: var(--color-picker-width, 200px);
+  height: var(--color-picker-height, 180px);
+  border-radius: var(--radius-xl);
+}
+
+.custom-color-picker .react-colorful__saturation {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: 2px solid oklch(0 0 0 / 0.3);
+}
+
+.custom-color-picker .react-colorful__hue {
+  height: var(--color-picker-hue-height, 12px);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  margin-top: 10px;
+}
+
+.custom-color-picker .react-colorful__pointer {
+  width: var(--color-picker-pointer-size, 16px);
+  height: var(--color-picker-pointer-size, 16px);
+  border: 2px solid oklch(1 0 0);
+  box-shadow: 0 4px 12px oklch(0 0 0 / 0.5);
+}

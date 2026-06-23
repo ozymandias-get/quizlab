@@ -1,0 +1,93 @@
+# Electronegativity Configuration
+# Electron Security Analysis
+
+# Kontrol edilecek dosyalar
+files:
+  - electron/**/*.ts
+  - electron/**/*.js
+  - src/**/*.ts
+  - src/**/*.tsx
+
+# Hariç tutulan dosyalar
+ignore:
+  - node_modules/**
+  - dist/**
+  - release/**
+  - coverage/**
+  - .cache/**
+  - '**/*.test.*'
+  - '**/*.spec.*'
+  - '**/__tests__/**'
+
+# Güvenlik kontrolleri
+checks:
+  # Context Isolation
+  - id: context-isolation
+    severity: error
+    message: 'contextIsolation: true olmalı'
+
+  # Node Integration
+  - id: node-integration
+    severity: error
+    message: 'nodeIntegration: false olmalı'
+
+  # Preload Güvenliği
+  - id: preload-path
+    severity: error
+    message: 'Preload dosyası güvenli yolda olmalı'
+
+  - id: preload-script
+    severity: warning
+    message: "Preload script'inde contextBridge kullanılmalı"
+
+  # IPC Güvenliği
+  - id: ipc-channel
+    severity: warning
+    message: 'IPC kanalları doğrulanmalı'
+
+  - id: ipc-listener
+    severity: warning
+    message: "IPC listener'ları güvenli olmalı"
+
+  # WebPreferences
+  - id: web-preferences
+    severity: error
+    message: 'WebPreferences güvenli yapılandırma olmalı'
+
+  - id: sandbox
+    severity: warning
+    message: 'Sandbox modu etkinleştirilmeli'
+
+  - id: web-security
+    severity: warning
+    message: 'webSecurity devre dışı bırakılmamalı'
+
+  # Opening Windows
+  - id: new-window
+    severity: warning
+    message: 'Yeni pencere açarken güvenlik kontrolü yapılmalı'
+
+  - id: external-url
+    severity: warning
+    message: "Dış URL'lerde güvenlik kontrolü yapılmalı"
+
+  # Native Modules
+  - id: native-module
+    severity: info
+    message: 'Native modül kullanımı güvenli olmalı'
+
+  # Protocol Handlers
+  - id: protocol-handler
+    severity: warning
+    message: "Protocol handler'lar güvenli olmalı"
+
+# Çıktı formatı
+output:
+  format: text
+  file: reports/electron-security/analysis.txt
+
+# Raporlama
+reporting:
+  include-passed: false
+  include-failed: true
+  include-warnings: true

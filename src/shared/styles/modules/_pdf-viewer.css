@@ -1,0 +1,331 @@
+.pdf-viewer-container {
+  background: oklch(var(--background));
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  touch-action: manipulation;
+  contain: layout paint;
+}
+
+/* Kaydırma çubuğu açılıp kapanırken container genişliğinin
+   aniden ~15px sıçramasını (Cumulative Layout Shift) önler.
+   scrollbar-gutter: stable, kaydırma çubuğu alanını her koşulda
+   rezerve ederek scroll modu geçişlerinde dahi genişliğin sabit
+   kalmasını sağlar. */
+
+.pdf-viewer-container .rpv-core__inner-container,
+.pdf-viewer-container .rpv-core__inner-pages {
+  scrollbar-gutter: stable;
+}
+
+.pdf-viewer-container > * {
+  position: relative;
+}
+
+body.panel-resizing .pdf-viewer-container .rpv-core__inner-page,
+body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer {
+  transition: none !important;
+}
+
+body.panel-resizing .pdf-viewer-container .rpv-core__inner-pages,
+body.panel-resizing .pdf-viewer-container .rpv-core__inner-page,
+body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer,
+body.panel-resizing .pdf-viewer-container .rpv-core__page-layer,
+body.panel-resizing .pdf-viewer-container .rpv-core__doc,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__inner-pages,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__inner-page,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__page-layer,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__doc {
+  background-color: oklch(var(--background)) !important;
+}
+
+body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer canvas,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer canvas {
+  background-color: oklch(var(--card)) !important;
+}
+
+.pdf-viewer-container .rpv-core__viewer {
+  background-color: oklch(var(--background)) !important;
+  height: 100% !important;
+  width: 100% !important;
+  contain: layout paint;
+}
+
+.pdf-viewer-container .rpv-core__inner-pages {
+  background-color: transparent !important;
+  scroll-snap-type: none !important;
+  scroll-behavior: auto;
+}
+
+.pdf-viewer-container .rpv-core__inner-page {
+  background-color: oklch(var(--background)) !important;
+  scroll-snap-align: none !important;
+}
+
+.pdf-viewer-container .rpv-core__page-layer {
+  background-color: oklch(var(--background)) !important;
+}
+
+.pdf-viewer-container .rpv-core__doc {
+  background-color: oklch(var(--background)) !important;
+}
+
+.pdf-viewer-container .rpv-core__inner-page {
+  /* width/height transitions removed — they trigger expensive layout recalculation
+     on every page transition, causing visible stutter/jank.
+     Only opacity transitions are kept (compositor-only, GPU-friendly). */
+  transition: none;
+}
+
+.pdf-viewer-container .rpv-core__canvas-layer {
+  transition: opacity 0.3s ease;
+  contain: layout paint;
+}
+
+.pdf-canvas-container {
+  contain: strict;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdf-viewer-container .rpv-core__inner-page,
+  .pdf-viewer-container .rpv-core__canvas-layer {
+    transition: none !important;
+  }
+
+  .pdf-viewer-container .rpv-core__text-layer,
+  .pdf-viewer-container .rpv-core__annotation-layer {
+    transition-duration: 0.05s;
+  }
+}
+
+.pdf-viewer-container .rpv-core__text-layer,
+.pdf-viewer-container .rpv-core__annotation-layer {
+  transition: opacity 0.3s ease;
+}
+
+.pdf-viewer-container .rpv-core__canvas-layer canvas {
+  display: block;
+}
+
+.pdf-viewer-container .rpv-core__canvas-layer,
+.pdf-viewer-container .rpv-core__text-layer,
+.pdf-viewer-container .rpv-core__annotation-layer {
+  transform-style: flat;
+  -webkit-backface-visibility: visible;
+  backface-visibility: visible;
+}
+
+body.panel-resizing .pdf-viewer-container [data-pdf-page-loader],
+body.panel-resizing .pdf-viewer-container .rpv-core__loader {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.panel-resizing .pdf-viewer-container .rpv-core__spinner,
+body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  animation: none !important;
+}
+
+.pdf-viewer-container .rpv-core__loader {
+  background: transparent !important;
+}
+
+.pdf-viewer-container .rpv-core__text-layer {
+  color: transparent !important;
+  cursor: default;
+  user-select: text;
+  -webkit-user-select: text;
+  /* filter transition removed — forces compositor re-rasterization on every text layer update */
+  padding: 0.22rem 0.28rem;
+}
+
+.pdf-viewer-container .rpv-core__text-layer span::selection {
+  background-color: var(--selection-color-vivid, rgba(234, 179, 8, 0.82)) !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+  box-shadow:
+    0 0 0 1px var(--selection-color-edge, rgba(255, 255, 255, 0.22)),
+    0 0 0 999px var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
+}
+
+.pdf-viewer-container .rpv-core__text-layer span::-moz-selection {
+  background-color: var(--selection-color-vivid, rgba(234, 179, 8, 0.82)) !important;
+  color: transparent !important;
+  text-shadow: none !important;
+  box-shadow:
+    0 0 0 1px var(--selection-color-edge, rgba(255, 255, 255, 0.22)),
+    0 0 0 999px var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
+}
+
+.pdf-viewer-container .rpv-core__text-layer span {
+  cursor: text;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  line-height: 1.42 !important;
+  padding: 0.12em 0.18em !important;
+  margin: -0.12em -0.18em !important;
+  border-radius: 0.34rem;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    text-shadow 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* ── PointerHighlight-inspired selection effect ── */
+/* Animated border + soft glow, triggered when text is selected inside the PDF. */
+
+@keyframes pointer-border-reveal {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 100% 100% 0);
+  }
+
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes pointer-border-pulse {
+  0%,
+  100% {
+    border-color: oklch(0.8 0.15 75 / 0.5);
+    box-shadow: 0 0 0.6rem oklch(0.8 0.15 75 / 0.15);
+  }
+
+  50% {
+    border-color: oklch(0.8 0.15 75 / 0.8);
+    box-shadow: 0 0 1.2rem oklch(0.8 0.15 75 / 0.3);
+  }
+}
+
+.pdf-viewer-container.pdf-selection-active .rpv-core__text-layer {
+  filter: drop-shadow(0 0 0.4rem var(--selection-color-glow, rgba(234, 179, 8, 0.25)));
+  transition: filter 0.3s ease;
+}
+
+.pdf-viewer-container.pdf-selection-active .rpv-core__inner-pages {
+  position: relative;
+  background-image:
+    radial-gradient(
+      circle at 50% 0%,
+      var(--selection-color-soft, oklch(0.78 0.15 75 / 0.22)),
+      transparent 42%
+    ),
+    linear-gradient(180deg, oklch(1 0 0 / 0.015), transparent);
+}
+
+/* Animated frame around the PDF pages area */
+
+.pdf-viewer-container.pdf-selection-active .rpv-core__inner-pages::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1.5px solid oklch(0.8 0.15 75 / 0.5);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: var(--z-pdf-overlay);
+  animation:
+    pointer-border-reveal 0.5s ease-out forwards,
+    pointer-border-pulse 2.2s ease-in-out 0.5s infinite;
+}
+
+/* Pointer arrow icon — CSS-only approximation of the SVG pointer */
+
+.pdf-viewer-container.pdf-selection-active .rpv-core__inner-pages::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 12px;
+  height: 12px;
+  z-index: var(--z-pdf-overlay-top);
+  pointer-events: none;
+  opacity: 0;
+  background: oklch(0.8 0.15 75 / 0.9);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  animation: pointer-fade-in 0.3s ease-out 0.4s forwards;
+}
+
+@keyframes pointer-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.pdf-viewer-container .rpv-core__minimal-button {
+  color: oklch(0.6 0.01 60) !important;
+}
+
+.pdf-viewer-container .rpv-core__minimal-button:hover {
+  background-color: oklch(0.3 0.01 60 / 0.5) !important;
+  color: oklch(0.98 0 0) !important;
+}
+
+.pdf-viewer-container ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pdf-viewer-container ::-webkit-scrollbar-track {
+  background: oklch(0.15 0.01 60);
+}
+
+.pdf-viewer-container ::-webkit-scrollbar-thumb {
+  background: oklch(0.4 0.01 60 / 0.5);
+  border-radius: 4px;
+}
+
+.pdf-viewer-container ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0.01 60 / 0.6);
+}
+
+.pdf-viewer-container.pdf-pan-mode-active {
+  cursor: grab;
+}
+
+.pdf-viewer-container.pdf-pan-mode-dragging {
+  cursor: grabbing;
+}
+
+.pdf-viewer-container.pdf-pan-mode-active .rpv-core__text-layer,
+.pdf-viewer-container.pdf-pan-mode-active .rpv-core__text-layer span {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: inherit;
+}
+
+/* ── Search highlight deferred fade-in ────────────────────────────────
+ * Highlights start invisible (opacity: 0) when a new page renders, then
+ * fade in after 400ms — past the page transition settle window.  This
+ * prevents dozens of highlight DIVs from competing with the page render. */
+@keyframes pdf-highlight-fadein {
+  to {
+    opacity: 1;
+  }
+}
+
+.pdf-recent-item.glass-tier-3 {
+  background-color: oklch(0.15 0.01 60 / 0.85) !important;
+  background-image: none !important;
+}
+
+.pdf-recent-item.glass-tier-3::after {
+  opacity: 0.06 !important;
+}

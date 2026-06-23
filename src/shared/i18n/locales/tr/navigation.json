@@ -1,0 +1,18 @@
+{
+  "tab_close": "Kapat",
+  "tab_more": "Daha fazla sekme",
+  "tab_pin": "Sabitle",
+  "tab_pinned": "Sabitlendi",
+  "tab_rename": "Yeniden adlandır",
+  "tab_rename_placeholder": "Sekme adı...",
+  "tab_unpin": "Sabitlemeyi kaldır",
+  "new_tab": "Yeni sekme",
+  "new_tab_title": "Yeni Sekme",
+  "new_folder": "Yeni Klasör",
+  "bar_appearance": "Çubuk Görünümü",
+  "bar_drag_hint": "Butonu sürükleyerek konumlandırabilirsiniz",
+  "bar_layout": "Çubuk Yerleşimi",
+  "bar_layout_desc": "Konum ve hizalama ayarları",
+  "bar_layout_direction": "Açılış Yönü",
+  "open_tabs": "Aktif"
+}

@@ -1,0 +1,53 @@
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * The previous version of this animation used `filter: blur(4px) → blur(0)`.
+ * Animating the `filter` property forces the browser to promote the element to
+ * its own compositor layer AND forces a re-rasterization on every frame.
+ * For a full-viewport shell that's 1.5+ million pixels of compositing work
+ * on startup, visible as a stutter on the first paint.
+ *
+ * Replaced with a translate+scale+opacity blend (all GPU-only transforms).
+ * Visual difference is negligible on a dark UI shell.
+ */
+@keyframes appEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.985) translateY(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-app-enter {
+  animation: appEnter 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-app-enter {
+    animation-duration: 0.001s;
+  }
+}
+
+@keyframes toast-progress-shrink {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}

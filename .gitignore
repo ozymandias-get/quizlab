@@ -1,0 +1,143 @@
+# Dependencies
+node_modules/
+.jest-cache/
+
+# Build outputs
+dist/
+dist-electron/
+release/
+*.tsbuildinfo
+.cache/
+
+# Vite
+.vite/
+
+# Electron
+electron-builder.yml
+electron-builder.json
+
+# Tests & coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# AI tool configs
+.antigravitycli/
+.opencode/
+.cursor/
+.claude/
+.cursorrules
+.claude/settings.local.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# AI local config
+.agent/
+.gemini/
+AGENTS.md
+
+# Electron user data (local Chromium profiles, sessions)
+electron-user-data/
+chromium-profile/
+*.chromium/
+
+# Local databases & caches
+*.sqlite
+*.sqlite3
+*.db
+.chroma/
+.qdrant/
+.faiss/
+.venv/
+
+# PDF cache & generated content
+*.pdf.cache
+pdf-cache/
+
+# Screenshots, recordings, diagnostics
+screenshots/
+recordings/
+/diagnostics/
+*.heapsnapshot
+*.trace.json
+*.cpuprofile
+
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# Package manager locks (keep package-lock.json, ignore others if present)
+yarn.lock
+pnpm-lock.yaml
+
+# macOS
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Linux
+*~
+
+# Editor backup files
+*.sublime-project
+*.sublime-workspace
+
+# Test snapshots (noise)
+__snapshots__/
+
+# Generated vector DB
+vectors/
+embeddings/
+
+# Local uploads
+uploads/
+.local-uploads/
+
+# Performance profiling
+*.prof
+*.profile
+*.speedscope
+
+# Crash dumps
+*.dmp
+crashes/

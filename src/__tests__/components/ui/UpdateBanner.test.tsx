@@ -1,0 +1,69 @@
+import UpdateBanner from '@ui/components/UpdateBanner'
+
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@ui/components/Icons', () => ({
+  UpdateIcon: () => <div data-testid="icon-update" />,
+  CloseIcon: () => <div data-testid="icon-close" />,
+  DownloadIcon: () => <div data-testid="icon-download" />
+}))
+
+const mockOpenExternal = vi.fn()
+vi.mock('@platform/electron/api/useSystemApi', () => ({
+  useOpenExternal: () => ({ mutate: mockOpenExternal, isPending: false })
+}))
+
+const t = (key: string) => key
+
+describe('UpdateBanner', () => {
+  const defaultProps = {
+    updateAvailable: true,
+    updateInfo: { version: '1.2.3', releaseName: 'Cool Update' } as unknown as React.ComponentProps<
+      typeof UpdateBanner
+    >['updateInfo'],
+    isVisible: true,
+    onClose: vi.fn(),
+    t
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders when visible and update available', () => {
+    render(<UpdateBanner {...defaultProps} />)
+    expect(screen.getByText('update_available')).toBeInTheDocument()
+    expect(screen.getByText('1.2.3')).toBeInTheDocument()
+    expect(screen.getByText('Cool Update')).toBeInTheDocument()
+  })
+
+  it('returns null if not visible', () => {
+    const { container } = render(<UpdateBanner {...defaultProps} isVisible={false} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('returns null if no update info', () => {
+    const { container } = render(<UpdateBanner {...defaultProps} updateInfo={null} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('calls onClose when closed', () => {
+    render(<UpdateBanner {...defaultProps} />)
+    const closeBtn = screen.getByTestId('icon-close').closest('button')
+    fireEvent.click(closeBtn!)
+    expect(defaultProps.onClose).toHaveBeenCalled()
+  })
+
+  it('calls onClose when Later clicked', () => {
+    render(<UpdateBanner {...defaultProps} />)
+    fireEvent.click(screen.getByText('later'))
+    expect(defaultProps.onClose).toHaveBeenCalled()
+  })
+
+  it('handles download action', async () => {
+    render(<UpdateBanner {...defaultProps} />)
+    fireEvent.click(screen.getByText('download_from_github'))
+    expect(mockOpenExternal).toHaveBeenCalled()
+  })
+})

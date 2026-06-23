@@ -1,0 +1,19 @@
+{
+  "appearance": "Görünüm",
+  "appearance_description": "Uygulama görünümü, çubuğun konumu ve arka plan ayarlarını özelleştirin.",
+  "appearance_settings": "Görünüm Ayarları",
+  "background_settings": "Arkaplan",
+  "bg_desc": "Çalışma alanınızın arkaplanını kişiselleştirin.",
+  "bg_ambient": "Ortam Işıması",
+  "bg_solid": "Düz Renk",
+  "bg_solid_desc": "Düz katı renk arkaplan.",
+  "selection_color_desc": "Metin seçme ve AI gönder butonu rengini kişiselleştirin.",
+  "selection_color_preview_hint": "Önizleme (Metin seçerek kontrol edebilirsiniz)",
+  "selection_color_settings": "Seçici Rengi",
+  "ai_add_failed": "Yapay Zeka eklenemedi",
+  "ai_added_success": "Yapay Zeka Başarıyla Eklendi",
+  "ai_delete_failed": "Yapay Zeka silinemedi",
+  "ai_deleted_success": "Yapay Zeka Silindi",
+  "ai_error_title": "{name} Hatası",
+  "custom_prompts": "Özel Promptlar"
+}

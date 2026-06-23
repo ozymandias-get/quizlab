@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/madge.json",
+  "tsConfig": "./tsconfig.json",
+  "extensions": ["ts", "tsx", "js", "jsx"],
+  "exclude": ["(node_modules|dist|release|coverage|\\.cache)"],
+  "tsConfigPrecompiledFileExtensions": [],
+  "warn": false,
+  "circular": true,
+  "summary": true
+}

@@ -1,0 +1,193 @@
+import { IPC_CHANNELS } from '@shared-core/constants/ipc-channels'
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const exposeInMainWorld = vi.fn()
+const invoke = vi.fn()
+const on = vi.fn()
+const removeListener = vi.fn()
+
+vi.mock('electron', () => ({
+  contextBridge: {
+    exposeInMainWorld
+  },
+  ipcRenderer: {
+    invoke,
+    on,
+    removeListener
+  }
+}))
+
+type ExposedApi = {
+  clearAiModelData: (input: { id: string; partition?: string }) => Promise<boolean>
+  automation: {
+    generateAutoSendScript: (
+      config: Record<string, unknown>,
+      text: string,
+      submit: boolean,
+      append?: boolean,
+      textInputMode?: 'auto' | 'paste' | 'typing',
+      typingSpeed?: number
+    ) => Promise<string | null>
+    generatePickerScript: (translations: Record<string, string>) => Promise<string | null>
+  }
+  onTriggerScreenshot: (callback: (type: 'selection' | 'window' | 'screen') => void) => () => void
+  onPdfViewerZoom: (callback: (action: 'in' | 'out' | 'reset') => void) => () => void
+  geminiWeb: {
+    onRefreshEvent: (
+      callback: (event: { phase: 'started' | 'success' | 'failed'; reason: string }) => void
+    ) => () => void
+  }
+}
+
+describe('preload electronAPI', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    exposeInMainWorld.mockReset()
+    invoke.mockReset()
+    on.mockReset()
+    removeListener.mockReset()
+    invoke.mockResolvedValue({ ok: true, data: 'ok-script' })
+  })
+
+  it('exposes electronAPI and forwards automation invoke args', async () => {
+    await import('../../preload/index.js')
+
+    expect(exposeInMainWorld).toHaveBeenCalledTimes(1)
+    expect(exposeInMainWorld).toHaveBeenCalledWith('electronAPI', expect.any(Object))
+
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+    const config = { input: '#prompt', button: '#send' }
+
+    await api.automation.generateAutoSendScript(config, 'hello', false, true)
+    await api.automation.generatePickerScript({ pickInput: 'Pick input' })
+    await api.automation.generateAutoSendScript(config, 'hello-2', true)
+    await api.clearAiModelData({ id: 'chatgpt', partition: 'persist:ai_chatgpt' })
+
+    expect(invoke).toHaveBeenNthCalledWith(
+      1,
+      IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
+      'generateAutoSendScript',
+      config,
+      'hello',
+      false,
+      true,
+      undefined,
+      undefined
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      2,
+      IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
+      'generatePickerScript',
+      { pickInput: 'Pick input' }
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      3,
+      IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
+      'generateAutoSendScript',
+      config,
+      'hello-2',
+      true,
+      false,
+      undefined,
+      undefined
+    )
+    expect(invoke).toHaveBeenNthCalledWith(4, IPC_CHANNELS.CLEAR_AI_MODEL_DATA, {
+      id: 'chatgpt',
+      partition: 'persist:ai_chatgpt'
+    })
+  })
+
+  it('subscribes and unsubscribes trigger screenshot events', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+    const callback = vi.fn()
+
+    const unsubscribe = api.onTriggerScreenshot(callback)
+
+    expect(on).toHaveBeenCalledWith(IPC_CHANNELS.TRIGGER_SCREENSHOT, expect.any(Function))
+
+    const handler = on.mock.calls[0]?.[1] as
+      | ((event: unknown, type: 'selection') => void)
+      | undefined
+    handler?.({}, 'selection')
+    expect(callback).toHaveBeenCalledWith('selection')
+
+    unsubscribe()
+    expect(removeListener).toHaveBeenCalledWith(IPC_CHANNELS.TRIGGER_SCREENSHOT, handler)
+  })
+
+  it('subscribes and unsubscribes pdf viewer zoom events', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+    const callback = vi.fn()
+
+    const unsubscribe = api.onPdfViewerZoom(callback)
+
+    expect(on).toHaveBeenCalledWith(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, expect.any(Function))
+
+    const handler = on.mock.calls[0]?.[1] as ((event: unknown, action: 'in') => void) | undefined
+    handler?.({}, 'in')
+    expect(callback).toHaveBeenCalledWith('in')
+
+    unsubscribe()
+    expect(removeListener).toHaveBeenCalledWith(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handler)
+  })
+
+  it('subscribes and unsubscribes gemini web refresh events', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+    const callback = vi.fn()
+
+    const unsubscribe = api.geminiWeb.onRefreshEvent(callback)
+
+    expect(on).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED,
+      expect.any(Function)
+    )
+    expect(on).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_SUCCESS,
+      expect.any(Function)
+    )
+    expect(on).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED,
+      expect.any(Function)
+    )
+
+    const handler = on.mock.calls.find(
+      ([channel]) => channel === IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED
+    )?.[1] as ((event: unknown, payload: { phase: 'failed'; reason: string }) => void) | undefined
+    handler?.({}, { phase: 'failed', reason: 'login_redirect' })
+    expect(callback).toHaveBeenCalledWith({ phase: 'failed', reason: 'login_redirect' })
+
+    unsubscribe()
+    expect(removeListener).toHaveBeenCalledWith(
+      IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED,
+      handler
+    )
+  })
+
+  it('safeInvoke rejects payloads exceeding 512KB size limit', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as Record<string, unknown>
+    const automation = api.automation as Record<string, unknown>
+    const config = { input: '#prompt', button: '#send' }
+
+    // Create text that exceeds 512KB (524288 bytes)
+    const oversized = 'x'.repeat(500_000)
+    await expect((automation.generateAutoSendScript as Function)(config, oversized, true)).rejects.toThrow()
+    expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it('safeInvoke allows payloads within size limit', async () => {
+    invoke.mockResolvedValue({ ok: true, data: 'script-result' })
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as Record<string, unknown>
+    const automation = api.automation as Record<string, unknown>
+    const config = { input: '#prompt', button: '#send' }
+
+    const result = await (automation.generateAutoSendScript as Function)(config, 'small text', true)
+    expect(result).toBe('script-result')
+    expect(invoke).toHaveBeenCalled()
+  })
+})

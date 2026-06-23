@@ -1,0 +1,17 @@
+{
+  "notifications": "Bildirimler",
+  "notification_settings": "Bildirim Ayarları",
+  "notifications_description": "Hangi bildirim türlerini almak istediğinizi seçin. Her türü ayrı ayrı açıp kapatabilirsiniz.",
+  "notification_success_title": "Başarılı",
+  "notification_success_description": "Bir işlem başarıyla tamamlandığında gösterilir.",
+  "notification_error_title": "Hata",
+  "notification_error_description": "Bir şeyler yanlış gittiğinde veya işlem başarısız olduğunda gösterilir.",
+  "notification_warning_title": "Uyarı",
+  "notification_warning_description": "Dikkat gerektiren önemli uyarılar için gösterilir.",
+  "notification_info_title": "Bilgi",
+  "notification_info_description": "Genel bilgi ve durum güncellemeleri için gösterilir.",
+  "notification_test_success": "Test",
+  "notification_test_error": "Test",
+  "notification_test_warning": "Test",
+  "notification_test_info": "Test"
+}

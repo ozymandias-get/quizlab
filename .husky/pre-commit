@@ -1,0 +1,5 @@
+npm run ci:check-hygiene
+npm run ci:check-version 2>&1 || echo "⚠️  Version consistency check failed (non-blocking)"
+npm run analyze:file-sizes 2>&1 || echo "⚠️  File size check failed (non-blocking)"
+npm run analyze:css 2>&1 || echo "⚠️  CSS analysis failed (non-blocking)"
+npx lint-staged
