@@ -29,7 +29,7 @@ interface QuickSettingsProps {
 
 function QuickSettings({ t, setActiveTab }: QuickSettingsProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="space-y-1 px-1">
         <h3 className="text-ql-18 font-semibold tracking-tight text-white/88">
           {t('quick_settings')}
@@ -239,14 +239,14 @@ const QuickSettingRow = memo(function QuickSettingRow({
   children
 }: QuickSettingRowProps) {
   return (
-    <div className="border-border bg-card rounded-xl border p-4 transition-colors hover:border-white/[0.1]">
-      <div className="flex items-start gap-3">
+    <div className="border-border bg-card rounded-lg border p-3 transition-colors hover:border-white/[0.1]">
+      <div className="flex items-start gap-2.5">
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${iconBorder} ${iconColor}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${iconBorder} ${iconColor}`}
         >
           {icon}
         </div>
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div>
             <h4 className="text-xs font-semibold text-white/85">{title}</h4>
             <p className="text-ql-11 leading-relaxed text-white/35">{description}</p>
