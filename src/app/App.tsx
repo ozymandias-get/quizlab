@@ -1,6 +1,7 @@
 import type { GeminiWebLoginOverlayMode } from '@app/ui/GeminiWebLoginOverlay'
 import MainWorkspace from '@app/ui/MainWorkspace'
 import { useAppearance } from '@shared/stores/appearanceStore'
+import { useLanguage } from '@shared/stores/languageStore'
 import ToastContainer from '@ui/components/Toast/ToastContainer'
 import AppBackground from '@ui/layout/AppBackground'
 
@@ -18,6 +19,11 @@ const TutorialOverlay = lazy(() =>
 const UpdateBanner = lazy(() => import('@ui/components/UpdateBanner'))
 const GeminiWebLoginOverlay = lazy(() => import('@app/ui/GeminiWebLoginOverlay'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
+const LanguageSelectionDialog = lazy(() =>
+  import('@features/onboarding/ui/LanguageSelectionDialog').then((m) => ({
+    default: m.default ?? m.LanguageSelectionDialog
+  }))
+)
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
 import { getTutorialEntry } from '@features/tutorial/tutorialRegistry'
@@ -49,7 +55,14 @@ function App() {
 
   const bgMode = useAppearance((state) => state.bgMode)
 
-  const { t, leftPanelProps, readingProps, rootDragHandlers } = usePdfWorkspaceState({
+  const {
+    t,
+    leftPanelProps,
+    readingProps,
+    rootDragHandlers,
+    isInteractionBlocked,
+    isPanelResizing
+  } = usePdfWorkspaceState({
     isInteractionBlocked: workspaceState.isBarHovered || panelResize.isResizing,
     isPanelResizing: panelResize.isResizing
   })
@@ -71,6 +84,7 @@ function App() {
   }, [setLeftPanelWidth])
 
   const isFocusActive = focus.mode !== null
+  const isOnboardingDone = useLanguage((s) => s.isOnboardingDone)
 
   return (
     <LayoutGroup>
@@ -113,6 +127,8 @@ function App() {
             isBarHovered={workspaceState.isBarHovered}
             onBarHoverChange={workspaceState.setIsBarHovered}
             leftPanelProps={combinedLeftPanelProps}
+            isInteractionBlocked={isInteractionBlocked}
+            isPanelResizing={isPanelResizing}
             bgMode={bgMode}
           />
         </div>
@@ -147,6 +163,12 @@ function App() {
         <Suspense fallback={null}>
           <TutorialLayer isFocusActive={isFocusActive} />
         </Suspense>
+
+        {!isOnboardingDone && (
+          <Suspense fallback={null}>
+            <LanguageSelectionDialog />
+          </Suspense>
+        )}
       </div>
     </LayoutGroup>
   )
