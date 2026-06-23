@@ -1,5 +1,5 @@
-import { hexToRgba } from '@shared/lib/uiUtils'
 import { ScrollArea } from '@app/components/ui/scroll-area'
+import { hexToRgba } from '@shared/lib/uiUtils'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { lazy, memo, Suspense } from 'react'
@@ -19,6 +19,7 @@ interface SettingsListPanelProps {
   sidebarSections: SettingsSidebarSection[]
   setActiveTab: (id: string) => void
   t: (key: string) => string
+  listWidth: number
 }
 
 const SettingsListPanel = memo(function SettingsListPanel({
@@ -26,13 +27,17 @@ const SettingsListPanel = memo(function SettingsListPanel({
   activeTab,
   sidebarSections,
   setActiveTab,
-  t
+  t,
+  listWidth
 }: SettingsListPanelProps) {
   const isQuickSettings = selectedGroup === QUICK_SETTINGS_GROUP
   const activeSection = sidebarSections.find((s) => s.id === selectedGroup)
 
   return (
-    <div className="border-border relative flex min-w-0 flex-1 flex-col border-r max-[1100px]:hidden">
+    <div
+      className="border-border relative flex min-w-0 shrink-0 flex-col border-r max-[1100px]:hidden"
+      style={{ width: listWidth }}
+    >
       <ScrollArea className="min-h-0 flex-1 px-3 py-3">
         <AnimatePresence mode="wait">
           {isQuickSettings ? (
@@ -102,7 +107,7 @@ const SettingsListPanel = memo(function SettingsListPanel({
                       />
                       <div className="min-w-0 flex-1">
                         <div
-                          className={`truncate text-sm font-medium leading-tight transition-colors ${
+                          className={`truncate text-sm leading-tight font-medium transition-colors ${
                             isSelected
                               ? 'text-foreground'
                               : 'text-muted-foreground group-hover:text-foreground/70'
