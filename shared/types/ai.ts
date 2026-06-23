@@ -3,7 +3,7 @@
  */
 
 import type { SubmitMode } from './automation'
-import type { IpcResult } from './ipc'
+import type { IpcResult } from '../lib/typedIpc'
 
 export type AiPlatformMeta = {
   displayName?: string
@@ -54,7 +54,7 @@ export type AiRegistryResponse = {
 }
 
 export type CustomAiInput = { name: string; url: string; isSite?: boolean }
-export type CustomAiPayload = {
+type CustomAiPayload = {
   id: string
   platform: AiPlatform
 }
@@ -66,4 +66,4 @@ export type ClearAiModelDataInput = {
   partition?: string
 }
 
-export type { AiSelectorConfig } from './automation'
+

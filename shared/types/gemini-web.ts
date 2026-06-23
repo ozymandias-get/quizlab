@@ -56,7 +56,7 @@ export type GeminiWebSessionRefreshReason =
   | 'login_redirect'
   | 'unknown'
 
-export type GeminiWebSessionRefreshPhase = 'started' | 'success' | 'failed'
+type GeminiWebSessionRefreshPhase = 'started' | 'success' | 'failed'
 
 export interface GeminiWebSessionRefreshEvent {
   phase: GeminiWebSessionRefreshPhase

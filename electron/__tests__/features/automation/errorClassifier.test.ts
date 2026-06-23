@@ -4,7 +4,7 @@ import {
   isRetryable,
   normalizeErrorCode,
   shouldRequestRepick
-} from '@electron/features/automation/automationScripts/lib/errorClassifier'
+} from '../../../../shared/lib/errorClassifier'
 
 import { describe, expect, it } from 'vitest'
 

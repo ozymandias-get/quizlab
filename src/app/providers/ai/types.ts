@@ -20,7 +20,7 @@ export interface Tab {
   pinned?: boolean
 }
 
-export interface AiDraftTextItem {
+interface AiDraftTextItem {
   id: string
   type: 'text'
   text: string

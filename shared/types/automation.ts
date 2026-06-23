@@ -54,7 +54,7 @@ export type AiSelectorConfig = {
 
 export type AutomationConfig = AiSelectorConfig
 
-export type AutomationLookupStrategy =
+type AutomationLookupStrategy =
   | 'cache'
   | 'direct'
   | 'recursive'
@@ -65,9 +65,9 @@ export type AutomationLookupStrategy =
   | 'provider'
   | 'heuristic'
 
-export type ConfidenceLevel = 'high' | 'medium' | 'low'
+type ConfidenceLevel = 'high' | 'medium' | 'low'
 
-export interface AutomationSelectorDiagnostics {
+interface AutomationSelectorDiagnostics {
   requestedSelector: string | null
   matchedSelector: string | null
   strategy: AutomationLookupStrategy

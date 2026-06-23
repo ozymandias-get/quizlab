@@ -5,10 +5,7 @@ import type {
   GeminiWebSessionStatus
 } from '@shared-core/types'
 
-import type { ProfileHealthResult } from './profileHealthChecker'
 import type { ProbeOutcome } from './stateMachine'
-
-export type { ProfileHealthResult }
 
 export interface SessionMetadata extends GeminiWebSessionStatus {
   accountHash: string | null
