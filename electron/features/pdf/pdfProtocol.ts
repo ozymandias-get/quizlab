@@ -40,9 +40,7 @@ const PDF_STREAM_HEADERS = {
   'Content-Type': 'application/pdf',
   'Cache-Control': 'private, max-age=0, must-revalidate',
   'X-Content-Type-Options': 'nosniff',
-  'Accept-Ranges': 'bytes',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*'
+  'Accept-Ranges': 'bytes'
 } as const
 
 function logSuppressedError(scope: string, error: unknown): void {
@@ -194,8 +192,7 @@ export function registerPdfScheme() {
         secure: true,
         supportFetchAPI: true,
         stream: true,
-        corsEnabled: true,
-        bypassCSP: true
+        corsEnabled: true
       }
     }
   ])
@@ -230,7 +227,20 @@ export function registerPdfProtocol() {
         })
       }
 
-      return createPdfStreamResponse(filePath, stats, request.headers.get('range'))
+      const requestOrigin = request.headers.get('origin')
+      const allowedOrigins = ['local-pdf://', 'file://', 'http://localhost', 'http://127.0.0.1']
+      if (requestOrigin && !allowedOrigins.some((o) => requestOrigin.startsWith(o))) {
+        return new Response('Forbidden', { status: 403 })
+      }
+
+      const response = createPdfStreamResponse(filePath, stats, request.headers.get('range'))
+      if (requestOrigin) {
+        const responseHeaders = new Headers(response.headers)
+        responseHeaders.set('Access-Control-Allow-Origin', requestOrigin)
+        responseHeaders.set('Vary', 'Origin')
+        return new Response(response.body, { status: response.status, headers: responseHeaders })
+      }
+      return response
     } catch (error) {
       Logger.error('[PDFProtocol] Stream Error:', error)
       return new Response('Internal Server Error', { status: 500 })
