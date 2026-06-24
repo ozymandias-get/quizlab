@@ -1,103 +1,46 @@
-### Task 2: Harden PDF Protocol — Remove `bypassCSP` & Restrict CORS
+# Task 2: Extract splash.html SVG logo into separate file
 
 **Files:**
 
-- Modify: `electron/features/pdf/pdfProtocol.ts`
+- Modify: `src/public/splash.html`
+- Create: `src/public/icons/quizlab-logo.svg`
 
 **Interfaces:**
 
-- Consumes: `registerPdfScheme()`, `registerPdfProtocol()`, `PDF_STREAM_HEADERS`
-- Produces: CSP-safe PDF streaming, CORS restricted to `local-pdf:` and `file:` origins
+- Consumes: Inline SVG markup from splash.html (lines 325-639)
+- Produces: Standalone SVG file
 
-- [ ] **Step 1: Remove `bypassCSP` from protocol registration**
+## Steps
 
-In `electron/features/pdf/pdfProtocol.ts`, in `registerPdfScheme()` (~line 188-201):
-Remove `bypassCSP: true` from the privileges object.
+### Step 1: Create directory and SVG file
 
-```typescript
-// BEFORE:
-protocol.registerSchemesAsPrivileged([
-  {
-    scheme: 'local-pdf',
-    privileges: {
-      standard: true,
-      secure: true,
-      supportFetchAPI: true,
-      stream: true,
-      corsEnabled: true,
-      bypassCSP: true // ← REMOVE THIS
-    }
-  }
-])
+Create directory `src/public/icons/` and file `src/public/icons/quizlab-logo.svg` containing the complete SVG logo extracted from splash.html.
 
-// AFTER:
-protocol.registerSchemesAsPrivileged([
-  {
-    scheme: 'local-pdf',
-    privileges: {
-      standard: true,
-      secure: true,
-      supportFetchAPI: true,
-      stream: true,
-      corsEnabled: true
-    }
-  }
-])
+The SVG is everything inside the `<svg>` element in `src/public/splash.html` (lines 325-639). The SVG starts at line 325: `<svg class="mark" viewBox="0 0 1024 1024" ...>` and ends at line 639: `</svg>`.
+
+The standalone SVG file should be wrapped in proper SVG with xmlns and other attributes:
+
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+  <!-- All the inner content from splash.html lines 332-638 -->
+</svg>
 ```
 
-- [ ] **Step 2: Restrict CORS headers to safe origins only**
+### Step 2: Replace inline SVG in splash.html
 
-In `electron/features/pdf/pdfProtocol.ts`, the `PDF_STREAM_HEADERS` constant (~line 39-46):
-Remove `Access-Control-Allow-Origin: '*'` and `Access-Control-Allow-Headers: '*'`.
+Replace the entire `<svg>...</svg>` block (lines 325-639) with:
 
-```typescript
-// BEFORE:
-const PDF_STREAM_HEADERS = {
-  'Content-Type': 'application/pdf',
-  'Cache-Control': 'private, max-age=0, must-revalidate',
-  'X-Content-Type-Options': 'nosniff',
-  'Accept-Ranges': 'bytes',
-  'Access-Control-Allow-Origin': '*', // ← REMOVE
-  'Access-Control-Allow-Headers': '*' // ← REMOVE
-} as const
-
-// AFTER:
-const PDF_STREAM_HEADERS = {
-  'Content-Type': 'application/pdf',
-  'Cache-Control': 'private, max-age=0, must-revalidate',
-  'X-Content-Type-Options': 'nosniff',
-  'Accept-Ranges': 'bytes'
-} as const
+```html
+<img class="mark" src="icons/quizlab-logo.svg" alt="" aria-hidden="true" />
 ```
 
-- [ ] **Step 3: Set CORS origin dynamically from request in `registerPdfProtocol` handler**
+### Step 3: Verify
 
-In `electron/features/pdf/pdfProtocol.ts`, inside `registerPdfProtocol()` (~line 204-238), before the `return createPdfStreamResponse(...)` line (line 233), add an origin check and conditional CORS header:
+Open splash.html in a browser to confirm the logo still displays correctly (the image path is relative to the HTML file location).
 
-```typescript
-// Inside registerPdfProtocol(), add BEFORE return createPdfStreamResponse:
-const requestOrigin = request.headers.get('origin')
-const allowedOrigins = ['local-pdf://', 'file://', 'http://localhost', 'http://127.0.0.1']
-if (requestOrigin && !allowedOrigins.some((o) => requestOrigin.startsWith(o))) {
-  return new Response('Forbidden', { status: 403 })
-}
+### Step 4: Commit
 
-// Then wrap the response with CORS origin header:
-const response = createPdfStreamResponse(filePath, stats, request.headers.get('range'))
-if (requestOrigin) {
-  const responseHeaders = new Headers(response.headers)
-  responseHeaders.set('Access-Control-Allow-Origin', requestOrigin)
-  responseHeaders.set('Vary', 'Origin')
-  return new Response(response.body, { status: response.status, headers: responseHeaders })
-}
-return response
+```bash
+git add src/public/splash.html src/public/icons/quizlab-logo.svg
+git commit -m "refactor: extract inline SVG logo from splash.html into separate file"
 ```
-
-- [ ] **Step 4: Verify PDF streaming still works**
-
-Run: `npm run typecheck`
-Expected: No type errors from this file
-
-- [ ] **Step 5: Commit**
-
-Run: `git add electron/features/pdf/pdfProtocol.ts && git commit -m "fix(security): remove bypassCSP and restrict CORS on PDF protocol"`

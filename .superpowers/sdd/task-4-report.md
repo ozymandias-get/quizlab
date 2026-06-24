@@ -1,38 +1,36 @@
-# Task 4 Report: Harden CSP — Replace `unsafe-inline` with Nonce-Based Policy
+# Task 4 Report: Extract FocusCloseButton and FocusPdfBody
 
-## What Was Implemented
+## What was implemented
 
-1. **Created `electron/core/csp.ts`** — CSP utility module with three exports:
-   - `generateCspNonce()` — generates a 16-byte random nonce (base64)
-   - `getStrictCsp(nonce)` — production CSP string using `'nonce-<value>'`
-   - `getDevCsp()` — dev CSP string using `'unsafe-inline'` for React Fast Refresh
+- Created `src/app/ui/focus/` directory
+- Extracted `FocusCloseButton` (forwardRef component) into `src/app/ui/focus/FocusCloseButton.tsx`
+- Extracted `FocusPdfBody` (memo component) into `src/app/ui/focus/FocusPdfBody.tsx`
+- Updated `src/app/ui/FocusOverlay.tsx`:
+  - Replaced old imports with new `FocusCloseButton` and `FocusPdfBody` imports
+  - Removed inline `FocusCloseButton` definition and `FocusCloseButtonProps` interface
+  - Removed inline `FocusPdfBody` definition
+  - Removed unused lazy imports (`PdfTabStrip`, `PdfViewer`) and unused imports (`usePdfOpenActions`, `usePdfTabStore`, `useReadingProgressPersistence`, `XIcon`, `forwardRef`, `cn`, `buttonBaseClass`, `HTMLMotionProps`, etc.)
+  - Reduced from 363 lines to 187 lines
 
-2. **Modified `src/index.html`** — removed `'unsafe-inline'` from `script-src` in the CSP meta tag
+## Test results
 
-3. **Modified `electron/app/window/rendererLoader.ts`** — added CSP injection at the start of `loadRenderer`:
-   - Generates a nonce
-   - Selects dev vs strict CSP based on `isDev`
-   - Injects `Content-Security-Policy` header via `webRequest.onHeadersReceived`
+- `npx tsc --noEmit` passed with no errors
+- Pre-commit hooks (prettier, eslint, repo hygiene) all passed
+- Pre-existing file-size warnings in unrelated files are non-blocking
 
-## Testing
+## Files changed
 
-- `npx tsc -b --force` — only pre-existing error in `normalizePdfText.ts:57`, no new type errors introduced
+- `src/app/ui/FocusOverlay.tsx` — modified (363→187 lines)
+- `src/app/ui/focus/FocusCloseButton.tsx` — created (68 lines)
+- `src/app/ui/focus/FocusPdfBody.tsx` — created (203 lines)
 
-## Files Changed
+## Self-review findings
 
-| File                                    | Action                                               |
-| --------------------------------------- | ---------------------------------------------------- |
-| `electron/core/csp.ts`                  | Created (new)                                        |
-| `src/index.html`                        | Modified (removed `'unsafe-inline'` from script-src) |
-| `electron/app/window/rendererLoader.ts` | Modified (added CSP header injection)                |
+- The extracted components match the original inline code exactly (verified by comparing git diff)
+- All references in `FocusOverlay.tsx` still use the same JSX element names (`<FocusCloseButton>` and `<FocusPdfBody>`), so no consumer changes are needed
+- `FocusCloseButton.tsx` correctly declares `CLOSE_BUTTON_STYLE` locally (moved from `FocusOverlay.tsx`)
+- No circular dependencies or import issues
 
-## Self-Review
-
-- CSP header from `onHeadersReceived` correctly overrides the `<meta>` tag CSP, so nonce-based policy takes effect in production
-- Dev mode still gets `'unsafe-inline'` for React Fast Refresh compatibility
-- Nonce is generated fresh each time `loadRenderer` is called
-- The `frame-src` directive has a comprehensive allowlist for AI chat platforms
-
-## Issues / Concerns
+## Concerns
 
 - None
