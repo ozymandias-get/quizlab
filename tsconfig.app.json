@@ -21,7 +21,7 @@
     "tsBuildInfoFile": "./.cache/tsconfig.app.tsbuildinfo",
     "noFallthroughCasesInSwitch": true,
     "allowJs": false,
-    "baseUrl": ".",
+    "types": ["node"],
     // Renderer path aliases
     "paths": {
       "@app/*": ["./src/app/*"],
