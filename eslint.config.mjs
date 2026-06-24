@@ -134,10 +134,9 @@ export default [
           tolerance: 4.5
         }
       ],
-      'unicorn/better-regex': 'error',
       'unicorn/consistent-destructuring': 'error',
       'unicorn/no-array-for-each': 'error',
-      'unicorn/no-instanceof-array': 'error',
+      'unicorn/no-instanceof-builtins': 'error',
       'unicorn/no-null': 'warn',
       'unicorn/no-typeof-undefined': 'error',
       'unicorn/no-unnecessary-polyfills': 'error',
