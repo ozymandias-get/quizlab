@@ -131,6 +131,9 @@ export class SessionExportImport {
   }
 
   async importSession(filePath: string): Promise<SessionImportResult> {
+    if (!filePath.toLowerCase().endsWith('.enc')) {
+      return { success: false, error: 'Only .enc files can be imported for security reasons' }
+    }
     try {
       const raw = await fs.readFile(filePath, 'utf-8')
       const parsed: unknown = JSON.parse(raw)
