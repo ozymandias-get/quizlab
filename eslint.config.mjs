@@ -60,7 +60,7 @@ export default [
   prettierConfig,
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],
-    ignores: ['*.config.mjs', '*.config.ts', '*.config.cjs', '*.config.js'],
+    ignores: ['**/*.config.mjs', '**/*.config.ts', '**/*.config.cjs', '**/*.config.js'],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 2023,
@@ -154,11 +154,13 @@ export default [
       'unicorn/prefer-spread': 'error',
       'unicorn/prefer-string-replace-all': 'warn',
       'unicorn/prefer-string-trim-start-end': 'error',
-      'unicorn/throw-new-error': 'error'
+      'unicorn/throw-new-error': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn'
     }
   },
   {
-    files: ['*.config.mjs', '*.config.ts', '*.config.cjs', '*.config.js'],
+    files: ['**/*.config.mjs', '**/*.config.ts', '**/*.config.cjs', '**/*.config.js'],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 2023,
