@@ -41,7 +41,7 @@ export function useAiLifecycleSettings(): AiLifecycleSettingsReturn {
 
   const setSleepTimeoutMs = useCallback(
     (value: number | ((prev: number) => number)) => {
-      const resolved = value instanceof Function ? value(rawSleepTimeoutMs) : value
+      const resolved = typeof value === 'function' ? value(rawSleepTimeoutMs) : value
       setRawSleepTimeoutMs(Number.isFinite(resolved) ? resolved : -1)
     },
     [rawSleepTimeoutMs, setRawSleepTimeoutMs]
