@@ -164,16 +164,12 @@ export function registerGeminiWebSessionHandlers(): void {
         const { canceled, filePaths } = win
           ? await dialog.showOpenDialog(win, {
               title: 'Import Gemini Session',
-              filters: [
-                { name: 'Encrypted Session', extensions: ['enc'] }
-              ],
+              filters: [{ name: 'Encrypted Session', extensions: ['enc'] }],
               properties: ['openFile']
             })
           : await dialog.showOpenDialog({
               title: 'Import Gemini Session',
-              filters: [
-                { name: 'Encrypted Session', extensions: ['enc'] }
-              ],
+              filters: [{ name: 'Encrypted Session', extensions: ['enc'] }],
               properties: ['openFile']
             })
 

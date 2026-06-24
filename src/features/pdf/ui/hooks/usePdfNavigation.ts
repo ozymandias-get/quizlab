@@ -43,6 +43,9 @@ export function usePdfNavigation({
   const totalPagesRef = useRef(totalPages)
   totalPagesRef.current = totalPages
 
+  const pdfPathRef = useRef(pdfPath)
+  pdfPathRef.current = pdfPath
+
   const progressDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const navigationTargetPageRef = useRef<number | null>(null)
   const navigationAckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -78,19 +81,37 @@ export function usePdfNavigation({
     }
     setCurrentPage(initialPage && initialPage > 0 ? initialPage : 1)
     setTotalPages(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialPage must NOT trigger a reset when pdfPath is unchanged
   }, [pdfPath])
 
-  useEffect(
-    () => () => {
-      if (progressDebounceTimerRef.current !== null) {
-        clearTimeout(progressDebounceTimerRef.current)
+  const flushPendingProgress = useCallback(() => {
+    if (progressDebounceTimerRef.current !== null) {
+      clearTimeout(progressDebounceTimerRef.current)
+      progressDebounceTimerRef.current = null
+      const path = pdfPathRef.current
+      if (path) {
+        onReadingProgressChangeRef.current?.({
+          path,
+          page: currentPageRef.current,
+          lastOpenedAt: Date.now()
+        })
       }
+    }
+  }, [])
+
+  useEffect(() => {
+    const onUnload = () => flushPendingProgress()
+    window.addEventListener('beforeunload', onUnload)
+    window.addEventListener('pagehide', onUnload)
+    return () => {
+      flushPendingProgress()
+      window.removeEventListener('beforeunload', onUnload)
+      window.removeEventListener('pagehide', onUnload)
       if (navigationAckTimerRef.current !== null) {
         clearTimeout(navigationAckTimerRef.current)
       }
-    },
-    []
-  )
+    }
+  }, [flushPendingProgress])
 
   const handlePageChange = useCallback(
     (e: PageChangeEvent) => {

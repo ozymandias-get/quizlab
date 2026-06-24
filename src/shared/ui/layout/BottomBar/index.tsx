@@ -69,7 +69,7 @@ function BottomBar({
     }))
   )
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsInitialTab, setSettingsInitialTab] = useState('prompts')
+  const [settingsInitialTab, setSettingsInitialTab] = useState('quick-settings')
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
   useEffect(() => {

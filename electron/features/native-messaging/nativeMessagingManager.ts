@@ -34,6 +34,7 @@ class NativeMessagingManager {
   private _bridgeInfoExists = false
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null
   private _sharedSecret: string = crypto.randomBytes(32).toString('hex')
+  private _secretDelivered = false
 
   get connectionStatus(): NativeMessagingConnectionStatus {
     return this._connectionStatus
@@ -87,7 +88,6 @@ class NativeMessagingManager {
       const bridgeInfo = {
         port: this._port,
         host: '127.0.0.1',
-        secret: this._sharedSecret,
         endpoints: {
           cookies: '/api/cookies',
           health: '/api/health'
@@ -186,18 +186,18 @@ class NativeMessagingManager {
     }
 
     if (req.method === 'GET' && req.url === '/api/health') {
-      // SECURITY: Return the shared secret so the extension can
-      // authenticate subsequent requests. Bound to 127.0.0.1 so only
-      // local processes can read it. The extension stores this in
-      // chrome.storage.session for the lifetime of the service worker.
+      const healthResponse: Record<string, unknown> = {
+        status: 'ok',
+        timestamp: new Date().toISOString()
+      }
+
+      if (!this._secretDelivered) {
+        this._secretDelivered = true
+        healthResponse.secret = this._sharedSecret
+      }
+
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(
-        JSON.stringify({
-          status: 'ok',
-          timestamp: new Date().toISOString(),
-          secret: this._sharedSecret
-        })
-      )
+      res.end(JSON.stringify(healthResponse))
       return
     }
 
@@ -262,6 +262,22 @@ class NativeMessagingManager {
           return
         }
 
+        // SECURITY: Only accept cookies from known Google domains.
+        // This prevents a compromised extension from injecting cookies
+        // for arbitrary domains into the session partition.
+        const allowedDomains = ['.google.com', '.youtube.com']
+        const hasInvalidDomain = cookies.some((c) => {
+          if (!c.domain) return true
+          const domain = c.domain.startsWith('.') ? c.domain : '.' + c.domain
+          return !allowedDomains.some((d) => domain.endsWith(d))
+        })
+        if (hasInvalidDomain) {
+          Logger.warn('[NativeMessaging] Rejected cookie POST: invalid domain')
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Invalid cookie domain' }))
+          return
+        }
+
         if (this._connectionStatus !== 'connected') {
           this._connectionStatus = 'connected'
           this._extensionLastSeenAt = Date.now()
@@ -294,6 +310,7 @@ class NativeMessagingManager {
 
       if (this._connectionStatus === 'connected' && elapsed > 60000) {
         this._connectionStatus = 'connecting'
+        this._secretDelivered = false
         this.broadcastExtensionDisconnected()
       }
     }, 30000)

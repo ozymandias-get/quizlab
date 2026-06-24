@@ -1,149 +1,124 @@
-### Task 5: Wire Up 3-Column Layout in SettingsModal
+### Task 5: Add Encrypted Fallback for Linux When `safeStorage` Is Unavailable
 
 **Files:**
-- Modify: `src/features/settings/ui/SettingsModal.tsx`
 
-**Interfaces:**
-- Consumes: all previous tasks' outputs
-- Produces: the final 3-column modal
+- Modify: `electron/core/encryption.ts`
 
-- [ ] **Step 1: Read current file**
+- [ ] **Step 1: Add AES-256-GCM fallback to encryption.ts**
 
-- [ ] **Step 2: Update SettingsModal to use 3-column layout**
+The current file has `const ENC_PREFIX = 'enc:'` at the top, `encryptValue()` returning plaintext on failure, and `decryptValue()` that returns plaintext for non-enc-prefixed values.
+
+Replace the file content with this complete implementation:
 
 ```typescript
-import { Button } from '@app/components/ui/button'
-import { Separator } from '@app/components/ui/separator'
-import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
+import { safeStorage } from 'electron'
+import crypto from 'crypto'
 
-import { motion } from 'motion/react'
-import { memo } from 'react'
+import { Logger } from './logger'
 
-import SettingsListPanel from './modal/SettingsListPanel'
-import SettingsModalContent from './modal/SettingsModalContent'
-import SettingsModalSidebar from './modal/SettingsModalSidebar'
-import { useSettingsModalState } from './modal/useSettingsModalState'
+const ENC_PREFIX = 'enc:'
+const AES_PREFIX = 'aes:'
 
-interface SettingsModalProps {
-  isOpen: boolean
-  onClose: () => void
-  initialTab?: string
+function getMachineDerivedKey(): Buffer {
+  const machineId =
+    process.env.MACHINE_ID ||
+    (process.platform === 'win32' ? process.env.COMPUTERNAME : '') ||
+    'quizlab-default-fallback'
+  const salt = 'quizlab-aes-2024-v1'
+  return crypto.pbkdf2Sync(machineId, salt, 100000, 32, 'sha256')
 }
 
-const SettingsModal = memo(function SettingsModal({
-  isOpen,
-  onClose,
-  initialTab
-}: SettingsModalProps) {
-  const {
-    activeTab,
-    selectedGroup,
-    setActiveTab,
-    selectGroup,
-    settings,
-    sidebarScrollRef,
-    sidebarSections,
-    t,
-    tabDefs
-  } = useSettingsModalState({
-    initialTab,
-    isOpen,
-    onClose
-  })
+function aesEncrypt(plaintext: string): string {
+  const key = getMachineDerivedKey()
+  const iv = crypto.randomBytes(16)
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+  let encrypted = cipher.update(plaintext, 'utf8', 'hex')
+  encrypted += cipher.final('hex')
+  const authTag = cipher.getAuthTag().toString('hex')
+  return `${AES_PREFIX}${iv.toString('base64')}:${authTag}:${encrypted}`
+}
 
-  if (!isOpen) {
-    return null
+function aesDecrypt(stored: string): string {
+  const withoutPrefix = stored.slice(AES_PREFIX.length)
+  const colon1 = withoutPrefix.indexOf(':')
+  const colon2 = withoutPrefix.indexOf(':', colon1 + 1)
+  if (colon1 === -1 || colon2 === -1) throw new Error('Invalid AES format')
+
+  const iv = Buffer.from(withoutPrefix.slice(0, colon1), 'base64')
+  const authTag = Buffer.from(withoutPrefix.slice(colon1 + 1, colon2), 'hex')
+  const encrypted = withoutPrefix.slice(colon2 + 1)
+  const key = getMachineDerivedKey()
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+  decipher.setAuthTag(authTag)
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
+  decrypted += decipher.final('utf8')
+  return decrypted
+}
+
+function isEncryptionAvailable(): boolean {
+  try {
+    return safeStorage.isEncryptionAvailable()
+  } catch {
+    return false
+  }
+}
+
+export function encryptValue(plaintext: string): string {
+  if (!plaintext) return plaintext
+
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(plaintext)
+      return ENC_PREFIX + encrypted.toString('base64')
+    }
+  } catch (error) {
+    Logger.warn('[Encryption] safeStorage.encryptString failed:', error)
   }
 
-  return (
-    <div className="z-overlay bg-background fixed inset-0 flex flex-col">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.15 }}
-        className="flex h-full flex-col"
-      >
-        <header className="flex shrink-0 items-center justify-between px-3 py-3 sm:px-5 sm:py-4 md:px-8">
-          <div className="flex items-center gap-3">
-            <div className="border-border bg-card flex h-8 w-8 items-center justify-center rounded-xl border">
-              <SettingsIcon className="text-muted-foreground h-4 w-4" />
-            </div>
-            <div className="space-y-0.5">
-              <h1 className="text-foreground text-sm font-semibold tracking-tight">
-                {t('settings_title')}
-              </h1>
-              <p className="text-muted-foreground hidden text-xs sm:block">
-                {t('settings_header_description')}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label={t('tab_close') || 'Close'}
-            className="border-border bg-card text-muted-foreground hover:bg-accent h-8 w-8 rounded-lg border"
-          >
-            <CloseIcon className="h-3.5 w-3.5" />
-          </Button>
-        </header>
+  try {
+    return aesEncrypt(plaintext)
+  } catch (error) {
+    Logger.error('[Encryption] AES fallback encryption failed:', error)
+  }
 
-        <Separator />
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <SettingsModalSidebar
-            selectedGroup={selectedGroup}
-            selectGroup={selectGroup}
-            sidebarScrollRef={sidebarScrollRef}
-            sidebarSections={sidebarSections}
-            t={t}
-          />
+  Logger.warn('[Encryption] All encryption methods failed, storing plaintext')
+  return plaintext
+}
 
-          <SettingsListPanel
-            selectedGroup={selectedGroup}
-            activeTab={activeTab}
-            tabDefs={tabDefs}
-            sidebarSections={sidebarSections}
-            setActiveTab={setActiveTab}
-            selectGroup={selectGroup}
-            t={t}
-          />
+export function decryptValue(stored: string): string {
+  if (!stored) return stored
 
-          <SettingsModalContent
-            activeTab={activeTab}
-            selectedGroup={selectedGroup}
-            onClose={onClose}
-            settings={settings}
-            t={t}
-            tabDefs={tabDefs}
-          />
-        </div>
-      </motion.div>
-    </div>
-  )
-})
+  if (stored.startsWith(AES_PREFIX)) {
+    try {
+      return aesDecrypt(stored)
+    } catch (error) {
+      Logger.error('[Encryption] AES fallback decryption failed:', error)
+      return ''
+    }
+  }
 
-export default SettingsModal
+  if (stored.startsWith(ENC_PREFIX)) {
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+        const base64Data = stored.slice(ENC_PREFIX.length)
+        const buffer = Buffer.from(base64Data, 'base64')
+        return safeStorage.decryptString(buffer)
+      }
+    } catch (error) {
+      Logger.error('[Encryption] safeStorage.decryptString failed:', error)
+    }
+    return ''
+  }
+
+  return stored
+}
 ```
 
-- [ ] **Step 3: Verify types compile**
+- [ ] **Step 2: Run typecheck**
 
-Run: `npx tsc --noEmit --pretty 2>&1 | Select-String -Pattern "SettingsModal"`
-Expected: No type errors.
+Run: `npx tsc -b --force`
+Expected: Exit code 0 (ignore pre-existing normalizePdfText.ts error)
 
-- [ ] **Step 4: Quick smoke test by running the app**
+- [ ] **Step 3: Commit**
 
-Run: `npx vite --mode web 2>&1`
-Expected: App starts without errors. (Close after a few seconds.)
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/features/settings/ui/SettingsModal.tsx
-git commit -m "feat(settings): wire up 3-column layout with list panel"
-```
-
----
-
----
-
-
+Run: `git add electron/core/encryption.ts && git commit -m "fix(security): add AES-256-GCM fallback encryption for Linux when safeStorage unavailable"`

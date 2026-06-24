@@ -94,7 +94,7 @@
       ],
       "icon": "resources/icon.ico",
       "artifactName": "QuizlabReader-Setup-${version}.${ext}",
-      "signAndEditExecutable": false,
+      "signExecutable": false,
       "forceCodeSigning": false
     },
     "nsis": {

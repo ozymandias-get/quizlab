@@ -63,7 +63,7 @@ const SitesTab = memo(() => {
         showError('toast_ai_config_delete_failed')
       }
     },
-    [t, enabledSites, setEnabledSites, deleteCustomAi]
+    [t, enabledSites, setEnabledSites, deleteCustomAi, showError]
   )
 
   const handleAddSuccess = useCallback(

@@ -74,7 +74,7 @@ async function saveConfig(config: ApiConfig): Promise<boolean> {
     }
 
     await fs.promises.mkdir(path.dirname(configPath), { recursive: true })
-    await fs.promises.writeFile(configPath, JSON.stringify(trimmedConfig, null, 2))
+    await fs.promises.writeFile(configPath, JSON.stringify(trimmedConfig, null, 2), { mode: 0o600 })
     return true
   } catch {
     return false

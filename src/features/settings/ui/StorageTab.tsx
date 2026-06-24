@@ -91,7 +91,10 @@ const StorageTab = memo(function StorageTab() {
   }, [refetchCache])
 
   const breakdown = cacheInfo?.breakdown
-  const partitionCaches = breakdown?.partitionCaches ?? {}
+  const partitionCaches = useMemo(
+    () => breakdown?.partitionCaches ?? {},
+    [breakdown?.partitionCaches]
+  )
 
   const sortedPartitions = useMemo(() => {
     return Object.entries(partitionCaches)
@@ -119,7 +122,7 @@ const StorageTab = memo(function StorageTab() {
       {/* Header */}
       <div>
         <h2 className="text-ql-13 font-semibold text-white/90">Storage</h2>
-        <p className="text-ql-12 mt-1 text-white/40">
+        <p className="text-ql-12 text-foreground/75 mt-1">
           Cache and storage usage for AI model partitions
         </p>
       </div>
@@ -194,7 +197,7 @@ const StorageTab = memo(function StorageTab() {
         <button
           type="button"
           onClick={handleRefresh}
-          className="text-ql-11 ml-auto flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 font-semibold text-white/60 transition-colors hover:bg-white/[0.08]"
+          className="text-ql-11 text-foreground/80 ml-auto flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 font-semibold transition-colors hover:bg-white/[0.08]"
         >
           <RefreshIcon className="h-4 w-4" />
           Refresh
@@ -203,7 +206,7 @@ const StorageTab = memo(function StorageTab() {
 
       {/* Last Cleanup Info */}
       {cacheInfo?.lastCleanup && (
-        <p className="text-ql-11 text-white/30">
+        <p className="text-ql-11 text-foreground/75">
           Last cleanup: {formatTimeAgo(cacheInfo.lastCleanup)}
           {cacheInfo.lastCleanupResult &&
             typeof cacheInfo.lastCleanupResult.filesDeleted === 'number' &&
@@ -247,8 +250,8 @@ const StorageTab = memo(function StorageTab() {
 function RootCacheRow({ label, size }: { label: string; size: number }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-ql-12 text-white/70">{label}</span>
-      <span className="text-ql-12 font-mono text-white/40">{formatBytes(size)}</span>
+      <span className="text-ql-12 text-foreground/85">{label}</span>
+      <span className="text-ql-12 text-foreground/70 font-mono">{formatBytes(size)}</span>
     </div>
   )
 }
@@ -265,13 +268,17 @@ function PartitionRow({
   return (
     <div className="flex items-baseline justify-between px-5 py-3">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="h-2 w-2 shrink-0 rounded-full bg-white/20" />
+        <div className="h-2 w-2 shrink-0 rounded-full bg-white/40" />
         <div className="min-w-0">
-          <span className="text-ql-12 block truncate text-white/80">{label}</span>
-          <span className="text-ql-11 block truncate font-mono text-white/30">{partitionKey}</span>
+          <span className="text-ql-12 text-foreground/90 block truncate">{label}</span>
+          <span className="text-ql-11 text-foreground/65 block truncate font-mono">
+            {partitionKey}
+          </span>
         </div>
       </div>
-      <span className="text-ql-12 ml-4 shrink-0 font-mono text-white/40">{formatBytes(size)}</span>
+      <span className="text-ql-12 text-foreground/70 ml-4 shrink-0 font-mono">
+        {formatBytes(size)}
+      </span>
     </div>
   )
 }

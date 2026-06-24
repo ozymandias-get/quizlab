@@ -155,6 +155,8 @@ export function usePanelResize({
       })
     }
 
+    const resizerEl = resizerRef.current
+
     const handleMouseUp = () => {
       if (!isResizingRef.current) return
 
@@ -168,8 +170,8 @@ export function usePanelResize({
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
 
-      if (resizerRef.current) {
-        resizerRef.current.classList.remove('dragging')
+      if (resizerEl) {
+        resizerEl.classList.remove('dragging')
       }
 
       document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
@@ -195,8 +197,8 @@ export function usePanelResize({
         cancelAnimationFrame(rafIdRef.current)
       }
 
-      if (resizerRef.current) {
-        resizerRef.current.classList.remove('dragging')
+      if (resizerEl) {
+        resizerEl.classList.remove('dragging')
       }
 
       document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)

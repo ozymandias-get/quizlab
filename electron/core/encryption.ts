@@ -1,5 +1,5 @@
-﻿import { safeStorage } from 'electron'
-import crypto from 'crypto'
+﻿import crypto from 'crypto'
+import { safeStorage } from 'electron'
 
 import { Logger } from './logger.js'
 
@@ -11,8 +11,12 @@ function getMachineDerivedKey(): Buffer {
     process.env.MACHINE_ID ||
     (process.platform === 'win32' ? process.env.COMPUTERNAME : '') ||
     'quizlab-default-fallback'
-  const salt = 'quizlab-aes-2024-v1'
-  return crypto.pbkdf2Sync(machineId, salt, 100000, 32, 'sha256')
+  const machineIdHmac = crypto
+    .createHmac('sha256', 'quizlab-machine-id-v2')
+    .update(machineId)
+    .digest()
+  const salt = 'quizlab-aes-2024-v2'
+  return crypto.pbkdf2Sync(machineIdHmac, salt, 200000, 32, 'sha256')
 }
 
 function aesEncrypt(plaintext: string): string {
@@ -68,8 +72,8 @@ export function encryptValue(plaintext: string): string {
     Logger.error('[Encryption] AES fallback encryption failed:', error)
   }
 
-  Logger.warn('[Encryption] All encryption methods failed, storing plaintext')
-  return plaintext
+  Logger.error('[Encryption] All encryption methods failed, cannot store value')
+  return ''
 }
 
 export function decryptValue(stored: string): string {

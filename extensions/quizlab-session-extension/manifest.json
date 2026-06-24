@@ -4,7 +4,11 @@
   "version": "1.0.0",
   "description": "Shares Google session cookies with Quizlab Reader for AI workspace access.",
   "permissions": ["cookies", "alarms", "storage"],
-  "host_permissions": ["https://*.google.com/*", "http://127.0.0.1/*"],
+  "host_permissions": [
+    "https://gemini.google.com/*",
+    "https://aistudio.google.com/*",
+    "http://127.0.0.1/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -12,5 +16,6 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzvXro5klMUUzX00d9RXU+f23acfrN6KmYfq8I9Pxq7ki1tqCYDxFFM/92lQzWBck/aMMRGas16EFLBQycJZVpfxZ5zM0R3CBOK4UPF3CWgk9ao1yFbp6pB07bfKaud0BU6WBZPKg/8rKXiLHTiVV7lCrJLYcQrEMVXMgKUQ7om51NyC8dgByNHIeQ/ZREc4r7saUuyZGa7UqzrktqqjZXRXYCc5xngKgZIbwQy1nBWD2OH1prh+QV8OESJuHW9oJx+AC8PiCtEcx3i+1a8UZXtpJQrv7HBL2e7E5DZXD6qf/xPnOIz1r5nE68CTTTAvbunrcyNypKA54l8wkgrwcYQIDAQAB"
 }

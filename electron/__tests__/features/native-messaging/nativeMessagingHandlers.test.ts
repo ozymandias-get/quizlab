@@ -197,7 +197,6 @@ describe('registerNativeMessagingHandlers', () => {
         data: {
           port: 51999,
           host: '127.0.0.1',
-          secret: 'abc123',
           endpoints: {
             cookies: '/api/cookies',
             health: '/api/health'

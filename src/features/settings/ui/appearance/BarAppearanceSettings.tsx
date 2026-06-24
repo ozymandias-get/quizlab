@@ -41,16 +41,14 @@ const BarAppearanceSettings = memo(
           </div>
           <div className="space-y-0.5">
             <h3 className="text-ql-14 text-foreground font-bold">{t('bar_appearance')}</h3>
-            <p className="text-ql-11 text-muted-foreground/70 tracking-ql-fine">
-              {t('opacity_scale')}
-            </p>
+            <p className="text-ql-11 text-foreground/75 tracking-ql-fine">{t('opacity_scale')}</p>
           </div>
         </div>
 
         <div className="space-y-3">
           <div className="text-ql-12 flex items-center justify-between font-medium">
-            <span className="text-muted-foreground/80">Opacity</span>
-            <span className="text-muted-foreground">{Math.round(bottomBarOpacity * 100)}%</span>
+            <span className="text-foreground/75">Opacity</span>
+            <span className="text-foreground/90">{Math.round(bottomBarOpacity * 100)}%</span>
           </div>
           <Slider
             min={0.1}
@@ -63,8 +61,8 @@ const BarAppearanceSettings = memo(
 
         <div className="space-y-3">
           <div className="text-ql-12 flex items-center justify-between font-medium">
-            <span className="text-muted-foreground/80">Scale</span>
-            <span className="text-muted-foreground">x{bottomBarScale.toFixed(2)}</span>
+            <span className="text-foreground/75">Scale</span>
+            <span className="text-foreground/90">x{bottomBarScale.toFixed(2)}</span>
           </div>
           <Slider
             min={0.7}

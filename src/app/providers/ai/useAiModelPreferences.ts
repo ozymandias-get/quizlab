@@ -7,7 +7,7 @@ import type { AiPlatform, AiRegistryResponse, GeminiWebSessionStatus } from '@sh
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useLocalStorage, useLocalStorageBoolean, useLocalStorageString } from '@shared/hooks'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { areStringArraysEqual } from './tabUtils'
 import type { PinnedTabStorage } from './types'
@@ -26,9 +26,12 @@ export function useAiModelPreferences({
   geminiWebStatus
 }: UseAiModelPreferencesParams) {
   const isRegistryLoaded = !isLoading && !isError && !!registryData
-  const aiRegistry = (registryData?.aiRegistry || {}) as Record<string, AiPlatform>
+  const aiRegistry = useMemo(
+    () => (registryData?.aiRegistry ?? {}) as Record<string, AiPlatform>,
+    [registryData?.aiRegistry]
+  )
   const defaultAiId = registryData?.defaultAiId || 'chatgpt'
-  const allAiIds = registryData?.allAiIds || []
+  const allAiIds = useMemo(() => registryData?.allAiIds ?? [], [registryData?.allAiIds])
   const chromeUserAgent = registryData?.chromeUserAgent || ''
 
   const [lastSelectedAI, setLastSelectedAI] = useLocalStorageString(
@@ -160,7 +163,9 @@ export function useAiModelPreferences({
     isRegistryLoaded,
     allAiIds,
     defaultAiId,
+    defaultAiModel,
     aiRegistry,
+    lastSelectedAI,
     setEnabledModels,
     setBootstrappedSiteIds,
     setDefaultAiModel,

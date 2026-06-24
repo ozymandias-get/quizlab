@@ -99,7 +99,7 @@ const SettingsToolButton = memo(function SettingsToolButton({
   onOpenSettings: (tab: string) => void
 }) {
   const { t } = useTranslation()
-  const handleClick = useCallback(() => onOpenSettings('prompts'), [onOpenSettings])
+  const handleClick = useCallback(() => onOpenSettings('quick-settings'), [onOpenSettings])
 
   return (
     <FloatingDockIcon title={t('settings')} onClick={handleClick}>
@@ -186,17 +186,10 @@ const GeminiToolButton = memo(function GeminiToolButton({
 }) {
   const { t } = useTranslation()
   const { data: webSessionData, isLoading: isGeminiWebStatusLoading } = useGeminiWebStatus()
-  const { openAiWorkspace } = useAiTabActions()
-  const { enabledModels } = useAiModelsCatalog()
-  const isGeminiModelEnabled = enabledModels.includes('gemini')
 
   const handleClick = useCallback(() => {
-    if (isGeminiModelEnabled) {
-      openAiWorkspace('gemini')
-    } else {
-      onOpenSettings('gemini-web')
-    }
-  }, [isGeminiModelEnabled, openAiWorkspace, onOpenSettings])
+    onOpenSettings('gemini-web')
+  }, [onOpenSettings])
 
   const isGeminiWebEnabled = !!webSessionData?.featureEnabled && !!webSessionData?.enabled
   const geminiWebState: GeminiWebSessionState = webSessionData?.state ?? 'uninitialized'

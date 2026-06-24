@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SessionExportImport } from '../../../features/gemini-web-session/sessionExportImport.js'
 
-const testExportPath = path.join(os.tmpdir(), 'quizlab-test', 'export.json')
+const testExportPath = path.join(os.tmpdir(), 'quizlab-test', 'export.enc')
 
 const exportImportMocks = vi.hoisted(() => ({
   readFile: vi.fn(),

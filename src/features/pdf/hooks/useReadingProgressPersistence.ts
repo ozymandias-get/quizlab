@@ -56,37 +56,35 @@ const persistRecentReadingInfo = (items: LastReadingInfo[]): void => {
 
 const updateReadingProgress = (update: ReadingProgressUpdate): void => {
   const { path, page, totalPages, lastOpenedAt } = update
-  const current = useReadingProgressStore.getState().recentReadingInfo
-  const existing = current.find((entry) => entry.path === path)
 
-  if (!existing) {
-    if (!path) return
-    const newEntry: LastReadingInfo = {
-      path,
-      name: path.replace(/^.*[/\\]/, '') || path,
-      page: typeof page === 'number' ? Math.max(1, page) : 1,
-      totalPages: typeof totalPages === 'number' ? Math.max(0, totalPages) : 0,
+  const doPersist = (state: LastReadingInfo[]) => {
+    const existing = state.find((entry) => entry.path === path)
+    if (!existing) {
+      if (!path) return
+      const newEntry: LastReadingInfo = {
+        path,
+        name: path.replace(/^.*[/\\]/, '') || path,
+        page: typeof page === 'number' ? Math.max(1, page) : 1,
+        totalPages: typeof totalPages === 'number' ? Math.max(0, totalPages) : 0,
+        lastOpenedAt: lastOpenedAt ?? Date.now()
+      }
+      persistRecentReadingInfo(upsertRecentHistory(state, newEntry))
+      return
+    }
+    const nextInfo: LastReadingInfo = {
+      ...existing,
+      ...(typeof page === 'number' ? { page: Math.max(1, page) } : {}),
+      ...(typeof totalPages === 'number' ? { totalPages: Math.max(0, totalPages) } : {}),
       lastOpenedAt: lastOpenedAt ?? Date.now()
     }
-    persistRecentReadingInfo(upsertRecentHistory(current, newEntry))
-    return
-  }
-
-  const nextInfo: LastReadingInfo = {
-    ...existing,
-    ...(typeof page === 'number' ? { page: Math.max(1, page) } : {}),
-    ...(typeof totalPages === 'number' ? { totalPages: Math.max(0, totalPages) } : {}),
-    lastOpenedAt: lastOpenedAt ?? Date.now()
-  }
-
-  const applyPersist = () => {
-    persistRecentReadingInfo(upsertRecentHistory(current, nextInfo))
+    persistRecentReadingInfo(upsertRecentHistory(state, nextInfo))
   }
 
   const shouldDebounce = typeof page === 'number' && typeof totalPages !== 'number'
 
   if (shouldDebounce) {
-    pendingReadingProgressApply = applyPersist
+    pendingReadingProgressApply = () =>
+      doPersist(useReadingProgressStore.getState().recentReadingInfo)
     if (readingProgressDebounceTimer) {
       clearTimeout(readingProgressDebounceTimer)
     }
@@ -100,7 +98,7 @@ const updateReadingProgress = (update: ReadingProgressUpdate): void => {
   }
 
   clearDebounce()
-  applyPersist()
+  doPersist(useReadingProgressStore.getState().recentReadingInfo)
 }
 
 const upsertLastReadingInfo = (info: LastReadingInfo): void => {

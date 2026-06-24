@@ -170,7 +170,8 @@ function useBaseStorage<T>({
   const setValue: SetValue<T> = useCallback(
     (val) => {
       try {
-        const valueToStore = typeof val === 'function' ? val(storedValueRef.current) : val
+        const valueToStore =
+          typeof val === 'function' ? (val as (prev: T) => T)(storedValueRef.current) : val
         const serialized = serialize(valueToStore)
 
         if (validate && !validate(valueToStore)) {

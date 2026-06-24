@@ -346,4 +346,62 @@ describe('usePdfSelection', () => {
       expect.stringContaining('"page":7')
     )
   })
+
+  it('should not lose entries added via upsertLastReadingInfo when debounced progress is flushed', async () => {
+    localStorageMock.setItem(
+      STORAGE_KEYS.LAST_PDF_READING,
+      JSON.stringify([
+        { name: 'a.pdf', path: '/a.pdf', page: 3, totalPages: 10 },
+        { name: 'b.pdf', path: '/b.pdf', page: 5, totalPages: 20 }
+      ])
+    )
+    resetReadingProgressStore()
+
+    // Mock registerPdfPath to reject so resumeLastPdf flushes the debounce
+    // but does NOT call handleOpenPdfWithInfo (which would mask the bug)
+    mockRegisterPdfPathMutate.mockRejectedValue(new Error('not found'))
+
+    const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
+
+    // Initial state: [A, B]
+    expect(result.current.getRecentReadingInfo().map((r) => r.path)).toEqual(['/a.pdf', '/b.pdf'])
+
+    // Step 1: Trigger a debounced page-only update for entry A.
+    // This captures current=[A,B] inside applyPersist's closure.
+    act(() => {
+      result.current.updateReadingProgress({ path: '/a.pdf', page: 7 })
+    })
+
+    // Step 2: User opens a NEW PDF C while the debounce is pending.
+    // upsertLastReadingInfo does NOT call clearDebounce, so the stale
+    // applyPersist closure still references current=[A,B].
+    act(() => {
+      result.current.upsertLastReadingInfo({
+        name: 'c.pdf',
+        path: '/c.pdf',
+        page: 1,
+        totalPages: 0,
+        lastOpenedAt: Date.now()
+      })
+    })
+
+    // C is visible now
+    expect(result.current.getRecentReadingInfo().map((r) => r.path)).toEqual([
+      '/c.pdf',
+      '/a.pdf',
+      '/b.pdf'
+    ])
+
+    // Step 3: User triggers any action that flushes the debounce
+    // (e.g., beforeunload, resume). The stale applyPersist runs with
+    // current=[A,B], producing upsertRecentHistory([A,B], A') → [A', B].
+    // C is silently dropped from history.
+    await act(async () => {
+      await result.current.resumeLastPdf('/a.pdf')
+    })
+
+    // C must NOT be lost
+    const pathsAfterFlush = result.current.getRecentReadingInfo().map((r) => r.path)
+    expect(pathsAfterFlush).toContain('/c.pdf')
+  })
 })

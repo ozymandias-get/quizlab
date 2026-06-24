@@ -33,7 +33,7 @@ const SelectionColorSettings = memo(
             <h3 className="text-ql-14 text-foreground font-bold">
               {t('selection_color_settings')}
             </h3>
-            <p className="text-ql-11 text-muted-foreground/70 tracking-ql-fine">
+            <p className="text-ql-11 text-foreground/75 tracking-ql-fine">
               {t('selection_color_desc')}
             </p>
           </div>
@@ -47,7 +47,7 @@ const SelectionColorSettings = memo(
           />
           <div className="bg-card border-border mt-3 flex items-center gap-3 rounded-lg border p-3">
             <div className="h-6 w-10 rounded-md shadow-lg" style={previewStyle} />
-            <span className="text-ql-10 text-muted-foreground font-medium">
+            <span className="text-ql-10 text-foreground/75 font-medium">
               {t('selection_color_preview_hint')}
             </span>
           </div>

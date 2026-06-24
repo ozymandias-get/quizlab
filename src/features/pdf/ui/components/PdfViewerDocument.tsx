@@ -229,7 +229,7 @@ function PdfViewerDocument({
     return () => {
       if (typeof removeListener === 'function') removeListener()
     }
-  }, [startScreenshot])
+  }, [startScreenshot, currentPageRef])
 
   useEffect(() => {
     if (!isDocumentReady || !pdfUrl || !initialPage || initialPage < 2) return

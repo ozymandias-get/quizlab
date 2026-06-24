@@ -110,11 +110,12 @@ describe('nativeMessagingTypes', () => {
   })
 
   describe('isAllowedOrigin', () => {
-    it('allows chrome-extension:// origins', async () => {
+    it('allows only the Quizlab extension origin', async () => {
       const { isAllowedOrigin } =
         await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(isAllowedOrigin('chrome-extension://abc123def456')).toBe(true)
-      expect(isAllowedOrigin('chrome-extension://')).toBe(true)
+      expect(isAllowedOrigin('chrome-extension://l25qwee4dhfetd2yusry4mngn7ktcdwk')).toBe(true)
+      expect(isAllowedOrigin('chrome-extension://other-extension-id')).toBe(false)
+      expect(isAllowedOrigin('chrome-extension://')).toBe(false)
     })
 
     it('rejects https:// origins', async () => {

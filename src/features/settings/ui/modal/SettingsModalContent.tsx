@@ -1,14 +1,13 @@
 import { ScrollArea } from '@app/components/ui/scroll-area'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { lazy, memo, Suspense, useEffect, useState } from 'react'
+import { memo, Suspense, useEffect, useState } from 'react'
 
 import {
   QUICK_SETTINGS_GROUP,
   SETTINGS_MODAL_MAIN_PANEL_ID,
   SETTINGS_TAB_COMPONENTS,
   type SettingsState,
-  type SettingsTabGroup,
   type SettingsTabId,
   type TabDef
 } from './settingsModalTabs'
@@ -19,6 +18,7 @@ interface SettingsModalContentProps {
   settings: SettingsState
   t: (key: string) => string
   tabDefs: TabDef[]
+  setActiveTab: (id: string) => void
 }
 
 export default memo(function SettingsModalContent({
@@ -26,7 +26,8 @@ export default memo(function SettingsModalContent({
   onClose,
   settings,
   t,
-  tabDefs
+  tabDefs,
+  setActiveTab
 }: SettingsModalContentProps) {
   const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTabId>>(new Set())
 
@@ -74,7 +75,7 @@ export default memo(function SettingsModalContent({
               transition={{ duration: 0.12 }}
             >
               <div className="mb-5 space-y-0.5 px-1">
-                <div className="text-muted-foreground/50 text-ql-10 font-semibold tracking-widest uppercase">
+                <div className="text-muted-foreground/80 text-ql-10 font-semibold tracking-widest uppercase">
                   {activeTabMeta.group === QUICK_SETTINGS_GROUP
                     ? t('quick_settings')
                     : t('settings_group_' + activeTabMeta.group)}
@@ -82,7 +83,7 @@ export default memo(function SettingsModalContent({
                 <h3 className="text-foreground text-base font-semibold tracking-tight">
                   {activeTabMeta.label}
                 </h3>
-                <p className="text-muted-foreground text-xs tracking-wide">
+                <p className="text-foreground/70 text-xs tracking-wide">
                   {activeTabMeta.description}
                 </p>
               </div>
@@ -105,7 +106,12 @@ export default memo(function SettingsModalContent({
                           </div>
                         }
                       >
-                        <TabComponent onClose={onClose} settings={settings} t={t} />
+                        <TabComponent
+                          onClose={onClose}
+                          settings={settings}
+                          t={t}
+                          setActiveTab={setActiveTab}
+                        />
                       </Suspense>
                     )}
                   </div>

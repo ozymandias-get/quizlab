@@ -23,7 +23,11 @@ export function useElementPickerLifecycle(
 ) {
   const { showError } = useToastActions()
 
-  const pickerHook = useElementPicker(getWebviewInstance)
+  const {
+    startPicker: pickerStartPicker,
+    isPickerActive,
+    togglePicker
+  } = useElementPicker(getWebviewInstance)
 
   const [armVersion, setArmVersion] = useState(0)
   const pendingPickerStartRef = useRef(false)
@@ -138,7 +142,7 @@ export function useElementPickerLifecycle(
       clearPendingRequest(requestId)
 
       try {
-        await pickerHook.startPicker()
+        await pickerStartPicker()
         Logger.info('[ElementPickerLifecycle] picker started successfully', { requestId })
       } catch (error) {
         Logger.warn('[ElementPickerLifecycle] picker start failed:', error)
@@ -159,13 +163,13 @@ export function useElementPickerLifecycle(
     getWebviewInstance,
     loadReadinessModule,
     showError,
-    pickerHook.startPicker
+    pickerStartPicker
   ])
 
   return {
-    isPickerActive: pickerHook.isPickerActive,
-    startPicker: pickerHook.startPicker,
+    isPickerActive,
+    startPicker: pickerStartPicker,
     startPickerWhenReady,
-    togglePicker: pickerHook.togglePicker
+    togglePicker
   }
 }

@@ -12,7 +12,7 @@ function SettingsTabHeader({ icon, eyebrow, title, action }: SettingsTabHeaderPr
     <div className="mb-6 flex items-start gap-4">
       {icon}
       <div className="min-w-0 flex-1">
-        <div className="text-muted-foreground mb-1 text-xs font-medium tracking-wider">
+        <div className="text-foreground/75 mb-1 text-xs font-semibold tracking-wider">
           {eyebrow}
         </div>
         <h2 className="text-foreground text-lg font-semibold tracking-tight">{title}</h2>

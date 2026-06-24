@@ -124,12 +124,11 @@ vi.mock('../../../core/logger', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-function expectedBridgeInfo(port: number, secret: string) {
+function expectedBridgeInfo(port: number) {
   return JSON.stringify(
     {
       port,
       host: '127.0.0.1',
-      secret,
       endpoints: { cookies: '/api/cookies', health: '/api/health' }
     },
     null,
@@ -221,10 +220,9 @@ describe('NativeMessagingManager', () => {
       )
       expect(mockFsCopyFile).toHaveBeenCalled()
 
-      const secret = manager.sharedSecret
       expect(mockFsWriteFile).toHaveBeenCalledWith(
         expect.stringContaining('chrome-bridge-info.json'),
-        expectedBridgeInfo(51999, secret),
+        expectedBridgeInfo(51999),
         'utf-8'
       )
       expect(mockClipboard.writeText).toHaveBeenCalledWith(
@@ -328,9 +326,10 @@ describe('isAllowedOrigin', () => {
     isAllowedOrigin = mod.isAllowedOrigin
   })
 
-  it('allows chrome-extension:// origins', () => {
-    expect(isAllowedOrigin('chrome-extension://abc123')).toBe(true)
-    expect(isAllowedOrigin('chrome-extension://')).toBe(true)
+  it('allows only the Quizlab extension origin', () => {
+    expect(isAllowedOrigin('chrome-extension://l25qwee4dhfetd2yusry4mngn7ktcdwk')).toBe(true)
+    expect(isAllowedOrigin('chrome-extension://other-ext-id')).toBe(false)
+    expect(isAllowedOrigin('chrome-extension://')).toBe(false)
   })
 
   it('rejects non-extension origins', () => {

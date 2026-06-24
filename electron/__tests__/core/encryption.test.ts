@@ -158,9 +158,7 @@ describe('decryptValue', () => {
   })
 
   it('handles decrypt of value that was encrypted when available becomes unavailable', () => {
-    mockIsEncryptionAvailable
-      .mockReturnValueOnce(true)
-      .mockReturnValueOnce(false)
+    mockIsEncryptionAvailable.mockReturnValueOnce(true).mockReturnValueOnce(false)
 
     const encrypted = encryptValue('test')
     const decrypted = decryptValue(encrypted)

@@ -1,23 +1,29 @@
-# Task 2 Report: Compact Sidebar (220px)
+# Task 2: Harden PDF Protocol — Remove `bypassCSP` & Restrict CORS
 
-**Status:** DONE_WITH_CONCERNS
+## What I implemented
 
-## Commits
-- `1586614` - refactor(settings): compact sidebar to 220px with icon+label
+1. **Removed `bypassCSP: true`** from the `protocol.registerSchemesAsPrivileged` privileges object in `registerPdfScheme()`.
+2. **Removed wildcard CORS headers** (`Access-Control-Allow-Origin: '*'` and `Access-Control-Allow-Headers: '*'`) from `PDF_STREAM_HEADERS`.
+3. **Added origin validation** in `registerPdfProtocol()`:
+   - Extracts `origin` from the incoming request
+   - Rejects requests from origins not starting with `local-pdf://`, `file://`, `http://localhost`, or `http://127.0.0.1` with a 403 response
+   - Dynamically sets `Access-Control-Allow-Origin` to the validated request origin (only when origin is present)
+   - Adds `Vary: Origin` header to enable proper caching behavior
 
-## Changes Made
-- Reduced sidebar width from `280px` to `220px`
-- Reduced padding from `p-4` to `p-3`
-- Removed decorative `SurfaceCard` header (app name, icon card)
-- Replaced plain text category buttons with icon+label layout using emoji
-- Reduced button padding from `p-3.5` to `p-2.5`
-- Reduced gap from `gap-1.5` to `gap-1`
-- Changed text tracking from `tracking-widest uppercase` to `tracking-wide`
-- Added `categoryIcons` map with emoji for each category
+## What I tested
 
-## Verification
-- `npx tsc --noEmit --pretty`: Clean (no errors)
-- `npx eslint`: Clean (prettier fixed, lint passes)
+- Ran `npm run typecheck` — only the pre-existing error in `normalizePdfText.ts:57` remains; no new type errors from this file.
 
-## Concerns
-- The `SettingsIcon` import is now unused (emoji icons are used instead). The brief intentionally includes this import, so it's kept as-is, but it is dead code.
+## Files changed
+
+- `electron/features/pdf/pdfProtocol.ts` — 16 insertions, 6 deletions
+
+## Self-review findings
+
+- The `createPdfResponseHeaders` function still spreads `PDF_STREAM_HEADERS` — this is correct since the headers object is now CSP-safe.
+- The origin check runs before the file system operations (stat, stream), which is good for performance — we reject unauthorized origins early without disk I/O.
+- The `Vary: Origin` header is correctly set so that HTTP caches treat responses from different origins as separate cached entries.
+
+## Any issues or concerns
+
+None.

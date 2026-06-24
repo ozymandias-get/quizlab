@@ -6,7 +6,6 @@ import { motion } from 'motion/react'
 import { memo } from 'react'
 
 import ResizableHandle from './modal/ResizableHandle'
-import SettingsListPanel from './modal/SettingsListPanel'
 import SettingsModalContent from './modal/SettingsModalContent'
 import SettingsModalSidebar from './modal/SettingsModalSidebar'
 import { useResizableColumns } from './modal/useResizableColumns'
@@ -23,23 +22,14 @@ const SettingsModal = memo(function SettingsModal({
   onClose,
   initialTab
 }: SettingsModalProps) {
-  const {
-    activeTab,
-    selectedGroup,
-    setActiveTab,
-    selectGroup,
-    settings,
-    sidebarScrollRef,
-    sidebarSections,
-    t,
-    tabDefs
-  } = useSettingsModalState({
-    initialTab,
-    isOpen,
-    onClose
-  })
+  const { activeTab, setActiveTab, settings, sidebarScrollRef, sidebarSections, t, tabDefs } =
+    useSettingsModalState({
+      initialTab,
+      isOpen,
+      onClose
+    })
 
-  const { sidebarWidth, listWidth, handleSidebarResize, handleListResize } = useResizableColumns()
+  const { sidebarWidth, handleSidebarResize } = useResizableColumns()
 
   if (!isOpen) {
     return null
@@ -81,29 +71,17 @@ const SettingsModal = memo(function SettingsModal({
         <Separator />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <SettingsModalSidebar
-            selectedGroup={selectedGroup}
-            selectGroup={selectGroup}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
             sidebarScrollRef={sidebarScrollRef}
             sidebarSections={sidebarSections}
             t={t}
             sidebarWidth={sidebarWidth}
+            tabDefs={tabDefs}
           />
 
-          <div className="max-[900px]:hidden">
+          <div className="max-[768px]:hidden">
             <ResizableHandle onResize={handleSidebarResize} />
-          </div>
-
-          <SettingsListPanel
-            selectedGroup={selectedGroup}
-            activeTab={activeTab}
-            sidebarSections={sidebarSections}
-            setActiveTab={setActiveTab}
-            t={t}
-            listWidth={listWidth}
-          />
-
-          <div className="max-[1100px]:hidden">
-            <ResizableHandle onResize={handleListResize} />
           </div>
 
           <SettingsModalContent
@@ -112,6 +90,7 @@ const SettingsModal = memo(function SettingsModal({
             settings={settings}
             t={t}
             tabDefs={tabDefs}
+            setActiveTab={setActiveTab}
           />
         </div>
       </motion.div>

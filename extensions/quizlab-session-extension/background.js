@@ -7,15 +7,7 @@ const RECONNECT_ALARM = 'quizlabReconnect'
 const HEARTBEAT_ALARM = 'quizlabHeartbeat'
 const HEARTBEAT_INTERVAL_MIN = 1
 
-const GOOGLE_COOKIE_DOMAINS = [
-  '.google.com',
-  'accounts.google.com',
-  '.youtube.com',
-  '.drive.google.com',
-  '.gemini.google.com',
-  '.aistudio.google.com',
-  '.googleapis.com'
-]
+const GOOGLE_COOKIE_DOMAINS = ['.gemini.google.com', '.aistudio.google.com']
 
 let currentPort = PORT_START
 let connected = false

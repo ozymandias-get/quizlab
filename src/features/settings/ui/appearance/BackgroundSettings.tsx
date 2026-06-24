@@ -30,7 +30,7 @@ const BackgroundSettings = memo(
             </div>
             <div className="space-y-0.5">
               <h3 className="text-ql-14 text-foreground font-bold">{t('background_settings')}</h3>
-              <p className="text-ql-11 text-muted-foreground/70 tracking-ql-fine">
+              <p className="text-ql-11 text-foreground/75 tracking-ql-fine">
                 {bgMode === 'solid' ? t('bg_solid_desc') : t('bg_desc')}
               </p>
             </div>
@@ -47,7 +47,7 @@ const BackgroundSettings = memo(
                 'text-ql-12 flex flex-1 items-center gap-2 rounded-lg px-3 py-2 font-medium transition-all duration-200',
                 bgMode === mode
                   ? 'text-foreground bg-white/[0.08] shadow-sm'
-                  : 'text-muted-foreground/60 hover:text-foreground/80 hover:bg-white/[0.03]'
+                  : 'text-foreground/75 hover:text-foreground/80 hover:bg-white/[0.03]'
               )}
             >
               <Icon className="h-3.5 w-3.5" />

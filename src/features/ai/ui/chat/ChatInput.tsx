@@ -64,7 +64,7 @@ const ChatInput = memo(function ChatInput({
 
   const handleFileUploadClick = useCallback(() => {
     fileInputRef.current?.click()
-  }, [])
+  }, [fileInputRef])
 
   return (
     <div className="shrink-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/20 to-transparent px-4 pt-2 pb-5">

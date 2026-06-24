@@ -56,7 +56,7 @@ export function useContainerSize(
     return () => {
       ro.disconnect()
     }
-  }, [])
+  }, [containerRef, lastNavigationTimeRef])
 
   // When panel resizing ends, manually measure the container size to ensure
   // we have the final dimensions (since ResizeObserver updates were throttled during drag).

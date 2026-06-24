@@ -96,7 +96,7 @@ function PdfViewer({
       setPersistentUrl(null)
       setPersistentInitialPage(undefined)
     }
-  }, [pdfFile, initialPage])
+  }, [pdfFile, initialPage, persistentUrl])
 
   const isViewerVisible = !!pdfFile && activePdfTab?.kind !== 'drive'
 
@@ -162,5 +162,7 @@ export default memo(PdfViewer, (prev, next) => {
   if (prev.initialPage !== next.initialPage) return false
   if (prev.activePdfTab?.kind !== next.activePdfTab?.kind) return false
   if (prev.isInteractionBlocked !== next.isInteractionBlocked) return false
+  if (prev.isPanelResizing !== next.isPanelResizing) return false
+  if (prev.lastReadingInfo !== next.lastReadingInfo) return false
   return true
 })

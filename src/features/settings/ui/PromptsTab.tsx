@@ -74,7 +74,7 @@ const PromptsTab = memo(() => {
             onSubmit={handleAddPrompt}
           >
             <div className="space-y-1.5">
-              <label className="text-ql-11 pl-1 font-medium text-white/45">
+              <label className="text-ql-11 text-foreground/75 pl-1 font-medium">
                 {t('prompt_text')}
               </label>
               <Textarea
@@ -97,8 +97,8 @@ const PromptsTab = memo(() => {
       </AnimatePresence>
 
       <div className="px-1">
-        <p className="text-xs leading-relaxed text-white/42">{t('prompts_description')}</p>
-        <div className="text-ql-11 mt-2 font-medium tracking-wide text-white/36">
+        <p className="text-foreground/90 text-xs leading-relaxed">{t('prompts_description')}</p>
+        <div className="text-ql-11 text-foreground/80 mt-2 font-medium tracking-wide">
           {selectedPromptId ? t('active_prompt') : t('no_prompt_selected')}
         </div>
       </div>
@@ -122,23 +122,23 @@ const PromptsTab = memo(() => {
               className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors duration-200 ${
                 isSelected
                   ? 'border-purple-500/50 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
-                  : 'bg-card border-white/[0.05] hover:border-white/[0.1] hover:bg-white/[0.04]'
+                  : 'bg-card border-border hover:border-muted-foreground/30 hover:bg-muted'
               } `}
             >
               <div
-                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${isSelected ? 'border-purple-500 bg-purple-500 text-white' : 'border-white/20 group-hover:border-white/40'} `}
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${isSelected ? 'border-purple-500 bg-purple-500 text-white' : 'border-border group-hover:border-muted-foreground/30'} `}
               >
                 {isSelected && <CheckIcon className="h-3 w-3" />}
               </div>
 
               <div className="min-w-0 flex-1">
                 <p
-                  className={`text-sm leading-relaxed transition-colors ${isSelected ? 'font-medium text-white' : 'text-muted-foreground/80'}`}
+                  className={`text-sm leading-relaxed transition-colors ${isSelected ? 'font-semibold text-white' : 'text-foreground/95'}`}
                 >
                   {prompt.text}
                 </p>
                 {prompt.isDefault && (
-                  <span className="border-border bg-card text-ql-10 text-muted-foreground mt-2 inline-block rounded border px-1.5 py-0.5 font-medium">
+                  <span className="border-border bg-card text-ql-10 text-foreground/75 mt-2 inline-block rounded border px-1.5 py-0.5 font-medium">
                     {t('default_prompts')}
                   </span>
                 )}
@@ -165,7 +165,7 @@ const PromptsTab = memo(() => {
           <button
             type="button"
             onClick={clearSelection}
-            className="hover:bg-accent/50 hover:text-muted-foreground text-ql-11 rounded-lg px-4 py-2 font-medium text-white/38 transition-colors"
+            className="hover:bg-accent/50 hover:text-foreground text-ql-11 text-foreground/75 rounded-lg px-4 py-2 font-medium transition-colors"
           >
             {t('no_prompt_selected')}
           </button>

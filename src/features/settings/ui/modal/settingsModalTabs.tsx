@@ -54,7 +54,18 @@ interface SettingsTabMeta {
   glow: string
 }
 
+const QuickSettings = lazy(() => import('../QuickSettings'))
+
 const SETTINGS_TABS = [
+  {
+    id: 'quick-settings',
+    group: 'workspace',
+    labelKey: 'quick_settings',
+    descriptionKey: 'quick_settings_description',
+    icon: SliderIcon,
+    accent: 'from-amber-300/28 via-orange-200/12 to-transparent',
+    glow: '#f59e0b'
+  },
   {
     id: 'prompts',
     group: 'workspace',
@@ -199,6 +210,7 @@ interface SettingsContext {
   onClose: () => void
   settings: SettingsState
   t: (key: string) => string
+  setActiveTab?: (id: string) => void
 }
 
 export interface TabDef {
@@ -224,7 +236,7 @@ export function settingsTabButtonId(tabId: SettingsTabId): string {
   return `settings-tab-${tabId}`
 }
 
-const DEFAULT_SETTINGS_TAB: SettingsTabId = 'prompts'
+const DEFAULT_SETTINGS_TAB: SettingsTabId = 'quick-settings'
 
 export function toSettingsTabId(value?: string): SettingsTabId {
   const matchedTab = SETTINGS_TABS.find((tab) => tab.id === value)
@@ -237,6 +249,13 @@ const SelectorsTabWrapper = memo(function SelectorsTabWrapper({ onClose }: Setti
 
 const TutorialTabWrapper = memo(function TutorialTabWrapper({ onClose }: SettingsContext) {
   return <TutorialCenterTab onCloseSettings={onClose} />
+})
+
+const QuickSettingsTabWrapper = memo(function QuickSettingsTabWrapper({
+  t,
+  setActiveTab
+}: SettingsContext) {
+  return <QuickSettings t={t} setActiveTab={setActiveTab!} />
 })
 
 const AboutTabWrapper = memo(function AboutTabWrapper({ onClose, settings }: SettingsContext) {
@@ -253,6 +272,7 @@ const AboutTabWrapper = memo(function AboutTabWrapper({ onClose, settings }: Set
 })
 
 export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<SettingsContext>> = {
+  'quick-settings': QuickSettingsTabWrapper,
   prompts: PromptsTab,
   models: ModelsTab,
   sites: SitesTab,
@@ -289,6 +309,8 @@ export function buildSettingsSidebarSections(t: (key: string) => string): Settin
   return SETTINGS_SIDEBAR_GROUP_ORDER.map((groupId) => ({
     id: groupId,
     label: t(`settings_group_${groupId}`),
-    tabs: SETTINGS_TABS.filter((tab) => tab.group === groupId).map((tab) => byId.get(tab.id)!)
+    tabs: SETTINGS_TABS.filter((tab) => tab.group === groupId && tab.id !== 'quick-settings').map(
+      (tab) => byId.get(tab.id)!
+    )
   }))
 }
