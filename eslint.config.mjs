@@ -53,12 +53,14 @@ export default [
       'out.txt',
       'build/**',
       'coverage/**',
-      '*.json'
+      '*.json',
+      '.dependency-cruiser.cjs'
     ]
   },
   prettierConfig,
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],
+    ignores: ['*.config.mjs', '*.config.ts', '*.config.cjs', '*.config.js'],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 2023,
@@ -135,7 +137,54 @@ export default [
         }
       ],
       'unicorn/consistent-destructuring': 'error',
-      'unicorn/no-array-for-each': 'error',
+      'unicorn/no-for-each': 'error',
+      'unicorn/no-instanceof-builtins': 'error',
+      'unicorn/no-null': 'warn',
+      'unicorn/no-typeof-undefined': 'error',
+      'unicorn/no-unnecessary-polyfills': 'error',
+      'unicorn/no-useless-spread': 'error',
+      'unicorn/prefer-array-flat': 'error',
+      'unicorn/prefer-array-some': 'error',
+      'unicorn/prefer-includes': 'error',
+      'unicorn/prefer-logical-operator-over-ternary': 'error',
+      'unicorn/prefer-negative-index': 'error',
+      'unicorn/prefer-native-coercion-functions': 'error',
+      'unicorn/prefer-optional-catch-binding': 'error',
+      'unicorn/prefer-set-size': 'error',
+      'unicorn/prefer-spread': 'error',
+      'unicorn/prefer-string-replace-all': 'warn',
+      'unicorn/prefer-string-trim-start-end': 'error',
+      'unicorn/throw-new-error': 'error'
+    }
+  },
+  {
+    files: ['*.config.mjs', '*.config.ts', '*.config.cjs', '*.config.js'],
+    languageOptions: {
+      parser: tsParser,
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: {
+        ...globals.node
+      }
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+      'no-secrets': noSecrets,
+      prettier: prettierPlugin,
+      unicorn: unicornPlugin,
+      'unused-imports': unusedImportsPlugin,
+      'simple-import-sort': simpleImportSort
+    },
+    rules: {
+      'prettier/prettier': 'error',
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
+      'no-secrets/no-secrets': ['error', { tolerance: 4.5 }],
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
+      'unicorn/consistent-destructuring': 'error',
+      'unicorn/no-for-each': 'error',
       'unicorn/no-instanceof-builtins': 'error',
       'unicorn/no-null': 'warn',
       'unicorn/no-typeof-undefined': 'error',
@@ -268,7 +317,7 @@ export default [
       'jsx-a11y/no-static-element-interactions': 'off',
       '@typescript-eslint/consistent-type-imports': 'off',
       'unicorn/no-null': 'off',
-      'unicorn/no-array-for-each': 'off',
+      'unicorn/no-for-each': 'off',
       'unicorn/consistent-destructuring': 'off',
       'unicorn/prefer-set-size': 'off',
       'unicorn/prefer-array-some': 'off',

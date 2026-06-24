@@ -52,7 +52,8 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
     "preview": "vite preview",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "patch-package"
   },
   "build": {
     "appId": "com.quizlab.reader",
@@ -181,7 +182,7 @@
     "electron": "^42.5.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.1",
-    "eslint": "^9.16.0",
+    "eslint": "^10.5.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-electron": "^7.0.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -192,7 +193,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "eslint-plugin-security": "^4.0.1",
     "eslint-plugin-simple-import-sort": "^13.0.0",
-    "eslint-plugin-unicorn": "^65.0.1",
+    "eslint-plugin-unicorn": "^68.0.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.7.0",
     "husky": "^9.1.7",
@@ -201,6 +202,7 @@
     "knip": "^6.18.0",
     "lint-staged": "^17.0.8",
     "madge": "^8.0.0",
+    "patch-package": "^8.0.1",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "shadcn": "^4.11.0",
