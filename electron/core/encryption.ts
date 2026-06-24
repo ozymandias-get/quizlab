@@ -1,25 +1,47 @@
 import { safeStorage } from 'electron'
+import crypto from 'crypto'
 
 import { Logger } from './logger'
 
-/**
- * Prefix used to distinguish encrypted values from plaintext in stored JSON.
- * Legacy plaintext values (without this prefix) are handled transparently
- * for backward compatibility.
- */
 const ENC_PREFIX = 'enc:'
+const AES_PREFIX = 'aes:'
 
-/**
- * Checks whether the OS-level encrypted storage is available on this machine.
- *
- * - **macOS:** Always available (Keychain).
- * - **Windows:** Always available (DPAPI).
- * - **Linux:** Available only when `libsecret` is installed (many headless/server
- *   environments lack it).
- *
- * This function is safe to call before the `app` module emits `ready` because
- * `safeStorage.isEncryptionAvailable()` does not require a running event loop.
- */
+function getMachineDerivedKey(): Buffer {
+  const machineId =
+    process.env.MACHINE_ID ||
+    (process.platform === 'win32' ? process.env.COMPUTERNAME : '') ||
+    'quizlab-default-fallback'
+  const salt = 'quizlab-aes-2024-v1'
+  return crypto.pbkdf2Sync(machineId, salt, 100000, 32, 'sha256')
+}
+
+function aesEncrypt(plaintext: string): string {
+  const key = getMachineDerivedKey()
+  const iv = crypto.randomBytes(16)
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+  let encrypted = cipher.update(plaintext, 'utf8', 'hex')
+  encrypted += cipher.final('hex')
+  const authTag = cipher.getAuthTag().toString('hex')
+  return `${AES_PREFIX}${iv.toString('base64')}:${authTag}:${encrypted}`
+}
+
+function aesDecrypt(stored: string): string {
+  const withoutPrefix = stored.slice(AES_PREFIX.length)
+  const colon1 = withoutPrefix.indexOf(':')
+  const colon2 = withoutPrefix.indexOf(':', colon1 + 1)
+  if (colon1 === -1 || colon2 === -1) throw new Error('Invalid AES format')
+
+  const iv = Buffer.from(withoutPrefix.slice(0, colon1), 'base64')
+  const authTag = Buffer.from(withoutPrefix.slice(colon1 + 1, colon2), 'hex')
+  const encrypted = withoutPrefix.slice(colon2 + 1)
+  const key = getMachineDerivedKey()
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+  decipher.setAuthTag(authTag)
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
+  decrypted += decipher.final('utf8')
+  return decrypted
+}
+
 function isEncryptionAvailable(): boolean {
   try {
     return safeStorage.isEncryptionAvailable()
@@ -28,17 +50,6 @@ function isEncryptionAvailable(): boolean {
   }
 }
 
-/**
- * Encrypts a plaintext string using the OS-level encrypted store
- * and returns an `"enc:"`-prefixed, base64-encoded representation.
- *
- * If encryption is unavailable (e.g. Linux without libsecret) the value
- * is stored as plaintext — this is a conscious fallback so that the app
- * remains functional on all platforms.  A warning is logged once.
- *
- * @param plaintext - The value to encrypt (e.g. an API key).
- * @returns The encrypted + encoded string, or the original plaintext.
- */
 export function encryptValue(plaintext: string): string {
   if (!plaintext) return plaintext
 
@@ -48,37 +59,43 @@ export function encryptValue(plaintext: string): string {
       return ENC_PREFIX + encrypted.toString('base64')
     }
   } catch (error) {
-    Logger.warn('[Encryption] encryptValue failed, falling back to plaintext:', error)
+    Logger.warn('[Encryption] safeStorage.encryptString failed:', error)
   }
 
+  try {
+    return aesEncrypt(plaintext)
+  } catch (error) {
+    Logger.error('[Encryption] AES fallback encryption failed:', error)
+  }
+
+  Logger.warn('[Encryption] All encryption methods failed, storing plaintext')
   return plaintext
 }
 
-/**
- * Decrypts a value previously produced by {@link encryptValue}.
- *
- * Also handles **legacy plaintext** values (those without the `"enc:"` prefix)
- * so that users who already have stored API keys are not forced to re-enter
- * them after upgrading.
- *
- * @param stored - The value read from disk (encrypted + prefixed, or plaintext).
- * @returns The decrypted plaintext string, or `""` if decryption fails.
- */
 export function decryptValue(stored: string): string {
   if (!stored) return stored
-  if (!stored.startsWith(ENC_PREFIX)) return stored
 
-  try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const base64Data = stored.slice(ENC_PREFIX.length)
-      const buffer = Buffer.from(base64Data, 'base64')
-      return safeStorage.decryptString(buffer)
+  if (stored.startsWith(AES_PREFIX)) {
+    try {
+      return aesDecrypt(stored)
+    } catch (error) {
+      Logger.error('[Encryption] AES fallback decryption failed:', error)
+      return ''
     }
-  } catch (error) {
-    Logger.error('[Encryption] decryptValue failed for a previously encrypted value:', error)
   }
 
-  // If we can't decrypt, return empty to prevent using corrupted keys.
-  // The user will need to re-enter the API key.
-  return ''
+  if (stored.startsWith(ENC_PREFIX)) {
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+        const base64Data = stored.slice(ENC_PREFIX.length)
+        const buffer = Buffer.from(base64Data, 'base64')
+        return safeStorage.decryptString(buffer)
+      }
+    } catch (error) {
+      Logger.error('[Encryption] safeStorage.decryptString failed:', error)
+    }
+    return ''
+  }
+
+  return stored
 }
