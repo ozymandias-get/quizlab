@@ -91,15 +91,15 @@ export function registerApiChatHandlers() {
       const requestTimeout = provider.requestTimeout ?? 60000
       const timeoutId = setTimeout(() => controller.abort(), requestTimeout)
 
-      try {
-        const safeApiKey = sanitizeApiKey(provider.apiKey || '')
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json'
-        }
-        if (safeApiKey) {
-          headers['Authorization'] = `Bearer ${safeApiKey}`
-        }
+      const safeApiKey = sanitizeApiKey(provider.apiKey || '')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      if (safeApiKey) {
+        headers['Authorization'] = `Bearer ${safeApiKey}`
+      }
 
+      try {
         const promptParts = [
           config.memoryPrompt && `[User Info]\n${config.memoryPrompt}`,
           config.characterPrompt && `[Character]\n${config.characterPrompt}`,
@@ -181,6 +181,7 @@ export function registerApiChatHandlers() {
           activeRequestController = null
         }
       }
+      headers['Authorization'] = ''
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
