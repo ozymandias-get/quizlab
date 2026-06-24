@@ -181,7 +181,6 @@ export function registerApiChatHandlers() {
           activeRequestController = null
         }
       }
-      headers['Authorization'] = ''
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')

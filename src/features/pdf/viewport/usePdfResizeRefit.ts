@@ -36,7 +36,7 @@ export function usePdfResizeRefit(
   isPanelResizingRef.current = isPanelResizing
   fitScaleRef.current = fitScale ?? null
 
-  const clearPendingRefit = () => {
+  const clearPendingRefit = useCallback(() => {
     if (debounceTimerRef.current !== null) {
       clearTimeout(debounceTimerRef.current)
       debounceTimerRef.current = null
@@ -45,7 +45,7 @@ export function usePdfResizeRefit(
       clearTimeout(cooldownTimerRef.current)
       cooldownTimerRef.current = null
     }
-  }
+  }, [])
 
   const scheduleRefit = useCallback(() => {
     clearPendingRefit()
@@ -80,7 +80,7 @@ export function usePdfResizeRefit(
         zoomToRef.current(fitScaleRef.current ?? SpecialZoomLevel.PageWidth)
       }
     }, PDF_RESIZE_REFIT_DEBOUNCE_MS)
-  }, [clearPendingRefit, containerRef])
+  }, [clearPendingRefit, containerRef, lastNavigationTimeRef])
 
   useEffect(() => {
     if (!enabled) {
@@ -156,5 +156,5 @@ export function usePdfResizeRefit(
       resizeObserver.disconnect()
       clearPendingRefit()
     }
-  }, [clearPendingRefit, containerRef, enabled, scheduleRefit])
+  }, [clearPendingRefit, containerRef, enabled, scheduleRefit, lastNavigationTimeRef])
 }

@@ -27,7 +27,12 @@ describe('window/rendererLoader', () => {
       loadFile: vi.fn(),
       setMenu: vi.fn(),
       webContents: {
-        openDevTools: vi.fn()
+        openDevTools: vi.fn(),
+        session: {
+          webRequest: {
+            onHeadersReceived: vi.fn()
+          }
+        }
       }
     } as any
 
@@ -50,7 +55,12 @@ describe('window/rendererLoader', () => {
       loadFile: vi.fn().mockRejectedValue(new Error('missing')),
       setMenu: vi.fn(),
       webContents: {
-        openDevTools: vi.fn()
+        openDevTools: vi.fn(),
+        session: {
+          webRequest: {
+            onHeadersReceived: vi.fn()
+          }
+        }
       }
     } as any
 

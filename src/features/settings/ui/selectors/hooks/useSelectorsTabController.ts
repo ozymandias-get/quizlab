@@ -71,7 +71,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
         showError('toast_ai_config_delete_failed')
       }
     },
-    [deleteConfig, t]
+    [deleteConfig, t, showError]
   )
 
   const handleStartTutorial = useCallback(() => {
@@ -100,7 +100,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
         showError('toast_ai_config_save_failed')
       }
     },
-    [saveAiConfig]
+    [saveAiConfig, showError]
   )
 
   const setCardValidation = useCallback((cardId: string, next: ValidationState) => {

@@ -35,6 +35,11 @@ class MockWebContents extends MockEventEmitter {
   setWindowOpenHandler = vi.fn()
   isLoadingMainFrame = vi.fn(() => false)
   openDevTools = vi.fn()
+  session = {
+    webRequest: {
+      onHeadersReceived: vi.fn()
+    }
+  }
 }
 
 class MockBrowserWindow extends MockEventEmitter {

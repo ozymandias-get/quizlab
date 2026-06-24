@@ -129,7 +129,7 @@ const ToastItem = memo(
           onRemove(toast.id)
         }
       },
-      [onRemove, toast.id, toast.onAction]
+      [onRemove, toast]
     )
 
     return (

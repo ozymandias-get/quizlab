@@ -286,7 +286,7 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
   // Both inner functions are stable (empty deps), so we can memoize once.
   const resizeHandlers = useMemo(
     () => ({ onResizeMove: handleResizeMove, onResizeEnd: handleResizeEnd }),
-    []
+    [handleResizeMove, handleResizeEnd]
   )
 
   return useMemo(

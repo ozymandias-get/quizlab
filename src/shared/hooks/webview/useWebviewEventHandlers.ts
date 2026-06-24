@@ -112,7 +112,7 @@ export function useWebviewEventHandlers({
       return
     }
     setIsLoading(true)
-  }, [])
+  }, [hasInitiallyLoadedRef, setError, setIsLoading])
 
   const handleStopLoading = useCallback(() => {
     setIsLoading(false)
@@ -122,7 +122,7 @@ export function useWebviewEventHandlers({
       const wv = activeWebviewRef.current
       if (wv) onPageSettledCb(wv)
     }
-  }, [])
+  }, [activeWebviewRef, hasInitiallyLoadedRef, onPageSettledRef, setIsLoading])
 
   const handleFailLoad = useCallback(
     (event: Event) => {
@@ -137,39 +137,40 @@ export function useWebviewEventHandlers({
       const description = failEvent.errorDescription
       setError(description && description.length > 0 ? description : t('page_load_failed'))
     },
-    [t]
+    [t, setError, setIsLoading]
   )
 
-  const handleNewWindow = useCallback(async (event: Event) => {
-    event.preventDefault()
-    const newWindowEvent = event as NewWindowEvent
-    const url = newWindowEvent.url
+  const handleNewWindow = useCallback(
+    async (event: Event) => {
+      event.preventDefault()
+      const newWindowEvent = event as NewWindowEvent
+      const url = newWindowEvent.url
 
-    try {
-      if (!url) return
-      const targetUrl = new URL(url)
-      const api = getElectronApi()
-      if (!api) return
+      try {
+        if (!url) return
+        const targetUrl = new URL(url)
+        const api = getElectronApi()
+        if (!api) return
 
-      if (await api.isAuthDomain(targetUrl.hostname)) return
+        if (await api.isAuthDomain(targetUrl.hostname)) return
 
-      const currentRawUrl = safeGetURL(activeWebviewRef.current)
-      const currentOrigin = currentRawUrl ? new URL(currentRawUrl).origin : null
-      const isSameOrigin = currentOrigin === targetUrl.origin
+        const currentRawUrl = safeGetURL(activeWebviewRef.current)
+        const currentOrigin = currentRawUrl ? new URL(currentRawUrl).origin : null
+        const isSameOrigin = currentOrigin === targetUrl.origin
 
-      if (isSameOrigin) {
-        // SECURITY: Only use loadURL — never executeJavaScript as fallback.
-        // executeJavaScript(code) is equivalent to eval() in the guest context.
-        await activeWebviewRef.current?.loadURL?.(url).catch(() => {})
-        return
+        if (isSameOrigin) {
+          await activeWebviewRef.current?.loadURL?.(url).catch(() => {})
+          return
+        }
+
+        await api.openExternal(url)
+      } catch (err) {
+        Logger.error('[Webview] New window error:', err)
+        showWarning('toast_open_link_failed')
       }
-
-      await api.openExternal(url)
-    } catch (err) {
-      Logger.error('[Webview] New window error:', err)
-      showWarning('toast_open_link_failed')
-    }
-  }, [])
+    },
+    [activeWebviewRef, showWarning]
+  )
 
   const cssInjectedRef = useRef(new WeakSet<object>())
 
@@ -187,23 +188,29 @@ export function useWebviewEventHandlers({
       const url = safeGetURL(wv)
       if (url) onUrlChangeCb(url)
     }
-  }, [])
+  }, [activeWebviewRef, onUrlChangeRef])
 
-  const handleDidNavigateInPage = useCallback((event: Event) => {
-    const url = extractEventUrl(event)
+  const handleDidNavigateInPage = useCallback(
+    (event: Event) => {
+      const url = extractEventUrl(event)
 
-    if (!url) return
+      if (!url) return
 
-    const onUrlChangeCb = onUrlChangeRef.current
-    if (onUrlChangeCb) onUrlChangeCb(url)
-  }, [])
+      const onUrlChangeCb = onUrlChangeRef.current
+      if (onUrlChangeCb) onUrlChangeCb(url)
+    },
+    [onUrlChangeRef]
+  )
 
-  const handleDidNavigate = useCallback((event: Event) => {
-    const url = extractEventUrl(event)
+  const handleDidNavigate = useCallback(
+    (event: Event) => {
+      const url = extractEventUrl(event)
 
-    const onUrlChangeCb = onUrlChangeRef.current
-    if (url && onUrlChangeCb) onUrlChangeCb(url)
-  }, [])
+      const onUrlChangeCb = onUrlChangeRef.current
+      if (url && onUrlChangeCb) onUrlChangeCb(url)
+    },
+    [onUrlChangeRef]
+  )
 
   return {
     handleStartLoading,

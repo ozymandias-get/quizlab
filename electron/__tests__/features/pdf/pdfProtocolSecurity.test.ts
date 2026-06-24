@@ -2,10 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 
-const protocolSourcePath = path.resolve(
-  __dirname,
-  '../../../features/pdf/pdfProtocol.ts'
-)
+const protocolSourcePath = path.resolve(__dirname, '../../../features/pdf/pdfProtocol.ts')
 const source = fs.readFileSync(protocolSourcePath, 'utf-8')
 
 describe('PDF protocol security', () => {
@@ -18,7 +15,7 @@ describe('PDF protocol security', () => {
   })
 
   it('should dynamically set Access-Control-Allow-Origin for validated origins', () => {
-    expect(source).toContain("Access-Control-Allow-Origin")
+    expect(source).toContain('Access-Control-Allow-Origin')
   })
 
   it('should enforce CORS origin validation', () => {

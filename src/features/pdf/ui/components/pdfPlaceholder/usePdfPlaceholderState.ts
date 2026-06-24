@@ -2,7 +2,7 @@ import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/types
 
 import { useToastActions } from '@app/providers'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { groupRecentItems, processRecentItems } from './pdfPlaceholderUtils'
@@ -30,7 +30,8 @@ export function usePdfPlaceholderState({
   const [sortMode, setSortMode] = useState<SortMode>('recent')
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
   const [invalidPaths, setInvalidPaths] = useState<Set<string>>(new Set())
-  const recentItems = lastReadingInfo ?? []
+  const emptyItemsRef = useRef<LastReadingInfo[]>([])
+  const recentItems = lastReadingInfo ?? emptyItemsRef.current
 
   useEffect(() => {
     setInvalidPaths((prev) => {

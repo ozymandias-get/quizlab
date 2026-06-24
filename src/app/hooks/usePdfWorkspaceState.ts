@@ -113,7 +113,7 @@ export function usePdfWorkspaceState({
         return false
       }
     },
-    [upsertLastReadingInfo, openPdfInTab]
+    [upsertLastReadingInfo, openPdfInTab, t]
   )
 
   const leftPanelProps = useMemo(

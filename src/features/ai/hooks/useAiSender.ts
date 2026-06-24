@@ -161,6 +161,7 @@ export function useAiSender(
       activeTabId,
       aiRegistry,
       autoSend,
+      canUseWebview,
       currentAI,
       generateAutoSendScript,
       queryClient,

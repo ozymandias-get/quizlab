@@ -1,5 +1,4 @@
-﻿import type { BinaryLike } from 'crypto'
-import { createHash } from 'crypto'
+﻿import { createHash } from 'crypto'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -10,10 +9,7 @@ import {
 } from '../../../features/gemini-web-session/sessionUtils.js'
 
 function expectedHash(value: string): string {
-  return createHash('sha256')
-    .update(value as unknown as BinaryLike)
-    .digest('hex')
-    .slice(0, 16)
+  return createHash('sha256').update(value).digest('hex').slice(0, 16)
 }
 
 describe('nowIso', () => {

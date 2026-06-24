@@ -2,7 +2,7 @@
  * Automation & Selector Types
  */
 
-export type SubmitMode = 'click' | 'enter_key' | 'mixed' | (string & {})
+export type SubmitMode = 'click' | 'enter_key' | 'mixed'
 
 export type TextInputMode = 'auto' | 'paste' | 'typing'
 

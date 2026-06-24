@@ -54,7 +54,10 @@ function repairPdfjsTurkishCorruption(text: string): string {
   if (!SUSPICIOUS_ARTIFACTS.test(text)) return text
   if (!looksLikeTurkish(text)) return text
 
-  return text.replaceAll(TURKISH_REPLACE_REGEX, (match) => TURKISH_CORRUPTION_MAP[match] || match)
+  return text.replaceAll(
+    TURKISH_REPLACE_REGEX,
+    (match) => TURKISH_CORRUPTION_MAP[match as keyof typeof TURKISH_CORRUPTION_MAP] || match
+  )
 }
 
 /**

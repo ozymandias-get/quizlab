@@ -1,25 +1,23 @@
-# Task 1 Report: Update Settings Modal State Hook
+# Task 1: Re-enable Site Isolation & Remove `disable-site-isolation-trials`
 
-## What I Implemented
-Updated `useSettingsModalState.ts` to:
-- Changed `activeTab` state type from `SettingsTabId` to `SettingsTabId | null`
-- Removed `isOverviewMode` / `setIsOverviewMode` state
-- Removed eslint-disable comment (no longer needed with single state)
-- Updated `selectGroup` to set `activeTabState(null)` instead of `setIsOverviewMode(true)`
-- Removed `setIsOverviewMode` call from the reset effect and `setActiveTab`
-- Changed `activeTabMeta` fallback from `tabDefs[0]` to `null`
-- Removed `isOverviewMode` from returned object
+## What was implemented
 
-## Testing
-- Ran `npx tsc --noEmit --pretty` — **zero type errors** (full project)
-- No test run needed (state interface refactor, no behavioral changes visible to consumers beyond the interface)
+Removed `app.commandLine.appendSwitch('disable-site-isolation-trials')` from `electron/app/index.ts:35`. This re-enables Chromium's Site Isolation (Spectre mitigation) for all renderer processes.
 
-## Files Changed
-- `src/features/settings/ui/modal/useSettingsModalState.ts` (3 insertions, 8 deletions)
+## Files changed
 
-## Self-Review Findings
-- The eslint-disable `react/hook-use-state` comment was removed because there's only one `useState` left; the comment's original purpose was documenting the split state pattern which no longer applies.
-- Everything matches the task brief exactly.
+- `electron/app/index.ts` — removed one line
 
-## Issues or Concerns
-None.
+## What was tested and test results
+
+- Ran `npx tsc -b --force` — build failed with a **pre-existing** TS error in `src/features/pdf/text/normalizePdfText.ts:57` (unrelated to this change). The error is an implicit `any` index type issue in a PDF text normalization function. My change does not introduce or affect this error.
+
+## Self-review findings
+
+- The `disable-site-isolation-trials` switch was cleanly removed with no remaining references in the file.
+- No other files reference this switch.
+- The pre-existing TS error should be addressed separately for a clean build.
+
+## Issues or concerns
+
+- Pre-existing TS error in `normalizePdfText.ts` prevents a clean `tsc -b --force` exit code 0. This was not introduced by this task.

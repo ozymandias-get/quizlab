@@ -42,7 +42,7 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
   // defeat that.
   const handleCardDragOver = useCallback(
     (itemId: string, event: DragEvent<Element>) => dragState.handleDragOver(event, itemId),
-    [dragState.handleDragOver]
+    [dragState]
   )
 
   return (

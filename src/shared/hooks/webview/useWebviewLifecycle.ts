@@ -99,9 +99,10 @@ export function useWebviewLifecycle({
   }, [resetCrashCounter, currentAI])
 
   useEffect(() => {
+    const cleanupListeners = webviewElementListenersRef.current
     return () => {
       clearCrashRetryTimeout()
-      for (const listener of webviewElementListenersRef.current) {
+      for (const listener of cleanupListeners) {
         try {
           listener(null)
         } catch (error) {

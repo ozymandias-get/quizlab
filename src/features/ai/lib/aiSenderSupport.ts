@@ -112,7 +112,7 @@ export async function classifyAiSendError(raw: unknown): Promise<AiErrorClassifi
  * alıp sınıflandırılmış nesneye dönüştürür. Hata yoksa `null` döner.
  *
  * Kullanım:
- *   const cls = classifyResultError(result)
+ *   const cls = classifyResultError(sendResult)
  *   if (cls && cls.retry === 'after-backoff') scheduleRetry()
  *   if (cls && cls.isUserActionable) showRepickDialog()
  */
@@ -317,9 +317,20 @@ export async function getCachedAiConfig(options: {
 
     const finalConfig = mergeAiConfigs(baseConfig, selectorConfig)
 
+    let regex: RegExp | null = null
+    if (finalConfig.domainRegex) {
+      if (finalConfig.domainRegex.length <= 200) {
+        try {
+          regex = new RegExp(finalConfig.domainRegex)
+        } catch {
+          regex = null
+        }
+      }
+    }
+
     const data = {
       config: finalConfig,
-      regex: finalConfig.domainRegex ? new RegExp(finalConfig.domainRegex) : null
+      regex
     }
 
     configCache.key = cacheKey

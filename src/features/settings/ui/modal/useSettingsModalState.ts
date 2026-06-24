@@ -5,8 +5,6 @@ import { useSettings } from '../../hooks/useSettings'
 import {
   buildSettingsSidebarSections,
   buildSettingsTabDefs,
-  QUICK_SETTINGS_GROUP,
-  type SettingsTabGroup,
   type SettingsTabId,
   toSettingsTabId
 } from './settingsModalTabs'
@@ -25,8 +23,7 @@ export function useSettingsModalState({
   const { t } = useTranslation()
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
   const normalizedInitialTab = toSettingsTabId(initialTab)
-  const [activeTab, setActiveTabState] = useState<SettingsTabId | null>(normalizedInitialTab)
-  const [selectedGroup, setSelectedGroup] = useState<SettingsTabGroup | null>(QUICK_SETTINGS_GROUP)
+  const [activeTabState, setActiveTabState] = useState<SettingsTabId | null>(normalizedInitialTab)
   const settings = useSettings()
 
   const onCloseRef = useRef(onClose)
@@ -48,8 +45,7 @@ export function useSettingsModalState({
   useEffect(() => {
     if (!isOpen) return
 
-    setActiveTab(normalizedInitialTab)
-    setSelectedGroup(QUICK_SETTINGS_GROUP)
+    setActiveTabState(normalizedInitialTab)
 
     if (sidebarScrollRef.current) {
       sidebarScrollRef.current.scrollTop = 0
@@ -58,35 +54,14 @@ export function useSettingsModalState({
 
   const tabDefs = useMemo(() => buildSettingsTabDefs(t), [t])
   const sidebarSections = useMemo(() => buildSettingsSidebarSections(t), [t])
-  const activeTabMeta = useMemo(
-    () => tabDefs.find((tab) => tab.id === activeTab) ?? null,
-    [tabDefs, activeTab]
-  )
-
-  const setActiveTab = useCallback(
-    (value: string) => {
-      const id = toSettingsTabId(value)
-      setActiveTabState(id)
-
-      const meta = tabDefs.find((tab) => tab.id === id)
-      if (meta) {
-        setSelectedGroup(meta.group as SettingsTabGroup)
-      }
-    },
-    [tabDefs]
-  )
-
-  const selectGroup = useCallback((group: SettingsTabGroup) => {
-    setSelectedGroup(group)
-    setActiveTabState(null)
+  const setActiveTab = useCallback((value: string) => {
+    const id = toSettingsTabId(value)
+    setActiveTabState(id)
   }, [])
 
   return {
-    activeTab,
-    activeTabMeta,
-    selectedGroup,
+    activeTab: activeTabState,
     setActiveTab,
-    selectGroup,
     settings,
     sidebarScrollRef,
     sidebarSections,

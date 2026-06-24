@@ -21,19 +21,7 @@ vi.mock('@features/settings/hooks/useSettings', () => ({
 vi.mock('@features/settings/ui/modal/useSettingsModalState', () => ({
   useSettingsModalState: ({ onClose: _onClose }: any) => ({
     activeTab: 'prompts',
-    activeTabMeta: {
-      id: 'prompts',
-      group: 'workspace',
-      label: 'Prompts',
-      description: 'Configure prompts',
-      icon: null,
-      accent: '',
-      glow: '#f59e0b'
-    },
-    selectedGroup: 'workspace',
-    isOverviewMode: false,
     setActiveTab: vi.fn(),
-    selectGroup: vi.fn(),
     settings: {},
     sidebarScrollRef: { current: null },
     sidebarSections: [
@@ -94,12 +82,17 @@ vi.mock('motion/react', () => {
 })
 
 vi.mock('@features/settings/ui/modal/SettingsModalSidebar', () => ({
-  default: ({ selectGroup, sidebarSections }: any) => (
+  default: ({ setActiveTab, sidebarSections }: any) => (
     <aside>
       {sidebarSections.map((section: any) => (
-        <button key={section.id} onClick={() => selectGroup(section.id)}>
-          {section.label}
-        </button>
+        <div key={section.id}>
+          <h2>{section.label}</h2>
+          {section.tabs.map((tab: any) => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
       ))}
     </aside>
   )
@@ -126,9 +119,9 @@ describe('SettingsModal', () => {
     expect(await screen.findByText('Prompts Tab Content')).toBeInTheDocument()
   })
 
-  it('renders sidebar with group buttons', async () => {
+  it('renders sidebar with tabs', async () => {
     render(<SettingsModal isOpen onClose={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Workspace' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Prompts' })).toBeInTheDocument()
   })
 
   it('has proper accessibility attributes', async () => {

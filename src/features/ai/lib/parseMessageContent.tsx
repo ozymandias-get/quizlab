@@ -39,10 +39,19 @@ const HEADING_WEIGHTS = [
   'font-medium'
 ]
 
+const ALLOWED_URL_PROTOCOLS = ['http:', 'https:', 'mailto:']
+
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return ALLOWED_URL_PROTOCOLS.includes(parsed.protocol)
+  } catch {
+    return false
+  }
+}
+
 function formatInline(text: string): ReactNode[] {
   const parts: ReactNode[] = []
-  // Reuse a single regex instance per call. `g` flag is fine because we walk
-  // the string linearly with `lastIndex` and never reuse the instance.
   const regex = INLINE_REGEX
   regex.lastIndex = 0
   let lastIndex = 0
@@ -83,32 +92,40 @@ function formatInline(text: string): ReactNode[] {
       const isBareUrl = !match[5].includes('](')
       if (isBareUrl) {
         const url = match[5]
-        parts.push(
-          <a
-            key={`a-${match.index}`}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-amber-400 underline decoration-amber-400/30 underline-offset-2 transition-colors hover:decoration-amber-400/60"
-          >
-            {url}
-          </a>
-        )
+        if (!isSafeUrl(url)) {
+          parts.push(<span key={`a-${match.index}`}>{match[5]}</span>)
+        } else {
+          parts.push(
+            <a
+              key={`a-${match.index}`}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-400 underline decoration-amber-400/30 underline-offset-2 transition-colors hover:decoration-amber-400/60"
+            >
+              {url}
+            </a>
+          )
+        }
       } else {
         const urlEnd = match[5].indexOf('](')
         const linkText = match[5].slice(1, urlEnd)
         const linkUrl = match[5].slice(urlEnd + 2, -1)
-        parts.push(
-          <a
-            key={`a-${match.index}`}
-            href={linkUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-amber-400 underline decoration-amber-400/30 underline-offset-2 transition-colors hover:decoration-amber-400/60"
-          >
-            {linkText}
-          </a>
-        )
+        if (!isSafeUrl(linkUrl)) {
+          parts.push(<span key={`a-${match.index}`}>{match[5]}</span>)
+        } else {
+          parts.push(
+            <a
+              key={`a-${match.index}`}
+              href={linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-400 underline decoration-amber-400/30 underline-offset-2 transition-colors hover:decoration-amber-400/60"
+            >
+              {linkText}
+            </a>
+          )
+        }
       }
     }
     lastIndex = match.index + match[0].length

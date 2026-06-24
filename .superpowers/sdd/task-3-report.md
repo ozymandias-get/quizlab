@@ -1,27 +1,25 @@
-# Task 3 Report: Settings List Panel (Middle Column)
+# Task 3: Fix `executeJavaScript` Injection in Webview Event Handler
 
-## Status: DONE_WITH_CONCERNS
+## What was implemented
 
-## Commits
-- `91813b8` feat(settings): add middle column settings list panel
+Removed the `executeJavaScript` fallback in the `handleNewWindow` callback in `src/shared/hooks/webview/useWebviewEventHandlers.ts`.
 
-## Summary
-Created `src/features/settings/ui/modal/SettingsListPanel.tsx` (137 lines) — the 260px middle column that renders Quick Settings cards when no category is selected, or a list of settings items (color dot + title + description + chevron) for the selected category.
+The previous code wrapped `loadURL` in a try/catch — if `loadURL` threw, it fell back to `executeJavaScript(window.location.href = ...)`, which is equivalent to `eval()` in the guest context. The fix replaces this with a single `loadURL` call with `.catch(() => {})` to silently ignore navigation failures.
 
-Props match the brief: `selectedGroup`, `activeTab`, `tabDefs`, `sidebarSections`, `setActiveTab`, `selectGroup`, `t`. Removed unused `settings` and `onClose` props.
+## What was tested
 
-## Self-Review
-- QuickSettings accepts `{ t, setActiveTab }` ✓
-- `hexToRgba` imported from `@shared/lib/uiUtils` ✓
-- `ScrollArea` imported from `@app/components/ui/scroll-area` ✓
-- `QUICK_SETTINGS_GROUP` comparison works (uses `as SettingsTabGroup` assertion like existing code) ✓
-- Lazy-loaded QuickSettings with Suspense fallback spinner ✓
-- TypeScript compiles cleanly (`npx tsc --noEmit --pretty` → no output) ✓
-- Animation via `AnimatePresence`/`motion` matches existing patterns ✓
+- `npm run typecheck` passed with zero errors
 
-## Concerns
-1. **Unused `selectGroup` prop** — `selectGroup` is destructured but never called in the component. Included because the task brief explicitly lists it for the interface contract. Could be removed if unused.
-2. **QUICK_SETTINGS_GROUP type assertion** — Uses `'quick-settings' as SettingsTabGroup` which isn't a real member of the union type. This is a pre-existing pattern used throughout the codebase, not introduced here.
+## Files changed
 
-## Report File
-`.superpowers/sdd/task-3-report.md`
+- **Modified:** `src/shared/hooks/webview/useWebviewEventHandlers.ts`
+  - Lines 160-168: replaced try/catch with loadURL-only approach
+
+## Self-review findings
+
+- The `.catch(() => {})` pattern preserves the original behavior of silently ignoring navigation failures (as the old `.catch(() => {})` on `executeJavaScript` did), so no change in error-handling semantics.
+- Other uses of `executeJavaScript` in the codebase (e.g., `webviewSendReadiness`, `useElementPicker`, `pipelineUtils`) are for legitimate script execution in controlled contexts — these were not affected.
+
+## Issues or concerns
+
+None.

@@ -3,7 +3,10 @@
 import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'
 import { FEATURE_ENABLED } from './sessionConfig.js'
 import { logSuppressedError } from './sessionErrors.js'
-import { sanitizeEnabledAppIds, type SessionMetadataRepository } from './sessionMetadataRepository.js'
+import {
+  sanitizeEnabledAppIds,
+  type SessionMetadataRepository
+} from './sessionMetadataRepository.js'
 import type { SessionMonitor } from './sessionMonitor.js'
 import { nowIso } from './sessionUtils.js'
 

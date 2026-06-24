@@ -80,7 +80,15 @@ const ModelsTab = memo(() => {
         showError('toast_ai_config_delete_failed')
       }
     },
-    [t, enabledModels, setEnabledModels, deleteCustomAi, defaultAiModel, setDefaultAiModel]
+    [
+      t,
+      enabledModels,
+      setEnabledModels,
+      deleteCustomAi,
+      defaultAiModel,
+      setDefaultAiModel,
+      showError
+    ]
   )
 
   const handleAddSuccess = useCallback(
@@ -109,7 +117,7 @@ const ModelsTab = memo(() => {
         showError('toast_ai_model_data_clear_failed')
       }
     },
-    [t, aiSites, clearAiModelData, reloadActiveWebview]
+    [t, aiSites, clearAiModelData, reloadActiveWebview, showError]
   )
 
   return (
@@ -153,10 +161,10 @@ const ModelsTab = memo(() => {
       }
       footer={
         <div className="border-t border-white/[0.04] px-1 pt-4">
-          <p className="text-ql-11 tracking-wide text-white/30">
+          <p className="text-ql-11 text-foreground/75 tracking-wide">
             {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
           </p>
-          <p className="text-ql-11 mt-1 tracking-wide text-white/26">
+          <p className="text-ql-11 text-foreground/65 mt-1 tracking-wide">
             {t('google_models_managed_separately')}
           </p>
         </div>

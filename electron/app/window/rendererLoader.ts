@@ -1,6 +1,7 @@
 ﻿import { app, type BrowserWindow, dialog } from 'electron'
 import path from 'path'
 
+import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp.js'
 import {
   DEV_SERVER_POLL_MS,
   DEV_SERVER_TIMEOUT_MS,
@@ -8,7 +9,6 @@ import {
   isDev,
   shouldOpenDevToolsOnStart
 } from './environment.js'
-import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp.js'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 

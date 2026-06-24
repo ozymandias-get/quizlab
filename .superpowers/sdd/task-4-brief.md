@@ -1,154 +1,111 @@
-### Task 4: Simplify Settings Modal Content (Right Panel)
+### Task 4: Harden CSP — Replace `unsafe-inline` with Nonce-Based Policy
 
 **Files:**
-- Modify: `src/features/settings/ui/modal/SettingsModalContent.tsx`
 
-**Interfaces:**
-- Consumes: same props minus `isOverviewMode`, `sidebarSections`, `selectGroup`
-- Produces: Right panel that shows only the selected tab content (or empty state)
+- Create: `electron/core/csp.ts`
+- Modify: `src/index.html:7-9`
+- Modify: `electron/app/window/rendererLoader.ts`
 
-- [ ] **Step 1: Read current file**
-
-- [ ] **Step 2: Simplify content to only render tab detail**
+- [ ] **Step 1: Create CSP utility file `electron/core/csp.ts`**
 
 ```typescript
-import { ScrollArea } from '@app/components/ui/scroll-area'
+import crypto from 'crypto'
 
-import { AnimatePresence, motion } from 'motion/react'
-import { lazy, memo, Suspense, useEffect, useState } from 'react'
-
-import {
-  QUICK_SETTINGS_GROUP,
-  SETTINGS_MODAL_MAIN_PANEL_ID,
-  SETTINGS_TAB_COMPONENTS,
-  type SettingsState,
-  settingsTabButtonId,
-  type SettingsTabGroup,
-  type SettingsTabId,
-  type TabDef
-} from './settingsModalTabs'
-
-interface SettingsModalContentProps {
-  activeTab: SettingsTabId | null
-  selectedGroup: SettingsTabGroup | null
-  onClose: () => void
-  settings: SettingsState
-  t: (key: string) => string
-  tabDefs: TabDef[]
+export function generateCspNonce(): string {
+  return crypto.randomBytes(16).toString('base64')
 }
 
-export default memo(function SettingsModalContent({
-  activeTab,
-  selectedGroup,
-  onClose,
-  settings,
-  t,
-  tabDefs
-}: SettingsModalContentProps) {
-  const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTabId>>(new Set())
+export function getStrictCsp(nonce: string): string {
+  return [
+    "default-src 'self' blob: local-pdf:",
+    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    'frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:',
+    'child-src blob:',
+    "worker-src 'self' blob: https://cdn.jsdelivr.net",
+    "img-src 'self' data: blob:",
+    "connect-src 'self' blob: local-pdf:"
+  ].join('; ')
+}
 
-  useEffect(() => {
-    if (!activeTab) return
-    setVisitedTabs((prev) => {
-      if (prev.has(activeTab)) return prev
-      const next = new Set(prev)
-      next.add(activeTab)
-      return next
+export function getDevCsp(): string {
+  // Dev mode needs unsafe-inline for React Fast Refresh / HMR
+  return [
+    "default-src 'self' blob: local-pdf:",
+    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    'frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:',
+    'child-src blob:',
+    "worker-src 'self' blob: https://cdn.jsdelivr.net",
+    "img-src 'self' data: blob:",
+    "connect-src 'self' blob: local-pdf:"
+  ].join('; ')
+}
+```
+
+- [ ] **Step 2: Update `src/index.html` CSP meta tag — remove `unsafe-inline` from script-src**
+
+Change the current CSP meta tag (line 7-9) to remove `'unsafe-inline'` from `script-src`:
+
+```html
+<!-- Current: has 'unsafe-inline' in script-src -->
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self' blob: local-pdf: https://cdnjs.cloudflare.com https://unpkg.com; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:; child-src blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' blob: local-pdf:"
+/>
+
+<!-- After: remove 'unsafe-inline' from script-src -->
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self' blob: local-pdf: https://cdnjs.cloudflare.com https://unpkg.com; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:; child-src blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' blob: local-pdf:"
+/>
+```
+
+- [ ] **Step 3: Update `electron/app/window/rendererLoader.ts` to inject nonce-based CSP**
+
+Add the CSP injection at the start of `loadRenderer`. The current file structure is:
+
+```typescript
+import { app, type BrowserWindow, dialog } from 'electron'
+import path from 'path'
+// ... other imports ...
+import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp'
+
+export async function loadRenderer(window: BrowserWindow) {
+  // SECURITY: Inject a nonce-based CSP for production builds.
+  // Dev mode still uses unsafe-inline for React Fast Refresh.
+  const nonce = generateCspNonce()
+  const csp = isDev ? getDevCsp() : getStrictCsp(nonce)
+
+  window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp]
+      }
     })
-  }, [activeTab])
+  })
 
-  const activeTabMeta = activeTab ? tabDefs.find((tab) => tab.id === activeTab) : null
-
-  return (
-    <main
-      id={SETTINGS_MODAL_MAIN_PANEL_ID}
-      data-tour-id="tour-target-settings-modal"
-      className="flex min-w-0 flex-1 flex-col overflow-hidden"
-    >
-      <ScrollArea className="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-8 lg:px-10">
-        <AnimatePresence mode="wait">
-          {!activeTab || !activeTabMeta ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
-              className="flex h-full min-h-[300px] items-center justify-center"
-            >
-              <div className="text-center">
-                <p className="text-muted-foreground/40 text-xs">
-                  Select a setting from the list to configure
-                </p>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key={`tab-${activeTab}`}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
-            >
-              <div className="mb-5 space-y-0.5 px-1">
-                <div className="text-muted-foreground/50 text-ql-10 font-semibold tracking-widest uppercase">
-                  {activeTabMeta.group === QUICK_SETTINGS_GROUP
-                    ? t('quick_settings')
-                    : tabDefs.find((t) => t.group === activeTabMeta.group)?.group ?? ''}
-                </div>
-                <h3 className="text-foreground text-base font-semibold tracking-tight">
-                  {activeTabMeta.label}
-                </h3>
-                <p className="text-muted-foreground text-xs tracking-wide">
-                  {activeTabMeta.description}
-                </p>
-              </div>
-
-              {[...visitedTabs].map((tabId) => {
-                const isActive = activeTab === tabId
-                const TabComponent = SETTINGS_TAB_COMPONENTS[tabId]
-                return (
-                  <div
-                    key={tabId}
-                    role="presentation"
-                    inert={!isActive ? true : undefined}
-                    style={{ display: isActive ? 'block' : 'none' }}
-                  >
-                    {isActive && (
-                      <Suspense
-                        fallback={
-                          <div className="flex h-full items-center justify-center p-12">
-                            <div className="border-border border-t-foreground/50 h-5 w-5 animate-spin rounded-full border-2" />
-                          </div>
-                        }
-                      >
-                        <TabComponent onClose={onClose} settings={settings} t={t} />
-                      </Suspense>
-                    )}
-                  </div>
-                )
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </ScrollArea>
-    </main>
-  )
-})
+  if (!isDev) {
+    window.setMenu(null)
+    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html')
+    await window.loadFile(indexPath).catch(() => {
+      dialog.showErrorBox('Load Error', `Index not found: ${indexPath}`)
+    })
+    return
+  }
+  // ... rest unchanged ...
 ```
 
-- [ ] **Step 3: Verify types compile**
+Note: The CSP header injected via `onHeadersReceived` overrides the `<meta>` tag in index.html, so the nonce-based policy takes effect.
 
-Run: `npx tsc --noEmit --pretty 2>&1 | Select-String -Pattern "SettingsModalContent"`
-Expected: No type errors.
+- [ ] **Step 4: Typecheck**
 
-- [ ] **Step 4: Commit**
+Run: `npx tsc -b --force`
+Expected: Exit code 0 (ignore pre-existing normalizePdfText.ts error)
 
-```bash
-git add src/features/settings/ui/modal/SettingsModalContent.tsx
-git commit -m "refactor(settings): simplify content panel to show only tab detail"
-```
+- [ ] **Step 5: Commit**
 
----
-
-
+Run: `git add src/index.html electron/core/csp.ts electron/app/window/rendererLoader.ts && git commit -m "fix(security): replace unsafe-inline CSP with nonce-based policy"`

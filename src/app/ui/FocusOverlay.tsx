@@ -308,7 +308,7 @@ const FocusPdfBody = memo(function FocusPdfBody() {
       }
       return await resumeLastPdf(path)
     },
-    [resumeLastPdf]
+    [resumeLastPdf, lastReadingInfoRef]
   )
 
   const handleClearResumePdf = useCallback(

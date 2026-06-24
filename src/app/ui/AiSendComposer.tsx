@@ -163,7 +163,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
         if (mountedRef.current) setIsSubmitting(false)
       }
     },
-    [onSend, isSubmitting, setStoredExpanded]
+    [onSend, isSubmitting, setIsSubmitting, setStoredExpanded, t]
   )
 
   const handleToggleExpand = useCallback(() => {
@@ -224,7 +224,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isSubmitting, items.length, clearNote, onClearAll])
+  }, [isSubmitting, items.length, clearNote, onClearAll, asideRef])
 
   useEffect(() => {
     if (items.length > prevItemsLengthRef.current && items.length > 0) {
@@ -237,11 +237,6 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const handleForceSend = useCallback(() => {
     void handleSend({ forceAutoSend: true })
   }, [handleSend])
-
-  if (typeof document === 'undefined') return null
-
-  const showContent = isExpanded && sendFeedback !== 'sending'
-  const totalItems = textCount + imageCount
 
   const portalStyle = useMemo(
     () => ({
@@ -262,6 +257,11 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     }),
     []
   )
+
+  if (typeof document === 'undefined') return null
+
+  const showContent = isExpanded && sendFeedback !== 'sending'
+  const totalItems = textCount + imageCount
 
   return createPortal(
     <AnimatePresence initial={false}>

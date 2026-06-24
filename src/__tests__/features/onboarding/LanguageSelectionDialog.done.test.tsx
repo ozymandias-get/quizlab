@@ -8,7 +8,13 @@ vi.mock('@shared/stores/languageStore', () => ({
         language: 'en',
         isOnboardingDone: true,
         languages: {
-          en: { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧', dir: 'ltr' as const },
+          en: {
+            code: 'en',
+            name: 'English',
+            nativeName: 'English',
+            flag: '🇬🇧',
+            dir: 'ltr' as const
+          },
           tr: { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷', dir: 'ltr' as const }
         },
         setLanguage: vi.fn().mockResolvedValue(undefined),
