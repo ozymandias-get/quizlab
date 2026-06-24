@@ -1,111 +1,232 @@
-### Task 4: Harden CSP — Replace `unsafe-inline` with Nonce-Based Policy
+# Task 4: Extract FocusCloseButton and FocusPdfBody from FocusOverlay.tsx
 
 **Files:**
 
-- Create: `electron/core/csp.ts`
-- Modify: `src/index.html:7-9`
-- Modify: `electron/app/window/rendererLoader.ts`
+- Modify: `src/app/ui/FocusOverlay.tsx` (reduce from 363 to ~200 lines)
+- Create: `src/app/ui/focus/FocusCloseButton.tsx`
+- Create: `src/app/ui/focus/FocusPdfBody.tsx`
 
-- [ ] **Step 1: Create CSP utility file `electron/core/csp.ts`**
+**Interfaces:**
 
-```typescript
-import crypto from 'crypto'
+- Consumes: `FocusOverlayProps` from FocusOverlay, `usePdfTabStore`, `usePdfOpenActions`, `useReadingProgressPersistence`
+- Produces: `FocusCloseButton` (forwardRef button), `FocusPdfBody` (memo component)
 
-export function generateCspNonce(): string {
-  return crypto.randomBytes(16).toString('base64')
-}
+## Steps
 
-export function getStrictCsp(nonce: string): string {
-  return [
-    "default-src 'self' blob: local-pdf:",
-    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    'frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:',
-    'child-src blob:',
-    "worker-src 'self' blob: https://cdn.jsdelivr.net",
-    "img-src 'self' data: blob:",
-    "connect-src 'self' blob: local-pdf:"
-  ].join('; ')
-}
+### Step 1: Create directory and FocusCloseButton.tsx
 
-export function getDevCsp(): string {
-  // Dev mode needs unsafe-inline for React Fast Refresh / HMR
-  return [
-    "default-src 'self' blob: local-pdf:",
-    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    'frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:',
-    'child-src blob:',
-    "worker-src 'self' blob: https://cdn.jsdelivr.net",
-    "img-src 'self' data: blob:",
-    "connect-src 'self' blob: local-pdf:"
-  ].join('; ')
-}
-```
-
-- [ ] **Step 2: Update `src/index.html` CSP meta tag — remove `unsafe-inline` from script-src**
-
-Change the current CSP meta tag (line 7-9) to remove `'unsafe-inline'` from `script-src`:
-
-```html
-<!-- Current: has 'unsafe-inline' in script-src -->
-<meta
-  http-equiv="Content-Security-Policy"
-  content="default-src 'self' blob: local-pdf: https://cdnjs.cloudflare.com https://unpkg.com; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:; child-src blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' blob: local-pdf:"
-/>
-
-<!-- After: remove 'unsafe-inline' from script-src -->
-<meta
-  http-equiv="Content-Security-Policy"
-  content="default-src 'self' blob: local-pdf: https://cdnjs.cloudflare.com https://unpkg.com; script-src 'self' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; frame-src https://chatgpt.com https://*.chatgpt.com https://claude.ai https://*.claude.ai https://gemini.google.com https://aistudio.google.com https://www.youtube.com https://drive.google.com https://chat.deepseek.com https://chat.qwenlm.ai https://chat.qwen.ai https://kimi.com https://kimi.moonshot.cn https://copilot.microsoft.com https://grok.com https://huggingface.co https://manus.im https://chat.mistral.ai https://perplexity.ai https://accounts.google.com https://myaccount.google.com https://auth.openai.com https://auth0.openai.com https://platform.openai.com https://login.microsoftonline.com https://login.live.com https://login.x.com https://challenges.cloudflare.com https://cdn.cloudflare.com blob:; child-src blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' blob: local-pdf:"
-/>
-```
-
-- [ ] **Step 3: Update `electron/app/window/rendererLoader.ts` to inject nonce-based CSP**
-
-Add the CSP injection at the start of `loadRenderer`. The current file structure is:
+Create directory `src/app/ui/focus/` and file `src/app/ui/focus/FocusCloseButton.tsx`:
 
 ```typescript
-import { app, type BrowserWindow, dialog } from 'electron'
-import path from 'path'
-// ... other imports ...
-import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp'
+import { cn, buttonBaseClass } from '@shared/lib/uiUtils'
+import { XIcon } from '@ui/components/Icons'
 
-export async function loadRenderer(window: BrowserWindow) {
-  // SECURITY: Inject a nonce-based CSP for production builds.
-  // Dev mode still uses unsafe-inline for React Fast Refresh.
-  const nonce = generateCspNonce()
-  const csp = isDev ? getDevCsp() : getStrictCsp(nonce)
+import { type HTMLMotionProps, motion } from 'motion/react'
+import { forwardRef } from 'react'
 
-  window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [csp]
-      }
-    })
+interface FocusCloseButtonProps extends Omit<HTMLMotionProps<'button'>, 'ref'> {
+  label: string
+}
+
+const CLOSE_BUTTON_STYLE = {
+  width: '2.5rem',
+  height: '2.5rem',
+  transform: 'translateZ(0)',
+  willChange: 'transform'
+}
+
+const FocusCloseButton = forwardRef<HTMLButtonElement, FocusCloseButtonProps>(
+  ({ label, className, ...rest }, ref) => {
+    return (
+      <motion.button
+        ref={ref}
+        type="button"
+        aria-label={label}
+        title={label}
+        whileHover={{
+          scale: 1.08,
+          rotate: 90,
+          transition: { type: 'spring', stiffness: 420, damping: 22, mass: 0.6 }
+        }}
+        whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
+        className={cn(
+          buttonBaseClass,
+          'absolute top-4 right-4 z-20 flex items-center justify-center rounded-full',
+          'border border-white/15 bg-black/55 backdrop-blur-md',
+          'shadow-[0_8px_24px_-8px_oklch(0_0_0/0.6)]',
+          'focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none',
+          'text-white/80 hover:text-white',
+          className
+        )}
+        style={CLOSE_BUTTON_STYLE}
+        {...rest}
+      >
+        <XIcon className="h-4 w-4" />
+      </motion.button>
+    )
+  }
+)
+FocusCloseButton.displayName = 'FocusCloseButton'
+
+export default FocusCloseButton
+```
+
+### Step 2: Create FocusPdfBody.tsx
+
+Create `src/app/ui/focus/FocusPdfBody.tsx`:
+
+```typescript
+import { usePdfOpenActions } from '@features/pdf/hooks/usePdfOpenActions'
+import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
+import { useReadingProgressPersistence } from '@features/pdf/hooks/useReadingProgressPersistence'
+import type { ReadingProgressUpdate, ResumePdfResult } from '@features/pdf/types'
+
+import { useTextSelection } from '@app/hooks/useTextSelection'
+import ErrorBoundary from '@ui/components/ErrorBoundary'
+
+import { lazy, memo, Suspense, useCallback, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+
+const PdfTabStrip = lazy(() =>
+  import('@features/pdf/viewer').then((m) => ({ default: m.PdfTabStrip }))
+)
+const PdfViewer = lazy(() => import('@features/pdf/viewer').then((m) => ({ default: m.PdfViewer })))
+
+const FocusPdfBody = memo(function FocusPdfBody() {
+  const { t } = useTranslation()
+  const { handleTextSelection } = useTextSelection()
+
+  const pdfTabs = usePdfTabStore((s) => s.pdfTabs)
+  const activePdfTabId = usePdfTabStore((s) => s.activePdfTabId)
+  const setActivePdfTab = usePdfTabStore((s) => s.setActivePdfTab)
+  const closePdfTab = usePdfTabStore((s) => s.closePdfTab)
+  const renamePdfTab = usePdfTabStore((s) => s.renamePdfTab)
+  const addEmptyPdfTab = usePdfTabStore((s) => s.addEmptyPdfTab)
+  const goToPdfHome = usePdfTabStore((s) => s.goToPdfHome)
+
+  const activePdfTab = useMemo(() => {
+    if (!activePdfTabId) return null
+    return pdfTabs.find((tab) => tab.id === activePdfTabId) || null
+  }, [pdfTabs, activePdfTabId])
+
+  const pdfFile = useMemo(() => {
+    return activePdfTab?.kind === 'drive' ? null : activePdfTab?.file || null
+  }, [activePdfTab])
+
+  const {
+    recentReadingInfo,
+    updateReadingProgress,
+    upsertLastReadingInfo,
+    flushPendingReadingProgress,
+    clearLastReading,
+    restoreRecentReading,
+    recentReadingInfoRef
+  } = useReadingProgressPersistence()
+
+  const { handleSelectPdf, resumeLastPdf } = usePdfOpenActions({
+    openPdfInTab: usePdfTabStore((s) => s.openPdfInTab),
+    upsertLastReadingInfo,
+    flushPendingReadingProgress,
+    recentReadingInfoRef
   })
 
-  if (!isDev) {
-    window.setMenu(null)
-    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html')
-    await window.loadFile(indexPath).catch(() => {
-      dialog.showErrorBox('Load Error', `Index not found: ${indexPath}`)
-    })
-    return
-  }
-  // ... rest unchanged ...
+  const readingHistoryRef = useRef(recentReadingInfo)
+  readingHistoryRef.current = recentReadingInfo
+
+  const activeTabInitialPage = useMemo(() => {
+    if (!activePdfTabId) return undefined
+    if (activePdfTab?.kind !== 'pdf' || !activePdfTab?.file) return undefined
+    const file = activePdfTab.file
+    if (file.path) {
+      const existing = (readingHistoryRef.current || []).find((entry) => entry.path === file.path)
+      return existing?.page
+    }
+    return undefined
+  }, [activePdfTabId, activePdfTab])
+
+  const lastReadingInfoRef = readingHistoryRef
+
+  const handleResumePdf = useCallback(
+    async (path?: string): Promise<ResumePdfResult> => {
+      const current = lastReadingInfoRef.current
+      const target = path ? current.find((entry) => entry.path === path) : current[0]
+      if (target) return await resumeLastPdf(target.path)
+      return await resumeLastPdf(path)
+    },
+    [resumeLastPdf]
+  )
+
+  const handleClearResumePdf = useCallback(
+    (path?: string) => clearLastReading(path),
+    [clearLastReading]
+  )
+
+  const handleReadingProgressChange = useCallback(
+    (update: ReadingProgressUpdate) => updateReadingProgress(update),
+    [updateReadingProgress]
+  )
+
+  return (
+    <>
+      {pdfTabs.length > 0 && (
+        <PdfTabStrip
+          tabs={pdfTabs}
+          activeTabId={activePdfTabId}
+          onSetActiveTab={setActivePdfTab}
+          onCloseTab={closePdfTab}
+          onRenameTab={renamePdfTab}
+          onAddTab={addEmptyPdfTab || handleSelectPdf}
+          onHome={goToPdfHome}
+        />
+      )}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <ErrorBoundary title={t('error_pdf_viewer')}>
+          <PdfViewer
+            pdfFile={pdfFile}
+            activePdfTab={activePdfTab}
+            onSelectPdf={handleSelectPdf}
+            onTextSelection={handleTextSelection}
+            t={t}
+            initialPage={activeTabInitialPage}
+            onResumePdf={handleResumePdf}
+            onClearResumePdf={handleClearResumePdf}
+            onRestoreResumePdf={restoreRecentReading}
+            onReadingProgressChange={handleReadingProgressChange}
+            lastReadingInfo={recentReadingInfo}
+            isInteractionBlocked={false}
+            isPanelResizing={false}
+          />
+        </ErrorBoundary>
+      </div>
+    </>
+  )
+})
+
+export default FocusPdfBody
 ```
 
-Note: The CSP header injected via `onHeadersReceived` overrides the `<meta>` tag in index.html, so the nonce-based policy takes effect.
+### Step 3: Update FocusOverlay.tsx
 
-- [ ] **Step 4: Typecheck**
+Modify `src/app/ui/FocusOverlay.tsx`:
 
-Run: `npx tsc -b --force`
-Expected: Exit code 0 (ignore pre-existing normalizePdfText.ts error)
+1. Remove the inline `FocusCloseButton` definition (lines 208-243)
+2. Remove the inline `FocusPdfBody` definition (lines 245-363)
+3. Replace with imports:
 
-- [ ] **Step 5: Commit**
+```typescript
+import FocusCloseButton from './focus/FocusCloseButton'
+import FocusPdfBody from './focus/FocusPdfBody'
+```
 
-Run: `git add src/index.html electron/core/csp.ts electron/app/window/rendererLoader.ts && git commit -m "fix(security): replace unsafe-inline CSP with nonce-based policy"`
+4. Keep the main `FocusOverlay` component as-is (the JSX already references `FocusCloseButton` and `FocusPdfBody` by name)
+
+### Step 4: Verify
+
+Run: `npx tsc --noEmit` and confirm no type errors.
+
+### Step 5: Commit
+
+```bash
+git add src/app/ui/FocusOverlay.tsx src/app/ui/focus/
+git commit -m "refactor(FocusOverlay): extract FocusCloseButton and FocusPdfBody into separate files"
+```

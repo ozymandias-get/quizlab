@@ -6,7 +6,7 @@ import type { ReadingProgressUpdate, ResumePdfResult } from '@features/pdf/types
 import { useTextSelection } from '@app/hooks/useTextSelection'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 
-import { lazy, memo, Suspense, useCallback, useMemo, useRef } from 'react'
+import { lazy, memo, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 const PdfTabStrip = lazy(() =>

@@ -1,29 +1,22 @@
-# Task 2: Harden PDF Protocol — Remove `bypassCSP` & Restrict CORS
+# Task 2 Report: Extract splash.html SVG logo into separate file
 
-## What I implemented
+## What was implemented
 
-1. **Removed `bypassCSP: true`** from the `protocol.registerSchemesAsPrivileged` privileges object in `registerPdfScheme()`.
-2. **Removed wildcard CORS headers** (`Access-Control-Allow-Origin: '*'` and `Access-Control-Allow-Headers: '*'`) from `PDF_STREAM_HEADERS`.
-3. **Added origin validation** in `registerPdfProtocol()`:
-   - Extracts `origin` from the incoming request
-   - Rejects requests from origins not starting with `local-pdf://`, `file://`, `http://localhost`, or `http://127.0.0.1` with a 403 response
-   - Dynamically sets `Access-Control-Allow-Origin` to the validated request origin (only when origin is present)
-   - Adds `Vary: Origin` header to enable proper caching behavior
-
-## What I tested
-
-- Ran `npm run typecheck` — only the pre-existing error in `normalizePdfText.ts:57` remains; no new type errors from this file.
+Extracted the inline SVG logo (~309 lines) from `src/public/splash.html` into a standalone SVG file at `src/public/icons/quizlab-logo.svg`. Replaced the inline `<svg>` element with an `<img>` tag referencing the new file.
 
 ## Files changed
 
-- `electron/features/pdf/pdfProtocol.ts` — 16 insertions, 6 deletions
+- **Created:** `src/public/icons/quizlab-logo.svg` — standalone SVG file with proper xmlns wrapper
+- **Modified:** `src/public/splash.html` — replaced 315 lines of inline SVG with `<img class="mark" src="icons/quizlab-logo.svg" alt="" aria-hidden="true" />`
 
 ## Self-review findings
 
-- The `createPdfResponseHeaders` function still spreads `PDF_STREAM_HEADERS` — this is correct since the headers object is now CSP-safe.
-- The origin check runs before the file system operations (stat, stream), which is good for performance — we reject unauthorized origins early without disk I/O.
-- The `Vary: Origin` header is correctly set so that HTTP caches treat responses from different origins as separate cached entries.
+- All SVG content (defs, gradients, filters, paths, shapes) preserved exactly from original
+- SVG file uses proper `xmlns="http://www.w3.org/2000/svg"` attribute
+- Image path (`icons/quizlab-logo.svg`) is relative to splash.html location, correct
+- `aria-hidden="true"` preserved on the img tag for accessibility
+- Pre-commit hooks passed (non-blocking warnings about pre-existing file size issues are unrelated)
 
-## Any issues or concerns
+## Issues or concerns
 
-None.
+None. Clean mechanical refactoring.

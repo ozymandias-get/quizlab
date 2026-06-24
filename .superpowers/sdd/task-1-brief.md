@@ -1,39 +1,275 @@
-### Task 1: Re-enable Site Isolation & Remove `disable-site-isolation-trials`
+# Task 1: Extract tsParticles config from sparkles.tsx
 
 **Files:**
 
-- Modify: `electron/app/index.ts:30-35`
+- Modify: `src/app/components/ui/sparkles.tsx`
+- Create: `src/app/components/ui/sparklesConfig.ts`
 
 **Interfaces:**
 
-- Consumes: none
-- Produces: Chromium Site Isolation enabled for all renderers
+- Consumes: `ISourceOptions`, `ParticlesProps` types from tsparticles
+- Produces: `createSparklesOptions(props: Partial<ParticlesProps>): ISourceOptions`
 
-- [ ] **Step 1: Remove the `disable-site-isolation-trials` switch**
+## Steps
+
+### Step 1: Create sparklesConfig.ts with extracted config
+
+Create `src/app/components/ui/sparklesConfig.ts`:
 
 ```typescript
-// electron/app/index.ts — around line 30-36
-// BEFORE:
-app.commandLine.appendSwitch(
-  'disable-features',
-  'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder,CalculateNativeWinOcclusion,Vulkan'
-)
-app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization')
-app.commandLine.appendSwitch('disable-site-isolation-trials') // ← REMOVE THIS LINE
+import type { ISourceOptions } from '@tsparticles/engine'
 
-// AFTER:
-app.commandLine.appendSwitch(
-  'disable-features',
-  'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder,CalculateNativeWinOcclusion,Vulkan'
-)
-app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization')
+export function createSparklesOptions(
+  background?: string,
+  particleColor?: string,
+  particleDensity?: number,
+  minSize?: number,
+  maxSize?: number,
+  speed?: number
+): ISourceOptions {
+  return {
+    background: {
+      color: { value: background || '#0d47a1' }
+    },
+    fullScreen: { enable: false, zIndex: 1 },
+    fpsLimit: 30,
+    interactivity: {
+      events: {
+        onClick: { enable: false, mode: 'push' },
+        onHover: { enable: false, mode: 'repulse' },
+        resize: true
+      },
+      modes: {
+        push: { quantity: 4 },
+        repulse: { distance: 200, duration: 0.4 }
+      }
+    },
+    particles: {
+      bounce: {
+        horizontal: { value: 1 },
+        vertical: { value: 1 }
+      },
+      collisions: {
+        absorb: { speed: 2 },
+        bounce: { horizontal: { value: 1 }, vertical: { value: 1 } },
+        enable: false,
+        maxSpeed: 50,
+        mode: 'bounce',
+        overlap: { enable: true, retries: 0 }
+      },
+      color: {
+        value: particleColor || '#ffffff',
+        animation: {
+          h: { count: 0, enable: false, speed: 1, decay: 0, delay: 0, sync: true, offset: 0 },
+          s: { count: 0, enable: false, speed: 1, decay: 0, delay: 0, sync: true, offset: 0 },
+          l: { count: 0, enable: false, speed: 1, decay: 0, delay: 0, sync: true, offset: 0 }
+        }
+      },
+      effect: { close: true, options: {}, type: 'circle' as const },
+      groups: {},
+      move: {
+        angle: { offset: 0, value: 90 },
+        attract: { distance: 200, enable: false, rotate: { x: 3000, y: 3000 } } as any,
+        center: { x: 50, y: 50, mode: 'percent', radius: 0 },
+        decay: 0,
+        distance: {},
+        direction: 'none',
+        drift: 0,
+        enable: true,
+        gravity: { acceleration: 9.81, enable: false, inverse: false, maxSpeed: 50 },
+        path: { clamp: true, delay: { value: 0 }, enable: false, options: {} },
+        outModes: { default: 'out' },
+        random: false,
+        size: false,
+        speed: { min: 0.1, max: 1 },
+        spin: { acceleration: 0, enable: false },
+        straight: false,
+        trail: { enable: false, length: 10, fill: {} },
+        vibrate: false,
+        warp: false
+      } as any,
+      number: {
+        density: { enable: true, width: 400, height: 400 },
+        limit: { mode: 'delete', value: 0 },
+        value: particleDensity || 120
+      },
+      opacity: {
+        value: { min: 0.1, max: 1 },
+        animation: {
+          count: 0,
+          enable: true,
+          speed: speed || 4,
+          decay: 0,
+          delay: 0,
+          sync: false,
+          mode: 'auto',
+          startValue: 'random',
+          destroy: 'none'
+        }
+      },
+      reduceDuplicates: false,
+      shadow: { blur: 0, color: { value: '#000' }, enable: false, offset: { x: 0, y: 0 } },
+      shape: { close: true, options: {}, type: 'circle' },
+      size: {
+        value: { min: minSize || 1, max: maxSize || 3 },
+        animation: {
+          count: 0,
+          enable: false,
+          speed: 5,
+          decay: 0,
+          delay: 0,
+          sync: false,
+          mode: 'auto',
+          startValue: 'random',
+          destroy: 'none'
+        }
+      },
+      stroke: { width: 0 },
+      zIndex: { value: 0, opacityRate: 1, sizeRate: 1, velocityRate: 1 },
+      destroy: {
+        bounds: {},
+        mode: 'none',
+        split: {
+          count: 1,
+          factor: { value: 3 },
+          rate: { value: { min: 4, max: 9 } },
+          sizeOffset: true
+        }
+      },
+      roll: {
+        darken: { enable: false, value: 0 },
+        enable: false,
+        enlighten: { enable: false, value: 0 },
+        mode: 'vertical',
+        speed: 25
+      },
+      tilt: {
+        value: 0,
+        animation: { enable: false, speed: 0, decay: 0, sync: false },
+        direction: 'clockwise',
+        enable: false
+      },
+      twinkle: {
+        lines: { enable: false, frequency: 0.05, opacity: 1 },
+        particles: { enable: false, frequency: 0.05, opacity: 1 }
+      },
+      wobble: { distance: 5, enable: false, speed: { angle: 50, move: 10 } },
+      life: {
+        count: 0,
+        delay: { value: 0, sync: false },
+        duration: { value: 0, sync: false }
+      },
+      rotate: {
+        value: 0,
+        animation: { enable: false, speed: 0, decay: 0, sync: false },
+        direction: 'clockwise',
+        path: false
+      },
+      orbit: {
+        animation: { count: 0, enable: false, speed: 1, decay: 0, delay: 0, sync: false },
+        enable: false,
+        opacity: 1,
+        rotation: { value: 45 },
+        width: 1
+      },
+      links: {
+        blink: false,
+        color: { value: '#fff' },
+        consent: false,
+        distance: 100,
+        enable: false,
+        frequency: 1,
+        opacity: 1,
+        shadow: { blur: 5, color: { value: '#000' }, enable: false },
+        triangles: { enable: false, frequency: 1 },
+        width: 1,
+        warp: false
+      },
+      repulse: { value: 0, enabled: false, distance: 1, duration: 1, factor: 1, speed: 1 }
+    },
+    detectRetina: false
+  }
+}
 ```
 
-- [ ] **Step 2: Verify build succeeds**
+### Step 2: Update sparkles.tsx to import from sparklesConfig.ts
 
-Run: `npx tsc -b --force`
-Expected: Exit code 0, no errors
+Replace the file content with:
 
-- [ ] **Step 3: Commit**
+```typescript
+import { cn } from '@app/lib/appUtils'
 
-Run: `git add electron/app/index.ts && git commit -m "fix(security): re-enable Chromium Site Isolation by removing disable-site-isolation-trials"`
+import type { ISourceOptions } from '@tsparticles/engine'
+import { type Container, tsParticles } from '@tsparticles/engine'
+import Particles from '@tsparticles/react'
+import { loadSlim } from '@tsparticles/slim'
+import { motion, useAnimation } from 'motion/react'
+import { useId, useMemo, useRef } from 'react'
+import { useEffect, useState } from 'react'
+
+import { createSparklesOptions } from './sparklesConfig'
+
+type ParticlesProps = {
+  id?: string
+  className?: string
+  background?: string
+  particleSize?: number
+  minSize?: number
+  maxSize?: number
+  speed?: number
+  particleColor?: string
+  particleDensity?: number
+}
+
+const SparklesCore = (props: ParticlesProps) => {
+  const { id, className, background, minSize, maxSize, speed, particleColor, particleDensity } = props
+  const [init, setInit] = useState(false)
+  const isMountedRef = useRef(true)
+  useEffect(() => {
+    isMountedRef.current = true
+    loadSlim(tsParticles).then(() => {
+      if (isMountedRef.current) setInit(true)
+    })
+    return () => { isMountedRef.current = false }
+  }, [])
+  const controls = useAnimation()
+
+  const particlesLoaded = async (container?: Container) => {
+    if (container) {
+      controls.start({ opacity: 1, transition: { duration: 1 } })
+    }
+  }
+
+  const options: ISourceOptions = useMemo(
+    () => createSparklesOptions(background, particleColor, particleDensity, minSize, maxSize, speed),
+    [background, particleColor, particleDensity, minSize, maxSize, speed]
+  )
+
+  const generatedId = useId()
+  return (
+    <motion.div animate={controls} className={cn('opacity-0', className)}>
+      {init && (
+        <Particles
+          id={id || generatedId}
+          className={cn('h-full w-full')}
+          particlesLoaded={particlesLoaded}
+          options={options}
+        />
+      )}
+    </motion.div>
+  )
+}
+
+export default SparklesCore
+```
+
+### Step 3: Verify
+
+Run: `npx tsc --noEmit` and verify no type errors.
+
+### Step 4: Commit
+
+```bash
+git add src/app/components/ui/sparkles.tsx src/app/components/ui/sparklesConfig.ts
+git commit -m "refactor: extract tsParticles config from SparklesCore into separate file"
+```
