@@ -99,7 +99,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "allowElevation": true,
+      "allowElevation": false,
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",
       "installerHeaderIcon": "resources/icon.ico",
@@ -114,7 +114,7 @@
       "language": "1033",
       "warningsAsErrors": false,
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": true
     },
     "mac": {
       "target": [
