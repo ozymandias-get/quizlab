@@ -270,7 +270,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<{
       port: number
       host: string
-      secret: string
       endpoints: { cookies: string; health: string }
     }>
   }
@@ -443,7 +442,6 @@ export interface ElectronApi {
     getBridgeConfig: () => Promise<{
       port: number
       host: string
-      secret: string
       endpoints: { cookies: string; health: string }
     } | null>
     onExtensionConnected: (callback: () => void) => () => void
