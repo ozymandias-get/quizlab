@@ -45,7 +45,6 @@ export function registerNativeMessagingHandlers(): void {
       return success({
         port: nativeMessagingManager.port,
         host: '127.0.0.1',
-        secret: nativeMessagingManager.sharedSecret,
         endpoints: {
           cookies: '/api/cookies',
           health: '/api/health'
