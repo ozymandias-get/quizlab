@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SessionRecovery } from '../../../features/gemini-web-session/sessionRecovery'
+import { SessionRecovery } from '../../../features/gemini-web-session/sessionRecovery.js'
 
 vi.mock('../../../features/gemini-web-session/sessionCookies', () => ({
   importExternalCookies: vi.fn()

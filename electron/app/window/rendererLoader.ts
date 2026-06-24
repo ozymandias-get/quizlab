@@ -1,4 +1,4 @@
-import { app, type BrowserWindow, dialog } from 'electron'
+﻿import { app, type BrowserWindow, dialog } from 'electron'
 import path from 'path'
 
 import {
@@ -7,8 +7,8 @@ import {
   DEV_SERVER_URL,
   isDev,
   shouldOpenDevToolsOnStart
-} from './environment'
-import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp'
+} from './environment.js'
+import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp.js'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 

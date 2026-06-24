@@ -1,9 +1,9 @@
-import { app, BrowserWindow } from 'electron'
+﻿import { app, BrowserWindow } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
-import { APP_CONFIG } from '../constants'
-import type { WindowState } from './state'
+import { APP_CONFIG } from '../constants.js'
+import type { WindowState } from './state.js'
 
 const getAppPath = (...parts: string[]) => {
   return path.join(app.getAppPath(), ...parts)

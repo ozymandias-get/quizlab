@@ -1,15 +1,15 @@
-import type { GeminiWebSessionStatus } from '@shared-core/types'
+﻿import type { GeminiWebSessionStatus } from '@shared-core/types'
 
-import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
-import { ConfigManager } from '../../core/ConfigManager'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps.js'
+import { ConfigManager } from '../../core/ConfigManager.js'
 import {
   DEFAULT_USER_ENABLED,
   FEATURE_ENABLED,
   isReasonCode,
   isSessionState
-} from './sessionConfig'
-import type { DisabledActionResult, SessionMetadata } from './sessionContracts'
-import { createDefaultStatus } from './stateMachine'
+} from './sessionConfig.js'
+import type { DisabledActionResult, SessionMetadata } from './sessionContracts.js'
+import { createDefaultStatus } from './stateMachine.js'
 
 export function sanitizeEnabledAppIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [...GOOGLE_WEB_SESSION_REGISTRY_IDS]

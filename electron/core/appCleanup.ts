@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared application lifecycle state.
  *
  * Both `electron/app/index.ts` (the main entry point) and
@@ -7,7 +7,7 @@
  * shared mechanism without creating circular dependencies.
  */
 
-import { Logger } from './logger'
+import { Logger } from './logger.js'
 
 let cleanupFn: (() => Promise<void>) | null = null
 let cleanupPromise: Promise<void> | null = null

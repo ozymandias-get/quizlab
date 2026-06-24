@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-import { getLogBufferLength, getPendingLogEntries } from '../../src/shared/lib/logger'
+import { getLogBufferLength, getPendingLogEntries } from '../../src/shared/lib/logger.js'
 
 let diskLogPath: string | null = null
 let lastFlushedIndex = 0

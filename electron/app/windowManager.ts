@@ -1,24 +1,24 @@
-import type { BrowserWindow } from 'electron'
+﻿import type { BrowserWindow } from 'electron'
 
-import { APP_CONFIG } from './constants'
+import { APP_CONFIG } from './constants.js'
 import {
   DEV_SERVER_URL,
   isDev,
   MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS,
   MAIN_WINDOW_DOM_READY_REVEAL_DELAY_MS,
   MAIN_WINDOW_REVEAL_TIMEOUT_MS
-} from './window/environment'
-import { loadRenderer } from './window/rendererLoader'
+} from './window/environment.js'
+import { loadRenderer } from './window/rendererLoader.js'
 import {
   hardenWindowWebContents,
   isAllowedMainFrameUrl,
   isSafeExternalUrl,
   setupWebviewSecurity
-} from './window/security'
-import { setupSessions } from './window/sessions'
-import { clampWindowStateToDisplay, loadWindowState, saveWindowState } from './window/state'
-import { createMainBrowserWindow } from './window/windows'
-import { configureWindowReveal } from './windowReveal'
+} from './window/security.js'
+import { setupSessions } from './window/sessions.js'
+import { clampWindowStateToDisplay, loadWindowState, saveWindowState } from './window/state.js'
+import { createMainBrowserWindow } from './window/windows.js'
+import { configureWindowReveal } from './windowReveal.js'
 
 let mainWindow: BrowserWindow | null = null
 

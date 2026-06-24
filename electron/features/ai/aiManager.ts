@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AiPlatform,
   AiPlatformMeta,
   AiRegistry,
@@ -7,17 +7,17 @@ import type {
   SubmitMode
 } from '@shared-core/types'
 
-import { normalizeSubmitMode } from '../../../shared/selectorConfig'
-import { APP_CONFIG } from '../../app/constants'
-import aistudio from './platforms/aistudio'
-import chatgpt from './platforms/chatgpt'
-import claude from './platforms/claude'
-import deepseek from './platforms/deepseek'
-import gemini from './platforms/gemini'
-import kimi from './platforms/kimi'
-import m365 from './platforms/m365'
-import qwen from './platforms/qwen'
-import youtube from './platforms/youtube'
+import { normalizeSubmitMode } from '../../../shared/selectorConfig.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import aistudio from './platforms/aistudio.js'
+import chatgpt from './platforms/chatgpt.js'
+import claude from './platforms/claude.js'
+import deepseek from './platforms/deepseek.js'
+import gemini from './platforms/gemini.js'
+import kimi from './platforms/kimi.js'
+import m365 from './platforms/m365.js'
+import qwen from './platforms/qwen.js'
+import youtube from './platforms/youtube.js'
 
 /**
  * AI Modül Yöneticisi (Registry)

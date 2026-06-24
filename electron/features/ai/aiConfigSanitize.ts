@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AiSelectorConfig,
   AutomationElementFingerprint,
   AutomationHostDescriptor
@@ -8,7 +8,7 @@ import {
   canonicalizeHostname,
   normalizeSelectorHealth,
   normalizeSubmitMode
-} from '../../../shared/selectorConfig'
+} from '../../../shared/selectorConfig.js'
 import {
   CONFIG_VERSION,
   HOSTNAME_REGEX,
@@ -20,7 +20,7 @@ import {
   MAX_SELECTOR_LENGTH,
   MAX_SUBMIT_MODE_LENGTH,
   MAX_URL_LENGTH
-} from './aiConfigConstants'
+} from './aiConfigConstants.js'
 
 export function normalizeHostname(hostname: unknown): string | null {
   if (typeof hostname !== 'string') return null

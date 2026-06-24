@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tüm picker DOM yardımcıları tek dosyada: userElementPicker .toString() enjeksiyonu için.
  * Vitest/SSR modül importlarını gövdeye soktuğundan, çapraz dosya importu olmamalı.
  */
@@ -10,7 +10,7 @@ import type {
   PickerConfidence,
   PickerElement,
   PickerElementInfo
-} from './pickerTypes'
+} from './pickerTypes.js'
 
 const GENERATED_TOKEN_REGEX = /(^--)|(^\d{5,}$)|([\da-z]{15,})|([a-z]+[_-]\d{5,}$)/i
 const SAFE_CLASS_TOKEN_REGEX = /^[A-Za-z][\w-]{0,63}$/

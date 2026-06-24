@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
 // Hoisted mock factories
@@ -142,7 +142,7 @@ function expectedBridgeInfo(port: number, secret: string) {
 // ---------------------------------------------------------------------------
 
 describe('NativeMessagingManager', () => {
-  let manager: typeof import('../../../features/native-messaging/nativeMessagingManager').nativeMessagingManager
+  let manager: typeof import('../../../features/native-messaging/nativeMessagingManager.js').nativeMessagingManager
 
   beforeEach(async () => {
     vi.clearAllMocks()

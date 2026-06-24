@@ -1,14 +1,14 @@
-import crypto from 'crypto'
+﻿import crypto from 'crypto'
 import { app, dialog, protocol } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
-import { failure, success } from '../../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../../app/constants'
-import { ConfigManager } from '../../core/ConfigManager'
-import { requireTrustedIpcSender } from '../../core/ipcSecurity'
-import { Logger } from '../../core/logger'
-import { registerIpcHandler } from '../../core/typedIpcMain'
+import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import { ConfigManager } from '../../core/ConfigManager.js'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
+import { Logger } from '../../core/logger.js'
+import { registerIpcHandler } from '../../core/typedIpcMain.js'
 
 interface PDFData {
   path: string

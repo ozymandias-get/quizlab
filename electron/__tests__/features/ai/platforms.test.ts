@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tests for the built-in AI platform configurations.
  *
  * These configs drive the AI sidebar — wrong URL, wrong partition, or
@@ -7,15 +7,15 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import aistudio from '../../../features/ai/platforms/aistudio'
-import chatgpt from '../../../features/ai/platforms/chatgpt'
-import claude from '../../../features/ai/platforms/claude'
-import deepseek from '../../../features/ai/platforms/deepseek'
-import gemini from '../../../features/ai/platforms/gemini'
-import kimi from '../../../features/ai/platforms/kimi'
-import qwen from '../../../features/ai/platforms/qwen'
-import youtube from '../../../features/ai/platforms/youtube'
-import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps'
+import aistudio from '../../../features/ai/platforms/aistudio.js'
+import chatgpt from '../../../features/ai/platforms/chatgpt.js'
+import claude from '../../../features/ai/platforms/claude.js'
+import deepseek from '../../../features/ai/platforms/deepseek.js'
+import gemini from '../../../features/ai/platforms/gemini.js'
+import kimi from '../../../features/ai/platforms/kimi.js'
+import qwen from '../../../features/ai/platforms/qwen.js'
+import youtube from '../../../features/ai/platforms/youtube.js'
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps.js'
 
 describe('AI platform configs - structural invariants', () => {
   const platforms: Record<string, any> = {

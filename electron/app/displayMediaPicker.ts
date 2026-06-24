@@ -1,10 +1,10 @@
-import crypto from 'crypto'
+﻿import crypto from 'crypto'
 import type { DesktopCapturerSource } from 'electron'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 
-import { Logger } from '../core/logger'
-import { resolvePickerIconPath } from './window/windows'
+import { Logger } from '../core/logger.js'
+import { resolvePickerIconPath } from './window/windows.js'
 
 const CH_PREFIX = 'display-media-picker'
 

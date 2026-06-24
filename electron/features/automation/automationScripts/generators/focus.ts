@@ -1,7 +1,7 @@
-import type { AutomationConfig } from '@shared-core/types'
+﻿import type { AutomationConfig } from '@shared-core/types'
 
-import { serializeAutomationConfig } from '../../scripts/config'
-import { createScriptPreamble } from '../preamble'
+import { serializeAutomationConfig } from '../../scripts/config.js'
+import { createScriptPreamble } from '../preamble.js'
 
 const generateFocusScript = (config: AutomationConfig): string => {
   const serialized = serializeAutomationConfig(config)

@@ -1,4 +1,4 @@
-import type { CacheBreakdown } from '../cacheMonitor'
+﻿import type { CacheBreakdown } from '../cacheMonitor.js'
 
 export interface CleanupResult {
   filesDeleted: number

@@ -1,7 +1,7 @@
-import { promises as fs } from 'fs'
+﻿import { promises as fs } from 'fs'
 import path from 'path'
 
-import { Logger } from './logger'
+import { Logger } from './logger.js'
 
 const PROHIBITED_CONFIG_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 

@@ -1,18 +1,18 @@
-import type { GeminiWebSessionStatus } from '@shared-core/types'
+﻿import type { GeminiWebSessionStatus } from '@shared-core/types'
 
 import { BrowserWindow, dialog } from 'electron'
 
 import {
   GOOGLE_WEB_SESSION_APPS,
   type GoogleWebSessionAppId
-} from '../../../shared/constants/google-ai-web-apps'
-import { failure, success } from '../../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../../app/constants'
-import { toStrictBoolean } from '../../core/ipcPayloadGuards'
-import { requireTrustedIpcSender } from '../../core/ipcSecurity'
-import { Logger } from '../../core/logger'
-import { registerIpcHandler } from '../../core/typedIpcMain'
-import { geminiWebSessionManager } from './sessionManager'
+} from '../../../shared/constants/google-ai-web-apps.js'
+import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
+import { Logger } from '../../core/logger.js'
+import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { geminiWebSessionManager } from './sessionManager.js'
 
 let handlersRegistered = false
 

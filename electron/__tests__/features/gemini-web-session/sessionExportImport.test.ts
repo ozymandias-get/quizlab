@@ -1,9 +1,9 @@
-import { promises as fs } from 'fs'
+﻿import { promises as fs } from 'fs'
 import os from 'os'
 import path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SessionExportImport } from '../../../features/gemini-web-session/sessionExportImport'
+import { SessionExportImport } from '../../../features/gemini-web-session/sessionExportImport.js'
 
 const testExportPath = path.join(os.tmpdir(), 'quizlab-test', 'export.json')
 

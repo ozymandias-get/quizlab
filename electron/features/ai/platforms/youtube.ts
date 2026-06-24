@@ -1,4 +1,4 @@
-import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps'
+﻿import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps.js'
 
 export default {
   id: 'youtube',

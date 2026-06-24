@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tests for electron/features/gemini-web-session/healthCheckPolicy.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -73,7 +73,7 @@ vi.mock('../../../../electron/core/logger', () => ({
 }))
 
 const { HealthCheckPolicy } =
-  await import('../../../../electron/features/gemini-web-session/healthCheckPolicy')
+  await import('../../../../electron/features/gemini-web-session/healthCheckPolicy.js')
 
 describe('HealthCheckPolicy', () => {
   let policy: InstanceType<typeof HealthCheckPolicy>

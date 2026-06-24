@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 
-import { serializeAutomationConfig } from '../../../../features/automation/scripts/config'
+import { serializeAutomationConfig } from '../../../../features/automation/scripts/config.js'
 
 describe('serializeAutomationConfig', () => {
   it('deduplicates and trims selectors while preserving first-seen order', () => {

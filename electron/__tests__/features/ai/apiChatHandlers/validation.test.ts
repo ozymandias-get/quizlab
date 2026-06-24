@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 
 import {
   isValidChatContentItem,
   MAX_MESSAGE_TEXT_LENGTH,
   sanitizeChatMessage
-} from '../../../../features/ai/apiChatHandlers/validation'
+} from '../../../../features/ai/apiChatHandlers/validation.js'
 
 describe('sanitizeChatMessage', () => {
   it('accepts valid user message with text content', () => {

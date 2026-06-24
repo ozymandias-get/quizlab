@@ -1,9 +1,9 @@
-import { app, type BrowserWindow, screen } from 'electron'
+﻿import { app, type BrowserWindow, screen } from 'electron'
 import path from 'path'
 
-import { ConfigManager } from '../../core/ConfigManager'
-import { Logger } from '../../core/logger'
-import { APP_CONFIG } from '../constants'
+import { ConfigManager } from '../../core/ConfigManager.js'
+import { Logger } from '../../core/logger.js'
+import { APP_CONFIG } from '../constants.js'
 
 export interface WindowState {
   width: number

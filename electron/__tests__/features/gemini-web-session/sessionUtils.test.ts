@@ -1,4 +1,4 @@
-import type { BinaryLike } from 'crypto'
+﻿import type { BinaryLike } from 'crypto'
 import { createHash } from 'crypto'
 import { describe, expect, it } from 'vitest'
 
@@ -7,7 +7,7 @@ import {
   GOOGLE_ACCOUNT_HASH_COOKIE_NAMES,
   isProcessAlive,
   nowIso
-} from '../../../features/gemini-web-session/sessionUtils'
+} from '../../../features/gemini-web-session/sessionUtils.js'
 
 function expectedHash(value: string): string {
   return createHash('sha256')

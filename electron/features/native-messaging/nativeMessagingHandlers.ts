@@ -1,8 +1,8 @@
-import { failure, success } from '../../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../../app/constants'
-import { requireTrustedIpcSender } from '../../core/ipcSecurity'
-import { registerIpcHandler } from '../../core/typedIpcMain'
-import { nativeMessagingManager } from './nativeMessagingManager'
+﻿import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
+import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { nativeMessagingManager } from './nativeMessagingManager.js'
 
 let handlersRegistered = false
 

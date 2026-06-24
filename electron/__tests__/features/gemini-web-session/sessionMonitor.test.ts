@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SessionMonitor } from '../../../features/gemini-web-session/sessionMonitor'
+import { SessionMonitor } from '../../../features/gemini-web-session/sessionMonitor.js'
 
 describe('session monitor', () => {
   beforeEach(() => {

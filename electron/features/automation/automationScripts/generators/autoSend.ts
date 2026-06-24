@@ -1,10 +1,10 @@
-import type { AutomationConfig, TextInputMode } from '@shared-core/types'
+﻿import type { AutomationConfig, TextInputMode } from '@shared-core/types'
 
-import { serializeAutomationConfig } from '../../scripts/config'
-import { buildHumanTypingScript } from '../../scripts/humanTyping'
-import { buildSetInputValueScript } from '../../scripts/setInputValue'
-import { buildPerformSubmitScript } from '../../scripts/submit'
-import { createScriptPreamble } from '../preamble'
+import { serializeAutomationConfig } from '../../scripts/config.js'
+import { buildHumanTypingScript } from '../../scripts/humanTyping.js'
+import { buildSetInputValueScript } from '../../scripts/setInputValue.js'
+import { buildPerformSubmitScript } from '../../scripts/submit.js'
+import { createScriptPreamble } from '../preamble.js'
 
 const generateAutoSendScript = (
   config: AutomationConfig,

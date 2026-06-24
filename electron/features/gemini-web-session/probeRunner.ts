@@ -1,17 +1,17 @@
-import { BrowserWindow, type Session } from 'electron'
+﻿import { BrowserWindow, type Session } from 'electron'
 
-import { APP_CONFIG } from '../../app/constants'
-import { Logger } from '../../core/logger'
-import { classifyAuthProbe, type DomProbeSnapshot } from './authHeuristics'
+import { APP_CONFIG } from '../../app/constants.js'
+import { Logger } from '../../core/logger.js'
+import { classifyAuthProbe, type DomProbeSnapshot } from './authHeuristics.js'
 import {
   DOM_SNAPSHOT_SCRIPT,
   EMPTY_DOM_SNAPSHOT,
   GEMINI_HOME_URL,
   GOOGLE_AI_WEB_APP_URLS
-} from './constants'
-import type { ProbeExecutionResult } from './sessionContracts'
-import { logSuppressedError, toErrorMessage } from './sessionErrors'
-import { computeGoogleAccountHash, GOOGLE_ACCOUNT_HASH_COOKIE_NAMES } from './sessionUtils'
+} from './constants.js'
+import type { ProbeExecutionResult } from './sessionContracts.js'
+import { logSuppressedError, toErrorMessage } from './sessionErrors.js'
+import { computeGoogleAccountHash, GOOGLE_ACCOUNT_HASH_COOKIE_NAMES } from './sessionUtils.js'
 
 function probeSeverity(kind: ProbeExecutionResult['outcome']['kind']): number {
   if (kind === 'challenge') return 4

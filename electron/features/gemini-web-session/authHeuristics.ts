@@ -1,5 +1,5 @@
-import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps'
-import type { ProbeKind, ProbeOutcome } from './stateMachine'
+﻿import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps.js'
+import type { ProbeKind, ProbeOutcome } from './stateMachine.js'
 
 function getHostname(rawUrl: string): string {
   try {

@@ -1,7 +1,7 @@
 ﻿import { BrowserWindow, ipcMain, Menu, MenuItem } from 'electron'
 
-import { APP_CONFIG } from '../../app/constants'
-import { requireTrustedIpcSender } from '../../core/ipcSecurity'
+import { APP_CONFIG } from '../../app/constants.js'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 
 let handlersRegistered = false
 

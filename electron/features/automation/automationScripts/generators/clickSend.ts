@@ -1,8 +1,8 @@
-import type { AutomationConfig } from '@shared-core/types'
+﻿import type { AutomationConfig } from '@shared-core/types'
 
-import { serializeAutomationConfig } from '../../scripts/config'
-import { buildPerformSubmitScript } from '../../scripts/submit'
-import { createScriptPreamble } from '../preamble'
+import { serializeAutomationConfig } from '../../scripts/config.js'
+import { buildPerformSubmitScript } from '../../scripts/submit.js'
+import { createScriptPreamble } from '../preamble.js'
 
 const generateClickSendScript = (config: AutomationConfig): string => {
   const serialized = serializeAutomationConfig(config)

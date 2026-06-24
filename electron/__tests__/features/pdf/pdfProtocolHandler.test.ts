@@ -1,7 +1,7 @@
-import { Readable } from 'stream'
+﻿import { Readable } from 'stream'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { APP_CONFIG } from '../../../app/constants'
+import { APP_CONFIG } from '../../../app/constants.js'
 
 // ---- Module mocks (hoisted) ----
 const protocolHandleMock = vi.fn()

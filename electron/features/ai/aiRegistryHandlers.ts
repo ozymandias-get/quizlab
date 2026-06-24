@@ -1,26 +1,26 @@
-import type { AiPlatform, CustomAiResult } from '@shared-core/types'
+﻿import type { AiPlatform, CustomAiResult } from '@shared-core/types'
 
 import crypto from 'crypto'
 import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
-import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps'
-import { failure, success } from '../../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../../app/constants'
-import { ConfigManager } from '../../core/ConfigManager'
-import { getCustomPlatformsPath } from '../../core/coreHelpers'
-import { requireTrustedIpcSender } from '../../core/ipcSecurity'
-import { Logger } from '../../core/logger'
-import { registerIpcHandler } from '../../core/typedIpcMain'
-import { geminiWebSessionManager } from '../gemini-web-session/sessionManager'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps.js'
+import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import { ConfigManager } from '../../core/ConfigManager.js'
+import { getCustomPlatformsPath } from '../../core/coreHelpers.js'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
+import { Logger } from '../../core/logger.js'
+import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { geminiWebSessionManager } from '../gemini-web-session/sessionManager.js'
 import {
   AI_REGISTRY,
   CHROME_USER_AGENT,
   DEFAULT_AI_ID,
   INACTIVE_PLATFORMS,
   isAuthDomain
-} from './aiManager'
+} from './aiManager.js'
 
 type CustomPlatformsMap = Record<string, AiPlatform>
 type AddCustomAiInput = { name: string; url: string; isSite?: boolean }

@@ -1,6 +1,6 @@
-import { app } from 'electron'
+﻿import { app } from 'electron'
 
-import { APP_CONFIG } from '../../app/constants'
+import { APP_CONFIG } from '../../app/constants.js'
 
 const { IDLE_TIMEOUT_MS } = APP_CONFIG.CLEANUP
 

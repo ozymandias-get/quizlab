@@ -1,9 +1,9 @@
-import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/ipcContract'
+﻿import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/ipcContract'
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
-import { IPC_CHANNELS } from '../../shared/constants/ipc-channels'
-import { onEvent, typedInvoke, unwrapIpcResult } from './typedIpcPreload'
+import { IPC_CHANNELS } from '../../shared/constants/ipc-channels.js'
+import { onEvent, typedInvoke, unwrapIpcResult } from './typedIpcPreload.js'
 
 const electronApi: ElectronApi = {
   getAiRegistry: (forceRefresh?) =>

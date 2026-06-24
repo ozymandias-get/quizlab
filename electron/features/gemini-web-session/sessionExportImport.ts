@@ -1,18 +1,18 @@
-import { safeStorage } from 'electron'
+﻿import { safeStorage } from 'electron'
 import { promises as fs } from 'fs'
 
-import { Logger } from '../../core/logger'
-import type { ProbeRunner } from './probeRunner'
-import { HEALTH_TIMEOUT_MS } from './sessionConfig'
+import { Logger } from '../../core/logger.js'
+import type { ProbeRunner } from './probeRunner.js'
+import { HEALTH_TIMEOUT_MS } from './sessionConfig.js'
 import type {
   SessionExportData,
   SessionExportDataV1,
   SessionExportDataV2,
   SessionImportResult
-} from './sessionContracts'
-import { toErrorMessage } from './sessionErrors'
-import type { SessionMetadataRepository } from './sessionMetadataRepository'
-import type { SessionSnapshotRepository } from './sessionSnapshotRepository'
+} from './sessionContracts.js'
+import { toErrorMessage } from './sessionErrors.js'
+import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
+import type { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
 
 /**
  * SECURITY: Validate that an unknown value conforms to the SessionExportDataV1

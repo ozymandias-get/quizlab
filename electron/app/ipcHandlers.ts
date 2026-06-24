@@ -1,13 +1,13 @@
-import { registerSystemHandlers } from '../core/systemHandlers'
-import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers'
-import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers'
-import { registerApiChatHandlers } from '../features/ai/apiChatHandlers'
-import { registerAutomationHandlers } from '../features/automation/automationHandlers'
-import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
-import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers'
-import { nativeMessagingManager } from '../features/native-messaging/nativeMessagingManager'
-import { registerPdfHandlers } from '../features/pdf/pdfHandlers'
-import { registerScreenshotHandlers } from '../features/screenshot/screenshotHandlers'
+﻿import { registerSystemHandlers } from '../core/systemHandlers.js'
+import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers.js'
+import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js'
+import { registerApiChatHandlers } from '../features/ai/apiChatHandlers.js'
+import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
+import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers.js'
+import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers.js'
+import { nativeMessagingManager } from '../features/native-messaging/nativeMessagingManager.js'
+import { registerPdfHandlers } from '../features/pdf/pdfHandlers.js'
+import { registerScreenshotHandlers } from '../features/screenshot/screenshotHandlers.js'
 
 let handlersRegistered = false
 

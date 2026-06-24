@@ -1,7 +1,7 @@
-import { safeStorage } from 'electron'
+﻿import { safeStorage } from 'electron'
 import crypto from 'crypto'
 
-import { Logger } from './logger'
+import { Logger } from './logger.js'
 
 const ENC_PREFIX = 'enc:'
 const AES_PREFIX = 'aes:'

@@ -1,20 +1,20 @@
-import type { AiSelectorConfig } from '@shared-core/types'
+﻿import type { AiSelectorConfig } from '@shared-core/types'
 
-import { failure, success } from '../../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../../app/constants'
-import { ConfigManager } from '../../core/ConfigManager'
-import { getAiConfigPath } from '../../core/coreHelpers'
-import { requireTrustedIpcSender } from '../../core/ipcSecurity'
-import { registerIpcHandler } from '../../core/typedIpcMain'
-import { CONFIG_VERSION } from './aiConfigConstants'
-import type { AiConfigMap } from './aiConfigDomain'
+import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import { ConfigManager } from '../../core/ConfigManager.js'
+import { getAiConfigPath } from '../../core/coreHelpers.js'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
+import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { CONFIG_VERSION } from './aiConfigConstants.js'
+import type { AiConfigMap } from './aiConfigDomain.js'
 import {
   finalizeStoredConfig,
   mergeConfig,
   readMigratedConfigMap,
   resolveConfigForHostname
-} from './aiConfigDomain'
-import { normalizeHostname, sanitizeConfig } from './aiConfigSanitize'
+} from './aiConfigDomain.js'
+import { normalizeHostname, sanitizeConfig } from './aiConfigSanitize.js'
 
 let handlersRegistered = false
 

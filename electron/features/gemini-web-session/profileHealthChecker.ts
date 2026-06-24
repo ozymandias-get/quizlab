@@ -1,7 +1,7 @@
-import { promises as fs } from 'fs'
+﻿import { promises as fs } from 'fs'
 import path from 'path'
 
-import { LOGIN_TIMEOUT_MS } from './sessionConfig'
+import { LOGIN_TIMEOUT_MS } from './sessionConfig.js'
 
 export interface ProfileHealthResult {
   profileDirExists: boolean
