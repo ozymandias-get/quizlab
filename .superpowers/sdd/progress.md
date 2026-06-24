@@ -16,3 +16,8 @@ Task 8 (eslint 9�10 + unicorn 65�68): complete (commit from subagent, review
 Task 1: complete (commits 80082d2..cd87514, review clean)
 Task 2: complete (commits cd87514..cf86f79, review clean)
 Task 3: complete (commits cf86f79..c8a484b, review clean)
+Task 4: complete (commits c8a484b..f6ac6f1, review clean after fix)
+Task 5: complete (commits f6ac6f1..c8084a3, review clean)
+Task 7: complete (commits c8084a3..8921845, review clean)
+Task 8: complete (commits 8921845..f28c1dc, review clean)
+Task 10: complete (commits f28c1dc..8d543c6, review clean)

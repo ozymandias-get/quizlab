@@ -20,4 +20,4 @@ export default {
     submitMode: 'mixed',
     domainRegex: '^https://(www\\.)?gemini\\.google\\.com(/.*)?$'
   }
-}
+} as const

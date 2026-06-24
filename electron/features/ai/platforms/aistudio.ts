@@ -19,4 +19,4 @@ export default {
     submitMode: 'mixed',
     domainRegex: '^https://aistudio\\.google\\.com(/.*)?$'
   }
-}
+} as const
