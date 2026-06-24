@@ -8,6 +8,7 @@ import {
   isDev,
   shouldOpenDevToolsOnStart
 } from './environment'
+import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -44,6 +45,18 @@ async function waitForDevServer() {
 }
 
 export async function loadRenderer(window: BrowserWindow) {
+  const nonce = generateCspNonce()
+  const csp = isDev ? getDevCsp() : getStrictCsp(nonce)
+
+  window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp]
+      }
+    })
+  })
+
   if (!isDev) {
     window.setMenu(null)
     const indexPath = path.join(app.getAppPath(), 'dist', 'index.html')
