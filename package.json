@@ -233,7 +233,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "i18next": "^26.3.2",
-    "lucide-react": "^0.563.0",
+    "lucide-react": "^1.21.0",
     "motion": "^12.41.0",
     "pdfjs-dist": "3.11.174",
     "radix-ui": "^1.6.0",
