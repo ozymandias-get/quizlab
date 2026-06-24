@@ -1,20 +1,20 @@
-import type {
+﻿import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
   GeminiWebSessionRefreshEvent,
   GeminiWebSessionStatus
 } from '@shared-core/types'
 
-import { APP_CONFIG } from '../../app/constants'
-import { getMainWindow } from '../../app/windowManager'
-import { PROFILE_PARTITION } from './sessionConfig'
+import { APP_CONFIG } from '../../app/constants.js'
+import { getMainWindow } from '../../app/windowManager.js'
+import { PROFILE_PARTITION } from './sessionConfig.js'
 import {
   createGeminiSessionConfig,
   createGeminiSessionPaths,
   resolvePersistentSession
-} from './sessionContext'
-import type { SessionImportResult } from './sessionContracts'
-import { SessionOrchestrator } from './sessionOrchestrator'
+} from './sessionContext.js'
+import type { SessionImportResult } from './sessionContracts.js'
+import { SessionOrchestrator } from './sessionOrchestrator.js'
 
 class GeminiWebSessionManager {
   private readonly orchestrator: SessionOrchestrator

@@ -1,1 +1,1 @@
-export { registerApiChatHandlers } from './apiChatHandlers/handlers'
+﻿export { registerApiChatHandlers } from './apiChatHandlers/handlers.js'

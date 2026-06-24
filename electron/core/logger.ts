@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Electron main-process Logger shim.
  *
  * Re-exports from the shared logger so all code (renderer + main process)
@@ -15,5 +15,5 @@ export {
   pushToLoggerBuffer,
   redactSensitive,
   reportSuppressedError
-} from '../../src/shared/lib/logger'
-export { flushToDisk, initLogger } from './diskLogger'
+} from '../../src/shared/lib/logger.js'
+export { flushToDisk, initLogger } from './diskLogger.js'

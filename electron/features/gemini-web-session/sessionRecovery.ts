@@ -1,20 +1,20 @@
-import type { Session } from 'electron'
+﻿import type { Session } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { GOOGLE_SIGNIN_URL } from './constants'
-import type { ProbeRunner } from './probeRunner'
+import { GOOGLE_SIGNIN_URL } from './constants.js'
+import type { ProbeRunner } from './probeRunner.js'
 import {
   HEALTH_TIMEOUT_MS,
   REFRESH_GRACE_PERIOD_MS,
   SILENT_REFRESH_COOLDOWN_MS,
   SILENT_REFRESH_TIMEOUT_MS
-} from './sessionConfig'
-import type { ProbeExecutionResult } from './sessionContracts'
-import { importExternalCookies } from './sessionCookies'
-import type { SessionMetadataRepository } from './sessionMetadataRepository'
-import type { SessionSnapshotRepository } from './sessionSnapshotRepository'
-import type { ProbeOutcome } from './stateMachine'
+} from './sessionConfig.js'
+import type { ProbeExecutionResult } from './sessionContracts.js'
+import { importExternalCookies } from './sessionCookies.js'
+import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
+import type { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
+import type { ProbeOutcome } from './stateMachine.js'
 
 export class SessionRecovery {
   private readonly probeRunner: ProbeRunner

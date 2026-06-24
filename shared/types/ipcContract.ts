@@ -1,4 +1,4 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+﻿import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
@@ -21,8 +21,8 @@ import type {
 } from '@shared-core/types'
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
-import type { IPC_CHANNELS } from '../constants/ipc-channels'
-import type { IpcResult } from '../lib/typedIpc'
+import type { IPC_CHANNELS } from '../constants/ipc-channels.js'
+import type { IpcResult } from '../lib/typedIpc.js'
 
 /**
  * IPC contract between renderer (preload window.electronAPI) and the main process.

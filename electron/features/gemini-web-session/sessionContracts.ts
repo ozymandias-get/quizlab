@@ -1,11 +1,11 @@
-import type {
+﻿import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionRefreshEvent,
   GeminiWebSessionRefreshReason,
   GeminiWebSessionStatus
 } from '@shared-core/types'
 
-import type { ProbeOutcome } from './stateMachine'
+import type { ProbeOutcome } from './stateMachine.js'
 
 export interface SessionMetadata extends GeminiWebSessionStatus {
   accountHash: string | null

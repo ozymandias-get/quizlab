@@ -1,9 +1,9 @@
-import { app, type BrowserWindow, shell } from 'electron'
+﻿import { app, type BrowserWindow, shell } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { Logger } from '../../core/logger'
-import { DEV_SERVER_ORIGIN, isDev } from './environment'
+import { Logger } from '../../core/logger.js'
+import { DEV_SERVER_ORIGIN, isDev } from './environment.js'
 
 const ALLOWED_WEBVIEW_PROTOCOLS = new Set(['https:'])
 

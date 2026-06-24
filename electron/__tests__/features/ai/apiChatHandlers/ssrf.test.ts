@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 
-import { validateProviderUrl } from '../../../../features/ai/apiChatHandlers/ssrf'
+import { validateProviderUrl } from '../../../../features/ai/apiChatHandlers/ssrf.js'
 
 describe('validateProviderUrl (SSRF Protection)', () => {
   it('allows HTTPS URLs to public hosts', () => {

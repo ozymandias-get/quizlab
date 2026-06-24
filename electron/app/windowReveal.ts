@@ -1,6 +1,6 @@
-import { dialog } from 'electron'
+﻿import { dialog } from 'electron'
 
-import { Logger } from '../core/logger'
+import { Logger } from '../core/logger.js'
 
 interface WindowLike {
   isDestroyed(): boolean

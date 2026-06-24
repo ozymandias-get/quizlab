@@ -1,13 +1,13 @@
-import { IPC_CHANNELS } from '../../../../shared/constants/ipc-channels'
-import { failure, success } from '../../../../shared/lib/typedIpc'
-import type { ApiChatMessage, ApiConfig } from '../../../../shared/types'
-import { requireTrustedIpcSender } from '../../../core/ipcSecurity'
-import { Logger } from '../../../core/logger'
-import { registerIpcHandler } from '../../../core/typedIpcMain'
-import { loadConfig, sanitizeApiKey, saveConfig } from './config'
-import { validateProviderUrl } from './ssrf'
-import type { ChatCompletionBody, ChatContentItem, ModelListItem } from './validation'
-import { MAX_REQUEST_BODY_SIZE, sanitizeChatMessage } from './validation'
+﻿import { IPC_CHANNELS } from '../../../../shared/constants/ipc-channels.js'
+import { failure, success } from '../../../../shared/lib/typedIpc.js'
+import type { ApiChatMessage, ApiConfig } from '../../../../shared/types/index.js'
+import { requireTrustedIpcSender } from '../../../core/ipcSecurity.js'
+import { Logger } from '../../../core/logger.js'
+import { registerIpcHandler } from '../../../core/typedIpcMain.js'
+import { loadConfig, sanitizeApiKey, saveConfig } from './config.js'
+import { validateProviderUrl } from './ssrf.js'
+import type { ChatCompletionBody, ChatContentItem, ModelListItem } from './validation.js'
+import { MAX_REQUEST_BODY_SIZE, sanitizeChatMessage } from './validation.js'
 
 let activeRequestController: AbortController | null = null
 let activeModelFetchController: AbortController | null = null

@@ -1,10 +1,10 @@
-import type { AutomationConfig } from '@shared-core/types'
+﻿import type { AutomationConfig } from '@shared-core/types'
 
-import { generateAutoSendScript } from './automationScripts/generators/autoSend'
-import { generateClickSendScript } from './automationScripts/generators/clickSend'
-import { generateFocusScript } from './automationScripts/generators/focus'
-import { generateWaitForSubmitReadyScript } from './automationScripts/generators/submitReady'
-import { generateValidateSelectorsScript } from './automationScripts/generators/validate'
+import { generateAutoSendScript } from './automationScripts/generators/autoSend.js'
+import { generateClickSendScript } from './automationScripts/generators/clickSend.js'
+import { generateFocusScript } from './automationScripts/generators/focus.js'
+import { generateWaitForSubmitReadyScript } from './automationScripts/generators/submitReady.js'
+import { generateValidateSelectorsScript } from './automationScripts/generators/validate.js'
 
 export {
   generateAutoSendScript,

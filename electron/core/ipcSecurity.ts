@@ -1,7 +1,7 @@
-import type { IpcMainInvokeEvent, WebContents } from 'electron'
+﻿import type { IpcMainInvokeEvent, WebContents } from 'electron'
 
-import { getMainWindow } from '../app/windowManager'
-import { Logger } from './logger'
+import { getMainWindow } from '../app/windowManager.js'
+import { Logger } from './logger.js'
 
 /**
  * Origins considered safe for IPC access from the main window.

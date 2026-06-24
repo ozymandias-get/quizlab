@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tests for electron/features/gemini-web-session/refreshTriggerPolicy.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -89,7 +89,7 @@ vi.mock('../../../../shared/constants/google-ai-web-apps', () => ({
 }))
 
 const { RefreshTriggerPolicy } =
-  await import('../../../../electron/features/gemini-web-session/refreshTriggerPolicy')
+  await import('../../../../electron/features/gemini-web-session/refreshTriggerPolicy.js')
 
 describe('RefreshTriggerPolicy', () => {
   let policy: InstanceType<typeof RefreshTriggerPolicy>

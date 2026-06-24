@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Kullanıcı Tanımlı Element Seçici (Picker) Modülü
  *
  * Bu modül, webview içine enjekte edilecek ve kullanıcının
@@ -6,15 +6,15 @@
  * manuel olarak seçmesini sağlayacak mantığı içerir.
  */
 
-import { buildInjectedPickerDomHelpers } from './lib/injectedPickerDom'
-import { pickerStyles } from './lib/styles'
-import { getHintHtml, getStepHtml, type TranslationMap } from './lib/uiTemplates'
-import { buildPickerCleanupBlock } from './pickerScript/cleanup'
-import { buildPickerHandlersBlock } from './pickerScript/handlers'
-import { buildPickerScriptHead } from './pickerScript/head'
-import { buildPickerIframesBlock } from './pickerScript/iframes'
-import { buildPickerTargetingBlock } from './pickerScript/targeting'
-import { buildPickerUiBlock } from './pickerScript/ui'
+import { buildInjectedPickerDomHelpers } from './lib/injectedPickerDom.js'
+import { pickerStyles } from './lib/styles.js'
+import { getHintHtml, getStepHtml, type TranslationMap } from './lib/uiTemplates.js'
+import { buildPickerCleanupBlock } from './pickerScript/cleanup.js'
+import { buildPickerHandlersBlock } from './pickerScript/handlers.js'
+import { buildPickerScriptHead } from './pickerScript/head.js'
+import { buildPickerIframesBlock } from './pickerScript/iframes.js'
+import { buildPickerTargetingBlock } from './pickerScript/targeting.js'
+import { buildPickerUiBlock } from './pickerScript/ui.js'
 
 /**
  * Webview içine enjekte edilecek "Picker" scripti.

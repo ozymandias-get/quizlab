@@ -1,10 +1,10 @@
-import fs from 'fs'
+﻿import fs from 'fs'
 import path from 'path'
 
-import type { ApiConfig, ApiProviderConfig } from '../../../../shared/types'
-import { getApiChatConfigPath } from '../../../core/coreHelpers'
-import { decryptValue, encryptValue } from '../../../core/encryption'
-import { Logger } from '../../../core/logger'
+import type { ApiConfig, ApiProviderConfig } from '../../../../shared/types/index.js'
+import { getApiChatConfigPath } from '../../../core/coreHelpers.js'
+import { decryptValue, encryptValue } from '../../../core/encryption.js'
+import { Logger } from '../../../core/logger.js'
 
 const MAX_PROMPT_LENGTH = 4000
 

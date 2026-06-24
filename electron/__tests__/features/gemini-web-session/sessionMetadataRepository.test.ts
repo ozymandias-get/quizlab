@@ -1,13 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'fs'
+﻿import { mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../../shared/constants/google-ai-web-apps'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../../shared/constants/google-ai-web-apps.js'
 import {
   sanitizeEnabledAppIds,
   SessionMetadataRepository
-} from '../../../features/gemini-web-session/sessionMetadataRepository'
+} from '../../../features/gemini-web-session/sessionMetadataRepository.js'
 
 describe('sanitizeEnabledAppIds', () => {
   it('falls back to all registry ids when value is not an array', () => {

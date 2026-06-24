@@ -1,9 +1,9 @@
-/**
+﻿/**
  * AI Platform & Registry Types
  */
 
-import type { IpcResult } from '../lib/typedIpc'
-import type { SubmitMode } from './automation'
+import type { IpcResult } from '../lib/typedIpc.js'
+import type { SubmitMode } from './automation.js'
 
 export type AiPlatformMeta = {
   displayName?: string

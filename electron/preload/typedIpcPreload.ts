@@ -1,12 +1,12 @@
-import { ipcRenderer } from 'electron'
+﻿import { ipcRenderer } from 'electron'
 
-import { failure, type IpcResult } from '../../shared/lib/typedIpc'
+import { failure, type IpcResult } from '../../shared/lib/typedIpc.js'
 import type {
   IpcEventChannel,
   IpcEventMap,
   IpcInvokeChannel,
   IpcInvokeRequestMap
-} from '../../shared/types/ipcContract'
+} from '../../shared/types/ipcContract.js'
 
 const MAX_IPC_ARG_SIZE = 1024 * 512
 

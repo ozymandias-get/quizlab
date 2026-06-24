@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
   GeminiWebSessionStatus
@@ -8,30 +8,30 @@ import type { Session } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { Logger } from '../../core/logger'
-import { HealthCheckPolicy } from './healthCheckPolicy'
-import { LoginFlowPolicy } from './loginFlowPolicy'
-import { MetadataUpdatePolicy } from './metadataUpdatePolicy'
-import { ProbeRunner } from './probeRunner'
-import { ProfileHealthChecker } from './profileHealthChecker'
-import { ProfileLock } from './profileLock'
-import { RefreshTriggerPolicy } from './refreshTriggerPolicy'
+import { Logger } from '../../core/logger.js'
+import { HealthCheckPolicy } from './healthCheckPolicy.js'
+import { LoginFlowPolicy } from './loginFlowPolicy.js'
+import { MetadataUpdatePolicy } from './metadataUpdatePolicy.js'
+import { ProbeRunner } from './probeRunner.js'
+import { ProfileHealthChecker } from './profileHealthChecker.js'
+import { ProfileLock } from './profileLock.js'
+import { RefreshTriggerPolicy } from './refreshTriggerPolicy.js'
 import {
   COOKIE_REFRESH_THRESHOLD_MS,
   FEATURE_ENABLED,
   PROACTIVE_REFRESH_ADVANCE_MS
-} from './sessionConfig'
-import type { SessionImportResult } from './sessionContracts'
-import type { ReactiveRefreshSignal, RefreshEventEmitter } from './sessionContracts'
-import { clearPersistentPartitionData } from './sessionCookies'
-import { logSuppressedError, toErrorMessage } from './sessionErrors'
-import { SessionExportImport } from './sessionExportImport'
-import { SessionMetadataRepository } from './sessionMetadataRepository'
-import { SessionMonitor } from './sessionMonitor'
-import { SessionRecovery } from './sessionRecovery'
-import { SessionSnapshotRepository } from './sessionSnapshotRepository'
-import { nowIso } from './sessionUtils'
-import { createDefaultStatus } from './stateMachine'
+} from './sessionConfig.js'
+import type { SessionImportResult } from './sessionContracts.js'
+import type { ReactiveRefreshSignal, RefreshEventEmitter } from './sessionContracts.js'
+import { clearPersistentPartitionData } from './sessionCookies.js'
+import { logSuppressedError, toErrorMessage } from './sessionErrors.js'
+import { SessionExportImport } from './sessionExportImport.js'
+import { SessionMetadataRepository } from './sessionMetadataRepository.js'
+import { SessionMonitor } from './sessionMonitor.js'
+import { SessionRecovery } from './sessionRecovery.js'
+import { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
+import { nowIso } from './sessionUtils.js'
+import { createDefaultStatus } from './stateMachine.js'
 
 export class SessionOrchestrator {
   private readonly config: GeminiWebSessionConfig

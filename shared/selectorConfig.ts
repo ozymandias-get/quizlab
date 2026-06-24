@@ -1,4 +1,4 @@
-import type { AiSelectorConfig, AutomationConfig, SelectorHealth, SubmitMode } from './types'
+﻿import type { AiSelectorConfig, AutomationConfig, SelectorHealth, SubmitMode } from './types/index.js'
 
 const REGISTRABLE_THIRD_LEVEL_SUFFIXES = new Set(['co', 'com', 'net', 'org', 'gov', 'edu'])
 

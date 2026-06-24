@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { APP_CONFIG } from '../../../app/constants'
+import { APP_CONFIG } from '../../../app/constants.js'
 
 const ipcOn = vi.fn()
 const fromWebContents = vi.fn()

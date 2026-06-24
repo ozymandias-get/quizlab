@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { configureWindowReveal } from '../../app/windowReveal'
+import { configureWindowReveal } from '../../app/windowReveal.js'
 
 const { showErrorBox } = vi.hoisted(() => ({
   showErrorBox: vi.fn()

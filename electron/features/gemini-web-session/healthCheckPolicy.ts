@@ -1,14 +1,14 @@
-import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
+﻿import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
 
-import { Logger } from '../../core/logger'
-import type { ProbeRunner } from './probeRunner'
-import type { ProfileHealthChecker } from './profileHealthChecker'
-import type { ProfileLock } from './profileLock'
-import { FEATURE_ENABLED, HEALTH_TIMEOUT_MS } from './sessionConfig'
-import type { SessionMetadataRepository } from './sessionMetadataRepository'
-import type { SessionRecovery } from './sessionRecovery'
-import { nowIso } from './sessionUtils'
-import { applyProbeTransition } from './stateMachine'
+import { Logger } from '../../core/logger.js'
+import type { ProbeRunner } from './probeRunner.js'
+import type { ProfileHealthChecker } from './profileHealthChecker.js'
+import type { ProfileLock } from './profileLock.js'
+import { FEATURE_ENABLED, HEALTH_TIMEOUT_MS } from './sessionConfig.js'
+import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
+import type { SessionRecovery } from './sessionRecovery.js'
+import { nowIso } from './sessionUtils.js'
+import { applyProbeTransition } from './stateMachine.js'
 
 export interface HealthCheckContext {
   metadataRepository: SessionMetadataRepository

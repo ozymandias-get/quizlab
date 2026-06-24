@@ -1,13 +1,13 @@
-import { app, BrowserWindow, dialog } from 'electron'
+﻿import { app, BrowserWindow, dialog } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { registerCleanup, runCleanup } from '../core/appCleanup'
-import { runStartupCleanup } from '../core/cacheCleanup'
-import { startCacheScheduler, stopCacheScheduler } from '../core/cacheScheduler'
-import { createIssueLogReport, flushToDisk, initLogger, Logger } from '../core/logger'
-import { initUpdater } from '../core/updater'
-import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers'
+import { registerCleanup, runCleanup } from '../core/appCleanup.js'
+import { runStartupCleanup } from '../core/cacheCleanup/index.js'
+import { startCacheScheduler, stopCacheScheduler } from '../core/cacheScheduler.js'
+import { createIssueLogReport, flushToDisk, initLogger, Logger } from '../core/logger.js'
+import { initUpdater } from '../core/updater.js'
+import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers.js'
 import {
   clearAllPdfPaths,
   registerPdfProtocol,
@@ -15,11 +15,11 @@ import {
   registerPdfScheme,
   startPdfCleanupInterval,
   stopPdfCleanupInterval
-} from '../features/pdf/pdfProtocol'
-import { registerGeneralHandlers } from './ipcHandlers'
-import { initializeNativeMessaging, shutdownNativeMessaging } from './ipcHandlers'
-import { getProfileName, resolveUserDataProfile } from './userDataProfile'
-import { createWindow, getMainWindow } from './windowManager'
+} from '../features/pdf/pdfProtocol.js'
+import { registerGeneralHandlers } from './ipcHandlers.js'
+import { initializeNativeMessaging, shutdownNativeMessaging } from './ipcHandlers.js'
+import { getProfileName, resolveUserDataProfile } from './userDataProfile.js'
+import { createWindow, getMainWindow } from './windowManager.js'
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.quizlab.reader')

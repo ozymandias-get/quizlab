@@ -1,9 +1,9 @@
-import {
+﻿import {
   escapeCssStringValue,
   generateLocatorBundle,
   getElementInfo,
   inferSendLikeControl,
   isElementContentEditable
-} from './dom/pickerDomRuntime'
+} from './dom/pickerDomRuntime.js'
 
-export type { PickerConfidence, PickerElementInfo } from './dom/pickerTypes'
+export type { PickerConfidence, PickerElementInfo } from './dom/pickerTypes.js'

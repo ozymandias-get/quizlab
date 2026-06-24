@@ -1,9 +1,9 @@
-import { app } from 'electron'
+﻿import { app } from 'electron'
 import path from 'path'
 
-import { APP_CONFIG } from '../app/constants'
-import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager'
-import { Logger } from './logger'
+import { APP_CONFIG } from '../app/constants.js'
+import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager.js'
+import { Logger } from './logger.js'
 
 type CacheCategory = 'temp' | 'cache' | 'session-cache'
 

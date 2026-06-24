@@ -1,14 +1,14 @@
-import { app, clipboard, ipcMain, session, shell, webContents } from 'electron'
+﻿import { app, clipboard, ipcMain, session, shell, webContents } from 'electron'
 
-import { success } from '../../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../../app/constants'
-import { getMainWindow } from '../../app/windowManager'
-import { registerIpcHandler } from '../../core/typedIpcMain'
-import { runCleanup } from '../appCleanup'
-import { getCacheInfo, runManualCleanup } from '../cacheCleanup'
-import { requireTrustedIpcSender } from '../ipcSecurity'
-import { pushToLoggerBuffer } from '../logger'
-import { Logger } from '../logger'
+import { success } from '../../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import { getMainWindow } from '../../app/windowManager.js'
+import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { runCleanup } from '../appCleanup.js'
+import { getCacheInfo, runManualCleanup } from '../cacheCleanup/index.js'
+import { requireTrustedIpcSender } from '../ipcSecurity.js'
+import { pushToLoggerBuffer } from '../logger.js'
+import { Logger } from '../logger.js'
 import {
   clearSafeCacheDirectories,
   getAllPartitions,
@@ -19,8 +19,8 @@ import {
   protectedPartitions,
   resolveAiModelPartition,
   setCachedCacheInfo
-} from './cache'
-import { sanitizeClipboardText } from './clipboard'
+} from './cache.js'
+import { sanitizeClipboardText } from './clipboard.js'
 
 const { IPC_CHANNELS } = APP_CONFIG
 let handlersRegistered = false

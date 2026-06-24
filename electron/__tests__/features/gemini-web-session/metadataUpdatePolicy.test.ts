@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tests for electron/features/gemini-web-session/metadataUpdatePolicy.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -60,7 +60,7 @@ vi.mock('../../../../electron/features/gemini-web-session/sessionMetadataReposit
 }))
 
 const { MetadataUpdatePolicy } =
-  await import('../../../../electron/features/gemini-web-session/metadataUpdatePolicy')
+  await import('../../../../electron/features/gemini-web-session/metadataUpdatePolicy.js')
 
 describe('MetadataUpdatePolicy', () => {
   let policy: InstanceType<typeof MetadataUpdatePolicy>

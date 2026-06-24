@@ -1,11 +1,11 @@
-import type { DisplayMediaRequestHandlerHandlerRequest, Streams } from 'electron'
+﻿import type { DisplayMediaRequestHandlerHandlerRequest, Streams } from 'electron'
 import { BrowserWindow, desktopCapturer, session } from 'electron'
 
-import { markPartitionActive } from '../../core/cacheRegistry'
-import { Logger } from '../../core/logger'
-import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager'
-import { APP_CONFIG } from '../constants'
-import { showDisplayMediaPicker } from '../displayMediaPicker'
+import { markPartitionActive } from '../../core/cacheRegistry.js'
+import { Logger } from '../../core/logger.js'
+import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
+import { APP_CONFIG } from '../constants.js'
+import { showDisplayMediaPicker } from '../displayMediaPicker.js'
 
 const ALLOWED_DEFAULT_PERMISSIONS = new Set(['notifications', 'media'])
 const ALLOWED_AI_PERMISSIONS = new Set(['notifications', 'media', 'geolocation', 'display-capture'])

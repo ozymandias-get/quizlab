@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
   GeminiWebSessionStatus
@@ -6,15 +6,15 @@ import type {
 
 import type { Session } from 'electron'
 
-import { Logger } from '../../core/logger'
-import type { ProbeRunner } from './probeRunner'
-import type { ProfileLock } from './profileLock'
-import { HEALTH_TIMEOUT_MS } from './sessionConfig'
-import { toErrorMessage } from './sessionErrors'
-import type { SessionMetadataRepository } from './sessionMetadataRepository'
-import type { SessionSnapshotRepository } from './sessionSnapshotRepository'
-import { nowIso } from './sessionUtils'
-import { applyProbeTransition } from './stateMachine'
+import { Logger } from '../../core/logger.js'
+import type { ProbeRunner } from './probeRunner.js'
+import type { ProfileLock } from './profileLock.js'
+import { HEALTH_TIMEOUT_MS } from './sessionConfig.js'
+import { toErrorMessage } from './sessionErrors.js'
+import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
+import type { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
+import { nowIso } from './sessionUtils.js'
+import { applyProbeTransition } from './stateMachine.js'
 
 export interface LoginFlowContext {
   metadataRepository: SessionMetadataRepository

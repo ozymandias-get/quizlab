@@ -1,7 +1,7 @@
-import type { AutomationConfig } from '@shared-core/types'
+﻿import type { AutomationConfig } from '@shared-core/types'
 
-import { serializeAutomationConfig } from '../../scripts/config'
-import { createScriptPreamble, normalizeMs } from '../preamble'
+import { serializeAutomationConfig } from '../../scripts/config.js'
+import { createScriptPreamble, normalizeMs } from '../preamble.js'
 
 /**
  * Wait-for-submit-ready script

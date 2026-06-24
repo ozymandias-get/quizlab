@@ -1,6 +1,6 @@
-import type { AutomationConfig } from '@shared-core/types'
+﻿import type { AutomationConfig } from '@shared-core/types'
 
-import { normalizeSubmitMode } from '../../../../shared/selectorConfig'
+import { normalizeSubmitMode } from '../../../../shared/selectorConfig.js'
 
 interface ScriptLookupConfig {
   selectors: string[]

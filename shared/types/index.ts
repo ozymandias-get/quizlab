@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared Types - Single Source of Truth
  * These types are used by both electron (backend) and src (frontend)
  *
@@ -6,7 +6,7 @@
  * Import from '@shared-core/types' as before — this barrel re-exports everything.
  */
 
-export type { IpcError, IpcErrorCode, IpcResult } from '../lib/typedIpc'
+export type { IpcError, IpcErrorCode, IpcResult } from '../lib/typedIpc.js'
 export type {
   AiPlatform,
   AiPlatformMeta,
@@ -16,8 +16,8 @@ export type {
   CustomAiInput,
   CustomAiResult,
   InactivePlatforms
-} from './ai'
-export type { ApiChatMessage, ApiConfig, ApiProviderConfig } from './apiChat'
+} from './ai.js'
+export type { ApiChatMessage, ApiConfig, ApiProviderConfig } from './apiChat.js'
 export type {
   AiSelectorConfig,
   AutomationConfig,
@@ -28,8 +28,8 @@ export type {
   SelectorHealth,
   SubmitMode,
   TextInputMode
-} from './automation'
-export { TEXT_INPUT_MODE_VALUES } from './automation'
+} from './automation.js'
+export { TEXT_INPUT_MODE_VALUES } from './automation.js'
 export type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
@@ -40,23 +40,23 @@ export type {
   GeminiWebSessionStatus,
   HealthCheckResult,
   SessionActionLike
-} from './gemini-web'
+} from './gemini-web.js'
 export type {
   CacheInfoResponse,
   ElectronApi,
   IpcInvokeChannel,
   IpcInvokeRequestMap
-} from './ipcContract'
+} from './ipcContract.js'
 export type {
   ChromeExtensionCookie,
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo
-} from './native-messaging'
+} from './native-messaging.js'
 export type {
   PdfFile,
   PdfSelection,
   PdfSelectOptions,
   PdfStreamResult,
   PdfViewerZoomAction
-} from './pdf'
-export type { ScreenshotType, UpdateCheckResult } from './system'
+} from './pdf.js'
+export type { ScreenshotType, UpdateCheckResult } from './system.js'

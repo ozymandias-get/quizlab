@@ -1,23 +1,23 @@
-import type { AutomationConfig, TextInputMode } from '@shared-core/types'
+﻿import type { AutomationConfig, TextInputMode } from '@shared-core/types'
 import type {
   AutomationScriptAction,
   AutomationScriptArgsByAction,
   AutomationScriptInvokeArgs
 } from '@shared-core/types/ipcContract'
 
-import { failure, success } from '../../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../../app/constants'
-import { requireTrustedIpcSender } from '../../core/ipcSecurity'
-import { Logger } from '../../core/logger'
-import { registerIpcHandler } from '../../core/typedIpcMain'
+import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../../app/constants.js'
+import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
+import { Logger } from '../../core/logger.js'
+import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import {
   generateAutoSendScript,
   generateClickSendScript,
   generateFocusScript,
   generateValidateSelectorsScript,
   generateWaitForSubmitReadyScript
-} from './automationScripts'
-import { generatePickerScript } from './userElementPicker'
+} from './automationScripts.js'
+import { generatePickerScript } from './userElementPicker.js'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null

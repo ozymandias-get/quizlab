@@ -1,14 +1,14 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 
-import aistudioPlatform from '../../../../features/ai/platforms/aistudio'
-import chatgptPlatform from '../../../../features/ai/platforms/chatgpt'
-import claudePlatform from '../../../../features/ai/platforms/claude'
-import deepseekPlatform from '../../../../features/ai/platforms/deepseek'
-import geminiPlatform from '../../../../features/ai/platforms/gemini'
-import kimiPlatform from '../../../../features/ai/platforms/kimi'
-import m365Platform from '../../../../features/ai/platforms/m365'
-import qwenPlatform from '../../../../features/ai/platforms/qwen'
-import youtubePlatform from '../../../../features/ai/platforms/youtube'
+import aistudioPlatform from '../../../../features/ai/platforms/aistudio.js'
+import chatgptPlatform from '../../../../features/ai/platforms/chatgpt.js'
+import claudePlatform from '../../../../features/ai/platforms/claude.js'
+import deepseekPlatform from '../../../../features/ai/platforms/deepseek.js'
+import geminiPlatform from '../../../../features/ai/platforms/gemini.js'
+import kimiPlatform from '../../../../features/ai/platforms/kimi.js'
+import m365Platform from '../../../../features/ai/platforms/m365.js'
+import qwenPlatform from '../../../../features/ai/platforms/qwen.js'
+import youtubePlatform from '../../../../features/ai/platforms/youtube.js'
 
 const platforms = {
   gemini: geminiPlatform,

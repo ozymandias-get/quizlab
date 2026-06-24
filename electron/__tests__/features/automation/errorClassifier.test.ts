@@ -1,10 +1,10 @@
-import {
+﻿import {
   classifyAutomationError,
   errorCategoryOf,
   isRetryable,
   normalizeErrorCode,
   shouldRequestRepick
-} from '../../../../shared/lib/errorClassifier'
+} from '../../../../shared/lib/errorClassifier.js'
 
 import { describe, expect, it } from 'vitest'
 

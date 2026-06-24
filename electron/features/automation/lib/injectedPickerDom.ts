@@ -1,4 +1,4 @@
-import {
+﻿import {
   buildCssCandidates,
   buildHostChain,
   buildLocalPath,
@@ -15,7 +15,7 @@ import {
   isElementContentEditable,
   normalizeText,
   pushCandidate
-} from './dom/pickerDomRuntime'
+} from './dom/pickerDomRuntime.js'
 
 /**
  * Picker webview script runs in isolation; DOM helpers are emitted as named function sources

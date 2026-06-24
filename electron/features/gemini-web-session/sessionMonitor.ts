@@ -1,6 +1,6 @@
-import type { Session } from 'electron'
+﻿import type { Session } from 'electron'
 
-import type { CookieExpiryCheckResult } from './sessionContracts'
+import type { CookieExpiryCheckResult } from './sessionContracts.js'
 
 const GOOGLE_AUTH_COOKIE_NAMES = new Set([
   'SID',

@@ -1,9 +1,9 @@
-import { promises as fs } from 'fs'
+﻿import { promises as fs } from 'fs'
 import path from 'path'
 
-import { APP_CONFIG } from '../../app/constants'
-import type { CacheFileEntry } from '../cacheMonitor'
-import { isProtectedPath, isSymlinkSafe } from '../cacheRegistry'
+import { APP_CONFIG } from '../../app/constants.js'
+import type { CacheFileEntry } from '../cacheMonitor.js'
+import { isProtectedPath, isSymlinkSafe } from '../cacheRegistry.js'
 
 const { BATCH_DELETE_SIZE, TEMP_FILE_TTL_MS } = APP_CONFIG.CLEANUP
 const DELETE_CONCURRENCY = 8

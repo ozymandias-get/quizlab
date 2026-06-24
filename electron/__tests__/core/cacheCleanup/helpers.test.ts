@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatBytes } from '../../../core/cacheCleanup/cacheCleanupHelpers'
+import { formatBytes } from '../../../core/cacheCleanup/cacheCleanupHelpers.js'
 
 describe('formatBytes', () => {
   it('formats bytes as B', () => {
@@ -28,19 +28,19 @@ describe('safeDeleteFile', () => {
   })
 
   it('returns false for paths outside userData', async () => {
-    const { safeDeleteFile } = await import('../../../core/cacheCleanup/cacheCleanupHelpers')
+    const { safeDeleteFile } = await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
     const result = await safeDeleteFile('/etc/passwd', '/tmp/userdata')
     expect(result).toBe(false)
   })
 
   it('returns false for protected paths', async () => {
-    const { safeDeleteFile } = await import('../../../core/cacheCleanup/cacheCleanupHelpers')
+    const { safeDeleteFile } = await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
     const result = await safeDeleteFile('/tmp/userdata/Config', '/tmp/userdata')
     expect(result).toBe(false)
   })
 
   it('returns false for non-existent files', async () => {
-    const { safeDeleteFile } = await import('../../../core/cacheCleanup/cacheCleanupHelpers')
+    const { safeDeleteFile } = await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
     const result = await safeDeleteFile('/tmp/userdata/nonexistent.txt', '/tmp/userdata')
     expect(result).toBe(false)
   })
@@ -48,7 +48,7 @@ describe('safeDeleteFile', () => {
 
 describe('deleteBatch', () => {
   it('returns zero results for empty batch', async () => {
-    const { deleteBatch } = await import('../../../core/cacheCleanup/cacheCleanupHelpers')
+    const { deleteBatch } = await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
     const result = await deleteBatch([], '/tmp/userdata')
     expect(result).toEqual({ deleted: 0, freed: 0, errors: 0 })
   })
@@ -57,7 +57,7 @@ describe('deleteBatch', () => {
 describe('deleteDirectoryContents', () => {
   it('returns zero results for non-existent directory', async () => {
     const { deleteDirectoryContents } =
-      await import('../../../core/cacheCleanup/cacheCleanupHelpers')
+      await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
     const result = await deleteDirectoryContents('/tmp/userdata/nonexistent', '/tmp/userdata')
     expect(result).toEqual({ deleted: 0, freed: 0, errors: 0 })
   })
@@ -66,7 +66,7 @@ describe('deleteDirectoryContents', () => {
 describe('cleanupOrphanedTempFiles', () => {
   it('returns zero results for non-existent userData path', async () => {
     const { cleanupOrphanedTempFiles } =
-      await import('../../../core/cacheCleanup/cacheCleanupHelpers')
+      await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
     const result = await cleanupOrphanedTempFiles('/tmp/userdata/nonexistent')
     expect(result).toEqual({ deleted: 0, freed: 0, errors: 0 })
   })

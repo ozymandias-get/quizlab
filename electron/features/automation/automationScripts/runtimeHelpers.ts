@@ -1,13 +1,13 @@
-import { getBaseHelpers } from './lib/baseHelpers'
-import { cachingHelpers } from './lib/cachingHelpers'
-import { confidenceScoring } from './lib/confidenceScoring'
-import { domSearchHelpers } from './lib/domSearchHelpers'
-import { errorClassifierRuntime } from './lib/errorClassifierRuntime'
-import { eventDrivenWaitRuntime } from './lib/eventDrivenWait'
-import { fallbackHeuristics } from './lib/fallbackHeuristics'
-import { interactionHelpers } from './lib/interactionHelpers'
-import { selectorEngine } from './lib/selectorEngine'
-import { siteStrategyRuntime } from './lib/siteStrategyRegistry'
+﻿import { getBaseHelpers } from './lib/baseHelpers.js'
+import { cachingHelpers } from './lib/cachingHelpers.js'
+import { confidenceScoring } from './lib/confidenceScoring.js'
+import { domSearchHelpers } from './lib/domSearchHelpers.js'
+import { errorClassifierRuntime } from './lib/errorClassifierRuntime.js'
+import { eventDrivenWaitRuntime } from './lib/eventDrivenWait.js'
+import { fallbackHeuristics } from './lib/fallbackHeuristics.js'
+import { interactionHelpers } from './lib/interactionHelpers.js'
+import { selectorEngine } from './lib/selectorEngine.js'
+import { siteStrategyRuntime } from './lib/siteStrategyRegistry.js'
 
 export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject'): string {
   return [

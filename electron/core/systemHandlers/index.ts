@@ -1,1 +1,1 @@
-export { registerSystemHandlers } from './handlers'
+﻿export { registerSystemHandlers } from './handlers.js'

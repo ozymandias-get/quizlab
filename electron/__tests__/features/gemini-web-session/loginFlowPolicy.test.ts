@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tests for electron/features/gemini-web-session/loginFlowPolicy.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -69,7 +69,7 @@ vi.mock('../../../../electron/features/gemini-web-session/sessionErrors', () => 
 }))
 
 const { LoginFlowPolicy } =
-  await import('../../../../electron/features/gemini-web-session/loginFlowPolicy')
+  await import('../../../../electron/features/gemini-web-session/loginFlowPolicy.js')
 
 describe('LoginFlowPolicy', () => {
   let policy: InstanceType<typeof LoginFlowPolicy>

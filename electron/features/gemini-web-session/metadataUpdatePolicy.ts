@@ -1,11 +1,11 @@
-import type { HealthCheckResult, SessionActionLike } from '@shared-core/types'
+﻿import type { HealthCheckResult, SessionActionLike } from '@shared-core/types'
 
-import { toStrictBoolean } from '../../core/ipcPayloadGuards'
-import { FEATURE_ENABLED } from './sessionConfig'
-import { logSuppressedError } from './sessionErrors'
-import { sanitizeEnabledAppIds, type SessionMetadataRepository } from './sessionMetadataRepository'
-import type { SessionMonitor } from './sessionMonitor'
-import { nowIso } from './sessionUtils'
+import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'
+import { FEATURE_ENABLED } from './sessionConfig.js'
+import { logSuppressedError } from './sessionErrors.js'
+import { sanitizeEnabledAppIds, type SessionMetadataRepository } from './sessionMetadataRepository.js'
+import type { SessionMonitor } from './sessionMonitor.js'
+import { nowIso } from './sessionUtils.js'
 
 export interface MetadataUpdateContext {
   metadataRepository: SessionMetadataRepository

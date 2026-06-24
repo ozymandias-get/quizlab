@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { APP_CONFIG } from '../../app/constants'
+import { APP_CONFIG } from '../../app/constants.js'
 
 const ipcHandle = vi.fn()
 const appGetVersion = vi.fn(() => '1.0.0')

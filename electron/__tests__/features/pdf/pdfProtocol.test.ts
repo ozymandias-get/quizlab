@@ -1,7 +1,7 @@
-import path from 'path'
+﻿import path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { APP_CONFIG } from '../../../app/constants'
+import { APP_CONFIG } from '../../../app/constants.js'
 
 const ipcHandle = vi.fn()
 const showOpenDialog = vi.fn()

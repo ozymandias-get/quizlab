@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   AiSelectorConfig,
   AutomationElementFingerprint,
   SelectorHealth
@@ -8,10 +8,10 @@ import {
   canonicalizeHostname,
   normalizeSelectorHealth,
   normalizeSubmitMode
-} from '../../../shared/selectorConfig'
-import type { ConfigManager } from '../../core/ConfigManager'
-import { CONFIG_KEYS, CONFIG_VERSION } from './aiConfigConstants'
-import { normalizeHostname, sanitizeConfig } from './aiConfigSanitize'
+} from '../../../shared/selectorConfig.js'
+import type { ConfigManager } from '../../core/ConfigManager.js'
+import { CONFIG_KEYS, CONFIG_VERSION } from './aiConfigConstants.js'
+import { normalizeHostname, sanitizeConfig } from './aiConfigSanitize.js'
 
 export type StoredAiConfig = AiSelectorConfig & { timestamp?: number }
 export type AiConfigMap = Record<string, StoredAiConfig>

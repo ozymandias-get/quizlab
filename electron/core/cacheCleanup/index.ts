@@ -1,15 +1,15 @@
-import { app } from 'electron'
+﻿import { app } from 'electron'
 
-import { APP_CONFIG } from '../../app/constants'
-import { measureCacheBreakdown } from '../cacheMonitor'
-import { Logger } from '../logger'
-import { cleanupOrphanedTempFiles, formatBytes } from './cacheCleanupHelpers'
-import { isIdleState, startIdleDetection, stopIdleDetection } from './idle'
-import { cleanupExpiredCacheFiles, enforceSizeLimits } from './operations'
-import type { CacheInfo, CleanupResult } from './types'
+import { APP_CONFIG } from '../../app/constants.js'
+import { measureCacheBreakdown } from '../cacheMonitor.js'
+import { Logger } from '../logger.js'
+import { cleanupOrphanedTempFiles, formatBytes } from './cacheCleanupHelpers.js'
+import { isIdleState, startIdleDetection, stopIdleDetection } from './idle.js'
+import { cleanupExpiredCacheFiles, enforceSizeLimits } from './operations.js'
+import type { CacheInfo, CleanupResult } from './types.js'
 
-export { startIdleDetection, stopIdleDetection } from './idle'
-export type { CacheInfo, CleanupResult } from './types'
+export { startIdleDetection, stopIdleDetection } from './idle.js'
+export type { CacheInfo, CleanupResult } from './types.js'
 
 const { MAX_TOTAL_CACHE_BYTES } = APP_CONFIG.CLEANUP
 const STARTUP_CLEANUP_COOLDOWN_MS = 4 * 60 * 60 * 1000 // 4 saat

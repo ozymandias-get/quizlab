@@ -1,9 +1,9 @@
-import { constants as fsConstants, promises as fs } from 'fs'
+﻿import { constants as fsConstants, promises as fs } from 'fs'
 import type { FileHandle } from 'fs/promises'
 
-import type { LockResult } from './sessionContracts'
-import { logSuppressedError } from './sessionErrors'
-import { isProcessAlive, nowIso } from './sessionUtils'
+import type { LockResult } from './sessionContracts.js'
+import { logSuppressedError } from './sessionErrors.js'
+import { isProcessAlive, nowIso } from './sessionUtils.js'
 
 export class ProfileLock {
   private readonly lockPath: string

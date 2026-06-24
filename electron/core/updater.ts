@@ -1,10 +1,10 @@
-import { app, net, shell } from 'electron'
+﻿import { app, net, shell } from 'electron'
 
-import { failure, success } from '../../shared/lib/typedIpc'
-import { APP_CONFIG } from '../app/constants'
-import { requireTrustedIpcSender } from './ipcSecurity'
-import { Logger } from './logger'
-import { registerIpcHandler } from './typedIpcMain'
+import { failure, success } from '../../shared/lib/typedIpc.js'
+import { APP_CONFIG } from '../app/constants.js'
+import { requireTrustedIpcSender } from './ipcSecurity.js'
+import { Logger } from './logger.js'
+import { registerIpcHandler } from './typedIpcMain.js'
 
 type LatestRelease = {
   version: string

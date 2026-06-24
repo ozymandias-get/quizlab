@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   ChromeExtensionCookie,
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo
@@ -11,11 +11,11 @@ import http from 'http'
 import type { AddressInfo } from 'net'
 import path from 'path'
 
-import { APP_CONFIG } from '../../app/constants'
-import { Logger } from '../../core/logger'
-import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig'
-import { importExternalCookies } from '../gemini-web-session/sessionCookies'
-import { geminiWebSessionManager } from '../gemini-web-session/sessionManager'
+import { APP_CONFIG } from '../../app/constants.js'
+import { Logger } from '../../core/logger.js'
+import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig.js'
+import { importExternalCookies } from '../gemini-web-session/sessionCookies.js'
+import { geminiWebSessionManager } from '../gemini-web-session/sessionManager.js'
 import {
   BRIDGE_PORT,
   BRIDGE_SECRET_HEADER,
@@ -24,7 +24,7 @@ import {
   HMAC_HEADER,
   isAllowedOrigin,
   MAX_COOKIE_BODY_SIZE
-} from './nativeMessagingTypes'
+} from './nativeMessagingTypes.js'
 
 class NativeMessagingManager {
   private httpServer: http.Server | null = null

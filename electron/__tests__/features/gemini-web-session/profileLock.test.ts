@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ProfileLock } from '../../../features/gemini-web-session/profileLock'
+import { ProfileLock } from '../../../features/gemini-web-session/profileLock.js'
 
 const fsMocks = vi.hoisted(() => ({
   writeFile: vi.fn(),

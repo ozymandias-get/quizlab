@@ -1,6 +1,6 @@
-import { ipcMain, type IpcMainInvokeEvent } from 'electron'
+﻿import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 
-import type { IpcInvokeChannel, IpcInvokeRequestMap } from '../../shared/types/ipcContract'
+import type { IpcInvokeChannel, IpcInvokeRequestMap } from '../../shared/types/ipcContract.js'
 
 type HandlerFn<C extends IpcInvokeChannel> = (
   event: IpcMainInvokeEvent,

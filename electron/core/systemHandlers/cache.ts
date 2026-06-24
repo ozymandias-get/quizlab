@@ -1,12 +1,12 @@
-import { app, session } from 'electron'
+﻿import { app, session } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { APP_CONFIG } from '../../app/constants'
-import { getMainWindow } from '../../app/windowManager'
-import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager'
-import type { getCacheInfo } from '../cacheCleanup'
-import { Logger } from '../logger'
+import { APP_CONFIG } from '../../app/constants.js'
+import { getMainWindow } from '../../app/windowManager.js'
+import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
+import type { getCacheInfo } from '../cacheCleanup/index.js'
+import { Logger } from '../logger.js'
 
 const SAFE_CACHE_DIRS = APP_CONFIG.CLEANUP.SAFE_CACHE_DIRS
 const MODEL_STORAGE_TYPES = [...APP_CONFIG.CLEANUP.PARTITION_STORAGE_TYPES] as const

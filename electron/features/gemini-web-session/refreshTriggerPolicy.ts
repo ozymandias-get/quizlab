@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   GeminiWebSessionConfig,
   GeminiWebSessionRefreshReason,
   GeminiWebSessionStatus
@@ -6,16 +6,16 @@ import type {
 
 import type { Session } from 'electron'
 
-import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps'
-import { isGoogleLoginRedirectUrl } from './authHeuristics'
-import type { ProfileLock } from './profileLock'
-import { FEATURE_ENABLED } from './sessionConfig'
-import type { ReactiveRefreshSignal, RefreshEventEmitter } from './sessionContracts'
-import { logSuppressedError } from './sessionErrors'
-import type { SessionMetadataRepository } from './sessionMetadataRepository'
-import type { SessionRecovery } from './sessionRecovery'
-import { nowIso } from './sessionUtils'
-import { applyProbeTransition } from './stateMachine'
+import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps.js'
+import { isGoogleLoginRedirectUrl } from './authHeuristics.js'
+import type { ProfileLock } from './profileLock.js'
+import { FEATURE_ENABLED } from './sessionConfig.js'
+import type { ReactiveRefreshSignal, RefreshEventEmitter } from './sessionContracts.js'
+import { logSuppressedError } from './sessionErrors.js'
+import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
+import type { SessionRecovery } from './sessionRecovery.js'
+import { nowIso } from './sessionUtils.js'
+import { applyProbeTransition } from './stateMachine.js'
 
 const REACTIVE_REFRESH_DEBOUNCE_MS = 1_500
 

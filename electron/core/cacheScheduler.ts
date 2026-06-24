@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cache Zamanlayıcı (Scheduler)
  *
  * Önbellek temizliğini periyodik olarak tetikler:
@@ -17,8 +17,8 @@ import {
   runQuickCheck,
   startIdleDetection,
   stopIdleDetection
-} from './cacheCleanup'
-import { Logger } from './logger'
+} from './cacheCleanup/index.js'
+import { Logger } from './logger.js'
 
 const FOREGROUND_CHECK_INTERVAL_MS = 15 * 60 * 1000 // 15 dakika
 const IDLE_REPEAT_INTERVAL_MS = 30 * 60 * 1000 // 30 dakika
