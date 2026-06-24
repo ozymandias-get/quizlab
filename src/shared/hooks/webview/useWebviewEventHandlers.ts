@@ -158,13 +158,9 @@ export function useWebviewEventHandlers({
       const isSameOrigin = currentOrigin === targetUrl.origin
 
       if (isSameOrigin) {
-        try {
-          await activeWebviewRef.current?.loadURL?.(url)
-        } catch {
-          await activeWebviewRef.current
-            ?.executeJavaScript(`window.location.href = ${JSON.stringify(url)}`)
-            .catch(() => {})
-        }
+        // SECURITY: Only use loadURL — never executeJavaScript as fallback.
+        // executeJavaScript(code) is equivalent to eval() in the guest context.
+        await activeWebviewRef.current?.loadURL?.(url).catch(() => {})
         return
       }
 
