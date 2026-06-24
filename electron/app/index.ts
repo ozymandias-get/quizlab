@@ -32,7 +32,6 @@ app.commandLine.appendSwitch(
   'StorageAccessAPI,AutofillServerCommunication,VaapiVideoDecoder,VaapiVideoEncoder,CalculateNativeWinOcclusion,Vulkan'
 )
 app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization')
-app.commandLine.appendSwitch('disable-site-isolation-trials')
 
 if (getProfileName() === 'stable') {
   const gotTheLock = app.requestSingleInstanceLock()
