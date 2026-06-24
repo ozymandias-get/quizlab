@@ -16,4 +16,4 @@ export default {
     domainRegex: '^https://m365\\.cloud\\.microsoft/chat(/.*)?(\\?.*)?$',
     imageWaitTime: 2000
   }
-}
+} as const

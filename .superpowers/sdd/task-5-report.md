@@ -1,28 +1,29 @@
-# Task 5: Add Encrypted Fallback for Linux When `safeStorage` Is Unavailable
+# Task 5: Extract PdfPageNav and PdfZoomControls - Report
 
-## What I Implemented
+## What I implemented
 
-Replaced `electron/core/encryption.ts` with an implementation that adds AES-256-GCM fallback encryption:
+- **Created `PdfPageNav.tsx`** — extracted page navigation section (prev/next buttons, page number input with editing state) into a standalone component. Moved internal state (`isEditingPage`, `pageInputValue`) and callbacks (`startPageInput`, `submitPageInput`, `cancelPageInput`) into the component.
+- **Created `PdfZoomControls.tsx`** — extracted zoom controls section (ZoomOut, CurrentScale, ZoomIn render props) into a standalone component. Exported `RenderChildProps`, `ZoomComponent`, and `CurrentScaleComponent` types for reuse by PdfToolbar.
+- **Updated `PdfToolbar.tsx`** — replaced extracted sections with `<PdfPageNav>` and `<PdfZoomControls>` imports. Removed unused imports (`Button`, `ChevronLeft`, `ChevronRight`, `ZoomInIcon`, `ZoomOutIcon`, `ComponentType`, `ReactElement`). Removed old type definitions and page editing state/callbacks.
 
-- **`getMachineDerivedKey()`** — derives a 32-byte key via PBKDF2 using `MACHINE_ID` env var, `COMPUTERNAME` (win32), or a fixed fallback
-- **`aesEncrypt()` / `aesDecrypt()`** — AES-256-GCM encrypt/decrypt with random IV and auth tag, stored with `aes:` prefix
-- **`encryptValue()`** — tries `safeStorage.encryptString` first, falls back to `aesEncrypt`, then plaintext as last resort
-- **`decryptValue()`** — handles `aes:` prefix (AES), `enc:` prefix (safeStorage), and legacy plaintext
+## Test results
 
-## What I Tested
+- `npx tsc --noEmit` — **PASS** (no errors)
 
-- Ran `npx tsc -b --force` — only pre-existing `normalizePdfText.ts` error, no new type errors from `encryption.ts`
+## Files changed
 
-## Files Changed
+- `src/features/pdf/ui/components/PdfPageNav.tsx` — **created** (112 lines)
+- `src/features/pdf/ui/components/PdfZoomControls.tsx` — **created** (78 lines)
+- `src/features/pdf/ui/components/PdfToolbar.tsx` — **modified** (348 → 213 lines, -135 lines)
 
-- `electron/core/encryption.ts` — 66 insertions, 49 deletions (full replacement)
+## Self-review findings
 
-## Self-Review Findings
+- ✅ Mechanical extraction — no behavioral changes, identical JSX structure preserved
+- ✅ Follows existing component patterns (`memo`, `useTranslation`, same class names)
+- ✅ Types exported from PdfZoomControls and imported by PdfToolbar
+- ✅ Prettier/eslint hooks ran successfully during commit
+- ✅ All pre-existing components (PdfSearchBar, PdfToolsPopup) unaffected
 
-- The `isEncryptionAvailable()` function is no longer exported (was previously private). This is fine — no other file imported it.
-- The `aesEncrypt` output format `aes:{ivBase64}:{authTagHex}:{ciphertextHex}` is clean and non-ambiguous since colons after the first two sections are part of the ciphertext.
-- PBKDF2 iteration count (100,000) is reasonable and matches current OWASP recommendations for non-critical keys.
-
-## Issues or Concerns
+## Concerns
 
 None.

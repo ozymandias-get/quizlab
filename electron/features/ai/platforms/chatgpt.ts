@@ -15,4 +15,4 @@ export default {
     submitMode: 'mixed',
     domainRegex: '^https://(chat\\.)?chatgpt\\.com(/.*)?$'
   }
-}
+} as const

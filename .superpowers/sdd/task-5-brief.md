@@ -1,124 +1,64 @@
-### Task 5: Add Encrypted Fallback for Linux When `safeStorage` Is Unavailable
+# Task 5: Extract PdfPageNav and PdfZoomControls from PdfToolbar.tsx
 
 **Files:**
 
-- Modify: `electron/core/encryption.ts`
+- Modify: `src/features/pdf/ui/components/PdfToolbar.tsx`
+- Create: `src/features/pdf/ui/components/PdfPageNav.tsx`
+- Create: `src/features/pdf/ui/components/PdfZoomControls.tsx`
 
-- [ ] **Step 1: Add AES-256-GCM fallback to encryption.ts**
+## Steps
 
-The current file has `const ENC_PREFIX = 'enc:'` at the top, `encryptValue()` returning plaintext on failure, and `decryptValue()` that returns plaintext for non-enc-prefixed values.
+### Step 1: Create PdfPageNav.tsx
 
-Replace the file content with this complete implementation:
+Extract the page navigation section (the section with ChevronLeft/ChevronRight buttons and the page number input) from PdfToolbar.tsx into a separate component.
+
+Read PdfToolbar.tsx first. The page nav section is roughly lines 238-296 (the div with `className="flex items-center gap-2"` that contains the page navigation buttons and page counter).
+
+Key props it needs:
+
+- `currentPage: number`
+- `totalPages: number`
+- `onPreviousPage: () => void`
+- `onNextPage: () => void`
+- `onJumpToPage: (page: number) => void`
+
+Use the same styling approach as PdfToolbar (glass-tier-3 classes, motion buttons, same button patterns).
+
+### Step 2: Create PdfZoomControls.tsx
+
+Extract the zoom controls section (the section with ZoomOut/ZoomIn buttons and CurrentScale display) from PdfToolbar.tsx into a separate component.
+
+This is roughly lines 298-342 (the div with zoom buttons and scale display).
+
+Key props it needs:
+
+- `ZoomIn: ZoomComponent` (render prop component)
+- `ZoomOut: ZoomComponent` (render prop component)
+- `CurrentScale: CurrentScaleComponent` (render prop component)
+- `t: (key: string) => string`
+
+Use the same types:
 
 ```typescript
-import { safeStorage } from 'electron'
-import crypto from 'crypto'
-
-import { Logger } from './logger'
-
-const ENC_PREFIX = 'enc:'
-const AES_PREFIX = 'aes:'
-
-function getMachineDerivedKey(): Buffer {
-  const machineId =
-    process.env.MACHINE_ID ||
-    (process.platform === 'win32' ? process.env.COMPUTERNAME : '') ||
-    'quizlab-default-fallback'
-  const salt = 'quizlab-aes-2024-v1'
-  return crypto.pbkdf2Sync(machineId, salt, 100000, 32, 'sha256')
+interface RenderChildProps {
+  onClick: () => void
+  scale?: number
 }
-
-function aesEncrypt(plaintext: string): string {
-  const key = getMachineDerivedKey()
-  const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
-  let encrypted = cipher.update(plaintext, 'utf8', 'hex')
-  encrypted += cipher.final('hex')
-  const authTag = cipher.getAuthTag().toString('hex')
-  return `${AES_PREFIX}${iv.toString('base64')}:${authTag}:${encrypted}`
-}
-
-function aesDecrypt(stored: string): string {
-  const withoutPrefix = stored.slice(AES_PREFIX.length)
-  const colon1 = withoutPrefix.indexOf(':')
-  const colon2 = withoutPrefix.indexOf(':', colon1 + 1)
-  if (colon1 === -1 || colon2 === -1) throw new Error('Invalid AES format')
-
-  const iv = Buffer.from(withoutPrefix.slice(0, colon1), 'base64')
-  const authTag = Buffer.from(withoutPrefix.slice(colon1 + 1, colon2), 'hex')
-  const encrypted = withoutPrefix.slice(colon2 + 1)
-  const key = getMachineDerivedKey()
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
-  decipher.setAuthTag(authTag)
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-  decrypted += decipher.final('utf8')
-  return decrypted
-}
-
-function isEncryptionAvailable(): boolean {
-  try {
-    return safeStorage.isEncryptionAvailable()
-  } catch {
-    return false
-  }
-}
-
-export function encryptValue(plaintext: string): string {
-  if (!plaintext) return plaintext
-
-  try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const encrypted = safeStorage.encryptString(plaintext)
-      return ENC_PREFIX + encrypted.toString('base64')
-    }
-  } catch (error) {
-    Logger.warn('[Encryption] safeStorage.encryptString failed:', error)
-  }
-
-  try {
-    return aesEncrypt(plaintext)
-  } catch (error) {
-    Logger.error('[Encryption] AES fallback encryption failed:', error)
-  }
-
-  Logger.warn('[Encryption] All encryption methods failed, storing plaintext')
-  return plaintext
-}
-
-export function decryptValue(stored: string): string {
-  if (!stored) return stored
-
-  if (stored.startsWith(AES_PREFIX)) {
-    try {
-      return aesDecrypt(stored)
-    } catch (error) {
-      Logger.error('[Encryption] AES fallback decryption failed:', error)
-      return ''
-    }
-  }
-
-  if (stored.startsWith(ENC_PREFIX)) {
-    try {
-      if (safeStorage.isEncryptionAvailable()) {
-        const base64Data = stored.slice(ENC_PREFIX.length)
-        const buffer = Buffer.from(base64Data, 'base64')
-        return safeStorage.decryptString(buffer)
-      }
-    } catch (error) {
-      Logger.error('[Encryption] safeStorage.decryptString failed:', error)
-    }
-    return ''
-  }
-
-  return stored
-}
+type ZoomComponent = ComponentType<{ children: (props: RenderChildProps) => ReactElement }>
+type CurrentScaleComponent = ComponentType<{ children: (props: { scale: number }) => ReactElement }>
 ```
 
-- [ ] **Step 2: Run typecheck**
+### Step 3: Update PdfToolbar.tsx
 
-Run: `npx tsc -b --force`
-Expected: Exit code 0 (ignore pre-existing normalizePdfText.ts error)
+Replace the extracted sections with imports and usage of PdfPageNav and PdfZoomControls.
 
-- [ ] **Step 3: Commit**
+### Step 4: Verify
 
-Run: `git add electron/core/encryption.ts && git commit -m "fix(security): add AES-256-GCM fallback encryption for Linux when safeStorage unavailable"`
+Run: `npx tsc --noEmit` and confirm no type errors.
+
+### Step 5: Commit
+
+```bash
+git add src/features/pdf/ui/components/PdfToolbar.tsx src/features/pdf/ui/components/PdfPageNav.tsx src/features/pdf/ui/components/PdfZoomControls.tsx
+git commit -m "refactor(PdfToolbar): extract PdfPageNav and PdfZoomControls into separate files"
+```

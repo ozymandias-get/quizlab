@@ -15,4 +15,4 @@ export default {
     submitMode: 'click',
     domainRegex: '^https://chat\\.(qwenlm|qwen)\\.ai(/.*)?$'
   }
-}
+} as const

@@ -15,4 +15,4 @@ export default {
     submitMode: 'click',
     domainRegex: '^https://claude\\.ai(/.*)?$'
   }
-}
+} as const

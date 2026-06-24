@@ -1,25 +1,26 @@
-# Task 10: Harden Electron Builder Configuration
+# Task 10 Report: Extract splash.html inline JavaScript
 
-**Status:** ✅ Complete
+## Status: DONE
 
-## Changes Made
+## Files Changed
 
-**File:** `package.json` (NSIS builder section)
-
-| Setting                    | Before  | After   | Rationale                                      |
-| -------------------------- | ------- | ------- | ---------------------------------------------- |
-| `allowElevation`           | `true`  | `false` | Don't auto-request admin privileges on install |
-| `deleteAppDataOnUninstall` | `false` | `true`  | Clean up app data when user uninstalls         |
+- **Created:** `src/public/scripts/splash.js` (42 lines) — extracted JavaScript wrapped in IIFE
+- **Modified:** `src/public/splash.html` — replaced inline `<script>` block with `<script src="scripts/splash.js"></script>`
 
 ## Commit
 
-```
-51ef117 fix(security): harden NSIS config — disable elevation, delete app data on uninstall
-```
+- `8d543c6` — `refactor: extract inline JS from splash.html into separate file`
 
 ## Verification
 
-- ✅ `allowElevation` changed from `true` to `false`
-- ✅ `deleteAppDataOnUninstall` changed from `false` to `true`
-- ✅ JSON syntax valid (no structural changes)
-- ✅ Package still valid (no new dependencies or structural breakage)
+- `splash.html`: inline script removed, external script tag added at line 46
+- `splash.js`: contains all original logic wrapped in IIFE to avoid global scope pollution
+  - Language detection and localization
+  - Status/subtitle text update
+  - Build version display from URL params
+  - Quit button visibility and click handler
+
+## Notes
+
+- The original HTML used `const` at the top level (no IIFE). The extracted file wraps code in an IIFE, which is functionally identical since the script runs at the end of `<body>` and only accesses DOM elements and `navigator`/`window` globals.
+- Pre-existing repo hygiene warnings (file size limits in unrelated source files) are not related to this change.

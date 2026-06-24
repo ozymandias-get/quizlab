@@ -16,4 +16,4 @@ export default {
     domainRegex: '^https://chat\\.deepseek\\.com(/.*)?$',
     imageWaitTime: 2000
   }
-}
+} as const
