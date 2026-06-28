@@ -17,14 +17,6 @@ const mocked = vi.hoisted(() => {
 
     nowIso: vi.fn(() => '2026-04-07T19:30:00.000Z'),
     Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    applyProbeTransition: vi.fn(({ previous, outcome, timestamp }) => ({
-      ...previous,
-      state: outcome?.healthy ? 'authenticated' : 'degraded',
-      reasonCode: outcome?.healthy ? 'none' : outcome?.kind || 'unknown',
-      lastCheckAt: timestamp,
-      lastHealthyAt: outcome?.healthy ? timestamp : previous.lastHealthyAt,
-      consecutiveFailures: outcome?.healthy ? 0 : (previous.consecutiveFailures ?? 0) + 1
-    })),
     readMetadata: vi.fn().mockResolvedValue({
       enabled: true,
       state: 'auth_required',
@@ -40,25 +32,13 @@ const mocked = vi.hoisted(() => {
     })),
     acquire: vi.fn().mockResolvedValue({ ok: true }),
     release: vi.fn().mockResolvedValue(undefined),
-    runProbeAcrossApps: vi.fn().mockResolvedValue({
-      outcome: { healthy: true, kind: 'none' },
-      accountHash: 'hash-1'
-    }),
-    shouldAttemptSilentRefresh: vi.fn(() => false),
-    runSilentRefreshProbe: vi.fn().mockResolvedValue({
-      outcome: { healthy: true, kind: 'none' },
-      accountHash: 'hash-2'
-    }),
+    runAutoProfileRecovery: vi.fn().mockResolvedValue({ success: true }),
     checkProfileHealth: vi.fn().mockResolvedValue({ overallHealthy: true })
   }
 })
 
 vi.mock('../../../../electron/features/gemini-web-session/sessionUtils', () => ({
   nowIso: mocked.nowIso
-}))
-
-vi.mock('../../../../electron/features/gemini-web-session/stateMachine', () => ({
-  applyProbeTransition: mocked.applyProbeTransition
 }))
 
 vi.mock('../../../../electron/features/gemini-web-session/sessionConfig', () => ({
@@ -90,10 +70,8 @@ describe('HealthCheckPolicy', () => {
         toPublicStatus: mocked.toPublicStatus
       },
       profileLock: { acquire: mocked.acquire, release: mocked.release },
-      probeRunner: { runProbeAcrossApps: mocked.runProbeAcrossApps },
       recovery: {
-        shouldAttemptSilentRefresh: mocked.shouldAttemptSilentRefresh,
-        runSilentRefreshProbe: mocked.runSilentRefreshProbe
+        runAutoProfileRecovery: mocked.runAutoProfileRecovery
       },
       config: { maxConsecutiveFailures: 3 },
       profileHealthChecker: { checkProfileHealth: mocked.checkProfileHealth }
@@ -122,38 +100,39 @@ describe('HealthCheckPolicy', () => {
       expect(mocked.writeStatus).not.toHaveBeenCalled()
     })
 
-    it('runs probe and writes healthy status on success', async () => {
-      const result = await policy.performHealthCheck({ allowRetry: false })
-      expect(mocked.runProbeAcrossApps).toHaveBeenCalledWith({
-        interactive: false,
-        timeoutMs: 30_000
-      })
-      expect(result.state).toBe('authenticated')
-    })
-
-    it('runs probe and writes degraded status on failure', async () => {
-      mocked.runProbeAcrossApps.mockResolvedValueOnce({
-        outcome: { healthy: false, kind: 'network' },
-        accountHash: undefined
-      })
-      const result = await policy.performHealthCheck({ allowRetry: false })
-      expect(result.state).toBe('degraded')
-    })
-
-    it('attempts silent refresh when recovery suggests it', async () => {
-      mocked.shouldAttemptSilentRefresh.mockReturnValueOnce(true)
-      mocked.runProbeAcrossApps.mockResolvedValueOnce({
-        outcome: { healthy: false, kind: 'network' },
-        accountHash: undefined
-      })
-      const result = await policy.performHealthCheck({ allowRetry: true })
-      expect(mocked.runSilentRefreshProbe).toHaveBeenCalled()
-      expect(result.state).toBe('authenticated')
-    })
-
     it('runs profile health check', async () => {
       await policy.performHealthCheck({ allowRetry: false })
       expect(mocked.checkProfileHealth).toHaveBeenCalled()
+    })
+
+    it('runs auto recovery on profile health failure', async () => {
+      mocked.checkProfileHealth.mockResolvedValueOnce({
+        overallHealthy: false,
+        staleLockDetected: true,
+        profileDirAccessible: true,
+        profileSizeBytes: 0,
+        profileSizeWarning: false
+      })
+      const result = await policy.performHealthCheck({ allowRetry: false })
+      expect(mocked.runAutoProfileRecovery).toHaveBeenCalled()
+      expect(result.state).toBe('auth_required')
+    })
+
+    it('returns reauth_required when auto recovery fails', async () => {
+      mocked.runAutoProfileRecovery.mockResolvedValueOnce({
+        success: false,
+        error: 'recovery_failed'
+      })
+      mocked.checkProfileHealth.mockResolvedValueOnce({
+        overallHealthy: false,
+        staleLockDetected: true,
+        profileDirAccessible: true,
+        profileSizeBytes: 0,
+        profileSizeWarning: false
+      })
+      const result = await policy.performHealthCheck({ allowRetry: false })
+      expect(result.state).toBe('reauth_required')
+      expect(result.reasonCode).toBe('auto_profile_recovery')
     })
 
     it('deduplicates concurrent checks', async () => {
@@ -161,7 +140,7 @@ describe('HealthCheckPolicy', () => {
         policy.performHealthCheck({ allowRetry: false }),
         policy.performHealthCheck({ allowRetry: false })
       ])
-      expect(mocked.runProbeAcrossApps).toHaveBeenCalledTimes(1)
+      expect(mocked.checkProfileHealth).toHaveBeenCalledTimes(1)
     })
   })
 

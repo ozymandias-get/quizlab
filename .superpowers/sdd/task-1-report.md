@@ -1,27 +1,54 @@
-# Task 1 Report: Extract tsParticles config from sparkles.tsx
+# Task 1 Report: Update shared types + i18n
 
-## What I Implemented
+## What was implemented
 
-Extracted the large inline `ISourceOptions` config object from `SparklesCore` component into a dedicated `createSparklesOptions()` function in a new file `sparklesConfig.ts`.
+1. **`shared/types/native-messaging.ts`** — Added two optional fields to `NativeMessagingExtensionInfo`:
+   - `waitingSince: number | null` — timestamp (ms) when connecting state began
+   - `userHint: string | null` — localized hint text shown to user when waiting
 
-### Files Changed
+2. **`src/shared/i18n/locales/en/gws.json`** — Added 3 keys:
+   - `gws_extension_status_waiting`
+   - `gws_extension_status_waiting_long`
+   - `gws_extension_status_not_installed`
 
-- **Created:** `src/app/components/ui/sparklesConfig.ts` — new file with `createSparklesOptions(background, particleColor, particleDensity, minSize, maxSize, speed): ISourceOptions`
-- **Modified:** `src/app/components/ui/sparkles.tsx` — replaced inline options object with call to `createSparklesOptions()` imported from `./sparklesConfig`
+3. **`src/shared/i18n/locales/tr/gws.json`** — Added 3 keys (Turkish translations)
 
-### What I Tested
+4. **`electron/features/native-messaging/nativeMessagingManager.ts`** — Updated `getExtensionInfo()` to return the new fields; added `_waitingSince` and `_userHint` private fields; populate/reset them on all status transitions (connecting, connected, disconnected, error).
 
-1. **TypeScript compilation:** `npx tsc --noEmit` passed with no errors.
-2. **Pre-commit hooks:** ESLint passed (added `eslint-disable-next-line` comments for two existing `as any` casts that were carried over from original code). Prettier passed.
+## What was tested
 
-## Self-Review Findings
+- `npx tsc -b --noEmit` — Only pre-existing errors remain (unrelated to this change). The original errors about missing `waitingSince`/`userHint` in `nativeMessagingManager.ts` are resolved.
+- Pre-commit hooks (prettier, eslint, lint-staged) passed cleanly.
 
-- The config file preserves the exact same tsParticles configuration as the original inline object — no behavioral change.
-- Both `as any` casts (on `move.attract` rotate values and the `move` object itself) are preserved from original code with eslint suppression comments.
-- The function signature uses positional parameters matching the original usage order. This is fine since it's an internal-only function.
-- `sparkles.tsx` shrank from 436 lines to 66 lines. `sparklesConfig.ts` is 157 lines. Total net lines unchanged.
+## Commands run
 
-## Issues or Concerns
+```pwsh
+# Typecheck before fix (showed nativeMessagingManager errors)
+npx tsc -b --noEmit
 
-- The `as any` casts and eslint suppressions are carryovers from the original code, not introduced by this refactor. They could be cleaned up in a follow-up if someone wants to properly type the tsParticles move config.
-- Pre-existing non-blocking warnings from repo hygiene checks (file size limits on other files, missing CSS files for stylelint) are unrelated.
+# After updating nativeMessagingManager.ts
+npx tsc -b --noEmit  # only pre-existing errors remain
+
+# Stage and commit (lint-staged ran prettier + eslint)
+git add ...
+git commit -m "..."
+```
+
+## Files changed
+
+| File                                                           | Change                                        |
+| -------------------------------------------------------------- | --------------------------------------------- |
+| `shared/types/native-messaging.ts`                             | Added `waitingSince`, `userHint` to interface |
+| `electron/features/native-messaging/nativeMessagingManager.ts` | Implemented new fields with state tracking    |
+| `src/shared/i18n/locales/en/gws.json`                          | Added 3 i18n keys                             |
+| `src/shared/i18n/locales/tr/gws.json`                          | Added 3 i18n keys (Turkish)                   |
+
+## Self-review findings
+
+- **Type contract violation caught by typecheck**: The `getExtensionInfo()` return type was missing the new fields. Fixed by adding private fields `_waitingSince` and `_userHint`, updating all status-transition sites to populate/reset them.
+- All i18n keys match the brief exactly, formatting is consistent with existing keys (comma after each key-value).
+- All status transitions are handled (`'connecting'` → set timestamp + hint; `'connected'` | `'disconnected'` | `'error'` → reset to `null`).
+
+## Issues or concerns
+
+None. Pre-existing type errors (in `ApiChatPage.tsx`, `useApiChatPage.ts`, `automationScripts.test.ts`) are unrelated to this change.

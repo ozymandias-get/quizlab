@@ -1,23 +1,3 @@
-# SDD Progress Ledger
+﻿# Bridge Connection Reliability - Progress
 
-Started: 2026-06-24
-Base: 128b1ba6c4fab02296a3448fd9e04b73e805a1fe
-
-## Major Dependency Upgrades
-
-Task 1 (jscpd 4�5): complete (commit 9a93d79, review clean)
-Task 2 (@types/node 25�26): complete (commit e65932b, review clean)
-Task 3 (jsdom 28�29): complete (commit 3fccfa4, review clean)
-Task 4 (unicorn 56�65): complete (commit dc1b237 + a465b2e, review clean)
-Task 5 (react-hooks 5�7): complete (commit d603c76, review clean)
-Task 6 (lucide-react 0�1): complete (commit 64eff5e, review clean)
-Task 7 (lint-staged 16�17): complete (commit 067d5fb, review clean)
-Task 8 (eslint 9�10 + unicorn 65�68): complete (commit from subagent, review clean)
-Task 1: complete (commits 80082d2..cd87514, review clean)
-Task 2: complete (commits cd87514..cf86f79, review clean)
-Task 3: complete (commits cf86f79..c8a484b, review clean)
-Task 4: complete (commits c8a484b..f6ac6f1, review clean after fix)
-Task 5: complete (commits f6ac6f1..c8084a3, review clean)
-Task 7: complete (commits c8084a3..8921845, review clean)
-Task 8: complete (commits 8921845..f28c1dc, review clean)
-Task 10: complete (commits f28c1dc..8d543c6, review clean)
+Task 1: complete (commit f976944, spec compliant for brief files, nativeMessagingManager extra changes belong to plan design)

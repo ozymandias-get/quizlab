@@ -7,19 +7,15 @@
 import type { Session } from 'electron'
 
 import { Logger } from '../../core/logger.js'
-import type { ProbeRunner } from './probeRunner.js'
 import type { ProfileLock } from './profileLock.js'
-import { HEALTH_TIMEOUT_MS } from './sessionConfig.js'
 import { toErrorMessage } from './sessionErrors.js'
 import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
 import type { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
 import { nowIso } from './sessionUtils.js'
-import { applyProbeTransition } from './stateMachine.js'
 
 export interface LoginFlowContext {
   metadataRepository: SessionMetadataRepository
   profileLock: ProfileLock
-  probeRunner: ProbeRunner
   config: GeminiWebSessionConfig
   resolvePersistentSession: () => Session
   initialize: () => Promise<void>
@@ -37,10 +33,7 @@ export class LoginFlowPolicy {
       metadataRepository,
       profileLock,
       resolvePersistentSession,
-      probeRunner,
-      config,
       getStatus,
-      getAbortSignal,
       snapshotRepository
     } = this.context
     await initialize()
@@ -58,44 +51,26 @@ export class LoginFlowPolicy {
     }
 
     try {
-      const previous = await metadataRepository.readMetadata()
+      const targetSession = resolvePersistentSession()
+      const cookies = await targetSession.cookies.get({}).catch(() => [])
 
-      const probe = await probeRunner.runProbeAcrossApps({
-        interactive: false,
-        timeoutMs: HEALTH_TIMEOUT_MS
-      })
-      const transitioned = applyProbeTransition({
-        previous,
-        outcome: probe.outcome,
-        timestamp: nowIso(),
-        maxConsecutiveFailures: config.maxConsecutiveFailures
-      })
-
-      if (probe.outcome.healthy) {
-        const status = await metadataRepository.writeStatus(
-          { ...transitioned, state: 'authenticated' },
-          probe.accountHash || previous.accountHash
-        )
-        const targetSession = resolvePersistentSession()
-        const freshCookies = await targetSession.cookies.get({}).catch(() => [])
-        const freshSnapshot = { cookies: freshCookies, origins: [] }
+      if (cookies.length > 0) {
+        const freshSnapshot = { cookies, origins: [] }
         await snapshotRepository?.writeStorageStateSnapshot(freshSnapshot).catch(() => {})
+        const metadata = await metadataRepository.readMetadata()
+        const status = await metadataRepository.writeStatus(
+          { ...metadata, state: 'authenticated' },
+          metadata.accountHash
+        )
         return { success: true, status }
       }
 
+      const metadata = await metadataRepository.readMetadata()
       const status = await metadataRepository.writeStatus(
-        { ...transitioned, state: 'auth_required' },
-        previous.accountHash
+        { ...metadata, state: 'auth_required' },
+        metadata.accountHash
       )
-      const error =
-        probe.outcome.kind === 'challenge'
-          ? 'error_challenge_required'
-          : probe.outcome.kind === 'network'
-            ? 'error_network_login_failed'
-            : probe.timedOut
-              ? 'error_login_timeout'
-              : 'error_login_verification_failed'
-      return { success: false, error, status }
+      return { success: false, error: 'error_login_verification_failed', status }
     } catch (error: unknown) {
       const status = await getStatus()
       Logger.error('[GeminiWebSession] Login failed:', toErrorMessage(error, 'unknown_error'))

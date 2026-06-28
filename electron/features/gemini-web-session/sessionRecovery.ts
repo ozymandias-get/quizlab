@@ -1,36 +1,19 @@
 ﻿import type { Session } from 'electron'
-import { promises as fs } from 'fs'
-import path from 'path'
 
-import { GOOGLE_SIGNIN_URL } from './constants.js'
-import type { ProbeRunner } from './probeRunner.js'
-import {
-  HEALTH_TIMEOUT_MS,
-  REFRESH_GRACE_PERIOD_MS,
-  SILENT_REFRESH_COOLDOWN_MS,
-  SILENT_REFRESH_TIMEOUT_MS
-} from './sessionConfig.js'
-import type { ProbeExecutionResult } from './sessionContracts.js'
-import { importExternalCookies } from './sessionCookies.js'
 import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
 import type { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
-import type { ProbeOutcome } from './stateMachine.js'
 
 export class SessionRecovery {
-  private readonly probeRunner: ProbeRunner
   private readonly resolvePersistentSession: () => Session
   private readonly snapshotRepository: SessionSnapshotRepository | null
   private readonly metadataRepository: SessionMetadataRepository | null
   private lastSilentRefreshAttemptAt = 0
-  private lastRefreshSucceededAt = 0
 
   constructor(options: {
-    probeRunner: ProbeRunner
     resolvePersistentSession: () => Session
     snapshotRepository?: SessionSnapshotRepository | null
     metadataRepository?: SessionMetadataRepository | null
   }) {
-    this.probeRunner = options.probeRunner
     this.resolvePersistentSession = options.resolvePersistentSession
     this.snapshotRepository = options.snapshotRepository ?? null
     this.metadataRepository = options.metadataRepository ?? null
@@ -63,7 +46,6 @@ export class SessionRecovery {
 
   resetCooldowns(): void {
     this.lastSilentRefreshAttemptAt = 0
-    this.lastRefreshSucceededAt = 0
   }
 
   async runAutoProfileRecovery(): Promise<{ success: boolean; error?: string }> {
@@ -75,42 +57,5 @@ export class SessionRecovery {
         error: error instanceof Error ? error.message : 'auto_recovery_failed'
       }
     }
-  }
-
-  markRefreshSuccess(): void {
-    this.lastRefreshSucceededAt = Date.now()
-  }
-
-  isWithinRefreshGracePeriod(): boolean {
-    return Date.now() - this.lastRefreshSucceededAt < REFRESH_GRACE_PERIOD_MS
-  }
-
-  shouldAttemptSilentRefresh(outcome: ProbeOutcome, allowRetry: boolean): boolean {
-    if (!allowRetry) return false
-    if (outcome.healthy) return false
-    if (outcome.kind === 'network' || outcome.kind === 'challenge') return false
-    if (outcome.kind !== 'login_redirect' && outcome.kind !== 'unknown') return false
-
-    const now = Date.now()
-    if (now - this.lastSilentRefreshAttemptAt < SILENT_REFRESH_COOLDOWN_MS) {
-      return false
-    }
-    return true
-  }
-
-  async runSilentRefreshProbe(): Promise<ProbeExecutionResult> {
-    this.lastSilentRefreshAttemptAt = Date.now()
-
-    const signinProbe = await this.probeRunner.runProbe({
-      interactive: false,
-      timeoutMs: SILENT_REFRESH_TIMEOUT_MS,
-      initialUrl: GOOGLE_SIGNIN_URL
-    })
-    if (signinProbe.outcome.healthy) return signinProbe
-
-    return this.probeRunner.runProbeAcrossApps({
-      interactive: false,
-      timeoutMs: HEALTH_TIMEOUT_MS
-    })
   }
 }

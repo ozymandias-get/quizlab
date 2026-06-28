@@ -63,7 +63,7 @@ describe('SessionMetadataRepository', () => {
     expect(metadata.enabledAppIds).toEqual(['gemini'])
   })
 
-  it('returns error_gws_disabled action result when the user has disabled the feature', async () => {
+  it('returns error_gws_disabled result when user has disabled the session', async () => {
     const repository = new SessionMetadataRepository(join(tmpDir, 'session.json'))
     const metadata = {
       accountHash: null,
@@ -80,6 +80,7 @@ describe('SessionMetadataRepository', () => {
     expect(result).not.toBeNull()
     expect(result?.success).toBe(false)
     expect(result?.error).toBe('error_gws_disabled')
+    expect(result?.status.featureEnabled).toBe(true)
     expect(result?.status.enabled).toBe(false)
   })
 })

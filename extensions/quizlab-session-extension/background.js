@@ -1,9 +1,8 @@
 const BRIDGE_HOST = '127.0.0.1'
 const PORT_START = 51999
 const PORT_END = 52009
-const RECONNECT_INTERVAL_MS = 5000
-const MAX_RECONNECT_ATTEMPTS = 20
-const RECONNECT_ALARM = 'quizlabReconnect'
+const SCAN_INTERVAL_MS = 30000
+const SCAN_ALARM = 'quizlabScan'
 const HEARTBEAT_ALARM = 'quizlabHeartbeat'
 const HEARTBEAT_INTERVAL_MIN = 1
 
@@ -11,30 +10,19 @@ const GOOGLE_COOKIE_DOMAINS = ['.gemini.google.com', '.aistudio.google.com']
 
 let currentPort = PORT_START
 let connected = false
-let reconnectAttempts = 0
 let cookieDebounceTimer = null
 let bridgeSecret = null
 
-// Alarm-based reconnect state (survives SW termination in MV3)
-let persistentState = { reconnectAttempts: 0 }
-
-chrome.storage.session.get('bridgeState', (result) => {
-  if (result.bridgeState) {
-    persistentState = result.bridgeState
-    reconnectAttempts = persistentState.reconnectAttempts || 0
-  }
-})
+// --- Alarm-based reconnect (survives SW termination in MV3) ---
+// RULE: At least one alarm is always active so the SW can be woken.
+//   - Not connected: SCAN_ALARM fires every 30s to check for bridge
+//   - Connected:     HEARTBEAT_ALARM fires every 1min to keep alive
 
 chrome.storage.session.get('bridgeSecret', (result) => {
   if (result.bridgeSecret) {
     bridgeSecret = result.bridgeSecret
   }
 })
-
-function saveState() {
-  persistentState.reconnectAttempts = reconnectAttempts
-  chrome.storage.session.set({ bridgeState: persistentState }).catch(() => {})
-}
 
 async function computeHmac(body, secret) {
   const encoder = new TextEncoder()
@@ -54,6 +42,8 @@ async function computeHmac(body, secret) {
 
 async function sendCookiesToApp() {
   if (!connected) return
+
+  await fetchBridgeSecret(currentPort)
 
   try {
     const allCookies = []
@@ -89,9 +79,6 @@ async function sendCookiesToApp() {
     }
 
     const body = JSON.stringify(payload)
-
-    // SECURITY: HMAC sign the request body so the bridge can verify
-    // this request comes from the paired extension, not an impostor.
     const headers = { 'Content-Type': 'application/json' }
     if (bridgeSecret) {
       headers['x-hmac-signature'] = await computeHmac(body, bridgeSecret)
@@ -104,7 +91,6 @@ async function sendCookiesToApp() {
     })
 
     if (response.ok) {
-      const result = await response.json()
       return true
     } else {
       console.warn('[Quizlab Bridge] App rejected cookies, status:', response.status)
@@ -114,7 +100,7 @@ async function sendCookiesToApp() {
     const errMsg = error && typeof error.message === 'string' ? error.message : String(error)
     console.warn('[Quizlab Bridge] Failed to send cookies:', errMsg)
     connected = false
-    tryReconnect()
+    enterScanMode()
     return false
   }
 }
@@ -155,15 +141,21 @@ async function fetchBridgeSecret(port) {
   return false
 }
 
-async function tryReconnect() {
-  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    chrome.alarms.clear(RECONNECT_ALARM).catch(() => {})
-    return
-  }
+function enterScanMode() {
+  // RULE: Always keep a scan alarm active when disconnected.
+  // This ensures the SW can be woken by the alarm system.
+  connected = false
+  chrome.alarms.create(SCAN_ALARM, { delayInMinutes: SCAN_INTERVAL_MS / 60000 })
+}
 
-  reconnectAttempts++
-  saveState()
+function setupHeartbeat() {
+  // RULE: Always keep a heartbeat alarm active when connected.
+  connected = true
+  chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: HEARTBEAT_INTERVAL_MIN })
+}
 
+async function scanForBridge() {
+  // RULE: Every SW wake-up (any reason) checks for the bridge server.
   for (let port = PORT_START; port <= PORT_END; port++) {
     try {
       const response = await fetch(`http://${BRIDGE_HOST}:${port}/api/health`, {
@@ -172,67 +164,37 @@ async function tryReconnect() {
       })
       if (response.ok) {
         currentPort = port
-        connected = true
-        reconnectAttempts = 0
-        saveState()
-        chrome.alarms.clear(RECONNECT_ALARM).catch(() => {})
         await fetchBridgeSecret(port)
         await sendCookiesToApp()
-        setupHeartbeatAlarm()
+        setupHeartbeat()
+        chrome.alarms.clear(SCAN_ALARM).catch(() => {})
         return
       }
     } catch {}
   }
 
-  const delay = Math.min(RECONNECT_INTERVAL_MS * Math.pow(1.5, reconnectAttempts - 1), 30000)
-  chrome.alarms.create(RECONNECT_ALARM, { delayInMinutes: delay / 60000 })
-}
-
-async function attemptInitialConnection() {
-  for (let port = PORT_START; port <= PORT_END; port++) {
-    try {
-      const response = await fetch(`http://${BRIDGE_HOST}:${port}/api/health`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(1500)
-      })
-      if (response.ok) {
-        currentPort = port
-        connected = true
-        reconnectAttempts = 0
-        saveState()
-        chrome.alarms.clear(RECONNECT_ALARM).catch(() => {})
-        await fetchBridgeSecret(port)
-        await sendCookiesToApp()
-        setupHeartbeatAlarm()
-        return
-      }
-    } catch {}
+  // Bridge not found — enter scan mode if not already scanning
+  if (!connected) {
+    enterScanMode()
   }
-
-  chrome.alarms.create(RECONNECT_ALARM, { delayInMinutes: 0.1 })
 }
 
-function setupHeartbeatAlarm() {
-  try {
-    chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: HEARTBEAT_INTERVAL_MIN })
-  } catch {}
-}
-
-// === All event listeners registered synchronously at top level (MV3 requirement) ===
+// === Event listeners registered synchronously at top level (MV3 requirement) ===
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === RECONNECT_ALARM) {
-    tryReconnect()
-  } else if (alarm.name === HEARTBEAT_ALARM && connected) {
-    sendCookiesToApp()
+  if (alarm.name === SCAN_ALARM) {
+    scanForBridge()
+  } else if (alarm.name === HEARTBEAT_ALARM) {
+    if (connected) {
+      sendCookiesToApp()
+    }
   }
 })
 
-chrome.runtime.onInstalled.addListener((details) => {
-  attemptInitialConnection()
+chrome.runtime.onInstalled.addListener(() => {
+  scanForBridge()
 })
 
-// Cookie change listener registered at top level so MV3 event queue delivers it
 chrome.cookies.onChanged.addListener((changeInfo) => {
   if (!connected || !changeInfo.cookie) return
   if (!isGoogleDomain(changeInfo.cookie.domain)) return
@@ -244,4 +206,4 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
 })
 
 // Triggers on Chrome startup and whenever the SW is spun up
-attemptInitialConnection()
+scanForBridge()

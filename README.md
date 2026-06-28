@@ -1,16 +1,9 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="src/public/icon.png">
-    <img src="src/public/icon.png" alt="Quizlab Reader" width="120" style="border-radius: 28px;">
-  </picture>
-</p>
-
 <h1 align="center">Quizlab Reader</h1>
 
 <p align="center">
   <strong>AI-Powered PDF Study Workspace</strong>
   <br>
-  <sub>Read, highlight, and send content to ChatGPT, Gemini, Claude &mdash; all in one split-screen desktop app.</sub>
+  <sub>Read, highlight, and send content to AI platforms — all in one split-screen desktop app.</sub>
 </p>
 
 <p align="center">
@@ -27,29 +20,17 @@
   <a href="docs/ROADMAP.md">🗺️ Roadmap</a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/ozymandias-get/quizlab/releases">
-    <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&query=%24.version&label=version&style=flat-square&color=6b5b4c" alt="Current version">
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square&color=8c7a6b" alt="MIT License">
-  </a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square&color=bda48f" alt="Cross-platform">
-  <img src="https://img.shields.io/badge/Electron-40-47848F?style=flat-square&logo=electron&logoColor=white&color=443e38" alt="Electron">
-  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white&color=443e38" alt="React">
-  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white&color=443e38" alt="TypeScript">
-</p>
-
 ---
 
 ## 📋 Table of Contents
 
 - [✨ Features](#-features)
-- [🖼️ Screenshots](#️-screenshots)
 - [📖 Overview](#-overview)
 - [🛠️ Tech Stack](#️-tech-stack)
+- [🌐 Internationalization](#-internationalization)
 - [📦 Installation](#-installation)
 - [⚙️ Developer Guide](#️-developer-guide)
+- [🔬 CI/CD Pipeline](#-cicd-pipeline)
 - [📂 Project Structure](#-project-structure)
 - [🔒 Security & Privacy](#-security--privacy)
 - [📄 License](#-license)
@@ -66,7 +47,7 @@
     </td>
     <td width="50%">
       <h4>🤖 Multi-AI Integration</h4>
-      Built-in support for <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, and custom web endpoints — all accessible from one workspace.
+      Built-in support for <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, <strong>DeepSeek</strong>, <strong>Perplexity</strong>, <strong>Mistral</strong>, <strong>Grok</strong>, and more — all accessible from one workspace.
     </td>
   </tr>
   <tr>
@@ -76,7 +57,7 @@
     </td>
     <td width="50%">
       <h4>🔐 Privacy-First Architecture</h4>
-      Your PDFs, credentials, and session data remain strictly local. No telemetry, no cloud uploads.
+      Your PDFs, credentials, and session data remain strictly local. No telemetry, no cloud uploads. AES-256-GCM encryption for sensitive data.
     </td>
   </tr>
   <tr>
@@ -92,57 +73,64 @@
   <tr>
     <td width="50%">
       <h4>🛡️ Secure PDF Protocol</h4>
-      Custom <code>local-pdf://</code> stream protocol for bulletproof security and fast rendering.
+      Custom <code>local-pdf://</code> stream protocol for bulletproof security and fast rendering with byte-range support.
     </td>
     <td width="50%">
-      <h4>🌐 Custom Sites</h4>
+      <h4>🌐 Custom AI Sites</h4>
       Easily configure and save custom web endpoints with targeted CSS input hooks for any AI surface.
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <h4>💬 Custom API Chat Interface</h4>
-      Chat directly with AI models using your own API keys (Gemini, ChatGPT, Claude) in a native, privacy-first interface.
+      <h4>💬 Direct API Chat</h4>
+      Chat directly with AI models using your own API keys (Gemini, ChatGPT, Claude, OpenRouter-compatible) in a native, privacy-first interface.
     </td>
     <td width="50%">
       <h4>⚙️ Flexible Key Management</h4>
       Securely configure, test, and save your custom API keys and model parameters directly from the settings panel.
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <h4>🔍 Screenshot & Capture</h4>
+      Capture full-page or cropped screenshots, copy to clipboard, or send directly to AI.
+    </td>
+    <td width="50%">
+      <h4>🤖 Gemini Web Session</h4>
+      Persistent Google AI sessions with cookie-based auth, health monitoring, automatic recovery, and session export/import.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h4>🖱️ Element Picker</h4>
+      Magic CSS selector picker for targeting AI chat inputs — no manual configuration needed.
+    </td>
+    <td width="50%">
+      <h4>🔌 Chrome Extension Bridge</h4>
+      Native messaging host + Chrome extension for sharing Google session cookies between Chrome and Electron.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h4>📖 Interactive Tutorials</h4>
+      Built-in guided tutorials for onboarding and feature discovery.
+    </td>
+    <td width="50%">
+      <h4>🗣️ Full i18n Support</h4>
+      Complete English and Turkish localization with 19 translation namespaces each.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h4>🔄 Automatic Updates</h4>
+      GitHub Releases-based auto-updater with semver comparison and periodic checks.
+    </td>
+    <td width="50%">
+      <h4>🧹 Cache Management</h4>
+      Intelligent cache monitoring, cleanup scheduler, and threshold warnings at 80% capacity.
+    </td>
+  </tr>
 </table>
-
----
-
-## 🖼️ Screenshots
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center"><strong>Split-Screen Workspace</strong></td>
-      <td align="center"><strong>AI Models &amp; Custom Sites</strong></td>
-    </tr>
-    <tr>
-      <td><img src="docs/images/workspace-home-overview.png" alt="Split-Screen PDF Workspace" width="400" style="border-radius: 8px;"></td>
-      <td><img src="docs/images/prompts-settings-library.png" alt="AI Models and Sites" width="400" style="border-radius: 8px;"></td>
-    </tr>
-    <tr>
-      <td align="center"><strong>Prompt Library</strong></td>
-      <td align="center"><strong>PDF Quick Actions</strong></td>
-    </tr>
-    <tr>
-      <td><img src="docs/images/ai-models-and-sites.png" alt="Prompt Library" width="400" style="border-radius: 8px;"></td>
-      <td><img src="docs/images/auto-send-draft-review.png" alt="PDF Quick Actions" width="400" style="border-radius: 8px;"></td>
-    </tr>
-    <tr>
-      <td align="center"><strong>Draft Review Modal</strong></td>
-      <td align="center"><strong>Auto-Send Workflow</strong></td>
-    </tr>
-    <tr>
-      <td><img src="docs/images/pdf-chatgpt-quick-actions.png" alt="Draft Review" width="400" style="border-radius: 8px;"></td>
-      <td><img src="docs/images/auto-send-enabled.png" alt="Auto-Send Workflow" width="400" style="border-radius: 8px;"></td>
-    </tr>
-  </table>
-</div>
 
 ---
 
@@ -150,61 +138,50 @@
 
 **Quizlab Reader** is a state-of-the-art, open-source, local-first desktop workspace that brings native document reading and multiple AI interfaces together under a unified Glassmorphic UI. Designed specifically for **academics, researchers, and professional students**, it eliminates constant app-switching and tab-clutter.
 
+The application combines a high-performance PDF viewer with embedded AI webviews, direct API chat, automation scripting, and comprehensive session management — all while maintaining strict privacy guarantees with zero telemetry.
+
 ---
 
 ## 🛠️ Tech Stack
 
-<table>
-  <tr>
-    <th align="left">Category</th>
-    <th align="left">Technology</th>
-  </tr>
-  <tr>
-    <td><strong>Desktop Framework</strong></td>
-    <td>
-      <a href="https://www.electronjs.org/">Electron 40</a>
-      <img src="https://img.shields.io/badge/-47848F?logo=electron&logoColor=white" alt="Electron" style="vertical-align: middle;">
-    </td>
-  </tr>
-  <tr>
-    <td><strong>UI Library</strong></td>
-    <td>
-      <a href="https://react.dev/">React 19</a>
-      <img src="https://img.shields.io/badge/-61DAFB?logo=react&logoColor=white" alt="React" style="vertical-align: middle;">
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Language</strong></td>
-    <td>
-      <a href="https://www.typescriptlang.org/">TypeScript 5.9</a>
-      <img src="https://img.shields.io/badge/-3178C6?logo=typescript&logoColor=white" alt="TypeScript" style="vertical-align: middle;">
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Bundler</strong></td>
-    <td><a href="https://vitejs.dev/">Vite 7</a></td>
-  </tr>
-  <tr>
-    <td><strong>PDF Rendering</strong></td>
-    <td><a href="https://mozilla.github.io/pdf.js/">pdfjs-dist 3.11</a> + <a href="https://react-pdf-viewer.dev/">@react-pdf-viewer</a></td>
-  </tr>
-  <tr>
-    <td><strong>State Management</strong></td>
-    <td><a href="https://zustand-demo.pmnd.rs/">Zustand</a> + <a href="https://tanstack.com/query/latest">TanStack Query</a></td>
-  </tr>
-  <tr>
-    <td><strong>Styling</strong></td>
-    <td><a href="https://tailwindcss.com/">Tailwind CSS 3</a> + <a href="https://www.framer.com/motion/">Framer Motion</a></td>
-  </tr>
-  <tr>
-    <td><strong>AI Automation</strong></td>
-    <td><a href="https://playwright.dev/">Playwright</a> (webview session management)</td>
-  </tr>
-  <tr>
-    <td><strong>Testing</strong></td>
-    <td><a href="https://vitest.dev/">Vitest</a> + <a href="https://testing-library.com/">Testing Library</a></td>
-  </tr>
-</table>
+| Category              | Technology                                                                                                           |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Desktop Framework** | [Electron 42](https://www.electronjs.org/)                                                                           |
+| **UI Library**        | [React 19](https://react.dev/)                                                                                       |
+| **Language**          | [TypeScript 6.0](https://www.typescriptlang.org/)                                                                    |
+| **Bundler**           | [Vite 8](https://vitejs.dev/)                                                                                        |
+| **PDF Engine**        | [pdfjs-dist 3.11](https://mozilla.github.io/pdf.js/) + [@react-pdf-viewer 3.12](https://react-pdf-viewer.dev/)       |
+| **Styling**           | [Tailwind CSS 4](https://tailwindcss.com/)                                                                           |
+| **Animation**         | [Motion](https://motion.dev/) (formerly Framer Motion)                                                               |
+| **State Management**  | [Zustand 5](https://zustand-demo.pmnd.rs/) + [TanStack React Query 5](https://tanstack.com/query/latest)             |
+| **AI Automation**     | [Playwright](https://playwright.dev/) (webview session management & scripting)                                       |
+| **UI Components**     | [Radix UI](https://www.radix-ui.com/) + [Headless UI](https://headlessui.com/) + [shadcn/ui](https://ui.shadcn.com/) |
+| **Icons**             | [Tabler Icons](https://tabler.io/icons) + [Lucide](https://lucide.dev/)                                              |
+| **Particles**         | [tsParticles](https://particles.js.org/)                                                                             |
+| **Fonts**             | [Inter Variable](https://fonts.google.com/specimen/Inter) via Fontsource                                             |
+| **i18n**              | [i18next](https://www.i18next.com/) + [react-i18next](https://react.i18next.com/)                                    |
+| **Testing**           | [Vitest 4](https://vitest.dev/) + [Testing Library](https://testing-library.com/)                                    |
+| **Linting**           | [ESLint 10](https://eslint.org/) + [Prettier](https://prettier.io/)                                                  |
+| **Security Analysis** | [Electronegativity](https://github.com/doyensec/electronegativity) + [Semgrep](https://semgrep.dev/)                 |
+| **Mutation Testing**  | [Stryker](https://stryker-mutator.io/)                                                                               |
+| **Installer**         | [electron-builder](https://www.electron.build/) + NSIS (Windows)                                                     |
+
+---
+
+## 🌐 Internationalization
+
+Quizlab Reader is fully localized in two languages:
+
+| Language    | Code | Namespaces    |
+| ----------- | ---- | ------------- |
+| **English** | `en` | 19 JSON files |
+| **Turkish** | `tr` | 19 JSON files |
+
+Namespaces cover: common UI, navigation, settings, appearance, PDF viewer, AI integration, AI chat, selectors, tutorials, Gemini web session, errors, toasts, notifications, auto-send, and context prompts.
+
+A language selection dialog is shown on first run. Language can be changed at any time from settings.
+
+A comprehensive [terminology standard](docs/TERMINOLOGY.md) ensures consistent EN/TR translation across the entire application.
 
 ---
 
@@ -213,7 +190,7 @@
 ### Requirements
 
 | Metric       | Minimum                                 | Recommended                           |
-| :----------- | :-------------------------------------- | :------------------------------------ |
+| ------------ | --------------------------------------- | ------------------------------------- |
 | **OS**       | Windows 10 / macOS 10.15 / Ubuntu 20.04 | Windows 11 / macOS 13+ / Ubuntu 22.04 |
 | **RAM**      | 4 GB                                    | 8 GB+                                 |
 | **Storage**  | 500 MB                                  | 2 GB+                                 |
@@ -223,11 +200,13 @@
 
 Download the latest installer for your platform from the [Releases page](https://github.com/ozymandias-get/quizlab/releases):
 
-| Platform   | Format                                       |
-| :--------- | :------------------------------------------- |
-| 🪟 Windows | `QuizlabReader-Setup-<version>.exe`          |
-| 🍏 macOS   | `QuizlabReader-<version>.dmg`                |
-| 🐧 Linux   | `QuizlabReader-<version>.AppImage` or `.deb` |
+| Platform   | Format                                               |
+| ---------- | ---------------------------------------------------- |
+| 🪟 Windows | `QuizlabReader-Setup-<version>.exe` (NSIS installer) |
+| 🍏 macOS   | `QuizlabReader-<version>.dmg`                        |
+| 🐧 Linux   | `QuizlabReader-<version>.AppImage` or `.deb`         |
+
+The installer optionally registers a Chrome Native Messaging Host for the Google session bridge extension.
 
 ---
 
@@ -248,13 +227,55 @@ npm run dev
 # Quality checks
 npm run typecheck    # TypeScript
 npm run lint         # ESLint (zero warnings required)
-npm run test         # Vitest (610+ tests)
+npm run test         # Vitest (~2285 tests)
+npm run test:coverage # Coverage report
+
+# Analysis
+npm run analyze:all  # Full analysis suite (bundle, types, dead code, duplicates, circular deps, etc.)
+npm run analyze:security  # Electronegativity + Semgrep security scan
 
 # Build for production
-npm run build:win    # Windows installer
-npm run build:mac    # macOS bundle
-npm run build:linux  # Linux package
+npm run build:win    # Windows NSIS installer
+npm run build:mac    # macOS DMG
+npm run build:linux  # Linux AppImage + deb
 ```
+
+### Commit Convention
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `feat:` — new feature
+- `fix:` — bug fix
+- `docs:` — documentation
+- `refactor:` — code restructuring
+- `test:` — test changes
+- `chore:` — maintenance
+
+Commit messages are validated via commitlint with husky hooks.
+
+---
+
+## 🔬 CI/CD Pipeline
+
+The project uses GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)) with three stages:
+
+1. **Quality** (ubuntu-latest, every push to main/PR):
+   - Repository hygiene & version consistency checks
+   - ESLint (zero warnings), Prettier formatting, CSS lint
+   - TypeScript type checking
+   - Architecture validation (dependency-cruiser)
+   - Test suite with coverage
+   - Type coverage guard, spell check
+   - Duplicate code & circular dependency detection
+
+2. **Build** (windows-latest + ubuntu-22.04, on tags):
+   - Windows: NSIS installer
+   - Linux: AppImage + deb
+   - Artifacts uploaded
+
+3. **Release** (on tags):
+   - Creates GitHub Release with auto-generated release notes
+   - Attaches all platform artifacts
 
 ---
 
@@ -263,27 +284,39 @@ npm run build:linux  # Linux package
 ```
 quizlab/
 ├── .github/               # Issue templates, CI workflows
-├── docs/                  # Roadmaps, architecture docs, screenshots
+├── docs/                  # Roadmaps, architecture docs, terminology
 ├── electron/              # Main process (Electron)
 │   ├── app/               # Entrypoints, IPC handlers, window management
-│   ├── core/              # Configs, updaters, system utilities
-│   ├── features/          # Feature handlers (AI, Automation, Gemini, PDF, Screenshot)
+│   │   └── window/        # Security, sessions, environment, renderer loader
+│   ├── core/              # Config manager, encryption, logger, CSP, updater, IPC security
+│   ├── features/          # Feature handlers (AI, Automation, Gemini, PDF, Screenshot, Native Messaging)
 │   ├── preload/           # Context bridge scripts
-│   └── __tests__/         # Main-process tests
+│   └── __tests__/         # Main-process tests (69 test files)
+├── extensions/            # Chrome extension for Google session bridge
+│   └── quizlab-session-extension/
 ├── installer/             # NSIS Windows installer script
+├── patches/               # patch-package patches
 ├── resources/             # Static installer assets, app icons
 ├── scripts/               # Dev/build automation scripts
-├── shared/                # Cross-process contracts (IPC channels, types)
+├── shared/                # Cross-process contracts (IPC channels, types, constants)
 │   ├── constants/
+│   ├── lib/
 │   └── types/
 ├── src/                   # Renderer UI (React + Vite)
 │   ├── app/               # Shell, providers, global contexts, effects
-│   ├── features/          # Feature modules (AI, PDF, Settings, Screenshot, Automation, Tutorial, Diagnostics)
+│   │   ├── components/    # shadcn/ui components
+│   │   ├── hooks/
+│   │   ├── providers/     # AppProviders, AiContext, QueryProvider, UpdateContext, AppTool
+│   │   └── ui/            # MainWorkspace, FocusOverlay, AiSendComposer
+│   ├── features/          # Feature modules (AI, PDF, Settings, Screenshot, Automation, Tutorial, Onboarding)
 │   ├── platform/          # Electron bridge adapters
-│   ├── public/            # Static assets (app icon, etc.)
-│   ├── shared/            # Shared UI components, hooks, i18n, styles, lib
+│   ├── public/            # Static assets
+│   ├── shared/            # Shared UI components, hooks, i18n, styles, stores, lib
+│   │   ├── i18n/locales/  # en/ (19 files) + tr/ (19 files)
+│   │   ├── stores/        # Zustand stores (appearance, language, notifications, toasts)
+│   │   └── ui/            # Shared layout & components
 │   ├── types/             # Global type declarations
-│   └── __tests__/         # Renderer tests
+│   └── __tests__/         # Renderer tests (177 test files)
 ├── package.json
 └── tsconfig.json
 ```
@@ -292,11 +325,16 @@ quizlab/
 
 ## 🔒 Security & Privacy
 
-- **No Telemetry** &mdash; zero data collection
-- **Isolated Renderer** &mdash; strict `contextIsolation: true`, `nodeIntegration: false`
-- **Secure PDF Protocol** &mdash; content served via `local-pdf://` stream protocol
-- **Session Safety** &mdash; encrypted cookies within isolated Chromium session profiles
+- **No Telemetry** &mdash; zero data collection, no cloud uploads
+- **Isolated Renderer** &mdash; strict `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
 - **Minimal Preload** &mdash; only explicit IPC channels exposed via context bridge
+- **Secure PDF Protocol** &mdash; content served via `local-pdf://` stream protocol with file allowlist and byte-range support
+- **WebView Hardening** &mdash; partition allowlist validation, clipboard access blocked, certificate errors rejected, external navigation redirected to system browser, popup blocking
+- **Content Security Policy** &mdash; strict CSP with nonce-based script tags, limited `frame-src` to allowed AI domains
+- **IPC Security** &mdash; trusted sender validation on all IPC handlers
+- **Encryption** &mdash; AES-256-GCM with machine-derived key + Electron `safeStorage` fallback for API keys and credentials
+- **Encrypted Sessions** &mdash; encrypted cookies within isolated Chromium session profiles
+- **Automated Security Scanning** &mdash; Electronegativity and Semgrep run in CI
 
 See [SECURITY.md](SECURITY.md) for our security policy and vulnerability reporting guidelines.
 

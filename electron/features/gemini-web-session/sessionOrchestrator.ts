@@ -12,7 +12,6 @@ import { Logger } from '../../core/logger.js'
 import { HealthCheckPolicy } from './healthCheckPolicy.js'
 import { LoginFlowPolicy } from './loginFlowPolicy.js'
 import { MetadataUpdatePolicy } from './metadataUpdatePolicy.js'
-import { ProbeRunner } from './probeRunner.js'
 import { ProfileHealthChecker } from './profileHealthChecker.js'
 import { ProfileLock } from './profileLock.js'
 import { RefreshTriggerPolicy } from './refreshTriggerPolicy.js'
@@ -38,7 +37,6 @@ export class SessionOrchestrator {
   private readonly profileDir: string
   private readonly metadataRepository: SessionMetadataRepository
   private readonly profileLock: ProfileLock
-  private readonly probeRunner: ProbeRunner
   private readonly recovery: SessionRecovery
   private readonly monitor: SessionMonitor
   private readonly resolvePersistentSession: () => Session
@@ -76,12 +74,7 @@ export class SessionOrchestrator {
       lockPath: options.paths.lockPath,
       ensureProfileDirectory: () => this.ensureProfileDirectory()
     })
-    this.probeRunner = new ProbeRunner({
-      ensureProfileDirectory: () => this.ensureProfileDirectory(),
-      resolvePersistentSession: () => this.resolvePersistentSession()
-    })
     this.recovery = new SessionRecovery({
-      probeRunner: this.probeRunner,
       resolvePersistentSession: () => this.resolvePersistentSession(),
       snapshotRepository: this.snapshotRepository
     })
@@ -91,7 +84,6 @@ export class SessionOrchestrator {
     this.healthCheckPolicy = new HealthCheckPolicy({
       metadataRepository: this.metadataRepository,
       profileLock: this.profileLock,
-      probeRunner: this.probeRunner,
       recovery: this.recovery,
       config: this.config,
       profileHealthChecker: this.profileHealthChecker
@@ -112,7 +104,6 @@ export class SessionOrchestrator {
     this.loginFlowPolicy = new LoginFlowPolicy({
       metadataRepository: this.metadataRepository,
       profileLock: this.profileLock,
-      probeRunner: this.probeRunner,
       config: this.config,
       resolvePersistentSession: this.resolvePersistentSession,
       initialize: () => this.initialize(),
@@ -142,13 +133,6 @@ export class SessionOrchestrator {
     this.refreshTriggerPolicy.configureReactiveRefreshListeners()
 
     this.initialized = true
-    const metadata = await this.metadataRepository.readMetadata()
-    if (FEATURE_ENABLED && metadata.enabled) {
-      this.scheduleMonitor()
-      void this.healthCheckPolicy.performHealthCheck({ allowRetry: false }).catch((error) => {
-        logSuppressedError('initial health check failed', error)
-      })
-    }
   }
 
   async getStatus(): Promise<GeminiWebSessionStatus> {
@@ -171,10 +155,7 @@ export class SessionOrchestrator {
 
   async checkNow(): Promise<GeminiWebSessionActionResult> {
     await this.initialize()
-    const current = await this.metadataRepository.readMetadata()
-    const blocked = this.metadataRepository.getDisabledActionResult(current)
-    if (blocked) return blocked
-    const status = await this.healthCheckPolicy.performHealthCheck({ allowRetry: true })
+    const status = await this.getStatus()
     return { success: true, status }
   }
 
@@ -184,21 +165,13 @@ export class SessionOrchestrator {
 
   async exportSession(filePath: string): Promise<{ success: boolean; error?: string }> {
     await this.initialize()
-    const exporter = new SessionExportImport(
-      this.snapshotRepository,
-      this.metadataRepository,
-      this.probeRunner
-    )
+    const exporter = new SessionExportImport(this.snapshotRepository, this.metadataRepository)
     return exporter.exportSession(filePath)
   }
 
   async importSession(filePath: string): Promise<SessionImportResult> {
     await this.initialize()
-    const importer = new SessionExportImport(
-      this.snapshotRepository,
-      this.metadataRepository,
-      this.probeRunner
-    )
+    const importer = new SessionExportImport(this.snapshotRepository, this.metadataRepository)
     return importer.importSession(filePath)
   }
 
@@ -214,13 +187,6 @@ export class SessionOrchestrator {
     }
     try {
       this.monitor.stop()
-
-      const activeCheck = this.healthCheckPolicy.getActiveCheck()
-      if (activeCheck) {
-        await activeCheck.catch((error) => {
-          logSuppressedError('active check join failed during checkNow', error)
-        })
-      }
 
       const current = await this.metadataRepository.readMetadata()
       await this.snapshotRepository?.clearSnapshot().catch(() => {})
@@ -327,8 +293,6 @@ export class SessionOrchestrator {
             reason: 'proactive_expiry'
           })
         }
-
-        await this.healthCheckPolicy.performHealthCheck({ allowRetry: true })
       } catch (error: unknown) {
         Logger.error(
           '[GeminiWebSession] Monitor check failed:',
