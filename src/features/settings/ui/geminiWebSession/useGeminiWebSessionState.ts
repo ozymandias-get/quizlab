@@ -9,9 +9,6 @@ import type {
 } from '@shared-core/types'
 
 import {
-  GEMINI_WEB_REQUIRES_LOGIN_ERROR,
-  useGeminiWebCheckNow,
-  useGeminiWebReauth,
   useGeminiWebResetProfile,
   useGeminiWebSetEnabled,
   useGeminiWebSetEnabledApps,
@@ -22,7 +19,7 @@ import {
   useNativeMessagingRemoveExtension
 } from '@platform/electron/api/useNativeMessagingApi'
 
-import { useAppToolActions, useAppToolFlagsState, useToastActions } from '@app/providers'
+import { useToastActions } from '@app/providers'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { reportSuppressedError } from '@shared/lib/logger'
 
@@ -36,13 +33,6 @@ import type {
 } from './types'
 
 const MANAGED_APP_IDS = new Set(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
-
-const resultRequiresManualLogin = (actionResult?: GeminiWebSessionActionResult | null) => {
-  if (!actionResult) return false
-  if (actionResult.error === GEMINI_WEB_REQUIRES_LOGIN_ERROR) return true
-  if (actionResult.status?.state === 'reauth_required') return true
-  return false
-}
 
 const getNextEnabledManagedAppIds = (
   appId: GoogleWebSessionAppId,
@@ -67,10 +57,6 @@ export function useGeminiWebSessionState() {
     refetch: refetchWebSession
   } = useGeminiWebStatus()
 
-  const { isGeminiWebLoginInProgress } = useAppToolFlagsState()
-  const { startGeminiWebLogin } = useAppToolActions()
-  const { mutateAsync: checkWebNow, isPending: isCheckingWebNow } = useGeminiWebCheckNow()
-  const { mutateAsync: reauthWeb, isPending: isReauthingWeb } = useGeminiWebReauth()
   const { mutateAsync: resetWebProfile, isPending: isResettingWebProfile } =
     useGeminiWebResetProfile()
   const { mutateAsync: setWebEnabled, isPending: isTogglingWebEnabled } = useGeminiWebSetEnabled()
@@ -82,7 +68,6 @@ export function useGeminiWebSessionState() {
     null
   )
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null)
-  const [requiresManualLogin, setRequiresManualLogin] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardMode, setWizardMode] = useState<'install' | 'remove' | null>(null)
   const isRefreshingRef = useRef(isRefreshing)
@@ -112,19 +97,14 @@ export function useGeminiWebSessionState() {
         switch (event.phase) {
           case 'started':
             setIsRefreshing(true)
-            setRequiresManualLogin(false)
             break
           case 'success':
             setIsRefreshing(false)
             setLastRefreshedAt(new Date().toISOString())
-            setRequiresManualLogin(false)
             safeRefetchWebSession()
             break
           case 'failed':
             setIsRefreshing(false)
-            if (event.error === GEMINI_WEB_REQUIRES_LOGIN_ERROR) {
-              setRequiresManualLogin(true)
-            }
             safeRefetchWebSession()
             break
           default:
@@ -151,7 +131,7 @@ export function useGeminiWebSessionState() {
   const status = useMemo<GeminiWebSessionStatusView>(() => {
     const state = webSessionData?.state || 'uninitialized'
     const reason = webSessionData?.reasonCode || 'none'
-    const checking = isWebSessionLoading || isWebSessionRefetching || isCheckingWebNow
+    const checking = isWebSessionLoading || isWebSessionRefetching
     const featureEnabled = !!webSessionData?.featureEnabled
     const userEnabled = !!webSessionData?.enabled
     const webEnabled = featureEnabled && userEnabled
@@ -170,19 +150,15 @@ export function useGeminiWebSessionState() {
       isDegraded: state === 'degraded',
       lastCheckAt: webSessionData?.lastCheckAt || null,
       lastRefreshedAt,
-      lastRefreshReason,
-      requiresManualLogin,
-      showReauthAlert: requiresManualLogin || needsReauth
+      lastRefreshReason
     }
   }, [
     webSessionData,
     isWebSessionLoading,
     isWebSessionRefetching,
-    isCheckingWebNow,
     isRefreshing,
     lastRefreshedAt,
-    lastRefreshReason,
-    requiresManualLogin
+    lastRefreshReason
   ])
 
   const reasonText = useMemo(() => {
@@ -255,25 +231,7 @@ export function useGeminiWebSessionState() {
 
   const handlers = useMemo<GeminiWebSessionHandlers>(
     () => ({
-      onOpenWebLogin: () => {
-        setRequiresManualLogin(false)
-        void runSessionAction(startGeminiWebLogin)
-      },
-      onCheckWebNow: () => {
-        void runSessionAction(checkWebNow, { refetch: true })
-          .then((data) => {
-            if (!isRefreshingRef.current && resultRequiresManualLogin(data)) {
-              setRequiresManualLogin(true)
-            }
-          })
-          .catch((err) => reportSuppressedError('geminiWeb.checkWebNow', { cause: err }))
-      },
-      onReauthWeb: () => {
-        setRequiresManualLogin(false)
-        void runSessionAction(reauthWeb)
-      },
       onResetWebProfile: () => {
-        setRequiresManualLogin(false)
         void runSessionAction(resetWebProfile)
       },
       onToggleWebEnabled: () => {
@@ -294,9 +252,6 @@ export function useGeminiWebSessionState() {
     }),
     [
       runSessionAction,
-      startGeminiWebLogin,
-      checkWebNow,
-      reauthWeb,
       resetWebProfile,
       setWebEnabled,
       setWebEnabledApps,
@@ -309,21 +264,11 @@ export function useGeminiWebSessionState() {
 
   const actionState = useMemo<GeminiWebSessionActionState>(
     () => ({
-      isGeminiWebLoginInProgress,
-      isCheckingWebNow,
-      isReauthingWeb,
       isResettingWebProfile,
       isTogglingWebEnabled,
       isRefreshing
     }),
-    [
-      isGeminiWebLoginInProgress,
-      isCheckingWebNow,
-      isReauthingWeb,
-      isResettingWebProfile,
-      isTogglingWebEnabled,
-      isRefreshing
-    ]
+    [isResettingWebProfile, isTogglingWebEnabled, isRefreshing]
   )
 
   return {

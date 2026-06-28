@@ -19,23 +19,15 @@ export interface GeminiWebSessionStatusView {
   lastCheckAt: string | null
   lastRefreshedAt: string | null
   lastRefreshReason: GeminiWebSessionRefreshReason | null
-  requiresManualLogin: boolean
-  showReauthAlert: boolean
 }
 
 export interface GeminiWebSessionActionState {
-  isGeminiWebLoginInProgress: boolean
-  isCheckingWebNow: boolean
-  isReauthingWeb: boolean
   isResettingWebProfile: boolean
   isTogglingWebEnabled: boolean
   isRefreshing: boolean
 }
 
 export interface GeminiWebSessionHandlers {
-  onOpenWebLogin: () => void
-  onCheckWebNow: () => void
-  onReauthWeb: () => void
   onResetWebProfile: () => void
   onToggleWebEnabled: () => void
   onToggleManagedApp: (appId: GoogleWebSessionAppId) => void

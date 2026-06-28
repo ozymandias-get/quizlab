@@ -187,9 +187,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
 
     geminiWeb: {
       getStatus: async () => getGeminiStatus(),
-      openLogin: async () => webDevOnlyError(),
-      checkNow: async () => ({ success: true, status: getGeminiStatus() }),
-      reauth: async () => ({ ...webDevOnlyError(), status: getGeminiStatus() }),
       resetProfile: async () => ({ success: true, status: getGeminiStatus() }),
       setEnabled: async (enabled: boolean) => {
         geminiWebEnabled = enabled
