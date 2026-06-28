@@ -13,7 +13,7 @@ import {
 } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 
 import { ExtensionStatusCard, ExtensionWizardDialog, GoogleAppIntegrationCard } from './components'
 import type {
@@ -91,6 +91,17 @@ function GeminiWebSessionOverview({
     actionState.isReauthingWeb ||
     actionState.isResettingWebProfile ||
     actionState.isTogglingWebEnabled
+
+  const handleWizardInstall = useCallback(async () => {
+    const result = await installExtensionMutation()
+    return result ?? { success: false, error: 'Unknown error' }
+  }, [installExtensionMutation])
+
+  const handleWizardRemove = useCallback(async () => {
+    const result = await removeExtensionMutation()
+    return result ?? { success: false, error: 'Unknown error' }
+  }, [removeExtensionMutation])
+
   const loginButtonClass = status.showReauthAlert
     ? 'inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-ql-12 font-semibold text-white shadow-lg transition-colors hover:bg-rose-400 disabled:opacity-50'
     : 'inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-ql-12 font-semibold text-gray-800 shadow-lg transition-colors hover:bg-gray-100 disabled:opacity-50'
@@ -309,14 +320,8 @@ function GeminiWebSessionOverview({
           riskItems={riskItems}
           mitigationItems={mitigationItems}
           installedPath={null}
-          onInstall={async () => {
-            const result = await installExtensionMutation()
-            return result ?? { success: false, error: 'Unknown error' }
-          }}
-          onRemove={async () => {
-            const result = await removeExtensionMutation()
-            return result ?? { success: false, error: 'Unknown error' }
-          }}
+          onInstall={handleWizardInstall}
+          onRemove={handleWizardRemove}
           onClose={closeWizard}
         />
       )}

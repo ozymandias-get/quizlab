@@ -110,7 +110,9 @@ function ExtensionWizardDialog({
   const handleKeyDown = useCallback(
     (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose()
+        if (!loading) {
+          onClose()
+        }
         return
       }
 
@@ -197,13 +199,23 @@ function ExtensionWizardDialog({
     }
   }, [onRemove])
 
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current !== null) {
+        clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const handleCopyPath = useCallback(() => {
     if (!installedPath) return
     navigator.clipboard
       .writeText(installedPath)
       .then(() => {
         setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
       })
       .catch((err) => reportSuppressedError('extensionWizard.copyPath', { cause: err }))
   }, [installedPath])
@@ -291,32 +303,12 @@ function ExtensionWizardDialog({
           <p className="text-ql-12 mb-2 font-medium text-white/70">
             {t('gws_extension_wizard_manual_title')}
           </p>
-          <ol className="flex flex-col gap-2">
-            <li className="text-ql-12 flex items-start gap-2.5 text-white/50">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-medium text-white/50">
-                1
-              </span>
-              <span>{t('gws_extension_wizard_manual_step1')}</span>
-            </li>
-            <li className="text-ql-12 flex items-start gap-2.5 text-white/50">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-medium text-white/50">
-                2
-              </span>
-              <span>{t('gws_extension_wizard_manual_step2')}</span>
-            </li>
-            <li className="text-ql-12 flex items-start gap-2.5 text-white/50">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-medium text-white/50">
-                3
-              </span>
-              <span>{t('gws_extension_wizard_manual_step3')}</span>
-            </li>
-            <li className="text-ql-12 flex items-start gap-2.5 text-white/50">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-medium text-white/50">
-                4
-              </span>
-              <span>{t('gws_extension_wizard_manual_step4')}</span>
-            </li>
-          </ol>
+          <ul className="flex flex-col gap-2">
+            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step1')}</li>
+            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step2')}</li>
+            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step3')}</li>
+            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step4')}</li>
+          </ul>
         </div>
       ) : null}
       <button
