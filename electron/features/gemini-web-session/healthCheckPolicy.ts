@@ -1,19 +1,16 @@
 ﻿import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
 
 import { Logger } from '../../core/logger.js'
-import type { ProbeRunner } from './probeRunner.js'
 import type { ProfileHealthChecker } from './profileHealthChecker.js'
 import type { ProfileLock } from './profileLock.js'
-import { FEATURE_ENABLED, HEALTH_TIMEOUT_MS } from './sessionConfig.js'
+import { FEATURE_ENABLED } from './sessionConfig.js'
 import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
 import type { SessionRecovery } from './sessionRecovery.js'
 import { nowIso } from './sessionUtils.js'
-import { applyProbeTransition } from './stateMachine.js'
 
 export interface HealthCheckContext {
   metadataRepository: SessionMetadataRepository
   profileLock: ProfileLock
-  probeRunner: ProbeRunner
   recovery: SessionRecovery
   config: GeminiWebSessionConfig
   profileHealthChecker: ProfileHealthChecker
@@ -36,14 +33,8 @@ export class HealthCheckPolicy {
     if (this.activeCheck) return this.activeCheck
 
     this.activeCheck = (async () => {
-      const {
-        metadataRepository,
-        profileLock,
-        probeRunner,
-        recovery,
-        config,
-        profileHealthChecker
-      } = this.context
+      const { metadataRepository, profileLock, recovery, config, profileHealthChecker } =
+        this.context
       const currentBeforeCheck = await metadataRepository.readMetadata()
 
       if (!FEATURE_ENABLED || !currentBeforeCheck.enabled) {
@@ -94,36 +85,8 @@ export class HealthCheckPolicy {
           }
         }
 
-        let firstProbe = await probeRunner.runProbeAcrossApps({
-          interactive: false,
-          timeoutMs: HEALTH_TIMEOUT_MS
-        })
-        let accountHash = firstProbe.outcome.healthy ? firstProbe.accountHash : current.accountHash
-
-        if (recovery.shouldAttemptSilentRefresh(firstProbe.outcome, options.allowRetry)) {
-          const refreshProbe = await recovery.runSilentRefreshProbe()
-          if (refreshProbe.outcome.healthy) {
-            const healedStatus = applyProbeTransition({
-              previous: current,
-              outcome: refreshProbe.outcome,
-              timestamp: nowIso(),
-              maxConsecutiveFailures: config.maxConsecutiveFailures
-            })
-            return metadataRepository.writeStatus(
-              healedStatus,
-              refreshProbe.accountHash || accountHash
-            )
-          }
-          firstProbe = refreshProbe
-        }
-
-        const status = applyProbeTransition({
-          previous: current,
-          outcome: firstProbe.outcome,
-          timestamp: nowIso(),
-          maxConsecutiveFailures: config.maxConsecutiveFailures
-        })
-        return metadataRepository.writeStatus(status, accountHash)
+        const updated = await metadataRepository.readMetadata()
+        return metadataRepository.toPublicStatus(updated)
       } finally {
         await profileLock.release()
       }

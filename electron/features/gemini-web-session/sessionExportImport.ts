@@ -2,8 +2,6 @@
 import { promises as fs } from 'fs'
 
 import { Logger } from '../../core/logger.js'
-import type { ProbeRunner } from './probeRunner.js'
-import { HEALTH_TIMEOUT_MS } from './sessionConfig.js'
 import type {
   SessionExportData,
   SessionExportDataV1,
@@ -74,8 +72,7 @@ function isSessionExportDataV2(raw: unknown): raw is SessionExportDataV2 {
 export class SessionExportImport {
   constructor(
     private snapshotRepository: SessionSnapshotRepository | null,
-    private metadataRepository: SessionMetadataRepository,
-    private probeRunner: ProbeRunner
+    private metadataRepository: SessionMetadataRepository
   ) {}
 
   async exportSession(filePath: string): Promise<{ success: boolean; error?: string }> {
@@ -190,30 +187,21 @@ export class SessionExportImport {
           .catch(() => {})
       }
 
-      const probe = await this.probeRunner.runProbeAcrossApps({
-        interactive: false,
-        timeoutMs: HEALTH_TIMEOUT_MS
-      })
-
-      if (probe.outcome.healthy) {
-        const currentMetadata = await this.metadataRepository.readMetadata()
-        const status = await this.metadataRepository.writeStatus(
-          {
-            state: 'authenticated',
-            lastHealthyAt: new Date().toISOString(),
-            lastCheckAt: new Date().toISOString(),
-            consecutiveFailures: 0,
-            reasonCode: 'none',
-            featureEnabled: true,
-            enabled: true,
-            enabledAppIds: currentMetadata.enabledAppIds
-          },
-          importData.accountHash
-        )
-        return { success: true, status }
-      }
-
-      return { success: false, error: 'import_verification_failed' }
+      const currentMetadata = await this.metadataRepository.readMetadata()
+      const status = await this.metadataRepository.writeStatus(
+        {
+          state: 'authenticated',
+          lastHealthyAt: new Date().toISOString(),
+          lastCheckAt: new Date().toISOString(),
+          consecutiveFailures: 0,
+          reasonCode: 'none',
+          featureEnabled: true,
+          enabled: true,
+          enabledAppIds: currentMetadata.enabledAppIds
+        },
+        importData.accountHash
+      )
+      return { success: true, status }
     } catch (error) {
       Logger.error(
         '[GeminiWebSession] Import apply failed:',

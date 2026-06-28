@@ -1,50 +1,47 @@
-# Task 3: Extract CSS from splash.html into separate stylesheet
+### Task 3: Wire wizard into useGeminiWebSessionState and ExtensionStatusCard
 
 **Files:**
 
-- Modify: `src/public/splash.html`
-- Create: `src/public/styles/splash.css`
+- Modify: `src/features/settings/ui/geminiWebSession/useGeminiWebSessionState.ts`
+- Modify: `src/features/settings/ui/geminiWebSession/GeminiWebSessionOverview.tsx`
+- Modify: `src/features/settings/ui/geminiWebSession/components/ExtensionStatusCard.tsx`
 
-## Steps
+**Context:** The `useGeminiWebSessionState` hook currently uses `alert()` for extension install/remove. We need to replace this with wizard state management. `ExtensionStatusCard` renders install/remove buttons. `GeminiWebSessionOverview` renders the whole settings panel.
 
-### Step 1: Create `src/public/styles/splash.css`
+**Existing code patterns:**
 
-Extract all CSS content from the `<style>` block in `src/public/splash.html` (lines 15-315, from `:root {` to the closing `</style>`).
+- `useGeminiWebSessionState` returns `t`, `status`, `riskItems`, `mitigationItems`, `actionState`, `handlers`
+- `handlers.onInstallExtension` currently calls `installExtensionMutation()` and shows `alert()`
+- `handlers.onRemoveExtension` currently calls `removeExtensionMutation()`
+- `ExtensionStatusCard` receives `t`, `onInstallExtension`, `onRemoveExtension` as props
+- `GeminiWebSessionOverview` receives `t`, `status`, `handlers`, etc. as props and renders `ExtensionStatusCard`
 
-The CSS content starts at line 15 (inside `<style>` tags):
+**Interfaces:**
 
-```css
-:root {
-  --bg: #000000;
-  --surface: rgba(7, 14, 24, 0.72);
-  ...
-```
+- Consumes: `ExtensionWizardDialog` component from Task 2
+- Produces: Working wizard flow - clicking Install/Remove opens wizard, wizard completion calls mutations
 
-And ends at line 315 with:
+**Steps:**
 
-```css
-.quit-btn:active {
-  transform: translateX(-50%) scale(0.96);
-}
-```
+1. **Update `useGeminiWebSessionState.ts`:**
+   - Add wizard state: `wizardOpen`, `wizardMode`, `closeWizard`
+   - Change `onInstallExtension` to just open wizard (set wizardMode='install', wizardOpen=true) instead of calling mutation
+   - Change `onRemoveExtension` to just open wizard (set wizardMode='remove', wizardOpen=true)
+   - Return `wizardOpen`, `wizardMode`, `closeWizard` from the hook
 
-Note: The CSS is indented inside the HTML `<style>` block. The extracted CSS file should have the indentation cleaned up to be proper standalone CSS (use consistent 2-space indentation or no indentation as appropriate). Do NOT include the `<style>` tags.
+2. **Update `GeminiWebSessionOverview.tsx`:**
+   - Import `ExtensionWizardDialog` from `./components`
+   - Render `ExtensionWizardDialog` in the component, passing props:
+     - `open={wizardOpen}`, `mode={wizardMode}`, `riskItems`, `mitigationItems`, `installedPath={null}`
+     - `onInstall`: calls `installExtensionMutation` (from props or passed through)
+     - `onRemove`: calls `removeExtensionMutation`
+     - `onClose`: closes wizard
+   - Thread the wizard state and mutation callbacks through component props
 
-### Step 2: Update splash.html
+3. **No changes needed to `ExtensionStatusCard.tsx`** - it already calls `onInstallExtension`/`onRemoveExtension` from props, which now just open the wizard.
 
-Replace the entire `<style>...</style>` block (lines 14-316) with a `<link>` tag:
+4. **Update `GeminiWebSessionOverviewProps`** interface to include wizard state if needed.
 
-```html
-<link rel="stylesheet" href="styles/splash.css" />
-```
+5. **Verify TypeScript compiles** with `npx tsc --noEmit --pretty`
 
-### Step 3: Verify
-
-Open splash.html in a browser and verify styling matches the original (all classes, animations, layout preserved).
-
-### Step 4: Commit
-
-```bash
-git add src/public/splash.html src/public/styles/splash.css
-git commit -m "refactor: extract inline CSS from splash.html into separate stylesheet"
-```
+6. **Commit** with message `"feat: wire ExtensionWizardDialog into settings UI"`

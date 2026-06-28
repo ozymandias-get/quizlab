@@ -68,9 +68,14 @@ const baseHandlers: GeminiWebSessionHandlers = {
   onResetWebProfile: vi.fn(),
   onToggleWebEnabled: vi.fn(),
   onToggleManagedApp: vi.fn(),
-  onInstallExtension: vi.fn(async () => {}),
+  onInstallExtension: vi.fn(),
   onRemoveExtension: vi.fn()
 }
+
+const baseRiskItems: string[] = []
+const baseMitigationItems: string[] = []
+const installExtensionMutation = vi.fn(async () => ({ success: true }))
+const removeExtensionMutation = vi.fn(async () => ({ success: true }))
 
 describe('GeminiWebSessionOverview', () => {
   it('renders inline refreshing state and disables manual actions while refreshing', () => {
@@ -89,6 +94,13 @@ describe('GeminiWebSessionOverview', () => {
         enabledAppIds={new Set(['gemini'])}
         actionState={{ ...baseActionState, isRefreshing: true }}
         handlers={baseHandlers}
+        wizardOpen={false}
+        wizardMode={null}
+        riskItems={baseRiskItems}
+        mitigationItems={baseMitigationItems}
+        closeWizard={vi.fn()}
+        installExtensionMutation={installExtensionMutation}
+        removeExtensionMutation={removeExtensionMutation}
       />
     )
 
@@ -120,6 +132,13 @@ describe('GeminiWebSessionOverview', () => {
         enabledAppIds={new Set(['gemini'])}
         actionState={baseActionState}
         handlers={baseHandlers}
+        wizardOpen={false}
+        wizardMode={null}
+        riskItems={baseRiskItems}
+        mitigationItems={baseMitigationItems}
+        closeWizard={vi.fn()}
+        installExtensionMutation={installExtensionMutation}
+        removeExtensionMutation={removeExtensionMutation}
       />
     )
 
@@ -148,6 +167,13 @@ describe('GeminiWebSessionOverview', () => {
         enabledAppIds={new Set(['gemini'])}
         actionState={baseActionState}
         handlers={handlers}
+        wizardOpen={false}
+        wizardMode={null}
+        riskItems={baseRiskItems}
+        mitigationItems={baseMitigationItems}
+        closeWizard={vi.fn()}
+        installExtensionMutation={installExtensionMutation}
+        removeExtensionMutation={removeExtensionMutation}
       />
     )
 

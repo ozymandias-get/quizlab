@@ -69,8 +69,7 @@ describe('SessionExportImport', () => {
           writeStorageStateSnapshot: vi.fn(),
           clearSnapshot: vi.fn()
         } as never,
-        { readMetadata } as never,
-        {} as never
+        { readMetadata } as never
       )
 
       const result = await exporter.exportSession(testExportPath)
@@ -97,8 +96,7 @@ describe('SessionExportImport', () => {
           writeStorageStateSnapshot: vi.fn(),
           clearSnapshot: vi.fn()
         } as never,
-        { readMetadata } as never,
-        {} as never
+        { readMetadata } as never
       )
 
       await exporter.exportSession(testExportPath)
@@ -125,8 +123,7 @@ describe('SessionExportImport', () => {
           writeStorageStateSnapshot: vi.fn(),
           clearSnapshot: vi.fn()
         } as never,
-        { readMetadata } as never,
-        {} as never
+        { readMetadata } as never
       )
 
       const result = await exporter.exportSession(testExportPath)
@@ -153,8 +150,7 @@ describe('SessionExportImport', () => {
           writeStorageStateSnapshot: vi.fn(),
           clearSnapshot: vi.fn()
         } as never,
-        { readMetadata } as never,
-        {} as never
+        { readMetadata } as never
       )
 
       const result = await exporter.exportSession(testExportPath)
@@ -187,7 +183,6 @@ describe('SessionExportImport', () => {
       exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportData))
 
       const writeStorageStateSnapshot = vi.fn().mockResolvedValue(undefined)
-      const runProbeAcrossApps = vi.fn().mockResolvedValue({ outcome: { healthy: true } })
       const writeStatus = vi.fn().mockResolvedValue({
         state: 'authenticated',
         accountHash: 'abc123'
@@ -199,18 +194,13 @@ describe('SessionExportImport', () => {
           writeStorageStateSnapshot,
           clearSnapshot: vi.fn()
         } as never,
-        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never,
-        { runProbeAcrossApps } as never
+        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never
       )
 
       const result = await importer.importSession(testExportPath)
 
       expect(result.success).toBe(true)
       expect(writeStorageStateSnapshot).toHaveBeenCalledWith({ cookies: [] })
-      expect(runProbeAcrossApps).toHaveBeenCalledWith({
-        interactive: false,
-        timeoutMs: expect.any(Number)
-      })
     })
 
     it('rejects export with wrong version', async () => {
@@ -218,7 +208,7 @@ describe('SessionExportImport', () => {
         JSON.stringify({ version: 99, storageState: null })
       )
 
-      const importer = new SessionExportImport(null, {} as never, {} as never)
+      const importer = new SessionExportImport(null, {} as never)
 
       const result = await importer.importSession(testExportPath)
 
@@ -227,37 +217,10 @@ describe('SessionExportImport', () => {
       expect(result.error).toBe('invalid_session_data')
     })
 
-    it('fails when probe verification fails', async () => {
-      const exportData = {
-        version: 1,
-        storageState: { cookies: [] },
-        accountHash: 'abc123',
-        metadata: { state: 'authenticated', reasonCode: 'none', lastHealthyAt: null }
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportData))
-
-      const runProbeAcrossApps = vi.fn().mockResolvedValue({ outcome: { healthy: false } })
-
-      const importer = new SessionExportImport(
-        {
-          readStorageStateSnapshot: vi.fn(),
-          writeStorageStateSnapshot: vi.fn().mockResolvedValue(undefined),
-          clearSnapshot: vi.fn()
-        } as never,
-        { writeStatus: vi.fn() } as never,
-        { runProbeAcrossApps } as never
-      )
-
-      const result = await importer.importSession(testExportPath)
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('import_verification_failed')
-    })
-
     it('returns error when file read fails', async () => {
       exportImportMocks.readFile.mockRejectedValue(new Error('File not found'))
 
-      const importer = new SessionExportImport(null, {} as never, {} as never)
+      const importer = new SessionExportImport(null, {} as never)
 
       const result = await importer.importSession(testExportPath)
 
@@ -268,7 +231,7 @@ describe('SessionExportImport', () => {
     it('returns error when JSON is invalid', async () => {
       exportImportMocks.readFile.mockResolvedValue('not json')
 
-      const importer = new SessionExportImport(null, {} as never, {} as never)
+      const importer = new SessionExportImport(null, {} as never)
 
       const result = await importer.importSession(testExportPath)
 
@@ -286,7 +249,6 @@ describe('SessionExportImport', () => {
       exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportData))
 
       const writeStorageStateSnapshot = vi.fn()
-      const runProbeAcrossApps = vi.fn().mockResolvedValue({ outcome: { healthy: true } })
       const writeStatus = vi
         .fn()
         .mockResolvedValue({ state: 'authenticated', accountHash: 'abc123' })
@@ -297,8 +259,7 @@ describe('SessionExportImport', () => {
           writeStorageStateSnapshot,
           clearSnapshot: vi.fn()
         } as never,
-        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never,
-        { runProbeAcrossApps } as never
+        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never
       )
 
       await importer.importSession(testExportPath)
@@ -329,7 +290,6 @@ describe('SessionExportImport', () => {
       safeStorageMocks.decryptString.mockReturnValue(JSON.stringify(innerV1))
 
       const writeStorageStateSnapshot = vi.fn().mockResolvedValue(undefined)
-      const runProbeAcrossApps = vi.fn().mockResolvedValue({ outcome: { healthy: true } })
       const writeStatus = vi
         .fn()
         .mockResolvedValue({ state: 'authenticated', accountHash: 'abc123' })
@@ -340,8 +300,7 @@ describe('SessionExportImport', () => {
           writeStorageStateSnapshot,
           clearSnapshot: vi.fn()
         } as never,
-        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never,
-        { runProbeAcrossApps } as never
+        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never
       )
 
       const result = await importer.importSession(testExportPath)
@@ -349,10 +308,6 @@ describe('SessionExportImport', () => {
       expect(result.success).toBe(true)
       expect(safeStorageMocks.decryptString).toHaveBeenCalledTimes(1)
       expect(writeStorageStateSnapshot).toHaveBeenCalledWith({ cookies: [] })
-      expect(runProbeAcrossApps).toHaveBeenCalledWith({
-        interactive: false,
-        timeoutMs: expect.any(Number)
-      })
     })
 
     it('rejects v2 import when safeStorage is unavailable', async () => {
@@ -363,7 +318,7 @@ describe('SessionExportImport', () => {
       }
       exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportDataV2))
 
-      const importer = new SessionExportImport(null, {} as never, {} as never)
+      const importer = new SessionExportImport(null, {} as never)
 
       const result = await importer.importSession(testExportPath)
 
@@ -383,7 +338,7 @@ describe('SessionExportImport', () => {
         throw new Error('Decryption failed')
       })
 
-      const importer = new SessionExportImport(null, {} as never, {} as never)
+      const importer = new SessionExportImport(null, {} as never)
 
       const result = await importer.importSession(testExportPath)
 
@@ -403,7 +358,7 @@ describe('SessionExportImport', () => {
       exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportDataV2))
       safeStorageMocks.decryptString.mockReturnValue(JSON.stringify(badInnerData))
 
-      const importer = new SessionExportImport(null, {} as never, {} as never)
+      const importer = new SessionExportImport(null, {} as never)
 
       const result = await importer.importSession(testExportPath)
 
@@ -416,7 +371,7 @@ describe('SessionExportImport', () => {
         exportImportMocks.readFile.mockResolvedValue(
           '{"version":1,"__proto__":{"cookies":[]},"storageState":null,"accountHash":null,"metadata":{"state":"requires_login","reasonCode":"none"}}'
         )
-        const importer = new SessionExportImport(null, {} as never, {} as never)
+        const importer = new SessionExportImport(null, {} as never)
         const result = await importer.importSession(testExportPath)
         expect(result.success).toBe(false)
         expect(result.error).toBe('invalid_session_data')
@@ -432,7 +387,7 @@ describe('SessionExportImport', () => {
             metadata: { state: 'requires_login', reasonCode: 'none' }
           })
         )
-        const importer = new SessionExportImport(null, {} as never, {} as never)
+        const importer = new SessionExportImport(null, {} as never)
         const result = await importer.importSession(testExportPath)
         expect(result.success).toBe(false)
         expect(result.error).toBe('invalid_session_data')
@@ -442,7 +397,7 @@ describe('SessionExportImport', () => {
         exportImportMocks.readFile.mockResolvedValue(
           JSON.stringify({ version: 1, storageState: null, accountHash: null, metadata: 'invalid' })
         )
-        const importer = new SessionExportImport(null, {} as never, {} as never)
+        const importer = new SessionExportImport(null, {} as never)
         const result = await importer.importSession(testExportPath)
         expect(result.success).toBe(false)
         expect(result.error).toBe('invalid_session_data')
@@ -458,7 +413,7 @@ describe('SessionExportImport', () => {
             metadata: { state: 'requires_login', reasonCode: 'none' }
           })
         )
-        const importer = new SessionExportImport(null, {} as never, {} as never)
+        const importer = new SessionExportImport(null, {} as never)
         const result = await importer.importSession(testExportPath)
         expect(result.success).toBe(false)
         expect(result.error).toBe('invalid_session_data')
@@ -473,7 +428,7 @@ describe('SessionExportImport', () => {
             metadata: { state: 'requires_login', reasonCode: 'none' }
           })
         )
-        const importer = new SessionExportImport(null, {} as never, {} as never)
+        const importer = new SessionExportImport(null, {} as never)
         const result = await importer.importSession(testExportPath)
         expect(result.success).toBe(false)
         expect(result.error).toBe('invalid_session_data')
@@ -488,7 +443,7 @@ describe('SessionExportImport', () => {
             metadata: { state: 123, reasonCode: 'none' }
           })
         )
-        const importer = new SessionExportImport(null, {} as never, {} as never)
+        const importer = new SessionExportImport(null, {} as never)
         const result = await importer.importSession(testExportPath)
         expect(result.success).toBe(false)
         expect(result.error).toBe('invalid_session_data')

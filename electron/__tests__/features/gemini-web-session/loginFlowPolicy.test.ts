@@ -5,17 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocked = vi.hoisted(() => {
   return {
-    nowIso: vi.fn(() => '2026-04-07T19:30:00.000Z'),
-    HEALTH_TIMEOUT_MS: 30_000,
     Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    applyProbeTransition: vi.fn(({ previous, outcome, timestamp }) => ({
-      ...previous,
-      state: outcome?.healthy ? 'authenticated' : 'auth_required',
-      reasonCode: outcome?.healthy ? 'none' : outcome?.kind || 'unknown',
-      lastCheckAt: timestamp,
-      lastHealthyAt: outcome?.healthy ? timestamp : previous.lastHealthyAt,
-      consecutiveFailures: outcome?.healthy ? 0 : (previous.consecutiveFailures ?? 0) + 1
-    })),
     readMetadata: vi.fn().mockResolvedValue({
       enabled: true,
       state: 'auth_required',
@@ -31,10 +21,6 @@ const mocked = vi.hoisted(() => {
     getDisabledActionResult: vi.fn((): any => null),
     acquire: vi.fn().mockResolvedValue({ ok: true }),
     release: vi.fn().mockResolvedValue(undefined),
-    runProbeAcrossApps: vi.fn().mockResolvedValue({
-      outcome: { healthy: true, kind: 'none' },
-      accountHash: 'hash-1'
-    }),
     initialize: vi.fn().mockResolvedValue(undefined),
     getStatus: vi.fn().mockResolvedValue({ state: 'auth_required' }),
     snapshotRepository: {
@@ -47,18 +33,6 @@ const mocked = vi.hoisted(() => {
     toErrorMessage: vi.fn((_: unknown, fallback: string) => fallback)
   }
 })
-
-vi.mock('../../../../electron/features/gemini-web-session/sessionUtils', () => ({
-  nowIso: mocked.nowIso
-}))
-
-vi.mock('../../../../electron/features/gemini-web-session/stateMachine', () => ({
-  applyProbeTransition: mocked.applyProbeTransition
-}))
-
-vi.mock('../../../../electron/features/gemini-web-session/sessionConfig', () => ({
-  HEALTH_TIMEOUT_MS: mocked.HEALTH_TIMEOUT_MS
-}))
 
 vi.mock('../../../../electron/core/logger', () => ({
   Logger: mocked.Logger
@@ -86,7 +60,6 @@ describe('LoginFlowPolicy', () => {
         getDisabledActionResult: mocked.getDisabledActionResult
       },
       profileLock: { acquire: mocked.acquire, release: mocked.release },
-      probeRunner: { runProbeAcrossApps: mocked.runProbeAcrossApps },
       config: { maxConsecutiveFailures: 3 },
       resolvePersistentSession: mocked.resolvePersistentSession,
       getStatus: mocked.getStatus,
@@ -99,9 +72,6 @@ describe('LoginFlowPolicy', () => {
 
   describe('openLogin', () => {
     it('calls initialize and reads metadata', async () => {
-      mocked.runProbeAcrossApps.mockResolvedValueOnce({
-        outcome: { healthy: false, kind: 'network' }
-      })
       await policy.openLogin()
       expect(mocked.initialize).toHaveBeenCalled()
       expect(mocked.readMetadata).toHaveBeenCalled()
@@ -125,7 +95,10 @@ describe('LoginFlowPolicy', () => {
       expect(result.error).toBe('already_in_use')
     })
 
-    it('writes authenticated status and takes snapshot on healthy probe', async () => {
+    it('writes authenticated status and takes snapshot when cookies exist', async () => {
+      mocked.resolvePersistentSession.mockReturnValueOnce({
+        cookies: { get: vi.fn().mockResolvedValue([{ name: 'SAPISID' }]) }
+      })
       const result = await policy.openLogin()
       expect(result.success).toBe(true)
       expect(mocked.writeStatus).toHaveBeenCalledWith(
@@ -135,32 +108,10 @@ describe('LoginFlowPolicy', () => {
       expect(mocked.snapshotRepository.writeStorageStateSnapshot).toHaveBeenCalled()
     })
 
-    it('writes auth_required on challenge probe', async () => {
-      mocked.runProbeAcrossApps.mockResolvedValueOnce({
-        outcome: { healthy: false, kind: 'challenge' }
-      })
+    it('returns error_login_verification_failed when no cookies found', async () => {
       const result = await policy.openLogin()
       expect(result.success).toBe(false)
-      expect(result.error).toBe('error_challenge_required')
-    })
-
-    it('writes auth_required on network probe failure', async () => {
-      mocked.runProbeAcrossApps.mockResolvedValueOnce({
-        outcome: { healthy: false, kind: 'network' }
-      })
-      const result = await policy.openLogin()
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('error_network_login_failed')
-    })
-
-    it('reports timeout when probe timed out', async () => {
-      mocked.runProbeAcrossApps.mockResolvedValueOnce({
-        outcome: { healthy: false, kind: 'none' },
-        timedOut: true
-      })
-      const result = await policy.openLogin()
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('error_login_timeout')
+      expect(result.error).toBe('error_login_verification_failed')
     })
 
     it('releases lock in finally block', async () => {
@@ -169,7 +120,9 @@ describe('LoginFlowPolicy', () => {
     })
 
     it('catches errors and returns login failed', async () => {
-      mocked.runProbeAcrossApps.mockRejectedValueOnce(new Error('Unexpected'))
+      mocked.resolvePersistentSession.mockImplementationOnce(() => {
+        throw new Error('Unexpected')
+      })
       const result = await policy.openLogin()
       expect(result.success).toBe(false)
       expect(result.error).toBe('error_login_failed')
@@ -183,7 +136,8 @@ describe('LoginFlowPolicy', () => {
         expect.objectContaining({ state: 'auth_required', reasonCode: 'login_redirect' }),
         'hash-1'
       )
-      expect(result.success).toBe(true)
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('error_login_verification_failed')
     })
 
     it('returns blocked when feature is disabled', async () => {

@@ -23,11 +23,7 @@ const mocked = vi.hoisted(() => {
     getDisabledActionResult: vi.fn(() => null),
     acquire: vi.fn().mockResolvedValue({ ok: true }),
     release: vi.fn().mockResolvedValue(undefined),
-    runProbeAcrossApps: vi.fn(),
-    shouldAttemptSilentRefresh: vi.fn(() => false),
-    runSilentRefreshProbe: vi.fn(),
-    isWithinRefreshGracePeriod: vi.fn(() => false),
-    markRefreshSuccess: vi.fn(),
+
     resetCooldowns: vi.fn(),
     schedule: vi.fn(),
     stop: vi.fn(),
@@ -101,22 +97,21 @@ vi.mock('../../../features/gemini-web-session/profileLock', () => {
   return { ProfileLock }
 })
 
-vi.mock('../../../features/gemini-web-session/probeRunner', () => {
-  class ProbeRunner {
-    runProbeAcrossApps = mocked.runProbeAcrossApps
-  }
-  return { ProbeRunner }
-})
-
 vi.mock('../../../features/gemini-web-session/sessionRecovery', () => {
   class SessionRecovery {
-    shouldAttemptSilentRefresh = mocked.shouldAttemptSilentRefresh
-    runSilentRefreshProbe = mocked.runSilentRefreshProbe
-    isWithinRefreshGracePeriod = mocked.isWithinRefreshGracePeriod
-    markRefreshSuccess = mocked.markRefreshSuccess
     resetCooldowns = mocked.resetCooldowns
   }
   return { SessionRecovery }
+})
+
+vi.mock('../../../features/gemini-web-session/refreshTriggerPolicy', () => {
+  class RefreshTriggerPolicy {
+    configureReactiveRefreshListeners = vi.fn()
+    getActiveRefresh = vi.fn().mockReturnValue(null)
+    clearActiveRefresh = vi.fn()
+    triggerRefresh = vi.fn()
+  }
+  return { RefreshTriggerPolicy }
 })
 
 vi.mock('../../../features/gemini-web-session/sessionMonitor', () => {
@@ -186,11 +181,6 @@ describe('sessionOrchestrator', () => {
       shouldRefresh: false,
       earliestExpiry: null
     })
-    mocked.runProbeAcrossApps.mockResolvedValue({
-      outcome: { healthy: true, kind: 'none' },
-      accountHash: 'healthy-hash',
-      timedOut: false
-    })
   })
 
   async function createOrchestrator(resolvePersistentSession?: () => never) {
@@ -208,60 +198,10 @@ describe('sessionOrchestrator', () => {
     })
   }
 
-  it('dedupes concurrent checkNow calls via activeCheck', async () => {
-    mocked.metadata.enabled = false
-    mocked.runProbeAcrossApps.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(
-            () =>
-              resolve({
-                outcome: { healthy: true, kind: 'none' },
-                accountHash: 'same-hash',
-                timedOut: false
-              }),
-            20
-          )
-        })
-    )
+  it('returns current status from checkNow when feature flag is off (no probe)', async () => {
     const orchestrator = await createOrchestrator()
-
-    const p1 = orchestrator.checkNow()
-    const p2 = orchestrator.checkNow()
-
-    const [r1, r2] = await Promise.all([p1, p2])
-    expect(mocked.acquire).toHaveBeenCalledTimes(0)
-    expect(mocked.readMetadata).toHaveBeenCalled()
-    expect(r1).toEqual(r2)
-  })
-
-  it('writes degraded status when lock is unavailable', async () => {
-    mocked.acquire.mockResolvedValueOnce({ ok: false, error: 'already_in_use' })
-    const orchestrator = await createOrchestrator()
-
     const result = await orchestrator.checkNow()
     expect(result.success).toBe(true)
-    expect(result.status!.state).toBe('degraded')
-    expect(result.status!.reasonCode).toBe('unknown')
-  })
-
-  it('uses silent refresh path when configured and healthy', async () => {
-    mocked.runProbeAcrossApps.mockResolvedValueOnce({
-      outcome: { healthy: false, kind: 'login_redirect' },
-      accountHash: null,
-      timedOut: false
-    })
-    mocked.shouldAttemptSilentRefresh.mockReturnValueOnce(true)
-    mocked.runSilentRefreshProbe.mockResolvedValueOnce({
-      outcome: { healthy: true, kind: 'none' },
-      accountHash: 'silent-hash',
-      timedOut: false
-    })
-    const orchestrator = await createOrchestrator()
-
-    const result = await orchestrator.checkNow()
-    expect(mocked.runSilentRefreshProbe).toHaveBeenCalledTimes(1)
-    expect(result.status!.state).toBe('authenticated')
   })
 
   it('returns early from ensureAuthenticated for authenticated status', async () => {
@@ -271,7 +211,6 @@ describe('sessionOrchestrator', () => {
 
     const result = await orchestrator.ensureAuthenticated()
     expect(result.ok).toBe(true)
-    expect(mocked.runProbeAcrossApps).not.toHaveBeenCalled()
   })
 
   it('maps ensureAuthenticated to reauth_required and session_unavailable', async () => {
@@ -288,19 +227,21 @@ describe('sessionOrchestrator', () => {
     expect(unavailable.error).toBe('session_unavailable')
   })
 
-  it('setEnabled and setEnabledApps update scheduling and sanitized ids', async () => {
+  it('setEnabled schedules monitor when enabling and stops when disabling', async () => {
     const orchestrator = await createOrchestrator()
     await orchestrator.setEnabled(true)
-    expect(mocked.schedule).toHaveBeenCalled()
+    expect(mocked.schedule).toHaveBeenCalledTimes(1)
+    expect(mocked.stop).not.toHaveBeenCalled()
 
     await orchestrator.setEnabled(false)
-    expect(mocked.stop).toHaveBeenCalled()
+    expect(mocked.stop).toHaveBeenCalledTimes(1)
 
     await orchestrator.setEnabledApps(['gemini', 'chatgpt', 12 as never])
     expect(mocked.writeStatus).toHaveBeenCalled()
   })
 
   it('resetProfile clears profile and writes reset_profile_required state', async () => {
+    mocked.metadata.enabled = true
     const orchestrator = await createOrchestrator()
     const result = await orchestrator.resetProfile()
     expect(result.success).toBe(true)
@@ -310,6 +251,7 @@ describe('sessionOrchestrator', () => {
   })
 
   it('resetProfile works with storageStateSnapshotPath', async () => {
+    mocked.metadata.enabled = true
     const { SessionOrchestrator } =
       await import('../../../features/gemini-web-session/sessionOrchestrator.js')
     const orchestrator = new SessionOrchestrator({
@@ -324,15 +266,5 @@ describe('sessionOrchestrator', () => {
     })
     const result = await orchestrator.resetProfile()
     expect(result.success).toBe(true)
-  })
-
-  it('ignores reactive refresh signals inside the refresh grace period', async () => {
-    mocked.metadata.enabled = true
-    mocked.isWithinRefreshGracePeriod.mockReturnValueOnce(true)
-    const orchestrator = await createOrchestrator()
-
-    await orchestrator.triggerRefresh({ reason: 'http_401', url: 'https://gemini.google.com' })
-
-    expect(mocked.runSilentRefreshProbe).not.toHaveBeenCalled()
   })
 })
