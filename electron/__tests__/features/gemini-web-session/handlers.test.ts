@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../../app/constants.js'
 
@@ -7,9 +7,6 @@ const trustedSender = { id: 1 }
 const trustedEvent = { sender: trustedSender, type: 'invoke' }
 const initialize = vi.fn()
 const getStatus = vi.fn()
-const openLogin = vi.fn()
-const checkNow = vi.fn()
-const reauthenticate = vi.fn()
 const resetProfile = vi.fn()
 const setEnabled = vi.fn()
 const setEnabledApps = vi.fn()
@@ -33,9 +30,6 @@ vi.mock('../../../features/gemini-web-session/sessionManager', () => ({
   geminiWebSessionManager: {
     initialize,
     getStatus,
-    openLogin,
-    checkNow,
-    reauthenticate,
     resetProfile,
     setEnabled,
     setEnabledApps,
@@ -59,9 +53,6 @@ describe('gemini web session handlers', () => {
     ipcHandle.mockReset()
     initialize.mockReset().mockResolvedValue(undefined)
     getStatus.mockReset().mockResolvedValue({ state: 'unknown' })
-    openLogin.mockReset().mockResolvedValue({ success: true })
-    checkNow.mockReset().mockResolvedValue({ success: true })
-    reauthenticate.mockReset().mockResolvedValue({ success: true })
     resetProfile.mockReset().mockResolvedValue({ success: true })
     setEnabled.mockReset().mockResolvedValue({ success: true })
     setEnabledApps.mockReset().mockResolvedValue({ success: true })

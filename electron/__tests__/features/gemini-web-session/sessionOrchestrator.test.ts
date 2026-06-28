@@ -198,12 +198,6 @@ describe('sessionOrchestrator', () => {
     })
   }
 
-  it('returns current status from checkNow when feature flag is off (no probe)', async () => {
-    const orchestrator = await createOrchestrator()
-    const result = await orchestrator.checkNow()
-    expect(result.success).toBe(true)
-  })
-
   it('returns early from ensureAuthenticated for authenticated status', async () => {
     mocked.metadata.state = 'authenticated'
     mocked.metadata.enabled = false
