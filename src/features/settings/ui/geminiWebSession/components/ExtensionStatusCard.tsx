@@ -11,13 +11,6 @@ interface ExtensionStatusCardProps {
   onRemoveExtension: () => void
 }
 
-const EXTENSION_STATUS_KEYS: Record<NonNullable<NativeMessagingExtensionInfo['status']>, string> = {
-  connected: 'gws_extension_status_connected',
-  connecting: 'gws_extension_status_connecting',
-  disconnected: 'gws_extension_status_disconnected',
-  error: 'gws_extension_status_error'
-}
-
 function ExtensionStatusCard({
   t,
   onInstallExtension,
@@ -64,24 +57,50 @@ function ExtensionStatusCard({
     }
   }
 
+  const statusKey = (info: NativeMessagingExtensionInfo | null): string => {
+    if (!info) return 'gws_extension_status_disconnected'
+
+    if (info.status === 'connected') {
+      return 'gws_extension_status_connected'
+    }
+
+    if (info.status === 'error') {
+      return 'gws_extension_status_error'
+    }
+
+    if (info.status === 'connecting' && info.installed) {
+      const hint = info.userHint
+      if (hint === 'waiting_long') {
+        return 'gws_extension_status_waiting_long'
+      }
+      if (hint === 'waiting') {
+        return 'gws_extension_status_waiting'
+      }
+      return 'gws_extension_status_connecting'
+    }
+
+    if (info.status === 'connecting' && !info.installed) {
+      return 'gws_extension_status_not_installed'
+    }
+
+    return 'gws_extension_status_disconnected'
+  }
+
+  const dotColor = (info: NativeMessagingExtensionInfo | null): string => {
+    if (!info) return 'bg-white/30'
+    if (info.status === 'connected') return 'bg-emerald-400'
+    if (info.status === 'connecting' && info.installed) return 'bg-amber-400'
+    return 'bg-white/30'
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-black/10 p-4 backdrop-blur-sm">
       <div className="text-ql-12 mb-3 font-bold text-white/85">{t('gws_extension_title')}</div>
 
       <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
-          <div
-            className={`h-2 w-2 rounded-full ${
-              extensionInfo?.status === 'connected'
-                ? 'bg-emerald-400'
-                : extensionInfo?.status === 'connecting'
-                  ? 'bg-amber-400'
-                  : 'bg-white/30'
-            }`}
-          />
-          <span className="text-ql-12 text-white/70">
-            {t(EXTENSION_STATUS_KEYS[extensionInfo?.status || 'disconnected'])}
-          </span>
+          <div className={`h-2 w-2 rounded-full ${dotColor(extensionInfo)}`} />
+          <span className="text-ql-12 text-white/70">{t(statusKey(extensionInfo))}</span>
         </div>
 
         {extensionInfo?.installed ? (
