@@ -103,29 +103,40 @@ function ExtensionStatusCard({
           <span className="text-ql-12 text-white/70">{t(statusKey(extensionInfo))}</span>
         </div>
 
-        {extensionInfo?.installed ? (
-          <button
-            type="button"
-            onClick={onRemoveExtension}
-            className="text-ql-11 text-red-400 hover:text-red-300"
-          >
-            {t('gws_extension_remove_btn')}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleInstallClick}
-            disabled={installing}
-            className="text-ql-11 inline-flex items-center gap-1.5 rounded-lg bg-blue-500/20 px-3 py-1.5 font-semibold text-blue-300 hover:bg-blue-500/30 disabled:opacity-50"
-          >
-            {installing ? (
-              <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <SettingsIcon className="h-3.5 w-3.5" />
-            )}
-            {t('gws_extension_install_btn')}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {extensionInfo?.installed && extensionInfo?.status !== 'connected' && (
+            <button
+              type="button"
+              onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
+              className="text-ql-11 font-semibold text-amber-400 hover:text-amber-300"
+            >
+              {t('gws_extension_wake_btn')}
+            </button>
+          )}
+          {extensionInfo?.installed ? (
+            <button
+              type="button"
+              onClick={onRemoveExtension}
+              className="text-ql-11 text-red-400 hover:text-red-300"
+            >
+              {t('gws_extension_remove_btn')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              disabled={installing}
+              className="text-ql-11 inline-flex items-center gap-1.5 rounded-lg bg-blue-500/20 px-3 py-1.5 font-semibold text-blue-300 hover:bg-blue-500/30 disabled:opacity-50"
+            >
+              {installing ? (
+                <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <SettingsIcon className="h-3.5 w-3.5" />
+              )}
+              {t('gws_extension_install_btn')}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -99,6 +99,13 @@ export default memo(function ApiSettingsTab() {
     }))
   }, [])
 
+  const handlePromptChange = useCallback(
+    (patch: { memoryPrompt?: string; characterPrompt?: string; generalPrompt?: string }) => {
+      setConfig((c) => ({ ...c, ...patch }))
+    },
+    []
+  )
+
   const handleSave = useCallback(async () => {
     setSaving(true)
     try {
@@ -216,7 +223,7 @@ export default memo(function ApiSettingsTab() {
         memoryPrompt={config.memoryPrompt || ''}
         characterPrompt={config.characterPrompt || ''}
         generalPrompt={config.generalPrompt || ''}
-        onChange={(patch) => setConfig((c) => ({ ...c, ...patch }))}
+        onChange={handlePromptChange}
       />
 
       <div className="flex flex-col gap-4">

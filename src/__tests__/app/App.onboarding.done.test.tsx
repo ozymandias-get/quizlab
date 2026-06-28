@@ -33,7 +33,6 @@ vi.mock('@app/ui/FocusOverlay', () => ({ default: () => null }))
 vi.mock('@features/screenshot', () => ({ ScreenshotTool: () => null }))
 vi.mock('@features/tutorial', () => ({ TutorialOverlay: () => null }))
 vi.mock('@ui/components/UpdateBanner', () => ({ default: () => null }))
-vi.mock('@app/ui/GeminiWebLoginOverlay', () => ({ default: () => null }))
 vi.mock('@app/ui/AiSendComposer', () => ({ default: () => null }))
 vi.mock('@features/settings/hooks/useCacheThresholdWarning', () => ({
   useCacheThresholdWarning: () => {}

@@ -1,11 +1,8 @@
-import type { GeminiWebSessionActionResult } from '@shared-core/types'
-
 import type { AiSendOptions } from '@features/ai/model/types'
 
 import { useToastActions } from '@shared/stores/toastStore'
 
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import type { AiDraftItem, AiSendResult } from './ai/types'
 import {
@@ -28,17 +25,12 @@ export interface AppToolQueueState {
 export interface AppToolFlagsState {
   isScreenshotMode: boolean
   isPickerActive: boolean
-  isGeminiWebLoginInProgress: boolean
   isGeminiWebSessionRefreshing: boolean
-  isGeminiWebLoginDismissed: boolean
 }
 
 type AppToolScreenshotState = Pick<AppToolFlagsState, 'isScreenshotMode'>
 type AppToolPickerState = Pick<AppToolFlagsState, 'isPickerActive'>
-type AppToolGeminiSessionState = Pick<
-  AppToolFlagsState,
-  'isGeminiWebLoginInProgress' | 'isGeminiWebSessionRefreshing' | 'isGeminiWebLoginDismissed'
->
+type AppToolGeminiSessionState = Pick<AppToolFlagsState, 'isGeminiWebSessionRefreshing'>
 
 interface AppToolActionsType {
   startScreenshot: (imageMeta?: QueuedImageMeta) => void
@@ -53,8 +45,6 @@ interface AppToolActionsType {
   startPicker: () => void
   startPickerWhenReady: () => void
   togglePicker: () => void
-  startGeminiWebLogin: () => Promise<GeminiWebSessionActionResult>
-  dismissGeminiWebLoginOverlay: () => void
 }
 
 const AppToolQueueContext = createContext<AppToolQueueState | null>(null)
@@ -68,8 +58,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   const { sendTextToAI, sendImageToAI, cancelOngoing } = useAiMessagingActions()
   const { setAutoSend } = useAiSessionActions()
   const { autoSend } = useAiSessionUiPrefsState()
-  const { showError, showWarning } = useToastActions()
-  const { t } = useTranslation()
+  const { showError } = useToastActions()
   const { getWebviewInstance } = useAiWebview()
 
   const {
@@ -104,13 +93,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   const { isPickerActive, startPicker, startPickerWhenReady, togglePicker } =
     useElementPickerLifecycle(getWebviewInstance)
 
-  const {
-    isGeminiWebSessionRefreshing,
-    isGeminiWebLoginInProgress,
-    isGeminiWebLoginDismissed,
-    startGeminiWebLogin,
-    dismissLoginOverlay
-  } = useGeminiSessionRefreshListeners({ showError, showWarning, t })
+  const { isGeminiWebSessionRefreshing } = useGeminiSessionRefreshListeners({ showError })
 
   const queueValue = useMemo<AppToolQueueState>(
     () => ({ pendingAiItems, autoSend }),
@@ -121,17 +104,9 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     () => ({
       isScreenshotMode,
       isPickerActive,
-      isGeminiWebLoginInProgress,
-      isGeminiWebSessionRefreshing,
-      isGeminiWebLoginDismissed
+      isGeminiWebSessionRefreshing
     }),
-    [
-      isScreenshotMode,
-      isPickerActive,
-      isGeminiWebLoginInProgress,
-      isGeminiWebSessionRefreshing,
-      isGeminiWebLoginDismissed
-    ]
+    [isScreenshotMode, isPickerActive, isGeminiWebSessionRefreshing]
   )
 
   const screenshotValue = useMemo<AppToolScreenshotState>(
@@ -143,11 +118,9 @@ function AppToolProvider({ children }: { children: ReactNode }) {
 
   const geminiSessionValue = useMemo<AppToolGeminiSessionState>(
     () => ({
-      isGeminiWebLoginInProgress,
-      isGeminiWebSessionRefreshing,
-      isGeminiWebLoginDismissed
+      isGeminiWebSessionRefreshing
     }),
-    [isGeminiWebLoginInProgress, isGeminiWebSessionRefreshing, isGeminiWebLoginDismissed]
+    [isGeminiWebSessionRefreshing]
   )
 
   const actionsValue = useMemo<AppToolActionsType>(
@@ -163,9 +136,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       setAutoSend,
       startPicker,
       startPickerWhenReady,
-      togglePicker,
-      startGeminiWebLogin,
-      dismissGeminiWebLoginOverlay: dismissLoginOverlay
+      togglePicker
     }),
     [
       startScreenshot,
@@ -179,9 +150,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       setAutoSend,
       startPicker,
       startPickerWhenReady,
-      togglePicker,
-      startGeminiWebLogin,
-      dismissLoginOverlay
+      togglePicker
     ]
   )
 

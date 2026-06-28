@@ -89,11 +89,7 @@ const BottomBarSettingsTab = memo(() => {
   return (
     <div className="space-y-6" data-app-locale={language}>
       <SettingsTabIntro
-        icon={
-          <div className="rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/20 to-cyan-500/20 p-2.5 text-sky-400">
-            <SliderIcon className="h-5 w-5" />
-          </div>
-        }
+        icon={BOTTOM_BAR_ICON}
         eyebrow={t('bottom_bar')}
         title={t('bottom_bar')}
         description={t('bottom_bar_description')}

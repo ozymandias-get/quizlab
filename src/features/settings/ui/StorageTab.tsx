@@ -60,7 +60,15 @@ function partitionDisplayName(partitionKey: string): string {
   return key
 }
 
-function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
+const ProgressBar = memo(function ProgressBar({
+  value,
+  max,
+  color
+}: {
+  value: number
+  max: number
+  color: string
+}) {
   const pct = Math.min((value / Math.max(max, 1)) * 100, 100)
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
@@ -70,7 +78,8 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
       />
     </div>
   )
-}
+})
+ProgressBar.displayName = 'ProgressBar'
 
 const StorageTab = memo(function StorageTab() {
   const { t } = useTranslation()
@@ -247,16 +256,17 @@ const StorageTab = memo(function StorageTab() {
   )
 })
 
-function RootCacheRow({ label, size }: { label: string; size: number }) {
+const RootCacheRow = memo(function RootCacheRow({ label, size }: { label: string; size: number }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-ql-12 text-foreground/85">{label}</span>
       <span className="text-ql-12 text-foreground/70 font-mono">{formatBytes(size)}</span>
     </div>
   )
-}
+})
+RootCacheRow.displayName = 'RootCacheRow'
 
-function PartitionRow({
+const PartitionRow = memo(function PartitionRow({
   partitionKey,
   label,
   size
@@ -281,6 +291,7 @@ function PartitionRow({
       </span>
     </div>
   )
-}
+})
+PartitionRow.displayName = 'PartitionRow'
 
 export default StorageTab

@@ -1,3 +1,6 @@
+import type { NativeMessagingExtensionInfo } from '@shared-core/types'
+
+import { getElectronApi } from '@shared/lib/electronApi'
 import { reportSuppressedError } from '@shared/lib/logger'
 import { cn } from '@shared/lib/uiUtils'
 
@@ -43,7 +46,9 @@ function ExtensionWizardDialog({
   const [success, setSuccess] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
   const [installedPath, setInstalledPath] = useState<string | null>(null)
+  const [extensionInfo, setExtensionInfo] = useState<NativeMessagingExtensionInfo | null>(null)
 
   const isVisible = open
 
@@ -55,9 +60,41 @@ function ExtensionWizardDialog({
       setSuccess(false)
       setConfirmed(false)
       setCopied(false)
+      setCopiedLink(false)
       setInstalledPath(installedPathProp)
+      setExtensionInfo(null)
     }
   }, [isVisible, mode, installedPathProp])
+
+  useEffect(() => {
+    if (!isVisible) return
+
+    const api = getElectronApi()
+    if (!api?.nativeMessaging) return
+
+    const updateStatus = () => {
+      api.nativeMessaging
+        .getStatus()
+        .then(setExtensionInfo)
+        .catch(() => {})
+    }
+
+    updateStatus()
+    const interval = setInterval(updateStatus, 3000)
+
+    const unsubConnected = api.nativeMessaging.onExtensionConnected(() => {
+      updateStatus()
+    })
+    const unsubDisconnected = api.nativeMessaging.onExtensionDisconnected(() => {
+      updateStatus()
+    })
+
+    return () => {
+      clearInterval(interval)
+      unsubConnected()
+      unsubDisconnected()
+    }
+  }, [isVisible])
 
   useLayoutEffect(() => {
     if (isVisible) {
@@ -200,11 +237,15 @@ function ExtensionWizardDialog({
   }, [onRemove])
 
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const copyLinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       if (copyTimeoutRef.current !== null) {
         clearTimeout(copyTimeoutRef.current)
+      }
+      if (copyLinkTimeoutRef.current !== null) {
+        clearTimeout(copyLinkTimeoutRef.current)
       }
     }
   }, [])
@@ -219,6 +260,19 @@ function ExtensionWizardDialog({
       })
       .catch((err) => reportSuppressedError('extensionWizard.copyPath', { cause: err }))
   }, [installedPath])
+
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard
+      .writeText('chrome://extensions')
+      .then(() => {
+        setCopiedLink(true)
+        if (copyLinkTimeoutRef.current !== null) {
+          clearTimeout(copyLinkTimeoutRef.current)
+        }
+        copyLinkTimeoutRef.current = setTimeout(() => setCopiedLink(false), 2000)
+      })
+      .catch((err) => reportSuppressedError('extensionWizard.copyLink', { cause: err }))
+  }, [])
 
   const handleDone = useCallback(() => {
     onClose()
@@ -261,18 +315,118 @@ function ExtensionWizardDialog({
     </div>
   )
 
+  const isConnected = extensionInfo?.status === 'connected'
+
+  const statusIndicator = (
+    <div
+      className={cn(
+        'mt-4 flex w-full items-start gap-3 rounded-xl border p-3.5 transition-colors duration-300',
+        isConnected
+          ? 'border-emerald-500/20 bg-emerald-500/[0.04]'
+          : mode === 'install'
+            ? 'border-amber-500/20 bg-amber-500/[0.04]'
+            : 'border-emerald-500/20 bg-emerald-500/[0.04]'
+      )}
+    >
+      {isConnected ? (
+        mode === 'install' ? (
+          <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+        ) : (
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+        )
+      ) : mode === 'install' ? (
+        <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-amber-400" />
+      ) : (
+        <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+      )}
+      <div className="text-left">
+        <span className="text-ql-12 mb-0.5 block font-semibold text-white/90">
+          {t('gws_extension_wizard_status_label')}
+        </span>
+        <p className="text-ql-12 text-white/60">
+          {isConnected
+            ? mode === 'install'
+              ? t('gws_extension_wizard_status_connected')
+              : t('gws_extension_wizard_status_active')
+            : mode === 'install'
+              ? t('gws_extension_wizard_status_waiting')
+              : t('gws_extension_wizard_status_removed')}
+        </p>
+        {!isConnected && mode === 'install' && (
+          <button
+            type="button"
+            onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
+            className="text-ql-11 mt-2 inline-flex items-center gap-1 font-medium text-amber-400 underline hover:text-amber-300"
+          >
+            {t('gws_extension_wake_btn')}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
   const resultContent = success ? (
     <div className="flex flex-col items-center gap-4 px-8 pt-4 pb-8">
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/20">
-        <CheckCircle className="h-8 w-8 text-emerald-400" />
+        {isConnected ? (
+          <CheckCircle className="h-8 w-8 text-emerald-400" />
+        ) : mode === 'install' ? (
+          <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+        ) : (
+          <CheckCircle className="h-8 w-8 text-emerald-400" />
+        )}
       </div>
       <h3 className="text-ql-18 font-semibold text-white">
         {mode === 'install'
-          ? t('gws_extension_wizard_install_success')
-          : t('gws_extension_wizard_remove_success')}
+          ? isConnected
+            ? t('gws_extension_wizard_install_success')
+            : t('gws_extension_wizard_install_title')
+          : isConnected
+            ? t('gws_extension_wizard_remove_title')
+            : t('gws_extension_wizard_remove_success')}
       </h3>
+      {statusIndicator}
       {mode === 'remove' ? (
-        <p className="text-ql-13 text-white/60">{t('gws_extension_wizard_remove_success_desc')}</p>
+        <div className="w-full text-left">
+          <p className="text-ql-13 text-center text-white/60">
+            {t('gws_extension_wizard_remove_success_desc')}
+          </p>
+          <div className="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            <p className="text-ql-12 mb-2 font-medium text-white/70">
+              {t('gws_extension_wizard_remove_manual_title')}
+            </p>
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.02] p-2">
+              <span className="text-ql-12 font-mono text-white/50 select-all">
+                chrome://extensions
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="text-ql-11 flex h-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 font-medium text-white/50 transition-colors hover:border-white/20 hover:text-white/70 focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none"
+              >
+                {copiedLink ? (
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <Check className="h-3 w-3" />
+                    {t('gws_extension_wizard_link_copied')}
+                  </span>
+                ) : (
+                  t('gws_extension_wizard_copy_link_btn')
+                )}
+              </button>
+            </div>
+            <ul className="flex flex-col gap-2">
+              <li className="text-ql-12 text-white/50">
+                {t('gws_extension_wizard_remove_manual_step1')}
+              </li>
+              <li className="text-ql-12 text-white/50">
+                {t('gws_extension_wizard_remove_manual_step2')}
+              </li>
+              <li className="text-ql-12 text-white/50">
+                {t('gws_extension_wizard_remove_manual_step3')}
+              </li>
+            </ul>
+          </div>
+        </div>
       ) : null}
       {mode === 'install' && installedPath ? (
         <div className="w-full">
@@ -314,9 +468,18 @@ function ExtensionWizardDialog({
       <button
         type="button"
         onClick={handleDone}
-        className="text-ql-14 mt-2 inline-flex w-full items-center justify-center rounded-full bg-emerald-400/90 px-6 py-3 font-semibold text-white transition-all hover:bg-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:outline-none"
+        className={cn(
+          'text-ql-14 mt-2 inline-flex w-full items-center justify-center rounded-full px-6 py-3 font-semibold transition-all focus-visible:ring-2 focus-visible:outline-none',
+          (mode === 'install' && isConnected) || (mode === 'remove' && !isConnected)
+            ? 'bg-emerald-400/90 text-white hover:bg-emerald-400 focus-visible:ring-emerald-400/60'
+            : 'border border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:text-white/90 focus-visible:ring-white/20'
+        )}
       >
-        {t('gws_extension_wizard_done_btn')}
+        {mode === 'install'
+          ? isConnected
+            ? t('gws_extension_wizard_finish_btn')
+            : t('gws_extension_wizard_skip_btn')
+          : t('gws_extension_wizard_done_btn')}
       </button>
     </div>
   ) : (
