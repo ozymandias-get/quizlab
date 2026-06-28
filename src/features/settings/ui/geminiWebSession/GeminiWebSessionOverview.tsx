@@ -15,7 +15,7 @@ import {
 import { motion } from 'motion/react'
 import { memo } from 'react'
 
-import { ExtensionStatusCard, GoogleAppIntegrationCard } from './components'
+import { ExtensionStatusCard, ExtensionWizardDialog, GoogleAppIntegrationCard } from './components'
 import type {
   GeminiWebSessionActionState,
   GeminiWebSessionHandlers,
@@ -31,6 +31,17 @@ interface GeminiWebSessionOverviewProps {
   enabledAppIds: Set<GoogleWebSessionAppId>
   actionState: GeminiWebSessionActionState
   handlers: GeminiWebSessionHandlers
+  wizardOpen: boolean
+  wizardMode: 'install' | 'remove' | null
+  riskItems: string[]
+  mitigationItems: string[]
+  closeWizard: () => void
+  installExtensionMutation: () => Promise<{
+    success: boolean
+    installedPath?: string
+    error?: string
+  } | null>
+  removeExtensionMutation: () => Promise<{ success: boolean; error?: string } | null>
 }
 
 const getCardClasses = (status: GeminiWebSessionStatusView) => {
@@ -64,7 +75,14 @@ function GeminiWebSessionOverview({
   stateText,
   enabledAppIds,
   actionState,
-  handlers
+  handlers,
+  wizardOpen,
+  wizardMode,
+  riskItems,
+  mitigationItems,
+  closeWizard,
+  installExtensionMutation,
+  removeExtensionMutation
 }: GeminiWebSessionOverviewProps) {
   const disableSessionMutations =
     status.isRefreshing ||
@@ -283,6 +301,25 @@ function GeminiWebSessionOverview({
           </p>
         </div>
       </div>
+
+      {wizardOpen && wizardMode && (
+        <ExtensionWizardDialog
+          open={wizardOpen}
+          mode={wizardMode}
+          riskItems={riskItems}
+          mitigationItems={mitigationItems}
+          installedPath={null}
+          onInstall={async () => {
+            const result = await installExtensionMutation()
+            return result ?? { success: false, error: 'Unknown error' }
+          }}
+          onRemove={async () => {
+            const result = await removeExtensionMutation()
+            return result ?? { success: false, error: 'Unknown error' }
+          }}
+          onClose={closeWizard}
+        />
+      )}
     </motion.div>
   )
 }

@@ -83,7 +83,14 @@ export function useGeminiWebSessionState() {
   )
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null)
   const [requiresManualLogin, setRequiresManualLogin] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [wizardMode, setWizardMode] = useState<'install' | 'remove' | null>(null)
   const isRefreshingRef = useRef(isRefreshing)
+
+  const closeWizard = useCallback(() => {
+    setWizardOpen(false)
+    setWizardMode(null)
+  }, [])
 
   useEffect(() => {
     isRefreshingRef.current = isRefreshing
@@ -276,22 +283,13 @@ export function useGeminiWebSessionState() {
         const nextEnabledAppIds = getNextEnabledManagedAppIds(appId, enabledAppIds)
         void runSessionAction(() => setWebEnabledApps(nextEnabledAppIds), { refetch: true })
       },
-      onInstallExtension: async () => {
-        const result = await installExtensionMutation()
-        if (result?.success && result?.installedPath) {
-          alert(
-            t('gws_extension_install_success') +
-              '\n\n' +
-              `${t('gws_extension_path_label')}: ${result.installedPath}` +
-              '\n\n' +
-              t('gws_extension_manual_instructions')
-          )
-        } else {
-          alert(`${t('gws_extension_install_error')}: ${result?.error || 'unknown'}`)
-        }
+      onInstallExtension: () => {
+        setWizardMode('install')
+        setWizardOpen(true)
       },
       onRemoveExtension: () => {
-        void removeExtensionMutation()
+        setWizardMode('remove')
+        setWizardOpen(true)
       }
     }),
     [
@@ -304,9 +302,8 @@ export function useGeminiWebSessionState() {
       setWebEnabledApps,
       status.userEnabled,
       enabledAppIds,
-      installExtensionMutation,
-      removeExtensionMutation,
-      t
+      setWizardOpen,
+      setWizardMode
     ]
   )
 
@@ -339,6 +336,11 @@ export function useGeminiWebSessionState() {
     riskItems,
     mitigationItems,
     actionState,
-    handlers
+    handlers,
+    wizardOpen,
+    wizardMode,
+    closeWizard,
+    installExtensionMutation,
+    removeExtensionMutation
   }
 }

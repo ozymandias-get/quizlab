@@ -15,7 +15,12 @@ const GeminiWebSessionTab = memo(() => {
     riskItems,
     mitigationItems,
     actionState,
-    handlers
+    handlers,
+    wizardOpen,
+    wizardMode,
+    closeWizard,
+    installExtensionMutation,
+    removeExtensionMutation
   } = useGeminiWebSessionState()
 
   return (
@@ -29,6 +34,13 @@ const GeminiWebSessionTab = memo(() => {
         enabledAppIds={enabledAppIds}
         actionState={actionState}
         handlers={handlers}
+        wizardOpen={wizardOpen}
+        wizardMode={wizardMode}
+        riskItems={riskItems}
+        mitigationItems={mitigationItems}
+        closeWizard={closeWizard}
+        installExtensionMutation={installExtensionMutation}
+        removeExtensionMutation={removeExtensionMutation}
       />
       <GeminiWebRiskNotice t={t} riskItems={riskItems} mitigationItems={mitigationItems} />
     </div>
