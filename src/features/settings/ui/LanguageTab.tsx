@@ -8,6 +8,12 @@ import { useTranslation } from 'react-i18next'
 
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
+const LANGUAGE_ICON = (
+  <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/20 to-purple-500/20 p-2.5 text-violet-400">
+    <LanguageIcon className="h-5 w-5" />
+  </div>
+)
+
 const LanguageTab = memo(() => {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -18,11 +24,7 @@ const LanguageTab = memo(() => {
   return (
     <div className="space-y-6">
       <SettingsTabIntro
-        icon={
-          <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/20 to-purple-500/20 p-2.5 text-violet-400">
-            <LanguageIcon className="h-5 w-5" />
-          </div>
-        }
+        icon={LANGUAGE_ICON}
         eyebrow={t('interface_language')}
         title={t('select_language')}
         description={t('language_description')}

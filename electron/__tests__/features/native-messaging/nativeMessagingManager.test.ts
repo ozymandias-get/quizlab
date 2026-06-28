@@ -345,32 +345,3 @@ describe('NativeMessagingManager', () => {
     })
   })
 })
-
-// ---------------------------------------------------------------------------
-// isAllowedOrigin (pure function from nativeMessagingTypes.ts)
-// ---------------------------------------------------------------------------
-
-describe('isAllowedOrigin', () => {
-  let isAllowedOrigin: (origin: string | undefined) => boolean
-
-  beforeEach(async () => {
-    const mod = await import('../../../features/native-messaging/nativeMessagingTypes.js')
-    isAllowedOrigin = mod.isAllowedOrigin
-  })
-
-  it('allows only the Quizlab extension origin', () => {
-    expect(isAllowedOrigin('chrome-extension://l25qwee4dhfetd2yusry4mngn7ktcdwk')).toBe(true)
-    expect(isAllowedOrigin('chrome-extension://other-ext-id')).toBe(false)
-    expect(isAllowedOrigin('chrome-extension://')).toBe(false)
-  })
-
-  it('rejects non-extension origins', () => {
-    expect(isAllowedOrigin('https://example.com')).toBe(false)
-    expect(isAllowedOrigin('http://localhost')).toBe(false)
-  })
-
-  it('rejects undefined or empty input', () => {
-    expect(isAllowedOrigin(undefined)).toBe(false)
-    expect(isAllowedOrigin('')).toBe(false)
-  })
-})

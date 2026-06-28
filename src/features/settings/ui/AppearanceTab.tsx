@@ -10,6 +10,12 @@ import BarAppearanceSettings from './appearance/BarAppearanceSettings'
 import SelectionColorSettings from './appearance/SelectionColorSettings'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
+const APPEARANCE_ICON = (
+  <div className="border-accent/20 bg-accent/10 text-foreground rounded-lg border p-2.5">
+    <EyeIcon className="h-5 w-5" />
+  </div>
+)
+
 const AppearanceTab = memo(() => {
   const {
     bottomBarOpacity,
@@ -43,11 +49,7 @@ const AppearanceTab = memo(() => {
   return (
     <div className="space-y-6" data-app-locale={language}>
       <SettingsTabIntro
-        icon={
-          <div className="border-accent/20 bg-accent/10 text-foreground rounded-lg border p-2.5">
-            <EyeIcon className="h-5 w-5" />
-          </div>
-        }
+        icon={APPEARANCE_ICON}
         eyebrow={t('visual_settings')}
         title={t('appearance_settings')}
         description={t('appearance_description')}

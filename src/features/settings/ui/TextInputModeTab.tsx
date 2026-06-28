@@ -59,6 +59,12 @@ const COLOR_MAP: Record<string, { active: string; inactive: string; icon: string
   }
 }
 
+const TEXT_INPUT_MODE_ICON = (
+  <div className="rounded-xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 to-amber-500/20 p-2.5 text-orange-400">
+    <Keyboard className="h-5 w-5" />
+  </div>
+)
+
 const TextInputModeTab = memo(() => {
   const { t } = useTranslation()
   const { textInputMode, typingSpeed, setTextInputMode, setTypingSpeed } = useTextInputMode()
@@ -80,11 +86,7 @@ const TextInputModeTab = memo(() => {
   return (
     <div className="space-y-6">
       <SettingsTabIntro
-        icon={
-          <div className="rounded-xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 to-amber-500/20 p-2.5 text-orange-400">
-            <Keyboard className="h-5 w-5" />
-          </div>
-        }
+        icon={TEXT_INPUT_MODE_ICON}
         eyebrow={t('ai_settings')}
         title={t('text_input_mode')}
         description={t('text_input_mode_description')}
