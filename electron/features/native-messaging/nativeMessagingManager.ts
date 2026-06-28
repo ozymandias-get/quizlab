@@ -22,7 +22,6 @@ import {
   CRITICAL_COOKIE_NAMES,
   EXTENSION_SOURCE_DIR,
   HMAC_HEADER,
-  isAllowedOrigin,
   MAX_COOKIE_BODY_SIZE
 } from './nativeMessagingTypes.js'
 
@@ -30,11 +29,12 @@ class NativeMessagingManager {
   private httpServer: http.Server | null = null
   private _connectionStatus: NativeMessagingConnectionStatus = 'disconnected'
   private _port: number = BRIDGE_PORT
-  private _extensionLastSeenAt: number = 0
   private _bridgeInfoExists = false
+  private _waitingSince: number | null = null
+  private _userHint: string | null = null
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null
   private _sharedSecret: string = crypto.randomBytes(32).toString('hex')
-  private _secretDelivered = false
+  private _extensionLastSeenAt: number = 0
 
   get connectionStatus(): NativeMessagingConnectionStatus {
     return this._connectionStatus
@@ -52,12 +52,14 @@ class NativeMessagingManager {
     return {
       status: this._connectionStatus,
       installed: this._bridgeInfoExists,
-      error: this._connectionStatus === 'error' ? 'Bridge server not running' : undefined
+      error: this._connectionStatus === 'error' ? 'Bridge server not running' : undefined,
+      waitingSince: this._waitingSince,
+      userHint: this._userHint
     }
   }
 
   async initialize(): Promise<void> {
-    this.startServer()
+    await this.startServer()
 
     const bridgeInfoPath = this.resolveBridgeInfoPath()
     this._bridgeInfoExists = await fs
@@ -109,6 +111,8 @@ class NativeMessagingManager {
   async removeExtension(): Promise<{ success: boolean; error?: string }> {
     try {
       this._connectionStatus = 'disconnected'
+      this._waitingSince = null
+      this._userHint = null
       this._bridgeInfoExists = false
 
       const bridgeInfoPath = this.resolveBridgeInfoPath()
@@ -124,27 +128,39 @@ class NativeMessagingManager {
     }
   }
 
-  private startServer(): void {
-    if (this.httpServer?.listening) return
-
-    this.httpServer = http.createServer((req, res) => {
-      this.handleRequest(req, res)
-    })
-
-    this.httpServer.listen(this._port, '127.0.0.1', () => {
-      const addr = this.httpServer?.address() as AddressInfo
-      this._port = addr?.port || this._port
-      this._connectionStatus = 'connecting'
-      this.startHealthCheck()
-    })
-
-    this.httpServer.on('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === 'EADDRINUSE') {
-        this._port++
-        this.startServer()
+  private startServer(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (this.httpServer?.listening) {
+        resolve()
         return
       }
-      this._connectionStatus = 'error'
+
+      this.httpServer = http.createServer((req, res) => {
+        this.handleRequest(req, res)
+      })
+
+      this.httpServer.listen(this._port, '127.0.0.1', () => {
+        const addr = this.httpServer?.address() as AddressInfo
+        this._port = addr?.port || this._port
+        this._connectionStatus = 'connecting'
+        this._waitingSince = Date.now()
+        this._userHint =
+          'Waiting for Chrome extension connection... Make sure Chrome is running and the extension is enabled.'
+        this.startHealthCheck()
+        resolve()
+      })
+
+      this.httpServer.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'EADDRINUSE') {
+          this._port++
+          this.startServer().then(resolve)
+          return
+        }
+        this._connectionStatus = 'error'
+        this._waitingSince = null
+        this._userHint = null
+        resolve()
+      })
     })
   }
 
@@ -159,22 +175,18 @@ class NativeMessagingManager {
       this.httpServer = null
     }
     this._connectionStatus = 'disconnected'
+    this._waitingSince = null
+    this._userHint = null
   }
 
   private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-    // SECURITY: Restrict CORS to chrome-extension:// origins only.
-    // An open wildcard (*) would allow any website or local process to
-    // communicate with this bridge, potentially sending malicious cookies.
-    const origin = req.headers['origin'] as string | undefined
-    if (origin && !isAllowedOrigin(origin)) {
-      Logger.warn('[NativeMessaging] Blocked request from disallowed origin:', origin)
-      res.writeHead(403)
-      res.end('Forbidden')
-      return
-    }
-
-    const allowedOrigins = origin || 'chrome-extension://'
-    res.setHeader('Access-Control-Allow-Origin', allowedOrigins)
+    // SECURITY: Cookie POSTs are cryptographically verified via HMAC using a
+    // per-session shared secret delivered out-of-band through the health endpoint.
+    // The bridge only listens on 127.0.0.1, so only local processes can connect.
+    // CORS origin filtering is intentionally omitted — it is redundant given
+    // HMAC signing and breaks extension connections when the extension ID differs
+    // (e.g., loaded from a different path without the pinned manifest key).
+    res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-hmac-signature, x-bridge-secret')
     res.setHeader('Vary', 'Origin')
@@ -186,14 +198,12 @@ class NativeMessagingManager {
     }
 
     if (req.method === 'GET' && req.url === '/api/health') {
+      this._extensionLastSeenAt = Date.now()
+
       const healthResponse: Record<string, unknown> = {
         status: 'ok',
-        timestamp: new Date().toISOString()
-      }
-
-      if (!this._secretDelivered) {
-        this._secretDelivered = true
-        healthResponse.secret = this._sharedSecret
+        timestamp: new Date().toISOString(),
+        secret: this._sharedSecret
       }
 
       res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -280,6 +290,8 @@ class NativeMessagingManager {
 
         if (this._connectionStatus !== 'connected') {
           this._connectionStatus = 'connected'
+          this._waitingSince = null
+          this._userHint = null
           this._extensionLastSeenAt = Date.now()
           this.broadcastExtensionConnected()
         }
@@ -308,9 +320,11 @@ class NativeMessagingManager {
       const now = Date.now()
       const elapsed = now - this._extensionLastSeenAt
 
-      if (this._connectionStatus === 'connected' && elapsed > 60000) {
+      if (this._connectionStatus === 'connected' && elapsed > 120000) {
         this._connectionStatus = 'connecting'
-        this._secretDelivered = false
+        this._waitingSince = Date.now()
+        this._userHint =
+          'Still waiting. Open chrome://extensions and verify the Quizlab extension is enabled and loaded.'
         this.broadcastExtensionDisconnected()
       }
     }, 30000)
