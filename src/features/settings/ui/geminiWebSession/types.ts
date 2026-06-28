@@ -39,6 +39,6 @@ export interface GeminiWebSessionHandlers {
   onResetWebProfile: () => void
   onToggleWebEnabled: () => void
   onToggleManagedApp: (appId: GoogleWebSessionAppId) => void
-  onInstallExtension: () => Promise<void>
+  onInstallExtension: () => void
   onRemoveExtension: () => void
 }
