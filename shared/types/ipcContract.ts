@@ -1,4 +1,4 @@
-﻿import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
@@ -209,21 +209,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<GeminiWebSessionStatus>
   }
 
-  [IPC_CHANNELS.GEMINI_WEB_OPEN_LOGIN]: {
-    args: []
-    result: IpcResult<GeminiWebSessionActionResult>
-  }
-
-  [IPC_CHANNELS.GEMINI_WEB_CHECK_NOW]: {
-    args: []
-    result: IpcResult<GeminiWebSessionActionResult>
-  }
-
-  [IPC_CHANNELS.GEMINI_WEB_REAUTH]: {
-    args: []
-    result: IpcResult<GeminiWebSessionActionResult>
-  }
-
   [IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE]: {
     args: []
     result: IpcResult<GeminiWebSessionActionResult>
@@ -419,9 +404,7 @@ export interface ElectronApi {
   fetchApiChatModels: (providerId: string) => Promise<string[] | null>
   geminiWeb: {
     getStatus: () => Promise<GeminiWebSessionStatus | null>
-    openLogin: () => Promise<GeminiWebSessionActionResult>
-    checkNow: () => Promise<GeminiWebSessionActionResult>
-    reauth: () => Promise<GeminiWebSessionActionResult>
+
     resetProfile: () => Promise<GeminiWebSessionActionResult>
     setEnabled: (enabled: boolean) => Promise<GeminiWebSessionActionResult>
     setEnabledApps: (

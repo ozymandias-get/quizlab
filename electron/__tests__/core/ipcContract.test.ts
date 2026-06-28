@@ -54,9 +54,7 @@ describe('IPC contract', () => {
     assertInvokeChannel(IPC_CHANNELS.IS_AUTH_DOMAIN)
     assertInvokeChannel(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
     assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_STATUS)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_OPEN_LOGIN)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_CHECK_NOW)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_REAUTH)
+
     assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE)
     assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED)
     assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS)
