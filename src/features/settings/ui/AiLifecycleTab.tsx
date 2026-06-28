@@ -14,6 +14,12 @@ import { useTranslation } from 'react-i18next'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 import SettingsToggleSwitch from './shared/SettingsToggleSwitch'
 
+const AI_LIFECYCLE_ICON = (
+  <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/20 to-purple-500/20 p-2.5 text-violet-400">
+    <Timer className="h-5 w-5" />
+  </div>
+)
+
 const AiLifecycleTab = memo(() => {
   const { t } = useTranslation()
   const aiSites = useAiSites()
@@ -36,11 +42,7 @@ const AiLifecycleTab = memo(() => {
   return (
     <div className="space-y-6">
       <SettingsTabIntro
-        icon={
-          <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/20 to-purple-500/20 p-2.5 text-violet-400">
-            <Timer className="h-5 w-5" />
-          </div>
-        }
+        icon={AI_LIFECYCLE_ICON}
         eyebrow={t('ai_settings')}
         title={t('ai_lifecycle')}
         description={t('ai_lifecycle_description')}

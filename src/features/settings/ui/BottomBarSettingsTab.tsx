@@ -30,6 +30,12 @@ const TOOL_LIST: ToolItem[] = [
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER, nameKey: 'tool_picker' }
 ]
 
+const BOTTOM_BAR_ICON = (
+  <div className="rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/20 to-cyan-500/20 p-2.5 text-sky-400">
+    <SliderIcon className="h-5 w-5" />
+  </div>
+)
+
 const BottomBarSettingsTab = memo(() => {
   const { t, i18n } = useTranslation()
   const language = i18n.language

@@ -11,6 +11,12 @@ import { useTranslation } from 'react-i18next'
 import SettingsAddToggleButton from './shared/SettingsAddToggleButton'
 import SettingsTabHeader from './shared/SettingsTabHeader'
 
+const PROMPTS_ICON = (
+  <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-2.5 text-purple-400">
+    <MagicWandIcon className="h-5 w-5" />
+  </div>
+)
+
 const PromptsTab = memo(() => {
   const { t } = useTranslation()
   const { showSuccess, showError } = useToastActions()
@@ -47,11 +53,7 @@ const PromptsTab = memo(() => {
   return (
     <div className="space-y-6 pb-20">
       <SettingsTabHeader
-        icon={
-          <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-2.5 text-purple-400">
-            <MagicWandIcon className="h-5 w-5" />
-          </div>
-        }
+        icon={PROMPTS_ICON}
         eyebrow={t('prompts_title')}
         title={t('prompts_subtitle')}
         action={

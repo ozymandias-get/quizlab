@@ -21,6 +21,12 @@ interface NotificationTypeConfig {
   testTitleKey: string
 }
 
+const NOTIFICATIONS_ICON = (
+  <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-2.5 text-emerald-400">
+    <Bell className="h-5 w-5" />
+  </div>
+)
+
 const NotificationsTab = memo(() => {
   const { t } = useTranslation()
   const { showSuccess, showError, showWarning, showInfo } = useToastActions()
@@ -113,11 +119,7 @@ const NotificationsTab = memo(() => {
   return (
     <div className="space-y-6">
       <SettingsTabIntro
-        icon={
-          <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-2.5 text-emerald-400">
-            <Bell className="h-5 w-5" />
-          </div>
-        }
+        icon={NOTIFICATIONS_ICON}
         eyebrow={t('notification_settings')}
         title={t('notifications')}
         description={t('notifications_description')}

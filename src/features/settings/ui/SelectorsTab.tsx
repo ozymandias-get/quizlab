@@ -7,6 +7,12 @@ import { useSelectorsTabController } from './selectors/hooks/useSelectorsTabCont
 import type { SelectorsTabProps } from './selectors/types'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
+const SELECTORS_ICON = (
+  <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-2.5 text-emerald-400">
+    <SelectorIcon className="h-5 w-5" />
+  </div>
+)
+
 const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
   const controller = useSelectorsTabController({ onCloseSettings })
   const {
@@ -32,11 +38,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
   return (
     <div className="space-y-6 pb-20">
       <SettingsTabIntro
-        icon={
-          <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-2.5 text-emerald-400">
-            <SelectorIcon className="h-5 w-5" />
-          </div>
-        }
+        icon={SELECTORS_ICON}
         eyebrow={t('automation')}
         title={t('element_selectors')}
         description={t('selectors_description_simple')}
