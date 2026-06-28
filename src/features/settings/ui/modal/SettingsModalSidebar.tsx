@@ -2,17 +2,20 @@ import { hexToRgba } from '@shared/lib/uiUtils'
 
 import { motion } from 'motion/react'
 import { memo, type RefObject } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { type SettingsSidebarSection, type SettingsTabId, type TabDef } from './settingsModalTabs'
+import {
+  QUICK_SETTINGS_GLOW,
+  type SettingsSidebarSection,
+  type SettingsTabId
+} from './settingsModalTabs'
 
 interface SettingsModalSidebarProps {
   activeTab: SettingsTabId | null
   setActiveTab: (id: SettingsTabId) => void
   sidebarScrollRef: RefObject<HTMLDivElement | null>
   sidebarSections: SettingsSidebarSection[]
-  t: (key: string) => string
   sidebarWidth: number
-  tabDefs: TabDef[]
 }
 
 const sectionIcons: Record<string, string> = {
@@ -27,11 +30,9 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
   setActiveTab,
   sidebarScrollRef,
   sidebarSections,
-  t,
-  sidebarWidth,
-  tabDefs
+  sidebarWidth
 }: SettingsModalSidebarProps) {
-  const quickSettingsTab = tabDefs.find((tab) => tab.id === 'quick-settings')
+  const { t } = useTranslation()
 
   return (
     <aside
@@ -43,47 +44,45 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
             <nav aria-label={t('settings_title')} className="flex flex-col gap-5">
               {/* Quick Settings Section */}
-              {quickSettingsTab && (
-                <div className="flex flex-col gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('quick-settings')}
-                    className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('quick-settings')}
+                  className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                    activeTab === 'quick-settings'
+                      ? 'border-border bg-accent text-foreground'
+                      : 'text-muted-foreground hover:bg-accent/25 hover:text-foreground border-transparent bg-transparent'
+                  }`}
+                  style={
+                    activeTab === 'quick-settings'
+                      ? {
+                          background: `linear-gradient(145deg, ${hexToRgba(QUICK_SETTINGS_GLOW, 0.08)} 0%, rgba(255,255,255,0.03) 42%, rgba(0,0,0,0.1) 100%)`
+                        }
+                      : undefined
+                  }
+                >
+                  {activeTab === 'quick-settings' && (
+                    <motion.div
+                      layoutId="active-sidebar-indicator"
+                      className="pointer-events-none absolute inset-y-2 left-0 w-[2px] rounded-full"
+                      style={{
+                        background: `linear-gradient(180deg, ${hexToRgba(QUICK_SETTINGS_GLOW, 0.9)} 0%, ${hexToRgba(QUICK_SETTINGS_GLOW, 0.3)} 100%)`
+                      }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                  <span className="text-lg">⚡</span>
+                  <span
+                    className={`block text-sm font-semibold tracking-wide transition-colors duration-200 ${
                       activeTab === 'quick-settings'
-                        ? 'border-border bg-accent text-foreground'
-                        : 'text-muted-foreground hover:bg-accent/25 hover:text-foreground border-transparent bg-transparent'
+                        ? 'text-foreground'
+                        : 'text-foreground/85 group-hover:text-foreground'
                     }`}
-                    style={
-                      activeTab === 'quick-settings'
-                        ? {
-                            background: `linear-gradient(145deg, ${hexToRgba(quickSettingsTab.glow, 0.08)} 0%, rgba(255,255,255,0.03) 42%, rgba(0,0,0,0.1) 100%)`
-                          }
-                        : undefined
-                    }
                   >
-                    {activeTab === 'quick-settings' && (
-                      <motion.div
-                        layoutId="active-sidebar-indicator"
-                        className="pointer-events-none absolute inset-y-2 left-0 w-[2px] rounded-full"
-                        style={{
-                          background: `linear-gradient(180deg, ${hexToRgba(quickSettingsTab.glow, 0.9)} 0%, ${hexToRgba(quickSettingsTab.glow, 0.3)} 100%)`
-                        }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                      />
-                    )}
-                    <span className="text-lg">⚡</span>
-                    <span
-                      className={`block text-sm font-semibold tracking-wide transition-colors duration-200 ${
-                        activeTab === 'quick-settings'
-                          ? 'text-foreground'
-                          : 'text-foreground/85 group-hover:text-foreground'
-                      }`}
-                    >
-                      {t('quick_settings')}
-                    </span>
-                  </button>
-                </div>
-              )}
+                    {t('quick_settings')}
+                  </span>
+                </button>
+              </div>
 
               {/* Sidebar Groups */}
               {sidebarSections.map((section) => (

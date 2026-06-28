@@ -31,7 +31,6 @@ class NativeMessagingManager {
   private _port: number = BRIDGE_PORT
   private _bridgeInfoExists = false
   private _waitingSince: number | null = null
-  private _userHint: string | null = null
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null
   private _sharedSecret: string = crypto.randomBytes(32).toString('hex')
   private _extensionLastSeenAt: number = 0
@@ -54,8 +53,20 @@ class NativeMessagingManager {
       installed: this._bridgeInfoExists,
       error: this._connectionStatus === 'error' ? 'Bridge server not running' : undefined,
       waitingSince: this._waitingSince,
-      userHint: this._userHint
+      userHint: this.computeUserHint()
     }
+  }
+
+  private computeUserHint(): string | null {
+    if (!this._bridgeInfoExists) return null
+    if (this._connectionStatus !== 'connecting') return null
+    if (!this._waitingSince) return null
+
+    const elapsed = Date.now() - this._waitingSince
+    if (elapsed > 30000) {
+      return 'waiting_long'
+    }
+    return 'waiting'
   }
 
   async initialize(): Promise<void> {
@@ -112,7 +123,6 @@ class NativeMessagingManager {
     try {
       this._connectionStatus = 'disconnected'
       this._waitingSince = null
-      this._userHint = null
       this._bridgeInfoExists = false
 
       const bridgeInfoPath = this.resolveBridgeInfoPath()
@@ -144,8 +154,6 @@ class NativeMessagingManager {
         this._port = addr?.port || this._port
         this._connectionStatus = 'connecting'
         this._waitingSince = Date.now()
-        this._userHint =
-          'Waiting for Chrome extension connection... Make sure Chrome is running and the extension is enabled.'
         this.startHealthCheck()
         resolve()
       })
@@ -158,7 +166,6 @@ class NativeMessagingManager {
         }
         this._connectionStatus = 'error'
         this._waitingSince = null
-        this._userHint = null
         resolve()
       })
     })
@@ -176,7 +183,6 @@ class NativeMessagingManager {
     }
     this._connectionStatus = 'disconnected'
     this._waitingSince = null
-    this._userHint = null
   }
 
   private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -291,7 +297,6 @@ class NativeMessagingManager {
         if (this._connectionStatus !== 'connected') {
           this._connectionStatus = 'connected'
           this._waitingSince = null
-          this._userHint = null
           this._extensionLastSeenAt = Date.now()
           this.broadcastExtensionConnected()
         }
@@ -323,9 +328,12 @@ class NativeMessagingManager {
       if (this._connectionStatus === 'connected' && elapsed > 120000) {
         this._connectionStatus = 'connecting'
         this._waitingSince = Date.now()
-        this._userHint =
-          'Still waiting. Open chrome://extensions and verify the Quizlab extension is enabled and loaded.'
         this.broadcastExtensionDisconnected()
+      }
+
+      if (this._connectionStatus === 'connecting' && !this._bridgeInfoExists) {
+        this._connectionStatus = 'disconnected'
+        this._waitingSince = null
       }
     }, 30000)
   }
