@@ -1,232 +1,164 @@
-# Task 4: Extract FocusCloseButton and FocusPdfBody from FocusOverlay.tsx
+# Task 4: ExtensionStatusCard.tsx — Updated UI
 
 **Files:**
 
-- Modify: `src/app/ui/FocusOverlay.tsx` (reduce from 363 to ~200 lines)
-- Create: `src/app/ui/focus/FocusCloseButton.tsx`
-- Create: `src/app/ui/focus/FocusPdfBody.tsx`
+- Modify: `src/features/settings/ui/geminiWebSession/components/ExtensionStatusCard.tsx`
 
 **Interfaces:**
 
-- Consumes: `FocusOverlayProps` from FocusOverlay, `usePdfTabStore`, `usePdfOpenActions`, `useReadingProgressPersistence`
-- Produces: `FocusCloseButton` (forwardRef button), `FocusPdfBody` (memo component)
+- Consumes: Updated `NativeMessagingExtensionInfo` with `waitingSince` + `userHint` (returns 'waiting', 'waiting_long', or null)
 
-## Steps
+## Changes
 
-### Step 1: Create directory and FocusCloseButton.tsx
+Replace the component with a version that shows different states:
 
-Create directory `src/app/ui/focus/` and file `src/app/ui/focus/FocusCloseButton.tsx`:
+- `installed=true` + `connected` → green dot, "Extension connected"
+- `installed=true` + `connecting` + `userHint='waiting'` → amber dot, "Waiting for Chrome extension..."
+- `installed=true` + `connecting` + `userHint='waiting_long'` → amber dot, "Still waiting. Open chrome://extensions..."
+- `installed=true` + `connecting` + `userHint=null` → amber dot, "Extension connecting..."
+- `installed=false` + any → white dot, "Extension not installed."
 
-```typescript
-import { cn, buttonBaseClass } from '@shared/lib/uiUtils'
-import { XIcon } from '@ui/components/Icons'
+Remove the `EXTENSION_STATUS_KEYS` constant. Replace with a `statusKey()` function that reads `info.userHint`.
 
-import { type HTMLMotionProps, motion } from 'motion/react'
-import { forwardRef } from 'react'
+### Complete replacement code:
 
-interface FocusCloseButtonProps extends Omit<HTMLMotionProps<'button'>, 'ref'> {
-  label: string
-}
+Replace the entire file content with:
 
-const CLOSE_BUTTON_STYLE = {
-  width: '2.5rem',
-  height: '2.5rem',
-  transform: 'translateZ(0)',
-  willChange: 'transform'
-}
-
-const FocusCloseButton = forwardRef<HTMLButtonElement, FocusCloseButtonProps>(
-  ({ label, className, ...rest }, ref) => {
-    return (
-      <motion.button
-        ref={ref}
-        type="button"
-        aria-label={label}
-        title={label}
-        whileHover={{
-          scale: 1.08,
-          rotate: 90,
-          transition: { type: 'spring', stiffness: 420, damping: 22, mass: 0.6 }
-        }}
-        whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
-        className={cn(
-          buttonBaseClass,
-          'absolute top-4 right-4 z-20 flex items-center justify-center rounded-full',
-          'border border-white/15 bg-black/55 backdrop-blur-md',
-          'shadow-[0_8px_24px_-8px_oklch(0_0_0/0.6)]',
-          'focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none',
-          'text-white/80 hover:text-white',
-          className
-        )}
-        style={CLOSE_BUTTON_STYLE}
-        {...rest}
-      >
-        <XIcon className="h-4 w-4" />
-      </motion.button>
-    )
-  }
-)
-FocusCloseButton.displayName = 'FocusCloseButton'
-
-export default FocusCloseButton
 ```
+import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
-### Step 2: Create FocusPdfBody.tsx
+import { getElectronApi } from '@shared/lib/electronApi'
+import { LoaderIcon, SettingsIcon } from '@ui/components/Icons'
 
-Create `src/app/ui/focus/FocusPdfBody.tsx`:
+import { memo, useEffect, useState } from 'react'
 
-```typescript
-import { usePdfOpenActions } from '@features/pdf/hooks/usePdfOpenActions'
-import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
-import { useReadingProgressPersistence } from '@features/pdf/hooks/useReadingProgressPersistence'
-import type { ReadingProgressUpdate, ResumePdfResult } from '@features/pdf/types'
+interface ExtensionStatusCardProps {
+  t: (key: string) => string
+  onInstallExtension: () => void
+  onRemoveExtension: () => void
+}
 
-import { useTextSelection } from '@app/hooks/useTextSelection'
-import ErrorBoundary from '@ui/components/ErrorBoundary'
+function ExtensionStatusCard({
+  t,
+  onInstallExtension,
+  onRemoveExtension
+}: ExtensionStatusCardProps) {
+  const [extensionInfo, setExtensionInfo] = useState<NativeMessagingExtensionInfo | null>(null)
+  const [installing, setInstalling] = useState(false)
 
-import { lazy, memo, Suspense, useCallback, useMemo, useRef } from 'react'
-import { useTranslation } from 'react-i18next'
+  useEffect(() => {
+    const api = getElectronApi()
+    if (!api?.nativeMessaging) return
 
-const PdfTabStrip = lazy(() =>
-  import('@features/pdf/viewer').then((m) => ({ default: m.PdfTabStrip }))
-)
-const PdfViewer = lazy(() => import('@features/pdf/viewer').then((m) => ({ default: m.PdfViewer })))
-
-const FocusPdfBody = memo(function FocusPdfBody() {
-  const { t } = useTranslation()
-  const { handleTextSelection } = useTextSelection()
-
-  const pdfTabs = usePdfTabStore((s) => s.pdfTabs)
-  const activePdfTabId = usePdfTabStore((s) => s.activePdfTabId)
-  const setActivePdfTab = usePdfTabStore((s) => s.setActivePdfTab)
-  const closePdfTab = usePdfTabStore((s) => s.closePdfTab)
-  const renamePdfTab = usePdfTabStore((s) => s.renamePdfTab)
-  const addEmptyPdfTab = usePdfTabStore((s) => s.addEmptyPdfTab)
-  const goToPdfHome = usePdfTabStore((s) => s.goToPdfHome)
-
-  const activePdfTab = useMemo(() => {
-    if (!activePdfTabId) return null
-    return pdfTabs.find((tab) => tab.id === activePdfTabId) || null
-  }, [pdfTabs, activePdfTabId])
-
-  const pdfFile = useMemo(() => {
-    return activePdfTab?.kind === 'drive' ? null : activePdfTab?.file || null
-  }, [activePdfTab])
-
-  const {
-    recentReadingInfo,
-    updateReadingProgress,
-    upsertLastReadingInfo,
-    flushPendingReadingProgress,
-    clearLastReading,
-    restoreRecentReading,
-    recentReadingInfoRef
-  } = useReadingProgressPersistence()
-
-  const { handleSelectPdf, resumeLastPdf } = usePdfOpenActions({
-    openPdfInTab: usePdfTabStore((s) => s.openPdfInTab),
-    upsertLastReadingInfo,
-    flushPendingReadingProgress,
-    recentReadingInfoRef
-  })
-
-  const readingHistoryRef = useRef(recentReadingInfo)
-  readingHistoryRef.current = recentReadingInfo
-
-  const activeTabInitialPage = useMemo(() => {
-    if (!activePdfTabId) return undefined
-    if (activePdfTab?.kind !== 'pdf' || !activePdfTab?.file) return undefined
-    const file = activePdfTab.file
-    if (file.path) {
-      const existing = (readingHistoryRef.current || []).find((entry) => entry.path === file.path)
-      return existing?.page
+    const updateStatus = () => {
+      api.nativeMessaging
+        .getStatus()
+        .then(setExtensionInfo)
+        .catch(() => {})
     }
-    return undefined
-  }, [activePdfTabId, activePdfTab])
 
-  const lastReadingInfoRef = readingHistoryRef
+    updateStatus()
+    const interval = setInterval(updateStatus, 5000)
 
-  const handleResumePdf = useCallback(
-    async (path?: string): Promise<ResumePdfResult> => {
-      const current = lastReadingInfoRef.current
-      const target = path ? current.find((entry) => entry.path === path) : current[0]
-      if (target) return await resumeLastPdf(target.path)
-      return await resumeLastPdf(path)
-    },
-    [resumeLastPdf]
-  )
+    const unsubConnected = api.nativeMessaging.onExtensionConnected(() => {
+      updateStatus()
+    })
+    const unsubDisconnected = api.nativeMessaging.onExtensionDisconnected(() => {
+      updateStatus()
+    })
 
-  const handleClearResumePdf = useCallback(
-    (path?: string) => clearLastReading(path),
-    [clearLastReading]
-  )
+    return () => {
+      clearInterval(interval)
+      unsubConnected()
+      unsubDisconnected()
+    }
+  }, [])
 
-  const handleReadingProgressChange = useCallback(
-    (update: ReadingProgressUpdate) => updateReadingProgress(update),
-    [updateReadingProgress]
-  )
+  const handleInstallClick = async () => {
+    if (installing) return
+    setInstalling(true)
+    try {
+      await onInstallExtension()
+    } finally {
+      setInstalling(false)
+    }
+  }
+
+  const statusKey = (info: NativeMessagingExtensionInfo | null): string => {
+    if (!info) return 'gws_extension_status_disconnected'
+
+    if (info.status === 'connected') {
+      return 'gws_extension_status_connected'
+    }
+
+    if (info.status === 'error') {
+      return 'gws_extension_status_error'
+    }
+
+    if (info.status === 'connecting' && info.installed) {
+      const hint = info.userHint
+      if (hint === 'waiting_long') {
+        return 'gws_extension_status_waiting_long'
+      }
+      if (hint === 'waiting') {
+        return 'gws_extension_status_waiting'
+      }
+      return 'gws_extension_status_connecting'
+    }
+
+    if (info.status === 'connecting' && !info.installed) {
+      return 'gws_extension_status_not_installed'
+    }
+
+    return 'gws_extension_status_disconnected'
+  }
+
+  const dotColor = (info: NativeMessagingExtensionInfo | null): string => {
+    if (!info) return 'bg-white/30'
+    if (info.status === 'connected') return 'bg-emerald-400'
+    if (info.status === 'connecting' && info.installed) return 'bg-amber-400'
+    return 'bg-white/30'
+  }
 
   return (
-    <>
-      {pdfTabs.length > 0 && (
-        <PdfTabStrip
-          tabs={pdfTabs}
-          activeTabId={activePdfTabId}
-          onSetActiveTab={setActivePdfTab}
-          onCloseTab={closePdfTab}
-          onRenameTab={renamePdfTab}
-          onAddTab={addEmptyPdfTab || handleSelectPdf}
-          onHome={goToPdfHome}
-        />
-      )}
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <ErrorBoundary title={t('error_pdf_viewer')}>
-          <PdfViewer
-            pdfFile={pdfFile}
-            activePdfTab={activePdfTab}
-            onSelectPdf={handleSelectPdf}
-            onTextSelection={handleTextSelection}
-            t={t}
-            initialPage={activeTabInitialPage}
-            onResumePdf={handleResumePdf}
-            onClearResumePdf={handleClearResumePdf}
-            onRestoreResumePdf={restoreRecentReading}
-            onReadingProgressChange={handleReadingProgressChange}
-            lastReadingInfo={recentReadingInfo}
-            isInteractionBlocked={false}
-            isPanelResizing={false}
-          />
-        </ErrorBoundary>
+    <div className="rounded-2xl border border-white/10 bg-black/10 p-4 backdrop-blur-sm">
+      <div className="text-ql-12 mb-3 font-bold text-white/85">{t('gws_extension_title')}</div>
+
+      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className={`h-2 w-2 rounded-full ${dotColor(extensionInfo)}`} />
+          <span className="text-ql-12 text-white/70">
+            {t(statusKey(extensionInfo))}
+          </span>
+        </div>
+
+        {extensionInfo?.installed ? (
+          <button
+            type="button"
+            onClick={onRemoveExtension}
+            className="text-ql-11 text-red-400 hover:text-red-300"
+          >
+            {t('gws_extension_remove_btn')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            disabled={installing}
+            className="text-ql-11 inline-flex items-center gap-1.5 rounded-lg bg-blue-500/20 px-3 py-1.5 font-semibold text-blue-300 hover:bg-blue-500/30 disabled:opacity-50"
+          >
+            {installing ? (
+              <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <SettingsIcon className="h-3.5 w-3.5" />
+            )}
+            {t('gws_extension_install_btn')}
+          </button>
+        )}
       </div>
-    </>
+    </div>
   )
-})
+}
 
-export default FocusPdfBody
-```
-
-### Step 3: Update FocusOverlay.tsx
-
-Modify `src/app/ui/FocusOverlay.tsx`:
-
-1. Remove the inline `FocusCloseButton` definition (lines 208-243)
-2. Remove the inline `FocusPdfBody` definition (lines 245-363)
-3. Replace with imports:
-
-```typescript
-import FocusCloseButton from './focus/FocusCloseButton'
-import FocusPdfBody from './focus/FocusPdfBody'
-```
-
-4. Keep the main `FocusOverlay` component as-is (the JSX already references `FocusCloseButton` and `FocusPdfBody` by name)
-
-### Step 4: Verify
-
-Run: `npx tsc --noEmit` and confirm no type errors.
-
-### Step 5: Commit
-
-```bash
-git add src/app/ui/FocusOverlay.tsx src/app/ui/focus/
-git commit -m "refactor(FocusOverlay): extract FocusCloseButton and FocusPdfBody into separate files"
+export default memo(ExtensionStatusCard)
 ```
