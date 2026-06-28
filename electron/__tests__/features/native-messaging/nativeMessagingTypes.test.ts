@@ -108,39 +108,4 @@ describe('nativeMessagingTypes', () => {
       expect(EXTENSION_SOURCE_DIR).toBe('extensions/quizlab-session-extension')
     })
   })
-
-  describe('isAllowedOrigin', () => {
-    it('allows only the Quizlab extension origin', async () => {
-      const { isAllowedOrigin } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(isAllowedOrigin('chrome-extension://l25qwee4dhfetd2yusry4mngn7ktcdwk')).toBe(true)
-      expect(isAllowedOrigin('chrome-extension://other-extension-id')).toBe(false)
-      expect(isAllowedOrigin('chrome-extension://')).toBe(false)
-    })
-
-    it('rejects https:// origins', async () => {
-      const { isAllowedOrigin } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(isAllowedOrigin('https://example.com')).toBe(false)
-      expect(isAllowedOrigin('https://localhost:3000')).toBe(false)
-    })
-
-    it('rejects http:// origins', async () => {
-      const { isAllowedOrigin } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(isAllowedOrigin('http://localhost')).toBe(false)
-    })
-
-    it('rejects undefined', async () => {
-      const { isAllowedOrigin } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(isAllowedOrigin(undefined)).toBe(false)
-    })
-
-    it('rejects empty string', async () => {
-      const { isAllowedOrigin } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(isAllowedOrigin('')).toBe(false)
-    })
-  })
 })

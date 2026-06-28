@@ -1,4 +1,3 @@
-import type { GeminiWebLoginOverlayMode } from '@app/ui/GeminiWebLoginOverlay'
 import MainWorkspace from '@app/ui/MainWorkspace'
 import { useAppearance } from '@shared/stores/appearanceStore'
 import { useLanguage } from '@shared/stores/languageStore'
@@ -17,7 +16,6 @@ const TutorialOverlay = lazy(() =>
   import('@features/tutorial').then((m) => ({ default: m.TutorialOverlay }))
 )
 const UpdateBanner = lazy(() => import('@ui/components/UpdateBanner'))
-const GeminiWebLoginOverlay = lazy(() => import('@app/ui/GeminiWebLoginOverlay'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
 const LanguageSelectionDialog = lazy(() =>
   import('@features/onboarding').then((m) => ({
@@ -30,12 +28,7 @@ import { getTutorialEntry } from '@features/tutorial/tutorialRegistry'
 
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
-import {
-  useAppToolActions,
-  useAppToolGeminiSessionState,
-  useAppToolQueueState,
-  useAppToolScreenshotState
-} from '@app/providers'
+import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
 
 function App() {
   // Önbellek boyutunu izle ve %80 eşiği aşılırsa uyarı göster (oturum başına bir kez)
@@ -149,10 +142,6 @@ function App() {
         </AnimatePresence>
 
         <Suspense fallback={null}>
-          <GeminiWebLoginLayer />
-        </Suspense>
-
-        <Suspense fallback={null}>
           <PendingAiSendLayer />
         </Suspense>
 
@@ -173,26 +162,6 @@ function App() {
     </LayoutGroup>
   )
 }
-
-const GeminiWebLoginLayer = memo(function GeminiWebLoginLayer() {
-  const { isGeminiWebLoginInProgress } = useAppToolGeminiSessionState()
-  const { dismissGeminiWebLoginOverlay } = useAppToolActions()
-
-  // We only show the full-screen overlay for the interactive login flow.
-  // Silent background session refreshes run invisibly — the user does not
-  // need to see an informational overlay for something that happens
-  // automatically and does not require any action.
-  const mode = useMemo<GeminiWebLoginOverlayMode>(() => {
-    if (isGeminiWebLoginInProgress) return 'login'
-    return 'hidden'
-  }, [isGeminiWebLoginInProgress])
-
-  const handleDismiss = useCallback(() => {
-    dismissGeminiWebLoginOverlay()
-  }, [dismissGeminiWebLoginOverlay])
-
-  return <GeminiWebLoginOverlay mode={mode} onDismiss={handleDismiss} />
-})
 
 const PendingAiSendLayer = memo(function PendingAiSendLayer() {
   const { pendingAiItems } = useAppToolQueueState()

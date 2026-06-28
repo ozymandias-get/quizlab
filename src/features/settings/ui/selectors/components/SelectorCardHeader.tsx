@@ -1,5 +1,7 @@
 import { CheckIcon, ChevronRightIcon, ExternalLinkIcon, GlobeIcon } from '@ui/components/Icons'
 
+import { memo } from 'react'
+
 import { getAiPlatformIcon, getAiPlatformLabel } from '../../shared/aiPlatformPresentation'
 import { getHealthLabelKey } from '../selectorMappings'
 import type { AiEntry, HealthTone, SelectorHealthState, TranslateFn } from '../types'
@@ -17,7 +19,7 @@ interface SelectorCardHeaderProps {
   t: TranslateFn
 }
 
-export default function SelectorCardHeader({
+const SelectorCardHeader = memo(function SelectorCardHeader({
   aiEntry,
   cardId,
   hasSelectors,
@@ -95,4 +97,7 @@ export default function SelectorCardHeader({
       </div>
     </div>
   )
-}
+})
+SelectorCardHeader.displayName = 'SelectorCardHeader'
+
+export default SelectorCardHeader

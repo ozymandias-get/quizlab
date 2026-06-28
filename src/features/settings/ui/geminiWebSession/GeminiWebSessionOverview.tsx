@@ -3,14 +3,7 @@ import {
   type GoogleWebSessionAppId
 } from '@shared-core/constants/google-ai-web-apps'
 
-import {
-  CheckIcon,
-  GeminiIcon,
-  GoogleIcon,
-  LoaderIcon,
-  RefreshIcon,
-  XIcon
-} from '@ui/components/Icons'
+import { CheckIcon, GeminiIcon, LoaderIcon, RefreshIcon, XIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
 import { memo, useCallback } from 'react'
@@ -54,7 +47,7 @@ const getCardClasses = (status: GeminiWebSessionStatusView) => {
   if (status.isAuthenticated) {
     return 'border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-green-500/10'
   }
-  if (status.showReauthAlert) {
+  if (status.needsReauth) {
     return 'border-rose-500/20 bg-gradient-to-r from-rose-500/10 to-red-500/10'
   }
   return 'border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-orange-500/10'
@@ -63,7 +56,7 @@ const getCardClasses = (status: GeminiWebSessionStatusView) => {
 const getStatusIconContainerClass = (status: GeminiWebSessionStatusView) => {
   if (status.isRefreshing) return 'bg-sky-500/20'
   if (status.isAuthenticated) return 'bg-emerald-500/20'
-  if (status.showReauthAlert) return 'bg-rose-500/20'
+  if (status.needsReauth) return 'bg-rose-500/20'
   return 'bg-amber-500/20'
 }
 
@@ -85,12 +78,7 @@ function GeminiWebSessionOverview({
   removeExtensionMutation
 }: GeminiWebSessionOverviewProps) {
   const disableSessionMutations =
-    status.isRefreshing ||
-    actionState.isGeminiWebLoginInProgress ||
-    actionState.isCheckingWebNow ||
-    actionState.isReauthingWeb ||
-    actionState.isResettingWebProfile ||
-    actionState.isTogglingWebEnabled
+    status.isRefreshing || actionState.isResettingWebProfile || actionState.isTogglingWebEnabled
 
   const handleWizardInstall = useCallback(async () => {
     const result = await installExtensionMutation()
@@ -101,13 +89,6 @@ function GeminiWebSessionOverview({
     const result = await removeExtensionMutation()
     return result ?? { success: false, error: 'Unknown error' }
   }, [removeExtensionMutation])
-
-  const loginButtonClass = status.showReauthAlert
-    ? 'inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-ql-12 font-semibold text-white shadow-lg transition-colors hover:bg-rose-400 disabled:opacity-50'
-    : 'inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-ql-12 font-semibold text-gray-800 shadow-lg transition-colors hover:bg-gray-100 disabled:opacity-50'
-  const reauthButtonClass = status.showReauthAlert
-    ? 'inline-flex items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2.5 text-ql-12 font-semibold text-rose-100 transition-colors hover:bg-rose-500/30 disabled:opacity-50'
-    : 'inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/20 px-4 py-2.5 text-ql-12 font-semibold text-amber-300 transition-colors hover:bg-amber-500/30 disabled:opacity-50'
 
   return (
     <motion.div
@@ -124,7 +105,7 @@ function GeminiWebSessionOverview({
               <LoaderIcon className="h-5 w-5 animate-spin text-white/40" />
             ) : status.isAuthenticated ? (
               <CheckIcon className="h-5 w-5 text-emerald-400" />
-            ) : status.showReauthAlert ? (
+            ) : status.needsReauth ? (
               <XIcon className="h-5 w-5 text-rose-400" />
             ) : (
               <RefreshIcon className="h-5 w-5 text-amber-400" />
@@ -174,7 +155,7 @@ function GeminiWebSessionOverview({
           </div>
         )}
 
-        {status.showReauthAlert && !status.isRefreshing && (
+        {status.needsReauth && !status.isRefreshing && (
           <div className="text-ql-12 rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3.5 py-3 text-rose-50">
             <div className="font-semibold">{t('gws_reauth_alert_title')}</div>
             <p className="text-ql-12 mt-1 leading-relaxed text-rose-100/80">
@@ -220,49 +201,7 @@ function GeminiWebSessionOverview({
           onRemoveExtension={handlers.onRemoveExtension}
         />
 
-        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">
-          <button
-            type="button"
-            onClick={handlers.onOpenWebLogin}
-            disabled={!status.webEnabled || disableSessionMutations}
-            className={loginButtonClass}
-          >
-            {actionState.isGeminiWebLoginInProgress || status.isRefreshing ? (
-              <LoaderIcon className="h-4 w-4 animate-spin text-current" />
-            ) : (
-              <GoogleIcon className="h-4 w-4" />
-            )}
-            {t('gws_login_btn')}
-          </button>
-
-          <button
-            type="button"
-            onClick={handlers.onCheckWebNow}
-            disabled={!status.webEnabled || disableSessionMutations}
-            className="text-ql-12 inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 font-semibold text-white/80 transition-colors hover:bg-white/20 disabled:opacity-50"
-          >
-            {actionState.isCheckingWebNow || status.isRefreshing ? (
-              <LoaderIcon className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshIcon className="h-4 w-4" />
-            )}
-            {t('gws_check_now_btn')}
-          </button>
-
-          <button
-            type="button"
-            onClick={handlers.onReauthWeb}
-            disabled={!status.webEnabled || disableSessionMutations}
-            className={reauthButtonClass}
-          >
-            {actionState.isReauthingWeb || status.isRefreshing ? (
-              <LoaderIcon className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshIcon className="h-4 w-4" />
-            )}
-            {t('gws_reauth_btn')}
-          </button>
-
+        <div className="flex justify-start">
           <button
             type="button"
             onClick={handlers.onResetWebProfile}

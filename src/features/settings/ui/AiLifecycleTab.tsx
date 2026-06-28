@@ -20,6 +20,29 @@ const AI_LIFECYCLE_ICON = (
   </div>
 )
 
+const NeverSleepSiteItem = memo(function NeverSleepSiteItem({
+  site,
+  isNeverSleep,
+  onToggle
+}: {
+  site: { id: string; displayName?: string }
+  isNeverSleep: boolean
+  onToggle: (id: string) => void
+}) {
+  return (
+    <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-white/[0.04]">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
+        <AiIcon modelKey={site.id} className="h-4 w-4" />
+      </div>
+      <span className="text-muted-foreground/80 grow truncate text-xs">
+        {site.displayName || site.id}
+      </span>
+      <SettingsToggleSwitch checked={isNeverSleep} onChange={() => onToggle(site.id)} size="sm" />
+    </div>
+  )
+})
+NeverSleepSiteItem.displayName = 'NeverSleepSiteItem'
+
 const AiLifecycleTab = memo(() => {
   const { t } = useTranslation()
   const aiSites = useAiSites()
@@ -134,27 +157,14 @@ const AiLifecycleTab = memo(() => {
         </div>
 
         <div className="space-y-1 px-1">
-          {allSiteEntries.map((site) => {
-            const isNeverSleep = neverSleepSiteIds.includes(site.id)
-            return (
-              <div
-                key={site.id}
-                className="border-border bg-card flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-white/[0.04]"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
-                  <AiIcon modelKey={site.id} className="h-4 w-4" />
-                </div>
-                <span className="text-muted-foreground/80 grow truncate text-xs">
-                  {site.displayName || site.id}
-                </span>
-                <SettingsToggleSwitch
-                  checked={isNeverSleep}
-                  onChange={() => toggleNeverSleepSite(site.id)}
-                  size="sm"
-                />
-              </div>
-            )
-          })}
+          {allSiteEntries.map((site) => (
+            <NeverSleepSiteItem
+              key={site.id}
+              site={site}
+              isNeverSleep={neverSleepSiteIds.includes(site.id)}
+              onToggle={toggleNeverSleepSite}
+            />
+          ))}
         </div>
       </div>
     </div>

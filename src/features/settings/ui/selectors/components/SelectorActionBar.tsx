@@ -1,5 +1,7 @@
 import { LoaderIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
+import { memo } from 'react'
+
 import type { SelectorEntry, TranslateFn, ValidationState } from '../types'
 
 interface SelectorActionBarProps {
@@ -14,7 +16,7 @@ interface SelectorActionBarProps {
   t: TranslateFn
 }
 
-export default function SelectorActionBar({
+const SelectorActionBar = memo(function SelectorActionBar({
   hasSelectors,
   canTestOnCurrentTab,
   isTesting,
@@ -58,4 +60,8 @@ export default function SelectorActionBar({
       )}
     </div>
   )
-}
+})
+
+SelectorActionBar.displayName = 'SelectorActionBar'
+
+export default SelectorActionBar

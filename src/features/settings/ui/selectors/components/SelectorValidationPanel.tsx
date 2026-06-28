@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 import type { TranslateFn, ValidationState } from '../types'
 
 interface SelectorValidationPanelProps {
@@ -5,7 +7,10 @@ interface SelectorValidationPanelProps {
   t: TranslateFn
 }
 
-export default function SelectorValidationPanel({ validation, t }: SelectorValidationPanelProps) {
+const SelectorValidationPanel = memo(function SelectorValidationPanel({
+  validation,
+  t
+}: SelectorValidationPanelProps) {
   if (validation.status === 'idle') {
     return null
   }
@@ -72,4 +77,7 @@ export default function SelectorValidationPanel({ validation, t }: SelectorValid
       )}
     </div>
   )
-}
+})
+SelectorValidationPanel.displayName = 'SelectorValidationPanel'
+
+export default SelectorValidationPanel

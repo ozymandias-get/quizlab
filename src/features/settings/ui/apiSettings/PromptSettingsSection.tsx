@@ -1,5 +1,6 @@
 import { Textarea } from '@app/components/ui/textarea'
 
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface PromptSettingsSectionProps {
@@ -13,7 +14,7 @@ interface PromptSettingsSectionProps {
   }) => void
 }
 
-function PromptSettingsSection({
+const PromptSettingsSection = memo(function PromptSettingsSection({
   memoryPrompt,
   characterPrompt,
   generalPrompt,
@@ -51,6 +52,7 @@ function PromptSettingsSection({
       />
     </div>
   )
-}
+})
 
 export default PromptSettingsSection
+PromptSettingsSection.displayName = 'PromptSettingsSection'

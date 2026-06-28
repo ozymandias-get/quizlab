@@ -9,9 +9,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockShowError = vi.fn()
 const mockRefetch = vi.fn().mockResolvedValue(undefined)
-const mockStartGeminiWebLogin = vi.fn<() => Promise<GeminiWebSessionActionResult>>()
-const mockCheckWebNow = vi.fn<() => Promise<GeminiWebSessionActionResult>>()
-const mockReauthWeb = vi.fn<() => Promise<GeminiWebSessionActionResult>>()
 const mockResetProfile = vi.fn<() => Promise<GeminiWebSessionActionResult>>()
 const mockSetEnabled = vi.fn<(enabled: boolean) => Promise<GeminiWebSessionActionResult>>()
 const mockSetEnabledApps =
@@ -56,25 +53,13 @@ vi.mock('@app/providers', () => ({
   useToastActions: () => ({
     showError: mockShowError
   }),
-  useAppToolFlagsState: () => ({
-    isGeminiWebLoginInProgress: false
-  }),
-  useAppToolActions: () => ({
-    startGeminiWebLogin: mockStartGeminiWebLogin
-  })
+  useAppToolFlagsState: () => ({}),
+  useAppToolActions: () => ({})
 }))
 
 vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
   GEMINI_WEB_REQUIRES_LOGIN_ERROR: 'error_refresh_failed_requires_login',
   useGeminiWebStatus: (...args: unknown[]) => mockUseGeminiWebStatus(...args),
-  useGeminiWebCheckNow: () => ({
-    mutateAsync: mockCheckWebNow,
-    isPending: false
-  }),
-  useGeminiWebReauth: () => ({
-    mutateAsync: mockReauthWeb,
-    isPending: false
-  }),
   useGeminiWebResetProfile: () => ({
     mutateAsync: mockResetProfile,
     isPending: false
@@ -130,9 +115,6 @@ describe('useGeminiWebSessionState', () => {
       isRefetching: false,
       refetch: mockRefetch
     })
-    mockStartGeminiWebLogin.mockResolvedValue({ success: true })
-    mockCheckWebNow.mockResolvedValue({ success: true })
-    mockReauthWeb.mockResolvedValue({ success: true })
     mockResetProfile.mockResolvedValue({ success: true })
     mockSetEnabled.mockResolvedValue({ success: true })
     mockSetEnabledApps.mockResolvedValue({ success: true })
@@ -171,8 +153,15 @@ describe('useGeminiWebSessionState', () => {
     expect(mockRefetch).toHaveBeenCalledTimes(1)
   })
 
-  it('marks manual reauth required when silent refresh fails with login requirement', async () => {
+  it('tracks started and failed refresh events inline', async () => {
     const { result } = renderHook(() => useGeminiWebSessionState(), { wrapper })
+
+    act(() => {
+      refreshCallback?.({ phase: 'started', reason: 'http_401' })
+    })
+
+    expect(result.current.status.isRefreshing).toBe(true)
+    expect(result.current.stateText).toBe('refreshing')
 
     act(() => {
       refreshCallback?.({
@@ -183,63 +172,9 @@ describe('useGeminiWebSessionState', () => {
     })
 
     await waitFor(() => {
-      expect(result.current.status.requiresManualLogin).toBe(true)
+      expect(result.current.status.isRefreshing).toBe(false)
     })
-    expect(result.current.status.showReauthAlert).toBe(true)
-    expect(result.current.status.isRefreshing).toBe(false)
-  })
-
-  it('surfaces manual login when check now returns reauth_required and no refresh is active', async () => {
-    mockCheckWebNow.mockResolvedValue({
-      success: false,
-      status: {
-        state: 'reauth_required',
-        reasonCode: 'login_redirect',
-        featureEnabled: true,
-        enabled: true,
-        enabledAppIds: ['gemini'],
-        lastHealthyAt: null,
-        lastCheckAt: '2026-04-08T10:01:00.000Z',
-        consecutiveFailures: 1
-      }
-    })
-    const { result } = renderHook(() => useGeminiWebSessionState(), { wrapper })
-
-    await act(async () => {
-      result.current.handlers.onCheckWebNow()
-    })
-
-    await waitFor(() => {
-      expect(result.current.status.requiresManualLogin).toBe(true)
-    })
-  })
-
-  it('does not override in-flight refresh UI when check now returns reauth_required during refresh', async () => {
-    mockCheckWebNow.mockResolvedValue({
-      success: false,
-      status: {
-        state: 'reauth_required',
-        reasonCode: 'login_redirect',
-        featureEnabled: true,
-        enabled: true,
-        enabledAppIds: ['gemini'],
-        lastHealthyAt: null,
-        lastCheckAt: '2026-04-08T10:01:00.000Z',
-        consecutiveFailures: 1
-      }
-    })
-    const { result } = renderHook(() => useGeminiWebSessionState(), { wrapper })
-
-    act(() => {
-      refreshCallback?.({ phase: 'started', reason: 'login_redirect' })
-    })
-
-    await act(async () => {
-      result.current.handlers.onCheckWebNow()
-    })
-
-    expect(result.current.status.isRefreshing).toBe(true)
-    expect(result.current.status.requiresManualLogin).toBe(false)
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
   })
 
   it('rolls back enabled apps when managed app update fails', async () => {

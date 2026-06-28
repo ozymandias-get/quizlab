@@ -13,6 +13,12 @@ import AiModelList from './models/AiModelList'
 import { isCustomSitePlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
+const SITES_ICON = (
+  <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 p-2.5 text-blue-400">
+    <GridIcon className="h-5 w-5" />
+  </div>
+)
+
 const SitesTab = memo(() => {
   const { enabledModels: enabledSites, aiSites } = useAiModelsCatalog()
   const { setEnabledModels: setEnabledSites } = useAiModelActions()
@@ -77,11 +83,7 @@ const SitesTab = memo(() => {
 
   return (
     <SettingsCollectionTabShell
-      icon={
-        <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 p-2.5 text-blue-400">
-          <GridIcon className="h-5 w-5" />
-        </div>
-      }
+      icon={SITES_ICON}
       eyebrow={t('site_settings')}
       title={t('ai_sites')}
       showAddForm={showAddForm}

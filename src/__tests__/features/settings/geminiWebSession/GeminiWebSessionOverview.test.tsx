@@ -47,24 +47,16 @@ const baseStatus: GeminiWebSessionStatusView = {
   isDegraded: false,
   lastCheckAt: '2026-04-08T10:00:00.000Z',
   lastRefreshedAt: null,
-  lastRefreshReason: null,
-  requiresManualLogin: false,
-  showReauthAlert: false
+  lastRefreshReason: null
 }
 
 const baseActionState: GeminiWebSessionActionState = {
-  isGeminiWebLoginInProgress: false,
-  isCheckingWebNow: false,
-  isReauthingWeb: false,
   isResettingWebProfile: false,
   isTogglingWebEnabled: false,
   isRefreshing: false
 }
 
 const baseHandlers: GeminiWebSessionHandlers = {
-  onOpenWebLogin: vi.fn(),
-  onCheckWebNow: vi.fn(),
-  onReauthWeb: vi.fn(),
   onResetWebProfile: vi.fn(),
   onToggleWebEnabled: vi.fn(),
   onToggleManagedApp: vi.fn(),
@@ -108,13 +100,10 @@ describe('GeminiWebSessionOverview', () => {
     expect(screen.getByText('Sessiz yenileme devam ediyor.')).toBeInTheDocument()
     expect(screen.getByText(/Last refreshed:/)).toBeInTheDocument()
     expect(screen.getByText(/Last refresh reason:/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Login (Web)' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Check Now' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Reauthenticate' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Reset Profile' })).toBeDisabled()
   })
 
-  it('shows compact reauth alert and promotes login CTA when manual login is required', () => {
+  it('shows compact reauth alert when reauth is required', () => {
     render(
       <GeminiWebSessionOverview
         t={t}
@@ -122,9 +111,7 @@ describe('GeminiWebSessionOverview', () => {
           ...baseStatus,
           state: 'reauth_required',
           isAuthenticated: false,
-          needsReauth: true,
-          requiresManualLogin: true,
-          showReauthAlert: true
+          needsReauth: true
         }}
         reasonText="Login redirect"
         refreshReasonText={null}
@@ -148,13 +135,12 @@ describe('GeminiWebSessionOverview', () => {
         'Oturum süresi doldu. Güvenlik nedeniyle hesabınıza yeniden giriş yapmanız gerekmektedir.'
       )
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Login (Web)' }).className).toContain('bg-rose-500')
   })
 
   it('keeps overview actions wired when refresh lock is not active', () => {
     const handlers: GeminiWebSessionHandlers = {
       ...baseHandlers,
-      onCheckWebNow: vi.fn()
+      onResetWebProfile: vi.fn()
     }
 
     render(
@@ -177,7 +163,7 @@ describe('GeminiWebSessionOverview', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Check Now' }))
-    expect(handlers.onCheckWebNow).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Profile' }))
+    expect(handlers.onResetWebProfile).toHaveBeenCalledTimes(1)
   })
 })

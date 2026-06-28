@@ -1,5 +1,7 @@
 import type { SubmitMode } from '@shared-core/types'
 
+import { memo } from 'react'
+
 import { SUBMIT_MODE_OPTIONS } from '../constants'
 import type { SelectorEntry, SelectorHealthState, TranslateFn } from '../types'
 
@@ -16,7 +18,7 @@ interface SelectorCardDetailsProps {
   t: TranslateFn
 }
 
-export default function SelectorCardDetails({
+const SelectorCardDetails = memo(function SelectorCardDetails({
   savedHost,
   existingTab,
   selectorHealth,
@@ -90,4 +92,7 @@ export default function SelectorCardDetails({
       </div>
     </div>
   )
-}
+})
+SelectorCardDetails.displayName = 'SelectorCardDetails'
+
+export default SelectorCardDetails

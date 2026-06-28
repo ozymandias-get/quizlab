@@ -6,7 +6,7 @@ const SCAN_ALARM = 'quizlabScan'
 const HEARTBEAT_ALARM = 'quizlabHeartbeat'
 const HEARTBEAT_INTERVAL_MIN = 1
 
-const GOOGLE_COOKIE_DOMAINS = ['.gemini.google.com', '.aistudio.google.com']
+const GOOGLE_COOKIE_DOMAINS = ['.google.com', '.gemini.google.com', '.aistudio.google.com']
 
 let currentPort = PORT_START
 let connected = false
@@ -207,3 +207,13 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
 
 // Triggers on Chrome startup and whenever the SW is spun up
 scanForBridge()
+
+// Wake up the service worker when the user navigates to Gemini or AI Studio
+chrome.webNavigation.onCompleted.addListener(
+  () => {
+    scanForBridge()
+  },
+  {
+    url: [{ hostSuffix: 'gemini.google.com' }, { hostSuffix: 'aistudio.google.com' }]
+  }
+)
