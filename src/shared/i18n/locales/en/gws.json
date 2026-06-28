@@ -89,6 +89,7 @@
   "gws_extension_wizard_mitigation_title": "Recommended Precautions",
   "gws_extension_wizard_confirm_label": "I understand the risks, continue",
   "gws_extension_wizard_install_title": "Install Extension",
+  "gws_extension_wizard_install_desc": "The extension will be installed and configured for use with Quizlab.",
   "gws_extension_wizard_installing": "Installing extension...",
   "gws_extension_wizard_installing_desc": "Copying extension files and configuring bridge connection.",
   "gws_extension_wizard_install_success": "Extension Installed",
@@ -109,6 +110,7 @@
   "gws_extension_wizard_remove_success_desc": "Extension files have been deleted successfully.",
   "gws_extension_wizard_cancel_btn": "Cancel",
   "gws_extension_wizard_error_title": "Operation Failed",
+  "gws_extension_wizard_error_default": "Operation failed. Please try again.",
   "gws_extension_wizard_next_btn": "Next",
   "gws_extension_wizard_install_btn": "Install Extension"
 }
