@@ -22,7 +22,7 @@ const SettingsModal = memo(function SettingsModal({
   onClose,
   initialTab
 }: SettingsModalProps) {
-  const { activeTab, setActiveTab, settings, sidebarScrollRef, sidebarSections, t, tabDefs } =
+  const { activeTab, activeTabMeta, setActiveTab, sidebarScrollRef, sidebarSections, t } =
     useSettingsModalState({
       initialTab,
       isOpen,
@@ -75,9 +75,7 @@ const SettingsModal = memo(function SettingsModal({
             setActiveTab={setActiveTab}
             sidebarScrollRef={sidebarScrollRef}
             sidebarSections={sidebarSections}
-            t={t}
             sidebarWidth={sidebarWidth}
-            tabDefs={tabDefs}
           />
 
           <div className="max-[768px]:hidden">
@@ -86,10 +84,8 @@ const SettingsModal = memo(function SettingsModal({
 
           <SettingsModalContent
             activeTab={activeTab}
+            activeTabMeta={activeTabMeta}
             onClose={onClose}
-            settings={settings}
-            t={t}
-            tabDefs={tabDefs}
             setActiveTab={setActiveTab}
           />
         </div>

@@ -2,33 +2,30 @@ import { ScrollArea } from '@app/components/ui/scroll-area'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { memo, Suspense, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import {
   QUICK_SETTINGS_GROUP,
   SETTINGS_MODAL_MAIN_PANEL_ID,
   SETTINGS_TAB_COMPONENTS,
-  type SettingsState,
   type SettingsTabId,
   type TabDef
 } from './settingsModalTabs'
 
 interface SettingsModalContentProps {
   activeTab: SettingsTabId | null
+  activeTabMeta: TabDef | null
   onClose: () => void
-  settings: SettingsState
-  t: (key: string) => string
-  tabDefs: TabDef[]
   setActiveTab: (id: string) => void
 }
 
 export default memo(function SettingsModalContent({
   activeTab,
+  activeTabMeta,
   onClose,
-  settings,
-  t,
-  tabDefs,
   setActiveTab
 }: SettingsModalContentProps) {
+  const { t } = useTranslation()
   const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTabId>>(new Set())
 
   useEffect(() => {
@@ -40,8 +37,6 @@ export default memo(function SettingsModalContent({
       return next
     })
   }, [activeTab])
-
-  const activeTabMeta = activeTab ? tabDefs.find((tab) => tab.id === activeTab) : null
 
   return (
     <main
@@ -106,12 +101,7 @@ export default memo(function SettingsModalContent({
                           </div>
                         }
                       >
-                        <TabComponent
-                          onClose={onClose}
-                          settings={settings}
-                          t={t}
-                          setActiveTab={setActiveTab}
-                        />
+                        <TabComponent onClose={onClose} setActiveTab={setActiveTab} />
                       </Suspense>
                     )}
                   </div>

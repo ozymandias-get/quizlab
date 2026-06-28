@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useSettings } from '../../hooks/useSettings'
 import {
   buildSettingsSidebarSections,
   buildSettingsTabDefs,
   type SettingsTabId,
+  type TabDef,
   toSettingsTabId
 } from './settingsModalTabs'
 
@@ -24,7 +24,6 @@ export function useSettingsModalState({
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
   const normalizedInitialTab = toSettingsTabId(initialTab)
   const [activeTabState, setActiveTabState] = useState<SettingsTabId | null>(normalizedInitialTab)
-  const settings = useSettings()
 
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -54,6 +53,12 @@ export function useSettingsModalState({
 
   const tabDefs = useMemo(() => buildSettingsTabDefs(t), [t])
   const sidebarSections = useMemo(() => buildSettingsSidebarSections(t), [t])
+
+  const activeTabMeta = useMemo<TabDef | null>(() => {
+    if (!activeTabState) return null
+    return tabDefs.find((tab) => tab.id === activeTabState) ?? null
+  }, [activeTabState, tabDefs])
+
   const setActiveTab = useCallback((value: string) => {
     const id = toSettingsTabId(value)
     setActiveTabState(id)
@@ -61,11 +66,10 @@ export function useSettingsModalState({
 
   return {
     activeTab: activeTabState,
+    activeTabMeta,
     setActiveTab,
-    settings,
     sidebarScrollRef,
     sidebarSections,
-    t,
-    tabDefs
+    t
   }
 }

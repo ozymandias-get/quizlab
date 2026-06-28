@@ -15,8 +15,9 @@ import {
 } from '@ui/components/Icons'
 
 import { type ComponentType, lazy, memo } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import type { useSettings } from '../../hooks/useSettings'
+import { useSettings } from '../../hooks/useSettings'
 
 const LanguageTab = lazy(() => import('../LanguageTab'))
 const AboutTab = lazy(() => import('../AboutTab'))
@@ -43,6 +44,7 @@ const SETTINGS_SIDEBAR_GROUP_ORDER = ['workspace', 'integration', 'preferences',
 export type SettingsTabGroup = (typeof SETTINGS_SIDEBAR_GROUP_ORDER)[number]
 
 export const QUICK_SETTINGS_GROUP = 'quick-settings' as SettingsTabGroup
+export const QUICK_SETTINGS_GLOW = '#f59e0b'
 
 interface SettingsTabMeta {
   id: string
@@ -204,12 +206,9 @@ const SETTINGS_TABS = [
 ] as const satisfies readonly SettingsTabMeta[]
 
 export type SettingsTabId = (typeof SETTINGS_TABS)[number]['id']
-export type SettingsState = ReturnType<typeof useSettings>
 
 interface SettingsContext {
   onClose: () => void
-  settings: SettingsState
-  t: (key: string) => string
   setActiveTab?: (id: string) => void
 }
 
@@ -252,13 +251,14 @@ const TutorialTabWrapper = memo(function TutorialTabWrapper({ onClose }: Setting
 })
 
 const QuickSettingsTabWrapper = memo(function QuickSettingsTabWrapper({
-  t,
   setActiveTab
 }: SettingsContext) {
+  const { t } = useTranslation()
   return <QuickSettings t={t} setActiveTab={setActiveTab!} />
 })
 
-const AboutTabWrapper = memo(function AboutTabWrapper({ onClose, settings }: SettingsContext) {
+const AboutTabWrapper = memo(function AboutTabWrapper({ onClose }: SettingsContext) {
+  const settings = useSettings()
   return (
     <AboutTab
       appVersion={settings.appVersion}
