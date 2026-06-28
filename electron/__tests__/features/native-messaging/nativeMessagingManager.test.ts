@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
 // Hoisted mock factories
@@ -104,7 +104,7 @@ vi.mock('../../../features/gemini-web-session/sessionConfig', () => ({
 }))
 
 vi.mock('../../../features/gemini-web-session/sessionManager', () => ({
-  geminiWebSessionManager: { checkNow: vi.fn() }
+  geminiWebSessionManager: {}
 }))
 
 vi.mock('../../../app/constants', () => ({
