@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   ChromeExtensionCookie,
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo
@@ -15,7 +15,6 @@ import { APP_CONFIG } from '../../app/constants.js'
 import { Logger } from '../../core/logger.js'
 import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig.js'
 import { importExternalCookies } from '../gemini-web-session/sessionCookies.js'
-import { geminiWebSessionManager } from '../gemini-web-session/sessionManager.js'
 import {
   BRIDGE_PORT,
   BRIDGE_SECRET_HEADER,
@@ -306,8 +305,6 @@ class NativeMessagingManager {
         const externalCookies = cookies.map(toExternalBrowserCookie)
         const targetSession = electronSession.fromPartition(PROFILE_PARTITION)
         await importExternalCookies(targetSession, externalCookies)
-
-        await geminiWebSessionManager.checkNow()
 
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ success: true, imported: cookies.length }))
