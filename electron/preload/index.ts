@@ -1,4 +1,4 @@
-﻿import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/ipcContract'
+import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/ipcContract'
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
@@ -119,9 +119,7 @@ const electronApi: ElectronApi = {
 
   geminiWeb: {
     getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_STATUS)),
-    openLogin: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_OPEN_LOGIN)),
-    checkNow: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_CHECK_NOW)),
-    reauth: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_REAUTH)),
+
     resetProfile: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE)),
     setEnabled: (enabled) =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, enabled)),
