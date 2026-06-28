@@ -185,11 +185,14 @@ describe('NativeMessagingManager', () => {
       expect(manager.sharedSecret).toMatch(/^[\da-f]{64}$/)
     })
 
-    it('getExtensionInfo returns disconnected state', () => {
-      expect(manager.getExtensionInfo()).toEqual({
+    it('getExtensionInfo returns disconnected state with new fields', () => {
+      const info = manager.getExtensionInfo()
+      expect(info).toEqual({
         status: 'disconnected',
         installed: false,
-        error: undefined
+        error: undefined,
+        waitingSince: null,
+        userHint: null
       })
     })
   })
@@ -310,6 +313,35 @@ describe('NativeMessagingManager', () => {
     it('delegates to stopServer', () => {
       manager.dispose()
       expect(manager.connectionStatus).toBe('disconnected')
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // getExtensionInfo - new fields
+  // -----------------------------------------------------------------------
+
+  describe('getExtensionInfo new fields', () => {
+    it('sets waitingSince after initialize (connecting state)', async () => {
+      await manager.initialize()
+      const info = manager.getExtensionInfo()
+      expect(info.waitingSince).toBeTypeOf('number')
+      expect(info.waitingSince).toBeGreaterThan(0)
+    })
+
+    it('returns userHint when bridge info exists and status is connecting', async () => {
+      mockFsStat.mockResolvedValue(undefined)
+      await manager.initialize()
+      const info = manager.getExtensionInfo()
+      expect(info.installed).toBe(true)
+      expect(info.userHint).toBe('waiting')
+    })
+
+    it('returns userHint null when extension is not installed', async () => {
+      // mockFsStat is already set to reject (no bridge info)
+      await manager.initialize()
+      const info = manager.getExtensionInfo()
+      expect(info.installed).toBe(false)
+      expect(info.userHint).toBeNull()
     })
   })
 })
