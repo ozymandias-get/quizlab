@@ -1,4 +1,4 @@
-﻿import type { GeminiWebSessionStatus } from '@shared-core/types'
+import type { GeminiWebSessionStatus } from '@shared-core/types'
 
 import { BrowserWindow, dialog } from 'electron'
 
@@ -52,33 +52,6 @@ export function registerGeminiWebSessionHandlers(): void {
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.GEMINI_WEB_OPEN_LOGIN,
-    async () => {
-      return success(await geminiWebSessionManager.openLogin())
-    },
-    requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.GEMINI_WEB_CHECK_NOW,
-    async () => {
-      return success(await geminiWebSessionManager.checkNow())
-    },
-    requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.GEMINI_WEB_REAUTH,
-    async () => {
-      return success(await geminiWebSessionManager.reauthenticate())
-    },
-    requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
   )
 
   registerIpcHandler(

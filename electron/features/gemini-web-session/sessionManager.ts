@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
   GeminiWebSessionRefreshEvent,
@@ -64,18 +64,6 @@ class GeminiWebSessionManager {
 
   async setEnabledApps(enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> {
     return this.orchestrator.setEnabledApps(enabledAppIds)
-  }
-
-  async openLogin(): Promise<GeminiWebSessionActionResult> {
-    return this.orchestrator.openLogin()
-  }
-
-  async checkNow(): Promise<GeminiWebSessionActionResult> {
-    return this.orchestrator.checkNow()
-  }
-
-  async reauthenticate(): Promise<GeminiWebSessionActionResult> {
-    return this.orchestrator.reauthenticate()
   }
 
   async exportSession(filePath: string): Promise<{ success: boolean; error?: string }> {

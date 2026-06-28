@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionConfig,
   GeminiWebSessionStatus
@@ -10,7 +10,6 @@ import path from 'path'
 
 import { Logger } from '../../core/logger.js'
 import { HealthCheckPolicy } from './healthCheckPolicy.js'
-import { LoginFlowPolicy } from './loginFlowPolicy.js'
 import { MetadataUpdatePolicy } from './metadataUpdatePolicy.js'
 import { ProfileHealthChecker } from './profileHealthChecker.js'
 import { ProfileLock } from './profileLock.js'
@@ -48,7 +47,6 @@ export class SessionOrchestrator {
 
   private healthCheckPolicy: HealthCheckPolicy
   private refreshTriggerPolicy: RefreshTriggerPolicy
-  private loginFlowPolicy: LoginFlowPolicy
   private metadataUpdatePolicy: MetadataUpdatePolicy
 
   private abortController = new AbortController()
@@ -101,17 +99,6 @@ export class SessionOrchestrator {
       getAbortSignal: () => this.abortController.signal
     })
 
-    this.loginFlowPolicy = new LoginFlowPolicy({
-      metadataRepository: this.metadataRepository,
-      profileLock: this.profileLock,
-      config: this.config,
-      resolvePersistentSession: this.resolvePersistentSession,
-      initialize: () => this.initialize(),
-      getStatus: () => this.getStatus(),
-      snapshotRepository: this.snapshotRepository,
-      getAbortSignal: () => this.abortController.signal
-    })
-
     this.metadataUpdatePolicy = new MetadataUpdatePolicy({
       metadataRepository: this.metadataRepository,
       monitor: this.monitor,
@@ -147,20 +134,6 @@ export class SessionOrchestrator {
 
   async setEnabledApps(enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> {
     return this.metadataUpdatePolicy.setEnabledApps(enabledAppIds)
-  }
-
-  async openLogin(): Promise<GeminiWebSessionActionResult> {
-    return this.loginFlowPolicy.openLogin()
-  }
-
-  async checkNow(): Promise<GeminiWebSessionActionResult> {
-    await this.initialize()
-    const status = await this.getStatus()
-    return { success: true, status }
-  }
-
-  async reauthenticate(): Promise<GeminiWebSessionActionResult> {
-    return this.loginFlowPolicy.reauthenticate()
   }
 
   async exportSession(filePath: string): Promise<{ success: boolean; error?: string }> {
