@@ -89,6 +89,7 @@
   "gws_extension_wizard_mitigation_title": "Önerilen Önlemler",
   "gws_extension_wizard_confirm_label": "Riskleri anladım, devam et",
   "gws_extension_wizard_install_title": "Eklentiyi Yükle",
+  "gws_extension_wizard_install_desc": "Eklenti kurulacak ve Quizlab ile kullanım için yapılandırılacak.",
   "gws_extension_wizard_installing": "Eklenti yükleniyor...",
   "gws_extension_wizard_installing_desc": "Eklenti dosyaları kopyalanıyor ve köprü bağlantısı yapılandırılıyor.",
   "gws_extension_wizard_install_success": "Eklenti Yüklendi",
@@ -109,6 +110,7 @@
   "gws_extension_wizard_remove_success_desc": "Eklenti dosyaları başarıyla silindi.",
   "gws_extension_wizard_cancel_btn": "İptal",
   "gws_extension_wizard_error_title": "İşlem Başarısız",
+  "gws_extension_wizard_error_default": "İşlem başarısız oldu. Lütfen tekrar deneyin.",
   "gws_extension_wizard_next_btn": "İleri",
   "gws_extension_wizard_install_btn": "Eklentiyi Yükle"
 }

@@ -1,7 +1,7 @@
 import { reportSuppressedError } from '@shared/lib/logger'
 import { cn } from '@shared/lib/uiUtils'
 
-import { AlertTriangle, Check, CheckCircle, Copy, Loader2, Trash2, X, XCircle } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle, Copy, Loader2, Trash2, XCircle } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -165,10 +165,10 @@ function ExtensionWizardDialog({
           setInstalledPath(result.installedPath)
         }
       } else {
-        setError(result?.error ?? 'Installation failed')
+        setError(result?.error ?? t('gws_extension_wizard_error_default'))
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Installation failed'
+      const message = err instanceof Error ? err.message : t('gws_extension_wizard_error_default')
       setError(message)
       reportSuppressedError('extensionWizard.install', { cause: err })
     } finally {
@@ -185,10 +185,10 @@ function ExtensionWizardDialog({
       if (result?.success) {
         setSuccess(true)
       } else {
-        setError(result?.error ?? 'Removal failed')
+        setError(result?.error ?? t('gws_extension_wizard_error_default'))
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Removal failed'
+      const message = err instanceof Error ? err.message : t('gws_extension_wizard_error_default')
       setError(message)
       reportSuppressedError('extensionWizard.remove', { cause: err })
     } finally {
@@ -460,7 +460,7 @@ function ExtensionWizardDialog({
                         {t('gws_extension_wizard_install_title')}
                       </h3>
                       <p className="text-ql-13 mt-2 text-white/50">
-                        The extension will be installed and configured for use with Quizlab.
+                        {t('gws_extension_wizard_install_desc')}
                       </p>
 
                       <div className="mt-8 flex items-center justify-end gap-3">
