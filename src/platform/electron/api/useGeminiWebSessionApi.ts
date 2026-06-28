@@ -53,18 +53,6 @@ function useGeminiWebMutation<Payload>(
   })
 }
 
-export function useGeminiWebOpenLogin() {
-  return useGeminiWebMutation<void>((api) => api.geminiWeb.openLogin(), 'toast_gws_login_failed')
-}
-
-export function useGeminiWebCheckNow() {
-  return useGeminiWebMutation<void>((api) => api.geminiWeb.checkNow(), 'toast_gws_check_failed')
-}
-
-export function useGeminiWebReauth() {
-  return useGeminiWebMutation<void>((api) => api.geminiWeb.reauth(), 'toast_gws_reauth_failed')
-}
-
 export function useGeminiWebResetProfile() {
   return useGeminiWebMutation<void>((api) => api.geminiWeb.resetProfile(), 'toast_gws_reset_failed')
 }

@@ -4,9 +4,6 @@
  * Covers Gemini Web Session status query and action mutations.
  */
 import {
-  useGeminiWebCheckNow,
-  useGeminiWebOpenLogin,
-  useGeminiWebReauth,
   useGeminiWebResetProfile,
   useGeminiWebSetEnabled,
   useGeminiWebSetEnabledApps,
@@ -53,9 +50,6 @@ describe('useGeminiWebSessionApi', () => {
 
     mockGeminiWeb = {
       getStatus: vi.fn().mockResolvedValue({ loggedIn: true, profile: 'gemini' }),
-      openLogin: vi.fn().mockResolvedValue({ success: true }),
-      checkNow: vi.fn().mockResolvedValue({ success: true }),
-      reauth: vi.fn().mockResolvedValue({ success: true }),
       resetProfile: vi.fn().mockResolvedValue({ success: true }),
       setEnabled: vi.fn().mockResolvedValue({ success: true }),
       setEnabledApps: vi.fn().mockResolvedValue({ success: true })
@@ -74,9 +68,6 @@ describe('useGeminiWebSessionApi', () => {
   })
 
   const mutationCases = [
-    ['useGeminiWebOpenLogin', useGeminiWebOpenLogin, 'openLogin'] as const,
-    ['useGeminiWebCheckNow', useGeminiWebCheckNow, 'checkNow'] as const,
-    ['useGeminiWebReauth', useGeminiWebReauth, 'reauth'] as const,
     ['useGeminiWebResetProfile', useGeminiWebResetProfile, 'resetProfile'] as const
   ]
 
