@@ -11,7 +11,6 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import securityPlugin from 'eslint-plugin-security'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import unicornPlugin from 'eslint-plugin-unicorn'
-import unusedImportsPlugin from 'eslint-plugin-unused-imports'
 import globals from 'globals'
 
 const legacySrcAliasPattern = {
@@ -83,7 +82,6 @@ export default [
       security: securityPlugin,
       prettier: prettierPlugin,
       unicorn: unicornPlugin,
-      'unused-imports': unusedImportsPlugin,
       'simple-import-sort': simpleImportSort
     },
     settings: {
@@ -93,8 +91,6 @@ export default [
       'no-restricted-imports': ['error', { patterns: [legacySrcAliasPattern] }],
       'react/no-danger': 'warn',
       'prettier/prettier': 'error',
-      'unused-imports/no-unused-imports': 'off',
-      'unused-imports/no-unused-vars': 'off',
       'simple-import-sort/imports': [
         'error',
         {
@@ -173,7 +169,6 @@ export default [
       'no-secrets': noSecrets,
       prettier: prettierPlugin,
       unicorn: unicornPlugin,
-      'unused-imports': unusedImportsPlugin,
       'simple-import-sort': simpleImportSort
     },
     rules: {

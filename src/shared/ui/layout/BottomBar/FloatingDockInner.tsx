@@ -41,7 +41,7 @@ const ICON_CONTAINER_STYLE: CSSProperties = {
 }
 
 interface FloatingDockInnerProps {
-  onOpenSettings: (tab: string) => void
+  onOpenSettings: (tab?: string) => void
 }
 
 const FloatingDockInner = memo(function FloatingDockInner({
@@ -96,10 +96,10 @@ const FloatingDockInner = memo(function FloatingDockInner({
 const SettingsToolButton = memo(function SettingsToolButton({
   onOpenSettings
 }: {
-  onOpenSettings: (tab: string) => void
+  onOpenSettings: (tab?: string) => void
 }) {
   const { t } = useTranslation()
-  const handleClick = useCallback(() => onOpenSettings('quick-settings'), [onOpenSettings])
+  const handleClick = useCallback(() => onOpenSettings(), [onOpenSettings])
 
   return (
     <FloatingDockIcon title={t('settings')} onClick={handleClick}>
@@ -182,7 +182,7 @@ const PickerToolButton = memo(function PickerToolButton() {
 const GeminiToolButton = memo(function GeminiToolButton({
   onOpenSettings
 }: {
-  onOpenSettings: (tab: string) => void
+  onOpenSettings: (tab?: string) => void
 }) {
   const { t } = useTranslation()
   const { data: webSessionData, isLoading: isGeminiWebStatusLoading } = useGeminiWebStatus()

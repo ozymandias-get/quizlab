@@ -254,7 +254,7 @@ describe('automationScripts', () => {
       const config = {
         input: '#input',
         button: '#send',
-        submitMode: 'click'
+        submitMode: 'click' as const
       }
 
       const payloads: string[] = [

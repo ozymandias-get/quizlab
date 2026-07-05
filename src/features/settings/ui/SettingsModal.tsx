@@ -4,6 +4,7 @@ import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
 import { memo } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import ResizableHandle from './modal/ResizableHandle'
 import SettingsModalContent from './modal/SettingsModalContent'
@@ -22,12 +23,13 @@ const SettingsModal = memo(function SettingsModal({
   onClose,
   initialTab
 }: SettingsModalProps) {
-  const { activeTab, activeTabMeta, setActiveTab, sidebarScrollRef, sidebarSections, t } =
+  const { activeTab, activeTabMeta, setActiveTab, sidebarScrollRef, sidebarSections } =
     useSettingsModalState({
-      initialTab,
       isOpen,
-      onClose
+      onClose,
+      initialTab
     })
+  const { t } = useTranslation()
 
   const { sidebarWidth, handleSidebarResize } = useResizableColumns()
 

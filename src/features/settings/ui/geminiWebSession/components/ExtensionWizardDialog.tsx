@@ -178,7 +178,7 @@ function ExtensionWizardDialog({
         }
       }
     },
-    [onClose]
+    [loading, onClose]
   )
 
   useEffect(() => {
@@ -214,7 +214,7 @@ function ExtensionWizardDialog({
       setLoading(false)
       setStep(3)
     }
-  }, [onInstall])
+  }, [onInstall, t])
 
   const handleRemoveAction = useCallback(async () => {
     setStep(1)
@@ -234,7 +234,7 @@ function ExtensionWizardDialog({
       setLoading(false)
       setStep(2)
     }
-  }, [onRemove])
+  }, [onRemove, t])
 
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const copyLinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -562,7 +562,7 @@ function ExtensionWizardDialog({
                           {t('gws_extension_wizard_risk_list_title')}
                         </p>
                         {riskItems.map((item, i) => (
-                          <div key={i} className="flex items-start gap-3">
+                          <div key={item} className="flex items-start gap-3">
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-xs font-bold text-amber-400">
                               {i + 1}
                             </span>
@@ -575,8 +575,8 @@ function ExtensionWizardDialog({
                         <p className="text-ql-12 font-medium text-emerald-400/80">
                           {t('gws_extension_wizard_mitigation_title')}
                         </p>
-                        {mitigationItems.map((item, i) => (
-                          <div key={i} className="flex items-start gap-3">
+                        {mitigationItems.map((item) => (
+                          <div key={`mit-${item}`} className="flex items-start gap-3">
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-400/20 text-xs text-emerald-400">
                               <Check className="h-3.5 w-3.5" />
                             </span>

@@ -135,7 +135,7 @@ describe('BottomBar', () => {
       '[class*="bg-gradient-to-b from-transparent via-white"]'
     )
     expect(gradientLines.length).toBe(2)
-    const dotIcons = container.querySelectorAll('.tabler-icon-dots-vertical')
+    const dotIcons = container.querySelectorAll('[class*="lucide-grip-vertical"]')
     expect(dotIcons.length).toBe(2)
   })
 
