@@ -251,7 +251,16 @@
     "zustand": "^5.0.11"
   },
   "overrides": {
-    "yauzl": ">=3.2.1"
+    "yauzl": ">=3.2.1",
+    "eslint-plugin-jsx-a11y": {
+      "eslint": "10.5.0"
+    },
+    "eslint-plugin-react": {
+      "eslint": "10.5.0"
+    },
+    "madge": {
+      "typescript": "6.0.3"
+    }
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md,css}": "prettier --write",
