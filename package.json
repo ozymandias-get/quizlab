@@ -260,6 +260,9 @@
     },
     "madge": {
       "typescript": "6.0.3"
+    },
+    "type-coverage-core": {
+      "typescript": "6.0.3"
     }
   },
   "lint-staged": {
