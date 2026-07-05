@@ -75,6 +75,7 @@
   "typing_speed_very_slow": "Çok Yavaş",
   "settings_header_description": "Quizlab Reader çalışma alanınızı, modelleri, promptları ve otomasyon ayarlarını yönetin.",
   "settings_overview_description": "Yapılandırmak için bir kategori seçin.",
+  "select_setting_from_list": "Yapılandırmak için listeden bir ayar seçin",
   "quick_settings": "Hızlı Ayarlar",
   "quick_settings_description": "Sık kullanılan ayarlar.",
   "change": "Değiştir",

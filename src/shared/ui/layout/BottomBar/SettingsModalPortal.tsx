@@ -9,11 +9,11 @@ const SettingsModal = lazy(() =>
 
 interface SettingsModalPortalProps {
   isOpen: boolean
-  initialTab: string
   onClose: () => void
+  initialTab?: string
 }
 
-function SettingsModalPortal({ isOpen, initialTab, onClose }: SettingsModalPortalProps) {
+function SettingsModalPortal({ isOpen, onClose, initialTab }: SettingsModalPortalProps) {
   return createPortal(
     <Suspense fallback={<SettingsLoadingSpinner />}>
       {isOpen && <SettingsModal isOpen={isOpen} onClose={onClose} initialTab={initialTab} />}

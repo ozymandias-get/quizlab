@@ -10,20 +10,19 @@ import {
 } from './settingsModalTabs'
 
 interface UseSettingsModalStateOptions {
-  initialTab?: string
   isOpen: boolean
   onClose: () => void
+  initialTab?: string
 }
 
 export function useSettingsModalState({
-  initialTab,
   isOpen,
-  onClose
+  onClose,
+  initialTab
 }: UseSettingsModalStateOptions) {
   const { t } = useTranslation()
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
-  const normalizedInitialTab = toSettingsTabId(initialTab)
-  const [activeTabState, setActiveTabState] = useState<SettingsTabId | null>(normalizedInitialTab)
+  const [activeTabState, setActiveTabState] = useState<SettingsTabId | null>(null)
 
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -44,12 +43,13 @@ export function useSettingsModalState({
   useEffect(() => {
     if (!isOpen) return
 
-    setActiveTabState(normalizedInitialTab)
+    const initialTabId = initialTab ? toSettingsTabId(initialTab) : null
+    setActiveTabState(initialTabId)
 
     if (sidebarScrollRef.current) {
       sidebarScrollRef.current.scrollTop = 0
     }
-  }, [isOpen, normalizedInitialTab])
+  }, [isOpen, initialTab])
 
   const tabDefs = useMemo(() => buildSettingsTabDefs(t), [t])
   const sidebarSections = useMemo(() => buildSettingsSidebarSections(t), [t])
@@ -61,7 +61,9 @@ export function useSettingsModalState({
 
   const setActiveTab = useCallback((value: string) => {
     const id = toSettingsTabId(value)
-    setActiveTabState(id)
+    if (id) {
+      setActiveTabState(id)
+    }
   }, [])
 
   return {
@@ -69,7 +71,6 @@ export function useSettingsModalState({
     activeTabMeta,
     setActiveTab,
     sidebarScrollRef,
-    sidebarSections,
-    t
+    sidebarSections
   }
 }

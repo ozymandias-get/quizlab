@@ -66,7 +66,7 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
 
         <ChatHeader
           activeProvider={!!activeProvider}
-          selectedModel={selectedModel}
+          selectedModel={selectedModel ?? ''}
           providerName={activeProvider?.name || ''}
           messageCount={messages.length}
           onNewChat={handleNewChat}
@@ -77,7 +77,7 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
           <EmptyState
             hasProvider={!!activeProvider}
             activeProviderName={activeProvider?.name || ''}
-            activeModelName={selectedModel}
+            activeModelName={selectedModel ?? ''}
             onSuggestionClick={handleSuggestionClick}
           />
         ) : (
@@ -98,8 +98,8 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
           <ChatInput
             inputValue={inputValue}
             attachments={attachments}
-            selectedModel={selectedModel}
-            activeProviderId={activeProviderId}
+            selectedModel={selectedModel ?? ''}
+            activeProviderId={activeProviderId ?? ''}
             config={config ?? null}
             activeProvider={activeProvider}
             isStreaming={isStreaming}

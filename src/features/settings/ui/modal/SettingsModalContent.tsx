@@ -1,11 +1,11 @@
 import { ScrollArea } from '@app/components/ui/scroll-area'
+import { SettingsIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { memo, Suspense, useEffect, useState } from 'react'
+import { memo, Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
-  QUICK_SETTINGS_GROUP,
   SETTINGS_MODAL_MAIN_PANEL_ID,
   SETTINGS_TAB_COMPONENTS,
   type SettingsTabId,
@@ -18,6 +18,39 @@ interface SettingsModalContentProps {
   onClose: () => void
   setActiveTab: (id: string) => void
 }
+
+const TabPanel = memo(function TabPanel({
+  tabId,
+  isActive,
+  onClose,
+  setActiveTab
+}: {
+  tabId: SettingsTabId
+  isActive: boolean
+  onClose: () => void
+  setActiveTab: (id: string) => void
+}) {
+  const TabComponent = SETTINGS_TAB_COMPONENTS[tabId]
+  return (
+    <div
+      role="presentation"
+      inert={!isActive ? true : undefined}
+      style={{ display: isActive ? 'block' : 'none' }}
+    >
+      {isActive && (
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center p-12">
+              <div className="border-border border-t-foreground/50 h-5 w-5 animate-spin rounded-full border-2" />
+            </div>
+          }
+        >
+          <TabComponent onClose={onClose} setActiveTab={setActiveTab} />
+        </Suspense>
+      )}
+    </div>
+  )
+})
 
 export default memo(function SettingsModalContent({
   activeTab,
@@ -38,6 +71,8 @@ export default memo(function SettingsModalContent({
     })
   }, [activeTab])
 
+  const visitedTabsList = useMemo(() => [...visitedTabs], [visitedTabs])
+
   return (
     <main
       id={SETTINGS_MODAL_MAIN_PANEL_ID}
@@ -55,10 +90,9 @@ export default memo(function SettingsModalContent({
               transition={{ duration: 0.12 }}
               className="flex h-full min-h-[300px] items-center justify-center"
             >
-              <div className="text-center">
-                <p className="text-muted-foreground/40 text-xs">
-                  Select a setting from the list to configure
-                </p>
+              <div className="text-muted-foreground/50 flex flex-col items-center gap-3 text-center">
+                <SettingsIcon className="h-8 w-8 opacity-40" />
+                <p className="text-sm font-medium tracking-wide">{t('select_setting_from_list')}</p>
               </div>
             </motion.div>
           ) : (
@@ -71,9 +105,7 @@ export default memo(function SettingsModalContent({
             >
               <div className="mb-5 space-y-0.5 px-1">
                 <div className="text-muted-foreground/80 text-ql-10 font-semibold tracking-widest uppercase">
-                  {activeTabMeta.group === QUICK_SETTINGS_GROUP
-                    ? t('quick_settings')
-                    : t('settings_group_' + activeTabMeta.group)}
+                  {t('settings_group_' + activeTabMeta.group)}
                 </div>
                 <h3 className="text-foreground text-base font-semibold tracking-tight">
                   {activeTabMeta.label}
@@ -83,30 +115,15 @@ export default memo(function SettingsModalContent({
                 </p>
               </div>
 
-              {[...visitedTabs].map((tabId) => {
-                const isActive = activeTab === tabId
-                const TabComponent = SETTINGS_TAB_COMPONENTS[tabId]
-                return (
-                  <div
-                    key={tabId}
-                    role="presentation"
-                    inert={!isActive ? true : undefined}
-                    style={{ display: isActive ? 'block' : 'none' }}
-                  >
-                    {isActive && (
-                      <Suspense
-                        fallback={
-                          <div className="flex h-full items-center justify-center p-12">
-                            <div className="border-border border-t-foreground/50 h-5 w-5 animate-spin rounded-full border-2" />
-                          </div>
-                        }
-                      >
-                        <TabComponent onClose={onClose} setActiveTab={setActiveTab} />
-                      </Suspense>
-                    )}
-                  </div>
-                )
-              })}
+              {visitedTabsList.map((tabId) => (
+                <TabPanel
+                  key={tabId}
+                  tabId={tabId}
+                  isActive={activeTab === tabId}
+                  onClose={onClose}
+                  setActiveTab={setActiveTab}
+                />
+              ))}
             </motion.div>
           )}
         </AnimatePresence>

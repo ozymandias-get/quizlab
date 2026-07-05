@@ -60,6 +60,10 @@ pnpm-debug.log*
 .env.*.local
 !.env.example
 
+# Superpowers workspace files
+.superpowers/
+docs/superpowers/
+
 # AI local config
 .agent/
 .gemini/

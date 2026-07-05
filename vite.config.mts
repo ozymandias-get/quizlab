@@ -28,6 +28,7 @@ export default defineConfig({
           groups: [
             { test: /@tanstack\/react-query/, name: 'vendor-query' },
             { test: /motion/, name: 'vendor-motion' },
+
             { test: /@headlessui\/react/, name: 'vendor-headless' },
             { test: /lucide-react/, name: 'vendor-lucide' },
             { test: /react-colorful/, name: 'vendor-colorful' },
@@ -35,10 +36,10 @@ export default defineConfig({
               test: /(?:pdfjs-dist|@react-pdf-viewer)/,
               name: 'vendor-pdf'
             },
-            { test: /@radix-ui\/react-(?:slider|slot)/, name: 'vendor-radix' },
+            { test: /@radix-ui\/react-(?:slider|slot|tooltip|switch|separator|select|scroll-area|label|avatar)/, name: 'vendor-radix' },
             { test: /zustand/, name: 'vendor-state' },
             { test: /@tsparticles/, name: 'vendor-particles' },
-            { test: /@tabler\/icons-react/, name: 'vendor-tabler' },
+
             {
               test: /(?:clsx|tailwind-merge|class-variance-authority)/,
               name: 'vendor-ui-utils'

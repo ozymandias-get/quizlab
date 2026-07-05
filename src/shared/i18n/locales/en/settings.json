@@ -75,6 +75,7 @@
   "typing_speed_very_slow": "Very Slow",
   "settings_header_description": "Manage your Quizlab Reader workspace, models, prompts and automation settings.",
   "settings_overview_description": "Select a category to configure.",
+  "select_setting_from_list": "Select a setting from the list to configure",
   "quick_settings": "Quick Settings",
   "quick_settings_description": "Frequently used settings.",
   "change": "Change",

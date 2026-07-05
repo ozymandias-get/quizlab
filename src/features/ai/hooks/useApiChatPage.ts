@@ -30,7 +30,7 @@ export interface UseApiChatPageReturn {
   isStreaming: boolean
   messages: ApiChatMessage[]
   sessions: ChatSession[]
-  config: ApiConfig | undefined
+  config: ApiConfig | null | undefined
   activeProvider: ApiProviderConfig | null
   isScrolledUp: boolean
   isDragging: boolean
