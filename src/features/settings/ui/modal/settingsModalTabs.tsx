@@ -1,23 +1,8 @@
-import { type ComponentType, memo } from 'react'
-
-import { useSettings } from '../../hooks/useSettings'
 import {
-  AboutTabWrapper,
-  SelectorsTabWrapper,
-  SETTINGS_TAB_COMPONENTS,
-  TutorialTabWrapper
-} from './settingsTabComponents'
-import {
-  SETTINGS_MODAL_MAIN_PANEL_ID,
   SETTINGS_SIDEBAR_GROUP_ORDER,
   SETTINGS_TABS,
-  type SettingsContext,
   type SettingsSidebarSection,
-  settingsTabButtonId,
-  type SettingsTabGroup,
-  type SettingsTabId,
-  type TabDef,
-  toSettingsTabId
+  type TabDef
 } from './settingsTabDefinitions'
 
 export function buildSettingsTabDefs(t: (key: string) => string): TabDef[] {

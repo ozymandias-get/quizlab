@@ -4,6 +4,7 @@ import {
   useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
+import { cn } from '@shared/lib/uiUtils'
 import { CheckIcon, LoaderIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { memo, useCallback, useMemo } from 'react'

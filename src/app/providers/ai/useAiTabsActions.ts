@@ -4,8 +4,7 @@ import type { PinnedTabStorage, SetStoredValue, Tab } from './types'
 export function setCurrentAIImpl(
   id: string,
   activeTabIdRef: React.MutableRefObject<string>,
-  setPinnedTabs: SetStoredValue<PinnedTabStorage[]>,
-  setLastSelectedAI: SetStoredValue<string>
+  setPinnedTabs: SetStoredValue<PinnedTabStorage[]>
 ) {
   return (prev: Tab[]) => {
     const currentTabId = activeTabIdRef.current

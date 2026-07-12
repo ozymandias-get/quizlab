@@ -1,5 +1,3 @@
-import type { ApiChatMessage } from '@shared-core/types'
-
 import { QUERY_KEYS } from '@shared/query/queryKeys'
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'

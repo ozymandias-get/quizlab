@@ -68,7 +68,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   }, [items])
 
   const accentStrong = useAccentStrong(selectionColor)
-  const panelVariants = usePanelVariants(prefersReducedMotion)
+  const panelVariants = usePanelVariants(prefersReducedMotion ?? undefined)
   const handleSend = useCallback(
     async (options?: { forceAutoSend?: boolean }) => {
       if (isSubmitting) return

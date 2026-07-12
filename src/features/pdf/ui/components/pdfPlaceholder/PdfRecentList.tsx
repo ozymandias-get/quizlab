@@ -37,7 +37,7 @@ function PdfRecentList({
 }: PdfRecentListProps) {
   const activePdfPath = usePdfTabStore((s) => {
     const activeTab = s.pdfTabs.find((tab) => tab.id === s.activePdfTabId)
-    return activeTab?.kind === 'pdf' ? activeTab.file?.path : undefined
+    return activeTab?.kind === 'pdf' ? (activeTab.file?.path ?? undefined) : undefined
   })
 
   if (recentCount === 0) {

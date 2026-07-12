@@ -2,12 +2,17 @@ import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } 
 
 import type { DragState, ResizeState } from './layoutUtils'
 import {
+  clamp,
   clampLayout,
   COMPACT_HEIGHT,
   EDGE_THICKNESS,
   HEADER_RESERVED_HEIGHT,
   loadStoredLayout,
+  MAX_HEIGHT,
+  MAX_WIDTH,
   MIN_BODY_HEIGHT,
+  MIN_HEIGHT,
+  MIN_WIDTH,
   saveLayoutToStorage
 } from './layoutUtils'
 import type { DockLayout, ResizeDirection } from './types'

@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  buildSettingsSidebarSections,
-  buildSettingsTabDefs,
-  type SettingsTabId,
-  type TabDef,
-  toSettingsTabId
-} from './settingsModalTabs'
+import { buildSettingsSidebarSections, buildSettingsTabDefs } from './settingsModalTabs'
+import { type SettingsTabId, type TabDef, toSettingsTabId } from './settingsTabDefinitions'
 
 interface UseSettingsModalStateOptions {
   isOpen: boolean

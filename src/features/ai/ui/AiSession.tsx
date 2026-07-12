@@ -9,16 +9,7 @@ import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
 import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
 import AestheticLoader from '@ui/components/AestheticLoader'
 
-import {
-  type CSSProperties,
-  lazy,
-  memo,
-  Suspense,
-  useCallback,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
+import { type CSSProperties, lazy, memo, Suspense, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import SleepPlaceholderView from './SleepPlaceholderView'
@@ -53,7 +44,7 @@ const AiSession = memo(
     const { sleepTimeoutMs, isNeverSleepSite } = useAiLifecycleSettings()
 
     const [webviewRecoveryKey, setWebviewRecoveryKey] = useState(0)
-    const { isSleeping, setIsSleeping, handleWakeUp } = useAiSessionSleep(
+    const { isSleeping, handleWakeUp } = useAiSessionSleep(
       isActive,
       sleepTimeoutMs,
       isNeverSleepSite,

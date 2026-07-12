@@ -261,4 +261,8 @@ export function generateLocatorBundle(
   }
 }
 
-export { getElementInfo, inferSendLikeControl } from './pickerElementInfo.js'
+export {
+  getElementInfo,
+  inferSendLikeControl,
+  isElementContentEditable
+} from './pickerElementInfo.js'

@@ -5,12 +5,12 @@ import { AnimatePresence, motion } from 'motion/react'
 import { memo, Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { SETTINGS_TAB_COMPONENTS } from './settingsTabComponents'
 import {
   SETTINGS_MODAL_MAIN_PANEL_ID,
-  SETTINGS_TAB_COMPONENTS,
   type SettingsTabId,
   type TabDef
-} from './settingsModalTabs'
+} from './settingsTabDefinitions'
 
 interface SettingsModalContentProps {
   activeTab: SettingsTabId | null

@@ -1,3 +1,7 @@
+import type { WebviewController } from '@shared-core/types/webview'
+
+import type { AiSendOptions } from '@features/ai/model/types'
+
 import { useMemo } from 'react'
 
 import type {
@@ -6,6 +10,7 @@ import type {
   AiModelActions,
   AiModelsCatalogSliceState,
   AiRegistryMetaSliceState,
+  AiSendResult,
   AiSessionActions,
   AiSessionUiPrefsSliceState,
   AiTabActions,
@@ -14,14 +19,15 @@ import type {
   AiViewRequestNonceState,
   AiWebviewHostActions,
   AiWebviewPresenceState,
-  AiWebviewState
+  AiWebviewState,
+  Tab
 } from '../ai/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>
 
 interface UseAiProviderContextsParams {
-  tabs: unknown[]
+  tabs: Tab[]
   activeTabId: string
   currentAI: string
   aiViewRequestNonce: number
@@ -32,7 +38,7 @@ interface UseAiProviderContextsParams {
   defaultAiModel: string
   autoSend: boolean
   isTutorialActive: boolean
-  getWebviewInstance: (tabId?: string) => unknown
+  getWebviewInstance: (tabId?: string) => WebviewController | null
   hasActiveWebview: boolean
   addTab: (modelId: string) => void
   handleCloseTab: (tabId: string) => void
@@ -47,10 +53,10 @@ interface UseAiProviderContextsParams {
   toggleAutoSend: () => void
   startTutorial: () => void
   stopTutorial: () => void
-  registerWebview: (id: string, instance: unknown) => void
+  registerWebview: (id: string, instance: WebviewController | null) => void
   reloadActiveWebview: () => void
-  sendTextToAI: (text: string, options?: unknown) => Promise<unknown>
-  sendImageToAI: (imageData: string, options?: unknown) => Promise<unknown>
+  sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
+  sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   cancelOngoing: () => void
 }
 
