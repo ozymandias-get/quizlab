@@ -44,7 +44,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     queueImageForAi,
     isPanelResizing = false
   } = props
-
   const containerRef = useRef<HTMLDivElement>(null)
   const isMountedRef = useRef(true)
   const isTransitioningRef = useRef(false)
@@ -57,11 +56,9 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   )
   const appliedResumeSyncKeyRef = useRef<string | null>(null)
   const [, startTransition] = useTransition()
-
   const { queueTextForAi } = useAppToolActions()
   const { showSuccess, showWarning } = useToastActions()
   const { t: tt } = useTranslation()
-
   const zoomToRef = useRef<(scale: number | SpecialZoomLevel) => void>(() => {})
   const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
   const extractCurrentPageTextRef = useRef<() => string | null>(() => null)
@@ -78,7 +75,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   } = usePdfPlugins()
 
   zoomToRef.current = zoomTo
-
   const {
     currentPage,
     totalPages,
@@ -95,7 +91,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     initialPage,
     onReadingProgressChange
   })
-
   useEffect(() => {
     isMountedRef.current = true
     isTransitioningRef.current = false
@@ -103,12 +98,10 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
       isMountedRef.current = false
     }
   }, [])
-
   const lastNavigationTimeRef = useLastNavigationTime(currentPage)
   const isDocumentReady = totalPages > 0
   const containerSize = useContainerSize(containerRef, lastNavigationTimeRef, isPanelResizing)
   const isDocumentReadyWithUrl = isDocumentReady && !!pdfUrl
-
   const adjustedContainerSize = useMemo(
     () => ({
       w: Math.max(0, containerSize.w - 24),
@@ -116,7 +109,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     }),
     [containerSize]
   )
-
   const fitScale = useFitScale(pageDimensions, adjustedContainerSize)
 
   usePdfResizeRefit(
@@ -135,13 +127,11 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     goToPreviousPage,
     isDocumentReadyWithUrl && !isPanMode
   )
-
   useEffect(() => {
     if (!isDocumentReady || !pdfUrl || fitScale === null) return
     if (!isMountedRef.current) return
     zoomToRef.current(fitScale)
   }, [isDocumentReady, fitScale, pdfUrl])
-
   const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({
     currentPage,
     queueImageForAi,
