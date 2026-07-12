@@ -1,68 +1,16 @@
 import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
-import type { PdfFile } from '@shared-core/types'
 
-import { useMemo } from 'react'
 import { create } from 'zustand'
-import { useShallow } from 'zustand/react/shallow'
 
+import type { PdfTabStore } from './pdfTabStoreUtils'
+import {
+  createViewerSessionKey,
+  isSamePdfFull,
+  isSamePdfStream,
+  normalizeTitle,
+  toPdfFile
+} from './pdfTabStoreUtils'
 import type { PdfTab } from './types'
-
-const createViewerSessionKey = (): string =>
-  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `vs_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-
-const normalizeTitle = (title?: string): string | undefined => {
-  const normalized = title?.trim()
-  return normalized || undefined
-}
-
-const toPdfFile = (file: PdfFile): PdfFile => ({
-  name: file.name,
-  path: file.path,
-  streamUrl: file.streamUrl,
-  size: file.size
-})
-
-/**
- * Checks if two PDF files represent the same stream identity (source path and stream URL).
- */
-const isSamePdfStream = (prev: PdfFile | null | undefined, next: PdfFile): boolean => {
-  if (!prev) return false
-  return (
-    (prev.path ?? '') === (next.path ?? '') && (prev.streamUrl ?? '') === (next.streamUrl ?? '')
-  )
-}
-
-/**
- * Compares two PDF files for full equality of all properties.
- */
-const isSamePdfFull = (a: PdfFile | null | undefined, b: PdfFile): boolean => {
-  if (!a) return false
-  return (
-    (a.path ?? '') === (b.path ?? '') &&
-    (a.streamUrl ?? '') === (b.streamUrl ?? '') &&
-    (a.name ?? '') === (b.name ?? '') &&
-    (a.size ?? null) === (b.size ?? null)
-  )
-}
-
-interface PdfTabState {
-  pdfTabs: PdfTab[]
-  activePdfTabId: string
-}
-
-interface PdfTabActions {
-  openPdfInTab: (file: PdfFile) => PdfTab
-  setActivePdfTab: (tabId: string) => void
-  closePdfTab: (tabId: string) => void
-  addEmptyPdfTab: () => void
-  goToPdfHome: () => void
-  openGoogleDriveTab: () => void
-  renamePdfTab: (tabId: string, title?: string) => void
-}
-
-type PdfTabStore = PdfTabState & PdfTabActions
 
 /**
  * Resets the PDF tab store to its initial empty state. Test-only helper.
@@ -242,62 +190,4 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
   }
 }))
 
-/**
- * Backwards-compatible hook that returns the PDF tab state with derived
- * `activeTab` and `pdfFile` values, matching the previous useState-based API.
- */
-export function usePdfTabState() {
-  // Use a single subscription for state values (which change), and individual
-  // subscriptions for stable action references. This minimizes re-renders.
-  const { pdfTabs, activePdfTabId } = usePdfTabStore(
-    useShallow((s) => ({
-      pdfTabs: s.pdfTabs,
-      activePdfTabId: s.activePdfTabId
-    }))
-  )
-  const setActivePdfTab = usePdfTabStore((s) => s.setActivePdfTab)
-  const openPdfInTab = usePdfTabStore((s) => s.openPdfInTab)
-  const closePdfTab = usePdfTabStore((s) => s.closePdfTab)
-  const addEmptyPdfTab = usePdfTabStore((s) => s.addEmptyPdfTab)
-  const goToPdfHome = usePdfTabStore((s) => s.goToPdfHome)
-  const openGoogleDriveTab = usePdfTabStore((s) => s.openGoogleDriveTab)
-  const renamePdfTab = usePdfTabStore((s) => s.renamePdfTab)
-
-  const activeTab = useMemo(() => {
-    if (!activePdfTabId) return null
-    return pdfTabs.find((tab) => tab.id === activePdfTabId) || null
-  }, [pdfTabs, activePdfTabId])
-
-  const pdfFile = useMemo(() => {
-    return activeTab?.kind === 'drive' ? null : activeTab?.file || null
-  }, [activeTab])
-
-  return useMemo(
-    () => ({
-      pdfTabs,
-      activePdfTabId,
-      activePdfTab: activeTab,
-      pdfFile,
-      setActivePdfTab,
-      openPdfInTab,
-      closePdfTab,
-      addEmptyPdfTab,
-      goToPdfHome,
-      openGoogleDriveTab,
-      renamePdfTab
-    }),
-    [
-      pdfTabs,
-      activePdfTabId,
-      activeTab,
-      pdfFile,
-      setActivePdfTab,
-      openPdfInTab,
-      closePdfTab,
-      addEmptyPdfTab,
-      goToPdfHome,
-      openGoogleDriveTab,
-      renamePdfTab
-    ]
-  )
-}
+export { usePdfTabState } from './usePdfTabState'

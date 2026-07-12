@@ -3,24 +3,8 @@ import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionAp
 
 import { useToastActions } from '@shared/stores/toastStore'
 
-import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useRef, useState } from 'react'
 
-import type {
-  AiCoreWorkspaceActions,
-  AiMessagingActions,
-  AiModelActions,
-  AiModelsCatalogSliceState,
-  AiRegistryMetaSliceState,
-  AiSessionActions,
-  AiSessionUiPrefsSliceState,
-  AiTabActions,
-  AiTabFocusSliceState,
-  AiTabsListSliceState,
-  AiViewRequestNonceState,
-  AiWebviewHostActions,
-  AiWebviewPresenceState,
-  AiWebviewState
-} from '../ai/types'
 import { useAiMessaging } from '../ai/useAiMessaging'
 import { useAiModelPreferences } from '../ai/useAiModelPreferences'
 import { useAiTabs } from '../ai/useAiTabs'
@@ -42,6 +26,7 @@ import {
   AiWebviewHostActionsContext,
   AiWebviewPresenceContext
 } from './contexts'
+import { useAiProviderContexts } from './useAiProviderContexts'
 
 function AiProvider({ children }: { children: ReactNode }) {
   const { showSuccess, showWarning } = useToastActions()
@@ -99,7 +84,6 @@ function AiProvider({ children }: { children: ReactNode }) {
   const { registerWebview, getWebviewInstance, hasActiveWebview } =
     useAiWebviewRegistry(activeTabId)
 
-  // Keep a ref to tabs so openAiWorkspace doesn't need tabs in its dep array
   const tabsRef = useRef(tabs)
   tabsRef.current = tabs
 
@@ -148,153 +132,66 @@ function AiProvider({ children }: { children: ReactNode }) {
     setIsTutorialActive(false)
   }, [])
 
-  const tabsListValue = useMemo<AiTabsListSliceState>(() => ({ tabs }), [tabs])
-
-  const tabFocusValue = useMemo<AiTabFocusSliceState>(
-    () => ({
-      activeTabId,
-      currentAI
-    }),
-    [activeTabId, currentAI]
-  )
-
-  const viewRequestNonceValue = useMemo<AiViewRequestNonceState>(
-    () => ({
-      aiViewRequestNonce
-    }),
-    [aiViewRequestNonce]
-  )
-
-  const registryMetaValue = useMemo<AiRegistryMetaSliceState>(
-    () => ({ isRegistryLoaded, chromeUserAgent }),
-    [isRegistryLoaded, chromeUserAgent]
-  )
-
-  const aiSitesValue = useMemo(() => aiRegistry, [aiRegistry])
-
-  const modelsCatalogValue = useMemo<AiModelsCatalogSliceState>(
-    () => ({
-      enabledModels,
-      defaultAiModel,
-      aiSites: aiRegistry
-    }),
-    [enabledModels, defaultAiModel, aiRegistry]
-  )
-
-  const sessionUiPrefsSliceValue = useMemo<AiSessionUiPrefsSliceState>(
-    () => ({
-      autoSend,
-      isTutorialActive
-    }),
-    [autoSend, isTutorialActive]
-  )
-
-  const webviewValue = useMemo<AiWebviewState>(() => ({ getWebviewInstance }), [getWebviewInstance])
-
-  const webviewPresenceValue = useMemo<AiWebviewPresenceState>(
-    () => ({ hasActiveWebview }),
-    [hasActiveWebview]
-  )
-
-  const coreWorkspaceActionsValue = useMemo<AiCoreWorkspaceActions>(
-    () => ({
-      addTab,
-      closeTab: handleCloseTab,
-      setActiveTab,
-      openAiWorkspace,
-      renameTab,
-      togglePinTab,
-      setCurrentAI,
-      setEnabledModels,
-      setDefaultAiModel,
-      setAutoSend,
-      toggleAutoSend,
-      startTutorial,
-      stopTutorial
-    }),
-    [
-      addTab,
-      handleCloseTab,
-      setActiveTab,
-      openAiWorkspace,
-      renameTab,
-      togglePinTab,
-      setCurrentAI,
-      setEnabledModels,
-      setDefaultAiModel,
-      setAutoSend,
-      toggleAutoSend,
-      startTutorial,
-      stopTutorial
-    ]
-  )
-
-  const tabActionsValue = useMemo<AiTabActions>(
-    () => ({
-      addTab,
-      closeTab: handleCloseTab,
-      setActiveTab,
-      openAiWorkspace,
-      renameTab,
-      togglePinTab
-    }),
-    [addTab, handleCloseTab, setActiveTab, openAiWorkspace, renameTab, togglePinTab]
-  )
-
-  const modelActionsValue = useMemo<AiModelActions>(
-    () => ({
-      setCurrentAI,
-      setEnabledModels,
-      setDefaultAiModel
-    }),
-    [setCurrentAI, setEnabledModels, setDefaultAiModel]
-  )
-
-  const sessionActionsValue = useMemo<AiSessionActions>(
-    () => ({
-      setAutoSend,
-      toggleAutoSend,
-      startTutorial,
-      stopTutorial
-    }),
-    [setAutoSend, toggleAutoSend, startTutorial, stopTutorial]
-  )
-
-  const webviewHostActionsValue = useMemo<AiWebviewHostActions>(
-    () => ({
-      registerWebview,
-      reloadActiveWebview
-    }),
-    [registerWebview, reloadActiveWebview]
-  )
-
-  const messagingActionsValue = useMemo<AiMessagingActions>(
-    () => ({
-      sendTextToAI,
-      sendImageToAI,
-      cancelOngoing
-    }),
-    [sendTextToAI, sendImageToAI, cancelOngoing]
-  )
+  const contextValues = useAiProviderContexts({
+    tabs,
+    activeTabId,
+    currentAI,
+    aiViewRequestNonce,
+    isRegistryLoaded,
+    chromeUserAgent,
+    aiRegistry,
+    enabledModels,
+    defaultAiModel,
+    autoSend,
+    isTutorialActive,
+    getWebviewInstance,
+    hasActiveWebview,
+    addTab,
+    handleCloseTab,
+    setActiveTab,
+    openAiWorkspace,
+    renameTab,
+    togglePinTab,
+    setCurrentAI,
+    setEnabledModels,
+    setDefaultAiModel,
+    setAutoSend,
+    toggleAutoSend,
+    startTutorial,
+    stopTutorial,
+    registerWebview,
+    reloadActiveWebview,
+    sendTextToAI,
+    sendImageToAI,
+    cancelOngoing
+  })
 
   return (
-    <AiSitesContext.Provider value={aiSitesValue}>
-      <AiTabsListContext.Provider value={tabsListValue}>
-        <AiTabFocusContext.Provider value={tabFocusValue}>
-          <AiViewRequestNonceContext.Provider value={viewRequestNonceValue}>
-            <AiRegistryMetaSliceContext.Provider value={registryMetaValue}>
-              <AiModelsCatalogSliceContext.Provider value={modelsCatalogValue}>
-                <AiSessionUiPrefsSliceContext.Provider value={sessionUiPrefsSliceValue}>
-                  <AiWebviewContext.Provider value={webviewValue}>
-                    <AiWebviewPresenceContext.Provider value={webviewPresenceValue}>
-                      <AiTabActionsContext.Provider value={tabActionsValue}>
-                        <AiModelActionsContext.Provider value={modelActionsValue}>
-                          <AiSessionActionsContext.Provider value={sessionActionsValue}>
+    <AiSitesContext.Provider value={contextValues.aiSitesValue}>
+      <AiTabsListContext.Provider value={contextValues.tabsListValue}>
+        <AiTabFocusContext.Provider value={contextValues.tabFocusValue}>
+          <AiViewRequestNonceContext.Provider value={contextValues.viewRequestNonceValue}>
+            <AiRegistryMetaSliceContext.Provider value={contextValues.registryMetaValue}>
+              <AiModelsCatalogSliceContext.Provider value={contextValues.modelsCatalogValue}>
+                <AiSessionUiPrefsSliceContext.Provider
+                  value={contextValues.sessionUiPrefsSliceValue}
+                >
+                  <AiWebviewContext.Provider value={contextValues.webviewValue}>
+                    <AiWebviewPresenceContext.Provider value={contextValues.webviewPresenceValue}>
+                      <AiTabActionsContext.Provider value={contextValues.tabActionsValue}>
+                        <AiModelActionsContext.Provider value={contextValues.modelActionsValue}>
+                          <AiSessionActionsContext.Provider
+                            value={contextValues.sessionActionsValue}
+                          >
                             <AiCoreWorkspaceActionsContext.Provider
-                              value={coreWorkspaceActionsValue}
+                              value={contextValues.coreWorkspaceActionsValue}
                             >
-                              <AiWebviewHostActionsContext.Provider value={webviewHostActionsValue}>
-                                <AiMessagingActionsContext.Provider value={messagingActionsValue}>
+                              <AiWebviewHostActionsContext.Provider
+                                value={contextValues.webviewHostActionsValue}
+                              >
+                                <AiMessagingActionsContext.Provider
+                                  value={contextValues.messagingActionsValue}
+                                >
                                   {isRegistryLoaded && isTabsInitialized ? children : null}
                                 </AiMessagingActionsContext.Provider>
                               </AiWebviewHostActionsContext.Provider>

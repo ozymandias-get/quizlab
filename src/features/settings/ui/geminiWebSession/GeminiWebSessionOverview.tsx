@@ -1,14 +1,13 @@
-import {
-  GOOGLE_WEB_SESSION_APPS,
-  type GoogleWebSessionAppId
-} from '@shared-core/constants/google-ai-web-apps'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
 import { CheckIcon, GeminiIcon, LoaderIcon, RefreshIcon, XIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
 import { memo, useCallback } from 'react'
 
-import { ExtensionStatusCard, ExtensionWizardDialog, GoogleAppIntegrationCard } from './components'
+import { ExtensionStatusCard, ExtensionWizardDialog } from './components'
+import GoogleAppList from './GoogleAppList'
+import { getCardClasses, getStatusIconContainerClass } from './statusHelpers'
 import type {
   GeminiWebSessionActionState,
   GeminiWebSessionHandlers,
@@ -35,29 +34,6 @@ interface GeminiWebSessionOverviewProps {
     error?: string
   } | null>
   removeExtensionMutation: () => Promise<{ success: boolean; error?: string } | null>
-}
-
-const getCardClasses = (status: GeminiWebSessionStatusView) => {
-  if (!status.webEnabled) {
-    return 'border-white/10 bg-gradient-to-r from-slate-500/10 to-zinc-500/10'
-  }
-  if (status.isRefreshing) {
-    return 'border-sky-500/20 bg-gradient-to-r from-sky-500/10 to-cyan-500/10'
-  }
-  if (status.isAuthenticated) {
-    return 'border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-green-500/10'
-  }
-  if (status.needsReauth) {
-    return 'border-rose-500/20 bg-gradient-to-r from-rose-500/10 to-red-500/10'
-  }
-  return 'border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-orange-500/10'
-}
-
-const getStatusIconContainerClass = (status: GeminiWebSessionStatusView) => {
-  if (status.isRefreshing) return 'bg-sky-500/20'
-  if (status.isAuthenticated) return 'bg-emerald-500/20'
-  if (status.needsReauth) return 'bg-rose-500/20'
-  return 'bg-amber-500/20'
 }
 
 function GeminiWebSessionOverview({
@@ -217,39 +193,12 @@ function GeminiWebSessionOverview({
           </button>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/10 p-4 backdrop-blur-sm">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-ql-11 tracking-ql-fine font-semibold text-white/55">
-                {t('gws_supported_apps_title')}
-              </p>
-              <span className="text-ql-12 text-white/35">{t('gws_supported_apps_desc')}</span>
-            </div>
-            <p className="text-ql-12 leading-relaxed text-white/42">
-              {t('gws_supported_apps_hint')}
-            </p>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3">
-            {GOOGLE_WEB_SESSION_APPS.map((app) => {
-              const isEnabled = enabledAppIds.has(app.id)
-
-              return (
-                <GoogleAppIntegrationCard
-                  key={app.id}
-                  app={app}
-                  isEnabled={isEnabled}
-                  disabled={!status.featureEnabled || disableSessionMutations}
-                  onToggleManagedApp={handlers.onToggleManagedApp}
-                />
-              )
-            })}
-          </div>
-
-          <p className="text-ql-12 mt-3 leading-relaxed text-white/40">
-            {t('gws_shared_account_note')}
-          </p>
-        </div>
+        <GoogleAppList
+          enabledAppIds={enabledAppIds}
+          featureEnabled={status.featureEnabled}
+          disableSessionMutations={disableSessionMutations}
+          onToggleManagedApp={handlers.onToggleManagedApp}
+        />
       </div>
 
       {wizardOpen && wizardMode && (

@@ -1,108 +1,16 @@
-import { reportSuppressedError } from '@shared/lib/logger'
-
 import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { DragState, ResizeState } from './layoutUtils'
+import {
+  clampLayout,
+  COMPACT_HEIGHT,
+  EDGE_THICKNESS,
+  HEADER_RESERVED_HEIGHT,
+  loadStoredLayout,
+  MIN_BODY_HEIGHT,
+  saveLayoutToStorage
+} from './layoutUtils'
 import type { DockLayout, ResizeDirection } from './types'
-
-const STORAGE_KEY = 'aiSendDockLayout'
-const DEFAULT_LAYOUT: DockLayout = {
-  x: 28,
-  y: 0,
-  width: 320,
-  height: 340
-}
-const MIN_WIDTH = 280
-const MAX_WIDTH = 600
-const MIN_HEIGHT = 140
-const MAX_HEIGHT = 700
-const BOTTOM_OFFSET = 92
-const VIEWPORT_PADDING = 8
-const EDGE_THICKNESS = 6
-
-const COMPACT_HEIGHT = 56
-const HEADER_RESERVED_HEIGHT = 200
-const MIN_BODY_HEIGHT = 80
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(Math.max(n, min), max)
-}
-
-function clampLayout(layout: DockLayout): DockLayout {
-  if (typeof window === 'undefined') return layout
-
-  const maxW = Math.min(MAX_WIDTH, window.innerWidth - VIEWPORT_PADDING * 2)
-  const maxH = Math.min(MAX_HEIGHT, window.innerHeight - VIEWPORT_PADDING * 2)
-
-  return {
-    x: clamp(
-      layout.x,
-      VIEWPORT_PADDING,
-      Math.max(VIEWPORT_PADDING, window.innerWidth - layout.width - VIEWPORT_PADDING)
-    ),
-    y: clamp(
-      layout.y,
-      VIEWPORT_PADDING,
-      Math.max(VIEWPORT_PADDING, window.innerHeight - layout.height - VIEWPORT_PADDING)
-    ),
-    width: clamp(layout.width, MIN_WIDTH, maxW),
-    height: clamp(layout.height, MIN_HEIGHT, maxH)
-  }
-}
-
-function createDefaultLayout(): DockLayout {
-  if (typeof window === 'undefined') return DEFAULT_LAYOUT
-  return clampLayout({
-    ...DEFAULT_LAYOUT,
-    y: window.innerHeight - DEFAULT_LAYOUT.height - BOTTOM_OFFSET
-  })
-}
-
-function loadStoredLayout(): DockLayout {
-  if (typeof window === 'undefined') return createDefaultLayout()
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as DockLayout
-      if (
-        typeof parsed.x === 'number' &&
-        typeof parsed.y === 'number' &&
-        typeof parsed.width === 'number' &&
-        typeof parsed.height === 'number'
-      ) {
-        return clampLayout(parsed)
-      }
-    }
-  } catch (err) {
-    // Corrupt or unreadable stored layout — fall back to the default. The
-    // cause is recorded so the issue report surfaces the underlying problem
-    // (quota, JSON.parse corruption, etc.) without breaking the UI.
-    reportSuppressedError('aiSendDockLayout.load', { cause: err })
-  }
-  return createDefaultLayout()
-}
-
-function saveLayoutToStorage(layout: DockLayout) {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout))
-  } catch (err) {
-    // Best-effort persistence — if localStorage is full or disabled (private
-    // mode, etc.) we keep the in-memory layout and surface the cause.
-    reportSuppressedError('aiSendDockLayout.save', { cause: err })
-  }
-}
-
-interface DragState {
-  offsetX: number
-  offsetY: number
-}
-
-interface ResizeState {
-  startX: number
-  startY: number
-  startLayout: DockLayout
-  direction: ResizeDirection
-}
 
 export function useAiSendComposerLayout(isExpanded: boolean) {
   const [layout, setLayout] = useState<DockLayout>(loadStoredLayout)

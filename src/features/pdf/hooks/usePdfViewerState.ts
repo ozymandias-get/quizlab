@@ -1,20 +1,10 @@
-import type { PdfFile } from '@shared-core/types'
-
-import { PDF_ZOOM_MAX_SCALE } from '@features/pdf/constants/pdfZoom'
-import type { PdfTab, ReadingProgressUpdate } from '@features/pdf/hooks/types'
-
-import type { AiDraftImageItem } from '@app/providers/ai/types'
 import { useAppToolActions } from '@app/providers/AppToolContext'
-import { APP_CONSTANTS } from '@shared/constants/appConstants'
-import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { useToastActions } from '@shared/stores/toastStore'
 
-import { type DocumentLoadEvent, SpecialZoomLevel } from '@react-pdf-viewer/core'
-import { Crop, Image as ImageIcon, RefreshCw, Type } from 'lucide-react'
+import { type SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { MenuItem } from '../ui/components/ContextMenu'
 import {
   useContainerSize,
   useFitScale,
@@ -32,61 +22,13 @@ import {
   usePdfViewerZoomIpc,
   usePdfWheelNavigation
 } from '../ui/hooks'
-
-type ScreenshotMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'>
-
-interface PdfViewerDocumentProps {
-  pdfFile: PdfFile
-  pdfUrl: string
-  activePdfTab?: PdfTab | null
-  onTextSelection?: (text: string, position: { top: number; left: number } | null) => void
-  t: (key: string) => string
-  initialPage?: number
-  onReadingProgressChange?: (update: ReadingProgressUpdate) => void
-  isInteractionBlocked: boolean
-  autoSend: boolean
-  onToggleAutoSend: () => void
-  startScreenshot: (imageMeta?: ScreenshotMeta) => void
-  queueImageForAi: (dataUrl: string, imageMeta?: ScreenshotMeta) => void
-  isPanelResizing?: boolean
-}
-
-interface UsePdfViewerStateReturn {
-  containerRef: React.RefObject<HTMLDivElement | null>
-  scaleFactor: number
-  viewerReloadKey: number
-  isPanMode: boolean
-  isPanDragging: boolean
-  pageDimensions: { width: number; height: number } | null
-  currentPage: number
-  totalPages: number
-  containerSize: { w: number; h: number }
-  fitScale: number | null
-  plugins: ReturnType<typeof usePdfPlugins>['plugins']
-  zoomTo: (scale: number | SpecialZoomLevel) => void
-  CurrentScale: ReturnType<typeof usePdfPlugins>['CurrentScale']
-  PluginZoomIn: ReturnType<typeof usePdfPlugins>['ZoomIn']
-  PluginZoomOut: ReturnType<typeof usePdfPlugins>['ZoomOut']
-  goToNextPage: () => void
-  goToPreviousPage: () => void
-  jumpToPageFromNav: (page: number) => void
-  handleFullPageScreenshot: () => Promise<void>
-  handleAreaScreenshot: () => void
-  extractCurrentPageText: () => string | null
-  contextMenu: { x: number; y: number } | null
-  handleDocumentLoadWithDimensions: (e: DocumentLoadEvent) => Promise<void>
-  handleZoom: (e: { scale: number }) => void
-  handleJumpToPage: (page: number) => void
-  handleCloseContextMenu: () => void
-  handleTogglePanMode: () => void
-  menuItems: MenuItem[]
-  handleAddCurrentPageTextToAi: () => void
-  handleSendPageAsImageToAi: () => void
-  handlePageChange: (e: { currentPage: number }) => void
-  highlight: ReturnType<typeof usePdfPlugins>['highlight']
-  clearHighlights: ReturnType<typeof usePdfPlugins>['clearHighlights']
-  tt: (key: string) => string
-}
+import type { PdfViewerDocumentProps, UsePdfViewerStateReturn } from './pdfViewerStateTypes'
+import {
+  useDocumentLoadHandler,
+  usePdfViewerElectronScreenshot,
+  usePdfViewerInitialPageResume
+} from './usePdfViewerEffects'
+import { usePdfViewerMenuItems } from './usePdfViewerMenuItems'
 
 export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerStateReturn {
   const {
@@ -165,6 +107,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const lastNavigationTimeRef = useLastNavigationTime(currentPage)
   const isDocumentReady = totalPages > 0
   const containerSize = useContainerSize(containerRef, lastNavigationTimeRef, isPanelResizing)
+  const isDocumentReadyWithUrl = isDocumentReady && !!pdfUrl
 
   const adjustedContainerSize = useMemo(
     () => ({
@@ -179,18 +122,18 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   usePdfResizeRefit(
     containerRef,
     zoomTo,
-    isDocumentReady && !!pdfUrl,
+    isDocumentReadyWithUrl,
     isPanelResizing,
     fitScale,
     lastNavigationTimeRef
   )
-  usePdfViewerZoomIpc(zoomTo, scaleFactor, isDocumentReady && !!pdfUrl)
-  usePdfCtrlWheelZoom(containerRef, zoomTo, scaleFactor, isDocumentReady && !!pdfUrl, isPanMode)
+  usePdfViewerZoomIpc(zoomTo, scaleFactor, isDocumentReadyWithUrl)
+  usePdfCtrlWheelZoom(containerRef, zoomTo, scaleFactor, isDocumentReadyWithUrl, isPanMode)
   usePdfWheelNavigation(
     containerRef,
     goToNextPage,
     goToPreviousPage,
-    isDocumentReady && !!pdfUrl && !isPanMode
+    isDocumentReadyWithUrl && !isPanMode
   )
 
   useEffect(() => {
@@ -234,90 +177,47 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     })
   }, [pdfUrl, startTransition])
 
-  const handleDocumentLoadWithDimensions = useCallback(
-    async (e: DocumentLoadEvent) => {
-      handleDocumentLoad(e)
-      try {
-        const page = await e.doc.getPage(1)
-        if (!isMountedRef.current) return
-        const viewport = page.getViewport({ scale: 1 })
-        setPageDimensions({ width: viewport.width, height: viewport.height })
-      } catch {
-        // Dimensions unavailable
-      }
-    },
-    [handleDocumentLoad]
-  )
+  const handleDocumentLoadWithDimensions = useDocumentLoadHandler({
+    handleDocumentLoad,
+    isMountedRef,
+    setPageDimensions
+  })
 
-  useEffect(() => {
-    if (!hasElectronApi()) return
-    const api = getElectronApi()
-    if (!api) return
-    const removeListener = api.onTriggerScreenshot((type: string) => {
-      if (type === APP_CONSTANTS.SCREENSHOT_TYPES.CROP) {
-        startScreenshot({ page: currentPageRef.current, captureKind: 'selection' })
-      } else if (type === APP_CONSTANTS.SCREENSHOT_TYPES.FULL) {
-        void handleFullPageScreenshotRef.current()
-      }
-    })
-    return () => {
-      if (typeof removeListener === 'function') removeListener()
-    }
-  }, [startScreenshot, currentPageRef])
+  usePdfViewerElectronScreenshot({ startScreenshot, currentPageRef, handleFullPageScreenshotRef })
 
-  useEffect(() => {
-    if (!isDocumentReady || !pdfUrl || !initialPage || initialPage < 2) return
-    const syncKey = `${pdfUrl}:${viewerReloadKey}:${initialPage}`
-    if (appliedResumeSyncKeyRef.current === syncKey) return
-    appliedResumeSyncKeyRef.current = syncKey
-    zoomToRef.current(fitScale ?? SpecialZoomLevel.PageWidth)
-    jumpToPageFromNav(initialPage)
-  }, [isDocumentReady, fitScale, initialPage, jumpToPageFromNav, pdfUrl, viewerReloadKey])
+  usePdfViewerInitialPageResume({
+    isDocumentReady,
+    pdfUrl,
+    initialPage,
+    viewerReloadKey,
+    fitScale,
+    jumpToPageFromNav,
+    zoomToRef,
+    appliedResumeSyncKeyRef
+  })
 
   handleFullPageScreenshotRef.current = handleFullPageScreenshot
   extractCurrentPageTextRef.current = extractCurrentPageText
 
-  const handleAddCurrentPageTextToAi = useCallback(() => extractCurrentPageTextRef.current(), [])
-  const handleSendPageAsImageToAi = useCallback(() => handleFullPageScreenshotRef.current(), [])
-
-  const handleZoom = useCallback((e: { scale: number }) => {
-    setScaleFactor(Math.min(e.scale, PDF_ZOOM_MAX_SCALE))
-  }, [])
-
-  const handleJumpToPage = useCallback(
-    (page: number) => {
-      jumpToPageFromNav(page)
-    },
-    [jumpToPageFromNav]
-  )
-
-  const handleCloseContextMenu = useCallback(() => setContextMenu(null), [setContextMenu])
-
-  const menuItems: MenuItem[] = useMemo(
-    () => [
-      {
-        label: tt('pdf_add_current_page_text_to_ai'),
-        icon: Type,
-        onClick: handleAddCurrentPageTextToAi
-      },
-      { label: tt('pdf_send_page_as_image'), icon: ImageIcon, onClick: handleSendPageAsImageToAi },
-      { label: tt('ctx_crop_screenshot_ai'), icon: Crop, onClick: () => handleAreaScreenshot() },
-      { separator: true, label: '', onClick: () => {} },
-      {
-        label: t('ctx_reload'),
-        icon: RefreshCw,
-        onClick: () => {
-          isTransitioningRef.current = true
-          startTransition(() => {
-            setViewerReloadKey((c) => c + 1)
-          })
-        },
-        shortcut: 'Ctrl+R',
-        danger: true
-      }
-    ],
-    [t, tt, handleAddCurrentPageTextToAi, handleSendPageAsImageToAi, handleAreaScreenshot]
-  )
+  const {
+    handleAddCurrentPageTextToAi,
+    handleSendPageAsImageToAi,
+    handleZoom,
+    handleJumpToPage,
+    handleCloseContextMenu,
+    menuItems
+  } = usePdfViewerMenuItems({
+    t,
+    tt,
+    handleAreaScreenshot,
+    extractCurrentPageTextRef,
+    handleFullPageScreenshotRef,
+    jumpToPageFromNav,
+    setContextMenu,
+    setScaleFactor,
+    setViewerReloadKey,
+    startTransition
+  })
 
   return {
     containerRef,

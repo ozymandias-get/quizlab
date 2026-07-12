@@ -1,88 +1,21 @@
 import { Logger } from '@shared/lib/logger'
 
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-const isClient = typeof window !== 'undefined'
-const LOCAL_STORAGE_SYNC_EVENT = 'local-storage'
-const INVALID_STORED_VALUE = Symbol('INVALID_STORED_VALUE')
-
-/** Identity serialize/deserialize for string values (stable reference) */
-const identitySerialize = (val: string) => val
-const identityDeserialize = (raw: string) => raw
-
-const getStorageItem = (key: string): string | null => {
-  if (!isClient) return null
-  try {
-    return localStorage.getItem(key)
-  } catch (error) {
-    Logger.warn(`localStorage erişim hatası (get "${key}"):`, error)
-    return null
-  }
-}
-
-const setStorageItem = (key: string, str: string): boolean => {
-  if (!isClient) return false
-  try {
-    localStorage.setItem(key, str)
-    window.dispatchEvent(
-      new CustomEvent<LocalStorageChangeDetail>(LOCAL_STORAGE_SYNC_EVENT, {
-        detail: { key, value: str }
-      })
-    )
-    return true
-  } catch (error) {
-    Logger.warn(`localStorage yazma hatası (set "${key}"):`, error)
-    return false
-  }
-}
-
-type SetValue<T> = Dispatch<SetStateAction<T>>
-
-interface LocalStorageChangeDetail {
-  key: string
-  value: string
-}
-
-const isLocalStorageChangeEvent = (
-  event: Event
-): event is CustomEvent<LocalStorageChangeDetail> => {
-  return (
-    'detail' in event &&
-    typeof (event as CustomEvent<LocalStorageChangeDetail>).detail?.key === 'string' &&
-    typeof (event as CustomEvent<LocalStorageChangeDetail>).detail?.value === 'string'
-  )
-}
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return false
-  }
-  const proto = Object.getPrototypeOf(value)
-  return proto === Object.prototype || proto === null
-}
-
-const matchesInitialShape = (initialValue: unknown, parsed: unknown): boolean => {
-  if (initialValue === null || initialValue === undefined) return true
-  if (Array.isArray(initialValue)) return Array.isArray(parsed)
-  if (isPlainObject(initialValue)) return isPlainObject(parsed)
-  return typeof parsed === typeof initialValue
-}
-
-const parseJsonValue = <T>(rawValue: string): T | typeof INVALID_STORED_VALUE => {
-  try {
-    return JSON.parse(rawValue) as T
-  } catch {
-    return INVALID_STORED_VALUE
-  }
-}
-
-const safeStringify = <T>(val: T): string | null => {
-  try {
-    return JSON.stringify(val)
-  } catch {
-    return null
-  }
-}
+import type { SetValue } from './localStorageUtils'
+import {
+  getStorageItem,
+  identityDeserialize,
+  identitySerialize,
+  INVALID_STORED_VALUE,
+  isClient,
+  isLocalStorageChangeEvent,
+  LOCAL_STORAGE_SYNC_EVENT,
+  matchesInitialShape,
+  parseJsonValue,
+  safeStringify,
+  setStorageItem
+} from './localStorageUtils'
 
 /**
  * Base logic for all local storage hooks to avoid code duplication.

@@ -1,45 +1,4 @@
-/**
- * Selector Engine - İyileştirilmiş Sürüm
- * ─────────────────────────────────────────────────────────────────────────────
- * Önceki sürümün analizi (selectorEngine.ts):
- *
- *  1. `queryElementWithPipeline` her çağrıda tüm selector'ları sırayla deniyordu
- *     — ilk eşleşen kazanıyordu. Ancak daha kararlı olan (örn. id="composer-input")
- *     en sonda olabilir; bu yüzden ilk eşleşen her zaman en iyi seçim değildi.
- *
- *  2. `pickPrimaryInputCandidate` yalnızca `area` ve `role === 'textbox'` boost'una
- *     bakıyordu. `data-testid`, `aria-label` gibi güçlü sinyalleri görmezden
- *     geliyordu. Aynı anda iki aday olduğunda yanlış olanı seçebiliyordu.
- *
- *  3. Cache invalidation çok agresifti:
- *
- *         if (element && result.matchedSelector && result.strategy !== 'cache') {
- *             invalidateCacheEntry(kind, lookup, diagnostics);
- *         }
- *
- *     Bu, başarılı bir fallback sonrası cache'in geçersiz kılınmasına yol
- *     açıyordu. Hâlbuki asıl amaç, aynı sorguyu sonraki çağrılarda
- *     hızlandırmaktı.
- *
- *  4. SPA navigasyonlarını yakalamıyordu — `window.location.href` değişmediği
- *     sürece cache "eskimiş" elemanı tutmaya devam ediyordu.
- *
- * Yeni sürüm:
- *   - Selector'lar **öncelik** sırasına göre deneniyor
- *   - Cache invalidation iki aşamalı: (a) element artık DOM'da değilse; (b) matched
- *     selector artık aynı elemanı bulamıyorsa
- *   - SPA navigasyonu `MutationObserver` yerine `pushState/replaceState/popstate`
- *     patch'i ile yakalanıyor
- *   - "Stale ama hâlâ çalışıyor" durumunda cache "soft invalidate" yapıyor
- *     (sıradaki çağrıda yeni arama yapılır ama hata sayılmaz)
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * NOT: Bu string template literal'dır. İçerideki tüm regex'lerdeki ters eğik
- * çizgiler iki kez escape edilmelidir (`\\\\` = bir regex ters eğik çizgisi).
- * Aksi halde template literal değerlendirmesi sırasında `\\s` → `s` dönüşümü
- * olur ve script içinde geçersiz regex literal oluşur.
- * ─────────────────────────────────────────────────────────────────────────────
- */
+/** @file Improved selector engine – priority‑ordered, SPA‑aware, with soft cache invalidation. */
 
 export const selectorEngine = `    /**
      * Selector öncelik tablosu. Yüksek sayı = daha kararlı.
@@ -326,15 +285,7 @@ export const selectorEngine = `    /**
         const roots = getSearchRoots();
         const candidates = [];
 
-        // Heuristics used to identify navigation / utility buttons that
-        // share the \`[role="button"]\` selector with the actual send
-        // button. The previous version of this function collected every
-        // \`[role="button"]\` on the page and let \`computeConfidenceScore\`
-        // sort them out — but on a typical AI chat layout that includes
-        // "New chat", sidebar toggles, settings, model pickers, etc.,
-        // which routinely out-scored the real send button and got clicked
-        // instead. The rules below knock obvious non-send candidates out
-        // before the score-based sort runs.
+        // Blocklist knocks out nav/utility buttons before scoring
         const SEND_BLOCKLIST = [
             /(^|\\s|-|_)(new|newchat|new-chat|new_chat|newconversation|new-conversation)(\\s|-|_|$)/i,
             /(^|\\s|-|_)(close|sidebar|menu|settings|options|model|picker|theme|dark|light|logout|sign[-_ ]?out|profile|account)(\\s|-|_|$)/i,
@@ -343,28 +294,18 @@ export const selectorEngine = `    /**
         ];
         const isLikelySendButton = (el) => {
             if (!el || el.disabled) return false;
-            // Resolve the "semantic" name of the button. We mirror the
-            // accessible-name order (aria-label > title > visible text)
-            // so an icon-only button with a real aria-label like
-            // "Send message" doesn't get dropped just because its
-            // textContent is a decorative arrow character.
+            // Resolve semantic name (aria-label > title > textContent)
             const text = String(
                 (el.getAttribute('aria-label') || el.getAttribute('title') ||
                  el.innerText || el.textContent || '')
             ).toLowerCase().trim();
-            // Blocklist match: drop nav / utility controls FIRST,
-            // before any positive checks. This prevents sidebar toggles,
-            // "New chat" buttons, settings, etc. from being accepted.
+            // Drop nav/utility controls before positive checks
             for (const pattern of SEND_BLOCKLIST) {
                 if (pattern.test(text)) return false;
             }
             // Strong positive signal: words explicitly meaning "send".
             if (/\\b(send|g(ö|o)nder|submit|env(í|i)ar|envoyer|senden)\\b/i.test(text)) return true;
-            // Icon-only buttons often have empty text. Only accept them
-            // if they are inside a form AND the config has a hostChain
-            // (meaning the user explicitly picked this button via the picker).
-            // Without the hostChain check, any icon button in a form would
-            // be accepted — including sidebar toggles, settings, etc.
+            // Accept icon-only buttons only if in form + hostChain
             if (!text) {
                 try {
                     const inForm = el.closest && el.closest('form, [role="form"]');
@@ -399,13 +340,11 @@ export const selectorEngine = `    /**
         } else {
             for (const root of roots) {
                 try {
-                    // First pass: native <button> + form-submit inputs.
+                    // First pass: native <button> + form-submit inputs
                     root.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(el => candidates.push(el));
                 } catch {}
                 try {
-                    // Second pass: ARIA buttons. Apply the blocklist so
-                    // sidebar / settings / "new chat" entries don't
-                    // pollute the candidate pool.
+                    // Second pass: ARIA buttons with blocklist
                     root.querySelectorAll('[role="button"], button').forEach(el => {
                         if (candidates.indexOf(el) === -1 && isLikelySendButton(el)) {
                             candidates.push(el);

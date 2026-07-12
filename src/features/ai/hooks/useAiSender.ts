@@ -9,9 +9,6 @@ import {
 } from '@platform/electron/api/useAutomationApi'
 import { useCopyImageToClipboard } from '@platform/electron/api/useSystemApi'
 
-import { ensureErrorMessage } from '@shared/lib/errorUtils'
-import { Logger } from '@shared/lib/logger'
-
 import { useQueryClient } from '@tanstack/react-query'
 import { type RefObject, useCallback, useRef } from 'react'
 
@@ -22,19 +19,15 @@ import {
   queueForWebview,
   type UseAiSenderReturn
 } from '../lib/aiSenderSupport'
+import { handlePipelineError } from '../lib/handlePipelineError'
 import {
   attachDiagnostics,
   createSendDiagnostics,
   nowMs,
   roundMs
 } from '../lib/send/sendDiagnostics'
-import { normalizeSendErrorCode, resolveAutoSend } from '../lib/sendUtils'
-import type {
-  AiSendDiagnostics,
-  AiSendOptions,
-  SendImageResult,
-  SendTextResult
-} from '../model/types'
+import { resolveAutoSend } from '../lib/sendUtils'
+import type { AiSendOptions, SendImageResult, SendTextResult } from '../model/types'
 import { usePrompts } from './usePrompts'
 import { useTextInputMode } from './useTextInputMode'
 
@@ -62,25 +55,6 @@ export function useAiSender(
     (webview: WebviewController, expected?: WebviewController | null) =>
       isWebviewUsable(webviewRef, webview, expected),
     [webviewRef]
-  )
-
-  const handlePipelineError = useCallback(
-    (error: unknown, diagnostics: AiSendDiagnostics, startedAt: number, context: string) => {
-      const message = ensureErrorMessage(error)
-      if (!message.includes('webview_not_ready') && !message.includes('webview_destroyed')) {
-        Logger.error(`[useAiSender] ${context} error:`, error)
-      }
-
-      return attachDiagnostics(
-        {
-          success: false,
-          error: normalizeSendErrorCode(message, 'send_failed')
-        },
-        diagnostics,
-        startedAt
-      )
-    },
-    []
   )
 
   /**

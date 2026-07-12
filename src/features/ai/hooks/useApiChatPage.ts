@@ -1,4 +1,4 @@
-import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/types'
+import type { ApiChatMessage } from '@shared-core/types'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -17,54 +17,13 @@ import {
 } from '../queries/useSessionsQuery'
 import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
-
+import { useApiChatHandlers } from './useApiChatHandlers'
+import type { UseApiChatPageReturn } from './useApiChatPageTypes'
 const EMPTY_MSGS: ApiChatMessage[] = []
 const EMPTY_ATTACH: string[] = []
 
-export interface UseApiChatPageReturn {
-  activeSessionId: string | undefined
-  inputValue: string
-  attachments: string[]
-  selectedModel: string | undefined
-  activeProviderId: string | undefined
-  isStreaming: boolean
-  messages: ApiChatMessage[]
-  sessions: ChatSession[]
-  config: ApiConfig | null | undefined
-  activeProvider: ApiProviderConfig | null
-  isScrolledUp: boolean
-  isDragging: boolean
-  isHistoryModalOpen: boolean
-  messagesEndRef: React.RefObject<HTMLDivElement | null>
-  messagesContainerRef: React.RefObject<HTMLDivElement | null>
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>
-  fileInputRef: React.RefObject<HTMLInputElement | null>
-  inputAreaRef: React.RefObject<HTMLDivElement | null>
-  handleSend: () => Promise<void>
-  handleSuggestionClick: (text: string) => Promise<void>
-  handleKeyDown: (e: React.KeyboardEvent) => void
-  handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
-  handleClearChat: () => Promise<void>
-  handleNewChat: () => Promise<void>
-  handleDeleteMessage: (messageId: string) => Promise<void>
-  handleEditMessage: (messageId: string, content: string) => Promise<void>
-  handleRegenerateMessage: () => Promise<void>
-  handleDragEnter: (e: React.DragEvent) => void
-  handleDragOver: (e: React.DragEvent) => void
-  handleDragLeave: (e: React.DragEvent) => void
-  handleDrop: (e: React.DragEvent) => void
-  handleInputChange: (val: string) => void
-  handleRemoveAttachmentCallback: (i: number) => void
-  handleSelectProvider: (id: string) => void
-  handleSelectModel: (model: string) => void
-  handleToggleHistoryModal: () => void
-  handleCloseHistoryModal: () => void
-  scrollToBottom: (smooth?: boolean) => void
-}
-
 export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   const { t } = useTranslation()
-
   // ---- UI state from chatUiStore ----
   const activeSessionId = useChatUiStore((s) => s.activeSessionIdByTab[tabId])
   const inputValue = useChatUiStore((s) => s.inputValueByTab[tabId]) ?? ''
@@ -90,12 +49,10 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   const { mutateAsync: createSessionMutation } = useCreateSessionMutation()
   const { mutateAsync: clearSessionMutation } = useClearSessionMutation()
   const { data: config } = useApiConfigQuery()
-
   // ---- Local state ----
   const [isScrolledUp, setIsScrolledUp] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
-  const dragCounterRef = useRef(0)
 
   // ---- Refs ----
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -201,204 +158,54 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     return config.providers.find((p) => p.id === activeProviderId) || null
   }, [config, activeProviderId])
 
-  const handleSend = useCallback(async () => {
-    const text = inputValueRef.current
-    const images = attachmentsRef.current
-    if (!text.trim() && images.length === 0) return
-    try {
-      await sendMsgMutation({
-        tabId,
-        text,
-        images,
-        model: selectedModelRef.current,
-        providerId: activeProviderIdRef.current,
-        generalPrompt: useChatUiStore.getState().generalPrompt,
-        memoryPrompt: useChatUiStore.getState().memoryPrompt,
-        characterPrompt: useChatUiStore.getState().characterPrompt
-      })
-      setTimeout(() => scrollToBottom(true), 50)
-    } catch {
-      // Error is already handled inside the mutation (buildErrorReply)
-    }
-  }, [sendMsgMutation, tabId, scrollToBottom])
-
-  const handleSuggestionClick = useCallback(
-    async (text: string) => {
-      const { generalPrompt, memoryPrompt, characterPrompt } = useChatUiStore.getState()
-      try {
-        await sendMsgMutation({
-          tabId,
-          text,
-          images: [],
-          model: selectedModelRef.current,
-          providerId: activeProviderIdRef.current,
-          generalPrompt,
-          memoryPrompt,
-          characterPrompt
-        })
-      } catch {
-        // handled by mutation
-      }
-    },
-    [sendMsgMutation, tabId]
-  )
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        handleSend()
-      }
-    },
-    [handleSend]
-  )
-
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      const reader = new FileReader()
-      reader.onload = () => addAttachment(tabId, reader.result as string)
-      reader.readAsDataURL(file)
-      e.target.value = ''
-    },
-    [addAttachment, tabId]
-  )
-
-  const handleClearChat = useCallback(async () => {
-    if (!activeSessionId) return
-    if (confirm(t('api_chat_confirm_clear_messages'))) {
-      await clearSessionMutation(activeSessionId)
-    }
-  }, [activeSessionId, clearSessionMutation, t])
-
-  const handleNewChat = useCallback(async () => {
-    if (messages.length > 0) {
-      const result = await createSessionMutation()
-      setActiveSessionId(tabId, result.session.id)
-    }
-    setTimeout(() => {
-      textareaRef.current?.focus()
-    }, 50)
-  }, [messages.length, createSessionMutation, setActiveSessionId, tabId])
-
-  const handleDeleteMessage = useCallback(
-    async (messageId: string) => {
-      if (!activeSessionId) return
-      await deleteMsgMutation({ sessionId: activeSessionId, messageId })
-    },
-    [deleteMsgMutation, activeSessionId]
-  )
-
-  const handleEditMessage = useCallback(
-    async (messageId: string, content: string) => {
-      if (!activeSessionId) return
-      const { generalPrompt, memoryPrompt, characterPrompt } = useChatUiStore.getState()
-      try {
-        await editAndRegenMutation({
-          tabId,
-          messageId,
-          newContent: content,
-          messages: messagesRef.current,
-          model: selectedModelRef.current,
-          providerId: activeProviderIdRef.current,
-          generalPrompt,
-          memoryPrompt,
-          characterPrompt
-        })
-      } catch {
-        // handled by mutation
-      }
-    },
-    [activeSessionId, editAndRegenMutation, tabId]
-  )
-
-  const handleRegenerateMessage = useCallback(async () => {
-    if (!activeSessionId) return
-    const { generalPrompt, memoryPrompt, characterPrompt } = useChatUiStore.getState()
-    try {
-      await regenerateMutation({
-        tabId,
-        messages: messagesRef.current,
-        model: selectedModelRef.current,
-        providerId: activeProviderIdRef.current,
-        generalPrompt,
-        memoryPrompt,
-        characterPrompt
-      })
-    } catch {
-      // handled by mutation
-    }
-  }, [activeSessionId, regenerateMutation, tabId])
-
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.dataTransfer?.types?.includes('Files')) {
-      dragCounterRef.current += 1
-      setIsDragging(true)
-    }
-  }, [])
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.dataTransfer?.types?.includes('Files')) {
-      dragCounterRef.current -= 1
-      if (dragCounterRef.current <= 0) {
-        dragCounterRef.current = 0
-        setIsDragging(false)
-      }
-    }
-  }, [])
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      dragCounterRef.current = 0
-      setIsDragging(false)
-
-      const files = [...(e.dataTransfer?.files || [])]
-      const imageFiles = files.filter((f) => f.type.startsWith('image/'))
-
-      for (const file of imageFiles) {
-        const reader = new FileReader()
-        reader.onload = () => addAttachment(tabId, reader.result as string)
-        reader.readAsDataURL(file)
-      }
-    },
-    [addAttachment, tabId]
-  )
-
-  const handleInputChange = useCallback(
-    (val: string) => updateInput(tabId, val),
-    [updateInput, tabId]
-  )
-
-  const handleRemoveAttachmentCallback = useCallback(
-    (i: number) => removeAttachment(tabId, i),
-    [removeAttachment, tabId]
-  )
-
-  const handleSelectProvider = useCallback(
-    (id: string) => setActiveProvider(tabId, id),
-    [setActiveProvider, tabId]
-  )
-
-  const handleSelectModel = useCallback(
-    (model: string) => setSelectedModel(tabId, model),
-    [setSelectedModel, tabId]
-  )
-
-  const handleToggleHistoryModal = useCallback(() => setIsHistoryModalOpen((prev) => !prev), [])
-
-  const handleCloseHistoryModal = useCallback(() => setIsHistoryModalOpen(false), [])
+  const {
+    handleSend,
+    handleSuggestionClick,
+    handleKeyDown,
+    handleFileSelect,
+    handleClearChat,
+    handleNewChat,
+    handleDeleteMessage,
+    handleEditMessage,
+    handleRegenerateMessage,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleInputChange,
+    handleRemoveAttachmentCallback,
+    handleSelectProvider,
+    handleSelectModel,
+    handleToggleHistoryModal,
+    handleCloseHistoryModal
+  } = useApiChatHandlers({
+    tabId,
+    activeSessionId,
+    messages,
+    inputValueRef,
+    attachmentsRef,
+    activeProviderIdRef,
+    selectedModelRef,
+    messagesRef,
+    textareaRef,
+    messagesEndRef,
+    addAttachment,
+    removeAttachment,
+    updateInput,
+    setSelectedModel,
+    setActiveProvider,
+    setActiveSessionId,
+    setIsDragging,
+    setIsHistoryModalOpen,
+    scrollToBottom,
+    t,
+    sendMsgMutation,
+    regenerateMutation,
+    editAndRegenMutation,
+    deleteMsgMutation,
+    createSessionMutation,
+    clearSessionMutation
+  })
 
   return {
     activeSessionId,

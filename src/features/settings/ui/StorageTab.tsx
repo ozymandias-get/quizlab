@@ -4,82 +4,15 @@ import {
   useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
-import { cn } from '@shared/lib/uiUtils'
 import { CheckIcon, LoaderIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { PartitionRow, ProgressBar, RootCacheRow } from './storage/StorageComponents'
+import { formatBytes, formatTimeAgo, partitionDisplayName } from './storage/storageUtils'
+
 const MAX_TOTAL_CACHE_BYTES = 500 * 1024 * 1024
-
-function formatBytes(bytes: number): string {
-  const safe = Math.max(0, bytes)
-  if (safe < 1024) return `${safe} B`
-  if (safe < 1024 * 1024) return `${(safe / 1024).toFixed(1)} KB`
-  return `${(safe / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function formatTimeAgo(timestamp: number): string {
-  const diff = Date.now() - timestamp
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
-}
-
-/**
- * Partition anahtarını okunabilir bir etikete dönüştürür.
- * Kayıtlı AI platformları için displayName, bilinmeyenler için
- * partition key'den türetilmiş bir isim kullanır.
- */
-function partitionDisplayName(partitionKey: string): string {
-  // persist: öneki varsa kaldır
-  const key = partitionKey.replace(/^persist:/, '')
-
-  // Bilinen özel durumlar
-  const known: Record<string, string> = {
-    ai_session: 'AI Session',
-    gemini_web_profile: 'Gemini Web',
-    grok: 'Grok'
-  }
-  if (known[key]) return known[key]
-
-  // Custom platform: persist:ai_custom_<uuid> → "Custom Platform"
-  if (key.startsWith('ai_custom_')) return 'Custom Platform'
-
-  // ai_ önekli: ai_mistral → "Mistral", ai_perplexity → "Perplexity"
-  if (key.startsWith('ai_')) {
-    const name = key.replace(/^ai_/, '')
-    return name.charAt(0).toUpperCase() + name.slice(1)
-  }
-
-  // Diğer: partition key'in kendisini göster
-  return key
-}
-
-const ProgressBar = memo(function ProgressBar({
-  value,
-  max,
-  color
-}: {
-  value: number
-  max: number
-  color: string
-}) {
-  const pct = Math.min((value / Math.max(max, 1)) * 100, 100)
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-      <div
-        className={cn('h-full rounded-full transition-transform duration-500', color)}
-        style={{ transform: `scaleX(${pct / 100})`, transformOrigin: 'left' }}
-      />
-    </div>
-  )
-})
-ProgressBar.displayName = 'ProgressBar'
 
 const StorageTab = memo(function StorageTab() {
   const { t } = useTranslation()
@@ -255,43 +188,5 @@ const StorageTab = memo(function StorageTab() {
     </div>
   )
 })
-
-const RootCacheRow = memo(function RootCacheRow({ label, size }: { label: string; size: number }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-ql-12 text-foreground/85">{label}</span>
-      <span className="text-ql-12 text-foreground/70 font-mono">{formatBytes(size)}</span>
-    </div>
-  )
-})
-RootCacheRow.displayName = 'RootCacheRow'
-
-const PartitionRow = memo(function PartitionRow({
-  partitionKey,
-  label,
-  size
-}: {
-  partitionKey: string
-  label: string
-  size: number
-}) {
-  return (
-    <div className="flex items-baseline justify-between px-5 py-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="h-2 w-2 shrink-0 rounded-full bg-white/40" />
-        <div className="min-w-0">
-          <span className="text-ql-12 text-foreground/90 block truncate">{label}</span>
-          <span className="text-ql-11 text-foreground/65 block truncate font-mono">
-            {partitionKey}
-          </span>
-        </div>
-      </div>
-      <span className="text-ql-12 text-foreground/70 ml-4 shrink-0 font-mono">
-        {formatBytes(size)}
-      </span>
-    </div>
-  )
-})
-PartitionRow.displayName = 'PartitionRow'
 
 export default StorageTab
