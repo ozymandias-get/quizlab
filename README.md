@@ -18,6 +18,8 @@
   <a href="docs/ARCHITECTURE.md">📐 Architecture</a>
   &nbsp;•&nbsp;
   <a href="docs/ROADMAP.md">🗺️ Roadmap</a>
+  <br>
+  <img alt="GitHub version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&query=%24.version&label=version&color=blue">
 </p>
 
 ---
