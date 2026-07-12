@@ -134,7 +134,6 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     clearNote()
     onClearAllRef.current()
   }, [clearNote, t])
-
   useAiSendComposerKeyboard(isSubmitting, handleToggleExpand)
   useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, onClearAll)
   useAiSendComposerFeedbackReset(items.length, setSendFeedback, setLastError)
@@ -161,7 +160,6 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     }),
     []
   )
-
   if (typeof document === 'undefined') return null
   const showContent = isExpanded && sendFeedback !== 'sending'
   const totalItems = textCount + imageCount
