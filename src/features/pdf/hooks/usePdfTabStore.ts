@@ -189,5 +189,3 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
     }))
   }
 }))
-
-export { usePdfTabState } from './usePdfTabState'
