@@ -1,6 +1,6 @@
 import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { memo, useEffect, useRef } from 'react'
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface ResultContentProps {

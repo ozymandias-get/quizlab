@@ -5,7 +5,7 @@ let globalScrollLockCount = 0
 let globalScrollLockOriginal: string | null = null
 
 export function useDialogAccessibility(
-  dialogRef: RefObject<HTMLDivElement>,
+  dialogRef: RefObject<HTMLDivElement | null>,
   isVisible: boolean,
   loading: boolean,
   onClose: () => void

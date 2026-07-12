@@ -1,6 +1,6 @@
 import { reportSuppressedError } from '@shared/lib/logger'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback } from 'react'
 
 interface UseWizardActionsOptions {
   onInstall: () => Promise<{ success: boolean; installedPath?: string; error?: string } | null>
@@ -10,13 +10,10 @@ interface UseWizardActionsOptions {
 }
 
 export function useWizardActions({ onInstall, onRemove, onClose, t }: UseWizardActionsOptions) {
-  const [step, setStepState] = [0, () => {}]
-  // These are passed in as setState functions from the parent
-  // We return action handlers that call the parent's state setters
+  const handleNext = useCallback(() => {}, [])
 
-  return {
-    handleNext: () => setStepState(1),
-    handleInstallAction: async (
+  const handleInstallAction = useCallback(
+    async (
       setStep: (s: number) => void,
       setLoading: (l: boolean) => void,
       setSuccess: (s: boolean) => void,
@@ -44,7 +41,11 @@ export function useWizardActions({ onInstall, onRemove, onClose, t }: UseWizardA
         setStep(3)
       }
     },
-    handleRemoveAction: async (
+    [onInstall, t]
+  )
+
+  const handleRemoveAction = useCallback(
+    async (
       setStep: (s: number) => void,
       setLoading: (l: boolean) => void,
       setSuccess: (s: boolean) => void,
@@ -68,6 +69,15 @@ export function useWizardActions({ onInstall, onRemove, onClose, t }: UseWizardA
         setStep(2)
       }
     },
-    handleDone: () => onClose()
+    [onRemove, t]
+  )
+
+  const handleDone = useCallback(() => onClose(), [onClose])
+
+  return {
+    handleNext,
+    handleInstallAction,
+    handleRemoveAction,
+    handleDone
   }
 }

@@ -40,30 +40,15 @@ interface UseApiChatHandlersDeps {
 export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
   const {
     tabId,
-    activeSessionId,
-    messages,
     inputValueRef,
     attachmentsRef,
     activeProviderIdRef,
     selectedModelRef,
-    messagesRef,
-    textareaRef,
     addAttachment,
-    removeAttachment,
-    updateInput,
-    setSelectedModel,
-    setActiveProvider,
-    setActiveSessionId,
     setIsDragging,
     setIsHistoryModalOpen,
     scrollToBottom,
-    t,
-    sendMsgMutation,
-    regenerateMutation,
-    editAndRegenMutation,
-    deleteMsgMutation,
-    createSessionMutation,
-    clearSessionMutation
+    sendMsgMutation
   } = deps
   const dragCounterRef = useRef(0)
 

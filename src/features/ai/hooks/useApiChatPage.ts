@@ -15,7 +15,6 @@ import {
   useCreateSessionMutation,
   useSessionsQuery
 } from '../queries/useSessionsQuery'
-import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
 import { useApiChatHandlers } from './useApiChatHandlers'
 import type { UseApiChatPageReturn } from './useApiChatPageTypes'

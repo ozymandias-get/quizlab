@@ -221,7 +221,7 @@ export function useAiTabs({
 
   const setCurrentAI = useCallback(
     (id: string) => {
-      setTabs(setCurrentAIImpl(id, activeTabIdRef, setPinnedTabs, setLastSelectedAI))
+      setTabs(setCurrentAIImpl(id, activeTabIdRef, setPinnedTabs))
       setLastSelectedAI(id)
     },
     [setLastSelectedAI, setPinnedTabs]

@@ -1,4 +1,4 @@
-import type { ApiChatMessage, ApiConfig } from '@shared-core/types'
+import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/types'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'

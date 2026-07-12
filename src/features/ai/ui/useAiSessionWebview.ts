@@ -2,7 +2,7 @@ import type { WebviewElement } from '@shared-core/types/webview'
 
 import { STALE_CONTENT_DETECTION_SCRIPT } from '@features/ai/constants/aiWebviewLifecycle'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export function useAiSessionSleep(
   isActive: boolean,

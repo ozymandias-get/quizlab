@@ -1,7 +1,6 @@
 import { hexToRgba } from '@shared/lib/uiUtils'
 
 import type { Variants } from 'motion/react'
-import { useReducedMotion } from 'motion/react'
 import { useMemo } from 'react'
 
 export const EXPANDED_PREF_KEY = 'aiSendComposerExpanded'

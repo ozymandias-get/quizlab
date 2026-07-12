@@ -4,7 +4,11 @@ import { motion } from 'motion/react'
 import { memo, type RefObject, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { type SettingsSidebarSection, type SettingsTabId, type TabDef } from './settingsModalTabs'
+import {
+  type SettingsSidebarSection,
+  type SettingsTabId,
+  type TabDef
+} from './settingsTabDefinitions'
 
 interface SettingsModalSidebarProps {
   activeTab: SettingsTabId | null

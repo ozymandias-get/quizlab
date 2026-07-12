@@ -2,7 +2,7 @@ import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { Logger } from '@shared/lib/logger'
 
 import type { AiSendDiagnostics } from '../model/types'
-import { attachDiagnostics, nowMs, roundMs } from './send/sendDiagnostics'
+import { attachDiagnostics } from './send/sendDiagnostics'
 import { normalizeSendErrorCode } from './sendUtils'
 
 export function handlePipelineError(

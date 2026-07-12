@@ -22,8 +22,6 @@ export function useAiSendComposerClickOutside(
   clearNote: () => void,
   onClearAll: () => void
 ) {
-  const prevItemsLengthRef = useRef(itemsLength)
-
   useEffect(() => {
     if (typeof document === 'undefined') return
     if (isSubmitting || itemsLength === 0) return
