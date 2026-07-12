@@ -11,7 +11,7 @@ for (const [project, threshold] of Object.entries(THRESHOLDS)) {
   const label = `tsconfig.${project}.json`
   const msg = `Type coverage (${label} >= ${threshold}%) ...`
   try {
-    const output = execSync(`npx.cmd type-coverage --strict --project tsconfig.${project}.json`, {
+    const output = execSync(`npx type-coverage --strict --project tsconfig.${project}.json`, {
       encoding: 'utf-8',
       cwd: ROOT
     })
