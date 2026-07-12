@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react'
 
 import { usePdfOpenActions } from './usePdfOpenActions'
-import { usePdfTabState, usePdfTabStore } from './usePdfTabStore'
+import { usePdfTabState } from './usePdfTabState'
+import { usePdfTabStore } from './usePdfTabStore'
 import { useReadingProgressPersistence } from './useReadingProgressPersistence'
 
 export function usePdfSelection() {

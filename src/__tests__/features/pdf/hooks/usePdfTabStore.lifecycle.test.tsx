@@ -13,11 +13,8 @@
  */
 import type { PdfFile } from '@shared-core/types'
 
-import {
-  resetPdfTabStore,
-  usePdfTabState,
-  usePdfTabStore
-} from '@features/pdf/hooks/usePdfTabStore'
+import { usePdfTabState } from '@features/pdf/hooks/usePdfTabState'
+import { resetPdfTabStore, usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
