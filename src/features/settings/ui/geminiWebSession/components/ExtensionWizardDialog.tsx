@@ -56,7 +56,6 @@ function ExtensionWizardDialog({
 
   const isVisible = open
   useDialogAccessibility(dialogRef, isVisible, loading, onClose)
-
   useEffect(() => {
     if (!isVisible) return
     setStep(0)
@@ -69,7 +68,6 @@ function ExtensionWizardDialog({
     setInstalledPath(installedPathProp)
     setExtensionInfo(null)
   }, [isVisible, mode, installedPathProp])
-
   useEffect(() => {
     if (!isVisible) return
     const api = getElectronApi()
@@ -92,7 +90,6 @@ function ExtensionWizardDialog({
   }, [isVisible])
 
   const handleNext = useCallback(() => setStep(1), [])
-
   const handleInstallAction = useCallback(async () => {
     setStep(2)
     setLoading(true)
@@ -128,7 +125,6 @@ function ExtensionWizardDialog({
       setStep(2)
     }
   }, [onRemove, t])
-
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const copyLinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(
@@ -138,7 +134,6 @@ function ExtensionWizardDialog({
     },
     []
   )
-
   const handleCopyPath = useCallback(() => {
     if (!installedPath) return
     navigator.clipboard
@@ -149,7 +144,6 @@ function ExtensionWizardDialog({
       })
       .catch((err) => reportSuppressedError('extensionWizard.copyPath', { cause: err }))
   }, [installedPath])
-
   const handleCopyLink = useCallback(() => {
     navigator.clipboard
       .writeText('chrome://extensions')
@@ -160,9 +154,7 @@ function ExtensionWizardDialog({
       })
       .catch((err) => reportSuppressedError('extensionWizard.copyLink', { cause: err }))
   }, [])
-
   const handleDone = useCallback(() => onClose(), [onClose])
-
   const total = mode === 'install' ? 4 : 3
   const isConnected = extensionInfo?.status === 'connected'
   const contentKey = loading

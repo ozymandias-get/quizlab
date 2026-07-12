@@ -22,13 +22,11 @@ import {
 } from './aiSendComposer/useAiSendComposerEffects'
 import { useAiSendComposerLayout } from './aiSendComposer/useAiSendComposerLayout'
 import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
-
 function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const selectionColor = useAppearance((s) => s.selectionColor)
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const prefersReducedMotion = useReducedMotion()
-
   const [isStoredExpanded, setStoredExpanded] = useLocalStorage<boolean>(EXPANDED_PREF_KEY, true)
   const [isExpanded, setIsExpanded] = useState(isStoredExpanded)
   const effectiveAutoSend = !isExpanded
@@ -59,7 +57,6 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     resizeHandlers,
     edgeThickness
   } = useAiSendComposerLayout(isExpanded)
-
   const { textCount, imageCount } = useMemo(() => {
     let text = 0
     let image = 0
@@ -72,7 +69,6 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
 
   const accentStrong = useAccentStrong(selectionColor)
   const panelVariants = usePanelVariants(prefersReducedMotion)
-
   const handleSend = useCallback(
     async (options?: { forceAutoSend?: boolean }) => {
       if (isSubmitting) return
@@ -127,12 +123,10 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
       return next
     })
   }, [setStoredExpanded])
-
   const handleRetry = useCallback(() => {
     setSendFeedback('idle')
     setLastError(null)
   }, [])
-
   const handleClearAll = useCallback(() => {
     if (itemsLengthRef.current > 1) {
       if (!confirm(t('ai_send_clear_confirm'))) return
@@ -144,7 +138,6 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   useAiSendComposerKeyboard(isSubmitting, handleToggleExpand)
   useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, onClearAll)
   useAiSendComposerFeedbackReset(items.length, setSendFeedback, setLastError)
-
   const handleForceSend = useCallback(() => {
     void handleSend({ forceAutoSend: true })
   }, [handleSend])
@@ -170,7 +163,6 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   )
 
   if (typeof document === 'undefined') return null
-
   const showContent = isExpanded && sendFeedback !== 'sending'
   const totalItems = textCount + imageCount
 
@@ -256,5 +248,4 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     document.body
   )
 }
-
 export default memo(AiSendComposer)
