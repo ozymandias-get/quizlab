@@ -110,7 +110,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     [containerSize]
   )
   const fitScale = useFitScale(pageDimensions, adjustedContainerSize)
-
   usePdfResizeRefit(
     containerRef,
     zoomTo,
