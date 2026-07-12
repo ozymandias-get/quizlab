@@ -13,20 +13,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PICKER_SCRIPTS, PICKER_TRANSLATION_KEYS } from '../lib/automationConstants'
+import type { UseElementPickerReturn } from './elementPickerUtils'
+import { isPickerConfig, resetPickerArtifacts } from './elementPickerUtils'
 import { usePickerConsoleBridge } from './usePickerConsoleBridge'
-
-interface UseElementPickerReturn {
-  isPickerActive: boolean
-  startPicker: () => Promise<void>
-  stopPicker: () => Promise<void>
-  togglePicker: () => Promise<void>
-}
-
-function isPickerConfig(value: unknown): value is AiSelectorConfig {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<AiSelectorConfig>
-  return Boolean(candidate.inputFingerprint && candidate.buttonFingerprint)
-}
 
 /**
  * Hook to manage the Element Picker lifecycle and result processing.
@@ -59,17 +48,6 @@ export function useElementPicker(
   // error message) so showing both would be a double-toast UX bug.
   const { mutateAsync: saveAiConfig } = useSaveAiConfig({ suppressErrorToast: true })
   const { mutateAsync: generatePickerScript } = useGeneratePickerScript()
-
-  const resetPickerArtifacts = useCallback(async (webview: WebviewController | null) => {
-    if (!webview || typeof webview.executeJavaScript !== 'function') {
-      return
-    }
-    try {
-      await webview.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
-    } catch (error) {
-      Logger.warn('[ElementPicker] cleanup script failed', error)
-    }
-  }, [])
 
   const savePickerResult = useCallback(
     async (config: AiSelectorConfig) => {
@@ -128,7 +106,7 @@ export function useElementPicker(
         }
       }
     },
-    [resetPickerArtifacts, saveAiConfig, showError, t]
+    [saveAiConfig, showError, t]
   )
 
   const { startListening, stopListening } = usePickerConsoleBridge({

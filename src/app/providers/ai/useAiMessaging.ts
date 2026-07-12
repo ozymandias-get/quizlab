@@ -11,6 +11,7 @@ import { reportSuppressedError } from '@shared/lib/logger'
 import { useCallback, useMemo, useRef } from 'react'
 
 import type * as ChatUiStoreModule from '../../../features/ai/store/chatUiStore'
+import { toErrorToastKey } from './errorToastKey'
 import { waitForWebviewReadyForSend } from './webviewSendReadiness'
 
 let chatUiStoreModule: typeof ChatUiStoreModule | null = null
@@ -31,18 +32,6 @@ interface UseAiMessagingParams {
   showSuccess: (message: string, title?: string) => void
   showWarning: (message: string, title?: string) => void
   openAiWorkspace: (modelId: string) => void
-}
-
-function toErrorToastKey(errorKey: string | undefined): string {
-  if (!errorKey) return 'error_unknown_error'
-  const slug = errorKey
-    .trim()
-    .toLowerCase()
-    .replaceAll(/\s+/g, '_')
-    .replaceAll(/[^\d_a-z]/g, '')
-    .replaceAll(/_+/g, '_')
-  if (!slug) return 'error_unknown_error'
-  return `error_${slug}`
 }
 
 export function useAiMessaging({

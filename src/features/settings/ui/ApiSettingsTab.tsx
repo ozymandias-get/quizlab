@@ -1,4 +1,4 @@
-import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/types'
+import type { ApiChatMessage, ApiConfig } from '@shared-core/types'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
@@ -6,20 +6,9 @@ import { Logger } from '@shared/lib/logger'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import ApiProviderCard from './apiSettings/ApiProviderCard'
+import ApiProviderList from './apiSettings/ApiProviderList'
+import { DEFAULT_PROVIDER_TEMPLATES } from './apiSettings/constants'
 import PromptSettingsSection from './apiSettings/PromptSettingsSection'
-
-const DEFAULT_PROVIDER_TEMPLATES: Record<
-  string,
-  { baseUrl: string; providerType: ApiProviderConfig['providerType'] }
-> = {
-  openai: { baseUrl: 'https://api.openai.com/v1', providerType: 'openai' },
-  anthropic: { baseUrl: 'https://api.anthropic.com/v1', providerType: 'anthropic' },
-  google: {
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    providerType: 'google'
-  }
-}
 
 export default memo(function ApiSettingsTab() {
   const { t } = useTranslation()
@@ -226,50 +215,17 @@ export default memo(function ApiSettingsTab() {
         onChange={handlePromptChange}
       />
 
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-muted-foreground/80 text-sm font-medium">
-            {t('api_chat_providers_title')}
-          </h3>
-          <div className="flex gap-2">
-            {Object.keys(DEFAULT_PROVIDER_TEMPLATES).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => addProvider(key)}
-                className="text-muted-foreground/70 hover:text-foreground/90 rounded-lg border border-white/8 px-3 py-1.5 text-xs capitalize transition-colors hover:border-white/16"
-              >
-                + {key}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => addProvider()}
-              className="text-muted-foreground/70 hover:text-foreground/90 rounded-lg border border-white/8 px-3 py-1.5 text-xs transition-colors hover:border-white/16"
-            >
-              + {t('api_chat_custom_provider')}
-            </button>
-          </div>
-        </div>
-
-        {(!config?.providers || config.providers.length === 0) && (
-          <p className="text-xs text-white/30 italic">{t('api_chat_no_providers')}</p>
-        )}
-
-        {config?.providers?.map((provider) => (
-          <ApiProviderCard
-            key={provider.id}
-            provider={provider}
-            testResult={testResults[provider.id] || ''}
-            testing={!!testing[provider.id]}
-            fetchingModels={!!fetchingModels[provider.id]}
-            onUpdate={updateProvider}
-            onRemove={removeProvider}
-            onTestConnection={handleTestConnection}
-            onFetchModels={handleFetchModels}
-          />
-        ))}
-      </div>
+      <ApiProviderList
+        providers={config?.providers || []}
+        testResults={testResults}
+        testing={testing}
+        fetchingModels={fetchingModels}
+        onUpdate={updateProvider}
+        onRemove={removeProvider}
+        onTestConnection={handleTestConnection}
+        onFetchModels={handleFetchModels}
+        onAddProvider={addProvider}
+      />
     </div>
   )
 })

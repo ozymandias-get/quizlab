@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { arePinnedTabsEqual, normalizeTitle, sanitizePinnedTabs } from './tabUtils'
 import type { PinnedTabStorage, SetStoredValue, Tab } from './types'
+import { setCurrentAIImpl } from './useAiTabsActions'
 
 interface UseAiTabsParams {
   isRegistryLoaded: boolean
@@ -220,28 +221,7 @@ export function useAiTabs({
 
   const setCurrentAI = useCallback(
     (id: string) => {
-      setTabs((prev) => {
-        const currentTabId = activeTabIdRef.current
-        const activeTab = prev.find((tab) => tab.id === currentTabId)
-        if (!activeTab) return prev
-
-        const nextTabs = prev.map((tab) =>
-          tab.id === currentTabId ? { ...tab, modelId: id } : tab
-        )
-
-        if (activeTab.pinned) {
-          setPinnedTabs((prevPinnedTabs) =>
-            prevPinnedTabs.map((tab) =>
-              tab.id === currentTabId
-                ? { ...tab, modelId: id, title: normalizeTitle(activeTab.title) }
-                : tab
-            )
-          )
-        }
-
-        return nextTabs
-      })
-
+      setTabs(setCurrentAIImpl(id, activeTabIdRef, setPinnedTabs, setLastSelectedAI))
       setLastSelectedAI(id)
     },
     [setLastSelectedAI, setPinnedTabs]
