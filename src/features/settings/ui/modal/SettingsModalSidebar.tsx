@@ -1,4 +1,4 @@
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { memo, type RefObject, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -16,13 +16,6 @@ interface SettingsModalSidebarProps {
   sidebarWidth: number
 }
 
-const sectionIcons: Record<string, string> = {
-  workspace: '🧩',
-  integration: '🔗',
-  preferences: '🎨',
-  app: '📦'
-}
-
 const SidebarTabButton = memo(function SidebarTabButton({
   tab,
   isActive,
@@ -33,26 +26,31 @@ const SidebarTabButton = memo(function SidebarTabButton({
   onSelect: (id: string) => void
 }) {
   const Icon = tab.icon
+  const prefersReducedMotion = useReducedMotion()
   const handleClick = useCallback(() => onSelect(tab.id), [onSelect, tab.id])
 
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={isActive}
       onClick={handleClick}
-      className={`group focus-visible:ring-ring focus-visible:ring-offset-background relative flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+      className={`group focus-visible:ring-ring/40 relative flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
         isActive
           ? 'border-border bg-accent text-foreground font-semibold shadow-xs'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground border-transparent bg-transparent'
+          : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border-transparent bg-transparent'
       }`}
     >
       {isActive && (
         <motion.div
           layoutId="active-sidebar-indicator"
           className="bg-primary pointer-events-none absolute inset-y-1.5 left-0 w-0.5 rounded-full"
-          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+          transition={
+            prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 35 }
+          }
         />
       )}
-      <div className="flex h-5 w-5 shrink-0 items-center justify-center">
+      <div className="flex h-4 w-4 shrink-0 items-center justify-center">
         <Icon
           className={`h-4 w-4 transition-colors ${
             isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
@@ -84,18 +82,17 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
       className="border-border bg-muted/20 relative flex min-w-0 shrink-0 flex-col border-r"
       style={{ width: sidebarWidth }}
     >
-      <div className="relative flex h-full min-h-0 flex-col p-4">
+      <div className="relative flex h-full min-h-0 flex-col p-3 sm:p-4">
         <div className="relative min-h-0 flex-1">
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
-            <nav aria-label={t('settings_title')} className="flex flex-col gap-5">
+            <nav aria-label={t('settings_title')} role="tablist" className="flex flex-col gap-4">
               {sidebarSections.map((section) => (
-                <div key={section.id} className="flex flex-col gap-1.5">
-                  <div className="text-foreground/75 mb-1 flex items-center gap-1.5 px-2 text-[10px] font-semibold tracking-widest uppercase select-none">
-                    <span>{sectionIcons[section.id] ?? '📁'}</span>
-                    <span>{section.label}</span>
+                <div key={section.id} className="flex flex-col gap-1">
+                  <div className="text-muted-foreground/80 mb-1 px-2 text-[10px] font-bold tracking-widest uppercase select-none">
+                    {section.label}
                   </div>
 
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-0.5">
                     {section.tabs.map((tab) => (
                       <SidebarTabButton
                         key={tab.id}

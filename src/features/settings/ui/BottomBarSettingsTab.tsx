@@ -3,8 +3,7 @@ import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionAp
 import { useAppearance } from '@app/providers'
 import { useAiModelActions, useAiModelsCatalog } from '@app/providers/AiContext'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
-import { GridIcon, SliderIcon } from '@ui/components/Icons'
-import { getAiIcon } from '@ui/components/Icons'
+import { getAiIcon, GridIcon, SliderIcon } from '@ui/components/Icons'
 
 import { Field, Label } from '@headlessui/react'
 import { GripVertical } from 'lucide-react'
@@ -59,25 +58,17 @@ const BottomBarSettingsTab = memo(() => {
   )
 
   const handleToggleTool = useCallback(
-    (toolId: string) => {
-      const currentVisible = visibleTools[toolId] !== false
-      setVisibleTool(toolId, !currentVisible)
-    },
+    (toolId: string) => setVisibleTool(toolId, visibleTools[toolId] === false),
     [visibleTools, setVisibleTool]
   )
 
   const handleToggleModel = useCallback(
-    (modelId: string) => {
-      const currentVisible = visibleModels[modelId] !== false
-      setVisibleModel(modelId, !currentVisible)
-    },
+    (modelId: string) => setVisibleModel(modelId, visibleModels[modelId] === false),
     [visibleModels, setVisibleModel]
   )
 
   const handleReorder = useCallback(
-    (newOrder: string[]) => {
-      setEnabledModels(newOrder)
-    },
+    (newOrder: string[]) => setEnabledModels(newOrder),
     [setEnabledModels]
   )
 
@@ -100,7 +91,6 @@ const BottomBarSettingsTab = memo(() => {
         description={t('bottom_bar_description')}
       />
 
-      {/* Tools Visibility Section */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
@@ -120,7 +110,6 @@ const BottomBarSettingsTab = memo(() => {
         <div className="space-y-1">
           {visibleToolsFiltered.map((tool) => {
             const isVisible = visibleTools[tool.id] !== false
-
             return (
               <Field
                 key={tool.id}
@@ -128,12 +117,12 @@ const BottomBarSettingsTab = memo(() => {
                   isVisible
                     ? 'border-primary/30 bg-muted/70 shadow-xs'
                     : 'bg-card border-border hover:bg-muted/40'
-                } `}
+                }`}
                 onClick={() => handleToggleTool(tool.id)}
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`h-2 w-2 rounded-full transition-colors duration-200 ${isVisible ? 'bg-emerald-500 shadow-xs' : 'bg-muted-foreground/30'} `}
+                    className={`h-2 w-2 rounded-full transition-colors duration-200 ${isVisible ? 'bg-emerald-500 shadow-xs' : 'bg-muted-foreground/30'}`}
                   />
                   <Label className="text-foreground cursor-pointer text-xs font-medium">
                     {t(tool.nameKey, { defaultValue: tool.id })}
@@ -154,7 +143,6 @@ const BottomBarSettingsTab = memo(() => {
         </div>
       </motion.div>
 
-      {/* Model Visibility Section */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
@@ -213,7 +201,7 @@ const BottomBarSettingsTab = memo(() => {
                     isVisible
                       ? 'border-primary/30 bg-muted/70 shadow-xs'
                       : 'bg-card border-border hover:bg-muted/40'
-                  } `}
+                  }`}
                   onClick={() => handleToggleModel(modelId)}
                 >
                   <div className="flex items-center gap-2">
@@ -252,5 +240,4 @@ const BottomBarSettingsTab = memo(() => {
 })
 
 BottomBarSettingsTab.displayName = 'BottomBarSettingsTab'
-
 export default BottomBarSettingsTab
