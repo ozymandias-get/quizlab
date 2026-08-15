@@ -32,8 +32,7 @@ const SidebarTabButton = memo(function SidebarTabButton({
   return (
     <button
       type="button"
-      role="tab"
-      aria-selected={isActive}
+      aria-current={isActive ? 'page' : undefined}
       onClick={handleClick}
       className={`group focus-visible:ring-ring/40 relative flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
         isActive
@@ -85,7 +84,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
       <div className="relative flex h-full min-h-0 flex-col p-3 sm:p-4">
         <div className="relative min-h-0 flex-1">
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
-            <nav aria-label={t('settings_title')} role="tablist" className="flex flex-col gap-4">
+            <nav aria-label={t('settings_title')} className="flex flex-col gap-4">
               {sidebarSections.map((section) => (
                 <div key={section.id} className="flex flex-col gap-1">
                   <div className="text-muted-foreground/80 mb-1 px-2 text-[10px] font-bold tracking-widest uppercase select-none">
