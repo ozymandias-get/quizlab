@@ -5,6 +5,7 @@
 @import './modules/_base.css';
 @import './modules/_glass-panel.css';
 @import './modules/_pdf-viewer.css';
+@import './modules/_pdf-placeholder.css';
 @import './modules/_resizer.css';
 @import './modules/_animations.css';
 @import './modules/_aesthetic-loader.css';
