@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { memo, type ReactNode, useState } from 'react'
 
 interface AiHomeSectionProps {
-  accent: string
   children: ReactNode
   defaultOpen?: boolean
   detail: string

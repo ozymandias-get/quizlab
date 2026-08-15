@@ -108,7 +108,7 @@ function PdfSearchBar({
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col justify-center">
-                <span className="text-ql-10 text-muted-foreground/80 leading-none font-semibold tracking-wider uppercase">
+                <span className="text-ql-10 text-muted-foreground/80 hidden leading-none font-semibold tracking-wider uppercase sm:block">
                   {t('reading_now') === 'reading_now' ? 'READING' : t('reading_now')}
                 </span>
                 <span className="text-ql-12 text-foreground block w-full truncate leading-tight font-medium">
