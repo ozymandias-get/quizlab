@@ -8,35 +8,42 @@
   overflow: hidden;
   border: 1px solid oklch(var(--border));
   background-color: oklch(var(--card));
-  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-md);
+  box-shadow: var(--shadow-ambient-sm);
   transform: translateZ(0);
   contain: layout style paint;
 }
 
 .glass-tier-1 {
   border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-ambient-md);
 }
 
 .glass-tier-2 {
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-lg);
+  box-shadow: var(--shadow-ambient-lg);
+  background-color: oklch(var(--popover) / 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .glass-tier-3 {
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-xl);
+  box-shadow: var(--shadow-ambient-sm);
+  background-color: oklch(var(--card) / 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .glass-interactive {
   transition:
     border-color var(--duration-normal) var(--ease-glass),
-    box-shadow var(--duration-normal) var(--ease-glass),
-    transform var(--duration-normal) var(--ease-glass);
+    background-color var(--duration-normal) var(--ease-glass),
+    box-shadow var(--duration-normal) var(--ease-glass);
 }
 
 .glass-interactive:hover,
 .glass-interactive:focus-visible {
-  border-color: oklch(var(--ring) / 30%);
+  border-color: oklch(var(--ring) / 40%);
 }
 
 .glass-tier-card {
@@ -55,27 +62,15 @@
   border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
 }
 
-/* 3D Panel Effects */
+/* Panel Containers */
 
 .panel-3d-wrapper {
   position: relative;
   isolation: isolate;
 }
 
-.glass-tier-1.panel-3d-left {
-  box-shadow: none;
-  background-color: oklch(var(--card));
-}
-
+.glass-tier-1.panel-3d-left,
 .glass-tier-1.panel-3d-right {
-  box-shadow: none;
+  box-shadow: var(--shadow-ambient-md);
   background-color: oklch(var(--card));
-}
-
-.panel-glow-left,
-.panel-glow-right {
-  position: absolute;
-  pointer-events: none;
-  z-index: var(--z-negative-1);
-  opacity: 1;
 }

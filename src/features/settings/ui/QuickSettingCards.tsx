@@ -35,28 +35,20 @@ export const TextInputModeCard = memo(function TextInputModeCard({
     value: TextInputMode
     labelKey: string
     icon: typeof Sparkles
-    color: string
   }[] = [
-    { value: 'auto', labelKey: 'text_input_mode_auto', icon: Sparkles, color: 'orange' },
-    { value: 'paste', labelKey: 'text_input_mode_paste', icon: ClipboardPaste, color: 'cyan' },
-    { value: 'typing', labelKey: 'text_input_mode_typing', icon: PenLine, color: 'violet' }
+    { value: 'auto', labelKey: 'text_input_mode_auto', icon: Sparkles },
+    { value: 'paste', labelKey: 'text_input_mode_paste', icon: ClipboardPaste },
+    { value: 'typing', labelKey: 'text_input_mode_typing', icon: PenLine }
   ]
-
-  const colorMap: Record<string, string> = {
-    orange: 'border-orange-500/30 bg-orange-500/15 text-orange-300',
-    cyan: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-300',
-    violet: 'border-violet-500/30 bg-violet-500/15 text-violet-300'
-  }
 
   return (
     <QuickSettingRow
-      icon={<Keyboard className="h-4 w-4" />}
-      iconColor="text-orange-400"
-      iconBorder="border-orange-500/20 bg-orange-500/15"
+      icon={<Keyboard className="text-primary h-4 w-4" />}
+      iconBorder="border-primary/20 bg-primary/10"
       title={t('text_input_mode')}
       description={t('text_input_mode_description')}
     >
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {options.map((opt) => {
           const active = textInputMode === opt.value
           const Icon = opt.icon
@@ -65,10 +57,10 @@ export const TextInputModeCard = memo(function TextInputModeCard({
               type="button"
               key={opt.value}
               onClick={() => setTextInputMode(opt.value)}
-              className={`text-ql-11 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium transition-all duration-200 ${
+              className={`text-ql-11 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium transition-colors ${
                 active
-                  ? colorMap[opt.color]
-                  : 'border-border bg-card text-muted-foreground hover:text-muted-foreground hover:bg-white/[0.04]'
+                  ? 'border-primary/40 bg-primary/10 text-primary font-semibold'
+                  : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
               <Icon className="h-3 w-3" />
@@ -90,22 +82,21 @@ export const SleepTimeoutCard = memo(function SleepTimeoutCard({
 
   return (
     <QuickSettingRow
-      icon={<Moon className="h-4 w-4" />}
-      iconColor="text-violet-400"
-      iconBorder="border-violet-500/20 bg-violet-500/15"
+      icon={<Moon className="text-primary h-4 w-4" />}
+      iconBorder="border-primary/20 bg-primary/10"
       title={t('sleep_timeout')}
       description={t('sleep_timeout_description')}
     >
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {SLEEP_TIMEOUT_OPTIONS.map((opt) => (
           <button
             type="button"
             key={opt.value}
             onClick={() => setSleepTimeoutMs(opt.value)}
-            className={`text-ql-11 rounded-lg border px-2.5 py-1.5 font-medium transition-all duration-200 ${
+            className={`text-ql-11 rounded-lg border px-2.5 py-1.5 font-medium transition-colors ${
               sleepTimeoutMs === opt.value
-                ? 'border-violet-500/30 bg-violet-500/15 text-violet-300'
-                : 'border-border bg-card text-muted-foreground hover:text-muted-foreground hover:bg-white/[0.04]'
+                ? 'border-primary/40 bg-primary/10 text-primary font-semibold'
+                : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >
             {t(opt.labelKey)}
@@ -125,22 +116,21 @@ export const MaxAliveTabsCard = memo(function MaxAliveTabsCard({
 
   return (
     <QuickSettingRow
-      icon={<Layers className="h-4 w-4" />}
-      iconColor="text-sky-400"
-      iconBorder="border-sky-500/20 bg-sky-500/15"
+      icon={<Layers className="text-primary h-4 w-4" />}
+      iconBorder="border-primary/20 bg-primary/10"
       title={t('max_alive_tabs')}
       description={t('max_alive_tabs_description')}
     >
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {MAX_ALIVE_TABS_OPTIONS.map((opt) => (
           <button
             type="button"
             key={opt}
             onClick={() => setMaxAliveTabs(opt)}
-            className={`text-ql-11 flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-1.5 font-medium transition-all duration-200 ${
+            className={`text-ql-11 flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-1.5 font-medium transition-colors ${
               maxAliveTabs === opt
-                ? 'border-sky-500/30 bg-sky-500/15 text-sky-300'
-                : 'border-border bg-card text-muted-foreground hover:text-muted-foreground hover:bg-white/[0.04]'
+                ? 'border-primary/40 bg-primary/10 text-primary font-semibold'
+                : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >
             {opt}
@@ -160,19 +150,18 @@ export const NotificationsCard = memo(function NotificationsCard({
 
   return (
     <QuickSettingRow
-      icon={<Bell className="h-4 w-4" />}
-      iconColor="text-emerald-400"
-      iconBorder="border-emerald-500/20 bg-emerald-500/15"
+      icon={<Bell className="text-primary h-4 w-4" />}
+      iconBorder="border-primary/20 bg-primary/10"
       title={t('notifications')}
       description={t('notifications_description')}
     >
       <button
         type="button"
         onClick={() => setSuccessEnabled(!successEnabled)}
-        className={`text-ql-11 rounded-lg border px-3 py-1.5 font-medium transition-all duration-200 ${
+        className={`text-ql-11 rounded-lg border px-3 py-1.5 font-medium transition-colors ${
           successEnabled
-            ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300'
-            : 'border-border bg-card text-muted-foreground hover:text-muted-foreground hover:bg-white/[0.04]'
+            ? 'border-primary/40 bg-primary/10 text-primary font-semibold'
+            : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
         }`}
       >
         {successEnabled ? t('on') : t('off')}
@@ -193,18 +182,17 @@ export const LanguageCard = memo(function LanguageCard({
 
   return (
     <QuickSettingRow
-      icon={<Globe className="h-4 w-4" />}
-      iconColor="text-lime-400"
-      iconBorder="border-lime-500/20 bg-lime-500/15"
+      icon={<Globe className="text-primary h-4 w-4" />}
+      iconBorder="border-primary/20 bg-primary/10"
       title={t('interface_language')}
       description={t('language_description')}
     >
       <div className="flex items-center gap-2">
-        <span className="text-muted-foreground/70 text-xs font-medium uppercase">{language}</span>
+        <span className="text-muted-foreground text-xs font-medium uppercase">{language}</span>
         <button
           type="button"
           onClick={() => setActiveTab('language')}
-          className="hover:text-muted-foreground text-ql-11 text-white/35 transition-colors"
+          className="text-ql-11 text-muted-foreground hover:text-foreground font-medium transition-colors"
         >
           {t('change')} →
         </button>

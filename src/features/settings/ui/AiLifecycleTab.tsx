@@ -15,7 +15,7 @@ import SettingsTabIntro from './shared/SettingsTabIntro'
 import SettingsToggleSwitch from './shared/SettingsToggleSwitch'
 
 const AI_LIFECYCLE_ICON = (
-  <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/20 to-purple-500/20 p-2.5 text-violet-400">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <Timer className="h-5 w-5" />
   </div>
 )
@@ -30,11 +30,11 @@ const NeverSleepSiteItem = memo(function NeverSleepSiteItem({
   onToggle: (id: string) => void
 }) {
   return (
-    <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-white/[0.04]">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
+    <div className="border-border bg-card hover:bg-muted/60 flex items-center gap-3 rounded-xl border p-3 transition-colors">
+      <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
         <AiIcon modelKey={site.id} className="h-4 w-4" />
       </div>
-      <span className="text-muted-foreground/80 grow truncate text-xs">
+      <span className="text-foreground grow truncate text-xs font-medium">
         {site.displayName || site.id}
       </span>
       <SettingsToggleSwitch checked={isNeverSleep} onChange={() => onToggle(site.id)} size="sm" />
@@ -73,12 +73,12 @@ const AiLifecycleTab = memo(() => {
 
       {/* Max Alive Tabs */}
       <div className="space-y-3">
-        <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/15 text-blue-400">
+        <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
             <Layers className="h-4 w-4" />
           </div>
           <div className="min-w-0 grow">
-            <h4 className="text-xs leading-tight font-semibold text-white/88">
+            <h4 className="text-foreground text-xs leading-tight font-semibold">
               {t('max_alive_tabs')}
             </h4>
             <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
@@ -93,10 +93,10 @@ const AiLifecycleTab = memo(() => {
               type="button"
               key={num}
               onClick={() => setMaxAliveTabs(num)}
-              className={`flex-1 rounded-xl py-2.5 text-xs font-medium transition-all duration-200 ${
+              className={`focus-visible:ring-ring/40 flex-1 rounded-xl py-2.5 text-xs font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none ${
                 maxAliveTabs === num
-                  ? 'border border-violet-500/30 bg-violet-500/20 text-violet-300 shadow-lg shadow-violet-500/10'
-                  : 'bg-card border-border border text-white/45 hover:bg-white/[0.06] hover:text-white/65'
+                  ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
+                  : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground border'
               } `}
             >
               {num}
@@ -107,19 +107,19 @@ const AiLifecycleTab = memo(() => {
 
       {/* Sleep Timeout */}
       <div className="space-y-3">
-        <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/15 text-amber-400">
+        <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
             <Timer className="h-4 w-4" />
           </div>
           <div className="min-w-0 grow">
-            <h4 className="text-xs leading-tight font-semibold text-white/88">
+            <h4 className="text-foreground text-xs leading-tight font-semibold">
               {t('sleep_timeout')}
             </h4>
             <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
               {t('sleep_timeout_description')}
             </p>
           </div>
-          <span className="text-muted-foreground/70 shrink-0 text-xs">{sleepLabel}</span>
+          <span className="text-muted-foreground shrink-0 text-xs font-medium">{sleepLabel}</span>
         </div>
 
         <div className="grid grid-cols-3 gap-2 px-1">
@@ -128,10 +128,10 @@ const AiLifecycleTab = memo(() => {
               type="button"
               key={option.value}
               onClick={() => setSleepTimeoutMs(option.value)}
-              className={`rounded-xl py-2.5 text-xs font-medium transition-all duration-200 ${
+              className={`focus-visible:ring-ring/40 rounded-xl py-2.5 text-xs font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none ${
                 sleepTimeoutMs === option.value
-                  ? 'border border-amber-500/30 bg-amber-500/20 text-amber-300 shadow-lg shadow-amber-500/10'
-                  : 'bg-card border-border border text-white/45 hover:bg-white/[0.06] hover:text-white/65'
+                  ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
+                  : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground border'
               } `}
             >
               {t(option.labelKey)}
@@ -142,12 +142,12 @@ const AiLifecycleTab = memo(() => {
 
       {/* Never Sleep Sites */}
       <div className="space-y-3">
-        <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/15 text-emerald-400">
+        <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
             <Moon className="h-4 w-4" />
           </div>
           <div className="min-w-0 grow">
-            <h4 className="text-xs leading-tight font-semibold text-white/88">
+            <h4 className="text-foreground text-xs leading-tight font-semibold">
               {t('never_sleep_sites')}
             </h4>
             <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">

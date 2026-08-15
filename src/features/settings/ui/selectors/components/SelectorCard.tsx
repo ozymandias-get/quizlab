@@ -73,7 +73,7 @@ export default memo(function SelectorCard({
   return (
     <motion.div
       layout
-      className={`group relative overflow-hidden rounded-[20px] border p-4 pl-5 transition-colors duration-300 hover:border-white/[0.1] hover:bg-white/[0.05] ${tone.border} `}
+      className={`group relative overflow-hidden rounded-xl border p-4 pl-5 transition-colors ${tone.border} `}
     >
       <SelectorCardHeader
         aiEntry={aiEntry}
@@ -89,7 +89,7 @@ export default memo(function SelectorCard({
       />
 
       {isExpanded && (
-        <div className="mt-4 space-y-4 border-t border-white/[0.06] pt-4">
+        <div className="border-border mt-4 space-y-4 border-t pt-4">
           <SelectorCardDetails
             savedHost={savedHost}
             existingTab={existingTab}

@@ -8,8 +8,8 @@ import { formatTime } from './chatUtils'
 export const AiAvatar = memo(function AiAvatar() {
   return (
     <div className="relative shrink-0">
-      <Avatar className="size-7.5 rounded-lg bg-gradient-to-br from-amber-500/25 to-amber-600/10 shadow-sm ring-1 shadow-amber-500/5 ring-amber-500/25 select-none [&>span]:rounded-lg">
-        <AvatarFallback className="rounded-lg bg-transparent text-amber-400">
+      <Avatar className="border-primary/20 bg-primary/10 size-7.5 rounded-lg border select-none [&>span]:rounded-lg">
+        <AvatarFallback className="text-primary rounded-lg bg-transparent">
           <Bot className="size-4" />
         </AvatarFallback>
       </Avatar>
@@ -23,8 +23,8 @@ export const AiAvatar = memo(function AiAvatar() {
 export const UserAvatar = memo(function UserAvatar() {
   return (
     <div className="relative shrink-0">
-      <Avatar className="size-7.5 rounded-lg bg-gradient-to-br from-zinc-700/40 to-zinc-800/20 shadow-sm ring-1 shadow-black/10 ring-zinc-700/50 select-none [&>span]:rounded-lg">
-        <AvatarFallback className="rounded-lg bg-transparent text-white/50">
+      <Avatar className="border-border bg-muted size-7.5 rounded-lg border select-none [&>span]:rounded-lg">
+        <AvatarFallback className="text-muted-foreground rounded-lg bg-transparent">
           <User className="size-3.5" />
         </AvatarFallback>
       </Avatar>
@@ -34,7 +34,7 @@ export const UserAvatar = memo(function UserAvatar() {
 
 export const Timestamp = memo(function Timestamp({ ts }: { ts: number }) {
   return (
-    <span className="text-ql-10 text-white/15 transition-colors select-none group-hover:text-white/35">
+    <span className="text-ql-10 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors select-none">
       {formatTime(ts)}
     </span>
   )

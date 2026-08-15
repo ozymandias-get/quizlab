@@ -53,27 +53,25 @@ function PdfPlaceholder({
   return (
     <div className="animate-in fade-in zoom-in flex h-full flex-col items-center justify-center overflow-hidden p-8 duration-500">
       <div className="flex max-h-full w-full max-w-[680px] flex-col items-center gap-5 text-center">
-        <div className="flex flex-shrink-0 flex-col items-center gap-5 text-center">
+        <div className="flex flex-shrink-0 flex-col items-center gap-4 text-center">
           <button
             type="button"
             onClick={onSelectPdf}
-            className="glass-tier-2 group relative flex h-20 w-20 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/[0.1] text-amber-400/70 shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-colors duration-300 ease-out hover:-translate-y-1 hover:border-amber-400/30 hover:text-amber-400 hover:shadow-[0_0_24px_rgba(245,158,11,0.1)] focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none active:scale-95"
+            className="group border-border bg-card text-primary shadow-ambient-sm hover:border-primary/40 hover:bg-muted focus-visible:ring-ring/40 relative flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-xl border transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
             aria-label={t('select_pdf')}
           >
-            <FileText className="relative z-10 h-9 w-9 transition-transform duration-300 group-hover:scale-105" />
+            <FileText className="h-8 w-8 transition-transform duration-150 group-hover:scale-105" />
           </button>
 
-          <div className="space-y-3">
-            <h2 className="font-display text-ql-18 font-semibold text-stone-100">
-              {t('no_pdf_loaded')}
-            </h2>
-            <p className="text-ql-13 max-w-[260px] leading-relaxed text-stone-400">
+          <div className="space-y-2">
+            <h2 className="text-ql-18 text-foreground font-semibold">{t('no_pdf_loaded')}</h2>
+            <p className="text-ql-13 text-muted-foreground max-w-[260px] leading-relaxed">
               {t('drop_pdf_here')}
             </p>
             <button
               type="button"
               onClick={onSelectPdf}
-              className="text-ql-13 inline-flex items-center gap-2 rounded-xl bg-amber-400/10 px-5 py-2.5 font-medium text-amber-400 transition-all duration-200 hover:bg-amber-400/20 hover:text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none active:scale-95"
+              className="text-ql-13 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 font-medium shadow-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
             >
               <FileText className="h-4 w-4" />
               {t('select_pdf')}

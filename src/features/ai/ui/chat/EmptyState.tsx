@@ -58,38 +58,33 @@ const EmptyState = memo(function EmptyState({
   )
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-black/35 px-6 py-8 select-none">
-      {/* Decorative Halo background */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="pointer-events-none absolute top-1/2 left-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500/[0.03] blur-[140px]" />
-      </div>
-
+    <div className="bg-card/20 relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-8 select-none">
       <div className="relative flex w-full max-w-2xl flex-col items-center text-center">
         {/* Status Badge */}
         {hasProvider && (
-          <div className="text-ql-11 animate-app-enter mb-5 inline-flex items-center gap-1.5 rounded-full border border-amber-500/15 bg-amber-500/5 px-3 py-1 font-mono text-amber-400/80 shadow-sm">
-            <span className="h-1.5 w-1.5 shrink-0 -translate-y-[0.5px] rounded-full bg-emerald-500" />
-            {activeProviderName}
+          <div className="text-ql-11 border-border bg-muted/60 text-muted-foreground mb-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono shadow-xs">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+            <span className="text-foreground font-semibold">{activeProviderName}</span>
             {activeModelName && <span className="opacity-60"> · {activeModelName}</span>}
           </div>
         )}
 
-        {/* Animated Main Logo/Icon */}
-        <div className="animate-app-enter mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/15 to-amber-600/5 shadow-lg ring-1 shadow-amber-500/5 ring-amber-500/15 transition-transform duration-300 hover:scale-105">
-          <AiIcon modelKey="api-chat" className="h-8 w-8 text-amber-500" />
+        {/* Main Logo/Icon */}
+        <div className="border-primary/20 bg-primary/10 text-primary mb-4 flex h-14 w-14 items-center justify-center rounded-xl border shadow-xs">
+          <AiIcon modelKey="api-chat" className="h-7 w-7" />
         </div>
 
-        <h2 className="text-ql-20 mb-2.5 font-bold tracking-tight text-white/95">
+        <h2 className="text-ql-18 text-foreground mb-2 font-semibold">
           {t('api_chat_welcome_title')}
         </h2>
 
-        <p className="text-ql-13 mb-10 max-w-md leading-relaxed text-white/40">
+        <p className="text-ql-13 text-muted-foreground mb-8 max-w-md leading-relaxed">
           {t('api_chat_empty_state')}
         </p>
 
         {/* Suggestions Grid */}
         {hasProvider && onSuggestionClick && (
-          <div className="animate-app-enter grid w-full max-w-xl grid-cols-1 gap-3 text-left sm:grid-cols-2">
+          <div className="grid w-full max-w-xl grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
             {suggestions.map((s, i) => (
               <div
                 // Static suggestions list — items never reorder
@@ -104,29 +99,25 @@ const EmptyState = memo(function EmptyState({
                     onSuggestionClick(s.prompt)
                   }
                 }}
-                className="group relative flex cursor-pointer flex-col justify-between rounded-xl border border-white/[0.06] bg-white/[0.01] p-3.5 transition-colors duration-200 hover:-translate-y-0.5 hover:border-amber-500/30 hover:bg-amber-500/[0.03] hover:shadow-[0_4px_12px_rgba(0,0,0,0.3),0_0_0_1px_rgba(245,158,11,0.03)] focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none active:scale-[0.98]"
+                className="group border-border bg-card hover:border-border hover:bg-muted/70 focus-visible:ring-ring/40 relative flex cursor-pointer flex-col justify-between rounded-lg border p-3 shadow-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
               >
                 <div className="mb-1.5 flex items-center gap-2">
-                  <div className="rounded-lg bg-white/[0.03] p-1 transition-colors group-hover:bg-amber-500/10">
-                    {s.Icon && <s.Icon className="h-4 w-4" />}
+                  <div className="bg-muted text-muted-foreground group-hover:text-foreground flex h-6 w-6 items-center justify-center rounded-md transition-colors">
+                    {s.Icon && <s.Icon className="h-3.5 w-3.5" />}
                   </div>
-                  <span className="text-ql-12 font-semibold text-white/80 transition-colors group-hover:text-white">
-                    {s.title}
-                  </span>
+                  <span className="text-ql-12 text-foreground font-semibold">{s.title}</span>
                 </div>
-                <p className="text-ql-11 leading-normal text-white/35 transition-colors group-hover:text-white/50">
-                  {s.desc}
-                </p>
-                <ArrowRight className="absolute right-3.5 bottom-3.5 h-3 w-3 -translate-x-1 text-white/10 opacity-0 transition-[color,transform] duration-200 group-hover:translate-x-0 group-hover:text-amber-500/80 group-hover:opacity-100" />
+                <p className="text-ql-11 text-muted-foreground leading-normal">{s.desc}</p>
+                <ArrowRight className="text-muted-foreground/40 absolute right-3 bottom-3 h-3 w-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
               </div>
             ))}
           </div>
         )}
 
         {!hasProvider && (
-          <div className="mt-4 flex max-w-sm items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 shadow-sm">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-            <p className="text-ql-12 text-left leading-normal font-medium text-amber-400/85">
+          <div className="border-border bg-card mt-4 flex max-w-sm items-center gap-2.5 rounded-lg border p-3 text-left shadow-xs">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+            <p className="text-ql-12 text-muted-foreground leading-normal">
               {t('api_chat_no_provider')}
             </p>
           </div>

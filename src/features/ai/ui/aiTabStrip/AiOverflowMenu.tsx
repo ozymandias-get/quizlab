@@ -39,7 +39,7 @@ function AiOverflowMenu({
     <div ref={overflowRef} className="relative ml-auto shrink-0">
       <ToolbarButton
         icon={MoreHorizontal}
-        className="!w-auto min-w-[36px] px-1.5 text-white/75 hover:bg-white/[0.08] hover:text-white"
+        className="!w-auto min-w-[32px] px-1.5"
         tooltip={tr('tab_more', 'More tabs')}
         isActive={isOverflowOpen}
         onClick={onToggleOpen}
@@ -47,11 +47,11 @@ function AiOverflowMenu({
 
       {isOverflowOpen && (
         <motion.div
-          initial={{ opacity: 0, y: 6, scale: 0.96 }}
+          initial={{ opacity: 0, y: 4, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 6, scale: 0.96 }}
-          transition={{ duration: 0.16 }}
-          className="z-dropdown absolute top-10 right-0 max-h-56 w-[260px] overflow-y-auto rounded-xl border border-white/15 bg-zinc-950/95 p-1.5 shadow-xl shadow-black/60 backdrop-blur-lg"
+          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+          transition={{ duration: 0.12 }}
+          className="z-dropdown border-border bg-popover text-popover-foreground shadow-ambient-lg absolute top-10 right-0 max-h-56 w-[260px] overflow-y-auto rounded-lg border p-1 backdrop-blur-md"
         >
           {overflowTabs.map((tab) => {
             const label = getTabLabel(tab)
@@ -59,23 +59,23 @@ function AiOverflowMenu({
               <button
                 key={tab.id}
                 type="button"
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/10"
+                className="text-popover-foreground hover:bg-muted focus-visible:ring-ring/40 flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
                 onClick={() => onSelectTab(tab.id)}
                 onContextMenu={(event) => onContextMenu(event, tab.id)}
                 title={label}
                 aria-label={label}
               >
-                <span className="shrink-0 text-white/85">
+                <span className="text-muted-foreground shrink-0">
                   {getAiIcon(getIconKey(tab)) || (
                     <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
                   )}
                 </span>
-                <span className="text-ql-12 min-w-0 flex-1 truncate text-white/85">{label}</span>
+                <span className="text-ql-12 text-foreground min-w-0 flex-1 truncate">{label}</span>
                 <span
                   role="button"
                   tabIndex={-1}
                   aria-label={tr('tab_close', 'Close tab')}
-                  className="shrink-0 rounded-md border border-white/15 bg-black/35 p-1 text-white/60 transition-colors hover:text-white"
+                  className="border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0 rounded-md border p-1 transition-colors"
                   onClick={(event) => {
                     event.preventDefault()
                     event.stopPropagation()

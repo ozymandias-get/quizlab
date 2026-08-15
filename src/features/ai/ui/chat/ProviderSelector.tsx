@@ -27,18 +27,18 @@ const ProviderSelector = memo(function ProviderSelector({
       <button
         type="button"
         onClick={() => setShowProviderSelector(!showProviderSelector)}
-        className="group/btn text-ql-11 flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-zinc-400 shadow-sm transition-colors hover:border-white/[0.12] hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95"
+        className="group/btn text-ql-12 border-border bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-xs transition-colors"
       >
         <span className="relative flex h-1.5 w-1.5 shrink-0">
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
         </span>
 
-        <Database className="h-3.5 w-3.5 text-zinc-500 transition-colors group-hover/btn:text-zinc-400" />
+        <Database className="text-muted-foreground h-3.5 w-3.5" />
 
-        <span className="font-semibold text-zinc-300">
+        <span className="text-foreground font-medium">
           {activeProvider?.name || t('api_chat_select_provider')}
         </span>
-        <ChevronDown className="h-3 w-3 opacity-40 transition-opacity group-hover/btn:opacity-75" />
+        <ChevronDown className="text-muted-foreground h-3 w-3 opacity-60" />
       </button>
       {showProviderSelector && (
         <>
@@ -47,7 +47,7 @@ const ProviderSelector = memo(function ProviderSelector({
             onClick={() => setShowProviderSelector(false)}
             aria-hidden="true"
           />
-          <div className="animate-app-enter absolute bottom-full left-0 z-20 mb-2.5 min-w-[190px] rounded-2xl border border-white/[0.08] bg-zinc-950/95 p-1.5 shadow-[0_10px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+          <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg absolute bottom-full left-0 z-20 mb-2 min-w-[180px] rounded-xl border p-1 backdrop-blur-md">
             {config.providers.map((p) => (
               <button
                 key={p.id}
@@ -56,10 +56,10 @@ const ProviderSelector = memo(function ProviderSelector({
                   onSelectProvider(p.id)
                   setShowProviderSelector(false)
                 }}
-                className={`text-ql-12 w-full rounded-xl px-3 py-2 text-left font-medium transition-colors duration-150 ${
+                className={`text-ql-12 w-full rounded-md px-2.5 py-1.5 text-left font-medium transition-colors ${
                   p.id === activeProviderId
-                    ? 'bg-amber-500/10 font-semibold text-amber-400'
-                    : 'text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-100'
+                    ? 'bg-accent text-foreground font-semibold'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
                 {p.name || p.baseUrl}

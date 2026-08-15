@@ -24,13 +24,8 @@ const PdfWorkerHost = lazy(() =>
 )
 
 const GPU_STYLE = {
-  boxShadow: `
-    0 24px 48px -12px oklch(0 0 0 / 0.75),
-    0 0 60px -15px oklch(0.6 0.08 75 / 0.10),
-    inset 0 1px 1px oklch(1 0 0 / 0.20)
-  `,
   border: '1px solid oklch(var(--border))',
-  borderRadius: 'var(--radius-2xl)'
+  borderRadius: 'var(--radius-xl)'
 }
 
 interface LeftPanelProps {

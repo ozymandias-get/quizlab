@@ -27,47 +27,47 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
   const { t } = useTranslation()
 
   return (
-    <div className="glass-tier-3 glass-tier-toolbar flex items-center gap-1 p-1.5">
+    <div className="glass-tier-3 glass-tier-toolbar border-border/70 bg-card/60 flex items-center gap-1 rounded-lg border p-1.5 shadow-xs">
       <ZoomOut>
         {(props: RenderChildProps) => (
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             onClick={props.onClick}
-            className="h-8 w-8 rounded-xl text-white/50 transition-[background-color,color,border-color,box-shadow] duration-200 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-amber-500 [&_svg]:transition-none"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors"
             title={t('zoom_out')}
             aria-label={t('zoom_out')}
           >
-            <ZoomOutIcon className="h-4 w-4" />
+            <ZoomOutIcon className="h-3.5 w-3.5" />
           </Button>
         )}
       </ZoomOut>
 
-      <div className="h-5 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+      <div className="bg-border/80 h-4 w-px" />
 
       <CurrentScale>
         {(props: { scale: number }) => (
-          <div className="min-w-[56px] rounded-md border border-white/[0.06] bg-white/[0.06] px-2 py-1 text-center">
-            <span className="text-ql-12 font-medium text-white/70 tabular-nums select-none">
+          <div className="min-w-[50px] px-1.5 py-0.5 text-center">
+            <span className="text-ql-12 text-foreground font-medium tabular-nums select-none">
               {Math.round(props.scale * 100)}%
             </span>
           </div>
         )}
       </CurrentScale>
 
-      <div className="h-5 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+      <div className="bg-border/80 h-4 w-px" />
 
       <ZoomIn>
         {(props: RenderChildProps) => (
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             onClick={props.onClick}
-            className="h-8 w-8 rounded-xl text-white/50 transition-[background-color,color,border-color,box-shadow] duration-200 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-amber-500 [&_svg]:transition-none"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors"
             title={t('zoom_in')}
             aria-label={t('zoom_in')}
           >
-            <ZoomInIcon className="h-4 w-4" />
+            <ZoomInIcon className="h-3.5 w-3.5" />
           </Button>
         )}
       </ZoomIn>

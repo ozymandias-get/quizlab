@@ -31,32 +31,34 @@ const TutorialCard = memo(function TutorialCard({
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01 }}
-      className="relative rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-6 transition-colors hover:border-white/[0.12] hover:bg-white/[0.05]"
+      whileHover={{ scale: 1.005 }}
+      className="border-border bg-card hover:border-border/80 relative rounded-xl border p-5 shadow-xs transition-colors"
     >
       {isCompleted && (
         <div className="absolute top-4 right-4">
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1">
-            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-            <span className="text-ql-10 font-semibold tracking-wider text-emerald-400 uppercase">
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5">
+            <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-ql-10 font-semibold tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
               {completedLabel}
             </span>
           </div>
         </div>
       )}
 
-      <div className="mb-4 flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-400/10 bg-gradient-to-br from-amber-400/20 to-orange-500/20">
-          <BookOpen className="h-5 w-5 text-amber-400" />
+      <div className="mb-4 flex items-start gap-3.5">
+        <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-xs">
+          <BookOpen className="h-5 w-5" />
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-ql-16 mb-1 font-bold text-white/90">{title}</h3>
-          <p className="text-ql-13 line-clamp-2 leading-relaxed text-white/50">{description}</p>
+        <div className="min-w-0 flex-1 pr-16">
+          <h3 className="text-ql-15 text-foreground mb-0.5 font-semibold">{title}</h3>
+          <p className="text-ql-13 text-muted-foreground line-clamp-2 leading-relaxed">
+            {description}
+          </p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-white/5 pt-4">
-        <div className="flex items-center gap-1.5 text-white/30">
+      <div className="border-border flex items-center justify-between border-t pt-3.5">
+        <div className="text-muted-foreground flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5" />
           <span className="text-ql-12 font-medium">{tutorial.estimatedMinutes} min</span>
           <span className="text-ql-12 mx-1">·</span>
@@ -65,7 +67,7 @@ const TutorialCard = memo(function TutorialCard({
 
         <button
           onClick={handleStart}
-          className="group text-ql-13 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 font-semibold text-white/70 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white"
+          className="text-ql-13 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 flex items-center gap-1.5 rounded-lg border px-3.5 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
           <Play className="h-3.5 w-3.5" />
           {isCompleted ? replayLabel : startLabel}

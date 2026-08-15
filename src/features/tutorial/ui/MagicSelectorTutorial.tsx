@@ -134,8 +134,8 @@ export default function MagicSelectorTutorial({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="z-modal absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-b from-[#1a1a1f] via-[#161619] to-[#121215] text-white"
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="z-modal bg-background text-foreground absolute inset-0 flex flex-col overflow-hidden"
     >
       <TutorialHeader onClose={onClose} t={t} />
 
@@ -143,10 +143,10 @@ export default function MagicSelectorTutorial({
 
       <div ref={containerRef} className="relative flex flex-1 flex-col">
         <div className="flex flex-1 flex-col items-center justify-center p-4">
-          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-[0_8px_30px_rgba(255,255,255,0.08)]">
-            <div className="h-9 w-9 rounded-full bg-black" />
+          <div className="border-border bg-card mb-4 flex h-12 w-12 items-center justify-center rounded-xl border shadow-xs">
+            <div className="bg-primary h-6 w-6 rounded-lg" />
           </div>
-          <h2 className="text-ql-20 mb-2 max-w-lg text-center font-semibold text-white">
+          <h2 className="text-ql-18 text-foreground mb-2 max-w-lg text-center font-semibold">
             {t('tut_example_site_desc')}
           </h2>
         </div>
@@ -161,9 +161,9 @@ export default function MagicSelectorTutorial({
             t={t}
           />
 
-          <div className="relative flex items-center gap-3 rounded-2xl border border-white/10 bg-[#1f1f24] p-3 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
-            <div className="cursor-pointer rounded-lg p-2 text-gray-400 transition-colors hover:bg-white/5">
-              <Plus className="h-5 w-5" />
+          <div className="border-border bg-card relative flex items-center gap-3 rounded-xl border p-2.5 shadow-xs">
+            <div className="text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer rounded-lg p-1.5 transition-colors">
+              <Plus className="h-4 w-4" />
             </div>
             <Input
               ref={inputRef}
@@ -173,7 +173,7 @@ export default function MagicSelectorTutorial({
               onChange={handleInputChange}
               disabled={step === 4}
               placeholder={t('tut_placeholder')}
-              className={`text-ql-16 h-auto flex-1 border-none bg-transparent px-2 py-1 shadow-none focus:bg-white/[0.04] focus:ring-2 focus:ring-purple-500/40 ${step === 1 ? 'cursor-pointer' : ''}`}
+              className={`text-ql-14 h-auto flex-1 border-none bg-transparent px-2 py-1 shadow-none focus-visible:ring-0 ${step === 1 ? 'cursor-pointer' : ''}`}
               onMouseEnter={(e) => {
                 handleElementHover(e, 'input')
                 if (step === 2 || step === 3) e.currentTarget.focus()
@@ -187,16 +187,16 @@ export default function MagicSelectorTutorial({
               spellCheck={false}
             />
             {step === 1 && (
-              <div className="pointer-events-none absolute inset-0 z-20 animate-pulse rounded-2xl border-2 border-purple-500">
-                <div className="text-ql-10 absolute -top-3 left-10 rounded bg-purple-500 px-2 py-0.5 font-bold text-white shadow-[0_4px_12px_rgba(168,85,247,0.4)]">
+              <div className="border-primary pointer-events-none absolute inset-0 z-20 animate-pulse rounded-xl border-2">
+                <div className="text-ql-10 bg-primary text-primary-foreground absolute -top-3 left-10 rounded px-2 py-0.5 font-bold shadow-xs">
                   {t('tut_click_input')}
                 </div>
               </div>
             )}
             <div className="flex items-center gap-2">
               {!isButtonVisible && step < 3 && (
-                <div className="cursor-pointer rounded-lg p-2 text-gray-400 transition-colors hover:bg-white/5">
-                  <Mic className="h-5 w-5" />
+                <div className="text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer rounded-lg p-1.5 transition-colors">
+                  <Mic className="h-4 w-4" />
                 </div>
               )}
               <AnimatePresence>
@@ -208,14 +208,14 @@ export default function MagicSelectorTutorial({
                     exit={{ opacity: 0, scale: 0.8 }}
                     data-testid="tutorial-send-button"
                     disabled={!isButtonVisible}
-                    className={`relative flex items-center justify-center rounded-lg p-2 text-white transition-colors ${isButtonVisible && step === 3 ? 'cursor-pointer bg-purple-600 shadow-[0_4px_14px_rgba(168,85,247,0.35)] hover:bg-purple-500' : 'cursor-not-allowed bg-purple-600/30'}`}
+                    className={`text-primary-foreground relative flex items-center justify-center rounded-lg p-2 transition-colors ${isButtonVisible && step === 3 ? 'bg-primary hover:bg-primary/90 cursor-pointer shadow-xs' : 'bg-primary/30 cursor-not-allowed'}`}
                     onMouseEnter={(e) => handleElementHover(e, 'button')}
                     onMouseLeave={handleMouseLeave}
                     onClick={() => handleElementClick('button')}
                   >
                     <Send className="h-4 w-4" />
                     {step === 3 && (
-                      <div className="text-ql-10 absolute -top-2 -right-2 rounded bg-purple-500 px-1.5 py-0.5 font-bold text-white shadow-[0_4px_12px_rgba(168,85,247,0.4)]">
+                      <div className="text-ql-10 bg-primary text-primary-foreground absolute -top-2 -right-2 rounded px-1.5 py-0.5 font-bold shadow-xs">
                         {t('tut_click_btn')}
                       </div>
                     )}
@@ -224,7 +224,9 @@ export default function MagicSelectorTutorial({
               </AnimatePresence>
             </div>
           </div>
-          <div className="text-ql-12 mt-2 text-center text-gray-500">{t('tut_disclaimer')}</div>
+          <div className="text-ql-12 text-muted-foreground mt-2 text-center">
+            {t('tut_disclaimer')}
+          </div>
         </div>
 
         <TutorialHoveredOverlay hoveredRect={hoveredRect} t={t} />

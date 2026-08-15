@@ -63,31 +63,22 @@ const HistorySessionItem = memo(function HistorySessionItem({
           onSelect(session.id)
         }
       }}
-      className={`group relative flex cursor-pointer items-center justify-between overflow-hidden rounded-2xl border p-4 transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none ${
+      className={`group focus-visible:ring-ring/40 relative flex cursor-pointer items-center justify-between overflow-hidden rounded-lg border p-3 shadow-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none ${
         isActive
-          ? 'border-amber-500/35 bg-gradient-to-r from-amber-500/[0.08] to-amber-500/[0.02] shadow-[0_4px_25px_rgba(245,158,11,0.08),inset_0_1px_1px_rgba(255,255,255,0.04)]'
-          : 'border-white/[0.04] bg-white/[0.01] hover:border-white/[0.1] hover:bg-white/[0.03] hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]'
+          ? 'border-ring/60 bg-accent/20'
+          : 'border-border bg-card hover:border-border hover:bg-muted/60'
       }`}
     >
-      {/* Elegant slide-in left accent highlight */}
-      <div
-        className={`absolute top-3.5 bottom-3.5 left-0 w-[3px] origin-center rounded-r-full bg-gradient-to-b from-amber-500 to-amber-600 transition-colors duration-300 ${
-          isActive
-            ? 'scale-y-100 opacity-100'
-            : 'scale-y-0 opacity-0 group-hover:scale-y-100 group-hover:opacity-100'
-        }`}
-      />
-
-      <div className="flex min-w-0 flex-1 items-center gap-3.5 pl-1">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {/* Icon Container */}
         <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors duration-300 ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
             isActive
-              ? 'border-amber-500/35 bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.1)]'
-              : 'border-white/[0.04] bg-white/[0.03] text-zinc-500 group-hover:border-amber-500/20 group-hover:bg-white/[0.06] group-hover:text-amber-400/80'
+              ? 'border-primary/30 bg-primary/10 text-primary'
+              : 'border-border/60 bg-muted/60 text-muted-foreground group-hover:text-foreground'
           }`}
         >
-          <MessageSquare className="h-4.5 w-4.5" />
+          <MessageSquare className="h-4 w-4" />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -107,12 +98,12 @@ const HistorySessionItem = memo(function HistorySessionItem({
                   if (e.key === 'Enter') onConfirmEdit(session.id)
                   else if (e.key === 'Escape') onCancelEdit()
                 }}
-                className="w-64"
+                className="h-7 w-64 text-sm"
               />
               <button
                 type="button"
                 onClick={() => onConfirmEdit(session.id)}
-                className="text-ql-11 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 font-medium text-emerald-400 shadow-sm transition-colors duration-200 hover:border-emerald-500/45 hover:bg-emerald-500/20 active:scale-95"
+                className="text-ql-11 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-2.5 py-1 font-medium transition-colors"
               >
                 {t('api_chat_save')}
               </button>
@@ -120,26 +111,26 @@ const HistorySessionItem = memo(function HistorySessionItem({
           ) : (
             <div className="flex min-w-0 items-center gap-2">
               <span
-                className={`text-ql-13 truncate font-semibold ${isActive ? 'text-amber-400' : 'text-white/80 transition-colors duration-200 group-hover:text-white'}`}
+                className={`text-ql-13 truncate font-semibold ${isActive ? 'text-foreground font-bold' : 'text-foreground/90'}`}
               >
                 {session.title}
               </span>
               {isActive && (
-                <span className="text-ql-10 flex shrink-0 items-center gap-1 rounded-full border border-amber-500/35 bg-gradient-to-r from-amber-500/25 to-amber-600/15 px-2.5 py-0.5 font-extrabold tracking-wider text-amber-400 uppercase shadow-[0_2px_8px_rgba(245,158,11,0.15)] select-none">
-                  <span className="h-1 w-1 shrink-0 rounded-full bg-amber-400" />
+                <span className="text-ql-10 border-primary/20 bg-primary/10 py-0.2 text-primary flex shrink-0 items-center gap-1 rounded-full border px-2 font-semibold select-none">
+                  <span className="bg-primary h-1 w-1 shrink-0 rounded-full" />
                   {t('api_chat_active_badge')}
                 </span>
               )}
             </div>
           )}
 
-          <div className="text-ql-11 mt-1.5 flex min-w-0 items-center gap-2 font-mono text-zinc-500 select-none">
-            <span className="flex shrink-0 items-center gap-1 rounded-md border border-white/[0.04] bg-zinc-900/60 px-2 py-0.5 text-zinc-400">
-              <MessageSquare className="h-3 w-3 shrink-0 text-zinc-500" />
+          <div className="text-ql-11 text-muted-foreground mt-1 flex min-w-0 items-center gap-2 select-none">
+            <span className="border-border/60 bg-muted/30 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5">
+              <MessageSquare className="h-3 w-3 shrink-0" />
               {t('api_chat_msg_count', { count: String(msgCount) })}
             </span>
             <span className="shrink-0 opacity-30">•</span>
-            <span className="min-w-0 truncate text-zinc-500">
+            <span className="min-w-0 truncate">
               {new Date(session.updatedAt || session.createdAt).toLocaleString(
                 language === 'tr' ? 'tr-TR' : 'en-US'
               )}
@@ -148,10 +139,10 @@ const HistorySessionItem = memo(function HistorySessionItem({
         </div>
       </div>
 
-      {/* Action Buttons — absolute overlay to prevent metadata overflow */}
+      {/* Action Buttons */}
       <div
         role="presentation"
-        className="absolute top-1/2 right-4 z-10 flex -translate-y-1/2 items-center gap-2 opacity-0 transition-colors duration-300 group-hover:opacity-100 focus-within:opacity-100"
+        className="absolute top-1/2 right-3 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
@@ -159,7 +150,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
           <button
             type="button"
             onClick={() => onStartEdit(session.id, session.title)}
-            className="rounded-xl border border-white/[0.06] bg-zinc-900/90 p-2 text-zinc-400 shadow-sm backdrop-blur-sm transition-colors duration-250 hover:border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-400 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none active:scale-90"
+            className="border-border bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-7 w-7 items-center justify-center rounded-md border shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
             title={t('api_chat_rename_tooltip')}
             aria-label={t('api_chat_rename_tooltip')}
           >
@@ -173,7 +164,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
               onDelete(session.id)
             }
           }}
-          className="rounded-xl border border-white/[0.06] bg-zinc-900/90 p-2 text-zinc-400 shadow-sm backdrop-blur-sm transition-colors duration-250 hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none active:scale-90"
+          className="border-border bg-card text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-7 w-7 items-center justify-center rounded-md border shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
           title={t('api_chat_delete_tooltip')}
           aria-label={t('api_chat_delete_tooltip')}
         >

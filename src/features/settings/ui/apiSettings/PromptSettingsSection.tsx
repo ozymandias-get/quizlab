@@ -23,9 +23,11 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
   const { t } = useTranslation()
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-white/8 bg-white/[0.02] p-4">
-      <h3 className="text-ql-13 font-medium text-white/70">{t('api_chat_memory_title')}</h3>
-      <p className="text-ql-11 -mt-3 text-white/40">{t('api_chat_memory_desc')}</p>
+    <div className="border-border bg-card flex flex-col gap-4 rounded-xl border p-4 shadow-xs">
+      <div className="space-y-1">
+        <h3 className="text-ql-13 text-foreground font-semibold">{t('api_chat_memory_title')}</h3>
+        <p className="text-ql-12 text-muted-foreground">{t('api_chat_memory_desc')}</p>
+      </div>
       <Textarea
         value={memoryPrompt}
         onChange={(e) => onChange({ memoryPrompt: e.target.value })}
@@ -33,8 +35,12 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
         placeholder={t('api_chat_memory_placeholder')}
       />
 
-      <h3 className="text-ql-13 font-medium text-white/70">{t('api_chat_character_title')}</h3>
-      <p className="text-ql-11 -mt-3 text-white/40">{t('api_chat_character_desc')}</p>
+      <div className="space-y-1">
+        <h3 className="text-ql-13 text-foreground font-semibold">
+          {t('api_chat_character_title')}
+        </h3>
+        <p className="text-ql-12 text-muted-foreground">{t('api_chat_character_desc')}</p>
+      </div>
       <Textarea
         value={characterPrompt}
         onChange={(e) => onChange({ characterPrompt: e.target.value })}
@@ -42,8 +48,12 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
         placeholder={t('api_chat_character_placeholder')}
       />
 
-      <h3 className="text-ql-13 font-medium text-white/70">{t('api_chat_system_prompt_title')}</h3>
-      <p className="text-ql-11 -mt-3 text-white/40">{t('api_chat_system_prompt_desc')}</p>
+      <div className="space-y-1">
+        <h3 className="text-ql-13 text-foreground font-semibold">
+          {t('api_chat_system_prompt_title')}
+        </h3>
+        <p className="text-ql-12 text-muted-foreground">{t('api_chat_system_prompt_desc')}</p>
+      </div>
       <Textarea
         value={generalPrompt}
         onChange={(e) => onChange({ generalPrompt: e.target.value })}

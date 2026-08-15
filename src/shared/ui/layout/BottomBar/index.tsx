@@ -26,9 +26,9 @@ const SparklesCore = lazy(() => import('@app/components/ui/sparkles'))
  */
 const handlebarNode = (
   <>
-    <div className="pointer-events-none absolute inset-y-[15%] left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-    <div className="pointer-events-none absolute top-1/2 left-1/2 flex h-9 w-3.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/5 bg-gradient-to-b from-white/[0.03] to-white/[0.06]">
-      <GripVertical className="h-3 w-3 text-white/40" />
+    <div className="via-border pointer-events-none absolute inset-y-[15%] left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent to-transparent" />
+    <div className="border-border/80 bg-background/80 pointer-events-none absolute top-1/2 left-1/2 flex h-9 w-3.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border shadow-xs">
+      <GripVertical className="text-muted-foreground h-3 w-3" />
     </div>
   </>
 )

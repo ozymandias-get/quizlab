@@ -58,35 +58,35 @@ export const colorMap: Record<
   }
 > = {
   violet: {
-    bg: 'bg-violet-500/[0.15]',
-    bgActive: 'bg-violet-500/25',
-    text: 'text-violet-400/85',
-    textActive: 'text-violet-300',
-    glow: 'shadow-[0_0_14px_-3px_rgba(139,92,246,0.4)]',
-    toggleTrack: 'bg-violet-500/35'
+    bg: 'bg-primary/10',
+    bgActive: 'bg-primary/20',
+    text: 'text-primary',
+    textActive: 'text-primary',
+    glow: 'shadow-xs',
+    toggleTrack: 'bg-primary/40'
   },
   amber: {
-    bg: 'bg-amber-500/[0.15]',
-    bgActive: 'bg-amber-500/25',
-    text: 'text-amber-400/85',
-    textActive: 'text-amber-300',
-    glow: 'shadow-[0_0_14px_-3px_rgba(245,158,11,0.4)]',
-    toggleTrack: 'bg-amber-500/35'
+    bg: 'bg-amber-500/10',
+    bgActive: 'bg-amber-500/20',
+    text: 'text-amber-500',
+    textActive: 'text-amber-500',
+    glow: 'shadow-xs',
+    toggleTrack: 'bg-amber-500/40'
   },
   sky: {
-    bg: 'bg-sky-500/[0.15]',
-    bgActive: 'bg-sky-500/25',
-    text: 'text-sky-400/85',
-    textActive: 'text-sky-300',
-    glow: 'shadow-[0_0_14px_-3px_rgba(56,189,248,0.4)]',
-    toggleTrack: 'bg-sky-500/35'
+    bg: 'bg-sky-500/10',
+    bgActive: 'bg-sky-500/20',
+    text: 'text-sky-500',
+    textActive: 'text-sky-500',
+    glow: 'shadow-xs',
+    toggleTrack: 'bg-sky-500/40'
   },
   emerald: {
-    bg: 'bg-emerald-500/[0.15]',
-    bgActive: 'bg-emerald-500/25',
-    text: 'text-emerald-400/85',
-    textActive: 'text-emerald-300',
-    glow: 'shadow-[0_0_14px_-3px_rgba(16,185,129,0.4)]',
-    toggleTrack: 'bg-emerald-500/35'
+    bg: 'bg-emerald-500/10',
+    bgActive: 'bg-emerald-500/20',
+    text: 'text-emerald-500',
+    textActive: 'text-emerald-500',
+    glow: 'shadow-xs',
+    toggleTrack: 'bg-emerald-500/40'
   }
 }

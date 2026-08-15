@@ -25,34 +25,31 @@ const ICONS: Record<ToastType, ReactNode> = {
 }
 
 const STYLES: Record<ToastType, string> = {
-  success:
-    'bg-emerald-500/[0.85] text-emerald-50 border border-emerald-500/50 shadow-[0_8px_32px_-8px_rgba(16,185,129,0.4),0_0_0_1px_rgba(16,185,129,0.25)]',
-  error:
-    'bg-red-500/[0.85] text-red-50 border border-red-500/50 shadow-[0_8px_32px_-8px_rgba(239,68,68,0.4),0_0_0_1px_rgba(239,68,68,0.25)]',
-  warning:
-    'bg-amber-500/[0.85] text-amber-50 border border-amber-500/50 shadow-[0_8px_32px_-8px_rgba(245,158,11,0.4),0_0_0_1px_rgba(245,158,11,0.25)]',
-  info: 'bg-blue-500/[0.85] text-blue-50 border border-blue-500/50 shadow-[0_8px_32px_-8px_rgba(59,130,246,0.4),0_0_0_1px_rgba(59,130,246,0.25)]'
+  success: 'border-border bg-popover text-popover-foreground shadow-ambient-lg',
+  error: 'border-border bg-popover text-popover-foreground shadow-ambient-lg',
+  warning: 'border-border bg-popover text-popover-foreground shadow-ambient-lg',
+  info: 'border-border bg-popover text-popover-foreground shadow-ambient-lg'
 }
 
 const ACCENT_COLORS: Record<ToastType, string> = {
   success: 'bg-emerald-500',
-  error: 'bg-red-500',
+  error: 'bg-destructive',
   warning: 'bg-amber-500',
-  info: 'bg-blue-500'
+  info: 'bg-primary'
 }
 
 const ICON_BG: Record<ToastType, string> = {
-  success: 'bg-emerald-500/45 text-emerald-50',
-  error: 'bg-red-500/45 text-red-50',
-  warning: 'bg-amber-500/45 text-amber-50',
-  info: 'bg-blue-500/45 text-blue-50'
+  success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+  error: 'bg-destructive/10 text-destructive border border-destructive/20',
+  warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+  info: 'bg-primary/10 text-primary border border-primary/20'
 }
 
 const PROGRESS_COLORS: Record<ToastType, string> = {
-  success: 'bg-emerald-400/90',
-  error: 'bg-red-400/90',
-  warning: 'bg-amber-400/90',
-  info: 'bg-blue-400/90'
+  success: 'bg-emerald-500/70',
+  error: 'bg-destructive/70',
+  warning: 'bg-amber-500/70',
+  info: 'bg-primary/70'
 }
 
 interface ToastItemProps {
@@ -174,17 +171,17 @@ const ToastItem = memo(
           </div>
 
           <div className="min-w-0 grow pr-4">
-            <h4 className="text-ql-13 mb-0.5 leading-tight font-semibold tracking-tight">
+            <h4 className="text-ql-13 text-foreground mb-0.5 leading-tight font-semibold">
               {toast.title ? t(toast.title, toast.params) : t(`toast.${toast.type}.title`)}
             </h4>
-            <p className="text-ql-12 line-clamp-2 leading-relaxed break-words opacity-75">
+            <p className="text-ql-12 text-muted-foreground line-clamp-2 leading-relaxed break-words">
               {t(toast.message, toast.params)}
             </p>
             {toast.actionLabel && (
               <button
                 type="button"
                 onClick={handleAction}
-                className="text-ql-11 mt-1.5 rounded-sm px-0.5 font-semibold tracking-wider uppercase underline decoration-white/30 underline-offset-2 opacity-80 transition-opacity hover:decoration-white/50 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none"
+                className="text-ql-11 text-primary focus-visible:ring-ring/40 mt-1.5 font-medium tracking-wide underline underline-offset-2 hover:opacity-80 focus-visible:ring-2 focus-visible:outline-none"
               >
                 {t(toast.actionLabel)}
               </button>
@@ -194,14 +191,14 @@ const ToastItem = memo(
           <button
             type="button"
             onClick={handleClose}
-            className="mt-0.5 shrink-0 rounded-md p-1 opacity-0 transition-colors duration-150 group-hover:opacity-50 hover:bg-white/10 hover:!opacity-100 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 mt-0.5 shrink-0 rounded-md p-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
             aria-label={t('close_notification')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <div className="absolute right-0 bottom-0 left-0 h-[2px] bg-white/[0.04]">
+        <div className="bg-border/40 absolute right-0 bottom-0 left-0 h-[2px]">
           <div
             key={animationKey}
             className={cn('h-full', PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info)}

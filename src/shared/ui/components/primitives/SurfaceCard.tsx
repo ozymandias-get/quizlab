@@ -10,19 +10,19 @@ interface SurfaceCardProps extends HTMLAttributes<HTMLDivElement> {
 export const SurfaceCard = forwardRef<HTMLDivElement, SurfaceCardProps>(
   ({ className = '', children, variant = 'default', interactive = false, ...props }, ref) => {
     const variantClasses = {
-      default: 'border-border bg-card',
-      muted: 'border-border/50 bg-muted/30',
-      accent: 'border-accent/20 bg-accent/10'
+      default: 'border-border bg-card shadow-xs',
+      muted: 'border-border/60 bg-muted/40',
+      accent: 'border-ring/30 bg-accent/20'
     }
 
     const interactiveClasses = interactive
-      ? 'cursor-pointer transition-all duration-150 hover:bg-accent/50 hover:border-accent/30 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background'
+      ? 'cursor-pointer transition-colors duration-150 hover:bg-muted/70 hover:border-border active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
       : ''
 
     return (
       <div
         ref={ref}
-        className={cn('rounded-xl border', variantClasses[variant], interactiveClasses, className)}
+        className={cn('rounded-lg border', variantClasses[variant], interactiveClasses, className)}
         {...props}
       >
         {children}

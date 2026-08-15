@@ -32,22 +32,22 @@ function GoogleDrivePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-4 py-3 backdrop-blur-md">
+      <div className="border-border bg-card/90 flex items-center justify-between gap-4 border-b px-4 py-2.5 backdrop-blur-md">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-blue-600/15 text-blue-600">
+          <div className="border-border bg-muted/60 text-foreground flex h-9 w-9 items-center justify-center rounded-lg border shadow-xs">
             {getAiIcon('gdrive')}
           </div>
           <div className="min-w-0">
-            <div className="text-ql-14 truncate font-semibold text-stone-200">{title}</div>
-            <div className="text-ql-12 truncate text-stone-500">{description}</div>
+            <div className="text-ql-14 text-foreground truncate font-semibold">{title}</div>
+            <div className="text-ql-12 text-muted-foreground truncate">{description}</div>
           </div>
         </div>
         <button
           type="button"
           onClick={() => driveWebviewRef.current?.reload?.()}
-          className="text-ql-12 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-semibold text-stone-200 transition-colors hover:bg-white/10"
+          className="text-ql-12 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
-          <RefreshIcon className="h-4 w-4" />
+          <RefreshIcon className="h-3.5 w-3.5" />
           {reloadLabel}
         </button>
       </div>

@@ -73,20 +73,18 @@ const TutorialTooltip = memo(function TutorialTooltip({
       aria-modal="true"
       aria-label={title}
       aria-describedby="tutorial-tooltip-body"
-      initial={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.9, y: 20 }}
+      initial={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.96, y: 12 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: prefersReducedMotion ? 0 : 0.22, ease: 'easeOut' }}
-      className="fixed z-[10002] w-[440px] max-w-[calc(100vw-2rem)] rounded-[2rem] border border-white/10 bg-slate-900/90 p-8 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] backdrop-blur-xl outline-none"
+      transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: 'easeOut' }}
+      className="border-border bg-popover text-popover-foreground shadow-ambient-xl fixed z-[10002] w-[420px] max-w-[calc(100vw-2rem)] rounded-2xl border p-6 backdrop-blur-md outline-none"
       style={style}
     >
-      <div className="pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br from-white/5 to-transparent" />
-
-      <div className="relative mb-6 flex items-center gap-5">
-        <div className="text-ql-20 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 font-black text-white shadow-lg shadow-amber-500/20">
+      <div className="relative mb-4 flex items-center gap-4">
+        <div className="text-ql-16 bg-primary text-primary-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold shadow-xs">
           {step + 1}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-ql-20 font-black tracking-tight text-white">{title}</h3>
+          <h3 className="text-ql-16 text-foreground font-bold">{title}</h3>
           <div
             className="mt-1 flex items-center gap-1.5"
             role="progressbar"
@@ -98,8 +96,8 @@ const TutorialTooltip = memo(function TutorialTooltip({
               <div
                 // eslint-disable-next-line react/no-array-index-key -- Static step dots, stable order
                 key={i}
-                className={`h-1 rounded-full transition-all duration-300 ${
-                  i === step ? 'w-6 bg-amber-400' : 'w-2 bg-white/10'
+                className={`h-1 rounded-full transition-all duration-200 ${
+                  i === step ? 'bg-primary w-5' : 'bg-muted w-1.5'
                 }`}
               />
             ))}
@@ -107,16 +105,16 @@ const TutorialTooltip = memo(function TutorialTooltip({
         </div>
       </div>
 
-      <div className="relative mb-8" id="tutorial-tooltip-body">
-        <p className="text-ql-16 leading-relaxed font-medium text-white/70">{body}</p>
+      <div className="relative mb-6" id="tutorial-tooltip-body">
+        <p className="text-ql-14 text-muted-foreground leading-relaxed">{body}</p>
       </div>
 
-      <div className="relative flex items-center justify-between border-t border-white/5 pt-6">
+      <div className="border-border relative flex items-center justify-between border-t pt-4">
         <div className="flex items-center gap-2">
           {!isFirstStep && (
             <button
               onClick={onBack}
-              className="text-ql-14 flex items-center gap-1.5 px-4 py-2.5 font-bold text-white/40 transition-colors hover:text-white/70"
+              className="text-ql-13 text-muted-foreground hover:text-foreground flex items-center gap-1.5 px-3 py-1.5 font-medium transition-colors"
               aria-label={backLabel}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -125,37 +123,37 @@ const TutorialTooltip = memo(function TutorialTooltip({
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={onSkip}
-            className="text-ql-14 tracking-ql-caps px-5 py-2.5 font-bold text-white/30 uppercase transition-colors hover:text-white/60"
+            className="text-ql-12 text-muted-foreground hover:text-foreground px-3 py-1.5 font-medium transition-colors"
           >
             {skipLabel}
           </button>
           <button
             onClick={isLastStep ? onFinish : onNext}
-            className="group text-ql-14 flex items-center gap-2 rounded-2xl bg-white px-7 py-3 font-black text-slate-900 shadow-xl shadow-white/10 transition-colors hover:scale-105 active:scale-95"
+            className="group text-ql-13 bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 rounded-lg px-4 py-2 font-semibold shadow-xs transition-colors"
             aria-label={isLastStep ? finishLabel : nextLabel}
           >
             {isLastStep ? finishLabel : nextLabel}
             {!isLastStep && (
               <motion.svg
-                className="h-4 w-4"
+                className="h-3.5 w-3.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                animate={prefersReducedMotion ? undefined : { x: [0, 3, 0] }}
+                animate={prefersReducedMotion ? undefined : { x: [0, 2, 0] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={3}
+                  strokeWidth={2.5}
                   d="M9 5l7 7-7 7"
                 />
               </motion.svg>
             )}
-            {isLastStep && <ArrowRight className="h-4 w-4" />}
+            {isLastStep && <ArrowRight className="h-3.5 w-3.5" />}
           </button>
         </div>
       </div>

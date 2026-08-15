@@ -83,23 +83,23 @@ function PdfRecentListItem({
       aria-label={`${t('continue_reading')}: ${item.name}`}
       title={item.name}
       active={!!activePdfPath && item.path === activePdfPath}
-      className={`pdf-recent-item group ${isInvalid ? 'border border-red-500/20 bg-red-500/[0.05] text-stone-300/80 hover:border-red-500/30' : ''}`}
+      className={`pdf-recent-item group ${isInvalid ? 'border-destructive/30 bg-destructive/5 text-foreground border' : ''}`}
       interactive={!isInvalid}
     >
       <div className="relative z-10 flex w-full items-center gap-3">
         <IconBadge
           icon={FileText}
           variant={isInvalid ? 'danger' : 'warning'}
-          size="lg"
+          size="md"
           className="shrink-0"
         />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-ql-16 truncate font-semibold">{item.name}</span>
+            <span className="text-ql-14 text-foreground truncate font-semibold">{item.name}</span>
           </div>
           <div
-            className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-1 ${isInvalid ? 'text-red-200/80' : 'text-stone-400'}`}
+            className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-1 ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
           >
             <span>
               {t('resume_last_page')}: {pageMeta}
@@ -109,16 +109,16 @@ function PdfRecentListItem({
               {t('last_opened')}: {openedMeta}
             </span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="bg-muted mt-2 h-1.5 overflow-hidden rounded-full">
             <div
-              className={`h-full rounded-full ${isInvalid ? 'bg-red-500/40' : 'bg-amber-400/80'}`}
+              className={`h-full rounded-full ${isInvalid ? 'bg-destructive/50' : 'bg-primary/80'}`}
               style={{
                 width: `${Number.isFinite(progress) ? Math.round(progress * 100) : 0}%`
               }}
             />
           </div>
           {isInvalid && (
-            <div className="text-ql-12 mt-1.5 text-red-200/80">{t('recent_invalid_hint')}</div>
+            <div className="text-ql-12 text-destructive mt-1.5">{t('recent_invalid_hint')}</div>
           )}
         </div>
 
@@ -126,10 +126,10 @@ function PdfRecentListItem({
           {isInvalid && onRelink ? (
             <Button
               type="button"
-              size="sm"
-              variant="ghost"
+              size="xs"
+              variant="outline"
               onClick={relinkItem}
-              className="glass-tier-3 glass-interactive h-8 rounded-lg border-white/[0.1] px-2.5 text-stone-200 transition-colors transition-opacity duration-200 ease-out hover:border-emerald-400/30 hover:bg-emerald-500/10 hover:text-emerald-100 active:scale-95 active:border-emerald-400/40 active:bg-emerald-500/15"
+              className="text-foreground h-7 rounded-md px-2.5 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
               aria-label={t('choose_new_location')}
             >
               <FolderOpen className="h-3.5 w-3.5" />
@@ -138,10 +138,10 @@ function PdfRecentListItem({
           ) : (
             <Button
               type="button"
-              size="sm"
-              variant="ghost"
+              size="xs"
+              variant="outline"
               onClick={resumeItem}
-              className="glass-tier-3 glass-interactive h-8 rounded-lg border-white/[0.1] px-2.5 text-stone-200 opacity-100 transition-colors transition-opacity duration-200 ease-out hover:border-amber-400/30 hover:bg-amber-500/10 hover:text-amber-100 active:scale-95 active:border-amber-400/40 active:bg-amber-500/15 md:opacity-[0.55] md:group-focus-within:opacity-100 md:group-hover:opacity-100"
+              className="text-foreground hover:border-ring/50 hover:bg-accent h-7 rounded-md px-2.5 opacity-100 transition-opacity md:opacity-70 md:group-hover:opacity-100"
               aria-label={t('continue_reading')}
             >
               <Play className="h-3.5 w-3.5" />
@@ -153,11 +153,11 @@ function PdfRecentListItem({
             <button
               type="button"
               onClick={handleRemove}
-              className="glass-tier-3 glass-interactive h-8 w-8 rounded-lg border-white/[0.1] text-stone-400 opacity-100 transition-colors duration-300 ease-out hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-200 focus-visible:ring-2 focus-visible:ring-red-400/80 focus-visible:outline-none active:scale-95 active:border-red-500/40 active:bg-red-500/20 md:opacity-[0.55] md:group-focus-within:opacity-100 md:group-hover:opacity-100"
+              className="border-border/60 bg-card/60 text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-7 w-7 items-center justify-center rounded-md border opacity-100 transition-colors focus-visible:ring-2 focus-visible:outline-none md:opacity-70 md:group-hover:opacity-100"
               aria-label={t('remove_from_history')}
               title={t('remove_from_history')}
             >
-              <Trash2 className="mx-auto h-4 w-4" />
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

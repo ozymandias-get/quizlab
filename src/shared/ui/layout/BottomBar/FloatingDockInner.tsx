@@ -57,7 +57,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
       <GeminiToolButton onOpenSettings={onOpenSettings} />
 
       <div
-        className="my-[calc(0.25rem*var(--bar-scale-factor,1))] h-px w-4 bg-white/10"
+        className="bg-border/80 my-[calc(0.25rem*var(--bar-scale-factor,1))] h-px w-4"
         role="separator"
       />
 

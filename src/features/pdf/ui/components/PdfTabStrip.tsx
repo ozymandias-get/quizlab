@@ -91,9 +91,11 @@ function PdfTabStrip({
 
   const getTabIcon = useCallback((tab: PdfTab) => {
     if (tab.kind === 'drive') {
-      return getAiIcon('gdrive') || <FileText className="h-3.5 w-3.5 shrink-0 text-white/85" />
+      return (
+        getAiIcon('gdrive') || <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+      )
     }
-    return <FileText className="h-3.5 w-3.5 shrink-0 text-white/85" />
+    return <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
   }, [])
 
   const {
@@ -223,7 +225,7 @@ function PdfTabStrip({
             icon={Plus}
             tooltip={t('add_pdf')}
             onClick={onAddTab}
-            className="text-white/75 hover:bg-white/[0.08] hover:text-white"
+            className="rounded-full"
           />
         </div>
       </div>

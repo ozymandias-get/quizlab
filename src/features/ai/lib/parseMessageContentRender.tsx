@@ -33,7 +33,7 @@ function renderLine(line: string, lineIndex: number): ReactNode {
     return (
       <div
         key={`l-${lineIndex}`}
-        className={`${HEADING_SIZES[level - 1]} ${HEADING_WEIGHTS[level - 1]} mt-3 mb-1.5 text-white/90`}
+        className={`${HEADING_SIZES[level - 1]} ${HEADING_WEIGHTS[level - 1]} text-foreground mt-3 mb-1.5`}
       >
         {formatInline(text)}
       </div>
@@ -45,7 +45,7 @@ function renderLine(line: string, lineIndex: number): ReactNode {
     return (
       <div
         key={`l-${lineIndex}`}
-        className="my-1.5 border-l-2 border-amber-500/40 py-0.5 pl-3 text-white/60 italic"
+        className="border-primary/40 text-muted-foreground my-1.5 border-l-2 py-0.5 pl-3 italic"
       >
         {formatInline(text)}
       </div>
@@ -53,7 +53,7 @@ function renderLine(line: string, lineIndex: number): ReactNode {
   }
 
   if (HR_REGEX.test(trimmed)) {
-    return <div key={`l-${lineIndex}`} className="my-3 border-t border-white/8" />
+    return <div key={`l-${lineIndex}`} className="border-border my-3 border-t" />
   }
 
   if (TASK_LIST_REGEX.test(trimmed)) {
@@ -62,11 +62,13 @@ function renderLine(line: string, lineIndex: number): ReactNode {
     return (
       <div key={`l-${lineIndex}`} className="my-1 ml-1 flex gap-2">
         <span
-          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${checked ? 'border-amber-500/50 bg-amber-500/30' : 'border-white/20'}`}
+          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
         >
-          {checked && <Check className="h-2.5 w-2.5 text-amber-300" />}
+          {checked && <Check className="h-2.5 w-2.5" />}
         </span>
-        <span className={`text-white/80 ${checked ? 'text-white/40 line-through' : ''}`}>
+        <span
+          className={`text-foreground/90 ${checked ? 'text-muted-foreground line-through' : ''}`}
+        >
           {formatInline(text)}
         </span>
       </div>
@@ -79,8 +81,8 @@ function renderLine(line: string, lineIndex: number): ReactNode {
     const text = trimmed.replace(ORDERED_LIST_PREFIX_REGEX, '')
     return (
       <div key={`l-${lineIndex}`} className="my-0.5 ml-1 flex gap-2">
-        <span className="shrink-0 text-white/40 select-none">{num}.</span>
-        <span className="text-white/80">{formatInline(text)}</span>
+        <span className="text-muted-foreground shrink-0 select-none">{num}.</span>
+        <span className="text-foreground/90">{formatInline(text)}</span>
       </div>
     )
   }
@@ -89,14 +91,14 @@ function renderLine(line: string, lineIndex: number): ReactNode {
     const text = trimmed.replace(UNORDERED_LIST_PREFIX_REGEX, '')
     return (
       <div key={`l-${lineIndex}`} className="my-0.5 ml-1 flex gap-2">
-        <span className="shrink-0 text-white/40">•</span>
-        <span className="text-white/80">{formatInline(text)}</span>
+        <span className="text-muted-foreground shrink-0">•</span>
+        <span className="text-foreground/90">{formatInline(text)}</span>
       </div>
     )
   }
 
   return (
-    <div key={`l-${lineIndex}`} className="my-0.5 text-white/80">
+    <div key={`l-${lineIndex}`} className="text-foreground/90 my-0.5">
       {formatInline(line)}
     </div>
   )

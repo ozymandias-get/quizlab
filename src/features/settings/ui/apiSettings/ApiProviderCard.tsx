@@ -41,20 +41,20 @@ function ApiProviderCard({
   )
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-4">
+    <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-xs">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-ql-11 rounded-full bg-white/5 px-2 py-0.5 font-mono text-white/40">
+          <span className="text-ql-11 bg-muted text-muted-foreground rounded-md px-2 py-0.5 font-mono">
             {provider.providerType}
           </span>
-          <span className="text-ql-13 font-medium text-white/70">
+          <span className="text-ql-13 text-foreground font-semibold">
             {provider.name || t('unnamed_provider')}
           </span>
         </div>
         <button
           type="button"
           onClick={() => onRemove(provider.id)}
-          className="text-ql-12 text-red-400/60 transition-colors hover:text-red-400"
+          className="text-ql-12 text-muted-foreground hover:text-destructive transition-colors"
         >
           {t('delete')}
         </button>
@@ -62,7 +62,7 @@ function ApiProviderCard({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <Label htmlFor={nameId} className="text-ql-11 text-white/40">
+          <Label htmlFor={nameId} className="text-ql-11 text-muted-foreground font-medium">
             {t('name')}
           </Label>
           <Input
@@ -73,7 +73,7 @@ function ApiProviderCard({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor={baseUrlId} className="text-ql-11 text-white/40">
+          <Label htmlFor={baseUrlId} className="text-ql-11 text-muted-foreground font-medium">
             {t('api_chat_base_url')}
           </Label>
           <Input
@@ -85,7 +85,7 @@ function ApiProviderCard({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor={apiKeyId} className="text-ql-11 text-white/40">
+          <Label htmlFor={apiKeyId} className="text-ql-11 text-muted-foreground font-medium">
             {t('api_chat_api_key')}
           </Label>
           <div className="relative">
@@ -101,7 +101,7 @@ function ApiProviderCard({
               type="button"
               tabIndex={-1}
               onClick={() => setShowApiKey((prev) => !prev)}
-              className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center justify-center text-white/40 transition-colors hover:text-white/70"
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 flex -translate-y-1/2 items-center justify-center transition-colors"
               aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
             >
               {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -109,7 +109,7 @@ function ApiProviderCard({
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor={defaultModelId} className="text-ql-11 text-white/40">
+          <Label htmlFor={defaultModelId} className="text-ql-11 text-muted-foreground font-medium">
             {t('api_chat_default_model')}
           </Label>
           <Input
@@ -127,7 +127,7 @@ function ApiProviderCard({
           type="button"
           onClick={() => onTestConnection(provider.id)}
           disabled={testing}
-          className="text-ql-12 rounded-lg border border-white/8 px-3 py-1.5 text-white/50 transition-colors hover:border-white/16 hover:text-white/80 disabled:opacity-50"
+          className="text-ql-12 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
         >
           {testing ? t('testing') : t('api_chat_test_connection')}
         </button>
@@ -135,14 +135,14 @@ function ApiProviderCard({
           type="button"
           onClick={() => onFetchModels(provider.id)}
           disabled={fetchingModels || !provider.apiKey || !provider.baseUrl}
-          className="text-ql-12 rounded-lg border border-white/8 px-3 py-1.5 text-white/50 transition-colors hover:border-white/16 hover:text-white/80 disabled:opacity-50"
+          className="text-ql-12 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
         >
           {fetchingModels ? t('fetching') : t('api_chat_fetch_models')}
         </button>
       </div>
       {testResult && (
         <span
-          className={`text-ql-11 block ${testResult.startsWith('OK') ? 'text-green-400/70' : 'text-red-400/70'}`}
+          className={`text-ql-11 block font-medium ${testResult.startsWith('OK') ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}
         >
           {testResult}
         </span>
@@ -151,7 +151,7 @@ function ApiProviderCard({
       {(provider.models || []).length > 0 && (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <label className="text-ql-11 text-white/40">
+            <label className="text-ql-11 text-muted-foreground font-medium">
               {t('api_chat_models_count')} ({provider.models.length})
             </label>
             <Input
@@ -161,19 +161,21 @@ function ApiProviderCard({
               placeholder={t('api_chat_search_models')}
             />
           </div>
-          <div className="max-h-[120px] overflow-y-auto rounded-lg border border-white/8 bg-zinc-900/40 p-1">
+          <div className="border-border bg-muted/30 max-h-[140px] overflow-y-auto rounded-lg border p-1">
             {filteredModels.length === 0 ? (
-              <p className="text-ql-11 px-2 py-1 text-white/30">{t('api_chat_no_models_found')}</p>
+              <p className="text-ql-11 text-muted-foreground px-2 py-1">
+                {t('api_chat_no_models_found')}
+              </p>
             ) : (
               filteredModels.map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => onUpdate(provider.id, { defaultModel: m })}
-                  className={`text-ql-11 w-full rounded px-2 py-1 text-left transition-colors ${
+                  className={`text-ql-11 w-full rounded-md px-2 py-1 text-left transition-colors ${
                     m === provider.defaultModel
-                      ? 'bg-amber-500/10 text-amber-400'
-                      : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+                      ? 'bg-primary/10 text-primary font-semibold'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
                   {m}

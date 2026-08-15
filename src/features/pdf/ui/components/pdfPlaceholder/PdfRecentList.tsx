@@ -63,7 +63,7 @@ function PdfRecentList({
       {groupedItems.map((group) => (
         <div key={group.id} className="space-y-2">
           {group.labelKey && (
-            <div className="text-ql-10 tracking-ql-chrome px-1 text-stone-500 uppercase">
+            <div className="text-ql-10 tracking-ql-chrome text-muted-foreground px-1 font-semibold uppercase">
               {t(group.labelKey)}
             </div>
           )}
