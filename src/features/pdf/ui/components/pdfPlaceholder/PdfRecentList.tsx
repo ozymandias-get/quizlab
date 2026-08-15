@@ -46,12 +46,21 @@ function PdfRecentList({
         icon={History}
         title={t('resume_empty_title')}
         description={t('resume_empty_desc')}
+        size="sm"
+        className="border-border/60 bg-card/40 p-4"
       />
     )
   }
 
   if (processedCount === 0) {
-    return <EmptyState icon={Search} title={t('search_no_results')} />
+    return (
+      <EmptyState
+        icon={Search}
+        title={t('search_no_results')}
+        size="sm"
+        className="border-border/60 bg-card/40 p-4"
+      />
+    )
   }
 
   if (!canResume) {
