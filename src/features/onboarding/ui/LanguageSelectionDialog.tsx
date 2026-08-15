@@ -114,8 +114,8 @@ export function LanguageSelectionDialog() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="z-modal fixed inset-0 flex items-center justify-center bg-[rgba(2,6,12,0.72)] backdrop-blur-xl"
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="z-modal bg-background/60 fixed inset-0 flex items-center justify-center backdrop-blur-md"
         >
           <motion.div
             ref={dialogRef}
@@ -123,18 +123,18 @@ export function LanguageSelectionDialog() {
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            initial={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 18, scale: 0.96 }) }}
+            initial={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 12, scale: 0.98 }) }}
             animate={{ opacity: 1, ...(prefersReducedMotion ? {} : { y: 0, scale: 1 }) }}
-            exit={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 8, scale: 0.98 }) }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="glass-tier-1 glass-tier-card mx-6 w-full max-w-md rounded-[2rem] p-8 text-center outline-none"
+            exit={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 6, scale: 0.98 }) }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="border-border bg-popover text-popover-foreground shadow-ambient-xl mx-4 w-full max-w-md rounded-2xl border p-6 text-center outline-none"
           >
-            <h2 id={titleId} className="text-ql-28 font-semibold text-white">
+            <h2 id={titleId} className="text-ql-20 text-foreground font-semibold">
               Select Your Language
             </h2>
-            <p className="text-ql-14 mt-2 text-white/60">Dilinizi Seçin</p>
+            <p className="text-ql-13 text-muted-foreground mt-1">Dilinizi Seçin</p>
 
-            <div className="mt-8 flex flex-col gap-4">
+            <div className="mt-6 flex flex-col gap-2.5">
               {Object.values(languages).map((lang) => {
                 const isSelected = selectedLang === lang.code
                 return (
@@ -142,21 +142,23 @@ export function LanguageSelectionDialog() {
                     key={lang.code}
                     type="button"
                     onClick={() => setSelectedLang(lang.code)}
-                    className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition-all focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:outline-none ${
+                    className={`focus-visible:ring-ring/40 flex items-center gap-3.5 rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                       isSelected
-                        ? 'border-emerald-400/60 bg-emerald-400/10 ring-1 ring-emerald-400/40'
-                        : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.06]'
+                        ? 'border-ring bg-accent/30 shadow-xs'
+                        : 'border-border bg-card hover:border-border hover:bg-muted/60'
                     } `}
                   >
-                    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.06] text-2xl">
+                    <span className="border-border/60 bg-muted flex h-10 w-10 items-center justify-center rounded-lg border text-xl">
                       {lang.flag}
                     </span>
                     <div className="flex flex-col">
-                      <span className="text-ql-16 font-semibold text-white">{lang.nativeName}</span>
-                      <span className="text-ql-13 text-white/50">{lang.name}</span>
+                      <span className="text-ql-14 text-foreground font-semibold">
+                        {lang.nativeName}
+                      </span>
+                      <span className="text-ql-12 text-muted-foreground">{lang.name}</span>
                     </div>
                     {isSelected && (
-                      <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400 text-xs text-white">
+                      <span className="bg-primary text-primary-foreground ml-auto flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
                         ✓
                       </span>
                     )}
@@ -169,7 +171,7 @@ export function LanguageSelectionDialog() {
               type="button"
               onClick={handleContinue}
               disabled={!selectedLang}
-              className="text-ql-14 mt-8 inline-flex w-full items-center justify-center rounded-full px-6 py-3 font-semibold transition-all focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:outline-none enabled:bg-emerald-400/90 enabled:text-white enabled:hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+              className="text-ql-13 focus-visible:ring-ring/40 enabled:bg-primary enabled:text-primary-foreground enabled:hover:bg-primary/90 mt-6 inline-flex w-full items-center justify-center rounded-lg px-5 py-2.5 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
             >
               Continue &rarr;
             </button>

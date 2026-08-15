@@ -48,20 +48,20 @@ function PdfPageNav({
   }, [])
 
   return (
-    <div className="glass-tier-3 glass-tier-toolbar flex items-center gap-1 p-1.5">
+    <div className="glass-tier-3 glass-tier-toolbar border-border/70 bg-card/60 flex items-center gap-1 rounded-lg border p-1.5 shadow-xs">
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         onClick={onPreviousPage}
         disabled={currentPage <= 1}
-        className="h-8 w-8 rounded-xl text-white/50 transition-[background-color,color,border-color,box-shadow] duration-200 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-25 disabled:hover:bg-transparent [&_svg]:transition-none"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
         title={t('prev_page')}
         aria-label={t('prev_page')}
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-3.5 w-3.5" />
       </Button>
 
-      <div className="h-5 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+      <div className="bg-border/80 h-4 w-px" />
 
       {isEditingPage ? (
         <input
@@ -79,31 +79,32 @@ function PdfPageNav({
             }
           }}
           onBlur={submitPageInput}
-          className="text-ql-12 rounded-md border border-white/20 bg-white/[0.08] px-2 py-0.5 text-center font-medium text-white/80 tabular-nums transition-colors outline-none focus:border-amber-500/50 focus:bg-white/[0.12]"
-          style={{ width: `${Math.max(60, totalPages.toString().length * 12 + 24)}px` }}
+          className="text-ql-12 border-border bg-background text-foreground focus:border-ring rounded-md border px-1.5 py-0.5 text-center font-medium tabular-nums outline-none"
+          style={{ width: `${Math.max(54, totalPages.toString().length * 10 + 20)}px` }}
         />
       ) : (
         <button
           type="button"
           onClick={startPageInput}
-          className="text-ql-12 min-w-[60px] cursor-text px-3 text-center font-medium text-white/70 tabular-nums transition-colors hover:text-white/90"
+          className="text-ql-12 text-foreground hover:text-primary min-w-[54px] cursor-text px-2 text-center font-medium tabular-nums transition-colors"
         >
-          {currentPage} <span className="mx-0.5 text-white/20">/</span> {totalPages}
+          {currentPage} <span className="text-muted-foreground/40 mx-0.5">/</span>{' '}
+          <span className="text-muted-foreground">{totalPages}</span>
         </button>
       )}
 
-      <div className="h-5 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+      <div className="bg-border/80 h-4 w-px" />
 
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         onClick={onNextPage}
         disabled={currentPage >= totalPages}
-        className="h-8 w-8 rounded-xl text-white/50 transition-[background-color,color,border-color,box-shadow] duration-200 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-25 disabled:hover:bg-transparent [&_svg]:transition-none"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
         title={t('next_page')}
         aria-label={t('next_page')}
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-3.5 w-3.5" />
       </Button>
     </div>
   )

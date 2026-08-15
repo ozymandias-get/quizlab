@@ -72,11 +72,11 @@ const AddAiModelForm = memo(function AddAiModelForm({
             }
           }}
           onSubmit={handleAddAi}
-          className="mb-6 space-y-4 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 shadow-xl"
+          className="border-border bg-card shadow-ambient-md mb-6 space-y-4 overflow-hidden rounded-xl border p-5"
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-ql-11 pl-1 font-medium text-white/45">{t('name')}</label>
+              <label className="text-ql-11 text-foreground pl-1 font-semibold">{t('name')}</label>
               <Input
                 value={newAiName}
                 onChange={(e) => setNewAiName(e.target.value)}
@@ -84,7 +84,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-ql-11 pl-1 font-medium text-white/45">{t('url')}</label>
+              <label className="text-ql-11 text-foreground pl-1 font-semibold">{t('url')}</label>
               <Input
                 value={newAiUrl}
                 onChange={(e) => setNewAiUrl(e.target.value)}
@@ -96,7 +96,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
             <button
               type="submit"
               disabled={isAdding || !newAiName.trim() || !newAiUrl.trim()}
-              className="text-ql-11 rounded-xl bg-blue-600 px-6 py-2 font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500 disabled:opacity-50"
+              className="text-ql-11 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 rounded-lg px-5 py-2 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
             >
               {isAdding ? t('adding') : t('save_platform')}
             </button>

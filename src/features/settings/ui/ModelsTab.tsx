@@ -18,7 +18,7 @@ import { isCustomModelPlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const MODELS_ICON = (
-  <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 p-2.5 text-blue-400">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <GridIcon className="h-5 w-5" />
   </div>
 )
@@ -162,11 +162,11 @@ const ModelsTab = memo(() => {
         />
       }
       footer={
-        <div className="border-t border-white/[0.04] px-1 pt-4">
-          <p className="text-ql-11 text-foreground/75 tracking-wide">
+        <div className="border-border border-t px-1 pt-4">
+          <p className="text-ql-11 text-muted-foreground tracking-wide">
             {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
           </p>
-          <p className="text-ql-11 text-foreground/65 mt-1 tracking-wide">
+          <p className="text-ql-11 text-muted-foreground mt-1 tracking-wide">
             {t('google_models_managed_separately')}
           </p>
         </div>

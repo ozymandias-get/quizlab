@@ -9,7 +9,6 @@ import {
   type MouseEvent as ReactMouseEvent,
   type RefObject,
   useCallback,
-  useMemo,
   useRef
 } from 'react'
 
@@ -37,7 +36,7 @@ interface AiVisibleTabButtonProps {
 function AiVisibleTabButton({
   tab,
   label,
-  tabColor,
+  tabColor: _tabColor,
   isActive,
   isEditing,
   editingValue,
@@ -123,22 +122,6 @@ function AiVisibleTabButton({
     [onClose, tabId]
   )
 
-  const buttonStyle = useMemo(
-    () =>
-      isActive
-        ? {
-            borderColor: `${tabColor}66`,
-            background: `linear-gradient(145deg, ${tabColor}22, oklch(1 0 0 / 0.05))`,
-            boxShadow: `0 0 18px -8px ${tabColor}66, inset 0 1px 0 oklch(1 0 0 / 0.1)`
-          }
-        : {
-            borderColor: 'oklch(1 0 0 / 0.08)',
-            background: 'linear-gradient(145deg, oklch(1 0 0 / 0.06), oklch(1 0 0 / 0.02))',
-            boxShadow: 'inset 0 1px 0 oklch(1 0 0 / 0.05)'
-          },
-    [isActive, tabColor]
-  )
-
   return (
     <motion.div
       role="tab"
@@ -152,18 +135,24 @@ function AiVisibleTabButton({
       }}
       whileHover={{
         y: -0.5,
-        scale: 1.005,
-        transition: { type: 'tween', duration: 0.15 }
+        transition: { type: 'tween', duration: 0.12, ease: 'easeOut' }
       }}
-      whileTap={{ scale: 0.99, transition: { duration: 0.08 } }}
-      className="group relative flex h-8 max-w-[260px] min-w-0 cursor-pointer items-center gap-2 rounded-full border px-3.5 pr-16 transition-colors transition-shadow duration-150"
-      style={buttonStyle}
+      whileTap={{ scale: 0.99 }}
+      className={`group focus-visible:ring-ring/40 relative flex h-8 max-w-[240px] min-w-0 cursor-pointer items-center gap-2 rounded-full border px-3 pr-14 transition-colors duration-150 outline-none select-none focus-visible:ring-2 ${
+        isActive
+          ? 'border-border bg-card text-foreground shadow-xs'
+          : 'text-muted-foreground hover:border-border/60 hover:bg-muted/40 hover:text-foreground border-transparent bg-transparent'
+      }`}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       title={label}
     >
-      <span className="shrink-0 text-white/90">
+      {isActive && (
+        <div className="bg-primary/70 pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
+      )}
+
+      <span className="text-muted-foreground group-hover:text-foreground shrink-0 transition-colors">
         {getAiIcon(iconKey || tab.modelId) || (
           <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
         )}
@@ -178,13 +167,18 @@ function AiVisibleTabButton({
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={tr('tab_rename_placeholder', 'Tab name...')}
-          className="text-ql-12 h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
+          className="text-ql-12 text-foreground h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
           style={
-            labelWidthRef.current ? { width: labelWidthRef.current, maxWidth: 260 } : undefined
+            labelWidthRef.current ? { width: labelWidthRef.current, maxWidth: 240 } : undefined
           }
         />
       ) : (
-        <span ref={labelRef} className="text-ql-12 min-w-0 truncate text-white/85">
+        <span
+          ref={labelRef}
+          className={`text-ql-12 min-w-0 truncate font-medium ${
+            isActive ? 'text-foreground' : 'text-muted-foreground'
+          }`}
+        >
           {label}
         </span>
       )}
@@ -197,8 +191,8 @@ function AiVisibleTabButton({
           title={tab.pinned ? tr('tab_pinned', 'Pinned') : tr('tab_pin', 'Pin')}
           className={`flex items-center justify-center rounded-md border p-1 transition-opacity ${
             tab.pinned
-              ? 'border-white/25 bg-white/15 text-white'
-              : 'border-white/15 bg-black/35 text-white/60 opacity-[0.55] group-focus-within:opacity-100 group-hover:opacity-100 hover:text-white hover:opacity-100'
+              ? 'border-ring/50 bg-accent text-foreground'
+              : 'border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-primary opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
           }`}
           onClick={handleTogglePin}
           onKeyDown={(e) => {
@@ -217,7 +211,7 @@ function AiVisibleTabButton({
           tabIndex={-1}
           aria-label={tr('tab_close', 'Close')}
           title={tr('tab_close', 'Close')}
-          className="flex items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 opacity-[0.55] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-white hover:opacity-100"
+          className="border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive flex items-center justify-center rounded-md border p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
           onClick={handleClose}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {

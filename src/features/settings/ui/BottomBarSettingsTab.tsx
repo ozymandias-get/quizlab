@@ -31,7 +31,7 @@ const TOOL_LIST: ToolItem[] = [
 ]
 
 const BOTTOM_BAR_ICON = (
-  <div className="rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/20 to-cyan-500/20 p-2.5 text-sky-400">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <SliderIcon className="h-5 w-5" />
   </div>
 )
@@ -53,28 +53,23 @@ const BottomBarSettingsTab = memo(() => {
     }))
   )
 
-  const visibleToolCount = useMemo(() => {
-    return Object.values(visibleTools).filter(Boolean).length
-  }, [visibleTools])
-
-  const visibleModelCount = useMemo(() => {
-    return enabledModels.filter((id) => visibleModels[id] !== false).length
-  }, [enabledModels, visibleModels])
-
-  const visibleToolsFiltered = useMemo(() => {
-    return TOOL_LIST.filter((tool) => tool.id !== 'tool-gemini-web' || isGeminiWebEnabled)
-  }, [isGeminiWebEnabled])
+  const visibleToolsFiltered = useMemo(
+    () => TOOL_LIST.filter((tool) => tool.id !== 'tool-gemini-web' || isGeminiWebEnabled),
+    [isGeminiWebEnabled]
+  )
 
   const handleToggleTool = useCallback(
     (toolId: string) => {
-      setVisibleTool(toolId, !visibleTools[toolId])
+      const currentVisible = visibleTools[toolId] !== false
+      setVisibleTool(toolId, !currentVisible)
     },
     [visibleTools, setVisibleTool]
   )
 
   const handleToggleModel = useCallback(
     (modelId: string) => {
-      setVisibleModel(modelId, visibleModels[modelId] !== false ? false : true)
+      const currentVisible = visibleModels[modelId] !== false
+      setVisibleModel(modelId, !currentVisible)
     },
     [visibleModels, setVisibleModel]
   )
@@ -84,6 +79,16 @@ const BottomBarSettingsTab = memo(() => {
       setEnabledModels(newOrder)
     },
     [setEnabledModels]
+  )
+
+  const visibleToolCount = useMemo(
+    () => visibleToolsFiltered.filter((tool) => visibleTools[tool.id] !== false).length,
+    [visibleToolsFiltered, visibleTools]
+  )
+
+  const visibleModelCount = useMemo(
+    () => enabledModels.filter((modelId) => visibleModels[modelId] !== false).length,
+    [enabledModels, visibleModels]
   )
 
   return (
@@ -100,15 +105,15 @@ const BottomBarSettingsTab = memo(() => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.05 }}
-        className="bg-card space-y-4 rounded-xl border border-white/[0.05] p-5"
+        className="bg-card border-border space-y-4 rounded-xl border p-5 shadow-xs"
       >
         <div className="flex items-center gap-3">
-          <div className="border-border rounded-lg border bg-white/[0.04] p-2 text-white/30">
+          <div className="border-border bg-muted text-primary rounded-lg border p-2">
             <SliderIcon className="h-4 w-4" />
           </div>
           <div className="space-y-0.5">
             <h3 className="text-foreground text-sm font-bold">{t('tools_visibility')}</h3>
-            <p className="text-ql-11 tracking-wide text-white/34">{t('tools_visibility_desc')}</p>
+            <p className="text-ql-12 text-muted-foreground">{t('tools_visibility_desc')}</p>
           </div>
         </div>
 
@@ -119,18 +124,18 @@ const BottomBarSettingsTab = memo(() => {
             return (
               <Field
                 key={tool.id}
-                className={`group flex cursor-pointer items-center justify-between rounded-[16px] border p-3 transition-colors duration-300 ${
+                className={`group flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors duration-150 ${
                   isVisible
-                    ? 'border-white/[0.12] bg-white/[0.06] shadow-lg'
-                    : 'bg-card border-white/[0.05] hover:bg-white/[0.04]'
+                    ? 'border-primary/30 bg-muted/70 shadow-xs'
+                    : 'bg-card border-border hover:bg-muted/40'
                 } `}
                 onClick={() => handleToggleTool(tool.id)}
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`h-2 w-2 rounded-full transition-colors duration-300 ${isVisible ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-white/20'} `}
+                    className={`h-2 w-2 rounded-full transition-colors duration-200 ${isVisible ? 'bg-emerald-500 shadow-xs' : 'bg-muted-foreground/30'} `}
                   />
-                  <Label className="text-foreground/90 cursor-pointer text-xs font-medium">
+                  <Label className="text-foreground cursor-pointer text-xs font-medium">
                     {t(tool.nameKey, { defaultValue: tool.id })}
                   </Label>
                 </div>
@@ -144,7 +149,7 @@ const BottomBarSettingsTab = memo(() => {
           })}
         </div>
 
-        <div className="text-ql-11 pt-1 tracking-wide text-white/30">
+        <div className="text-ql-11 text-muted-foreground pt-1 tracking-wide">
           {visibleToolCount} / {visibleToolsFiltered.length} tools visible
         </div>
       </motion.div>
@@ -154,15 +159,15 @@ const BottomBarSettingsTab = memo(() => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.05, delay: 0.05 }}
-        className="bg-card space-y-4 rounded-xl border border-white/[0.05] p-5"
+        className="bg-card border-border space-y-4 rounded-xl border p-5 shadow-xs"
       >
         <div className="flex items-center gap-3">
-          <div className="border-border rounded-lg border bg-white/[0.04] p-2 text-white/30">
+          <div className="border-border bg-muted text-primary rounded-lg border p-2">
             <GridIcon className="h-4 w-4" />
           </div>
           <div className="space-y-0.5">
             <h3 className="text-foreground text-sm font-bold">{t('model_visibility')}</h3>
-            <p className="text-ql-11 tracking-wide text-white/34">{t('model_visibility_desc')}</p>
+            <p className="text-ql-12 text-muted-foreground">{t('model_visibility_desc')}</p>
           </div>
         </div>
 
@@ -204,23 +209,26 @@ const BottomBarSettingsTab = memo(() => {
                 }}
               >
                 <Field
-                  className={`group flex cursor-pointer items-center justify-between rounded-[16px] border p-3 transition-colors duration-300 ${
+                  className={`group flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors duration-150 ${
                     isVisible
-                      ? 'border-white/[0.12] bg-white/[0.06] shadow-lg'
-                      : 'bg-card border-white/[0.05] hover:bg-white/[0.04]'
+                      ? 'border-primary/30 bg-muted/70 shadow-xs'
+                      : 'bg-card border-border hover:bg-muted/40'
                   } `}
                   onClick={() => handleToggleModel(modelId)}
                 >
                   <div className="flex items-center gap-2">
-                    <GripVertical className="h-4 w-4 shrink-0 text-white/20" aria-hidden="true" />
+                    <GripVertical
+                      className="text-muted-foreground/60 h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
                     <div className="flex h-5 w-5 items-center justify-center">
                       {getAiIcon(modelId) || (
-                        <span className="text-xs font-bold text-white/60">
+                        <span className="text-muted-foreground text-xs font-bold">
                           {displayName.charAt(0)}
                         </span>
                       )}
                     </div>
-                    <Label className="text-foreground/90 cursor-pointer text-xs font-medium">
+                    <Label className="text-foreground cursor-pointer text-xs font-medium">
                       {displayName}
                     </Label>
                   </div>
@@ -235,7 +243,7 @@ const BottomBarSettingsTab = memo(() => {
           })}
         </Reorder.Group>
 
-        <div className="text-ql-11 pt-1 tracking-wide text-white/30">
+        <div className="text-ql-11 text-muted-foreground pt-1 tracking-wide">
           {visibleModelCount} / {enabledModels.length} models visible
         </div>
       </motion.div>

@@ -172,7 +172,7 @@ function ExtensionWizardDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="z-modal fixed inset-0 flex items-center justify-center bg-[rgba(2,6,12,0.72)] backdrop-blur-xl"
+          className="z-modal bg-background/80 fixed inset-0 flex items-center justify-center backdrop-blur-md"
         >
           <motion.div
             ref={dialogRef}
@@ -184,7 +184,7 @@ function ExtensionWizardDialog({
             animate={{ opacity: 1, ...(prefersReducedMotion ? {} : { y: 0, scale: 1 }) }}
             exit={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 8, scale: 0.98 }) }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="glass-tier-1 glass-tier-card mx-6 w-full max-w-md overflow-hidden text-center outline-none"
+            className="bg-card border-border shadow-ambient-xl mx-6 w-full max-w-md overflow-hidden rounded-2xl border text-center outline-none"
           >
             <StepIndicator total={total} step={step} success={success} />
 

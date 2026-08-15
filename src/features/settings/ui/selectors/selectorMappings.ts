@@ -4,27 +4,27 @@ export function getHealthTone(health: SelectorHealthState): HealthTone {
   switch (health) {
     case 'ready':
       return {
-        badge: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
-        icon: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
-        border: 'border-emerald-500/20 bg-emerald-500/[0.04]'
+        badge: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+        icon: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+        border: 'border-emerald-500/20 bg-card'
       }
     case 'migrated':
       return {
-        badge: 'border-sky-500/30 bg-sky-500/10 text-sky-300',
-        icon: 'border-sky-500/30 bg-sky-500/10 text-sky-400',
-        border: 'border-sky-500/20 bg-sky-500/[0.04]'
+        badge: 'border-primary/30 bg-primary/10 text-primary',
+        icon: 'border-primary/30 bg-primary/10 text-primary',
+        border: 'border-primary/20 bg-card'
       }
     case 'needs_repick':
       return {
-        badge: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
-        icon: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
-        border: 'border-amber-500/20 bg-amber-500/[0.05]'
+        badge: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+        icon: 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+        border: 'border-amber-500/20 bg-card'
       }
     default:
       return {
-        badge: 'border-white/10 bg-white/5 text-white/45',
-        icon: 'border-white/10 bg-white/5 text-white/40',
-        border: 'border-white/[0.06] bg-white/[0.03]'
+        badge: 'border-border bg-muted/60 text-muted-foreground',
+        icon: 'border-border bg-muted text-muted-foreground',
+        border: 'border-border bg-card'
       }
   }
 }

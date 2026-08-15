@@ -14,7 +14,7 @@ import { isCustomSitePlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const SITES_ICON = (
-  <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 p-2.5 text-blue-400">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <GridIcon className="h-5 w-5" />
   </div>
 )
@@ -113,8 +113,8 @@ const SitesTab = memo(() => {
         />
       }
       footer={
-        <div className="border-t border-white/[0.04] px-1 pt-4">
-          <p className="text-ql-11 tracking-wide text-white/28">
+        <div className="border-border border-t px-1 pt-4">
+          <p className="text-ql-11 text-muted-foreground tracking-wide">
             {t('active_sites')}: {enabledSitesCount} / {sitesList.length} {t('sites_count')}
           </p>
         </div>

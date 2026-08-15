@@ -16,11 +16,11 @@ interface QuickSettingsProps {
 function QuickSettings({ t, setActiveTab }: QuickSettingsProps) {
   return (
     <div className="space-y-3">
-      <div className="space-y-1 px-1">
-        <h3 className="text-ql-18 font-semibold tracking-tight text-white/88">
+      <div className="space-y-0.5 px-1">
+        <h3 className="text-ql-18 text-foreground font-semibold tracking-tight">
           {t('quick_settings')}
         </h3>
-        <p className="text-xs leading-relaxed text-white/38">{t('quick_settings_description')}</p>
+        <p className="text-ql-13 text-muted-foreground">{t('quick_settings_description')}</p>
       </div>
 
       <TextInputModeCard t={t} />

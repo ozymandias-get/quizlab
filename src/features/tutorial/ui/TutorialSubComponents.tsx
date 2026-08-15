@@ -18,18 +18,18 @@ interface TutorialHeaderProps {
 
 export function TutorialHeader({ onClose, t }: TutorialHeaderProps) {
   return (
-    <div className="z-10 flex h-14 items-center justify-between border-b border-white/5 bg-black/30 px-5 backdrop-blur-md">
-      <div className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 font-medium text-gray-200 transition-colors hover:bg-white/5">
+    <div className="border-border bg-card/90 z-10 flex h-12 items-center justify-between border-b px-4 backdrop-blur-md">
+      <div className="text-foreground hover:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium transition-colors">
         <span>ChatGPT 5.2</span>
-        <ChevronDown className="h-4 w-4 text-gray-500" />
+        <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
       </div>
-      <div className="flex items-center gap-3">
-        <div className="text-ql-11 hidden items-center gap-1.5 rounded-full border border-purple-500/20 bg-purple-500/10 px-2.5 py-1 font-semibold tracking-wide text-purple-300 uppercase sm:flex">
+      <div className="flex items-center gap-2.5">
+        <div className="text-ql-11 border-primary/20 bg-primary/10 text-primary hidden items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-medium uppercase sm:flex">
           <Sparkles className="h-3 w-3" /> Magic Selector
         </div>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-md p-1.5 transition-colors"
           title={t('tut_close')}
           aria-label={t('tut_close')}
         >
@@ -49,7 +49,7 @@ interface TutorialStepIndicatorProps {
 
 export function TutorialStepIndicator({ step, STEPS, goToStep, t }: TutorialStepIndicatorProps) {
   return (
-    <div className="z-10 flex items-center gap-2 px-5 py-3">
+    <div className="z-10 flex items-center gap-2 px-5 py-2.5">
       {STEPS.map((s, i) => {
         const isActive = i === step,
           isDone = i < step
@@ -62,18 +62,30 @@ export function TutorialStepIndicator({ step, STEPS, goToStep, t }: TutorialStep
             aria-label={`Step ${i + 1}: ${t(s.titleKey)}`}
           >
             <span
-              className={`text-ql-11 flex h-6 w-6 items-center justify-center rounded-full font-semibold transition-all ${isDone ? 'bg-emerald-500/90 text-black' : isActive ? 'bg-purple-500 text-white shadow-[0_0_0_4px_rgba(168,85,247,0.18)]' : 'border border-white/10 bg-white/5 text-gray-500'}`}
+              className={`text-ql-11 flex h-5 w-5 items-center justify-center rounded-full font-semibold transition-all ${
+                isDone
+                  ? 'bg-primary/20 text-primary font-bold'
+                  : isActive
+                    ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                    : 'border-border bg-muted text-muted-foreground border'
+              }`}
             >
               {isDone ? <Check className="h-3 w-3" /> : i + 1}
             </span>
             <span
-              className={`text-ql-12 truncate font-medium transition-colors ${isActive ? 'text-white' : isDone ? 'text-emerald-300/80' : 'text-gray-500'}`}
+              className={`text-ql-12 truncate font-medium transition-colors ${
+                isActive
+                  ? 'text-foreground font-semibold'
+                  : isDone
+                    ? 'text-primary'
+                    : 'text-muted-foreground'
+              }`}
             >
               {t(s.titleKey)}
             </span>
             {i < STEPS.length - 1 && (
               <span
-                className={`h-px w-6 transition-colors sm:w-10 ${isDone ? 'bg-emerald-500/60' : 'bg-white/10'}`}
+                className={`h-px w-6 transition-colors sm:w-8 ${isDone ? 'bg-primary/50' : 'bg-border'}`}
               />
             )}
           </button>
@@ -104,35 +116,37 @@ export function TutorialTooltipCard({
     <AnimatePresence mode="wait">
       <motion.div
         key={currentStep.key}
-        initial={{ y: 12, opacity: 0 }}
+        initial={{ y: 8, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: -12, opacity: 0 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="pointer-events-none absolute -top-32 right-0 left-0 z-30 mx-auto w-max max-w-xl"
+        exit={{ y: -8, opacity: 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+        className="pointer-events-none absolute -top-28 right-0 left-0 z-30 mx-auto w-max max-w-xl"
       >
-        <div className="pointer-events-auto flex items-start gap-4 rounded-2xl border border-white/10 bg-[#1f1f24] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.45)] backdrop-blur-md">
-          <div className="mt-0.5 rounded-xl bg-purple-500/15 p-2 text-purple-300">
-            <MagicWandIcon className="h-5 w-5" />
+        <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg pointer-events-auto flex items-start gap-3.5 rounded-xl border p-4 backdrop-blur-md">
+          <div className="border-primary/20 bg-primary/10 text-primary mt-0.5 rounded-lg border p-2">
+            <MagicWandIcon className="h-4 w-4" />
           </div>
           <div className="min-w-0">
             <div className="mb-1 flex items-center gap-2">
-              <h4 className="text-ql-14 font-semibold text-white">{t(currentStep.titleKey)}</h4>
-              <span className="text-ql-10 font-semibold tracking-wider text-gray-500 uppercase">
+              <h4 className="text-ql-14 text-foreground font-semibold">
+                {t(currentStep.titleKey)}
+              </h4>
+              <span className="text-ql-10 text-muted-foreground font-medium uppercase">
                 {step + 1}/{STEPS.length}
               </span>
             </div>
-            <p className="text-ql-13 max-w-sm leading-relaxed text-gray-300/90">
+            <p className="text-ql-13 text-muted-foreground max-w-sm leading-relaxed">
               {t(currentStep.descKey)}
             </p>
             {step === 0 && (
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-2.5 flex items-center gap-2">
                 <button
                   onClick={() => goToStep(1)}
-                  className="text-ql-12 rounded-lg bg-purple-600 px-4 py-1.5 font-semibold text-white shadow-[0_4px_14px_rgba(168,85,247,0.35)] transition-colors hover:bg-purple-500"
+                  className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-3 py-1 font-semibold shadow-xs transition-colors"
                 >
                   {t('tut_start')}
                 </button>
-                <span className="text-ql-11 inline-flex items-center gap-1 text-gray-500">
+                <span className="text-ql-11 text-muted-foreground inline-flex items-center gap-1">
                   <Lightbulb className="h-3 w-3" /> {t('tut_disclaimer')}
                 </span>
               </div>
@@ -140,7 +154,7 @@ export function TutorialTooltipCard({
             {step === 4 && (
               <button
                 onClick={handleFinishClick}
-                className="text-ql-12 mt-3 rounded-lg bg-emerald-600 px-4 py-1.5 font-semibold text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] transition-colors hover:bg-emerald-500"
+                className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 mt-2.5 rounded-md px-3 py-1 font-semibold shadow-xs transition-colors"
               >
                 {t('tut_finish')}
               </button>
@@ -163,7 +177,7 @@ export function TutorialHoveredOverlay({ hoveredRect, t }: TutorialHoveredOverla
   return (
     <motion.div
       layoutId="selector-highlight"
-      className="z-tooltip pointer-events-none absolute rounded-lg border-2 border-emerald-400 bg-emerald-400/10 mix-blend-screen shadow-[0_0_24px_rgba(52,211,153,0.25)]"
+      className="z-tooltip border-primary bg-primary/10 pointer-events-none absolute rounded-lg border-2 shadow-xs"
       style={{
         top: hoveredRect.top,
         left: hoveredRect.left,
@@ -174,7 +188,7 @@ export function TutorialHoveredOverlay({ hoveredRect, t }: TutorialHoveredOverla
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="text-ql-10 absolute -top-6 left-0 rounded bg-emerald-500 px-2 py-0.5 font-bold tracking-wider text-black uppercase">
+      <div className="text-ql-10 bg-primary text-primary-foreground absolute -top-5 left-0 rounded px-1.5 py-0.5 font-bold tracking-wider uppercase">
         {hoveredRect.type === 'input' ? t('tut_input_label') : t('tut_btn_label')}
       </div>
     </motion.div>

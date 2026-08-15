@@ -1,4 +1,4 @@
-﻿import { useOpenExternal } from '@platform/electron/api/useSystemApi'
+import { useOpenExternal } from '@platform/electron/api/useSystemApi'
 
 import type { UpdateInfo } from '@app/providers'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
@@ -27,24 +27,28 @@ const UpdateBanner = memo(function UpdateBanner({
   if (!updateAvailable || !updateInfo || !isVisible) return null
 
   return (
-    <div className="z-dropdown animate-in slide-in-from-top-4 fade-in fixed top-4 left-1/2 mx-4 w-full max-w-2xl -translate-x-1/2 duration-500">
-      <div className="glass-tier-2 flex items-start gap-4 rounded-2xl border-emerald-400/25 bg-[linear-gradient(145deg,rgba(16,185,129,0.16),rgba(255,255,255,0.04),rgba(0,0,0,0.12))] p-4">
-        <div className="glass-tier-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-emerald-400/20 bg-[linear-gradient(145deg,rgba(16,185,129,0.18),rgba(255,255,255,0.03))] text-emerald-200 shadow-none">
-          <UpdateIcon className="h-6 w-6 text-emerald-400" />
+    <div className="z-dropdown animate-in slide-in-from-top-4 fade-in fixed top-4 left-1/2 mx-4 w-full max-w-xl -translate-x-1/2 duration-300">
+      <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg flex items-start gap-3.5 rounded-xl border p-4 backdrop-blur-md">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <UpdateIcon className="h-5 w-5" />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-ql-14 mb-1 font-semibold text-emerald-100">
+              <h3 className="text-ql-14 text-foreground mb-0.5 font-semibold">
                 {t('update_available')}
               </h3>
-              <p className="text-ql-12 leading-relaxed text-stone-400">
+              <p className="text-ql-12 text-muted-foreground leading-relaxed">
                 {t('new_version')}{' '}
-                <span className="font-medium text-emerald-400">{updateInfo.version}</span>{' '}
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  {updateInfo.version}
+                </span>{' '}
                 {t('is_available')}
                 {updateInfo.releaseName && (
-                  <span className="mt-1 block text-stone-500">{updateInfo.releaseName}</span>
+                  <span className="text-muted-foreground/80 mt-0.5 block">
+                    {updateInfo.releaseName}
+                  </span>
                 )}
               </p>
             </div>
@@ -52,25 +56,26 @@ const UpdateBanner = memo(function UpdateBanner({
             <button
               type="button"
               onClick={onClose}
-              className="glass-tier-3 glass-interactive shrink-0 rounded-lg border-white/[0.08] p-1.5 text-stone-500 transition-colors hover:text-stone-300"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 shrink-0 rounded-md p-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              aria-label={t('close')}
             >
               <CloseIcon className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
               onClick={() => openExternal(APP_CONSTANTS.GITHUB_RELEASES_URL)}
-              className="glass-tier-3 glass-interactive text-ql-12 flex items-center gap-2 rounded-lg border-emerald-400/25 bg-[linear-gradient(145deg,rgba(16,185,129,0.2),rgba(255,255,255,0.04))] px-3 py-1.5 font-medium text-emerald-200 transition-colors hover:scale-105"
+              className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-medium shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
-              <DownloadIcon className="h-4 w-4" />
+              <DownloadIcon className="h-3.5 w-3.5" />
               {t('download_from_github')}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="glass-tier-3 glass-interactive text-ql-12 rounded-lg border-white/[0.08] px-3 py-1.5 font-medium text-stone-300 transition-colors hover:text-white"
+              className="text-ql-12 border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
             >
               {t('later')}
             </button>

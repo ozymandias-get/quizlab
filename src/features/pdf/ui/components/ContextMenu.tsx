@@ -88,11 +88,11 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                   Visual styling wrapper separated from motion.div to prevent
                   framer-motion backdrop-blur animation artifacts.
                 */}
-        <div className="min-w-[220px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900/90 p-1.5 shadow-2xl ring-1 shadow-black/80 ring-white/5 backdrop-blur-lg">
+        <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg min-w-[200px] overflow-hidden rounded-xl border p-1 backdrop-blur-md">
           {items.map((item, index) => {
             if (item.separator) {
               // eslint-disable-next-line react/no-array-index-key -- Static menu items, stable order
-              return <div key={index} className="mx-2 my-1 h-[1px] bg-white/10" />
+              return <div key={index} className="bg-border/80 mx-2 my-1 h-px" />
             }
 
             const Icon = item.icon
@@ -109,34 +109,34 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                   onClose()
                 }}
                 disabled={item.disabled}
-                className={`text-ql-14 group relative flex w-full items-center justify-between overflow-hidden rounded-lg px-3 py-2 transition-colors transition-shadow duration-150 ${
+                className={`text-ql-13 group relative flex w-full items-center justify-between overflow-hidden rounded-lg px-2.5 py-1.5 transition-colors duration-150 ${
                   item.disabled
-                    ? 'cursor-not-allowed text-stone-600 opacity-40'
+                    ? 'text-muted-foreground cursor-not-allowed opacity-40'
                     : item.danger
-                      ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
-                      : 'text-stone-300 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+                      ? 'text-destructive hover:bg-destructive/10'
+                      : 'text-foreground hover:bg-muted'
                 } `}
               >
-                <div className="relative z-10 flex items-center gap-3">
+                <div className="relative z-10 flex items-center gap-2.5">
                   {Icon && (
                     <Icon
-                      size={15}
+                      size={14}
                       strokeWidth={2}
-                      className={`transition-colors duration-200 ${
+                      className={`transition-colors duration-150 ${
                         item.disabled
-                          ? 'text-stone-600'
+                          ? 'text-muted-foreground'
                           : item.danger
-                            ? 'text-red-400'
-                            : 'text-stone-500 group-hover:text-cyan-400'
+                            ? 'text-destructive'
+                            : 'text-muted-foreground group-hover:text-foreground'
                       }`}
                     />
                   )}
-                  <span className="font-medium tracking-wide">{item.label}</span>
+                  <span className="font-medium">{item.label}</span>
                 </div>
                 {item.shortcut && (
                   <span
-                    className={`text-ql-10 relative z-10 font-semibold tracking-wider uppercase opacity-50 ${
-                      item.danger ? 'text-red-400' : 'text-stone-500 group-hover:text-stone-400'
+                    className={`text-ql-10 relative z-10 font-mono tracking-wider uppercase opacity-60 ${
+                      item.danger ? 'text-destructive' : 'text-muted-foreground'
                     }`}
                   >
                     {item.shortcut}

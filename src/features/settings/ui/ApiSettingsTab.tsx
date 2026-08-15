@@ -202,7 +202,7 @@ export default memo(function ApiSettingsTab() {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-amber-500/20 px-4 py-2 text-xs text-amber-400 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2 text-xs font-medium shadow-xs transition-colors disabled:opacity-50"
         >
           {saving ? t('saving') : t('save_platform')}
         </button>

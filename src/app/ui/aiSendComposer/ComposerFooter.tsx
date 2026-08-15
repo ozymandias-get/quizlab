@@ -2,7 +2,7 @@ import { Button } from '@app/components/ui/button'
 import { cn } from '@shared/lib/uiUtils'
 
 import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Send } from 'lucide-react'
-import { memo, useMemo } from 'react'
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface ComposerFooterProps {
@@ -10,7 +10,7 @@ interface ComposerFooterProps {
   sendFeedback: 'idle' | 'sending' | 'success' | 'error'
   lastError: string | null
   totalItems: number
-  accentStrong: string
+  accentStrong?: string
   onSubmit: (options?: { forceAutoSend?: boolean }) => void
   onRetry: () => void
 }
@@ -19,7 +19,6 @@ function ComposerFooter({
   isSubmitting,
   sendFeedback,
   totalItems,
-  accentStrong,
   onSubmit,
   onRetry
 }: ComposerFooterProps) {
@@ -51,30 +50,20 @@ function ComposerFooter({
     }
   })()
 
-  const sendBtnStyle = useMemo(() => {
-    if (sendFeedback === 'error') {
-      return { background: 'oklch(1 0 0 / 0.1)' }
-    }
-    return {
-      background: `linear-gradient(135deg, ${accentStrong} 0%, oklch(0.8 0.15 175 / 0.55) 100%)`,
-      boxShadow: totalItems > 0 ? `0 4px 14px ${accentStrong}35` : 'none'
-    }
-  }, [sendFeedback, accentStrong, totalItems])
-
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] px-4 py-2.5">
+    <div className="border-border flex items-center justify-between gap-3 border-t px-4 py-2.5">
       <div className="flex items-center gap-2">
         {statusIcon}
         <span
           className={cn(
             'text-ql-11 font-semibold',
             sendFeedback === 'success'
-              ? 'text-emerald-400'
+              ? 'text-emerald-600 dark:text-emerald-400'
               : sendFeedback === 'error'
-                ? 'text-red-400'
+                ? 'text-destructive'
                 : sendFeedback === 'sending'
-                  ? 'text-amber-400'
-                  : 'text-white/65'
+                  ? 'text-primary'
+                  : 'text-muted-foreground'
           )}
         >
           {statusLabel}
@@ -87,9 +76,9 @@ function ComposerFooter({
             type="button"
             onClick={onRetry}
             variant="ghost"
-            className="text-ql-11 rounded-xl px-3 py-2 font-semibold text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white/90"
+            className="text-ql-11 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-1.5 font-medium transition-colors"
           >
-            <RotateCcw className="mr-1.5 h-4 w-4" strokeWidth={2} />
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" strokeWidth={2} />
             {t('ai_send_retry')}
           </Button>
         )}
@@ -98,22 +87,21 @@ function ComposerFooter({
           type="button"
           onClick={() => onSubmit()}
           disabled={isSubmitting || totalItems === 0}
-          className="text-ql-11 rounded-xl px-4 py-2.5 font-bold text-white transition-colors hover:brightness-110 active:scale-[0.97] disabled:opacity-30"
-          style={sendBtnStyle}
+          className="text-ql-11 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-3.5 py-1.5 font-semibold shadow-xs transition-colors disabled:opacity-40"
         >
           {isSubmitting ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
               {t('sending_to_ai')}
             </span>
           ) : sendFeedback === 'error' ? (
-            <span className="flex items-center gap-2">
-              <RotateCcw className="h-4 w-4" strokeWidth={2} />
+            <span className="flex items-center gap-1.5">
+              <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
               {t('ai_send_retry_send')}
             </span>
           ) : (
-            <span className="flex items-center gap-2">
-              <Send className="h-4 w-4 opacity-90" strokeWidth={2.5} />
+            <span className="flex items-center gap-1.5">
+              <Send className="h-3.5 w-3.5" strokeWidth={2} />
               {t('send_to_ai')}
             </span>
           )}

@@ -37,15 +37,17 @@ function NoteSection({ noteText, hasImages, onNoteTextChange, onKeyDown }: NoteS
   return (
     <section className="px-4 pb-2">
       <div className="mb-1.5 flex items-center justify-between">
-        <label className="text-ql-11 font-semibold text-white/80">{t('ai_send_note_label')}</label>
+        <label className="text-ql-11 text-foreground font-semibold">
+          {t('ai_send_note_label')}
+        </label>
         <button
           type="button"
           onClick={() => setShowPresets((v) => !v)}
           className={cn(
-            'text-ql-10 flex items-center gap-1 rounded-lg px-2 py-1 font-semibold transition-colors',
+            'text-ql-10 focus-visible:ring-ring/40 flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
             showPresets
-              ? 'bg-amber-400/15 text-amber-400'
-              : 'text-white/55 hover:bg-white/[0.06] hover:text-white/75'
+              ? 'border-primary/30 bg-primary/10 text-primary border'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
           aria-label={t('ai_send_presets')}
           aria-expanded={showPresets}
