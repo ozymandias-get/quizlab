@@ -66,7 +66,7 @@ function RiskStepContent({
           type="checkbox"
           checked={confirmed}
           onChange={(e) => onConfirmedChange(e.target.checked)}
-          className="border-border text-primary focus:ring-ring h-4 w-4 rounded focus:ring-offset-0"
+          className="border-border text-primary focus-visible:ring-ring h-4 w-4 rounded focus-visible:ring-offset-0"
         />
         <span className="text-ql-13 text-foreground font-medium">
           {t('gws_extension_wizard_confirm_label')}

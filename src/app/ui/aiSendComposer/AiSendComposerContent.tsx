@@ -1,6 +1,13 @@
 import type { AiDraftItem } from '@app/providers/ai/types'
 
-import { memo, type MouseEventHandler, type PointerEventHandler, useCallback, useMemo } from 'react'
+import {
+  type KeyboardEventHandler,
+  memo,
+  type MouseEventHandler,
+  type PointerEventHandler,
+  useCallback,
+  useMemo
+} from 'react'
 
 import ComposerFooter from './ComposerFooter'
 import NoteSection from './NoteSection'
@@ -24,6 +31,7 @@ interface AiSendComposerContentProps {
   onSubmit: (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => void
   onRetry: () => void
   onResizeStart: (direction: ResizeDirection) => PointerEventHandler<HTMLDivElement>
+  onResizeKeyDown?: (direction: ResizeDirection) => KeyboardEventHandler<HTMLDivElement>
   getResizeCursor: (dir: ResizeDirection) => string
   resizeHandlers: ResizeHandlers
   edgeThickness: number
@@ -41,6 +49,7 @@ function AiSendComposerContent({
   onSubmit,
   onRetry,
   onResizeStart,
+  onResizeKeyDown,
   getResizeCursor,
   resizeHandlers,
   edgeThickness
@@ -114,16 +123,13 @@ function AiSendComposerContent({
           data-resize
           role="button"
           tabIndex={0}
+          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"
           onPointerDown={onResizeStart(dir)}
           onPointerMove={resizeHandlers.onResizeMove}
           onPointerUp={resizeHandlers.onResizeEnd}
           onPointerCancel={resizeHandlers.onResizeEnd}
           onMouseDown={handleResizeMouseDown}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-            }
-          }}
+          onKeyDown={onResizeKeyDown?.(dir) ?? undefined}
           className="absolute z-20"
           style={{ ...position, cursor }}
         />

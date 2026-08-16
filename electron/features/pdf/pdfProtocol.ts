@@ -100,6 +100,30 @@ export function registerPdfScheme() {
   ])
 }
 
+// Exact origin validation (no prefix matching): a crafted origin like
+// "http://localhost.evil.com" or "local-pdf://<unregistered>" must not pass.
+function isAllowedPdfOrigin(origin: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(origin)
+  } catch {
+    return false
+  }
+  if (parsed.protocol === 'local-pdf:') {
+    // Only pages actually served by this protocol (their host is the
+    // registered pdf id) may fetch resources back from it.
+    return pdfRegistry.has(parsed.hostname)
+  }
+  if (parsed.protocol === 'file:') {
+    return true
+  }
+  if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    // Dev server (any port) and nothing else.
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
+  }
+  return false
+}
+
 export function registerPdfProtocol() {
   protocol.handle('local-pdf', async (request) => {
     try {
@@ -130,8 +154,7 @@ export function registerPdfProtocol() {
       }
 
       const requestOrigin = request.headers.get('origin')
-      const allowedOrigins = ['local-pdf://', 'file://', 'http://localhost', 'http://127.0.0.1']
-      if (requestOrigin && !allowedOrigins.some((o) => requestOrigin.startsWith(o))) {
+      if (requestOrigin && !isAllowedPdfOrigin(requestOrigin)) {
         return new Response('Forbidden', { status: 403 })
       }
 

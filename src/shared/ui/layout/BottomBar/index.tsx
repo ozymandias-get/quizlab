@@ -2,6 +2,7 @@ import { useAppearance } from '@app/providers'
 
 import { GripVertical } from 'lucide-react'
 import {
+  type KeyboardEvent as ReactKeyboardEvent,
   lazy,
   memo,
   type MouseEvent as ReactMouseEvent,
@@ -18,6 +19,9 @@ import type { BottomBarProps } from './types'
 import { useBottomBarStyles } from './useBottomBarStyles'
 
 const SparklesCore = lazy(() => import('@app/components/ui/sparkles'))
+
+/** Fixed pixel step for keyboard-driven resizing (ArrowLeft/ArrowRight). */
+const RESIZE_KEY_STEP_PX = 32
 
 /**
  * Hoisted JSX for the resize handlebar visual cue (vertical line + grab dots).
@@ -60,6 +64,8 @@ function BottomBar({
   onHoverChange,
   onMouseDown,
   onDoubleClick,
+  onKeyboardResize,
+  isResizeReversed = false,
   isResizing = false
 }: BottomBarProps) {
   const { bottomBarOpacity, bottomBarScale } = useAppearance(
@@ -96,6 +102,22 @@ function BottomBar({
     onDoubleClick?.()
   }, [onDoubleClick])
 
+  const handleResizerKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home') return
+      e.preventDefault()
+      if (e.key === 'Home') {
+        onDoubleClick?.()
+        return
+      }
+      const direction = isResizeReversed ? -1 : 1
+      onKeyboardResize?.(
+        e.key === 'ArrowLeft' ? -RESIZE_KEY_STEP_PX * direction : RESIZE_KEY_STEP_PX * direction
+      )
+    },
+    [onKeyboardResize, onDoubleClick, isResizeReversed]
+  )
+
   const handleMouseEnter = useCallback(() => onHoverChange?.(true), [onHoverChange])
   const handleMouseLeave = useCallback(() => onHoverChange?.(false), [onHoverChange])
 
@@ -119,10 +141,14 @@ function BottomBar({
         onMouseLeave={handleMouseLeave}
       >
         <div
-          role="presentation"
+          role="separator"
+          aria-orientation="vertical"
+          aria-keyshortcuts="ArrowLeft ArrowRight Home"
+          tabIndex={0}
           className="resizer-drag-area"
           onMouseDown={handleResizerMouseDown}
           onDoubleClick={handleResizerDoubleClick}
+          onKeyDown={handleResizerKeyDown}
         >
           {handlebarNode}
           {!prefersReducedMotion && <SparklesNode hidden={isResizing} />}
@@ -136,10 +162,14 @@ function BottomBar({
         </div>
 
         <div
-          role="presentation"
+          role="separator"
+          aria-orientation="vertical"
+          aria-keyshortcuts="ArrowLeft ArrowRight Home"
+          tabIndex={0}
           className="resizer-drag-area"
           onMouseDown={handleResizerMouseDown}
           onDoubleClick={handleResizerDoubleClick}
+          onKeyDown={handleResizerKeyDown}
         >
           {handlebarNode}
           {!prefersReducedMotion && <SparklesNode hidden={isResizing} />}

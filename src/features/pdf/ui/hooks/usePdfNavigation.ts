@@ -206,7 +206,13 @@ export function usePdfNavigation({
 
   const jumpToPage = useCallback(
     (page: number) => {
-      performJumpToPage(page - 1)
+      // A stale resume page (saved against an older/longer revision of the
+      // file) can exceed the loaded document's page count. Jumping to an
+      // out-of-range target sets a phantom navigation target that swallows
+      // every page-change callback for the ack window, freezing navigation.
+      const lastPage = totalPagesRef.current
+      const clamped = Math.max(1, Math.min(page, lastPage > 0 ? lastPage : page))
+      performJumpToPage(clamped - 1)
     },
     [performJumpToPage]
   )

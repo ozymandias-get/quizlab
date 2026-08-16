@@ -182,62 +182,35 @@ function registerBuiltinStrategy(strategy: Omit<SiteStrategy, 'id'>, id: string)
   registerSiteStrategy({ id, ...strategy })
 }
 
+function tryGenericByKind(kind: SiteStrategyKind): SiteStrategyCandidate | null {
+  return kind === 'input' ? tryGenericInputFallback() : tryGenericButtonFallback()
+}
+
 let builtinsRegistered = false
 function ensureBuiltinsRegistered(): void {
   if (builtinsRegistered) return
   builtinsRegistered = true
 
-  registerBuiltinStrategy(
-    {
-      match: { hostPatterns: ['claude.ai'] },
-      produce: (kind) => {
-        if (kind === 'input') {
-          return tryGenericInputFallback()
-        }
-        return tryGenericButtonFallback()
-      }
-    },
-    'builtin:claude'
-  )
-
-  registerBuiltinStrategy(
-    {
-      match: { hostPatterns: ['deepseek.com'] },
-      produce: (kind) => {
-        if (kind === 'input') {
-          return tryGenericInputFallback()
-        }
-        return tryGenericButtonFallback()
-      }
-    },
-    'builtin:deepseek'
-  )
-
-  registerBuiltinStrategy(
-    {
-      match: { hostPatterns: ['qwen'] },
-      produce: (kind) => {
-        if (kind === 'input') {
-          return tryGenericInputFallback()
-        }
-        return tryGenericButtonFallback()
-      }
-    },
-    'builtin:qwen'
-  )
-
-  registerBuiltinStrategy(
-    {
-      match: { hostPatterns: ['kimi'] },
-      produce: (kind) => {
-        if (kind === 'input') {
-          return tryGenericInputFallback()
-        }
-        return tryGenericButtonFallback()
-      }
-    },
-    'builtin:kimi'
-  )
+  for (const [id, hostPatterns] of [
+    ['builtin:claude', ['claude.ai']],
+    ['builtin:deepseek', ['deepseek.com']],
+    ['builtin:qwen', ['qwen']],
+    ['builtin:kimi', ['kimi']],
+    ['builtin:chatgpt', ['chatgpt.com']],
+    ['builtin:gemini', ['gemini.google.com']],
+    ['builtin:aistudio', ['aistudio.google.com']],
+    ['builtin:m365', ['copilot.microsoft.com']],
+    ['builtin:youtube', ['youtube.com']],
+    ['builtin:api-chat', ['api-chat']]
+  ] as const) {
+    registerBuiltinStrategy(
+      {
+        match: { hostPatterns: [...hostPatterns] },
+        produce: tryGenericByKind
+      },
+      id
+    )
+  }
 
   // Generic fallback - her host için geçerli, en düşük öncelikli.
   // Burada (ensureBuiltinsRegistered içinde) kayıt edilmesinin sebebi:

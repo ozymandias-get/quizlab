@@ -166,6 +166,7 @@ export function useGeminiWebSessionState() {
         }
         return result
       } catch (error) {
+        reportSuppressedError('geminiWeb.runSessionAction', { cause: error })
         const message = error instanceof Error ? error.message : t('error_unknown_error')
         showError(message)
         return null

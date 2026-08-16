@@ -71,5 +71,34 @@ function validateProviderUrl(baseUrl: string): string | null {
   }
 }
 
-export { validateProviderUrl }
+const MAX_REDIRECTS = 5
+
+function isRedirectStatus(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+}
+
+/**
+ * fetch() wrapper that re-validates every redirect hop with the same SSRF
+ * rules as the original URL. The default fetch() follows redirects blindly,
+ * so a public provider URL that answers with a 302 to an internal address
+ * (e.g. 169.254.169.254) would otherwise bypass the block entirely.
+ */
+async function fetchWithSsrProtection(url: string, init?: RequestInit): Promise<Response> {
+  let currentUrl = url
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const response = await fetch(currentUrl, { ...init, redirect: 'manual' })
+    if (!isRedirectStatus(response.status)) return response
+    const location = response.headers.get('location')
+    if (!location) return response
+    const target = new URL(location, currentUrl).toString()
+    const err = validateProviderUrl(target)
+    if (err) {
+      throw new Error(`SSRF blocked on redirect: ${err}`)
+    }
+    currentUrl = target
+  }
+  throw new Error('Too many redirects')
+}
+
+export { fetchWithSsrProtection, validateProviderUrl }
 export type {} // satisfy isolatedModules

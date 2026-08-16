@@ -2,6 +2,7 @@ import type { ApiConfig } from '@shared-core/types'
 
 import { isVisionCapable } from '@features/ai/lib/apiChatUtils'
 
+import { Badge } from '@app/components/ui/badge'
 import { Textarea } from '@app/components/ui/textarea'
 
 import { Image as ImageIcon, Send, Trash2 } from 'lucide-react'
@@ -54,9 +55,6 @@ const ChatInput = memo(function ChatInput({
 }: ChatInputProps) {
   const { t } = useTranslation()
 
-  // Stable callbacks to prevent unnecessary re-creation on every parent render.
-  // Even though ChatInput itself re-renders when inputValue changes, these
-  // handlers being stable reduces the cost of React's event delegation updates.
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => onInputChange(e.target.value),
     [onInputChange]
@@ -66,24 +64,27 @@ const ChatInput = memo(function ChatInput({
     fileInputRef.current?.click()
   }, [fileInputRef])
 
+  const wordCount = inputValue.trim().split(/\s+/).filter(Boolean).length
+  const charCount = inputValue.length
+
   return (
     <div className="bg-background/80 shrink-0 px-4 pt-2 pb-4 backdrop-blur-md">
       <div className="group relative mx-auto w-full max-w-4xl">
         {/* Main Semantic Input Card */}
-        <div className="border-border bg-card shadow-ambient-sm focus-within:border-ring focus-within:ring-ring/40 relative w-full overflow-hidden rounded-xl border transition-colors duration-150 focus-within:ring-1">
+        <div className="border-border/80 bg-card/90 shadow-ambient-sm focus-within:border-ring focus-within:ring-ring/40 relative w-full overflow-hidden rounded-2xl border transition-all duration-150 focus-within:ring-1">
           {attachments.length > 0 && (
             <div className="border-border/60 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
               {attachments.map((data, i) => (
                 // Attachments are local state — no stable id available
                 // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order
                 <div key={i} className="group/attach animate-app-enter relative">
-                  <div className="border-border h-14 w-14 transform overflow-hidden rounded-lg border shadow-xs">
+                  <div className="border-border/80 h-14 w-14 transform overflow-hidden rounded-lg border shadow-2xs">
                     <img src={data} alt="" className="h-full w-full object-cover" />
                   </div>
                   <button
                     type="button"
                     onClick={() => onRemoveAttachment(i)}
-                    className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground focus-visible:ring-destructive/40 absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground focus-visible:ring-destructive/40 absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
                     aria-label={t('api_chat_remove_attachment') || 'Remove attachment'}
                   >
                     ✕
@@ -93,14 +94,14 @@ const ChatInput = memo(function ChatInput({
             </div>
           )}
 
-          <div className="p-1">
+          <div className="p-1.5">
             <Textarea
               ref={textareaRef}
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={onKeyDown}
               rows={1}
-              className="text-ql-14 text-foreground placeholder:text-muted-foreground max-h-[160px] min-h-0 border-none bg-transparent px-3 py-2 shadow-none focus-visible:ring-0"
+              className="text-ql-14 text-foreground placeholder:text-muted-foreground max-h-[160px] min-h-0 resize-none border-none bg-transparent px-3 py-2 leading-relaxed shadow-none focus-visible:ring-0"
               placeholder={t('api_chat_input_placeholder')}
             />
           </div>
@@ -135,7 +136,7 @@ const ChatInput = memo(function ChatInput({
                   <button
                     type="button"
                     onClick={handleFileUploadClick}
-                    className="border-border bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    className="border-border/80 bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
                     title={t('api_chat_upload_image')}
                     aria-label={t('api_chat_upload_image')}
                   >
@@ -147,18 +148,18 @@ const ChatInput = memo(function ChatInput({
 
             <div className="flex items-center gap-1.5">
               {inputValue.trim() && (
-                <div className="text-ql-10 border-border bg-muted/40 text-muted-foreground flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono select-none">
-                  <span>{inputValue.trim().split(/\s+/).filter(Boolean).length}w</span>
+                <Badge variant="muted" size="sm" className="font-mono">
+                  <span>{wordCount}w</span>
                   <span className="opacity-40">·</span>
-                  <span>{inputValue.length}c</span>
-                </div>
+                  <span>{charCount}c</span>
+                </Badge>
               )}
 
               {messageCount > 0 && (
                 <button
                   type="button"
                   onClick={onClearChat}
-                  className="border-border bg-card text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-7 w-7 items-center justify-center rounded-md border shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  className="border-border/80 bg-card text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-7 w-7 items-center justify-center rounded-md border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
                   title={t('api_chat_clear')}
                   aria-label={t('api_chat_clear')}
                 >
@@ -170,7 +171,7 @@ const ChatInput = memo(function ChatInput({
                 type="button"
                 onClick={onSend}
                 disabled={(!inputValue.trim() && attachments.length === 0) || isStreaming}
-                className="group bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 flex h-7 w-7 shrink-0 items-center justify-center rounded-md shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-30"
+                className="group bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 flex h-7 w-7 shrink-0 items-center justify-center rounded-md shadow-2xs transition-all focus-visible:ring-2 focus-visible:outline-none active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
                 title={t('api_chat_send')}
                 aria-label={t('api_chat_send')}
               >

@@ -53,19 +53,19 @@ const GridCard = memo<GridCardProps>(function GridCard({
       onDragEnd={onDragEnd}
       style={{ opacity: isDragging ? 0.4 : 1 }}
     >
-      <div className="relative rounded-lg">
+      <div className="relative rounded-xl">
         <button
           type="button"
           onClick={() => onClick(itemId)}
-          className={`group relative w-full rounded-lg border p-3 text-left shadow-xs transition-colors duration-150 ${
+          className={`group hover:shadow-ambient-sm relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transform-none ${
             isActive
               ? 'border-ring/60 bg-accent/20'
-              : 'border-border bg-card hover:border-border hover:bg-muted/60'
+              : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
           }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className="border-border/60 bg-muted/60 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border"
+              className="border-border/60 bg-muted/60 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-transform duration-150 group-hover:scale-105 motion-reduce:scale-100"
               style={{ color: accent }}
             >
               {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
@@ -83,7 +83,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
               />
             )}
             <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
-              <ArrowUpRight className="h-3.5 w-3.5" />
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
             </div>
           </div>
         </button>

@@ -21,6 +21,11 @@ interface UseDraftSendOrchestrationProps {
  * Hook to orchestrate the sending of drafted AI items (text and images).
  * Handles planning bulk sends and sequential execution.
  */
+interface SegmentRun {
+  result: AiSendResult
+  sentItemIds: string[]
+}
+
 export function useDraftSendOrchestration({
   autoSend,
   sendTextToAI,
@@ -33,23 +38,37 @@ export function useDraftSendOrchestration({
   autoSendRef.current = autoSend
 
   const executeDraftSend = useCallback(
-    async (items: AiDraftItem[], options?: AiSendOptions): Promise<AiSendResult> => {
+    async (items: AiDraftItem[], options?: AiSendOptions): Promise<SegmentRun> => {
       if (items.length === 0) {
-        return { success: false, error: 'invalid_input' }
+        return { result: { success: false, error: 'invalid_input' }, sentItemIds: [] }
       }
 
       const effectiveAutoSend = resolveAutoSend(autoSendRef.current, options)
       const segments = planBulkAiSend(items, options?.promptText)
 
       if (segments.length === 0) {
-        return { success: false, error: 'invalid_input' }
+        return { result: { success: false, error: 'invalid_input' }, sentItemIds: [] }
       }
 
-      let sendResult: AiSendResult = { success: true }
+      const sentItemIds: string[] = []
 
       for (const segment of segments) {
         if (segment.kind === 'text') {
-          sendResult = await sendTextToAI(segment.payload, { autoSend: effectiveAutoSend })
+          const sendResult = (await sendTextToAI(segment.payload, {
+            autoSend: effectiveAutoSend
+          })) ?? {
+            success: false,
+            error: 'cancelled'
+          }
+          if (!sendResult.success) {
+            if (sendResult.error !== 'webview_not_ready') {
+              Logger.warn(
+                `[DraftOrchestration] Multi-segment send failed at segment: ${segment.kind}`,
+                sendResult.error
+              )
+            }
+            return { result: sendResult, sentItemIds }
+          }
         } else {
           let dataUrl = segment.dataUrl
           if (!dataUrl && segment.blobUrl) {
@@ -57,30 +76,30 @@ export function useDraftSendOrchestration({
               dataUrl = await blobUrlToDataUrl(segment.blobUrl)
             } catch (err) {
               Logger.error('[DraftOrchestration] Failed to convert blob URL:', err)
-              return { success: false, error: 'invalid_image_format' }
+              return { result: { success: false, error: 'invalid_image_format' }, sentItemIds }
             }
           }
           if (!dataUrl) {
-            return { success: false, error: 'invalid_input' }
+            return { result: { success: false, error: 'invalid_input' }, sentItemIds }
           }
-          sendResult = await sendImageToAI(dataUrl, {
+          const sendResult = (await sendImageToAI(dataUrl, {
             autoSend: effectiveAutoSend,
             promptText: segment.promptText
-          })
-        }
-
-        if (!sendResult.success) {
-          if (sendResult.error !== 'webview_not_ready') {
-            Logger.warn(
-              `[DraftOrchestration] Multi-segment send failed at segment: ${segment.kind}`,
-              sendResult.error
-            )
+          })) ?? { success: false, error: 'cancelled' }
+          if (!sendResult.success) {
+            if (sendResult.error !== 'webview_not_ready') {
+              Logger.warn(
+                `[DraftOrchestration] Multi-segment send failed at segment: ${segment.kind}`,
+                sendResult.error
+              )
+            }
+            return { result: sendResult, sentItemIds }
           }
-          return sendResult
         }
+        sentItemIds.push(...segment.itemIds)
       }
 
-      return sendResult
+      return { result: { success: true }, sentItemIds }
     },
     [sendImageToAI, sendTextToAI]
   )
@@ -98,19 +117,26 @@ export function useDraftSendOrchestration({
 
       sendingRef.current = true
       try {
-        const result = await executeDraftSend(items, options)
+        const { result, sentItemIds } = await executeDraftSend(items, options)
 
-        if (result.success) {
-          for (const draft of items) {
-            if (draft.type === 'image' && draft.blobUrl) {
-              URL.revokeObjectURL(draft.blobUrl)
+        // Remove only the drafts that were actually delivered. Items queued
+        // while the send was in flight stay, and on partial failure the
+        // undelivered segments remain so a retry does not re-send content.
+        const sentIdSet = new Set(sentItemIds)
+        if (sentItemIds.length > 0) {
+          setPendingAiItems((current) => {
+            const sentDrafts = current.filter((draft) => sentIdSet.has(draft.id))
+            for (const draft of sentDrafts) {
+              if (draft.type === 'image' && draft.blobUrl) {
+                URL.revokeObjectURL(draft.blobUrl)
+              }
             }
-          }
-          setPendingAiItems(() => [])
-        } else {
-          if (result.error !== 'webview_not_ready') {
-            Logger.error('[DraftOrchestration] Failed to send pending items:', result.error)
-          }
+            return current.filter((draft) => !sentIdSet.has(draft.id))
+          })
+        }
+
+        if (!result.success && result.error !== 'webview_not_ready') {
+          Logger.error('[DraftOrchestration] Failed to send pending items:', result.error)
         }
 
         return result

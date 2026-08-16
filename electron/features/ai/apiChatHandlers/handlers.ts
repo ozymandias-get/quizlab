@@ -5,7 +5,7 @@ import { requireTrustedIpcSender } from '../../../core/ipcSecurity.js'
 import { Logger } from '../../../core/logger.js'
 import { registerIpcHandler } from '../../../core/typedIpcMain.js'
 import { loadConfig, sanitizeApiKey, saveConfig } from './config.js'
-import { validateProviderUrl } from './ssrf.js'
+import { fetchWithSsrProtection, validateProviderUrl } from './ssrf.js'
 import type { ChatCompletionBody, ChatContentItem, ModelListItem } from './validation.js'
 import { MAX_REQUEST_BODY_SIZE, sanitizeChatMessage } from './validation.js'
 
@@ -147,7 +147,7 @@ export function registerApiChatHandlers() {
           )
         }
 
-        const response = await fetch(`${baseUrl}/chat/completions`, {
+        const response = await fetchWithSsrProtection(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers,
           body: bodyJson,
@@ -219,7 +219,7 @@ export function registerApiChatHandlers() {
       const timeoutId = setTimeout(() => controller.abort(), fetchTimeout)
 
       try {
-        const response = await fetch(`${baseUrl}/models`, {
+        const response = await fetchWithSsrProtection(`${baseUrl}/models`, {
           headers,
           signal: controller.signal
         })

@@ -1,8 +1,9 @@
 import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/types'
 
 import { Button } from '@app/components/ui/button'
+import { Kbd } from '@app/components/ui/kbd'
 
-import { FileText } from 'lucide-react'
+import { FileText, Upload } from 'lucide-react'
 import { memo } from 'react'
 
 import PdfRecentControls from './pdfPlaceholder/PdfRecentControls'
@@ -53,35 +54,44 @@ function PdfPlaceholder({
   })
 
   return (
-    <div className="animate-in fade-in zoom-in flex h-full flex-col items-center justify-center overflow-hidden px-6 py-8 duration-500">
+    <div className="animate-in fade-in zoom-in-98 flex h-full flex-col items-center justify-center overflow-hidden px-6 py-8 duration-200 select-none motion-reduce:animate-none">
       <div className="flex max-h-full w-full max-w-[680px] flex-col items-center gap-4 text-center">
-        <div className="flex flex-shrink-0 flex-col items-center gap-3 text-center">
+        {/* Kokonut-inspired Drop / Upload Hero Card */}
+        <div className="group border-border/80 hover:border-ring/60 bg-card/60 hover:bg-card/90 relative flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed p-6 shadow-2xs transition-all duration-200">
           <button
             type="button"
             onClick={onSelectPdf}
-            className="group border-border/70 bg-muted/40 text-muted-foreground hover:border-ring/40 hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 shadow-ambient-sm relative flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-xl border transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+            className="border-primary/20 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground focus-visible:ring-ring/40 relative flex h-14 w-14 cursor-pointer items-center justify-center rounded-xl border shadow-2xs transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none"
             aria-label={t('select_pdf')}
           >
-            <FileText className="h-8 w-8 transition-transform duration-150 group-hover:scale-105" />
+            <Upload className="h-6 w-6 transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
           </button>
 
-          <div className="space-y-2">
-            <h2 className="text-ql-18 text-foreground font-semibold">{t('no_pdf_loaded')}</h2>
-            <p className="text-ql-13 text-muted-foreground max-w-[260px] leading-relaxed">
+          <div className="space-y-1.5">
+            <h2 className="text-ql-16 text-foreground font-semibold tracking-tight">
+              {t('no_pdf_loaded')}
+            </h2>
+            <p className="text-ql-12 text-muted-foreground mx-auto max-w-[240px] leading-relaxed">
               {t('drop_pdf_here')}
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onSelectPdf}
-              className="pdf-placeholder-cta border-border bg-card text-foreground hover:border-ring/50 hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 shadow-ambient-sm dark:bg-card px-4"
-            >
-              <FileText className="text-primary h-4 w-4" />
-              {t('select_pdf')}
-            </Button>
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onSelectPdf}
+            className="pdf-placeholder-cta border-border/80 bg-background text-foreground hover:border-ring/50 hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 gap-2 px-3.5 shadow-2xs"
+          >
+            <FileText className="text-primary h-3.5 w-3.5" />
+            <span>{t('select_pdf')}</span>
+            <Kbd size="xs" variant="default" className="ml-0.5 opacity-75">
+              Ctrl+O
+            </Kbd>
+          </Button>
         </div>
 
+        {/* Recent Reading Section */}
         <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto">
           <PdfRecentControls
             t={t}

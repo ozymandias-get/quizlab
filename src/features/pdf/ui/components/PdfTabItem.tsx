@@ -4,7 +4,14 @@ import { Input } from '@app/components/ui/input'
 
 import { X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, type MouseEvent as ReactMouseEvent, type RefObject, useEffect, useRef } from 'react'
+import {
+  memo,
+  type MouseEvent as ReactMouseEvent,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef
+} from 'react'
 
 interface PdfTabItemProps {
   tab: PdfTab
@@ -22,6 +29,7 @@ interface PdfTabItemProps {
   onEditingBlur: (tabId: string, tabTitle: string) => void
   onEditingKeyDown: (event: React.KeyboardEvent, tabId: string, tabTitle: string) => void
   renameInputRef?: RefObject<HTMLInputElement | null>
+  buttonRef?: (el: HTMLButtonElement | null, tabId: string) => void
 }
 
 function PdfTabItem({
@@ -39,9 +47,17 @@ function PdfTabItem({
   onEditingValueChange,
   onEditingBlur,
   onEditingKeyDown,
-  renameInputRef
+  renameInputRef,
+  buttonRef
 }: PdfTabItemProps) {
   const label = getTabLabel(tab)
+
+  // Stable per-tab ref callback (memo-safe: identity depends only on the
+  // stable `buttonRef` and the immutable `tab.id`).
+  const handleButtonRef = useCallback(
+    (el: HTMLButtonElement | null) => buttonRef?.(el, tab.id),
+    [buttonRef, tab.id]
+  )
 
   /* ── Native pointerdown on the X button ──
      Framer Motion attaches native DOM event listeners to the parent
@@ -79,7 +95,11 @@ function PdfTabItem({
   return (
     <motion.button
       key={tab.id}
+      ref={handleButtonRef}
       type="button"
+      role="tab"
+      aria-selected={isActive}
+      tabIndex={isActive ? 0 : -1}
       whileHover={{
         y: -0.5,
         transition: { type: 'tween', duration: 0.12, ease: 'easeOut' }

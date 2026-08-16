@@ -1,6 +1,8 @@
 ﻿import type { Session } from 'electron'
 
+import { Logger } from '../../core/logger.js'
 import type { CookieExpiryCheckResult } from './sessionContracts.js'
+import { toErrorMessage } from './sessionErrors.js'
 
 const GOOGLE_AUTH_COOKIE_NAMES = new Set([
   'SID',
@@ -65,7 +67,13 @@ export class SessionMonitor {
     refreshThresholdMs: number,
     advanceMs?: number
   ): Promise<CookieExpiryCheckResult> {
-    const cookies = await targetSession.cookies.get({}).catch(() => [])
+    const cookies = await targetSession.cookies.get({}).catch((error) => {
+      Logger.warn(
+        '[GeminiWebSession] Failed to read cookies:',
+        toErrorMessage(error, 'cookie_read_failed')
+      )
+      return []
+    })
     const relevantCookies = cookies.filter(isRelevantGoogleCookie)
     if (relevantCookies.length === 0) {
       return {

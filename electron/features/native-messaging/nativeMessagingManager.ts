@@ -17,6 +17,11 @@ import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig.js'
 import { importExternalCookies } from '../gemini-web-session/sessionCookies.js'
 import { toExternalBrowserCookie } from './nativeMessagingCookieUtils.js'
 import {
+  deriveExtensionIdFromKey,
+  isAllowedBridgeOrigin,
+  validateCookieDomains
+} from './nativeMessagingOrigin.js'
+import {
   BRIDGE_PORT,
   BRIDGE_SECRET_HEADER,
   CRITICAL_COOKIE_NAMES,
@@ -34,6 +39,7 @@ class NativeMessagingManager {
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null
   private _sharedSecret: string = crypto.randomBytes(32).toString('hex')
   private _extensionLastSeenAt: number = 0
+  private _expectedExtensionOrigin: string | null = null
 
   get connectionStatus(): NativeMessagingConnectionStatus {
     return this._connectionStatus
@@ -70,6 +76,7 @@ class NativeMessagingManager {
   }
 
   async initialize(): Promise<void> {
+    await this.loadExpectedExtensionOrigin()
     await this.startServer()
 
     const bridgeInfoPath = this.resolveBridgeInfoPath()
@@ -77,6 +84,19 @@ class NativeMessagingManager {
       .stat(bridgeInfoPath)
       .then(() => true)
       .catch(() => false)
+  }
+
+  private async loadExpectedExtensionOrigin(): Promise<void> {
+    try {
+      const manifestPath = path.join(this.resolveSourceExtensionPath(), 'manifest.json')
+      const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8')) as { key?: string }
+      if (manifest.key) {
+        this._expectedExtensionOrigin = `chrome-extension://${deriveExtensionIdFromKey(manifest.key)}`
+        Logger.info(`[NativeMessaging] Expected extension origin: ${this._expectedExtensionOrigin}`)
+      }
+    } catch (error) {
+      Logger.error('[NativeMessaging] Failed to derive extension origin from manifest:', error)
+    }
   }
 
   async installExtension(): Promise<{
@@ -101,10 +121,7 @@ class NativeMessagingManager {
       const bridgeInfo = {
         port: this._port,
         host: '127.0.0.1',
-        endpoints: {
-          cookies: '/api/cookies',
-          health: '/api/health'
-        }
+        endpoints: { cookies: '/api/cookies', health: '/api/health' }
       }
       await fs.mkdir(path.dirname(bridgeInfoPath), { recursive: true })
       await fs.writeFile(bridgeInfoPath, JSON.stringify(bridgeInfo, null, 2), 'utf-8')
@@ -186,12 +203,7 @@ class NativeMessagingManager {
   }
 
   private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-    // SECURITY: Cookie POSTs are cryptographically verified via HMAC using a
-    // per-session shared secret delivered out-of-band through the health endpoint.
-    // The bridge only listens on 127.0.0.1, so only local processes can connect.
-    // CORS origin filtering is intentionally omitted — it is redundant given
-    // HMAC signing and breaks extension connections when the extension ID differs
-    // (e.g., loaded from a different path without the pinned manifest key).
+    // SECURITY: Cookie POSTs are HMAC-verified via a per-session secret; bridge listens on 127.0.0.1 only.
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-hmac-signature, x-bridge-secret')
@@ -200,6 +212,15 @@ class NativeMessagingManager {
     if (req.method === 'OPTIONS') {
       res.writeHead(204)
       res.end()
+      return
+    }
+
+    if (!isAllowedBridgeOrigin(req.headers.origin, this._expectedExtensionOrigin)) {
+      Logger.warn(
+        `[NativeMessaging] Rejected request from disallowed origin: ${req.headers.origin || '(none)'}`
+      )
+      res.writeHead(403, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Forbidden' }))
       return
     }
 
@@ -227,9 +248,7 @@ class NativeMessagingManager {
   }
 
   private handleCookiePost(req: http.IncomingMessage, res: http.ServerResponse): void {
-    // SECURITY: Verify HMAC signature on cookie POST requests.
-    // Without this check, any local process could impersonate the extension
-    // and inject malicious cookies into the Gemini session partition.
+    // SECURITY: Without the HMAC check, a local process could impersonate the extension.
     const signature = req.headers[HMAC_HEADER] as string | undefined
     if (!signature) {
       Logger.warn('[NativeMessaging] Rejected cookie POST: missing HMAC signature')
@@ -243,9 +262,7 @@ class NativeMessagingManager {
 
     req.on('data', (chunk: Buffer) => {
       bodySize += chunk.length
-      // SECURITY: Enforce maximum body size to prevent OOM attacks.
-      // A compromised extension or local process could send an arbitrarily
-      // large payload to exhaust bridge process memory.
+      // SECURITY: Cap payload size to prevent OOM attacks from the bridge.
       if (bodySize > MAX_COOKIE_BODY_SIZE) {
         req.destroy()
         Logger.warn('[NativeMessaging] Rejected oversized cookie payload')
@@ -256,8 +273,7 @@ class NativeMessagingManager {
 
     req.on('end', async () => {
       try {
-        // SECURITY: Verify HMAC signature using the shared secret.
-        // This ensures only the paired extension can send cookies.
+        // SECURITY: Verify the HMAC signature so only the paired extension can send cookies.
         const expectedSig = crypto
           .createHmac('sha256', this._sharedSecret)
           .update(body)
@@ -278,16 +294,7 @@ class NativeMessagingManager {
           return
         }
 
-        // SECURITY: Only accept cookies from known Google domains.
-        // This prevents a compromised extension from injecting cookies
-        // for arbitrary domains into the session partition.
-        const allowedDomains = ['.google.com', '.youtube.com']
-        const hasInvalidDomain = cookies.some((c) => {
-          if (!c.domain) return true
-          const domain = c.domain.startsWith('.') ? c.domain : '.' + c.domain
-          return !allowedDomains.some((d) => domain.endsWith(d))
-        })
-        if (hasInvalidDomain) {
+        if (!validateCookieDomains(cookies)) {
           Logger.warn('[NativeMessaging] Rejected cookie POST: invalid domain')
           res.writeHead(400, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'Invalid cookie domain' }))

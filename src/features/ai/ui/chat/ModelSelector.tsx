@@ -1,9 +1,17 @@
 import type { ApiConfig } from '@shared-core/types'
 
 import { Input } from '@app/components/ui/input'
+import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 
-import { ChevronDown, Sparkles } from 'lucide-react'
-import { memo, useState } from 'react'
+import { Check, ChevronDown, Search, Sparkles } from 'lucide-react'
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface ModelSelectorProps {
@@ -20,30 +28,91 @@ const ModelSelector = memo(function ModelSelector({
   const { t } = useTranslation()
   const [showModelSelector, setShowModelSelector] = useState(false)
   const [modelSearch, setModelSearch] = useState('')
+  const [focusedIndex, setFocusedIndex] = useState(-1)
+  const listRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
-  if (!activeProvider) return null
-
-  const allModels = activeProvider.models || []
+  const allModels = activeProvider?.models || []
   const filteredModels = allModels.filter((m) =>
     m.toLowerCase().includes(modelSearch.toLowerCase())
   )
 
+  const handleClose = useCallback(() => {
+    setShowModelSelector(false)
+    setModelSearch('')
+    setFocusedIndex(-1)
+    requestAnimationFrame(() => triggerRef.current?.focus())
+  }, [])
+
+  const handleSelect = useCallback(
+    (model: string) => {
+      onSelectModel(model)
+      handleClose()
+    },
+    [onSelectModel, handleClose]
+  )
+
+  useEffect(() => {
+    if (showModelSelector) {
+      setFocusedIndex(-1)
+    }
+  }, [showModelSelector])
+
+  useEffect(() => {
+    if (focusedIndex >= 0) {
+      listRef.current
+        ?.querySelector<HTMLElement>(`[data-model-index="${focusedIndex}"]`)
+        ?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [focusedIndex])
+
+  const handleSearchKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setFocusedIndex((prev) =>
+        filteredModels.length > 0 ? (prev + 1) % filteredModels.length : -1
+      )
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setFocusedIndex((prev) =>
+        filteredModels.length > 0 ? (prev <= 0 ? filteredModels.length - 1 : prev - 1) : -1
+      )
+    } else if (e.key === 'Enter') {
+      if (focusedIndex >= 0 && focusedIndex < filteredModels.length) {
+        e.preventDefault()
+        handleSelect(filteredModels[focusedIndex])
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      handleClose()
+    }
+  }
+
+  if (!activeProvider) return null
+
+  const currentDisplayName =
+    selectedModel || activeProvider.defaultModel || t('api_chat_select_model')
+
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => {
           setShowModelSelector(!showModelSelector)
           setModelSearch('')
         }}
-        className="group/btn text-ql-12 border-border bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground flex max-w-[200px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-xs transition-colors"
+        className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex max-w-[200px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        aria-haspopup="listbox"
+        aria-expanded={showModelSelector}
+        data-state={showModelSelector ? 'open' : 'closed'}
       >
-        <Sparkles className="text-primary h-3.5 w-3.5" />
+        <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
 
         <span className="text-foreground max-w-[120px] truncate font-medium">
-          {selectedModel || activeProvider.defaultModel || t('api_chat_select_model')}
+          {currentDisplayName}
         </span>
-        <ChevronDown className="text-muted-foreground h-3 w-3 opacity-60" />
+        <ChevronDown className="text-muted-foreground h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180" />
       </button>
 
       {showModelSelector && (
@@ -52,52 +121,67 @@ const ModelSelector = memo(function ModelSelector({
             type="button"
             aria-label={t('api_chat_close_selector', 'Close')}
             className="fixed inset-0 z-10 cursor-default"
-            onClick={() => {
-              setShowModelSelector(false)
-              setModelSearch('')
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setShowModelSelector(false)
-                setModelSearch('')
-              }
-            }}
+            onClick={handleClose}
           />
-          <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg absolute bottom-full left-0 z-20 mb-2 flex max-h-[300px] min-w-[220px] flex-col rounded-xl border p-1 backdrop-blur-md">
-            <div className="border-border/70 relative mb-1 border-b p-1">
-              <Input
-                value={modelSearch}
-                onChange={(e) => setModelSearch(e.target.value)}
-                placeholder={t('api_chat_search_models')}
-                onClick={(e) => e.stopPropagation()}
-                className="h-7 text-xs"
-              />
+          <div className="border-border/80 bg-popover/95 text-popover-foreground shadow-ambient-lg animate-in fade-in zoom-in-98 absolute bottom-full left-0 z-20 mb-2 flex max-h-[300px] min-w-[240px] flex-col rounded-xl border p-1.5 backdrop-blur-md duration-150">
+            <div className="border-border/60 relative mb-1 border-b pb-1.5">
+              <InputGroup>
+                <InputGroupAddon align="inline-start">
+                  <Search className="text-muted-foreground/60 h-3 w-3" />
+                </InputGroupAddon>
+                <Input
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- focus search input when popover opens
+                  autoFocus
+                  value={modelSearch}
+                  onChange={(e) => {
+                    setModelSearch(e.target.value)
+                    setFocusedIndex(-1)
+                  }}
+                  onKeyDown={handleSearchKeyDown}
+                  aria-activedescendant={
+                    focusedIndex >= 0 ? `model-option-${focusedIndex}` : undefined
+                  }
+                  placeholder={t('api_chat_search_models')}
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-7 pl-7 text-xs font-normal"
+                />
+              </InputGroup>
             </div>
-            <div className="custom-scrollbar max-h-[200px] min-h-0 flex-1 overflow-y-auto p-0.5">
+            <div
+              ref={listRef}
+              role="listbox"
+              className="custom-scrollbar max-h-[200px] min-h-0 flex-1 space-y-0.5 overflow-y-auto p-0.5"
+            >
               {allModels.length === 0 ? (
                 <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center leading-normal">
                   {t('api_chat_no_fetched_models')}
                 </div>
               ) : filteredModels.length > 0 ? (
-                filteredModels.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      onSelectModel(m)
-                      setShowModelSelector(false)
-                      setModelSearch('')
-                    }}
-                    className={`text-ql-12 w-full rounded-md px-2.5 py-1.5 text-left font-medium transition-colors ${
-                      m === selectedModel
-                        ? 'bg-accent text-foreground font-semibold'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))
+                filteredModels.map((m, index) => {
+                  const isSelected = m === selectedModel
+                  const isFocused = index === focusedIndex
+                  return (
+                    <button
+                      key={m}
+                      id={`model-option-${index}`}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      data-model-index={index}
+                      onClick={() => handleSelect(m)}
+                      className={`text-ql-12 flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : isFocused
+                            ? 'bg-muted text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      <span className="truncate">{m}</span>
+                      {isSelected && <Check className="text-primary h-3.5 w-3.5 shrink-0" />}
+                    </button>
+                  )
+                })
               ) : (
                 <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center">
                   {t('api_chat_no_models_found')}

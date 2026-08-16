@@ -135,4 +135,31 @@ describe('useDraftSendOrchestration', () => {
 
     expect(second.error).toBe('send_in_progress')
   })
+
+  it('clears only delivered segments on partial failure so a retry does not resend content', async () => {
+    // [text, image] merges the text into the image prompt; [image, text]
+    // produces two segments: image (with prompt) then text.
+    const { result, sendTextToAI, sendImageToAI, setPendingAiItems } = buildHarness([
+      imageItem('i2', 'data:image/png;base64,xxx'),
+      textItem('t3', 'world')
+    ])
+    sendImageToAI.mockResolvedValueOnce({ success: true })
+    sendTextToAI.mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+
+    let res: any
+    await act(async () => {
+      res = await result.current.sendPendingAiItems()
+    })
+
+    expect(res).toEqual({ success: false, error: 'paste_failed' })
+    expect(sendImageToAI).toHaveBeenCalledTimes(1)
+    expect(sendTextToAI).toHaveBeenCalledTimes(1)
+
+    const updater = setPendingAiItems.mock.calls[0][0] as (current: AiDraftItem[]) => AiDraftItem[]
+    const remaining = updater([
+      imageItem('i2', 'data:image/png;base64,xxx'),
+      textItem('t3', 'world')
+    ])
+    expect(remaining.map((item) => item.id)).toEqual(['t3'])
+  })
 })

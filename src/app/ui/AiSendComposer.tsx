@@ -53,6 +53,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     handleDragMove,
     handleDragEnd,
     handleResizeStart,
+    handleResizeKeyDown,
     getResizeCursor,
     resizeHandlers,
     edgeThickness
@@ -227,6 +228,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
                   onSubmit={handleSend}
                   onRetry={handleRetry}
                   onResizeStart={handleResizeStart}
+                  onResizeKeyDown={handleResizeKeyDown}
                   getResizeCursor={getResizeCursor}
                   resizeHandlers={resizeHandlers}
                   edgeThickness={edgeThickness}

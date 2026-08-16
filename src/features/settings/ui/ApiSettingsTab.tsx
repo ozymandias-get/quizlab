@@ -2,6 +2,7 @@ import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
+import { useToastActions } from '@shared/stores/toastStore'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +13,7 @@ import PromptSettingsSection from './apiSettings/PromptSettingsSection'
 
 export default memo(function ApiSettingsTab() {
   const { t } = useTranslation()
+  const { showError } = useToastActions()
   const [config, setConfig] = useState<ApiConfig>({
     providers: [],
     generalPrompt: '',
@@ -108,10 +110,11 @@ export default memo(function ApiSettingsTab() {
       }
     } catch (err: unknown) {
       Logger.error('[ApiSettingsTab] Failed to save:', err)
+      showError('toast_ai_config_save_failed')
     } finally {
       setSaving(false)
     }
-  }, [])
+  }, [showError])
 
   const handleFetchModels = useCallback(
     async (id: string) => {
@@ -155,7 +158,7 @@ export default memo(function ApiSettingsTab() {
               {
                 id: 'test',
                 role: 'user' as const,
-                content: t('test_message_content'),
+                content: t('api_chat_test_message'),
                 timestamp: Date.now()
               }
             ],

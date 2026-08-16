@@ -69,6 +69,7 @@ function App() {
     leftPanelRef,
     resizerRef,
     handleMouseDown,
+    nudgeLeftPanelWidth,
     isResizing,
     setLeftPanelWidth
   } = panelResize
@@ -115,6 +116,8 @@ function App() {
             gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
             handleMouseDown={handleMouseDown}
             handleResizerDoubleClick={handleResizerDoubleClick}
+            onKeyboardResize={nudgeLeftPanelWidth}
+            isResizeReversed={isLayoutSwapped}
             isWebviewMounted={isWebviewMounted}
             isResizing={isResizing}
             isBarHovered={workspaceState.isBarHovered}
