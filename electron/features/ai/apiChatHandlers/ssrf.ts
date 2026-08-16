@@ -78,24 +78,51 @@ function isRedirectStatus(status: number): boolean {
 }
 
 /**
+ * Applies Fetch-spec redirect method semantics for the follow-up request:
+ * 301/302/303 convert non-GET/HEAD methods to GET and drop the body,
+ * while 307/308 preserve method and body.
+ */
+function applyRedirectSemantics(status: number, init?: RequestInit): RequestInit | undefined {
+  if (!init || status === 307 || status === 308) return init
+  const method = (init.method || 'GET').toUpperCase()
+  if (method === 'GET' || method === 'HEAD') return init
+  const headers = new Headers(init.headers)
+  headers.delete('Content-Type')
+  headers.delete('Content-Length')
+  const next: RequestInit = { ...init, method: 'GET', headers }
+  delete next.body
+  return next
+}
+
+/**
  * fetch() wrapper that re-validates every redirect hop with the same SSRF
  * rules as the original URL. The default fetch() follows redirects blindly,
  * so a public provider URL that answers with a 302 to an internal address
  * (e.g. 169.254.169.254) would otherwise bypass the block entirely.
+ *
+ * Redirects may only stay on the origin of the original request; any
+ * cross-origin hop is rejected so credentials (Authorization, Cookie,
+ * Proxy-Authorization, ...) are never forwarded to another domain.
  */
 async function fetchWithSsrProtection(url: string, init?: RequestInit): Promise<Response> {
+  const originalOrigin = new URL(url).origin
   let currentUrl = url
+  let currentInit = init
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const response = await fetch(currentUrl, { ...init, redirect: 'manual' })
+    const response = await fetch(currentUrl, { ...currentInit, redirect: 'manual' })
     if (!isRedirectStatus(response.status)) return response
     const location = response.headers.get('location')
     if (!location) return response
-    const target = new URL(location, currentUrl).toString()
-    const err = validateProviderUrl(target)
+    const target = new URL(location, currentUrl)
+    const err = validateProviderUrl(target.href)
     if (err) {
       throw new Error(`SSRF blocked on redirect: ${err}`)
     }
-    currentUrl = target
+    if (target.origin !== originalOrigin) {
+      throw new Error(`Cross-origin redirect blocked: "${target.href}"`)
+    }
+    currentUrl = target.href
+    currentInit = applyRedirectSemantics(response.status, currentInit)
   }
   throw new Error('Too many redirects')
 }

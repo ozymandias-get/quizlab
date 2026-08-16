@@ -85,22 +85,45 @@ describe('fetchWithSsrProtection (redirect revalidation)', () => {
     fetchMock.mockImplementation(async () => {
       return { status: 302, headers: { get: () => 'http://169.254.169.254/latest/meta-data' } }
     })
-    await expect(fetchWithSsrProtection('https://public.example.com/start')).rejects.toThrow(
+    await expect(fetchWithSsrProtection('https://public.example/start')).rejects.toThrow(
       'SSRF blocked on redirect'
     )
   })
 
-  it('follows redirects to public HTTPS hosts', async () => {
+  it('blocks cross-origin redirects even to public HTTPS hosts', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async () => {
+      return { status: 302, headers: { get: () => 'https://evil.example/final' } }
+    })
+    await expect(fetchWithSsrProtection('https://public.example/start')).rejects.toThrow(
+      'Cross-origin redirect blocked'
+    )
+  })
+
+  it('follows redirects on the same origin', async () => {
     const fetchMock = globalThis.fetch as any
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).endsWith('/start')) {
-        return { status: 302, headers: { get: () => 'https://other.example.com/final' } }
+        return { status: 302, headers: { get: () => 'https://public.example/final' } }
       }
       return { status: 200, ok: true, json: async () => ({ done: true }) }
     })
-    const response = await fetchWithSsrProtection('https://public.example.com/start')
+    const response = await fetchWithSsrProtection('https://public.example/start')
     expect(response.status).toBe(200)
-    expect(fetchMock).toHaveBeenLastCalledWith('https://other.example.com/final', expect.anything())
+    expect(fetchMock).toHaveBeenLastCalledWith('https://public.example/final', expect.anything())
+  })
+
+  it('follows relative redirects on the same origin', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/v1/chat')) {
+        return { status: 302, headers: { get: () => '../v2/chat' } }
+      }
+      return { status: 200, ok: true, json: async () => ({ done: true }) }
+    })
+    const response = await fetchWithSsrProtection('https://api.example.com/v1/chat')
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenLastCalledWith('https://api.example.com/v2/chat', expect.anything())
   })
 
   it('throws on redirect loops', async () => {
@@ -111,5 +134,68 @@ describe('fetchWithSsrProtection (redirect revalidation)', () => {
     await expect(fetchWithSsrProtection('https://loop.example.com/start')).rejects.toThrow(
       'Too many redirects'
     )
+  })
+
+  it('never sends Authorization to a cross-origin redirect target', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/start')) {
+        return { status: 302, headers: { get: () => 'https://evil.example/final' } }
+      }
+      return { status: 200, ok: true, json: async () => ({ done: true }) }
+    })
+    await expect(
+      fetchWithSsrProtection('https://public.example/start', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer SECRET-KEY', 'Content-Type': 'application/json' },
+        body: '{"model":"gpt-4"}'
+      })
+    ).rejects.toThrow('Cross-origin redirect blocked')
+    expect(
+      fetchMock.mock.calls.some((call: unknown[]) =>
+        String(call[0]).startsWith('https://evil.example')
+      )
+    ).toBe(false)
+  })
+
+  it('converts POST to GET without a body on 303 redirects', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/start')) {
+        return { status: 303, headers: { get: () => 'https://public.example/final' } }
+      }
+      return { status: 200, ok: true, json: async () => ({ done: true }) }
+    })
+    const response = await fetchWithSsrProtection('https://public.example/start', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer SECRET-KEY', 'Content-Type': 'application/json' },
+      body: '{"model":"gpt-4"}'
+    })
+    expect(response.status).toBe(200)
+    const lastCall = fetchMock.mock.lastCall
+    expect(lastCall[0]).toBe('https://public.example/final')
+    expect(lastCall[1].method).toBe('GET')
+    expect(lastCall[1].body).toBeUndefined()
+    expect((lastCall[1].headers as Headers).get('Content-Type')).toBeNull()
+  })
+
+  it('preserves method and body on 307 redirects', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/start')) {
+        return { status: 307, headers: { get: () => 'https://public.example/final' } }
+      }
+      return { status: 200, ok: true, json: async () => ({ done: true }) }
+    })
+    const response = await fetchWithSsrProtection('https://public.example/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"model":"gpt-4"}'
+    })
+    expect(response.status).toBe(200)
+    const lastCall = fetchMock.mock.lastCall
+    expect(lastCall[0]).toBe('https://public.example/final')
+    expect(lastCall[1].method).toBe('POST')
+    expect(lastCall[1].body).toBe('{"model":"gpt-4"}')
   })
 })

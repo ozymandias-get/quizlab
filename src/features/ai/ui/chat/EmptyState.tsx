@@ -72,20 +72,13 @@ const EmptyState = memo(function EmptyState({
         {hasProvider && onSuggestionClick && (
           <div className="grid w-full max-w-xl grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
             {suggestions.map((s, i) => (
-              <div
+              <button
                 // Static suggestions list — items never reorder
                 // eslint-disable-next-line react/no-array-index-key -- Static suggestion buttons, stable order
                 key={i}
-                role="button"
-                tabIndex={0}
+                type="button"
                 onClick={() => onSuggestionClick(s.prompt)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onSuggestionClick(s.prompt)
-                  }
-                }}
-                className="group border-border/80 bg-card/80 hover:border-border hover:bg-muted/70 focus-visible:ring-ring/40 relative flex cursor-pointer flex-col justify-between rounded-xl border p-3 shadow-2xs transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+                className="group border-border/80 bg-card/80 hover:border-border hover:bg-muted/70 focus-visible:ring-ring/40 relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left shadow-2xs transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
               >
                 <div className="mb-1.5 flex items-center gap-2">
                   <div className="bg-muted text-muted-foreground group-hover:text-foreground flex h-6 w-6 items-center justify-center rounded-md transition-colors">
@@ -95,7 +88,7 @@ const EmptyState = memo(function EmptyState({
                 </div>
                 <p className="text-ql-11 text-muted-foreground leading-normal">{s.desc}</p>
                 <ArrowRight className="text-muted-foreground/40 absolute right-3 bottom-3 h-3.5 w-3.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
-              </div>
+              </button>
             ))}
           </div>
         )}

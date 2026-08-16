@@ -16,30 +16,41 @@ export function deriveExtensionIdFromKey(publicKeyBase64: string): string {
 }
 
 /**
+ * Origin allowlist policy for the native-messaging bridge.
+ *
+ * PRODUCTION (isDev=false): only the paired extension origin may reach the
+ * bridge. The health endpoint hands out the HMAC secret, so no localhost or
+ * arbitrary web origin is allowed.
+ *
+ * DEVELOPMENT (isDev=true): the paired extension origin plus the exact dev
+ * server origin (e.g. http://localhost:5173, derived from the Vite config).
+ * Matches are exact — "any port" on localhost is never allowed.
+ */
+export interface BridgeOriginPolicy {
+  expectedExtensionOrigin: string | null
+  allowedDevOrigins: readonly string[]
+  isDev: boolean
+}
+
+/**
  * SECURITY: The health endpoint hands out the HMAC secret, so only the
- * paired extension (or the app's own dev/renderer origins on localhost) may
- * reach the bridge. Browsers set the Origin header and a page cannot spoof a
- * chrome-extension:// origin, so origin matching closes that hole; HMAC stays
- * as defense in depth for the cookie POST. Local processes can always forge
- * headers, but they can equally read the secret from the app's memory.
+ * paired extension (and, in dev only, the exact configured dev server
+ * origin) may reach the bridge. Browsers set the Origin header and a page
+ * cannot spoof a chrome-extension:// origin, so exact origin matching closes
+ * that hole; HMAC stays as defense in depth for the cookie POST. Local
+ * processes can always forge headers, but they can equally read the secret
+ * from the app's memory.
  */
 export function isAllowedBridgeOrigin(
   origin: string | undefined,
-  expectedExtensionOrigin: string | null
+  policy: BridgeOriginPolicy
 ): boolean {
   if (!origin) return false
-  if (expectedExtensionOrigin && origin === expectedExtensionOrigin) {
+  if (policy.expectedExtensionOrigin && origin === policy.expectedExtensionOrigin) {
     return true
   }
-  try {
-    const parsed = new URL(origin)
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
-    }
-  } catch {
-    return false
-  }
-  return false
+  if (!policy.isDev) return false
+  return policy.allowedDevOrigins.includes(origin)
 }
 
 const ALLOWED_COOKIE_DOMAINS = ['.google.com', '.youtube.com']

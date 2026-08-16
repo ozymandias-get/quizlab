@@ -1,6 +1,7 @@
 import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 import { Kbd } from '@app/components/ui/kbd'
+import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
 
 import { FileText, Search, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -143,7 +144,7 @@ function PdfSearchBar({
                   <Search className="h-3.5 w-3.5" />
                 </div>
                 <Kbd size="xs" variant="default" className="hidden opacity-80 sm:inline-flex">
-                  Ctrl+F
+                  {getShortcutModifierLabel()}+F
                 </Kbd>
               </div>
             </motion.button>

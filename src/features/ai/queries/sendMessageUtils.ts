@@ -33,6 +33,23 @@ export interface SendMessageParams {
   characterPrompt?: string
 }
 
+/**
+ * Outcome of an api-chat send. Writing an error bubble into the transcript
+ * (`errorReply`) is NOT a success: callers must branch on `success`.
+ */
+export type SendApiChatResult =
+  | {
+      success: true
+      reply: ApiChatMessage
+      sessionId: string
+    }
+  | {
+      success: false
+      error: string
+      errorReply?: ApiChatMessage
+      sessionId: string
+    }
+
 export interface RegenerateParams {
   tabId: string
   messages: ApiChatMessage[]

@@ -12,11 +12,13 @@ import type { AddressInfo } from 'net'
 import path from 'path'
 
 import { APP_CONFIG } from '../../app/constants.js'
+import { DEV_SERVER_ORIGIN } from '../../app/window/environment.js'
 import { Logger } from '../../core/logger.js'
 import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig.js'
 import { importExternalCookies } from '../gemini-web-session/sessionCookies.js'
 import { toExternalBrowserCookie } from './nativeMessagingCookieUtils.js'
 import {
+  type BridgeOriginPolicy,
   deriveExtensionIdFromKey,
   isAllowedBridgeOrigin,
   validateCookieDomains
@@ -202,30 +204,57 @@ class NativeMessagingManager {
     this._waitingSince = null
   }
 
+  // SECURITY: Policy is evaluated per request so tests and env overrides
+  // (APP_RENDERER_URL) take effect without a global environment system.
+  private getOriginPolicy(): BridgeOriginPolicy {
+    const isDev = !app.isPackaged
+    return {
+      expectedExtensionOrigin: this._expectedExtensionOrigin,
+      // Exact dev server origin (default http://localhost:5173, derived from
+      // the Vite config; overridable via APP_RENDERER_URL). Never "any port".
+      allowedDevOrigins: isDev && DEV_SERVER_ORIGIN ? [DEV_SERVER_ORIGIN] : [],
+      isDev
+    }
+  }
+
   private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-    // SECURITY: Cookie POSTs are HMAC-verified via a per-session secret; bridge listens on 127.0.0.1 only.
-    res.setHeader('Access-Control-Allow-Origin', '*')
+    const requestOrigin = req.headers.origin
+    // SECURITY: Origin policy runs before anything else (including OPTIONS
+    // preflights) — the health endpoint hands out the shared secret, so only
+    // allowlisted origins may talk to the bridge at all. Cookie POSTs are
+    // additionally HMAC-verified via a per-session secret; bridge listens on
+    // 127.0.0.1 only.
+    const originAllowed = isAllowedBridgeOrigin(requestOrigin, this.getOriginPolicy())
+
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-hmac-signature, x-bridge-secret')
     res.setHeader('Vary', 'Origin')
+    // SECURITY: Never use a wildcard. Echo the exact allowlisted origin so
+    // only allowed callers can read responses (e.g. the shared secret); for
+    // disallowed origins no ACAO header is emitted at all.
+    if (originAllowed && requestOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', requestOrigin)
+    }
 
     if (req.method === 'OPTIONS') {
+      if (!originAllowed) {
+        this.rejectDisallowedOrigin(res, requestOrigin)
+        return
+      }
       res.writeHead(204)
       res.end()
       return
     }
 
-    if (!isAllowedBridgeOrigin(req.headers.origin, this._expectedExtensionOrigin)) {
-      Logger.warn(
-        `[NativeMessaging] Rejected request from disallowed origin: ${req.headers.origin || '(none)'}`
-      )
-      res.writeHead(403, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Forbidden' }))
+    if (!originAllowed) {
+      this.rejectDisallowedOrigin(res, requestOrigin)
       return
     }
 
     if (req.method === 'GET' && req.url === '/api/health') {
       this._extensionLastSeenAt = Date.now()
+
+      Logger.info(`[NativeMessaging] Served bridge shared secret to origin: ${requestOrigin}`)
 
       const healthResponse: Record<string, unknown> = {
         status: 'ok',
@@ -245,6 +274,12 @@ class NativeMessagingManager {
 
     res.writeHead(404)
     res.end('Not found')
+  }
+
+  private rejectDisallowedOrigin(res: http.ServerResponse, origin: string | undefined): void {
+    Logger.warn(`[NativeMessaging] Rejected request from disallowed origin: ${origin || '(none)'}`)
+    res.writeHead(403, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ error: 'Forbidden' }))
   }
 
   private handleCookiePost(req: http.IncomingMessage, res: http.ServerResponse): void {

@@ -162,4 +162,27 @@ describe('useDraftSendOrchestration', () => {
     ])
     expect(remaining.map((item) => item.id)).toEqual(['t3'])
   })
+
+  it('keeps drafts queued when an api-chat send fails, then sends them on retry', async () => {
+    const { result, sendTextToAI, setPendingAiItems } = buildHarness([textItem('t1', 'first')])
+    sendTextToAI.mockResolvedValueOnce({ success: false, error: 'API error: 500' })
+
+    let res: any
+    await act(async () => {
+      res = await result.current.sendPendingAiItems()
+    })
+
+    expect(res).toEqual({ success: false, error: 'API error: 500' })
+    expect(setPendingAiItems).not.toHaveBeenCalled()
+
+    sendTextToAI.mockResolvedValueOnce({ success: true })
+    await act(async () => {
+      res = await result.current.sendPendingAiItems()
+    })
+
+    expect(res.success).toBe(true)
+    expect(setPendingAiItems).toHaveBeenCalledTimes(1)
+    const updater = setPendingAiItems.mock.calls[0][0] as (current: AiDraftItem[]) => AiDraftItem[]
+    expect(updater([textItem('t1', 'first')])).toEqual([])
+  })
 })
