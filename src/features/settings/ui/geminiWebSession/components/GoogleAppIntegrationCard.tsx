@@ -27,30 +27,21 @@ const GoogleAppIntegrationCard = memo(function GoogleAppIntegrationCard({
 }: GoogleAppIntegrationCardProps) {
   const { t } = useTranslation()
   const handleToggle = useCallback(() => onToggleManagedApp(app.id), [app.id, onToggleManagedApp])
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        handleToggle()
-      }
-    },
-    [handleToggle]
-  )
 
   return (
+    // Clicking anywhere on the card toggles, but the accessible control is the
+    // Switch below — the card itself must not be a second tab stop (no
+    // role/tabIndex) or it would duplicate the toggle for assistive tech.
+    /* eslint-disable jsx-a11y/click-events-have-key-events */
     <div
       onClick={disabled ? undefined : handleToggle}
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      onKeyDown={disabled ? undefined : handleKeyDown}
-      aria-disabled={disabled}
-      aria-label={app.name}
       className={`cursor-pointer rounded-xl border px-3.5 py-3 transition-colors ${
         isEnabled
           ? 'border-primary/40 bg-muted/80 shadow-xs'
           : 'border-border bg-card hover:bg-muted/40'
       } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
     >
+      {/* eslint-enable jsx-a11y/click-events-have-key-events */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div

@@ -21,11 +21,14 @@ function revokeDraftBlobUrls(items: AiDraftItem[]) {
   }
 }
 
-export function useAiDraftQueue() {
+export function useAiDraftQueue(onDrop?: () => void) {
   const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
 
   const pendingAiItemsRef = useRef(pendingAiItems)
   pendingAiItemsRef.current = pendingAiItems
+
+  const onDropRef = useRef(onDrop)
+  onDropRef.current = onDrop
 
   useEffect(() => {
     return () => {
@@ -74,6 +77,7 @@ export function useAiDraftQueue() {
         const dropped = current[0]
         revokeDraftItemBlob(dropped)
         Logger?.warn?.(`[DraftQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest item`)
+        onDropRef.current?.()
         const trimmed = current.slice(1)
         return [
           ...trimmed,

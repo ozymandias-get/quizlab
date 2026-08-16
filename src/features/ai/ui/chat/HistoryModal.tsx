@@ -14,9 +14,7 @@ import {
 import { useChatUiStore } from '../../store/chatUiStore'
 import HistorySessionItem from './HistorySessionItem'
 
-// Search debounce: each keystroke would otherwise trigger a full scan over
-// every session's messages, which is O(sessions × messages-per-session) —
-// prohibitive for users with a long history.
+// Debounced so keystrokes don't trigger a full O(sessions × messages) scan.
 const SEARCH_DEBOUNCE_MS = 180
 
 interface HistoryModalProps {
@@ -38,23 +36,53 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
   // Debounce the search string so we don't re-run the full O(n*m) filter on
   // every keystroke. The input updates instantly for typing; the actual
   // filtering catches up ~180ms after the user stops.
   const debouncedSearch = useDebouncedValue(modalSearch, SEARCH_DEBOUNCE_MS)
 
-  // Escape key handler + body scroll lock
+  // Escape key handler + body scroll lock + dialog focus management
   useEffect(() => {
     if (!isOpen) return
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      // Focus trap: keep Tab/Shift+Tab cycling inside the dialog panel.
+      if (e.key !== 'Tab') return
+      const dialogEl = dialogRef.current
+      if (!dialogEl) return
+      const focusable = dialogEl.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
+
     window.addEventListener('keydown', handleKeyDown)
+    // Move focus into the dialog (after layout settles).
+    requestAnimationFrame(() => closeButtonRef.current?.focus())
     return () => {
       document.body.style.overflow = prevOverflow
       window.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus()
     }
   }, [isOpen, onClose])
 
@@ -68,14 +96,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     [sessions, debouncedSearch]
   )
 
-  // Hooks MUST be declared unconditionally and BEFORE any early return.
-  // If we return early for !isOpen before useRef/useCallback, React will
-  // see a different number of hooks on the next render and throw:
-  //   "Rendered more hooks than during the previous render"
-  // See: https://react.dev/link/rules-of-hooks
-
-  // Stable refs for values that change frequently so callbacks don't churn
-  // every render (which would defeat HistorySessionItem's memo).
+  // Hooks must be unconditional and before any early return (rules-of-hooks).
   const editTitleRef = useRef(editTitle)
   editTitleRef.current = editTitle
   const tabIdRef = useRef(tabId)
@@ -97,9 +118,6 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
 
   const handleCancelEdit = () => setEditingId(null)
 
-  // Per-row handlers (id is provided by the child, tabId via ref so the
-  // callback reference is stable across re-renders triggered by editTitle
-  // typing or other state).
   const handleSelect = useCallback(
     (id: string) => {
       selectSession(tabIdRef.current, id)
@@ -113,24 +131,22 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   if (!isOpen) return null
 
   return (
+    // Click-outside-to-close is a pointer-only convenience; keyboard users
+    // close via Escape (handled above) and focus is trapped inside the panel.
+    /* eslint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
     <div
       className="z-modal bg-background/60 fixed inset-0 flex items-center justify-center p-4 backdrop-blur-md"
-      role="button"
-      tabIndex={0}
       onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClose()
-        }
-      }}
     >
       <div
-        role="presentation"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-modal-title"
         className="border-border bg-popover text-popover-foreground shadow-ambient-xl relative flex h-[540px] w-full max-w-2xl flex-col overflow-hidden rounded-xl border"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
       >
+        {/* eslint-enable jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         {/* Modal Header */}
         <div className="border-border bg-card/80 relative flex shrink-0 items-center justify-between border-b px-5 py-3.5">
           <div className="flex items-center gap-3">
@@ -138,7 +154,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
               <Clock className="h-4 w-4 shrink-0" />
             </div>
             <div>
-              <h3 className="text-ql-14 text-foreground font-semibold">
+              <h3 id="history-modal-title" className="text-ql-14 text-foreground font-semibold">
                 {t('api_chat_modal_title')}
               </h3>
               <p className="text-ql-11 text-muted-foreground">{t('api_chat_modal_subtitle')}</p>
@@ -162,6 +178,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
               </button>
             )}
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={onClose}
               className="border-border bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"

@@ -79,7 +79,7 @@ function PdfPageNav({
             }
           }}
           onBlur={submitPageInput}
-          className="text-ql-12 border-border bg-background text-foreground focus:border-ring rounded-md border px-1.5 py-0.5 text-center font-medium tabular-nums outline-none"
+          className="text-ql-12 border-border bg-background text-foreground focus-visible:border-ring rounded-md border px-1.5 py-0.5 text-center font-medium tabular-nums outline-none"
           style={{ width: `${Math.max(54, totalPages.toString().length * 10 + 20)}px` }}
         />
       ) : (

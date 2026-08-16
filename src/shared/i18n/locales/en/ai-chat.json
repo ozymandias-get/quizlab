@@ -91,6 +91,22 @@
   "api_chat_test_ok": "OK: {response}",
   "api_chat_api_unavailable": "API is not available",
   "api_chat_test_error": "Error: {error}",
+  "api_chat_test_failed": "Connection test failed",
   "api_chat_send_error": "Error: {error}",
-  "api_chat_placeholder_provider": "e.g. My Provider"
+  "api_chat_placeholder_provider": "e.g. My Provider",
+  "api_chat_remove_attachment": "Remove attachment",
+  "api_chat_show_api_key": "Show API key",
+  "api_chat_hide_api_key": "Hide API key",
+  "api_chat_sugg_1_title": "Plan your study",
+  "api_chat_sugg_1_desc": "Create a focused study plan for an upcoming exam.",
+  "api_chat_sugg_1_prompt": "Create a focused four-week study plan for my upcoming exam, covering the most important topics.",
+  "api_chat_sugg_2_title": "Analyze code",
+  "api_chat_sugg_2_desc": "Find likely issues and suggest practical fixes.",
+  "api_chat_sugg_2_prompt": "Analyze this JavaScript code for possible memory leaks and suggest fixes:\n\n```javascript\nfunction setupHandler() {\n  const largeData = new Array(1000000).fill('data');\n  document.getElementById('btn').addEventListener('click', () => {\n    console.log('Clicked!', largeData.length);\n  });\n}\n```",
+  "api_chat_sugg_3_title": "Improve writing",
+  "api_chat_sugg_3_desc": "Rewrite a paragraph in a clear academic style.",
+  "api_chat_sugg_3_prompt": "Rewrite the following informal paragraph in a professional academic style:\n\n\"We think this app works really well because it fetches data very quickly and its interface is simple.\"",
+  "api_chat_sugg_4_title": "Draft content",
+  "api_chat_sugg_4_desc": "Create engaging copy for a learning product.",
+  "api_chat_sugg_4_prompt": "Write an engaging social-media introduction for QuizLab Reader that highlights its AI features for students."
 }

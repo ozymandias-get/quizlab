@@ -8,10 +8,11 @@ import type { AiSendOptions } from '@features/ai/model/types'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import type * as ChatUiStoreModule from '../../../features/ai/store/chatUiStore'
 import { toErrorToastKey } from './errorToastKey'
+import { scheduleApiChatSend, waitForApiChatTab } from './lib/apiChatSend'
 import { waitForWebviewReadyForSend } from './webviewSendReadiness'
 
 let chatUiStoreModule: typeof ChatUiStoreModule | null = null
@@ -48,6 +49,13 @@ export function useAiMessaging({
   const activeTabIdRef = useRef(activeTabId)
   activeTabIdRef.current = activeTabId
 
+  useEffect(() => {
+    const timeout = apiChatSendTimeoutRef.current
+    return () => {
+      if (timeout) clearTimeout(timeout)
+    }
+  }, [])
+
   const webviewRefProxy = useMemo(
     () => ({
       get current() {
@@ -67,49 +75,42 @@ export function useAiMessaging({
     [getWebviewInstance]
   )
 
+  const ensureApiChatTab = useCallback(async () => {
+    if (activeTabIdRef.current) return activeTabIdRef.current
+    openAiWorkspace('api-chat')
+    return waitForApiChatTab(() => activeTabIdRef.current)
+  }, [openAiWorkspace])
+
+  const handleApiChatSendResult = useCallback(
+    (result: { success: boolean; error?: string }) => {
+      if (!result.success && result.error && result.error !== 'empty_message') {
+        reportSuppressedError('useAiMessaging.apiChatSend', {
+          cause: new Error(result.error)
+        })
+        showWarning(toErrorToastKey(result.error))
+      }
+    },
+    [showWarning]
+  )
+
   const sendTextToAI = useCallback(
     async (text: string, options?: AiSendOptions) => {
       if (currentAI === 'api-chat') {
         // api-chat uses a store-based tab, not a webview. If no tab exists,
-        // auto-open one for api-chat.
-        if (!activeTabId) {
-          openAiWorkspace('api-chat')
-          // Wait a bit for the tab to be created and activeTabId to update
-          await new Promise((resolve) => setTimeout(resolve, 100))
-          if (!activeTabIdRef.current) {
-            return { success: false, error: 'webview_not_ready' }
-          }
+        // auto-open one for api-chat and wait for it to become active.
+        const currentTabId = await ensureApiChatTab()
+        if (!currentTabId) {
+          return { success: false, error: 'webview_not_ready' }
         }
         try {
           const UiStore = await getChatUiStore()
           const uiState = UiStore.getState()
-          const currentTabId = activeTabIdRef.current
           const val = uiState.inputValueByTab[currentTabId] || ''
           const newVal = val ? val + '\n' + text : text
           uiState.updateInput(currentTabId, newVal)
           const effectiveAutoSend = resolveAutoSend(autoSend, options)
           if (effectiveAutoSend) {
-            if (apiChatSendTimeoutRef.current) clearTimeout(apiChatSendTimeoutRef.current)
-            apiChatSendTimeoutRef.current = setTimeout(async () => {
-              apiChatSendTimeoutRef.current = null
-              const uist = UiStore.getState()
-              const sendTabId = activeTabIdRef.current
-              // Use TanStack Query mutation for sending
-              const { useSendMessageMutation: getMutation } =
-                await import('@features/ai/queries/useSendMessageMutation')
-              getMutation()
-                .mutateAsync({
-                  tabId: sendTabId,
-                  text: uist.inputValueByTab[sendTabId] || '',
-                  images: uist.attachmentsByTab[sendTabId] || [],
-                  model: uist.selectedModelByTab[sendTabId],
-                  providerId: uist.activeProviderByTab[sendTabId],
-                  generalPrompt: uist.generalPrompt,
-                  memoryPrompt: uist.memoryPrompt,
-                  characterPrompt: uist.characterPrompt
-                })
-                .catch(() => {})
-            }, 50)
+            scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef, handleApiChatSendResult)
           }
           return { success: true }
         } catch (err) {
@@ -132,15 +133,18 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = await rawSendText(text, options)
-      if (!result.success) showWarning(toErrorToastKey(result.error))
+      const result = (await rawSendText(text, options)) ?? { success: false, error: 'cancelled' }
+      if (!result.success && result.error !== 'cancelled') {
+        showWarning(toErrorToastKey(result.error))
+      }
       return result
     },
     [
       currentAI,
-      activeTabId,
       autoSend,
+      ensureApiChatTab,
       getWebviewInstance,
+      handleApiChatSendResult,
       openAiWorkspace,
       rawSendText,
       showWarning,
@@ -151,18 +155,14 @@ export function useAiMessaging({
   const sendImageToAI = useCallback(
     async (imageData: string, options?: AiSendOptions) => {
       if (currentAI === 'api-chat') {
-        // Auto-open an api-chat tab if none exists
-        if (!activeTabId) {
-          openAiWorkspace('api-chat')
-          await new Promise((resolve) => setTimeout(resolve, 100))
-          if (!activeTabIdRef.current) {
-            return { success: false, error: 'webview_not_ready' }
-          }
+        // Auto-open an api-chat tab if none exists and wait for it.
+        const currentTabId = await ensureApiChatTab()
+        if (!currentTabId) {
+          return { success: false, error: 'webview_not_ready' }
         }
         try {
           const UiStore = await getChatUiStore()
           const uiState = UiStore.getState()
-          const currentTabId = activeTabIdRef.current
           uiState.addAttachment(currentTabId, imageData)
           if (options?.promptText) {
             const val = uiState.inputValueByTab[currentTabId] || ''
@@ -173,28 +173,9 @@ export function useAiMessaging({
           }
           const effectiveAutoSend = resolveAutoSend(autoSend, options)
           if (effectiveAutoSend) {
-            if (apiChatSendTimeoutRef.current) clearTimeout(apiChatSendTimeoutRef.current)
-            apiChatSendTimeoutRef.current = setTimeout(async () => {
-              apiChatSendTimeoutRef.current = null
-              const uist = UiStore.getState()
-              const sendTabId = activeTabIdRef.current
-              const { useSendMessageMutation: getMutation } =
-                await import('@features/ai/queries/useSendMessageMutation')
-              getMutation()
-                .mutateAsync({
-                  tabId: sendTabId,
-                  text: uist.inputValueByTab[sendTabId] || '',
-                  images: uist.attachmentsByTab[sendTabId] || [],
-                  model: uist.selectedModelByTab[sendTabId],
-                  providerId: uist.activeProviderByTab[sendTabId],
-                  generalPrompt: uist.generalPrompt,
-                  memoryPrompt: uist.memoryPrompt,
-                  characterPrompt: uist.characterPrompt
-                })
-                .catch(() => {})
-            }, 50)
+            scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef, handleApiChatSendResult)
+            showSuccess('sent_successfully')
           }
-          showSuccess('sent_successfully')
           return { success: true }
         } catch (err) {
           return { success: false, error: ensureErrorMessage(err, 'send_failed') }
@@ -215,16 +196,20 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = await rawSendImage(imageData, options)
+      const result = (await rawSendImage(imageData, options)) ?? {
+        success: false,
+        error: 'cancelled'
+      }
       if (result.success) showSuccess('sent_successfully')
-      else showWarning(toErrorToastKey(result.error))
+      else if (result.error !== 'cancelled') showWarning(toErrorToastKey(result.error))
       return result
     },
     [
       currentAI,
-      activeTabId,
       autoSend,
+      ensureApiChatTab,
       getWebviewInstance,
+      handleApiChatSendResult,
       openAiWorkspace,
       rawSendImage,
       showSuccess,

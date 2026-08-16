@@ -3,7 +3,12 @@ import { Logger } from '@shared/lib/logger'
 import { IconBadge, ListItemCard } from '@shared/ui/components/primitives'
 
 import { FileText, FolderOpen, Play, Trash2 } from 'lucide-react'
-import { memo, type MouseEvent as ReactMouseEvent, useCallback } from 'react'
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  memo,
+  type MouseEvent as ReactMouseEvent,
+  useCallback
+} from 'react'
 
 import { formatRelativeTime, getProgressRatio } from './pdfPlaceholderUtils'
 import type { RecentItemView } from './types'
@@ -49,12 +54,29 @@ function PdfRecentListItem({
     [item, onRemove]
   )
 
+  const handleResumeButtonClick = useCallback(
+    (e: ReactMouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation()
+      resumeItem()
+    },
+    [resumeItem]
+  )
+
+  const handleRelinkButtonClick = useCallback(
+    (e: ReactMouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation()
+      relinkItem()
+    },
+    [relinkItem]
+  )
+
   const handleClick = useCallback(() => {
     resumeItem()
   }, [resumeItem])
 
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
         resumeItem()
@@ -74,13 +96,19 @@ function PdfRecentListItem({
     ? formatRelativeTime(item.lastOpenedAt, language)
     : t('last_opened_unknown')
 
+  const interactionProps = isInvalid
+    ? {}
+    : {
+        role: 'button' as const,
+        tabIndex: 0,
+        onClick: handleClick,
+        onKeyDown: handleKeyDown,
+        'aria-label': `${t('continue_reading')}: ${item.name}`
+      }
+
   return (
     <ListItemCard
-      role="button"
-      tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      aria-label={`${t('continue_reading')}: ${item.name}`}
+      {...interactionProps}
       title={item.name}
       active={!!activePdfPath && item.path === activePdfPath}
       className={`pdf-recent-item group ${isInvalid ? 'border-destructive/30 bg-destructive/5 text-foreground border' : ''}`}
@@ -128,7 +156,7 @@ function PdfRecentListItem({
               type="button"
               size="xs"
               variant="outline"
-              onClick={relinkItem}
+              onClick={handleRelinkButtonClick}
               className="text-foreground h-7 rounded-md px-2.5 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
               aria-label={t('choose_new_location')}
             >
@@ -140,7 +168,7 @@ function PdfRecentListItem({
               type="button"
               size="xs"
               variant="outline"
-              onClick={resumeItem}
+              onClick={handleResumeButtonClick}
               className="text-foreground hover:border-ring/50 hover:bg-accent h-7 rounded-md px-2.5 opacity-100 transition-opacity md:opacity-70 md:group-hover:opacity-100"
               aria-label={t('continue_reading')}
             >

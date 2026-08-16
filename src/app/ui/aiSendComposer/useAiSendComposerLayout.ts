@@ -1,5 +1,6 @@
 import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { createResizeKeyDownHandler } from './createResizeKeyDownHandler'
 import type { DragState, ResizeState } from './layoutUtils'
 import {
   clamp,
@@ -181,6 +182,17 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
     event.currentTarget.releasePointerCapture(event.pointerId)
   }, [])
 
+  const handleResizeKeyDown = useMemo(
+    () =>
+      createResizeKeyDownHandler({
+        getLayout: () => layoutRef.current,
+        setLayout: (next) => {
+          setLayout(next)
+        }
+      }),
+    [setLayout]
+  )
+
   const effectiveHeight = isExpanded ? layout.height : COMPACT_HEIGHT
   const bodyHeight = Math.max(MIN_BODY_HEIGHT, layout.height - HEADER_RESERVED_HEIGHT)
 
@@ -212,6 +224,7 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
       handleDragMove,
       handleDragEnd,
       handleResizeStart,
+      handleResizeKeyDown,
       getResizeCursor,
       resizeHandlers,
       edgeThickness: EDGE_THICKNESS
@@ -225,6 +238,7 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
       handleDragMove,
       handleDragEnd,
       handleResizeStart,
+      handleResizeKeyDown,
       getResizeCursor,
       resizeHandlers
     ]

@@ -1,4 +1,6 @@
 import { Input } from '@app/components/ui/input'
+import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
+import { Kbd } from '@app/components/ui/kbd'
 
 import { FileText, Search, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -44,34 +46,52 @@ function PdfSearchBar({
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isOpen ? (
           <motion.div
             key="search"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            className="absolute inset-0 flex w-full items-center gap-2"
+            initial={{ opacity: 0, scale: 0.98, y: 2 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: -2 }}
+            transition={{ duration: 0.14 }}
+            className="absolute inset-0 flex w-full items-center gap-1.5"
           >
-            <div className="group relative flex-1">
-              <Search className="text-muted-foreground group-focus-within:text-primary absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 transition-colors" />
+            <InputGroup className="flex-1">
+              <InputGroupAddon align="inline-start">
+                <Search className="text-muted-foreground/80 h-3.5 w-3.5" />
+              </InputGroupAddon>
               <Input
                 ref={inputRef}
                 value={keyword}
                 onChange={(e) => onKeywordChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="h-8 pl-9 text-sm"
+                className="h-8 pr-14 pl-8 text-xs font-normal"
                 // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                 autoFocus
               />
-            </div>
+              <div className="absolute right-2 flex items-center gap-1">
+                {keyword ? (
+                  <button
+                    type="button"
+                    onClick={() => onKeywordChange('')}
+                    className="text-muted-foreground hover:text-foreground p-0.5 transition-colors"
+                    aria-label={t('clear', 'Clear')}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null}
+                <Kbd size="xs" variant="outline" className="opacity-70">
+                  Esc
+                </Kbd>
+              </div>
+            </InputGroup>
 
             <motion.button
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="border-border/70 bg-card/60 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-8 w-8 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
               onClick={() => keyword.trim() && onSearch()}
               title={t('search')}
               aria-label={t('search')}
@@ -83,7 +103,7 @@ function PdfSearchBar({
               type="button"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="border-border/70 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-8 w-8 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="border-border/80 bg-card/80 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
               onClick={onClear}
               title={t('close')}
               aria-label={t('close')}
@@ -92,7 +112,7 @@ function PdfSearchBar({
             </motion.button>
           </motion.div>
         ) : (
-          <div className="flex w-full max-w-[360px] min-w-0 items-center gap-1.5">
+          <div className="flex w-full max-w-[380px] min-w-0 items-center gap-1.5">
             <motion.button
               type="button"
               initial={{ opacity: 0 }}
@@ -101,7 +121,7 @@ function PdfSearchBar({
               whileHover={{ scale: 1.005 }}
               whileTap={{ scale: 0.995 }}
               onClick={onToggle}
-              className="group border-border/70 bg-card/60 hover:border-border hover:bg-muted/60 flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-1 text-left shadow-xs transition-colors duration-150"
+              className="group border-border/80 bg-card/70 hover:border-border hover:bg-muted/60 flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-1 text-left shadow-2xs transition-colors duration-150"
             >
               <div className="border-primary/20 bg-primary/10 text-primary flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors">
                 <FileText className="h-3.5 w-3.5" />
@@ -118,8 +138,13 @@ function PdfSearchBar({
 
               <div className="bg-border/80 h-4 w-px shrink-0" />
 
-              <div className="text-muted-foreground group-hover:text-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors">
-                <Search className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-1.5">
+                <div className="text-muted-foreground group-hover:text-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors">
+                  <Search className="h-3.5 w-3.5" />
+                </div>
+                <Kbd size="xs" variant="default" className="hidden opacity-80 sm:inline-flex">
+                  Ctrl+F
+                </Kbd>
               </div>
             </motion.button>
           </div>

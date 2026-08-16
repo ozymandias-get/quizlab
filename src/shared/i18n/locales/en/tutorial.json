@@ -3,6 +3,7 @@
   "tutorial_button_title": "Interactive Tutorial",
   "usage_assistant_desc": "Starts the interactive guide for the application.",
   "usage_assistant_start": "Start Onboarding Tour",
+  "usage_assistant_tooltip": "Starts the interactive onboarding tour",
   "ua_finish": "Finish",
   "ua_next": "Next",
   "ua_skip": "Skip",

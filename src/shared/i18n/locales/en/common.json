@@ -87,6 +87,7 @@
   "select_language": "Select Language",
   "select_pdf": "Select PDF File",
   "sent_successfully": "Sent successfully!",
+  "draft_queue_full": "AI queue is full. Oldest draft was removed.",
   "settings": "Settings",
   "settings_title": "Settings",
   "performance_mode": "Low Performance Mode",

@@ -14,7 +14,10 @@ export function getStrictCsp(nonce: string): string {
     'child-src blob:',
     "worker-src 'self' blob:",
     "img-src 'self' data: blob:",
-    "connect-src 'self' blob: local-pdf:"
+    "connect-src 'self' blob: local-pdf:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'"
   ].join('; ')
 }
 
@@ -28,6 +31,9 @@ export function getDevCsp(): string {
     'child-src blob:',
     "worker-src 'self' blob:",
     "img-src 'self' data: blob:",
-    "connect-src 'self' blob: local-pdf:"
+    "connect-src 'self' blob: local-pdf:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'"
   ].join('; ')
 }

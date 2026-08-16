@@ -1,6 +1,20 @@
-﻿import { describe, expect, it } from 'vitest'
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { validateProviderUrl } from '../../../../features/ai/apiChatHandlers/ssrf.js'
+import {
+  fetchWithSsrProtection,
+  validateProviderUrl
+} from '../../../../features/ai/apiChatHandlers/ssrf.js'
+
+const realFetch = globalThis.fetch
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn())
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  globalThis.fetch = realFetch
+})
 
 describe('validateProviderUrl (SSRF Protection)', () => {
   it('allows HTTPS URLs to public hosts', () => {
@@ -62,5 +76,40 @@ describe('validateProviderUrl (SSRF Protection)', () => {
   it('rejects malformed URLs', () => {
     expect(validateProviderUrl('not a url')).toBe('Invalid URL')
     expect(validateProviderUrl('http://')).toBe('Invalid URL')
+  })
+})
+
+describe('fetchWithSsrProtection (redirect revalidation)', () => {
+  it('blocks redirects to private addresses', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async () => {
+      return { status: 302, headers: { get: () => 'http://169.254.169.254/latest/meta-data' } }
+    })
+    await expect(fetchWithSsrProtection('https://public.example.com/start')).rejects.toThrow(
+      'SSRF blocked on redirect'
+    )
+  })
+
+  it('follows redirects to public HTTPS hosts', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/start')) {
+        return { status: 302, headers: { get: () => 'https://other.example.com/final' } }
+      }
+      return { status: 200, ok: true, json: async () => ({ done: true }) }
+    })
+    const response = await fetchWithSsrProtection('https://public.example.com/start')
+    expect(response.status).toBe(200)
+    expect(fetchMock).toHaveBeenLastCalledWith('https://other.example.com/final', expect.anything())
+  })
+
+  it('throws on redirect loops', async () => {
+    const fetchMock = globalThis.fetch as any
+    fetchMock.mockImplementation(async () => {
+      return { status: 308, headers: { get: () => 'https://loop.example.com/again' } }
+    })
+    await expect(fetchWithSsrProtection('https://loop.example.com/start')).rejects.toThrow(
+      'Too many redirects'
+    )
   })
 })

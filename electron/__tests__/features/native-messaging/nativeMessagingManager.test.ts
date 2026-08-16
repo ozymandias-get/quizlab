@@ -36,7 +36,7 @@ const mockServer = {
   address: mockServerAddress,
   listening: false
 }
-const mockCreateServer = vi.hoisted(() => vi.fn(() => mockServer))
+const mockCreateServer = vi.hoisted(() => vi.fn((_handler: unknown) => mockServer))
 
 const mockFsStat = vi.hoisted(() => vi.fn())
 const mockFsReaddir = vi.hoisted(() => vi.fn())
@@ -44,6 +44,7 @@ const mockFsCopyFile = vi.hoisted(() => vi.fn())
 const mockFsMkdir = vi.hoisted(() => vi.fn())
 const mockFsWriteFile = vi.hoisted(() => vi.fn())
 const mockFsRm = vi.hoisted(() => vi.fn())
+const mockFsReadFile = vi.hoisted(() => vi.fn())
 
 const mockCryptoRandomBytes = vi.hoisted(() => vi.fn(() => Buffer.alloc(32, 0xab)))
 
@@ -66,7 +67,8 @@ vi.mock('fs', () => ({
       copyFile: mockFsCopyFile,
       mkdir: mockFsMkdir,
       writeFile: mockFsWriteFile,
-      rm: mockFsRm
+      rm: mockFsRm,
+      readFile: mockFsReadFile
     }
   },
   promises: {
@@ -75,18 +77,23 @@ vi.mock('fs', () => ({
     copyFile: mockFsCopyFile,
     mkdir: mockFsMkdir,
     writeFile: mockFsWriteFile,
-    rm: mockFsRm
+    rm: mockFsRm,
+    readFile: mockFsReadFile
   }
 }))
 
-vi.mock('crypto', () => ({
-  default: { randomBytes: mockCryptoRandomBytes },
-  randomBytes: mockCryptoRandomBytes,
-  createHmac: vi.fn(() => ({
-    update: vi.fn(() => ({ digest: vi.fn(() => 'mock-hmac') }))
-  })),
-  timingSafeEqual: vi.fn(() => true)
-}))
+vi.mock('crypto', async () => {
+  const actual = await vi.importActual<typeof import('crypto')>('crypto')
+  return {
+    default: { ...actual, randomBytes: mockCryptoRandomBytes },
+    ...actual,
+    randomBytes: mockCryptoRandomBytes,
+    createHmac: vi.fn(() => ({
+      update: vi.fn(() => ({ digest: vi.fn(() => 'mock-hmac') }))
+    })),
+    timingSafeEqual: vi.fn(() => true)
+  }
+})
 
 vi.mock('http', () => ({
   default: {
@@ -117,7 +124,7 @@ vi.mock('../../../app/constants', () => ({
 }))
 
 vi.mock('../../../core/logger', () => ({
-  Logger: { warn: vi.fn(), error: vi.fn() }
+  Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
 // ---------------------------------------------------------------------------
@@ -163,6 +170,8 @@ describe('NativeMessagingManager', () => {
     mockFsRm.mockResolvedValue(undefined)
     mockFsMkdir.mockResolvedValue(undefined)
     mockFsWriteFile.mockResolvedValue(undefined)
+    mockFsReadFile.mockReset()
+    mockFsReadFile.mockResolvedValue('{"key": "placeholder"}')
 
     const mod = await import('../../../features/native-messaging/nativeMessagingManager.js')
     manager = mod.nativeMessagingManager
@@ -313,6 +322,96 @@ describe('NativeMessagingManager', () => {
     it('delegates to stopServer', () => {
       manager.dispose()
       expect(manager.connectionStatus).toBe('disconnected')
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Bridge request origin validation (health endpoint security)
+  // -----------------------------------------------------------------------
+
+  describe('bridge origin validation', () => {
+    // Verified key->ID pair (JSONView extension): the derived ID must be
+    // chklaanhfefbnpoihckbnefhakgolnmc per Chromium's id_util.
+    // This is a PUBLIC key (in the extension's manifest) — not a secret.
+    /* eslint-disable no-secrets/no-secrets */
+    const JSONVIEW_KEY =
+      'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCsTeRKuxevWiein7geQszhb8mHRpLByZbXX8tR0m1GPBkN8SN9xgo7NijAYAqa3H5rGuDmNZm2k7UzdlVfC5+gO6uf/rVOPx7kHJNQBQaBuWUEd4KHLWa3jOy+mllD72TwXNdtJJdX6TWf115SGHlLzZRg7S47dke6KTZI6O8gcQIDAQAB'
+    /* eslint-enable no-secrets/no-secrets */
+
+    beforeEach(async () => {
+      mockFsReadFile.mockResolvedValue(JSON.stringify({ key: JSONVIEW_KEY }))
+      mockFsStat.mockRejectedValue(new Error('ENOENT'))
+      await manager.initialize()
+    })
+
+    function getRequestHandler() {
+      const createCall = mockCreateServer.mock.calls.find((call) => typeof call[0] === 'function')
+      return createCall![0] as (req: unknown, res: unknown) => void
+    }
+
+    function fakeRes() {
+      return {
+        writeHead: vi.fn(),
+        end: vi.fn(),
+        setHeader: vi.fn()
+      }
+    }
+
+    it('derives the extension ID from the manifest key (verified against JSONView)', () => {
+      const managerAny = manager as unknown as { _expectedExtensionOrigin: string | null }
+      const derived = managerAny._expectedExtensionOrigin
+      expect(derived).toBe('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
+    })
+
+    it('rejects health requests from arbitrary website origins', () => {
+      const handler = getRequestHandler()
+      const res = fakeRes()
+      handler(
+        {
+          method: 'GET',
+          url: '/api/health',
+          headers: { origin: 'https://evil.example.com' }
+        },
+        res
+      )
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+    })
+
+    it('rejects health requests without an Origin header', () => {
+      const handler = getRequestHandler()
+      const res = fakeRes()
+      handler({ method: 'GET', url: '/api/health', headers: {} }, res)
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+    })
+
+    it('serves the secret to the paired extension origin', () => {
+      const handler = getRequestHandler()
+      const res = fakeRes()
+      handler(
+        {
+          method: 'GET',
+          url: '/api/health',
+          headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
+        },
+        res
+      )
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
+    })
+
+    it('serves the secret to localhost dev origins on any port', () => {
+      const handler = getRequestHandler()
+      const res = fakeRes()
+      handler(
+        {
+          method: 'GET',
+          url: '/api/health',
+          headers: { origin: 'http://localhost:5173' }
+        },
+        res
+      )
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
     })
   })
 

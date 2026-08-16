@@ -39,6 +39,7 @@ export function usePdfCaptureActions({
       }
 
       if (!targetCanvas) {
+        showError('toast_capture_failed')
         return
       }
 

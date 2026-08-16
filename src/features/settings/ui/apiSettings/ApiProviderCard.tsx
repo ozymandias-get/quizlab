@@ -1,9 +1,11 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
+import { Badge } from '@app/components/ui/badge'
 import { Input } from '@app/components/ui/input'
+import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 import { Label } from '@app/components/ui/label'
 
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, KeyRound, Search, Sparkles } from 'lucide-react'
 import { memo, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -40,13 +42,15 @@ function ApiProviderCard({
     search ? m.toLowerCase().includes(search.toLowerCase()) : true
   )
 
+  const isTestSuccess = testResult.startsWith('OK')
+
   return (
-    <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-xs">
+    <div className="border-border/80 bg-card/70 flex flex-col gap-3.5 rounded-xl border p-4 shadow-2xs">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-ql-11 bg-muted text-muted-foreground rounded-md px-2 py-0.5 font-mono">
+          <Badge variant="secondary" className="font-mono tracking-wider uppercase">
             {provider.providerType}
-          </span>
+          </Badge>
           <span className="text-ql-13 text-foreground font-semibold">
             {provider.name || t('unnamed_provider')}
           </span>
@@ -54,14 +58,14 @@ function ApiProviderCard({
         <button
           type="button"
           onClick={() => onRemove(provider.id)}
-          className="text-ql-12 text-muted-foreground hover:text-destructive transition-colors"
+          className="text-ql-12 text-muted-foreground hover:text-destructive focus-visible:ring-destructive/40 rounded px-1.5 py-0.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
           {t('delete')}
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={nameId} className="text-ql-11 text-muted-foreground font-medium">
             {t('name')}
           </Label>
@@ -72,7 +76,7 @@ function ApiProviderCard({
             placeholder={t('api_chat_placeholder_provider')}
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={baseUrlId} className="text-ql-11 text-muted-foreground font-medium">
             {t('api_chat_base_url')}
           </Label>
@@ -80,54 +84,62 @@ function ApiProviderCard({
             id={baseUrlId}
             value={provider.baseUrl}
             onChange={(e) => onUpdate(provider.id, { baseUrl: e.target.value })}
-            className="font-mono"
+            className="font-mono text-xs"
             placeholder="https://api.openai.com/v1"
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={apiKeyId} className="text-ql-11 text-muted-foreground font-medium">
             {t('api_chat_api_key')}
           </Label>
-          <div className="relative">
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <KeyRound className="text-muted-foreground/60 h-3.5 w-3.5" />
+            </InputGroupAddon>
             <Input
               id={apiKeyId}
               type={showApiKey ? 'text' : 'password'}
               value={provider.apiKey}
               onChange={(e) => onUpdate(provider.id, { apiKey: e.target.value })}
               placeholder="sk-..."
-              className="pr-9"
+              className="pr-8 pl-8 font-mono text-xs"
             />
             <button
               type="button"
               tabIndex={-1}
               onClick={() => setShowApiKey((prev) => !prev)}
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 flex -translate-y-1/2 items-center justify-center transition-colors"
-              aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+              className="text-muted-foreground/70 hover:text-foreground absolute right-2 flex items-center justify-center p-1 transition-colors"
+              aria-label={showApiKey ? t('api_chat_hide_api_key') : t('api_chat_show_api_key')}
             >
-              {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </button>
-          </div>
+          </InputGroup>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={defaultModelId} className="text-ql-11 text-muted-foreground font-medium">
             {t('api_chat_default_model')}
           </Label>
-          <Input
-            id={defaultModelId}
-            value={provider.defaultModel}
-            onChange={(e) => onUpdate(provider.id, { defaultModel: e.target.value })}
-            className="font-mono"
-            placeholder="gpt-4o"
-          />
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <Sparkles className="text-muted-foreground/60 h-3.5 w-3.5" />
+            </InputGroupAddon>
+            <Input
+              id={defaultModelId}
+              value={provider.defaultModel}
+              onChange={(e) => onUpdate(provider.id, { defaultModel: e.target.value })}
+              className="pl-8 font-mono text-xs"
+              placeholder="gpt-4o"
+            />
+          </InputGroup>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         <button
           type="button"
           onClick={() => onTestConnection(provider.id)}
           disabled={testing}
-          className="text-ql-12 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
+          className="text-ql-12 border-border/80 bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
         >
           {testing ? t('testing') : t('api_chat_test_connection')}
         </button>
@@ -135,33 +147,40 @@ function ApiProviderCard({
           type="button"
           onClick={() => onFetchModels(provider.id)}
           disabled={fetchingModels || !provider.apiKey || !provider.baseUrl}
-          className="text-ql-12 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
+          className="text-ql-12 border-border/80 bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
         >
           {fetchingModels ? t('fetching') : t('api_chat_fetch_models')}
         </button>
+
+        {testResult && (
+          <Badge
+            variant={isTestSuccess ? 'success' : 'destructive'}
+            className="text-ql-11 max-w-full truncate"
+          >
+            {testResult}
+          </Badge>
+        )}
       </div>
-      {testResult && (
-        <span
-          className={`text-ql-11 block font-medium ${testResult.startsWith('OK') ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}
-        >
-          {testResult}
-        </span>
-      )}
 
       {(provider.models || []).length > 0 && (
-        <div className="flex flex-col gap-2">
+        <div className="border-border/50 flex flex-col gap-2 border-t pt-1">
           <div className="flex items-center gap-2">
-            <label className="text-ql-11 text-muted-foreground font-medium">
+            <label className="text-ql-11 text-muted-foreground shrink-0 font-medium">
               {t('api_chat_models_count')} ({provider.models.length})
             </label>
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1"
-              placeholder={t('api_chat_search_models')}
-            />
+            <InputGroup className="flex-1">
+              <InputGroupAddon align="inline-start">
+                <Search className="text-muted-foreground/60 h-3 w-3" />
+              </InputGroupAddon>
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-7 pl-7 text-xs"
+                placeholder={t('api_chat_search_models')}
+              />
+            </InputGroup>
           </div>
-          <div className="border-border bg-muted/30 max-h-[140px] overflow-y-auto rounded-lg border p-1">
+          <div className="border-border/80 bg-muted/30 custom-scrollbar max-h-[140px] overflow-y-auto rounded-lg border p-1">
             {filteredModels.length === 0 ? (
               <p className="text-ql-11 text-muted-foreground px-2 py-1">
                 {t('api_chat_no_models_found')}
@@ -172,7 +191,7 @@ function ApiProviderCard({
                   key={m}
                   type="button"
                   onClick={() => onUpdate(provider.id, { defaultModel: m })}
-                  className={`text-ql-11 w-full rounded-md px-2 py-1 text-left transition-colors ${
+                  className={`text-ql-11 w-full rounded-md px-2.5 py-1 text-left font-mono transition-colors ${
                     m === provider.defaultModel
                       ? 'bg-primary/10 text-primary font-semibold'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'

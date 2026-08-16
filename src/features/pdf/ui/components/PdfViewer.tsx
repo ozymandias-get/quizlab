@@ -6,8 +6,6 @@ import '@react-pdf-viewer/search/lib/styles/index.css'
 import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
 import type { PdfFile } from '@shared-core/types'
 
-import { revokeObjectUrl } from '@platform/electron/browser-api-utils'
-
 import type {
   LastReadingInfo,
   PdfTab,
@@ -22,7 +20,7 @@ import {
 } from '@app/providers/AiContext'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import GoogleDrivePanel from './GoogleDrivePanel'
@@ -73,30 +71,33 @@ function PdfViewer({
   const [persistentUrl, setPersistentUrl] = useState<string | null | undefined>(null)
   const [persistentInitialPage, setPersistentInitialPage] = useState<number | undefined>(undefined)
   const [hasEverLoaded, setHasEverLoaded] = useState(false)
+  const lastAppliedFileKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (pdfFile) {
-      if (
-        persistentUrl &&
-        persistentUrl.startsWith('blob:') &&
-        persistentUrl !== pdfFile.streamUrl
-      ) {
-        revokeObjectUrl(persistentUrl)
+      const fileKey = pdfFileKey(pdfFile)
+      // initialPage reflects the live reading progress and therefore changes
+      // on every page turn. Only a new (or re-opened) document may consume
+      // it — otherwise the resume jump key changes mid-viewing and the
+      // viewer re-applies the resume zoom/jump on every saved page turn.
+      if (lastAppliedFileKeyRef.current !== fileKey) {
+        lastAppliedFileKeyRef.current = fileKey
+        setPersistentInitialPage(initialPage)
       }
 
       setPersistentFile(pdfFile)
       setPersistentUrl(pdfFile.streamUrl)
-      setPersistentInitialPage(initialPage)
       setHasEverLoaded(true)
     } else {
       // Tab closed — clear persistent state so the viewer unloads immediately.
       // No closing animation: it caused a "stuck UI" feeling and momentary
       // zoom glitch. The placeholder fades in via its own CSS animation.
+      lastAppliedFileKeyRef.current = null
       setPersistentFile(null)
       setPersistentUrl(null)
       setPersistentInitialPage(undefined)
     }
-  }, [pdfFile, initialPage, persistentUrl])
+  }, [pdfFile, initialPage])
 
   const isViewerVisible = !!pdfFile && activePdfTab?.kind !== 'drive'
 

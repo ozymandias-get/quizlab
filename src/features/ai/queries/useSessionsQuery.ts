@@ -11,6 +11,21 @@ import {
   renameSession
 } from '../api/sessions.api'
 import type { ChatSession } from '../store/apiChatSessionUtils'
+import { useChatUiStore } from '../store/chatUiStore'
+
+// Rebinds every tab whose activeSessionId no longer exists in the session
+// list (e.g. after clear-all or deleting the active session). Without this,
+// the tab keeps a dangling id and silently drops every subsequent message.
+function rebindTabsToExistingSessions(sessions: ChatSession[]) {
+  const store = useChatUiStore.getState()
+  const existingIds = new Set(sessions.map((session) => session.id))
+  const replacementId = sessions[0]?.id ?? ''
+  for (const [tabId, sessionId] of Object.entries(store.activeSessionIdByTab)) {
+    if (!existingIds.has(sessionId)) {
+      store.setActiveSessionId(tabId, replacementId)
+    }
+  }
+}
 
 export function useSessionsQuery() {
   return useQuery({
@@ -49,6 +64,7 @@ export function useDeleteSessionMutation() {
       return { deletedId: sessionId, allSessions: updated }
     },
     onSuccess: (data) => {
+      rebindTabsToExistingSessions(data.allSessions)
       queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, data.allSessions)
     }
   })
@@ -96,6 +112,7 @@ export function useClearAllSessionsMutation() {
       return [newSession]
     },
     onSuccess: (updated) => {
+      rebindTabsToExistingSessions(updated)
       queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, updated)
     }
   })
