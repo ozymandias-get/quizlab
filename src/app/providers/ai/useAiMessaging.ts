@@ -110,7 +110,9 @@ export function useAiMessaging({
           uiState.updateInput(currentTabId, newVal)
           const effectiveAutoSend = resolveAutoSend(autoSend, options)
           if (effectiveAutoSend) {
-            scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef, handleApiChatSendResult)
+            const result = await scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef)
+            handleApiChatSendResult(result)
+            return result
           }
           return { success: true }
         } catch (err) {
@@ -173,8 +175,10 @@ export function useAiMessaging({
           }
           const effectiveAutoSend = resolveAutoSend(autoSend, options)
           if (effectiveAutoSend) {
-            scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef, handleApiChatSendResult)
-            showSuccess('sent_successfully')
+            const result = await scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef)
+            handleApiChatSendResult(result)
+            if (result.success) showSuccess('sent_successfully')
+            return result
           }
           return { success: true }
         } catch (err) {

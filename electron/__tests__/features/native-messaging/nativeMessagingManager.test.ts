@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
 // Hoisted mock factories
@@ -152,6 +152,7 @@ describe('NativeMessagingManager', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    mockApp.isPackaged = false
     mockFsStat.mockReset()
     mockFsReaddir.mockReset()
     mockFsCopyFile.mockReset()
@@ -400,7 +401,7 @@ describe('NativeMessagingManager', () => {
       expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
     })
 
-    it('serves the secret to localhost dev origins on any port', () => {
+    it('serves the secret to the exact configured dev origin (http://localhost:5173)', () => {
       const handler = getRequestHandler()
       const res = fakeRes()
       handler(
@@ -412,6 +413,206 @@ describe('NativeMessagingManager', () => {
         res
       )
       expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
+    })
+
+    it('rejects localhost origins on any other port in development', () => {
+      const handler = getRequestHandler()
+      const res = fakeRes()
+      handler(
+        {
+          method: 'GET',
+          url: '/api/health',
+          headers: { origin: 'http://localhost:9999' }
+        },
+        res
+      )
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+    })
+
+    it('rejects http://127.0.0.1 dev origins when not configured', () => {
+      const handler = getRequestHandler()
+      const res = fakeRes()
+      handler(
+        {
+          method: 'GET',
+          url: '/api/health',
+          headers: { origin: 'http://127.0.0.1:5173' }
+        },
+        res
+      )
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+    })
+
+    // ---------------------------------------------------------------------
+    // Production policy (app.isPackaged=true): extension origin only.
+    // ---------------------------------------------------------------------
+
+    describe('production policy', () => {
+      afterEach(() => {
+        mockApp.isPackaged = false
+      })
+
+      it('serves the secret to the paired extension origin', () => {
+        mockApp.isPackaged = true
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'GET',
+            url: '/api/health',
+            headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
+        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
+      })
+
+      it('rejects http://localhost:5173', () => {
+        mockApp.isPackaged = true
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'GET',
+            url: '/api/health',
+            headers: { origin: 'http://localhost:5173' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+      })
+
+      it('rejects localhost origins on any other port', () => {
+        mockApp.isPackaged = true
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'GET',
+            url: '/api/health',
+            headers: { origin: 'http://localhost:9999' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      })
+
+      it('rejects arbitrary web origins', () => {
+        mockApp.isPackaged = true
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'GET',
+            url: '/api/health',
+            headers: { origin: 'https://evil.com' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+      })
+
+      it('rejects requests without an Origin header', () => {
+        mockApp.isPackaged = true
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler({ method: 'GET', url: '/api/health', headers: {} }, res)
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+      })
+    })
+
+    // ---------------------------------------------------------------------
+    // CORS headers (never a wildcard; OPTIONS obeys the origin policy).
+    // ---------------------------------------------------------------------
+
+    describe('CORS headers', () => {
+      function acaoValues(res: ReturnType<typeof fakeRes>) {
+        return res.setHeader.mock.calls
+          .filter((call) => call[0] === 'Access-Control-Allow-Origin')
+          .map((call) => call[1])
+      }
+
+      it('echoes the exact allowlisted origin — never a wildcard', () => {
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'GET',
+            url: '/api/health',
+            headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
+        expect(acaoValues(res)).toEqual(['chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc'])
+        expect(res.setHeader.mock.calls.flat()).not.toContain('*')
+      })
+
+      it('sets no Access-Control-Allow-Origin for disallowed origins', () => {
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'GET',
+            url: '/api/health',
+            headers: { origin: 'https://evil.com' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+        expect(acaoValues(res)).toEqual([])
+      })
+
+      it('answers OPTIONS preflights from allowed origins with 204 and echoed origin', () => {
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'OPTIONS',
+            url: '/api/health',
+            headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(204)
+        expect(acaoValues(res)).toEqual(['chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc'])
+      })
+
+      it('rejects OPTIONS preflights from disallowed origins with 403', () => {
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'OPTIONS',
+            url: '/api/health',
+            headers: { origin: 'http://localhost:9999' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+        expect(acaoValues(res)).toEqual([])
+      })
+
+      it('answers OPTIONS preflights from the dev origin with 204', () => {
+        const handler = getRequestHandler()
+        const res = fakeRes()
+        handler(
+          {
+            method: 'OPTIONS',
+            url: '/api/health',
+            headers: { origin: 'http://localhost:5173' }
+          },
+          res
+        )
+        expect(res.writeHead).toHaveBeenCalledWith(204)
+        expect(acaoValues(res)).toEqual(['http://localhost:5173'])
+      })
     })
   })
 

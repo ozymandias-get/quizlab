@@ -9,6 +9,8 @@ import {
   memo,
   useCallback,
   useEffect,
+  useId,
+  useMemo,
   useRef,
   useState
 } from 'react'
@@ -26,21 +28,24 @@ const ModelSelector = memo(function ModelSelector({
   onSelectModel
 }: ModelSelectorProps) {
   const { t } = useTranslation()
-  const [showModelSelector, setShowModelSelector] = useState(false)
+  const listboxId = useId()
+  const [isOpen, setIsOpen] = useState(false)
   const [modelSearch, setModelSearch] = useState('')
-  const [focusedIndex, setFocusedIndex] = useState(-1)
+  const [activeIndex, setActiveIndex] = useState(-1)
   const listRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
-  const allModels = activeProvider?.models || []
-  const filteredModels = allModels.filter((m) =>
-    m.toLowerCase().includes(modelSearch.toLowerCase())
+  const allModels = useMemo(() => activeProvider?.models ?? [], [activeProvider])
+
+  const filteredModels = useMemo(
+    () => allModels.filter((model) => model.toLowerCase().includes(modelSearch.toLowerCase())),
+    [allModels, modelSearch]
   )
 
   const handleClose = useCallback(() => {
-    setShowModelSelector(false)
+    setIsOpen(false)
     setModelSearch('')
-    setFocusedIndex(-1)
+    setActiveIndex(-1)
     requestAnimationFrame(() => triggerRef.current?.focus())
   }, [])
 
@@ -53,38 +58,47 @@ const ModelSelector = memo(function ModelSelector({
   )
 
   useEffect(() => {
-    if (showModelSelector) {
-      setFocusedIndex(-1)
-    }
-  }, [showModelSelector])
+    if (!isOpen) return
+    setActiveIndex((prev) => {
+      if (prev >= 0 && prev < filteredModels.length) return prev
+      const selectedIndex = filteredModels.indexOf(selectedModel)
+      return selectedIndex >= 0 ? selectedIndex : -1
+    })
+  }, [isOpen, filteredModels, selectedModel])
 
   useEffect(() => {
-    if (focusedIndex >= 0) {
+    if (activeIndex >= 0) {
       listRef.current
-        ?.querySelector<HTMLElement>(`[data-model-index="${focusedIndex}"]`)
+        ?.querySelector<HTMLElement>(`[data-model-index="${activeIndex}"]`)
         ?.scrollIntoView({ block: 'nearest' })
     }
-  }, [focusedIndex])
+  }, [activeIndex])
 
   const handleSearchKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
+      if (filteredModels.length === 0) return
       e.preventDefault()
-      setFocusedIndex((prev) =>
-        filteredModels.length > 0 ? (prev + 1) % filteredModels.length : -1
-      )
+      setActiveIndex((prev) => (prev + 1) % filteredModels.length)
     } else if (e.key === 'ArrowUp') {
+      if (filteredModels.length === 0) return
       e.preventDefault()
-      setFocusedIndex((prev) =>
-        filteredModels.length > 0 ? (prev <= 0 ? filteredModels.length - 1 : prev - 1) : -1
-      )
+      setActiveIndex((prev) => (prev <= 0 ? filteredModels.length - 1 : prev - 1))
     } else if (e.key === 'Enter') {
-      if (focusedIndex >= 0 && focusedIndex < filteredModels.length) {
+      if (activeIndex >= 0 && activeIndex < filteredModels.length) {
         e.preventDefault()
-        handleSelect(filteredModels[focusedIndex])
+        handleSelect(filteredModels[activeIndex])
       }
     } else if (e.key === 'Escape') {
       e.preventDefault()
       handleClose()
+    } else if (e.key === 'Home') {
+      if (filteredModels.length === 0) return
+      e.preventDefault()
+      setActiveIndex(0)
+    } else if (e.key === 'End') {
+      if (filteredModels.length === 0) return
+      e.preventDefault()
+      setActiveIndex(filteredModels.length - 1)
     }
   }
 
@@ -93,19 +107,22 @@ const ModelSelector = memo(function ModelSelector({
   const currentDisplayName =
     selectedModel || activeProvider.defaultModel || t('api_chat_select_model')
 
+  const activeDescendantId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
+
   return (
     <div className="relative">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => {
-          setShowModelSelector(!showModelSelector)
+          setIsOpen(!isOpen)
           setModelSearch('')
         }}
         className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex max-w-[200px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
         aria-haspopup="listbox"
-        aria-expanded={showModelSelector}
-        data-state={showModelSelector ? 'open' : 'closed'}
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
+        data-state={isOpen ? 'open' : 'closed'}
       >
         <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
 
@@ -115,7 +132,7 @@ const ModelSelector = memo(function ModelSelector({
         <ChevronDown className="text-muted-foreground h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180" />
       </button>
 
-      {showModelSelector && (
+      {isOpen && (
         <>
           <button
             type="button"
@@ -132,15 +149,15 @@ const ModelSelector = memo(function ModelSelector({
                 <Input
                   // eslint-disable-next-line jsx-a11y/no-autofocus -- focus search input when popover opens
                   autoFocus
+                  role="combobox"
+                  aria-expanded
+                  aria-controls={listboxId}
+                  aria-autocomplete="list"
+                  aria-activedescendant={activeDescendantId}
+                  aria-label={t('api_chat_search_models')}
                   value={modelSearch}
-                  onChange={(e) => {
-                    setModelSearch(e.target.value)
-                    setFocusedIndex(-1)
-                  }}
+                  onChange={(e) => setModelSearch(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  aria-activedescendant={
-                    focusedIndex >= 0 ? `model-option-${focusedIndex}` : undefined
-                  }
                   placeholder={t('api_chat_search_models')}
                   onClick={(e) => e.stopPropagation()}
                   className="h-7 pl-7 text-xs font-normal"
@@ -149,6 +166,7 @@ const ModelSelector = memo(function ModelSelector({
             </div>
             <div
               ref={listRef}
+              id={listboxId}
               role="listbox"
               className="custom-scrollbar max-h-[200px] min-h-0 flex-1 space-y-0.5 overflow-y-auto p-0.5"
             >
@@ -157,29 +175,29 @@ const ModelSelector = memo(function ModelSelector({
                   {t('api_chat_no_fetched_models')}
                 </div>
               ) : filteredModels.length > 0 ? (
-                filteredModels.map((m, index) => {
-                  const isSelected = m === selectedModel
-                  const isFocused = index === focusedIndex
+                filteredModels.map((model, index) => {
+                  const isSelected = model === selectedModel
+                  const isActive = index === activeIndex
                   return (
-                    <button
-                      key={m}
-                      id={`model-option-${index}`}
-                      type="button"
+                    <div
+                      key={model}
+                      id={`${listboxId}-option-${index}`}
                       role="option"
                       aria-selected={isSelected}
+                      tabIndex={-1}
                       data-model-index={index}
-                      onClick={() => handleSelect(m)}
-                      className={`text-ql-12 flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
+                      onMouseDown={() => handleSelect(model)}
+                      className={`text-ql-12 flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
                         isSelected
                           ? 'bg-primary/10 text-primary font-semibold'
-                          : isFocused
+                          : isActive
                             ? 'bg-muted text-foreground'
                             : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                       }`}
                     >
-                      <span className="truncate">{m}</span>
+                      <span className="truncate">{model}</span>
                       {isSelected && <Check className="text-primary h-3.5 w-3.5 shrink-0" />}
-                    </button>
+                    </div>
                   )
                 })
               ) : (

@@ -2,6 +2,7 @@ import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/types
 
 import { Button } from '@app/components/ui/button'
 import { Kbd } from '@app/components/ui/kbd'
+import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
 
 import { FileText, Upload } from 'lucide-react'
 import { memo } from 'react'
@@ -86,7 +87,7 @@ function PdfPlaceholder({
             <FileText className="text-primary h-3.5 w-3.5" />
             <span>{t('select_pdf')}</span>
             <Kbd size="xs" variant="default" className="ml-0.5 opacity-75">
-              Ctrl+O
+              {getShortcutModifierLabel()}+O
             </Kbd>
           </Button>
         </div>

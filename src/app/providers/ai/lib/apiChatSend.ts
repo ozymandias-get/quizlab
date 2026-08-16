@@ -20,7 +20,7 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
     return { success: false, error: 'empty_message' }
   }
   try {
-    await sendApiChatMessage(queryClient, {
+    const result = await sendApiChatMessage(queryClient, {
       tabId,
       text,
       images,
@@ -30,6 +30,9 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
       memoryPrompt: uiState.memoryPrompt,
       characterPrompt: uiState.characterPrompt
     })
+    if (!result.success) {
+      return { success: false, error: ensureErrorMessage(result.error, 'send_failed') }
+    }
     return { success: true }
   } catch (err) {
     return { success: false, error: ensureErrorMessage(err, 'send_failed') }
@@ -39,18 +42,24 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
 /**
  * Debounces consecutive api-chat sends so a rapid text+image sequence is
  * bundled into a single request, while keeping the target tab fixed to the
- * one captured at request time.
+ * one captured at request time. Resolves with the actual flush outcome so
+ * awaiting callers can distinguish a delivered message from an API failure.
  */
 export function scheduleApiChatSend(
   tabId: string,
   timeoutRef: { current: ReturnType<typeof setTimeout> | null },
   onResult?: (result: AiSendResult) => void
-): void {
+): Promise<AiSendResult> {
   if (timeoutRef.current) clearTimeout(timeoutRef.current)
-  timeoutRef.current = setTimeout(() => {
-    timeoutRef.current = null
-    void flushApiChatSend(tabId).then(onResult)
-  }, 50)
+  return new Promise((resolve) => {
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null
+      void flushApiChatSend(tabId).then((result) => {
+        onResult?.(result)
+        resolve(result)
+      })
+    }, 50)
+  })
 }
 
 /**

@@ -5,6 +5,7 @@ import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { usePdfSearchStore } from '../hooks/usePdfSearchStore'
 import PdfPageNav from './PdfPageNav'
 import PdfSearchBar from './PdfSearchBar'
 import PdfToolsPopup from './PdfToolsPopup'
@@ -52,7 +53,11 @@ function PdfToolbar({
   onAddCurrentPageTextToAi
 }: PdfToolbarProps) {
   const { t } = useTranslation()
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  // Shared store: the app-level Ctrl/Cmd+F shortcut opens the search bar
+  // through this store, so every mounted viewer instance reacts to it.
+  const isSearchOpen = usePdfSearchStore((s) => s.isOpen)
+  const openSearch = usePdfSearchStore((s) => s.open)
+  const closeSearch = usePdfSearchStore((s) => s.close)
   const [isToolsOpen, setIsToolsOpen] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const searchKeywordRef = useRef(searchKeyword)
@@ -63,11 +68,11 @@ function PdfToolbar({
   useEffect(() => {
     if (pdfFile?.path !== filePathRef.current) {
       filePathRef.current = pdfFile?.path
-      setIsSearchOpen(false)
+      closeSearch()
       setSearchKeyword('')
       clearHighlights()
     }
-  }, [pdfFile?.path, clearHighlights])
+  }, [pdfFile?.path, closeSearch, clearHighlights])
 
   useEffect(() => {
     return () => {
@@ -107,16 +112,16 @@ function PdfToolbar({
       clearTimeout(searchDebounceRef.current)
       searchDebounceRef.current = null
     }
-    setIsSearchOpen(false)
+    closeSearch()
     setSearchKeyword('')
     clearHighlights()
-  }, [clearHighlights])
+  }, [closeSearch, clearHighlights])
 
   const toggleTools = useCallback(() => {
     setIsToolsOpen((prev) => !prev)
   }, [])
 
-  const handleOpenSearch = useCallback(() => setIsSearchOpen(true), [])
+  const handleOpenSearch = useCallback(() => openSearch(), [openSearch])
 
   const handleKeywordChange = useCallback(
     (keyword: string) => {
