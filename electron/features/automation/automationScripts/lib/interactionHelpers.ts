@@ -14,17 +14,28 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
     };
 
     const triggerLifecycleEvents = (element) => {
-        const events = ['focus', 'focusin', 'keydown', 'keypress', 'beforeinput', 'input', 'change', 'keyup', 'blur', 'focusout'];
         const options = { bubbles: true, cancelable: true, composed: true };
-        events.forEach(name => {
+        const fire = (name) => {
             try {
-                element.dispatchEvent(new Event(name, options));
+                if (name === 'input') {
+                    element.dispatchEvent(new InputEvent(name, Object.assign({}, options, {
+                        inputType: 'insertText'
+                    })));
+                } else {
+                    element.dispatchEvent(new Event(name, options));
+                }
             } catch {}
-        });
+        };
+        // keydown/keypress/keyup atlanır: sentetik Event ile key:undefined gelir,
+        // e.key/e.code okuyan siteleri yanıltır. blur/focusout da atlanır:
+        // değer yazılır yazılmaz blur dispatch etmek SPA composer state'ini
+        // commit/cancel edebilir. beforeinput burada tekrar gönderilmez;
+        // setInputValue zaten gönderdi (tekrarı çift eklemeye yol açar).
+        ['focus', 'focusin', 'input', 'change'].forEach(fire);
 
         const tracker = element._valueTracker;
         if (tracker) {
-            tracker.setValue(element.value);
+            try { tracker.setValue(element.value); } catch {}
         }
     };
 

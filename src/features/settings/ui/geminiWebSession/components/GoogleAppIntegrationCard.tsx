@@ -27,41 +27,34 @@ const GoogleAppIntegrationCard = memo(function GoogleAppIntegrationCard({
 }: GoogleAppIntegrationCardProps) {
   const { t } = useTranslation()
   const handleToggle = useCallback(() => onToggleManagedApp(app.id), [app.id, onToggleManagedApp])
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        handleToggle()
-      }
-    },
-    [handleToggle]
-  )
 
   return (
+    // Clicking anywhere on the card toggles, but the accessible control is the
+    // Switch below — the card itself must not be a second tab stop (no
+    // role/tabIndex) or it would duplicate the toggle for assistive tech.
+    /* eslint-disable jsx-a11y/click-events-have-key-events */
     <div
       onClick={disabled ? undefined : handleToggle}
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      onKeyDown={disabled ? undefined : handleKeyDown}
-      aria-disabled={disabled}
-      aria-label={app.name}
-      className={`cursor-pointer rounded-2xl border px-3 py-3 transition-colors ${
-        isEnabled ? 'border-white/12 bg-white/[0.05]' : 'border-white/8 bg-black/20'
-      } ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-white/20'}`}
+      className={`cursor-pointer rounded-xl border px-3.5 py-3 transition-colors ${
+        isEnabled
+          ? 'border-primary/40 bg-muted/80 shadow-xs'
+          : 'border-border bg-card hover:bg-muted/40'
+      } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
     >
+      {/* eslint-enable jsx-a11y/click-events-have-key-events */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10"
-            style={{ backgroundColor: `${app.color}22`, color: app.color }}
+            className="border-border flex h-9 w-9 items-center justify-center rounded-lg border"
+            style={{ backgroundColor: `${app.color}18`, color: app.color }}
           >
-            {getAiIcon(app.icon) || <GeminiIcon className="h-5 w-5" />}
+            {getAiIcon(app.icon) || <GeminiIcon className="h-4 w-4" />}
           </div>
           <div className="min-w-0">
-            <p className="text-ql-14 truncate font-bold text-white/90">{app.name}</p>
-            <p className="text-ql-12 truncate text-white/45">{app.hostname}</p>
+            <p className="text-ql-13 text-foreground truncate font-semibold">{app.name}</p>
+            <p className="text-ql-11 text-muted-foreground truncate">{app.hostname}</p>
             <p
-              className={`text-ql-10 tracking-ql-fine mt-1 font-medium ${isEnabled ? 'text-emerald-300/70' : 'text-white/30'}`}
+              className={`text-ql-10 mt-0.5 font-medium ${isEnabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}
             >
               {isEnabled ? t('gws_app_enabled') : t('gws_app_disabled')}
             </p>
@@ -72,13 +65,13 @@ const GoogleAppIntegrationCard = memo(function GoogleAppIntegrationCard({
           onChange={disabled ? undefined : handleToggle}
           disabled={disabled}
           aria-label={app.name}
-          className={`relative flex h-6 w-11 shrink-0 items-center rounded-full border p-1 transition-colors disabled:opacity-50 ${
-            isEnabled ? 'border-emerald-500/35 bg-emerald-500/20' : 'border-white/15 bg-white/10'
+          className={`relative flex h-6 w-11 shrink-0 items-center rounded-full border p-0.5 transition-colors disabled:opacity-50 ${
+            isEnabled ? 'border-emerald-500/40 bg-emerald-500/20' : 'border-border bg-muted'
           }`}
         >
           <span
             className={`inline-block h-4 w-4 rounded-full transition-colors ${
-              isEnabled ? 'translate-x-5 bg-emerald-400' : 'translate-x-0 bg-white/60'
+              isEnabled ? 'translate-x-5 bg-emerald-500' : 'bg-muted-foreground translate-x-0'
             }`}
           />
         </Switch>

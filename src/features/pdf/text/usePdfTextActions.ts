@@ -56,11 +56,14 @@ export function usePdfTextActions({
     }
 
     // Defer extraction past the page transition settle period.
-    // Using requestIdleCallback (without a forced timeout) lets the browser
-    // schedule the work when the main thread is idle.  The setTimeout
-    // fallback waits 500ms to avoid competing with the page render.
+    // Using requestIdleCallback (with a forced timeout) lets the browser
+    // schedule the work when the main thread is idle while guaranteeing it
+    // still runs — without a timeout the callback can be starved
+    // indefinitely on busy machines and the selected text never reaches AI.
+    // The setTimeout fallback waits 500ms to avoid competing with the page
+    // render.
     if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(extract)
+      requestIdleCallback(extract, { timeout: 2000 })
       return null
     }
 

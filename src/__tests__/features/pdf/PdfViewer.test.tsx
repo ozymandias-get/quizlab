@@ -1,6 +1,6 @@
 import PdfViewer from '@features/pdf/ui/components/PdfViewer'
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -95,6 +95,8 @@ vi.mock('@features/pdf/ui/hooks', () => ({
     setContextMenu: vi.fn()
   }),
   usePdfPanTool: () => ({ isDragging: false }),
+  useCoalescedZoom: (zoomTo: unknown) => zoomTo,
+  useCanvasGpuCleanup: () => {},
   usePdfResizeRefit: () => {},
   usePdfCtrlWheelZoom: () => {},
   usePdfWheelNavigation: () => {},
@@ -106,6 +108,12 @@ vi.mock('@features/pdf/ui/hooks', () => ({
     handleFullPageScreenshot: vi.fn(),
     handleAreaScreenshot: vi.fn()
   })
+}))
+
+vi.mock('@features/pdf/ui/components/usePdfViewerLayout', () => ({
+  useContainerSize: () => ({ w: 800, h: 1000 }),
+  useFitScale: () => 0.8,
+  useLastNavigationTime: () => ({ current: 0 })
 }))
 
 vi.mock('@features/pdf/ui/components/PdfPlaceholder', () => ({
@@ -162,7 +170,7 @@ describe('PdfViewer', () => {
     )
   })
 
-  it('navigates to the saved page on load via jumpToPage', () => {
+  it('navigates to the saved page on load via jumpToPage', async () => {
     const mockPdfFile = {
       path: 'resume.pdf',
       name: 'resume.pdf',
@@ -176,7 +184,7 @@ describe('PdfViewer', () => {
     expect(mockViewer).not.toHaveBeenLastCalledWith(
       expect.objectContaining({ initialPage: expect.anything() })
     )
-    expect(mockJumpToPageFromNav).toHaveBeenCalledWith(8)
+    await waitFor(() => expect(mockJumpToPageFromNav).toHaveBeenCalledWith(8))
   })
 
   it('uses handleDocumentLoad directly without a resume zoom hack', () => {
@@ -200,7 +208,7 @@ describe('PdfViewer', () => {
     expect(mockZoomTo).toHaveBeenCalledTimes(zoomCallCountBeforeLoad)
   })
 
-  it('aligns resume to the saved page when viewer state is out of sync', () => {
+  it('aligns resume to the saved page when viewer state is out of sync', async () => {
     const mockPdfFile = {
       path: 'resume.pdf',
       name: 'resume.pdf',
@@ -211,11 +219,11 @@ describe('PdfViewer', () => {
 
     render(<PdfViewer pdfFile={mockPdfFile} initialPage={3} onSelectPdf={vi.fn()} />)
 
-    expect(mockZoomTo).toHaveBeenCalledWith('PageWidth')
-    expect(mockJumpToPageFromNav).toHaveBeenCalledWith(3)
+    await waitFor(() => expect(mockJumpToPageFromNav).toHaveBeenCalledWith(3))
+    expect(mockZoomTo).toHaveBeenCalledWith(0.8)
   })
 
-  it('does not force the saved page again after the initial resume sync', () => {
+  it('does not force the saved page again after the initial resume sync', async () => {
     const mockPdfFile = {
       path: 'resume.pdf',
       name: 'resume.pdf',
@@ -228,6 +236,7 @@ describe('PdfViewer', () => {
       <PdfViewer pdfFile={mockPdfFile} initialPage={3} onSelectPdf={vi.fn()} />
     )
 
+    await waitFor(() => expect(mockJumpToPageFromNav).toHaveBeenCalled())
     const callCountAfterMount = mockJumpToPageFromNav.mock.calls.length
     expect(callCountAfterMount).toBeGreaterThanOrEqual(1)
 
@@ -237,5 +246,61 @@ describe('PdfViewer', () => {
 
     expect(mockJumpToPageFromNav).toHaveBeenCalledTimes(callCountAfterMount)
     expect(mockZoomTo.mock.calls.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('does not re-apply the resume page when initialPage changes mid-viewing (page turn)', async () => {
+    const mockPdfFile = {
+      path: 'resume.pdf',
+      name: 'resume.pdf',
+      size: 1000,
+      lastModified: 0,
+      streamUrl: 'blob:resume'
+    }
+
+    const { rerender } = render(
+      <PdfViewer pdfFile={mockPdfFile} initialPage={3} onSelectPdf={vi.fn()} />
+    )
+
+    await waitFor(() => expect(mockJumpToPageFromNav).toHaveBeenCalled())
+    const callCountAfterMount = mockJumpToPageFromNav.mock.calls.length
+
+    mockNavigationState.currentPage = 7
+
+    // Reading progress persisted the new page: the same file now reports
+    // initialPage=7. The viewer must NOT re-jump — only the first load of a
+    // given file may consume initialPage.
+    rerender(<PdfViewer pdfFile={mockPdfFile} initialPage={7} onSelectPdf={vi.fn()} />)
+
+    expect(mockJumpToPageFromNav).toHaveBeenCalledTimes(callCountAfterMount)
+    expect(mockViewer).not.toHaveBeenLastCalledWith(expect.objectContaining({ initialPage: 7 }))
+  })
+
+  it('consumes the new initialPage only when a different file is opened', async () => {
+    const firstFile = {
+      path: 'a.pdf',
+      name: 'a.pdf',
+      size: 1000,
+      lastModified: 0,
+      streamUrl: 'blob:a'
+    }
+    const secondFile = {
+      path: 'b.pdf',
+      name: 'b.pdf',
+      size: 1000,
+      lastModified: 0,
+      streamUrl: 'blob:b'
+    }
+
+    const { rerender } = render(
+      <PdfViewer pdfFile={firstFile} initialPage={3} onSelectPdf={vi.fn()} />
+    )
+
+    await waitFor(() => expect(mockJumpToPageFromNav).toHaveBeenCalledWith(3))
+
+    mockNavigationState.currentPage = 1
+
+    rerender(<PdfViewer pdfFile={secondFile} initialPage={9} onSelectPdf={vi.fn()} />)
+
+    await waitFor(() => expect(mockJumpToPageFromNav).toHaveBeenCalledWith(9))
   })
 })

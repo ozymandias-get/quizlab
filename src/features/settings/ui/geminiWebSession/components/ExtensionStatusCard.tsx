@@ -1,5 +1,6 @@
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
+import { Button } from '@app/components/ui/button'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { LoaderIcon, SettingsIcon } from '@ui/components/Icons'
 
@@ -87,54 +88,61 @@ function ExtensionStatusCard({
   }
 
   const dotColor = (info: NativeMessagingExtensionInfo | null): string => {
-    if (!info) return 'bg-white/30'
-    if (info.status === 'connected') return 'bg-emerald-400'
-    if (info.status === 'connecting' && info.installed) return 'bg-amber-400'
-    return 'bg-white/30'
+    if (!info) return 'bg-muted-foreground'
+    if (info.status === 'connected') return 'bg-emerald-500'
+    if (info.status === 'connecting' && info.installed) return 'bg-amber-500'
+    return 'bg-muted-foreground'
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/10 p-4 backdrop-blur-sm">
-      <div className="text-ql-12 mb-3 font-bold text-white/85">{t('gws_extension_title')}</div>
+    <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
+      <div className="text-ql-12 text-foreground mb-3 font-semibold">
+        {t('gws_extension_title')}
+      </div>
 
-      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5">
+      <div className="border-border bg-muted/30 flex items-center justify-between rounded-lg border px-3.5 py-2.5">
         <div className="flex items-center gap-2">
           <div className={`h-2 w-2 rounded-full ${dotColor(extensionInfo)}`} />
-          <span className="text-ql-12 text-white/70">{t(statusKey(extensionInfo))}</span>
+          <span className="text-ql-12 text-muted-foreground">{t(statusKey(extensionInfo))}</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {extensionInfo?.installed && extensionInfo?.status !== 'connected' && (
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="xs"
               onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
-              className="text-ql-11 font-semibold text-amber-400 hover:text-amber-300"
+              className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
             >
               {t('gws_extension_wake_btn')}
-            </button>
+            </Button>
           )}
           {extensionInfo?.installed ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={onRemoveExtension}
-              className="text-ql-11 text-red-400 hover:text-red-300"
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             >
               {t('gws_extension_remove_btn')}
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              size="xs"
               onClick={handleInstallClick}
               disabled={installing}
-              className="text-ql-11 inline-flex items-center gap-1.5 rounded-lg bg-blue-500/20 px-3 py-1.5 font-semibold text-blue-300 hover:bg-blue-500/30 disabled:opacity-50"
+              className="gap-1.5"
             >
               {installing ? (
                 <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <SettingsIcon className="h-3.5 w-3.5" />
               )}
-              {t('gws_extension_install_btn')}
-            </button>
+              <span>{t('gws_extension_install_btn')}</span>
+            </Button>
           )}
         </div>
       </div>

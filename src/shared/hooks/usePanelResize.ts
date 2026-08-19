@@ -31,6 +31,7 @@ interface UsePanelResizeReturn {
   setLeftPanelWidth: Dispatch<SetStateAction<number>>
   isResizing: boolean
   handleMouseDown: (e: ReactMouseEvent) => void
+  nudgeLeftPanelWidth: (deltaPx: number) => void
   leftPanelRef: RefObject<HTMLElement | null>
   resizerRef: RefObject<HTMLElement | null>
 }
@@ -111,6 +112,24 @@ export function usePanelResize({
     pendingWidthRef.current = leftPanelWidthRef.current
     startWidthRef.current = leftPanelWidthRef.current
   }, [])
+
+  const nudgeLeftPanelWidth = useCallback(
+    (deltaPx: number) => {
+      const containerWidth = window.innerWidth
+      const maxAvailableWidth = Math.max(0, containerWidth - effectiveResizerWidth)
+      const safeMinLeftVal = Math.min(minLeft, maxAvailableWidth)
+      const safeMaxLeftVal = Math.max(
+        safeMinLeftVal,
+        containerWidth - minRight - effectiveResizerWidth
+      )
+      const currentPx = (leftPanelWidthRef.current / 100) * containerWidth
+      const nextPx = Math.max(safeMinLeftVal, Math.min(currentPx + deltaPx, safeMaxLeftVal))
+      const nextPercentage = containerWidth > 0 ? (nextPx / containerWidth) * 100 : 50
+      leftPanelWidthRef.current = nextPercentage
+      setLeftPanelWidth(nextPercentage)
+    },
+    [minLeft, minRight, effectiveResizerWidth, setLeftPanelWidth]
+  )
 
   useEffect(() => {
     if (!isResizing) {
@@ -213,9 +232,18 @@ export function usePanelResize({
       setLeftPanelWidth,
       isResizing,
       handleMouseDown,
+      nudgeLeftPanelWidth,
       leftPanelRef,
       resizerRef
     }),
-    [clampedPercentage, setLeftPanelWidth, isResizing, handleMouseDown, leftPanelRef, resizerRef]
+    [
+      clampedPercentage,
+      setLeftPanelWidth,
+      isResizing,
+      handleMouseDown,
+      nudgeLeftPanelWidth,
+      leftPanelRef,
+      resizerRef
+    ]
   )
 }

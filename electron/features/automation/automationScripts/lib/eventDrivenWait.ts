@@ -55,41 +55,38 @@ export const eventDrivenWaitRuntime = `    /**
             : document.body;
         const start = now();
         let lastMutationAt = start;
-        let settledSinceLastCheck = start;
-        let lastSettledAt = start;
-        let wakeRequested = false;
         let iterations = 0;
-        let observer;
+        let observer = null;
+        let wakeResolve = null;
+        let mutationPending = false;
 
-        const wake = () => {
-            wakeRequested = true;
-            lastMutationAt = now();
-        };
-
-        try {
-            observer = new MutationObserver(() => {
+        const createObserver = (target) => {
+            const obs = new MutationObserver(() => {
                 lastMutationAt = now();
-                wake();
+                mutationPending = true;
+                if (wakeResolve) {
+                    const resolve = wakeResolve;
+                    wakeResolve = null;
+                    resolve();
+                }
             });
-            observer.observe(fallbackRoot, {
+            obs.observe(target, {
                 subtree: true,
                 childList: true,
                 attributes: true,
                 characterData: true
             });
-        } catch (e) {
-            // observer kurulamadıysa poll moduna düş (nadir)
+            return obs;
+        };
+
+        try {
             try {
-                observer = new MutationObserver(wake);
-                observer.observe(document.body, {
-                    subtree: true,
-                    childList: true,
-                    attributes: true,
-                    characterData: true
-                });
-            } catch (_) {
-                observer = { disconnect: () => {} };
+                observer = createObserver(fallbackRoot);
+            } catch (e) {
+                observer = createObserver(document.body);
             }
+        } catch (_) {
+            observer = { disconnect: () => {} };
         }
 
         const resultOrNull = () => {
@@ -105,19 +102,26 @@ export const eventDrivenWaitRuntime = `    /**
 
         try {
             while (now() - start < timeoutMs) {
-                wakeRequested = false;
                 const found = resultOrNull();
                 if (found) return found;
 
-                // wakeRequested zaten true ise microtask'te kontrol et
-                if (wakeRequested) continue;
+                // Mutasyon geldiyse (observer callback'i promise'i çözdü veya
+                // promise kurulmadan önce geldi) hemen yeniden kontrol et.
+                if (mutationPending) {
+                    mutationPending = false;
+                    continue;
+                }
 
-                // yoksa observer'ı bekle — ama timeoutMs'i aşma
+                // Observer'ı bekle — ama timeoutMs'i aşma.
                 const remaining = Math.max(1, timeoutMs - (now() - start));
-                const idleWait = new Promise((resolve) => setTimeout(resolve, Math.min(50, remaining)));
-                await idleWait;
+                const wakePromise = new Promise((resolve) => {
+                    wakeResolve = resolve;
+                });
+                const timeoutPromise = new Promise((resolve) => setTimeout(resolve, Math.min(50, remaining)));
+                await Promise.race([wakePromise, timeoutPromise]);
             }
         } finally {
+            wakeResolve = null;
             try { observer.disconnect(); } catch (_) {}
         }
 

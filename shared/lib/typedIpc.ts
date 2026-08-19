@@ -4,6 +4,7 @@ export type IpcErrorCode =
   | 'already_exists'
   | 'unauthorized'
   | 'internal_error'
+  | 'cancelled'
 
 export type IpcError = {
   code: IpcErrorCode

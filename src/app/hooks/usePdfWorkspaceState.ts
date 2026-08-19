@@ -101,6 +101,9 @@ export function usePdfWorkspaceState({
           name: result.name || target.name,
           lastOpenedAt: Date.now()
         })
+        // The history dedupes by path, so the old-path entry would remain
+        // as a ghost next to the relinked one — drop it explicitly.
+        clearLastReading(target.path)
 
         openPdfInTab({
           ...result,
@@ -113,7 +116,7 @@ export function usePdfWorkspaceState({
         return false
       }
     },
-    [upsertLastReadingInfo, openPdfInTab, t]
+    [upsertLastReadingInfo, clearLastReading, openPdfInTab, t]
   )
 
   const leftPanelProps = useMemo(

@@ -131,9 +131,7 @@ describe('BottomBar', () => {
 
   it('renders the gradient line and handlebar in each drag area', () => {
     const { container } = render(<BottomBar />)
-    const gradientLines = container.querySelectorAll(
-      '[class*="bg-gradient-to-b from-transparent via-white"]'
-    )
+    const gradientLines = container.querySelectorAll('[class*="bg-gradient-to-b"]')
     expect(gradientLines.length).toBe(2)
     const dotIcons = container.querySelectorAll('[class*="lucide-grip-vertical"]')
     expect(dotIcons.length).toBe(2)

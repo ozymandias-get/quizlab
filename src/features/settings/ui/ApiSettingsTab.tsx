@@ -1,8 +1,11 @@
 import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/types'
 
+import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
+import { useToastActions } from '@shared/stores/toastStore'
 
+import { Loader2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -12,6 +15,7 @@ import PromptSettingsSection from './apiSettings/PromptSettingsSection'
 
 export default memo(function ApiSettingsTab() {
   const { t } = useTranslation()
+  const { showError } = useToastActions()
   const [config, setConfig] = useState<ApiConfig>({
     providers: [],
     generalPrompt: '',
@@ -108,10 +112,11 @@ export default memo(function ApiSettingsTab() {
       }
     } catch (err: unknown) {
       Logger.error('[ApiSettingsTab] Failed to save:', err)
+      showError('toast_ai_config_save_failed')
     } finally {
       setSaving(false)
     }
-  }, [])
+  }, [showError])
 
   const handleFetchModels = useCallback(
     async (id: string) => {
@@ -155,7 +160,7 @@ export default memo(function ApiSettingsTab() {
               {
                 id: 'test',
                 role: 'user' as const,
-                content: t('test_message_content'),
+                content: t('api_chat_test_message'),
                 timestamp: Date.now()
               }
             ],
@@ -198,14 +203,16 @@ export default memo(function ApiSettingsTab() {
           </h2>
           <p className="text-muted-foreground mt-1 text-xs">{t('api_chat_settings_desc')}</p>
         </div>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-lg bg-amber-500/20 px-4 py-2 text-xs text-amber-400 transition-colors hover:bg-amber-500/30 disabled:opacity-50"
-        >
-          {saving ? t('saving') : t('save_platform')}
-        </button>
+        <Button type="button" onClick={handleSave} disabled={saving} size="sm" className="gap-1.5">
+          {saving ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>{t('saving')}</span>
+            </>
+          ) : (
+            <span>{t('api_chat_save')}</span>
+          )}
+        </Button>
       </div>
 
       <PromptSettingsSection

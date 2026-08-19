@@ -87,6 +87,7 @@
   "select_language": "Dil Seçin",
   "select_pdf": "PDF Dosyası Seç",
   "sent_successfully": "Başarıyla gönderildi!",
+  "draft_queue_full": "AI kuyruğu dolu. En eski taslak kaldırıldı.",
   "settings": "Ayarlar",
   "settings_title": "Ayarlar",
   "performance_mode": "Düşük Performans Modu",

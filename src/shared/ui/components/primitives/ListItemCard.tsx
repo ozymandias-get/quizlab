@@ -9,12 +9,12 @@ interface ListItemCardProps extends HTMLAttributes<HTMLDivElement> {
 
 const ListItemCardInner = forwardRef<HTMLDivElement, ListItemCardProps>(
   ({ className = '', children, active = false, interactive = true, ...props }, ref) => {
-    const baseClasses = 'rounded-lg border bg-card p-3'
+    const baseClasses = 'rounded-lg border bg-card p-3 shadow-xs'
     const activeClasses = active
-      ? 'border-ring/50 text-foreground'
+      ? 'border-ring/60 bg-card text-foreground font-medium'
       : 'border-border text-muted-foreground'
     const interactiveClasses = interactive
-      ? 'cursor-pointer transition-all duration-150 hover:bg-accent hover:border-accent/30 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background'
+      ? 'cursor-pointer transition-colors duration-150 hover:bg-muted/70 hover:border-border active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
       : ''
 
     return (

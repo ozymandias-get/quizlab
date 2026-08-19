@@ -21,12 +21,15 @@ interface UpdatesActionButtonProps {
   tone: UpdatesActionTone
 }
 
-const UPDATE_ACTION_BUTTON_CLASSES: Record<UpdatesActionTone, string> = {
-  accent:
-    'bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 hover:shadow-xl shadow-md',
-  neutral:
-    'bg-white/[0.1] border border-white/20 text-white hover:bg-white/[0.15] hover:shadow-xl shadow-md',
-  success: 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+import { Button } from '@app/components/ui/button'
+
+const UPDATE_ACTION_BUTTON_VARIANTS: Record<
+  UpdatesActionTone,
+  'outline' | 'default' | 'secondary'
+> = {
+  accent: 'outline',
+  neutral: 'default',
+  success: 'default'
 }
 
 function UpdatesActionButton({
@@ -37,17 +40,17 @@ function UpdatesActionButton({
   disabled
 }: UpdatesActionButtonProps & { disabled?: boolean }) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group text-ql-12 relative w-full overflow-hidden rounded-2xl px-5 py-3.5 font-semibold transition-colors duration-300 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1 ${UPDATE_ACTION_BUTTON_CLASSES[tone]}`}
+      variant={UPDATE_ACTION_BUTTON_VARIANTS[tone]}
+      size="sm"
+      className="w-full gap-2 sm:flex-1"
     >
-      <span className="relative z-10 flex items-center justify-center gap-2">
-        {icon}
-        {children}
-      </span>
-    </button>
+      {icon}
+      <span>{children}</span>
+    </Button>
   )
 }
 
@@ -59,19 +62,19 @@ function renderUpdateStatusContent(
   switch (status) {
     case 'idle':
       return (
-        <p className="text-ql-12 font-medium text-white/30 italic">{t('update_not_available')}</p>
+        <p className="text-ql-12 text-muted-foreground font-medium">{t('update_not_available')}</p>
       )
     case 'latest':
       return (
-        <div className="text-ql-12 flex items-center gap-3 font-bold text-emerald-400">
-          <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+        <div className="text-ql-12 flex items-center gap-2.5 font-semibold text-emerald-600 dark:text-emerald-400">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-xs" />
           {t('you_have_latest')}
         </div>
       )
     case 'checking':
       return (
-        <div className="text-ql-12 flex items-center gap-3 font-bold text-white/40">
-          <LoaderIcon className="h-4 w-4 opacity-40" />
+        <div className="text-ql-12 text-muted-foreground flex items-center gap-2.5 font-medium">
+          <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
           {t('checking_updates')}
         </div>
       )
@@ -83,18 +86,20 @@ function renderUpdateStatusContent(
       return (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-ql-12 font-bold text-emerald-400">{t('new_version')}:</span>
-            <span className="text-ql-12 font-mono font-bold text-white/80 transition-colors">
+            <span className="text-ql-12 font-semibold text-emerald-600 dark:text-emerald-400">
+              {t('new_version')}:
+            </span>
+            <span className="text-ql-12 text-foreground font-mono font-bold transition-colors">
               {updateInfo.version}
             </span>
           </div>
           {updateInfo.releaseName && (
-            <p className="text-ql-10 tracking-ql-fine font-medium text-white/30 italic">
+            <p className="text-ql-11 text-muted-foreground font-medium italic">
               &ldquo;{updateInfo.releaseName}&rdquo;
             </p>
           )}
           {updateInfo.releaseNotes && (
-            <p className="text-ql-11 line-clamp-3 leading-relaxed text-white/50">
+            <p className="text-ql-11 text-muted-foreground line-clamp-3 leading-relaxed">
               {updateInfo.releaseNotes}
             </p>
           )}
@@ -102,8 +107,8 @@ function renderUpdateStatusContent(
       )
     case 'error':
       return (
-        <div className="text-ql-12 flex items-center gap-3 font-bold text-rose-400">
-          <div className="h-2 w-2 rounded-full bg-rose-400" />
+        <div className="text-ql-12 text-destructive flex items-center gap-2.5 font-semibold">
+          <div className="bg-destructive h-2 w-2 rounded-full" />
           {t('update_error')}
         </div>
       )
@@ -118,9 +123,9 @@ const UpdateStatusMessage = memo(({ status, updateInfo, t }: UpdateStatusMessage
       <motion.div
         key={status}
         layout
-        initial={{ opacity: 0, y: 5 }}
+        initial={{ opacity: 0, y: 3 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -5 }}
+        exit={{ opacity: 0, y: -3 }}
         className="flex items-center gap-3"
       >
         {renderUpdateStatusContent(status, updateInfo, t)}
@@ -155,23 +160,21 @@ const UpdatesCard = memo(
     const showDownloadButton = updateStatus === 'available'
 
     return (
-      <div className="space-y-6 rounded-[28px] border border-white/[0.1] bg-white/[0.03] p-4 shadow-sm sm:p-6 lg:p-8">
+      <div className="border-border bg-card space-y-4 rounded-xl border p-5 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl border border-white/[0.1] bg-white/[0.06] p-2.5 text-white/50">
-              <RefreshIcon className="h-5 w-5" />
+            <div className="border-border bg-muted text-primary rounded-lg border p-2">
+              <RefreshIcon className="h-4 w-4" />
             </div>
-            <h4 className="text-ql-13 font-semibold tracking-normal text-white/80">
-              {t('updates')}
-            </h4>
+            <h4 className="text-ql-13 text-foreground font-semibold">{t('updates')}</h4>
           </div>
 
           <AnimatePresence mode="wait">
             {showDownloadButton && (
               <motion.span
-                initial={{ opacity: 0, x: 10 }}
+                initial={{ opacity: 0, x: 6 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-ql-10 tracking-ql-fine rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-medium text-emerald-400/80"
+                className="text-ql-10 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-600 dark:text-emerald-400"
               >
                 {t('update_available')}
               </motion.span>
@@ -179,11 +182,11 @@ const UpdatesCard = memo(
           </AnimatePresence>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.02] bg-white/[0.01] p-5">
+        <div className="border-border bg-muted/30 rounded-lg border p-3.5">
           <UpdateStatusMessage status={updateStatus} updateInfo={updateInfo} t={t} />
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Tooltip>
             <TooltipTrigger>
               <UpdatesActionButton
@@ -191,7 +194,7 @@ const UpdatesCard = memo(
                 tone="accent"
                 icon={
                   <InfoIcon
-                    className="h-5 w-5 opacity-60 transition-opacity group-hover:opacity-100"
+                    className="h-4 w-4 opacity-70 transition-opacity group-hover:opacity-100"
                     strokeWidth={2}
                   />
                 }
@@ -210,7 +213,7 @@ const UpdatesCard = memo(
             >
               {updateStatus === 'checking' ? (
                 <>
-                  <LoaderIcon className="h-4 w-4 animate-spin" />
+                  <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
                   {t('checking_updates')}
                 </>
               ) : (
@@ -223,7 +226,7 @@ const UpdatesCard = memo(
             <UpdatesActionButton
               onClick={openReleasesPage}
               tone="success"
-              icon={<DownloadIcon className="h-5 w-5 opacity-50" />}
+              icon={<DownloadIcon className="h-4 w-4 opacity-70" />}
             >
               {t('download_from_github')}
             </UpdatesActionButton>

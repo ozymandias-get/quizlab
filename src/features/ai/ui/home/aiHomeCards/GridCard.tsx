@@ -57,37 +57,33 @@ const GridCard = memo<GridCardProps>(function GridCard({
         <button
           type="button"
           onClick={() => onClick(itemId)}
-          className={`group relative w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
+          className={`group hover:shadow-ambient-sm relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transform-none ${
             isActive
-              ? 'border-border bg-card'
-              : 'border-border bg-card hover:border-ring/30 hover:bg-muted'
+              ? 'border-ring/60 bg-accent/20'
+              : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
           }`}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <div
-              className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
+              className="border-border/60 bg-muted/60 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-transform duration-150 group-hover:scale-105 motion-reduce:scale-100"
               style={{ color: accent }}
             >
               {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="text-ql-13 text-foreground/90 truncate font-semibold">
-                {displayName}
-              </h3>
+              <h3 className="text-ql-13 text-foreground truncate font-semibold">{displayName}</h3>
               <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">{subtitle}</p>
             </div>
             {isActive && (
               <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full shadow-[0_0_8px_currentColor]"
+                className="h-2 w-2 shrink-0 rounded-full"
                 style={{
-                  background: accent,
-                  color: accent,
-                  filter: 'brightness(1.4)'
+                  background: accent
                 }}
               />
             )}
-            <div className="text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
-              <ArrowUpRight className="h-3.5 w-3.5" />
+            <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
             </div>
           </div>
         </button>

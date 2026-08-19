@@ -151,4 +151,19 @@ describe('findPageCanvas', () => {
     const result = findPageCanvas(5) // no exact match for 5
     expect(result).toBe(layer2.querySelector('canvas'))
   })
+
+  it('drops a cached canvas once it disconnects from the DOM', () => {
+    const layer = makePageLayer(1)
+    container.appendChild(layer)
+    const canvas = layer.querySelector('canvas') as HTMLCanvasElement
+    expect(findPageCanvas(1)).toBe(canvas) // populates the cache
+
+    // The viewer swaps page layers on navigation; the old canvas is detached.
+    container.removeChild(layer)
+
+    // The stale cache entry must not be returned for a different page.
+    const layer2 = makePageLayer(2)
+    container.appendChild(layer2)
+    expect(findPageCanvas(2)).toBe(layer2.querySelector('canvas'))
+  })
 })

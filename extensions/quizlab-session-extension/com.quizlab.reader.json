@@ -1,0 +1,7 @@
+{
+  "name": "com.quizlab.reader",
+  "description": "Quizlab Reader native messaging host (HTTP bridge)",
+  "path": "C:/Program Files/Quizlab Reader/Quizlab Reader.exe",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://follalbajmbjmkejipfikekdiodbkggp/"]
+}

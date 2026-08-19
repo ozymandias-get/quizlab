@@ -1,12 +1,13 @@
 import type { AiDraftItem } from './types'
 
-type BulkTextSegment = { kind: 'text'; payload: string }
+type BulkTextSegment = { kind: 'text'; payload: string; itemIds: string[] }
 
 type BulkImageSegment = {
   kind: 'image'
   dataUrl?: string
   blobUrl?: string
   promptText?: string
+  itemIds: string[]
 }
 
 export type BulkSegment = BulkTextSegment | BulkImageSegment
@@ -22,6 +23,13 @@ function mergeExcerpts(texts: string[]): string | undefined {
   return trimmed.join('\n\n---\n\n')
 }
 
+// Only ids of drafts that actually contribute content count as sent; a
+// whitespace-only text draft is consumed by the plan but should never be
+// reported as delivered.
+function contributingIds(buffer: { id: string; text: string }[]): string[] {
+  return buffer.filter((entry) => entry.text.trim().length > 0).map((entry) => entry.id)
+}
+
 /**
  * Builds ordered send segments from the user's queue: preserves text/image order,
  * merges consecutive text excerpts, and attaches the composer note only to the first segment.
@@ -30,7 +38,7 @@ export function planBulkAiSend(pending: AiDraftItem[], composerNote?: string): B
   const segments: BulkSegment[] = []
   const normalizedNote = composerNote?.trim()
   let noteConsumed = false
-  let textBuffer: string[] = []
+  let textBuffer: { id: string; text: string }[] = []
 
   const consumeNoteWith = (text: string | undefined): string | undefined => {
     if (!noteConsumed && normalizedNote) {
@@ -45,19 +53,27 @@ export function planBulkAiSend(pending: AiDraftItem[], composerNote?: string): B
 
   for (const draft of pending) {
     if (draft.type === 'text') {
-      textBuffer.push(draft.text)
+      textBuffer.push({ id: draft.id, text: draft.text })
     } else {
-      const merged = mergeExcerpts(textBuffer)
+      const mergedTexts = textBuffer.map((entry) => entry.text)
+      const bufferedIds = contributingIds(textBuffer)
+      const merged = mergeExcerpts(mergedTexts)
       textBuffer = []
       const promptText = consumeNoteWith(merged)
-      segments.push({ kind: 'image', dataUrl: draft.dataUrl, blobUrl: draft.blobUrl, promptText })
+      segments.push({
+        kind: 'image',
+        dataUrl: draft.dataUrl,
+        blobUrl: draft.blobUrl,
+        promptText,
+        itemIds: [...bufferedIds, draft.id]
+      })
     }
   }
 
-  const tail = mergeExcerpts(textBuffer)
+  const tail = mergeExcerpts(textBuffer.map((entry) => entry.text))
   const tailPayload = consumeNoteWith(tail)
   if (tailPayload !== undefined && tailPayload.length > 0) {
-    segments.push({ kind: 'text', payload: tailPayload })
+    segments.push({ kind: 'text', payload: tailPayload, itemIds: contributingIds(textBuffer) })
   }
 
   return segments

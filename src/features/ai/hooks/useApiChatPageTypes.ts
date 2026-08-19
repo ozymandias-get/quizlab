@@ -35,6 +35,7 @@ export interface UseApiChatPageReturn {
   handleDragLeave: (e: React.DragEvent) => void
   handleDrop: (e: React.DragEvent) => void
   handleInputChange: (val: string) => void
+  handleStop: () => void
   handleRemoveAttachmentCallback: (i: number) => void
   handleSelectProvider: (id: string) => void
   handleSelectModel: (model: string) => void

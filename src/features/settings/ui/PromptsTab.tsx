@@ -1,9 +1,12 @@
 import { usePrompts } from '@features/ai'
 
+import { Button } from '@app/components/ui/button'
+import { Label } from '@app/components/ui/label'
 import { Textarea } from '@app/components/ui/textarea'
 import { useToastActions } from '@app/providers'
-import { CheckIcon, MagicWandIcon, TrashIcon } from '@ui/components/Icons'
+import { MagicWandIcon } from '@ui/components/Icons'
 
+import { Check, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type FormEvent, memo, type MouseEvent, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,7 +15,7 @@ import SettingsAddToggleButton from './shared/SettingsAddToggleButton'
 import SettingsTabHeader from './shared/SettingsTabHeader'
 
 const PROMPTS_ICON = (
-  <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-2.5 text-purple-400">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <MagicWandIcon className="h-5 w-5" />
   </div>
 )
@@ -41,41 +44,49 @@ const PromptItem = memo(function PromptItem({
           onSelect(prompt.id)
         }
       }}
-      className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors duration-200 ${
+      className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors ${
         isSelected
-          ? 'border-purple-500/50 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
-          : 'bg-card border-border hover:border-muted-foreground/30 hover:bg-muted'
+          ? 'border-primary/40 bg-muted/80 shadow-xs'
+          : 'bg-card border-border hover:bg-muted/40'
       }`}
     >
       <div
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${isSelected ? 'border-purple-500 bg-purple-500 text-white' : 'border-border group-hover:border-muted-foreground/30'}`}
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+          isSelected
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border group-hover:border-border/80'
+        }`}
       >
-        {isSelected && <CheckIcon className="h-3 w-3" />}
+        {isSelected && <Check className="h-3 w-3" />}
       </div>
 
       <div className="min-w-0 flex-1">
         <p
-          className={`text-sm leading-relaxed transition-colors ${isSelected ? 'font-semibold text-white' : 'text-foreground/95'}`}
+          className={`text-sm leading-relaxed transition-colors ${
+            isSelected ? 'text-foreground font-semibold' : 'text-foreground/90'
+          }`}
         >
           {prompt.text}
         </p>
         {prompt.isDefault && (
-          <span className="border-border bg-card text-ql-10 text-foreground/75 mt-2 inline-block rounded border px-1.5 py-0.5 font-medium">
+          <span className="border-border bg-muted/60 text-ql-10 text-muted-foreground mt-2 inline-block rounded border px-1.5 py-0.5 font-medium">
             {t('default_prompts')}
           </span>
         )}
       </div>
 
       {!prompt.isDefault && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={(e) => onDelete(e, prompt.id)}
-          className="-mt-2 -mr-2 rounded-lg p-2 text-white/20 opacity-[0.55] transition-colors group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive -mt-1 -mr-1 opacity-60 group-hover:opacity-100"
           title={t('delete')}
           aria-label={t('delete')}
         >
-          <TrashIcon className="h-4 w-4" />
-        </button>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       )}
     </div>
   )
@@ -141,13 +152,13 @@ const PromptsTab = memo(() => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="border-border bg-card mb-6 space-y-4 overflow-hidden rounded-xl border p-5 shadow-xl"
+            className="border-border bg-card shadow-ambient-md mb-6 space-y-4 overflow-hidden rounded-xl border p-5"
             onSubmit={handleAddPrompt}
           >
             <div className="space-y-1.5">
-              <label className="text-ql-11 text-foreground/75 pl-1 font-medium">
+              <Label className="text-ql-11 text-foreground pl-1 font-semibold">
                 {t('prompt_text')}
-              </label>
+              </Label>
               <Textarea
                 value={newPromptText}
                 onChange={(e) => setNewPromptText(e.target.value)}
@@ -156,20 +167,17 @@ const PromptsTab = memo(() => {
               />
             </div>
             <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                className="text-ql-11 rounded-xl bg-purple-600 px-6 py-2 font-semibold text-white shadow-lg shadow-purple-500/20 transition-colors hover:bg-purple-500"
-              >
+              <Button type="submit" size="sm">
                 {t('save_prompt')}
-              </button>
+              </Button>
             </div>
           </motion.form>
         )}
       </AnimatePresence>
 
       <div className="px-1">
-        <p className="text-foreground/90 text-xs leading-relaxed">{t('prompts_description')}</p>
-        <div className="text-ql-11 text-foreground/80 mt-2 font-medium tracking-wide">
+        <p className="text-muted-foreground text-xs leading-relaxed">{t('prompts_description')}</p>
+        <div className="text-ql-11 text-foreground mt-2 font-semibold tracking-wide">
           {selectedPromptId ? t('active_prompt') : t('no_prompt_selected')}
         </div>
       </div>
@@ -189,13 +197,9 @@ const PromptsTab = memo(() => {
 
       {selectedPromptId && (
         <div className="flex justify-center pt-4">
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="hover:bg-accent/50 hover:text-foreground text-ql-11 text-foreground/75 rounded-lg px-4 py-2 font-medium transition-colors"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={clearSelection}>
             {t('no_prompt_selected')}
-          </button>
+          </Button>
         </div>
       )}
     </div>

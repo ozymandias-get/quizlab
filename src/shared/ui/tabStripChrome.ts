@@ -1,11 +1,10 @@
 /**
  * Shared visual language for PDF + AI top tab strips:
- * dark glass, thin borders, emerald active accent, pill tabs.
+ * semantic surface, subtle bottom border, unified pill tabs.
  */
 export const TAB_STRIP_BAR_CLASS =
-  'glass-tier-3 glass-tier-tabstrip relative h-11 shrink-0 border-b border-white/[0.05] bg-transparent shadow-[inset_0_-1px_0_rgba(0,0,0,0.32)]'
+  'relative h-11 shrink-0 border-b border-border/80 bg-muted/30 backdrop-blur-sm'
 
 export const TAB_STRIP_ROW_CLASS = 'flex h-full items-center gap-1.5 overflow-hidden px-3'
 
-export const TAB_STRIP_DIVIDER_CLASS =
-  'h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-white/18 to-transparent'
+export const TAB_STRIP_DIVIDER_CLASS = 'h-4 w-px shrink-0 bg-border/80'

@@ -145,7 +145,7 @@ export function useElementPicker(
       stopListening()
       void resetPickerArtifacts(getWebviewRef.current() ?? null)
     }
-  }, [resetPickerArtifacts, stopListening])
+  }, [stopListening])
 
   // Memoize the translation map. `PICKER_TRANSLATION_KEYS` is static; we only
   // re-translate when `t` itself changes (i.e. on language switch). Without
@@ -200,15 +200,7 @@ export function useElementPicker(
     } finally {
       startInFlightRef.current = false
     }
-  }, [
-    pickerTranslations,
-    showError,
-    showInfo,
-    startListening,
-    stopListening,
-    generatePickerScript,
-    resetPickerArtifacts
-  ])
+  }, [pickerTranslations, showError, showInfo, startListening, stopListening, generatePickerScript])
 
   const stopPicker = useCallback(async () => {
     stopListening()

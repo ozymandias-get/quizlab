@@ -1,3 +1,5 @@
+import { Button } from '@app/components/ui/button'
+
 import { RotateCcw } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useMemo } from 'react'
@@ -51,25 +53,25 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
   }, [resetProgress])
 
   return (
-    <div className="space-y-8 pb-4">
-      <div className="space-y-2">
-        <h2 className="text-ql-20 font-black tracking-tight text-white/90">
+    <div className="space-y-6 pb-4">
+      <div className="space-y-1">
+        <h2 className="text-ql-20 text-foreground font-bold tracking-tight">
           {t('tutorial_center_title')}
         </h2>
-        <p className="text-ql-14 text-white/50">{t('tutorial_center_desc')}</p>
+        <p className="text-ql-14 text-muted-foreground">{t('tutorial_center_desc')}</p>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         {CATEGORY_ORDER.map((category) => {
           const categoryTutorials = grouped.get(category)
           if (!categoryTutorials || categoryTutorials.length === 0) return null
 
           return (
-            <div key={category} className="space-y-4">
-              <h3 className="text-ql-13 tracking-ql-caps font-bold text-white/40 uppercase">
+            <div key={category} className="space-y-3">
+              <h3 className="text-ql-12 text-muted-foreground font-medium tracking-wider uppercase">
                 {t(CATEGORY_LABELS[category])}
               </h3>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 {categoryTutorials.map((tutorial) => (
                   <TutorialCard
                     key={tutorial.id}
@@ -79,7 +81,7 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
                     title={t(tutorial.titleKey)}
                     description={t(tutorial.descriptionKey)}
                     replayLabel={t('tutorial_replay')}
-                    startLabel={t('tutorial_step_next')}
+                    startLabel={t('tut_start')}
                     completedLabel={t('tutorial_completed_badge')}
                   />
                 ))}
@@ -93,15 +95,18 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="border-t border-white/5 pt-6"
+          className="border-border border-t pt-5"
         >
-          <button
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
             onClick={handleReset}
-            className="text-ql-13 flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/5 px-5 py-2.5 font-semibold text-rose-400/70 transition-all hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+            className="gap-2"
           >
             <RotateCcw className="h-4 w-4" />
-            {t('tutorial_center_reset')}
-          </button>
+            <span>{t('tutorial_center_reset')}</span>
+          </Button>
         </motion.div>
       )}
     </div>

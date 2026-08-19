@@ -11,7 +11,7 @@ import SelectionColorSettings from './appearance/SelectionColorSettings'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const APPEARANCE_ICON = (
-  <div className="border-accent/20 bg-accent/10 text-foreground rounded-lg border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <EyeIcon className="h-5 w-5" />
   </div>
 )

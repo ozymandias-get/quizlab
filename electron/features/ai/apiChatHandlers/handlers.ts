@@ -5,7 +5,7 @@ import { requireTrustedIpcSender } from '../../../core/ipcSecurity.js'
 import { Logger } from '../../../core/logger.js'
 import { registerIpcHandler } from '../../../core/typedIpcMain.js'
 import { loadConfig, sanitizeApiKey, saveConfig } from './config.js'
-import { validateProviderUrl } from './ssrf.js'
+import { fetchWithSsrProtection, validateProviderUrl } from './ssrf.js'
 import type { ChatCompletionBody, ChatContentItem, ModelListItem } from './validation.js'
 import { MAX_REQUEST_BODY_SIZE, sanitizeChatMessage } from './validation.js'
 
@@ -89,7 +89,11 @@ export function registerApiChatHandlers() {
       activeRequestController = controller
 
       const requestTimeout = provider.requestTimeout ?? 60000
-      const timeoutId = setTimeout(() => controller.abort(), requestTimeout)
+      let abortedByTimeout = false
+      const timeoutId = setTimeout(() => {
+        abortedByTimeout = true
+        controller.abort()
+      }, requestTimeout)
 
       const safeApiKey = sanitizeApiKey(provider.apiKey || '')
       const headers: Record<string, string> = {
@@ -147,7 +151,7 @@ export function registerApiChatHandlers() {
           )
         }
 
-        const response = await fetch(`${baseUrl}/chat/completions`, {
+        const response = await fetchWithSsrProtection(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers,
           body: bodyJson,
@@ -171,8 +175,15 @@ export function registerApiChatHandlers() {
           providerId: provider.id
         } satisfies ApiChatMessage)
       } catch (err: unknown) {
+        if (controller.signal.aborted && !abortedByTimeout) {
+          Logger.info('[apiChatHandlers] API request aborted by user')
+          return failure('cancelled', 'Request cancelled')
+        }
         if (err instanceof Error && err.name === 'AbortError') {
-          return failure('internal_error', 'API Request timed out after 60 seconds')
+          return failure(
+            'internal_error',
+            `API Request timed out after ${Math.round(requestTimeout / 1000)} seconds`
+          )
         }
         return failure('internal_error', err instanceof Error ? err.message : String(err))
       } finally {
@@ -216,10 +227,14 @@ export function registerApiChatHandlers() {
       const fetchTimeout = provider.requestTimeout
         ? Math.min(provider.requestTimeout, 30000)
         : 15000
-      const timeoutId = setTimeout(() => controller.abort(), fetchTimeout)
+      let fetchAbortedByTimeout = false
+      const timeoutId = setTimeout(() => {
+        fetchAbortedByTimeout = true
+        controller.abort()
+      }, fetchTimeout)
 
       try {
-        const response = await fetch(`${baseUrl}/models`, {
+        const response = await fetchWithSsrProtection(`${baseUrl}/models`, {
           headers,
           signal: controller.signal
         })
@@ -234,6 +249,10 @@ export function registerApiChatHandlers() {
         }
         return success(data.data.map((m: ModelListItem) => m.id))
       } catch (err: unknown) {
+        if (controller.signal.aborted && !fetchAbortedByTimeout) {
+          Logger.info('[apiChatHandlers] Model fetch aborted by user')
+          return failure('cancelled', 'Request cancelled')
+        }
         if (err instanceof Error && err.name === 'AbortError') {
           return failure('internal_error', 'Failed to fetch models: Request timed out')
         }

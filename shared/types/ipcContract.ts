@@ -74,6 +74,11 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<boolean>
   }
 
+  [IPC_CHANNELS.RESTORE_CLIPBOARD]: {
+    args: []
+    result: IpcResult<boolean>
+  }
+
   [IPC_CHANNELS.COPY_TEXT]: {
     args: [text: string]
     result: IpcResult<boolean>
@@ -231,6 +236,17 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION]: {
     args: []
     result: IpcResult<{ success: boolean; error?: string; status?: GeminiWebSessionStatus }>
+  }
+
+  // App settings sync (renderer localStorage <-> main ConfigManager)
+  [IPC_CHANNELS.GET_APP_SETTINGS]: {
+    args: []
+    result: IpcResult<Record<string, string>>
+  }
+
+  [IPC_CHANNELS.SAVE_APP_SETTINGS]: {
+    args: [key: string, value: string]
+    result: IpcResult<boolean>
   }
 
   // Native Messaging (Chrome Extension auth)

@@ -21,6 +21,7 @@ import PdfTabItem from './PdfTabItem'
 import type { ContextMenuState } from './pdfTabStripUtils'
 import { clamp, computeTabVisibility, getMaxVisibleTabs } from './pdfTabStripUtils'
 import TabContextMenu from './TabContextMenu'
+import { usePdfTabStripRoving } from './usePdfTabStripRoving'
 import { useTabEditing } from './useTabEditing'
 
 interface PdfTabStripProps {
@@ -68,6 +69,23 @@ function PdfTabStrip({
     [tabs, activeTabId, maxVisibleTabs]
   )
 
+  const {
+    editingTabId,
+    editingValue,
+    setEditingValue,
+    beginRename: startRename,
+    handleEditingBlur,
+    handleEditingKeyDown,
+    cancelRename
+  } = useTabEditing()
+
+  const { setTabButtonRef, handleRowKeyDown } = usePdfTabStripRoving({
+    visibleTabs,
+    activeTabId,
+    editingTabId,
+    onSetActiveTab
+  })
+
   const pdfHomeTabId = useMemo(() => {
     if (!tabs || tabs.length === 0) return ''
     const landing = tabs.find((tab) => !tab.file && tab.kind !== 'drive')
@@ -91,20 +109,12 @@ function PdfTabStrip({
 
   const getTabIcon = useCallback((tab: PdfTab) => {
     if (tab.kind === 'drive') {
-      return getAiIcon('gdrive') || <FileText className="h-3.5 w-3.5 shrink-0 text-white/85" />
+      return (
+        getAiIcon('gdrive') || <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+      )
     }
-    return <FileText className="h-3.5 w-3.5 shrink-0 text-white/85" />
+    return <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
   }, [])
-
-  const {
-    editingTabId,
-    editingValue,
-    setEditingValue,
-    beginRename: startRename,
-    handleEditingBlur,
-    handleEditingKeyDown,
-    cancelRename
-  } = useTabEditing()
 
   const beginRename = useCallback(
     (tab: PdfTab) => {
@@ -114,10 +124,7 @@ function PdfTabStrip({
     [startRename]
   )
 
-  // Stable handlers that bind `onRenameTab` once. Without these, the parent
-  // would re-create new arrow functions on every render, busting `PdfTabItem`'s
-  // memo and re-rendering every open tab (and its tooltip/listener wiring) on
-  // every parent state change (e.g. contextMenu toggle, editing focus, etc.).
+  // Bind `onRenameTab` once so PdfTabItem's memo is not busted per render.
   const handleTabEditingBlur = useCallback(
     (tabId: string, tabTitle: string) => handleEditingBlur(tabId, tabTitle, onRenameTab),
     [handleEditingBlur, onRenameTab]
@@ -132,13 +139,10 @@ function PdfTabStrip({
     event.preventDefault()
     event.stopPropagation()
 
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-
     setContextMenu({
       tabId,
-      x: clamp(event.clientX, 12, Math.max(12, viewportWidth - 188)),
-      y: clamp(event.clientY, 12, Math.max(12, viewportHeight - 98))
+      x: clamp(event.clientX, 12, Math.max(12, window.innerWidth - 188)),
+      y: clamp(event.clientY, 12, Math.max(12, window.innerHeight - 98))
     })
   }, [])
 
@@ -150,20 +154,14 @@ function PdfTabStrip({
   }, [editingTabId])
 
   useEffect(() => {
-    if (editingTabId && !tabs.some((tab) => tab.id === editingTabId)) {
-      cancelRename()
-    }
+    if (editingTabId && !tabs.some((tab) => tab.id === editingTabId)) cancelRename()
   }, [editingTabId, tabs, cancelRename])
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (contextMenu) {
-        const menuEl = document.getElementById('tab-context-menu')
-        if (menuEl && !menuEl.contains(target)) {
-          setContextMenu(null)
-        }
-      }
+      if (!contextMenu) return
+      const menuEl = document.getElementById('tab-context-menu')
+      if (menuEl && !menuEl.contains(event.target as Node)) setContextMenu(null)
     }
 
     document.addEventListener('mousedown', handlePointerDown)
@@ -176,7 +174,13 @@ function PdfTabStrip({
 
   return (
     <div className={TAB_STRIP_BAR_CLASS} data-tour-id="tour-target-pdf-tab-strip">
-      <div ref={rowRef} className={TAB_STRIP_ROW_CLASS}>
+      <div
+        ref={rowRef}
+        role="tablist"
+        aria-label={tr('pdf_tablist_label', 'PDF tabs')}
+        className={TAB_STRIP_ROW_CLASS}
+        onKeyDown={handleRowKeyDown}
+      >
         {onHome && (
           <TabStripHomeButton
             isActive={isPdfHomeActive}
@@ -203,6 +207,7 @@ function PdfTabStrip({
             onEditingBlur={handleTabEditingBlur}
             onEditingKeyDown={handleTabEditingKeyDown}
             renameInputRef={editingTabId === tab.id ? renameInputRef : undefined}
+            buttonRef={setTabButtonRef}
           />
         ))}
 
@@ -223,7 +228,7 @@ function PdfTabStrip({
             icon={Plus}
             tooltip={t('add_pdf')}
             onClick={onAddTab}
-            className="text-white/75 hover:bg-white/[0.08] hover:text-white"
+            className="rounded-full"
           />
         </div>
       </div>

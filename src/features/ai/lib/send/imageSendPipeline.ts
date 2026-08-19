@@ -1,6 +1,7 @@
 import type { AiPlatform, TextInputMode } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
+import { getElectronApi } from '@shared/lib/electronApi'
 import { Logger, reportSuppressedError } from '@shared/lib/logger'
 import { safeWebviewPaste } from '@shared/lib/webviewUtils'
 
@@ -200,6 +201,15 @@ export async function executeImageSendPipeline(
       diagnostics,
       requestStartedAt
     )
+  }
+
+  // The image lives on the system clipboard only for the duration of the
+  // paste. Restore the user's previous clipboard contents immediately so a
+  // Ctrl+C race cannot permanently destroy it or paste the wrong content.
+  try {
+    await getElectronApi()?.restoreClipboard?.()
+  } catch (restoreError) {
+    reportSuppressedError('imageSend.clipboardRestore', { cause: restoreError })
   }
 
   // 3. Optional Prompt

@@ -3,6 +3,7 @@
   "tutorial_button_title": "Etkileşimli Rehber",
   "usage_assistant_desc": "Uygulamanın kullanımını gösteren etkileşimli rehberi başlatır.",
   "usage_assistant_start": "Onboarding Turu",
+  "usage_assistant_tooltip": "Etkileşimli onboarding turunu başlatır",
   "ua_finish": "Bitir",
   "ua_next": "Sonraki",
   "ua_skip": "Atla",

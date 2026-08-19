@@ -46,12 +46,21 @@ function PdfRecentList({
         icon={History}
         title={t('resume_empty_title')}
         description={t('resume_empty_desc')}
+        size="sm"
+        className="border-border/60 bg-card/40 p-4"
       />
     )
   }
 
   if (processedCount === 0) {
-    return <EmptyState icon={Search} title={t('search_no_results')} />
+    return (
+      <EmptyState
+        icon={Search}
+        title={t('search_no_results')}
+        size="sm"
+        className="border-border/60 bg-card/40 p-4"
+      />
+    )
   }
 
   if (!canResume) {
@@ -63,7 +72,7 @@ function PdfRecentList({
       {groupedItems.map((group) => (
         <div key={group.id} className="space-y-2">
           {group.labelKey && (
-            <div className="text-ql-10 tracking-ql-chrome px-1 text-stone-500 uppercase">
+            <div className="text-ql-10 tracking-ql-chrome text-muted-foreground px-1 font-semibold uppercase">
               {t(group.labelKey)}
             </div>
           )}

@@ -31,7 +31,7 @@ export const SettingsToolButton = memo(function SettingsToolButton({
   const handleClick = useCallback(() => onOpenSettings(), [onOpenSettings])
 
   return (
-    <FloatingDockIcon title={t('settings')} onClick={handleClick}>
+    <FloatingDockIcon id="tour-target-tool-settings" title={t('settings')} onClick={handleClick}>
       <SettingsIcon className="h-5 w-5" />
     </FloatingDockIcon>
   )
@@ -67,6 +67,7 @@ export const PdfFocusToolButton = memo(function PdfFocusToolButton() {
 
   return (
     <FloatingDockIcon
+      id="tour-target-tool-pdf-focus"
       title={isPdfFocusable ? t('pdf_focus') : t('pdf_focus_no_doc')}
       onClick={handleClick}
     >
@@ -81,7 +82,7 @@ export const AiFocusToolButton = memo(function AiFocusToolButton() {
   const handleClick = useCallback(() => toggleFocusMode('ai'), [toggleFocusMode])
 
   return (
-    <FloatingDockIcon title={t('ai_focus')} onClick={handleClick}>
+    <FloatingDockIcon id="tour-target-tool-ai-focus" title={t('ai_focus')} onClick={handleClick}>
       <SparklesExpandIcon className="h-5 w-5" />
     </FloatingDockIcon>
   )
@@ -150,9 +151,16 @@ export const ModelIconsList = memo(function ModelIconsList({
     [enabledModels, visibleModels]
   )
 
-  return displayModels.map((modelKey) => (
-    <ModelDockIcon key={modelKey} modelKey={modelKey} site={aiSites[modelKey]} />
-  ))
+  return (
+    <div
+      className="flex w-full flex-col items-center gap-1.5"
+      data-tour-id="tour-target-models-list"
+    >
+      {displayModels.map((modelKey) => (
+        <ModelDockIcon key={modelKey} modelKey={modelKey} site={aiSites[modelKey]} />
+      ))}
+    </div>
+  )
 })
 
 const ModelDockIcon = memo(function ModelDockIcon({

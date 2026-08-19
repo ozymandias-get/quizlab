@@ -1,4 +1,7 @@
 import { Input } from '@app/components/ui/input'
+import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
+import { Kbd } from '@app/components/ui/kbd'
+import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
 
 import { FileText, Search, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -44,83 +47,105 @@ function PdfSearchBar({
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isOpen ? (
           <motion.div
             key="search"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute inset-0 flex w-full items-center gap-2"
+            initial={{ opacity: 0, scale: 0.98, y: 2 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: -2 }}
+            transition={{ duration: 0.14 }}
+            className="absolute inset-0 flex w-full items-center gap-1.5"
           >
-            <div className="group relative flex-1">
-              <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-white/30 transition-colors group-focus-within:text-amber-400" />
-              {}
+            <InputGroup className="flex-1">
+              <InputGroupAddon align="inline-start">
+                <Search className="text-muted-foreground/80 h-3.5 w-3.5" />
+              </InputGroupAddon>
               <Input
                 ref={inputRef}
                 value={keyword}
                 onChange={(e) => onKeywordChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="pl-9"
+                className="h-8 pr-14 pl-8 text-xs font-normal"
                 // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                 autoFocus
               />
-            </div>
+              <div className="absolute right-2 flex items-center gap-1">
+                {keyword ? (
+                  <button
+                    type="button"
+                    onClick={() => onKeywordChange('')}
+                    className="text-muted-foreground hover:text-foreground p-0.5 transition-colors"
+                    aria-label={t('clear', 'Clear')}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null}
+                <Kbd size="xs" variant="outline" className="opacity-70">
+                  Esc
+                </Kbd>
+              </div>
+            </InputGroup>
 
             <motion.button
               type="button"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="rounded-xl p-2 text-white/50 transition-colors hover:bg-amber-400/10 hover:text-amber-400 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
               onClick={() => keyword.trim() && onSearch()}
               title={t('search')}
               aria-label={t('search')}
             >
-              <Search className="h-4 w-4" />
+              <Search className="h-3.5 w-3.5" />
             </motion.button>
 
             <motion.button
               type="button"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="rounded-xl p-2 text-white/50 transition-colors hover:bg-red-400/10 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="border-border/80 bg-card/80 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
               onClick={onClear}
               title={t('close')}
               aria-label={t('close')}
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </motion.button>
           </motion.div>
         ) : (
           <div className="flex w-full max-w-[380px] min-w-0 items-center gap-1.5">
             <motion.button
               type="button"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              whileHover={{ scale: 1.005 }}
+              whileTap={{ scale: 0.995 }}
               onClick={onToggle}
-              className="group flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent px-3 py-1.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_2px_8px_-4px_rgba(0,0,0,0.3)] transition-all duration-300 hover:border-amber-500/20 hover:from-white/[0.08] hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_4px_12px_-4px_rgba(245,158,11,0.12)]"
+              className="group border-border/80 bg-card/70 hover:border-border hover:bg-muted/60 flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-1 text-left shadow-2xs transition-colors duration-150"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-500/15 bg-gradient-to-br from-amber-500/15 to-amber-600/5 transition-all duration-300 group-hover:border-amber-500/30 group-hover:from-amber-500/20 group-hover:to-amber-600/10 group-hover:shadow-[0_0_12px_-4px_rgba(245,158,11,0.2)]">
-                <FileText className="h-4 w-4 text-amber-400 transition-colors duration-300 group-hover:text-amber-300" />
+              <div className="border-primary/20 bg-primary/10 text-primary flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors">
+                <FileText className="h-3.5 w-3.5" />
               </div>
 
-              <div className="flex min-w-0 flex-1 flex-col justify-center text-left">
-                <span className="text-ql-10 mb-0.5 truncate leading-none font-semibold tracking-wider text-white/25 uppercase transition-colors duration-300 group-hover:text-amber-400/40">
+              <div className="flex min-w-0 flex-1 flex-col justify-center">
+                <span className="text-ql-10 text-muted-foreground/80 hidden leading-none font-semibold tracking-wider uppercase sm:block">
                   {t('reading_now') === 'reading_now' ? 'READING' : t('reading_now')}
                 </span>
-                <span className="text-ql-12 block w-full truncate leading-tight font-medium text-white/70 transition-colors duration-300 group-hover:text-white/90">
+                <span className="text-ql-12 text-foreground block w-full truncate leading-tight font-medium">
                   {fileName || t('pdf_document')}
                 </span>
               </div>
 
-              <div className="h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+              <div className="bg-border/80 h-4 w-px shrink-0" />
 
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 hover:bg-white/[0.06]">
-                <Search className="h-4 w-4 text-white/30 transition-colors duration-300 group-hover:text-amber-400/60" />
+              <div className="flex items-center gap-1.5">
+                <div className="text-muted-foreground group-hover:text-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors">
+                  <Search className="h-3.5 w-3.5" />
+                </div>
+                <Kbd size="xs" variant="default" className="hidden opacity-80 sm:inline-flex">
+                  {getShortcutModifierLabel()}+F
+                </Kbd>
               </div>
             </motion.button>
           </div>

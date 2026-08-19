@@ -71,7 +71,7 @@ describe('usePdfCaptureActions', () => {
     })
   })
 
-  it('does nothing and skips the toast when no canvas is found after retries', async () => {
+  it('does not queue an image but shows the toast when no canvas is found after retries', async () => {
     // No rpv-core__page-layer in the DOM at all
     const { result } = renderHook(() =>
       usePdfCaptureActions({
@@ -84,7 +84,7 @@ describe('usePdfCaptureActions', () => {
     await result.current.handleFullPageScreenshot()
 
     expect(queueImageForAi).not.toHaveBeenCalled()
-    expect(showError).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('toast_capture_failed')
   })
 
   it('shows a toast when canvas capture throws', async () => {

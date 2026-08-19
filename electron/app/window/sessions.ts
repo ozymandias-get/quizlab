@@ -37,17 +37,16 @@ async function handleDisplayMediaRequest(
     }
 
     let picked: (typeof sources)[0]
-    if (sources.length === 1) {
-      picked = sources[0]
-    } else {
-      const parent = BrowserWindow.getFocusedWindow() ?? getMainWindow()
-      const pickedIndex = await showDisplayMediaPicker(parent, sources)
-      if (pickedIndex === null || pickedIndex < 0 || pickedIndex >= sources.length) {
-        callback({})
-        return
-      }
-      picked = sources[pickedIndex]
+    // Always show the picker, even with a single source: selecting the only
+    // available screen silently would capture the whole screen without the
+    // user ever consenting.
+    const parent = BrowserWindow.getFocusedWindow() ?? getMainWindow()
+    const pickedIndex = await showDisplayMediaPicker(parent, sources)
+    if (pickedIndex === null || pickedIndex < 0 || pickedIndex >= sources.length) {
+      callback({})
+      return
     }
+    picked = sources[pickedIndex]
 
     callback({
       video: { id: picked.id, name: picked.name }

@@ -22,7 +22,28 @@ export const domSearchHelpers = `    /**
 
     const getSearchRoots = () => {
         const roots = [document];
-        collectShadowRoots(document, roots, new Set());
+        const visitedShadowHosts = new Set();
+        const visitedDocs = new Set([document]);
+        collectShadowRoots(document, roots, visitedShadowHosts);
+
+        // Same-origin iframe'ler de aranır: picker iframe içi eleman seçebiliyor,
+        // runtime da aynı kökleri aramalı. Cross-origin frame'ler erişilemez,
+        // sessizce atlanır.
+        const collectFrames = (doc) => {
+            try {
+                doc.querySelectorAll('iframe, frame').forEach((frame) => {
+                    let inner = null;
+                    try { inner = frame.contentDocument; } catch (err) { return; }
+                    if (!inner || visitedDocs.has(inner)) return;
+                    visitedDocs.add(inner);
+                    roots.push(inner);
+                    collectShadowRoots(inner, roots, visitedShadowHosts);
+                    collectFrames(inner);
+                });
+            } catch (err) {
+            }
+        };
+        collectFrames(document);
         return roots;
     };
 
@@ -256,16 +277,7 @@ export const domSearchHelpers = `    /**
         return null;
     };
 
-    const findElementByFingerprint = (fingerprint) => {
-        if (!fingerprint || typeof fingerprint !== 'object') {
-            return null;
-        }
-
-        const root = findRootFromHostChain(fingerprint.hostChain);
-        if (!root) {
-            return null;
-        }
-
+    const findElementByFingerprintInRoot = (fingerprint, root) => {
         const tag = typeof fingerprint.tag === 'string' && fingerprint.tag
             ? fingerprint.tag.toLowerCase()
             : '*';
@@ -355,6 +367,30 @@ export const domSearchHelpers = `    /**
                     matchedSelector: localSelector,
                     strategy: 'fingerprint'
                 };
+            }
+        }
+
+        return null;
+    };
+
+    const findElementByFingerprint = (fingerprint) => {
+        if (!fingerprint || typeof fingerprint !== 'object') {
+            return null;
+        }
+
+        // hostChain kökü önceliklidir (shadow DOM), sonra tüm arama kökleri
+        // (document + shadow root'lar + iframe document'leri) taranır.
+        // iframe içinden seçilen elemanların hostChain'i boş olur; bu yüzden
+        // yalnızca document'a bakmak yetersiz kalır.
+        const primaryRoot = findRootFromHostChain(fingerprint.hostChain);
+        const orderedRoots = primaryRoot
+            ? uniqueElements([primaryRoot].concat(getSearchRoots()))
+            : getSearchRoots();
+
+        for (const root of orderedRoots) {
+            const match = findElementByFingerprintInRoot(fingerprint, root);
+            if (match) {
+                return match;
             }
         }
 

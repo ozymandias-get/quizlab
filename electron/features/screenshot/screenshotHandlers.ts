@@ -17,6 +17,56 @@ const MAX_CONCURRENT_CAPTURES = 1
 let lastCaptureTime = 0
 let activeCaptures = 0
 
+interface ClipboardSnapshot {
+  text?: string
+  html?: string
+  image?: Electron.NativeImage
+}
+
+/**
+ * Snapshot of the user's clipboard taken right before COPY_IMAGE overwrites
+ * it with the image being sent. Restored via RESTORE_CLIPBOARD after the
+ * webview paste completes so the user's clipboard is not silently destroyed.
+ */
+let savedClipboard: ClipboardSnapshot | null = null
+
+function snapshotClipboard(): void {
+  try {
+    const text = clipboard.readText()
+    const html = clipboard.readHTML()
+    const image = clipboard.readImage()
+    savedClipboard = {
+      text: text || undefined,
+      html: html || undefined,
+      image: image.isEmpty() ? undefined : image
+    }
+  } catch (error) {
+    savedClipboard = null
+    Logger.warn('[Clipboard] Failed to snapshot clipboard:', error)
+  }
+}
+
+function restoreClipboard(): boolean {
+  const snapshot = savedClipboard
+  savedClipboard = null
+  if (!snapshot) return false
+  try {
+    if (snapshot.image) {
+      clipboard.writeImage(snapshot.image)
+    } else if (snapshot.html) {
+      clipboard.writeHTML(snapshot.html)
+    } else if (snapshot.text !== undefined) {
+      clipboard.writeText(snapshot.text)
+    } else {
+      clipboard.clear()
+    }
+    return true
+  } catch (error) {
+    Logger.error('[Clipboard] Failed to restore clipboard:', error)
+    return false
+  }
+}
+
 export function registerScreenshotHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
 
@@ -97,6 +147,8 @@ export function registerScreenshotHandlers() {
 
         const image = nativeImage.createFromDataURL(dataUrl)
         if (image.isEmpty()) return success(false)
+
+        snapshotClipboard()
         clipboard.writeImage(image)
 
         typeof image.resize === 'function' && image.resize({ width: 1, height: 1 })
@@ -107,6 +159,13 @@ export function registerScreenshotHandlers() {
         return success(false)
       }
     },
+    requireTrustedIpcSender,
+    success(false)
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.RESTORE_CLIPBOARD,
+    () => success(restoreClipboard()),
     requireTrustedIpcSender,
     success(false)
   )

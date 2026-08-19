@@ -22,6 +22,7 @@ const LanguageSelectionDialog = lazy(() =>
     default: m.LanguageSelectionDialog
   }))
 )
+import { usePdfShortcuts } from '@features/pdf/ui/hooks/usePdfShortcuts'
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
 import { getTutorialEntry } from '@features/tutorial/tutorialRegistry'
@@ -64,11 +65,13 @@ function App() {
     () => ({ ...leftPanelProps, ...readingProps }),
     [leftPanelProps, readingProps]
   )
+  usePdfShortcuts({ onSelectPdf: combinedLeftPanelProps.onSelectPdf })
   const {
     leftPanelWidth,
     leftPanelRef,
     resizerRef,
     handleMouseDown,
+    nudgeLeftPanelWidth,
     isResizing,
     setLeftPanelWidth
   } = panelResize
@@ -115,6 +118,8 @@ function App() {
             gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
             handleMouseDown={handleMouseDown}
             handleResizerDoubleClick={handleResizerDoubleClick}
+            onKeyboardResize={nudgeLeftPanelWidth}
+            isResizeReversed={isLayoutSwapped}
             isWebviewMounted={isWebviewMounted}
             isResizing={isResizing}
             isBarHovered={workspaceState.isBarHovered}

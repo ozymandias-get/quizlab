@@ -51,7 +51,6 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
             title={t('ai_home.models_title')}
             detail={t('ai_home.models_detail')}
             icon={MODELS_SECTION_ICON}
-            accent="#8e7755"
             defaultOpen
           >
             <AiHomeCardGrid
@@ -69,7 +68,6 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
             title={t('ai_home.sites_title')}
             detail={t('ai_home.sites_detail')}
             icon={SITES_SECTION_ICON}
-            accent="#f3b24f"
             defaultOpen={false}
           >
             {siteOrder.length > 0 ? (

@@ -17,6 +17,11 @@ let bridgeSecret = null
 // RULE: At least one alarm is always active so the SW can be woken.
 //   - Not connected: SCAN_ALARM fires every 30s to check for bridge
 //   - Connected:     HEARTBEAT_ALARM fires every 1min to keep alive
+//
+// MV3 service workers are killed after ~30s of inactivity. Every module-level
+// variable (including `connected`) resets on each wake-up, so reconnect MUST
+// be driven by the alarm system + top-level startup hook below, never by
+// in-memory state that does not survive a worker restart.
 
 chrome.storage.session.get('bridgeSecret', (result) => {
   if (result.bridgeSecret) {
@@ -40,9 +45,14 @@ async function computeHmac(body, secret) {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+/**
+ * Sends the current Google cookies to the app bridge. Returns true on
+ * success and false on any failure. Unlike the old implementation this does
+ * NOT bail out when `connected` is false: on a cold SW start `connected`
+ * resets to false while the bridge is still alive, and skipping the send here
+ * was silently dropping the session sync until the next cookie change.
+ */
 async function sendCookiesToApp() {
-  if (!connected) return
-
   await fetchBridgeSecret(currentPort)
 
   try {
@@ -99,8 +109,6 @@ async function sendCookiesToApp() {
   } catch (error) {
     const errMsg = error && typeof error.message === 'string' ? error.message : String(error)
     console.warn('[Quizlab Bridge] Failed to send cookies:', errMsg)
-    connected = false
-    enterScanMode()
     return false
   }
 }
@@ -145,17 +153,24 @@ function enterScanMode() {
   // RULE: Always keep a scan alarm active when disconnected.
   // This ensures the SW can be woken by the alarm system.
   connected = false
+  chrome.alarms.clear(HEARTBEAT_ALARM).catch(() => {})
   chrome.alarms.create(SCAN_ALARM, { delayInMinutes: SCAN_INTERVAL_MS / 60000 })
 }
 
 function setupHeartbeat() {
   // RULE: Always keep a heartbeat alarm active when connected.
   connected = true
+  chrome.alarms.clear(SCAN_ALARM).catch(() => {})
   chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: HEARTBEAT_INTERVAL_MIN })
 }
 
 async function scanForBridge() {
   // RULE: Every SW wake-up (any reason) checks for the bridge server.
+  // Called from:
+  //   - SCAN_ALARM (periodic scan while disconnected)
+  //   - HEARTBEAT_ALARM (periodic heartbeat while connected)
+  //   - chrome.runtime.onInstalled / chrome.runtime.onStartup
+  //   - top-level (SW warm start) + cookie/webNavigation events
   for (let port = PORT_START; port <= PORT_END; port++) {
     try {
       const response = await fetch(`http://${BRIDGE_HOST}:${port}/api/health`, {
@@ -164,16 +179,24 @@ async function scanForBridge() {
       })
       if (response.ok) {
         currentPort = port
-        await fetchBridgeSecret(port)
-        await sendCookiesToApp()
-        setupHeartbeat()
-        chrome.alarms.clear(SCAN_ALARM).catch(() => {})
-        return
+        const secretOk = await fetchBridgeSecret(port)
+        if (secretOk) {
+          // Send cookies even on a cold start (connected may be false).
+          const sent = await sendCookiesToApp()
+          if (sent) {
+            setupHeartbeat()
+          } else {
+            // Bridge is up but rejected the payload — keep scanning so the
+            // next alarm retries instead of hanging in a fake "connected".
+            enterScanMode()
+          }
+          return
+        }
       }
     } catch {}
   }
 
-  // Bridge not found — enter scan mode if not already scanning
+  // Bridge not found — enter scan mode if not already scanning.
   if (!connected) {
     enterScanMode()
   }
@@ -185,13 +208,23 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SCAN_ALARM) {
     scanForBridge()
   } else if (alarm.name === HEARTBEAT_ALARM) {
-    if (connected) {
-      sendCookiesToApp()
-    }
+    // Re-enter scan mode when the heartbeat fails so the reconnect loop
+    // keeps running instead of silently stopping the session sync.
+    sendCookiesToApp().then((sent) => {
+      if (sent !== true) {
+        enterScanMode()
+      }
+    })
   }
 })
 
 chrome.runtime.onInstalled.addListener(() => {
+  scanForBridge()
+})
+
+// Fires on every Chrome browser startup (even when the SW was killed while
+// Chrome was closed) and guarantees a reconnect attempt after a reboot.
+chrome.runtime.onStartup.addListener(() => {
   scanForBridge()
 })
 
@@ -201,14 +234,14 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
 
   if (cookieDebounceTimer) clearTimeout(cookieDebounceTimer)
   cookieDebounceTimer = setTimeout(() => {
-    sendCookiesToApp()
+    sendCookiesToApp().catch(() => {})
   }, 2000)
 })
 
-// Triggers on Chrome startup and whenever the SW is spun up
+// Triggers on Chrome startup and whenever the SW is spun up.
 scanForBridge()
 
-// Wake up the service worker when the user navigates to Gemini or AI Studio
+// Wake up the service worker when the user navigates to Gemini or AI Studio.
 chrome.webNavigation.onCompleted.addListener(
   () => {
     scanForBridge()

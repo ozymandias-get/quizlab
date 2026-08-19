@@ -28,6 +28,8 @@ interface MainWorkspaceProps {
   gpuAcceleratedStyle: CSSProperties
   handleMouseDown: MouseEventHandler<Element>
   handleResizerDoubleClick?: () => void
+  onKeyboardResize?: (deltaPx: number) => void
+  isResizeReversed?: boolean
   isWebviewMounted: boolean
   isResizing: boolean
   isBarHovered: boolean
@@ -50,6 +52,8 @@ function MainWorkspace({
   gpuAcceleratedStyle,
   handleMouseDown,
   handleResizerDoubleClick,
+  onKeyboardResize,
+  isResizeReversed,
   isWebviewMounted,
   isResizing,
   isBarHovered,
@@ -99,6 +103,8 @@ function MainWorkspace({
           onHoverChange={onBarHoverChange}
           onMouseDown={handleMouseDown}
           onDoubleClick={handleResizerDoubleClick}
+          onKeyboardResize={onKeyboardResize}
+          isResizeReversed={isResizeReversed}
           isResizing={isResizing}
         />
       </motion.div>
