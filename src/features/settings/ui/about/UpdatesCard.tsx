@@ -21,12 +21,15 @@ interface UpdatesActionButtonProps {
   tone: UpdatesActionTone
 }
 
-const UPDATE_ACTION_BUTTON_CLASSES: Record<UpdatesActionTone, string> = {
-  accent: 'bg-muted/60 border border-border text-foreground hover:bg-muted shadow-xs',
-  neutral:
-    'bg-primary border border-primary text-primary-foreground hover:bg-primary/90 shadow-xs font-semibold',
-  success:
-    'bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+import { Button } from '@app/components/ui/button'
+
+const UPDATE_ACTION_BUTTON_VARIANTS: Record<
+  UpdatesActionTone,
+  'outline' | 'default' | 'secondary'
+> = {
+  accent: 'outline',
+  neutral: 'default',
+  success: 'default'
 }
 
 function UpdatesActionButton({
@@ -37,17 +40,17 @@ function UpdatesActionButton({
   disabled
 }: UpdatesActionButtonProps & { disabled?: boolean }) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group text-ql-12 focus-visible:ring-ring/40 relative w-full overflow-hidden rounded-lg px-4 py-2.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 sm:flex-1 ${UPDATE_ACTION_BUTTON_CLASSES[tone]}`}
+      variant={UPDATE_ACTION_BUTTON_VARIANTS[tone]}
+      size="sm"
+      className="w-full gap-2 sm:flex-1"
     >
-      <span className="relative z-10 flex items-center justify-center gap-2">
-        {icon}
-        {children}
-      </span>
-    </button>
+      {icon}
+      <span>{children}</span>
+    </Button>
   )
 }
 

@@ -1,6 +1,7 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
 import { Badge } from '@app/components/ui/badge'
+import { Button } from '@app/components/ui/button'
 import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 import { Label } from '@app/components/ui/label'
@@ -55,13 +56,15 @@ function ApiProviderCard({
             {provider.name || t('unnamed_provider')}
           </span>
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => onRemove(provider.id)}
-          className="text-ql-12 text-muted-foreground hover:text-destructive focus-visible:ring-destructive/40 rounded px-1.5 py-0.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7"
         >
           {t('delete')}
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -135,22 +138,24 @@ function ApiProviderCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onTestConnection(provider.id)}
           disabled={testing}
-          className="text-ql-12 border-border/80 bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
         >
           {testing ? t('testing') : t('api_chat_test_connection')}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onFetchModels(provider.id)}
           disabled={fetchingModels || !provider.apiKey || !provider.baseUrl}
-          className="text-ql-12 border-border/80 bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 font-medium shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
         >
           {fetchingModels ? t('fetching') : t('api_chat_fetch_models')}
-        </button>
+        </Button>
 
         {testResult && (
           <Badge

@@ -1,10 +1,12 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
+import { Button } from '@app/components/ui/button'
 import { CheckIcon, GeminiIcon, LoaderIcon, RefreshIcon, XIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
 import { memo, useCallback } from 'react'
 
+import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { ExtensionStatusCard, ExtensionWizardDialog } from './components'
 import GoogleAppList from './GoogleAppList'
 import { getCardClasses, getStatusIconContainerClass } from './statusHelpers'
@@ -154,25 +156,11 @@ function GeminiWebSessionOverview({
                 {t('gws_supported_apps_hint')}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handlers.onToggleWebEnabled}
+            <SettingsToggleSwitch
+              checked={status.userEnabled}
+              onChange={handlers.onToggleWebEnabled}
               disabled={!status.featureEnabled || disableSessionMutations}
-              className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:opacity-50 ${
-                status.userEnabled
-                  ? 'border-emerald-500/40 bg-emerald-500/20'
-                  : 'border-border bg-muted'
-              }`}
-              aria-label={t('gws_toggle_label')}
-            >
-              <span
-                className={`absolute top-[3px] h-4 w-4 rounded-full transition-colors ${
-                  status.userEnabled
-                    ? 'left-[22px] bg-emerald-500'
-                    : 'bg-muted-foreground left-[3px]'
-                }`}
-              />
-            </button>
+            />
           </div>
         </div>
 
@@ -183,19 +171,21 @@ function GeminiWebSessionOverview({
         />
 
         <div className="flex justify-start">
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="sm"
             onClick={handlers.onResetWebProfile}
             disabled={!status.webEnabled || disableSessionMutations}
-            className="text-ql-12 border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/15 focus-visible:ring-destructive/40 inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
+            className="gap-2"
           >
             {actionState.isResettingWebProfile || status.isRefreshing ? (
               <LoaderIcon className="h-4 w-4 animate-spin" />
             ) : (
               <XIcon className="h-4 w-4" />
             )}
-            {t('gws_reset_btn')}
-          </button>
+            <span>{t('gws_reset_btn')}</span>
+          </Button>
         </div>
 
         <GoogleAppList

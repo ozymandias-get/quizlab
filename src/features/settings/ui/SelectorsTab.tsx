@@ -8,7 +8,7 @@ import type { SelectorsTabProps } from './selectors/types'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const SELECTORS_ICON = (
-  <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-2.5 text-emerald-400">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <SelectorIcon className="h-5 w-5" />
   </div>
 )
@@ -48,20 +48,20 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         <button
           type="button"
           onClick={handleStartTutorial}
-          className="group flex w-full items-center gap-4 rounded-xl border border-purple-500/20 bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-4 transition-colors hover:border-purple-500/40"
+          className="group border-border bg-card hover:border-border/80 hover:bg-muted/60 focus-visible:ring-ring/40 flex w-full items-center gap-4 rounded-xl border p-4 shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
-          <div className="rounded-xl bg-purple-500/20 p-2.5 text-purple-400 transition-transform group-hover:scale-110">
-            <MagicWandIcon className="h-6 w-6" />
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-transform group-hover:scale-105">
+            <MagicWandIcon className="h-5 w-5" />
           </div>
           <div className="text-left">
-            <h4 className="text-foreground text-sm font-bold transition-colors group-hover:text-purple-300">
+            <h4 className="text-foreground text-sm font-semibold transition-colors">
               {t('tutorial_button_title')}
             </h4>
-            <p className="text-muted-foreground group-hover:text-muted-foreground text-xs transition-colors">
+            <p className="text-muted-foreground text-xs transition-colors">
               {t('tutorial_button_desc')}
             </p>
           </div>
-          <div className="ml-auto text-purple-400 opacity-[0.55] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <div className="text-muted-foreground ml-auto opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
             <ChevronRightIcon className="h-5 w-5" />
           </div>
         </button>

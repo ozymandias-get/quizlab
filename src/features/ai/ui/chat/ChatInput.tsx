@@ -3,6 +3,7 @@ import type { ApiConfig } from '@shared-core/types'
 import { isVisionCapable } from '@features/ai/lib/apiChatUtils'
 
 import { Badge } from '@app/components/ui/badge'
+import { Button } from '@app/components/ui/button'
 import { Textarea } from '@app/components/ui/textarea'
 
 import { Image as ImageIcon, Send, Trash2 } from 'lucide-react'
@@ -103,6 +104,7 @@ const ChatInput = memo(function ChatInput({
               rows={1}
               className="text-ql-14 text-foreground placeholder:text-muted-foreground max-h-[160px] min-h-0 resize-none border-none bg-transparent px-3 py-2 leading-relaxed shadow-none focus-visible:ring-0"
               placeholder={t('api_chat_input_placeholder')}
+              aria-label={t('api_chat_input_placeholder')}
             />
           </div>
 
@@ -133,15 +135,16 @@ const ChatInput = memo(function ChatInput({
                     onChange={onFileSelect}
                     className="hidden"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon-sm"
                     onClick={handleFileUploadClick}
-                    className="border-border/80 bg-card text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
                     title={t('api_chat_upload_image')}
                     aria-label={t('api_chat_upload_image')}
                   >
                     <ImageIcon className="h-3.5 w-3.5" />
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -156,27 +159,30 @@ const ChatInput = memo(function ChatInput({
               )}
 
               {messageCount > 0 && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="icon-sm"
                   onClick={onClearChat}
-                  className="border-border/80 bg-card text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-7 w-7 items-center justify-center rounded-md border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  className="hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30"
                   title={t('api_chat_clear')}
                   aria-label={t('api_chat_clear')}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               )}
 
-              <button
+              <Button
                 type="button"
+                variant="default"
+                size="icon-sm"
                 onClick={onSend}
                 disabled={(!inputValue.trim() && attachments.length === 0) || isStreaming}
-                className="group bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 flex h-7 w-7 shrink-0 items-center justify-center rounded-md shadow-2xs transition-all focus-visible:ring-2 focus-visible:outline-none active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
                 title={t('api_chat_send')}
                 aria-label={t('api_chat_send')}
               >
                 <Send className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </div>
           </div>
         </div>

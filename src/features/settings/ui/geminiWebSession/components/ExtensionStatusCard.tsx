@@ -1,5 +1,6 @@
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
+import { Button } from '@app/components/ui/button'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { LoaderIcon, SettingsIcon } from '@ui/components/Icons'
 
@@ -105,38 +106,43 @@ function ExtensionStatusCard({
           <span className="text-ql-12 text-muted-foreground">{t(statusKey(extensionInfo))}</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {extensionInfo?.installed && extensionInfo?.status !== 'connected' && (
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="xs"
               onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
-              className="text-ql-11 font-semibold text-amber-600 hover:underline dark:text-amber-400"
+              className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
             >
               {t('gws_extension_wake_btn')}
-            </button>
+            </Button>
           )}
           {extensionInfo?.installed ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={onRemoveExtension}
-              className="text-ql-11 text-destructive hover:underline"
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             >
               {t('gws_extension_remove_btn')}
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
+              size="xs"
               onClick={handleInstallClick}
               disabled={installing}
-              className="text-ql-11 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-semibold shadow-xs focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
+              className="gap-1.5"
             >
               {installing ? (
                 <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <SettingsIcon className="h-3.5 w-3.5" />
               )}
-              {t('gws_extension_install_btn')}
-            </button>
+              <span>{t('gws_extension_install_btn')}</span>
+            </Button>
           )}
         </div>
       </div>

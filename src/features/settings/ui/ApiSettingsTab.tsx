@@ -1,9 +1,11 @@
 import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/types'
 
+import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
 
+import { Loader2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -201,14 +203,16 @@ export default memo(function ApiSettingsTab() {
           </h2>
           <p className="text-muted-foreground mt-1 text-xs">{t('api_chat_settings_desc')}</p>
         </div>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2 text-xs font-medium shadow-xs transition-colors disabled:opacity-50"
-        >
-          {saving ? t('saving') : t('save_platform')}
-        </button>
+        <Button type="button" onClick={handleSave} disabled={saving} size="sm" className="gap-1.5">
+          {saving ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>{t('saving')}</span>
+            </>
+          ) : (
+            <span>{t('api_chat_save')}</span>
+          )}
+        </Button>
       </div>
 
       <PromptSettingsSection

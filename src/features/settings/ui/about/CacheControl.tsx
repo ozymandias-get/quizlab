@@ -1,5 +1,6 @@
-import { CheckIcon, LoaderIcon, TrashIcon } from '@ui/components/Icons'
+import { Button } from '@app/components/ui/button'
 
+import { Check, Loader2, Trash2 } from 'lucide-react'
 import { memo } from 'react'
 
 import AboutActionCard from './AboutActionCard'
@@ -53,47 +54,47 @@ const CacheControl = memo(
           trailing={
             <div className="flex items-center gap-2">
               {handleDeepClean && (
-                <button
+                <Button
                   type="button"
                   onClick={handleDeepClean}
                   disabled={isDeepCleaning}
-                  className={`text-ql-11 flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold transition-colors ${'border border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'}`}
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
                 >
                   {isDeepCleaning ? (
-                    <LoaderIcon className="h-4 w-4 text-white" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <TrashIcon className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   )}
-                  {t('deep_clean')}
-                </button>
+                  <span>{t('deep_clean')}</span>
+                </Button>
               )}
-              <button
+              <Button
                 type="button"
                 onClick={handleClearCache}
                 disabled={isClearing}
-                className={`text-ql-11 flex items-center gap-2 rounded-xl px-5 py-2.5 font-semibold transition-colors ${
-                  isClearSuccess
-                    ? 'border border-emerald-500/30 bg-emerald-500/20 text-emerald-400'
-                    : 'border border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
-                }`}
+                variant={isClearSuccess ? 'default' : 'destructive'}
+                size="sm"
+                className="gap-1.5"
               >
                 {isClearing ? (
                   <>
-                    <LoaderIcon className="h-4 w-4 text-white" />
-                    {t('clearing')}
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{t('clearing')}</span>
                   </>
                 ) : isClearSuccess ? (
                   <>
-                    <CheckIcon className="h-4 w-4" />
-                    {t('cleared')}
+                    <Check className="h-3.5 w-3.5" />
+                    <span>{t('cleared')}</span>
                   </>
                 ) : (
                   <>
-                    <TrashIcon className="h-4 w-4" />
-                    {t('clear_cache')}
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>{t('clear_cache')}</span>
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           }
         />

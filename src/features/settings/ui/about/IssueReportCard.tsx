@@ -1,8 +1,9 @@
+import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
-import { InfoIcon } from '@ui/components/Icons'
 
+import { Copy, Loader2 } from 'lucide-react'
 import { memo, useCallback, useState } from 'react'
 
 import AboutActionCard from './AboutActionCard'
@@ -105,15 +106,21 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
       title={t('report_issue_title')}
       description={t('report_issue_desc')}
       trailing={
-        <button
+        <Button
           type="button"
           onClick={handleCopy}
           disabled={isCopying}
-          className="text-ql-11 flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-5 py-2.5 font-semibold text-blue-400 transition-colors hover:bg-blue-500/20 disabled:opacity-60"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
         >
-          <InfoIcon className="h-4 w-4" />
-          {isCopying ? t('loading') : t('copy_logs')}
-        </button>
+          {isCopying ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+          <span>{isCopying ? t('loading') : t('copy_logs')}</span>
+        </Button>
       }
     />
   )

@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { AiIcon } from '@ui/components/icons/AiIcon'
 
 import { Clock, Plus } from 'lucide-react'
@@ -43,27 +44,31 @@ const ChatHeader = memo(function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onToggleHistoryModal}
-          className="text-ql-12 border-border/70 bg-card/60 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 font-medium shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="gap-1.5"
           title={t('api_chat_history')}
           aria-label={t('api_chat_history')}
         >
           <Clock className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
           <span className="hidden sm:inline">{t('api_chat_history')}</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="default"
+          size="sm"
           onClick={onNewChat}
-          className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="gap-1.5"
           title={t('api_chat_new_chat_tooltip')}
           aria-label={t('api_chat_new_chat_tooltip')}
         >
           <Plus className="h-3.5 w-3.5 shrink-0" />
           <span className="hidden sm:inline">{t('api_chat_new_chat')}</span>
-        </button>
+        </Button>
       </div>
     </div>
   )

@@ -1,9 +1,10 @@
 import type { AiPlatform } from '@shared-core/types'
 
+import { EmptyState } from '@shared/ui/components/primitives/EmptyState'
 import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { Description, Field, Label } from '@headlessui/react'
-import { Star } from 'lucide-react'
+import { Globe, Star } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { memo, type MouseEvent, useState } from 'react'
 
@@ -61,6 +62,17 @@ const AiModelList = memo(function AiModelList({
     } finally {
       setLocalClearingId(null)
     }
+  }
+
+  if (modelsList.length === 0) {
+    return (
+      <EmptyState
+        icon={Globe}
+        title={t('empty_sites_title')}
+        description={t('empty_sites_description')}
+        size="sm"
+      />
+    )
   }
 
   return (

@@ -28,7 +28,7 @@ const ProviderSelector = memo(function ProviderSelector({
     [onSelectProvider]
   )
 
-  if (!config || config.providers.length === 0) return null
+  if (!config || config.providers?.length === 0) return null
 
   return (
     <div className="relative">
