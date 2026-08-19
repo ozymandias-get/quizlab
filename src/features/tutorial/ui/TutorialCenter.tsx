@@ -1,3 +1,5 @@
+import { Button } from '@app/components/ui/button'
+
 import { RotateCcw } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useMemo } from 'react'
@@ -79,7 +81,7 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
                     title={t(tutorial.titleKey)}
                     description={t(tutorial.descriptionKey)}
                     replayLabel={t('tutorial_replay')}
-                    startLabel={t('tutorial_step_next')}
+                    startLabel={t('tut_start')}
                     completedLabel={t('tutorial_completed_badge')}
                   />
                 ))}
@@ -95,13 +97,16 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
           animate={{ opacity: 1 }}
           className="border-border border-t pt-5"
         >
-          <button
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
             onClick={handleReset}
-            className="text-ql-13 border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/15 focus-visible:ring-destructive/40 flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="gap-2"
           >
             <RotateCcw className="h-4 w-4" />
-            {t('tutorial_center_reset')}
-          </button>
+            <span>{t('tutorial_center_reset')}</span>
+          </Button>
         </motion.div>
       )}
     </div>

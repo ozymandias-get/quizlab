@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { CheckIcon, ChevronRightIcon, ExternalLinkIcon, GlobeIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
@@ -75,25 +76,28 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
         </div>
       </button>
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onOpenRepick(key, cardId)}
-          className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 focus-visible:ring-ring/40 flex items-center gap-1.5 rounded-lg border px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="gap-1.5"
         >
           <ExternalLinkIcon className="h-3.5 w-3.5" />
           <span className="text-ql-11 font-semibold">{t('selectors_open_repick')}</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={() => onToggleExpanded(cardId)}
-          className="border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-lg border p-2 transition focus-visible:ring-2 focus-visible:outline-none"
           aria-label={isExpanded ? t('ai_send_collapse') : t('ai_send_expand')}
         >
           <ChevronRightIcon
             className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
           />
-        </button>
+        </Button>
       </div>
     </div>
   )

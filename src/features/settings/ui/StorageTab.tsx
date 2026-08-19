@@ -4,9 +4,10 @@ import {
   useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
+import { Button } from '@app/components/ui/button'
 import { cn } from '@shared/lib/uiUtils'
-import { CheckIcon, LoaderIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
+import { Check, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -102,57 +103,58 @@ const StorageTab = memo(function StorageTab() {
 
       {/* Actions */}
       <div className="flex items-center gap-2.5">
-        <button
+        <Button
           type="button"
           onClick={handleClear}
           disabled={isClearing}
-          className={cn(
-            'text-ql-11 flex items-center gap-1.5 rounded-lg px-3.5 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
-            isClearSuccess
-              ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 focus-visible:ring-emerald-500/40 dark:text-emerald-400'
-              : 'border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/15 focus-visible:ring-destructive/40 border'
-          )}
+          variant={isClearSuccess ? 'default' : 'destructive'}
+          size="sm"
+          className="gap-1.5"
         >
           {isClearing ? (
             <>
-              <LoaderIcon className="h-3.5 w-3.5" />
-              {t('clearing')}
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>{t('clearing')}</span>
             </>
           ) : isClearSuccess ? (
             <>
-              <CheckIcon className="h-3.5 w-3.5" />
-              {t('cleared')}
+              <Check className="h-3.5 w-3.5" />
+              <span>{t('cleared')}</span>
             </>
           ) : (
             <>
-              <TrashIcon className="h-3.5 w-3.5" />
-              {t('clear_cache')}
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{t('clear_cache')}</span>
             </>
           )}
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={handleDeepClean}
           disabled={isDeepCleaning}
-          className="text-ql-11 flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 font-medium text-amber-600 transition-colors hover:bg-amber-500/15 focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:outline-none dark:text-amber-400"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
         >
           {isDeepCleaning ? (
-            <LoaderIcon className="h-3.5 w-3.5" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <TrashIcon className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
           )}
-          {t('deep_clean')}
-        </button>
+          <span>{t('deep_clean')}</span>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={handleRefresh}
-          className="text-ql-11 text-foreground border-border bg-muted/60 hover:bg-muted focus-visible:ring-ring/40 ml-auto flex items-center gap-1.5 rounded-lg border px-3.5 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-1.5"
         >
-          <RefreshIcon className="h-3.5 w-3.5" />
-          Refresh
-        </button>
+          <RotateCcw className="h-3.5 w-3.5" />
+          <span>Refresh</span>
+        </Button>
       </div>
 
       {/* Last Cleanup Info */}

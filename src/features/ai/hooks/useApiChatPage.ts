@@ -148,7 +148,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
 
   const activeProvider = useMemo(() => {
     if (!config) return null
-    return config.providers.find((p) => p.id === activeProviderId) || null
+    return config.providers?.find((p) => p.id === activeProviderId) || null
   }, [config, activeProviderId])
 
   const {

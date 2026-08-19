@@ -1,3 +1,5 @@
+import { Button } from '@app/components/ui/button'
+
 import { BookOpen, CheckCircle2, Clock, Play } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback } from 'react'
@@ -65,13 +67,10 @@ const TutorialCard = memo(function TutorialCard({
           <span className="text-ql-12 font-medium">{tutorial.steps.length} steps</span>
         </div>
 
-        <button
-          onClick={handleStart}
-          className="text-ql-13 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 flex items-center gap-1.5 rounded-lg border px-3.5 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={handleStart} className="gap-1.5">
           <Play className="h-3.5 w-3.5" />
-          {isCompleted ? replayLabel : startLabel}
-        </button>
+          <span>{isCompleted ? replayLabel : startLabel}</span>
+        </Button>
       </div>
     </motion.div>
   )

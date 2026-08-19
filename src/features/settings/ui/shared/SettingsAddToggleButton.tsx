@@ -1,5 +1,6 @@
-import { PlusIcon } from '@ui/components/Icons'
+import { Button } from '@app/components/ui/button'
 
+import { Plus, X } from 'lucide-react'
 import { memo } from 'react'
 
 interface SettingsAddToggleButtonProps {
@@ -16,24 +17,25 @@ function SettingsAddToggleButton({
   onToggle
 }: SettingsAddToggleButtonProps) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onToggle}
-      className={`text-ql-11 flex items-center gap-2 rounded-xl border px-3 py-2 font-semibold transition-colors duration-300 ${
-        expanded
-          ? 'border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20'
-          : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-      }`}
+      variant={expanded ? 'destructive' : 'outline'}
+      size="sm"
+      className="gap-1.5"
     >
       {expanded ? (
-        <span>{cancelLabel}</span>
+        <>
+          <X className="h-3.5 w-3.5" />
+          <span>{cancelLabel}</span>
+        </>
       ) : (
         <>
-          <PlusIcon className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           <span>{addLabel}</span>
         </>
       )}
-    </button>
+    </Button>
   )
 }
 

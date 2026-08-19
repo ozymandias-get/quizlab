@@ -25,7 +25,7 @@ export function useDocumentLoadHandler(input: DocumentLoadHandlerInput) {
         // Dimensions unavailable
       }
     },
-    [handleDocumentLoad]
+    [handleDocumentLoad, isMountedRef, setPageDimensions]
   )
 }
 
@@ -54,7 +54,7 @@ export function usePdfViewerElectronScreenshot(input: ElectronScreenshotInput) {
     return () => {
       if (typeof removeListener === 'function') removeListener()
     }
-  }, [startScreenshot, currentPageRef])
+  }, [startScreenshot, currentPageRef, handleFullPageScreenshotRef])
 }
 
 interface InitialPageResumeInput {
@@ -109,5 +109,14 @@ export function usePdfViewerInitialPageResume(input: InitialPageResumeInput) {
       })
     })
     return () => cancelAnimationFrame(rafId)
-  }, [isDocumentReady, fitScale, initialPage, jumpToPageFromNav, pdfUrl, viewerReloadKey])
+  }, [
+    isDocumentReady,
+    fitScale,
+    initialPage,
+    jumpToPageFromNav,
+    pdfUrl,
+    viewerReloadKey,
+    appliedResumeSyncKeyRef,
+    zoomToRef
+  ])
 }

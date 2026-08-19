@@ -1,3 +1,5 @@
+import { Button } from '@app/components/ui/button'
+
 import { AlertTriangle, DownloadCloud, Monitor } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
@@ -27,23 +29,27 @@ function BrowserFallback() {
         </p>
 
         <div className="flex w-full flex-col gap-2.5 sm:flex-row">
-          <button
+          <Button
             type="button"
+            variant="default"
+            size="default"
             onClick={() => {
               window.location.href = 'https://github.com/ozymandias-get/quizlab'
             }}
-            className="text-ql-13 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="flex-1 gap-2"
           >
             <DownloadCloud className="h-4 w-4" />
-            {t('browser_fallback_download')}
-          </button>
-          <button
+            <span>{t('browser_fallback_download')}</span>
+          </Button>
+          <Button
             type="button"
+            variant="outline"
+            size="default"
             onClick={() => window.location.reload()}
-            className="text-ql-13 border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="flex-1 gap-2"
           >
-            {t('browser_fallback_retry')}
-          </button>
+            <span>{t('browser_fallback_retry')}</span>
+          </Button>
         </div>
       </motion.div>
     </div>

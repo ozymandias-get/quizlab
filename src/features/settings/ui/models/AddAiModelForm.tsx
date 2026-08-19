@@ -1,9 +1,12 @@
 import { useAddCustomAi } from '@platform/electron/api/useSettingsAiApi'
 
+import { Button } from '@app/components/ui/button'
 import { Input } from '@app/components/ui/input'
+import { Label } from '@app/components/ui/label'
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
 
+import { Loader2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type FormEvent, memo, useState } from 'react'
 
@@ -76,7 +79,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
         >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-ql-11 text-foreground pl-1 font-semibold">{t('name')}</label>
+              <Label className="text-ql-11 text-foreground pl-1 font-semibold">{t('name')}</Label>
               <Input
                 value={newAiName}
                 onChange={(e) => setNewAiName(e.target.value)}
@@ -84,7 +87,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-ql-11 text-foreground pl-1 font-semibold">{t('url')}</label>
+              <Label className="text-ql-11 text-foreground pl-1 font-semibold">{t('url')}</Label>
               <Input
                 value={newAiUrl}
                 onChange={(e) => setNewAiUrl(e.target.value)}
@@ -93,13 +96,21 @@ const AddAiModelForm = memo(function AddAiModelForm({
             </div>
           </div>
           <div className="flex justify-end pt-2">
-            <button
+            <Button
               type="submit"
               disabled={isAdding || !newAiName.trim() || !newAiUrl.trim()}
-              className="text-ql-11 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 rounded-lg px-5 py-2 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
+              size="sm"
+              className="gap-1.5"
             >
-              {isAdding ? t('adding') : t('save_platform')}
-            </button>
+              {isAdding ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>{t('adding')}</span>
+                </>
+              ) : (
+                <span>{t('save_platform')}</span>
+              )}
+            </Button>
           </div>
         </motion.form>
       )}

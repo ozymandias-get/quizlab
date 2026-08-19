@@ -1,9 +1,12 @@
 import { usePrompts } from '@features/ai'
 
+import { Button } from '@app/components/ui/button'
+import { Label } from '@app/components/ui/label'
 import { Textarea } from '@app/components/ui/textarea'
 import { useToastActions } from '@app/providers'
-import { CheckIcon, MagicWandIcon, TrashIcon } from '@ui/components/Icons'
+import { MagicWandIcon } from '@ui/components/Icons'
 
+import { Check, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type FormEvent, memo, type MouseEvent, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -54,7 +57,7 @@ const PromptItem = memo(function PromptItem({
             : 'border-border group-hover:border-border/80'
         }`}
       >
-        {isSelected && <CheckIcon className="h-3 w-3" />}
+        {isSelected && <Check className="h-3 w-3" />}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -73,15 +76,17 @@ const PromptItem = memo(function PromptItem({
       </div>
 
       {!prompt.isDefault && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={(e) => onDelete(e, prompt.id)}
-          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 -mt-2 -mr-2 rounded-lg p-2 opacity-60 transition-colors group-hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive -mt-1 -mr-1 opacity-60 group-hover:opacity-100"
           title={t('delete')}
           aria-label={t('delete')}
         >
-          <TrashIcon className="h-4 w-4" />
-        </button>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       )}
     </div>
   )
@@ -151,9 +156,9 @@ const PromptsTab = memo(() => {
             onSubmit={handleAddPrompt}
           >
             <div className="space-y-1.5">
-              <label className="text-ql-11 text-foreground pl-1 font-semibold">
+              <Label className="text-ql-11 text-foreground pl-1 font-semibold">
                 {t('prompt_text')}
-              </label>
+              </Label>
               <Textarea
                 value={newPromptText}
                 onChange={(e) => setNewPromptText(e.target.value)}
@@ -162,12 +167,9 @@ const PromptsTab = memo(() => {
               />
             </div>
             <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                className="text-ql-11 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 rounded-lg px-5 py-2 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              >
+              <Button type="submit" size="sm">
                 {t('save_prompt')}
-              </button>
+              </Button>
             </div>
           </motion.form>
         )}
@@ -195,13 +197,9 @@ const PromptsTab = memo(() => {
 
       {selectedPromptId && (
         <div className="flex justify-center pt-4">
-          <button
-            type="button"
-            onClick={clearSelection}
-            className="text-ql-11 text-muted-foreground border-border bg-muted/60 hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-lg border px-4 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={clearSelection}>
             {t('no_prompt_selected')}
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { useLanguage } from '@shared/stores/languageStore'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -167,14 +168,15 @@ export function LanguageSelectionDialog() {
               })}
             </div>
 
-            <button
+            <Button
               type="button"
               onClick={handleContinue}
               disabled={!selectedLang}
-              className="text-ql-13 focus-visible:ring-ring/40 enabled:bg-primary enabled:text-primary-foreground enabled:hover:bg-primary/90 mt-6 inline-flex w-full items-center justify-center rounded-lg px-5 py-2.5 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+              size="default"
+              className="mt-6 w-full font-semibold"
             >
               Continue &rarr;
-            </button>
+            </Button>
           </motion.div>
         </motion.div>
       )}

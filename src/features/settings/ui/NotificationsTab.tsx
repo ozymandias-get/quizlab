@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { useNotificationPrefs, useToastActions } from '@app/providers'
 
 import { AlertTriangle, Bell, Check, Info, XCircle } from 'lucide-react'
@@ -149,13 +150,14 @@ const NotificationsTab = memo(() => {
               </div>
 
               <div className="flex shrink-0 items-center gap-2.5">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => sendTestToast(config.type)}
-                  className="border-border text-ql-11 bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-lg border px-2.5 py-1 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
                 >
                   {t(config.testKey)}
-                </button>
+                </Button>
                 <SettingsToggleSwitch
                   checked={config.isEnabled}
                   onChange={config.setIsEnabled}
