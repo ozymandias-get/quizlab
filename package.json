@@ -36,7 +36,7 @@
     "analyze:types:ci": "node scripts/check-type-coverage.mjs",
     "analyze:mutation": "stryker run",
     "analyze:electron": "electronegativity -i . -o reports/electron-security/analysis.txt",
-    "analyze:css": "stylelint 'src/**/*.css' 'electron/**/*.css'",
+    "analyze:css": "stylelint \"src/**/*.css\" \"electron/**/*.css\"",
     "analyze:spell": "cspell --no-progress --show-context 'src/**/*.{ts,tsx}' 'electron/**/*.{ts,tsx}' 'shared/**/*.ts'",
     "analyze:spell:ci": "cspell --no-progress --show-context --no-exit-code 'src/**/*.{ts,tsx}' 'electron/**/*.{ts,tsx}' 'shared/**/*.ts'",
     "analyze:file-sizes": "node scripts/check-file-sizes.mjs",
@@ -179,7 +179,7 @@
     "@welldone-software/why-did-you-render": "^10.0.1",
     "cspell": "^10.0.1",
     "dependency-cruiser": "^17.4.3",
-    "electron": "^42.5.0",
+    "electron": "^42.5.1",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.1",
     "eslint": "^10.5.0",
@@ -260,7 +260,8 @@
     },
     "madge": {
       "typescript": "6.0.3"
-    }
+    },
+    "tar": ">=7.5.21"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md,css}": "prettier --write",

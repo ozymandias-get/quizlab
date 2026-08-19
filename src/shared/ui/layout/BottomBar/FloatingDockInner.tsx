@@ -41,23 +41,31 @@ const FloatingDockInner = memo(function FloatingDockInner({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeaveReset}
       className="flex w-full flex-col items-center gap-1.5 py-2"
+      data-tour-id="tour-target-hub-btn"
     >
-      {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
-        <SettingsToolButton onOpenSettings={onOpenSettings} />
-      )}
+      <div
+        className="flex w-full flex-col items-center gap-1.5"
+        data-tour-id="tour-target-tools-panel"
+      >
+        {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
+          <SettingsToolButton onOpenSettings={onOpenSettings} />
+        )}
 
-      {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP] !== false && <SwapToolButton />}
+        {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP] !== false && <SwapToolButton />}
 
-      {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS] !== false && <PdfFocusToolButton />}
+        {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS] !== false && (
+          <PdfFocusToolButton />
+        )}
 
-      {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS] !== false && <AiFocusToolButton />}
+        {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS] !== false && <AiFocusToolButton />}
 
-      {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
+        {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
 
-      <GeminiToolButton onOpenSettings={onOpenSettings} />
+        <GeminiToolButton onOpenSettings={onOpenSettings} />
+      </div>
 
       <div
-        className="my-[calc(0.25rem*var(--bar-scale-factor,1))] h-px w-4 bg-white/10"
+        className="bg-border/80 my-[calc(0.25rem*var(--bar-scale-factor,1))] h-px w-4"
         role="separator"
       />
 

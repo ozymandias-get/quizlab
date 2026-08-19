@@ -13,6 +13,7 @@ vi.mock('react-i18next', () => ({
         tutorial_center_reset: 'Reset All',
         tutorial_replay: 'Replay',
         tutorial_step_next: 'Start',
+        tut_start: 'Start',
         tutorial_completed_badge: 'Done',
         tutorial_category_onboarding: 'Getting Started',
         tutorial_category_general: 'General',

@@ -46,33 +46,38 @@ function AiSendComposerHeader({
   if (!isExpanded) {
     return (
       <div
-        className="flex cursor-grab touch-none items-center justify-between gap-3 px-5 py-3 select-none active:cursor-grabbing"
+        className="border-border flex cursor-grab touch-none items-center justify-between gap-3 border-b px-4 py-2.5 select-none active:cursor-grabbing"
         onPointerDown={onDragStart}
         onPointerMove={onDragMove}
         onPointerUp={onDragEnd}
         onPointerCancel={onDragEnd}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400/25 to-amber-500/15 ring-1 ring-amber-400/20 ring-inset">
-            <Send className="h-4 w-4 text-amber-400" strokeWidth={2.5} />
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-xs">
+            <Send className="h-4 w-4" strokeWidth={2} />
           </div>
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {totalItems > 0 && !isSending && (
-              <span className="text-ql-13 truncate font-bold text-white">
+              <span className="text-ql-13 text-foreground truncate font-semibold">
                 {totalItems}{' '}
                 {totalItems === 1 ? t('ai_send_item_singular') : t('ai_send_items_plural')}
               </span>
             )}
             {isSending && (
               <div className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin text-amber-400" strokeWidth={2} />
-                <span className="text-ql-10 font-medium text-white/80">{t('sending_to_ai')}</span>
+                <Loader2 className="text-primary h-3 w-3 animate-spin" strokeWidth={2} />
+                <span className="text-ql-10 text-muted-foreground font-medium">
+                  {t('sending_to_ai')}
+                </span>
               </div>
             )}
             {autoSend && !isSending && (
-              <span className="flex items-center gap-1 rounded-md bg-emerald-500/20 px-1.5 py-0.5">
-                <Sparkles className="h-2.5 w-2.5 text-emerald-400" strokeWidth={2} />
-                <span className="text-ql-10 font-semibold text-emerald-300">
+              <span className="flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5">
+                <Sparkles
+                  className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400"
+                  strokeWidth={2}
+                />
+                <span className="text-ql-10 font-semibold text-emerald-600 dark:text-emerald-400">
                   {t('ai_send_mode_auto')}
                 </span>
               </span>
@@ -89,20 +94,16 @@ function AiSendComposerHeader({
             }}
             disabled={isSubmitting || isSendDisabled}
             className={cn(
-              'text-ql-11 h-9 rounded-xl px-4 font-bold text-white transition-colors hover:brightness-110 active:scale-[0.97] disabled:opacity-30',
+              'text-ql-11 bg-primary text-primary-foreground hover:bg-primary/90 h-8 rounded-lg px-3.5 font-semibold shadow-xs transition-colors disabled:opacity-40',
               isSubmitting && 'pointer-events-none'
             )}
-            style={{
-              background: 'linear-gradient(135deg, oklch(1 0 0 / 0.18), oklch(1 0 0 / 0.08))',
-              boxShadow: '0 2px 12px oklch(0 0 0 / 0.4), 0 0 0 1px oklch(1 0 0 / 0.08) inset'
-            }}
             aria-label={t('send_to_ai')}
           >
             {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
             ) : (
-              <span className="flex items-center gap-2">
-                <Send className="h-4 w-4 opacity-90" strokeWidth={2.5} />
+              <span className="flex items-center gap-1.5">
+                <Send className="h-3.5 w-3.5" strokeWidth={2} />
                 {t('send_to_ai')}
               </span>
             )}
@@ -113,11 +114,11 @@ function AiSendComposerHeader({
             size="icon"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onClearAll}
-            className="h-7 w-7 shrink-0 rounded-lg text-white/50 transition-colors hover:bg-red-500/10 hover:text-red-400"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7 shrink-0 rounded-md transition-colors"
             title={t('ai_send_clear_all')}
             aria-label={t('ai_send_clear_all')}
           >
-            <Trash2 className="h-4 w-4" strokeWidth={2} />
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
           </Button>
 
           <Button
@@ -125,15 +126,13 @@ function AiSendComposerHeader({
             size="icon"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onToggleExpand}
-            className="h-7 w-7 shrink-0 rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white/80"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 shrink-0 rounded-md transition-colors"
             title={t('ai_send_expand')}
             aria-label={t('ai_send_expand')}
           >
-            <ChevronUp className="h-4 w-4" strokeWidth={2} />
+            <ChevronUp className="h-3.5 w-3.5" strokeWidth={2} />
           </Button>
         </div>
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
       </div>
     )
   }
@@ -146,7 +145,7 @@ function AiSendComposerHeader({
 
   return (
     <div
-      className="relative cursor-grab touch-none px-4 pt-3.5 pb-3 select-none active:cursor-grabbing"
+      className="border-border relative cursor-grab touch-none border-b px-4 py-3 select-none active:cursor-grabbing"
       onPointerDown={onDragStart}
       onPointerMove={onDragMove}
       onPointerUp={onDragEnd}
@@ -154,22 +153,24 @@ function AiSendComposerHeader({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/25 to-amber-500/15 ring-1 ring-amber-400/20 ring-inset">
-            <Send className="h-4 w-4 text-amber-400" strokeWidth={2} />
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-xs">
+            <Send className="h-4 w-4" strokeWidth={2} />
           </div>
           <div className="min-w-0">
-            <p className="text-ql-12 truncate font-bold tracking-tight text-white">
+            <p className="text-ql-13 text-foreground truncate font-semibold">
               {t('ai_send_panel_title')}
             </p>
             {summary && !isSending && (
               <div className="mt-0.5 flex items-center gap-1.5">
-                <span className="text-ql-10 font-medium text-white/70">{summary}</span>
+                <span className="text-ql-11 text-muted-foreground font-medium">{summary}</span>
               </div>
             )}
             {isSending && (
               <div className="mt-0.5 flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin text-amber-400" strokeWidth={2} />
-                <span className="text-ql-10 font-medium text-white/70">{t('sending_to_ai')}</span>
+                <Loader2 className="text-primary h-3 w-3 animate-spin" strokeWidth={2} />
+                <span className="text-ql-11 text-muted-foreground font-medium">
+                  {t('sending_to_ai')}
+                </span>
               </div>
             )}
           </div>
@@ -181,11 +182,11 @@ function AiSendComposerHeader({
             size="icon"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onClearAll}
-            className="h-7 w-7 shrink-0 rounded-lg text-white/50 transition-colors hover:bg-red-500/10 hover:text-red-400"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7 shrink-0 rounded-md transition-colors"
             title={t('ai_send_clear_all')}
             aria-label={t('ai_send_clear_all')}
           >
-            <Trash2 className="h-4 w-4" strokeWidth={2} />
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
           </Button>
 
           <Button
@@ -193,17 +194,15 @@ function AiSendComposerHeader({
             size="icon"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onToggleExpand}
-            className="h-7 w-7 shrink-0 rounded-lg text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white/70"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 shrink-0 rounded-md transition-colors"
             title={t('ai_send_collapse')}
             aria-label={t('ai_send_collapse')}
             aria-expanded={isExpanded}
           >
-            <ChevronDown className="h-4 w-4" strokeWidth={2} />
+            <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
           </Button>
         </div>
       </div>
-
-      <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
     </div>
   )
 }

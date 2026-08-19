@@ -56,6 +56,10 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
     const text = inputValueRef.current
     const images = attachmentsRef.current
     if (!text.trim() && images.length === 0) return
+    // Guard against concurrent sends (Enter key repeat, paste + auto-send
+    // races): the mutation flips isStreaming synchronously, so reading the
+    // store here deduplicates requests that would otherwise corrupt history.
+    if (useChatUiStore.getState().isStreamingByTab[tabId]) return
     try {
       await sendMsgMutation({
         tabId,

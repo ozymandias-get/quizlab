@@ -46,7 +46,7 @@ function OverflowMenu({
     <div ref={overflowRef} className="relative ml-auto shrink-0">
       <ToolbarButton
         icon={MoreHorizontal}
-        className="!w-auto min-w-[36px] px-1.5 text-white/75 hover:bg-white/[0.08] hover:text-white"
+        className="!w-auto min-w-[32px] px-1.5"
         tooltip={tr('tab_more', 'More tabs')}
         isActive={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
@@ -54,11 +54,11 @@ function OverflowMenu({
 
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, y: 6, scale: 0.96 }}
+          initial={{ opacity: 0, y: 4, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 6, scale: 0.96 }}
-          transition={{ duration: 0.16 }}
-          className="glass-tier-2 z-dropdown absolute top-10 right-0 max-h-56 w-[250px] overflow-y-auto rounded-xl border-white/[0.12] p-1.5"
+          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+          transition={{ duration: 0.12 }}
+          className="z-dropdown border-border bg-popover text-popover-foreground shadow-ambient-md absolute top-10 right-0 max-h-56 w-[240px] overflow-y-auto rounded-xl border p-1 backdrop-blur-md"
         >
           {overflowTabs.map((tab) => {
             const label = getTabLabel(tab)
@@ -66,7 +66,7 @@ function OverflowMenu({
               <button
                 key={tab.id}
                 type="button"
-                className="group flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all hover:-translate-y-0.5 hover:bg-white/[0.15]"
+                className="group hover:bg-muted flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors"
                 onClick={() => {
                   onSetActiveTab(tab.id)
                   setIsOpen(false)
@@ -75,15 +75,17 @@ function OverflowMenu({
                 title={label}
                 aria-label={label}
               >
-                <span className="flex shrink-0 items-center text-white/85 [&>svg]:h-3.5 [&>svg]:w-3.5">
+                <span className="text-muted-foreground group-hover:text-foreground flex shrink-0 items-center transition-colors [&>svg]:h-3.5 [&>svg]:w-3.5">
                   {getTabIcon(tab)}
                 </span>
-                <span className="text-ql-12 min-w-0 flex-1 truncate text-white/85">{label}</span>
+                <span className="text-ql-12 text-foreground min-w-0 flex-1 truncate font-medium">
+                  {label}
+                </span>
                 <span
                   role="button"
                   tabIndex={-1}
                   aria-label={tr('tab_close', 'Close tab')}
-                  className="shrink-0 rounded-md border border-white/15 bg-black/35 p-1 text-white/60 opacity-0 transition-all group-hover:opacity-100 hover:border-red-500/30 hover:bg-red-500/20 hover:text-red-400"
+                  className="border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive shrink-0 rounded-md border p-1 opacity-0 transition-opacity group-hover:opacity-100"
                   onClick={(event) => {
                     event.preventDefault()
                     event.stopPropagation()

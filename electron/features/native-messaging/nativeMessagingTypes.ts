@@ -1,5 +1,8 @@
 export const EXTENSION_SOURCE_DIR = 'extensions/quizlab-session-extension'
 
+/** Native messaging host name + manifest file base name (Chrome registry key suffix). */
+export const NATIVE_HOST_MANIFEST_NAME = 'com.quizlab.reader'
+
 export const BRIDGE_PORT = (() => {
   const raw = process.env.QUIZLAB_EXTENSION_BRIDGE_PORT?.trim()
   if (raw) {

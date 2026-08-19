@@ -18,6 +18,7 @@ import {
 import { useChatUiStore } from '../store/chatUiStore'
 import { useApiChatHandlers } from './useApiChatHandlers'
 import type { UseApiChatPageReturn } from './useApiChatPageTypes'
+import { useApiChatSessionInit } from './useApiChatSessionInit'
 const EMPTY_MSGS: ApiChatMessage[] = []
 const EMPTY_ATTACH: string[] = []
 
@@ -72,20 +73,13 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   messagesRef.current = messages
 
   // ---- Session initialization ----
-  useEffect(() => {
-    if (activeSessionId) return
-    if (sessions.length === 0) {
-      createSessionMutation().then((session) => {
-        setActiveSessionId(tabId, session.session.id)
-      })
-      return
-    }
-    let mostRecent = sessions[0]
-    for (let i = 1; i < sessions.length; i++) {
-      if (sessions[i].updatedAt > mostRecent.updatedAt) mostRecent = sessions[i]
-    }
-    setActiveSessionId(tabId, mostRecent.id)
-  }, [tabId, activeSessionId, sessions, createSessionMutation, setActiveSessionId])
+  useApiChatSessionInit({
+    tabId,
+    activeSessionId,
+    sessions,
+    createSessionMutation,
+    setActiveSessionId
+  })
 
   // ---- Config init from TanStack Query ----
   useEffect(() => {
@@ -154,7 +148,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
 
   const activeProvider = useMemo(() => {
     if (!config) return null
-    return config.providers.find((p) => p.id === activeProviderId) || null
+    return config.providers?.find((p) => p.id === activeProviderId) || null
   }, [config, activeProviderId])
 
   const {
@@ -172,6 +166,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     handleDragLeave,
     handleDrop,
     handleInputChange,
+    handleStop,
     handleRemoveAttachmentCallback,
     handleSelectProvider,
     handleSelectModel,
@@ -239,6 +234,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     handleDragLeave,
     handleDrop,
     handleInputChange,
+    handleStop,
     handleRemoveAttachmentCallback,
     handleSelectProvider,
     handleSelectModel,

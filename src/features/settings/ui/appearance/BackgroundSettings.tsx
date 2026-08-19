@@ -37,17 +37,17 @@ const BackgroundSettings = memo(
           </div>
         </div>
 
-        <div className="flex gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] p-1">
+        <div className="border-border bg-muted/60 flex gap-1.5 rounded-xl border p-1">
           {MODES.map(({ value: mode, labelKey, icon: Icon }) => (
             <button
               type="button"
               key={mode}
               onClick={() => setBgMode(mode)}
               className={cn(
-                'text-ql-12 flex flex-1 items-center gap-2 rounded-lg px-3 py-2 font-medium transition-all duration-200',
+                'text-ql-12 focus-visible:ring-ring/40 flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
                 bgMode === mode
-                  ? 'text-foreground bg-white/[0.08] shadow-sm'
-                  : 'text-foreground/75 hover:text-foreground/80 hover:bg-white/[0.03]'
+                  ? 'bg-card text-foreground font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}
             >
               <Icon className="h-3.5 w-3.5" />

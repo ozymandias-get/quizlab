@@ -35,17 +35,17 @@ function ResultContent({
   if (!success) {
     return (
       <div className="flex flex-col items-center gap-4 px-8 pt-4 pb-8">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-400/20">
-          <XCircle className="h-8 w-8 text-red-400" />
+        <div className="bg-destructive/15 flex h-12 w-12 items-center justify-center rounded-full">
+          <XCircle className="text-destructive h-7 w-7" />
         </div>
-        <h3 className="text-ql-18 font-semibold text-white">
+        <h3 className="text-ql-18 text-foreground font-semibold">
           {t('gws_extension_wizard_error_title')}
         </h3>
-        {error ? <p className="text-ql-13 text-red-300/80">{error}</p> : null}
+        {error ? <p className="text-ql-13 text-destructive">{error}</p> : null}
         <button
           type="button"
           onClick={onDone}
-          className="text-ql-14 mt-2 inline-flex w-full items-center justify-center rounded-full bg-white/10 px-6 py-3 font-semibold text-white transition-all hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none"
+          className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 mt-2 inline-flex w-full items-center justify-center rounded-lg px-5 py-2.5 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
           {t('gws_extension_wizard_done_btn')}
         </button>
@@ -55,16 +55,16 @@ function ResultContent({
 
   return (
     <div className="flex flex-col items-center gap-4 px-8 pt-4 pb-8">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/20">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15">
         {isConnected ? (
-          <CheckCircle className="h-8 w-8 text-emerald-400" />
+          <CheckCircle className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
         ) : mode === 'install' ? (
-          <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+          <Loader2 className="h-7 w-7 animate-spin text-amber-600 dark:text-amber-400" />
         ) : (
-          <CheckCircle className="h-8 w-8 text-emerald-400" />
+          <CheckCircle className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
         )}
       </div>
-      <h3 className="text-ql-18 font-semibold text-white">
+      <h3 className="text-ql-18 text-foreground font-semibold">
         {mode === 'install'
           ? isConnected
             ? t('gws_extension_wizard_install_success')
@@ -76,24 +76,24 @@ function ResultContent({
       {statusIndicator}
       {mode === 'remove' ? (
         <div className="w-full text-left">
-          <p className="text-ql-13 text-center text-white/60">
+          <p className="text-ql-13 text-muted-foreground text-center">
             {t('gws_extension_wizard_remove_success_desc')}
           </p>
-          <div className="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.04] p-3">
-            <p className="text-ql-12 mb-2 font-medium text-white/70">
+          <div className="border-border bg-muted/30 mt-4 w-full rounded-xl border p-3">
+            <p className="text-ql-12 text-foreground mb-2 font-semibold">
               {t('gws_extension_wizard_remove_manual_title')}
             </p>
-            <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.02] p-2">
-              <span className="text-ql-12 font-mono text-white/50 select-all">
+            <div className="border-border bg-muted/60 mb-3 flex items-center justify-between gap-2 rounded-lg border p-2">
+              <span className="text-ql-12 text-muted-foreground font-mono select-all">
                 chrome://extensions
               </span>
               <button
                 type="button"
                 onClick={onCopyLink}
-                className="text-ql-11 flex h-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 font-medium text-white/50 transition-colors hover:border-white/20 hover:text-white/70 focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none"
+                className="text-ql-11 border-border bg-muted text-foreground hover:bg-muted/80 focus-visible:ring-ring/40 flex h-8 shrink-0 items-center justify-center rounded-lg border px-3 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
               >
                 {copiedLink ? (
-                  <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
                     <Check className="h-3 w-3" />
                     {t('gws_extension_wizard_link_copied')}
                   </span>
@@ -103,13 +103,13 @@ function ResultContent({
               </button>
             </div>
             <ul className="flex flex-col gap-2">
-              <li className="text-ql-12 text-white/50">
+              <li className="text-ql-12 text-muted-foreground">
                 {t('gws_extension_wizard_remove_manual_step1')}
               </li>
-              <li className="text-ql-12 text-white/50">
+              <li className="text-ql-12 text-muted-foreground">
                 {t('gws_extension_wizard_remove_manual_step2')}
               </li>
-              <li className="text-ql-12 text-white/50">
+              <li className="text-ql-12 text-muted-foreground">
                 {t('gws_extension_wizard_remove_manual_step3')}
               </li>
             </ul>
@@ -118,20 +118,22 @@ function ResultContent({
       ) : null}
       {mode === 'install' && installedPath ? (
         <div className="w-full">
-          <p className="text-ql-12 mb-2 text-white/50">
+          <p className="text-ql-12 text-muted-foreground mb-2">
             {t('gws_extension_wizard_install_success_desc')}
           </p>
-          <div className="w-full rounded-xl border border-white/10 bg-white/[0.04] p-3">
+          <div className="border-border bg-muted/30 w-full rounded-xl border p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-ql-12 truncate text-white/50">{installedPath}</span>
+              <span className="text-ql-12 text-muted-foreground truncate font-mono">
+                {installedPath}
+              </span>
               <button
                 type="button"
                 onClick={onCopyPath}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/50 transition-colors hover:border-white/20 hover:text-white/70 focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none"
+                className="border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground focus-visible:ring-ring/40 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-none"
                 aria-label={t('gws_extension_wizard_path_copied')}
               >
                 {copied ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
@@ -142,14 +144,22 @@ function ResultContent({
       ) : null}
       {mode === 'install' ? (
         <div className="w-full">
-          <p className="text-ql-12 mb-2 font-medium text-white/70">
+          <p className="text-ql-12 text-foreground mb-2 font-semibold">
             {t('gws_extension_wizard_manual_title')}
           </p>
           <ul className="flex flex-col gap-2">
-            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step1')}</li>
-            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step2')}</li>
-            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step3')}</li>
-            <li className="text-ql-12 text-white/50">{t('gws_extension_wizard_manual_step4')}</li>
+            <li className="text-ql-12 text-muted-foreground">
+              {t('gws_extension_wizard_manual_step1')}
+            </li>
+            <li className="text-ql-12 text-muted-foreground">
+              {t('gws_extension_wizard_manual_step2')}
+            </li>
+            <li className="text-ql-12 text-muted-foreground">
+              {t('gws_extension_wizard_manual_step3')}
+            </li>
+            <li className="text-ql-12 text-muted-foreground">
+              {t('gws_extension_wizard_manual_step4')}
+            </li>
           </ul>
         </div>
       ) : null}
@@ -157,10 +167,10 @@ function ResultContent({
         type="button"
         onClick={onDone}
         className={
-          'text-ql-14 mt-2 inline-flex w-full items-center justify-center rounded-full px-6 py-3 font-semibold transition-all focus-visible:ring-2 focus-visible:outline-none ' +
+          'text-ql-12 focus-visible:ring-ring/40 mt-2 inline-flex w-full items-center justify-center rounded-lg px-5 py-2.5 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none ' +
           ((mode === 'install' && isConnected) || (mode === 'remove' && !isConnected)
-            ? 'bg-emerald-400/90 text-white hover:bg-emerald-400 focus-visible:ring-emerald-400/60'
-            : 'border border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:text-white/90 focus-visible:ring-white/20')
+            ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs'
+            : 'border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground border')
         }
       >
         {mode === 'install'

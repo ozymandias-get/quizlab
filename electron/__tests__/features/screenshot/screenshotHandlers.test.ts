@@ -5,13 +5,19 @@ import { APP_CONFIG } from '../../../app/constants.js'
 const ipcHandle = vi.fn()
 const fromWebContents = vi.fn()
 const writeImage = vi.fn()
+const readImage = vi.fn()
+const readText = vi.fn()
+const readHTML = vi.fn()
+const writeText = vi.fn()
+const writeHTML = vi.fn()
+const clear = vi.fn()
 const createFromDataURL = vi.fn()
 const requireTrustedIpcSender = vi.fn()
 
 vi.mock('electron', () => ({
   ipcMain: { handle: ipcHandle },
   BrowserWindow: { fromWebContents },
-  clipboard: { writeImage },
+  clipboard: { writeImage, readImage, readText, readHTML, writeText, writeHTML, clear },
   nativeImage: { createFromDataURL }
 }))
 
@@ -29,8 +35,17 @@ describe('screenshotHandlers', () => {
     ipcHandle.mockReset()
     fromWebContents.mockReset()
     writeImage.mockReset()
+    readImage.mockReset()
+    readText.mockReset()
+    readHTML.mockReset()
+    writeText.mockReset()
+    writeHTML.mockReset()
+    clear.mockReset()
     createFromDataURL.mockReset()
     requireTrustedIpcSender.mockReset()
+    readText.mockReturnValue('')
+    readHTML.mockReturnValue('')
+    readImage.mockReturnValue({ isEmpty: () => true })
   })
 
   it('returns null/false for untrusted senders', async () => {
@@ -122,6 +137,68 @@ describe('screenshotHandlers', () => {
     expect(createFromDataURL).not.toHaveBeenCalled()
     expect(writeImage).not.toHaveBeenCalled()
     consoleWarn.mockRestore()
+  })
+
+  it('restores the previous clipboard text after an image copy', async () => {
+    requireTrustedIpcSender.mockReturnValue(true)
+    readText.mockReturnValue('previous user text')
+    readHTML.mockReturnValue('')
+    readImage.mockReturnValue({ isEmpty: () => true })
+    createFromDataURL.mockReturnValue({ isEmpty: () => false })
+    const { registerScreenshotHandlers } =
+      await import('../../../features/screenshot/screenshotHandlers.js')
+    registerScreenshotHandlers()
+
+    const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+    const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+    // Before any copy, restoring is a no-op.
+    expect(await restoreHandler?.({ sender: {} })).toEqual({ ok: true, data: false })
+
+    await copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')
+    expect(writeImage).toHaveBeenCalledTimes(1)
+
+    expect(await restoreHandler?.({ sender: {} })).toEqual({ ok: true, data: true })
+    expect(writeText).toHaveBeenCalledWith('previous user text')
+
+    // Snapshot is consumed: a second restore is a no-op.
+    expect(await restoreHandler?.({ sender: {} })).toEqual({ ok: true, data: false })
+  })
+
+  it('restores a previous image instead of text when the clipboard held an image', async () => {
+    requireTrustedIpcSender.mockReturnValue(true)
+    const prevImage = { isEmpty: () => false }
+    readImage.mockReturnValue(prevImage)
+    createFromDataURL.mockReturnValue({ isEmpty: () => false })
+    const { registerScreenshotHandlers } =
+      await import('../../../features/screenshot/screenshotHandlers.js')
+    registerScreenshotHandlers()
+
+    const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+    const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+    await copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')
+    expect(await restoreHandler?.({ sender: {} })).toEqual({ ok: true, data: true })
+    expect(writeImage).toHaveBeenLastCalledWith(prevImage)
+    expect(writeText).not.toHaveBeenCalled()
+  })
+
+  it('restores HTML when the clipboard held rich text', async () => {
+    requireTrustedIpcSender.mockReturnValue(true)
+    readText.mockReturnValue('rich text')
+    readHTML.mockReturnValue('<b>rich text</b>')
+    readImage.mockReturnValue({ isEmpty: () => true })
+    createFromDataURL.mockReturnValue({ isEmpty: () => false })
+    const { registerScreenshotHandlers } =
+      await import('../../../features/screenshot/screenshotHandlers.js')
+    registerScreenshotHandlers()
+
+    const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+    const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+    await copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')
+    expect(await restoreHandler?.({ sender: {} })).toEqual({ ok: true, data: true })
+    expect(writeHTML).toHaveBeenCalledWith('<b>rich text</b>')
   })
 
   it('captures the whole page when sender is trusted and window exists', async () => {

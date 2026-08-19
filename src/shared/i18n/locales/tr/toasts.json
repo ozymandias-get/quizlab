@@ -54,6 +54,8 @@
   "toast_submit_ready_script_failed": "Gönderim hazır bekleme komutu oluşturulamadı",
   "toast_picker_script_failed": "Seçici komutu oluşturulamadı",
   "picker_save_failed": "Seçilen öğeler kaydedilemedi: {error}",
+  "toast_unhandled_error": "Beklenmeyen bir hata oluştu: {error}",
+  "toast_error_title": "Hata",
   "toast": {
     "error": {
       "title": "Hata"

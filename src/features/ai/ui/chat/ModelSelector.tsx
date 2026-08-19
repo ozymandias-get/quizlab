@@ -1,9 +1,19 @@
 import type { ApiConfig } from '@shared-core/types'
 
 import { Input } from '@app/components/ui/input'
+import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 
-import { ChevronDown, Sparkles } from 'lucide-react'
-import { memo, useState } from 'react'
+import { Check, ChevronDown, Search, Sparkles } from 'lucide-react'
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface ModelSelectorProps {
@@ -18,87 +28,180 @@ const ModelSelector = memo(function ModelSelector({
   onSelectModel
 }: ModelSelectorProps) {
   const { t } = useTranslation()
-  const [showModelSelector, setShowModelSelector] = useState(false)
+  const listboxId = useId()
+  const [isOpen, setIsOpen] = useState(false)
   const [modelSearch, setModelSearch] = useState('')
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const listRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  const allModels = useMemo(() => activeProvider?.models ?? [], [activeProvider])
+
+  const filteredModels = useMemo(
+    () => allModels.filter((model) => model.toLowerCase().includes(modelSearch.toLowerCase())),
+    [allModels, modelSearch]
+  )
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false)
+    setModelSearch('')
+    setActiveIndex(-1)
+    requestAnimationFrame(() => triggerRef.current?.focus())
+  }, [])
+
+  const handleSelect = useCallback(
+    (model: string) => {
+      onSelectModel(model)
+      handleClose()
+    },
+    [onSelectModel, handleClose]
+  )
+
+  useEffect(() => {
+    if (!isOpen) return
+    setActiveIndex((prev) => {
+      if (prev >= 0 && prev < filteredModels.length) return prev
+      const selectedIndex = filteredModels.indexOf(selectedModel)
+      return selectedIndex >= 0 ? selectedIndex : -1
+    })
+  }, [isOpen, filteredModels, selectedModel])
+
+  useEffect(() => {
+    if (activeIndex >= 0) {
+      listRef.current
+        ?.querySelector<HTMLElement>(`[data-model-index="${activeIndex}"]`)
+        ?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeIndex])
+
+  const handleSearchKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      if (filteredModels.length === 0) return
+      e.preventDefault()
+      setActiveIndex((prev) => (prev + 1) % filteredModels.length)
+    } else if (e.key === 'ArrowUp') {
+      if (filteredModels.length === 0) return
+      e.preventDefault()
+      setActiveIndex((prev) => (prev <= 0 ? filteredModels.length - 1 : prev - 1))
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && activeIndex < filteredModels.length) {
+        e.preventDefault()
+        handleSelect(filteredModels[activeIndex])
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      handleClose()
+    } else if (e.key === 'Home') {
+      if (filteredModels.length === 0) return
+      e.preventDefault()
+      setActiveIndex(0)
+    } else if (e.key === 'End') {
+      if (filteredModels.length === 0) return
+      e.preventDefault()
+      setActiveIndex(filteredModels.length - 1)
+    }
+  }
 
   if (!activeProvider) return null
 
-  const allModels = activeProvider.models || []
-  const filteredModels = allModels.filter((m) =>
-    m.toLowerCase().includes(modelSearch.toLowerCase())
-  )
+  const currentDisplayName =
+    selectedModel || activeProvider.defaultModel || t('api_chat_select_model')
+
+  const activeDescendantId = activeIndex >= 0 ? `${listboxId}-option-${activeIndex}` : undefined
 
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => {
-          setShowModelSelector(!showModelSelector)
+          setIsOpen(!isOpen)
           setModelSearch('')
         }}
-        className="group/btn text-ql-11 flex max-w-[220px] cursor-pointer items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-zinc-400 shadow-sm transition-colors hover:border-white/[0.12] hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95"
+        className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex max-w-[200px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={listboxId}
+        data-state={isOpen ? 'open' : 'closed'}
       >
-        <Sparkles className="h-3.5 w-3.5 text-amber-500/80 transition-colors group-hover/btn:text-amber-400" />
+        <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
 
-        <span className="max-w-[130px] truncate font-semibold text-zinc-300">
-          {selectedModel || activeProvider.defaultModel || t('api_chat_select_model')}
+        <span className="text-foreground max-w-[120px] truncate font-medium">
+          {currentDisplayName}
         </span>
-        <ChevronDown className="h-3 w-3 opacity-40 transition-opacity group-hover/btn:opacity-75" />
+        <ChevronDown className="text-muted-foreground h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180" />
       </button>
 
-      {showModelSelector && (
+      {isOpen && (
         <>
           <button
             type="button"
             aria-label={t('api_chat_close_selector', 'Close')}
             className="fixed inset-0 z-10 cursor-default"
-            onClick={() => {
-              setShowModelSelector(false)
-              setModelSearch('')
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setShowModelSelector(false)
-                setModelSearch('')
-              }
-            }}
+            onClick={handleClose}
           />
-          <div className="animate-app-enter absolute bottom-full left-0 z-20 mb-2.5 flex max-h-[320px] min-w-[250px] flex-col rounded-2xl border border-white/[0.08] bg-zinc-950/95 p-1.5 shadow-[0_10px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-            <div className="relative mb-1 border-b border-white/[0.05] p-1">
-              <Input
-                value={modelSearch}
-                onChange={(e) => setModelSearch(e.target.value)}
-                placeholder={t('api_chat_search_models')}
-                onClick={(e) => e.stopPropagation()}
-              />
+          <div className="border-border/80 bg-popover/95 text-popover-foreground shadow-ambient-lg animate-in fade-in zoom-in-98 absolute bottom-full left-0 z-20 mb-2 flex max-h-[300px] min-w-[240px] flex-col rounded-xl border p-1.5 backdrop-blur-md duration-150">
+            <div className="border-border/60 relative mb-1 border-b pb-1.5">
+              <InputGroup>
+                <InputGroupAddon align="inline-start">
+                  <Search className="text-muted-foreground/60 h-3 w-3" />
+                </InputGroupAddon>
+                <Input
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- focus search input when popover opens
+                  autoFocus
+                  role="combobox"
+                  aria-expanded
+                  aria-controls={listboxId}
+                  aria-autocomplete="list"
+                  aria-activedescendant={activeDescendantId}
+                  aria-label={t('api_chat_search_models')}
+                  value={modelSearch}
+                  onChange={(e) => setModelSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder={t('api_chat_search_models')}
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-7 pl-7 text-xs font-normal"
+                />
+              </InputGroup>
             </div>
-            <div className="custom-scrollbar max-h-[230px] min-h-0 flex-1 overflow-y-auto p-0.5">
+            <div
+              ref={listRef}
+              id={listboxId}
+              role="listbox"
+              className="custom-scrollbar max-h-[200px] min-h-0 flex-1 space-y-0.5 overflow-y-auto p-0.5"
+            >
               {allModels.length === 0 ? (
-                <div className="text-ql-11 px-3 py-4 text-center leading-normal text-white/30">
+                <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center leading-normal">
                   {t('api_chat_no_fetched_models')}
                 </div>
               ) : filteredModels.length > 0 ? (
-                filteredModels.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      onSelectModel(m)
-                      setShowModelSelector(false)
-                      setModelSearch('')
-                    }}
-                    className={`text-ql-12 w-full rounded-xl px-3 py-2 text-left font-medium transition-colors duration-150 ${
-                      m === selectedModel
-                        ? 'bg-amber-500/10 font-semibold text-amber-400'
-                        : 'text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-100'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))
+                filteredModels.map((model, index) => {
+                  const isSelected = model === selectedModel
+                  const isActive = index === activeIndex
+                  return (
+                    <div
+                      key={model}
+                      id={`${listboxId}-option-${index}`}
+                      role="option"
+                      aria-selected={isSelected}
+                      tabIndex={-1}
+                      data-model-index={index}
+                      onMouseDown={() => handleSelect(model)}
+                      className={`text-ql-12 flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : isActive
+                            ? 'bg-muted text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                      }`}
+                    >
+                      <span className="truncate">{model}</span>
+                      {isSelected && <Check className="text-primary h-3.5 w-3.5 shrink-0" />}
+                    </div>
+                  )
+                })
               ) : (
-                <div className="text-ql-11 px-3 py-4 text-center text-white/30">
+                <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center">
                   {t('api_chat_no_models_found')}
                 </div>
               )}

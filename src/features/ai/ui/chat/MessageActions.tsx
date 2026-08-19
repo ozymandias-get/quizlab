@@ -32,10 +32,10 @@ export const CopyButton = memo(function CopyButton({ content }: { content: strin
     <button
       type="button"
       onClick={handleCopy}
-      className={`text-ql-10 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none ${
+      className={`text-ql-10 focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
         isCopied
-          ? 'bg-emerald-500/10 text-emerald-400'
-          : 'text-white/25 hover:bg-white/[0.06] hover:text-white/60'
+          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
       title={isCopied ? t('api_chat_copied') : t('api_chat_copy')}
       aria-label={isCopied ? t('api_chat_copied') : t('api_chat_copy')}
@@ -102,10 +102,10 @@ export const TtsButton = memo(function TtsButton({ content }: { content: string 
     <button
       type="button"
       onClick={handleSpeak}
-      className={`text-ql-10 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none ${
+      className={`text-ql-10 focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
         isSpeaking
-          ? 'bg-amber-500/10 text-amber-400'
-          : 'text-white/25 hover:bg-white/[0.06] hover:text-white/60'
+          ? 'bg-primary/10 text-primary'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
       title={isSpeaking ? t('api_chat_tts_stop_tooltip') : t('api_chat_tts_speak_tooltip')}
       aria-label={isSpeaking ? t('api_chat_tts_stop_tooltip') : t('api_chat_tts_speak_tooltip')}
@@ -128,10 +128,10 @@ export const FeedbackButtons = memo(function FeedbackButtons() {
       <button
         type="button"
         onClick={() => setRated(rated === 'up' ? null : 'up')}
-        className={`rounded p-1 transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none ${
+        className={`focus-visible:ring-ring/40 rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
           rated === 'up'
-            ? 'bg-amber-500/10 text-amber-400'
-            : 'text-white/25 hover:bg-white/[0.06] hover:text-white/60'
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         }`}
         title={t('feedback_like')}
         aria-label={t('feedback_like')}
@@ -141,10 +141,10 @@ export const FeedbackButtons = memo(function FeedbackButtons() {
       <button
         type="button"
         onClick={() => setRated(rated === 'down' ? null : 'down')}
-        className={`rounded p-1 transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none ${
+        className={`focus-visible:ring-ring/40 rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
           rated === 'down'
-            ? 'bg-red-500/10 text-red-400'
-            : 'text-white/25 hover:bg-white/[0.06] hover:text-white/60'
+            ? 'bg-destructive/10 text-destructive'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         }`}
         title={t('feedback_dislike')}
         aria-label={t('feedback_dislike')}
@@ -168,7 +168,7 @@ export const DeleteButton = memo(function DeleteButton({
     <button
       type="button"
       onClick={handleClick}
-      className="text-ql-10 flex items-center justify-center rounded p-1 text-white/25 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
+      className="text-ql-10 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
       title={t('api_chat_delete')}
       aria-label={t('api_chat_delete')}
     >

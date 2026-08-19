@@ -115,21 +115,12 @@ function PdfToolsPopup({
           exit="exit"
           className="z-tooltip absolute bottom-full left-0 mb-3"
         >
-          <div
-            className="glass-tier-2 w-[220px] overflow-hidden rounded-2xl"
-            style={{
-              boxShadow: `
-                0 16px 40px -12px rgba(0, 0, 0, 0.7),
-                0 8px 16px -8px rgba(0, 0, 0, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.06)
-              `
-            }}
-          >
+          <div className="border-border bg-popover text-popover-foreground shadow-ambient-md w-[220px] overflow-hidden rounded-xl border">
             <motion.span
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0, transition: { delay: 0.02, duration: 0.2 } }}
               exit={{ opacity: 0, transition: { duration: 0.06 } }}
-              className="text-ql-10 block border-b border-white/[0.06] py-2.5 text-center font-semibold tracking-[0.12em] text-white/40 uppercase select-none"
+              className="text-ql-10 border-border/70 text-muted-foreground block border-b py-2 text-center font-semibold tracking-wider uppercase select-none"
             >
               {t('pdf_tools')}
             </motion.span>
@@ -142,13 +133,11 @@ function PdfToolsPopup({
             >
               {toolGroups.map((group, groupIdx) => (
                 <div key={group.label}>
-                  {groupIdx > 0 && (
-                    <div className="mx-2 my-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-                  )}
+                  {groupIdx > 0 && <div className="bg-border/60 mx-2 my-1 h-px" />}
 
                   <motion.span
                     variants={itemVariants}
-                    className="block px-2.5 pt-1.5 pb-0.5 text-[9px] font-medium tracking-[0.1em] text-white/35 uppercase select-none"
+                    className="text-ql-10 text-muted-foreground/70 block px-2 pt-1 pb-0.5 font-semibold tracking-wider uppercase select-none"
                   >
                     {group.label}
                   </motion.span>
@@ -163,23 +152,23 @@ function PdfToolsPopup({
                         key={tool.label}
                         type="button"
                         variants={itemVariants}
-                        whileHover={{ x: 2, transition: { duration: 0.15 } }}
+                        whileHover={{ x: 1, transition: { duration: 0.12 } }}
                         whileTap={{ scale: 0.98, transition: { duration: 0.08 } }}
                         onClick={tool.onClick}
                         title={tool.tooltip}
                         aria-label={tool.tooltip}
                         className={cn(
-                          'group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors duration-200',
-                          'hover:bg-white/[0.07]',
-                          isActive && 'bg-white/[0.06]'
+                          'group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-150',
+                          'hover:bg-muted text-foreground',
+                          isActive && 'bg-muted/70'
                         )}
                       >
                         <div
                           className={cn(
-                            'flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200',
+                            'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
                             isActive
-                              ? cn(colors.bgActive, colors.textActive, colors.glow)
-                              : cn(colors.bg, colors.text, 'group-hover:text-white/85')
+                              ? cn(colors.bgActive, colors.textActive)
+                              : cn(colors.bg, colors.text)
                           )}
                         >
                           <Icon className="h-3.5 w-3.5" />
@@ -187,8 +176,10 @@ function PdfToolsPopup({
 
                         <span
                           className={cn(
-                            'text-ql-11 font-medium transition-colors duration-200',
-                            isActive ? 'text-white/90' : 'text-white/65 group-hover:text-white/80'
+                            'text-ql-11 font-medium transition-colors',
+                            isActive
+                              ? 'text-foreground font-semibold'
+                              : 'text-foreground/80 group-hover:text-foreground'
                           )}
                         >
                           {tool.label}
@@ -197,16 +188,16 @@ function PdfToolsPopup({
                         {tool.onClick && 'isActive' in tool && (
                           <div
                             className={cn(
-                              'ml-auto flex h-4 w-7 items-center rounded-full transition-colors duration-200',
+                              'ml-auto flex h-4 w-7 items-center rounded-full transition-colors',
                               isActive
-                                ? cn(colors.toggleTrack, 'border border-white/[0.10]')
-                                : 'border border-white/[0.06] bg-white/[0.10]'
+                                ? cn(colors.toggleTrack, 'border-primary/30 border')
+                                : 'border-border bg-muted border'
                             )}
                           >
                             <motion.div
                               className={cn(
                                 'h-3 w-3 rounded-full',
-                                isActive ? 'bg-white/90' : 'bg-white/45'
+                                isActive ? 'bg-primary-foreground' : 'bg-muted-foreground/60'
                               )}
                               animate={{
                                 x: isActive ? 14 : 2,
@@ -223,7 +214,7 @@ function PdfToolsPopup({
             </motion.div>
           </div>
 
-          <div className="glass-tier-2 absolute bottom-0 left-[22px] h-2.5 w-2.5 -translate-x-1/2 translate-y-[calc(50%-1px)] rotate-45 border-t-0 border-l-0" />
+          <div className="border-border bg-popover absolute bottom-0 left-[18px] h-2 w-2 -translate-x-1/2 translate-y-[calc(50%-1px)] rotate-45 border-r border-b" />
         </motion.div>
       )}
     </AnimatePresence>

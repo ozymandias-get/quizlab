@@ -141,8 +141,7 @@ export function useAiSender(
       queryClient,
       textInputMode,
       typingSpeed,
-      webviewRef,
-      handlePipelineError
+      webviewRef
     ]
   )
 
@@ -225,8 +224,7 @@ export function useAiSender(
       queryClient,
       textInputMode,
       typingSpeed,
-      webviewRef,
-      handlePipelineError
+      webviewRef
     ]
   )
 

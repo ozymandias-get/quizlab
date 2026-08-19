@@ -11,6 +11,8 @@ import {
   useLastNavigationTime
 } from '../ui/components/usePdfViewerLayout'
 import {
+  useCanvasGpuCleanup,
+  useCoalescedZoom,
   usePdfCaptureActions,
   usePdfContextMenu,
   usePdfCtrlWheelZoom,
@@ -74,7 +76,12 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     clearHighlights
   } = usePdfPlugins()
 
-  zoomToRef.current = zoomTo
+  // All programmatic zoom sources (fit-scale, Ctrl+wheel, IPC, resize refit,
+  // resume flow) funnel through one rAF-coalesced channel so pdf.js renders
+  // are serialized instead of racing each other.
+  const coalescedZoom = useCoalescedZoom(zoomTo)
+  zoomToRef.current = coalescedZoom
+  useCanvasGpuCleanup(containerRef)
   const {
     currentPage,
     totalPages,
@@ -112,14 +119,14 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const fitScale = useFitScale(pageDimensions, adjustedContainerSize)
   usePdfResizeRefit(
     containerRef,
-    zoomTo,
+    coalescedZoom,
     isDocumentReadyWithUrl,
     isPanelResizing,
     fitScale,
     lastNavigationTimeRef
   )
-  usePdfViewerZoomIpc(zoomTo, scaleFactor, isDocumentReadyWithUrl)
-  usePdfCtrlWheelZoom(containerRef, zoomTo, scaleFactor, isDocumentReadyWithUrl, isPanMode)
+  usePdfViewerZoomIpc(coalescedZoom, scaleFactor, isDocumentReadyWithUrl)
+  usePdfCtrlWheelZoom(containerRef, coalescedZoom, scaleFactor, isDocumentReadyWithUrl, isPanMode)
   usePdfWheelNavigation(
     containerRef,
     goToNextPage,

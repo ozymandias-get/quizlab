@@ -1,8 +1,10 @@
-﻿import { memo, useEffect, useRef, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 const AestheticLoader = memo(function AestheticLoader() {
   const { t } = useTranslation()
+  const prefersReducedMotion = useReducedMotion() ?? false
 
   const [msgIndex, setMsgIndex] = useState(1)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -10,16 +12,18 @@ const AestheticLoader = memo(function AestheticLoader() {
   useEffect(() => {
     setMsgIndex(Math.floor(Math.random() * 20) + 1)
 
+    if (prefersReducedMotion) return
+
     const visible = containerRef.current?.closest<HTMLElement>('[style*="display: none"], [hidden]')
     if (visible) return
 
     const intervalId = setInterval(() => {
       if (document.hidden) return
       setMsgIndex(Math.floor(Math.random() * 20) + 1)
-    }, 1500)
+    }, 2500)
 
     return () => clearInterval(intervalId)
-  }, [])
+  }, [prefersReducedMotion])
 
   return (
     <div ref={containerRef} className="aesthetic-loader-modern">
@@ -31,25 +35,20 @@ const AestheticLoader = memo(function AestheticLoader() {
           <div className="markWrap">
             <div className="markGlow" />
             <svg className="mark" viewBox="0 0 56 56" aria-hidden="true">
-              <defs>
-                <linearGradient id="loaderRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#4fd1ff" />
-                  <stop offset="52%" stopColor="#8af8ca" />
-                  <stop offset="100%" stopColor="#ffcc78" />
-                </linearGradient>
-              </defs>
               <circle
                 cx="28"
                 cy="28"
                 r="24"
                 fill="none"
-                stroke="url(#loaderRingGradient)"
-                strokeWidth="3.5"
+                stroke="currentColor"
+                className="text-primary/40"
+                strokeWidth="3"
               />
               <path
                 d="M12 30 H20 L23 22 L28 35 L33 16 L37 39 L40 30 H45"
                 fill="none"
-                stroke="#ebf8ff"
+                stroke="currentColor"
+                className="text-primary"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"

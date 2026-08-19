@@ -20,8 +20,8 @@ describe('selectorMappings', () => {
     expect(readyTone.border).toContain('emerald')
 
     const missingTone = getHealthTone('missing')
-    expect(missingTone.badge).toContain('white')
-    expect(missingTone.icon).toContain('white')
-    expect(missingTone.border).toContain('white')
+    expect(missingTone.badge).toContain('border')
+    expect(missingTone.icon).toContain('border')
+    expect(missingTone.border).toContain('border')
   })
 })

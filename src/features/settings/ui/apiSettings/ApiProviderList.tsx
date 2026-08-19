@@ -1,10 +1,19 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
+import { Button } from '@app/components/ui/button'
+
+import { Plus } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import ApiProviderCard from './ApiProviderCard'
 import { DEFAULT_PROVIDER_TEMPLATES } from './constants'
+
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google Gemini'
+}
 
 interface ApiProviderListProps {
   providers: ApiProviderConfig[]
@@ -33,33 +42,37 @@ function ApiProviderList({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-muted-foreground/80 text-sm font-medium">
-          {t('api_chat_providers_title')}
-        </h3>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-foreground text-sm font-semibold">{t('api_chat_providers_title')}</h3>
+        <div className="flex flex-wrap items-center gap-1.5">
           {Object.keys(DEFAULT_PROVIDER_TEMPLATES).map((key) => (
-            <button
+            <Button
               key={key}
               type="button"
+              variant="outline"
+              size="xs"
               onClick={() => onAddProvider(key)}
-              className="text-muted-foreground/70 hover:text-foreground/90 rounded-lg border border-white/8 px-3 py-1.5 text-xs capitalize transition-colors hover:border-white/16"
+              className="gap-1"
             >
-              + {key}
-            </button>
+              <Plus className="h-3 w-3" />
+              <span>{PROVIDER_DISPLAY_NAMES[key] || key}</span>
+            </Button>
           ))}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={() => onAddProvider()}
-            className="text-muted-foreground/70 hover:text-foreground/90 rounded-lg border border-white/8 px-3 py-1.5 text-xs transition-colors hover:border-white/16"
+            className="gap-1"
           >
-            + {t('api_chat_custom_provider')}
-          </button>
+            <Plus className="h-3 w-3" />
+            <span>{t('api_chat_custom_provider')}</span>
+          </Button>
         </div>
       </div>
 
       {(!providers || providers.length === 0) && (
-        <p className="text-xs text-white/30 italic">{t('api_chat_no_providers')}</p>
+        <p className="text-muted-foreground text-xs italic">{t('api_chat_no_providers')}</p>
       )}
 
       {providers?.map((provider) => (

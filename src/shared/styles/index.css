@@ -5,6 +5,7 @@
 @import './modules/_base.css';
 @import './modules/_glass-panel.css';
 @import './modules/_pdf-viewer.css';
+@import './modules/_pdf-placeholder.css';
 @import './modules/_resizer.css';
 @import './modules/_animations.css';
 @import './modules/_aesthetic-loader.css';
@@ -63,11 +64,13 @@
   --color-card: oklch(var(--card));
   --color-card-foreground: oklch(var(--card-foreground));
 
-  --radius-xs: 0.375rem;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: 1.25rem;
+  --radius-2xs: 0.125rem;
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
   --radius-full: 9999px;
 
   --text-ql-10: 10px;
@@ -161,23 +164,19 @@
   }
 
   --duration-instant: 0ms;
-  --duration-fast: 100ms;
-  --duration-normal: 150ms;
+  --duration-fast: 80ms;
+  --duration-normal: 140ms;
   --duration-slow: 200ms;
-  --duration-slower: 300ms;
-  --duration-deliberate: 500ms;
-  --duration-slowest: 900ms;
+  --duration-slower: 280ms;
+  --duration-deliberate: 400ms;
+  --duration-slowest: 600ms;
 
   --ease-glass: cubic-bezier(0.2, 0.9, 0.22, 1);
 
-  --shadow-glass-sm: rgba(0, 0, 0, 0.4);
-  --shadow-glass-md: rgba(0, 0, 0, 0.75);
-  --shadow-glass-lg: rgba(0, 0, 0, 0.72);
-  --shadow-glass-xl: rgba(0, 0, 0, 0.42);
-  --shadow-ambient-sm: 0 1px 2px var(--shadow-glass-sm);
-  --shadow-ambient-md: 0 24px 48px -12px var(--shadow-glass-md);
-  --shadow-ambient-lg: 0 14px 28px -18px var(--shadow-glass-lg);
-  --shadow-ambient-xl: 0 6px 14px -10px var(--shadow-glass-xl);
+  --shadow-ambient-sm: 0 1px 2px oklch(0 0 0 / 0.12), 0 0 0 1px oklch(var(--border) / 0.8);
+  --shadow-ambient-md: 0 4px 16px -2px oklch(0 0 0 / 0.22), 0 0 0 1px oklch(var(--border));
+  --shadow-ambient-lg: 0 12px 32px -6px oklch(0 0 0 / 0.32), 0 0 0 1px oklch(var(--border));
+  --shadow-ambient-xl: 0 20px 48px -10px oklch(0 0 0 / 0.42), 0 0 0 1px oklch(var(--border));
 
   --color-scrollbar-thumb: oklch(0.556 0 0 / 0.4);
   --color-scrollbar-thumb-hover: oklch(0.6 0 0 / 0.6);
@@ -248,15 +247,15 @@
 }
 
 @utility shadow-ambient-md {
-  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-md);
+  box-shadow: var(--shadow-ambient-md);
 }
 
 @utility shadow-ambient-lg {
-  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-lg);
+  box-shadow: var(--shadow-ambient-lg);
 }
 
 @utility shadow-ambient-xl {
-  box-shadow: var(--shadow-ambient-sm), var(--shadow-ambient-xl);
+  box-shadow: var(--shadow-ambient-xl);
 }
 
 @custom-variant motion-ok {
@@ -301,74 +300,74 @@
 
 @layer base {
   :root {
-    --background: 1 0 0;
-    --foreground: 0.145 0 0;
+    --background: 0.975 0.003 60;
+    --foreground: 0.16 0.01 60;
     --card: 1 0 0;
-    --card-foreground: 0.145 0 0;
+    --card-foreground: 0.16 0.01 60;
     --popover: 1 0 0;
-    --popover-foreground: 0.145 0 0;
-    --primary: 0.205 0 0;
+    --popover-foreground: 0.16 0.01 60;
+    --primary: 0.22 0.02 60;
     --primary-foreground: 0.985 0 0;
-    --secondary: 0.97 0 0;
-    --secondary-foreground: 0.205 0 0;
-    --muted: 0.97 0 0;
-    --muted-foreground: 0.556 0 0;
-    --accent: 0.97 0 0;
-    --accent-foreground: 0.205 0 0;
+    --secondary: 0.94 0.004 60;
+    --secondary-foreground: 0.2 0.01 60;
+    --muted: 0.94 0.004 60;
+    --muted-foreground: 0.48 0.01 60;
+    --accent: 0.93 0.015 75;
+    --accent-foreground: 0.2 0.01 60;
     --destructive: 0.577 0.245 27.325;
     --destructive-foreground: 0.985 0 0;
-    --border: 0.922 0 0;
-    --input: 0.922 0 0;
-    --ring: 0.708 0 0;
+    --border: 0.88 0.004 60;
+    --input: 0.88 0.004 60;
+    --ring: 0.65 0.09 75;
     --chart-1: 0.87 0 0;
     --chart-2: 0.556 0 0;
     --chart-3: 0.439 0 0;
     --chart-4: 0.371 0 0;
     --chart-5: 0.269 0 0;
-    --radius: 0.625rem;
-    --sidebar: 0.985 0 0;
-    --sidebar-foreground: 0.145 0 0;
-    --sidebar-primary: 0.205 0 0;
+    --radius: 0.75rem;
+    --sidebar: 0.96 0.003 60;
+    --sidebar-foreground: 0.16 0.01 60;
+    --sidebar-primary: 0.22 0.02 60;
     --sidebar-primary-foreground: 0.985 0 0;
-    --sidebar-accent: 0.97 0 0;
-    --sidebar-accent-foreground: 0.205 0 0;
-    --sidebar-border: 0.922 0 0;
-    --sidebar-ring: 0.708 0 0;
+    --sidebar-accent: 0.93 0.015 75;
+    --sidebar-accent-foreground: 0.2 0.01 60;
+    --sidebar-border: 0.88 0.004 60;
+    --sidebar-ring: 0.65 0.09 75;
   }
 
   .dark {
-    --background: 0.12 0 0;
-    --foreground: 0.985 0 0;
-    --card: 0.155 0 0;
-    --card-foreground: 0.985 0 0;
-    --popover: 0.155 0 0;
-    --popover-foreground: 0.985 0 0;
-    --primary: 0.922 0 0;
-    --primary-foreground: 0.205 0 0;
-    --secondary: 0.22 0 0;
-    --secondary-foreground: 0.985 0 0;
-    --muted: 0.22 0 0;
-    --muted-foreground: 0.6 0 0;
-    --accent: 0.22 0 0;
-    --accent-foreground: 0.985 0 0;
+    --background: 0.115 0.004 60;
+    --foreground: 0.96 0.004 60;
+    --card: 0.145 0.006 60;
+    --card-foreground: 0.96 0.004 60;
+    --popover: 0.145 0.006 60;
+    --popover-foreground: 0.96 0.004 60;
+    --primary: 0.92 0.02 75;
+    --primary-foreground: 0.12 0.01 60;
+    --secondary: 0.19 0.006 60;
+    --secondary-foreground: 0.94 0.004 60;
+    --muted: 0.18 0.006 60;
+    --muted-foreground: 0.58 0.008 60;
+    --accent: 0.2 0.012 75;
+    --accent-foreground: 0.96 0.004 60;
     --destructive: 0.704 0.191 22.216;
     --destructive-foreground: 0.985 0 0;
-    --border: 0.35 0 0;
-    --input: 0.35 0 0;
-    --ring: 0.55 0 0;
+    --border: 0.24 0.006 60;
+    --input: 0.24 0.006 60;
+    --ring: 0.7 0.14 75;
     --chart-1: 0.87 0 0;
     --chart-2: 0.556 0 0;
     --chart-3: 0.439 0 0;
     --chart-4: 0.371 0 0;
     --chart-5: 0.269 0 0;
-    --sidebar: 0.155 0 0;
-    --sidebar-foreground: 0.985 0 0;
-    --sidebar-primary: 0.488 0.243 264.376;
-    --sidebar-primary-foreground: 0.985 0 0;
-    --sidebar-accent: 0.22 0 0;
-    --sidebar-accent-foreground: 0.985 0 0;
-    --sidebar-border: 0.35 0 0;
-    --sidebar-ring: 0.55 0 0;
+    --sidebar: 0.135 0.006 60;
+    --sidebar-foreground: 0.96 0.004 60;
+    --sidebar-primary: 0.7 0.14 75;
+    --sidebar-primary-foreground: 0.12 0.01 60;
+    --sidebar-accent: 0.19 0.01 75;
+    --sidebar-accent-foreground: 0.96 0.004 60;
+    --sidebar-border: 0.24 0.006 60;
+    --sidebar-ring: 0.7 0.14 75;
     color-scheme: dark;
   }
 

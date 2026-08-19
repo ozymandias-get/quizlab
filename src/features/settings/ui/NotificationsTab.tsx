@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { useNotificationPrefs, useToastActions } from '@app/providers'
 
 import { AlertTriangle, Bell, Check, Info, XCircle } from 'lucide-react'
@@ -22,7 +23,7 @@ interface NotificationTypeConfig {
 }
 
 const NOTIFICATIONS_ICON = (
-  <div className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 p-2.5 text-emerald-400">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
     <Bell className="h-5 w-5" />
   </div>
 )
@@ -76,8 +77,8 @@ const NotificationsTab = memo(() => {
   const notificationTypes: NotificationTypeConfig[] = [
     {
       type: 'success',
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/15 border-emerald-500/20',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bg: 'bg-emerald-500/10 border-emerald-500/30',
       icon: Check,
       isEnabled: successEnabled,
       setIsEnabled: setSuccessEnabled,
@@ -86,8 +87,8 @@ const NotificationsTab = memo(() => {
     },
     {
       type: 'error',
-      color: 'text-red-400',
-      bg: 'bg-red-500/15 border-red-500/20',
+      color: 'text-destructive',
+      bg: 'bg-destructive/10 border-destructive/30',
       icon: XCircle,
       isEnabled: errorEnabled,
       setIsEnabled: setErrorEnabled,
@@ -96,8 +97,8 @@ const NotificationsTab = memo(() => {
     },
     {
       type: 'warning',
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/15 border-amber-500/20',
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-500/10 border-amber-500/30',
       icon: AlertTriangle,
       isEnabled: warningEnabled,
       setIsEnabled: setWarningEnabled,
@@ -106,8 +107,8 @@ const NotificationsTab = memo(() => {
     },
     {
       type: 'info',
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/15 border-blue-500/20',
+      color: 'text-primary',
+      bg: 'bg-primary/10 border-primary/30',
       icon: Info,
       isEnabled: infoEnabled,
       setIsEnabled: setInfoEnabled,
@@ -131,7 +132,7 @@ const NotificationsTab = memo(() => {
           return (
             <div
               key={config.type}
-              className="border-border bg-card flex items-center gap-4 rounded-xl border p-4 transition-colors hover:bg-white/[0.04]"
+              className="border-border bg-card hover:bg-muted/40 flex items-center gap-4 rounded-xl border p-4 shadow-xs transition-colors"
             >
               <div
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${config.bg} ${config.color}`}
@@ -140,7 +141,7 @@ const NotificationsTab = memo(() => {
               </div>
 
               <div className="min-w-0 grow">
-                <h4 className="text-xs leading-tight font-semibold text-white/88">
+                <h4 className="text-foreground text-xs leading-tight font-semibold">
                   {t(config.testTitleKey)}
                 </h4>
                 <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
@@ -149,13 +150,14 @@ const NotificationsTab = memo(() => {
               </div>
 
               <div className="flex shrink-0 items-center gap-2.5">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => sendTestToast(config.type)}
-                  className="border-border hover:border-ring/30 text-ql-11 rounded-lg border px-2.5 py-1.5 font-medium text-white/35 transition-colors hover:bg-white/[0.04] hover:text-white/65 active:scale-95"
                 >
                   {t(config.testKey)}
-                </button>
+                </Button>
                 <SettingsToggleSwitch
                   checked={config.isEnabled}
                   onChange={config.setIsEnabled}

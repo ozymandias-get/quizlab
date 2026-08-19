@@ -26,7 +26,7 @@ function PromptPresets({ onSelect }: PromptPresetsProps) {
           key={preset.key}
           type="button"
           onClick={() => onSelect(preset.value)}
-          className="text-ql-10 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 font-semibold text-white/60 antialiased transition-colors outline-none hover:border-white/[0.15] hover:bg-white/[0.08] hover:text-white/85 focus-visible:ring-1 focus-visible:ring-amber-500/50"
+          className="text-ql-10 border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-md border px-2 py-0.5 font-medium antialiased transition-colors outline-none focus-visible:ring-2"
         >
           {preset.label}
         </button>

@@ -30,6 +30,10 @@ function applyConsoleErrorFilter() {
 
 applyConsoleErrorFilter()
 
+if (typeof Element !== 'undefined') {
+  Element.prototype.scrollIntoView = vi.fn()
+}
+
 global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}

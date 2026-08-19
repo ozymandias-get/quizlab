@@ -18,15 +18,8 @@ const AiHomePage = lazy(() => import('./AiHomePage'))
 const MagicSelectorTutorial = lazy(() => import('@features/tutorial/ui/MagicSelectorTutorial'))
 
 const PANEL_STYLE = {
-  boxShadow: `
-    0 24px 48px -12px oklch(0 0 0 / 0.75),
-    0 12px 24px -8px oklch(0 0 0 / 0.5),
-    0 0 60px -15px oklch(0.7 0.1 220 / 0.15),
-    inset 0 1px 1px oklch(1 0 0 / 0.25),
-    inset 0 -1px 2px oklch(0 0 0 / 0.6)
-  `,
   border: '1px solid oklch(var(--border))',
-  borderRadius: 'var(--radius-2xl)'
+  borderRadius: 'var(--radius-xl)'
 } as const
 
 interface AiWebviewProps {

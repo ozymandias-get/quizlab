@@ -69,7 +69,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     queueImageForAi,
     removePendingAiItem,
     clearPendingAiItems: clearPendingAiItemsRaw
-  } = useAiDraftQueue()
+  } = useAiDraftQueue(() => showError('draft_queue_full'))
 
   const { isScreenshotMode, startScreenshot, closeScreenshot, handleCapture, clearScreenshotMeta } =
     useScreenshotPipeline({ queueImageForAi })

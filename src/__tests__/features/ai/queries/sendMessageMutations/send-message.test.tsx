@@ -149,8 +149,17 @@ describe('useSendMessageMutation', () => {
 
     await act(async () => {
       const res = await result.current.mutateAsync({ tabId: 'tab1', text: 'Hi', images: [] })
-      expect(res.reply.content).toBe('Hello back!')
+      expect(res.success).toBe(true)
+      if (res.success) {
+        expect(res.reply.content).toBe('Hello back!')
+        expect(res.sessionId).toBe('session-1')
+      }
     })
+
+    const sessions = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS)
+    const session = sessions?.find((s) => s.id === 'session-1')
+    const reply = session?.messages.find((m) => m.content === 'Hello back!')
+    expect(reply).toBeDefined()
   })
 
   it('sets streaming flag true during mutation and false after completion', async () => {
@@ -215,13 +224,88 @@ describe('useSendMessageMutation', () => {
 
     await act(async () => {
       const res = await result.current.mutateAsync({ tabId: 'tab1', text: 'fail', images: [] })
-      expect(res.reply.content?.toString()).toContain('Hata')
+      expect(res.success).toBe(false)
+      if (!res.success) {
+        expect(res.error).toBe('API hatası')
+        expect(res.errorReply?.content?.toString()).toContain('Hata')
+      }
     })
 
     const sessions = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS)
     const session = sessions?.find((s) => s.id === 'session-err')
     const errorMsg = session?.messages.find((m) => m.content?.toString().includes('Hata'))
     expect(errorMsg).toBeDefined()
+    expect(useChatUiStore.getState().isStreamingByTab['tab1']).toBe(false)
+  })
+
+  it('keeps transcript ordering valid when the API fails after user message persistence', async () => {
+    useChatUiStore.setState({
+      activeSessionIdByTab: { tab1: 'session-order' },
+      inputValueByTab: {},
+      attachmentsByTab: {},
+      selectedModelByTab: {},
+      activeProviderByTab: {},
+      isStreamingByTab: {}
+    })
+    queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
+      mockSession({ id: 'session-order' })
+    ])
+    mockSendApiChatRequest.mockRejectedValue(new Error('timeout'))
+
+    const { result } = renderHook(() => useSendMessageMutation(), {
+      wrapper: createWrapper(queryClient)
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ tabId: 'tab1', text: 'order me', images: [] })
+    })
+
+    const session = queryClient
+      .getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS)
+      ?.find((s) => s.id === 'session-order')
+    const roles = session?.messages.map((m) => m.role)
+    const contents = session?.messages.map((m) => m.content?.toString() ?? '')
+    expect(roles).toEqual(['user', 'assistant'])
+    expect(contents?.[0]).toBe('order me')
+    expect(contents?.[1]).toContain('Hata')
+    expect(useChatUiStore.getState().isStreamingByTab['tab1']).toBe(false)
+  })
+
+  it('allows a retry after failure and persists the second reply', async () => {
+    useChatUiStore.setState({
+      activeSessionIdByTab: { tab1: 'session-retry' },
+      inputValueByTab: {},
+      attachmentsByTab: {},
+      selectedModelByTab: {},
+      activeProviderByTab: {},
+      isStreamingByTab: {}
+    })
+    queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
+      mockSession({ id: 'session-retry' })
+    ])
+    mockSendApiChatRequest.mockRejectedValueOnce(new Error('network down'))
+    mockSendApiChatRequest.mockResolvedValueOnce(mockAssistantMessage({ content: 'retried ok' }))
+
+    const { result } = renderHook(() => useSendMessageMutation(), {
+      wrapper: createWrapper(queryClient)
+    })
+
+    await act(async () => {
+      const first = await result.current.mutateAsync({ tabId: 'tab1', text: 'try one', images: [] })
+      expect(first.success).toBe(false)
+      const second = await result.current.mutateAsync({
+        tabId: 'tab1',
+        text: 'try two',
+        images: []
+      })
+      expect(second.success).toBe(true)
+    })
+
+    const session = queryClient
+      .getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS)
+      ?.find((s) => s.id === 'session-retry')
+    const contents = session?.messages.map((m) => m.content?.toString() ?? '')
+    expect(contents).toContain('retried ok')
     expect(useChatUiStore.getState().isStreamingByTab['tab1']).toBe(false)
   })
 

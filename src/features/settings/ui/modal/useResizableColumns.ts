@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
 
-const MIN_WIDTH = 250
-const MAX_WIDTH = 480
+const MIN_WIDTH = 190
+const MAX_WIDTH = 380
 
-export function useResizableColumns(initialSidebar = 290) {
+export function useResizableColumns(initialSidebar = 240) {
   const [sidebarWidth, setSidebarWidth] = useState(initialSidebar)
 
   const handleSidebarResize = useCallback((delta: number) => {

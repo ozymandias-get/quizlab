@@ -155,14 +155,20 @@ export function registerAiRegistryHandlers() {
       if (typeof id !== 'string' || !CUSTOM_AI_ID_REGEX.test(id)) {
         return success(false)
       }
-      const deleted = await manager.deleteItem(id)
-
       try {
-        const partitionDir = path.join(app.getPath('userData'), 'Partitions', `ai_custom_${id}`)
-        await fs.promises.rm(partitionDir, { recursive: true, force: true }).catch(() => {})
-      } catch {}
+        const deleted = await manager.deleteItem(id)
 
-      return success(deleted)
+        try {
+          const partitionDir = path.join(app.getPath('userData'), 'Partitions', `ai_custom_${id}`)
+          await fs.promises.rm(partitionDir, { recursive: true, force: true }).catch(() => {})
+        } catch {}
+
+        return success(deleted)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        Logger.error('[IPC] Failed to delete custom AI:', message)
+        return failure('internal_error', message)
+      }
     },
     requireTrustedIpcSender,
     success(false)

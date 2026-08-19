@@ -1,5 +1,7 @@
 import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
 
+import { revokeObjectUrl } from '@platform/electron/browser-api-utils'
+
 import { create } from 'zustand'
 
 import type { PdfTabStore } from './pdfTabStoreUtils'
@@ -50,6 +52,20 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         currentActiveId === existingTab.id
       ) {
         return existingTab
+      }
+
+      // The replaced document is dropped: revoke its blob URL unless another
+      // tab still references the same stream.
+      if (
+        existingTab.file?.streamUrl?.startsWith('blob:') &&
+        existingTab.file.streamUrl !== normalizedFile.streamUrl
+      ) {
+        const stillReferenced = currentTabs.some(
+          (tab) => tab.id !== existingTab.id && tab.file?.streamUrl === existingTab.file?.streamUrl
+        )
+        if (!stillReferenced) {
+          revokeObjectUrl(existingTab.file.streamUrl)
+        }
       }
 
       const isIdentityUnchanged = isSamePdfStream(existingTab.file, normalizedFile)
@@ -110,6 +126,7 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
     const tabIndex = pdfTabs.findIndex((tab) => tab.id === tabId)
     if (tabIndex < 0) return
 
+    const closedTab = pdfTabs[tabIndex]
     const nextTabs = pdfTabs.filter((tab) => tab.id !== tabId)
     const { activePdfTabId: currentActiveId } = get()
     const nextActiveId =
@@ -118,6 +135,12 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         : (nextTabs[Math.max(0, tabIndex - 1)] || nextTabs[0])?.id || ''
 
     set({ pdfTabs: nextTabs, activePdfTabId: nextActiveId })
+
+    // The closed tab's document is gone for good — release its blob URL
+    // (web mode) so memory does not leak per open/close cycle.
+    if (closedTab?.file?.streamUrl?.startsWith('blob:')) {
+      revokeObjectUrl(closedTab.file.streamUrl)
+    }
   },
 
   addEmptyPdfTab: () => {

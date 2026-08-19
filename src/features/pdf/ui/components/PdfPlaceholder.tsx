@@ -1,6 +1,10 @@
 import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/types'
 
-import { FileText } from 'lucide-react'
+import { Button } from '@app/components/ui/button'
+import { Kbd } from '@app/components/ui/kbd'
+import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
+
+import { FileText, Upload } from 'lucide-react'
 import { memo } from 'react'
 
 import PdfRecentControls from './pdfPlaceholder/PdfRecentControls'
@@ -51,36 +55,44 @@ function PdfPlaceholder({
   })
 
   return (
-    <div className="animate-in fade-in zoom-in flex h-full flex-col items-center justify-center overflow-hidden p-8 duration-500">
-      <div className="flex max-h-full w-full max-w-[680px] flex-col items-center gap-5 text-center">
-        <div className="flex flex-shrink-0 flex-col items-center gap-5 text-center">
+    <div className="animate-in fade-in zoom-in-98 flex h-full flex-col items-center justify-center overflow-hidden px-6 py-8 duration-200 select-none motion-reduce:animate-none">
+      <div className="flex max-h-full w-full max-w-[680px] flex-col items-center gap-4 text-center">
+        {/* Kokonut-inspired Drop / Upload Hero Card */}
+        <div className="group border-border/80 hover:border-ring/60 bg-card/60 hover:bg-card/90 relative flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed p-6 shadow-2xs transition-all duration-200">
           <button
             type="button"
             onClick={onSelectPdf}
-            className="glass-tier-2 group relative flex h-20 w-20 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/[0.1] text-amber-400/70 shadow-[0_4px_16px_rgba(0,0,0,0.25)] transition-colors duration-300 ease-out hover:-translate-y-1 hover:border-amber-400/30 hover:text-amber-400 hover:shadow-[0_0_24px_rgba(245,158,11,0.1)] focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none active:scale-95"
+            className="border-primary/20 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground focus-visible:ring-ring/40 relative flex h-14 w-14 cursor-pointer items-center justify-center rounded-xl border shadow-2xs transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none"
             aria-label={t('select_pdf')}
           >
-            <FileText className="relative z-10 h-9 w-9 transition-transform duration-300 group-hover:scale-105" />
+            <Upload className="h-6 w-6 transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
           </button>
 
-          <div className="space-y-3">
-            <h2 className="font-display text-ql-18 font-semibold text-stone-100">
+          <div className="space-y-1.5">
+            <h2 className="text-ql-16 text-foreground font-semibold tracking-tight">
               {t('no_pdf_loaded')}
             </h2>
-            <p className="text-ql-13 max-w-[260px] leading-relaxed text-stone-400">
+            <p className="text-ql-12 text-muted-foreground mx-auto max-w-[240px] leading-relaxed">
               {t('drop_pdf_here')}
             </p>
-            <button
-              type="button"
-              onClick={onSelectPdf}
-              className="text-ql-13 inline-flex items-center gap-2 rounded-xl bg-amber-400/10 px-5 py-2.5 font-medium text-amber-400 transition-all duration-200 hover:bg-amber-400/20 hover:text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none active:scale-95"
-            >
-              <FileText className="h-4 w-4" />
-              {t('select_pdf')}
-            </button>
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onSelectPdf}
+            className="pdf-placeholder-cta border-border/80 bg-background text-foreground hover:border-ring/50 hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 gap-2 px-3.5 shadow-2xs"
+          >
+            <FileText className="text-primary h-3.5 w-3.5" />
+            <span>{t('select_pdf')}</span>
+            <Kbd size="xs" variant="default" className="ml-0.5 opacity-75">
+              {getShortcutModifierLabel()}+O
+            </Kbd>
+          </Button>
         </div>
 
+        {/* Recent Reading Section */}
         <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto">
           <PdfRecentControls
             t={t}

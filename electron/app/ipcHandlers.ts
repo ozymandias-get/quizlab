@@ -8,6 +8,7 @@ import { registerNativeMessagingHandlers } from '../features/native-messaging/na
 import { nativeMessagingManager } from '../features/native-messaging/nativeMessagingManager.js'
 import { registerPdfHandlers } from '../features/pdf/pdfHandlers.js'
 import { registerScreenshotHandlers } from '../features/screenshot/screenshotHandlers.js'
+import { registerAppSettingsHandlers } from '../features/settings/appSettingsHandlers.js'
 
 let handlersRegistered = false
 
@@ -25,6 +26,7 @@ export function registerGeneralHandlers() {
   registerApiChatHandlers()
   registerAutomationHandlers()
   registerGeminiWebSessionHandlers()
+  registerAppSettingsHandlers()
   registerNativeMessagingHandlers()
 }
 

@@ -6,7 +6,7 @@
   align-items: center;
   overflow: hidden;
   z-index: var(--z-dropdown, 100);
-  background: oklch(0 0 0);
+  background: oklch(var(--background));
   pointer-events: none;
 }
 
@@ -17,42 +17,40 @@
 .aesthetic-loader-modern .ambient {
   position: absolute;
   inset: 0;
-  background: oklch(0 0 0);
+  background: oklch(var(--background));
 }
 
 .aesthetic-loader-modern .grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(oklch(0.6 0.04 240 / 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.6 0.04 240 / 0.07) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: radial-gradient(circle at center, black 38%, transparent 95%);
-  opacity: 0;
+    linear-gradient(oklch(var(--border) / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(var(--border) / 0.4) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
+  opacity: 0.6;
 }
 
 .aesthetic-loader-modern .shell {
   position: relative;
-  width: min(640px, 90vw);
+  width: min(560px, 90vw);
   border-radius: var(--radius-2xl);
-  padding: 38px 36px 28px;
+  padding: 32px 32px 24px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
-  background: oklch(0.08 0.02 240 / 0.72);
-  border: 1px solid oklch(0.75 0.06 230 / 0.22);
-  box-shadow:
-    0 32px 90px oklch(0.02 0.01 240 / 0.72),
-    inset 0 1px 0 oklch(1 0 0 / 0.06);
-  animation: shellEntrance 0.9s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+  gap: 22px;
+  background: oklch(var(--card));
+  border: 1px solid oklch(var(--border));
+  box-shadow: var(--shadow-ambient-lg);
+  animation: shellEntrance 0.3s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
 
 .aesthetic-loader-modern .shell::after {
   content: '';
   position: absolute;
   inset: 1px;
-  border-radius: 23px;
-  border: 1px solid oklch(1 0 0 / 0.04);
+  border-radius: calc(var(--radius-2xl) - 1px);
+  border: 1px solid oklch(var(--border) / 0.3);
   pointer-events: none;
 }
 
@@ -64,92 +62,77 @@
 
 .aesthetic-loader-modern .markWrap {
   position: relative;
-  height: 56px;
-  width: 56px;
+  height: 48px;
+  width: 48px;
   flex: 0 0 auto;
 }
 
 .aesthetic-loader-modern .mark {
   position: relative;
-  height: 56px;
-  width: 56px;
+  height: 48px;
+  width: 48px;
 }
 
 .aesthetic-loader-modern .title {
   margin: 0;
-  font-size: clamp(30px, 3.6vw, 42px);
-  line-height: 1;
-  letter-spacing: -0.03em;
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   font-weight: 700;
-  background: linear-gradient(
-    105deg,
-    oklch(1 0 0) 0%,
-    oklch(0.85 0.06 230) 45%,
-    oklch(0.9 0.08 85) 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: oklch(var(--foreground));
 }
 
 .aesthetic-loader-modern .subtitle {
-  margin: 8px 0 0;
-  color: oklch(0.7 0.04 230);
-  font-size: 12px;
+  margin: 6px 0 0;
+  color: oklch(var(--muted-foreground));
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .aesthetic-loader-modern .meter {
-  height: 10px;
+  height: 6px;
   border-radius: var(--radius-full);
   overflow: hidden;
-  background: oklch(0.6 0.04 230 / 0.18);
-  border: 1px solid oklch(0.65 0.05 230 / 0.2);
+  background: oklch(var(--muted));
+  border: 1px solid oklch(var(--border));
   position: relative;
-}
-
-.aesthetic-loader-modern .meter::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, oklch(0.7 0.15 240 / 0.06), oklch(0.85 0.1 85 / 0.06));
 }
 
 .aesthetic-loader-modern .meterBar {
   height: 100%;
-  width: 44%;
+  width: 40%;
   border-radius: var(--radius-full);
-  background: linear-gradient(90deg, oklch(0.7 0.15 240), oklch(0.8 0.12 160), oklch(0.85 0.1 85));
-  animation: barTravel 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  background: oklch(var(--ring));
+  animation: barTravel 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .aesthetic-loader-modern .statusRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .aesthetic-loader-modern .statusDot {
-  width: 9px;
-  height: 9px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: oklch(0.8 0.12 160);
+  background: oklch(var(--ring));
 }
 
 .aesthetic-loader-modern .statusText {
   margin: 0;
-  color: oklch(0.85 0.03 230);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: oklch(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 @keyframes shellEntrance {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.985);
+    transform: translateY(8px) scale(0.99);
   }
 
   to {
@@ -164,10 +147,21 @@
   }
 
   65% {
-    transform: translateX(142%);
+    transform: translateX(150%);
   }
 
   100% {
-    transform: translateX(142%);
+    transform: translateX(150%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aesthetic-loader-modern .shell {
+    animation: none;
+  }
+
+  .aesthetic-loader-modern .meterBar {
+    animation: none;
+    width: 60%;
   }
 }

@@ -17,26 +17,26 @@ export function formatInline(text: string): ReactNode[] {
       parts.push(
         <code
           key={`c-${match.index}`}
-          className="text-ql-12 rounded bg-amber-500/10 px-1 py-0.5 font-mono text-amber-300"
+          className="text-ql-12 border-border bg-muted/60 text-primary rounded border px-1 py-0.5 font-mono"
         >
           {match[1].slice(1, -1)}
         </code>
       )
     } else if (match[2]) {
       parts.push(
-        <strong key={`b-${match.index}`} className="font-semibold text-white/90">
+        <strong key={`b-${match.index}`} className="text-foreground font-semibold">
           {match[2].slice(2, -2)}
         </strong>
       )
     } else if (match[3]) {
       parts.push(
-        <em key={`i-${match.index}`} className="text-white/80 italic">
+        <em key={`i-${match.index}`} className="text-foreground/90 italic">
           {match[3].slice(1, -1)}
         </em>
       )
     } else if (match[4]) {
       parts.push(
-        <span key={`s-${match.index}`} className="text-white/50 line-through">
+        <span key={`s-${match.index}`} className="text-muted-foreground line-through">
           {match[4].slice(2, -2)}
         </span>
       )
@@ -53,7 +53,7 @@ export function formatInline(text: string): ReactNode[] {
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-amber-400 underline decoration-amber-400/30 underline-offset-2 transition-colors hover:decoration-amber-400/60"
+              className="text-primary decoration-primary/30 hover:decoration-primary/60 underline underline-offset-2 transition-colors"
             >
               {url}
             </a>
@@ -72,7 +72,7 @@ export function formatInline(text: string): ReactNode[] {
               href={linkUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-amber-400 underline decoration-amber-400/30 underline-offset-2 transition-colors hover:decoration-amber-400/60"
+              className="text-primary decoration-primary/30 hover:decoration-primary/60 underline underline-offset-2 transition-colors"
             >
               {linkText}
             </a>

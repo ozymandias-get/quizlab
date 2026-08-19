@@ -16,7 +16,7 @@ function StepIndicator({ total, step, success }: StepIndicatorProps) {
           key={i}
           className={cn(
             'h-1 flex-1 rounded-full transition-colors duration-300',
-            i <= (success ? step : step - 1) ? 'bg-emerald-400' : 'bg-white/10'
+            i <= (success ? step : step - 1) ? 'bg-primary' : 'bg-muted'
           )}
         />
       ))}

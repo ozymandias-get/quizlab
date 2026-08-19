@@ -1,7 +1,7 @@
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
-import { type DocumentLoadEvent, SpecialZoomLevel } from '@react-pdf-viewer/core'
+import type { DocumentLoadEvent, SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { useCallback, useEffect } from 'react'
 
 interface DocumentLoadHandlerInput {
@@ -25,7 +25,7 @@ export function useDocumentLoadHandler(input: DocumentLoadHandlerInput) {
         // Dimensions unavailable
       }
     },
-    [handleDocumentLoad]
+    [handleDocumentLoad, isMountedRef, setPageDimensions]
   )
 }
 
@@ -54,7 +54,7 @@ export function usePdfViewerElectronScreenshot(input: ElectronScreenshotInput) {
     return () => {
       if (typeof removeListener === 'function') removeListener()
     }
-  }, [startScreenshot, currentPageRef])
+  }, [startScreenshot, currentPageRef, handleFullPageScreenshotRef])
 }
 
 interface InitialPageResumeInput {
@@ -67,6 +67,8 @@ interface InitialPageResumeInput {
   zoomToRef: React.MutableRefObject<(scale: number | SpecialZoomLevel) => void>
   appliedResumeSyncKeyRef: React.MutableRefObject<string | null>
 }
+
+const RESUME_JUMP_FALLBACK_MS = 1000
 
 export function usePdfViewerInitialPageResume(input: InitialPageResumeInput) {
   const {
@@ -84,8 +86,42 @@ export function usePdfViewerInitialPageResume(input: InitialPageResumeInput) {
     if (!isDocumentReady || !pdfUrl || !initialPage || initialPage < 2) return
     const syncKey = `${pdfUrl}:${viewerReloadKey}:${initialPage}`
     if (appliedResumeSyncKeyRef.current === syncKey) return
+    // The viewer computes jump targets from the measurements of the current
+    // zoom level. Fit scale arrives asynchronously (after page dimensions are
+    // known), so jumping before it is applied uses stale measurements and can
+    // overshoot to the last page. Wait for it, then jump after the fit-zoom
+    // re-render has committed (two frames).
+    if (fitScale === null) {
+      // Fit scale can stay unknown if page dimensions fail to load. By then
+      // the viewer is on its default scale with stable measurements, so a
+      // delayed jump is still safe.
+      const fallbackId = window.setTimeout(() => {
+        appliedResumeSyncKeyRef.current = syncKey
+        jumpToPageFromNav(initialPage)
+      }, RESUME_JUMP_FALLBACK_MS)
+      return () => window.clearTimeout(fallbackId)
+    }
     appliedResumeSyncKeyRef.current = syncKey
-    zoomToRef.current(fitScale ?? SpecialZoomLevel.PageWidth)
-    jumpToPageFromNav(initialPage)
-  }, [isDocumentReady, fitScale, initialPage, jumpToPageFromNav, pdfUrl, viewerReloadKey])
+    zoomToRef.current(fitScale)
+    // zoomToRef now runs through a rAF-coalesced channel, so the zoom is
+    // executed one frame later. Wait for it to commit before jumping so the
+    // navigation measures the post-zoom layout (three frames total).
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          jumpToPageFromNav(initialPage)
+        })
+      })
+    })
+    return () => cancelAnimationFrame(rafId)
+  }, [
+    isDocumentReady,
+    fitScale,
+    initialPage,
+    jumpToPageFromNav,
+    pdfUrl,
+    viewerReloadKey,
+    appliedResumeSyncKeyRef,
+    zoomToRef
+  ])
 }

@@ -38,6 +38,7 @@ describe('IPC contract', () => {
     assertInvokeChannel(IPC_CHANNELS.PDF_REGISTER_PATH)
     assertInvokeChannel(IPC_CHANNELS.CAPTURE_SCREEN)
     assertInvokeChannel(IPC_CHANNELS.COPY_IMAGE)
+    assertInvokeChannel(IPC_CHANNELS.RESTORE_CLIPBOARD)
     assertInvokeChannel(IPC_CHANNELS.COPY_TEXT)
     assertInvokeChannel(IPC_CHANNELS.OPEN_EXTERNAL)
     assertInvokeChannel(IPC_CHANNELS.FORCE_PASTE)

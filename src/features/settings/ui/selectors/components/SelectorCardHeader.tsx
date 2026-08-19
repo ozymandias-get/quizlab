@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { CheckIcon, ChevronRightIcon, ExternalLinkIcon, GlobeIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
@@ -55,19 +56,19 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-ql-14 truncate font-bold text-white/90">
+            <h4 className="text-ql-14 text-foreground truncate font-semibold">
               {getAiPlatformLabel(ai, key)}
             </h4>
             <span
-              className={`text-ql-10 tracking-ql-fine rounded-full border px-2 py-1 font-medium ${tone.badge}`}
+              className={`text-ql-10 rounded-full border px-2 py-0.5 font-medium ${tone.badge}`}
             >
               {t(getHealthLabelKey(selectorHealth))}
             </span>
           </div>
-          <div className="text-ql-12 mt-1 flex flex-wrap items-center gap-2 text-white/45">
+          <div className="text-ql-12 text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
             <span>{hasSelectors ? t('selectors_active') : t('no_selectors')}</span>
             {savedHost && (
-              <span className="text-white/30">
+              <span className="text-muted-foreground/60">
                 {t('selectors_saved_host', { host: savedHost })}
               </span>
             )}
@@ -75,25 +76,28 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
         </div>
       </button>
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onOpenRepick(key, cardId)}
-          className="ring-offset-background flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-sky-300 transition-colors hover:border-sky-400/30 hover:bg-sky-500/20 hover:text-sky-200 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="gap-1.5"
         >
           <ExternalLinkIcon className="h-3.5 w-3.5" />
           <span className="text-ql-11 font-semibold">{t('selectors_open_repick')}</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={() => onToggleExpanded(cardId)}
-          className="focus-visible:ring-ring ring-offset-background rounded-lg border border-white/10 bg-black/10 p-2 text-white/50 transition hover:border-white/20 hover:text-white/80 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
           aria-label={isExpanded ? t('ai_send_collapse') : t('ai_send_expand')}
         >
           <ChevronRightIcon
             className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
           />
-        </button>
+        </Button>
       </div>
     </div>
   )

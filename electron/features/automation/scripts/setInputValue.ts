@@ -28,6 +28,51 @@ export function buildSetInputValueScript(): string {
                 }
             };
 
+            const insertTextAtCaret = (target, text) => {
+                try {
+                    const selection = window.getSelection();
+                    if (selection && selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const container = range.commonAncestorContainer;
+                        if (container === target || (target.contains && target.contains(container))) {
+                            range.deleteContents();
+                            const node = document.createTextNode(text);
+                            range.insertNode(node);
+                            range.setStartAfter(node);
+                            range.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                            return true;
+                        }
+                    }
+                } catch {
+                }
+                try {
+                    const node = document.createTextNode(text);
+                    target.appendChild(node);
+                    return true;
+                } catch {
+                    return false;
+                }
+            };
+
+            const replaceContent = (target, text) => {
+                try {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    selection && selection.removeAllRanges && selection.removeAllRanges();
+                    range.selectNodeContents(target);
+                    range.deleteContents();
+                    const node = document.createTextNode(text);
+                    range.insertNode(node);
+                    range.collapse(false);
+                    selection && selection.addRange && selection.addRange(range);
+                    return true;
+                } catch {
+                    return false;
+                }
+            };
+
             const resolveValueSetter = () => {
                 const prototype = Object.getPrototypeOf(element);
                 return Object.getOwnPropertyDescriptor(prototype, 'value') && Object.getOwnPropertyDescriptor(prototype, 'value').set
@@ -35,11 +80,25 @@ export function buildSetInputValueScript(): string {
                     || (Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value') && Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set);
             };
 
+            const dispatchBeforeInput = (data) => {
+                try {
+                    element.dispatchEvent(new InputEvent('beforeinput', {
+                        bubbles: true,
+                        cancelable: true,
+                        composed: true,
+                        inputType: 'insertText',
+                        data: data
+                    }));
+                } catch {
+                }
+            };
+
             if (!isContentEditable && APPEND_TEXT_MODE) {
                 const valueSetter = resolveValueSetter();
                 const current = String(element.value || '');
                 const prefix = current.trim().length > 0 ? doubleLinebreak : '';
                 const next = current + prefix + value;
+                dispatchBeforeInput(next);
                 if (valueSetter) {
                     valueSetter.call(element, next);
                 } else {
@@ -77,12 +136,22 @@ export function buildSetInputValueScript(): string {
                     const hasContent = element.textContent && element.textContent.trim().length > 0;
                     const prefix = hasContent ? doubleLinebreak : '';
                     const payload = prefix + value;
+                    // Sentetik beforeinput: ProseMirror/Lexical gibi framework'ler
+                    // bunu işleyip kendi modelini günceller. İşlenmediyse DOM'a
+                    // manuel yazım yapılır. Paste event'i bilinçli olarak atlanır:
+                    // beforeinput'u işleyen editörlerde çift eklemeye yol açardı.
                     element.dispatchEvent(new InputEvent('beforeinput', {
                         bubbles: true,
+                        cancelable: true,
                         composed: true,
                         inputType: 'insertText',
                         data: payload
                     }));
+                    await wait(0);
+                    const applied = (element.textContent || '').includes(payload);
+                    if (!applied) {
+                        insertTextAtCaret(element, payload);
+                    }
                     element.dispatchEvent(new InputEvent('input', {
                         bubbles: true,
                         composed: true,
@@ -90,15 +159,7 @@ export function buildSetInputValueScript(): string {
                         data: payload
                     }));
                 } catch {
-                }
-                try {
-                    const hasContent = element.textContent && element.textContent.trim().length > 0;
-                    const prefix = hasContent ? doubleLinebreak : '';
-                    const dt = new DataTransfer();
-                    dt.setData('text/plain', prefix + value);
-                    collapseSelectionToEnd();
-                    element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }));
-                } catch {
+                    insertTextAtCaret(element, (element.textContent && element.textContent.trim().length > 0 ? doubleLinebreak : '') + value);
                 }
                 triggerLifecycleEvents(element);
                 diagnostics.setInputMs = roundMs(now() - start);
@@ -129,37 +190,45 @@ export function buildSetInputValueScript(): string {
                         ? document.execCommand('insertText', false, value)
                         : false;
 
-                    if (!inserted) {
-                        throw new Error('exec_command_failed');
+                    if (inserted) {
+                        triggerLifecycleEvents(element);
+                        diagnostics.setInputMs = roundMs(now() - start);
+                        return;
                     }
                 } catch {
-                    element.innerText = value;
-                    if (element.innerHTML === '') {
-                        element.innerHTML = value;
-                    }
+                }
+
+                try {
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    selection && selection.removeAllRanges && selection.removeAllRanges();
+                    range.selectNodeContents(element);
+                    selection && selection.addRange && selection.addRange(range);
 
                     element.dispatchEvent(new InputEvent('beforeinput', {
                         bubbles: true,
+                        cancelable: true,
                         composed: true,
                         inputType: 'insertText',
                         data: value
                     }));
+                    await wait(0);
+                    const applied = (element.textContent || '').includes(value);
+                    if (!applied) {
+                        replaceContent(element, value);
+                    }
                     element.dispatchEvent(new InputEvent('input', {
                         bubbles: true,
                         composed: true,
                         inputType: 'insertText',
                         data: value
                     }));
-                    try {
-                        const dt = new DataTransfer();
-                        dt.setData('text/plain', value);
-                        element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt }));
-                    } catch {
-                    }
+                } catch {
+                    replaceContent(element, value);
                 }
             } else {
                 const valueSetter = resolveValueSetter();
-
+                dispatchBeforeInput(value);
                 if (valueSetter) {
                     valueSetter.call(element, value);
                 } else {

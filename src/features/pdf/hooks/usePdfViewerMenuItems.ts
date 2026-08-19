@@ -42,12 +42,21 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
     startTransition
   } = input
 
-  const handleAddCurrentPageTextToAi = useCallback(() => extractCurrentPageTextRef.current(), [])
-  const handleSendPageAsImageToAi = useCallback(() => handleFullPageScreenshotRef.current(), [])
+  const handleAddCurrentPageTextToAi = useCallback(
+    () => extractCurrentPageTextRef.current(),
+    [extractCurrentPageTextRef]
+  )
+  const handleSendPageAsImageToAi = useCallback(
+    () => handleFullPageScreenshotRef.current(),
+    [handleFullPageScreenshotRef]
+  )
 
-  const handleZoom = useCallback((e: { scale: number }) => {
-    setScaleFactor(Math.min(e.scale, PDF_ZOOM_MAX_SCALE))
-  }, [])
+  const handleZoom = useCallback(
+    (e: { scale: number }) => {
+      setScaleFactor(Math.min(e.scale, PDF_ZOOM_MAX_SCALE))
+    },
+    [setScaleFactor]
+  )
 
   const handleJumpToPage = useCallback(
     (page: number) => {
@@ -80,7 +89,15 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
         danger: true
       }
     ],
-    [t, tt, handleAddCurrentPageTextToAi, handleSendPageAsImageToAi, handleAreaScreenshot]
+    [
+      t,
+      tt,
+      handleAddCurrentPageTextToAi,
+      handleSendPageAsImageToAi,
+      handleAreaScreenshot,
+      setViewerReloadKey,
+      startTransition
+    ]
   )
 
   return {

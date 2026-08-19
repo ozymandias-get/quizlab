@@ -4,9 +4,10 @@ import {
   useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
+import { Button } from '@app/components/ui/button'
 import { cn } from '@shared/lib/uiUtils'
-import { CheckIcon, LoaderIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
+import { Check, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -64,20 +65,24 @@ const StorageTab = memo(function StorageTab() {
     <div className="space-y-6 pb-4">
       {/* Header */}
       <div>
-        <h2 className="text-ql-13 font-semibold text-white/90">Storage</h2>
-        <p className="text-ql-12 text-foreground/75 mt-1">
+        <h2 className="text-ql-14 text-foreground font-semibold">Storage</h2>
+        <p className="text-ql-12 text-muted-foreground mt-0.5">
           Cache and storage usage for AI model partitions
         </p>
       </div>
 
       {/* Overall Usage */}
-      <div className="space-y-3 rounded-[24px] border border-white/[0.12] bg-white/[0.04] p-5">
+      <div className="border-border bg-card space-y-3 rounded-xl border p-5 shadow-xs">
         <div className="flex items-center justify-between">
-          <h3 className="text-ql-13 font-semibold text-white/80">Total Cache</h3>
+          <h3 className="text-ql-13 text-foreground font-semibold">Total Cache</h3>
           <span
             className={cn(
               'text-ql-12 font-mono',
-              isOverLimit ? 'text-rose-400' : usagePct > 80 ? 'text-amber-400' : 'text-emerald-400'
+              isOverLimit
+                ? 'text-destructive'
+                : usagePct > 80
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-emerald-600 dark:text-emerald-400'
             )}
           >
             {formatBytes(totalCache)} / {formatBytes(MAX_TOTAL_CACHE_BYTES)}
@@ -85,71 +90,76 @@ const StorageTab = memo(function StorageTab() {
         </div>
         <ProgressBar value={totalCache} max={MAX_TOTAL_CACHE_BYTES} color={barColor} />
         {isOverLimit && (
-          <p className="text-ql-11 text-rose-400/80">
+          <p className="text-ql-11 text-destructive">
             Cache exceeds 500 MB limit. Some partitions will be automatically trimmed.
           </p>
         )}
         {usagePct > 80 && !isOverLimit && (
-          <p className="text-ql-11 text-amber-400/80">
+          <p className="text-ql-11 text-amber-600 dark:text-amber-400">
             Cache is approaching the limit. Consider cleaning unused partitions.
           </p>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3">
-        <button
+      <div className="flex items-center gap-2.5">
+        <Button
           type="button"
           onClick={handleClear}
           disabled={isClearing}
-          className={cn(
-            'text-ql-11 flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold transition-colors',
-            isClearSuccess
-              ? 'border border-emerald-500/30 bg-emerald-500/20 text-emerald-400'
-              : 'border border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
-          )}
+          variant={isClearSuccess ? 'default' : 'destructive'}
+          size="sm"
+          className="gap-1.5"
         >
           {isClearing ? (
             <>
-              <LoaderIcon className="h-4 w-4" />
-              {t('clearing')}
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>{t('clearing')}</span>
             </>
           ) : isClearSuccess ? (
             <>
-              <CheckIcon className="h-4 w-4" />
-              {t('cleared')}
+              <Check className="h-3.5 w-3.5" />
+              <span>{t('cleared')}</span>
             </>
           ) : (
             <>
-              <TrashIcon className="h-4 w-4" />
-              {t('clear_cache')}
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>{t('clear_cache')}</span>
             </>
           )}
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={handleDeepClean}
           disabled={isDeepCleaning}
-          className="text-ql-11 flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5 font-semibold text-amber-400 transition-colors hover:bg-amber-500/20"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
         >
-          {isDeepCleaning ? <LoaderIcon className="h-4 w-4" /> : <TrashIcon className="h-4 w-4" />}
-          {t('deep_clean')}
-        </button>
+          {isDeepCleaning ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+          <span>{t('deep_clean')}</span>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={handleRefresh}
-          className="text-ql-11 text-foreground/80 ml-auto flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 font-semibold transition-colors hover:bg-white/[0.08]"
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-1.5"
         >
-          <RefreshIcon className="h-4 w-4" />
-          Refresh
-        </button>
+          <RotateCcw className="h-3.5 w-3.5" />
+          <span>Refresh</span>
+        </Button>
       </div>
 
       {/* Last Cleanup Info */}
       {cacheInfo?.lastCleanup && (
-        <p className="text-ql-11 text-foreground/75">
+        <p className="text-ql-11 text-muted-foreground">
           Last cleanup: {formatTimeAgo(cacheInfo.lastCleanup)}
           {cacheInfo.lastCleanupResult &&
             typeof cacheInfo.lastCleanupResult.filesDeleted === 'number' &&
@@ -161,8 +171,8 @@ const StorageTab = memo(function StorageTab() {
       {/* Root Caches */}
       {breakdown && (
         <div className="space-y-3">
-          <h3 className="text-ql-13 font-semibold text-white/80">Root Caches</h3>
-          <div className="space-y-3 overflow-hidden rounded-[24px] border border-white/[0.12] bg-white/[0.04] p-5">
+          <h3 className="text-ql-13 text-foreground font-semibold">Root Caches</h3>
+          <div className="border-border bg-card space-y-3 overflow-hidden rounded-xl border p-5 shadow-xs">
             <RootCacheRow label="Browser Cache" size={breakdown.chromiumCache} />
             <RootCacheRow label="Code Cache" size={breakdown.codeCache} />
             <RootCacheRow label="GPU Cache" size={breakdown.gpuCache} />
@@ -176,10 +186,10 @@ const StorageTab = memo(function StorageTab() {
       {/* Partition Caches */}
       {sortedPartitions.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-ql-13 font-semibold text-white/80">
+          <h3 className="text-ql-13 text-foreground font-semibold">
             AI Partitions ({sortedPartitions.length})
           </h3>
-          <div className="divide-y divide-white/[0.06] overflow-hidden rounded-[24px] border border-white/[0.12] bg-white/[0.04]">
+          <div className="divide-border border-border bg-card divide-y overflow-hidden rounded-xl border shadow-xs">
             {sortedPartitions.map(({ key, label, size }) => (
               <PartitionRow key={key} partitionKey={key} label={label} size={size} />
             ))}

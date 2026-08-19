@@ -76,15 +76,19 @@ export function usePdfOpenActions({
       const filePath = (file as DroppedPdfFile).path
       if (!filePath) return
 
+      const currentRequestId = ++lastLoadRequestId.current
       try {
         const result = await registerPdfPath(filePath)
-        if (result) {
-          handleOpenPdfWithInfo(result)
-          showSuccess('toast_opened', undefined, { fileName: result.name })
-        }
+        // The user may have navigated elsewhere while the file registered —
+        // do not steal tab focus with a stale open.
+        if (currentRequestId !== lastLoadRequestId.current || !result) return
+        handleOpenPdfWithInfo(result)
+        showSuccess('toast_opened', undefined, { fileName: result.name })
       } catch (error) {
-        Logger.error('[usePdfOpenActions] Drop Error:', error)
-        showError('error_pdf_load')
+        if (currentRequestId === lastLoadRequestId.current) {
+          Logger.error('[usePdfOpenActions] Drop Error:', error)
+          showError('error_pdf_load')
+        }
       }
     },
     [registerPdfPath, showSuccess, showError, handleOpenPdfWithInfo]
@@ -100,8 +104,14 @@ export function usePdfOpenActions({
         return 'missing'
       }
 
+      const currentRequestId = ++lastLoadRequestId.current
       try {
         const result = await registerPdfPath(target.path)
+        if (currentRequestId !== lastLoadRequestId.current) {
+          // The user switched tabs while the file was being registered; do
+          // not yank focus back to the resumed document.
+          return 'error'
+        }
         if (result) {
           handleOpenPdfWithInfo(result, {
             ...target,

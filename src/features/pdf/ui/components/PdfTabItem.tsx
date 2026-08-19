@@ -4,7 +4,14 @@ import { Input } from '@app/components/ui/input'
 
 import { X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, type MouseEvent as ReactMouseEvent, type RefObject, useEffect, useRef } from 'react'
+import {
+  memo,
+  type MouseEvent as ReactMouseEvent,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef
+} from 'react'
 
 interface PdfTabItemProps {
   tab: PdfTab
@@ -22,6 +29,7 @@ interface PdfTabItemProps {
   onEditingBlur: (tabId: string, tabTitle: string) => void
   onEditingKeyDown: (event: React.KeyboardEvent, tabId: string, tabTitle: string) => void
   renameInputRef?: RefObject<HTMLInputElement | null>
+  buttonRef?: (el: HTMLButtonElement | null, tabId: string) => void
 }
 
 function PdfTabItem({
@@ -39,9 +47,17 @@ function PdfTabItem({
   onEditingValueChange,
   onEditingBlur,
   onEditingKeyDown,
-  renameInputRef
+  renameInputRef,
+  buttonRef
 }: PdfTabItemProps) {
   const label = getTabLabel(tab)
+
+  // Stable per-tab ref callback (memo-safe: identity depends only on the
+  // stable `buttonRef` and the immutable `tab.id`).
+  const handleButtonRef = useCallback(
+    (el: HTMLButtonElement | null) => buttonRef?.(el, tab.id),
+    [buttonRef, tab.id]
+  )
 
   /* ── Native pointerdown on the X button ──
      Framer Motion attaches native DOM event listeners to the parent
@@ -79,30 +95,21 @@ function PdfTabItem({
   return (
     <motion.button
       key={tab.id}
+      ref={handleButtonRef}
       type="button"
-      // layout özelliği kaldırıldı: her sekme butonunda FLIP animasyonu
-      // tüm sekmelerin sınır kutularını senkron okutarak ağır reflow
-      // yükü oluşturuyordu. Animasyon ihtiyacı durumunda layout
-      // yalnızca aktif-sekme göstergesine (layoutId) eklenmeli.
+      role="tab"
+      aria-selected={isActive}
+      tabIndex={isActive ? 0 : -1}
       whileHover={{
-        y: -1,
-        scale: 1.015,
-        transition: { type: 'tween', duration: 0.18, ease: 'easeOut' }
+        y: -0.5,
+        transition: { type: 'tween', duration: 0.12, ease: 'easeOut' }
       }}
-      whileTap={{ scale: 0.98 }}
-      className={`glass-tier-3 glass-tier-control glass-interactive group focus-visible:ring-offset-background relative flex h-8 max-w-[250px] min-w-0 items-center gap-2 rounded-full border px-3.5 pr-10 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2 ${isActive ? '' : 'opacity-60 hover:opacity-100'}`}
-      style={
+      whileTap={{ scale: 0.99 }}
+      className={`group focus-visible:ring-ring/40 relative flex h-8 max-w-[240px] min-w-0 items-center gap-2 rounded-full border px-3 pr-8 transition-colors duration-150 outline-none select-none focus-visible:ring-2 ${
         isActive
-          ? {
-              borderColor: 'oklch(0.7 0.15 160 / 0.44)',
-              boxShadow:
-                '0 0 18px -8px oklch(0.7 0.15 160 / 0.38), inset 0 1px 0 oklch(1 0 0 / 0.1)'
-            }
-          : {
-              borderColor: 'oklch(1 0 0 / 0.08)',
-              boxShadow: 'inset 0 1px 0 oklch(1 0 0 / 0.05)'
-            }
-      }
+          ? 'border-border bg-card text-foreground shadow-xs'
+          : 'text-muted-foreground hover:border-border/60 hover:bg-muted/40 hover:text-foreground border-transparent bg-transparent'
+      }`}
       onClick={() => onSetActiveTab(tab.id)}
       onDoubleClick={(event) => {
         event.preventDefault()
@@ -113,17 +120,10 @@ function PdfTabItem({
       title={label}
       aria-label={label}
     >
-      <div
-        className="pointer-events-none absolute inset-0 rounded-full transition-opacity duration-150"
-        style={{
-          opacity: isActive ? 1 : 0,
-          background: 'linear-gradient(145deg, oklch(0.7 0.15 160 / 0.08), oklch(1 0 0 / 0.02))'
-        }}
-      />
       {isActive && (
-        <div className="pointer-events-none absolute -bottom-[1px] left-1/2 h-[2px] w-[60%] -translate-x-1/2 rounded-full bg-gradient-to-r from-emerald-500/0 via-emerald-400/70 to-emerald-500/0" />
+        <div className="bg-primary/70 pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
       )}
-      <span className="flex shrink-0 items-center text-white/85 [&>svg]:h-3.5 [&>svg]:w-3.5">
+      <span className="text-muted-foreground group-hover:text-foreground flex shrink-0 items-center transition-colors [&>svg]:h-3.5 [&>svg]:w-3.5">
         {getTabIcon(tab)}
       </span>
 
@@ -136,11 +136,13 @@ function PdfTabItem({
           onBlur={(event) => onEditingBlur(tab.id, event.currentTarget.value)}
           onKeyDown={(event) => onEditingKeyDown(event, tab.id, editingValue)}
           placeholder={tr('tab_rename_placeholder', 'Tab name...')}
-          className="text-ql-12 h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
+          className="text-ql-12 text-foreground h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
         />
       ) : (
         <span
-          className={`text-ql-12 min-w-0 truncate ${isActive ? 'text-white' : 'text-white/70'}`}
+          className={`text-ql-12 min-w-0 truncate font-medium ${
+            isActive ? 'text-foreground' : 'text-muted-foreground'
+          }`}
         >
           {label}
         </span>
@@ -152,7 +154,7 @@ function PdfTabItem({
         tabIndex={-1}
         aria-label={tr('tab_close', 'Close')}
         title={tr('tab_close', 'Close')}
-        className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center justify-center rounded-md border border-white/15 bg-black/35 p-1 text-white/65 opacity-0 transition-all duration-150 group-focus-within:opacity-100 group-hover:opacity-100 hover:border-red-500/30 hover:bg-red-500/20 hover:text-red-400 hover:opacity-100"
+        className="border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center justify-center rounded-md border p-1 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
       >
         <X className="h-3 w-3" />
       </span>

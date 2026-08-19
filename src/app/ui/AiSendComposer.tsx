@@ -53,6 +53,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     handleDragMove,
     handleDragEnd,
     handleResizeStart,
+    handleResizeKeyDown,
     getResizeCursor,
     resizeHandlers,
     edgeThickness
@@ -153,10 +154,9 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
 
   const panelStyle: CSSProperties = useMemo(
     () => ({
-      boxShadow: '0 25px 50px oklch(0 0 0 / 0.95)',
-      border: '1px solid oklch(0 0 0 / 0.8)',
-      background: 'oklch(0 0 0)',
-      backdropFilter: 'none'
+      boxShadow: 'var(--shadow-ambient-xl)',
+      border: '1px solid oklch(var(--border))',
+      background: 'oklch(var(--card))'
     }),
     []
   )
@@ -183,11 +183,9 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
         <div
           ref={panelRef}
           data-panel
-          className="relative h-full overflow-hidden rounded-2xl text-white"
+          className="bg-card text-foreground relative h-full overflow-hidden rounded-2xl"
           style={panelStyle}
         >
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
-
           <AiSendComposerHeader
             textCount={textCount}
             imageCount={imageCount}
@@ -230,6 +228,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
                   onSubmit={handleSend}
                   onRetry={handleRetry}
                   onResizeStart={handleResizeStart}
+                  onResizeKeyDown={handleResizeKeyDown}
                   getResizeCursor={getResizeCursor}
                   resizeHandlers={resizeHandlers}
                   edgeThickness={edgeThickness}

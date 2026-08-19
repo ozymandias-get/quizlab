@@ -1,9 +1,11 @@
 import type { AutomationExecutionResult } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
+
 import type { AiErrorClassification, AiSendDiagnostics } from '../../model/types'
 import { classifyAiSendError, isWebviewCancelled, normalizeSendErrorCode } from '../aiSenderSupport'
-import { normalizeExecutionResult } from './scriptExecution'
+import { executeWebviewScript, normalizeExecutionResult } from './scriptExecution'
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
 
 /**
@@ -91,10 +93,31 @@ export async function executePipelineStep<TFail>(
       ) as TFail
     }
   }
-  const rawResult = await webview.executeJavaScript(script)
+
+  // Sekme kapatma / sağlayıcı değiştirme sırasında guest webview yok edilirse
+  // `executeJavaScript` "WebContents was destroyed" hatasıyla reject eder.
+  // Bunu yakalanmamış bir rejection'a dönüştürmek yerine kontrollü bir
+  // `webview_destroyed` hatası olarak sınıflandırıyoruz.
+  const execResult = await executeWebviewScript(webview, script)
   const execMs = roundMs(nowMs() - executeStartedAt)
   onExecuteTiming(execMs)
 
+  if (!execResult.ok) {
+    const errorCode = execResult.destroyed
+      ? 'webview_destroyed'
+      : normalizeSendErrorCode(ensureErrorMessage(execResult.error), `${name.toLowerCase()}_failed`)
+    diagnostics.classification = await classifyAiSendError(errorCode)
+    return {
+      success: false,
+      error: attachDiagnostics(
+        { success: false, error: errorCode },
+        diagnostics,
+        requestStartedAt
+      ) as TFail
+    }
+  }
+
+  const rawResult = execResult.value
   const scriptResult = normalizeExecutionResult(rawResult)
   onResult(scriptResult)
 

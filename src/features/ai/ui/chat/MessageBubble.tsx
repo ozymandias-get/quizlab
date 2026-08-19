@@ -71,25 +71,21 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <div className="group animate-app-enter">
       <div
-        className={`w-fit ${isUser ? 'ml-auto' : ''} relative rounded-xl px-4 py-2.5 transition-colors duration-200 ${
+        className={`w-fit ${isUser ? 'ml-auto' : ''} relative rounded-xl px-4 py-2.5 transition-colors duration-150 ${
           isUser
-            ? 'border border-l-[3px] border-amber-500/15 border-l-amber-500/50 bg-gradient-to-br from-amber-500/[0.09] to-amber-500/[0.03] shadow-sm shadow-amber-500/5 hover:border-amber-500/25 hover:shadow-md'
-            : 'border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-white/[0.01] shadow-sm shadow-black/20 hover:border-white/[0.12] hover:shadow-md hover:shadow-black/30'
-        } ${isError ? 'border-red-500/20 bg-gradient-to-br from-red-500/10 to-red-500/5 shadow-red-500/5' : ''}`}
+            ? 'border-primary/25 bg-primary/10 text-foreground border shadow-xs'
+            : 'border-border bg-card text-foreground border shadow-xs'
+        } ${isError ? 'border-destructive/40 bg-destructive/10 text-destructive' : ''}`}
       >
-        <div
-          className={`pointer-events-none absolute inset-0 rounded-xl ${isUser ? 'bg-gradient-to-t from-white/[0.02] to-transparent' : 'bg-gradient-to-b from-white/[0.02] to-transparent'}`}
-        />
         {message.images && message.images.length > 0 && (
           <div className="relative mb-2 flex flex-wrap gap-2">
             {message.images.map((img, i) => (
               <img
-                // Images have no stable id — index is safe for static attachment list
                 // eslint-disable-next-line react/no-array-index-key -- Static content parts, stable order
                 key={i}
                 src={img}
                 alt=""
-                className="max-h-[200px] max-w-[200px] rounded-lg object-cover ring-1 ring-white/10"
+                className="border-border max-h-[200px] max-w-[200px] rounded-lg border object-cover"
               />
             ))}
           </div>
@@ -102,7 +98,7 @@ const MessageBubble = memo(function MessageBubble({
               value={editVal}
               onChange={(e) => setEditVal(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="min-h-[60px] border border-amber-500/25 bg-zinc-900/80"
+              className="border-ring bg-background text-foreground min-h-[60px] border"
               aria-label={t('api_chat_edit')}
             />
             <div className="flex items-center justify-end gap-2">
@@ -112,14 +108,14 @@ const MessageBubble = memo(function MessageBubble({
                   setIsEditing(false)
                   setEditVal(message.content)
                 }}
-                className="text-ql-12 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white/80"
+                className="text-ql-12 border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground rounded-md border px-3 py-1 transition-colors"
               >
                 {t('api_chat_cancel')}
               </button>
               <button
                 type="button"
                 onClick={handleEditSave}
-                className="text-ql-12 rounded-lg border border-amber-500/30 bg-amber-500/15 px-3 py-1.5 font-medium text-amber-300 transition-colors hover:bg-amber-500/25"
+                className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-3 py-1 font-medium transition-colors"
               >
                 {t('api_chat_save')}
               </button>
@@ -127,7 +123,7 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         ) : (
           <div
-            className={`text-ql-13 relative leading-relaxed ${isError ? 'text-red-300' : 'text-white/80'}`}
+            className={`text-ql-13 relative leading-relaxed ${isError ? 'text-destructive' : 'text-foreground'}`}
           >
             <MessageContent content={message.content} />
           </div>
@@ -139,12 +135,12 @@ const MessageBubble = memo(function MessageBubble({
           {isUser ? (
             <div className="mt-1 flex items-center justify-end gap-2.5 px-1">
               {!isError && (
-                <div className="flex items-center gap-1 opacity-40 transition-opacity duration-200 group-hover:opacity-100">
+                <div className="flex items-center gap-1 opacity-60 transition-opacity duration-150 group-hover:opacity-100">
                   {onEdit && (
                     <button
                       type="button"
                       onClick={() => setIsEditing(true)}
-                      className="text-ql-10 flex items-center justify-center rounded p-1 text-white/25 transition-colors hover:bg-amber-500/10 hover:text-amber-400 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
+                      className="text-ql-10 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
                       title={t('api_chat_edit')}
                       aria-label={t('api_chat_edit')}
                     >
@@ -160,19 +156,19 @@ const MessageBubble = memo(function MessageBubble({
           ) : (
             <div className="mt-1 flex items-center gap-2.5 px-1">
               {message.model && (
-                <span className="text-ql-10 font-mono text-white/20 select-none">
+                <span className="text-ql-10 text-muted-foreground/60 font-mono select-none">
                   {message.model}
                 </span>
               )}
               <Timestamp ts={message.timestamp} />
               {!isError && (
-                <div className="flex items-center gap-1 opacity-40 transition-opacity duration-200 group-hover:opacity-100">
+                <div className="flex items-center gap-1 opacity-60 transition-opacity duration-150 group-hover:opacity-100">
                   <TtsButton content={message.content} />
                   {isLastAssistant && onRegenerate && (
                     <button
                       type="button"
                       onClick={onRegenerate}
-                      className="text-ql-10 flex items-center justify-center rounded p-1 text-white/25 transition-colors hover:bg-amber-500/10 hover:text-amber-400 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
+                      className="text-ql-10 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
                       title={t('api_chat_regenerate_tooltip')}
                       aria-label={t('api_chat_regenerate_tooltip')}
                     >
