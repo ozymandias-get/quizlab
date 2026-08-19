@@ -6,6 +6,7 @@ import {
   lazy,
   memo,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   Suspense,
   useCallback,
   useEffect,
@@ -63,6 +64,10 @@ const SparklesNode = memo(function SparklesNode({ hidden }: { hidden: boolean })
 function BottomBar({
   onHoverChange,
   onMouseDown,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onLostPointerCapture,
   onDoubleClick,
   onKeyboardResize,
   isResizeReversed = false,
@@ -96,6 +101,34 @@ function BottomBar({
       onMouseDown?.(e)
     },
     [onMouseDown]
+  )
+
+  const handleResizerPointerDown = useCallback(
+    (e: ReactPointerEvent) => {
+      onPointerDown?.(e)
+    },
+    [onPointerDown]
+  )
+
+  const handleResizerPointerMove = useCallback(
+    (e: ReactPointerEvent) => {
+      onPointerMove?.(e)
+    },
+    [onPointerMove]
+  )
+
+  const handleResizerPointerUp = useCallback(
+    (e: ReactPointerEvent) => {
+      onPointerUp?.(e)
+    },
+    [onPointerUp]
+  )
+
+  const handleResizerLostPointerCapture = useCallback(
+    (e: ReactPointerEvent) => {
+      onLostPointerCapture?.(e)
+    },
+    [onLostPointerCapture]
   )
 
   const handleResizerDoubleClick = useCallback(() => {
@@ -147,6 +180,10 @@ function BottomBar({
           tabIndex={0}
           className="resizer-drag-area"
           onMouseDown={handleResizerMouseDown}
+          onPointerDown={handleResizerPointerDown}
+          onPointerMove={handleResizerPointerMove}
+          onPointerUp={handleResizerPointerUp}
+          onLostPointerCapture={handleResizerLostPointerCapture}
           onDoubleClick={handleResizerDoubleClick}
           onKeyDown={handleResizerKeyDown}
         >
@@ -168,6 +205,10 @@ function BottomBar({
           tabIndex={0}
           className="resizer-drag-area"
           onMouseDown={handleResizerMouseDown}
+          onPointerDown={handleResizerPointerDown}
+          onPointerMove={handleResizerPointerMove}
+          onPointerUp={handleResizerPointerUp}
+          onLostPointerCapture={handleResizerLostPointerCapture}
           onDoubleClick={handleResizerDoubleClick}
           onKeyDown={handleResizerKeyDown}
         >

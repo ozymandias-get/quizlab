@@ -8,14 +8,20 @@ export const domSearchHelpers = `    /**
         return str.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"');
     };
 
+    __installShadowRootRegistry();
+
     const collectShadowRoots = (root, accumulator, visitedHosts) => {
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
         while (walker.nextNode()) {
             const node = walker.currentNode;
-            if (node && node.shadowRoot && !visitedHosts.has(node)) {
+            // Registered closed roots are resolved via the attachShadow hook
+            // (see shadowRootRegistry): node.shadowRoot is null for them, but
+            // the WeakMap still knows the host → root link.
+            const shadowRoot = getShadowRootForHost(node);
+            if (shadowRoot && !visitedHosts.has(node)) {
                 visitedHosts.add(node);
-                accumulator.push(node.shadowRoot);
-                collectShadowRoots(node.shadowRoot, accumulator, visitedHosts);
+                accumulator.push(shadowRoot);
+                collectShadowRoots(shadowRoot, accumulator, visitedHosts);
             }
         }
     };

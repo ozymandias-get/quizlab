@@ -40,7 +40,10 @@ describe('MainWorkspace', () => {
         rightPanelVariants={{}}
         resizerVariants={{}}
         gpuAcceleratedStyle={{}}
-        handleMouseDown={vi.fn()}
+        handlePointerDown={vi.fn()}
+        handlePointerMove={vi.fn()}
+        handlePointerUp={vi.fn()}
+        handleLostPointerCapture={vi.fn()}
         isWebviewMounted
         isResizing={false}
         isBarHovered={false}

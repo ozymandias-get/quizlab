@@ -1,19 +1,60 @@
 ﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import http from 'node:http'
+import type { AddressInfo } from 'node:net'
 
 import {
   fetchWithSsrProtection,
   validateProviderUrl
 } from '../../../../features/ai/apiChatHandlers/ssrf.js'
 
-const realFetch = globalThis.fetch
+type ServerHandle = {
+  server: http.Server
+  port: number
+  requests: Array<{ url: string; method: string; headers: http.IncomingHttpHeaders; body: string }>
+}
+
+function startTestServer(
+  handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
+): Promise<ServerHandle> {
+  const requests: ServerHandle['requests'] = []
+  const server = http.createServer((req, res) => {
+    let body = ''
+    req.on('data', (chunk: Buffer) => {
+      body += chunk.toString()
+    })
+    req.on('end', () => {
+      requests.push({
+        url: req.url || '/',
+        method: req.method || 'GET',
+        headers: req.headers,
+        body
+      })
+      handler(req, res)
+    })
+  })
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo
+      resolve({ server, port, requests })
+    })
+  })
+}
+
+async function stopTestServer(handle: ServerHandle): Promise<void> {
+  await new Promise<void>((resolve) => {
+    handle.server.close(() => resolve())
+  })
+}
+
+let handles: ServerHandle[] = []
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn())
+  handles = []
 })
 
-afterEach(() => {
-  vi.unstubAllGlobals()
-  globalThis.fetch = realFetch
+afterEach(async () => {
+  await Promise.all(handles.map((h) => stopTestServer(h).catch(() => {})))
+  vi.restoreAllMocks()
 })
 
 describe('validateProviderUrl (SSRF Protection)', () => {
@@ -134,123 +175,173 @@ describe('validateProviderUrl (SSRF Protection)', () => {
   })
 })
 
-describe('fetchWithSsrProtection (redirect revalidation)', () => {
+describe('fetchWithSsrProtection (redirect revalidation + DNS pinning)', () => {
   it('blocks redirects to private addresses', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async () => {
-      return { status: 302, headers: { get: () => 'http://169.254.169.254/latest/meta-data' } }
+    const a = await startTestServer((_req, res) => {
+      res.writeHead(302, { location: 'http://169.254.169.254/latest/meta-data' })
+      res.end()
     })
-    await expect(fetchWithSsrProtection('https://public.example/start')).rejects.toThrow(
+    handles.push(a)
+    await expect(fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`)).rejects.toThrow(
       'SSRF blocked on redirect'
     )
   })
 
-  it('blocks cross-origin redirects even to public HTTPS hosts', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async () => {
-      return { status: 302, headers: { get: () => 'https://evil.example/final' } }
+  it('blocks redirects that resolve to private addresses via DNS', async () => {
+    const a = await startTestServer((_req, res) => {
+      res.writeHead(302, { location: 'http://localhost:9999/final' })
+      res.end()
     })
-    await expect(fetchWithSsrProtection('https://public.example/start')).rejects.toThrow(
+    handles.push(a)
+    // "localhost" is allowed as a *target* for local dev, but a redirect to it
+    // from a non-localhost origin must still fail the origin restriction.
+    await expect(fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`)).rejects.toThrow(
       'Cross-origin redirect blocked'
     )
   })
 
-  it('follows redirects on the same origin', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).endsWith('/start')) {
-        return { status: 302, headers: { get: () => 'https://public.example/final' } }
-      }
-      return { status: 200, ok: true, json: async () => ({ done: true }) }
+  it('blocks cross-origin redirects even to public HTTPS hosts', async () => {
+    const a = await startTestServer((_req, res) => {
+      res.writeHead(302, { location: 'https://evil.example/final' })
+      res.end()
     })
-    const response = await fetchWithSsrProtection('https://public.example/start')
+    handles.push(a)
+    await expect(fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`)).rejects.toThrow(
+      'Cross-origin redirect blocked'
+    )
+  })
+
+  it('follows same-origin redirects', async () => {
+    const a = await startTestServer((req, res) => {
+      if (req.url === '/start') {
+        res.writeHead(302, { location: '/final' })
+        res.end()
+        return
+      }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ done: true }))
+    })
+    handles.push(a)
+    const response = await fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`)
     expect(response.status).toBe(200)
-    expect(fetchMock).toHaveBeenLastCalledWith('https://public.example/final', expect.anything())
+    expect(await response.json()).toEqual({ done: true })
+    expect(a.requests.map((r) => r.url)).toEqual(['/start', '/final'])
   })
 
   it('follows relative redirects on the same origin', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).endsWith('/v1/chat')) {
-        return { status: 302, headers: { get: () => '../v2/chat' } }
+    const a = await startTestServer((req, res) => {
+      if (req.url === '/v1/chat') {
+        res.writeHead(302, { location: '../v2/chat' })
+        res.end()
+        return
       }
-      return { status: 200, ok: true, json: async () => ({ done: true }) }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ ok: true }))
     })
-    const response = await fetchWithSsrProtection('https://api.example.com/v1/chat')
+    handles.push(a)
+    const response = await fetchWithSsrProtection(`http://127.0.0.1:${a.port}/v1/chat`)
     expect(response.status).toBe(200)
-    expect(fetchMock).toHaveBeenLastCalledWith('https://api.example.com/v2/chat', expect.anything())
+    expect(a.requests.map((r) => r.url)).toEqual(['/v1/chat', '/v2/chat'])
   })
 
   it('throws on redirect loops', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async () => {
-      return { status: 308, headers: { get: () => 'https://loop.example.com/again' } }
+    const a = await startTestServer((_req, res) => {
+      // Same-origin loop (relative location) so hop detection, not the
+      // cross-origin guard, is what terminates the chain.
+      res.writeHead(308, { location: '/again' })
+      res.end()
     })
-    await expect(fetchWithSsrProtection('https://loop.example.com/start')).rejects.toThrow(
+    handles.push(a)
+    await expect(fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`)).rejects.toThrow(
       'Too many redirects'
     )
   })
 
   it('never sends Authorization to a cross-origin redirect target', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).endsWith('/start')) {
-        return { status: 302, headers: { get: () => 'https://evil.example/final' } }
+    const a = await startTestServer((req, res) => {
+      if (req.url === '/start') {
+        res.writeHead(302, { location: 'https://evil.example/final' })
+        res.end()
+        return
       }
-      return { status: 200, ok: true, json: async () => ({ done: true }) }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end('{}')
     })
+    handles.push(a)
     await expect(
-      fetchWithSsrProtection('https://public.example/start', {
+      fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`, {
         method: 'POST',
         headers: { Authorization: 'Bearer SECRET-KEY', 'Content-Type': 'application/json' },
         body: '{"model":"gpt-4"}'
       })
     ).rejects.toThrow('Cross-origin redirect blocked')
-    expect(
-      fetchMock.mock.calls.some((call: unknown[]) =>
-        String(call[0]).startsWith('https://evil.example')
-      )
-    ).toBe(false)
+    // The redirect target was rejected before any request was dispatched to it.
+    expect(a.requests.length).toBe(1)
+    expect(a.requests[0].url).toBe('/start')
   })
 
   it('converts POST to GET without a body on 303 redirects', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).endsWith('/start')) {
-        return { status: 303, headers: { get: () => 'https://public.example/final' } }
+    const a = await startTestServer((req, res) => {
+      if (req.url === '/start') {
+        res.writeHead(303, { location: '/final' })
+        res.end()
+        return
       }
-      return { status: 200, ok: true, json: async () => ({ done: true }) }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end('{}')
     })
-    const response = await fetchWithSsrProtection('https://public.example/start', {
+    handles.push(a)
+    const response = await fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`, {
       method: 'POST',
       headers: { Authorization: 'Bearer SECRET-KEY', 'Content-Type': 'application/json' },
       body: '{"model":"gpt-4"}'
     })
     expect(response.status).toBe(200)
-    const lastCall = fetchMock.mock.lastCall
-    expect(lastCall[0]).toBe('https://public.example/final')
-    expect(lastCall[1].method).toBe('GET')
-    expect(lastCall[1].body).toBeUndefined()
-    expect((lastCall[1].headers as Headers).get('Content-Type')).toBeNull()
+    const finalRequest = a.requests.find((r) => r.url === '/final')
+    expect(finalRequest).toBeDefined()
+    expect(finalRequest?.method).toBe('GET')
+    expect(finalRequest?.body).toBe('')
+    expect(finalRequest?.headers.authorization).toBeUndefined()
   })
 
   it('preserves method and body on 307 redirects', async () => {
-    const fetchMock = globalThis.fetch as any
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).endsWith('/start')) {
-        return { status: 307, headers: { get: () => 'https://public.example/final' } }
+    const a = await startTestServer((req, res) => {
+      if (req.url === '/start') {
+        res.writeHead(307, { location: '/final' })
+        res.end()
+        return
       }
-      return { status: 200, ok: true, json: async () => ({ done: true }) }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end('{}')
     })
-    const response = await fetchWithSsrProtection('https://public.example/start', {
+    handles.push(a)
+    const response = await fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{"model":"gpt-4"}'
     })
     expect(response.status).toBe(200)
-    const lastCall = fetchMock.mock.lastCall
-    expect(lastCall[0]).toBe('https://public.example/final')
-    expect(lastCall[1].method).toBe('POST')
-    expect(lastCall[1].body).toBe('{"model":"gpt-4"}')
+    const finalRequest = a.requests.find((r) => r.url === '/final')
+    expect(finalRequest?.method).toBe('POST')
+    expect(finalRequest?.body).toBe('{"model":"gpt-4"}')
+  })
+
+  it('aborts the pinned request when the signal fires', async () => {
+    const a = await startTestServer((_req, res) => {
+      // Never respond — the abort must tear the connection down.
+      setTimeout(() => {
+        if (!res.writableEnded) {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end('{}')
+        }
+      }, 2000)
+    })
+    handles.push(a)
+    const controller = new AbortController()
+    const promise = fetchWithSsrProtection(`http://127.0.0.1:${a.port}/chat`, {
+      signal: controller.signal
+    })
+    setTimeout(() => controller.abort(), 50)
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
   })
 })

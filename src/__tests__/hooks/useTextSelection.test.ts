@@ -23,7 +23,7 @@ describe('useTextSelection', () => {
       result.current.handleTextSelection('Selected Text', { top: 100, left: 100 })
     })
 
-    expect(mockQueueTextForAi).toHaveBeenCalledWith('Selected Text')
+    expect(mockQueueTextForAi).toHaveBeenCalledWith('Selected Text', { top: 100, left: 100 })
   })
 
   it('does not queue empty text', () => {

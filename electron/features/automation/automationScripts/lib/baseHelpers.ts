@@ -7,6 +7,33 @@ export const getBaseHelpers = (ambiguousSelectorBehavior: 'pick' | 'reject') => 
     const roundMs = (ms) => Math.round(ms * 100) / 100;
     const normalizeText = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
 
+    // ── Run abort registry ─────────────────────────────────────────────────
+    // SPA navigation / new-chat transitions must cancel pending waits and
+    // MutationObservers immediately instead of letting them run until their
+    // timeout. The renderer aborts via window.__quizlabAbortController.abort()
+    // on did-navigate / did-navigate-in-page; every script run installs a
+    // fresh controller so aborted state never leaks into the next run.
+    const getAbortSignal = () => {
+        try {
+            if (typeof window === 'undefined') return null;
+            if (!window.__quizlabAbortController || window.__quizlabAbortController.signal.aborted) {
+                window.__quizlabAbortController = new AbortController();
+            }
+            return window.__quizlabAbortController.signal;
+        } catch (_) {
+            return null;
+        }
+    };
+
+    const isAborted = () => {
+        try {
+            const controller = typeof window !== 'undefined' ? window.__quizlabAbortController : null;
+            return Boolean(controller && controller.signal && controller.signal.aborted);
+        } catch (_) {
+            return false;
+        }
+    };
+
     const uniqueStrings = (values) => {
         const unique = [];
         for (const v of Array.isArray(values) ? values : []) {

@@ -1,4 +1,9 @@
+import type { LookupAddress } from 'node:dns'
+import { lookup as dnsLookup } from 'node:dns/promises'
+import http from 'node:http'
+import https from 'node:https'
 import { isIP } from 'node:net'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 const PRIVATE_IP_RANGES = [
   { start: '10.0.0.0', end: '10.255.255.255' },
@@ -170,6 +175,136 @@ function validateProviderUrl(baseUrl: string): string | null {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DNS rebinding (TOCTOU) protection
+//
+// A naive check resolves the hostname, verifies the IP is public, and then
+// lets the HTTP client resolve the hostname AGAIN. A malicious DNS server can
+// answer the first query with a public IP and the second with 127.0.0.1
+// (DNS rebinding), silently reaching local services.
+//
+// Instead we resolve the hostname ONCE, validate every returned address, and
+// pin the validated address at the socket level via a custom `lookup`
+// function. The HTTP/TLS layer keeps the ORIGINAL hostname in the Host header
+// (and SNI), so the destination IP is the checked one while the server still
+// sees the real domain — the standard SSRF-safe connection pattern.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MAX_RESPONSE_BODY_BYTES = 50 * 1024 * 1024 // 50 MB
+
+async function resolvePinnedIp(hostname: string): Promise<{ ip: string; family: number }> {
+  const host = normalizeHostname(hostname)
+
+  // IP literals need no resolution — the address is already checked by
+  // validateProviderUrl before we get here.
+  if (isIP(host) === 4) return { ip: host, family: 4 }
+  if (isIP(host) === 6) return { ip: host, family: 6 }
+
+  // "localhost" is the explicitly allowed local-development host; resolve it
+  // deterministically instead of trusting the system resolver (which can be
+  // redirected by /etc/hosts shenanigans on Windows/macOS to any address).
+  if (host === 'localhost') return { ip: '127.0.0.1', family: 4 }
+
+  let addresses: LookupAddress[]
+  try {
+    addresses = await dnsLookup(host, { all: true, verbatim: true })
+  } catch {
+    throw new Error(`DNS resolution failed for "${hostname}"`)
+  }
+
+  if (addresses.length === 0) {
+    throw new Error(`DNS resolution failed for "${hostname}"`)
+  }
+
+  // EVERY returned address must be public. If any single A/AAAA record points
+  // into a private/reserved block the whole request is rejected — a rebinding
+  // DNS server cannot smuggle a local address in a parallel record.
+  for (const address of addresses) {
+    if (isLoopbackOrPrivateHost(address.address)) {
+      throw new Error(
+        `SSRF blocked: "${hostname}" resolved to private/reserved address ${address.address}`
+      )
+    }
+  }
+
+  const chosen = addresses[0]
+  return { ip: chosen.address, family: chosen.family }
+}
+
+/**
+ * Single HTTP(S) request whose socket is pinned to the pre-validated IP.
+ * The Host header / TLS SNI keep the original hostname (Node derives them
+ * from the URL object); only the connection target is the checked address.
+ */
+function pinnedRequest(
+  targetUrl: string,
+  init: { method: string; headers: Headers; body?: string | null },
+  pinnedIp: string,
+  pinnedFamily: number,
+  signal?: AbortSignal | null
+): Promise<{
+  status: number
+  statusText: string
+  headers: Record<string, string | string[] | undefined>
+  body: Buffer
+}> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(targetUrl)
+    const isHttps = url.protocol === 'https:'
+    const transport = isHttps ? https : http
+
+    const options: https.RequestOptions = {
+      method: init.method,
+      headers: Object.fromEntries(init.headers.entries()),
+      lookup: (_hostname, _opts, callback) => {
+        callback(null, pinnedIp, pinnedFamily)
+      },
+      signal: signal ?? undefined
+    }
+    if (isHttps) {
+      // SNI must carry the original hostname (pinnedIp has no certificate).
+      options.servername = url.hostname
+    }
+
+    const req = transport.request(url, options, (res) => {
+      const chunks: Buffer[] = []
+      let total = 0
+      res.on('data', (chunk: Buffer) => {
+        total += chunk.length
+        if (total > MAX_RESPONSE_BODY_BYTES) {
+          req.destroy(new Error(`Response body exceeds ${MAX_RESPONSE_BODY_BYTES} bytes`))
+          return
+        }
+        chunks.push(chunk)
+      })
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode ?? 0,
+          statusText: res.statusMessage ?? '',
+          headers: res.headers,
+          body: Buffer.concat(chunks)
+        })
+      })
+    })
+
+    req.on('error', (error: NodeJS.ErrnoException) => {
+      // Normalize abort into a fetch-compatible AbortError so callers can
+      // distinguish user cancellation from real failures.
+      if (signal?.aborted || error.code === 'ABORT_ERR') {
+        reject(new DOMException('The operation was aborted.', 'AbortError'))
+        return
+      }
+      reject(error)
+    })
+
+    const body = init.body
+    if (body && body.length > 0) {
+      req.write(body)
+    }
+    req.end()
+  })
+}
+
 const MAX_REDIRECTS = 5
 
 function isRedirectStatus(status: number): boolean {
@@ -188,16 +323,22 @@ function applyRedirectSemantics(status: number, init?: RequestInit): RequestInit
   const headers = new Headers(init.headers)
   headers.delete('Content-Type')
   headers.delete('Content-Length')
+  // The redirect turned a body-carrying request into a body-less GET; drop the
+  // credentials too so a rewritten/redirected endpoint never receives the
+  // original provider secret.
+  headers.delete('Authorization')
   const next: RequestInit = { ...init, method: 'GET', headers }
   delete next.body
   return next
 }
 
 /**
- * fetch() wrapper that re-validates every redirect hop with the same SSRF
- * rules as the original URL. The default fetch() follows redirects blindly,
- * so a public provider URL that answers with a 302 to an internal address
- * (e.g. 169.254.169.254) would otherwise bypass the block entirely.
+ * SSRF-safe fetch wrapper.
+ *
+ * Every hop (original request + each redirect) is:
+ *  1. validated against the private/reserved address rules,
+ *  2. DNS-resolved once, with every returned address checked,
+ *  3. connected over a socket pinned to the validated address.
  *
  * Redirects may only stay on the origin of the original request; any
  * cross-origin hop is rejected so credentials (Authorization, Cookie,
@@ -207,21 +348,71 @@ async function fetchWithSsrProtection(url: string, init?: RequestInit): Promise<
   const originalOrigin = new URL(url).origin
   let currentUrl = url
   let currentInit = init
+
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const response = await fetch(currentUrl, { ...currentInit, redirect: 'manual' })
-    if (!isRedirectStatus(response.status)) return response
-    const location = response.headers.get('location')
-    if (!location) return response
-    const target = new URL(location, currentUrl)
-    const err = validateProviderUrl(target.href)
+    const parsed = new URL(currentUrl)
+    const err = validateProviderUrl(currentUrl)
     if (err) {
-      throw new Error(`SSRF blocked on redirect: ${err}`)
+      throw new Error(`SSRF blocked: ${err}`)
+    }
+
+    const { ip, family } = await resolvePinnedIp(parsed.hostname)
+
+    const method = (currentInit?.method || 'GET').toUpperCase()
+    const headers = new Headers(currentInit?.headers)
+    const response = await pinnedRequest(
+      currentUrl,
+      {
+        method,
+        headers,
+        body: typeof currentInit?.body === 'string' ? currentInit.body : undefined
+      },
+      ip,
+      family,
+      currentInit?.signal
+    )
+
+    if (!isRedirectStatus(response.status)) {
+      const responseHeaders = new Headers()
+      for (const [name, value] of Object.entries(response.headers)) {
+        if (typeof value === 'string') responseHeaders.set(name, value)
+      }
+      return new Response(new Uint8Array(response.body), {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders
+      })
+    }
+
+    const locationHeader = response.headers.location
+    if (!locationHeader) {
+      const responseHeaders = new Headers()
+      for (const [name, value] of Object.entries(response.headers)) {
+        if (typeof value === 'string') responseHeaders.set(name, value)
+      }
+      return new Response(new Uint8Array(response.body), {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders
+      })
+    }
+
+    const location = Array.isArray(locationHeader) ? locationHeader[0] : locationHeader
+
+    const target = new URL(location, currentUrl)
+    const redirectErr = validateProviderUrl(target.href)
+    if (redirectErr) {
+      throw new Error(`SSRF blocked on redirect: ${redirectErr}`)
     }
     if (target.origin !== originalOrigin) {
       throw new Error(`Cross-origin redirect blocked: "${target.href}"`)
     }
     currentUrl = target.href
     currentInit = applyRedirectSemantics(response.status, currentInit)
+
+    // Give the network stack a moment between hops; a hostile server could
+    // otherwise starve this loop with instant 3xx responses.
+    await sleep(1)
   }
   throw new Error('Too many redirects')
 }

@@ -1,5 +1,6 @@
 import { useAppearance } from '@app/providers'
 import { useLocalStorage } from '@shared/hooks'
+import { cn } from '@shared/lib/uiUtils'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { type CSSProperties, memo, useCallback, useMemo, useRef, useState } from 'react'
@@ -14,6 +15,7 @@ import {
   useAccentStrong,
   usePanelVariants
 } from './aiSendComposer/composerConstants'
+import { COMPACT_HEIGHT } from './aiSendComposer/layoutUtils'
 import type { AiSendComposerProps, SendFeedback } from './aiSendComposer/types'
 import {
   useAiSendComposerClickOutside,
@@ -45,6 +47,16 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const onClearAllRef = useRef(onClearAll)
   onClearAllRef.current = onClearAll
 
+  const latestPosition = useMemo(() => {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i]
+      if (item.type === 'text' && item.position) {
+        return item.position
+      }
+    }
+    return null
+  }, [items])
+
   const {
     layout,
     panelRef,
@@ -52,12 +64,13 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     handleDragStart,
     handleDragMove,
     handleDragEnd,
+    handleDragLostCapture,
     handleResizeStart,
     handleResizeKeyDown,
     getResizeCursor,
     resizeHandlers,
     edgeThickness
-  } = useAiSendComposerLayout(isExpanded)
+  } = useAiSendComposerLayout(isExpanded, latestPosition)
   const { textCount, imageCount } = useMemo(() => {
     let text = 0
     let image = 0
@@ -71,7 +84,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const accentStrong = useAccentStrong(selectionColor)
   const panelVariants = usePanelVariants(prefersReducedMotion ?? undefined)
   const handleSend = useCallback(
-    async (options?: { forceAutoSend?: boolean }) => {
+    async (options?: { noteText?: string; autoSend?: boolean; forceAutoSend?: boolean }) => {
       if (isSubmitting) return
       setIsSubmitting(true)
       setSendFeedback('sending')
@@ -80,9 +93,13 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
       setStoredExpanded(false)
       try {
         const result = await onSend({
-          noteText: noteTextRef.current.trim() || undefined,
-          autoSend: effectiveAutoSendRef.current,
-          ...options
+          noteText:
+            options?.noteText !== undefined
+              ? options.noteText
+              : noteTextRef.current.trim() || undefined,
+          autoSend:
+            options?.autoSend !== undefined ? options.autoSend : effectiveAutoSendRef.current,
+          forceAutoSend: options?.forceAutoSend
         })
         const wasSuccessful =
           result &&
@@ -137,28 +154,52 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   }, [clearNote, t])
   useAiSendComposerKeyboard(isSubmitting, handleToggleExpand)
   useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, onClearAll)
-  useAiSendComposerFeedbackReset(items.length, setSendFeedback, setLastError)
+  useAiSendComposerFeedbackReset(items.length, isSubmitting, setSendFeedback, setLastError)
   const handleForceSend = useCallback(() => {
     void handleSend({ forceAutoSend: true })
   }, [handleSend])
 
+  const handleSendWithPreset = useCallback(
+    (presetValue: string) => {
+      void handleSend({ noteText: presetValue, forceAutoSend: true })
+    },
+    [handleSend]
+  )
+
   const portalStyle = useMemo(
-    () => ({
-      left: layout.x,
-      top: layout.y,
-      width: layout.width,
-      height: layout.height
-    }),
-    [layout.x, layout.y, layout.width, layout.height]
+    () =>
+      isExpanded
+        ? {
+            left: layout.x,
+            top: layout.y,
+            width: layout.width,
+            height: layout.height
+          }
+        : {
+            left: layout.x,
+            top: layout.y,
+            width: 'max-content',
+            height: COMPACT_HEIGHT
+          },
+    [layout.x, layout.y, layout.width, layout.height, isExpanded]
   )
 
   const panelStyle: CSSProperties = useMemo(
-    () => ({
-      boxShadow: 'var(--shadow-ambient-xl)',
-      border: '1px solid oklch(var(--border))',
-      background: 'oklch(var(--card))'
-    }),
-    []
+    () =>
+      isExpanded
+        ? {
+            boxShadow: 'var(--shadow-ambient-2xl, 0 16px 40px -4px rgba(0, 0, 0, 0.45))',
+            border: '1px solid oklch(var(--border) / 0.8)',
+            background: 'oklch(var(--card) / 0.95)',
+            backdropFilter: 'blur(16px)'
+          }
+        : {
+            boxShadow: '0 16px 40px -6px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            background: '#0f1013',
+            backdropFilter: 'blur(24px)'
+          },
+    [isExpanded]
   )
   if (typeof document === 'undefined') return null
   const showContent = isExpanded && sendFeedback !== 'sending'
@@ -175,7 +216,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
         animate="visible"
         exit="exit"
         variants={panelVariants}
-        className="z-modal fixed"
+        className="z-modal fixed transition-[width,height,left,top] duration-200 ease-out"
         style={portalStyle}
         role="dialog"
         aria-label={t('ai_send_panel_title')}
@@ -183,7 +224,12 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
         <div
           ref={panelRef}
           data-panel
-          className="bg-card text-foreground relative h-full overflow-hidden rounded-2xl"
+          className={cn(
+            'relative transition-[border-radius,background-color] duration-200 ease-out',
+            isExpanded
+              ? 'bg-card text-foreground h-full overflow-hidden rounded-2xl'
+              : 'h-11 w-max overflow-visible rounded-full bg-[#0f1013] text-white'
+          )}
           style={panelStyle}
         >
           <AiSendComposerHeader
@@ -195,25 +241,23 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
             onToggleExpand={handleToggleExpand}
             onClearAll={handleClearAll}
             onSend={handleForceSend}
+            onSendWithPreset={handleSendWithPreset}
             isSubmitting={isSubmitting}
             isSendDisabled={totalItems === 0}
             onDragStart={handleDragStart}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
+            onDragLostCapture={handleDragLostCapture}
           />
 
-          <AnimatePresence initial={false} mode="wait">
+          <AnimatePresence initial={false}>
             {showContent ? (
               <motion.div
                 key="expanded-content"
-                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
-                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
-                transition={
-                  prefersReducedMotion
-                    ? { duration: 0.08 }
-                    : { duration: 0.1, ease: [0.32, 0, 0.67, 0] }
-                }
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
+                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
                 className="h-full"
               >
                 <AiSendComposerContent

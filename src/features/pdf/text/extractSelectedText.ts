@@ -2,6 +2,7 @@
  * Extracts selected text from the DOM and computes its screen position.
  * Replaces the inline selection logic in usePdfTextSelection.
  */
+import { collectTextItems, orderTextItems } from './extractPageTextFromDom'
 import { normalizePdfText } from './normalizePdfText'
 import type { SelectionPosition } from './types'
 
@@ -26,6 +27,42 @@ interface SelectionExtractResult {
   position: SelectionPosition | null
 }
 
+/**
+ * Rebuilds selected text in visual reading order.
+ *
+ * `selection.toString()` returns the text in DOM (content-stream) order, which
+ * interleaves left/right column lines on two-column PDF pages. Instead we
+ * gather the text-layer spans the range actually covers and re-order them by
+ * (column cluster, Y) exactly like extractPageTextFromDom does for whole pages.
+ */
+function extractOrderedSelectionText(range: Range, container: HTMLElement): string | null {
+  const textLayer = container.querySelector<HTMLElement>(
+    '.rpv-core__text-layer, .rpv-core__text-layer-basic'
+  )
+  if (!textLayer) return null
+
+  const allItems = collectTextItems(textLayer)
+  if (allItems.length === 0) return null
+
+  const rangeRects = [...range.getClientRects()]
+  if (rangeRects.length === 0) return null
+
+  const intersectsRange = (item: { left: number; top: number; width: number; height: number }) => {
+    const itemRight = item.left + item.width
+    const itemBottom = item.top + item.height
+    return rangeRects.some(
+      (r) => item.left < r.right && itemRight > r.left && item.top < r.bottom && itemBottom > r.top
+    )
+  }
+
+  const items = allItems.filter(intersectsRange)
+  if (items.length === 0) return null
+
+  const lines = orderTextItems(items)
+  const text = lines.join('\n')
+  return text || null
+}
+
 export function extractSelectedText(
   selection: Selection | null,
   container: HTMLElement
@@ -41,10 +78,6 @@ export function extractSelectedText(
   ) {
     return { text: '', position: null }
   }
-
-  // Normalize selected text: apply NFC normalization and repair
-  // known pdfjs-dist Turkish character corruption patterns.
-  const text = normalizePdfText(rawText)
 
   const range = selection.getRangeAt(0)
   const commonAncestorInside = isNodeInsideContainer(range.commonAncestorContainer, container)
@@ -65,36 +98,45 @@ export function extractSelectedText(
     return { text: '', position: null }
   }
 
+  // Prefer coordinate-ordered text for multi-column pages; the raw selection
+  // string is the fallback when the text layer is unavailable or the ordering
+  // produced nothing.
+  const orderedText = extractOrderedSelectionText(range, container)
+  const text = orderedText ? normalizePdfText(orderedText) : normalizePdfText(rawText)
+
   const selWidth = rect.width
   const selHeight = rect.height
 
-  const btnWidth = 140
-  const btnHeight = 44
-  const margin = 10
+  const clientRects = typeof range.getClientRects === 'function' ? [...range.getClientRects()] : []
+  const endRect = clientRects.length > 0 ? clientRects[clientRects.length - 1] : rect
+
+  const pillWidth = 280
+  const pillHeight = 44
+  const margin = 8
   const bottomBarHeight = 80
 
-  let top = rect.top - btnHeight - margin
+  let top = endRect.bottom + margin
   let left = rect.left + rect.width / 2
 
-  if (top < margin) {
-    top = rect.bottom + margin
-  }
-
-  if (top + btnHeight > window.innerHeight - bottomBarHeight - margin) {
-    const topPosition = rect.top - btnHeight - margin
+  if (top + pillHeight > window.innerHeight - bottomBarHeight - margin) {
+    const topPosition = endRect.top - pillHeight - margin
     if (topPosition >= margin) {
       top = topPosition
     } else {
-      top = Math.max(margin, window.innerHeight - bottomBarHeight - btnHeight - margin)
+      top = Math.max(margin, window.innerHeight - bottomBarHeight - pillHeight - margin)
     }
   }
 
-  if (left < btnWidth / 2 + margin) {
-    left = btnWidth / 2 + margin
+  if (top < margin) {
+    top = endRect.bottom + margin
   }
 
-  if (left > window.innerWidth - btnWidth / 2 - margin) {
-    left = window.innerWidth - btnWidth / 2 - margin
+  if (left < pillWidth / 2 + margin) {
+    left = pillWidth / 2 + margin
+  }
+
+  if (left > window.innerWidth - pillWidth / 2 - margin) {
+    left = window.innerWidth - pillWidth / 2 - margin
   }
 
   return { text, position: { top, left, width: selWidth, height: selHeight } }

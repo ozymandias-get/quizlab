@@ -369,6 +369,15 @@ import { tMock } from '../helpers/test-utils'
   5. Coverage eşiği korunuyor.
   6. Dokümantasyon: yeni bir feature/servise dair barrel değiştiyse bu dosya güncellenir.
 - Versiyon tutarlılığı: `package.json` ↔ `app/version.ts` ↔ release tag (`npm run ci:check-version`).
+- **Release ve Tag Politikası**:
+  - Her commit/yüklemede kesinlikle versiyon artırımı yapılmaz ve git tag (`git tag v*`) oluşturulmaz/push edilmez.
+  - Normal commit'lerde sadece ilgili branch'e push yapılır (`git push origin master`), `--tags` kullanılmaz.
+  - Yalnızca kullanıcı açıkça **"release oluştur" / "yeni sürüm yayınla"** dediğinde:
+    1. `package.json` versiyonu güncellenir.
+    2. Sürüm tutarlılığı kontrol edilir (`npm run ci:check-version`).
+    3. `chore(release): bump version to X.Y.Z` commit'i atılır.
+    4. `git tag -a vX.Y.Z -m "Release vX.Y.Z"` oluşturulur.
+    5. Tag push edilerek GitHub Actions release akışı tetiklenir (`git push origin master && git push origin vX.Y.Z`).
 
 ## 19. Geliştirme Ortamı (VS Code)
 

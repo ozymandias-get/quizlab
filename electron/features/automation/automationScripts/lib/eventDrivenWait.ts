@@ -102,6 +102,14 @@ export const eventDrivenWaitRuntime = `    /**
 
         try {
             while (now() - start < timeoutMs) {
+                // Abort on SPA navigation / new-chat: the observer is
+                // disconnected below so the page never leaks a long-lived
+                // MutationObserver after a route change.
+                // (isAborted is injected by the baseHelpers preamble; the
+                // typeof guard keeps this template self-contained for tests.)
+                if (typeof isAborted === 'function' && isAborted()) {
+                    break;
+                }
                 const found = resultOrNull();
                 if (found) return found;
 

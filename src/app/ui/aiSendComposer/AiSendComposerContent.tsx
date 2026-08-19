@@ -17,6 +17,7 @@ import { useNoteKeyboardHandler } from './useNoteKeyboardHandler'
 interface ResizeHandlers {
   onResizeMove: (event: React.PointerEvent) => void
   onResizeEnd: (event: React.PointerEvent) => void
+  onResizeLostCapture: (event: React.PointerEvent) => void
 }
 
 interface AiSendComposerContentProps {
@@ -128,6 +129,7 @@ function AiSendComposerContent({
           onPointerMove={resizeHandlers.onResizeMove}
           onPointerUp={resizeHandlers.onResizeEnd}
           onPointerCancel={resizeHandlers.onResizeEnd}
+          onLostPointerCapture={resizeHandlers.onResizeLostCapture}
           onMouseDown={handleResizeMouseDown}
           onKeyDown={onResizeKeyDown?.(dir) ?? undefined}
           className="absolute z-20"

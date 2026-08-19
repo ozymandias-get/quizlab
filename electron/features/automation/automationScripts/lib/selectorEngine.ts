@@ -118,6 +118,13 @@ export const selectorEngine = `    /**
         let fallbackAttempts = 0;
 
         while (now() - start < timeout) {
+            // Abort on SPA navigation / new-chat: pending waits must die
+            // immediately instead of polling until the timeout budget ends.
+            // (isAborted is injected by the baseHelpers preamble; the
+            // typeof guard keeps this template self-contained for tests.)
+            if (typeof isAborted === 'function' && isAborted()) {
+                break;
+            }
             attempts += 1;
             const result = queryElementWithPipeline(lookup, kind, diagnostics, config, fallbackAttempts);
             const element = result.element;

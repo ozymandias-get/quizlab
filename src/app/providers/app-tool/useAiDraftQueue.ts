@@ -2,7 +2,7 @@ import { Logger, reportSuppressedError } from '@shared/lib/logger'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { AiDraftImageItem, AiDraftItem } from '../ai/types'
+import type { AiDraftImageItem, AiDraftItem, SelectionPosition } from '../ai/types'
 import { buildPendingId, clearBrowserTextSelection } from './appToolUtils'
 
 export type QueuedImageMeta = Partial<Pick<AiDraftImageItem, 'page' | 'captureKind'>>
@@ -36,7 +36,7 @@ export function useAiDraftQueue(onDrop?: () => void) {
     }
   }, [])
 
-  const queueTextForAi = useCallback((text: string) => {
+  const queueTextForAi = useCallback((text: string, position?: SelectionPosition | null) => {
     const normalized = text.trim()
     if (!normalized) {
       return
@@ -45,7 +45,8 @@ export function useAiDraftQueue(onDrop?: () => void) {
     const draft: AiDraftItem = {
       id: buildPendingId('text'),
       type: 'text',
-      text: normalized
+      text: normalized,
+      position: position ?? null
     }
 
     setPendingAiItems((current) => [...current, draft])

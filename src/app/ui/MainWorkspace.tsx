@@ -9,7 +9,7 @@ import {
   type CSSProperties,
   lazy,
   memo,
-  type MouseEventHandler,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
   Suspense
 } from 'react'
@@ -26,7 +26,10 @@ interface MainWorkspaceProps {
   rightPanelVariants: Variants
   resizerVariants: Variants
   gpuAcceleratedStyle: CSSProperties
-  handleMouseDown: MouseEventHandler<Element>
+  handlePointerDown: (e: ReactPointerEvent) => void
+  handlePointerMove: (e: ReactPointerEvent) => void
+  handlePointerUp: (e: ReactPointerEvent) => void
+  handleLostPointerCapture: (e: ReactPointerEvent) => void
   handleResizerDoubleClick?: () => void
   onKeyboardResize?: (deltaPx: number) => void
   isResizeReversed?: boolean
@@ -50,7 +53,10 @@ function MainWorkspace({
   rightPanelVariants,
   resizerVariants,
   gpuAcceleratedStyle,
-  handleMouseDown,
+  handlePointerDown,
+  handlePointerMove,
+  handlePointerUp,
+  handleLostPointerCapture,
   handleResizerDoubleClick,
   onKeyboardResize,
   isResizeReversed,
@@ -101,7 +107,10 @@ function MainWorkspace({
       >
         <BottomBar
           onHoverChange={onBarHoverChange}
-          onMouseDown={handleMouseDown}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onLostPointerCapture={handleLostPointerCapture}
           onDoubleClick={handleResizerDoubleClick}
           onKeyboardResize={onKeyboardResize}
           isResizeReversed={isResizeReversed}

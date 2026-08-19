@@ -2,12 +2,11 @@ import { PANEL_RESIZING_BODY_CLASS } from '@shared/constants/panelResize'
 
 import {
   type Dispatch,
-  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
   type SetStateAction,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState
 } from 'react'
@@ -30,7 +29,10 @@ interface UsePanelResizeReturn {
   leftPanelWidth: number
   setLeftPanelWidth: Dispatch<SetStateAction<number>>
   isResizing: boolean
-  handleMouseDown: (e: ReactMouseEvent) => void
+  handlePointerDown: (e: ReactPointerEvent) => void
+  handlePointerMove: (e: ReactPointerEvent) => void
+  handlePointerUp: (e: ReactPointerEvent) => void
+  handleLostPointerCapture: (e: ReactPointerEvent) => void
   nudgeLeftPanelWidth: (deltaPx: number) => void
   leftPanelRef: RefObject<HTMLElement | null>
   resizerRef: RefObject<HTMLElement | null>
@@ -93,7 +95,46 @@ export function usePanelResize({
   const leftPanelWidthRef = useRef(clampedPercentage)
   leftPanelWidthRef.current = clampedPercentage
 
-  const handleMouseDown = useCallback((e: ReactMouseEvent) => {
+  const endResize = useCallback(() => {
+    if (!isResizingRef.current) return
+
+    isResizingRef.current = false
+
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
+    }
+
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+
+    const resizerEl = resizerRef.current
+    if (resizerEl) {
+      resizerEl.classList.remove('dragging')
+    }
+
+    document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
+
+    const finalWidth = pendingWidthRef.current
+    const widthDiff = Math.abs(finalWidth - startWidthRef.current)
+
+    setIsResizing(false)
+
+    if (widthDiff >= WIDTH_CHANGE_THRESHOLD) {
+      setLeftPanelWidth(finalWidth)
+    }
+  }, [setLeftPanelWidth])
+
+  /**
+   * Pointer capture based resize start. Unlike the old document-level
+   * mousemove/mouseup listeners, capturing the pointer on the resizer handle
+   * means drag events keep streaming to the handle even when the cursor leaves
+   * the window (or the iframe boundary) mid-drag. Releasing the capture on
+   * pointerup / lostpointercapture guarantees the listeners are torn down even
+   * if the component unmounts mid-drag — no stray document listeners are left
+   * behind.
+   */
+  const handlePointerDown = useCallback((e: ReactPointerEvent) => {
     e.preventDefault()
 
     isResizingRef.current = true
@@ -105,44 +146,28 @@ export function usePanelResize({
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
 
-    if (resizerRef.current) {
-      resizerRef.current.classList.add('dragging')
+    const resizerEl = resizerRef.current
+    if (resizerEl) {
+      resizerEl.classList.add('dragging')
+    }
+    // Capture on the element that received the pointerdown (currentTarget) —
+    // that is the same element that owns the pointermove/pointerup handlers.
+    // Capturing on the outer resizer wrapper instead would retarget all
+    // pointer events away from the handler element, so the drag would never
+    // track (and pointerup would never be seen).
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // Pointer capture can fail if the element was detached — the drag then
+      // degrades to window-level implicit capture behavior.
     }
 
     pendingWidthRef.current = leftPanelWidthRef.current
     startWidthRef.current = leftPanelWidthRef.current
   }, [])
 
-  const nudgeLeftPanelWidth = useCallback(
-    (deltaPx: number) => {
-      const containerWidth = window.innerWidth
-      const maxAvailableWidth = Math.max(0, containerWidth - effectiveResizerWidth)
-      const safeMinLeftVal = Math.min(minLeft, maxAvailableWidth)
-      const safeMaxLeftVal = Math.max(
-        safeMinLeftVal,
-        containerWidth - minRight - effectiveResizerWidth
-      )
-      const currentPx = (leftPanelWidthRef.current / 100) * containerWidth
-      const nextPx = Math.max(safeMinLeftVal, Math.min(currentPx + deltaPx, safeMaxLeftVal))
-      const nextPercentage = containerWidth > 0 ? (nextPx / containerWidth) * 100 : 50
-      leftPanelWidthRef.current = nextPercentage
-      setLeftPanelWidth(nextPercentage)
-    },
-    [minLeft, minRight, effectiveResizerWidth, setLeftPanelWidth]
-  )
-
-  useEffect(() => {
-    if (!isResizing) {
-      return
-    }
-
-    const updatePanelWidth = (percentage: number) => {
-      if (leftPanelRef.current) {
-        leftPanelRef.current.style.width = `${percentage}%`
-      }
-    }
-
-    const handleMouseMove = (e: MouseEvent) => {
+  const handlePointerMove = useCallback(
+    (e: ReactPointerEvent) => {
       if (!isResizingRef.current) return
 
       const containerWidth = window.innerWidth
@@ -170,80 +195,85 @@ export function usePanelResize({
         cancelAnimationFrame(rafIdRef.current)
       }
       rafIdRef.current = requestAnimationFrame(() => {
-        updatePanelWidth(percentage)
+        if (leftPanelRef.current) {
+          leftPanelRef.current.style.width = `${percentage}%`
+        }
       })
-    }
-
-    const resizerEl = resizerRef.current
-
-    const handleMouseUp = () => {
-      if (!isResizingRef.current) return
-
-      isResizingRef.current = false
-
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current)
-        rafIdRef.current = null
-      }
-
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-
-      if (resizerEl) {
-        resizerEl.classList.remove('dragging')
-      }
-
-      document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
-
-      const finalWidth = pendingWidthRef.current
-      const widthDiff = Math.abs(finalWidth - startWidthRef.current)
-
-      setIsResizing(false)
-
-      if (widthDiff >= WIDTH_CHANGE_THRESHOLD) {
-        setLeftPanelWidth(finalWidth)
-      }
-    }
-
-    document.addEventListener('mousemove', handleMouseMove, { passive: true })
-    document.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current)
-      }
-
-      if (resizerEl) {
-        resizerEl.classList.remove('dragging')
-      }
-
-      document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [isResizing, minLeft, minRight, setLeftPanelWidth, isReversed, effectiveResizerWidth])
-
-  return useMemo(
-    () => ({
-      leftPanelWidth: clampedPercentage,
-      setLeftPanelWidth,
-      isResizing,
-      handleMouseDown,
-      nudgeLeftPanelWidth,
-      leftPanelRef,
-      resizerRef
-    }),
-    [
-      clampedPercentage,
-      setLeftPanelWidth,
-      isResizing,
-      handleMouseDown,
-      nudgeLeftPanelWidth,
-      leftPanelRef,
-      resizerRef
-    ]
+    },
+    [effectiveResizerWidth, isReversed, minLeft, minRight]
   )
+
+  const handlePointerUp = useCallback(
+    (e: ReactPointerEvent) => {
+      const resizerEl = resizerRef.current
+      try {
+        resizerEl?.releasePointerCapture(e.pointerId)
+      } catch {
+        // Already released or detached — safe to ignore.
+      }
+      endResize()
+    },
+    [endResize]
+  )
+
+  const handleLostPointerCapture = useCallback(() => {
+    // Fired when the browser forcibly drops the capture (alt-tab, devtools,
+    // element unmount). Without this the component would stay in a stuck
+    // "resizing" state with the body cursor frozen.
+    endResize()
+  }, [endResize])
+
+  const nudgeLeftPanelWidth = useCallback(
+    (deltaPx: number) => {
+      const containerWidth = window.innerWidth
+      const maxAvailableWidth = Math.max(0, containerWidth - effectiveResizerWidth)
+      const safeMinLeftVal = Math.min(minLeft, maxAvailableWidth)
+      const safeMaxLeftVal = Math.max(
+        safeMinLeftVal,
+        containerWidth - minRight - effectiveResizerWidth
+      )
+      const currentPx = (leftPanelWidthRef.current / 100) * containerWidth
+      const nextPx = Math.max(safeMinLeftVal, Math.min(currentPx + deltaPx, safeMaxLeftVal))
+      const nextPercentage = containerWidth > 0 ? (nextPx / containerWidth) * 100 : 50
+      leftPanelWidthRef.current = nextPercentage
+      setLeftPanelWidth(nextPercentage)
+    },
+    [minLeft, minRight, effectiveResizerWidth, setLeftPanelWidth]
+  )
+
+  // Cleanup on unmount: if the component unmounts mid-drag, pointer capture is
+  // released by the browser automatically, but the body classes/cursor styles
+  // must be reset by us.
+  //
+  // NOTE: `endResize` gets a new identity whenever `setLeftPanelWidth` does
+  // (useLocalStorage recreates its setter when its inline `validate` arrow
+  // changes), so it must be read through a ref. Depending on `endResize`
+  // directly would re-run this cleanup on EVERY render and cancel an active
+  // drag right after it starts.
+  const endResizeRef = useRef(endResize)
+  endResizeRef.current = endResize
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current)
+      }
+      if (isResizingRef.current) {
+        endResizeRef.current()
+      }
+    }
+  }, [])
+
+  return {
+    leftPanelWidth: clampedPercentage,
+    setLeftPanelWidth,
+    isResizing,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleLostPointerCapture,
+    nudgeLeftPanelWidth,
+    leftPanelRef,
+    resizerRef
+  }
 }

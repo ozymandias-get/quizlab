@@ -31,6 +31,7 @@
   "ai_send_clear_confirm": "Are you sure you want to clear all draft items?",
   "ai_send_sent": "Sent",
   "ai_send_error": "Send error",
+  "error_send_in_progress": "Another send is already in progress, please wait.",
   "ai_send_ready": "Ready",
   "ai_send_retry": "Retry",
   "ai_send_retry_send": "Retry send",
@@ -59,5 +60,7 @@
   "ai_preset_clinical": "Clinical",
   "ai_preset_clinical_value": "Make a clinical connection",
   "ai_preset_review": "Review",
-  "ai_preset_review_value": "Do a quick review"
+  "ai_preset_review_value": "Do a quick review",
+  "ai_preset_more": "More",
+  "ai_send_custom_note": "Add Note / Ask"
 }
