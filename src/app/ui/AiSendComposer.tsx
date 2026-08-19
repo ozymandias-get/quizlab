@@ -16,7 +16,7 @@ import {
   usePanelVariants
 } from './aiSendComposer/composerConstants'
 import { COMPACT_HEIGHT } from './aiSendComposer/layoutUtils'
-import type { AiSendComposerProps, SendFeedback } from './aiSendComposer/types'
+import type { AiSendComposerProps } from './aiSendComposer/types'
 import {
   useAiSendComposerClickOutside,
   useAiSendComposerFeedbackReset,
@@ -24,6 +24,8 @@ import {
 } from './aiSendComposer/useAiSendComposerEffects'
 import { useAiSendComposerLayout } from './aiSendComposer/useAiSendComposerLayout'
 import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
+import { useComposerSendAction } from './aiSendComposer/useComposerSendAction'
+
 function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const selectionColor = useAppearance((s) => s.selectionColor)
   const { t, i18n } = useTranslation()
@@ -32,16 +34,10 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   const [isStoredExpanded, setStoredExpanded] = useLocalStorage<boolean>(EXPANDED_PREF_KEY, true)
   const [isExpanded, setIsExpanded] = useState(isStoredExpanded)
   const effectiveAutoSend = !isExpanded
-  const [sendFeedback, setSendFeedback] = useState<SendFeedback>('idle')
-  const [lastError, setLastError] = useState<string | null>(null)
 
   const { noteText, setNoteText, isSubmitting, setIsSubmitting, clearNote } =
     useAiSendComposerState()
 
-  const noteTextRef = useRef(noteText)
-  noteTextRef.current = noteText
-  const effectiveAutoSendRef = useRef(effectiveAutoSend)
-  effectiveAutoSendRef.current = effectiveAutoSend
   const itemsLengthRef = useRef(items.length)
   itemsLengthRef.current = items.length
   const onClearAllRef = useRef(onClearAll)
@@ -71,6 +67,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     resizeHandlers,
     edgeThickness
   } = useAiSendComposerLayout(isExpanded, latestPosition)
+
   const { textCount, imageCount } = useMemo(() => {
     let text = 0
     let image = 0
@@ -83,56 +80,25 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
 
   const accentStrong = useAccentStrong(selectionColor)
   const panelVariants = usePanelVariants(prefersReducedMotion ?? undefined)
-  const handleSend = useCallback(
-    async (options?: { noteText?: string; autoSend?: boolean; forceAutoSend?: boolean }) => {
-      if (isSubmitting) return
-      setIsSubmitting(true)
-      setSendFeedback('sending')
-      setLastError(null)
-      setIsExpanded(false)
-      setStoredExpanded(false)
-      try {
-        const result = await onSend({
-          noteText:
-            options?.noteText !== undefined
-              ? options.noteText
-              : noteTextRef.current.trim() || undefined,
-          autoSend:
-            options?.autoSend !== undefined ? options.autoSend : effectiveAutoSendRef.current,
-          forceAutoSend: options?.forceAutoSend
-        })
-        const wasSuccessful =
-          result &&
-          typeof result === 'object' &&
-          'success' in result &&
-          (result as { success: boolean }).success === true
 
-        if (wasSuccessful) {
-          setSendFeedback('success')
-          setTimeout(() => setSendFeedback('idle'), 1500)
-        } else {
-          setSendFeedback('error')
-          const rawError =
-            typeof result === 'object' && result && 'error' in result
-              ? String((result as { error?: string }).error)
-              : null
-          const errorKey = rawError ? `error_${rawError}` : 'unknown_error'
-          const localizedError = t(errorKey)
-          setLastError(localizedError === errorKey ? rawError : localizedError)
-          setIsExpanded(true)
-          setStoredExpanded(true)
-        }
-      } catch {
-        setSendFeedback('error')
-        setLastError('unknown_error')
-        setIsExpanded(true)
-        setStoredExpanded(true)
-      } finally {
-        setIsSubmitting(false)
-      }
-    },
-    [onSend, isSubmitting, setIsSubmitting, setStoredExpanded, t]
-  )
+  const {
+    sendFeedback,
+    setSendFeedback,
+    lastError,
+    setLastError,
+    handleSend,
+    handleRetry,
+    handleForceSend,
+    handleSendWithPreset
+  } = useComposerSendAction({
+    isSubmitting,
+    setIsSubmitting,
+    onSend,
+    noteText,
+    effectiveAutoSend,
+    setIsExpanded,
+    setStoredExpanded
+  })
 
   const handleToggleExpand = useCallback(() => {
     setIsExpanded((prev) => {
@@ -141,10 +107,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
       return next
     })
   }, [setStoredExpanded])
-  const handleRetry = useCallback(() => {
-    setSendFeedback('idle')
-    setLastError(null)
-  }, [])
+
   const handleClearAll = useCallback(() => {
     if (itemsLengthRef.current > 1) {
       if (!confirm(t('ai_send_clear_confirm'))) return
@@ -152,19 +115,10 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     clearNote()
     onClearAllRef.current()
   }, [clearNote, t])
+
   useAiSendComposerKeyboard(isSubmitting, handleToggleExpand)
   useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, onClearAll)
   useAiSendComposerFeedbackReset(items.length, isSubmitting, setSendFeedback, setLastError)
-  const handleForceSend = useCallback(() => {
-    void handleSend({ forceAutoSend: true })
-  }, [handleSend])
-
-  const handleSendWithPreset = useCallback(
-    (presetValue: string) => {
-      void handleSend({ noteText: presetValue, forceAutoSend: true })
-    },
-    [handleSend]
-  )
 
   const portalStyle = useMemo(
     () =>
@@ -201,6 +155,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
           },
     [isExpanded]
   )
+
   if (typeof document === 'undefined') return null
   const showContent = isExpanded && sendFeedback !== 'sending'
   const totalItems = textCount + imageCount

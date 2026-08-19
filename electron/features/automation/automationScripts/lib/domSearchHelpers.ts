@@ -1,4 +1,7 @@
-export const domSearchHelpers = `    /**
+import { fingerprintSearchHelpers } from './fingerprintSearchHelpers.js'
+
+export const domSearchHelpers =
+  `    /**
      * Escapes a string for use inside a CSS attribute value selector ("...").
      * Unlike CSS.escape (identifier escaping), this applies CSS string escaping
      * rules: backslash and double-quote must be escaped with a backslash.
@@ -88,12 +91,10 @@ export const domSearchHelpers = `    /**
 
     /**
      * Checks how well an element matches a fingerprint's key attributes.
-     * Higher score = better match. Used to disambiguate when a CSS selector
-     * matches multiple elements (e.g. multiple [role="button"] on the page).
+     * Higher score = better match.
      */
     const __fingerprintMatchScore = (element, fingerprint) => {
         if (!fingerprint || !element) return 0;
-        // Guard: only score Element nodes (nodeType 1) that are still in the DOM.
         if (element.nodeType && element.nodeType !== 1) return 0;
         if (element.isConnected === false) return 0;
         let score = 0;
@@ -159,10 +160,6 @@ export const domSearchHelpers = `    /**
             };
         }
 
-        // Ambiguous: multiple elements match. Try disambiguation.
-        // First, try fingerprint-based scoring if available — this is the
-        // most reliable way to pick the RIGHT element when multiple elements
-        // share the same selector (e.g. multiple [role="button"] on the page).
         if (fingerprint) {
             let bestCandidate = null;
             let bestScore = 0;
@@ -173,8 +170,6 @@ export const domSearchHelpers = `    /**
                     bestCandidate = candidate;
                 }
             }
-            // Only use fingerprint match if confidence is high enough (>20)
-            // to avoid picking a random element with a weak match.
             if (bestCandidate && bestScore > 20) {
                 const strategy = directMatches.includes(bestCandidate) ? 'direct' : 'recursive';
                 return {
@@ -185,8 +180,6 @@ export const domSearchHelpers = `    /**
             }
         }
 
-        // Fallback: pickPrimaryInputCandidate works well for inputs; for
-        // buttons, prefer proximity to the input element if available.
         if (AMBIGUOUS_SELECTOR_BEHAVIOR === 'pick') {
             const picked = pickPrimaryInputCandidate(allMatches);
             if (picked) {
@@ -199,10 +192,6 @@ export const domSearchHelpers = `    /**
             }
         }
 
-        // Even in 'reject' mode, if we can confidently disambiguate using
-        // visibility + area, return the best candidate instead of null.
-        // This prevents "submit selector not found" when multiple buttons
-        // share the same [role="button"] selector but only one is visible.
         const visibleMatches = allMatches.filter((el) => {
             if (!el.isConnected) return false;
             const style = window.getComputedStyle(el);
@@ -268,7 +257,6 @@ export const domSearchHelpers = `    /**
         const matches = uniqueElements(Array.from(root.querySelectorAll(selector)).filter(predicate));
         if (matches.length === 1) return matches[0];
         if (matches.length > 1 && fingerprint) {
-            // Multiple matches — use fingerprint to pick the best one.
             let best = null;
             let bestScore = 0;
             for (const m of matches) {
@@ -283,123 +271,6 @@ export const domSearchHelpers = `    /**
         return null;
     };
 
-    const findElementByFingerprintInRoot = (fingerprint, root) => {
-        const tag = typeof fingerprint.tag === 'string' && fingerprint.tag
-            ? fingerprint.tag.toLowerCase()
-            : '*';
-
-        const selectorCandidates = [];
-        if (fingerprint.safeId) {
-            selectorCandidates.push('#' + CSS.escape(fingerprint.safeId));
-        }
-        if (fingerprint.dataTestId) {
-            selectorCandidates.push((tag !== '*' ? tag : '') + '[data-testid="' + __escapeCssStr(fingerprint.dataTestId) + '"]');
-            selectorCandidates.push('[data-testid="' + __escapeCssStr(fingerprint.dataTestId) + '"]');
-        }
-        if (fingerprint.name) {
-            selectorCandidates.push((tag !== '*' ? tag : '') + '[name="' + __escapeCssStr(fingerprint.name) + '"]');
-        }
-        if (fingerprint.placeholder) {
-            selectorCandidates.push((tag !== '*' ? tag : '') + '[placeholder="' + __escapeCssStr(fingerprint.placeholder) + '"]');
-        }
-        if (fingerprint.ariaLabel) {
-            selectorCandidates.push((tag !== '*' ? tag : '') + '[aria-label="' + __escapeCssStr(fingerprint.ariaLabel) + '"]');
-        }
-        if (Array.isArray(fingerprint.classTokens) && fingerprint.classTokens.length > 0 && tag !== '*') {
-            selectorCandidates.push(tag + fingerprint.classTokens.map((token) => '.' + CSS.escape(token)).join(''));
-        }
-        if (fingerprint.role) {
-            selectorCandidates.push((tag !== '*' ? tag : '') + '[role="' + __escapeCssStr(fingerprint.role) + '"]');
-        }
-        if (fingerprint.type && tag !== '*') {
-            selectorCandidates.push(tag + '[type="' + __escapeCssStr(fingerprint.type) + '"]');
-        }
-        if (fingerprint.contentEditable && tag !== '*') {
-            selectorCandidates.push(tag + '[contenteditable="true"]');
-        }
-
-        for (const selector of uniqueStrings(selectorCandidates)) {
-            const element = findUniqueInRoot(root, selector);
-            if (element && matchesClassTokens(element, fingerprint.classTokens)) {
-                return {
-                    element,
-                    matchedSelector: selector,
-                    strategy: 'fingerprint'
-                };
-            }
-        }
-
-        if (fingerprint.text) {
-            const normalizedText = normalizeText(fingerprint.text);
-            const element = findElementByPredicate(root, tag, (candidate) => {
-                const text = normalizeText(candidate.innerText || candidate.textContent || candidate.getAttribute('aria-label') || candidate.getAttribute('title'));
-                return text === normalizedText && matchesClassTokens(candidate, fingerprint.classTokens);
-            }, fingerprint);
-
-            if (element) {
-                return {
-                    element,
-                    matchedSelector: 'text:' + normalizedText,
-                    strategy: 'fingerprint'
-                };
-            }
-        }
-
-        const descriptorElement = findElementByPredicate(root, tag, (candidate) => {
-            if (fingerprint.role && candidate.getAttribute('role') !== fingerprint.role) return false;
-            if (fingerprint.type && candidate.getAttribute('type') !== fingerprint.type) return false;
-            if (fingerprint.contentEditable && !(candidate.isContentEditable || candidate.getAttribute('contenteditable') === 'true')) return false;
-            if (fingerprint.name && candidate.getAttribute('name') !== fingerprint.name) return false;
-            if (fingerprint.placeholder && candidate.getAttribute('placeholder') !== fingerprint.placeholder) return false;
-            if (fingerprint.ariaLabel && candidate.getAttribute('aria-label') !== fingerprint.ariaLabel) return false;
-            if (!matchesClassTokens(candidate, fingerprint.classTokens)) return false;
-            return true;
-        }, fingerprint);
-
-        if (descriptorElement) {
-            return {
-                element: descriptorElement,
-                matchedSelector: 'fingerprint:descriptor',
-                strategy: 'fingerprint'
-            };
-        }
-
-        if (Array.isArray(fingerprint.localPath) && fingerprint.localPath.length > 0 && typeof root.querySelector === 'function') {
-            const localSelector = fingerprint.localPath.join(' > ');
-            const element = findUniqueInRoot(root, localSelector);
-            if (element) {
-                return {
-                    element,
-                    matchedSelector: localSelector,
-                    strategy: 'fingerprint'
-                };
-            }
-        }
-
-        return null;
-    };
-
-    const findElementByFingerprint = (fingerprint) => {
-        if (!fingerprint || typeof fingerprint !== 'object') {
-            return null;
-        }
-
-        // hostChain kökü önceliklidir (shadow DOM), sonra tüm arama kökleri
-        // (document + shadow root'lar + iframe document'leri) taranır.
-        // iframe içinden seçilen elemanların hostChain'i boş olur; bu yüzden
-        // yalnızca document'a bakmak yetersiz kalır.
-        const primaryRoot = findRootFromHostChain(fingerprint.hostChain);
-        const orderedRoots = primaryRoot
-            ? uniqueElements([primaryRoot].concat(getSearchRoots()))
-            : getSearchRoots();
-
-        for (const root of orderedRoots) {
-            const match = findElementByFingerprintInRoot(fingerprint, root);
-            if (match) {
-                return match;
-            }
-        }
-
-        return null;
-    };
-\n`
+` +
+  fingerprintSearchHelpers +
+  `\n`
