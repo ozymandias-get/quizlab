@@ -115,6 +115,74 @@ describe('profile lock', () => {
     expect(fsMocks.rename).not.toHaveBeenCalled()
   })
 
+  it('does not reclaim a live lock with a fresh heartbeat', async () => {
+    sessionUtilsMocks.isProcessAlive.mockReturnValue(true)
+    fsMocks.open.mockRejectedValue({ code: 'EEXIST' })
+    fsMocks.readFile.mockResolvedValue(
+      JSON.stringify({ pid: 4242, heartbeatAt: new Date().toISOString() })
+    )
+
+    const lock = makeLock()
+
+    const acquired = await lock.acquire()
+    expect(acquired).toEqual({ ok: false, error: 'already_in_use' })
+    expect(fsMocks.rm).not.toHaveBeenCalled()
+    expect(fsMocks.rename).not.toHaveBeenCalled()
+  })
+
+  it('reclaims a lock whose heartbeat went stale (hung holder)', async () => {
+    sessionUtilsMocks.isProcessAlive.mockReturnValue(true)
+    fsMocks.open.mockRejectedValueOnce({ code: 'EEXIST' }).mockResolvedValueOnce(handle())
+    fsMocks.readFile.mockResolvedValue(
+      JSON.stringify({ pid: 4242, heartbeatAt: '2020-01-01T00:00:00.000Z' })
+    )
+
+    const lock = makeLock()
+
+    const acquired = await lock.acquire()
+    expect(acquired.ok).toBe(true)
+    expect(fsMocks.rename).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not reclaim a live legacy lock (no timestamps)', async () => {
+    sessionUtilsMocks.isProcessAlive.mockReturnValue(true)
+    fsMocks.open.mockRejectedValue({ code: 'EEXIST' })
+    fsMocks.readFile.mockResolvedValue(JSON.stringify({ pid: 4242 }))
+
+    const lock = makeLock()
+
+    const acquired = await lock.acquire()
+    expect(acquired).toEqual({ ok: false, error: 'already_in_use' })
+    expect(fsMocks.rename).not.toHaveBeenCalled()
+  })
+
+  it('refreshes the heartbeat while held and stops on release', async () => {
+    vi.useFakeTimers()
+    try {
+      const lock = makeLock()
+
+      const acquired = await lock.acquire()
+      expect(acquired.ok).toBe(true)
+      expect(fsMocks.writeFile).toHaveBeenCalledTimes(1)
+      const initial = JSON.parse(fsMocks.writeFile.mock.calls[0][0] as string)
+      expect(initial.pid).toBe(process.pid)
+      expect(initial.heartbeatAt).toBe(sessionUtilsMocks.nowIso())
+
+      vi.advanceTimersByTime(5000)
+      expect(fsMocks.writeFile).toHaveBeenCalledTimes(2)
+      const refreshed = JSON.parse(fsMocks.writeFile.mock.calls[1][0] as string)
+      expect(refreshed.pid).toBe(process.pid)
+      expect(refreshed.createdAt).toBe(initial.createdAt)
+      expect(typeof refreshed.heartbeatAt).toBe('string')
+
+      await lock.release()
+      vi.advanceTimersByTime(10_000)
+      expect(fsMocks.writeFile).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('loses the reclaim race without deleting the winners fresh lock', async () => {
     // We lose the atomic rename (someone else already reclaimed the stale lock),
     // then find the winner's new live lock on retry. The old implementation

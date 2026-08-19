@@ -83,7 +83,7 @@ function PdfRecentControls({
             </button>
 
             <label
-              className={`${isMobileSearchOpen ? 'flex' : 'hidden'} border-border bg-card focus-within:border-ring focus-within:ring-ring/40 h-7 items-center gap-2 rounded-md border px-2.5 shadow-xs transition-colors focus-within:ring-1 sm:flex`}
+              className={`${isMobileSearchOpen ? 'flex' : 'hidden'} border-border bg-card focus-within:ring-foreground/15 h-7 items-center gap-2 rounded-md border px-2.5 shadow-xs transition-colors focus-within:border-neutral-400 focus-within:ring-1 sm:flex dark:focus-within:border-neutral-500`}
             >
               <Search className="text-muted-foreground h-3.5 w-3.5" />
               <Input

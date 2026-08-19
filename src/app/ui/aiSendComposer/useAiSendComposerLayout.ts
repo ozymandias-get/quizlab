@@ -6,6 +6,7 @@ import {
   clamp,
   clampLayout,
   COMPACT_HEIGHT,
+  COMPACT_WIDTH,
   EDGE_THICKNESS,
   HEADER_RESERVED_HEIGHT,
   loadStoredLayout,
@@ -14,18 +15,34 @@ import {
   MIN_BODY_HEIGHT,
   MIN_HEIGHT,
   MIN_WIDTH,
-  saveLayoutToStorage
+  saveLayoutToStorage,
+  VIEWPORT_PADDING
 } from './layoutUtils'
 import type { DockLayout, ResizeDirection } from './types'
 
-export function useAiSendComposerLayout(isExpanded: boolean) {
-  const [layout, setLayout] = useState<DockLayout>(loadStoredLayout)
+export function useAiSendComposerLayout(
+  isExpanded: boolean,
+  anchorPosition?: { top: number; left: number } | null
+) {
+  const [layout, setLayout] = useState<DockLayout>(() => {
+    const base = loadStoredLayout()
+    if (anchorPosition) {
+      return clampLayout({
+        ...base,
+        x: anchorPosition.left - base.width / 2,
+        y: anchorPosition.top
+      })
+    }
+    return base
+  })
   const panelRef = useRef<HTMLDivElement>(null)
   const asideRef = useRef<HTMLElement | null>(null)
   const dragStateRef = useRef<DragState | null>(null)
   const resizeStateRef = useRef<ResizeState | null>(null)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
+  const lastAnchorRef = useRef<string | null>(null)
+  const hasUserMovedRef = useRef(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -33,6 +50,24 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  useEffect(() => {
+    if (!anchorPosition) return
+    const key = `${anchorPosition.left},${anchorPosition.top}`
+    if (lastAnchorRef.current === key) return
+    lastAnchorRef.current = key
+    hasUserMovedRef.current = false
+
+    setLayout((prev) => {
+      const targetX = anchorPosition.left - prev.width / 2
+      const targetY = anchorPosition.top
+      return clampLayout({
+        ...prev,
+        x: targetX,
+        y: targetY
+      })
+    })
+  }, [anchorPosition])
 
   const applyPosition = useCallback((x: number, y: number) => {
     const el = asideRef.current
@@ -70,6 +105,7 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
 
   const handleDragEnd = useCallback((event: PointerEvent<HTMLDivElement>) => {
     if (!dragStateRef.current) return
+    hasUserMovedRef.current = true
     const newX = event.clientX - dragStateRef.current.offsetX
     const newY = event.clientY - dragStateRef.current.offsetY
     const finalLayout = clampLayout({ ...layoutRef.current, x: newX, y: newY })
@@ -79,6 +115,19 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
     dragStateRef.current = null
     event.currentTarget.releasePointerCapture(event.pointerId)
   }, [])
+
+  /**
+   * If the browser forcibly drops pointer capture mid-drag (alt-tab, devtools,
+   * iframe focus steal, unmount) the drag would otherwise stay "active" with
+   * the transition disabled and stale offset refs. This rolls the drag state
+   * back to the last committed layout so the panel never sticks.
+   */
+  const handleDragLostCapture = useCallback(() => {
+    if (!dragStateRef.current) return
+    applyPosition(layoutRef.current.x, layoutRef.current.y)
+    asideRef.current?.style.removeProperty('transition')
+    dragStateRef.current = null
+  }, [applyPosition])
 
   const getResizeCursor = useCallback((dir: ResizeDirection) => {
     const cursors: Record<ResizeDirection, string> = {
@@ -148,6 +197,7 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
   const handleResizeEnd = useCallback((event: React.PointerEvent) => {
     const state = resizeStateRef.current
     if (!state) return
+    hasUserMovedRef.current = true
 
     const dx = event.clientX - state.startX
     const dy = event.clientY - state.startY
@@ -182,6 +232,25 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
     event.currentTarget.releasePointerCapture(event.pointerId)
   }, [])
 
+  /**
+   * Mirror of handleDragLostCapture for resize: a lost capture mid-resize
+   * resets the element to the last committed layout instead of freezing the
+   * DOM styles in the dragged position.
+   */
+  const handleResizeLostCapture = useCallback(() => {
+    if (!resizeStateRef.current) return
+    const { startLayout } = resizeStateRef.current
+    const el = asideRef.current
+    if (el) {
+      el.style.left = `${startLayout.x}px`
+      el.style.top = `${startLayout.y}px`
+      el.style.width = `${startLayout.width}px`
+      el.style.height = `${startLayout.height}px`
+      el.style.removeProperty('transition')
+    }
+    resizeStateRef.current = null
+  }, [])
+
   const handleResizeKeyDown = useMemo(
     () =>
       createResizeKeyDownHandler({
@@ -193,15 +262,51 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
     [setLayout]
   )
 
+  const compactWidth =
+    typeof window !== 'undefined'
+      ? Math.min(COMPACT_WIDTH, window.innerWidth - VIEWPORT_PADDING * 2)
+      : COMPACT_WIDTH
+
+  const effectiveWidth = isExpanded ? layout.width : compactWidth
   const effectiveHeight = isExpanded ? layout.height : COMPACT_HEIGHT
   const bodyHeight = Math.max(MIN_BODY_HEIGHT, layout.height - HEADER_RESERVED_HEIGHT)
+
+  const effectiveX = useMemo(() => {
+    if (!hasUserMovedRef.current && anchorPosition) {
+      const targetX = anchorPosition.left - effectiveWidth / 2
+      const maxX =
+        typeof window !== 'undefined'
+          ? Math.max(VIEWPORT_PADDING, window.innerWidth - effectiveWidth - VIEWPORT_PADDING)
+          : targetX
+      return clamp(targetX, VIEWPORT_PADDING, maxX)
+    }
+    return layout.x
+  }, [anchorPosition, effectiveWidth, layout.x])
+
+  const effectiveY = useMemo(() => {
+    if (!hasUserMovedRef.current && anchorPosition) {
+      const targetY = anchorPosition.top
+      const maxY =
+        typeof window !== 'undefined'
+          ? Math.max(VIEWPORT_PADDING, window.innerHeight - effectiveHeight - VIEWPORT_PADDING)
+          : targetY
+      return clamp(targetY, VIEWPORT_PADDING, maxY)
+    }
+    return layout.y
+  }, [anchorPosition, effectiveHeight, layout.y])
 
   // Memoize the derived layout so we don't create a new spread-object on
   // every parent re-render. The layout state only changes on resize/drag-end,
   // and effectiveHeight only changes with isExpanded toggle.
   const derivedLayout = useMemo(
-    () => ({ ...layout, height: effectiveHeight }),
-    [layout, effectiveHeight]
+    () => ({
+      ...layout,
+      x: effectiveX,
+      y: effectiveY,
+      width: effectiveWidth,
+      height: effectiveHeight
+    }),
+    [layout, effectiveX, effectiveY, effectiveWidth, effectiveHeight]
   )
 
   // Stable handler bundle so `AiSendComposerContent`'s `memo()` can actually
@@ -210,8 +315,12 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
   // 8 resize edges + the entire queue + footer + send-mode bar on every tick.
   // Both inner functions are stable (empty deps), so we can memoize once.
   const resizeHandlers = useMemo(
-    () => ({ onResizeMove: handleResizeMove, onResizeEnd: handleResizeEnd }),
-    [handleResizeMove, handleResizeEnd]
+    () => ({
+      onResizeMove: handleResizeMove,
+      onResizeEnd: handleResizeEnd,
+      onResizeLostCapture: handleResizeLostCapture
+    }),
+    [handleResizeMove, handleResizeEnd, handleResizeLostCapture]
   )
 
   return useMemo(
@@ -223,10 +332,12 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
       handleDragStart,
       handleDragMove,
       handleDragEnd,
+      handleDragLostCapture,
       handleResizeStart,
       handleResizeKeyDown,
       getResizeCursor,
       resizeHandlers,
+      handleResizeLostCapture,
       edgeThickness: EDGE_THICKNESS
     }),
     [
@@ -237,10 +348,12 @@ export function useAiSendComposerLayout(isExpanded: boolean) {
       handleDragStart,
       handleDragMove,
       handleDragEnd,
+      handleDragLostCapture,
       handleResizeStart,
       handleResizeKeyDown,
       getResizeCursor,
-      resizeHandlers
+      resizeHandlers,
+      handleResizeLostCapture
     ]
   )
 }

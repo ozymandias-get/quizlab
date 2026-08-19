@@ -51,16 +51,25 @@ export function useAiSendComposerClickOutside(
 
 export function useAiSendComposerFeedbackReset(
   itemsLength: number,
+  isSubmitting: boolean,
   setSendFeedback: React.Dispatch<React.SetStateAction<'idle' | 'sending' | 'success' | 'error'>>,
   setLastError: React.Dispatch<React.SetStateAction<string | null>>
 ) {
   const prevItemsLengthRef = useRef(itemsLength)
 
   useEffect(() => {
+    // While a send is in flight, a newly queued item must NOT flip the
+    // feedback back to 'idle' — otherwise the composer looks ready to send
+    // again, the user clicks Send, and the orchestration rejects the second
+    // attempt with `send_in_progress`.
+    if (isSubmitting) {
+      prevItemsLengthRef.current = itemsLength
+      return
+    }
     if (itemsLength > prevItemsLengthRef.current && itemsLength > 0) {
       setSendFeedback('idle')
       setLastError(null)
     }
     prevItemsLengthRef.current = itemsLength
-  }, [itemsLength, setSendFeedback, setLastError])
+  }, [itemsLength, isSubmitting, setSendFeedback, setLastError])
 }

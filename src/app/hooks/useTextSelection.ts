@@ -26,7 +26,7 @@ export function useTextSelection() {
 
       lastQueuedTextRef.current = normalizedText
       lastQueuedTimeRef.current = now
-      queueTextForAi(normalizedText)
+      queueTextForAi(normalizedText, position)
     },
     [queueTextForAi]
   )

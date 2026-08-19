@@ -2,6 +2,7 @@ import { usePrompts } from '@features/ai'
 
 import { Button } from '@app/components/ui/button'
 import { Label } from '@app/components/ui/label'
+import { Separator } from '@app/components/ui/separator'
 import { Textarea } from '@app/components/ui/textarea'
 import { useToastActions } from '@app/providers'
 import { MagicWandIcon } from '@ui/components/Icons'
@@ -11,6 +12,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { type FormEvent, memo, type MouseEvent, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { QuickPresetsSection } from './prompts/QuickPresetsSection'
 import SettingsAddToggleButton from './shared/SettingsAddToggleButton'
 import SettingsTabHeader from './shared/SettingsTabHeader'
 
@@ -132,6 +134,12 @@ const PromptsTab = memo(() => {
 
   return (
     <div className="space-y-6 pb-20">
+      {/* Selection Toolbar Quick Presets Customization */}
+      <QuickPresetsSection />
+
+      <Separator className="my-6" />
+
+      {/* General Prompt Library */}
       <SettingsTabHeader
         icon={PROMPTS_ICON}
         eyebrow={t('prompts_title')}

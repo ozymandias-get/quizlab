@@ -48,7 +48,7 @@ describe('AiSendComposerContent', () => {
     onRetry: vi.fn(),
     onResizeStart: vi.fn(),
     getResizeCursor: vi.fn(() => 'default'),
-    resizeHandlers: { onResizeMove: vi.fn(), onResizeEnd: vi.fn() },
+    resizeHandlers: { onResizeMove: vi.fn(), onResizeEnd: vi.fn(), onResizeLostCapture: vi.fn() },
     edgeThickness: 6
   }
 

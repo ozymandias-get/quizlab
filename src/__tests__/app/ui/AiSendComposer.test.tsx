@@ -30,9 +30,11 @@ vi.mock('@app/ui/aiSendComposer/useAiSendComposerLayout', () => ({
     handleDragStart: vi.fn(),
     handleDragMove: vi.fn(),
     handleDragEnd: vi.fn(),
+    handleDragLostCapture: vi.fn(),
     handleResizeStart: vi.fn(),
     handleResizeMove: vi.fn(),
-    handleResizeEnd: vi.fn()
+    handleResizeEnd: vi.fn(),
+    handleResizeLostCapture: vi.fn()
   })
 }))
 
@@ -134,5 +136,52 @@ describe('AiSendComposer', () => {
 
     expect(screen.getByText('Composer Header')).toBeInTheDocument()
     expect(onClearAll).not.toHaveBeenCalled()
+  })
+
+  it('keeps the sending state when a new item is queued mid-send', async () => {
+    let resolveSend: ((value: { success: boolean }) => void) | null = null
+    const onSend = vi.fn(
+      () =>
+        new Promise<{ success: boolean }>((resolve) => {
+          resolveSend = resolve
+        })
+    )
+
+    const { rerender } = render(
+      <AiSendComposer
+        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
+        onClearAll={vi.fn()}
+        onSend={onSend}
+      />
+    )
+
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Submit Draft' }))
+    })
+
+    expect(onSend).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
+
+    // Adding an image while the send is in flight must not flip the UI back
+    // to an idle/ready state (regression: it used to reset the feedback, so
+    // the user could trigger a second send and hit `send_in_progress`).
+    act(() => {
+      rerender(
+        <AiSendComposer
+          items={[
+            { id: 'text-1', type: 'text', text: 'Selected text' },
+            { id: 'image-1', type: 'image', blobUrl: 'blob:mock-url' }
+          ]}
+          onClearAll={vi.fn()}
+          onSend={onSend}
+        />
+      )
+    })
+
+    expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveSend?.({ success: true })
+    })
   })
 })

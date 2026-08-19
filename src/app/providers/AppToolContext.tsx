@@ -4,7 +4,7 @@ import { useToastActions } from '@shared/stores/toastStore'
 
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
 
-import type { AiDraftItem, AiSendResult } from './ai/types'
+import type { AiDraftItem, AiSendResult, SelectionPosition } from './ai/types'
 import {
   useAiMessagingActions,
   useAiSessionActions,
@@ -36,7 +36,7 @@ interface AppToolActionsType {
   startScreenshot: (imageMeta?: QueuedImageMeta) => void
   closeScreenshot: () => void
   handleCapture: (dataUrl: string) => Promise<void>
-  queueTextForAi: (text: string) => void
+  queueTextForAi: (text: string, position?: SelectionPosition | null) => void
   queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => void
   removePendingAiItem: (id: string) => void
   clearPendingAiItems: () => void

@@ -67,8 +67,15 @@ describe('automation DOM isolation regressions', () => {
     const script = buildSetInputValueScript()
     expect(script).toContain("new InputEvent('beforeinput'")
     expect(script).toContain('dispatchBeforeInput')
-    expect(script).not.toContain('ClipboardEvent')
     expect(script).toContain('insertTextAtCaret')
+    // Large-text synthetic paste exists for contenteditable editors only:
+    expect(script).toContain('LARGE_TEXT_THRESHOLD')
+    expect(script).toContain('pasteLargeText')
+    // The final non-CE (value-setter) branch must dispatch beforeinput and
+    // never route through the paste helper.
+    const lastBeforeInput = script.lastIndexOf('dispatchBeforeInput(value);')
+    expect(lastBeforeInput).toBeGreaterThan(-1)
+    expect(script.slice(lastBeforeInput)).not.toContain('pasteLargeText')
   })
 
   it('picker iframe block: recursive scan, per-doc observers, no undefined helper', () => {

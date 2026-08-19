@@ -70,7 +70,10 @@ function App() {
     leftPanelWidth,
     leftPanelRef,
     resizerRef,
-    handleMouseDown,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleLostPointerCapture,
     nudgeLeftPanelWidth,
     isResizing,
     setLeftPanelWidth
@@ -116,7 +119,10 @@ function App() {
             rightPanelVariants={animations.rightPanelVariants}
             resizerVariants={animations.resizerVariants}
             gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
-            handleMouseDown={handleMouseDown}
+            handlePointerDown={handlePointerDown}
+            handlePointerMove={handlePointerMove}
+            handlePointerUp={handlePointerUp}
+            handleLostPointerCapture={handleLostPointerCapture}
             handleResizerDoubleClick={handleResizerDoubleClick}
             onKeyboardResize={nudgeLeftPanelWidth}
             isResizeReversed={isLayoutSwapped}

@@ -35,6 +35,11 @@ const WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT = `
   // and oncopy/oncut/onpaste attributes set by the page after load).
   ['copy', 'cut', 'paste'].forEach((type) => {
     document.addEventListener(type, (e) => {
+      // Allow paste events synthesized by the app's own automation scripts
+      // (marked on the event object in the same JS world). These carry the
+      // payload in their clipboardData and never touch the system clipboard,
+      // so they cannot leak another partition's clipboard content.
+      if (e && e.__quizlabInternalPaste) return;
       e.preventDefault();
       e.stopImmediatePropagation();
     }, true);
@@ -232,10 +237,26 @@ function setupClipboardProtection(): void {
 
     // SECURITY: Intercept window.open() calls from webview guest pages.
     // Without this handler, Electron creates a new unhardened BrowserWindow
-    // for each popup. We deny all popups here and let the renderer-side
-    // new-window event handler decide what to do (load in same webview,
-    // open externally, or block).
-    wc.setWindowOpenHandler(() => {
+    // for each popup — a phishing/ad link could run in a Node-enabled window.
+    // Policy:
+    //   - http/https popups are routed to the user's default browser via
+    //     shell.openExternal (they are never opened as Electron windows), so
+    //     OAuth/redirect flows still work without exposing the app runtime.
+    //   - every other scheme (file:, javascript:, data:, chrome:, ...) is
+    //     denied outright.
+    wc.setWindowOpenHandler(({ url }) => {
+      try {
+        const parsed = new URL(url)
+        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+          void shell.openExternal(url).catch((error) => {
+            Logger.error('[Security] Failed to open external popup URL:', error)
+          })
+        } else {
+          Logger.warn(`[Security] Blocked webview popup with disallowed scheme: ${parsed.protocol}`)
+        }
+      } catch {
+        Logger.warn('[Security] Blocked webview popup with invalid URL')
+      }
       return { action: 'deny' }
     })
 

@@ -48,7 +48,10 @@ vi.mock('@app/hooks/useAppShellState', () => ({
       leftPanelWidth: 50,
       leftPanelRef: { current: null },
       resizerRef: { current: null },
-      handleMouseDown: vi.fn(),
+      handlePointerDown: vi.fn(),
+      handlePointerMove: vi.fn(),
+      handlePointerUp: vi.fn(),
+      handleLostPointerCapture: vi.fn(),
       isResizing: false,
       setLeftPanelWidth: vi.fn()
     },

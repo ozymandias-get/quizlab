@@ -7,6 +7,7 @@ import { eventDrivenWaitRuntime } from './lib/eventDrivenWait.js'
 import { fallbackHeuristics } from './lib/fallbackHeuristics.js'
 import { interactionHelpers } from './lib/interactionHelpers.js'
 import { selectorEngine } from './lib/selectorEngine.js'
+import { shadowRootRegistryRuntime } from './lib/shadowRootRegistry.js'
 import { siteStrategyRuntime } from './lib/siteStrategyRegistry.js'
 
 export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject'): string {
@@ -18,6 +19,9 @@ export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject')
     siteStrategyRuntime,
     eventDrivenWaitRuntime,
     cachingHelpers,
+    // Shadow root registry, domSearchHelpers'ten ÖNCE gelir (attachShadow hook'u
+    // kurar; domSearchHelpers bu hook'a bağımlıdır).
+    shadowRootRegistryRuntime,
     domSearchHelpers,
     confidenceScoring,
     fallbackHeuristics,

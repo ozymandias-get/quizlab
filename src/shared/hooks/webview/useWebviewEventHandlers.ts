@@ -174,6 +174,22 @@ export function useWebviewEventHandlers({
 
   const cssInjectedRef = useRef(new WeakSet<object>())
 
+  // Best-effort abort of any in-flight automation run (wait loops,
+  // MutationObservers) on the guest page. SPA navigation / new-chat must
+  // cancel pending waits immediately instead of letting them run until their
+  // timeout budget; each subsequent script installs a fresh controller.
+  const abortPendingAutomation = useCallback((wv: WebviewElement | null) => {
+    if (!wv) return
+    try {
+      const promise = wv.executeJavaScript?.(
+        'try{window.__quizlabAbortController&&window.__quizlabAbortController.abort()}catch(e){}'
+      )
+      promise?.catch(() => {})
+    } catch {
+      // Navigation may already have destroyed the guest context — safe to skip
+    }
+  }, [])
+
   const handleDomReady = useCallback(() => {
     const wv = activeWebviewRef.current
 
@@ -194,22 +210,26 @@ export function useWebviewEventHandlers({
     (event: Event) => {
       const url = extractEventUrl(event)
 
+      abortPendingAutomation(activeWebviewRef.current)
+
       if (!url) return
 
       const onUrlChangeCb = onUrlChangeRef.current
       if (onUrlChangeCb) onUrlChangeCb(url)
     },
-    [onUrlChangeRef]
+    [abortPendingAutomation, activeWebviewRef, onUrlChangeRef]
   )
 
   const handleDidNavigate = useCallback(
     (event: Event) => {
       const url = extractEventUrl(event)
 
+      abortPendingAutomation(activeWebviewRef.current)
+
       const onUrlChangeCb = onUrlChangeRef.current
       if (url && onUrlChangeCb) onUrlChangeCb(url)
     },
-    [onUrlChangeRef]
+    [abortPendingAutomation, activeWebviewRef, onUrlChangeRef]
   )
 
   return {

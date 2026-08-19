@@ -17,7 +17,8 @@ export const BOTTOM_OFFSET = 92
 export const VIEWPORT_PADDING = 8
 export const EDGE_THICKNESS = 6
 
-export const COMPACT_HEIGHT = 56
+export const COMPACT_HEIGHT = 44
+export const COMPACT_WIDTH = 560
 export const HEADER_RESERVED_HEIGHT = 200
 export const MIN_BODY_HEIGHT = 80
 

@@ -31,6 +31,7 @@
   "ai_send_clear_confirm": "Tüm taslak öğeleri silmek istediğinize emin misiniz?",
   "ai_send_sent": "Gönderildi",
   "ai_send_error": "Gönderim hatası",
+  "error_send_in_progress": "Başka bir gönderim devam ediyor, lütfen bekleyin.",
   "ai_send_ready": "Hazır",
   "ai_send_retry": "Tekrar dene",
   "ai_send_retry_send": "Tekrar gönder",
@@ -59,5 +60,7 @@
   "ai_preset_clinical": "Klinik",
   "ai_preset_clinical_value": "Klinik bağlantı kur",
   "ai_preset_review": "Tekrar",
-  "ai_preset_review_value": "Kısa tekrar yap"
+  "ai_preset_review_value": "Kısa tekrar yap",
+  "ai_preset_more": "Daha fazla",
+  "ai_send_custom_note": "Not / Soru Yaz"
 }

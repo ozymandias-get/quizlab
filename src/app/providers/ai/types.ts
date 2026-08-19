@@ -20,10 +20,18 @@ export interface Tab {
   pinned?: boolean
 }
 
-interface AiDraftTextItem {
+export interface SelectionPosition {
+  top: number
+  left: number
+  width?: number
+  height?: number
+}
+
+export interface AiDraftTextItem {
   id: string
   type: 'text'
   text: string
+  position?: SelectionPosition | null
 }
 
 export interface AiDraftImageItem {

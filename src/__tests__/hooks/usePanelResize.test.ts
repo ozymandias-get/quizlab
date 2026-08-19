@@ -1,11 +1,29 @@
 import { usePanelResize } from '@shared/hooks/usePanelResize'
 
 import { act, renderHook } from '@testing-library/react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('usePanelResize', () => {
   const originalInnerWidth = window.innerWidth
+
+  const makeCurrentTarget = () =>
+    ({
+      setPointerCapture: vi.fn<(pointerId: number) => void>(),
+      releasePointerCapture: vi.fn<(pointerId: number) => void>()
+    }) as {
+      setPointerCapture: (pointerId: number) => void
+      releasePointerCapture: (pointerId: number) => void
+    }
+
+  const makePointerEvent = (overrides: Record<string, unknown> = {}) =>
+    ({
+      preventDefault: vi.fn(),
+      pointerId: 1,
+      clientX: 100,
+      currentTarget: makeCurrentTarget(),
+      ...overrides
+    }) as unknown as ReactPointerEvent
 
   beforeEach(() => {
     window.localStorage.clear()
@@ -25,6 +43,9 @@ describe('usePanelResize', () => {
       writable: true,
       configurable: true
     })
+    document.body.classList.remove('panel-resizing')
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
     vi.restoreAllMocks()
   })
 
@@ -33,29 +54,13 @@ describe('usePanelResize', () => {
     expect(result.current.leftPanelWidth).toBe(50)
   })
 
-  it('should not attach document resize listeners before dragging starts', () => {
-    const addEventListenerSpy = vi.spyOn(document, 'addEventListener')
-
-    renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
-
-    expect(addEventListenerSpy).not.toHaveBeenCalledWith(
-      'mousemove',
-      expect.any(Function),
-      expect.anything()
-    )
-    expect(addEventListenerSpy).not.toHaveBeenCalledWith('mouseup', expect.any(Function))
-  })
-
-  it('should start resizing on mouse down', () => {
+  it('should start resizing on pointer down', () => {
     const { result } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
 
-    const mockEvent = {
-      preventDefault: vi.fn(),
-      clientX: 100
-    } as unknown as ReactMouseEvent
+    const mockEvent = makePointerEvent()
 
     act(() => {
-      result.current.handleMouseDown(mockEvent)
+      result.current.handlePointerDown(mockEvent)
     })
 
     expect(result.current.isResizing).toBe(true)
@@ -63,37 +68,64 @@ describe('usePanelResize', () => {
     expect(document.body.style.userSelect).toBe('none')
   })
 
-  it('should update width on mouse move', () => {
+  it('should capture the pointer on the handler element (currentTarget)', () => {
     const { result } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
 
-    const mouseDownEvent = {
-      preventDefault: vi.fn(),
-      clientX: 100
-    } as unknown as ReactMouseEvent
+    const mockEvent = makePointerEvent()
 
     act(() => {
-      result.current.handleMouseDown(mouseDownEvent)
+      result.current.handlePointerDown(mockEvent)
+    })
+
+    // Capturing on currentTarget keeps subsequent pointermove/pointerup
+    // events flowing to the element that owns the handlers. Capturing on the
+    // outer resizer wrapper instead would retarget the events away from them,
+    // so the drag would never track (regression guard).
+    expect(
+      (mockEvent.currentTarget as { setPointerCapture: (pointerId: number) => void })
+        .setPointerCapture
+    ).toHaveBeenCalledWith(1)
+  })
+
+  it('should update width on pointer move and commit on pointer up', () => {
+    const { result } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
+
+    const mockEvent = makePointerEvent()
+
+    act(() => {
+      result.current.handlePointerDown(mockEvent)
     })
 
     Object.defineProperty(window, 'innerWidth', { value: 1000, writable: true })
 
-    const mouseMoveEvent = new MouseEvent('mousemove', {
-      clientX: 300,
-      bubbles: true
+    act(() => {
+      result.current.handlePointerMove({
+        pointerId: 1,
+        clientX: 300
+      } as unknown as ReactPointerEvent)
     })
 
     act(() => {
-      document.dispatchEvent(mouseMoveEvent)
-    })
-
-    const mouseUpEvent = new MouseEvent('mouseup', { bubbles: true })
-
-    act(() => {
-      document.dispatchEvent(mouseUpEvent)
+      result.current.handlePointerUp({ pointerId: 1 } as unknown as ReactPointerEvent)
     })
 
     expect(result.current.isResizing).toBe(false)
     expect(result.current.leftPanelWidth).toBe(30)
+  })
+
+  it('should end resizing on lost pointer capture', () => {
+    const { result } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
+
+    act(() => {
+      result.current.handlePointerDown(makePointerEvent())
+    })
+
+    act(() => {
+      result.current.handleLostPointerCapture({ pointerId: 1 } as unknown as ReactPointerEvent)
+    })
+
+    expect(result.current.isResizing).toBe(false)
+    expect(document.body.style.cursor).toBe('')
   })
 
   it('should respect min limits', () => {
@@ -108,15 +140,17 @@ describe('usePanelResize', () => {
     Object.defineProperty(window, 'innerWidth', { value: 1000, writable: true })
 
     act(() => {
-      result.current.handleMouseDown({ preventDefault: vi.fn() } as unknown as ReactMouseEvent)
+      result.current.handlePointerDown(makePointerEvent())
     })
 
-    const mouseMoveEvent = new MouseEvent('mousemove', { clientX: 100, bubbles: true })
     act(() => {
-      document.dispatchEvent(mouseMoveEvent)
+      result.current.handlePointerMove({
+        pointerId: 1,
+        clientX: 100
+      } as unknown as ReactPointerEvent)
     })
     act(() => {
-      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+      result.current.handlePointerUp({ pointerId: 1 } as unknown as ReactPointerEvent)
     })
 
     expect(result.current.leftPanelWidth).toBe(20)

@@ -44,9 +44,9 @@ function NoteSection({ noteText, hasImages, onNoteTextChange, onKeyDown }: NoteS
           type="button"
           onClick={() => setShowPresets((v) => !v)}
           className={cn(
-            'text-ql-10 focus-visible:ring-ring/40 flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
+            'text-ql-10 focus-visible:ring-foreground/20 flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none',
             showPresets
-              ? 'border-primary/30 bg-primary/10 text-primary border'
+              ? 'border-border bg-muted text-foreground border'
               : 'text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
           aria-label={t('ai_send_presets')}

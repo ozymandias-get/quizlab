@@ -3,6 +3,89 @@ export function buildSetInputValueScript(): string {
         const setInputValue = async (element, value) => {
             const start = now();
             const doubleLinebreak = String.fromCharCode(10) + String.fromCharCode(10);
+
+            // ── Large-text threshold ────────────────────────────────────────
+            // ProseMirror/Lexical editors (Claude/ChatGPT) lock up when a very
+            // long payload is pushed through execCommand('insertText') in a
+            // single synchronous call — their AST rebuild blocks the main
+            // thread and Chromium hits the script timeout, dropping or
+            // corrupting characters. Above this threshold we switch to a
+            // synthetic paste event (the editor's native bulk-insert path),
+            // which is designed to ingest large payloads in one pass.
+            const LARGE_TEXT_THRESHOLD = 2000;
+
+            const buildDataTransfer = (text) => {
+                try {
+                    const dt = new DataTransfer();
+                    dt.setData('text/plain', text);
+                    dt.setData('text/html', text.replace(/\\n/g, '<br>'));
+                    return dt;
+                } catch (_) {
+                    return null;
+                }
+            };
+
+            const dispatchSyntheticPaste = (target, text) => {
+                const dt = buildDataTransfer(text);
+                const options = dt
+                    ? { bubbles: true, cancelable: true, composed: true, clipboardData: dt }
+                    : { bubbles: true, cancelable: true, composed: true };
+                const evt = new ClipboardEvent('paste', options);
+                // Marked so the app's clipboard protection (security.ts) lets
+                // this event through — the payload travels in clipboardData
+                // and never reads from the real system clipboard.
+                evt.__quizlabInternalPaste = true;
+                target.dispatchEvent(evt);
+                return true;
+            };
+
+            const pasteLargeText = async (target, text, prefix) => {
+                const payload = (prefix || '') + text;
+                // Best-effort: also put the text on the real clipboard as the
+                // issue recommends, so editors that read from navigator.
+                // clipboard as a fallback still get the full payload. Failures
+                // are non-fatal (the synthetic event carries the data anyway).
+                try {
+                    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                        navigator.clipboard.writeText(payload).catch(() => {});
+                    }
+                } catch (_) {}
+
+                const dispatchBeforeInput = (data) => {
+                    try {
+                        target.dispatchEvent(new InputEvent('beforeinput', {
+                            bubbles: true,
+                            cancelable: true,
+                            composed: true,
+                            inputType: 'insertFromPaste',
+                            data: data
+                        }));
+                    } catch (_) {}
+                };
+
+                dispatchSyntheticPaste(target, payload);
+                await wait(50);
+                const sample = payload.substring(0, Math.min(40, payload.length));
+                const applied = (target.textContent || '').includes(sample) || (target.innerText || '').includes(sample);
+                if (applied) return true;
+
+                // Paste was not consumed (editor ignored the synthetic event).
+                // Fall back to a chunked beforeinput + DOM insertion so the
+                // work is spread across microtasks instead of one giant call.
+                dispatchBeforeInput(payload);
+                await wait(0);
+                const reApplied = (target.textContent || '').includes(sample);
+                if (reApplied) return true;
+
+                try {
+                    const node = document.createTextNode(payload);
+                    target.appendChild(node);
+                    return true;
+                } catch (_) {
+                    return false;
+                }
+            };
+
             try {
                 if (element && typeof element.scrollIntoView === 'function') {
                     element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -114,6 +197,14 @@ export function buildSetInputValueScript(): string {
                     collapseSelectionToEnd();
                     const hasContent = element.textContent && element.textContent.trim().length > 0;
                     const prefix = hasContent ? doubleLinebreak : '';
+                    if (value.length > LARGE_TEXT_THRESHOLD) {
+                        const ok = await pasteLargeText(element, value, prefix);
+                        if (ok) {
+                            triggerLifecycleEvents(element);
+                            diagnostics.setInputMs = roundMs(now() - start);
+                            return;
+                        }
+                    }
                     const payload = prefix + value;
                     if (typeof document.execCommand === 'function' && document.execCommand('insertText', false, payload)) {
                         triggerLifecycleEvents(element);
@@ -124,6 +215,14 @@ export function buildSetInputValueScript(): string {
                 }
                 try {
                     collapseSelectionToEnd();
+                    if (value.length > LARGE_TEXT_THRESHOLD) {
+                        const ok = await pasteLargeText(element, value, '');
+                        if (ok) {
+                            triggerLifecycleEvents(element);
+                            diagnostics.setInputMs = roundMs(now() - start);
+                            return;
+                        }
+                    }
                     if (typeof document.execCommand === 'function' && document.execCommand('insertText', false, value)) {
                         triggerLifecycleEvents(element);
                         diagnostics.setInputMs = roundMs(now() - start);
@@ -135,6 +234,14 @@ export function buildSetInputValueScript(): string {
                     collapseSelectionToEnd();
                     const hasContent = element.textContent && element.textContent.trim().length > 0;
                     const prefix = hasContent ? doubleLinebreak : '';
+                    if (value.length > LARGE_TEXT_THRESHOLD) {
+                        const ok = await pasteLargeText(element, value, prefix);
+                        if (ok) {
+                            triggerLifecycleEvents(element);
+                            diagnostics.setInputMs = roundMs(now() - start);
+                            return;
+                        }
+                    }
                     const payload = prefix + value;
                     // Sentetik beforeinput: ProseMirror/Lexical gibi framework'ler
                     // bunu işleyip kendi modelini günceller. İşlenmediyse DOM'a
@@ -167,6 +274,23 @@ export function buildSetInputValueScript(): string {
             }
 
             if (isContentEditable) {
+                if (value.length > LARGE_TEXT_THRESHOLD) {
+                    // Select everything first so the synthetic paste replaces the
+                    // existing content instead of appending to it.
+                    try {
+                        const sel = window.getSelection();
+                        const r = document.createRange();
+                        sel && sel.removeAllRanges && sel.removeAllRanges();
+                        r.selectNodeContents(element);
+                        sel && sel.addRange && sel.addRange(r);
+                    } catch (_) {}
+                    const ok = await pasteLargeText(element, value, '');
+                    if (ok) {
+                        triggerLifecycleEvents(element);
+                        diagnostics.setInputMs = roundMs(now() - start);
+                        return;
+                    }
+                }
                 try {
                     if (typeof document.execCommand === 'function') {
                         document.execCommand('selectAll', false, null);

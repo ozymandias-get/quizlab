@@ -37,10 +37,10 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         whileTap={!disabled ? { scale: 0.98 } : {}}
         className={cn(
           'glass-tier-3 glass-interactive inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium whitespace-nowrap transition-colors outline-none select-none',
-          'focus-visible:border-ring focus-visible:ring-ring/40 focus-visible:ring-2',
+          'focus-visible:ring-foreground/15 focus-visible:border-neutral-400 focus-visible:ring-1 dark:focus-visible:border-neutral-500',
           'disabled:pointer-events-none disabled:opacity-40',
           'border-border/70 bg-card/60 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground',
-          isActive ? activeClassName || 'border-ring/50 bg-accent text-foreground shadow-sm' : '',
+          isActive ? activeClassName || 'border-border bg-accent text-foreground shadow-sm' : '',
           className
         )}
         aria-label={tooltip}
