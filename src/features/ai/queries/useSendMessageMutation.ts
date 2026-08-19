@@ -15,6 +15,7 @@ import { useChatUiStore } from '../store/chatUiStore'
 import {
   getMessagesFromSessions,
   getUserMessage,
+  isCancelledError,
   type SendApiChatResult,
   type SendMessageParams
 } from './sendMessageUtils'
@@ -102,6 +103,12 @@ export async function sendApiChatMessage(
 
       return { success: true, reply, sessionId: activeSessionId }
     } catch (err) {
+      // User-initiated cancellations (Stop button, session switch) must not
+      // pollute the transcript with a misleading error bubble.
+      if (isCancelledError(err)) {
+        return { success: false, error: 'cancelled', cancelled: true, sessionId: activeSessionId }
+      }
+
       const error = err instanceof Error ? err.message : String(err)
       const errorReply = buildErrorReply(err)
       const sessionsWithError = addMessageToSession(

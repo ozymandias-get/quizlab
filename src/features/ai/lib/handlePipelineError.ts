@@ -2,6 +2,7 @@ import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { Logger } from '@shared/lib/logger'
 
 import type { AiSendDiagnostics } from '../model/types'
+import { isWebviewDestroyedError } from './send/scriptExecution'
 import { attachDiagnostics } from './send/sendDiagnostics'
 import { normalizeSendErrorCode } from './sendUtils'
 
@@ -12,7 +13,11 @@ export function handlePipelineError(
   context: string
 ) {
   const message = ensureErrorMessage(error)
-  if (!message.includes('webview_not_ready') && !message.includes('webview_destroyed')) {
+  if (
+    !message.includes('webview_not_ready') &&
+    !message.includes('webview_destroyed') &&
+    !isWebviewDestroyedError(error)
+  ) {
     Logger.error(`[useAiSender] ${context} error:`, error)
   }
 

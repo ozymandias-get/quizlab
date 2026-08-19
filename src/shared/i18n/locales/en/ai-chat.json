@@ -86,6 +86,7 @@
   "api_chat_no_chats": "No Chats",
   "api_chat_rename": "Rename",
   "api_chat_send": "Send",
+  "api_chat_stop": "Stop",
   "api_chat_fetch_error": "Fetch error: {error}",
   "api_chat_test_message": "Hello! Reply with just \"Yes\".",
   "api_chat_test_ok": "OK: {response}",

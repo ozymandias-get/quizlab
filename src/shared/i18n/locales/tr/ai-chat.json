@@ -86,6 +86,7 @@
   "api_chat_no_chats": "Sohbet bulunamadı",
   "api_chat_rename": "Yeniden Adlandır",
   "api_chat_send": "Gönder",
+  "api_chat_stop": "Durdur",
   "api_chat_fetch_error": "Getirme hatası: {error}",
   "api_chat_test_message": "Merhaba! Sadece \"Evet\" yanıtı ver.",
   "api_chat_test_ok": "Tamam: {response}",

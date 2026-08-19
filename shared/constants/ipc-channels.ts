@@ -6,6 +6,8 @@ export const IPC_CHANNELS = {
 
   CAPTURE_SCREEN: 'capture-screen',
   COPY_IMAGE: 'copy-image-to-clipboard',
+  /** Restore the clipboard snapshot taken before COPY_IMAGE (after webview paste). */
+  RESTORE_CLIPBOARD: 'restore-clipboard',
   COPY_TEXT: 'copy-text-to-clipboard',
   OPEN_EXTERNAL: 'open-external',
   SHOW_PDF_CONTEXT_MENU: 'show-pdf-context-menu',
@@ -45,6 +47,10 @@ export const IPC_CHANNELS = {
   SEND_API_CHAT_REQUEST: 'send-api-chat-request',
   CANCEL_API_CHAT_REQUEST: 'cancel-api-chat-request',
   FETCH_API_CHAT_MODELS: 'fetch-api-chat-models',
+
+  // App settings sync (renderer localStorage <-> main ConfigManager)
+  GET_APP_SETTINGS: 'get-app-settings',
+  SAVE_APP_SETTINGS: 'save-app-settings',
 
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',

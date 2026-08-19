@@ -11,7 +11,11 @@ import {
 } from '../api/sessions.api'
 import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
-import { type EditAndRegenerateParams, getMessagesFromSessions } from './sendMessageUtils'
+import {
+  type EditAndRegenerateParams,
+  getMessagesFromSessions,
+  isCancelledError
+} from './sendMessageUtils'
 
 export { type EditAndRegenerateParams } from './sendMessageUtils'
 
@@ -88,20 +92,25 @@ export function useEditAndRegenerateMutation() {
 
         return { reply, sessionId: activeSessionId }
       } catch (err) {
-        const errorReply = buildErrorReply(err)
-        const sessionsWithError = addMessageToSession(
-          queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || sessionsWithEdit,
-          activeSessionId,
-          errorReply
-        )
-        persistSessions(sessionsWithError)
-        queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithError)
-        queryClient.setQueryData(
-          QUERY_KEYS.AI.MESSAGES(activeSessionId),
-          getMessagesFromSessions(sessionsWithError, activeSessionId)
-        )
+        // A user-initiated cancel (Stop button) must not write an error bubble.
+        if (!isCancelledError(err)) {
+          const errorReply = buildErrorReply(err)
+          const sessionsWithError = addMessageToSession(
+            queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || sessionsWithEdit,
+            activeSessionId,
+            errorReply
+          )
+          persistSessions(sessionsWithError)
+          queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithError)
+          queryClient.setQueryData(
+            QUERY_KEYS.AI.MESSAGES(activeSessionId),
+            getMessagesFromSessions(sessionsWithError, activeSessionId)
+          )
 
-        return { reply: errorReply, sessionId: activeSessionId }
+          return { reply: errorReply, sessionId: activeSessionId }
+        }
+
+        return { reply: null, sessionId: activeSessionId }
       } finally {
         useChatUiStore.getState().setStreaming(tabId, false)
         useChatUiStore.getState().clearStreamingContent(tabId)

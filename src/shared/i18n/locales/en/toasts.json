@@ -54,6 +54,8 @@
   "toast_submit_ready_script_failed": "Failed to generate submit-ready wait script",
   "toast_picker_script_failed": "Failed to generate picker script",
   "picker_save_failed": "Couldn't save the selected elements: {error}",
+  "toast_unhandled_error": "An unexpected error occurred: {error}",
+  "toast_error_title": "Error",
   "toast": {
     "error": {
       "title": "Error"

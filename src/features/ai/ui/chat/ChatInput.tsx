@@ -6,7 +6,7 @@ import { Badge } from '@app/components/ui/badge'
 import { Button } from '@app/components/ui/button'
 import { Textarea } from '@app/components/ui/textarea'
 
-import { Image as ImageIcon, Send, Trash2 } from 'lucide-react'
+import { Image as ImageIcon, Send, Square, Trash2 } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,6 +24,7 @@ interface ChatInputProps {
   messageCount: number
   onInputChange: (val: string) => void
   onSend: () => void
+  onStop: () => void
   onKeyDown: (e: React.KeyboardEvent) => void
   onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
   onRemoveAttachment: (index: number) => void
@@ -45,6 +46,7 @@ const ChatInput = memo(function ChatInput({
   messageCount,
   onInputChange,
   onSend,
+  onStop,
   onKeyDown,
   onFileSelect,
   onRemoveAttachment,
@@ -172,17 +174,30 @@ const ChatInput = memo(function ChatInput({
                 </Button>
               )}
 
-              <Button
-                type="button"
-                variant="default"
-                size="icon-sm"
-                onClick={onSend}
-                disabled={(!inputValue.trim() && attachments.length === 0) || isStreaming}
-                title={t('api_chat_send')}
-                aria-label={t('api_chat_send')}
-              >
-                <Send className="h-3.5 w-3.5" />
-              </Button>
+              {isStreaming ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="icon-sm"
+                  onClick={onStop}
+                  title={t('api_chat_stop')}
+                  aria-label={t('api_chat_stop')}
+                >
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="icon-sm"
+                  onClick={onSend}
+                  disabled={!inputValue.trim() && attachments.length === 0}
+                  title={t('api_chat_send')}
+                  aria-label={t('api_chat_send')}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           </div>
         </div>

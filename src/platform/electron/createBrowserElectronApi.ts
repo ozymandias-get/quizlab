@@ -117,6 +117,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
 
     captureScreen: stubReturn(null),
     copyImageToClipboard: (dataUrl: string) => writeImageToClipboard(dataUrl),
+    restoreClipboard: stubReturn(true),
     copyTextToClipboard: (text: string) => writeToClipboard(text),
     openExternal: async (url: string) => {
       const parsedUrl = parseUrlWithAllowedProtocols(url, ['http:', 'https:', 'mailto:'])
@@ -184,6 +185,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       return { ok: true, data: { id, platform } }
     },
     deleteCustomAi: async (id) => customPlatforms.delete(id),
+
+    getAppSettings: stubReturn(null),
+    saveAppSetting: stubReturn(true),
 
     geminiWeb: {
       getStatus: async () => getGeminiStatus(),

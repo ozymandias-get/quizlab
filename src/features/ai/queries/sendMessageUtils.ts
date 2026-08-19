@@ -14,6 +14,15 @@ export function getUserMessage(text: string, imgs: string[], pid?: string): ApiC
   }
 }
 
+/** Errors surfaced by the main process when a request is aborted (Stop button). */
+export function isCancelledError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    ((err as unknown as Record<string, unknown>).code === 'cancelled' ||
+      /cancelled/i.test(err.message))
+  )
+}
+
 export function getMessagesFromSessions(
   sessions: ChatSession[],
   sessionId: string
@@ -47,6 +56,8 @@ export type SendApiChatResult =
       success: false
       error: string
       errorReply?: ApiChatMessage
+      /** True when the send was cancelled by the user (no error bubble written). */
+      cancelled?: boolean
       sessionId: string
     }
 

@@ -4,12 +4,14 @@ import type {
   NativeMessagingExtensionInfo
 } from '@shared-core/types'
 
+import { execFile } from 'child_process'
 import crypto from 'crypto'
 import { app, BrowserWindow, clipboard, session as electronSession } from 'electron'
 import { promises as fs } from 'fs'
 import http from 'http'
 import type { AddressInfo } from 'net'
 import path from 'path'
+import { promisify } from 'util'
 
 import { APP_CONFIG } from '../../app/constants.js'
 import { DEV_SERVER_ORIGIN } from '../../app/window/environment.js'
@@ -29,8 +31,25 @@ import {
   CRITICAL_COOKIE_NAMES,
   EXTENSION_SOURCE_DIR,
   HMAC_HEADER,
-  MAX_COOKIE_BODY_SIZE
+  MAX_COOKIE_BODY_SIZE,
+  NATIVE_HOST_MANIFEST_NAME
 } from './nativeMessagingTypes.js'
+
+const execFileAsync = promisify(execFile)
+
+const NATIVE_HOST_REGISTRY_KEY = `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${NATIVE_HOST_MANIFEST_NAME}`
+
+/**
+ * SECURITY: The registry `path` value of a native messaging host manifest is
+ * read by Chromium from a JSON file. Backslashes in that JSON must be escaped
+ * (`\\`) or Chrome reports "Specified native messaging host not found".
+ * Windows accepts forward slashes in file paths, so we emit them instead of
+ * backslashes and sidestep the escaping pitfall entirely — both in the JSON
+ * content and in the manifest file name.
+ */
+function toForwardSlashPath(filePath: string): string {
+  return filePath.split(path.sep).join('/')
+}
 
 class NativeMessagingManager {
   private httpServer: http.Server | null = null
@@ -89,16 +108,23 @@ class NativeMessagingManager {
   }
 
   private async loadExpectedExtensionOrigin(): Promise<void> {
+    this._expectedExtensionOrigin = await this.deriveExtensionOrigin()
+    if (this._expectedExtensionOrigin) {
+      Logger.info(`[NativeMessaging] Expected extension origin: ${this._expectedExtensionOrigin}`)
+    }
+  }
+
+  private async deriveExtensionOrigin(): Promise<string | null> {
     try {
       const manifestPath = path.join(this.resolveSourceExtensionPath(), 'manifest.json')
       const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8')) as { key?: string }
       if (manifest.key) {
-        this._expectedExtensionOrigin = `chrome-extension://${deriveExtensionIdFromKey(manifest.key)}`
-        Logger.info(`[NativeMessaging] Expected extension origin: ${this._expectedExtensionOrigin}`)
+        return `chrome-extension://${deriveExtensionIdFromKey(manifest.key)}`
       }
     } catch (error) {
       Logger.error('[NativeMessaging] Failed to derive extension origin from manifest:', error)
     }
+    return null
   }
 
   async installExtension(): Promise<{
@@ -129,6 +155,25 @@ class NativeMessagingManager {
       await fs.writeFile(bridgeInfoPath, JSON.stringify(bridgeInfo, null, 2), 'utf-8')
       this._bridgeInfoExists = true
 
+      // Write the native messaging host manifest with a forward-slash
+      // executable path so the JSON never needs backslash escaping (a
+      // backslash must be written as `\\` inside JSON, and a single `\`
+      // makes Chrome report "Specified native messaging host not found").
+      const nativeHostManifestPath = path.join(destPath, `${NATIVE_HOST_MANIFEST_NAME}.json`)
+      const nativeHostManifest = {
+        name: NATIVE_HOST_MANIFEST_NAME,
+        description: 'Quizlab Reader native messaging host (HTTP bridge)',
+        path: toForwardSlashPath(process.execPath),
+        type: 'stdio',
+        allowed_origins: this._expectedExtensionOrigin ? [`${this._expectedExtensionOrigin}/`] : []
+      }
+      await fs.writeFile(
+        nativeHostManifestPath,
+        JSON.stringify(nativeHostManifest, null, 2),
+        'utf-8'
+      )
+      await this.registerNativeHostInRegistry(nativeHostManifestPath)
+
       clipboard.writeText(destPath)
 
       return { success: true, installedPath: destPath }
@@ -150,10 +195,37 @@ class NativeMessagingManager {
       const extPath = this.resolveInstalledExtensionPath()
       await fs.rm(extPath, { recursive: true, force: true })
 
+      await this.unregisterNativeHostFromRegistry()
+
       return { success: true }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       return { success: false, error: msg }
+    }
+  }
+
+  /**
+   * Registers the native messaging host in HKCU so Chrome resolves
+   * `com.quizlab.reader` to the manifest written by `installExtension`.
+   * Best-effort: a failure must not fail the whole extension install.
+   */
+  private async registerNativeHostInRegistry(manifestPath: string): Promise<void> {
+    if (process.platform !== 'win32') return
+    try {
+      // `reg add` receives the path as a single argv entry (no shell), so the
+      // backslashes are stored literally — exactly what Chrome expects.
+      await execFileAsync('reg', ['add', NATIVE_HOST_REGISTRY_KEY, '/ve', '/d', manifestPath, '/f'])
+    } catch (error) {
+      Logger.warn('[NativeMessaging] Failed to register native host in registry:', error)
+    }
+  }
+
+  private async unregisterNativeHostFromRegistry(): Promise<void> {
+    if (process.platform !== 'win32') return
+    try {
+      await execFileAsync('reg', ['delete', NATIVE_HOST_REGISTRY_KEY, '/f'])
+    } catch (error) {
+      Logger.warn('[NativeMessaging] Failed to remove native host registry key:', error)
     }
   }
 

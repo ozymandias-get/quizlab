@@ -118,7 +118,7 @@ describe('useRegenerateMutation', () => {
         tabId: 'tab1',
         messages: existingMessages
       })
-      expect(res.reply.content).toBe('Regenerated reply')
+      expect(res.reply?.content).toBe('Regenerated reply')
     })
 
     const sessions = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS)
@@ -186,7 +186,7 @@ describe('useRegenerateMutation', () => {
 
     await act(async () => {
       const res = await result.current.mutateAsync({ tabId: 'tab1', messages })
-      expect(res.reply.content?.toString()).toContain('Hata')
+      expect(res.reply?.content?.toString()).toContain('Hata')
     })
 
     const sessions = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS)
@@ -254,7 +254,7 @@ describe('useEditAndRegenerateMutation', () => {
         messageId: 'u1',
         newContent: 'Edited question'
       })
-      expect(res.reply.content).toBe('Edited reply')
+      expect(res.reply?.content).toBe('Edited reply')
     })
 
     const sessions = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS)

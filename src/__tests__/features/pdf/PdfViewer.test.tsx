@@ -95,6 +95,8 @@ vi.mock('@features/pdf/ui/hooks', () => ({
     setContextMenu: vi.fn()
   }),
   usePdfPanTool: () => ({ isDragging: false }),
+  useCoalescedZoom: (zoomTo: unknown) => zoomTo,
+  useCanvasGpuCleanup: () => {},
   usePdfResizeRefit: () => {},
   usePdfCtrlWheelZoom: () => {},
   usePdfWheelNavigation: () => {},

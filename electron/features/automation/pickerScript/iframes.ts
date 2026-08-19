@@ -17,14 +17,40 @@ export function buildPickerIframesBlock(): string {
 
         var scanIframesScheduled = false;
         var iframeScanRafId = null;
+        var iframeObservers = [];
+        var scannedDocs = new Set();
+
+        const scanDocumentForFrames = (doc) => {
+            try {
+                doc.querySelectorAll('iframe').forEach(function(iframe) {
+                    var d = null;
+                    try { d = iframe.contentDocument; } catch (err) { return; }
+                    if (!d) return;
+                    attachListeners(d);
+                    if (!scannedDocs.has(d)) {
+                        scannedDocs.add(d);
+                        scanDocumentForFrames(d);
+                    }
+                });
+            } catch (err) { safePickerLog('iframe.scan', err); }
+        };
+        const observeFrameDocuments = () => {
+            for (var i = 0; i < listenerRoots.length; i++) {
+                var doc = listenerRoots[i];
+                if (doc === mainDoc) continue;
+                if (!doc.documentElement || doc.documentElement.__aiPickerFrameObserved) continue;
+                doc.documentElement.__aiPickerFrameObserved = true;
+                try {
+                    var obs = new MutationObserver(scheduleIframeScan);
+                    obs.observe(doc.documentElement, { childList: true, subtree: true });
+                    iframeObservers.push(obs);
+                } catch (err) { safePickerLog('iframe.observe.doc', err); }
+            }
+        };
         const scanIframesImmediate = () => {
             try {
-                mainDoc.querySelectorAll('iframe').forEach(function(iframe) {
-                    try {
-                        var d = iframe.contentDocument;
-                        if (d) attachListeners(d);
-                    } catch (err) { ignoreDomAccessError(err); }
-                });
+                scanDocumentForFrames(mainDoc);
+                observeFrameDocuments();
             } catch (err) { safePickerLog('iframe.scan', err); }
         };
         const scheduleIframeScan = () => {
