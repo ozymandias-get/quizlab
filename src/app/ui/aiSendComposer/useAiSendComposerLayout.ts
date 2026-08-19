@@ -1,7 +1,6 @@
 import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { createResizeKeyDownHandler } from './createResizeKeyDownHandler'
-import type { DragState, ResizeState } from './layoutUtils'
+import type { DragState } from './layoutUtils'
 import {
   clamp,
   clampLayout,
@@ -10,15 +9,12 @@ import {
   EDGE_THICKNESS,
   HEADER_RESERVED_HEIGHT,
   loadStoredLayout,
-  MAX_HEIGHT,
-  MAX_WIDTH,
   MIN_BODY_HEIGHT,
-  MIN_HEIGHT,
-  MIN_WIDTH,
   saveLayoutToStorage,
   VIEWPORT_PADDING
 } from './layoutUtils'
-import type { DockLayout, ResizeDirection } from './types'
+import type { DockLayout } from './types'
+import { useComposerResizeInteraction } from './useComposerResizeInteraction'
 
 export function useAiSendComposerLayout(
   isExpanded: boolean,
@@ -38,7 +34,6 @@ export function useAiSendComposerLayout(
   const panelRef = useRef<HTMLDivElement>(null)
   const asideRef = useRef<HTMLElement | null>(null)
   const dragStateRef = useRef<DragState | null>(null)
-  const resizeStateRef = useRef<ResizeState | null>(null)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
   const lastAnchorRef = useRef<string | null>(null)
@@ -116,12 +111,6 @@ export function useAiSendComposerLayout(
     event.currentTarget.releasePointerCapture(event.pointerId)
   }, [])
 
-  /**
-   * If the browser forcibly drops pointer capture mid-drag (alt-tab, devtools,
-   * iframe focus steal, unmount) the drag would otherwise stay "active" with
-   * the transition disabled and stale offset refs. This rolls the drag state
-   * back to the last committed layout so the panel never sticks.
-   */
   const handleDragLostCapture = useCallback(() => {
     if (!dragStateRef.current) return
     applyPosition(layoutRef.current.x, layoutRef.current.y)
@@ -129,138 +118,18 @@ export function useAiSendComposerLayout(
     dragStateRef.current = null
   }, [applyPosition])
 
-  const getResizeCursor = useCallback((dir: ResizeDirection) => {
-    const cursors: Record<ResizeDirection, string> = {
-      n: 'ns-resize',
-      s: 'ns-resize',
-      e: 'ew-resize',
-      w: 'ew-resize',
-      ne: 'nesw-resize',
-      nw: 'nwse-resize',
-      se: 'nwse-resize',
-      sw: 'nesw-resize'
-    }
-    return cursors[dir]
-  }, [])
-
-  const handleResizeStart = useCallback(
-    (direction: ResizeDirection) => (event: PointerEvent<HTMLDivElement>) => {
-      event.preventDefault()
-      event.stopPropagation()
-      resizeStateRef.current = {
-        startX: event.clientX,
-        startY: event.clientY,
-        startLayout: { ...layoutRef.current },
-        direction
-      }
-      asideRef.current?.style.setProperty('transition', 'none')
-      event.currentTarget.setPointerCapture(event.pointerId)
-    },
-    []
-  )
-
-  const handleResizeMove = useCallback((event: React.PointerEvent) => {
-    const state = resizeStateRef.current
-    if (!state) return
-    event.preventDefault()
-
-    const dx = event.clientX - state.startX
-    const dy = event.clientY - state.startY
-    const s = state.startLayout
-    const dir = state.direction
-
-    let newX = s.x,
-      newY = s.y,
-      newW = s.width,
-      newH = s.height
-
-    if (dir.includes('e')) newW = clamp(s.width + dx, MIN_WIDTH, MAX_WIDTH)
-    if (dir.includes('w')) {
-      newW = clamp(s.width - dx, MIN_WIDTH, MAX_WIDTH)
-      newX = s.x + (s.width - newW)
-    }
-    if (dir.includes('s')) newH = clamp(s.height + dy, MIN_HEIGHT, MAX_HEIGHT)
-    if (dir.includes('n')) {
-      newH = clamp(s.height - dy, MIN_HEIGHT, MAX_HEIGHT)
-      newY = s.y + (s.height - newH)
-    }
-
-    const el = asideRef.current
-    if (el) {
-      el.style.left = `${newX}px`
-      el.style.top = `${newY}px`
-      el.style.width = `${newW}px`
-      el.style.height = `${newH}px`
-    }
-  }, [])
-
-  const handleResizeEnd = useCallback((event: React.PointerEvent) => {
-    const state = resizeStateRef.current
-    if (!state) return
-    hasUserMovedRef.current = true
-
-    const dx = event.clientX - state.startX
-    const dy = event.clientY - state.startY
-    const s = state.startLayout
-    const dir = state.direction
-
-    let newX = s.x,
-      newY = s.y,
-      newW = s.width,
-      newH = s.height
-
-    if (dir.includes('e')) newW = clamp(s.width + dx, MIN_WIDTH, MAX_WIDTH)
-    if (dir.includes('w')) {
-      newW = clamp(s.width - dx, MIN_WIDTH, MAX_WIDTH)
-      newX = s.x + (s.width - newW)
-    }
-    if (dir.includes('s')) newH = clamp(s.height + dy, MIN_HEIGHT, MAX_HEIGHT)
-    if (dir.includes('n')) {
-      newH = clamp(s.height - dy, MIN_HEIGHT, MAX_HEIGHT)
-      newY = s.y + (s.height - newH)
-    }
-
-    const finalLayout = clampLayout({ x: newX, y: newY, width: newW, height: newH })
-    setLayout(finalLayout)
-    saveLayoutToStorage(finalLayout)
-
-    const el = asideRef.current
-    if (el) {
-      el.style.removeProperty('transition')
-    }
-    resizeStateRef.current = null
-    event.currentTarget.releasePointerCapture(event.pointerId)
-  }, [])
-
-  /**
-   * Mirror of handleDragLostCapture for resize: a lost capture mid-resize
-   * resets the element to the last committed layout instead of freezing the
-   * DOM styles in the dragged position.
-   */
-  const handleResizeLostCapture = useCallback(() => {
-    if (!resizeStateRef.current) return
-    const { startLayout } = resizeStateRef.current
-    const el = asideRef.current
-    if (el) {
-      el.style.left = `${startLayout.x}px`
-      el.style.top = `${startLayout.y}px`
-      el.style.width = `${startLayout.width}px`
-      el.style.height = `${startLayout.height}px`
-      el.style.removeProperty('transition')
-    }
-    resizeStateRef.current = null
-  }, [])
-
-  const handleResizeKeyDown = useMemo(
-    () =>
-      createResizeKeyDownHandler({
-        getLayout: () => layoutRef.current,
-        setLayout: (next) => {
-          setLayout(next)
-        }
-      }),
-    [setLayout]
-  )
+  const {
+    handleResizeStart,
+    handleResizeKeyDown,
+    getResizeCursor,
+    resizeHandlers,
+    handleResizeLostCapture
+  } = useComposerResizeInteraction({
+    asideRef,
+    layoutRef,
+    setLayout,
+    hasUserMovedRef
+  })
 
   const compactWidth =
     typeof window !== 'undefined'
@@ -295,9 +164,6 @@ export function useAiSendComposerLayout(
     return layout.y
   }, [anchorPosition, effectiveHeight, layout.y])
 
-  // Memoize the derived layout so we don't create a new spread-object on
-  // every parent re-render. The layout state only changes on resize/drag-end,
-  // and effectiveHeight only changes with isExpanded toggle.
   const derivedLayout = useMemo(
     () => ({
       ...layout,
@@ -307,20 +173,6 @@ export function useAiSendComposerLayout(
       height: effectiveHeight
     }),
     [layout, effectiveX, effectiveY, effectiveWidth, effectiveHeight]
-  )
-
-  // Stable handler bundle so `AiSendComposerContent`'s `memo()` can actually
-  // bail out. Without `useMemo`, the parent re-renders a new object every
-  // time the dock resizes, which makes the memo useless and re-renders all
-  // 8 resize edges + the entire queue + footer + send-mode bar on every tick.
-  // Both inner functions are stable (empty deps), so we can memoize once.
-  const resizeHandlers = useMemo(
-    () => ({
-      onResizeMove: handleResizeMove,
-      onResizeEnd: handleResizeEnd,
-      onResizeLostCapture: handleResizeLostCapture
-    }),
-    [handleResizeMove, handleResizeEnd, handleResizeLostCapture]
   )
 
   return useMemo(

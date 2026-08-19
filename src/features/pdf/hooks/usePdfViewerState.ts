@@ -15,14 +15,10 @@ import {
   useCoalescedZoom,
   usePdfCaptureActions,
   usePdfContextMenu,
-  usePdfCtrlWheelZoom,
   usePdfNavigation,
   usePdfPanTool,
   usePdfPlugins,
-  usePdfResizeRefit,
-  usePdfTextActions,
-  usePdfViewerZoomIpc,
-  usePdfWheelNavigation
+  usePdfTextActions
 } from '../ui/hooks'
 import type { PdfViewerDocumentProps, UsePdfViewerStateReturn } from './pdfViewerStateTypes'
 import {
@@ -31,6 +27,7 @@ import {
   usePdfViewerInitialPageResume
 } from './usePdfViewerEffects'
 import { usePdfViewerMenuItems } from './usePdfViewerMenuItems'
+import { usePdfViewerZoomOrchestrator } from './usePdfViewerZoomOrchestrator'
 
 export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerStateReturn {
   const {
@@ -76,9 +73,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     clearHighlights
   } = usePdfPlugins()
 
-  // All programmatic zoom sources (fit-scale, Ctrl+wheel, IPC, resize refit,
-  // resume flow) funnel through one rAF-coalesced channel so pdf.js renders
-  // are serialized instead of racing each other.
+  // All programmatic zoom sources funnel through one rAF-coalesced channel.
   const coalescedZoom = useCoalescedZoom(zoomTo)
   zoomToRef.current = coalescedZoom
   useCanvasGpuCleanup(containerRef)
@@ -117,27 +112,24 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     [containerSize]
   )
   const fitScale = useFitScale(pageDimensions, adjustedContainerSize)
-  usePdfResizeRefit(
+
+  usePdfViewerZoomOrchestrator({
     containerRef,
     coalescedZoom,
     isDocumentReadyWithUrl,
     isPanelResizing,
     fitScale,
-    lastNavigationTimeRef
-  )
-  usePdfViewerZoomIpc(coalescedZoom, scaleFactor, isDocumentReadyWithUrl)
-  usePdfCtrlWheelZoom(containerRef, coalescedZoom, scaleFactor, isDocumentReadyWithUrl, isPanMode)
-  usePdfWheelNavigation(
-    containerRef,
+    lastNavigationTimeRef,
+    scaleFactor,
+    isPanMode,
     goToNextPage,
     goToPreviousPage,
-    isDocumentReadyWithUrl && !isPanMode
-  )
-  useEffect(() => {
-    if (!isDocumentReady || !pdfUrl || fitScale === null) return
-    if (!isMountedRef.current) return
-    zoomToRef.current(fitScale)
-  }, [isDocumentReady, fitScale, pdfUrl])
+    isDocumentReady,
+    pdfUrl,
+    isMountedRef,
+    zoomToRef
+  })
+
   const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({
     currentPage,
     queueImageForAi,
