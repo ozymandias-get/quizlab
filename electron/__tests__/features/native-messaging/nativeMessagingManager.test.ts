@@ -48,6 +48,14 @@ const mockFsReadFile = vi.hoisted(() => vi.fn())
 
 const mockCryptoRandomBytes = vi.hoisted(() => vi.fn(() => Buffer.alloc(32, 0xab)))
 
+const mockExecFile = vi.hoisted(() =>
+  vi.fn(
+    (_cmd: string, _args: string[], cb: (err: unknown, stdout: string, stderr: string) => void) => {
+      cb(null, '', '')
+    }
+  )
+)
+
 // ---------------------------------------------------------------------------
 // Module mocks
 // ---------------------------------------------------------------------------
@@ -94,6 +102,11 @@ vi.mock('crypto', async () => {
     timingSafeEqual: vi.fn(() => true)
   }
 })
+
+vi.mock('child_process', () => ({
+  execFile: mockExecFile,
+  default: { execFile: mockExecFile }
+}))
 
 vi.mock('http', () => ({
   default: {
@@ -164,6 +177,16 @@ describe('NativeMessagingManager', () => {
     mockServerOn.mockReset()
     mockServerClose.mockReset()
     mockServerAddress.mockReset()
+    mockExecFile.mockReset()
+    mockExecFile.mockImplementation(
+      (
+        _cmd: string,
+        _args: string[],
+        cb: (err: unknown, stdout: string, stderr: string) => void
+      ) => {
+        cb(null, '', '')
+      }
+    )
 
     mockCryptoRandomBytes.mockReturnValue(Buffer.alloc(32, 0xab))
     mockFsStat.mockRejectedValue(new Error('ENOENT'))
@@ -244,6 +267,36 @@ describe('NativeMessagingManager', () => {
       expect(manager.getExtensionInfo().installed).toBe(true)
     })
 
+    it('writes the native host manifest with a forward-slash path (no JSON backslash escaping)', async () => {
+      const result = await manager.installExtension()
+
+      expect(result.success).toBe(true)
+
+      const manifestCall = mockFsWriteFile.mock.calls.find(([filePath]) =>
+        String(filePath).endsWith('com.quizlab.reader.json')
+      )
+      expect(manifestCall).toBeDefined()
+      const content = String(manifestCall![1])
+      expect(content).not.toContain('\\\\')
+      const manifest = JSON.parse(content)
+      expect(manifest.name).toBe('com.quizlab.reader')
+      expect(manifest.type).toBe('stdio')
+      // A backslash in the JSON `path` (unescaped) breaks Chrome's host lookup.
+      expect(manifest.path).toMatch(/^[^\\]+$/)
+    })
+
+    it('registers the native host in the Chrome registry when installing', async () => {
+      await manager.installExtension()
+
+      expect(mockExecFile).toHaveBeenCalledTimes(1)
+      const [cmd, args] = mockExecFile.mock.calls[0]
+      expect(cmd).toBe('reg')
+      expect(args[0]).toBe('add')
+      expect(args[1]).toContain('NativeMessagingHosts\\com.quizlab.reader')
+      expect(args[3]).toBe('/d')
+      expect(String(args[4])).toMatch(/com\.quizlab\.reader\.json$/)
+    })
+
     it('returns error when source extension missing', async () => {
       mockFsStat.mockRejectedValue(new Error('ENOENT'))
 
@@ -283,6 +336,16 @@ describe('NativeMessagingManager', () => {
       })
       expect(manager.connectionStatus).toBe('disconnected')
       expect(manager.getExtensionInfo().installed).toBe(false)
+    })
+
+    it('removes the native host registry key on uninstall', async () => {
+      await manager.removeExtension()
+
+      expect(mockExecFile).toHaveBeenCalledTimes(1)
+      const [cmd, args] = mockExecFile.mock.calls[0]
+      expect(cmd).toBe('reg')
+      expect(args[0]).toBe('delete')
+      expect(args[1]).toContain('NativeMessagingHosts\\com.quizlab.reader')
     })
 
     it('returns error when fs.rm fails', async () => {

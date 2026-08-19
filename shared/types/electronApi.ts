@@ -81,6 +81,8 @@ export interface ElectronApi {
     height: number
   }) => Promise<string | null>
   copyImageToClipboard: (dataUrl: string) => Promise<boolean>
+  /** Restore the clipboard contents that were replaced by copyImageToClipboard. */
+  restoreClipboard: () => Promise<boolean>
   copyTextToClipboard: (text: string) => Promise<boolean>
   openExternal: (url: string) => Promise<boolean>
   forcePaste: (webContentsId: number) => Promise<boolean>
@@ -103,6 +105,10 @@ export interface ElectronApi {
   deleteAiConfig: (hostname: string) => Promise<boolean>
   addCustomAi: (data: CustomAiInput) => Promise<CustomAiResult>
   deleteCustomAi: (id: string) => Promise<boolean>
+  /** Read all synced app settings (localStorage mirror) from the main process store. */
+  getAppSettings: () => Promise<Record<string, string> | null>
+  /** Persist a single synced setting in the main process store. */
+  saveAppSetting: (key: string, value: string) => Promise<boolean>
   getApiChatConfig: () => Promise<ApiConfig | null>
   saveApiChatConfig: (config: ApiConfig) => Promise<boolean>
   cancelApiChatRequest: () => Promise<boolean>

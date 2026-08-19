@@ -20,6 +20,12 @@ interface CachedCanvas {
 let canvasCache: CachedCanvas | null = null
 
 export function findPageCanvas(currentPage: number): HTMLCanvasElement | null {
+  // A cached canvas that left the DOM must not be kept alive — it still holds
+  // a GPU backing store and would otherwise block releaseCanvasGpuMemory.
+  if (canvasCache && !canvasCache.canvas.isConnected) {
+    canvasCache = null
+  }
+
   // Fast path: check cache first
   if (canvasCache && canvasCache.page === currentPage && canvasCache.canvas.isConnected) {
     return canvasCache.canvas

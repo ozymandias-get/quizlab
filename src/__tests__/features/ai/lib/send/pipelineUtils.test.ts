@@ -100,4 +100,48 @@ describe('executePipelineStep', () => {
     expect(params.onTiming).toHaveBeenCalledWith(expect.any(Number))
     expect(params.onExecuteTiming).toHaveBeenCalledWith(expect.any(Number))
   })
+
+  it('returns webview_destroyed when executeJavaScript rejects with destroyed webcontents', async () => {
+    const webview = createSendWebviewMock()
+    ;(webview as any).executeJavaScript = vi
+      .fn()
+      .mockRejectedValue(new Error('Error: WebContents was destroyed'))
+
+    const params = makePipelineParams({ webview, scheduledWebview: webview })
+
+    const result = await executePipelineStep(params)
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toHaveProperty('error', 'webview_destroyed')
+    }
+    expect(params.diagnostics.classification?.code).toBe('webview_destroyed')
+  })
+
+  it('does not throw for destroyed-webview rejections (controlled failure instead)', async () => {
+    const webview = createSendWebviewMock()
+    ;(webview as any).executeJavaScript = vi
+      .fn()
+      .mockRejectedValue(new Error('WebContents was destroyed'))
+
+    const params = makePipelineParams({ webview, scheduledWebview: webview })
+
+    await expect(executePipelineStep(params)).resolves.toEqual(
+      expect.objectContaining({ success: false })
+    )
+  })
+
+  it('returns a controlled failure for generic executeJavaScript rejections', async () => {
+    const webview = createSendWebviewMock()
+    ;(webview as any).executeJavaScript = vi.fn().mockRejectedValue(new Error('boom'))
+
+    const params = makePipelineParams({ webview, scheduledWebview: webview })
+
+    const result = await executePipelineStep(params)
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toHaveProperty('error', 'boom')
+    }
+  })
 })

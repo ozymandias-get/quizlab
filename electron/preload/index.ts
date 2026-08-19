@@ -59,6 +59,7 @@ const electronApi: ElectronApi = {
 
   captureScreen: (rect?) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CAPTURE_SCREEN, rect)),
   copyImageToClipboard: (dataUrl) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.COPY_IMAGE, dataUrl)),
+  restoreClipboard: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.RESTORE_CLIPBOARD)),
   copyTextToClipboard: (text) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.COPY_TEXT, text)),
   openExternal: (url) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPEN_EXTERNAL, url)),
   forcePaste: (webContentsId) =>
@@ -99,6 +100,10 @@ const electronApi: ElectronApi = {
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.DELETE_AI_CONFIG, hostname)),
   addCustomAi: (input) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.ADD_CUSTOM_AI, input)),
   deleteCustomAi: (id) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id)),
+
+  getAppSettings: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_APP_SETTINGS)),
+  saveAppSetting: (key, value) =>
+    unwrapIpcResult(typedInvoke(IPC_CHANNELS.SAVE_APP_SETTINGS, key, value)),
 
   getApiChatConfig: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_API_CHAT_CONFIG)),
   saveApiChatConfig: (config) =>

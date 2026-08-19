@@ -103,9 +103,14 @@ export function usePdfViewerInitialPageResume(input: InitialPageResumeInput) {
     }
     appliedResumeSyncKeyRef.current = syncKey
     zoomToRef.current(fitScale)
+    // zoomToRef now runs through a rAF-coalesced channel, so the zoom is
+    // executed one frame later. Wait for it to commit before jumping so the
+    // navigation measures the post-zoom layout (three frames total).
     const rafId = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        jumpToPageFromNav(initialPage)
+        requestAnimationFrame(() => {
+          jumpToPageFromNav(initialPage)
+        })
       })
     })
     return () => cancelAnimationFrame(rafId)

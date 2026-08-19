@@ -1,6 +1,8 @@
 import { Worker } from '@react-pdf-viewer/core'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
-import { memo, type ReactNode } from 'react'
+import { memo, type ReactNode, useEffect } from 'react'
+
+import { installPdfRenderErrorGuard } from '../../errors/pdfRenderErrors'
 
 /**
  * Wraps children with the pdfjs `<Worker>` context provider.
@@ -13,6 +15,7 @@ import { memo, type ReactNode } from 'react'
  * PDF open/close cycle and on tab switches.
  */
 function PdfWorkerHost({ children }: { children: ReactNode }) {
+  useEffect(() => installPdfRenderErrorGuard(), [])
   return <Worker workerUrl={pdfjsWorkerUrl}>{children}</Worker>
 }
 

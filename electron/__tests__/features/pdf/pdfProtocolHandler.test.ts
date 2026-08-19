@@ -1,4 +1,5 @@
 ﻿import { Readable } from 'stream'
+import path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../../app/constants.js'
@@ -114,6 +115,23 @@ describe('local-pdf:// protocol handler', () => {
     requireTrustedIpcSenderMock.mockReset().mockReturnValue(true)
   })
 
+  describe('normalization', () => {
+    it('streams from the normalized path when a non-normalized path is selected', async () => {
+      await loadAndRegister()
+      const rawSelection = '/test/../test/file.pdf'
+      const streamUrl = await registerTestPdf(rawSelection)
+      const normalized = path.normalize(rawSelection)
+
+      const response = await getProtocolHandler()(makeRequest(streamUrl))
+
+      expect(response.status).toBe(200)
+      expect(createReadStreamMock).toHaveBeenCalledWith(
+        normalized,
+        expect.objectContaining({ highWaterMark: 1024 * 1024 })
+      )
+    })
+  })
+
   describe('authorization', () => {
     it('returns 403 for unknown pdfId', async () => {
       await loadAndRegister()
@@ -177,7 +195,7 @@ describe('local-pdf:// protocol handler', () => {
       expect(response.headers.get('content-length')).toBe('1000')
       expect(response.headers.get('content-range')).toBeNull()
       expect(createReadStreamMock).toHaveBeenCalledWith(
-        '/test/file.pdf',
+        path.normalize('/test/file.pdf'),
         expect.objectContaining({ highWaterMark: 1024 * 1024 })
       )
     })
@@ -206,7 +224,7 @@ describe('local-pdf:// protocol handler', () => {
       expect(response.headers.get('content-range')).toBe('bytes 0-99/1000')
       expect(response.headers.get('content-length')).toBe('100')
       expect(createReadStreamMock).toHaveBeenCalledWith(
-        '/test/file.pdf',
+        path.normalize('/test/file.pdf'),
         expect.objectContaining({
           start: 0,
           end: 99,

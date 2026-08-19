@@ -4,6 +4,10 @@ export function buildPickerCleanupBlock(): string {
             try {
                 try { iframeObserver.disconnect(); } catch (e) { safePickerLog('cleanup.iframeObserver', e); }
                 try { bodyObserver && bodyObserver.disconnect(); } catch (e) { safePickerLog('cleanup.bodyObserver', e); }
+                for (var f = 0; f < iframeObservers.length; f++) {
+                    try { iframeObservers[f].disconnect(); } catch (e) { safePickerLog('cleanup.iframeDocObserver', e); }
+                }
+                iframeObservers.length = 0;
                 if (iframeScanRafId != null) {
                     try { safeCancelAnimationFrame(iframeScanRafId); } catch (e) { safePickerLog('cleanup.cancelIframeScan', e); }
                     iframeScanRafId = null;
@@ -21,6 +25,7 @@ export function buildPickerCleanupBlock(): string {
                         rootDoc.removeEventListener('keydown', onKeyDown, true);
                         if (rootDoc.documentElement) {
                             try { delete rootDoc.documentElement.__aiPickerListenersAttached; } catch (e) { safePickerLog('cleanup.listenerFlag', e); }
+                            try { delete rootDoc.documentElement.__aiPickerFrameObserved; } catch (e) { safePickerLog('cleanup.frameFlag', e); }
                         }
                     } catch (e) { safePickerLog('cleanup.listenerRoot', e); }
                 }

@@ -68,7 +68,8 @@ function isDuplicate(existing: Toast[], message: string, type: Toast['type']): b
   )
 }
 
-const useToastStore = create<ToastStoreState>((set, get) => {
+/** Subscribes to toast state. Prefer `useToastActions` for showing toasts. */
+export const useToastStore = create<ToastStoreState>((set, get) => {
   const showTyped =
     (type: Toast['type']) =>
     (message: string, title?: string, params?: Record<string, string>, duration?: number) =>

@@ -242,7 +242,10 @@ export function registerPdfProtocolHandlers() {
         const normalized = normalizePdfPath(filePath)
         sessionAllowedPdfPaths.add(normalized)
 
-        const streamUrl = registerPdfPath(filePath)
+        // Register the NORMALIZED path so the protocol handler and the
+        // allowlist resolve to the same key (avoids duplicate registry
+        // entries from paths differing only in case, separators or 8.3 names).
+        const streamUrl = registerPdfPath(normalized)
 
         return success({
           path: filePath,

@@ -69,8 +69,63 @@ describe('validateProviderUrl (SSRF Protection)', () => {
     expect(validateProviderUrl('https://localhost')).toBeNull()
   })
 
-  it('rejects IPv6 loopback', () => {
+  it('rejects IPv6 loopback and unspecified addresses', () => {
     expect(validateProviderUrl('https://[::1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[0:0:0:0:0:0:0:1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[::]')).toContain('SSRF blocked')
+  })
+
+  it('rejects IPv4-mapped IPv6 forms that point at private addresses', () => {
+    expect(validateProviderUrl('https://[::ffff:127.0.0.1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[::ffff:169.254.169.254]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[::ffff:10.0.0.1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[0:0:0:0:0:ffff:7f00:1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[::ffff:7f00:1]')).toContain('SSRF blocked')
+  })
+
+  it('rejects IPv4-compatible IPv6 forms that embed a private address', () => {
+    expect(validateProviderUrl('https://[::127.0.0.1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[::192.168.1.1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[::a9fe:a9fe]')).toContain('SSRF blocked')
+  })
+
+  it('rejects link-local, ULA, multicast, documentation, and transition IPv6', () => {
+    expect(validateProviderUrl('https://[fe80::1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[fe80::a9fe:a9fe]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[fc00::1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[fd12:3456::1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[ff02::1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[2001:db8::1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[2001::1]')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[2002::1]')).toContain('SSRF blocked')
+  })
+
+  it('rejects credentials (userinfo / @ tricks) in provider URLs', () => {
+    expect(validateProviderUrl('https://user:pass@api.openai.com')).toContain('Credentials')
+    expect(validateProviderUrl('https://127.0.0.1@evil.com')).toContain('Credentials')
+    expect(validateProviderUrl('https://evil.com@127.0.0.1')).toContain('Credentials')
+    expect(validateProviderUrl('http://127.0.0.1:8080@169.254.169.254')).toContain('Credentials')
+  })
+
+  it('normalizes trailing-dot and exotic IPv4 spellings of localhost', () => {
+    // "localhost." resolves exactly like "localhost" and stays inside the
+    // explicitly allowed local-development exception.
+    expect(validateProviderUrl('https://localhost.')).toBeNull()
+    expect(validateProviderUrl('http://localhost.:11434')).toBeNull()
+    // Decimal/hex/shorthand IPv4 forms are canonicalized by the WHATWG parser
+    // to 127.0.0.1, so they follow the same rules as 127.0.0.1 itself.
+    expect(validateProviderUrl('http://2130706433')).toBeNull()
+    expect(validateProviderUrl('http://0x7f.0.0.1:8080')).toBeNull()
+    // ...and remain blocked when they encode a private range instead.
+    expect(validateProviderUrl('https://0x7f000001')).toBeNull()
+    expect(validateProviderUrl('https://3232235777')).toContain('SSRF blocked')
+  })
+
+  it('cannot be bypassed via port manipulation', () => {
+    expect(validateProviderUrl('https://169.254.169.254:8443')).toContain('SSRF blocked')
+    expect(validateProviderUrl('https://[::ffff:10.0.0.1]:443')).toContain('SSRF blocked')
+    expect(validateProviderUrl('http://10.0.0.1:8080')).toContain('Non-HTTPS')
+    expect(validateProviderUrl('http://localhost:11434')).toBeNull()
   })
 
   it('rejects malformed URLs', () => {

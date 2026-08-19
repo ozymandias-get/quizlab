@@ -45,6 +45,7 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
     handleDragLeave,
     handleDrop,
     handleInputChange,
+    handleStop,
     handleRemoveAttachmentCallback,
     handleSelectProvider,
     handleSelectModel,
@@ -106,6 +107,7 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
             messageCount={messages.length}
             onInputChange={handleInputChange}
             onSend={handleSend}
+            onStop={handleStop}
             onKeyDown={handleKeyDown}
             onFileSelect={handleFileSelect}
             onRemoveAttachment={handleRemoveAttachmentCallback}

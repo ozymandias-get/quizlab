@@ -1,5 +1,7 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
+import { getElectronApi } from '@shared/lib/electronApi'
+
 import { useCallback } from 'react'
 
 import { useChatUiStore } from '../store/chatUiStore'
@@ -139,6 +141,18 @@ export function useApiChatSimpleHandlers(deps: UseApiChatSimpleHandlersDeps) {
     [updateInput, tabId]
   )
 
+  const handleStop = useCallback(() => {
+    // Abort the in-flight request in the main process. The send/regenerate
+    // mutation settles with a 'cancelled' error and skips the error bubble.
+    try {
+      getElectronApi()?.cancelApiChatRequest?.()
+    } catch {
+      /* best effort — the request will finish or time out on its own */
+    }
+    useChatUiStore.getState().setStreaming(tabId, false)
+    useChatUiStore.getState().clearStreamingContent(tabId)
+  }, [tabId])
+
   const handleRemoveAttachmentCallback = useCallback(
     (i: number) => removeAttachment(tabId, i),
     [removeAttachment, tabId]
@@ -161,6 +175,7 @@ export function useApiChatSimpleHandlers(deps: UseApiChatSimpleHandlersDeps) {
     handleEditMessage,
     handleRegenerateMessage,
     handleInputChange,
+    handleStop,
     handleRemoveAttachmentCallback,
     handleSelectProvider,
     handleSelectModel
