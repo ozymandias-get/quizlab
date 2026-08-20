@@ -50,7 +50,7 @@ function ApiProviderCard({
     <div className="border-border/80 bg-card/70 flex flex-col gap-3.5 rounded-xl border p-4 shadow-2xs">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="font-mono tracking-wider uppercase">
+          <Badge variant="secondary" className="tracking-ql-label font-mono uppercase">
             {provider.providerType}
           </Badge>
           <span className="text-ql-13 text-foreground font-semibold">

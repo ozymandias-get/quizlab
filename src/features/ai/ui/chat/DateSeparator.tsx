@@ -10,7 +10,7 @@ const DateSeparator = memo(function DateSeparator({ ts }: { ts: number }) {
   return (
     <div className="my-4 flex items-center gap-3">
       <Separator className="flex-1 opacity-50" />
-      <span className="text-ql-11 text-muted-foreground shrink-0 font-medium tracking-wide">
+      <span className="text-ql-11 text-muted-foreground tracking-ql-normal shrink-0 font-medium">
         {formatDate(ts, t('api_chat_today'), t('api_chat_yesterday'))}
       </span>
       <Separator className="flex-1 opacity-50" />

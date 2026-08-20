@@ -2,17 +2,24 @@ import { cn } from '@app/lib/appUtils'
 
 import * as React from 'react'
 
-interface MenuSurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
+interface MenuSurfaceProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'role'> {
   className?: string
+  /**
+   * ARIA role for the surface. Defaults to `"menu"`; override it when the
+   * surface is used as a non-menu popover (e.g. `"dialog"` for a tab list
+   * with multiple interactive controls per row) or pass `null` to keep it
+   * a plain styled container.
+   */
+  role?: React.AriaRole | null
 }
 
 const MenuSurface = React.forwardRef<HTMLDivElement, MenuSurfaceProps>(function MenuSurface(
-  { className, ...props },
+  { className, role = 'menu', ...props },
   ref
 ) {
   return (
     <div
-      role="menu"
+      role={role ?? undefined}
       ref={ref}
       data-slot="menu-surface"
       className={cn(
@@ -48,7 +55,7 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
       )}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {shortcut && (
-        <span className="text-ql-10 text-muted-foreground shrink-0 font-mono tracking-wider uppercase opacity-60">
+        <span className="text-ql-10 text-muted-foreground tracking-ql-caps shrink-0 font-mono uppercase opacity-60">
           {shortcut}
         </span>
       )}

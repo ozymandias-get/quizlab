@@ -1,4 +1,5 @@
 import { MenuItem, MenuSeparator, MenuSurface } from '@app/components/ui/menu'
+import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNavigation'
 import { DURATION } from '@shared/lib/motion'
 
 import type { LucideIcon } from 'lucide-react'
@@ -27,6 +28,8 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [adjustedPosition, setAdjustedPosition] = useState({ x, y })
   const [isReady, setIsReady] = useState(false)
+
+  const setMenuRef = useMenuKeyboardNavigation(menuRef, { onClose })
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -75,7 +78,7 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   return createPortal(
     <AnimatePresence>
       <motion.div
-        ref={menuRef}
+        ref={setMenuRef}
         initial={{ opacity: 0, scale: 0.95, y: -5 }}
         animate={isReady ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.95, y: -5 }}
         exit={{ opacity: 0, scale: 0.95, y: -5 }}

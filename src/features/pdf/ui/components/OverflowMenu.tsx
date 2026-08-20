@@ -8,7 +8,14 @@ import { ToolbarButton } from '@shared/ui/components/primitives'
 
 import { MoreHorizontal, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from 'react'
+import {
+  memo,
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 
 interface OverflowMenuProps {
   overflowTabs: PdfTab[]
@@ -30,7 +37,15 @@ function OverflowMenu({
   onOpenContextMenu
 }: OverflowMenuProps) {
   const overflowRef = useRef<HTMLDivElement>(null)
+  const surfaceRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const wasOpenRef = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
+
+  const closeAndRestoreFocus = useCallback(() => {
+    setIsOpen(false)
+    triggerRef.current?.focus()
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -43,9 +58,13 @@ function OverflowMenu({
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsOpen(false)
+        event.preventDefault()
+        closeAndRestoreFocus()
       }
     }
+
+    const surface = surfaceRef.current
+    surface?.querySelector<HTMLElement>('button:not([disabled])')?.focus()
 
     document.addEventListener('mousedown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
@@ -53,11 +72,25 @@ function OverflowMenu({
       document.removeEventListener('mousedown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
+  }, [isOpen, closeAndRestoreFocus])
+
+  useEffect(() => {
+    if (isOpen) {
+      wasOpenRef.current = true
+      return
+    }
+    if (!wasOpenRef.current) return
+    wasOpenRef.current = false
+    const active = document.activeElement
+    if (!active || active === document.body || !active.isConnected) {
+      triggerRef.current?.focus()
+    }
   }, [isOpen])
 
   return (
     <div ref={overflowRef} className="relative ml-auto shrink-0">
       <ToolbarButton
+        ref={triggerRef}
         icon={MoreHorizontal}
         className="!w-auto min-w-[32px] px-1.5"
         tooltip={tr('tab_more', 'More tabs')}
@@ -73,13 +106,31 @@ function OverflowMenu({
           transition={{ duration: DURATION.normal }}
           className="z-dropdown absolute top-10 right-0"
         >
-          <MenuSurface className="max-h-56 w-[240px] overflow-y-auto">
+          <MenuSurface
+            ref={surfaceRef}
+            role="dialog"
+            aria-label={tr('tab_more', 'More tabs')}
+            className="max-h-56 w-[240px] overflow-y-auto"
+            onKeyDown={(event) => {
+              // The dialog sits inside the tablist row, whose roving handler
+              // owns ArrowLeft/ArrowRight/Home/End — keep those keys local.
+              if (
+                event.key === 'ArrowLeft' ||
+                event.key === 'ArrowRight' ||
+                event.key === 'Home' ||
+                event.key === 'End'
+              ) {
+                event.stopPropagation()
+              }
+            }}
+          >
             {overflowTabs.map((tab) => {
               const label = getTabLabel(tab)
               return (
                 <div
                   key={tab.id}
                   role="group"
+                  aria-label={label}
                   className="group hover:bg-muted flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
                   onContextMenu={(event) => onOpenContextMenu(event, tab.id)}
                 >
@@ -87,7 +138,7 @@ function OverflowMenu({
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                        className="text-popover-foreground focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-2 rounded-md text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
                         onClick={() => {
                           onSetActiveTab(tab.id)
                           setIsOpen(false)

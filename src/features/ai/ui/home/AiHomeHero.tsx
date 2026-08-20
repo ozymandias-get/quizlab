@@ -26,7 +26,7 @@ const AiHomeHero = memo(function AiHomeHero({
     <section className="flex flex-col gap-4">
       <div className="flex items-start justify-between">
         <div className={isCompact ? 'max-w-none' : 'max-w-xl'}>
-          <h1 className="text-foreground text-ql-20 sm:text-ql-22 font-semibold tracking-tight">
+          <h1 className="text-foreground text-ql-20 sm:text-ql-22 tracking-ql-tight font-semibold">
             {t('ai_home.title')}
           </h1>
           <p className="text-ql-13 text-muted-foreground mt-1.5 leading-relaxed">

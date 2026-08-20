@@ -1,4 +1,5 @@
 import { MenuItem, MenuSurface } from '@app/components/ui/menu'
+import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNavigation'
 import type { Tab } from '@app/providers/AiContext'
 import { DURATION } from '@shared/lib/motion'
 
@@ -31,13 +32,15 @@ function AiTabContextMenu({
   onCloseTab,
   onDismiss
 }: AiTabContextMenuProps) {
+  const setContextMenuRef = useMenuKeyboardNavigation(contextMenuRef, { onClose: onDismiss })
+
   if (!contextMenu || !contextMenuTab) {
     return null
   }
 
   return createPortal(
     <motion.div
-      ref={contextMenuRef}
+      ref={setContextMenuRef}
       initial={{ opacity: 0, y: 4, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 4, scale: 0.98 }}

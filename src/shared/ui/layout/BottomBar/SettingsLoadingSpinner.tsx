@@ -9,7 +9,7 @@ const SettingsLoadingSpinner = memo(() => {
     <div className="z-overlay bg-background/80 fixed inset-0 flex items-center justify-center backdrop-blur-sm">
       <div className="flex flex-col items-center gap-3">
         <InlineSpinner size="xl" className="border-border border-t-primary" />
-        <span className="text-ql-12 text-muted-foreground font-medium tracking-wider uppercase">
+        <span className="text-ql-12 text-muted-foreground tracking-ql-caps font-medium uppercase">
           {t('loading')}
         </span>
       </div>

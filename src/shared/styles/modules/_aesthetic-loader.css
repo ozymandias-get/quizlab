@@ -86,7 +86,7 @@
   margin: 6px 0 0;
   color: oklch(var(--muted-foreground));
   font-size: 11px;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-ql-label);
   text-transform: uppercase;
   font-weight: 600;
 }

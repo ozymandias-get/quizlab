@@ -122,7 +122,7 @@ function PdfToolsPopup({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0, transition: { delay: 0.02, duration: DURATION.slow } }}
               exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
-              className="text-ql-10 border-border/70 text-muted-foreground block border-b py-2 text-center font-semibold tracking-wider uppercase select-none"
+              className="text-ql-10 border-border/70 text-muted-foreground tracking-ql-caps block border-b py-2 text-center font-semibold uppercase select-none"
             >
               {t('pdf_tools')}
             </motion.span>
@@ -139,7 +139,7 @@ function PdfToolsPopup({
 
                   <motion.span
                     variants={itemVariants}
-                    className="text-ql-10 text-muted-foreground/70 block px-2 pt-1 pb-0.5 font-semibold tracking-wider uppercase select-none"
+                    className="text-ql-10 text-muted-foreground/70 tracking-ql-caps block px-2 pt-1 pb-0.5 font-semibold uppercase select-none"
                   >
                     {group.label}
                   </motion.span>

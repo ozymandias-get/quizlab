@@ -134,7 +134,7 @@ const BottomBarSettingsTab = memo(() => {
           })}
         </div>
 
-        <div className="text-ql-11 text-muted-foreground pt-1 tracking-wide">
+        <div className="text-ql-11 text-muted-foreground tracking-ql-normal pt-1">
           {visibleToolCount} / {visibleToolsFiltered.length} tools visible
         </div>
       </motion.div>
@@ -227,7 +227,7 @@ const BottomBarSettingsTab = memo(() => {
           })}
         </Reorder.Group>
 
-        <div className="text-ql-11 text-muted-foreground pt-1 tracking-wide">
+        <div className="text-ql-11 text-muted-foreground tracking-ql-normal pt-1">
           {visibleModelCount} / {enabledModels.length} models visible
         </div>
       </motion.div>
