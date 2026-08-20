@@ -34,6 +34,7 @@ function InlineSelector({
             onClick={onClose}
           />
           <MenuSurface
+            role={null}
             className={cn(
               'animate-in fade-in zoom-in-98 motion-normal absolute bottom-full left-0 mb-2 flex flex-col p-1.5',
               popupClassName

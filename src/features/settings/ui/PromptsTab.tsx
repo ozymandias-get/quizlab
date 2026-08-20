@@ -189,7 +189,7 @@ const PromptsTab = memo(() => {
       </AnimatePresence>
 
       <div className="px-1">
-        <div className="text-ql-11 text-foreground mt-2 font-semibold tracking-wide">
+        <div className="text-ql-11 text-foreground tracking-ql-normal mt-2 font-semibold">
           {selectedPromptId ? t('active_prompt') : t('no_prompt_selected')}
         </div>
       </div>

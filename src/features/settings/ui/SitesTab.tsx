@@ -117,7 +117,7 @@ const SitesTab = memo(() => {
         }
         footer={
           <div className="border-border border-t px-1 pt-4">
-            <p className="text-ql-11 text-muted-foreground tracking-wide">
+            <p className="text-ql-11 text-muted-foreground tracking-ql-normal">
               {t('active_sites')}: {enabledSitesCount} / {sitesList.length} {t('sites_count')}
             </p>
           </div>

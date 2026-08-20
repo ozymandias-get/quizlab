@@ -173,10 +173,10 @@ const ModelsTab = memo(() => {
         }
         footer={
           <div className="border-border border-t px-1 pt-4">
-            <p className="text-ql-11 text-muted-foreground tracking-wide">
+            <p className="text-ql-11 text-muted-foreground tracking-ql-normal">
               {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
             </p>
-            <p className="text-ql-11 text-muted-foreground mt-1 tracking-wide">
+            <p className="text-ql-11 text-muted-foreground tracking-ql-normal mt-1">
               {t('google_models_managed_separately')}
             </p>
           </div>

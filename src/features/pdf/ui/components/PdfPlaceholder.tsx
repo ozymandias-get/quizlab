@@ -70,7 +70,7 @@ function PdfPlaceholder({
           </Button>
 
           <div className="space-y-1.5">
-            <h2 className="text-ql-15 text-foreground font-semibold tracking-tight">
+            <h2 className="text-ql-15 text-foreground tracking-ql-tight font-semibold">
               {t('no_pdf_loaded')}
             </h2>
             <p className="text-ql-12 text-muted-foreground mx-auto max-w-[240px] leading-relaxed">

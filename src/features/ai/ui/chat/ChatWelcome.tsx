@@ -60,7 +60,7 @@ const ChatWelcome = memo(function ChatWelcome({
           <AiIcon modelKey="api-chat" className="h-7 w-7" />
         </div>
 
-        <h2 className="text-ql-18 text-foreground mb-1.5 font-semibold tracking-tight">
+        <h2 className="text-ql-18 text-foreground tracking-ql-tight mb-1.5 font-semibold">
           {t('api_chat_welcome_title')}
         </h2>
 

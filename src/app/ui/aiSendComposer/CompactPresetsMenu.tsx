@@ -66,7 +66,7 @@ function CompactPresetsMenu({
             onPointerDown={(e) => e.stopPropagation()}
             className="z-dropdown bg-popover/98 shadow-ambient-xl absolute bottom-full left-1/2 mb-2 w-48 -translate-x-1/2 rounded-xl border border-white/10 p-1 text-neutral-100"
           >
-            <div className="text-ql-10 border-b border-white/10 px-2.5 py-1.5 font-semibold tracking-wider text-neutral-400 uppercase">
+            <div className="text-ql-10 tracking-ql-caps border-b border-white/10 px-2.5 py-1.5 font-semibold text-neutral-400 uppercase">
               {t('ai_send_presets')}
             </div>
             <div className="flex flex-col gap-0.5 pt-1">

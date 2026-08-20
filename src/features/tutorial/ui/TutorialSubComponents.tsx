@@ -183,7 +183,7 @@ export function TutorialHoveredOverlay({ hoveredRect, t }: TutorialHoveredOverla
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="text-ql-10 bg-primary text-primary-foreground absolute -top-5 left-0 rounded px-1.5 py-0.5 font-bold tracking-wider uppercase">
+      <div className="text-ql-10 bg-primary text-primary-foreground tracking-ql-label absolute -top-5 left-0 rounded px-1.5 py-0.5 font-bold uppercase">
         {hoveredRect.type === 'input' ? t('tut_input_label') : t('tut_btn_label')}
       </div>
     </motion.div>

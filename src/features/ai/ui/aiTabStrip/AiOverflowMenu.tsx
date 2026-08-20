@@ -8,7 +8,7 @@ import { getAiIcon } from '@ui/components/Icons'
 
 import { MoreHorizontal, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, type MouseEvent as ReactMouseEvent, type RefObject } from 'react'
+import { memo, type MouseEvent as ReactMouseEvent, type RefObject, useEffect, useRef } from 'react'
 
 interface AiOverflowMenuProps {
   overflowTabs: Tab[]
@@ -35,6 +35,28 @@ function AiOverflowMenu({
   onContextMenu,
   onCloseTab
 }: AiOverflowMenuProps) {
+  const surfaceRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const wasOpenRef = useRef(false)
+
+  useEffect(() => {
+    if (!isOverflowOpen) return
+    surfaceRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus()
+  }, [isOverflowOpen])
+
+  useEffect(() => {
+    if (isOverflowOpen) {
+      wasOpenRef.current = true
+      return
+    }
+    if (!wasOpenRef.current) return
+    wasOpenRef.current = false
+    const active = document.activeElement
+    if (!active || active === document.body || !active.isConnected) {
+      triggerRef.current?.focus()
+    }
+  }, [isOverflowOpen])
+
   if (overflowTabs.length === 0) {
     return null
   }
@@ -42,6 +64,7 @@ function AiOverflowMenu({
   return (
     <div ref={overflowRef} className="relative ml-auto shrink-0">
       <ToolbarButton
+        ref={triggerRef}
         icon={MoreHorizontal}
         className="!w-auto min-w-[32px] px-1.5"
         tooltip={tr('tab_more', 'More tabs')}
@@ -57,13 +80,19 @@ function AiOverflowMenu({
           transition={{ duration: DURATION.normal }}
           className="z-dropdown absolute top-10 right-0"
         >
-          <MenuSurface className="max-h-56 w-[260px] overflow-y-auto">
+          <MenuSurface
+            ref={surfaceRef}
+            role="dialog"
+            aria-label={tr('tab_more', 'More tabs')}
+            className="max-h-56 w-[260px] overflow-y-auto"
+          >
             {overflowTabs.map((tab) => {
               const label = getTabLabel(tab)
               return (
                 <div
                   key={tab.id}
                   role="group"
+                  aria-label={label}
                   className="group hover:bg-muted flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
                   onContextMenu={(event) => onContextMenu(event, tab.id)}
                 >
@@ -94,6 +123,7 @@ function AiOverflowMenu({
                           event.preventDefault()
                           event.stopPropagation()
                           onCloseTab(tab.id)
+                          onToggleOpen()
                         }}
                       >
                         <X className="h-3 w-3" />

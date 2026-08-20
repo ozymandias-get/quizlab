@@ -40,7 +40,7 @@ const TutorialCard = memo(function TutorialCard({
         <div className="absolute top-4 right-4">
           <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5">
             <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-ql-10 font-semibold tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
+            <span className="text-ql-10 tracking-ql-label font-semibold text-emerald-600 uppercase dark:text-emerald-400">
               {completedLabel}
             </span>
           </div>

@@ -44,7 +44,7 @@ const SettingsNavItem = memo(function SettingsNavItem({
         />
       </div>
       <span
-        className={`motion-normal block truncate text-xs font-medium tracking-wide transition-colors ${
+        className={`motion-normal tracking-ql-label block truncate text-xs font-medium transition-colors ${
           isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
         }`}
       >

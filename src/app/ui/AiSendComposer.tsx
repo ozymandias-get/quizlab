@@ -146,8 +146,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
     () =>
       isExpanded
         ? {
-            boxShadow: 'var(--shadow-ambient-2xl, 0 16px 40px -4px rgba(0, 0, 0, 0.45))',
-            border: '1px solid oklch(var(--border) / 0.8)',
+            boxShadow: 'var(--shadow-ambient-xl)',
             background: 'oklch(var(--card) / 0.95)',
             backdropFilter: 'blur(16px)'
           }

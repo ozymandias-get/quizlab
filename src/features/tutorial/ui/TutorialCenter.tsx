@@ -55,7 +55,7 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
   return (
     <div className="space-y-6 pb-4">
       <div className="space-y-1">
-        <h2 className="text-ql-20 text-foreground font-bold tracking-tight">
+        <h2 className="text-ql-20 text-foreground tracking-ql-tight font-bold">
           {t('tutorial_center_title')}
         </h2>
         <p className="text-ql-13 text-muted-foreground">{t('tutorial_center_desc')}</p>
@@ -68,7 +68,7 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
 
           return (
             <div key={category} className="space-y-3">
-              <h3 className="text-ql-12 text-muted-foreground font-medium tracking-wider uppercase">
+              <h3 className="text-ql-12 text-muted-foreground tracking-ql-caps font-medium uppercase">
                 {t(CATEGORY_LABELS[category])}
               </h3>
               <div className="grid grid-cols-1 gap-3">

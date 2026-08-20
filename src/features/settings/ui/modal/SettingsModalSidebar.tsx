@@ -32,7 +32,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
             <nav aria-label={t('settings_title')} className="flex flex-col gap-4">
               {sidebarSections.map((section) => (
                 <div key={section.id} className="flex flex-col gap-1">
-                  <div className="text-muted-foreground/80 text-ql-10 mb-1 px-2 font-bold tracking-widest uppercase select-none">
+                  <div className="text-muted-foreground/80 text-ql-10 tracking-ql-caps mb-1 px-2 font-bold uppercase select-none">
                     {section.label}
                   </div>
 

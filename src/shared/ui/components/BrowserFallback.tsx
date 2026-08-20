@@ -21,7 +21,7 @@ function BrowserFallback() {
           <AlertTriangle className="absolute -right-1.5 -bottom-1.5 h-6 w-6 rounded-md border border-amber-500/30 bg-amber-500/15 p-1 text-amber-600 dark:text-amber-400" />
         </div>
 
-        <h1 className="text-ql-20 text-foreground mb-2 font-bold tracking-tight">
+        <h1 className="text-ql-20 text-foreground tracking-ql-tight mb-2 font-bold">
           {t('browser_fallback_title')}
         </h1>
 

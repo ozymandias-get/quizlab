@@ -172,6 +172,9 @@ export function useAiTabStripState({
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // Prevent Escape from also collapsing the composer, which listens
+      // on document and bails out when the event is defaultPrevented.
+      event.preventDefault()
       setContextMenu(null)
       setIsOverflowOpen(false)
     }

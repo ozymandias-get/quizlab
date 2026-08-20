@@ -34,7 +34,7 @@ const AiHomeSection = memo(function AiHomeSection({
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-ql-12 text-foreground/80 font-medium tracking-tight">{title}</div>
+          <div className="text-ql-12 text-foreground/80 tracking-ql-tight font-medium">{title}</div>
           <div className="text-ql-12 text-muted-foreground mt-0.5">{detail}</div>
         </div>
         <div

@@ -92,7 +92,7 @@ const LanguageTab = memo(() => {
       </RadioGroup>
 
       <div className="border-border border-t px-1 pt-4">
-        <p className="text-ql-11 text-muted-foreground tracking-wide">
+        <p className="text-ql-11 text-muted-foreground tracking-ql-normal">
           {t('current_language')}: {languages[language]?.nativeName || language}
         </p>
       </div>
