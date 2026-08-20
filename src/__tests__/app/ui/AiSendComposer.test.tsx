@@ -14,10 +14,21 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
 
-vi.mock('@shared/hooks', () => {
+vi.mock('@shared/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@shared/hooks')>()
   const { useState } = require('react')
   return {
-    useLocalStorage: <T,>(_key: string, initialValue: T) => useState(initialValue)
+    ...actual,
+    useLocalStorage: <T,>(_key: string, initialValue: T) => useState(initialValue),
+    useConfirmDialog: () => ({
+      confirm: vi.fn().mockResolvedValue(true),
+      props: {
+        isOpen: false,
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+        title: ''
+      }
+    })
   }
 })
 

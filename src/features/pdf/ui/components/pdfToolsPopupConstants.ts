@@ -1,3 +1,5 @@
+import { DURATION } from '@shared/lib/motion'
+
 import type { Variants } from 'motion/react'
 
 export const panelVariants: Variants = {
@@ -5,7 +7,7 @@ export const panelVariants: Variants = {
     opacity: 0,
     y: 10,
     scale: 0.94,
-    transition: { duration: 0.12, ease: [0.4, 0, 1, 1] }
+    transition: { duration: DURATION.normal, ease: [0.4, 0, 1, 1] }
   },
   visible: {
     opacity: 1,
@@ -16,14 +18,14 @@ export const panelVariants: Variants = {
       stiffness: 360,
       damping: 30,
       mass: 0.9,
-      opacity: { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
+      opacity: { duration: DURATION.slow, ease: [0.16, 1, 0.3, 1] }
     }
   },
   exit: {
     opacity: 0,
     y: 6,
     scale: 0.96,
-    transition: { duration: 0.1, ease: [0.4, 0, 1, 1] }
+    transition: { duration: DURATION.fast, ease: [0.4, 0, 1, 1] }
   }
 }
 

@@ -15,7 +15,7 @@ import SettingsTabIntro from './shared/SettingsTabIntro'
 import SettingsToggleSwitch from './shared/SettingsToggleSwitch'
 
 const AI_LIFECYCLE_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <Timer className="h-5 w-5" />
   </div>
 )
@@ -64,17 +64,12 @@ const AiLifecycleTab = memo(() => {
 
   return (
     <div className="space-y-6">
-      <SettingsTabIntro
-        icon={AI_LIFECYCLE_ICON}
-        eyebrow={t('ai_settings')}
-        title={t('ai_lifecycle')}
-        description={t('ai_lifecycle_description')}
-      />
+      <SettingsTabIntro icon={AI_LIFECYCLE_ICON} description={t('ai_lifecycle_description')} />
 
       {/* Max Alive Tabs */}
       <div className="space-y-3">
         <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
-          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
             <Layers className="h-4 w-4" />
           </div>
           <div className="min-w-0 grow">
@@ -93,7 +88,7 @@ const AiLifecycleTab = memo(() => {
               type="button"
               key={num}
               onClick={() => setMaxAliveTabs(num)}
-              className={`focus-visible:ring-ring/40 flex-1 rounded-xl py-2.5 text-xs font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none ${
+              className={`focus-visible:ring-ring/40 motion-slow flex-1 rounded-xl py-2.5 text-xs font-medium transition-all focus-visible:ring-2 focus-visible:outline-none ${
                 maxAliveTabs === num
                   ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
                   : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground border'
@@ -108,7 +103,7 @@ const AiLifecycleTab = memo(() => {
       {/* Sleep Timeout */}
       <div className="space-y-3">
         <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
-          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
             <Timer className="h-4 w-4" />
           </div>
           <div className="min-w-0 grow">
@@ -128,7 +123,7 @@ const AiLifecycleTab = memo(() => {
               type="button"
               key={option.value}
               onClick={() => setSleepTimeoutMs(option.value)}
-              className={`focus-visible:ring-ring/40 rounded-xl py-2.5 text-xs font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none ${
+              className={`focus-visible:ring-ring/40 motion-slow rounded-xl py-2.5 text-xs font-medium transition-all focus-visible:ring-2 focus-visible:outline-none ${
                 sleepTimeoutMs === option.value
                   ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
                   : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground border'
@@ -143,7 +138,7 @@ const AiLifecycleTab = memo(() => {
       {/* Never Sleep Sites */}
       <div className="space-y-3">
         <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
-          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
             <Moon className="h-4 w-4" />
           </div>
           <div className="min-w-0 grow">

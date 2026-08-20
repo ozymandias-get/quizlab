@@ -1,5 +1,6 @@
 import PdfRecentListItem from '@features/pdf/ui/components/pdfPlaceholder/PdfRecentListItem'
 import type { RecentItemView } from '@features/pdf/ui/components/pdfPlaceholder/types'
+import { TooltipProvider } from '@app/components/ui/tooltip'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -31,17 +32,19 @@ function renderItem(options: RenderOptions = {}) {
   const onRemove = vi.fn()
 
   const view = render(
-    <PdfRecentListItem
-      item={makeItem()}
-      activePdfPath={undefined}
-      isInvalid={isInvalid}
-      t={t}
-      language="en"
-      onResume={onResume}
-      onRelink={onRelink}
-      onRemove={onRemove}
-      canClear={canClear}
-    />
+    <TooltipProvider>
+      <PdfRecentListItem
+        item={makeItem()}
+        activePdfPath={undefined}
+        isInvalid={isInvalid}
+        t={t}
+        language="en"
+        onResume={onResume}
+        onRelink={onRelink}
+        onRemove={onRemove}
+        canClear={canClear}
+      />
+    </TooltipProvider>
   )
 
   return { onResume, onRelink, onRemove, view }

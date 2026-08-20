@@ -29,7 +29,7 @@ function SettingsToggleSwitch({
       className={cn(
         checked
           ? 'data-checked:border-emerald-500/30 data-checked:bg-emerald-500/20'
-          : 'data-unchecked:border-white/[0.08] data-unchecked:bg-white/[0.04]',
+          : 'data-unchecked:border-white/10 data-unchecked:bg-white/5',
         disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
         className
       )}

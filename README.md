@@ -158,7 +158,7 @@ The application combines a high-performance PDF viewer with embedded AI webviews
 | **State Management**  | [Zustand 5](https://zustand-demo.pmnd.rs/) + [TanStack React Query 5](https://tanstack.com/query/latest)             |
 | **AI Automation**     | [Playwright](https://playwright.dev/) (webview session management & scripting)                                       |
 | **UI Components**     | [Radix UI](https://www.radix-ui.com/) + [Headless UI](https://headlessui.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| **Icons**             | [Tabler Icons](https://tabler.io/icons) + [Lucide](https://lucide.dev/)                                              |
+| **Icons**             | [Lucide](https://lucide.dev/) via semantic icon registry + custom SVG icon set                                       |
 | **Particles**         | [tsParticles](https://particles.js.org/)                                                                             |
 | **Fonts**             | [Inter Variable](https://fonts.google.com/specimen/Inter) via Fontsource                                             |
 | **i18n**              | [i18next](https://www.i18next.com/) + [react-i18next](https://react.i18next.com/)                                    |

@@ -1,3 +1,4 @@
+import { DURATION } from '@shared/lib/motion'
 import { SliderIcon } from '@ui/components/Icons'
 import Slider from '@ui/components/Slider'
 
@@ -32,7 +33,7 @@ const BarAppearanceSettings = memo(
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.05 }}
+        transition={{ duration: DURATION.fast }}
         className="bg-card border-border space-y-6 rounded-xl border p-5"
       >
         <div className="flex items-center gap-3">
@@ -40,8 +41,8 @@ const BarAppearanceSettings = memo(
             <SliderIcon className="h-4 w-4" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="text-ql-14 text-foreground font-bold">{t('bar_appearance')}</h3>
-            <p className="text-ql-11 text-foreground/75 tracking-ql-fine">{t('opacity_scale')}</p>
+            <h3 className="text-ql-13 text-foreground font-bold">{t('bar_appearance')}</h3>
+            <p className="text-ql-11 text-foreground/75 tracking-ql-tight">{t('opacity_scale')}</p>
           </div>
         </div>
 

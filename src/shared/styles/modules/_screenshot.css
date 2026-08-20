@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
 
-  @apply z-top;
+  @apply z-tooltip;
   cursor: crosshair;
   background: transparent;
 }

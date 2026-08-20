@@ -1,4 +1,5 @@
 import { Button } from '@app/components/ui/button'
+import { WithTooltip } from '@app/components/ui/tooltip'
 import { AiIcon } from '@ui/components/icons/AiIcon'
 
 import { Clock, Plus } from 'lucide-react'
@@ -27,7 +28,7 @@ const ChatHeader = memo(function ChatHeader({
           <AiIcon modelKey="api-chat" className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-ql-14 text-foreground font-semibold">{t('api_chat_title')}</div>
+          <div className="text-ql-13 text-foreground font-semibold">{t('api_chat_title')}</div>
           {activeProvider && (
             <div className="text-ql-10 border-border/60 bg-muted/40 text-muted-foreground mt-0.5 flex w-fit items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono select-none">
               <span className="relative flex h-1.5 w-1.5">
@@ -44,31 +45,33 @@ const ChatHeader = memo(function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onToggleHistoryModal}
-          className="gap-1.5"
-          title={t('api_chat_history')}
-          aria-label={t('api_chat_history')}
-        >
-          <Clock className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-          <span className="hidden sm:inline">{t('api_chat_history')}</span>
-        </Button>
+        <WithTooltip label={t('api_chat_history')}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onToggleHistoryModal}
+            className="gap-1.5"
+            aria-label={t('api_chat_history')}
+          >
+            <Clock className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">{t('api_chat_history')}</span>
+          </Button>
+        </WithTooltip>
 
-        <Button
-          type="button"
-          variant="default"
-          size="sm"
-          onClick={onNewChat}
-          className="gap-1.5"
-          title={t('api_chat_new_chat_tooltip')}
-          aria-label={t('api_chat_new_chat_tooltip')}
-        >
-          <Plus className="h-3.5 w-3.5 shrink-0" />
-          <span className="hidden sm:inline">{t('api_chat_new_chat')}</span>
-        </Button>
+        <WithTooltip label={t('api_chat_new_chat_tooltip')}>
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={onNewChat}
+            className="gap-1.5"
+            aria-label={t('api_chat_new_chat_tooltip')}
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">{t('api_chat_new_chat')}</span>
+          </Button>
+        </WithTooltip>
       </div>
     </div>
   )

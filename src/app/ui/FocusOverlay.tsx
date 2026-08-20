@@ -1,3 +1,4 @@
+import { InlineSpinner } from '@shared/ui/components/primitives'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import {
@@ -158,7 +159,7 @@ function FocusOverlay({
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">
-                  <div className="border-border border-t-primary h-8 w-8 animate-spin rounded-full border-2" />
+                  <InlineSpinner size="xl" className="border-border border-t-primary" />
                 </div>
               }
             >

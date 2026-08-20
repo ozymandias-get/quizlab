@@ -5,8 +5,6 @@ import SettingsTabIntro from './SettingsTabIntro'
 
 interface SettingsCollectionTabShellProps {
   icon: ReactNode
-  eyebrow: string
-  title: string
   showAddForm: boolean
   addLabel: string
   cancelLabel: string
@@ -19,8 +17,6 @@ interface SettingsCollectionTabShellProps {
 
 function SettingsCollectionTabShell({
   icon,
-  eyebrow,
-  title,
   showAddForm,
   addLabel,
   cancelLabel,
@@ -34,8 +30,6 @@ function SettingsCollectionTabShell({
     <div className="space-y-6 pb-20">
       <SettingsTabIntro
         icon={icon}
-        eyebrow={eyebrow}
-        title={title}
         description={description}
         hideDescription={showAddForm}
         action={

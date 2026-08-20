@@ -21,7 +21,7 @@ describe('Kbd component', () => {
     )
     const kbd = screen.getByText('Esc')
     expect(kbd).toHaveClass('bg-background')
-    expect(kbd).toHaveClass('text-[10px]')
+    expect(kbd).toHaveClass('text-ql-10')
 
     rerender(<Kbd size="sm">Enter</Kbd>)
     expect(screen.getByText('Enter')).toHaveClass('text-ql-11')

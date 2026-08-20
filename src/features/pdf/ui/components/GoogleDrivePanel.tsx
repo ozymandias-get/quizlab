@@ -4,6 +4,7 @@ import {
 } from '@shared-core/constants/google-ai-web-apps'
 import type { WebviewElement } from '@shared-core/types/webview'
 
+import { Button } from '@app/components/ui/button'
 import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
@@ -32,24 +33,26 @@ function GoogleDrivePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-border bg-card/90 flex items-center justify-between gap-4 border-b px-4 py-2.5 backdrop-blur-md">
+      <div className="border-border bg-card/90 flex items-center justify-between gap-4 border-b px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="border-border bg-muted/60 text-foreground flex h-9 w-9 items-center justify-center rounded-lg border shadow-xs">
             {getAiIcon('gdrive')}
           </div>
           <div className="min-w-0">
-            <div className="text-ql-14 text-foreground truncate font-semibold">{title}</div>
+            <div className="text-ql-13 text-foreground truncate font-semibold">{title}</div>
             <div className="text-ql-12 text-muted-foreground truncate">{description}</div>
           </div>
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => driveWebviewRef.current?.reload?.()}
-          className="text-ql-12 border-border bg-muted/60 text-foreground hover:bg-muted focus-visible:ring-ring/40 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="text-ql-12"
         >
           <RefreshIcon className="h-3.5 w-3.5" />
           {reloadLabel}
-        </button>
+        </Button>
       </div>
 
       <div className="relative min-h-0 flex-1">

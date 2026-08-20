@@ -9,6 +9,7 @@ import type {
 } from '@features/pdf/types'
 
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
+import { InlineSpinner } from '@shared/ui/components/primitives'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import { ImportIcon } from '@ui/components/Icons'
 
@@ -54,13 +55,13 @@ interface LeftPanelProps {
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
   if (!isVisible) return null
   return (
-    <div className="z-overlay bg-background/60 animate-in fade-in absolute inset-0 flex items-center justify-center p-6 backdrop-blur-md duration-150">
+    <div className="z-overlay bg-background/60 animate-in fade-in motion-normal absolute inset-0 flex items-center justify-center p-6 backdrop-blur-md">
       <div className="border-ring/60 bg-card/90 shadow-ambient-lg flex w-full max-w-xs flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-6 text-center">
         <div className="border-primary/20 bg-primary/10 text-primary flex h-12 w-12 items-center justify-center rounded-xl border">
           <ImportIcon className="h-6 w-6" />
         </div>
         <div>
-          <h3 className="text-foreground text-ql-14 font-semibold">{t('drop_pdf_title')}</h3>
+          <h3 className="text-foreground text-ql-13 font-semibold">{t('drop_pdf_title')}</h3>
           <p className="text-muted-foreground text-ql-11 mt-0.5">{t('drop_pdf_desc')}</p>
         </div>
       </div>
@@ -127,11 +128,11 @@ function LeftPanel({
               <Suspense
                 fallback={
                   <div className="flex h-full items-center justify-center">
-                    <div className="border-border border-t-primary/60 h-8 w-8 animate-spin rounded-full border-2" />
+                    <InlineSpinner size="xl" className="border-border border-t-primary/60" />
                   </div>
                 }
               >
-                <div className="animate-in fade-in absolute inset-0 h-full w-full duration-300">
+                <div className="animate-in fade-in motion-slower absolute inset-0 h-full w-full">
                   <ErrorBoundary title={t('error_pdf_viewer')}>
                     <PdfWorkerHost>
                       <PdfViewer

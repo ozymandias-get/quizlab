@@ -8,8 +8,6 @@ describe('SettingsCollectionTabShell', () => {
     const { rerender } = render(
       <SettingsCollectionTabShell
         icon={<span>Icon</span>}
-        eyebrow="Eyebrow"
-        title="Title"
         showAddForm={false}
         addLabel="Add"
         cancelLabel="Cancel"
@@ -27,8 +25,6 @@ describe('SettingsCollectionTabShell', () => {
     rerender(
       <SettingsCollectionTabShell
         icon={<span>Icon</span>}
-        eyebrow="Eyebrow"
-        title="Title"
         showAddForm
         addLabel="Add"
         cancelLabel="Cancel"

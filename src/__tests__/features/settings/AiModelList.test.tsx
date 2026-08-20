@@ -1,10 +1,15 @@
 import type { AiPlatform } from '@shared-core/types'
 
 import AiModelList from '@features/settings/ui/models/AiModelList'
+import { TooltipProvider } from '@app/components/ui/tooltip'
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+function renderWithTooltip(ui: ReactNode) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>)
+}
 
 vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -98,7 +103,7 @@ describe('AiModelList', () => {
   it('prefers translated labels and falls back to displayName when untranslated', () => {
     const props = createProps()
 
-    render(<AiModelList {...props} />)
+    renderWithTooltip(<AiModelList {...props} />)
 
     expect(screen.getByText('ChatGPT Translated')).toBeInTheDocument()
     expect(screen.getByText('Custom Display')).toBeInTheDocument()
@@ -109,9 +114,9 @@ describe('AiModelList', () => {
   it('sets the default model without toggling the row', () => {
     const props = createProps()
 
-    render(<AiModelList {...props} />)
+    renderWithTooltip(<AiModelList {...props} />)
 
-    fireEvent.click(screen.getByTitle('Default model'))
+    fireEvent.click(screen.getByRole('button', { name: 'Default model' }))
 
     expect(props.setDefaultAiModel).toHaveBeenCalledWith('chatgpt')
     expect(props.toggleModel).not.toHaveBeenCalled()
@@ -121,9 +126,9 @@ describe('AiModelList', () => {
     const handleDeleteAi = vi.fn(() => Promise.reject(new Error('delete failed')))
     const props = createProps({ handleDeleteAi })
 
-    render(<AiModelList {...props} />)
+    renderWithTooltip(<AiModelList {...props} />)
 
-    fireEvent.click(screen.getByTitle('Delete custom AI'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete custom AI' }))
 
     await waitFor(() => {
       expect(screen.getByText('TrashIcon')).toBeInTheDocument()
@@ -136,9 +141,9 @@ describe('AiModelList', () => {
     const handleClearModelData = vi.fn(() => Promise.resolve())
     const props = createProps({ handleClearModelData })
 
-    render(<AiModelList {...props} />)
+    renderWithTooltip(<AiModelList {...props} />)
 
-    fireEvent.click(screen.getAllByTitle('Clear cookies and data')[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Clear cookies and data' })[0])
 
     await waitFor(() => {
       expect(handleClearModelData).toHaveBeenCalledWith(expect.any(Object), 'chatgpt', 'ChatGPT')

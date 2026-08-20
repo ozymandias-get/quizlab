@@ -4,6 +4,7 @@ import { Button } from '@app/components/ui/button'
 import { Label } from '@app/components/ui/label'
 import { Separator } from '@app/components/ui/separator'
 import { Textarea } from '@app/components/ui/textarea'
+import { WithTooltip } from '@app/components/ui/tooltip'
 import { useToastActions } from '@app/providers'
 import { MagicWandIcon } from '@ui/components/Icons'
 
@@ -14,10 +15,10 @@ import { useTranslation } from 'react-i18next'
 
 import { QuickPresetsSection } from './prompts/QuickPresetsSection'
 import SettingsAddToggleButton from './shared/SettingsAddToggleButton'
-import SettingsTabHeader from './shared/SettingsTabHeader'
+import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const PROMPTS_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <MagicWandIcon className="h-5 w-5" />
   </div>
 )
@@ -78,17 +79,18 @@ const PromptItem = memo(function PromptItem({
       </div>
 
       {!prompt.isDefault && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          onClick={(e) => onDelete(e, prompt.id)}
-          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive -mt-1 -mr-1 opacity-60 group-hover:opacity-100"
-          title={t('delete')}
-          aria-label={t('delete')}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        <WithTooltip label={t('delete')}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={(e) => onDelete(e, prompt.id)}
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive -mt-1 -mr-1 opacity-60 group-hover:opacity-100"
+            aria-label={t('delete')}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </WithTooltip>
       )}
     </div>
   )
@@ -140,10 +142,9 @@ const PromptsTab = memo(() => {
       <Separator className="my-6" />
 
       {/* General Prompt Library */}
-      <SettingsTabHeader
+      <SettingsTabIntro
         icon={PROMPTS_ICON}
-        eyebrow={t('prompts_title')}
-        title={t('prompts_subtitle')}
+        description={t('prompts_description')}
         action={
           <SettingsAddToggleButton
             expanded={showAddForm}
@@ -164,10 +165,14 @@ const PromptsTab = memo(() => {
             onSubmit={handleAddPrompt}
           >
             <div className="space-y-1.5">
-              <Label className="text-ql-11 text-foreground pl-1 font-semibold">
+              <Label
+                htmlFor="prompt-textarea"
+                className="text-ql-11 text-foreground pl-1 font-semibold"
+              >
                 {t('prompt_text')}
               </Label>
               <Textarea
+                id="prompt-textarea"
                 value={newPromptText}
                 onChange={(e) => setNewPromptText(e.target.value)}
                 placeholder={t('prompt_placeholder')}
@@ -184,7 +189,6 @@ const PromptsTab = memo(() => {
       </AnimatePresence>
 
       <div className="px-1">
-        <p className="text-muted-foreground text-xs leading-relaxed">{t('prompts_description')}</p>
         <div className="text-ql-11 text-foreground mt-2 font-semibold tracking-wide">
           {selectedPromptId ? t('active_prompt') : t('no_prompt_selected')}
         </div>

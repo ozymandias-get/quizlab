@@ -7,6 +7,7 @@ import {
   useAiTabsSliceState,
   useAiViewRequestNonce
 } from '@app/providers/AiContext'
+import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -126,7 +127,7 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
+                transition={{ duration: DURATION.slow }}
                 className="absolute inset-0 z-10"
               >
                 <Suspense fallback={null}>

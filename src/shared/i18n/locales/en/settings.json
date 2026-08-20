@@ -41,6 +41,7 @@
   "save_prompt": "Save Prompt",
   "save_platform": "Save Platform",
   "about": "About",
+  "app_settings": "App Settings",
   "storage": "Storage",
   "storage_description": "View and manage cache storage for AI model partitions.",
   "ai_lifecycle": "AI Lifecycle",

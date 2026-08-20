@@ -42,7 +42,7 @@ describe('LanguageTab', () => {
   it('renders language options', () => {
     render(<LanguageTab />)
 
-    expect(screen.getByText('select_language')).toBeInTheDocument()
+    expect(screen.getByText('language_description')).toBeInTheDocument()
     expect(screen.getAllByText('English').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Türkçe')).toBeInTheDocument()
   })

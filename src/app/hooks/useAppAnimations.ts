@@ -1,11 +1,12 @@
+import { DURATION } from '@shared/lib/motion'
+
 import type { Easing } from 'motion/react'
 import { type CSSProperties, useMemo } from 'react'
 
-const ANIMATION_DURATION = 0.4
 const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]
 
 const DEFAULT_TRANSITION = {
-  duration: ANIMATION_DURATION,
+  duration: DURATION.deliberate,
   ease: ANIMATION_EASE
 }
 
@@ -50,12 +51,12 @@ const RESIZER_VARIANTS = {
   visible: {
     opacity: 1,
     scaleY: 1,
-    transition: { duration: ANIMATION_DURATION * 0.75, ease: ANIMATION_EASE }
+    transition: { duration: DURATION.slower, ease: ANIMATION_EASE }
   },
   hidden: {
     opacity: 0,
     scaleY: 0,
-    transition: { duration: ANIMATION_DURATION * 0.5, ease: ANIMATION_EASE }
+    transition: { duration: DURATION.slow, ease: ANIMATION_EASE }
   }
 }
 

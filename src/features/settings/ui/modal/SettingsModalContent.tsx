@@ -1,4 +1,6 @@
 import { ScrollArea } from '@app/components/ui/scroll-area'
+import { DURATION } from '@shared/lib/motion'
+import { EmptyState, InlineSpinner } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -41,7 +43,7 @@ const TabPanel = memo(function TabPanel({
         <Suspense
           fallback={
             <div className="flex h-full items-center justify-center p-12">
-              <div className="border-border border-t-foreground/50 h-5 w-5 animate-spin rounded-full border-2" />
+              <InlineSpinner size="lg" className="border-border border-t-foreground/50" />
             </div>
           }
         >
@@ -87,13 +89,15 @@ export default memo(function SettingsModalContent({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
+              transition={{ duration: DURATION.normal }}
               className="flex h-full min-h-[300px] items-center justify-center"
             >
-              <div className="text-muted-foreground/50 flex flex-col items-center gap-3 text-center">
-                <SettingsIcon className="h-8 w-8 opacity-40" />
-                <p className="text-sm font-medium tracking-wide">{t('select_setting_from_list')}</p>
-              </div>
+              <EmptyState
+                icon={SettingsIcon}
+                title={t('select_setting_from_list')}
+                bare
+                size="sm"
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -101,20 +105,8 @@ export default memo(function SettingsModalContent({
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
+              transition={{ duration: DURATION.normal }}
             >
-              <div className="mb-5 space-y-0.5 px-1">
-                <div className="text-muted-foreground/80 text-ql-10 font-semibold tracking-widest uppercase">
-                  {t('settings_group_' + activeTabMeta.group)}
-                </div>
-                <h3 className="text-foreground text-base font-semibold tracking-tight">
-                  {activeTabMeta.label}
-                </h3>
-                <p className="text-foreground/70 text-xs tracking-wide">
-                  {activeTabMeta.description}
-                </p>
-              </div>
-
               {visitedTabsList.map((tabId) => (
                 <TabPanel
                   key={tabId}

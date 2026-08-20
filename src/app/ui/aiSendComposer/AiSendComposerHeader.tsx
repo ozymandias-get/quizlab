@@ -1,4 +1,5 @@
-import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
+import { WithTooltip } from '@app/components/ui/tooltip'
 
 import { ChevronDown, Loader2, Send, Trash2 } from 'lucide-react'
 import { memo, type PointerEventHandler } from 'react'
@@ -106,30 +107,32 @@ function AiSendComposerHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onClearAll}
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7 shrink-0 rounded-md transition-colors"
-            title={t('ai_send_clear_all')}
-            aria-label={t('ai_send_clear_all')}
-          >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-          </Button>
+          <WithTooltip label={t('ai_send_clear_all')}>
+            <IconButton
+              variant="ghost"
+              size="compact"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onClearAll}
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              aria-label={t('ai_send_clear_all')}
+            >
+              <Trash2 strokeWidth={2} />
+            </IconButton>
+          </WithTooltip>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onToggleExpand}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 shrink-0 rounded-md transition-colors"
-            title={t('ai_send_collapse')}
-            aria-label={t('ai_send_collapse')}
-            aria-expanded={isExpanded}
-          >
-            <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
-          </Button>
+          <WithTooltip label={t('ai_send_collapse')}>
+            <IconButton
+              variant="ghost"
+              size="compact"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onToggleExpand}
+              className="text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t('ai_send_collapse')}
+              aria-expanded={isExpanded}
+            >
+              <ChevronDown strokeWidth={2} />
+            </IconButton>
+          </WithTooltip>
         </div>
       </div>
     </div>

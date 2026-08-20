@@ -1,6 +1,9 @@
 import type { AiPlatform } from '@shared-core/types'
 
-import { EmptyState } from '@shared/ui/components/primitives/EmptyState'
+import { IconButton } from '@app/components/ui/icon-button'
+import { WithTooltip } from '@app/components/ui/tooltip'
+import { EmptyState } from '@shared/ui/components/primitives'
+import { InlineSpinner } from '@shared/ui/components/primitives'
 import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { Description, Field, Label } from '@headlessui/react'
@@ -145,28 +148,33 @@ const AiModelList = memo(function AiModelList({
 
                 <div className="flex items-center gap-2.5">
                   {isEnabled && setDefaultAiModel && defaultAiModel !== undefined && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDefaultAiModel(key)
-                      }}
-                      className={`group/star rounded-lg p-1.5 transition-colors ${
-                        defaultAiModel === key
-                          ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400'
-                          : 'text-muted-foreground/40 hover:bg-muted hover:text-foreground'
-                      } focus-visible:ring-ring/40 focus-visible:ring-2 focus-visible:outline-none`}
-                      title={defaultAiModel === key ? t('is_default_model') : t('set_as_default')}
-                      aria-label={
-                        defaultAiModel === key ? t('is_default_model') : t('set_as_default')
-                      }
+                    <WithTooltip
+                      label={defaultAiModel === key ? t('is_default_model') : t('set_as_default')}
                     >
-                      <Star
-                        className="h-4 w-4 transition-transform group-hover/star:scale-110"
-                        fill={defaultAiModel === key ? 'currentColor' : 'none'}
-                      />
-                    </button>
+                      <IconButton
+                        type="button"
+                        size="compact"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setDefaultAiModel(key)
+                        }}
+                        className={`group/star ${
+                          defaultAiModel === key
+                            ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400'
+                            : 'text-muted-foreground/40'
+                        }`}
+                        aria-label={
+                          defaultAiModel === key ? t('is_default_model') : t('set_as_default')
+                        }
+                      >
+                        <Star
+                          className="transition-transform group-hover/star:scale-110"
+                          fill={defaultAiModel === key ? 'currentColor' : 'none'}
+                        />
+                      </IconButton>
+                    </WithTooltip>
                   )}
 
                   <SettingsToggleSwitch
@@ -176,37 +184,35 @@ const AiModelList = memo(function AiModelList({
                   />
 
                   {handleClearModelData && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleClearDataClick(e, site.id, site.name)}
-                      disabled={isClearingModelData || isCurrentlyClearing}
-                      className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-lg p-1.5 opacity-60 transition-colors group-hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
-                      title={t('clear_ai_model_data')}
-                      aria-label={t('clear_ai_model_data')}
-                    >
-                      {isCurrentlyClearing ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      ) : (
-                        <RefreshIcon className="h-4 w-4" />
-                      )}
-                    </button>
+                    <WithTooltip label={t('clear_ai_model_data')}>
+                      <IconButton
+                        type="button"
+                        size="compact"
+                        variant="ghost"
+                        onClick={(e) => handleClearDataClick(e, site.id, site.name)}
+                        disabled={isClearingModelData || isCurrentlyClearing}
+                        className="opacity-60 transition-opacity group-hover:opacity-100"
+                        aria-label={t('clear_ai_model_data')}
+                      >
+                        {isCurrentlyClearing ? <InlineSpinner /> : <RefreshIcon />}
+                      </IconButton>
+                    </WithTooltip>
                   )}
 
                   {isCustom && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteClick(e, site.id, site.name)}
-                      disabled={isDeleting || isCurrentlyDeleting}
-                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 rounded-lg p-1.5 opacity-60 transition-colors group-hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
-                      title={t('delete_custom_ai')}
-                      aria-label={t('delete_custom_ai')}
-                    >
-                      {isCurrentlyDeleting ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      ) : (
-                        <TrashIcon className="h-4 w-4" />
-                      )}
-                    </button>
+                    <WithTooltip label={t('delete_custom_ai')}>
+                      <IconButton
+                        type="button"
+                        size="compact"
+                        variant="ghost"
+                        onClick={(e) => handleDeleteClick(e, site.id, site.name)}
+                        disabled={isDeleting || isCurrentlyDeleting}
+                        className="hover:bg-destructive/10 hover:text-destructive opacity-60 transition-opacity group-hover:opacity-100"
+                        aria-label={t('delete_custom_ai')}
+                      >
+                        {isCurrentlyDeleting ? <InlineSpinner /> : <TrashIcon />}
+                      </IconButton>
+                    </WithTooltip>
                   )}
                 </div>
               </Field>

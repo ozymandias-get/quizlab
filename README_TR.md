@@ -158,7 +158,7 @@ Uygulama, yüksek performanslı bir PDF görüntüleyiciyi gömülü yapay zeka 
 | **Durum Yönetimi**        | [Zustand 5](https://zustand-demo.pmnd.rs/) + [TanStack React Query 5](https://tanstack.com/query/latest)             |
 | **Yapay Zeka Otomasyonu** | [Playwright](https://playwright.dev/) (webview oturum yönetimi ve betikleme)                                         |
 | **Arayüz Bileşenleri**    | [Radix UI](https://www.radix-ui.com/) + [Headless UI](https://headlessui.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| **İkonlar**               | [Tabler Icons](https://tabler.io/icons) + [Lucide](https://lucide.dev/)                                              |
+| **İkonlar**               | [Lucide](https://lucide.dev/) semantic ikon kaydı üzerinden + özel SVG ikon seti                                     |
 | **Parçacıklar**           | [tsParticles](https://particles.js.org/)                                                                             |
 | **Yazı Tipleri**          | [Inter Variable](https://fonts.google.com/specimen/Inter) üzerinden Fontsource                                       |
 | **i18n**                  | [i18next](https://www.i18next.com/) + [react-i18next](https://react.i18next.com/)                                    |

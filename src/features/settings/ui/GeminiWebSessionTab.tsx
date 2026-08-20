@@ -1,8 +1,17 @@
+import { GeminiIcon } from '@ui/components/Icons'
+
 import { memo } from 'react'
 
 import GeminiWebRiskNotice from './geminiWebSession/GeminiWebRiskNotice'
 import GeminiWebSessionOverview from './geminiWebSession/GeminiWebSessionOverview'
 import { useGeminiWebSessionState } from './geminiWebSession/useGeminiWebSessionState'
+import SettingsTabIntro from './shared/SettingsTabIntro'
+
+const GEMINI_WEB_ICON = (
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+    <GeminiIcon className="h-5 w-5" />
+  </div>
+)
 
 const GeminiWebSessionTab = memo(() => {
   const {
@@ -25,6 +34,8 @@ const GeminiWebSessionTab = memo(() => {
 
   return (
     <div className="space-y-6">
+      <SettingsTabIntro icon={GEMINI_WEB_ICON} description={t('gws_settings_desc')} />
+
       <GeminiWebSessionOverview
         t={t}
         status={status}

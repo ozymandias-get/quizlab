@@ -248,7 +248,7 @@ describe('SelectorsTab', () => {
     expect(mockStartPickerWhenReady).toHaveBeenCalledTimes(1)
     expect(onCloseSettings).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByTitle('delete_selectors'))
+    fireEvent.click(screen.getByRole('button', { name: 'delete_selectors' }))
 
     await waitFor(() => {
       expect(mockDeleteConfig).toHaveBeenCalledWith('openai.com')

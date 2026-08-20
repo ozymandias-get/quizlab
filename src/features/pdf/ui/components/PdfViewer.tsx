@@ -139,7 +139,7 @@ function PdfViewer({
       )}
 
       {!isViewerVisible && activePdfTab?.kind !== 'drive' && (
-        <div className="bg-background animate-in fade-in absolute inset-0 h-full w-full duration-150">
+        <div className="bg-background animate-in fade-in motion-normal absolute inset-0 h-full w-full">
           <PdfPlaceholder
             onSelectPdf={onSelectPdf}
             onResumePdf={onResumePdf}

@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { cn } from '@shared/lib/uiUtils'
 
@@ -44,13 +45,15 @@ function StatusIndicator({ isConnected, mode }: StatusIndicatorProps) {
               : t('gws_extension_wizard_status_removed')}
         </p>
         {!isConnected && mode === 'install' && (
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="xs"
             onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
-            className="text-ql-11 mt-2 inline-flex items-center gap-1 font-semibold text-amber-600 underline hover:no-underline dark:text-amber-400"
+            className="text-ql-11 mt-2 text-amber-600 dark:text-amber-400"
           >
             {t('gws_extension_wake_btn')}
-          </button>
+          </Button>
         )}
       </div>
     </div>

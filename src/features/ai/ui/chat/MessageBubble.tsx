@@ -2,7 +2,10 @@ import type { ApiChatMessage } from '@shared-core/types'
 
 import MessageContent from '@features/ai/lib/parseMessageContent'
 
+import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
 import { Textarea } from '@app/components/ui/textarea'
+import { WithTooltip } from '@app/components/ui/tooltip'
 
 import { Pencil, RefreshCw } from 'lucide-react'
 import { memo, useEffect, useRef, useState } from 'react'
@@ -71,7 +74,7 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <div className="group animate-app-enter">
       <div
-        className={`w-fit ${isUser ? 'ml-auto' : ''} relative rounded-xl px-4 py-2.5 transition-colors duration-150 ${
+        className={`w-fit ${isUser ? 'ml-auto' : ''} motion-normal relative rounded-xl px-4 py-2.5 transition-colors ${
           isUser
             ? 'border-primary/25 bg-primary/10 text-foreground border shadow-xs'
             : 'border-border bg-card text-foreground border shadow-xs'
@@ -102,23 +105,21 @@ const MessageBubble = memo(function MessageBubble({
               aria-label={t('api_chat_edit')}
             />
             <div className="flex items-center justify-end gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setIsEditing(false)
                   setEditVal(message.content)
                 }}
-                className="text-ql-12 border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground rounded-md border px-3 py-1 transition-colors"
+                className="text-ql-12"
               >
                 {t('api_chat_cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleEditSave}
-                className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-3 py-1 font-medium transition-colors"
-              >
+              </Button>
+              <Button type="button" size="sm" onClick={handleEditSave} className="text-ql-12">
                 {t('api_chat_save')}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -135,17 +136,20 @@ const MessageBubble = memo(function MessageBubble({
           {isUser ? (
             <div className="mt-1 flex items-center justify-end gap-2.5 px-1">
               {!isError && (
-                <div className="flex items-center gap-1 opacity-60 transition-opacity duration-150 group-hover:opacity-100">
+                <div className="motion-normal flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
                   {onEdit && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(true)}
-                      className="text-ql-10 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                      title={t('api_chat_edit')}
-                      aria-label={t('api_chat_edit')}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
+                    <WithTooltip label={t('api_chat_edit')}>
+                      <IconButton
+                        type="button"
+                        size="compact"
+                        variant="ghost"
+                        onClick={() => setIsEditing(true)}
+                        className="text-ql-10 text-muted-foreground"
+                        aria-label={t('api_chat_edit')}
+                      >
+                        <Pencil />
+                      </IconButton>
+                    </WithTooltip>
                   )}
                   <CopyButton content={message.content} />
                   <DeleteButton onDelete={onDelete} messageId={message.id} />
@@ -162,18 +166,21 @@ const MessageBubble = memo(function MessageBubble({
               )}
               <Timestamp ts={message.timestamp} />
               {!isError && (
-                <div className="flex items-center gap-1 opacity-60 transition-opacity duration-150 group-hover:opacity-100">
+                <div className="motion-normal flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
                   <TtsButton content={message.content} />
                   {isLastAssistant && onRegenerate && (
-                    <button
-                      type="button"
-                      onClick={onRegenerate}
-                      className="text-ql-10 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                      title={t('api_chat_regenerate_tooltip')}
-                      aria-label={t('api_chat_regenerate_tooltip')}
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
+                    <WithTooltip label={t('api_chat_regenerate_tooltip')}>
+                      <IconButton
+                        type="button"
+                        size="compact"
+                        variant="ghost"
+                        onClick={onRegenerate}
+                        className="text-ql-10 text-muted-foreground"
+                        aria-label={t('api_chat_regenerate_tooltip')}
+                      >
+                        <RefreshCw />
+                      </IconButton>
+                    </WithTooltip>
                   )}
                   <CopyButton content={message.content} />
                   <FeedbackButtons />

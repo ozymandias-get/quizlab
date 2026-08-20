@@ -1,3 +1,5 @@
+import { InlineSpinner } from '@shared/ui/components/primitives'
+
 import type { Plugin } from '@react-pdf-viewer/core'
 import {
   type DocumentLoadEvent,
@@ -80,9 +82,9 @@ function PdfViewerElement({
       data-pdf-page-loader
       className="flex h-full min-h-[12rem] w-full items-center justify-center bg-transparent"
     >
-      <div
-        className="h-9 w-9 animate-spin rounded-full border-2 border-amber-500/25 border-t-amber-500 will-change-transform"
-        role="status"
+      <InlineSpinner
+        size="xl"
+        className="border-amber-500/25 border-t-amber-500"
         aria-label={tt('loading')}
       />
     </div>

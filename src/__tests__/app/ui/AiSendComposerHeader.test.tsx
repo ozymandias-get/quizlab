@@ -1,4 +1,5 @@
 import AiSendComposerHeader from '@app/ui/aiSendComposer/AiSendComposerHeader'
+import { TooltipProvider } from '@app/components/ui/tooltip'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -6,6 +7,10 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
+
+function renderWithTooltip(ui: React.ReactNode) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>)
+}
 
 describe('AiSendComposerHeader', () => {
   const baseProps = {
@@ -27,12 +32,12 @@ describe('AiSendComposerHeader', () => {
   }
 
   it('renders without crashing in expanded mode', () => {
-    render(<AiSendComposerHeader {...baseProps} />)
+    renderWithTooltip(<AiSendComposerHeader {...baseProps} />)
   })
 
   it('renders quick action buttons in compact mode and triggers onSendWithPreset', () => {
     const onSendWithPreset = vi.fn()
-    render(
+    renderWithTooltip(
       <AiSendComposerHeader {...baseProps} isExpanded={false} onSendWithPreset={onSendWithPreset} />
     )
 
@@ -48,7 +53,9 @@ describe('AiSendComposerHeader', () => {
   })
 
   it('renders sending state when sendFeedback is sending in compact mode', () => {
-    render(<AiSendComposerHeader {...baseProps} isExpanded={false} sendFeedback="sending" />)
+    renderWithTooltip(
+      <AiSendComposerHeader {...baseProps} isExpanded={false} sendFeedback="sending" />
+    )
     expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
   })
 })

@@ -1,3 +1,4 @@
+import { DURATION } from '@shared/lib/motion'
 import { hexToRgba } from '@shared/lib/uiUtils'
 
 import type { Variants } from 'motion/react'
@@ -11,8 +12,8 @@ export function usePanelVariants(prefersReducedMotion: boolean | undefined): Var
       prefersReducedMotion
         ? {
             hidden: { opacity: 0 },
-            visible: { opacity: 1, transition: { duration: 0.08 } },
-            exit: { opacity: 0, transition: { duration: 0.06 } }
+            visible: { opacity: 1, transition: { duration: DURATION.fast } },
+            exit: { opacity: 0, transition: { duration: DURATION.fast } }
           }
         : {
             hidden: { opacity: 0, scale: 0.94, y: 8 },
@@ -26,7 +27,7 @@ export function usePanelVariants(prefersReducedMotion: boolean | undefined): Var
               opacity: 0,
               scale: 0.94,
               y: 8,
-              transition: { duration: 0.1, ease: [0.32, 0, 0.67, 0] }
+              transition: { duration: DURATION.fast, ease: [0.32, 0, 0.67, 0] }
             }
           },
     [prefersReducedMotion]

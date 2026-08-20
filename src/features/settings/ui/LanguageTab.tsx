@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const LANGUAGE_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <LanguageIcon className="h-5 w-5" />
   </div>
 )
@@ -23,12 +23,7 @@ const LanguageTab = memo(() => {
 
   return (
     <div className="space-y-6">
-      <SettingsTabIntro
-        icon={LANGUAGE_ICON}
-        eyebrow={t('interface_language')}
-        title={t('select_language')}
-        description={t('language_description')}
-      />
+      <SettingsTabIntro icon={LANGUAGE_ICON} description={t('language_description')} />
 
       <RadioGroup value={language} onChange={setLanguage} className="grid grid-cols-1 gap-3">
         {languageList.map((lang, index) => (
@@ -40,7 +35,7 @@ const LanguageTab = memo(() => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.04 }}
             className={({ checked }) =>
-              `group relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors duration-150 ${
+              `group motion-normal relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors ${
                 checked
                   ? 'border-primary/30 bg-muted/70 shadow-xs'
                   : 'bg-card border-border hover:bg-muted/40'

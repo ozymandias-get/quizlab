@@ -181,9 +181,9 @@
   letter-spacing: 0.01em;
   cursor: pointer;
   transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    transform 180ms ease;
+    background var(--duration-slow) ease,
+    border-color var(--duration-slow) ease,
+    transform var(--duration-slow) ease;
   border: 1px solid transparent;
   user-select: none;
 }
@@ -272,7 +272,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: oklch(0.85 0.04 20 / 0.5);
-  transition: color 180ms ease;
+  transition: color var(--duration-slow) ease;
 }
 
 .aesthetic-error-boundary .err-details summary::-webkit-details-marker {
@@ -283,7 +283,7 @@
   content: '\25B8';
   display: inline-block;
   margin-right: 6px;
-  transition: transform 180ms ease;
+  transition: transform var(--duration-slow) ease;
 }
 
 .aesthetic-error-boundary .err-details[open] summary::before {

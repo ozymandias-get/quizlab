@@ -1,3 +1,6 @@
+import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
+
 import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { memo } from 'react'
@@ -42,13 +45,9 @@ function ResultContent({
           {t('gws_extension_wizard_error_title')}
         </h3>
         {error ? <p className="text-ql-13 text-destructive">{error}</p> : null}
-        <button
-          type="button"
-          onClick={onDone}
-          className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 mt-2 inline-flex w-full items-center justify-center rounded-lg px-5 py-2.5 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        >
+        <Button type="button" onClick={onDone} className="text-ql-12 mt-2 w-full shadow-xs">
           {t('gws_extension_wizard_done_btn')}
-        </button>
+        </Button>
       </div>
     )
   }
@@ -87,10 +86,12 @@ function ResultContent({
               <span className="text-ql-12 text-muted-foreground font-mono select-all">
                 chrome://extensions
               </span>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={onCopyLink}
-                className="text-ql-11 border-border bg-muted text-foreground hover:bg-muted/80 focus-visible:ring-ring/40 flex h-8 shrink-0 items-center justify-center rounded-lg border px-3 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="text-ql-11"
               >
                 {copiedLink ? (
                   <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
@@ -100,7 +101,7 @@ function ResultContent({
                 ) : (
                   t('gws_extension_wizard_copy_link_btn')
                 )}
-              </button>
+              </Button>
             </div>
             <ul className="flex flex-col gap-2">
               <li className="text-ql-12 text-muted-foreground">
@@ -126,18 +127,16 @@ function ResultContent({
               <span className="text-ql-12 text-muted-foreground truncate font-mono">
                 {installedPath}
               </span>
-              <button
+              <IconButton
                 type="button"
+                variant="outline"
+                size="compact"
                 onClick={onCopyPath}
-                className="border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground focus-visible:ring-ring/40 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="text-muted-foreground hover:text-foreground"
                 aria-label={t('gws_extension_wizard_path_copied')}
               >
-                {copied ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
+                {copied ? <Check className="text-emerald-600 dark:text-emerald-400" /> : <Copy />}
+              </IconButton>
             </div>
           </div>
         </div>
@@ -163,22 +162,22 @@ function ResultContent({
           </ul>
         </div>
       ) : null}
-      <button
+      <Button
         type="button"
         onClick={onDone}
-        className={
-          'text-ql-12 focus-visible:ring-ring/40 mt-2 inline-flex w-full items-center justify-center rounded-lg px-5 py-2.5 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none ' +
-          ((mode === 'install' && isConnected) || (mode === 'remove' && !isConnected)
-            ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs'
-            : 'border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground border')
+        variant={
+          (mode === 'install' && isConnected) || (mode === 'remove' && !isConnected)
+            ? 'default'
+            : 'outline'
         }
+        className="text-ql-12 mt-2 w-full"
       >
         {mode === 'install'
           ? isConnected
             ? t('gws_extension_wizard_finish_btn')
             : t('gws_extension_wizard_skip_btn')
           : t('gws_extension_wizard_done_btn')}
-      </button>
+      </Button>
     </div>
   )
 }

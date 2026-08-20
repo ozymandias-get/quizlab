@@ -1,3 +1,4 @@
+import { DURATION } from '@shared/lib/motion'
 import { SelectionIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
@@ -22,7 +23,7 @@ const SelectionColorSettings = memo(
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.05 }}
+        transition={{ duration: DURATION.fast }}
         className="bg-card border-border space-y-5 rounded-xl border p-5"
       >
         <div className="flex items-center gap-3">
@@ -30,10 +31,10 @@ const SelectionColorSettings = memo(
             <SelectionIcon className="h-4 w-4" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="text-ql-14 text-foreground font-bold">
+            <h3 className="text-ql-13 text-foreground font-bold">
               {t('selection_color_settings')}
             </h3>
-            <p className="text-ql-11 text-foreground/75 tracking-ql-fine">
+            <p className="text-ql-11 text-foreground/75 tracking-ql-tight">
               {t('selection_color_desc')}
             </p>
           </div>

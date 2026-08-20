@@ -11,7 +11,7 @@ import SelectionColorSettings from './appearance/SelectionColorSettings'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const APPEARANCE_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <EyeIcon className="h-5 w-5" />
   </div>
 )
@@ -48,12 +48,7 @@ const AppearanceTab = memo(() => {
 
   return (
     <div className="space-y-6" data-app-locale={language}>
-      <SettingsTabIntro
-        icon={APPEARANCE_ICON}
-        eyebrow={t('visual_settings')}
-        title={t('appearance_settings')}
-        description={t('appearance_description')}
-      />
+      <SettingsTabIntro icon={APPEARANCE_ICON} description={t('appearance_description')} />
 
       <BarAppearanceSettings
         bottomBarOpacity={bottomBarOpacity}

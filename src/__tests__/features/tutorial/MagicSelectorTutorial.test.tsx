@@ -1,4 +1,5 @@
 import MagicSelectorTutorial from '@features/tutorial/ui/MagicSelectorTutorial'
+import { TooltipProvider } from '@app/components/ui/tooltip'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -34,27 +35,31 @@ vi.mock('react-i18next', () => ({
   })
 }))
 
+function renderWithTooltip(ui: React.ReactNode) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>)
+}
+
 describe('MagicSelectorTutorial', () => {
   it('renders welcome step with heading', () => {
-    render(<MagicSelectorTutorial onClose={vi.fn()} />)
+    renderWithTooltip(<MagicSelectorTutorial onClose={vi.fn()} />)
     expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument()
     expect(screen.getByText('Learn automation')).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn()
-    render(<MagicSelectorTutorial onClose={onClose} />)
-    fireEvent.click(screen.getByTitle('Close'))
+    renderWithTooltip(<MagicSelectorTutorial onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it('renders step progress indicators', () => {
-    render(<MagicSelectorTutorial onClose={vi.fn()} />)
+    renderWithTooltip(<MagicSelectorTutorial onClose={vi.fn()} />)
     expect(screen.getByText('1/5')).toBeInTheDocument()
   })
 
   it('has step navigation buttons', () => {
-    render(<MagicSelectorTutorial onClose={vi.fn()} />)
+    renderWithTooltip(<MagicSelectorTutorial onClose={vi.fn()} />)
     expect(screen.getByLabelText('Step 1: Welcome')).toBeInTheDocument()
     expect(screen.getByLabelText('Step 2: Select Input')).toBeInTheDocument()
     expect(screen.getByLabelText('Step 3: Type Message')).toBeInTheDocument()
@@ -63,7 +68,7 @@ describe('MagicSelectorTutorial', () => {
   })
 
   it('renders the simulated chat input', () => {
-    render(<MagicSelectorTutorial onClose={vi.fn()} />)
+    renderWithTooltip(<MagicSelectorTutorial onClose={vi.fn()} />)
     expect(screen.getByPlaceholderText('Ask anything')).toBeInTheDocument()
   })
 })

@@ -1,3 +1,10 @@
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@app/components/ui/tooltip'
+
 import { motion, useSpring } from 'motion/react'
 import type { CSSProperties } from 'react'
 import { memo, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
@@ -57,37 +64,34 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   }, [])
 
   return (
-    <motion.div
-      ref={ref}
-      id={id}
-      role="button"
-      tabIndex={0}
-      aria-label={title}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
-      style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
-      className="group border-border/80 bg-card/90 hover:border-border hover:bg-muted focus-visible:ring-ring/40 relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg border shadow-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
-    >
-      {isHovered && (
-        <motion.div
-          initial={{ opacity: 0, y: 4, x: '-50%' }}
-          animate={{ opacity: 1, y: 0, x: '-50%' }}
-          exit={{ opacity: 0, y: 2, x: '-50%' }}
-          transition={{ duration: 0.12 }}
-          className="z-tooltip border-border bg-popover text-popover-foreground pointer-events-none absolute -top-8 left-1/2 w-max rounded-md border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap shadow-md"
-          role="tooltip"
-        >
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <motion.div
+            ref={ref}
+            id={id}
+            role="button"
+            tabIndex={0}
+            aria-label={title}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={onClick}
+            onKeyDown={handleKeyDown}
+            style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
+            className="group border-border/80 bg-card/90 hover:border-border hover:bg-muted focus-visible:ring-ring/40 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg border shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <div
+              className="text-muted-foreground group-hover:text-foreground flex items-center justify-center transition-colors"
+              style={ICON_CONTAINER_STYLE}
+            >
+              {children}
+            </div>
+          </motion.div>
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={12}>
           {title}
-        </motion.div>
-      )}
-      <div
-        className="text-muted-foreground group-hover:text-foreground flex items-center justify-center transition-colors"
-        style={ICON_CONTAINER_STYLE}
-      >
-        {children}
-      </div>
-    </motion.div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 })

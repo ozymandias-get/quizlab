@@ -58,7 +58,7 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
         <h2 className="text-ql-20 text-foreground font-bold tracking-tight">
           {t('tutorial_center_title')}
         </h2>
-        <p className="text-ql-14 text-muted-foreground">{t('tutorial_center_desc')}</p>
+        <p className="text-ql-13 text-muted-foreground">{t('tutorial_center_desc')}</p>
       </div>
 
       <div className="space-y-6">

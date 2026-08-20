@@ -1,4 +1,5 @@
 import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
 import { CheckIcon, ChevronRightIcon, ExternalLinkIcon, GlobeIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
@@ -43,12 +44,12 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
         className="focus-visible:ring-ring ring-offset-background flex min-w-0 flex-1 items-center gap-4 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         <div className="relative shrink-0">
-          <div className={`rounded-2xl border p-2.5 transition-colors duration-300 ${tone.icon} `}>
+          <div className={`motion-slower rounded-2xl border p-2.5 transition-colors ${tone.icon} `}>
             {getAiPlatformIcon(ai, key, <GlobeIcon className="h-5 w-5" />)}
           </div>
 
           {hasSelectors && selectorHealth === 'ready' && (
-            <div className="absolute -top-1 -right-1 rounded-full border-2 border-[var(--color-bg-primary,#121212)] bg-emerald-500 p-[1px]">
+            <div className="border-background absolute -top-1 -right-1 rounded-full border-2 bg-emerald-500 p-[1px]">
               <CheckIcon className="h-2.5 w-2.5 text-black" strokeWidth={4} />
             </div>
           )}
@@ -56,7 +57,7 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-ql-14 text-foreground truncate font-semibold">
+            <h4 className="text-ql-13 text-foreground truncate font-semibold">
               {getAiPlatformLabel(ai, key)}
             </h4>
             <span
@@ -83,21 +84,19 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
           onClick={() => onOpenRepick(key, cardId)}
           className="gap-1.5"
         >
-          <ExternalLinkIcon className="h-3.5 w-3.5" />
+          <ExternalLinkIcon />
           <span className="text-ql-11 font-semibold">{t('selectors_open_repick')}</span>
         </Button>
 
-        <Button
+        <IconButton
           type="button"
           variant="ghost"
-          size="icon-sm"
+          size="compact"
           onClick={() => onToggleExpanded(cardId)}
           aria-label={isExpanded ? t('ai_send_collapse') : t('ai_send_expand')}
         >
-          <ChevronRightIcon
-            className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-          />
-        </Button>
+          <ChevronRightIcon className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+        </IconButton>
       </div>
     </div>
   )

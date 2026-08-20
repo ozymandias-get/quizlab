@@ -35,7 +35,7 @@ const TEXT_INPUT_MODE_OPTIONS: {
 ]
 
 const TEXT_INPUT_MODE_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <Keyboard className="h-5 w-5" />
   </div>
 )
@@ -62,8 +62,6 @@ const TextInputModeTab = memo(() => {
     <div className="space-y-6">
       <SettingsTabIntro
         icon={TEXT_INPUT_MODE_ICON}
-        eyebrow={t('ai_settings')}
-        title={t('text_input_mode')}
         description={t('text_input_mode_description')}
       />
 
@@ -118,7 +116,7 @@ const TextInputModeTab = memo(() => {
 
       <div className="space-y-3">
         <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
-          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
             <Gauge className="h-4 w-4" />
           </div>
           <div className="min-w-0 grow">

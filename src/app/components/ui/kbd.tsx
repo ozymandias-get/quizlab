@@ -12,7 +12,7 @@ const kbdVariants = cva(
         outline: 'border-border bg-background text-foreground/80'
       },
       size: {
-        xs: 'h-4 min-w-4 px-1 text-[10px] leading-none rounded-xs',
+        xs: 'h-4 min-w-4 px-1 text-ql-10 leading-none rounded-xs',
         sm: 'h-5 min-w-5 px-1.5 text-ql-11 leading-none rounded-xs',
         default: 'h-5.5 min-w-5.5 px-2 text-ql-12 leading-none rounded-sm'
       }

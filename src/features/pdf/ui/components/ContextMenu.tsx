@@ -1,3 +1,6 @@
+import { MenuItem, MenuSeparator, MenuSurface } from '@app/components/ui/menu'
+import { DURATION } from '@shared/lib/motion'
+
 import type { LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -76,8 +79,8 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         initial={{ opacity: 0, scale: 0.95, y: -5 }}
         animate={isReady ? { opacity: 1, scale: 1, y: 0 } : { opacity: 0, scale: 0.95, y: -5 }}
         exit={{ opacity: 0, scale: 0.95, y: -5 }}
-        transition={{ duration: 0.1, ease: 'easeOut' }}
-        className="z-top fixed origin-top-left"
+        transition={{ duration: DURATION.fast, ease: 'easeOut' }}
+        className="z-dropdown fixed origin-top-left"
         style={{
           top: adjustedPosition.y,
           left: adjustedPosition.x,
@@ -88,41 +91,27 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                   Visual styling wrapper separated from motion.div to prevent
                   framer-motion backdrop-blur animation artifacts.
                 */}
-        <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg min-w-[200px] overflow-hidden rounded-xl border p-1 backdrop-blur-md">
+        <MenuSurface className="min-w-[200px] overflow-hidden">
           {items.map((item, index) => {
             if (item.separator) {
               // eslint-disable-next-line react/no-array-index-key -- Static menu items, stable order
-              return <div key={index} className="bg-border/80 mx-2 my-1 h-px" />
+              return <MenuSeparator key={index} />
             }
 
             const Icon = item.icon
 
             return (
-              <button
+              <MenuItem
                 // eslint-disable-next-line react/no-array-index-key -- Static menu items, stable order
                 key={index}
-                type="button"
-                onClick={(e) => {
-                  if (item.disabled) return
-                  e.stopPropagation()
-                  item.onClick()
-                  onClose()
-                }}
+                danger={item.danger}
                 disabled={item.disabled}
-                className={`text-ql-13 group relative flex w-full items-center justify-between overflow-hidden rounded-lg px-2.5 py-1.5 transition-colors duration-150 ${
-                  item.disabled
-                    ? 'text-muted-foreground cursor-not-allowed opacity-40'
-                    : item.danger
-                      ? 'text-destructive hover:bg-destructive/10'
-                      : 'text-foreground hover:bg-muted'
-                } `}
-              >
-                <div className="relative z-10 flex items-center gap-2.5">
-                  {Icon && (
+                shortcut={item.shortcut}
+                icon={
+                  Icon && (
                     <Icon
-                      size={14}
                       strokeWidth={2}
-                      className={`transition-colors duration-150 ${
+                      className={`motion-normal transition-colors ${
                         item.disabled
                           ? 'text-muted-foreground'
                           : item.danger
@@ -130,22 +119,21 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                             : 'text-muted-foreground group-hover:text-foreground'
                       }`}
                     />
-                  )}
-                  <span className="font-medium">{item.label}</span>
-                </div>
-                {item.shortcut && (
-                  <span
-                    className={`text-ql-10 relative z-10 font-mono tracking-wider uppercase opacity-60 ${
-                      item.danger ? 'text-destructive' : 'text-muted-foreground'
-                    }`}
-                  >
-                    {item.shortcut}
-                  </span>
-                )}
-              </button>
+                  )
+                }
+                onClick={(e) => {
+                  if (item.disabled) return
+                  e.stopPropagation()
+                  item.onClick()
+                  onClose()
+                }}
+                className="group text-ql-13"
+              >
+                {item.label}
+              </MenuItem>
             )
           })}
-        </div>
+        </MenuSurface>
       </motion.div>
     </AnimatePresence>,
     document.body

@@ -1,4 +1,5 @@
 import { Button } from '@app/components/ui/button'
+import { DURATION } from '@shared/lib/motion'
 import { useLanguage } from '@shared/stores/languageStore'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -115,7 +116,7 @@ export function LanguageSelectionDialog() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
+          transition={{ duration: DURATION.slow, ease: 'easeOut' }}
           className="z-modal bg-background/60 fixed inset-0 flex items-center justify-center backdrop-blur-md"
         >
           <motion.div
@@ -127,7 +128,7 @@ export function LanguageSelectionDialog() {
             initial={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 12, scale: 0.98 }) }}
             animate={{ opacity: 1, ...(prefersReducedMotion ? {} : { y: 0, scale: 1 }) }}
             exit={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 6, scale: 0.98 }) }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            transition={{ duration: DURATION.slow, ease: 'easeOut' }}
             className="border-border bg-popover text-popover-foreground shadow-ambient-xl mx-4 w-full max-w-md rounded-2xl border p-6 text-center outline-none"
           >
             <h2 id={titleId} className="text-ql-20 text-foreground font-semibold">
@@ -153,7 +154,7 @@ export function LanguageSelectionDialog() {
                       {lang.flag}
                     </span>
                     <div className="flex flex-col">
-                      <span className="text-ql-14 text-foreground font-semibold">
+                      <span className="text-ql-13 text-foreground font-semibold">
                         {lang.nativeName}
                       </span>
                       <span className="text-ql-12 text-muted-foreground">{lang.name}</span>

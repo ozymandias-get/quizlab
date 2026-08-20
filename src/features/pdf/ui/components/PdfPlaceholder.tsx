@@ -55,21 +55,22 @@ function PdfPlaceholder({
   })
 
   return (
-    <div className="animate-in fade-in zoom-in-98 flex h-full flex-col items-center justify-center overflow-hidden px-6 py-8 duration-200 select-none motion-reduce:animate-none">
+    <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center justify-center overflow-hidden px-6 py-8 select-none motion-reduce:animate-none">
       <div className="flex max-h-full w-full max-w-[680px] flex-col items-center gap-4 text-center">
         {/* Kokonut-inspired Drop / Upload Hero Card */}
-        <div className="group border-border/80 hover:border-ring/60 bg-card/60 hover:bg-card/90 relative flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed p-6 shadow-2xs transition-all duration-200">
-          <button
+        <div className="group border-border/80 hover:border-ring/60 bg-card/60 hover:bg-card/90 motion-slow relative flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed p-6 shadow-2xs transition-all">
+          <Button
             type="button"
+            size="icon-lg"
             onClick={onSelectPdf}
-            className="border-primary/20 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground focus-visible:ring-ring/40 relative flex h-14 w-14 cursor-pointer items-center justify-center rounded-xl border shadow-2xs transition-all duration-200 focus-visible:ring-2 focus-visible:outline-none"
+            className="border-primary/20 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground focus-visible:ring-ring/40 motion-slow h-14 w-14 cursor-pointer rounded-xl border shadow-2xs transition-all focus-visible:ring-2 focus-visible:outline-none"
             aria-label={t('select_pdf')}
           >
-            <Upload className="h-6 w-6 transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
-          </button>
+            <Upload className="motion-slow h-6 w-6 transition-transform group-hover:-translate-y-0.5 motion-reduce:transform-none" />
+          </Button>
 
           <div className="space-y-1.5">
-            <h2 className="text-ql-16 text-foreground font-semibold tracking-tight">
+            <h2 className="text-ql-15 text-foreground font-semibold tracking-tight">
               {t('no_pdf_loaded')}
             </h2>
             <p className="text-ql-12 text-muted-foreground mx-auto max-w-[240px] leading-relaxed">

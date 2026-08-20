@@ -57,7 +57,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
         <button
           type="button"
           onClick={() => onClick(itemId)}
-          className={`group hover:shadow-ambient-sm relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transform-none ${
+          className={`group hover:shadow-ambient-sm motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all hover:-translate-y-0.5 motion-reduce:transform-none ${
             isActive
               ? 'border-ring/60 bg-accent/20'
               : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
@@ -65,7 +65,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
         >
           <div className="flex items-center gap-3">
             <div
-              className="border-border/60 bg-muted/60 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-transform duration-150 group-hover:scale-105 motion-reduce:scale-100"
+              className="border-border/60 bg-muted/60 motion-normal flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105 motion-reduce:scale-100"
               style={{ color: accent }}
             >
               {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
@@ -83,7 +83,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
               />
             )}
             <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
+              <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
             </div>
           </div>
         </button>

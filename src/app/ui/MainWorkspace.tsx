@@ -102,7 +102,7 @@ function MainWorkspace({
       <motion.div
         ref={resizerRef}
         variants={resizerVariants}
-        className="relative z-30 h-full shrink-0"
+        className="z-resizer-hub relative h-full shrink-0"
         style={gpuAcceleratedStyle}
       >
         <BottomBar

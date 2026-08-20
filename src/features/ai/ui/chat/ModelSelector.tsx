@@ -1,5 +1,6 @@
 import type { ApiConfig } from '@shared-core/types'
 
+import { InlineSelector } from '@app/components/ui/inline-selector'
 import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 
@@ -111,104 +112,101 @@ const ModelSelector = memo(function ModelSelector({
 
   return (
     <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => {
-          setIsOpen(!isOpen)
-          setModelSearch('')
-        }}
-        className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex max-w-[200px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls={listboxId}
-        data-state={isOpen ? 'open' : 'closed'}
-      >
-        <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
-
-        <span className="text-foreground max-w-[120px] truncate font-medium">
-          {currentDisplayName}
-        </span>
-        <ChevronDown className="text-muted-foreground h-3 w-3 shrink-0 opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180" />
-      </button>
-
-      {isOpen && (
-        <>
+      <InlineSelector
+        open={isOpen}
+        onClose={handleClose}
+        closeLabel={t('api_chat_close_selector', 'Close')}
+        popupClassName="max-h-[300px] min-w-[240px]"
+        trigger={
           <button
+            ref={triggerRef}
             type="button"
-            aria-label={t('api_chat_close_selector', 'Close')}
-            className="fixed inset-0 z-10 cursor-default"
-            onClick={handleClose}
-          />
-          <div className="border-border/80 bg-popover/95 text-popover-foreground shadow-ambient-lg animate-in fade-in zoom-in-98 absolute bottom-full left-0 z-20 mb-2 flex max-h-[300px] min-w-[240px] flex-col rounded-xl border p-1.5 backdrop-blur-md duration-150">
-            <div className="border-border/60 relative mb-1 border-b pb-1.5">
-              <InputGroup>
-                <InputGroupAddon align="inline-start">
-                  <Search className="text-muted-foreground/60 h-3 w-3" />
-                </InputGroupAddon>
-                <Input
-                  // eslint-disable-next-line jsx-a11y/no-autofocus -- focus search input when popover opens
-                  autoFocus
-                  role="combobox"
-                  aria-expanded
-                  aria-controls={listboxId}
-                  aria-autocomplete="list"
-                  aria-activedescendant={activeDescendantId}
-                  aria-label={t('api_chat_search_models')}
-                  value={modelSearch}
-                  onChange={(e) => setModelSearch(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder={t('api_chat_search_models')}
-                  onClick={(e) => e.stopPropagation()}
-                  className="h-7 pl-7 text-xs font-normal"
-                />
-              </InputGroup>
+            onClick={() => {
+              setIsOpen(!isOpen)
+              setModelSearch('')
+            }}
+            className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex max-w-[200px] cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            aria-haspopup="listbox"
+            aria-expanded={isOpen}
+            aria-controls={listboxId}
+            data-state={isOpen ? 'open' : 'closed'}
+          >
+            <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
+
+            <span className="text-foreground max-w-[120px] truncate font-medium">
+              {currentDisplayName}
+            </span>
+            <ChevronDown className="text-muted-foreground motion-normal h-3 w-3 shrink-0 opacity-60 transition-transform group-data-[state=open]:rotate-180" />
+          </button>
+        }
+      >
+        <div className="border-border/60 relative mb-1 border-b pb-1.5">
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <Search className="text-muted-foreground/60 h-3 w-3" />
+            </InputGroupAddon>
+            <Input
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- focus search input when popover opens
+              autoFocus
+              role="combobox"
+              aria-expanded
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={activeDescendantId}
+              aria-label={t('api_chat_search_models')}
+              value={modelSearch}
+              onChange={(e) => setModelSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={t('api_chat_search_models')}
+              onClick={(e) => e.stopPropagation()}
+              size="sm"
+              className="pl-7"
+            />
+          </InputGroup>
+        </div>
+        <div
+          ref={listRef}
+          id={listboxId}
+          role="listbox"
+          className="custom-scrollbar max-h-[200px] min-h-0 flex-1 space-y-0.5 overflow-y-auto p-0.5"
+        >
+          {allModels.length === 0 ? (
+            <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center leading-normal">
+              {t('api_chat_no_fetched_models')}
             </div>
-            <div
-              ref={listRef}
-              id={listboxId}
-              role="listbox"
-              className="custom-scrollbar max-h-[200px] min-h-0 flex-1 space-y-0.5 overflow-y-auto p-0.5"
-            >
-              {allModels.length === 0 ? (
-                <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center leading-normal">
-                  {t('api_chat_no_fetched_models')}
+          ) : filteredModels.length > 0 ? (
+            filteredModels.map((model, index) => {
+              const isSelected = model === selectedModel
+              const isActive = index === activeIndex
+              return (
+                <div
+                  key={model}
+                  id={`${listboxId}-option-${index}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={-1}
+                  data-model-index={index}
+                  onMouseDown={() => handleSelect(model)}
+                  className={`text-ql-12 flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
+                    isSelected
+                      ? 'bg-primary/10 text-primary font-semibold'
+                      : isActive
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                  }`}
+                >
+                  <span className="truncate">{model}</span>
+                  {isSelected && <Check className="text-primary h-3.5 w-3.5 shrink-0" />}
                 </div>
-              ) : filteredModels.length > 0 ? (
-                filteredModels.map((model, index) => {
-                  const isSelected = model === selectedModel
-                  const isActive = index === activeIndex
-                  return (
-                    <div
-                      key={model}
-                      id={`${listboxId}-option-${index}`}
-                      role="option"
-                      aria-selected={isSelected}
-                      tabIndex={-1}
-                      data-model-index={index}
-                      onMouseDown={() => handleSelect(model)}
-                      className={`text-ql-12 flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-primary/10 text-primary font-semibold'
-                          : isActive
-                            ? 'bg-muted text-foreground'
-                            : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-                      }`}
-                    >
-                      <span className="truncate">{model}</span>
-                      {isSelected && <Check className="text-primary h-3.5 w-3.5 shrink-0" />}
-                    </div>
-                  )
-                })
-              ) : (
-                <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center">
-                  {t('api_chat_no_models_found')}
-                </div>
-              )}
+              )
+            })
+          ) : (
+            <div className="text-ql-11 text-muted-foreground px-3 py-3 text-center">
+              {t('api_chat_no_models_found')}
             </div>
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </InlineSelector>
     </div>
   )
 })

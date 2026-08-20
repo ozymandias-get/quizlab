@@ -1,3 +1,5 @@
+import { Button } from '@app/components/ui/button'
+import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 
 import { Crop, Hand, Image as ImageIcon, Send, Type } from 'lucide-react'
@@ -118,8 +120,8 @@ function PdfToolsPopup({
           <div className="border-border bg-popover text-popover-foreground shadow-ambient-md w-[220px] overflow-hidden rounded-xl border">
             <motion.span
               initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0, transition: { delay: 0.02, duration: 0.2 } }}
-              exit={{ opacity: 0, transition: { duration: 0.06 } }}
+              animate={{ opacity: 1, y: 0, transition: { delay: 0.02, duration: DURATION.slow } }}
+              exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
               className="text-ql-10 border-border/70 text-muted-foreground block border-b py-2 text-center font-semibold tracking-wider uppercase select-none"
             >
               {t('pdf_tools')}
@@ -148,65 +150,69 @@ function PdfToolsPopup({
                     const Icon = tool.icon
 
                     return (
-                      <motion.button
+                      <Button
                         key={tool.label}
+                        asChild
                         type="button"
-                        variants={itemVariants}
-                        whileHover={{ x: 1, transition: { duration: 0.12 } }}
-                        whileTap={{ scale: 0.98, transition: { duration: 0.08 } }}
-                        onClick={tool.onClick}
-                        title={tool.tooltip}
+                        variant="ghost"
                         aria-label={tool.tooltip}
                         className={cn(
-                          'group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-150',
-                          'hover:bg-muted text-foreground',
+                          'group text-foreground hover:bg-muted h-auto w-full justify-start gap-2 rounded-lg px-2 py-1.5 transition-colors',
                           isActive && 'bg-muted/70'
                         )}
                       >
-                        <div
-                          className={cn(
-                            'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
-                            isActive
-                              ? cn(colors.bgActive, colors.textActive)
-                              : cn(colors.bg, colors.text)
-                          )}
+                        <motion.button
+                          type="button"
+                          variants={itemVariants}
+                          whileHover={{ x: 1, transition: { duration: DURATION.normal } }}
+                          whileTap={{ scale: 0.98, transition: { duration: DURATION.fast } }}
+                          onClick={tool.onClick}
                         >
-                          <Icon className="h-3.5 w-3.5" />
-                        </div>
-
-                        <span
-                          className={cn(
-                            'text-ql-11 font-medium transition-colors',
-                            isActive
-                              ? 'text-foreground font-semibold'
-                              : 'text-foreground/80 group-hover:text-foreground'
-                          )}
-                        >
-                          {tool.label}
-                        </span>
-
-                        {tool.onClick && 'isActive' in tool && (
                           <div
                             className={cn(
-                              'ml-auto flex h-4 w-7 items-center rounded-full transition-colors',
+                              'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
                               isActive
-                                ? cn(colors.toggleTrack, 'border-primary/30 border')
-                                : 'border-border bg-muted border'
+                                ? cn(colors.bgActive, colors.textActive)
+                                : cn(colors.bg, colors.text)
                             )}
                           >
-                            <motion.div
-                              className={cn(
-                                'h-3 w-3 rounded-full',
-                                isActive ? 'bg-primary-foreground' : 'bg-muted-foreground/60'
-                              )}
-                              animate={{
-                                x: isActive ? 14 : 2,
-                                transition: { type: 'spring', stiffness: 500, damping: 30 }
-                              }}
-                            />
+                            <Icon className="h-3.5 w-3.5" />
                           </div>
-                        )}
-                      </motion.button>
+
+                          <span
+                            className={cn(
+                              'text-ql-11 font-medium transition-colors',
+                              isActive
+                                ? 'text-foreground font-semibold'
+                                : 'text-foreground/80 group-hover:text-foreground'
+                            )}
+                          >
+                            {tool.label}
+                          </span>
+
+                          {tool.onClick && 'isActive' in tool && (
+                            <div
+                              className={cn(
+                                'ml-auto flex h-4 w-7 items-center rounded-full transition-colors',
+                                isActive
+                                  ? cn(colors.toggleTrack, 'border-primary/30 border')
+                                  : 'border-border bg-muted border'
+                              )}
+                            >
+                              <motion.div
+                                className={cn(
+                                  'h-3 w-3 rounded-full',
+                                  isActive ? 'bg-primary-foreground' : 'bg-muted-foreground/60'
+                                )}
+                                animate={{
+                                  x: isActive ? 14 : 2,
+                                  transition: { type: 'spring', stiffness: 500, damping: 30 }
+                                }}
+                              />
+                            </div>
+                          )}
+                        </motion.button>
+                      </Button>
                     )
                   })}
                 </div>

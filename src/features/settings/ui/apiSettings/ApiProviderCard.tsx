@@ -2,6 +2,7 @@ import type { ApiProviderConfig } from '@shared-core/types'
 
 import { Badge } from '@app/components/ui/badge'
 import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 import { Label } from '@app/components/ui/label'
@@ -105,17 +106,20 @@ function ApiProviderCard({
               value={provider.apiKey}
               onChange={(e) => onUpdate(provider.id, { apiKey: e.target.value })}
               placeholder="sk-..."
+              size="sm"
               className="pr-8 pl-8 font-mono text-xs"
             />
-            <button
+            <IconButton
               type="button"
+              size="compact"
+              variant="ghost"
               tabIndex={-1}
               onClick={() => setShowApiKey((prev) => !prev)}
-              className="text-muted-foreground/70 hover:text-foreground absolute right-2 flex items-center justify-center p-1 transition-colors"
+              className="text-muted-foreground/70 hover:text-foreground absolute right-1.5"
               aria-label={showApiKey ? t('api_chat_hide_api_key') : t('api_chat_show_api_key')}
             >
-              {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </button>
+              {showApiKey ? <EyeOff /> : <Eye />}
+            </IconButton>
           </InputGroup>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -180,7 +184,8 @@ function ApiProviderCard({
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-7 pl-7 text-xs"
+                size="sm"
+                className="pl-7"
                 placeholder={t('api_chat_search_models')}
               />
             </InputGroup>

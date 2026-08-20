@@ -1,5 +1,8 @@
+import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import type { Tab } from '@app/providers/AiContext'
+import { DURATION } from '@shared/lib/motion'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { Pin, X } from 'lucide-react'
@@ -123,108 +126,102 @@ function AiVisibleTabButton({
   )
 
   return (
-    <motion.div
-      role="tab"
-      aria-selected={isActive}
-      tabIndex={0}
-      onKeyDown={(event: React.KeyboardEvent) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onSelect(tabId)
-        }
-      }}
-      whileHover={{
-        y: -0.5,
-        transition: { type: 'tween', duration: 0.12, ease: 'easeOut' }
-      }}
-      whileTap={{ scale: 0.99 }}
-      className={`group focus-visible:ring-ring/40 relative flex h-8 max-w-[240px] min-w-0 cursor-pointer items-center gap-2 rounded-full border px-3 pr-14 transition-colors duration-150 outline-none select-none focus-visible:ring-2 ${
-        isActive
-          ? 'border-border bg-card text-foreground shadow-xs'
-          : 'text-muted-foreground hover:border-border/60 hover:bg-muted/40 hover:text-foreground border-transparent bg-transparent'
-      }`}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-      onContextMenu={handleContextMenu}
-      title={label}
-    >
-      {isActive && (
-        <div className="bg-primary/70 pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
-      )}
-
-      <span className="text-muted-foreground group-hover:text-foreground shrink-0 transition-colors">
-        {getAiIcon(iconKey || tab.modelId) || (
-          <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
-        )}
-      </span>
-
-      {isEditing ? (
-        <Input
-          ref={renameInputRef}
-          value={editingValue}
-          onChange={handleInputChange}
-          onClick={handleInputClick}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          placeholder={tr('tab_rename_placeholder', 'Tab name...')}
-          className="text-ql-12 text-foreground h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
-          style={
-            labelWidthRef.current ? { width: labelWidthRef.current, maxWidth: 240 } : undefined
-          }
-        />
-      ) : (
-        <span
-          ref={labelRef}
-          className={`text-ql-12 min-w-0 truncate font-medium ${
-            isActive ? 'text-foreground' : 'text-muted-foreground'
-          }`}
-        >
-          {label}
-        </span>
-      )}
-
-      <div className="absolute top-1/2 right-1.5 z-10 flex -translate-y-1/2 items-center gap-1">
-        <span
-          role="button"
-          tabIndex={-1}
-          aria-label={tab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
-          title={tab.pinned ? tr('tab_pinned', 'Pinned') : tr('tab_pin', 'Pin')}
-          className={`flex items-center justify-center rounded-md border p-1 transition-opacity ${
-            tab.pinned
-              ? 'border-ring/50 bg-accent text-foreground'
-              : 'border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-primary opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
-          }`}
-          onClick={handleTogglePin}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              e.stopPropagation()
-              onTogglePin(tabId)
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <motion.div
+          role="tab"
+          aria-selected={isActive}
+          tabIndex={0}
+          onKeyDown={(event: React.KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onSelect(tabId)
             }
           }}
-        >
-          <Pin className="h-3 w-3" fill={tab.pinned ? 'currentColor' : 'none'} />
-        </span>
-
-        <span
-          role="button"
-          tabIndex={-1}
-          aria-label={tr('tab_close', 'Close')}
-          title={tr('tab_close', 'Close')}
-          className="border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive flex items-center justify-center rounded-md border p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-          onClick={handleClose}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              e.stopPropagation()
-              onClose(tabId)
-            }
+          whileHover={{
+            y: -0.5,
+            transition: { type: 'tween', duration: DURATION.normal, ease: 'easeOut' }
           }}
+          whileTap={{ scale: 0.99 }}
+          className={`group focus-visible:ring-ring/40 motion-normal relative flex h-8 max-w-[240px] min-w-0 cursor-pointer items-center gap-2 rounded-full border px-3 pr-16 transition-colors outline-none select-none focus-visible:ring-2 ${
+            isActive
+              ? 'border-border bg-card text-foreground shadow-xs'
+              : 'text-muted-foreground hover:border-border/60 hover:bg-muted/40 hover:text-foreground border-transparent bg-transparent'
+          }`}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onContextMenu={handleContextMenu}
         >
-          <X className="h-3 w-3" />
-        </span>
-      </div>
-    </motion.div>
+          {isActive && (
+            <div className="bg-primary/70 pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
+          )}
+
+          <span className="text-muted-foreground group-hover:text-foreground shrink-0 transition-colors">
+            {getAiIcon(iconKey || tab.modelId) || (
+              <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
+            )}
+          </span>
+
+          {isEditing ? (
+            <Input
+              ref={renameInputRef}
+              value={editingValue}
+              onChange={handleInputChange}
+              onClick={handleInputClick}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              placeholder={tr('tab_rename_placeholder', 'Tab name...')}
+              className="text-ql-12 text-foreground h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
+              style={
+                labelWidthRef.current ? { width: labelWidthRef.current, maxWidth: 240 } : undefined
+              }
+            />
+          ) : (
+            <span
+              ref={labelRef}
+              className={`text-ql-12 min-w-0 truncate font-medium ${
+                isActive ? 'text-foreground' : 'text-muted-foreground'
+              }`}
+            >
+              {label}
+            </span>
+          )}
+
+          <div className="absolute top-1/2 right-1.5 z-10 flex -translate-y-1/2 items-center gap-1">
+            <IconButton
+              type="button"
+              size="compact"
+              variant="ghost"
+              aria-label={tab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
+              onClick={handleTogglePin}
+              className={`${
+                tab.pinned
+                  ? 'border-ring/50 bg-accent text-foreground opacity-100'
+                  : 'border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-primary opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+              }`}
+            >
+              <Pin className="h-3 w-3" fill={tab.pinned ? 'currentColor' : 'none'} />
+            </IconButton>
+
+            <IconButton
+              type="button"
+              size="compact"
+              variant="ghost"
+              aria-label={tr('tab_close', 'Close')}
+              onClick={handleClose}
+              className={`border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive transition-opacity focus-visible:opacity-100 ${
+                isActive
+                  ? 'opacity-100'
+                  : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+              }`}
+            >
+              <X className="h-3 w-3" />
+            </IconButton>
+          </div>
+        </motion.div>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   )
 }
 

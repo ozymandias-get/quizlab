@@ -1,3 +1,5 @@
+import { DURATION } from '@shared/lib/motion'
+
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +13,7 @@ export function SuccessBadge() {
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.08 }}
+        transition={{ duration: DURATION.fast }}
         className="border-border flex items-center justify-center gap-2 border-t px-4 py-2"
       >
         <CheckCircle2
@@ -35,7 +37,7 @@ export function ErrorBadge() {
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.08 }}
+        transition={{ duration: DURATION.fast }}
         className="border-border flex items-center justify-center gap-2 border-t px-4 py-2"
       >
         <AlertCircle className="text-destructive h-3.5 w-3.5" strokeWidth={2} />

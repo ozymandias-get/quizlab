@@ -1,11 +1,13 @@
 import { useClearAiModelData, useDeleteCustomAi } from '@platform/electron/api/useSettingsAiApi'
 
+import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { useToastActions } from '@app/providers'
 import {
   useAiModelActions,
   useAiModelsCatalog,
   useAiWebviewHostActions
 } from '@app/providers/AiContext'
+import { useConfirmDialog } from '@shared/hooks'
 import { Logger } from '@shared/lib/logger'
 import { GridIcon } from '@ui/components/Icons'
 
@@ -18,7 +20,7 @@ import { isCustomModelPlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const MODELS_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <GridIcon className="h-5 w-5" />
   </div>
 )
@@ -33,6 +35,8 @@ const ModelsTab = memo(() => {
   const { mutateAsync: clearAiModelData, isPending: isClearingModelData } = useClearAiModelData()
   const [showAddForm, setShowAddForm] = useState(false)
   const MIN_ENABLED_MODELS = 1
+
+  const { confirm, props: confirmProps } = useConfirmDialog()
 
   const toggleModel = useCallback(
     (key: string) => {
@@ -69,7 +73,7 @@ const ModelsTab = memo(() => {
   const handleDeleteAi = useCallback(
     async (e: MouseEvent, id: string, name: string) => {
       e.stopPropagation()
-      if (!confirm(t('confirm_delete', { name }))) return
+      if (!(await confirm({ title: t('confirm_delete', { name }), variant: 'destructive' }))) return
 
       try {
         await deleteCustomAi(id)
@@ -93,7 +97,8 @@ const ModelsTab = memo(() => {
       deleteCustomAi,
       defaultAiModel,
       setDefaultAiModel,
-      showError
+      showError,
+      confirm
     ]
   )
 
@@ -109,7 +114,13 @@ const ModelsTab = memo(() => {
   const handleClearModelData = useCallback(
     async (e: MouseEvent, id: string, name: string) => {
       e.stopPropagation()
-      if (!confirm(t('confirm_clear_ai_model_data', { name }))) return
+      if (
+        !(await confirm({
+          title: t('confirm_clear_ai_model_data', { name }),
+          variant: 'destructive'
+        }))
+      )
+        return
 
       try {
         const platform = aiSites[id]
@@ -123,55 +134,56 @@ const ModelsTab = memo(() => {
         showError('toast_ai_model_data_clear_failed')
       }
     },
-    [t, aiSites, clearAiModelData, reloadActiveWebview, showError]
+    [t, aiSites, clearAiModelData, reloadActiveWebview, showError, confirm]
   )
 
   return (
-    <SettingsCollectionTabShell
-      icon={MODELS_ICON}
-      eyebrow={t('ai_settings')}
-      title={t('ai_models')}
-      showAddForm={showAddForm}
-      addLabel={t('add_custom_ai')}
-      cancelLabel={t('cancel')}
-      description={t('models_description')}
-      onToggleAddForm={() => setShowAddForm((current) => !current)}
-      addForm={
-        <AddAiModelForm
-          showAddForm={showAddForm}
-          setShowAddForm={setShowAddForm}
-          onSuccess={handleAddSuccess}
-          t={t}
-          isSite={false}
-        />
-      }
-      list={
-        <AiModelList
-          modelsList={modelsList}
-          enabledModels={enabledModels}
-          aiSites={aiSites}
-          toggleModel={toggleModel}
-          handleDeleteAi={handleDeleteAi}
-          handleClearModelData={handleClearModelData}
-          isDeleting={isDeleting}
-          isClearingModelData={isClearingModelData}
-          minEnabledModels={MIN_ENABLED_MODELS}
-          defaultAiModel={defaultAiModel}
-          setDefaultAiModel={setDefaultAiModel}
-          t={t}
-        />
-      }
-      footer={
-        <div className="border-border border-t px-1 pt-4">
-          <p className="text-ql-11 text-muted-foreground tracking-wide">
-            {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
-          </p>
-          <p className="text-ql-11 text-muted-foreground mt-1 tracking-wide">
-            {t('google_models_managed_separately')}
-          </p>
-        </div>
-      }
-    />
+    <>
+      <SettingsCollectionTabShell
+        icon={MODELS_ICON}
+        showAddForm={showAddForm}
+        addLabel={t('add_custom_ai')}
+        cancelLabel={t('cancel')}
+        description={t('models_description')}
+        onToggleAddForm={() => setShowAddForm((current) => !current)}
+        addForm={
+          <AddAiModelForm
+            showAddForm={showAddForm}
+            setShowAddForm={setShowAddForm}
+            onSuccess={handleAddSuccess}
+            t={t}
+            isSite={false}
+          />
+        }
+        list={
+          <AiModelList
+            modelsList={modelsList}
+            enabledModels={enabledModels}
+            aiSites={aiSites}
+            toggleModel={toggleModel}
+            handleDeleteAi={handleDeleteAi}
+            handleClearModelData={handleClearModelData}
+            isDeleting={isDeleting}
+            isClearingModelData={isClearingModelData}
+            minEnabledModels={MIN_ENABLED_MODELS}
+            defaultAiModel={defaultAiModel}
+            setDefaultAiModel={setDefaultAiModel}
+            t={t}
+          />
+        }
+        footer={
+          <div className="border-border border-t px-1 pt-4">
+            <p className="text-ql-11 text-muted-foreground tracking-wide">
+              {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
+            </p>
+            <p className="text-ql-11 text-muted-foreground mt-1 tracking-wide">
+              {t('google_models_managed_separately')}
+            </p>
+          </div>
+        }
+      />
+      <ConfirmDialog {...confirmProps} />
+    </>
   )
 })
 

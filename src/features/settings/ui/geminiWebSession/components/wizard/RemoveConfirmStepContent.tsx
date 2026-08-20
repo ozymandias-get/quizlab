@@ -1,3 +1,5 @@
+import { Button } from '@app/components/ui/button'
+
 import { Trash2 } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,7 +18,7 @@ function RemoveConfirmStepContent({ onRemove, onClose, titleId }: RemoveConfirmS
       <div className="bg-destructive/15 mb-3 flex h-12 w-12 items-center justify-center rounded-full">
         <Trash2 className="text-destructive h-6 w-6" />
       </div>
-      <h3 id={titleId} className="text-ql-16 text-foreground font-semibold">
+      <h3 id={titleId} className="text-ql-15 text-foreground font-semibold">
         {t('gws_extension_wizard_remove_title')}
       </h3>
       <p className="text-ql-13 text-muted-foreground mt-2">
@@ -24,20 +26,12 @@ function RemoveConfirmStepContent({ onRemove, onClose, titleId }: RemoveConfirmS
       </p>
 
       <div className="mt-8 flex w-full items-center justify-center gap-2.5">
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-ql-12 border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-lg border px-4 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        >
+        <Button type="button" variant="outline" onClick={onClose} className="text-ql-12">
           {t('gws_extension_wizard_cancel_btn')}
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-ql-12 bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/40 inline-flex items-center justify-center rounded-lg px-5 py-2 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        >
+        </Button>
+        <Button type="button" variant="destructive" onClick={onRemove} className="text-ql-12">
           {t('gws_extension_wizard_remove_confirm_btn')}
-        </button>
+        </Button>
       </div>
     </div>
   )

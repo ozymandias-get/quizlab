@@ -1,12 +1,15 @@
 import PdfSearchBar from '@features/pdf/ui/components/PdfSearchBar'
 
+import { TooltipProvider } from '@app/components/ui/tooltip'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+
+const renderWithTooltip = (ui: React.ReactNode) => render(<TooltipProvider>{ui}</TooltipProvider>)
 
 describe('PdfSearchBar', () => {
   it('renders closed state with file name and triggers onToggle on click', () => {
     const onToggle = vi.fn()
-    render(
+    renderWithTooltip(
       <PdfSearchBar
         isOpen={false}
         onToggle={onToggle}
@@ -30,7 +33,7 @@ describe('PdfSearchBar', () => {
     const onSearch = vi.fn()
     const onClear = vi.fn()
 
-    render(
+    renderWithTooltip(
       <PdfSearchBar
         isOpen
         onToggle={vi.fn()}

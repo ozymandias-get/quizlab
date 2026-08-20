@@ -23,7 +23,7 @@ interface NotificationTypeConfig {
 }
 
 const NOTIFICATIONS_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <Bell className="h-5 w-5" />
   </div>
 )
@@ -119,12 +119,7 @@ const NotificationsTab = memo(() => {
 
   return (
     <div className="space-y-6">
-      <SettingsTabIntro
-        icon={NOTIFICATIONS_ICON}
-        eyebrow={t('notification_settings')}
-        title={t('notifications')}
-        description={t('notifications_description')}
-      />
+      <SettingsTabIntro icon={NOTIFICATIONS_ICON} description={t('notifications_description')} />
 
       <div className="space-y-2">
         {notificationTypes.map((config) => {

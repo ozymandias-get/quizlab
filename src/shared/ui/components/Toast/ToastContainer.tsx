@@ -16,7 +16,7 @@ const ToastContainer = memo(function ToastContainer() {
   return createPortal(
     <div
       id="toast-root"
-      className="z-max pointer-events-none fixed top-4 right-4 flex w-full max-w-[420px] flex-col items-end"
+      className="z-toast pointer-events-none fixed top-4 right-4 flex w-full max-w-[420px] flex-col items-end"
       aria-live="polite"
       role="status"
     >

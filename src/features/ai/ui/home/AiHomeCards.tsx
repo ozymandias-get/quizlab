@@ -50,14 +50,14 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
         <button
           type="button"
           onClick={() => onOpenModel('api-chat')}
-          className={`group hover:shadow-ambient-sm relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all duration-150 hover:-translate-y-0.5 motion-reduce:transform-none ${
+          className={`group hover:shadow-ambient-sm motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all hover:-translate-y-0.5 motion-reduce:transform-none ${
             activeModelIds.has('api-chat')
               ? 'border-ring/60 bg-accent/20'
               : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className="border-border/60 bg-muted/60 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-amber-500 transition-transform duration-150 group-hover:scale-105 motion-reduce:scale-100">
+            <div className="border-border/60 bg-muted/60 motion-normal flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-amber-500 transition-transform group-hover:scale-105 motion-reduce:scale-100">
               {getAiIcon('api-chat')}
             </div>
             <div className="min-w-0 flex-1">
@@ -72,7 +72,7 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
               <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
             )}
             <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
+              <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
             </div>
           </div>
         </button>

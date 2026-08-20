@@ -1,8 +1,9 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
 import { Button } from '@app/components/ui/button'
+import { EmptyState } from '@shared/ui/components/primitives'
 
-import { Plus } from 'lucide-react'
+import { Plus, Server } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -72,7 +73,7 @@ function ApiProviderList({
       </div>
 
       {(!providers || providers.length === 0) && (
-        <p className="text-muted-foreground text-xs italic">{t('api_chat_no_providers')}</p>
+        <EmptyState size="sm" icon={Server} title={t('api_chat_no_providers')} className="py-4" />
       )}
 
       {providers?.map((provider) => (

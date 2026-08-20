@@ -1,4 +1,4 @@
-import type { IconProps } from './iconProps'
+import { type IconProps, resolveIconClasses } from './iconProps'
 import { SvgIcon } from './SvgIcon'
 
 export const CloseIcon = (props: IconProps) => (
@@ -61,19 +61,13 @@ export const ExternalLinkIcon = (props: IconProps) => (
   </SvgIcon>
 )
 
-export const LoaderIcon = ({ className = 'w-4 h-4' }: IconProps) => (
-  <span className={`${className} flex items-center justify-center`}>
+export const LoaderIcon = ({ size = 'default', className }: IconProps) => (
+  <span className={`${resolveIconClasses(size, className)} flex items-center justify-center`}>
     <span className="flex animate-spin items-center justify-center">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="h-full w-full"
-      >
+      <SvgIcon className="h-full w-full" strokeWidth={2}>
         <circle cx="12" cy="12" r="10" opacity="0.25" />
         <path d="M12 2a10 10 0 0 1 10 10" opacity="1" />
-      </svg>
+      </SvgIcon>
     </span>
   </span>
 )

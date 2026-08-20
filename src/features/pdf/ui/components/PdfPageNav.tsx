@@ -1,4 +1,7 @@
 import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
+import { Input } from '@app/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { memo, useCallback, useRef, useState } from 'react'
@@ -48,26 +51,31 @@ function PdfPageNav({
   }, [])
 
   return (
-    <div className="glass-tier-3 glass-tier-toolbar border-border/70 bg-card/60 flex items-center gap-1 rounded-lg border p-1.5 shadow-xs">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onPreviousPage}
-        disabled={currentPage <= 1}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-        title={t('prev_page')}
-        aria-label={t('prev_page')}
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-      </Button>
+    <div className="bg-muted/40 flex items-center gap-1 rounded-lg p-1.5">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            variant="ghost"
+            size="compact"
+            onClick={onPreviousPage}
+            disabled={currentPage <= 1}
+            className="text-muted-foreground"
+            aria-label={t('prev_page')}
+          >
+            <ChevronLeft className="size-3.5" />
+          </IconButton>
+        </TooltipTrigger>
+        <TooltipContent>{t('prev_page')}</TooltipContent>
+      </Tooltip>
 
       <div className="bg-border/80 h-4 w-px" />
 
       {isEditingPage ? (
-        <input
+        <Input
           ref={(el) => el?.focus()}
           type="text"
           inputMode="numeric"
+          size="sm"
           value={pageInputValue}
           onChange={(e) => setPageInputValue(e.target.value.replaceAll(/\D/g, ''))}
           onKeyDown={(e) => {
@@ -79,33 +87,39 @@ function PdfPageNav({
             }
           }}
           onBlur={submitPageInput}
-          className="text-ql-12 border-border bg-background text-foreground focus-visible:ring-foreground/15 rounded-md border px-1.5 py-0.5 text-center font-medium tabular-nums outline-none focus-visible:border-neutral-400 focus-visible:ring-1 dark:focus-visible:border-neutral-500"
+          className="text-ql-12 px-1.5 py-0.5 text-center font-medium tabular-nums"
           style={{ width: `${Math.max(54, totalPages.toString().length * 10 + 20)}px` }}
         />
       ) : (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={startPageInput}
-          className="text-ql-12 text-foreground hover:text-primary min-w-[54px] cursor-text px-2 text-center font-medium tabular-nums transition-colors"
+          className="text-ql-12 text-foreground hover:text-primary h-auto min-w-[54px] cursor-text px-2 text-center font-medium tabular-nums"
         >
           {currentPage} <span className="text-muted-foreground/40 mx-0.5">/</span>{' '}
           <span className="text-muted-foreground">{totalPages}</span>
-        </button>
+        </Button>
       )}
 
       <div className="bg-border/80 h-4 w-px" />
 
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onNextPage}
-        disabled={currentPage >= totalPages}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-        title={t('next_page')}
-        aria-label={t('next_page')}
-      >
-        <ChevronRight className="h-3.5 w-3.5" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            variant="ghost"
+            size="compact"
+            onClick={onNextPage}
+            disabled={currentPage >= totalPages}
+            className="text-muted-foreground"
+            aria-label={t('next_page')}
+          >
+            <ChevronRight className="size-3.5" />
+          </IconButton>
+        </TooltipTrigger>
+        <TooltipContent>{t('next_page')}</TooltipContent>
+      </Tooltip>
     </div>
   )
 }

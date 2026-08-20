@@ -30,7 +30,7 @@ const SelectorValidationPanel = memo(function SelectorValidationPanel({
           {t('selectors_test_result_label')}
         </span>
         <span
-          className={`text-ql-14 font-semibold ${
+          className={`text-ql-13 font-semibold ${
             validation.status === 'success'
               ? 'text-emerald-600 dark:text-emerald-400'
               : validation.status === 'loading'

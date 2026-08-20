@@ -163,7 +163,7 @@ const AiSession = memo(
 
           {/* Mouse Catcher: Prevents webview from swallowing mouse events when bar is hovered */}
           {isBarHovered && isActive && !isSleeping && !isApiChat && (
-            <div className="pointer-events-auto absolute inset-0 z-[5] bg-transparent" />
+            <div className="z-surface-4 pointer-events-auto absolute inset-0 bg-transparent" />
           )}
 
           {isLoading && isActive && !isSleeping && !isApiChat && <AestheticLoader />}

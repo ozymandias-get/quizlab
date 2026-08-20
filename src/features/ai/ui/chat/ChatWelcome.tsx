@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowRight, Box, Code, Info, PenTool } from 'lucide-reac
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-interface EmptyStateProps {
+interface ChatWelcomeProps {
   hasProvider: boolean
   activeProviderName: string
   activeModelName: string
@@ -20,12 +20,12 @@ const PROMPT_KEYS = [
 ] as const
 const ICONS = [Info, Code, PenTool, Box]
 
-const EmptyState = memo(function EmptyState({
+const ChatWelcome = memo(function ChatWelcome({
   hasProvider,
   activeProviderName,
   activeModelName,
   onSuggestionClick
-}: EmptyStateProps) {
+}: ChatWelcomeProps) {
   const { t } = useTranslation()
 
   const suggestions = useMemo(
@@ -78,7 +78,7 @@ const EmptyState = memo(function EmptyState({
                 key={i}
                 type="button"
                 onClick={() => onSuggestionClick(s.prompt)}
-                className="group border-border/80 bg-card/80 hover:border-border hover:bg-muted/70 focus-visible:ring-ring/40 relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left shadow-2xs transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+                className="group border-border/80 bg-card/80 hover:border-border hover:bg-muted/70 focus-visible:ring-ring/40 motion-normal relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
               >
                 <div className="mb-1.5 flex items-center gap-2">
                   <div className="bg-muted text-muted-foreground group-hover:text-foreground flex h-6 w-6 items-center justify-center rounded-md transition-colors">
@@ -87,7 +87,7 @@ const EmptyState = memo(function EmptyState({
                   <span className="text-ql-12 text-foreground font-semibold">{s.title}</span>
                 </div>
                 <p className="text-ql-11 text-muted-foreground leading-normal">{s.desc}</p>
-                <ArrowRight className="text-muted-foreground/40 absolute right-3 bottom-3 h-3.5 w-3.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+                <ArrowRight className="text-muted-foreground/40 motion-normal absolute right-3 bottom-3 h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
               </button>
             ))}
           </div>
@@ -106,4 +106,6 @@ const EmptyState = memo(function EmptyState({
   )
 })
 
-export default EmptyState
+ChatWelcome.displayName = 'ChatWelcome'
+
+export default ChatWelcome

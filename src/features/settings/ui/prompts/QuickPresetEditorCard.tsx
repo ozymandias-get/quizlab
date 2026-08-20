@@ -49,7 +49,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="border-border bg-muted/60 text-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border">
-            <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
+            <Icon className="size-3.5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
               </span>
               <span
                 className={cn(
-                  'text-ql-9 rounded border px-1.5 py-0.5 font-medium',
+                  'text-ql-10 rounded border px-1.5 py-0.5 font-medium',
                   preset.isPrimary
                     ? 'bg-primary/10 border-primary/25 text-primary'
                     : 'bg-muted border-border text-muted-foreground'
@@ -67,7 +67,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
                 {preset.isPrimary ? t('quick_preset_primary_badge') : t('quick_preset_more_badge')}
               </span>
               {preset.isCustomized && (
-                <span className="text-ql-9 bg-muted border-border text-foreground/80 rounded border px-1.5 py-0.5 font-medium">
+                <span className="text-ql-10 bg-muted border-border text-foreground/80 rounded border px-1.5 py-0.5 font-medium">
                   {t('quick_preset_customized_badge')}
                 </span>
               )}
@@ -79,10 +79,9 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="xs"
             onClick={onReset}
-            className="text-muted-foreground hover:text-foreground text-ql-10 h-6 gap-1 px-2"
-            title={t('quick_preset_reset')}
+            className="text-muted-foreground hover:text-foreground text-ql-10 gap-1 px-2"
           >
             <RotateCcw className="h-3 w-3" />
             <span>{t('quick_preset_reset')}</span>
@@ -100,7 +99,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
             value={preset.label}
             onChange={handleLabelChange}
             placeholder={preset.defaultLabel}
-            className="text-ql-11 h-8"
+            className="text-ql-11"
           />
         </div>
         <div className="space-y-1 sm:col-span-2">

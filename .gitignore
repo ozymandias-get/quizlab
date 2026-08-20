@@ -145,3 +145,6 @@ uploads/
 # Crash dumps
 *.dmp
 crashes/
+
+# Artifacts
+artifacts/
