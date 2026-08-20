@@ -80,7 +80,7 @@ const TutorialOverlay = memo(function TutorialOverlay({
   const color = HIGHLIGHT_COLORS[currentStep % HIGHLIGHT_COLORS.length]
 
   return (
-    <div className="z-top pointer-events-none fixed inset-0">
+    <div className="z-tooltip pointer-events-none fixed inset-0">
       {currentRect && <TutorialHighlight rect={currentRect} color={color} />}
 
       <div style={{ pointerEvents: 'auto' }}>

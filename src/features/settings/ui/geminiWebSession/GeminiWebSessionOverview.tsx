@@ -7,7 +7,7 @@ import { motion } from 'motion/react'
 import { memo, useCallback } from 'react'
 
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
-import { ExtensionStatusCard, ExtensionWizardDialog } from './components'
+import { ExtensionStatusCard, ExtensionWizardPanel } from './components'
 import GoogleAppList from './GoogleAppList'
 import { getCardClasses, getStatusIconContainerClass } from './statusHelpers'
 import type {
@@ -93,7 +93,7 @@ function GeminiWebSessionOverview({
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <h4 className="text-ql-14 text-foreground font-bold">{t('gws_title')}</h4>
+                <h4 className="text-ql-13 text-foreground font-bold">{t('gws_title')}</h4>
                 <p className="text-ql-12 text-muted-foreground mt-1 leading-relaxed">{stateText}</p>
               </div>
 
@@ -197,7 +197,7 @@ function GeminiWebSessionOverview({
       </div>
 
       {wizardOpen && wizardMode && (
-        <ExtensionWizardDialog
+        <ExtensionWizardPanel
           open={wizardOpen}
           mode={wizardMode}
           riskItems={riskItems}

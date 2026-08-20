@@ -5,6 +5,7 @@ import { Input } from '@app/components/ui/input'
 import { Label } from '@app/components/ui/label'
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
+import { DURATION } from '@shared/lib/motion'
 
 import { Loader2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -62,16 +63,16 @@ const AddAiModelForm = memo(function AddAiModelForm({
             opacity: 1,
             height: 'auto',
             transition: {
-              height: { duration: 0.3, ease: [0.25, 1, 0.5, 1] },
-              opacity: { duration: 0.2, delay: 0.1 }
+              height: { duration: DURATION.slower, ease: [0.25, 1, 0.5, 1] },
+              opacity: { duration: DURATION.slow, delay: 0.1 }
             }
           }}
           exit={{
             opacity: 0,
             height: 0,
             transition: {
-              height: { duration: 0.2, ease: 'easeInOut' },
-              opacity: { duration: 0.1 }
+              height: { duration: DURATION.slow, ease: 'easeInOut' },
+              opacity: { duration: DURATION.fast }
             }
           }}
           onSubmit={handleAddAi}

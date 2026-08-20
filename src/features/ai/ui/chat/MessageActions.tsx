@@ -1,3 +1,5 @@
+import { IconButton } from '@app/components/ui/icon-button'
+import { WithTooltip } from '@app/components/ui/tooltip'
 import { useToastActions } from '@app/providers'
 
 import { Check, Copy, Square, ThumbsDown, ThumbsUp, Trash2, Volume2 } from 'lucide-react'
@@ -29,23 +31,22 @@ export const CopyButton = memo(function CopyButton({ content }: { content: strin
   }, [content, showError])
 
   return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className={`text-ql-10 focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-        isCopied
-          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-      }`}
-      title={isCopied ? t('api_chat_copied') : t('api_chat_copy')}
-      aria-label={isCopied ? t('api_chat_copied') : t('api_chat_copy')}
-    >
-      {isCopied ? (
-        <Check className="animate-in fade-in zoom-in h-3.5 w-3.5 duration-200" />
-      ) : (
-        <Copy className="h-3.5 w-3.5" />
-      )}
-    </button>
+    <WithTooltip label={isCopied ? t('api_chat_copied') : t('api_chat_copy')}>
+      <IconButton
+        type="button"
+        size="compact"
+        variant="ghost"
+        onClick={handleCopy}
+        className={`text-ql-10 ${
+          isCopied
+            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+            : 'text-muted-foreground'
+        }`}
+        aria-label={isCopied ? t('api_chat_copied') : t('api_chat_copy')}
+      >
+        {isCopied ? <Check className="animate-in fade-in zoom-in motion-slow" /> : <Copy />}
+      </IconButton>
+    </WithTooltip>
   )
 })
 
@@ -99,23 +100,22 @@ export const TtsButton = memo(function TtsButton({ content }: { content: string 
   }, [content, isSpeaking])
 
   return (
-    <button
-      type="button"
-      onClick={handleSpeak}
-      className={`text-ql-10 focus-visible:ring-ring/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-        isSpeaking
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-      }`}
-      title={isSpeaking ? t('api_chat_tts_stop_tooltip') : t('api_chat_tts_speak_tooltip')}
-      aria-label={isSpeaking ? t('api_chat_tts_stop_tooltip') : t('api_chat_tts_speak_tooltip')}
+    <WithTooltip
+      label={isSpeaking ? t('api_chat_tts_stop_tooltip') : t('api_chat_tts_speak_tooltip')}
     >
-      {isSpeaking ? (
-        <Square className="h-3.5 w-3.5 animate-pulse" />
-      ) : (
-        <Volume2 className="h-3.5 w-3.5" />
-      )}
-    </button>
+      <IconButton
+        type="button"
+        size="compact"
+        variant="ghost"
+        onClick={handleSpeak}
+        className={`text-ql-10 ${
+          isSpeaking ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
+        }`}
+        aria-label={isSpeaking ? t('api_chat_tts_stop_tooltip') : t('api_chat_tts_speak_tooltip')}
+      >
+        {isSpeaking ? <Square className="animate-pulse" /> : <Volume2 />}
+      </IconButton>
+    </WithTooltip>
   )
 })
 
@@ -125,32 +125,32 @@ export const FeedbackButtons = memo(function FeedbackButtons() {
 
   return (
     <div className="flex items-center gap-0.5 transition-opacity">
-      <button
-        type="button"
-        onClick={() => setRated(rated === 'up' ? null : 'up')}
-        className={`focus-visible:ring-ring/40 rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-          rated === 'up'
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-        }`}
-        title={t('feedback_like')}
-        aria-label={t('feedback_like')}
-      >
-        <ThumbsUp className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => setRated(rated === 'down' ? null : 'down')}
-        className={`focus-visible:ring-ring/40 rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-          rated === 'down'
-            ? 'bg-destructive/10 text-destructive'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-        }`}
-        title={t('feedback_dislike')}
-        aria-label={t('feedback_dislike')}
-      >
-        <ThumbsDown className="h-3.5 w-3.5" />
-      </button>
+      <WithTooltip label={t('feedback_like')}>
+        <IconButton
+          type="button"
+          size="compact"
+          variant="ghost"
+          onClick={() => setRated(rated === 'up' ? null : 'up')}
+          className={`${rated === 'up' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}
+          aria-label={t('feedback_like')}
+        >
+          <ThumbsUp />
+        </IconButton>
+      </WithTooltip>
+      <WithTooltip label={t('feedback_dislike')}>
+        <IconButton
+          type="button"
+          size="compact"
+          variant="ghost"
+          onClick={() => setRated(rated === 'down' ? null : 'down')}
+          className={`${
+            rated === 'down' ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground'
+          }`}
+          aria-label={t('feedback_dislike')}
+        >
+          <ThumbsDown />
+        </IconButton>
+      </WithTooltip>
     </div>
   )
 })
@@ -165,15 +165,18 @@ export const DeleteButton = memo(function DeleteButton({
   const { t } = useTranslation()
   const handleClick = () => onDelete(messageId)
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className="text-ql-10 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex items-center justify-center rounded p-1 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-      title={t('api_chat_delete')}
-      aria-label={t('api_chat_delete')}
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-    </button>
+    <WithTooltip label={t('api_chat_delete')}>
+      <IconButton
+        type="button"
+        size="compact"
+        variant="ghost"
+        onClick={handleClick}
+        className="text-ql-10 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        aria-label={t('api_chat_delete')}
+      >
+        <Trash2 />
+      </IconButton>
+    </WithTooltip>
   )
 })
 

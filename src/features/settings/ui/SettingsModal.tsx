@@ -1,9 +1,11 @@
 import { Button } from '@app/components/ui/button'
 import { Separator } from '@app/components/ui/separator'
+import { useDialogBehavior } from '@shared/hooks'
+import { DURATION } from '@shared/lib/motion'
 import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
-import { memo } from 'react'
+import { memo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import ResizableHandle from './modal/ResizableHandle'
@@ -26,10 +28,14 @@ const SettingsModal = memo(function SettingsModal({
   const { activeTab, activeTabMeta, setActiveTab, sidebarScrollRef, sidebarSections } =
     useSettingsModalState({
       isOpen,
-      onClose,
       initialTab
     })
   const { t } = useTranslation()
+
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useDialogBehavior({ isOpen, onClose, dialogRef, initialFocusRef: closeButtonRef })
 
   const { sidebarWidth, handleSidebarResize } = useResizableColumns()
 
@@ -38,20 +44,29 @@ const SettingsModal = memo(function SettingsModal({
   }
 
   return (
-    <div className="z-overlay bg-background fixed inset-0 flex flex-col">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-dialog-title"
+      className="z-overlay bg-background fixed inset-0 flex flex-col"
+    >
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.15 }}
+        transition={{ duration: DURATION.normal }}
         className="flex h-full flex-col"
       >
         <header className="flex shrink-0 items-center justify-between px-3 py-3 sm:px-5 sm:py-4 md:px-8">
           <div className="flex items-center gap-3">
-            <div className="border-border bg-card flex h-8 w-8 items-center justify-center rounded-xl border">
+            <div className="border-border bg-card flex h-8 w-8 items-center justify-center rounded-lg border">
               <SettingsIcon className="text-muted-foreground h-4 w-4" />
             </div>
             <div className="space-y-0.5">
-              <h1 className="text-foreground text-sm font-semibold tracking-tight">
+              <h1
+                id="settings-dialog-title"
+                className="text-foreground text-sm font-semibold tracking-tight"
+              >
                 {t('settings_title')}
               </h1>
               <p className="text-muted-foreground hidden text-xs sm:block">
@@ -60,11 +75,12 @@ const SettingsModal = memo(function SettingsModal({
             </div>
           </div>
           <Button
-            variant="ghost"
+            ref={closeButtonRef}
+            variant="outline"
             size="icon"
             onClick={onClose}
             aria-label={t('tab_close') || 'Close'}
-            className="border-border bg-card text-muted-foreground hover:bg-accent h-8 w-8 rounded-lg border"
+            className="border-border bg-card text-muted-foreground hover:bg-accent rounded-lg"
           >
             <CloseIcon className="h-3.5 w-3.5" />
           </Button>

@@ -55,7 +55,6 @@ const SelectorActionBar = memo(function SelectorActionBar({
           size="sm"
           onClick={() => onDeleteSelectors(selectorEntry.hostname)}
           disabled={isDeleting}
-          title={t('delete_selectors')}
           aria-label={t('delete_selectors')}
           className="gap-2"
         >

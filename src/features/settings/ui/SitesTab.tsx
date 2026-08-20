@@ -1,7 +1,9 @@
 import { useDeleteCustomAi } from '@platform/electron/api/useSettingsAiApi'
 
+import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { useToastActions } from '@app/providers'
 import { useAiModelActions, useAiModelsCatalog } from '@app/providers/AiContext'
+import { useConfirmDialog } from '@shared/hooks'
 import { Logger } from '@shared/lib/logger'
 import { GridIcon } from '@ui/components/Icons'
 
@@ -14,7 +16,7 @@ import { isCustomSitePlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const SITES_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <GridIcon className="h-5 w-5" />
   </div>
 )
@@ -27,6 +29,8 @@ const SitesTab = memo(() => {
   const { mutateAsync: deleteCustomAi, isPending: isDeleting } = useDeleteCustomAi()
   const [showAddForm, setShowAddForm] = useState(false)
   const MIN_ENABLED_MODELS = 1
+
+  const { confirm, props: confirmProps } = useConfirmDialog()
 
   const toggleModel = useCallback(
     (key: string) => {
@@ -57,7 +61,7 @@ const SitesTab = memo(() => {
   const handleDeleteAi = useCallback(
     async (e: MouseEvent, id: string, name: string) => {
       e.stopPropagation()
-      if (!confirm(t('confirm_delete', { name }))) return
+      if (!(await confirm({ title: t('confirm_delete', { name }), variant: 'destructive' }))) return
 
       try {
         await deleteCustomAi(id)
@@ -69,7 +73,7 @@ const SitesTab = memo(() => {
         showError('toast_ai_config_delete_failed')
       }
     },
-    [t, enabledSites, setEnabledSites, deleteCustomAi, showError]
+    [t, enabledSites, setEnabledSites, deleteCustomAi, showError, confirm]
   )
 
   const handleAddSuccess = useCallback(
@@ -82,44 +86,45 @@ const SitesTab = memo(() => {
   )
 
   return (
-    <SettingsCollectionTabShell
-      icon={SITES_ICON}
-      eyebrow={t('site_settings')}
-      title={t('ai_sites')}
-      showAddForm={showAddForm}
-      addLabel={t('add_site')}
-      cancelLabel={t('cancel')}
-      description={t('sites_description')}
-      onToggleAddForm={() => setShowAddForm((current) => !current)}
-      addForm={
-        <AddAiModelForm
-          showAddForm={showAddForm}
-          setShowAddForm={setShowAddForm}
-          onSuccess={handleAddSuccess}
-          t={t}
-          isSite
-        />
-      }
-      list={
-        <AiModelList
-          modelsList={sitesList}
-          enabledModels={enabledSites}
-          aiSites={aiSites}
-          toggleModel={toggleModel}
-          handleDeleteAi={handleDeleteAi}
-          isDeleting={isDeleting}
-          minEnabledModels={MIN_ENABLED_MODELS}
-          t={t}
-        />
-      }
-      footer={
-        <div className="border-border border-t px-1 pt-4">
-          <p className="text-ql-11 text-muted-foreground tracking-wide">
-            {t('active_sites')}: {enabledSitesCount} / {sitesList.length} {t('sites_count')}
-          </p>
-        </div>
-      }
-    />
+    <>
+      <SettingsCollectionTabShell
+        icon={SITES_ICON}
+        showAddForm={showAddForm}
+        addLabel={t('add_site')}
+        cancelLabel={t('cancel')}
+        description={t('sites_description')}
+        onToggleAddForm={() => setShowAddForm((current) => !current)}
+        addForm={
+          <AddAiModelForm
+            showAddForm={showAddForm}
+            setShowAddForm={setShowAddForm}
+            onSuccess={handleAddSuccess}
+            t={t}
+            isSite
+          />
+        }
+        list={
+          <AiModelList
+            modelsList={sitesList}
+            enabledModels={enabledSites}
+            aiSites={aiSites}
+            toggleModel={toggleModel}
+            handleDeleteAi={handleDeleteAi}
+            isDeleting={isDeleting}
+            minEnabledModels={MIN_ENABLED_MODELS}
+            t={t}
+          />
+        }
+        footer={
+          <div className="border-border border-t px-1 pt-4">
+            <p className="text-ql-11 text-muted-foreground tracking-wide">
+              {t('active_sites')}: {enabledSitesCount} / {sitesList.length} {t('sites_count')}
+            </p>
+          </div>
+        }
+      />
+      <ConfirmDialog {...confirmProps} />
+    </>
   )
 })
 

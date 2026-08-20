@@ -17,7 +17,7 @@ export const ProgressBar = memo(function ProgressBar({
   return (
     <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
       <div
-        className={cn('h-full rounded-full transition-transform duration-500', color)}
+        className={cn('motion-deliberate h-full rounded-full transition-transform', color)}
         style={{ transform: `scaleX(${pct / 100})`, transformOrigin: 'left' }}
       />
     </div>

@@ -7,6 +7,7 @@ import {
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
 
 import type { UpdateInfo } from '@app/providers'
+import { InfoIcon } from '@ui/components/Icons'
 
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,6 +17,7 @@ import CacheControl from './about/CacheControl'
 import IssueReportCard from './about/IssueReportCard'
 import RepositoryLink from './about/RepositoryLink'
 import UpdatesCard from './about/UpdatesCard'
+import SettingsTabIntro from './shared/SettingsTabIntro'
 
 interface AboutTabProps {
   appVersion: string | null
@@ -75,6 +77,15 @@ const AboutTab = memo(
 
     return (
       <div className="space-y-8 pb-4" data-app-locale={language}>
+        <SettingsTabIntro
+          icon={
+            <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+              <InfoIcon className="h-5 w-5" />
+            </div>
+          }
+          description={t('configure_settings')}
+        />
+
         <AppInfoSection t={t} appVersion={appVersion} />
 
         <div className="grid grid-cols-1 gap-4">

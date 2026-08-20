@@ -1,4 +1,6 @@
 import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
+import { WithTooltip } from '@app/components/ui/tooltip'
 import { Logger } from '@shared/lib/logger'
 import { IconBadge, ListItemCard } from '@shared/ui/components/primitives'
 
@@ -109,7 +111,6 @@ function PdfRecentListItem({
   return (
     <ListItemCard
       {...interactionProps}
-      title={item.name}
       active={!!activePdfPath && item.path === activePdfPath}
       className={`pdf-recent-item group ${isInvalid ? 'border-destructive/30 bg-destructive/5 text-foreground border' : ''}`}
       interactive={!isInvalid}
@@ -124,7 +125,7 @@ function PdfRecentListItem({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-ql-14 text-foreground truncate font-semibold">{item.name}</span>
+            <span className="text-ql-13 text-foreground truncate font-semibold">{item.name}</span>
           </div>
           <div
             className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-1 ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
@@ -154,10 +155,10 @@ function PdfRecentListItem({
           {isInvalid && onRelink ? (
             <Button
               type="button"
-              size="xs"
+              size="sm"
               variant="outline"
               onClick={handleRelinkButtonClick}
-              className="text-foreground h-7 rounded-md px-2.5 hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
+              className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
               aria-label={t('choose_new_location')}
             >
               <FolderOpen className="h-3.5 w-3.5" />
@@ -166,10 +167,10 @@ function PdfRecentListItem({
           ) : (
             <Button
               type="button"
-              size="xs"
+              size="sm"
               variant="outline"
               onClick={handleResumeButtonClick}
-              className="text-foreground hover:border-ring/50 hover:bg-accent h-7 rounded-md px-2.5 opacity-100 transition-opacity md:opacity-70 md:group-hover:opacity-100"
+              className="text-foreground hover:border-ring/50 hover:bg-accent opacity-100 transition-opacity md:opacity-70 md:group-hover:opacity-100"
               aria-label={t('continue_reading')}
             >
               <Play className="h-3.5 w-3.5" />
@@ -178,15 +179,18 @@ function PdfRecentListItem({
           )}
 
           {canClear && (
-            <button
-              type="button"
-              onClick={handleRemove}
-              className="border-border/60 bg-card/60 text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 flex h-7 w-7 items-center justify-center rounded-md border opacity-100 transition-colors focus-visible:ring-2 focus-visible:outline-none md:opacity-70 md:group-hover:opacity-100"
-              aria-label={t('remove_from_history')}
-              title={t('remove_from_history')}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <WithTooltip label={t('remove_from_history')}>
+              <IconButton
+                type="button"
+                variant="outline"
+                size="compact"
+                onClick={handleRemove}
+                className="text-muted-foreground hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive opacity-100 md:opacity-70 md:group-hover:opacity-100"
+                aria-label={t('remove_from_history')}
+              >
+                <Trash2 />
+              </IconButton>
+            </WithTooltip>
           )}
         </div>
       </div>

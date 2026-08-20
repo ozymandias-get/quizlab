@@ -1,4 +1,6 @@
+import { MenuItem, MenuSurface } from '@app/components/ui/menu'
 import type { Tab } from '@app/providers/AiContext'
+import { DURATION } from '@shared/lib/motion'
 
 import { motion } from 'motion/react'
 import { memo, type RefObject } from 'react'
@@ -39,38 +41,32 @@ function AiTabContextMenu({
       initial={{ opacity: 0, y: 4, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 4, scale: 0.98 }}
-      transition={{ duration: 0.12 }}
-      className="border-border bg-popover text-popover-foreground shadow-ambient-lg fixed z-[1200] min-w-[160px] rounded-lg border p-1 backdrop-blur-md"
+      transition={{ duration: DURATION.normal }}
+      className="z-dropdown fixed"
       style={{ left: contextMenu.x, top: contextMenu.y }}
     >
-      <button
-        type="button"
-        className="text-ql-12 text-popover-foreground hover:bg-muted focus-visible:ring-ring/40 w-full rounded-md px-2.5 py-1.5 text-left font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        onClick={() => onBeginRename(contextMenuTab.id)}
-      >
-        {tr('tab_rename', 'Rename')}
-      </button>
-      <button
-        type="button"
-        className="text-ql-12 text-popover-foreground hover:bg-muted focus-visible:ring-ring/40 w-full rounded-md px-2.5 py-1.5 text-left font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        onClick={() => {
-          onTogglePin(contextMenuTab.id)
-          onDismiss()
-        }}
-      >
-        {contextMenuTab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
-      </button>
-      <button
-        type="button"
-        className="text-ql-12 text-popover-foreground hover:bg-muted focus-visible:ring-ring/40 w-full rounded-md px-2.5 py-1.5 text-left font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={tabsCount <= 1}
-        onClick={() => {
-          onCloseTab(contextMenuTab.id)
-          onDismiss()
-        }}
-      >
-        {tr('tab_close', 'Close')}
-      </button>
+      <MenuSurface className="min-w-[160px]">
+        <MenuItem onClick={() => onBeginRename(contextMenuTab.id)}>
+          {tr('tab_rename', 'Rename')}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            onTogglePin(contextMenuTab.id)
+            onDismiss()
+          }}
+        >
+          {contextMenuTab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
+        </MenuItem>
+        <MenuItem
+          disabled={tabsCount <= 1}
+          onClick={() => {
+            onCloseTab(contextMenuTab.id)
+            onDismiss()
+          }}
+        >
+          {tr('tab_close', 'Close')}
+        </MenuItem>
+      </MenuSurface>
     </motion.div>,
     document.body
   )

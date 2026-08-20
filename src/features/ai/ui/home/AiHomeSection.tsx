@@ -1,3 +1,5 @@
+import { DURATION } from '@shared/lib/motion'
+
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { memo, type ReactNode, useState } from 'react'
@@ -36,7 +38,7 @@ const AiHomeSection = memo(function AiHomeSection({
           <div className="text-ql-12 text-muted-foreground mt-0.5">{detail}</div>
         </div>
         <div
-          className="text-muted-foreground flex h-6 w-6 items-center justify-center transition-transform duration-200"
+          className="text-muted-foreground motion-slow flex h-6 w-6 items-center justify-center transition-transform"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
         >
           <ChevronDown className="h-3.5 w-3.5" />
@@ -50,7 +52,7 @@ const AiHomeSection = memo(function AiHomeSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: DURATION.slow, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden will-change-[height,opacity]"
           >
             <div className="px-1 pt-3 pb-1">{children}</div>

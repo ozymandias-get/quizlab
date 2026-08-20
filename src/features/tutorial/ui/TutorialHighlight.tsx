@@ -1,3 +1,5 @@
+import { DURATION } from '@shared/lib/motion'
+
 import { motion, useReducedMotion } from 'motion/react'
 import { memo } from 'react'
 
@@ -18,7 +20,7 @@ const TutorialHighlight = memo(function TutorialHighlight({
 
   return (
     <div
-      className="z-top pointer-events-none fixed"
+      className="z-overlay pointer-events-none fixed"
       style={{
         left: rect.left - 12,
         top: rect.top - 12,
@@ -29,7 +31,7 @@ const TutorialHighlight = memo(function TutorialHighlight({
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+        transition={{ duration: prefersReducedMotion ? 0 : DURATION.slow }}
         className="absolute inset-0 rounded-2xl"
         style={{
           border: `2px solid ${color}`,

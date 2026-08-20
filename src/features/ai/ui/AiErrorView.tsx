@@ -14,7 +14,7 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
   const { t } = useTranslation()
 
   return (
-    <div className="animate-in fade-in zoom-in bg-background/95 absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md duration-300">
+    <div className="animate-in fade-in zoom-in bg-background/95 motion-slower absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md">
       <div className="flex max-w-xs flex-col items-center gap-5 p-10 text-center">
         <div className="bg-destructive/10 flex h-16 w-16 items-center justify-center rounded-full">
           <AlertCircle className="text-destructive h-8 w-8" />
@@ -22,7 +22,7 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
         <h3 className="font-display text-ql-20 text-foreground font-semibold">
           {t('ai_error_title', { name: aiName || 'AI' })}
         </h3>
-        <p className="text-ql-14 text-muted-foreground leading-relaxed">{error}</p>
+        <p className="text-ql-13 text-muted-foreground leading-relaxed">{error}</p>
         <Button
           type="button"
           variant="outline"

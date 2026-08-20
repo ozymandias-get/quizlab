@@ -51,7 +51,7 @@ function AboutActionCard({
 
   const rootClassName = cn(
     'flex items-center justify-between rounded-xl border border-border bg-card p-4 min-w-0 shadow-xs',
-    interactive && 'transition-colors duration-150 hover:bg-muted/40',
+    interactive && 'transition-colors motion-normal hover:bg-muted/40',
     'focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
     className
   )

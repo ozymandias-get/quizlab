@@ -8,7 +8,7 @@ import type { SelectorsTabProps } from './selectors/types'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const SELECTORS_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <SelectorIcon className="h-5 w-5" />
   </div>
 )
@@ -37,12 +37,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
 
   return (
     <div className="space-y-6 pb-20">
-      <SettingsTabIntro
-        icon={SELECTORS_ICON}
-        eyebrow={t('automation')}
-        title={t('element_selectors')}
-        description={t('selectors_description_simple')}
-      />
+      <SettingsTabIntro icon={SELECTORS_ICON} description={t('selectors_description_simple')} />
 
       <div className="mb-4 px-1">
         <button
@@ -50,7 +45,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
           onClick={handleStartTutorial}
           className="group border-border bg-card hover:border-border/80 hover:bg-muted/60 focus-visible:ring-ring/40 flex w-full items-center gap-4 rounded-xl border p-4 shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
-          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-transform group-hover:scale-105">
+          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105">
             <MagicWandIcon className="h-5 w-5" />
           </div>
           <div className="text-left">

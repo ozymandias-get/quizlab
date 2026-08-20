@@ -14,12 +14,12 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
           <InfoIcon className="h-4 w-4 text-rose-300" />
         </div>
         <div className="flex-1">
-          <p className="text-ql-14 font-bold text-rose-100/90">{t('gws_warning_title')}</p>
+          <p className="text-ql-13 font-bold text-rose-100/90">{t('gws_warning_title')}</p>
           <p className="text-ql-12 mt-1 leading-relaxed text-rose-100/70">
             {t('gws_warning_intro')}
           </p>
 
-          <p className="text-ql-11 tracking-ql-fine mt-3 font-semibold text-rose-200/80">
+          <p className="text-ql-11 tracking-ql-tight mt-3 font-semibold text-rose-200/80">
             {t('gws_risk_list_title')}
           </p>
           <div className="mt-1.5 space-y-1.5">
@@ -31,7 +31,7 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
             ))}
           </div>
 
-          <p className="text-ql-11 tracking-ql-fine mt-3 font-semibold text-rose-200/80">
+          <p className="text-ql-11 tracking-ql-tight mt-3 font-semibold text-rose-200/80">
             {t('gws_mitigation_title')}
           </p>
           <div className="mt-1.5 space-y-1.5">

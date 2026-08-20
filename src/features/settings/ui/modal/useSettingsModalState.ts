@@ -6,34 +6,13 @@ import { type SettingsTabId, type TabDef, toSettingsTabId } from './settingsTabD
 
 interface UseSettingsModalStateOptions {
   isOpen: boolean
-  onClose: () => void
   initialTab?: string
 }
 
-export function useSettingsModalState({
-  isOpen,
-  onClose,
-  initialTab
-}: UseSettingsModalStateOptions) {
+export function useSettingsModalState({ isOpen, initialTab }: UseSettingsModalStateOptions) {
   const { t } = useTranslation()
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
   const [activeTabState, setActiveTabState] = useState<SettingsTabId | null>(null)
-
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onCloseRef.current()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return

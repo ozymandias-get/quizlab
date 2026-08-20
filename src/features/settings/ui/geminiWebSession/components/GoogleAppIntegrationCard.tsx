@@ -1,8 +1,8 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 
+import { Switch } from '@app/components/ui/switch'
 import { GeminiIcon, getAiIcon } from '@ui/components/Icons'
 
-import { Switch } from '@headlessui/react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -62,19 +62,16 @@ const GoogleAppIntegrationCard = memo(function GoogleAppIntegrationCard({
         </div>
         <Switch
           checked={isEnabled}
-          onChange={disabled ? undefined : handleToggle}
+          onCheckedChange={handleToggle}
           disabled={disabled}
           aria-label={app.name}
-          className={`relative flex h-6 w-11 shrink-0 items-center rounded-full border p-0.5 transition-colors disabled:opacity-50 ${
-            isEnabled ? 'border-emerald-500/40 bg-emerald-500/20' : 'border-border bg-muted'
+          onClick={(e) => e.stopPropagation()}
+          className={`shrink-0 ${
+            isEnabled
+              ? 'data-checked:border-emerald-500/30 data-checked:bg-emerald-500/20'
+              : 'data-unchecked:border-border data-unchecked:bg-muted'
           }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 rounded-full transition-colors ${
-              isEnabled ? 'translate-x-5 bg-emerald-500' : 'bg-muted-foreground translate-x-0'
-            }`}
-          />
-        </Switch>
+        />
       </div>
     </div>
   )

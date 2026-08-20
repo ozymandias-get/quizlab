@@ -1,6 +1,6 @@
 import type { IconProps } from '../iconProps'
 
-export default function AiBrandIcon({ className = 'w-4 h-4' }: IconProps) {
+export default function AiBrandIcon({ className = 'w-5 h-5' }: IconProps) {
   return (
     <svg
       className={className}

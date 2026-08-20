@@ -3,6 +3,7 @@ import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionAp
 import { useAppearance } from '@app/providers'
 import { useAiModelActions, useAiModelsCatalog } from '@app/providers/AiContext'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
+import { DURATION } from '@shared/lib/motion'
 import { getAiIcon, GridIcon, SliderIcon } from '@ui/components/Icons'
 
 import { Field, Label } from '@headlessui/react'
@@ -30,7 +31,7 @@ const TOOL_LIST: ToolItem[] = [
 ]
 
 const BOTTOM_BAR_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-xl border p-2.5">
+  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
     <SliderIcon className="h-5 w-5" />
   </div>
 )
@@ -84,17 +85,12 @@ const BottomBarSettingsTab = memo(() => {
 
   return (
     <div className="space-y-6" data-app-locale={language}>
-      <SettingsTabIntro
-        icon={BOTTOM_BAR_ICON}
-        eyebrow={t('bottom_bar')}
-        title={t('bottom_bar')}
-        description={t('bottom_bar_description')}
-      />
+      <SettingsTabIntro icon={BOTTOM_BAR_ICON} description={t('bottom_bar_description')} />
 
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.05 }}
+        transition={{ duration: DURATION.fast }}
         className="bg-card border-border space-y-4 rounded-xl border p-5 shadow-xs"
       >
         <div className="flex items-center gap-3">
@@ -113,7 +109,7 @@ const BottomBarSettingsTab = memo(() => {
             return (
               <Field
                 key={tool.id}
-                className={`group flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors duration-150 ${
+                className={`group motion-normal flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors ${
                   isVisible
                     ? 'border-primary/30 bg-muted/70 shadow-xs'
                     : 'bg-card border-border hover:bg-muted/40'
@@ -122,7 +118,7 @@ const BottomBarSettingsTab = memo(() => {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`h-2 w-2 rounded-full transition-colors duration-200 ${isVisible ? 'bg-emerald-500 shadow-xs' : 'bg-muted-foreground/30'}`}
+                    className={`motion-slow h-2 w-2 rounded-full transition-colors ${isVisible ? 'bg-emerald-500 shadow-xs' : 'bg-muted-foreground/30'}`}
                   />
                   <Label className="text-foreground cursor-pointer text-xs font-medium">
                     {t(tool.nameKey, { defaultValue: tool.id })}
@@ -146,7 +142,7 @@ const BottomBarSettingsTab = memo(() => {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.05, delay: 0.05 }}
+        transition={{ duration: DURATION.fast, delay: 0.05 }}
         className="bg-card border-border space-y-4 rounded-xl border p-5 shadow-xs"
       >
         <div className="flex items-center gap-3">
@@ -197,7 +193,7 @@ const BottomBarSettingsTab = memo(() => {
                 }}
               >
                 <Field
-                  className={`group flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors duration-150 ${
+                  className={`group motion-normal flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors ${
                     isVisible
                       ? 'border-primary/30 bg-muted/70 shadow-xs'
                       : 'bg-card border-border hover:bg-muted/40'

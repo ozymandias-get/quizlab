@@ -3,8 +3,8 @@ import { lazy, memo, Suspense } from 'react'
 import { useApiChatPage } from '../hooks/useApiChatPage'
 import ChatHeader from './chat/ChatHeader'
 import ChatInput from './chat/ChatInput'
+import ChatWelcome from './chat/ChatWelcome'
 import DragOverlay from './chat/DragOverlay'
-import EmptyState from './chat/EmptyState'
 import MessageList from './chat/MessageList'
 
 const HistoryModal = lazy(() => import('./chat/HistoryModal'))
@@ -75,7 +75,7 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
         />
 
         {messages.length === 0 ? (
-          <EmptyState
+          <ChatWelcome
             hasProvider={!!activeProvider}
             activeProviderName={activeProvider?.name || ''}
             activeModelName={selectedModel ?? ''}

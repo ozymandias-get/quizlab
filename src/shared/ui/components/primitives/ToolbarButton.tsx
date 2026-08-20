@@ -1,3 +1,5 @@
+import { IconButton, type IconButtonSize } from '@app/components/ui/icon-button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import { cn } from '@shared/lib/uiUtils'
 
 import { motion } from 'motion/react'
@@ -11,6 +13,8 @@ interface ToolbarButtonProps {
   className?: string
   activeClassName?: string
   disabled?: boolean
+  /** Control size contract: `compact` = 28px (dense toolbars), `default` = 32px. */
+  size?: IconButtonSize
 }
 
 export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
@@ -22,31 +26,43 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
       isActive = false,
       className,
       activeClassName,
-      disabled = false
+      disabled = false,
+      size = 'default'
     },
     ref
   ) => {
-    return (
-      <motion.button
+    const content = (
+      <IconButton
+        asChild
         ref={ref}
         type="button"
+        size={size}
         onClick={onClick}
-        title={tooltip}
         disabled={disabled}
-        whileHover={!disabled ? { scale: 1.02 } : {}}
-        whileTap={!disabled ? { scale: 0.98 } : {}}
+        aria-label={tooltip}
         className={cn(
-          'glass-tier-3 glass-interactive inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium whitespace-nowrap transition-colors outline-none select-none',
-          'focus-visible:ring-foreground/15 focus-visible:border-neutral-400 focus-visible:ring-1 dark:focus-visible:border-neutral-500',
-          'disabled:pointer-events-none disabled:opacity-40',
-          'border-border/70 bg-card/60 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground',
-          isActive ? activeClassName || 'border-border bg-accent text-foreground shadow-sm' : '',
+          'glass-tier-3 glass-tier-3-dim glass-interactive glass-tier-control text-muted-foreground glass-control-hover',
+          isActive ? activeClassName || 'glass-control-active' : '',
           className
         )}
-        aria-label={tooltip}
       >
-        <Icon className="h-4 w-4" />
-      </motion.button>
+        <motion.button
+          type="button"
+          whileHover={!disabled ? { scale: 1.02 } : {}}
+          whileTap={!disabled ? { scale: 0.98 } : {}}
+        >
+          <Icon />
+        </motion.button>
+      </IconButton>
+    )
+
+    if (!tooltip) return content
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent>{tooltip}</TooltipContent>
+      </Tooltip>
     )
   }
 )

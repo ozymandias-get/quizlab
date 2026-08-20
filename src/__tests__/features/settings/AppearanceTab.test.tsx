@@ -86,7 +86,7 @@ describe('AppearanceTab', () => {
 
   it('renders appearance settings', () => {
     render(<AppearanceTab />)
-    expect(screen.getByText('visual_settings')).toBeInTheDocument()
+    expect(screen.getByText('appearance_description')).toBeInTheDocument()
     expect(screen.getByText('bar_appearance')).toBeInTheDocument()
     expect(screen.getByText('selection_color_settings')).toBeInTheDocument()
     expect(screen.getByText('background_settings')).toBeInTheDocument()

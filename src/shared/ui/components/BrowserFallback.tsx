@@ -1,4 +1,5 @@
 import { Button } from '@app/components/ui/button'
+import { DURATION } from '@shared/lib/motion'
 
 import { AlertTriangle, DownloadCloud, Monitor } from 'lucide-react'
 import { motion } from 'motion/react'
@@ -8,11 +9,11 @@ function BrowserFallback() {
   const { t } = useTranslation()
 
   return (
-    <div className="z-top bg-background fixed inset-0 flex items-center justify-center overflow-hidden p-6">
+    <div className="z-modal bg-background fixed inset-0 flex items-center justify-center overflow-hidden p-6">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
+        transition={{ duration: DURATION.slow, ease: 'easeOut' }}
         className="border-border bg-card shadow-ambient-xl relative z-10 flex w-full max-w-md flex-col items-center rounded-2xl border p-8 text-center"
       >
         <div className="border-primary/20 bg-primary/10 text-primary relative mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border shadow-xs">
@@ -24,7 +25,7 @@ function BrowserFallback() {
           {t('browser_fallback_title')}
         </h1>
 
-        <p className="text-ql-14 text-muted-foreground mb-6 leading-relaxed">
+        <p className="text-ql-13 text-muted-foreground mb-6 leading-relaxed">
           {t('browser_fallback_description')}
         </p>
 

@@ -1,3 +1,7 @@
+import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
+import { WithTooltip } from '@app/components/ui/tooltip'
+import { DURATION } from '@shared/lib/motion'
 import { MagicWandIcon } from '@ui/components/Icons'
 
 import { Check, ChevronDown, Lightbulb, Sparkles, X } from 'lucide-react'
@@ -27,14 +31,11 @@ export function TutorialHeader({ onClose, t }: TutorialHeaderProps) {
         <div className="text-ql-11 border-primary/20 bg-primary/10 text-primary hidden items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-medium uppercase sm:flex">
           <Sparkles className="h-3 w-3" /> Magic Selector
         </div>
-        <button
-          onClick={onClose}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-md p-1.5 transition-colors"
-          title={t('tut_close')}
-          aria-label={t('tut_close')}
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <WithTooltip label={t('tut_close')}>
+          <IconButton size="compact" variant="ghost" onClick={onClose} aria-label={t('tut_close')}>
+            <X />
+          </IconButton>
+        </WithTooltip>
       </div>
     </div>
   )
@@ -119,7 +120,7 @@ export function TutorialTooltipCard({
         initial={{ y: 8, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -8, opacity: 0 }}
-        transition={{ duration: 0.18, ease: 'easeOut' }}
+        transition={{ duration: DURATION.slow, ease: 'easeOut' }}
         className="pointer-events-none absolute -top-28 right-0 left-0 z-30 mx-auto w-max max-w-xl"
       >
         <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg pointer-events-auto flex items-start gap-3.5 rounded-xl border p-4 backdrop-blur-md">
@@ -128,7 +129,7 @@ export function TutorialTooltipCard({
           </div>
           <div className="min-w-0">
             <div className="mb-1 flex items-center gap-2">
-              <h4 className="text-ql-14 text-foreground font-semibold">
+              <h4 className="text-ql-13 text-foreground font-semibold">
                 {t(currentStep.titleKey)}
               </h4>
               <span className="text-ql-10 text-muted-foreground font-medium uppercase">
@@ -140,24 +141,18 @@ export function TutorialTooltipCard({
             </p>
             {step === 0 && (
               <div className="mt-2.5 flex items-center gap-2">
-                <button
-                  onClick={() => goToStep(1)}
-                  className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-3 py-1 font-semibold shadow-xs transition-colors"
-                >
+                <Button size="sm" onClick={() => goToStep(1)} className="text-ql-12 shadow-xs">
                   {t('tut_start')}
-                </button>
+                </Button>
                 <span className="text-ql-11 text-muted-foreground inline-flex items-center gap-1">
                   <Lightbulb className="h-3 w-3" /> {t('tut_disclaimer')}
                 </span>
               </div>
             )}
             {step === 4 && (
-              <button
-                onClick={handleFinishClick}
-                className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 mt-2.5 rounded-md px-3 py-1 font-semibold shadow-xs transition-colors"
-              >
+              <Button size="sm" onClick={handleFinishClick} className="text-ql-12 mt-2.5 shadow-xs">
                 {t('tut_finish')}
-              </button>
+              </Button>
             )}
           </div>
         </div>

@@ -27,7 +27,8 @@ const safeRenderHighlights = (props: RenderHighlightsProps) => {
         style: {
           ...baseStyle,
           opacity: 0,
-          animation: 'pdf-highlight-fadein 0.15s ease 0.4s forwards'
+          animation:
+            'pdf-highlight-fadein var(--duration-normal) ease var(--duration-deliberate) forwards'
         },
         title: area?.keywordStr?.trim() ?? ''
       })

@@ -1,7 +1,7 @@
 import type { IconProps } from '../iconProps'
 
 export default function AiBrandIcon({
-  className = 'w-4 h-4',
+  className = 'w-5 h-5',
   strokeWidth = 1.5,
   style
 }: IconProps) {

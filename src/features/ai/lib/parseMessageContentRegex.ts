@@ -16,9 +16,9 @@ export const TABLE_SEPARATOR_REGEX = /^[\s:|-]+$/
 
 export const HEADING_SIZES = [
   'text-ql-18',
-  'text-ql-16',
   'text-ql-15',
-  'text-ql-14',
+  'text-ql-15',
+  'text-ql-13',
   'text-ql-13',
   'text-ql-13'
 ]

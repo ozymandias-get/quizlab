@@ -1,5 +1,6 @@
 import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
 
+import { TooltipProvider } from '@app/components/ui/tooltip'
 import { render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -12,29 +13,32 @@ const ZoomOut = ({ children }: any) => children({ onClick: vi.fn() })
 const CurrentScale = ({ children }: any) => children({ scale: 1.25 })
 
 describe('PdfToolbar', () => {
-  it('uses tertiary glass toolbar groups for compact controls', () => {
+  it('uses plain tinted toolbar groups (no nested glass) for compact controls', () => {
     const { container } = render(
-      <PdfToolbar
-        pdfFile={null}
-        onStartScreenshot={vi.fn()}
-        onFullPageScreenshot={vi.fn()}
-        autoSend={false}
-        onToggleAutoSend={vi.fn()}
-        panMode={false}
-        onTogglePanMode={vi.fn()}
-        currentPage={2}
-        totalPages={8}
-        onPreviousPage={vi.fn()}
-        onNextPage={vi.fn()}
-        highlight={vi.fn()}
-        clearHighlights={vi.fn()}
-        ZoomIn={ZoomIn}
-        ZoomOut={ZoomOut}
-        CurrentScale={CurrentScale}
-        onJumpToPage={vi.fn()}
-      />
+      <TooltipProvider>
+        <PdfToolbar
+          pdfFile={null}
+          onStartScreenshot={vi.fn()}
+          onFullPageScreenshot={vi.fn()}
+          autoSend={false}
+          onToggleAutoSend={vi.fn()}
+          panMode={false}
+          onTogglePanMode={vi.fn()}
+          currentPage={2}
+          totalPages={8}
+          onPreviousPage={vi.fn()}
+          onNextPage={vi.fn()}
+          highlight={vi.fn()}
+          clearHighlights={vi.fn()}
+          ZoomIn={ZoomIn}
+          ZoomOut={ZoomOut}
+          CurrentScale={CurrentScale}
+          onJumpToPage={vi.fn()}
+        />
+      </TooltipProvider>
     )
 
-    expect(container.querySelectorAll('.glass-tier-3.glass-tier-toolbar.p-1\\.5')).toHaveLength(3)
+    expect(container.querySelectorAll('.bg-muted\\/40.rounded-lg.p-1\\.5')).toHaveLength(3)
+    expect(container.querySelectorAll('.glass-tier-3')).toHaveLength(0)
   })
 })

@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 
 /** Base button class used by ToolButton, FocusOverlay, AIItem */
 export const buttonBaseClass =
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap text-ql-14 font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0'
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap text-ql-13 font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0'
 
 /** Returns true if the value is a 3- or 6-digit hex color string (with leading `#`). */
 export const isValidHexColor = (color: string) => HEX_COLOR_REGEX.test(color)

@@ -6,11 +6,13 @@ import {
 
 import { Button } from '@app/components/ui/button'
 import { cn } from '@shared/lib/uiUtils'
+import { RefreshIcon } from '@ui/components/Icons'
 
 import { Check, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import SettingsTabIntro from './shared/SettingsTabIntro'
 import { PartitionRow, ProgressBar, RootCacheRow } from './storage/StorageComponents'
 import { formatBytes, formatTimeAgo, partitionDisplayName } from './storage/storageUtils'
 
@@ -63,13 +65,14 @@ const StorageTab = memo(function StorageTab() {
 
   return (
     <div className="space-y-6 pb-4">
-      {/* Header */}
-      <div>
-        <h2 className="text-ql-14 text-foreground font-semibold">Storage</h2>
-        <p className="text-ql-12 text-muted-foreground mt-0.5">
-          Cache and storage usage for AI model partitions
-        </p>
-      </div>
+      <SettingsTabIntro
+        icon={
+          <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+            <RefreshIcon className="h-5 w-5" />
+          </div>
+        }
+        description={t('storage_description')}
+      />
 
       {/* Overall Usage */}
       <div className="border-border bg-card space-y-3 rounded-xl border p-5 shadow-xs">

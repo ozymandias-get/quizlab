@@ -1,5 +1,6 @@
 {
   "gws_title": "Google AI Web Session",
+  "gws_settings_desc": "Manage Google AI web apps that share a single Google session.",
   "gws_feature_disabled": "Feature flag is disabled. Remove GEMINI_WEB_SESSION_ENABLED or set it to 1/true.",
   "gws_state_disabled": "Google AI web apps are disabled.",
   "gws_state_authenticated": "Shared Google web session is healthy and authenticated.",

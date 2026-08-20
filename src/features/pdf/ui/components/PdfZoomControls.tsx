@@ -1,4 +1,5 @@
-import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 
 import { ZoomIn as ZoomInIcon, ZoomOut as ZoomOutIcon } from 'lucide-react'
 import { type ComponentType, memo, type ReactElement } from 'react'
@@ -27,19 +28,23 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
   const { t } = useTranslation()
 
   return (
-    <div className="glass-tier-3 glass-tier-toolbar border-border/70 bg-card/60 flex items-center gap-1 rounded-lg border p-1.5 shadow-xs">
+    <div className="bg-muted/40 flex items-center gap-1 rounded-lg p-1.5">
       <ZoomOut>
         {(props: RenderChildProps) => (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={props.onClick}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors"
-            title={t('zoom_out')}
-            aria-label={t('zoom_out')}
-          >
-            <ZoomOutIcon className="h-3.5 w-3.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                variant="ghost"
+                size="compact"
+                onClick={props.onClick}
+                className="text-muted-foreground"
+                aria-label={t('zoom_out')}
+              >
+                <ZoomOutIcon className="size-3.5" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('zoom_out')}</TooltipContent>
+          </Tooltip>
         )}
       </ZoomOut>
 
@@ -59,16 +64,20 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
 
       <ZoomIn>
         {(props: RenderChildProps) => (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={props.onClick}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground h-7 w-7 rounded-md transition-colors"
-            title={t('zoom_in')}
-            aria-label={t('zoom_in')}
-          >
-            <ZoomInIcon className="h-3.5 w-3.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                variant="ghost"
+                size="compact"
+                onClick={props.onClick}
+                className="text-muted-foreground"
+                aria-label={t('zoom_in')}
+              >
+                <ZoomInIcon className="size-3.5" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('zoom_in')}</TooltipContent>
+          </Tooltip>
         )}
       </ZoomIn>
     </div>

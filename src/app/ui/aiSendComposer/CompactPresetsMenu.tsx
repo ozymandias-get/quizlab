@@ -1,5 +1,8 @@
 import type { QuickPresetItem } from '@features/ai'
 
+import { IconButton } from '@app/components/ui/icon-button'
+import { WithTooltip } from '@app/components/ui/tooltip'
+import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 
 import { MoreHorizontal } from 'lucide-react'
@@ -35,20 +38,23 @@ function CompactPresetsMenu({
 
   return (
     <div ref={presetsMenuRef} className="relative shrink-0">
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={() => setShowPresetsMenu((v) => !v)}
-        disabled={disabled}
-        className={cn(
-          'relative flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-neutral-400 shadow-2xs transition-all hover:border-white/20 hover:bg-white/[0.14] hover:text-white active:scale-95 disabled:opacity-40',
-          showPresetsMenu && 'border-white/20 bg-white/[0.14] text-white'
-        )}
-        title={t('ai_preset_more')}
-        aria-label={t('ai_preset_more')}
-      >
-        <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={2} />
-      </button>
+      <WithTooltip label={t('ai_preset_more')}>
+        <IconButton
+          type="button"
+          variant="ghost"
+          size="compact"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setShowPresetsMenu((v) => !v)}
+          disabled={disabled}
+          className={cn(
+            'border-white/10 bg-white/5 text-neutral-400 hover:border-white/20 hover:bg-white/15 hover:text-white active:scale-95',
+            showPresetsMenu && 'border-white/20 bg-white/15 text-white'
+          )}
+          aria-label={t('ai_preset_more')}
+        >
+          <MoreHorizontal strokeWidth={2} />
+        </IconButton>
+      </WithTooltip>
 
       <AnimatePresence>
         {showPresetsMenu && (
@@ -56,11 +62,11 @@ function CompactPresetsMenu({
             initial={{ opacity: 0, scale: 0.95, y: -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
-            transition={{ duration: 0.12 }}
+            transition={{ duration: DURATION.normal }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="absolute bottom-full left-1/2 z-50 mb-2 w-48 -translate-x-1/2 rounded-xl border border-white/10 bg-[#16171b]/98 p-1 text-neutral-100 shadow-[0_20px_45px_rgba(0,0,0,0.85)] backdrop-blur-2xl"
+            className="z-dropdown bg-popover/98 shadow-ambient-xl absolute bottom-full left-1/2 mb-2 w-48 -translate-x-1/2 rounded-xl border border-white/10 p-1 text-neutral-100"
           >
-            <div className="text-ql-9 border-b border-white/10 px-2.5 py-1.5 font-semibold tracking-wider text-neutral-400 uppercase">
+            <div className="text-ql-10 border-b border-white/10 px-2.5 py-1.5 font-semibold tracking-wider text-neutral-400 uppercase">
               {t('ai_send_presets')}
             </div>
             <div className="flex flex-col gap-0.5 pt-1">

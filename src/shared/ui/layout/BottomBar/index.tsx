@@ -54,7 +54,7 @@ const SparklesNode = memo(function SparklesNode({ hidden }: { hidden: boolean })
         minSize={0.4}
         maxSize={1}
         particleDensity={12}
-        className={`pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100'}`}
+        className={`motion-normal pointer-events-none absolute inset-0 h-full w-full transition-opacity ${hidden ? 'opacity-0' : 'opacity-100'}`}
         particleColor="#FFFFFF"
       />
     </Suspense>

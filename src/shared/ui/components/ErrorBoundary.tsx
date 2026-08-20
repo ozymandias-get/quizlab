@@ -160,7 +160,7 @@ function ErrorPanel({ error, componentStack, title, onRetry, onCopy }: ErrorPane
         <div className="err-markWrap" aria-hidden="true">
           <div className="err-markGlow" />
           <div className="err-mark">
-            <AlertTriangle className="h-7 w-7" strokeWidth={2.25} />
+            <AlertTriangle className="size-7" />
           </div>
         </div>
 
@@ -186,7 +186,7 @@ function ErrorPanel({ error, componentStack, title, onRetry, onCopy }: ErrorPane
             aria-keyshortcuts="Control+R"
             data-testid="error-boundary-retry"
           >
-            <RefreshCw className="h-4 w-4" strokeWidth={2.5} />
+            <RefreshCw className="size-4" />
             {translate('try_again')}
           </button>
           <button

@@ -1,3 +1,5 @@
+import { Button } from '@app/components/ui/button'
+
 import { AlertTriangle, Check } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -27,7 +29,7 @@ function RiskStepContent({
     <div className="flex flex-col px-8 pt-4 pb-8 text-left">
       <div className="mb-1 flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-        <h3 id={titleId} className="text-ql-16 text-foreground font-semibold">
+        <h3 id={titleId} className="text-ql-15 text-foreground font-semibold">
           {t('gws_extension_wizard_risk_title')}
         </h3>
       </div>
@@ -74,21 +76,17 @@ function RiskStepContent({
       </label>
 
       <div className="mt-6 flex items-center justify-end gap-2.5">
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-ql-12 border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded-lg border px-4 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
-        >
+        <Button type="button" variant="outline" onClick={onClose} className="text-ql-12">
           {t('gws_extension_wizard_cancel_btn')}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={onNext}
           disabled={!confirmed}
-          className="text-ql-12 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/40 inline-flex items-center justify-center rounded-lg px-5 py-2 font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+          className="text-ql-12 shadow-xs"
         >
           {t('gws_extension_wizard_next_btn')}
-        </button>
+        </Button>
       </div>
     </div>
   )

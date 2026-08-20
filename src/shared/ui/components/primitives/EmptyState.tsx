@@ -9,6 +9,7 @@ interface EmptyStateProps {
   action?: ReactNode
   className?: string
   size?: 'sm' | 'md' | 'lg'
+  bare?: boolean
 }
 
 export const EmptyState = ({
@@ -17,7 +18,8 @@ export const EmptyState = ({
   description,
   action,
   className,
-  size = 'md'
+  size = 'md',
+  bare = false
 }: EmptyStateProps) => {
   const sizeConfig = {
     sm: { iconSize: 'w-8 h-8', iconInner: 'w-4 h-4', spacing: 'p-5', gap: 'gap-2' },
@@ -28,7 +30,8 @@ export const EmptyState = ({
   return (
     <div
       className={cn(
-        'border-border bg-card/50 flex flex-col items-center justify-center rounded-xl border border-dashed text-center',
+        'flex flex-col items-center justify-center rounded-xl text-center',
+        bare ? '' : 'border-border bg-card/50 border border-dashed',
         sizeConfig.spacing,
         className
       )}

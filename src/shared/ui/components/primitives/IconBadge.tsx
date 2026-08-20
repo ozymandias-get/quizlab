@@ -21,7 +21,7 @@ export const IconBadge = ({
     sm: 'w-6 h-6 rounded-md',
     md: 'w-10 h-10 rounded-xl',
     lg: 'w-12 h-12 rounded-2xl',
-    xl: 'w-16 h-16 rounded-3xl'
+    xl: 'w-16 h-16 rounded-2xl'
   }
 
   const iconSizeClasses = {

@@ -1,5 +1,6 @@
 {
   "gws_title": "Google AI Web Oturumu",
+  "gws_settings_desc": "Tek bir Google oturumunu paylaşan Google AI web uygulamalarını yönetin.",
   "gws_feature_disabled": "Özellik bayrağı kapalı. GEMINI_WEB_SESSION_ENABLED değişkenini kaldırın veya 1/true yapın.",
   "gws_state_disabled": "Google AI web uygulamaları kapalı.",
   "gws_state_authenticated": "Paylaşılan Google web oturumu sağlıklı ve doğrulanmış.",

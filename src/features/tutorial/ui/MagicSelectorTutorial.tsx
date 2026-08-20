@@ -1,5 +1,6 @@
 import { Input } from '@app/components/ui/input'
 import { Logger } from '@shared/lib/logger'
+import { DURATION } from '@shared/lib/motion'
 
 import { Mic, Plus, Send } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -134,7 +135,7 @@ export default function MagicSelectorTutorial({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      transition={{ duration: DURATION.slow, ease: 'easeOut' }}
       className="z-modal bg-background text-foreground absolute inset-0 flex flex-col overflow-hidden"
     >
       <TutorialHeader onClose={onClose} t={t} />
@@ -173,7 +174,7 @@ export default function MagicSelectorTutorial({
               onChange={handleInputChange}
               disabled={step === 4}
               placeholder={t('tut_placeholder')}
-              className={`text-ql-14 h-auto flex-1 border-none bg-transparent px-2 py-1 shadow-none focus-visible:ring-0 ${step === 1 ? 'cursor-pointer' : ''}`}
+              className={`text-ql-13 h-auto flex-1 border-none bg-transparent px-2 py-1 shadow-none focus-visible:ring-0 ${step === 1 ? 'cursor-pointer' : ''}`}
               onMouseEnter={(e) => {
                 handleElementHover(e, 'input')
                 if (step === 2 || step === 3) e.currentTarget.focus()

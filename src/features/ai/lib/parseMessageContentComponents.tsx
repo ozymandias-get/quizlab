@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import { useToastActions } from '@app/providers'
 
 export function CodeBlock({ code, lang }: { code: string; lang: string }) {
@@ -15,13 +16,15 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
     <div className="border-border bg-muted/40 my-3 overflow-hidden rounded-lg border">
       <div className="border-border flex items-center justify-between border-b px-3 py-1.5">
         <span className="text-ql-11 text-muted-foreground font-mono">{lang || 'code'}</span>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={handleCopy}
-          className="text-ql-11 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 rounded px-2 py-0.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="text-ql-11 text-muted-foreground"
         >
           Copy
-        </button>
+        </Button>
       </div>
       <pre className="text-ql-13 text-foreground overflow-x-auto p-3 leading-relaxed">
         <code>{code}</code>

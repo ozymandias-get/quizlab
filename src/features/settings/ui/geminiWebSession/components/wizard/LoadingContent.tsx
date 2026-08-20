@@ -1,4 +1,5 @@
-import { Loader2 } from 'lucide-react'
+import { InlineSpinner } from '@shared/ui/components/primitives'
+
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -11,8 +12,8 @@ function LoadingContent({ mode }: LoadingContentProps) {
 
   return (
     <div className="flex flex-col items-center gap-4 px-8 pt-4 pb-8">
-      <Loader2 className="text-primary h-10 w-10 animate-spin" />
-      <p className="text-ql-14 text-muted-foreground">
+      <InlineSpinner size="xl" className="text-primary" />
+      <p className="text-ql-13 text-muted-foreground">
         {mode === 'install'
           ? t('gws_extension_wizard_installing')
           : t('gws_extension_wizard_removing')}

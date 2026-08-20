@@ -1,4 +1,7 @@
+import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
 import type { Toast } from '@app/providers'
+import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 
 import { AlertTriangle, Check, Info, X, XCircle } from 'lucide-react'
@@ -139,7 +142,7 @@ const ToastItem = memo(
           opacity: 0,
           y: -12,
           scale: 0.95,
-          transition: { duration: 0.18, ease: 'easeOut' }
+          transition: { duration: DURATION.slow, ease: 'easeOut' }
         }}
         transition={{ type: 'spring', stiffness: 450, damping: 32, mass: 0.7 }}
         onMouseEnter={handleMouseEnter}
@@ -148,7 +151,7 @@ const ToastItem = memo(
           'group pointer-events-auto relative',
           'mb-2 w-full overflow-hidden rounded-xl',
           'flex items-start gap-0',
-          'transition-colors duration-200 ease-out',
+          'motion-slow transition-colors ease-out',
           isHovered && 'scale-[1.015] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5)]',
           STYLES[toast.type] || STYLES.info
         )}
@@ -178,24 +181,28 @@ const ToastItem = memo(
               {t(toast.message, toast.params)}
             </p>
             {toast.actionLabel && (
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={handleAction}
-                className="text-ql-11 text-primary focus-visible:ring-ring/40 mt-1.5 font-medium tracking-wide underline underline-offset-2 hover:opacity-80 focus-visible:ring-2 focus-visible:outline-none"
+                className="text-ql-11 mt-1.5 px-0 underline underline-offset-2 hover:opacity-80"
               >
                 {t(toast.actionLabel)}
-              </button>
+              </Button>
             )}
           </div>
 
-          <button
+          <IconButton
             type="button"
+            size="compact"
+            variant="ghost"
             onClick={handleClose}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 mt-0.5 shrink-0 rounded-md p-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+            className="motion-normal mt-0.5 opacity-0 transition-opacity group-hover:opacity-100"
             aria-label={t('close_notification')}
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
+            <X />
+          </IconButton>
         </div>
 
         <div className="bg-border/40 absolute right-0 bottom-0 left-0 h-[2px]">

@@ -1,6 +1,9 @@
 import type { PdfFile } from '@shared-core/types'
 
-import { Grid3x3 } from 'lucide-react'
+import { IconButton } from '@app/components/ui/icon-button'
+import { WithTooltip } from '@app/components/ui/tooltip'
+import { Grid3x3Icon } from '@ui/components/Icons'
+
 import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -136,26 +139,28 @@ function PdfToolbar({
       initial={{ y: 10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       data-tour-id="tour-target-pdf-toolbar"
-      className="z-dropdown border-border/80 bg-card/90 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-3 py-2 backdrop-blur-md select-none sm:gap-3 sm:px-4 sm:py-2.5"
+      className="z-dropdown border-border/80 bg-card/90 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
     >
       <div className="relative flex items-center gap-2">
-        <div className="glass-tier-3 glass-tier-toolbar border-border/70 bg-card/60 flex items-center rounded-lg border p-1.5 shadow-xs">
-          <motion.button
-            type="button"
-            data-tools-trigger
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={toggleTools}
-            className={`focus-visible:ring-ring/40 relative flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none ${
-              isToolsOpen
-                ? 'bg-accent text-foreground shadow-xs'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
-            title={t('pdf_tools')}
-            aria-label={t('pdf_tools')}
-          >
-            <Grid3x3 className="h-4 w-4" />
-          </motion.button>
+        <div className="bg-muted/40 flex items-center rounded-lg p-1.5">
+          <WithTooltip label={t('pdf_tools')}>
+            <IconButton
+              asChild
+              type="button"
+              data-tools-trigger
+              variant="ghost"
+              size="compact"
+              onClick={toggleTools}
+              aria-label={t('pdf_tools')}
+              className={
+                isToolsOpen ? 'bg-accent text-foreground shadow-xs' : 'text-muted-foreground'
+              }
+            >
+              <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Grid3x3Icon size="sm" />
+              </motion.button>
+            </IconButton>
+          </WithTooltip>
         </div>
 
         <PdfToolsPopup

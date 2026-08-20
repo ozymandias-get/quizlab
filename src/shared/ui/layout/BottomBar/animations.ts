@@ -1,3 +1,5 @@
+import { DURATION } from '@shared/lib/motion'
+
 import type { Easing, Transition, Variants } from 'motion/react'
 
 const smoothEase: Easing = [0.16, 1, 0.3, 1]
@@ -22,11 +24,11 @@ export const focusBackdropVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { duration: 0.28, ease: smoothEase }
+    transition: { duration: DURATION.slower, ease: smoothEase }
   },
   exit: {
     opacity: 0,
-    transition: { duration: 0.18, ease: FOCUS_EXIT_EASE }
+    transition: { duration: DURATION.slow, ease: FOCUS_EXIT_EASE }
   }
 }
 
@@ -36,7 +38,7 @@ export const focusContentVariants: Variants = {
     scale: 0.96,
     y: 8,
     filter: 'blur(8px)',
-    transition: { duration: 0.18, ease: FOCUS_EXIT_EASE }
+    transition: { duration: DURATION.slow, ease: FOCUS_EXIT_EASE }
   },
   visible: {
     opacity: 1,
@@ -45,8 +47,8 @@ export const focusContentVariants: Variants = {
     filter: 'blur(0px)',
     transition: {
       ...panelSpring,
-      opacity: { duration: 0.28, ease: smoothEase },
-      filter: { duration: 0.28, ease: smoothEase }
+      opacity: { duration: DURATION.slower, ease: smoothEase },
+      filter: { duration: DURATION.slower, ease: smoothEase }
     }
   },
   exit: {
@@ -54,7 +56,7 @@ export const focusContentVariants: Variants = {
     scale: 0.97,
     y: 4,
     filter: 'blur(4px)',
-    transition: { duration: 0.2, ease: FOCUS_EXIT_EASE }
+    transition: { duration: DURATION.slow, ease: FOCUS_EXIT_EASE }
   }
 }
 
@@ -63,12 +65,12 @@ export const focusContentVariants: Variants = {
 // vestibular discomfort.
 export const focusBackdropReducedVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.15 } },
-  exit: { opacity: 0, transition: { duration: 0.1 } }
+  visible: { opacity: 1, transition: { duration: DURATION.normal } },
+  exit: { opacity: 0, transition: { duration: DURATION.fast } }
 }
 
 export const focusContentReducedVariants: Variants = {
-  hidden: { opacity: 0, transition: { duration: 0.12 } },
-  visible: { opacity: 1, transition: { duration: 0.2 } },
-  exit: { opacity: 0, transition: { duration: 0.12 } }
+  hidden: { opacity: 0, transition: { duration: DURATION.normal } },
+  visible: { opacity: 1, transition: { duration: DURATION.slow } },
+  exit: { opacity: 0, transition: { duration: DURATION.normal } }
 }

@@ -79,7 +79,7 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer
 }
 
 .pdf-viewer-container .rpv-core__canvas-layer {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--duration-slower) ease;
   contain: layout paint;
 }
 
@@ -104,7 +104,7 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer
 
 .pdf-viewer-container .rpv-core__text-layer,
 .pdf-viewer-container .rpv-core__annotation-layer {
-  transition: opacity 0.3s ease;
+  transition: opacity var(--duration-slower) ease;
 }
 
 .pdf-viewer-container .rpv-core__canvas-layer canvas {
@@ -175,10 +175,10 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
   margin: -0.12em -0.18em !important;
   border-radius: 0.34rem;
   transition:
-    background-color 0.16s ease,
-    color 0.16s ease,
-    text-shadow 0.2s ease,
-    box-shadow 0.2s ease;
+    background-color var(--duration-normal) ease,
+    color var(--duration-normal) ease,
+    text-shadow var(--duration-slow) ease,
+    box-shadow var(--duration-slow) ease;
 }
 
 /* ── PointerHighlight-inspired selection effect ── */
@@ -211,7 +211,7 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
 
 .pdf-viewer-container.pdf-selection-active .rpv-core__text-layer {
   filter: drop-shadow(0 0 0.4rem var(--selection-color-glow, rgba(234, 179, 8, 0.25)));
-  transition: filter 0.3s ease;
+  transition: filter var(--duration-slower) ease;
 }
 
 .pdf-viewer-container.pdf-selection-active .rpv-core__inner-pages {
@@ -319,13 +319,4 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
   to {
     opacity: 1;
   }
-}
-
-.pdf-recent-item.glass-tier-3 {
-  background-color: oklch(0.15 0.01 60 / 0.85) !important;
-  background-image: none !important;
-}
-
-.pdf-recent-item.glass-tier-3::after {
-  opacity: 0.06 !important;
 }

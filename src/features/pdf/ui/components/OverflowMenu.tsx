@@ -1,5 +1,9 @@
 import type { PdfTab } from '@features/pdf/hooks/types'
 
+import { IconButton } from '@app/components/ui/icon-button'
+import { MenuSurface } from '@app/components/ui/menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
+import { DURATION } from '@shared/lib/motion'
 import { ToolbarButton } from '@shared/ui/components/primitives'
 
 import { MoreHorizontal, X } from 'lucide-react'
@@ -37,9 +41,18 @@ function OverflowMenu({
         setIsOpen(false)
       }
     }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
 
     document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [isOpen])
 
   return (
@@ -57,55 +70,62 @@ function OverflowMenu({
           initial={{ opacity: 0, y: 4, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 4, scale: 0.98 }}
-          transition={{ duration: 0.12 }}
-          className="z-dropdown border-border bg-popover text-popover-foreground shadow-ambient-md absolute top-10 right-0 max-h-56 w-[240px] overflow-y-auto rounded-xl border p-1 backdrop-blur-md"
+          transition={{ duration: DURATION.normal }}
+          className="z-dropdown absolute top-10 right-0"
         >
-          {overflowTabs.map((tab) => {
-            const label = getTabLabel(tab)
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                className="group hover:bg-muted flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors"
-                onClick={() => {
-                  onSetActiveTab(tab.id)
-                  setIsOpen(false)
-                }}
-                onContextMenu={(event) => onOpenContextMenu(event, tab.id)}
-                title={label}
-                aria-label={label}
-              >
-                <span className="text-muted-foreground group-hover:text-foreground flex shrink-0 items-center transition-colors [&>svg]:h-3.5 [&>svg]:w-3.5">
-                  {getTabIcon(tab)}
-                </span>
-                <span className="text-ql-12 text-foreground min-w-0 flex-1 truncate font-medium">
-                  {label}
-                </span>
-                <span
-                  role="button"
-                  tabIndex={-1}
-                  aria-label={tr('tab_close', 'Close tab')}
-                  className="border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive shrink-0 rounded-md border p-1 opacity-0 transition-opacity group-hover:opacity-100"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    onCloseTab(tab.id)
-                    setIsOpen(false)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      onCloseTab(tab.id)
-                      setIsOpen(false)
-                    }
-                  }}
+          <MenuSurface className="max-h-56 w-[240px] overflow-y-auto">
+            {overflowTabs.map((tab) => {
+              const label = getTabLabel(tab)
+              return (
+                <div
+                  key={tab.id}
+                  role="group"
+                  className="group hover:bg-muted flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
+                  onContextMenu={(event) => onOpenContextMenu(event, tab.id)}
                 >
-                  <X className="h-3 w-3" />
-                </span>
-              </button>
-            )
-          })}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                        onClick={() => {
+                          onSetActiveTab(tab.id)
+                          setIsOpen(false)
+                        }}
+                        aria-label={label}
+                      >
+                        <span className="text-muted-foreground group-hover:text-foreground flex shrink-0 items-center transition-colors [&>svg]:h-3.5 [&>svg]:w-3.5">
+                          {getTabIcon(tab)}
+                        </span>
+                        <span className="text-ql-12 text-foreground min-w-0 flex-1 truncate font-medium">
+                          {label}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{label}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <IconButton
+                        type="button"
+                        size="compact"
+                        variant="ghost"
+                        aria-label={tr('tab_close', 'Close tab')}
+                        className="text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive transition-opacity"
+                        onClick={() => {
+                          onCloseTab(tab.id)
+                          setIsOpen(false)
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </IconButton>
+                    </TooltipTrigger>
+                    <TooltipContent>{tr('tab_close', 'Close tab')}</TooltipContent>
+                  </Tooltip>
+                </div>
+              )
+            })}
+          </MenuSurface>
         </motion.div>
       )}
     </div>

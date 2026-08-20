@@ -34,6 +34,12 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
+/* Reduced-opacity variant for controls floating over content */
+.glass-tier-3-dim {
+  border-color: oklch(var(--border) / 70%);
+  background-color: oklch(var(--card) / 60%);
+}
+
 .glass-interactive {
   transition:
     border-color var(--duration-normal) var(--ease-glass),
@@ -44,6 +50,23 @@
 .glass-interactive:hover,
 .glass-interactive:focus-visible {
   border-color: oklch(var(--ring) / 40%);
+}
+
+/* Control hover/active states — the single source of truth for toolbar
+   control state surfaces. Components must not re-implement these with
+   utility classes; unlayered rules here win over layered utilities. */
+.glass-control-hover:hover,
+.glass-control-hover:focus-visible {
+  border-color: oklch(var(--border));
+  background-color: oklch(var(--muted));
+  color: oklch(var(--foreground));
+}
+
+.glass-control-active {
+  border-color: oklch(var(--border));
+  background-color: oklch(var(--accent));
+  color: oklch(var(--foreground));
+  box-shadow: var(--shadow-ambient-sm);
 }
 
 .glass-tier-card {

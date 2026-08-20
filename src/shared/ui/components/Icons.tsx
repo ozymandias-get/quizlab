@@ -36,3 +36,10 @@ export {
   SettingsIcon,
   SliderIcon
 } from './icons/IconsUI'
+export {
+  Grid3x3Icon,
+  type LucideIconName,
+  lucideIcons,
+  SemanticIcon,
+  type SemanticIconProps
+} from './icons/LucideIcons'

@@ -29,8 +29,8 @@ const BackgroundSettings = memo(
               <PaletteIcon className="h-4 w-4" />
             </div>
             <div className="space-y-0.5">
-              <h3 className="text-ql-14 text-foreground font-bold">{t('background_settings')}</h3>
-              <p className="text-ql-11 text-foreground/75 tracking-ql-fine">
+              <h3 className="text-ql-13 text-foreground font-bold">{t('background_settings')}</h3>
+              <p className="text-ql-11 text-foreground/75 tracking-ql-tight">
                 {bgMode === 'solid' ? t('bg_solid_desc') : t('bg_desc')}
               </p>
             </div>

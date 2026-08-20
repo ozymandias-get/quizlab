@@ -1,5 +1,6 @@
 export { EmptyState } from './EmptyState'
 export { IconBadge } from './IconBadge'
+export { InlineSpinner } from './InlineSpinner'
 export { ListItemCard } from './ListItemCard'
 export { SurfaceCard } from './SurfaceCard'
 export { TabStripHomeButton } from './TabStripHomeButton'

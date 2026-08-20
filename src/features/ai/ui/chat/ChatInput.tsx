@@ -3,10 +3,11 @@ import type { ApiConfig } from '@shared-core/types'
 import { isVisionCapable } from '@features/ai/lib/apiChatUtils'
 
 import { Badge } from '@app/components/ui/badge'
-import { Button } from '@app/components/ui/button'
+import { IconButton } from '@app/components/ui/icon-button'
 import { Textarea } from '@app/components/ui/textarea'
+import { WithTooltip } from '@app/components/ui/tooltip'
 
-import { Image as ImageIcon, Send, Square, Trash2 } from 'lucide-react'
+import { Image as ImageIcon, Send, Square, Trash2, X } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -74,7 +75,7 @@ const ChatInput = memo(function ChatInput({
     <div className="bg-background/80 shrink-0 px-4 pt-2 pb-4 backdrop-blur-md">
       <div className="group relative mx-auto w-full max-w-4xl">
         {/* Main Semantic Input Card */}
-        <div className="border-border/80 bg-card/90 shadow-ambient-sm focus-within:ring-foreground/15 relative w-full overflow-hidden rounded-2xl border transition-all duration-150 focus-within:border-neutral-400 focus-within:ring-1 dark:focus-within:border-neutral-500">
+        <div className="border-border/80 bg-card/90 shadow-ambient-sm focus-within:ring-foreground/15 motion-normal relative w-full overflow-hidden rounded-2xl border transition-all focus-within:border-neutral-400 focus-within:ring-1 dark:focus-within:border-neutral-500">
           {attachments.length > 0 && (
             <div className="border-border/60 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
               {attachments.map((data, i) => (
@@ -84,14 +85,15 @@ const ChatInput = memo(function ChatInput({
                   <div className="border-border/80 h-14 w-14 transform overflow-hidden rounded-lg border shadow-2xs">
                     <img src={data} alt="" className="h-full w-full object-cover" />
                   </div>
-                  <button
+                  <IconButton
                     type="button"
+                    size="compact"
                     onClick={() => onRemoveAttachment(i)}
-                    className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground focus-visible:ring-destructive/40 absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground absolute -top-1.5 -right-1.5 rounded-full border shadow-2xs"
                     aria-label={t('api_chat_remove_attachment') || 'Remove attachment'}
                   >
-                    ✕
-                  </button>
+                    <X className="h-3 w-3" />
+                  </IconButton>
                 </div>
               ))}
             </div>
@@ -104,7 +106,7 @@ const ChatInput = memo(function ChatInput({
               onChange={handleInputChange}
               onKeyDown={onKeyDown}
               rows={1}
-              className="text-ql-14 text-foreground placeholder:text-muted-foreground max-h-[160px] min-h-0 resize-none border-none bg-transparent px-3 py-2 leading-relaxed shadow-none focus-visible:ring-0"
+              className="text-ql-13 text-foreground placeholder:text-muted-foreground max-h-[160px] min-h-0 resize-none border-none bg-transparent px-3 py-2 leading-relaxed shadow-none focus-visible:ring-0"
               placeholder={t('api_chat_input_placeholder')}
               aria-label={t('api_chat_input_placeholder')}
             />
@@ -137,16 +139,17 @@ const ChatInput = memo(function ChatInput({
                     onChange={onFileSelect}
                     className="hidden"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    onClick={handleFileUploadClick}
-                    title={t('api_chat_upload_image')}
-                    aria-label={t('api_chat_upload_image')}
-                  >
-                    <ImageIcon className="h-3.5 w-3.5" />
-                  </Button>
+                  <WithTooltip label={t('api_chat_upload_image')}>
+                    <IconButton
+                      type="button"
+                      variant="outline"
+                      size="compact"
+                      onClick={handleFileUploadClick}
+                      aria-label={t('api_chat_upload_image')}
+                    >
+                      <ImageIcon />
+                    </IconButton>
+                  </WithTooltip>
                 </div>
               )}
             </div>
@@ -161,42 +164,45 @@ const ChatInput = memo(function ChatInput({
               )}
 
               {messageCount > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  onClick={onClearChat}
-                  className="hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30"
-                  title={t('api_chat_clear')}
-                  aria-label={t('api_chat_clear')}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <WithTooltip label={t('api_chat_clear')}>
+                  <IconButton
+                    type="button"
+                    variant="outline"
+                    size="compact"
+                    onClick={onClearChat}
+                    className="hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
+                    aria-label={t('api_chat_clear')}
+                  >
+                    <Trash2 />
+                  </IconButton>
+                </WithTooltip>
               )}
 
               {isStreaming ? (
-                <Button
-                  type="button"
-                  variant="default"
-                  size="icon-sm"
-                  onClick={onStop}
-                  title={t('api_chat_stop')}
-                  aria-label={t('api_chat_stop')}
-                >
-                  <Square className="h-3.5 w-3.5 fill-current" />
-                </Button>
+                <WithTooltip label={t('api_chat_stop')}>
+                  <IconButton
+                    type="button"
+                    variant="default"
+                    size="compact"
+                    onClick={onStop}
+                    aria-label={t('api_chat_stop')}
+                  >
+                    <Square className="fill-current" />
+                  </IconButton>
+                </WithTooltip>
               ) : (
-                <Button
-                  type="button"
-                  variant="default"
-                  size="icon-sm"
-                  onClick={onSend}
-                  disabled={!inputValue.trim() && attachments.length === 0}
-                  title={t('api_chat_send')}
-                  aria-label={t('api_chat_send')}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </Button>
+                <WithTooltip label={t('api_chat_send')}>
+                  <IconButton
+                    type="button"
+                    variant="default"
+                    size="compact"
+                    onClick={onSend}
+                    disabled={!inputValue.trim() && attachments.length === 0}
+                    aria-label={t('api_chat_send')}
+                  >
+                    <Send />
+                  </IconButton>
+                </WithTooltip>
               )}
             </div>
           </div>

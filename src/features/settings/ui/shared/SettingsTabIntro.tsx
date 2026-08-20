@@ -1,11 +1,7 @@
 import { memo, type ReactNode } from 'react'
 
-import SettingsTabHeader from './SettingsTabHeader'
-
 interface SettingsTabIntroProps {
   icon: ReactNode
-  eyebrow: string
-  title: string
   description?: string
   action?: ReactNode
   hideDescription?: boolean
@@ -13,22 +9,22 @@ interface SettingsTabIntroProps {
 
 function SettingsTabIntro({
   icon,
-  eyebrow,
-  title,
   description,
   action,
   hideDescription = false
 }: SettingsTabIntroProps) {
   return (
-    <>
-      <SettingsTabHeader icon={icon} eyebrow={eyebrow} title={title} action={action} />
-
-      {description && !hideDescription && (
-        <div className="px-1">
-          <p className="text-foreground/85 text-xs leading-relaxed">{description}</p>
-        </div>
-      )}
-    </>
+    <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="flex min-w-0 items-start gap-4">
+        {icon}
+        {description && !hideDescription && (
+          <div className="min-w-0 flex-1 pt-1.5">
+            <p className="text-foreground/85 max-w-2xl text-sm leading-relaxed">{description}</p>
+          </div>
+        )}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
   )
 }
 
