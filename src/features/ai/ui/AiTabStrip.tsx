@@ -127,6 +127,7 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
         contextMenuTab={state.contextMenuTab}
         tabsCount={tabs.length}
         contextMenuRef={refs.contextMenuRef}
+        triggerRef={refs.contextMenuTriggerRef}
         tr={helpers.tr}
         onBeginRename={actions.beginRename}
         onTogglePin={togglePinTab}

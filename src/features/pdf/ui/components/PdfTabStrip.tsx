@@ -46,6 +46,7 @@ function PdfTabStrip({
   const { t } = useTranslation()
   const renameInputRef = useRef<HTMLInputElement>(null)
   const rowRef = useRef<HTMLDivElement>(null)
+  const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [maxVisibleTabs, setMaxVisibleTabs] = useState(3)
@@ -138,6 +139,9 @@ function PdfTabStrip({
   const handleOpenContextMenu = useCallback((event: ReactMouseEvent, tabId: string) => {
     event.preventDefault()
     event.stopPropagation()
+
+    contextMenuTriggerRef.current =
+      event.currentTarget instanceof HTMLElement ? event.currentTarget : null
 
     setContextMenu({
       tabId,
@@ -240,6 +244,7 @@ function PdfTabStrip({
         onBeginRename={beginRename}
         onCloseTab={onCloseTab}
         onDismiss={() => setContextMenu(null)}
+        triggerRef={contextMenuTriggerRef}
       />
     </div>
   )

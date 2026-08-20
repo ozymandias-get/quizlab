@@ -31,6 +31,7 @@ export function useAiTabStripState({
   renameTab
 }: UseAiTabStripStateParams) {
   const contextMenuRef = useRef<HTMLDivElement>(null)
+  const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
   const overflowRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const skipBlurSaveRef = useRef(false)
@@ -104,6 +105,9 @@ export function useAiTabStripState({
     event.stopPropagation()
     setIsOverflowOpen(false)
     setEditingTabId(null)
+
+    contextMenuTriggerRef.current =
+      event.currentTarget instanceof HTMLElement ? event.currentTarget : null
 
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
@@ -225,6 +229,7 @@ export function useAiTabStripState({
   return {
     refs: {
       contextMenuRef,
+      contextMenuTriggerRef,
       overflowRef,
       renameInputRef,
       skipBlurSaveRef
