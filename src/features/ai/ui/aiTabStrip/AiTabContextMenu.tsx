@@ -14,6 +14,7 @@ interface AiTabContextMenuProps {
   contextMenuTab?: Tab
   tabsCount: number
   contextMenuRef: RefObject<HTMLDivElement | null>
+  triggerRef?: RefObject<HTMLElement | null>
   tr: (key: string, fallback: string) => string
   onBeginRename: (tabId: string) => void
   onTogglePin: (tabId: string) => void
@@ -26,13 +27,17 @@ function AiTabContextMenu({
   contextMenuTab,
   tabsCount,
   contextMenuRef,
+  triggerRef,
   tr,
   onBeginRename,
   onTogglePin,
   onCloseTab,
   onDismiss
 }: AiTabContextMenuProps) {
-  const setContextMenuRef = useMenuKeyboardNavigation(contextMenuRef, { onClose: onDismiss })
+  const setContextMenuRef = useMenuKeyboardNavigation(contextMenuRef, {
+    onClose: onDismiss,
+    triggerRef
+  })
 
   if (!contextMenu || !contextMenuTab) {
     return null

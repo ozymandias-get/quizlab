@@ -5,7 +5,7 @@ import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNav
 import { DURATION } from '@shared/lib/motion'
 
 import { motion } from 'motion/react'
-import { memo, useRef } from 'react'
+import { memo, type RefObject, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 interface TabContextMenuProps {
@@ -15,6 +15,7 @@ interface TabContextMenuProps {
   onBeginRename: (tab: PdfTab) => void
   onCloseTab: (tabId: string) => void
   onDismiss: () => void
+  triggerRef?: RefObject<HTMLElement | null>
 }
 
 function TabContextMenu({
@@ -23,10 +24,11 @@ function TabContextMenu({
   tr,
   onBeginRename,
   onCloseTab,
-  onDismiss
+  onDismiss,
+  triggerRef
 }: TabContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
-  const setMenuRef = useMenuKeyboardNavigation(menuRef, { onClose: onDismiss })
+  const setMenuRef = useMenuKeyboardNavigation(menuRef, { onClose: onDismiss, triggerRef })
 
   if (!contextMenu || !tab) return null
 
