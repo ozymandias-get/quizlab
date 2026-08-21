@@ -2,6 +2,7 @@ import { Button } from '@app/components/ui/button'
 import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
+import { ToolbarGroup, ToolbarSeparator } from '@shared/ui/components/primitives'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { memo, useCallback, useRef, useState } from 'react'
@@ -51,7 +52,7 @@ function PdfPageNav({
   }, [])
 
   return (
-    <div className="bg-muted/40 flex items-center gap-1 rounded-lg p-1.5">
+    <ToolbarGroup>
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
@@ -68,7 +69,7 @@ function PdfPageNav({
         <TooltipContent>{t('prev_page')}</TooltipContent>
       </Tooltip>
 
-      <div className="bg-border/80 h-4 w-px" />
+      <ToolbarSeparator />
 
       {isEditingPage ? (
         <Input
@@ -103,7 +104,7 @@ function PdfPageNav({
         </Button>
       )}
 
-      <div className="bg-border/80 h-4 w-px" />
+      <ToolbarSeparator />
 
       <Tooltip>
         <TooltipTrigger asChild>
@@ -120,7 +121,7 @@ function PdfPageNav({
         </TooltipTrigger>
         <TooltipContent>{t('next_page')}</TooltipContent>
       </Tooltip>
-    </div>
+    </ToolbarGroup>
   )
 }
 

@@ -23,7 +23,7 @@ interface TutorialHeaderProps {
 export function TutorialHeader({ onClose, t }: TutorialHeaderProps) {
   return (
     <div className="border-border bg-card/90 z-10 flex h-12 items-center justify-between border-b px-4 backdrop-blur-md">
-      <div className="text-foreground hover:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium transition-colors">
+      <div className="text-foreground hover:bg-muted text-ql-14 flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1 font-medium transition-colors">
         <span>ChatGPT 5.2</span>
         <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
       </div>

@@ -154,7 +154,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
             boxShadow: '0 16px 40px -6px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1)',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             background: 'oklch(var(--card) / 0.95)',
-            backdropFilter: 'blur(24px)'
+            backdropFilter: 'blur(16px)'
           },
     [isExpanded]
   )

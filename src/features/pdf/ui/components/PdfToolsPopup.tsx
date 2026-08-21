@@ -1,4 +1,5 @@
 import { Button } from '@app/components/ui/button'
+import { Switch } from '@app/components/ui/switch'
 import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 
@@ -157,7 +158,7 @@ function PdfToolsPopup({
                         variant="ghost"
                         aria-label={tool.tooltip}
                         className={cn(
-                          'group text-foreground hover:bg-muted h-auto w-full justify-start gap-2 rounded-lg px-2 py-1.5 transition-colors',
+                          'group text-foreground hover:bg-muted h-auto min-h-8 w-full justify-start gap-2 rounded-md px-2 py-1.5 transition-colors',
                           isActive && 'bg-muted/70'
                         )}
                       >
@@ -191,25 +192,14 @@ function PdfToolsPopup({
                           </span>
 
                           {tool.onClick && 'isActive' in tool && (
-                            <div
-                              className={cn(
-                                'ml-auto flex h-4 w-7 items-center rounded-full transition-colors',
-                                isActive
-                                  ? cn(colors.toggleTrack, 'border-primary/30 border')
-                                  : 'border-border bg-muted border'
-                              )}
-                            >
-                              <motion.div
-                                className={cn(
-                                  'h-3 w-3 rounded-full',
-                                  isActive ? 'bg-primary-foreground' : 'bg-muted-foreground/60'
-                                )}
-                                animate={{
-                                  x: isActive ? 14 : 2,
-                                  transition: { type: 'spring', stiffness: 500, damping: 30 }
-                                }}
-                              />
-                            </div>
+                            <Switch
+                              checked={isActive}
+                              onCheckedChange={() => tool.onClick?.()}
+                              size="sm"
+                              className="ml-auto"
+                              aria-label={tool.tooltip}
+                              onClick={(e) => e.stopPropagation()}
+                            />
                           )}
                         </motion.button>
                       </Button>

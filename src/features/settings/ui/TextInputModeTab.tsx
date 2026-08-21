@@ -2,6 +2,14 @@ import type { TextInputMode } from '@shared-core/types'
 
 import { TYPING_SPEED_OPTIONS, useTextInputMode } from '@features/ai/hooks/useTextInputMode'
 
+import {
+  SettingsRow,
+  SettingsRowDescription,
+  SettingsRowHeader,
+  SettingsRowIcon,
+  SettingsRowTitle
+} from '@shared/ui/components/primitives'
+
 import { ClipboardPaste, Gauge, Keyboard, PenLine, Sparkles } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -91,10 +99,10 @@ const TextInputModeTab = memo(() => {
                 <Icon className="h-4 w-4" />
               </div>
               <div className="min-w-0 grow">
-                <h4 className="text-foreground text-xs leading-tight font-semibold">
+                <h4 className="text-foreground text-ql-12 leading-tight font-semibold">
                   {t(option.labelKey)}
                 </h4>
-                <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
+                <p className="text-muted-foreground text-ql-12 mt-0.5 leading-relaxed">
                   {t(option.descKey)}
                 </p>
               </div>
@@ -115,22 +123,18 @@ const TextInputModeTab = memo(() => {
       </div>
 
       <div className="space-y-3">
-        <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 shadow-xs">
-          <div className="border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
+        <SettingsRow className="shadow-xs">
+          <SettingsRowIcon>
             <Gauge className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 grow">
-            <h4 className="text-foreground text-xs leading-tight font-semibold">
-              {t('typing_speed')}
-            </h4>
-            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-              {t('typing_speed_description')}
-            </p>
-          </div>
-          <span className="text-muted-foreground shrink-0 text-xs font-medium">
+          </SettingsRowIcon>
+          <SettingsRowHeader>
+            <SettingsRowTitle>{t('typing_speed')}</SettingsRowTitle>
+            <SettingsRowDescription>{t('typing_speed_description')}</SettingsRowDescription>
+          </SettingsRowHeader>
+          <span className="text-muted-foreground text-ql-12 shrink-0 font-medium">
             {typingSpeed}ms
           </span>
-        </div>
+        </SettingsRow>
 
         <div className="grid grid-cols-4 gap-2 px-1">
           {TYPING_SPEED_OPTIONS.map((option) => (
@@ -138,7 +142,7 @@ const TextInputModeTab = memo(() => {
               type="button"
               key={option.value}
               onClick={() => handleSpeedChange(option.value)}
-              className={`focus-visible:ring-ring/40 rounded-xl py-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+              className={`focus-visible:ring-ring/40 text-ql-12 rounded-xl py-2.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                 typingSpeed === option.value
                   ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
                   : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted border'

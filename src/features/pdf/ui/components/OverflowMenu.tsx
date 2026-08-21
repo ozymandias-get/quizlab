@@ -131,7 +131,7 @@ function OverflowMenu({
                   key={tab.id}
                   role="group"
                   aria-label={label}
-                  className="group hover:bg-muted flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
+                  className="group hover:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
                   onContextMenu={(event) => onOpenContextMenu(event, tab.id)}
                 >
                   <Tooltip>
@@ -162,13 +162,13 @@ function OverflowMenu({
                         size="compact"
                         variant="ghost"
                         aria-label={tr('tab_close', 'Close tab')}
-                        className="text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive transition-opacity"
+                        className="text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive size-7 rounded-md border border-transparent"
                         onClick={() => {
                           onCloseTab(tab.id)
                           setIsOpen(false)
                         }}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3.5 w-3.5" />
                       </IconButton>
                     </TooltipTrigger>
                     <TooltipContent>{tr('tab_close', 'Close tab')}</TooltipContent>

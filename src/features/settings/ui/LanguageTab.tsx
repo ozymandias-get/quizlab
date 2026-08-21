@@ -64,7 +64,7 @@ const LanguageTab = memo(() => {
                 </div>
 
                 <div className="flex-1 space-y-0.5">
-                  <Label className="text-foreground block text-sm font-semibold">
+                  <Label className="text-foreground text-ql-14 block font-semibold">
                     {lang.nativeName}
                   </Label>
                   <span className="text-ql-11 text-muted-foreground block font-medium">

@@ -1,11 +1,19 @@
 import { Button } from '@app/components/ui/button'
 import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
+import { DialogBackdrop } from '@app/components/ui/dialog'
 import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
+import {
+  PanelHeader,
+  PanelHeaderIcon,
+  PanelHeaderSubtitle,
+  PanelHeaderTitle
+} from '@app/components/ui/panel-header'
 import { useConfirmDialog, useDebouncedValue, useDialogBehavior } from '@shared/hooks'
 import { EmptyState } from '@shared/ui/components/primitives'
 
 import { CircleOff, Clock, Search, Trash2, X } from 'lucide-react'
+import { motion } from 'motion/react'
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -97,34 +105,30 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   if (!isOpen) return null
 
   return (
-    // Click-outside-to-close is a pointer-only convenience; keyboard users
-    // close via Escape (handled above) and focus is trapped inside the panel.
-    /* eslint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
     <>
-      <div
-        className="z-modal bg-background/60 fixed inset-0 flex items-center justify-center p-4 backdrop-blur-md"
-        onClick={onClose}
-      >
-        <div
+      <DialogBackdrop onClick={onClose}>
+        <motion.div
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="history-modal-title"
-          className="border-border bg-popover text-popover-foreground shadow-ambient-xl relative flex h-[540px] w-full max-w-2xl flex-col overflow-hidden rounded-xl border"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.14 }}
+          className="border-border bg-popover text-popover-foreground shadow-ambient-xl relative flex h-[540px] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* eslint-enable jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-          {/* Modal Header */}
-          <div className="border-border bg-card/80 relative flex shrink-0 items-center justify-between border-b px-5 py-3.5">
+          <PanelHeader>
             <div className="flex items-center gap-3">
-              <div className="border-primary/20 bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-lg border shadow-xs">
+              <PanelHeaderIcon>
                 <Clock className="h-4 w-4 shrink-0" />
-              </div>
+              </PanelHeaderIcon>
               <div>
-                <h3 id="history-modal-title" className="text-ql-13 text-foreground font-semibold">
+                <PanelHeaderTitle id="history-modal-title">
                   {t('api_chat_modal_title')}
-                </h3>
-                <p className="text-ql-11 text-muted-foreground">{t('api_chat_modal_subtitle')}</p>
+                </PanelHeaderTitle>
+                <PanelHeaderSubtitle>{t('api_chat_modal_subtitle')}</PanelHeaderSubtitle>
               </div>
             </div>
 
@@ -163,7 +167,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                 <X />
               </IconButton>
             </div>
-          </div>
+          </PanelHeader>
 
           {/* Search Input */}
           <div className="border-border bg-muted/20 shrink-0 border-b px-5 py-3">
@@ -172,7 +176,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                 value={modalSearch}
                 onChange={(e) => setModalSearch(e.target.value)}
                 placeholder={t('api_chat_modal_search_placeholder')}
-                className="pl-9 text-sm"
+                className="text-ql-14 pl-9"
               />
               <Search className="text-muted-foreground group-focus-within/modal-search:text-primary absolute top-2.5 left-3 h-3.5 w-3.5 transition-colors" />
             </div>
@@ -210,8 +214,8 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
               />
             )}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </DialogBackdrop>
       <ConfirmDialog {...confirmProps} />
     </>
   )

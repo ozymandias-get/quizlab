@@ -41,7 +41,7 @@ function RiskStepContent({
         </p>
         {riskItems.map((item, i) => (
           <div key={item} className="flex items-start gap-3">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-xs font-bold text-amber-600 dark:text-amber-400">
+            <span className="text-ql-12 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 font-bold text-amber-600 dark:text-amber-400">
               {i + 1}
             </span>
             <span className="text-ql-13 text-foreground">{item}</span>
@@ -55,7 +55,7 @@ function RiskStepContent({
         </p>
         {mitigationItems.map((item) => (
           <div key={`mit-${item}`} className="flex items-start gap-3">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs text-emerald-600 dark:text-emerald-400">
+            <span className="text-ql-12 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
               <Check className="h-3 w-3" />
             </span>
             <span className="text-ql-13 text-foreground">{item}</span>

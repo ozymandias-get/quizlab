@@ -2,11 +2,10 @@ import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import type { Tab } from '@app/providers/AiContext'
-import { DURATION } from '@shared/lib/motion'
+import { TabPillContainer, TabPillIcon, TabPillLabel } from '@shared/ui/components/primitives'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { Pin, X } from 'lucide-react'
-import { motion } from 'motion/react'
 import {
   memo,
   type MouseEvent as ReactMouseEvent,
@@ -125,42 +124,33 @@ function AiVisibleTabButton({
     [onClose, tabId]
   )
 
+  // AI pill uses the same visual as PDF pill but has inline rename + pin controls.
+  // We render a <div role=tab> container here (not Button) because edit mode
+  // nests an Input and pin/close buttons absolutely — nesting buttons is invalid.
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <motion.div
-          role="tab"
-          aria-selected={isActive}
-          tabIndex={0}
-          onKeyDown={(event: React.KeyboardEvent) => {
+        <TabPillContainer
+          isActive={isActive}
+          className="group cursor-pointer pr-20"
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onContextMenu={handleContextMenu}
+          onKeyDown={(event: React.KeyboardEvent<HTMLDivElement>) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()
               onSelect(tabId)
             }
           }}
-          whileHover={{
-            y: -0.5,
-            transition: { type: 'tween', duration: DURATION.normal, ease: 'easeOut' }
-          }}
-          whileTap={{ scale: 0.99 }}
-          className={`group focus-visible:ring-ring/40 motion-normal relative flex h-8 max-w-[240px] min-w-0 cursor-pointer items-center gap-2 rounded-full border px-3 pr-16 transition-colors outline-none select-none focus-visible:ring-2 ${
-            isActive
-              ? 'border-border bg-card text-foreground shadow-xs'
-              : 'text-muted-foreground hover:border-border/60 hover:bg-muted/40 hover:text-foreground border-transparent bg-transparent'
-          }`}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-          onContextMenu={handleContextMenu}
+          // make container focusable for keyboard roving (handled by parent)
+          tabIndex={0}
+          aria-label={label}
         >
-          {isActive && (
-            <div className="bg-primary/70 pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
-          )}
-
-          <span className="text-muted-foreground group-hover:text-foreground shrink-0 transition-colors">
+          <TabPillIcon>
             {getAiIcon(iconKey || tab.modelId) || (
               <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
             )}
-          </span>
+          </TabPillIcon>
 
           {isEditing ? (
             <Input
@@ -177,30 +167,25 @@ function AiVisibleTabButton({
               }
             />
           ) : (
-            <span
-              ref={labelRef}
-              className={`text-ql-12 min-w-0 truncate font-medium ${
-                isActive ? 'text-foreground' : 'text-muted-foreground'
-              }`}
-            >
+            <TabPillLabel ref={labelRef} isActive={isActive}>
               {label}
-            </span>
+            </TabPillLabel>
           )}
 
-          <div className="absolute top-1/2 right-1.5 z-10 flex -translate-y-1/2 items-center gap-1">
+          <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-1">
             <IconButton
               type="button"
               size="compact"
               variant="ghost"
               aria-label={tab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
               onClick={handleTogglePin}
-              className={`${
+              className={`size-7 rounded-md border p-0 ${
                 tab.pinned
                   ? 'border-ring/50 bg-accent text-foreground opacity-100'
-                  : 'border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-primary opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+                  : 'border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-primary opacity-60 group-hover:opacity-80 hover:opacity-100'
               }`}
             >
-              <Pin className="h-3 w-3" fill={tab.pinned ? 'currentColor' : 'none'} />
+              <Pin className="h-3.5 w-3.5" fill={tab.pinned ? 'currentColor' : 'none'} />
             </IconButton>
 
             <IconButton
@@ -209,18 +194,20 @@ function AiVisibleTabButton({
               variant="ghost"
               aria-label={tr('tab_close', 'Close')}
               onClick={handleClose}
-              className={`border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive transition-opacity focus-visible:opacity-100 ${
+              className={`text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
                 isActive
-                  ? 'opacity-100'
-                  : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
-              }`}
+                  ? 'opacity-80 hover:opacity-100'
+                  : 'opacity-60 group-hover:opacity-80 hover:opacity-100'
+              } border-border/50 bg-card/60`}
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </IconButton>
           </div>
-        </motion.div>
+        </TabPillContainer>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label} — {tr('tab_rename_hint', 'Double-click to rename')}
+      </TooltipContent>
     </Tooltip>
   )
 }

@@ -57,8 +57,8 @@ function PdfPlaceholder({
   return (
     <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center justify-center overflow-hidden px-6 py-8 select-none motion-reduce:animate-none">
       <div className="flex max-h-full w-full max-w-[680px] flex-col items-center gap-4 text-center">
-        {/* Kokonut-inspired Drop / Upload Hero Card */}
-        <div className="group border-border/80 hover:border-ring/60 bg-card/60 hover:bg-card/90 motion-slow relative flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed p-6 shadow-2xs transition-all">
+        {/* Hero — now built on the shared EmptyState primitive for a11y + token consistency */}
+        <div className="border-border/80 hover:border-ring/60 bg-card/60 hover:bg-card/90 motion-slow relative flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed p-6 shadow-2xs transition-all">
           <Button
             type="button"
             size="icon-lg"
@@ -69,7 +69,7 @@ function PdfPlaceholder({
             <Upload className="motion-slow h-6 w-6 transition-transform group-hover:-translate-y-0.5 motion-reduce:transform-none" />
           </Button>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 text-center">
             <h2 className="text-ql-15 text-foreground tracking-ql-tight font-semibold">
               {t('no_pdf_loaded')}
             </h2>

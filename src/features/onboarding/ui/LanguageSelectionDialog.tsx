@@ -1,4 +1,5 @@
 import { Button } from '@app/components/ui/button'
+import { DialogBackdrop } from '@app/components/ui/dialog'
 import { DURATION } from '@shared/lib/motion'
 import { useLanguage } from '@shared/stores/languageStore'
 
@@ -111,14 +112,7 @@ export function LanguageSelectionDialog() {
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          key="language-onboarding"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: DURATION.slow, ease: 'easeOut' }}
-          className="z-modal bg-background/60 fixed inset-0 flex items-center justify-center backdrop-blur-md"
-        >
+        <DialogBackdrop key="language-onboarding">
           <motion.div
             ref={dialogRef}
             role="dialog"
@@ -160,7 +154,7 @@ export function LanguageSelectionDialog() {
                       <span className="text-ql-12 text-muted-foreground">{lang.name}</span>
                     </div>
                     {isSelected && (
-                      <span className="bg-primary text-primary-foreground ml-auto flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold">
+                      <span className="bg-primary text-primary-foreground text-ql-11 ml-auto flex h-5 w-5 items-center justify-center rounded-full font-bold">
                         ✓
                       </span>
                     )}
@@ -179,7 +173,7 @@ export function LanguageSelectionDialog() {
               Continue &rarr;
             </Button>
           </motion.div>
-        </motion.div>
+        </DialogBackdrop>
       )}
     </AnimatePresence>
   )

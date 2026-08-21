@@ -2,6 +2,7 @@ import type { PdfFile } from '@shared-core/types'
 
 import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
+import { ToolbarGroup } from '@shared/ui/components/primitives'
 import { Grid3x3Icon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
@@ -139,10 +140,10 @@ function PdfToolbar({
       initial={{ y: 10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       data-tour-id="tour-target-pdf-toolbar"
-      className="z-dropdown border-border/80 bg-card/90 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
+      className="border-border/80 bg-card/90 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
     >
       <div className="relative flex items-center gap-2">
-        <div className="bg-muted/40 flex items-center rounded-lg p-1.5">
+        <ToolbarGroup>
           <WithTooltip label={t('pdf_tools')}>
             <IconButton
               asChild
@@ -161,7 +162,7 @@ function PdfToolbar({
               </motion.button>
             </IconButton>
           </WithTooltip>
-        </div>
+        </ToolbarGroup>
 
         <PdfToolsPopup
           isOpen={isToolsOpen}

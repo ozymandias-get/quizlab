@@ -49,10 +49,10 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
             <MagicWandIcon className="h-5 w-5" />
           </div>
           <div className="text-left">
-            <h4 className="text-foreground text-sm font-semibold transition-colors">
+            <h4 className="text-foreground text-ql-14 font-semibold transition-colors">
               {t('tutorial_button_title')}
             </h4>
-            <p className="text-muted-foreground text-xs transition-colors">
+            <p className="text-muted-foreground text-ql-12 transition-colors">
               {t('tutorial_button_desc')}
             </p>
           </div>
