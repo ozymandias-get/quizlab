@@ -35,6 +35,7 @@
 }
 
 /* Reduced-opacity variant for controls floating over content */
+
 .glass-tier-3-dim {
   border-color: oklch(var(--border) / 70%);
   background-color: oklch(var(--card) / 60%);
@@ -55,6 +56,7 @@
 /* Control hover/active states — the single source of truth for toolbar
    control state surfaces. Components must not re-implement these with
    utility classes; unlayered rules here win over layered utilities. */
+
 .glass-control-hover:hover,
 .glass-control-hover:focus-visible {
   border-color: oklch(var(--border));
