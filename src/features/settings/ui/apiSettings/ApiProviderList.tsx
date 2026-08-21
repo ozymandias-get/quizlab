@@ -44,7 +44,9 @@ function ApiProviderList({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-foreground text-sm font-semibold">{t('api_chat_providers_title')}</h3>
+        <h3 className="text-foreground text-ql-14 font-semibold">
+          {t('api_chat_providers_title')}
+        </h3>
         <div className="flex flex-wrap items-center gap-1.5">
           {Object.keys(DEFAULT_PROVIDER_TEMPLATES).map((key) => (
             <Button

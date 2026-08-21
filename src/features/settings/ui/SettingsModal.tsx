@@ -65,11 +65,11 @@ const SettingsModal = memo(function SettingsModal({
             <div className="space-y-0.5">
               <h1
                 id="settings-dialog-title"
-                className="text-foreground tracking-ql-tight text-sm font-semibold"
+                className="text-foreground tracking-ql-tight text-ql-14 font-semibold"
               >
                 {t('settings_title')}
               </h1>
-              <p className="text-muted-foreground hidden text-xs sm:block">
+              <p className="text-muted-foreground text-ql-12 hidden sm:block">
                 {t('settings_header_description')}
               </p>
             </div>

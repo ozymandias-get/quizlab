@@ -98,7 +98,7 @@ const BottomBarSettingsTab = memo(() => {
             <SliderIcon className="h-4 w-4" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="text-foreground text-sm font-bold">{t('tools_visibility')}</h3>
+            <h3 className="text-foreground text-ql-14 font-bold">{t('tools_visibility')}</h3>
             <p className="text-ql-12 text-muted-foreground">{t('tools_visibility_desc')}</p>
           </div>
         </div>
@@ -120,7 +120,7 @@ const BottomBarSettingsTab = memo(() => {
                   <div
                     className={`motion-slow h-2 w-2 rounded-full transition-colors ${isVisible ? 'bg-emerald-500 shadow-xs' : 'bg-muted-foreground/30'}`}
                   />
-                  <Label className="text-foreground cursor-pointer text-xs font-medium">
+                  <Label className="text-foreground text-ql-12 cursor-pointer font-medium">
                     {t(tool.nameKey, { defaultValue: tool.id })}
                   </Label>
                 </div>
@@ -150,7 +150,7 @@ const BottomBarSettingsTab = memo(() => {
             <GridIcon className="h-4 w-4" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="text-foreground text-sm font-bold">{t('model_visibility')}</h3>
+            <h3 className="text-foreground text-ql-14 font-bold">{t('model_visibility')}</h3>
             <p className="text-ql-12 text-muted-foreground">{t('model_visibility_desc')}</p>
           </div>
         </div>
@@ -207,12 +207,12 @@ const BottomBarSettingsTab = memo(() => {
                     />
                     <div className="flex h-5 w-5 items-center justify-center">
                       {getAiIcon(modelId) || (
-                        <span className="text-muted-foreground text-xs font-bold">
+                        <span className="text-muted-foreground text-ql-12 font-bold">
                           {displayName.charAt(0)}
                         </span>
                       )}
                     </div>
-                    <Label className="text-foreground cursor-pointer text-xs font-medium">
+                    <Label className="text-foreground text-ql-12 cursor-pointer font-medium">
                       {displayName}
                     </Label>
                   </div>

@@ -37,14 +37,11 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         ref={ref}
         type="button"
         size={size}
+        variant={isActive ? 'default' : 'toolbar'}
         onClick={onClick}
         disabled={disabled}
         aria-label={tooltip}
-        className={cn(
-          'glass-tier-3 glass-tier-3-dim glass-interactive glass-tier-control text-muted-foreground glass-control-hover',
-          isActive ? activeClassName || 'glass-control-active' : '',
-          className
-        )}
+        className={cn(isActive ? activeClassName || 'glass-control-active' : '', className)}
       >
         <motion.button
           type="button"

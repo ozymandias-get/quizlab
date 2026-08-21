@@ -88,7 +88,7 @@ function ApiProviderCard({
             id={baseUrlId}
             value={provider.baseUrl}
             onChange={(e) => onUpdate(provider.id, { baseUrl: e.target.value })}
-            className="font-mono text-xs"
+            className="text-ql-12 font-mono"
             placeholder="https://api.openai.com/v1"
           />
         </div>
@@ -107,7 +107,7 @@ function ApiProviderCard({
               onChange={(e) => onUpdate(provider.id, { apiKey: e.target.value })}
               placeholder="sk-..."
               size="sm"
-              className="pr-8 pl-8 font-mono text-xs"
+              className="text-ql-12 pr-8 pl-8 font-mono"
             />
             <IconButton
               type="button"
@@ -134,7 +134,7 @@ function ApiProviderCard({
               id={defaultModelId}
               value={provider.defaultModel}
               onChange={(e) => onUpdate(provider.id, { defaultModel: e.target.value })}
-              className="pl-8 font-mono text-xs"
+              className="text-ql-12 pl-8 font-mono"
               placeholder="gpt-4o"
             />
           </InputGroup>

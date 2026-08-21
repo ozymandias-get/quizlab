@@ -19,7 +19,7 @@ function SettingsTabIntro({
         {icon}
         {description && !hideDescription && (
           <div className="min-w-0 flex-1 pt-1.5">
-            <p className="text-foreground/85 max-w-2xl text-sm leading-relaxed">{description}</p>
+            <p className="text-foreground/85 text-ql-14 max-w-2xl leading-relaxed">{description}</p>
           </div>
         )}
       </div>

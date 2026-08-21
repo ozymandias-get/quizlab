@@ -44,7 +44,7 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
       type="button"
       data-slot="menu-item"
       className={cn(
-        'text-ql-12 text-popover-foreground hover:bg-muted focus-visible:ring-ring/40 flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40',
+        'text-ql-12 text-popover-foreground hover:bg-muted focus-visible:ring-ring/40 flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40',
         danger && 'text-destructive hover:bg-destructive/10',
         className
       )}

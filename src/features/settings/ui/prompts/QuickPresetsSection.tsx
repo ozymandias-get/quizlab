@@ -35,11 +35,11 @@ export const QuickPresetsSection = memo(function QuickPresetsSection() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Sparkles className="text-primary h-4 w-4" />
-            <h3 className="text-foreground text-sm font-semibold">
+            <h3 className="text-foreground text-ql-14 font-semibold">
               {t('quick_presets_section_title')}
             </h3>
           </div>
-          <p className="text-muted-foreground text-xs leading-relaxed">
+          <p className="text-muted-foreground text-ql-12 leading-relaxed">
             {t('quick_presets_section_desc')}
           </p>
         </div>
@@ -50,7 +50,7 @@ export const QuickPresetsSection = memo(function QuickPresetsSection() {
             variant="outline"
             size="sm"
             onClick={handleResetAll}
-            className="text-muted-foreground hover:text-foreground h-8 shrink-0 gap-1.5 text-xs"
+            className="text-muted-foreground hover:text-foreground text-ql-12 h-8 shrink-0 gap-1.5"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             <span>{t('quick_preset_reset_all')}</span>

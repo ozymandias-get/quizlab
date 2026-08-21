@@ -65,7 +65,7 @@ const PromptItem = memo(function PromptItem({
 
       <div className="min-w-0 flex-1">
         <p
-          className={`text-sm leading-relaxed transition-colors ${
+          className={`text-ql-14 leading-relaxed transition-colors ${
             isSelected ? 'text-foreground font-semibold' : 'text-foreground/90'
           }`}
         >

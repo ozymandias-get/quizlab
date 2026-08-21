@@ -71,7 +71,7 @@ function PdfSearchBar({
                 onChange={(e) => onKeywordChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="pr-16 pl-8 text-xs font-normal"
+                className="text-ql-12 pr-16 pl-8 font-normal"
                 // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                 autoFocus
               />

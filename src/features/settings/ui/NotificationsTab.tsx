@@ -136,10 +136,10 @@ const NotificationsTab = memo(() => {
               </div>
 
               <div className="min-w-0 grow">
-                <h4 className="text-foreground text-xs leading-tight font-semibold">
+                <h4 className="text-foreground text-ql-12 leading-tight font-semibold">
                   {t(config.testTitleKey)}
                 </h4>
-                <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
+                <p className="text-muted-foreground text-ql-12 mt-0.5 leading-relaxed">
                   {t(`notification_${config.type}_description`)}
                 </p>
               </div>
