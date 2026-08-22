@@ -1,5 +1,7 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
+import i18next from 'i18next'
+
 export function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
@@ -14,11 +16,41 @@ export interface ChatSession {
 
 export const DEFAULT_SESSION_TITLE = 'Yeni Sohbet'
 
+export function getDefaultSessionTitle(): string {
+  try {
+    const v = i18next.t('api_chat_new_chat')
+    if (v && v !== 'api_chat_new_chat') return v
+  } catch {
+    // ignore and fall back
+  }
+  return i18next.language?.startsWith('tr') ? 'Yeni Sohbet' : 'New Chat'
+}
+
+export function isDefaultSessionTitle(title: string): boolean {
+  if (title === DEFAULT_SESSION_TITLE) return true
+  if (title === 'New Chat' || title === 'Yeni Sohbet') return true
+  try {
+    const cur = i18next.t('api_chat_new_chat')
+    if (title === cur) return true
+    const enBundle = i18next.getResourceBundle('en', 'translation') as
+      | Record<string, string>
+      | undefined
+    const trBundle = i18next.getResourceBundle('tr', 'translation') as
+      | Record<string, string>
+      | undefined
+    if (enBundle?.['api_chat_new_chat'] === title) return true
+    if (trBundle?.['api_chat_new_chat'] === title) return true
+  } catch {
+    // ignore
+  }
+  return false
+}
+
 export function createEmptySession(): ChatSession {
   const now = Date.now()
   return {
     id: generateId('session'),
-    title: DEFAULT_SESSION_TITLE,
+    title: getDefaultSessionTitle(),
     messages: [],
     createdAt: now,
     updatedAt: now
@@ -40,11 +72,20 @@ export function buildCombinedPrompt(parts: {
 }
 
 export function buildErrorReply(err: unknown): ApiChatMessage {
-  const message = err instanceof Error ? err.message : 'İstek başarısız oldu'
+  const fallbackMsg = i18next.language?.startsWith('tr') ? 'İstek başarısız oldu' : 'Request failed'
+  const message = err instanceof Error ? err.message : fallbackMsg
+  let content: string
+  try {
+    content = i18next.t('api_chat_send_error', { error: message })
+    if (!content || content === 'api_chat_send_error') throw new Error('missing key')
+  } catch {
+    const prefix = i18next.language?.startsWith('tr') ? 'Hata' : 'Error'
+    content = `${prefix}: ${message}`
+  }
   return {
     id: generateId('msg') + '-error',
     role: 'assistant',
-    content: `Hata: ${message}`,
+    content,
     timestamp: Date.now()
   }
 }

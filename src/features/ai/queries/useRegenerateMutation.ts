@@ -11,6 +11,7 @@ import {
 } from '../api/sessions.api'
 import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
+import { beginChatRequest, endChatRequest } from './activeChatRequests'
 import {
   getMessagesFromSessions,
   isCancelledError,
@@ -43,6 +44,7 @@ export function useRegenerateMutation() {
       queryClient.setQueryData(QUERY_KEYS.AI.MESSAGES(activeSessionId), truncatedMessages)
 
       useChatUiStore.getState().setStreaming(tabId, true)
+      const requestId = beginChatRequest(tabId)
 
       const combinedPrompt = buildCombinedPrompt({
         memoryPrompt: memoryPrompt || '',
@@ -55,7 +57,8 @@ export function useRegenerateMutation() {
           truncatedMessages,
           model || undefined,
           combinedPrompt || undefined,
-          providerId || undefined
+          providerId || undefined,
+          requestId
         )
 
         if (!reply) {
@@ -96,6 +99,7 @@ export function useRegenerateMutation() {
 
         return { reply: null, sessionId: activeSessionId }
       } finally {
+        endChatRequest(tabId, requestId)
         useChatUiStore.getState().setStreaming(tabId, false)
         useChatUiStore.getState().clearStreamingContent(tabId)
       }

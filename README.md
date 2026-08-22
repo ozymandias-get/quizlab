@@ -124,8 +124,8 @@
   </tr>
   <tr>
     <td width="50%">
-      <h4>🔄 Automatic Updates</h4>
-      GitHub Releases-based auto-updater with semver comparison and periodic checks.
+  <h4>🔄 Update Notifications</h4>
+  Update checks against GitHub Releases with semver comparison; new versions are announced in-app with a direct link to the release page.
     </td>
     <td width="50%">
       <h4>🧹 Cache Management</h4>
@@ -229,7 +229,7 @@ npm run dev
 # Quality checks
 npm run typecheck    # TypeScript
 npm run lint         # ESLint (zero warnings required)
-npm run test         # Vitest (~2285 tests)
+npm run test         # Vitest (~2480 tests)
 npm run test:coverage # Coverage report
 
 # Analysis

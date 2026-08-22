@@ -1,22 +1,20 @@
 import { Button } from '@app/components/ui/button'
 import { DialogBackdrop } from '@app/components/ui/dialog'
+import { useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
 import { useLanguage } from '@shared/stores/languageStore'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-
-let globalScrollLockCount = 0
-let globalScrollLockOriginal: string | null = null
+import { memo, useCallback, useId, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export function LanguageSelectionDialog() {
   const { isOnboardingDone, languages, setLanguage, completeOnboarding } = useLanguage()
+  const { t } = useTranslation()
   const prefersReducedMotion = useReducedMotion()
   const [selectedLang, setSelectedLang] = useState<string | null>(null)
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
-  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
-  const restoreFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleContinue = useCallback(async () => {
     if (!selectedLang) return
@@ -26,88 +24,18 @@ export function LanguageSelectionDialog() {
 
   const isVisible = !isOnboardingDone
 
-  useLayoutEffect(() => {
-    if (isVisible) {
-      previouslyFocusedRef.current = document.activeElement as HTMLElement | null
-
-      if (globalScrollLockCount === 0) {
-        globalScrollLockOriginal = document.body.style.overflow
-        document.body.style.overflow = 'hidden'
-      }
-      globalScrollLockCount += 1
-
-      const focusFrame = requestAnimationFrame(() => {
-        const dialog = dialogRef.current
-        if (!dialog) return
-        const firstFocusable = dialog.querySelector<HTMLElement>(
-          'button:not([disabled]):not([hidden]):not([inert]), [href]:not([disabled]):not([hidden]):not([inert]), input:not([disabled]):not([hidden]):not([inert]), select:not([disabled]):not([hidden]):not([inert]), textarea:not([disabled]):not([hidden]):not([inert]), [tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden]):not([inert])'
-        )
-        ;(firstFocusable ?? dialog).focus()
-      })
-
-      return () => {
-        cancelAnimationFrame(focusFrame)
-
-        globalScrollLockCount -= 1
-        if (globalScrollLockCount <= 0) {
-          document.body.style.overflow = globalScrollLockOriginal ?? ''
-          globalScrollLockOriginal = null
-        }
-
-        if (restoreFocusTimeoutRef.current !== null) {
-          clearTimeout(restoreFocusTimeoutRef.current)
-        }
-
-        const prevFocus = previouslyFocusedRef.current
-        if (prevFocus) {
-          restoreFocusTimeoutRef.current = setTimeout(() => {
-            try {
-              if (document.body.contains(prevFocus)) {
-                prevFocus.focus?.()
-              }
-            } catch {
-              // Silently ignore focus on detached element
-            }
-          }, 250)
-        }
-      }
-    }
-  }, [isVisible])
-
-  const handleKeyDown = useCallback((event: globalThis.KeyboardEvent) => {
-    if (event.key === 'Tab') {
-      const dialog = dialogRef.current
-      if (!dialog) return
-      const focusables = [
-        ...dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]):not([hidden]):not([inert]), [href]:not([disabled]):not([hidden]):not([inert]), input:not([disabled]):not([hidden]):not([inert]), select:not([disabled]):not([hidden]):not([inert]), textarea:not([disabled]):not([hidden]):not([inert]), [tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden]):not([inert])'
-        )
-      ].filter((el) => el.offsetWidth > 0 && el.offsetHeight > 0)
-      if (focusables.length === 0) {
-        event.preventDefault()
-        dialog.focus()
-        return
-      }
-      const first = focusables[0]
-      const last = focusables[focusables.length - 1]
-      const active = document.activeElement as HTMLElement | null
-      if (event.shiftKey && active === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isVisible) return
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [handleKeyDown, isVisible])
+  // Standardized focus-trap via useDialogBehavior — single source of truth for
+  // all modals (dialog.tsx, SettingsModal, HistoryModal). Previously this dialog
+  // had a bespoke useLayoutEffect + globalScrollLockCount + Tab handler that
+  // diverged from the shared hook and allowed focus to escape to the webview
+  // / PDF toolbar. Now it uses the same Escape-to-close, Tab trap, scroll lock
+  // and focus-restore path as every other dialog.
+  useDialogBehavior({
+    isOpen: isVisible,
+    onClose: () => {},
+    dialogRef: dialogRef as React.RefObject<HTMLElement | null>,
+    initialFocusRef: undefined
+  })
 
   return (
     <AnimatePresence>
@@ -126,9 +54,11 @@ export function LanguageSelectionDialog() {
             className="border-border bg-popover text-popover-foreground shadow-ambient-xl mx-4 w-full max-w-md rounded-2xl border p-6 text-center outline-none"
           >
             <h2 id={titleId} className="text-ql-20 text-foreground font-semibold">
-              Select Your Language
+              {t('onboarding_language_title', { lng: 'en' })}
             </h2>
-            <p className="text-ql-13 text-muted-foreground mt-1">Dilinizi Seçin</p>
+            <p className="text-ql-13 text-muted-foreground mt-1">
+              {t('onboarding_language_title', { lng: 'tr' })}
+            </p>
 
             <div className="mt-6 flex flex-col gap-2.5">
               {Object.values(languages).map((lang) => {
@@ -170,7 +100,7 @@ export function LanguageSelectionDialog() {
               size="default"
               className="mt-6 w-full font-semibold"
             >
-              Continue &rarr;
+              {t('continue')} &rarr;
             </Button>
           </motion.div>
         </DialogBackdrop>

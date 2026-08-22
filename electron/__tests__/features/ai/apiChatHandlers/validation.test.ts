@@ -19,9 +19,28 @@ describe('sanitizeChatMessage', () => {
     expect(sanitizeChatMessage(42)).toBeNull()
   })
 
-  it('rejects non-user roles', () => {
-    expect(sanitizeChatMessage({ role: 'assistant', content: 'Hi' })).toBeNull()
+  it('accepts assistant messages (multi-turn context) without images', () => {
+    const result = sanitizeChatMessage({ role: 'assistant', content: 'Hi' })
+    expect(result).toEqual({ role: 'assistant', content: 'Hi', images: undefined })
+  })
+
+  it('rejects non-chat roles such as system', () => {
     expect(sanitizeChatMessage({ role: 'system', content: 'Be helpful' })).toBeNull()
+  })
+
+  it('rejects assistant message with empty content', () => {
+    expect(sanitizeChatMessage({ role: 'assistant', content: '' })).toBeNull()
+  })
+
+  it('truncates oversized assistant content and drops its images field', () => {
+    const longContent = 'x'.repeat(MAX_MESSAGE_TEXT_LENGTH + 100)
+    const result = sanitizeChatMessage({
+      role: 'assistant',
+      content: longContent,
+      images: ['data:image/png,abc']
+    })
+    expect(result?.content.length).toBe(MAX_MESSAGE_TEXT_LENGTH)
+    expect(result?.images).toBeUndefined()
   })
 
   it('truncates content exceeding MAX_MESSAGE_TEXT_LENGTH', () => {

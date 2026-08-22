@@ -1,15 +1,38 @@
 ﻿import { IPC_CHANNELS } from '../../../../shared/constants/ipc-channels.js'
 import { failure, success } from '../../../../shared/lib/typedIpc.js'
-import type { ApiChatMessage, ApiConfig } from '../../../../shared/types/index.js'
+import type {
+  ApiChatMessage,
+  ApiConfig,
+  ApiProviderConfig
+} from '../../../../shared/types/index.js'
 import { requireTrustedIpcSender } from '../../../core/ipcSecurity.js'
 import { Logger } from '../../../core/logger.js'
 import { registerIpcHandler } from '../../../core/typedIpcMain.js'
 import { loadConfig, sanitizeApiKey, saveConfig } from './config.js'
+import type { SsrProtectionOptions } from './ssrf.js'
 import { fetchWithSsrProtection, validateProviderUrl } from './ssrf.js'
 import type { ChatCompletionBody, ChatContentItem, ModelListItem } from './validation.js'
 import { MAX_REQUEST_BODY_SIZE, sanitizeChatMessage } from './validation.js'
 
-let activeRequestController: AbortController | null = null
+function getSsrOptionsForProvider(provider: ApiProviderConfig): SsrProtectionOptions | undefined {
+  const allow =
+    provider.allowLocalNetwork === true ||
+    (provider as ApiProviderConfig).allowLocalEndpoints === true ||
+    (provider as ApiProviderConfig).isCustomProvider === true ||
+    provider.providerType === 'custom'
+  return allow ? { allowLocalNetwork: true } : undefined
+}
+
+/** Hard cap for the renderer-composed system prompt forwarded per request. */
+const MAX_SYSTEM_PROMPT_LENGTH = 20_000
+
+/**
+ * In-flight chat requests keyed by requestId. Each tab sends with its own
+ * requestId, so concurrent tabs never abort each other; CANCEL targets a
+ * single request by id (or every active request when no id is given).
+ */
+let activeRequestControllers = new Map<string, AbortController>()
+let autoRequestIdCounter = 0
 let activeModelFetchController: AbortController | null = null
 let handlersRegistered = false
 
@@ -26,11 +49,25 @@ export function registerApiChatHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.CANCEL_API_CHAT_REQUEST,
-    () => {
-      if (activeRequestController) {
-        activeRequestController.abort()
-        activeRequestController = null
-        Logger.info('[apiChatHandlers] API request cancelled by user')
+    (_event, requestId?: string) => {
+      if (requestId !== undefined) {
+        const controller = activeRequestControllers.get(requestId)
+        if (controller) {
+          controller.abort()
+          activeRequestControllers.delete(requestId)
+          Logger.info('[apiChatHandlers] API request cancelled by user', { requestId })
+          return success(true)
+        }
+        return success(false)
+      }
+
+      // Legacy / global stop: abort every in-flight request.
+      if (activeRequestControllers.size > 0) {
+        for (const controller of activeRequestControllers.values()) {
+          controller.abort()
+        }
+        activeRequestControllers.clear()
+        Logger.info('[apiChatHandlers] All API requests cancelled by user')
         return success(true)
       }
       return success(false)
@@ -44,7 +81,8 @@ export function registerApiChatHandlers() {
     async (event, config: ApiConfig) => {
       if (config?.providers?.length) {
         for (const provider of config.providers) {
-          const err = validateProviderUrl(provider.baseUrl || '')
+          const ssrOptions = getSsrOptionsForProvider(provider)
+          const err = validateProviderUrl(provider.baseUrl || '', ssrOptions)
           if (err) {
             Logger.warn(`[apiChatHandlers] Rejected provider "${provider.name}": ${err}`)
             return success(false)
@@ -64,8 +102,9 @@ export function registerApiChatHandlers() {
       event,
       messages: ApiChatMessage[],
       selectedModel?: string,
-      _generalPrompt?: string,
-      providerId?: string
+      generalPrompt?: string,
+      providerId?: string,
+      requestId?: string
     ) => {
       const config = await loadConfig()
       const provider = config.providers.find(
@@ -73,7 +112,8 @@ export function registerApiChatHandlers() {
       )
       if (!provider) return failure('invalid_input', 'Provider not configured')
 
-      const ssrfErr = validateProviderUrl(provider.baseUrl)
+      const chatSsrOptions = getSsrOptionsForProvider(provider)
+      const ssrfErr = validateProviderUrl(provider.baseUrl, chatSsrOptions)
       if (ssrfErr) {
         Logger.warn(`[apiChatHandlers] SSRF blocked for provider "${provider.name}": ${ssrfErr}`)
         return failure('invalid_input', 'Provider configuration rejected for security reasons')
@@ -82,11 +122,9 @@ export function registerApiChatHandlers() {
       const model = selectedModel || provider.defaultModel
       const baseUrl = provider.baseUrl.replace(/\/+$/, '')
 
+      const resolvedRequestId = requestId ?? `auto-${Date.now()}-${++autoRequestIdCounter}`
       const controller = new AbortController()
-      if (activeRequestController) {
-        activeRequestController.abort()
-      }
-      activeRequestController = controller
+      activeRequestControllers.set(resolvedRequestId, controller)
 
       const requestTimeout = provider.requestTimeout ?? 60000
       let abortedByTimeout = false
@@ -104,13 +142,19 @@ export function registerApiChatHandlers() {
       }
 
       try {
-        const promptParts = [
-          config.memoryPrompt && `[User Info]\n${config.memoryPrompt}`,
-          config.characterPrompt && `[Character]\n${config.characterPrompt}`,
-          config.generalPrompt && `[System]\n${config.generalPrompt}`
-        ].filter(Boolean)
-
-        const systemContent = promptParts.join('\n\n')
+        // Prefer the prompt composed by the renderer for THIS send (it may
+        // include per-send overrides); fall back to the on-disk config only
+        // when the caller did not pass one.
+        const systemContent =
+          typeof generalPrompt === 'string' && generalPrompt.trim().length > 0
+            ? generalPrompt.slice(0, MAX_SYSTEM_PROMPT_LENGTH)
+            : [
+                config.memoryPrompt && `[User Info]\n${config.memoryPrompt}`,
+                config.characterPrompt && `[Character]\n${config.characterPrompt}`,
+                config.generalPrompt && `[System]\n${config.generalPrompt}`
+              ]
+                .filter(Boolean)
+                .join('\n\n')
         const systemMessages = systemContent ? [{ role: 'system', content: systemContent }] : []
 
         const safeMessages = messages
@@ -151,12 +195,16 @@ export function registerApiChatHandlers() {
           )
         }
 
-        const response = await fetchWithSsrProtection(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers,
-          body: bodyJson,
-          signal: controller.signal
-        })
+        const response = await fetchWithSsrProtection(
+          `${baseUrl}/chat/completions`,
+          {
+            method: 'POST',
+            headers,
+            body: bodyJson,
+            signal: controller.signal
+          },
+          chatSsrOptions
+        )
 
         if (!response.ok) {
           const errorText = await response.text()
@@ -188,8 +236,8 @@ export function registerApiChatHandlers() {
         return failure('internal_error', err instanceof Error ? err.message : String(err))
       } finally {
         clearTimeout(timeoutId)
-        if (activeRequestController === controller) {
-          activeRequestController = null
+        if (activeRequestControllers.get(resolvedRequestId) === controller) {
+          activeRequestControllers.delete(resolvedRequestId)
         }
       }
     },
@@ -206,7 +254,8 @@ export function registerApiChatHandlers() {
       )
       if (!provider) return failure('invalid_input', 'Provider not configured')
 
-      const ssrfErr = validateProviderUrl(provider.baseUrl)
+      const modelSsrOptions = getSsrOptionsForProvider(provider)
+      const ssrfErr = validateProviderUrl(provider.baseUrl, modelSsrOptions)
       if (ssrfErr) {
         Logger.warn(`[apiChatHandlers] SSRF blocked for provider "${provider.name}": ${ssrfErr}`)
         return failure('invalid_input', 'Provider configuration rejected for security reasons')
@@ -234,10 +283,14 @@ export function registerApiChatHandlers() {
       }, fetchTimeout)
 
       try {
-        const response = await fetchWithSsrProtection(`${baseUrl}/models`, {
-          headers,
-          signal: controller.signal
-        })
+        const response = await fetchWithSsrProtection(
+          `${baseUrl}/models`,
+          {
+            headers,
+            signal: controller.signal
+          },
+          modelSsrOptions
+        )
 
         if (!response.ok) {
           return failure('internal_error', `Failed to fetch models: ${response.status}`)

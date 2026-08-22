@@ -47,35 +47,39 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
   return (
     <div className="grid gap-2.5 contain-content" style={gridStyle}>
       {tone === 'model' && (
-        <button
-          type="button"
-          onClick={() => onOpenModel('api-chat')}
-          className={`group hover:shadow-ambient-sm motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all hover:-translate-y-0.5 motion-reduce:transform-none ${
-            activeModelIds.has('api-chat')
-              ? 'border-ring/60 bg-accent/20'
-              : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div className="border-border/60 bg-muted/60 motion-normal flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-amber-500 transition-transform group-hover:scale-105 motion-reduce:scale-100">
-              {getAiIcon('api-chat')}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-ql-13 text-foreground truncate font-semibold">
-                {t('api_chat_home_card_title')}
-              </h3>
-              <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">
-                {t('api_chat_home_card_desc')}
-              </p>
-            </div>
-            {activeModelIds.has('api-chat') && (
-              <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-            )}
-            <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
-              <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
-            </div>
+        <div role="presentation">
+          <div className="relative rounded-xl">
+            <button
+              type="button"
+              onClick={() => onOpenModel('api-chat')}
+              className={`group hover:shadow-ambient-sm motion-normal relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left shadow-2xs transition-all hover:-translate-y-0.5 motion-reduce:transform-none ${
+                activeModelIds.has('api-chat')
+                  ? 'border-ring/60 bg-accent/20'
+                  : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
+              }`}
+            >
+              <div className="flex w-full items-center gap-3">
+                <div className="border-border/60 bg-muted/60 motion-normal flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-amber-500 transition-transform group-hover:scale-105 motion-reduce:scale-100">
+                  {getAiIcon('api-chat')}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-ql-13 text-foreground truncate font-semibold">
+                    {t('api_chat_home_card_title')}
+                  </h3>
+                  <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">
+                    {t('api_chat_home_card_desc')}
+                  </p>
+                </div>
+                {activeModelIds.has('api-chat') && (
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                )}
+                <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
+                  <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
+                </div>
+              </div>
+            </button>
           </div>
-        </button>
+        </div>
       )}
 
       {ids

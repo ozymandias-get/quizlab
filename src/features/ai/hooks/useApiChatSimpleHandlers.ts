@@ -4,6 +4,7 @@ import { getElectronApi } from '@shared/lib/electronApi'
 
 import { useCallback } from 'react'
 
+import { getActiveChatRequestId } from '../queries/activeChatRequests'
 import { useChatUiStore } from '../store/chatUiStore'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -142,10 +143,11 @@ export function useApiChatSimpleHandlers(deps: UseApiChatSimpleHandlersDeps) {
   )
 
   const handleStop = useCallback(() => {
-    // Abort the in-flight request in the main process. The send/regenerate
-    // mutation settles with a 'cancelled' error and skips the error bubble.
+    // Abort exactly this tab's in-flight request in the main process. The
+    // send/regenerate mutation settles with a 'cancelled' error and skips the
+    // error bubble. Other tabs' concurrent requests are never affected.
     try {
-      getElectronApi()?.cancelApiChatRequest?.()
+      getElectronApi()?.cancelApiChatRequest?.(getActiveChatRequestId(tabId))
     } catch {
       /* best effort — the request will finish or time out on its own */
     }

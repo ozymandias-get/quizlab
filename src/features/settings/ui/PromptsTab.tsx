@@ -2,26 +2,16 @@ import { usePrompts } from '@features/ai'
 
 import { Button } from '@app/components/ui/button'
 import { Label } from '@app/components/ui/label'
-import { Separator } from '@app/components/ui/separator'
 import { Textarea } from '@app/components/ui/textarea'
 import { WithTooltip } from '@app/components/ui/tooltip'
 import { useToastActions } from '@app/providers'
-import { MagicWandIcon } from '@ui/components/Icons'
 
-import { Check, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type FormEvent, memo, type MouseEvent, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { QuickPresetsSection } from './prompts/QuickPresetsSection'
-import SettingsAddToggleButton from './shared/SettingsAddToggleButton'
-import SettingsTabIntro from './shared/SettingsTabIntro'
-
-const PROMPTS_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
-    <MagicWandIcon className="h-5 w-5" />
-  </div>
-)
 
 const PromptItem = memo(function PromptItem({
   prompt,
@@ -37,62 +27,58 @@ const PromptItem = memo(function PromptItem({
   t: (key: string) => string
 }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={() => onSelect(prompt.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onSelect(prompt.id)
-        }
-      }}
-      className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors ${
+      className={`group flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
         isSelected
-          ? 'border-primary/40 bg-muted/80 shadow-xs'
-          : 'bg-card border-border hover:bg-muted/40'
+          ? 'border-primary/30 bg-primary/[0.06] shadow-xs'
+          : 'border-border bg-card hover:bg-muted/50 hover:border-border/80'
       }`}
     >
-      <div
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+      <span
+        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] transition-colors ${
           isSelected
             ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-border group-hover:border-border/80'
+            : 'border-border bg-muted/30 group-hover:border-border/80'
         }`}
       >
-        {isSelected && <Check className="h-3 w-3" />}
-      </div>
+        {isSelected && <Check className="h-2.5 w-2.5" />}
+      </span>
 
-      <div className="min-w-0 flex-1">
-        <p
-          className={`text-ql-14 leading-relaxed transition-colors ${
-            isSelected ? 'text-foreground font-semibold' : 'text-foreground/90'
-          }`}
+      <span className="min-w-0 flex-1">
+        <span
+          className={`text-ql-13 line-clamp-2 leading-snug ${isSelected ? 'text-foreground font-medium' : 'text-foreground/80'}`}
         >
           {prompt.text}
-        </p>
+        </span>
         {prompt.isDefault && (
-          <span className="border-border bg-muted/60 text-ql-10 text-muted-foreground mt-2 inline-block rounded border px-1.5 py-0.5 font-medium">
-            {t('default_prompts')}
+          <span className="text-ql-11 text-muted-foreground/60 mt-1 inline-block">
+            {t('prompts_ready_badge')}
           </span>
         )}
-      </div>
+      </span>
 
       {!prompt.isDefault && (
         <WithTooltip label={t('delete')}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={(e) => onDelete(e, prompt.id)}
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive -mt-1 -mr-1 opacity-60 group-hover:opacity-100"
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => onDelete(e as unknown as MouseEvent, prompt.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onDelete(e as unknown as MouseEvent, prompt.id)
+              }
+            }}
+            className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 -mt-0.5 -mr-1 rounded-md p-1 opacity-0 transition-all group-hover:opacity-100 focus:opacity-100"
             aria-label={t('delete')}
           >
             <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          </span>
         </WithTooltip>
       )}
-    </div>
+    </button>
   )
 })
 PromptItem.displayName = 'PromptItem'
@@ -100,9 +86,7 @@ PromptItem.displayName = 'PromptItem'
 const PromptsTab = memo(() => {
   const { t } = useTranslation()
   const { showSuccess, showError } = useToastActions()
-  const { allPrompts, selectedPromptId, addPrompt, deletePrompt, selectPrompt, clearSelection } =
-    usePrompts()
-  const [showAddForm, setShowAddForm] = useState(false)
+  const { allPrompts, selectedPromptId, addPrompt, deletePrompt, selectPrompt } = usePrompts()
   const [newPromptText, setNewPromptText] = useState('')
 
   const handleAddPrompt = useCallback(
@@ -112,18 +96,12 @@ const PromptsTab = memo(() => {
         showError(t('prompt_empty_error'))
         return
       }
-
       addPrompt(newPromptText)
       setNewPromptText('')
-      setShowAddForm(false)
       showSuccess(t('prompt_added'))
     },
     [newPromptText, addPrompt, showSuccess, showError, t]
   )
-
-  const handleToggleAddForm = useCallback(() => {
-    setShowAddForm((current) => !current)
-  }, [])
 
   const handleDeletePrompt = useCallback(
     (e: MouseEvent, id: string) => {
@@ -134,86 +112,201 @@ const PromptsTab = memo(() => {
     [deletePrompt, showSuccess, t]
   )
 
+  const customPrompts = allPrompts.filter((p) => !p.isDefault)
+  const defaultPrompts = allPrompts.filter((p) => p.isDefault)
+  const [isQuickOpen, setIsQuickOpen] = useState(false)
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false)
+
   return (
-    <div className="space-y-6 pb-20">
-      {/* Selection Toolbar Quick Presets Customization */}
-      <QuickPresetsSection />
-
-      <Separator className="my-6" />
-
-      {/* General Prompt Library */}
-      <SettingsTabIntro
-        icon={PROMPTS_ICON}
-        description={t('prompts_description')}
-        action={
-          <SettingsAddToggleButton
-            expanded={showAddForm}
-            addLabel={t('add_prompt')}
-            cancelLabel={t('cancel')}
-            onToggle={handleToggleAddForm}
-          />
-        }
-      />
-
-      <AnimatePresence>
-        {showAddForm && (
-          <motion.form
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="border-border bg-card shadow-ambient-md mb-6 space-y-4 overflow-hidden rounded-xl border p-5"
-            onSubmit={handleAddPrompt}
-          >
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="prompt-textarea"
-                className="text-ql-11 text-foreground pl-1 font-semibold"
-              >
-                {t('prompt_text')}
-              </Label>
-              <Textarea
-                id="prompt-textarea"
-                value={newPromptText}
-                onChange={(e) => setNewPromptText(e.target.value)}
-                placeholder={t('prompt_placeholder')}
-                rows={3}
-              />
+    <div className="space-y-4 pb-10">
+      {/* AI Gönder taslağı — açılır/kapanır */}
+      <section className="border-border bg-card overflow-hidden rounded-xl border">
+        <button
+          type="button"
+          onClick={() => setIsQuickOpen((v) => !v)}
+          aria-expanded={isQuickOpen}
+          className="hover:bg-muted/40 flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors"
+        >
+          <div className="min-w-0 flex-1 text-left">
+            <div className="text-ql-13 text-foreground font-semibold">
+              {t('prompts_quick_title')}
             </div>
-            <div className="flex justify-end pt-2">
-              <Button type="submit" size="sm">
-                {t('save_prompt')}
-              </Button>
+            <div className="text-ql-11 text-muted-foreground mt-0.5 line-clamp-1">
+              {t('prompts_quick_desc')}
             </div>
-          </motion.form>
-        )}
-      </AnimatePresence>
+          </div>
+          <span className="text-muted-foreground bg-muted/60 border-border/50 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border">
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${isQuickOpen ? 'rotate-180' : ''}`}
+            />
+          </span>
+        </button>
+        <AnimatePresence initial={false}>
+          {isQuickOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="border-border/50 border-t px-4 py-4">
+                <QuickPresetsSection />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
 
-      <div className="px-1">
-        <div className="text-ql-11 text-foreground tracking-ql-normal mt-2 font-semibold">
-          {selectedPromptId ? t('active_prompt') : t('no_prompt_selected')}
-        </div>
-      </div>
+      {/* Prompt Kütüphanesi — açılır/kapanır */}
+      <section className="border-border bg-card overflow-hidden rounded-xl border">
+        <button
+          type="button"
+          onClick={() => setIsLibraryOpen((v) => !v)}
+          aria-expanded={isLibraryOpen}
+          className="hover:bg-muted/40 flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors"
+        >
+          <div className="min-w-0 flex-1 text-left">
+            <div className="flex items-center gap-2">
+              <h3 className="text-ql-13 text-foreground font-semibold">{t('prompts_title')}</h3>
+              <span className="bg-muted text-muted-foreground border-border text-ql-10 rounded-full border px-2 py-0.5 font-medium">
+                {allPrompts.length}
+              </span>
+              {selectedPromptId && (
+                <span className="bg-primary/10 text-primary border-primary/20 text-ql-10 rounded-full border px-2 py-0.5">
+                  {t('prompts_selected_badge')}
+                </span>
+              )}
+            </div>
+            <p className="text-ql-11 text-muted-foreground mt-0.5 line-clamp-1">
+              {t('prompts_library_desc')}
+            </p>
+          </div>
+          <span className="text-muted-foreground bg-muted/60 border-border/50 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border">
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${isLibraryOpen ? 'rotate-180' : ''}`}
+            />
+          </span>
+        </button>
+        <AnimatePresence initial={false}>
+          {isLibraryOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="border-border/50 space-y-4 border-t px-4 py-4">
+                <p className="text-ql-11 text-muted-foreground leading-relaxed">
+                  {t('prompts_auto_append_desc')}
+                </p>
 
-      <div className="space-y-2">
-        {allPrompts.map((prompt) => (
-          <PromptItem
-            key={prompt.id}
-            prompt={prompt}
-            isSelected={selectedPromptId === prompt.id}
-            onSelect={selectPrompt}
-            onDelete={handleDeletePrompt}
-            t={t}
-          />
-        ))}
-      </div>
+                {/* Ekle — tek satır, projeye uygun minimal */}
+                <form onSubmit={handleAddPrompt} className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="prompt-textarea" className="sr-only">
+                      {t('prompt_text')}
+                    </Label>
+                    <Textarea
+                      id="prompt-textarea"
+                      value={newPromptText}
+                      onChange={(e) => setNewPromptText(e.target.value)}
+                      placeholder={t('prompt_placeholder')}
+                      rows={2}
+                      className="text-ql-13 min-h-[56px] resize-none"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="h-[56px] shrink-0 gap-1.5 self-start px-4"
+                    disabled={!newPromptText.trim()}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t('add')}
+                  </Button>
+                </form>
 
-      {selectedPromptId && (
-        <div className="flex justify-center pt-4">
-          <Button type="button" variant="outline" size="sm" onClick={clearSelection}>
-            {t('no_prompt_selected')}
-          </Button>
-        </div>
-      )}
+                {/* Durum */}
+                <div className="text-ql-11 text-muted-foreground font-medium">
+                  {selectedPromptId ? (
+                    <span className="text-primary">✓ {t('active_prompt')}</span>
+                  ) : (
+                    <span>{t('no_prompt_selected')}</span>
+                  )}
+                  <span className="text-muted-foreground/50 ml-2">
+                    · {allPrompts.length} prompt
+                  </span>
+                </div>
+
+                {/* Liste — sade, yoğunluk azaltılmış */}
+                <div className="space-y-3">
+                  {customPrompts.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-ql-11 text-foreground/70 px-1 font-semibold">
+                        {t('custom_prompts')}
+                      </div>
+                      <div className="space-y-1.5">
+                        {customPrompts.map((prompt) => (
+                          <PromptItem
+                            key={prompt.id}
+                            prompt={prompt}
+                            isSelected={selectedPromptId === prompt.id}
+                            onSelect={selectPrompt}
+                            onDelete={handleDeletePrompt}
+                            t={t}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {defaultPrompts.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-ql-11 text-foreground/70 px-1 font-semibold">
+                        {t('prompts_default_title')}
+                      </div>
+                      <div className="space-y-1.5">
+                        {defaultPrompts.map((prompt) => (
+                          <PromptItem
+                            key={prompt.id}
+                            prompt={prompt}
+                            isSelected={selectedPromptId === prompt.id}
+                            onSelect={selectPrompt}
+                            onDelete={handleDeletePrompt}
+                            t={t}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {allPrompts.length === 0 && (
+                    <p className="text-ql-12 text-muted-foreground rounded-lg border border-dashed py-6 text-center">
+                      {t('prompts_empty')}
+                    </p>
+                  )}
+                </div>
+
+                {selectedPromptId && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => selectPrompt(selectedPromptId)}
+                      className="text-ql-12 text-muted-foreground h-7"
+                    >
+                      {t('prompts_clear_selection')}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
     </div>
   )
 })

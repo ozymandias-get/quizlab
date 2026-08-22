@@ -1,28 +1,44 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
-// Cached Intl formatters (created once at module level)
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23'
-})
+import i18next from 'i18next'
 
-const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-  day: 'numeric'
-})
-
-const fullDateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric'
-})
-
-export function formatTime(ts: number): string {
-  return timeFormatter.format(ts)
+function getAppLocale(): string {
+  const lng = i18next.language || 'en'
+  if (lng.startsWith('tr')) return 'tr-TR'
+  if (lng.startsWith('en')) return 'en-US'
+  return lng
 }
 
-export function formatDate(ts: number, todayLabel = 'Today', yesterdayLabel = 'Yesterday'): string {
+const formatterCache = new Map<string, Intl.DateTimeFormat>()
+
+function getCachedFormatter(
+  locale: string,
+  options: Intl.DateTimeFormatOptions
+): Intl.DateTimeFormat {
+  const key = locale + JSON.stringify(options)
+  let fmt = formatterCache.get(key)
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale, options)
+    formatterCache.set(key, fmt)
+  }
+  return fmt
+}
+
+export function formatTime(ts: number, localeOverride?: string): string {
+  const locale = localeOverride || getAppLocale()
+  return getCachedFormatter(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).format(ts)
+}
+
+export function formatDate(
+  ts: number,
+  todayLabel = 'Today',
+  yesterdayLabel = 'Yesterday',
+  localeOverride?: string
+): string {
   const d = new Date(ts)
   const now = new Date()
 
@@ -32,9 +48,10 @@ export function formatDate(ts: number, todayLabel = 'Today', yesterdayLabel = 'Y
   yesterday.setDate(yesterday.getDate() - 1)
   if (d.toDateString() === yesterday.toDateString()) return yesterdayLabel
 
+  const locale = localeOverride || getAppLocale()
   return d.getFullYear() === now.getFullYear()
-    ? shortDateFormatter.format(d)
-    : fullDateFormatter.format(d)
+    ? getCachedFormatter(locale, { month: 'short', day: 'numeric' }).format(d)
+    : getCachedFormatter(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(d)
 }
 
 type MessageGroupEntry =

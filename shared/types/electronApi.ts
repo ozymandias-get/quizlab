@@ -111,12 +111,14 @@ export interface ElectronApi {
   saveAppSetting: (key: string, value: string) => Promise<boolean>
   getApiChatConfig: () => Promise<ApiConfig | null>
   saveApiChatConfig: (config: ApiConfig) => Promise<boolean>
-  cancelApiChatRequest: () => Promise<boolean>
+  /** Abort one in-flight chat request by id, or every active request when omitted. */
+  cancelApiChatRequest: (requestId?: string) => Promise<boolean>
   sendApiChatRequest: (
     messages: ApiChatMessage[],
     selectedModel?: string,
     generalPrompt?: string,
-    providerId?: string
+    providerId?: string,
+    requestId?: string
   ) => Promise<ApiChatMessage | null>
   fetchApiChatModels: (providerId: string) => Promise<string[] | null>
   geminiWeb: {

@@ -19,7 +19,7 @@ import { formatBytes, formatTimeAgo, partitionDisplayName } from './storage/stor
 const MAX_TOTAL_CACHE_BYTES = 500 * 1024 * 1024
 
 const StorageTab = memo(function StorageTab() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { data: cacheInfo, refetch: refetchCache } = useCacheInfo()
   const { mutate: clearCache, isPending: isClearing, isSuccess: isClearSuccess } = useClearCache()
   const { mutate: deepCleanCache, isPending: isDeepCleaning } = useDeepCleanCache()
@@ -77,7 +77,7 @@ const StorageTab = memo(function StorageTab() {
       {/* Overall Usage */}
       <div className="border-border bg-card space-y-3 rounded-xl border p-5 shadow-xs">
         <div className="flex items-center justify-between">
-          <h3 className="text-ql-13 text-foreground font-semibold">Total Cache</h3>
+          <h3 className="text-ql-13 text-foreground font-semibold">{t('total_cache')}</h3>
           <span
             className={cn(
               'text-ql-12 font-mono',
@@ -92,14 +92,10 @@ const StorageTab = memo(function StorageTab() {
           </span>
         </div>
         <ProgressBar value={totalCache} max={MAX_TOTAL_CACHE_BYTES} color={barColor} />
-        {isOverLimit && (
-          <p className="text-ql-11 text-destructive">
-            Cache exceeds 500 MB limit. Some partitions will be automatically trimmed.
-          </p>
-        )}
+        {isOverLimit && <p className="text-ql-11 text-destructive">{t('storage_exceeds_limit')}</p>}
         {usagePct > 80 && !isOverLimit && (
           <p className="text-ql-11 text-amber-600 dark:text-amber-400">
-            Cache is approaching the limit. Consider cleaning unused partitions.
+            {t('storage_approaching_limit')}
           </p>
         )}
       </div>
@@ -156,31 +152,34 @@ const StorageTab = memo(function StorageTab() {
           className="ml-auto gap-1.5"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          <span>Refresh</span>
+          <span>{t('refresh')}</span>
         </Button>
       </div>
 
       {/* Last Cleanup Info */}
       {cacheInfo?.lastCleanup && (
         <p className="text-ql-11 text-muted-foreground">
-          Last cleanup: {formatTimeAgo(cacheInfo.lastCleanup)}
+          {t('cache_last_cleanup', { time: formatTimeAgo(cacheInfo.lastCleanup, i18n.language) })}
           {cacheInfo.lastCleanupResult &&
             typeof cacheInfo.lastCleanupResult.filesDeleted === 'number' &&
             typeof cacheInfo.lastCleanupResult.bytesFreed === 'number' &&
-            ` (${cacheInfo.lastCleanupResult.filesDeleted} files, ${formatBytes(cacheInfo.lastCleanupResult.bytesFreed)} freed)`}
+            ` ${t('storage_cleanup_result', {
+              files: cacheInfo.lastCleanupResult.filesDeleted,
+              bytes: formatBytes(cacheInfo.lastCleanupResult.bytesFreed)
+            })}`}
         </p>
       )}
 
       {/* Root Caches */}
       {breakdown && (
         <div className="space-y-3">
-          <h3 className="text-ql-13 text-foreground font-semibold">Root Caches</h3>
+          <h3 className="text-ql-13 text-foreground font-semibold">{t('root_caches')}</h3>
           <div className="border-border bg-card space-y-3 overflow-hidden rounded-xl border p-5 shadow-xs">
-            <RootCacheRow label="Browser Cache" size={breakdown.chromiumCache} />
-            <RootCacheRow label="Code Cache" size={breakdown.codeCache} />
-            <RootCacheRow label="GPU Cache" size={breakdown.gpuCache} />
+            <RootCacheRow label={t('browser_cache')} size={breakdown.chromiumCache} />
+            <RootCacheRow label={t('code_cache')} size={breakdown.codeCache} />
+            <RootCacheRow label={t('gpu_cache')} size={breakdown.gpuCache} />
             {breakdown.tempFiles > 0 && (
-              <RootCacheRow label="Temp Files" size={breakdown.tempFiles} />
+              <RootCacheRow label={t('temp_files')} size={breakdown.tempFiles} />
             )}
           </div>
         </div>
@@ -190,7 +189,7 @@ const StorageTab = memo(function StorageTab() {
       {sortedPartitions.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-ql-13 text-foreground font-semibold">
-            AI Partitions ({sortedPartitions.length})
+            {t('ai_partitions_count', { count: sortedPartitions.length })}
           </h3>
           <div className="divide-border border-border bg-card divide-y overflow-hidden rounded-xl border shadow-xs">
             {sortedPartitions.map(({ key, label, size }) => (

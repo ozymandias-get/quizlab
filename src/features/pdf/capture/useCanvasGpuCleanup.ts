@@ -72,16 +72,47 @@ export function releaseCanvasGpuMemory(canvas: HTMLCanvasElement): void {
   canvas.height = 0
 }
 
-export function useCanvasGpuCleanup(containerRef: RefObject<HTMLElement | null>): void {
+export function useCanvasGpuCleanup(
+  containerRef: RefObject<HTMLElement | null>,
+  externalSignal?: AbortSignal
+): void {
   useEffect(() => {
     const container = containerRef.current
     if (!container || typeof MutationObserver === 'undefined') return
 
+    // Render-cancellation token: rapid zoom (Ctrl+Wheel) coalesces via
+    // useCoalescedZoom but the previous pdf.js render may still be holding a
+    // high-DPI canvas. Aborting releases its GPU backing store synchronously
+    // before the next rasterization starts, preventing OOM on 50+ page docs.
+    const internalController = new AbortController()
+    const signal: AbortSignal = externalSignal ?? internalController.signal
+
+    const handleAbort = (): void => {
+      // Synchronous GPU release on abort / unmount — must run immediately,
+      // not in a microtask, otherwise the next zoom's canvas is allocated
+      // before the old one is freed (race → 1.5 GB+ leak).
+      for (const canvas of container.querySelectorAll<HTMLCanvasElement>('canvas')) {
+        releaseCanvasGpuMemory(canvas)
+      }
+    }
+
+    if (signal.aborted) {
+      handleAbort()
+    } else {
+      signal.addEventListener('abort', handleAbort, { once: true })
+    }
+
     const observer = new MutationObserver((mutations) => {
+      if (signal.aborted) {
+        handleAbort()
+        return
+      }
       for (const mutation of mutations) {
         for (const node of mutation.removedNodes) {
           if (!(node instanceof HTMLElement)) continue
           if (node.tagName === 'CANVAS') {
+            // Synchronous width/height zeroing is what actually drops the
+            // WebGL/2D backing store in Chromium; clearRect alone is not enough.
             releaseCanvasGpuMemory(node as HTMLCanvasElement)
           } else {
             for (const canvas of node.querySelectorAll('canvas')) {
@@ -98,10 +129,18 @@ export function useCanvasGpuCleanup(containerRef: RefObject<HTMLElement | null>)
     observer.observe(container, { childList: true, subtree: true })
 
     return () => {
+      signal.removeEventListener('abort', handleAbort)
+      // Abort any in-flight render tied to this container
+      if (!signal.aborted) {
+        try {
+          internalController.abort()
+        } catch {}
+      }
       observer.disconnect()
-      for (const canvas of container.querySelectorAll('canvas')) {
+      // Synchronous release on unmount — prevents race with async render loop
+      for (const canvas of container.querySelectorAll<HTMLCanvasElement>('canvas')) {
         releaseCanvasGpuMemory(canvas)
       }
     }
-  }, [containerRef])
+  }, [containerRef, externalSignal])
 }

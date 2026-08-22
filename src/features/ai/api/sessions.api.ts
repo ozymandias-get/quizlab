@@ -8,7 +8,8 @@ import {
   buildErrorReply,
   type ChatSession,
   createEmptySession,
-  DEFAULT_SESSION_TITLE
+  getDefaultSessionTitle,
+  isDefaultSessionTitle
 } from '../store/apiChatSessionUtils'
 
 export function loadSessions(): ChatSession[] {
@@ -31,7 +32,7 @@ export function addMessageToSession(
   return sessions.map((session) => {
     if (session.id === sessionId) {
       let title = session.title
-      if (session.title === DEFAULT_SESSION_TITLE && message.role === 'user') {
+      if (isDefaultSessionTitle(session.title) && message.role === 'user') {
         // SECURITY: Use Array.from() instead of .slice() to safely handle
         // multi-byte Unicode characters (emojis, CJK, surrogate pairs).
         // String.prototype.slice() operates on UTF-16 code units and can
@@ -41,7 +42,7 @@ export function addMessageToSession(
         // SECURITY: If the message content is only whitespace (spaces, newlines,
         // zero-width characters) or empty, fall back to the default title.
         // Without this check, the sidebar would show a blank, unclickable title.
-        title = (safeTitle || DEFAULT_SESSION_TITLE) + (chars.length > 30 ? '...' : '')
+        title = (safeTitle || getDefaultSessionTitle()) + (chars.length > 30 ? '...' : '')
       }
       return {
         ...session,
@@ -86,7 +87,7 @@ export function editMessageInSession(
 export function clearSessionMessages(sessions: ChatSession[], sessionId: string): ChatSession[] {
   return sessions.map((s) =>
     s.id === sessionId
-      ? { ...s, messages: [], title: DEFAULT_SESSION_TITLE, updatedAt: Date.now() }
+      ? { ...s, messages: [], title: getDefaultSessionTitle(), updatedAt: Date.now() }
       : s
   )
 }
@@ -98,7 +99,7 @@ export function renameSession(
 ): ChatSession[] {
   return sessions.map((s) =>
     s.id === sessionId
-      ? { ...s, title: title.trim() || DEFAULT_SESSION_TITLE, updatedAt: Date.now() }
+      ? { ...s, title: title.trim() || getDefaultSessionTitle(), updatedAt: Date.now() }
       : s
   )
 }
@@ -120,15 +121,31 @@ export async function getApiChatConfig(): Promise<ApiConfig | null> {
   return api.getApiChatConfig()
 }
 
+/**
+ * Error bubbles (buildErrorReply) are UI-only artifacts persisted with an
+ * `-error` id suffix; they must never be forwarded to the provider as
+ * assistant context.
+ */
+function isTranscriptMessage(message: ApiChatMessage): boolean {
+  return !(message.role === 'assistant' && message.id.endsWith('-error'))
+}
+
 export async function sendApiChatRequest(
   messages: ApiChatMessage[],
   selectedModel?: string,
   generalPrompt?: string,
-  providerId?: string
+  providerId?: string,
+  requestId?: string
 ): Promise<ApiChatMessage | null> {
   const api = getElectronApi()
   if (!api) return null
-  return api.sendApiChatRequest(messages, selectedModel, generalPrompt, providerId)
+  return api.sendApiChatRequest(
+    messages.filter(isTranscriptMessage),
+    selectedModel,
+    generalPrompt,
+    providerId,
+    requestId
+  )
 }
 
 export { buildCombinedPrompt, buildErrorReply }

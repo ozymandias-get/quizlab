@@ -108,19 +108,21 @@ const electronApi: ElectronApi = {
   getApiChatConfig: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_API_CHAT_CONFIG)),
   saveApiChatConfig: (config) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.SAVE_API_CHAT_CONFIG, config)),
-  sendApiChatRequest: (messages, selectedModel?, generalPrompt?, providerId?) =>
+  sendApiChatRequest: (messages, selectedModel?, generalPrompt?, providerId?, requestId?) =>
     unwrapIpcResult(
       typedInvoke(
         IPC_CHANNELS.SEND_API_CHAT_REQUEST,
         messages,
         selectedModel,
         generalPrompt,
-        providerId
+        providerId,
+        requestId
       )
     ),
   fetchApiChatModels: (providerId) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.FETCH_API_CHAT_MODELS, providerId)),
-  cancelApiChatRequest: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST)),
+  cancelApiChatRequest: (requestId?) =>
+    unwrapIpcResult(typedInvoke(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST, requestId)),
 
   geminiWeb: {
     getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_STATUS)),

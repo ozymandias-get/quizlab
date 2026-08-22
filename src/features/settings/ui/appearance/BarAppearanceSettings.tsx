@@ -48,7 +48,7 @@ const BarAppearanceSettings = memo(
 
         <div className="space-y-3">
           <div className="text-ql-12 flex items-center justify-between font-medium">
-            <span className="text-foreground/75">Opacity</span>
+            <span className="text-foreground/75">{t('opacity')}</span>
             <span className="text-foreground/90">{Math.round(bottomBarOpacity * 100)}%</span>
           </div>
           <Slider
@@ -62,7 +62,7 @@ const BarAppearanceSettings = memo(
 
         <div className="space-y-3">
           <div className="text-ql-12 flex items-center justify-between font-medium">
-            <span className="text-foreground/75">Scale</span>
+            <span className="text-foreground/75">{t('scale')}</span>
             <span className="text-foreground/90">x{bottomBarScale.toFixed(2)}</span>
           </div>
           <Slider
