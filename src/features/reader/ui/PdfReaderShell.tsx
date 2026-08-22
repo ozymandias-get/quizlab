@@ -1,5 +1,7 @@
 import type { PdfFile } from '@shared-core/types'
 
+import { useOptionalComponents } from '@platform/electron/api/useOptionalComponentsApi'
+
 import type {
   LastReadingInfo,
   PdfTab,
@@ -7,11 +9,15 @@ import type {
   ResumePdfResult
 } from '@features/pdf/types'
 import PdfViewer from '@features/pdf/ui/components/PdfViewer'
+import { useDocumentConversion } from '@features/reader/hooks/useDocumentConversion'
 import { useReaderViewMode } from '@features/reader/hooks/useReaderViewMode'
+
+import { InlineSpinner } from '@shared/ui/components/primitives'
 
 import { memo } from 'react'
 
-import ReaderPlaceholder from './ReaderPlaceholder'
+import DoclingInstallCta from './DoclingInstallCta'
+import ReaderView from './ReaderView'
 import ViewModeToggle from './ViewModeToggle'
 
 interface Props {
@@ -35,10 +41,78 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
   const { pdfFile, activePdfTab } = props
   const { viewMode, setViewMode } = useReaderViewMode(activePdfTab?.id)
 
-  // No document yet: delegate to PdfViewer's placeholder (which already shows the open UI).
-  // We keep the placeholder logic inside PdfViewer to avoid duplicating recent list.
-  // When a PDF is present, we show the toggle and switch views.
   const showToggle = !!pdfFile
+  const { data: components } = useOptionalComponents()
+  const docling = components?.find((c) => c.id === 'docling')
+  const isInstalled = docling?.status === 'installed'
+  const pdfPath = pdfFile?.path ?? null
+  const { document, isConverting, error, retry } = useDocumentConversion(
+    viewMode === 'reader' && isInstalled ? pdfPath : null
+  )
+
+  let readerContent: React.ReactNode = null
+  if (viewMode === 'reader' && pdfFile) {
+    if (!isInstalled) {
+      readerContent = (
+        <div className="flex h-full items-center justify-center p-6">
+          <DoclingInstallCta
+            onContinuePdf={() => setViewMode('pdf')}
+            onInstalled={() => setViewMode('reader')}
+          />
+        </div>
+      )
+    } else if (isConverting) {
+      readerContent = (
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
+          <InlineSpinner />
+          <span className="text-muted-foreground text-ql-13">Akıllı okuma hazırlanıyor…</span>
+        </div>
+      )
+    } else if (error) {
+      const msg =
+        error === 'conversion_timeout'
+          ? 'Dönüşüm zaman aşımına uğradı'
+          : error === 'encrypted_pdf'
+            ? 'Şifreli PDF desteklenmiyor'
+            : error === 'corrupted_pdf'
+              ? 'Bozuk PDF'
+              : error
+      readerContent = (
+        <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+          <p className="text-destructive text-ql-13">{msg}</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={retry}
+              className="bg-primary text-primary-foreground text-ql-12 rounded-lg px-3 py-1.5"
+            >
+              Yeniden dene
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('pdf')}
+              className="border-border bg-card text-ql-12 rounded-lg border px-3 py-1.5"
+            >
+              PDF ile devam et
+            </button>
+          </div>
+          <p className="text-muted-foreground text-ql-11">PDF görünümü çalışmaya devam ediyor</p>
+        </div>
+      )
+    } else if (document) {
+      readerContent = (
+        <div className="h-full overflow-y-auto overscroll-contain">
+          <ReaderView document={document} />
+        </div>
+      )
+    } else {
+      readerContent = (
+        <div className="flex h-full items-center justify-center p-8">
+          <InlineSpinner />
+        </div>
+      )
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -48,14 +122,7 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
         </div>
       )}
       <div className="relative flex-1 overflow-hidden">
-        {viewMode === 'reader' && pdfFile ? (
-          <ReaderPlaceholder
-            onContinuePdf={() => setViewMode('pdf')}
-            onInstalled={() => setViewMode('reader')}
-          />
-        ) : (
-          <PdfViewer {...props} />
-        )}
+        {viewMode === 'reader' && pdfFile ? readerContent : <PdfViewer {...props} />}
       </div>
     </div>
   )
