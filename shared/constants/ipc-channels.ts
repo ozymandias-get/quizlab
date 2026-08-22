@@ -68,6 +68,13 @@ export const IPC_CHANNELS = {
   DOCLING_SERVICE_HEALTH_CHECK: 'docling:service-health-check',
   DOCLING_SERVICE_STATUS_CHANGED: 'docling:service-status-changed',
 
+  // Docling conversion (adapter → QuizLabDocument)
+  DOCLING_CONVERT: 'docling:convert',
+  DOCLING_CONVERT_STATUS: 'docling:convert-status',
+  DOCLING_CONVERT_RESULT: 'docling:convert-result',
+  DOCLING_CONVERT_CANCEL: 'docling:convert-cancel',
+  DOCLING_CONVERT_PROGRESS: 'docling:convert-progress',
+
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
   NATIVE_MESSAGING_INSTALL_EXTENSION: 'native-messaging-install-extension',

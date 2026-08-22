@@ -182,6 +182,17 @@ const electronApi: ElectronApi = {
       onEvent(IPC_CHANNELS.DOCLING_SERVICE_STATUS_CHANGED, (payload) => callback(payload))
   },
 
+  doclingConversion: {
+    convert: (pdfPath) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_CONVERT, pdfPath)),
+    getStatus: (taskId) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_CONVERT_STATUS, taskId)),
+    getResult: (taskId) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_CONVERT_RESULT, taskId)),
+    cancel: (taskId) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_CONVERT_CANCEL, taskId)),
+    onProgress: (callback) =>
+      onEvent(IPC_CHANNELS.DOCLING_CONVERT_PROGRESS, (payload) => callback(payload))
+  },
+
   log: (level, message, timestamp) => {
     ipcRenderer.send(IPC_CHANNELS.LOGGER_LOG, { level, message, timestamp })
   }

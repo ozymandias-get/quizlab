@@ -290,6 +290,39 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       healthCheck: stubReturn({ healthy: false, detail: 'web_dev_mode_only' }),
       onStatusChanged: () => () => {}
     },
+    doclingConversion: {
+      convert: async () => ({
+        taskId: 'web',
+        pdfPath: '',
+        status: 'failed' as const,
+        progress: null,
+        error: { code: 'unknown' as const, message: 'web_dev_mode_only', details: null },
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }),
+      getStatus: async () => ({
+        taskId: 'web',
+        pdfPath: '',
+        status: 'failed' as const,
+        progress: null,
+        error: { code: 'unknown' as const, message: 'web_dev_mode_only', details: null },
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }),
+      getResult: async () => {
+        throw new Error('web_dev_mode_only')
+      },
+      cancel: async () => ({
+        taskId: 'web',
+        pdfPath: '',
+        status: 'failed' as const,
+        progress: null,
+        error: { code: 'unknown' as const, message: 'web_dev_mode_only', details: null },
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }),
+      onProgress: () => () => {}
+    },
     getApiChatConfig: stubReturn({
       providers: [],
       generalPrompt: '',

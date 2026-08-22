@@ -1,5 +1,10 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
-import type { DoclingInstallProgressEvent, DoclingServiceStatus } from '@shared-core/types'
+import type {
+  DoclingInstallProgressEvent,
+  DoclingServiceStatus,
+  QuizLabConversionTask,
+  QuizLabDocument
+} from '@shared-core/types'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
@@ -319,6 +324,26 @@ export interface IpcInvokeRequestMap {
     args: []
     result: IpcResult<{ healthy: boolean; detail?: string }>
   }
+
+  [IPC_CHANNELS.DOCLING_CONVERT]: {
+    args: [pdfPath: string]
+    result: IpcResult<QuizLabConversionTask>
+  }
+
+  [IPC_CHANNELS.DOCLING_CONVERT_STATUS]: {
+    args: [taskId: string]
+    result: IpcResult<QuizLabConversionTask>
+  }
+
+  [IPC_CHANNELS.DOCLING_CONVERT_RESULT]: {
+    args: [taskId: string]
+    result: IpcResult<QuizLabDocument>
+  }
+
+  [IPC_CHANNELS.DOCLING_CONVERT_CANCEL]: {
+    args: [taskId: string]
+    result: IpcResult<QuizLabConversionTask>
+  }
 }
 
 export interface IpcEventMap {
@@ -327,6 +352,9 @@ export interface IpcEventMap {
   }
   [IPC_CHANNELS.DOCLING_SERVICE_STATUS_CHANGED]: {
     args: [payload: DoclingServiceStatus]
+  }
+  [IPC_CHANNELS.DOCLING_CONVERT_PROGRESS]: {
+    args: [payload: QuizLabConversionTask]
   }
   [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED]: {
     args: [payload: GeminiWebSessionRefreshEvent]

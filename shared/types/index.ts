@@ -73,4 +73,29 @@ export type {
   PdfStreamResult,
   PdfViewerZoomAction
 } from './pdf.js'
+export type {
+  QuizLabBbox,
+  QuizLabBlock,
+  QuizLabBlockBase,
+  QuizLabBlockType,
+  QuizLabCaptionBlock,
+  QuizLabCodeBlock,
+  QuizLabConversionError,
+  QuizLabConversionErrorCode,
+  QuizLabConversionStatus,
+  QuizLabConversionTask,
+  QuizLabDocument,
+  QuizLabDocumentResult,
+  QuizLabFormulaBlock,
+  QuizLabHeadingBlock,
+  QuizLabImageBlock,
+  QuizLabListBlock,
+  QuizLabListItemBlock,
+  QuizLabPage,
+  QuizLabParagraphBlock,
+  QuizLabProvenance,
+  QuizLabTableBlock,
+  QuizLabTableCell,
+  QuizLabUnknownBlock
+} from './quizlabDocument.js'
 export type { ScreenshotType, UpdateCheckResult } from './system.js'

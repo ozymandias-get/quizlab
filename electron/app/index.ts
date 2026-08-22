@@ -7,6 +7,10 @@ import { runStartupCleanup } from '../core/cacheCleanup/index.js'
 import { startCacheScheduler, stopCacheScheduler } from '../core/cacheScheduler.js'
 import { createIssueLogReport, flushToDisk, initLogger, Logger } from '../core/logger.js'
 import { initUpdater } from '../core/updater.js'
+import {
+  registerDoclingAssetProtocol,
+  registerDoclingAssetScheme
+} from '../features/docling/doclingAssetProtocol.js'
 import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers.js'
 import {
   clearAllPdfPaths,
@@ -50,6 +54,7 @@ if (getProfileName() === 'stable') {
 }
 
 registerPdfScheme()
+registerDoclingAssetScheme()
 
 app.commandLine.appendSwitch('enable-gpu-rasterization')
 app.commandLine.appendSwitch('enable-accelerated-2d-canvas')
@@ -89,6 +94,7 @@ async function initializeApp() {
 
   registerPdfProtocol()
   registerPdfProtocolHandlers()
+  registerDoclingAssetProtocol()
 
   startPdfCleanupInterval()
 
