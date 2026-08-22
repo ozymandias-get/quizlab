@@ -207,6 +207,17 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     startTransition
   })
 
+  const { targetPage, onTargetPageConsumed } = props
+  // External navigation request from Reader (e.g., "PDF'de Göster")
+  useEffect(() => {
+    if (targetPage == null || !isDocumentReady) return
+    const id = window.setTimeout(() => {
+      jumpToPageFromNav(targetPage)
+      onTargetPageConsumed?.()
+    }, 100)
+    return () => window.clearTimeout(id)
+  }, [targetPage, isDocumentReady, jumpToPageFromNav, onTargetPageConsumed])
+
   return {
     containerRef,
     scaleFactor,

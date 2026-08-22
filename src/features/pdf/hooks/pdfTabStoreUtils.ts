@@ -50,6 +50,7 @@ export interface PdfTabActions {
   openGoogleDriveTab: () => void
   renamePdfTab: (tabId: string, title?: string) => void
   setPdfViewMode: (tabId: string, viewMode: ReaderViewMode) => void
+  setPendingJumpPage: (tabId: string, page: number | null) => void
 }
 
 export type PdfTabStore = PdfTabState & PdfTabActions

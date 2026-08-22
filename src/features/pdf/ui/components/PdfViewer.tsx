@@ -43,6 +43,8 @@ interface PdfViewerProps {
   lastReadingInfo?: LastReadingInfo[] | null
   isInteractionBlocked?: boolean
   isPanelResizing?: boolean
+  targetPage?: number | null
+  onTargetPageConsumed?: () => void
 }
 
 function PdfViewer({
@@ -59,7 +61,9 @@ function PdfViewer({
   onReadingProgressChange,
   lastReadingInfo,
   isInteractionBlocked = false,
-  isPanelResizing = false
+  isPanelResizing = false,
+  targetPage,
+  onTargetPageConsumed
 }: PdfViewerProps) {
   const { chromeUserAgent } = useAiRegistryMeta()
   const { autoSend } = useAiSessionUiPrefsState()
@@ -155,6 +159,8 @@ function PdfViewer({
             startScreenshot={startScreenshot}
             queueImageForAi={queueImageForAi}
             isPanelResizing={isPanelResizing}
+            targetPage={targetPage}
+            onTargetPageConsumed={onTargetPageConsumed}
           />
         </div>
       )}
@@ -198,5 +204,6 @@ export default memo(PdfViewer, (prev, next) => {
   if (prev.isInteractionBlocked !== next.isInteractionBlocked) return false
   if (prev.isPanelResizing !== next.isPanelResizing) return false
   if (prev.lastReadingInfo !== next.lastReadingInfo) return false
+  if (prev.targetPage !== next.targetPage) return false
   return true
 })

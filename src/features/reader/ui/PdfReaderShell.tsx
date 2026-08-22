@@ -3,6 +3,7 @@ import type { PdfFile } from '@shared-core/types'
 import { useDoclingModelsDownload } from '@platform/electron/api/useDoclingModelsApi'
 import { useOptionalComponents } from '@platform/electron/api/useOptionalComponentsApi'
 
+import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
 import type {
   LastReadingInfo,
   PdfTab,
@@ -51,6 +52,10 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
     viewMode === 'reader' && isInstalled ? pdfPath : null
   )
   const downloadModels = useDoclingModelsDownload()
+  const pendingJumpPage = usePdfTabStore(
+    (s) => s.pdfTabs.find((t) => t.id === activePdfTab?.id)?.pendingJumpPage ?? null
+  )
+  const setPendingJumpPage = usePdfTabStore((s) => s.setPendingJumpPage)
 
   useEffect(() => {
     if (downloadModels.isSuccess) retry()
@@ -137,6 +142,10 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
     }
   }
 
+  const handleTargetConsumed = () => {
+    if (activePdfTab?.id) setPendingJumpPage(activePdfTab.id, null)
+  }
+
   return (
     <div className="flex h-full flex-col">
       {showToggle && (
@@ -145,7 +154,15 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
         </div>
       )}
       <div className="relative flex-1 overflow-hidden">
-        {viewMode === 'reader' && pdfFile ? readerContent : <PdfViewer {...props} />}
+        {viewMode === 'reader' && pdfFile ? (
+          readerContent
+        ) : (
+          <PdfViewer
+            {...props}
+            targetPage={pendingJumpPage}
+            onTargetPageConsumed={handleTargetConsumed}
+          />
+        )}
       </div>
     </div>
   )

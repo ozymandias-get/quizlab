@@ -1,5 +1,7 @@
 import type { QuizLabBlock, QuizLabDocument } from '@shared-core/types'
 
+import { useShowInPdf } from '@features/reader/hooks/useReaderPdfLink'
+
 import { cn } from '@shared/lib/uiUtils'
 
 import { memo } from 'react'
@@ -23,16 +25,28 @@ const BlockWrapper = memo(function BlockWrapper({
   block: QuizLabBlock
   children: React.ReactNode
 }) {
+  const showInPdf = useShowInPdf()
   return (
     <div
       data-block-id={block.id}
       data-page={block.pageNumber}
-      className="scroll-mt-4"
+      className="group/block scroll-mt-4"
       style={{ contentVisibility: 'auto' as never, containIntrinsicSize: '0 600px' } as never}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">{children}</div>
-        <PageBadge pageNumber={block.pageNumber} />
+        <div className="flex items-center gap-1.5">
+          <PageBadge pageNumber={block.pageNumber} />
+          <button
+            type="button"
+            onClick={() => showInPdf(block)}
+            className="border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/30 text-ql-11 hidden items-center gap-1 rounded-full border px-2 py-0.5 group-hover/block:inline-flex"
+            aria-label={`PDF'de göster, sayfa ${block.pageNumber}`}
+            title="PDF'de göster"
+          >
+            PDF’de Göster
+          </button>
+        </div>
       </div>
     </div>
   )

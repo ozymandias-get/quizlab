@@ -27,4 +27,5 @@ export interface PdfTab {
   webviewUrl?: string
   viewerSessionKey?: string
   viewMode?: ReaderViewMode
+  pendingJumpPage?: number | null
 }

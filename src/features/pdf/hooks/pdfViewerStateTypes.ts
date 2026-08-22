@@ -25,6 +25,8 @@ export interface PdfViewerDocumentProps {
   startScreenshot: (imageMeta?: ScreenshotMeta) => void
   queueImageForAi: (dataUrl: string, imageMeta?: ScreenshotMeta) => void
   isPanelResizing?: boolean
+  targetPage?: number | null
+  onTargetPageConsumed?: () => void
 }
 
 export interface UsePdfViewerStateReturn {

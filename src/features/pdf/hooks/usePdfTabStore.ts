@@ -216,5 +216,13 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
     set((state) => ({
       pdfTabs: state.pdfTabs.map((tab) => (tab.id === tabId ? { ...tab, viewMode } : tab))
     }))
+  },
+
+  setPendingJumpPage: (tabId, page) => {
+    set((state) => ({
+      pdfTabs: state.pdfTabs.map((tab) =>
+        tab.id === tabId ? { ...tab, pendingJumpPage: page } : tab
+      )
+    }))
   }
 }))
