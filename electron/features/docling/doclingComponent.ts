@@ -40,6 +40,10 @@ function broadcastProgress(update: {
 }
 
 async function installOrUpdate(): Promise<void> {
+  try {
+    const { doclingServiceManager } = await import('./doclingServiceManager.js')
+    await doclingServiceManager.stop().catch(() => {})
+  } catch {}
   await runDoclingPipeline({ report: broadcastProgress })
 }
 
@@ -52,7 +56,12 @@ export const doclingComponentDefinition: OptionalComponentDefinition = {
     return installOrUpdate()
   },
 
-  uninstall() {
+  async uninstall() {
+    // If the sidecar is running, stop it first to avoid holding file locks on Windows
+    try {
+      const { doclingServiceManager } = await import('./doclingServiceManager.js')
+      await doclingServiceManager.stop().catch(() => {})
+    } catch {}
     // Removes only the component's own directories (runtime/environment/
     // models/temp/bin). User-generated QuizLab content lives elsewhere and is
     // never touched here.

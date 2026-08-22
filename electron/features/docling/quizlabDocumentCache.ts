@@ -63,6 +63,10 @@ function isCompatibleManifest(manifest: CacheManifest): boolean {
 }
 
 export async function getCachedDocument(sourceHash: string): Promise<QuizLabDocument | null> {
+  if (!/^[a-f0-9]{64}$/.test(sourceHash)) {
+    Logger.warn('[DocumentCache] Invalid hash format', { sourceHash })
+    return null
+  }
   const manifestPath = getManifestPath(sourceHash)
   const docPath = getDocumentPath(sourceHash)
 
@@ -104,6 +108,11 @@ export async function getCachedDocument(sourceHash: string): Promise<QuizLabDocu
   } catch (error) {
     const code = (error as NodeJS.ErrnoException)?.code
     if (code === 'ENOENT') return null
+    if (code === 'EACCES' || code === 'EPERM') {
+      Logger.warn('[DocumentCache] Permission denied, invalidating', { sourceHash, code })
+      await invalidateCache(sourceHash).catch(() => {})
+      return null
+    }
     Logger.warn('[DocumentCache] Read failed', { sourceHash, error: String(error) })
     return null
   }
@@ -114,6 +123,7 @@ export async function putCachedDocument(
   document: QuizLabDocument,
   assets: Array<{ assetId: string; data: Buffer; ext: string }> = []
 ): Promise<void> {
+  if (!/^[a-f0-9]{64}$/.test(sourceHash)) throw new Error('Invalid sourceHash')
   const cacheDir = getCacheDir(sourceHash)
   const tmpDir = `${cacheDir}.tmp.${randomBytes(4).toString('hex')}`
 
@@ -149,11 +159,29 @@ export async function putCachedDocument(
       await fs.writeFile(path.join(tmpDir, 'assets', `${asset.assetId}.${asset.ext}`), asset.data)
     }
 
-    // Handle image assets that are already on disk under the task's imagesDir
-    // The caller (conversion service) is expected to have copied them via copyAssetsToCache
-
-    // Atomic rename
-    await fs.rename(tmpDir, cacheDir)
+    // Atomic rename – handle cross-device EXDEV by falling back to copy
+    try {
+      await fs.rename(tmpDir, cacheDir)
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException)?.code
+      if (code === 'EXDEV') {
+        await fs.mkdir(cacheDir, { recursive: true })
+        await fs.cp(tmpDir, cacheDir, { recursive: true, force: true })
+        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+      } else if (code === 'EEXIST') {
+        // Concurrent write won – keep existing cache, discard tmp
+        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+        return
+      } else if (code === 'ENOSPC') {
+        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+        throw new Error('Disk full while writing cache')
+      } else if (code === 'EACCES' || code === 'EPERM') {
+        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+        throw new Error('Permission denied while writing cache')
+      } else {
+        throw err
+      }
+    }
   } catch (error) {
     // Cleanup temp on failure
     await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})

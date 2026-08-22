@@ -9,6 +9,14 @@ import type {
 } from '../../../shared/types/quizlabDocument.js'
 import { DOCLING_VERSION } from './doclingVersions.js'
 
+function sanitizeText(input: string): string {
+  // Docling output is untrusted – never render it as HTML. We keep the raw
+  // text but strip any HTML tags that could be misinterpreted if a future
+  // UI change accidentally uses dangerouslySetInnerHTML.
+  // This is defense-in-depth; ReaderView already renders via React text nodes.
+  return input.replaceAll(/<[^>]*>/g, '')
+}
+
 interface DoclingBbox {
   l: number
   t: number
@@ -213,7 +221,7 @@ export function adaptDoclingToQuizLabDocument(
         ...base,
         type: 'image',
         caption: null,
-        alt: text || null,
+        alt: sanitizeText(text) || null,
         assetId: uri ? `img-${base.id}` : null,
         assetUrl: uri ?? null,
         width: null,
@@ -224,7 +232,9 @@ export function adaptDoclingToQuizLabDocument(
 
     // Table
     if (item._kind === 'tables' || item.label === 'table') {
-      const rows = extractTableRows(item)
+      const rows = extractTableRows(item).map((row) =>
+        row.map((cell) => ({ ...cell, text: sanitizeText(cell.text) }))
+      )
       blocks.push({
         ...base,
         type: 'table',
@@ -238,27 +248,28 @@ export function adaptDoclingToQuizLabDocument(
 
     // Text-like
     const mapped = labelToBlockType(item.label, text)
+    const safeText = sanitizeText(text)
     if (mapped.type === 'heading') {
       const level = item.level ?? mapped.level ?? 1
-      blocks.push({ ...base, type: 'heading', level, text })
+      blocks.push({ ...base, type: 'heading', level, text: safeText })
     } else if (mapped.type === 'list_item') {
       blocks.push({
         ...base,
         type: 'list_item',
-        text,
+        text: safeText,
         ordered: /^\s*\d+\s+[.)]/.test(text),
         index: 0
       })
     } else if (mapped.type === 'caption') {
-      blocks.push({ ...base, type: 'caption', text, forBlockId: null })
+      blocks.push({ ...base, type: 'caption', text: safeText, forBlockId: null })
     } else if (mapped.type === 'code') {
-      blocks.push({ ...base, type: 'code', text, language: null })
+      blocks.push({ ...base, type: 'code', text: safeText, language: null })
     } else if (mapped.type === 'formula') {
-      blocks.push({ ...base, type: 'formula', text, latex: text })
+      blocks.push({ ...base, type: 'formula', text: safeText, latex: safeText })
     } else if (mapped.type === 'unknown') {
-      blocks.push({ ...base, type: 'unknown', rawText: text })
+      blocks.push({ ...base, type: 'unknown', rawText: safeText })
     } else {
-      blocks.push({ ...base, type: 'paragraph', text })
+      blocks.push({ ...base, type: 'paragraph', text: safeText })
     }
   }
 

@@ -78,6 +78,19 @@ export function registerDoclingAssetProtocol(): void {
         return new Response('Forbidden', { status: 403 })
       }
 
+      // Symlink check: do not follow symlinks to arbitrary files
+      const lstat = await fs.lstat(normalized)
+      if (lstat.isSymbolicLink()) {
+        return new Response('Forbidden', { status: 403 })
+      }
+      if (!lstat.isFile()) {
+        return new Response('Not Found', { status: 404 })
+      }
+      // Size cap: refuse to serve huge images that could OOM the renderer
+      if (lstat.size > 20 * 1024 * 1024) {
+        return new Response('Payload Too Large', { status: 413 })
+      }
+
       const data = await fs.readFile(normalized)
       const fileNameForMime = path.basename(normalized)
       const ext = path.extname(fileNameForMime).toLowerCase()

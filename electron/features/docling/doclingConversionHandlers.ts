@@ -18,24 +18,32 @@ export function registerDoclingConversionHandlers(): void {
       if (typeof pdfPath !== 'string' || pdfPath.length === 0 || pdfPath.length > 4096) {
         return failure('invalid_input', 'Invalid pdfPath')
       }
-      // Basic path sanity: must be absolute and not contain null bytes
-      if (pdfPath.includes('\0')) return failure('invalid_input', 'Invalid pdfPath')
+      if (pdfPath.includes('\0') || pdfPath.includes('..'))
+        return failure('invalid_input', 'Invalid pdfPath')
+      // Must be absolute; renderer cannot pass relative paths to access arbitrary files
+      const path = await import('node:path')
+      if (!path.isAbsolute(pdfPath)) return failure('invalid_input', 'PDF path must be absolute')
       try {
         const task = await doclingConversionService.convertPdf(pdfPath)
         return success(task)
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
-        return failure('internal_error', msg)
+        // Do not leak stack traces or absolute paths
+        const safeMsg = msg.includes('ENOENT') ? 'PDF not found' : msg.slice(0, 500)
+        return failure('internal_error', safeMsg)
       }
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
   )
 
+  const isValidTaskId = (id: string): boolean => /^docling-[a-f0-9]{12}$/.test(id)
+
   registerIpcHandler(
     IPC_CHANNELS.DOCLING_CONVERT_STATUS,
     async (_event, taskId: string) => {
-      if (typeof taskId !== 'string' || !taskId) return failure('invalid_input', 'Invalid taskId')
+      if (typeof taskId !== 'string' || !isValidTaskId(taskId))
+        return failure('invalid_input', 'Invalid taskId')
       const task = doclingConversionService.getTask(taskId)
       if (!task) return failure('not_found', 'Task not found')
       return success(task)
@@ -47,7 +55,8 @@ export function registerDoclingConversionHandlers(): void {
   registerIpcHandler(
     IPC_CHANNELS.DOCLING_CONVERT_RESULT,
     async (_event, taskId: string) => {
-      if (typeof taskId !== 'string' || !taskId) return failure('invalid_input', 'Invalid taskId')
+      if (typeof taskId !== 'string' || !isValidTaskId(taskId))
+        return failure('invalid_input', 'Invalid taskId')
       const task = doclingConversionService.getTask(taskId)
       if (!task) return failure('not_found', 'Task not found')
       if (task.status !== 'completed')
@@ -63,9 +72,8 @@ export function registerDoclingConversionHandlers(): void {
   registerIpcHandler(
     IPC_CHANNELS.DOCLING_CONVERT_CANCEL,
     async (_event, taskId: string) => {
-      if (typeof taskId !== 'string' || !taskId) return failure('invalid_input', 'Invalid taskId')
-      // No-op for now: tasks are one-shot processes; cancellation would kill the child.
-      // Placeholder to satisfy the contract without fake progress.
+      if (typeof taskId !== 'string' || !isValidTaskId(taskId))
+        return failure('invalid_input', 'Invalid taskId')
       const task = doclingConversionService.getTask(taskId)
       if (!task) return failure('not_found', 'Task not found')
       return success(task)
@@ -80,13 +88,16 @@ export function registerDoclingConversionHandlers(): void {
       if (typeof pdfPath !== 'string' || pdfPath.length === 0 || pdfPath.length > 4096) {
         return failure('invalid_input', 'Invalid pdfPath')
       }
-      if (pdfPath.includes('\0')) return failure('invalid_input', 'Invalid pdfPath')
+      if (pdfPath.includes('\0') || pdfPath.includes('..'))
+        return failure('invalid_input', 'Invalid pdfPath')
+      const path = await import('node:path')
+      if (!path.isAbsolute(pdfPath)) return failure('invalid_input', 'PDF path must be absolute')
       try {
         const task = await doclingConversionService.reconvertPdf(pdfPath)
         return success(task)
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
-        return failure('internal_error', msg)
+        return failure('internal_error', msg.slice(0, 500))
       }
     },
     requireTrustedIpcSender,
