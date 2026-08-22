@@ -1,4 +1,17 @@
 /** @file Improved selector engine – priority‑ordered, SPA‑aware, with soft cache invalidation. */
+// Single source of truth — shared engine (shared/lib/selectorEngine.ts) is canonical.
+// This Electron wrapper re-exports the shared constants/helpers so both layers
+// give the same score for the same selector (see P3 test).
+import {
+  classifySelector as __sharedClassifySelector,
+  SELECTOR_PRIORITY as __SHARED_PRIORITY,
+  sortSelectorsByPriority as __sharedSortSelectorsByPriority
+} from '@shared-core/lib/selectorEngine.js'
+export {
+  classifySelector,
+  SELECTOR_PRIORITY,
+  sortSelectorsByPriority
+} from '@shared-core/lib/selectorEngine.js'
 
 import { fallbackPipeline } from './fallbackPipeline.js'
 

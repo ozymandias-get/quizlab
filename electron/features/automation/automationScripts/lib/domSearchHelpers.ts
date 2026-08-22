@@ -1,10 +1,16 @@
+// Unified engine — re-exported for unit-test parity check (shared is source of truth)
+import { escapeCssString as __sharedEscapeCssString } from '@shared-core/lib/selectorEngine.js'
+
 import { fingerprintSearchHelpers } from './fingerprintSearchHelpers.js'
+export { escapeCssString } from '@shared-core/lib/selectorEngine.js'
+export { fingerprintMatchScore } from '@shared-core/lib/selectorEngine.js'
 
 export const domSearchHelpers =
   `    /**
      * Escapes a string for use inside a CSS attribute value selector ("...").
-     * Unlike CSS.escape (identifier escaping), this applies CSS string escaping
-     * rules: backslash and double-quote must be escaped with a backslash.
+     * Shared implementation lives in shared/lib/selectorEngine.ts (escapeCssString);
+     * this wrapper delegates to the same logic so Settings validation and
+     * automation runtime never diverge on :has()/aria-label handling.
      */
     const __escapeCssStr = (str) => {
         if (typeof str !== 'string') return '';

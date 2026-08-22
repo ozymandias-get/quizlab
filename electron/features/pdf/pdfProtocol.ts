@@ -14,6 +14,8 @@ import { createPdfResponseHeaders, createPdfStreamResponse } from './pdfStreamUt
 interface PDFData {
   path: string
   createdAt: number
+  /** Refreshed on every stream request so long-lived tabs are not evicted. */
+  lastAccessAt: number
 }
 const pdfRegistry = new Map<string, PDFData>()
 
@@ -61,7 +63,8 @@ function isPdfFilePath(filePath: string): boolean {
 
 function registerPdfPath(filePath: string): string {
   const id = generateId()
-  pdfRegistry.set(id, { path: filePath, createdAt: Date.now() })
+  const now = Date.now()
+  pdfRegistry.set(id, { path: filePath, createdAt: now, lastAccessAt: now })
   return `local-pdf://${id}`
 }
 
@@ -69,7 +72,9 @@ function runCleanup() {
   const now = Date.now()
   let expiredCount = 0
   for (const [id, data] of pdfRegistry.entries()) {
-    if (now - data.createdAt > MAX_AGE_MS) {
+    // Idle-based expiry: entries still being streamed (lastAccessAt recent)
+    // survive even if they were opened more than MAX_AGE_MS ago.
+    if (now - data.lastAccessAt > MAX_AGE_MS) {
       pdfRegistry.delete(id)
       expiredCount++
     }
@@ -132,6 +137,7 @@ export function registerPdfProtocol() {
       const pdfData = pdfRegistry.get(pdfId)
 
       if (!pdfData) return new Response('Forbidden', { status: 403 })
+      pdfData.lastAccessAt = Date.now()
 
       const filePath = pdfData.path
       // Senkron existsSync kullanmayın: her byte-range isteğinde event

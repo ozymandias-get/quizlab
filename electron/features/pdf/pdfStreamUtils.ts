@@ -15,8 +15,26 @@ export function parseByteRange(
   rangeHeader: string,
   totalSize: number
 ): { start: number; end: number } | null {
-  const match = /^bytes=(\d+)-(\d*)$/i.exec(rangeHeader.trim())
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim())
   if (!match) {
+    return null
+  }
+
+  // Suffix form "bytes=-N": the final N bytes of the representation.
+  // Per RFC 7233, a suffix longer than the representation selects the whole
+  // file; only "bytes=-0" is unsatisfiable.
+  if (match[1] === '' && match[2] !== '') {
+    const suffixLength = Number.parseInt(match[2], 10)
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+      return null
+    }
+    if (suffixLength >= totalSize) {
+      return { start: 0, end: totalSize - 1 }
+    }
+    return { start: totalSize - suffixLength, end: totalSize - 1 }
+  }
+
+  if (match[1] === '') {
     return null
   }
 

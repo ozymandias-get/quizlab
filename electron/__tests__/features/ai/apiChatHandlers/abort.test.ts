@@ -130,4 +130,82 @@ describe('apiChatHandlers abort semantics', () => {
       expect(result.error.message).toMatch(/timed out/i)
     }
   })
+
+  it('does NOT abort a concurrent second request (per-requestId cancellation)', async () => {
+    loadConfig.mockResolvedValue({
+      providers: [{ id: 'p1', name: 'P1', baseUrl: 'https://api.example.com', apiKey: '' }],
+      selectedProviderId: 'p1',
+      generalPrompt: '',
+      memoryPrompt: '',
+      characterPrompt: ''
+    })
+    validateProviderUrl.mockReturnValue(null)
+    sanitizeChatMessage.mockImplementation((m) => ({ role: m.role, content: m.content }))
+
+    // Each send parks on a manually-resolvable promise that rejects on abort,
+    // so the test controls completion order and can inspect both AbortSignals.
+    const signals: AbortSignal[] = []
+    const resolvers: Array<(value: Response) => void> = []
+    const okResponse = (): Response =>
+      new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 })
+    fetchWithSsrProtection.mockImplementation((_url, opts: { signal: AbortSignal }) => {
+      signals.push(opts.signal)
+      return new Promise((resolve, reject) => {
+        const onAbort = () => {
+          const abortError = new Error('The operation was aborted')
+          abortError.name = 'AbortError'
+          reject(abortError)
+        }
+        opts.signal.addEventListener('abort', onAbort, { once: true })
+        resolvers.push((value) => {
+          opts.signal.removeEventListener('abort', onAbort)
+          resolve(value)
+        })
+      })
+    })
+
+    await main()
+
+    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
+    const cancelHandler = getHandler(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST)
+    const message = [{ role: 'user', content: 'hello', id: 'm1', timestamp: 1 }]
+
+    const first = sendHandler({ sender: {} }, message, undefined, undefined, undefined, 'req-first')
+    await vi.waitFor(() => expect(signals.length).toBe(1))
+
+    // A second tab sends while the first request is still in flight.
+    const second = sendHandler(
+      { sender: {} },
+      message,
+      undefined,
+      undefined,
+      undefined,
+      'req-second'
+    )
+    await vi.waitFor(() => expect(signals.length).toBe(2))
+
+    expect(signals[0].aborted).toBe(false)
+
+    expect(await cancelHandler({ sender: {} }, 'req-first')).toEqual({ ok: true, data: true })
+
+    // Only the targeted request is aborted; the concurrent one keeps running.
+    expect(signals[0].aborted).toBe(true)
+    expect(signals[1].aborted).toBe(false)
+
+    resolvers[1](okResponse())
+    const secondResult = await second
+    expect(secondResult.ok).toBe(true)
+
+    const firstResult = await first
+    expect(firstResult.ok).toBe(false)
+    if (!firstResult.ok) {
+      expect(firstResult.error.code).toBe('cancelled')
+    }
+    if (!firstResult.ok) {
+      expect(firstResult.error.code).toBe('cancelled')
+    }
+
+    // Cancelling an unknown id reports false instead of throwing.
+    expect(await cancelHandler({ sender: {} }, 'req-unknown')).toEqual({ ok: true, data: false })
+  })
 })

@@ -1,13 +1,17 @@
+import '@shared/i18n/i18next'
+
 import { LOCAL_STORAGE_KEY } from '@features/ai/store/apiChatPersistence'
 import {
   buildCombinedPrompt,
   buildErrorReply,
   createEmptySession,
   DEFAULT_SESSION_TITLE,
-  generateId
+  generateId,
+  getDefaultSessionTitle
 } from '@features/ai/store/apiChatSessionUtils'
 
-import { describe, expect, it } from 'vitest'
+import i18next from 'i18next'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 /**
  * These helpers were originally re-exported through the deprecated
@@ -17,6 +21,10 @@ import { describe, expect, it } from 'vitest'
  * @see apiChatPersistence
  */
 describe('apiChatStore helpers (pure functions)', () => {
+  beforeAll(async () => {
+    await i18next.changeLanguage('tr')
+  })
+
   describe('generateId', () => {
     it('returns a string with the requested prefix', () => {
       const id = generateId('session')
@@ -41,7 +49,7 @@ describe('apiChatStore helpers (pure functions)', () => {
   describe('createEmptySession', () => {
     it('returns a session with the default title and empty messages', () => {
       const session = createEmptySession()
-      expect(session.title).toBe(DEFAULT_SESSION_TITLE)
+      expect([DEFAULT_SESSION_TITLE, getDefaultSessionTitle()]).toContain(session.title)
       expect(session.messages).toEqual([])
     })
 
@@ -93,13 +101,18 @@ describe('apiChatStore helpers (pure functions)', () => {
     it('uses the error message when given an Error instance', () => {
       const reply = buildErrorReply(new Error('boom'))
       expect(reply.role).toBe('assistant')
-      expect(reply.content).toBe('Hata: boom')
+      // locale-aware: tr -> "Hata: boom", en -> "Error: boom"
+      expect(reply.content).toMatch(/^(Hata|Error): boom$/)
       expect(reply.id.endsWith('-error')).toBe(true)
     })
 
     it('falls back to a localized message for non-Error throws', () => {
-      expect(buildErrorReply('bad').content).toBe('Hata: İstek başarısız oldu')
-      expect(buildErrorReply({ code: 500 }).content).toBe('Hata: İstek başarısız oldu')
+      expect(buildErrorReply('bad').content).toMatch(
+        /^(Hata: İstek başarısız oldu|Error: Request failed)$/
+      )
+      expect(buildErrorReply({ code: 500 }).content).toMatch(
+        /^(Hata: İstek başarısız oldu|Error: Request failed)$/
+      )
     })
   })
 

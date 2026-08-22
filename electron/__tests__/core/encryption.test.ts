@@ -117,6 +117,25 @@ describe('encryptValue', () => {
     encryptValue('key')
     expect(mockWarn).not.toHaveBeenCalled()
   })
+
+  it('round-trips through the AES fallback when safeStorage is unavailable', () => {
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    const encrypted = encryptValue('sk-fallback-secret')
+    expect(encrypted).toMatch(/^aes:/)
+    expect(decryptValue(encrypted)).toBe('sk-fallback-secret')
+  })
+
+  it('THROWS instead of returning "" when every mechanism fails (no silent data loss)', () => {
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    const cipherSpy = vi.spyOn(crypto, 'createCipheriv').mockImplementation(() => {
+      throw new Error('no cipher available')
+    })
+    try {
+      expect(() => encryptValue('precious-key')).toThrow(/no cipher available/)
+    } finally {
+      cipherSpy.mockRestore()
+    }
+  })
 })
 
 describe('decryptValue', () => {
@@ -200,5 +219,30 @@ describe('AES-256-GCM encryption fallback', () => {
     const encrypted = aesEncrypt(key)
     const corrupted = encrypted.slice(0, -5) + 'XXXXX'
     expect(() => aesDecrypt(corrupted)).toThrow()
+  })
+
+  it('decrypts values written by the legacy v2 machine-derived key', async () => {
+    // Replicates the exact pre-v3 production derivation (v2) to prove that
+    // values stored by older builds remain readable after the upgrade.
+    mockIsEncryptionAvailable.mockReturnValue(false)
+
+    const legacyMachineId =
+      process.env.MACHINE_ID ||
+      (process.platform === 'win32' ? process.env.COMPUTERNAME : '') ||
+      'quizlab-default-fallback'
+    const legacyHmac = crypto
+      .createHmac('sha256', 'quizlab-machine-id-v2')
+      .update(legacyMachineId)
+      .digest()
+    const legacyKey = crypto.pbkdf2Sync(legacyHmac, 'quizlab-aes-2024-v2', 200000, 32, 'sha256')
+
+    const iv = crypto.randomBytes(16)
+    const cipher = crypto.createCipheriv('aes-256-gcm', legacyKey, iv)
+    let encrypted = cipher.update('legacy-stored-key', 'utf8', 'hex')
+    encrypted += cipher.final('hex')
+    const authTag = cipher.getAuthTag().toString('hex')
+    const legacyValue = `aes:${iv.toString('base64')}:${authTag}:${encrypted}`
+
+    expect(decryptValue(legacyValue)).toBe('legacy-stored-key')
   })
 })

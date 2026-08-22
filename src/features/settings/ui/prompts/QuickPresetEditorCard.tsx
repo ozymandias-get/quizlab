@@ -41,77 +41,54 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
   return (
     <div
       className={cn(
-        'bg-card border-border/80 relative flex flex-col gap-3 rounded-xl border p-3.5 shadow-xs transition-colors',
-        preset.isCustomized && 'border-primary/40 bg-card/90'
+        'bg-card border-border/70 flex flex-col gap-2 rounded-lg border px-3 py-2.5 transition-colors',
+        preset.isCustomized && 'border-primary/30 bg-primary/[0.04]'
       )}
     >
-      {/* Top Header */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="border-border bg-muted/60 text-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border">
-            <Icon className="size-3.5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-ql-12 text-foreground truncate font-semibold">
-                {preset.label || preset.defaultLabel}
-              </span>
-              <span
-                className={cn(
-                  'text-ql-10 rounded border px-1.5 py-0.5 font-medium',
-                  preset.isPrimary
-                    ? 'bg-primary/10 border-primary/25 text-primary'
-                    : 'bg-muted border-border text-muted-foreground'
-                )}
-              >
-                {preset.isPrimary ? t('quick_preset_primary_badge') : t('quick_preset_more_badge')}
-              </span>
-              {preset.isCustomized && (
-                <span className="text-ql-10 bg-muted border-border text-foreground/80 rounded border px-1.5 py-0.5 font-medium">
-                  {t('quick_preset_customized_badge')}
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="bg-muted text-muted-foreground border-border/50 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border">
+            <Icon className="size-3 w-3" />
+          </span>
+          <span className="text-ql-12 text-foreground truncate font-medium">
+            {preset.label || preset.defaultLabel}
+          </span>
+          <span className="text-ql-10 text-muted-foreground/60 hidden sm:inline">
+            · {preset.isPrimary ? t('preset_primary_short') : t('preset_menu_short')}
+          </span>
         </div>
-
         {preset.isCustomized && (
           <Button
             type="button"
             variant="ghost"
             size="xs"
             onClick={onReset}
-            className="text-muted-foreground hover:text-foreground text-ql-10 gap-1 px-2"
+            className="text-ql-10 text-muted-foreground h-6 gap-1 px-1.5"
           >
             <RotateCcw className="h-3 w-3" />
-            <span>{t('quick_preset_reset')}</span>
+            {t('reset')}
           </Button>
         )}
       </div>
 
-      {/* Inputs */}
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_1fr]">
         <div className="space-y-1">
-          <Label className="text-ql-10 text-muted-foreground font-medium">
-            {t('quick_preset_label')}
-          </Label>
+          <Label className="text-ql-10 text-muted-foreground/70">{t('prompt_label')}</Label>
           <Input
             value={preset.label}
             onChange={handleLabelChange}
             placeholder={preset.defaultLabel}
-            className="text-ql-11"
+            className="text-ql-12 h-7"
           />
         </div>
-        <div className="space-y-1 sm:col-span-2">
-          <Label className="text-ql-10 text-muted-foreground font-medium">
-            {t('quick_preset_prompt')}
-          </Label>
+        <div className="space-y-1">
+          <Label className="text-ql-10 text-muted-foreground/70">{t('prompt_prompt')}</Label>
           <Textarea
             value={preset.value}
             onChange={handleValueChange}
             placeholder={preset.defaultValue}
-            rows={2}
-            className="text-ql-11 min-h-[52px] resize-y py-1.5"
+            rows={1}
+            className="text-ql-12 min-h-[30px] resize-none py-1.5 leading-snug"
           />
         </div>
       </div>

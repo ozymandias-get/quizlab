@@ -293,14 +293,28 @@ describe('local-pdf:// protocol handler', () => {
       expect(response.status).toBe(416)
     })
 
-    it('returns 416 for suffix-only range (bytes=-N) since parser requires leading digits', async () => {
+    it('returns 206 for suffix-only range (bytes=-N) with the trailing N bytes', async () => {
       await loadAndRegister()
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
 
       const response = await getProtocolHandler()(makeRequest(streamUrl, { range: 'bytes=-100' }))
 
-      // parseByteRange regex requires \d+ at start; suffix-only is not supported
-      expect(response.status).toBe(416)
+      expect(response.status).toBe(206)
+      expect(response.headers.get('content-range')).toBe('bytes 900-999/1000')
+      expect(createReadStreamMock).toHaveBeenCalledWith(
+        expect.stringMatching(/[\\/]test[\\/]file\.pdf$/),
+        { start: 900, end: 999, highWaterMark: 1048576 }
+      )
+    })
+
+    it('returns 206 with the whole file for oversized suffix range (RFC 7233)', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(makeRequest(streamUrl, { range: 'bytes=-1001' }))
+
+      expect(response.status).toBe(206)
+      expect(response.headers.get('content-range')).toBe('bytes 0-999/1000')
     })
   })
 })

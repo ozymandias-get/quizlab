@@ -7,7 +7,21 @@ import { setTimeout as sleep } from 'node:timers/promises'
 
 import { isLoopbackOrPrivateHost, normalizeHostname } from './ssrfIpUtils.js'
 
-function validateProviderUrl(baseUrl: string): string | null {
+export interface SsrProtectionOptions {
+  allowLocalNetwork?: boolean
+  /** alias for allowLocalNetwork */
+  allowLocalEndpoints?: boolean
+  /** alias for allowLocalNetwork — custom providers often local */
+  isCustomProvider?: boolean
+}
+
+function isLocalAllowed(options?: SsrProtectionOptions): boolean {
+  return Boolean(
+    options?.allowLocalNetwork || options?.allowLocalEndpoints || options?.isCustomProvider
+  )
+}
+
+function validateProviderUrl(baseUrl: string, options?: SsrProtectionOptions): string | null {
   if (typeof baseUrl !== 'string' || !baseUrl) return 'Missing baseUrl'
   try {
     const parsed = new URL(baseUrl)
@@ -24,14 +38,20 @@ function validateProviderUrl(baseUrl: string): string | null {
 
     const host = normalizeHostname(parsed.hostname)
     const isLocalDevHost = host === 'localhost' || host === '127.0.0.1'
+    const allowLocal = isLocalAllowed(options)
+    const isPrivate = isLoopbackOrPrivateHost(host)
+    const isAllowedHttpHost = isLocalDevHost || (allowLocal && isPrivate)
 
-    if (parsed.protocol !== 'https:' && !isLocalDevHost) {
+    if (parsed.protocol !== 'https:' && !isAllowedHttpHost) {
       return 'Non-HTTPS provider URLs are only allowed for localhost'
     }
 
     // Skip SSRF block for localhost/127.0.0.1 since they are already
     // handled above — HTTP is explicitly allowed for local development.
-    if (!isLocalDevHost && isLoopbackOrPrivateHost(host)) {
+    // When allowLocalNetwork is true (Ollama / LM Studio / vLLM / LocalAI)
+    // private/reserved loopback & LAN addresses are permitted with explicit
+    // user consent.
+    if (!allowLocal && !isLocalDevHost && isPrivate) {
       return `SSRF blocked: "${host}" is a private/reserved address`
     }
 
@@ -41,14 +61,21 @@ function validateProviderUrl(baseUrl: string): string | null {
   }
 }
 
+// Alias for issue naming — validateSsrfTarget is the name used in the bug report
+const validateSsrfTarget = validateProviderUrl
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DNS rebinding (TOCTOU) protection
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MAX_RESPONSE_BODY_BYTES = 50 * 1024 * 1024 // 50 MB
 
-async function resolvePinnedIp(hostname: string): Promise<{ ip: string; family: number }> {
+async function resolvePinnedIp(
+  hostname: string,
+  options?: SsrProtectionOptions
+): Promise<{ ip: string; family: number }> {
   const host = normalizeHostname(hostname)
+  const allowLocal = isLocalAllowed(options)
 
   // IP literals need no resolution — the address is already checked by
   // validateProviderUrl before we get here.
@@ -71,13 +98,17 @@ async function resolvePinnedIp(hostname: string): Promise<{ ip: string; family: 
     throw new Error(`DNS resolution failed for "${hostname}"`)
   }
 
-  // EVERY returned address must be public. If any single A/AAAA record points
-  // into a private/reserved block the whole request is rejected.
-  for (const address of addresses) {
-    if (isLoopbackOrPrivateHost(address.address)) {
-      throw new Error(
-        `SSRF blocked: "${hostname}" resolved to private/reserved address ${address.address}`
-      )
+  // EVERY returned address must be public unless allowLocalNetwork is set.
+  // If any single A/AAAA record points into a private/reserved block the whole
+  // request is rejected — prevents DNS rebinding to 127.0.0.1 / 192.168.x.x /
+  // 169.254.169.254 after an initially public hostname.
+  if (!allowLocal) {
+    for (const address of addresses) {
+      if (isLoopbackOrPrivateHost(address.address)) {
+        throw new Error(
+          `SSRF blocked: "${hostname}" resolved to private/reserved address ${address.address}`
+        )
+      }
     }
   }
 
@@ -187,21 +218,26 @@ function applyRedirectSemantics(status: number, init?: RequestInit): RequestInit
 }
 
 /**
- * SSRF-safe fetch wrapper.
+ * SSRF-safe fetch wrapper. Pass `allowLocalNetwork:true` for Ollama / LM Studio
+ * / vLLM / LocalAI custom providers to permit loopback & LAN targets.
  */
-async function fetchWithSsrProtection(url: string, init?: RequestInit): Promise<Response> {
+async function fetchWithSsrProtection(
+  url: string,
+  init?: RequestInit,
+  options?: SsrProtectionOptions
+): Promise<Response> {
   const originalOrigin = new URL(url).origin
   let currentUrl = url
   let currentInit = init
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const parsed = new URL(currentUrl)
-    const err = validateProviderUrl(currentUrl)
+    const err = validateProviderUrl(currentUrl, options)
     if (err) {
       throw new Error(`SSRF blocked: ${err}`)
     }
 
-    const { ip, family } = await resolvePinnedIp(parsed.hostname)
+    const { ip, family } = await resolvePinnedIp(parsed.hostname, options)
 
     const method = (currentInit?.method || 'GET').toUpperCase()
     const headers = new Headers(currentInit?.headers)
@@ -245,7 +281,7 @@ async function fetchWithSsrProtection(url: string, init?: RequestInit): Promise<
     const location = Array.isArray(locationHeader) ? locationHeader[0] : locationHeader
 
     const target = new URL(location, currentUrl)
-    const redirectErr = validateProviderUrl(target.href)
+    const redirectErr = validateProviderUrl(target.href, options)
     if (redirectErr) {
       throw new Error(`SSRF blocked on redirect: ${redirectErr}`)
     }
@@ -261,5 +297,5 @@ async function fetchWithSsrProtection(url: string, init?: RequestInit): Promise<
   throw new Error('Too many redirects')
 }
 
-export { fetchWithSsrProtection, validateProviderUrl }
+export { fetchWithSsrProtection, validateProviderUrl, validateSsrfTarget }
 export type {} // satisfy isolatedModules

@@ -106,7 +106,7 @@ export interface IpcInvokeRequestMap {
   }
 
   [IPC_CHANNELS.CANCEL_API_CHAT_REQUEST]: {
-    args: []
+    args: [requestId?: string]
     result: IpcResult<boolean>
   }
 
@@ -115,7 +115,8 @@ export interface IpcInvokeRequestMap {
       messages: ApiChatMessage[],
       selectedModel?: string,
       generalPrompt?: string,
-      providerId?: string
+      providerId?: string,
+      requestId?: string
     ]
     result: IpcResult<ApiChatMessage>
   }

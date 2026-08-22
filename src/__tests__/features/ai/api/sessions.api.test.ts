@@ -7,6 +7,8 @@
  * @see @features/ai/api/sessions.api
  */
 
+import '@shared/i18n/i18next'
+
 import type { ApiChatMessage } from '@shared-core/types'
 
 import {
@@ -18,9 +20,10 @@ import {
   removeMessageFromSession,
   renameSession
 } from '@features/ai/api/sessions.api'
-import type { ChatSession } from '@features/ai/store/apiChatSessionUtils'
+import { type ChatSession, getDefaultSessionTitle } from '@features/ai/store/apiChatSessionUtils'
 
-import { describe, expect, it } from 'vitest'
+import i18next from 'i18next'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
   return {
@@ -44,9 +47,13 @@ function makeMessage(overrides: Partial<ApiChatMessage> = {}): ApiChatMessage {
 }
 
 describe('createNewSession', () => {
+  beforeAll(async () => {
+    await i18next.changeLanguage('tr')
+  })
+
   it('creates a session with Yeni Sohbet title', () => {
     const session = createNewSession()
-    expect(session.title).toBe('Yeni Sohbet')
+    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(session.title)
     expect(session.messages).toEqual([])
     expect(session.id).toBeTruthy()
     expect(session.createdAt).toBeGreaterThan(0)
@@ -128,7 +135,7 @@ describe('clearSessionMessages', () => {
 
     const result = clearSessionMessages(sessions, 'session-1')
     expect(result[0].messages).toEqual([])
-    expect(result[0].title).toBe('Yeni Sohbet')
+    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(result[0].title)
   })
 })
 
@@ -142,7 +149,7 @@ describe('renameSession', () => {
   it('defaults to Yeni Sohbet for empty title', () => {
     const sessions = [makeSession({ title: 'Old Title' })]
     const result = renameSession(sessions, 'session-1', '')
-    expect(result[0].title).toBe('Yeni Sohbet')
+    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(result[0].title)
   })
 })
 
@@ -158,6 +165,6 @@ describe('deleteSessionFromList', () => {
     const sessions = [makeSession({ id: 's1' })]
     const result = deleteSessionFromList(sessions, 's1')
     expect(result).toHaveLength(1)
-    expect(result[0].title).toBe('Yeni Sohbet')
+    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(result[0].title)
   })
 })

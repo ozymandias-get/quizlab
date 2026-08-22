@@ -1,4 +1,6 @@
+import { queryClient } from '@app/providers/queryClient'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { QUERY_KEYS } from '@shared/query/queryKeys'
 
 import { getElectronApi, hasElectronApi } from './electronApi'
 import { Logger } from './logger'
@@ -43,6 +45,30 @@ const SYNC_KEY_SET = new Set<string>(SETTINGS_SYNC_KEYS)
 let installed = false
 let suppressForwarding = false
 
+// Single source of truth: any external storage mutation must refresh the
+// corresponding React Query cache, otherwise a stale in-memory copy (e.g. an
+// open composer holding the old prompt list) will overwrite the fresh value
+// when it next writes to disk.
+const SESSIONS_STORAGE_KEY = 'quizlab_api_chat_sessions_v2'
+
+function invalidateQueriesForStorageKey(key: string): void {
+  try {
+    if (key === SESSIONS_STORAGE_KEY) {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
+      return
+    }
+    // Generic: any query whose key contains this storage key
+    queryClient.invalidateQueries({
+      predicate: (query: { queryKey: unknown[] }) =>
+        Array.isArray(query.queryKey) && query.queryKey.includes(key)
+    } as unknown as never)
+    // Exact fallback for tests that use the raw storage key as queryKey
+    queryClient.invalidateQueries({ queryKey: [key] } as never)
+  } catch {
+    // Never break storage sync due to query errors
+  }
+}
+
 export function isSyncableSettingKey(key: string): boolean {
   return SYNC_KEY_SET.has(key)
 }
@@ -64,6 +90,11 @@ export async function syncSettingToMain(key: string, value: string): Promise<voi
  * whitelisted key is mirrored to the main process. Patching the prototype
  * (instead of individual stores) covers every writer: `useLocalStorage`,
  * zustand persist, and direct `localStorage.setItem` calls alike.
+ *
+ * Also installs storage-event listeners that keep React Query in sync:
+ * whenever another tab — or another hook instance in the same tab via the
+ * custom `local-storage` event — mutates a key, the corresponding query is
+ * invalidated so the stale in-memory copy is refetched instead of overwriting.
  *
  * Returns an uninstall function (used by tests).
  */
@@ -88,12 +119,38 @@ export function installSettingsSync(): () => void {
     configurable: true
   })
 
+  // React Query single source of truth: external mutations (other tab or
+  // another hook instance) must invalidate the query cache. Without this,
+  // a stale `customPrompts` list held by an open composer would overwrite
+  // a freshly added prompt when the composer next writes.
+  const handleExternalStorage = (e: StorageEvent) => {
+    if (e.key && (isSyncableSettingKey(e.key) || e.key === SESSIONS_STORAGE_KEY)) {
+      invalidateQueriesForStorageKey(e.key)
+    } else if (e.key === null) {
+      // `clear()` — invalidate all known sync keys
+      for (const k of SETTINGS_SYNC_KEYS) invalidateQueriesForStorageKey(k)
+      invalidateQueriesForStorageKey(SESSIONS_STORAGE_KEY)
+    }
+  }
+
+  const handleLocalSyncEvent = (e: Event) => {
+    const detail = (e as CustomEvent<{ key: string; value: string }>).detail
+    if (detail?.key && (isSyncableSettingKey(detail.key) || detail.key === SESSIONS_STORAGE_KEY)) {
+      invalidateQueriesForStorageKey(detail.key)
+    }
+  }
+
+  window.addEventListener('storage', handleExternalStorage)
+  window.addEventListener('local-storage', handleLocalSyncEvent as EventListener)
+
   return () => {
     Object.defineProperty(storageProto, 'setItem', {
       value: originalSetItem,
       writable: true,
       configurable: true
     })
+    window.removeEventListener('storage', handleExternalStorage)
+    window.removeEventListener('local-storage', handleLocalSyncEvent as EventListener)
     installed = false
   }
 }

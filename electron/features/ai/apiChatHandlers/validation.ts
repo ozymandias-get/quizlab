@@ -34,23 +34,29 @@ const isValidChatContentItem = (content: unknown): content is ChatContentItem =>
   return false
 }
 
+function sanitizeTextContent(content: unknown): string {
+  return typeof content === 'string' ? content.slice(0, MAX_MESSAGE_TEXT_LENGTH) : ''
+}
+
 function sanitizeChatMessage(
   msg: unknown
 ): { role: string; content: string; images?: string[] } | null {
   if (!msg || typeof msg !== 'object') return null
   const m = msg as Record<string, unknown>
 
-  if (m.role !== 'user') return null
+  // Assistant turns carry the model's own previous replies and are required
+  // for multi-turn context. They never carry images.
+  if (m.role !== 'user' && m.role !== 'assistant') return null
 
-  const content = typeof m.content === 'string' ? m.content.slice(0, MAX_MESSAGE_TEXT_LENGTH) : ''
+  const content = sanitizeTextContent(m.content)
   if (!content) return null
 
   let images: string[] | undefined
-  if (Array.isArray(m.images)) {
+  if (m.role === 'user' && Array.isArray(m.images)) {
     images = m.images.filter((img): img is string => typeof img === 'string')
   }
 
-  return { role: 'user', content, images }
+  return { role: m.role, content, images }
 }
 
 export {

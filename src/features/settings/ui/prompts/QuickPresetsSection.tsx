@@ -29,37 +29,34 @@ export const QuickPresetsSection = memo(function QuickPresetsSection() {
   )
 
   return (
-    <section className="space-y-4">
-      {/* Section Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Sparkles className="text-primary h-4 w-4" />
-            <h3 className="text-foreground text-ql-14 font-semibold">
-              {t('quick_presets_section_title')}
-            </h3>
-          </div>
-          <p className="text-muted-foreground text-ql-12 leading-relaxed">
-            {t('quick_presets_section_desc')}
-          </p>
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="bg-primary/10 text-primary border-primary/20 flex h-6 w-6 items-center justify-center rounded-md border">
+            <Sparkles className="h-3 w-3" />
+          </span>
+          <h3 className="text-ql-13 text-foreground font-semibold">
+            {t('quick_presets_section_title')}
+          </h3>
         </div>
-
         {hasAnyCustomized && (
           <Button
             type="button"
-            variant="outline"
-            size="sm"
+            variant="ghost"
+            size="xs"
             onClick={handleResetAll}
-            className="text-muted-foreground hover:text-foreground text-ql-12 h-8 shrink-0 gap-1.5"
+            className="text-ql-11 text-muted-foreground h-6 gap-1 px-2"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>{t('quick_preset_reset_all')}</span>
+            <RotateCcw className="h-3 w-3" />
+            {t('quick_preset_reset_all')}
           </Button>
         )}
       </div>
+      <p className="text-ql-11 text-muted-foreground -mt-1 leading-relaxed">
+        {t('quick_presets_section_desc')}
+      </p>
 
-      {/* Preset Cards */}
-      <div className="grid grid-cols-1 gap-3">
+      <div className="space-y-2">
         {presets.map((preset) => (
           <QuickPresetEditorCard
             key={preset.key}

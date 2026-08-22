@@ -1,6 +1,6 @@
 # Quizlab Reader Roadmap
 
-> Current version: **4.0.0** &nbsp;•&nbsp; [View releases](https://github.com/ozymandias-get/quizlab/releases)
+> Current version: **5.2.0** &nbsp;•&nbsp; [View releases](https://github.com/ozymandias-get/quizlab/releases)
 
 This document outlines planned directions and improvements.
 

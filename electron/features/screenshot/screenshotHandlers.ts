@@ -24,32 +24,38 @@ interface ClipboardSnapshot {
 }
 
 /**
- * Snapshot of the user's clipboard taken right before COPY_IMAGE overwrites
- * it with the image being sent. Restored via RESTORE_CLIPBOARD after the
- * webview paste completes so the user's clipboard is not silently destroyed.
+ * Stack of clipboard snapshots taken right before COPY_IMAGE overwrites the
+ * clipboard. Nested sends (two tabs sending screenshots concurrently) push
+ * separate entries; the FINAL restore unwinds to the user's true original
+ * content instead of an intermediate app-copied image.
  */
-let savedClipboard: ClipboardSnapshot | null = null
+const MAX_CLIPBOARD_SNAPSHOTS = 8
+let clipboardSnapshots: ClipboardSnapshot[] = []
 
 function snapshotClipboard(): void {
   try {
+    if (clipboardSnapshots.length >= MAX_CLIPBOARD_SNAPSHOTS) return
     const text = clipboard.readText()
     const html = clipboard.readHTML()
     const image = clipboard.readImage()
-    savedClipboard = {
+    clipboardSnapshots.push({
       text: text || undefined,
       html: html || undefined,
       image: image.isEmpty() ? undefined : image
-    }
+    })
   } catch (error) {
-    savedClipboard = null
     Logger.warn('[Clipboard] Failed to snapshot clipboard:', error)
   }
 }
 
 function restoreClipboard(): boolean {
-  const snapshot = savedClipboard
-  savedClipboard = null
+  const snapshot = clipboardSnapshots.pop()
   if (!snapshot) return false
+
+  // Inner cycle of a nested send: leave the current content in place; the
+  // outermost restore writes the user's original content back.
+  if (clipboardSnapshots.length > 0) return true
+
   try {
     if (snapshot.image) {
       clipboard.writeImage(snapshot.image)

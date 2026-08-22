@@ -12,6 +12,7 @@ import {
 } from '../api/sessions.api'
 import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
+import { beginChatRequest, endChatRequest } from './activeChatRequests'
 import {
   getMessagesFromSessions,
   getUserMessage,
@@ -53,7 +54,9 @@ export async function sendApiChatMessage(
   // Lock invariant: everything after the lock acquisition runs inside the
   // try/finally below so the lock is released no matter where it fails.
   let streamingStarted = false
+  let requestId: string | undefined
   try {
+    requestId = beginChatRequest(tabId)
     const userMsg = getUserMessage(text, images, providerId)
 
     const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
@@ -82,7 +85,8 @@ export async function sendApiChatMessage(
         messages,
         model || undefined,
         combinedPrompt || undefined,
-        providerId || undefined
+        providerId || undefined,
+        requestId
       )
 
       if (!reply) {
@@ -126,6 +130,9 @@ export async function sendApiChatMessage(
       return { success: false, error, errorReply, sessionId: activeSessionId }
     }
   } finally {
+    if (requestId !== undefined) {
+      endChatRequest(tabId, requestId)
+    }
     inFlightSendsByTab.delete(tabId)
     // Only reset streaming state when it was actually turned on for this send.
     if (streamingStarted) {

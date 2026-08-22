@@ -1,9 +1,27 @@
 import { canonicalizeHostname, toAutomationConfig } from '@shared-core/selectorConfig'
 import type { AiPlatform, AiSelectorConfig } from '@shared-core/types'
 
+// Unified selector engine — single source of truth (see shared/lib/selectorEngine.ts)
+import {
+  classifySelector,
+  escapeCssString,
+  getSelectorPriority,
+  isSelectorValid,
+  normalizeSelector,
+  sortSelectorsByPriority
+} from '@shared/lib/selectorEngine'
+
 import type { SelectorEntry } from './types'
 
 export { toAutomationConfig }
+export {
+  classifySelector,
+  escapeCssString,
+  getSelectorPriority,
+  isSelectorValid,
+  normalizeSelector,
+  sortSelectorsByPriority
+}
 
 export function normalizeSelectorsData(
   selectorsData: AiSelectorConfig | Record<string, AiSelectorConfig> | null | undefined
