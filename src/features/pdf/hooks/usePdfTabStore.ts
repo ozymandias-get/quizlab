@@ -210,5 +210,11 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         tab.id === tabId && tab.title !== normalizedTitle ? { ...tab, title: normalizedTitle } : tab
       )
     }))
+  },
+
+  setPdfViewMode: (tabId, viewMode) => {
+    set((state) => ({
+      pdfTabs: state.pdfTabs.map((tab) => (tab.id === tabId ? { ...tab, viewMode } : tab))
+    }))
   }
 }))

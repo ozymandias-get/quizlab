@@ -4,7 +4,7 @@ import { Button } from '@app/components/ui/button'
 import { Kbd } from '@app/components/ui/kbd'
 import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
 
-import { FileText, Upload } from 'lucide-react'
+import { FileText, Sparkles, Upload } from 'lucide-react'
 import { memo } from 'react'
 
 import PdfRecentControls from './pdfPlaceholder/PdfRecentControls'
@@ -91,6 +91,33 @@ function PdfPlaceholder({
               {getShortcutModifierLabel()}+O
             </Kbd>
           </Button>
+
+          <div className="mt-3 grid w-full grid-cols-2 gap-2">
+            <div className="border-border bg-card flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center shadow-xs">
+              <FileText className="text-primary h-5 w-5" />
+              <p className="text-ql-12 leading-none font-medium">
+                {t('reader_mode_pdf', { defaultValue: 'Normal PDF' })}
+              </p>
+              <p className="text-muted-foreground text-ql-11 leading-relaxed">
+                {t('reader_mode_pdf_desc', { defaultValue: 'Hızlı, orijinal görünüm' })}
+              </p>
+            </div>
+            <div className="border-primary/20 bg-primary/5 flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center">
+              <Sparkles className="text-primary h-5 w-5" />
+              <p className="text-ql-12 leading-none font-medium">
+                {t('reader_smart', { defaultValue: 'Akıllı Okuma' })}
+              </p>
+              <p className="text-muted-foreground text-ql-11 leading-relaxed">
+                {t('reader_smart_desc', { defaultValue: 'Metin, başlık, tablo, görsel' })}
+              </p>
+            </div>
+          </div>
+          <p className="text-muted-foreground text-ql-11 mt-2 leading-relaxed">
+            {t('reader_hint', {
+              defaultValue:
+                'Yükledikten sonra üstteki [PDF] / [Akıllı Okuma] ile görünümü değiştirebilirsiniz.'
+            })}
+          </p>
         </div>
 
         {/* Recent Reading Section */}

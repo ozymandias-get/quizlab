@@ -1,6 +1,6 @@
 import type { PdfFile } from '@shared-core/types'
 
-import type { PdfTab } from './types'
+import type { PdfTab, ReaderViewMode } from './types'
 
 export const createViewerSessionKey = (): string =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -49,6 +49,7 @@ export interface PdfTabActions {
   goToPdfHome: () => void
   openGoogleDriveTab: () => void
   renamePdfTab: (tabId: string, title?: string) => void
+  setPdfViewMode: (tabId: string, viewMode: ReaderViewMode) => void
 }
 
 export type PdfTabStore = PdfTabState & PdfTabActions

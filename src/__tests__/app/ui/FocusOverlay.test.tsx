@@ -38,6 +38,10 @@ vi.mock('@features/pdf/viewer', () => ({
   PdfViewer: () => <div data-testid="pdf-viewer">PDF Viewer</div>
 }))
 
+vi.mock('@features/reader', () => ({
+  PdfReaderShell: () => <div data-testid="pdf-viewer">PDF Viewer</div>
+}))
+
 const mockAiWebview = vi.fn()
 vi.mock('@features/ai/webview', () => ({
   AiWebview: (props: any) => {

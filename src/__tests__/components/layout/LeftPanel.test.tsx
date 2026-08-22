@@ -14,6 +14,10 @@ vi.mock('@features/pdf/viewer', () => ({
   PdfWorkerHost: ({ children }: any) => <>{children}</>
 }))
 
+vi.mock('@features/reader/ui/PdfReaderShell', () => ({
+  default: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>
+}))
+
 vi.mock('@react-pdf-viewer/core', () => ({
   Worker: ({ children }: any) => <div data-testid="pdf-worker">{children}</div>
 }))

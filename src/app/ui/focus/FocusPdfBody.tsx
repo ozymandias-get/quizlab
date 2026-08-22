@@ -12,7 +12,9 @@ import { useTranslation } from 'react-i18next'
 const PdfTabStrip = lazy(() =>
   import('@features/pdf/viewer').then((m) => ({ default: m.PdfTabStrip }))
 )
-const PdfViewer = lazy(() => import('@features/pdf/viewer').then((m) => ({ default: m.PdfViewer })))
+const PdfReaderShell = lazy(() =>
+  import('@features/reader').then((m) => ({ default: m.PdfReaderShell }))
+)
 
 const FocusPdfBody = memo(function FocusPdfBody() {
   const { t } = useTranslation()
@@ -103,7 +105,7 @@ const FocusPdfBody = memo(function FocusPdfBody() {
       )}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <ErrorBoundary title={t('error_pdf_viewer')}>
-          <PdfViewer
+          <PdfReaderShell
             pdfFile={pdfFile}
             activePdfTab={activePdfTab}
             onSelectPdf={handleSelectPdf}

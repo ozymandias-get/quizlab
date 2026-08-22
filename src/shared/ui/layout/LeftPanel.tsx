@@ -16,7 +16,9 @@ import { ImportIcon } from '@ui/components/Icons'
 import { lazy, memo, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
-const PdfViewer = lazy(() => import('@features/pdf/viewer').then((m) => ({ default: m.PdfViewer })))
+const PdfReaderShell = lazy(() =>
+  import('@features/reader').then((m) => ({ default: m.PdfReaderShell }))
+)
 const PdfTabStrip = lazy(() =>
   import('@features/pdf/viewer').then((m) => ({ default: m.PdfTabStrip }))
 )
@@ -135,7 +137,7 @@ function LeftPanel({
                 <div className="animate-in fade-in motion-slower absolute inset-0 h-full w-full">
                   <ErrorBoundary title={t('error_pdf_viewer')}>
                     <PdfWorkerHost>
-                      <PdfViewer
+                      <PdfReaderShell
                         pdfFile={pdfFile}
                         activePdfTab={activePdfTab}
                         onSelectPdf={onSelectPdf}

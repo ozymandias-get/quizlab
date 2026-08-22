@@ -17,6 +17,8 @@ export interface ReadingProgressUpdate {
   lastOpenedAt?: number
 }
 
+export type ReaderViewMode = 'pdf' | 'reader'
+
 export interface PdfTab {
   id: string
   file: PdfFile | null
@@ -24,4 +26,5 @@ export interface PdfTab {
   kind?: 'pdf' | 'drive'
   webviewUrl?: string
   viewerSessionKey?: string
+  viewMode?: ReaderViewMode
 }
