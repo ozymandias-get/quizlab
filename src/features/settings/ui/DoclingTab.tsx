@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle, Download, HardDrive, RefreshCw, Trash2 } fr
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import DoclingModelsCard from './docling/DoclingModelsCard'
 import DoclingRemoveDialog from './docling/DoclingRemoveDialog'
 import { useDoclingTabState } from './docling/useDoclingTabState'
 import SettingsTabIntro from './shared/SettingsTabIntro'
@@ -29,18 +30,23 @@ const DoclingTab = memo(function DoclingTab() {
   const {
     docling,
     serviceStatus,
+    modelStatus,
     isLoading,
     isBusy,
     isInstalled,
     progress,
     confirmOpen,
     actionPending,
+    modelActionPending,
     handleRefresh,
     handleInstall,
     handleRepair,
     handleRemove,
     closeConfirm,
-    confirmRemove
+    confirmRemove,
+    handleDownloadModels,
+    handleDeleteModels,
+    handleRepairModels
   } = useDoclingTabState()
 
   const statusDot = isBusy ? 'bg-amber-500' : isInstalled ? 'bg-emerald-500' : 'bg-zinc-400'
@@ -67,7 +73,7 @@ const DoclingTab = memo(function DoclingTab() {
         <div className="flex items-center justify-between">
           <h3 className="text-ql-13 text-foreground flex items-center gap-2 font-semibold">
             <span className={cn('size-2 rounded-full', statusDot)} aria-hidden />
-            {statusText}
+            {statusText} — Engine
           </h3>
           <Button
             type="button"
@@ -105,22 +111,18 @@ const DoclingTab = memo(function DoclingTab() {
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground text-ql-12">{t('docling_models')}</dt>
-              <dd className="text-ql-13">
-                {serviceStatus
-                  ? t(`docling_model_${serviceStatus.modelStatus}`, {
-                      defaultValue: serviceStatus.modelStatus
-                    })
-                  : '-'}
-              </dd>
-            </div>
-            <div>
               <dt className="text-muted-foreground text-ql-12 flex items-center gap-1">
                 <HardDrive className="h-3 w-3" />
                 {t('docling_disk_usage')}
               </dt>
               <dd className="text-ql-13 font-mono">
                 {formatBytes(serviceStatus?.diskUsageBytes ?? null)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground text-ql-12">Engine</dt>
+              <dd className="text-ql-13">
+                {isInstalled ? t('docling_installed') : t('docling_not_installed')}
               </dd>
             </div>
           </dl>
@@ -162,6 +164,15 @@ const DoclingTab = memo(function DoclingTab() {
           </div>
         )}
       </SurfaceCard>
+
+      <DoclingModelsCard
+        modelStatus={modelStatus}
+        isInstalled={isInstalled}
+        pending={modelActionPending}
+        onDownload={handleDownloadModels}
+        onRepair={handleRepairModels}
+        onDelete={handleDeleteModels}
+      />
 
       <div className="flex flex-wrap gap-2.5">
         {!isInstalled ? (

@@ -165,6 +165,25 @@ class DoclingConversionService {
       return
     }
 
+    // Check models – conversion requires them; fail fast with clear code so Reader can show CTA
+    try {
+      const { getModelStatus } = await import('./doclingModelManager.js')
+      const modelStatus = await getModelStatus()
+      if (modelStatus.status !== 'ready') {
+        this.updateTask(taskId, {
+          status: 'failed',
+          error: {
+            code: 'model_missing' as unknown as QuizLabConversionErrorCode,
+            message: 'Required document models are not installed',
+            details: null
+          }
+        })
+        return
+      }
+    } catch {
+      // If model check fails, allow conversion to proceed – it will fail naturally if models truly missing
+    }
+
     // Ensure service running (lazy)
     try {
       await this.deps.serviceManager.ensureRunning()

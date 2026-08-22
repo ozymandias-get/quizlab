@@ -4,6 +4,7 @@ import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers.js'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
 import { registerDoclingConversionHandlers } from '../features/docling/doclingConversionHandlers.js'
+import { registerDoclingModelHandlers } from '../features/docling/doclingModelHandlers.js'
 import {
   registerDoclingServiceHandlers,
   shutdownDoclingService
@@ -37,6 +38,7 @@ export function registerGeneralHandlers() {
   registerOptionalComponentsHandlers()
   registerDoclingServiceHandlers()
   registerDoclingConversionHandlers()
+  registerDoclingModelHandlers()
 }
 
 export async function shutdownDoclingServiceHandlers(): Promise<void> {

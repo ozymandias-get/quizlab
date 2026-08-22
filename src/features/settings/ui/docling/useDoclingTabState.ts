@@ -1,4 +1,10 @@
 import {
+  useDoclingModelsDelete,
+  useDoclingModelsDownload,
+  useDoclingModelsRepair,
+  useDoclingModelsStatus
+} from '@platform/electron/api/useDoclingModelsApi'
+import {
   useDoclingServiceStatus,
   useDoclingServiceStatusSubscription
 } from '@platform/electron/api/useDoclingServiceApi'
@@ -20,6 +26,14 @@ export function useDoclingTabState() {
   const { data: components, isLoading, refetch } = useOptionalComponents()
   const { data: serviceStatus } = useDoclingServiceStatus()
   useDoclingServiceStatusSubscription(true)
+  const {
+    data: modelStatus,
+    isLoading: isModelLoading,
+    refetch: refetchModels
+  } = useDoclingModelsStatus()
+  const downloadModels = useDoclingModelsDownload()
+  const deleteModels = useDoclingModelsDelete()
+  const repairModels = useDoclingModelsRepair()
 
   const docling = useMemo(() => components?.find((c) => c.id === 'docling') ?? null, [components])
   const action = useOptionalComponentAction()
@@ -59,8 +73,9 @@ export function useDoclingTabState() {
 
   const handleRefresh = useCallback(() => {
     void refetch()
+    void refetchModels()
     void queryClient.invalidateQueries({ queryKey: ['docling', 'service', 'status'] })
-  }, [queryClient, refetch])
+  }, [queryClient, refetch, refetchModels])
 
   const handleInstall = useCallback(() => {
     setProgress({ phase: 'preparing', percent: null })
@@ -79,20 +94,36 @@ export function useDoclingTabState() {
     action.mutate({ componentId: 'docling', action: 'uninstall' })
   }, [action])
 
+  const handleDownloadModels = useCallback(() => {
+    downloadModels.mutate()
+  }, [downloadModels])
+  const handleDeleteModels = useCallback(() => {
+    deleteModels.mutate()
+  }, [deleteModels])
+  const handleRepairModels = useCallback(() => {
+    repairModels.mutate()
+  }, [repairModels])
+
   return {
     docling,
     serviceStatus,
-    isLoading,
+    modelStatus,
+    isLoading: isLoading || isModelLoading,
     isBusy,
     isInstalled,
     progress,
     confirmOpen,
     actionPending: action.isPending,
+    modelActionPending:
+      downloadModels.isPending || deleteModels.isPending || repairModels.isPending,
     handleRefresh,
     handleInstall,
     handleRepair,
     handleRemove,
     closeConfirm,
-    confirmRemove
+    confirmRemove,
+    handleDownloadModels,
+    handleDeleteModels,
+    handleRepairModels
   }
 }

@@ -179,6 +179,7 @@ export type QuizLabConversionErrorCode =
   | 'docling_crash'
   | 'not_installed'
   | 'service_unavailable'
+  | 'model_missing'
   | 'unknown'
 
 export interface QuizLabConversionError {

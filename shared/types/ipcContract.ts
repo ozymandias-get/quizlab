@@ -1,6 +1,7 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 import type {
   DoclingInstallProgressEvent,
+  DoclingModelStatusInfo,
   DoclingServiceStatus,
   QuizLabConversionTask,
   QuizLabDocument
@@ -348,6 +349,31 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.DOCLING_CONVERT_REPROCESS]: {
     args: [pdfPath: string]
     result: IpcResult<QuizLabConversionTask>
+  }
+
+  [IPC_CHANNELS.DOCLING_MODELS_GET_STATUS]: {
+    args: []
+    result: IpcResult<DoclingModelStatusInfo>
+  }
+
+  [IPC_CHANNELS.DOCLING_MODELS_DOWNLOAD]: {
+    args: []
+    result: IpcResult<DoclingModelStatusInfo>
+  }
+
+  [IPC_CHANNELS.DOCLING_MODELS_DELETE]: {
+    args: []
+    result: IpcResult<DoclingModelStatusInfo>
+  }
+
+  [IPC_CHANNELS.DOCLING_MODELS_REPAIR]: {
+    args: []
+    result: IpcResult<DoclingModelStatusInfo>
+  }
+
+  [IPC_CHANNELS.DOCLING_MODELS_GET_DISK_USAGE]: {
+    args: []
+    result: IpcResult<number>
   }
 }
 

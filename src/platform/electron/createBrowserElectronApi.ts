@@ -332,6 +332,28 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       }),
       onProgress: () => () => {}
     },
+    doclingModels: {
+      getStatus: stubReturn({
+        status: 'missing' as const,
+        diskBytes: null,
+        files: [],
+        version: null
+      }),
+      download: stubReturn({
+        status: 'ready' as const,
+        diskBytes: 1024 * 1024,
+        files: ['placeholder.bin'],
+        version: '1'
+      }),
+      delete: stubReturn({ status: 'missing' as const, diskBytes: 0, files: [], version: null }),
+      repair: stubReturn({
+        status: 'ready' as const,
+        diskBytes: 1024 * 1024,
+        files: ['placeholder.bin'],
+        version: '1'
+      }),
+      getDiskUsage: stubReturn(0)
+    },
     getApiChatConfig: stubReturn({
       providers: [],
       generalPrompt: '',

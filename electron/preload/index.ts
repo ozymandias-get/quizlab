@@ -195,6 +195,14 @@ const electronApi: ElectronApi = {
       onEvent(IPC_CHANNELS.DOCLING_CONVERT_PROGRESS, (payload) => callback(payload))
   },
 
+  doclingModels: {
+    getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_MODELS_GET_STATUS)),
+    download: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_MODELS_DOWNLOAD)),
+    delete: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_MODELS_DELETE)),
+    repair: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_MODELS_REPAIR)),
+    getDiskUsage: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_MODELS_GET_DISK_USAGE))
+  },
+
   log: (level, message, timestamp) => {
     ipcRenderer.send(IPC_CHANNELS.LOGGER_LOG, { level, message, timestamp })
   }

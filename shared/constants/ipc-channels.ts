@@ -76,6 +76,13 @@ export const IPC_CHANNELS = {
   DOCLING_CONVERT_PROGRESS: 'docling:convert-progress',
   DOCLING_CONVERT_REPROCESS: 'docling:convert-reprocess',
 
+  // Docling models (separate from engine)
+  DOCLING_MODELS_GET_STATUS: 'docling:models-get-status',
+  DOCLING_MODELS_DOWNLOAD: 'docling:models-download',
+  DOCLING_MODELS_DELETE: 'docling:models-delete',
+  DOCLING_MODELS_REPAIR: 'docling:models-repair',
+  DOCLING_MODELS_GET_DISK_USAGE: 'docling:models-get-disk-usage',
+
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
   NATIVE_MESSAGING_INSTALL_EXTENSION: 'native-messaging-install-extension',

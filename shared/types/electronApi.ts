@@ -1,6 +1,7 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 import type {
   DoclingInstallProgressEvent,
+  DoclingModelStatusInfo,
   DoclingServiceStatus,
   QuizLabConversionTask,
   QuizLabDocument
@@ -201,6 +202,14 @@ export interface ElectronApi {
     cancel: (taskId: string) => Promise<QuizLabConversionTask>
     reprocess: (pdfPath: string) => Promise<QuizLabConversionTask>
     onProgress: (callback: (task: QuizLabConversionTask) => void) => () => void
+  }
+
+  doclingModels: {
+    getStatus: () => Promise<DoclingModelStatusInfo>
+    download: () => Promise<DoclingModelStatusInfo>
+    delete: () => Promise<DoclingModelStatusInfo>
+    repair: () => Promise<DoclingModelStatusInfo>
+    getDiskUsage: () => Promise<number>
   }
 
   /** Forward a log entry from the renderer to the main process buffer. */

@@ -43,3 +43,12 @@ export interface DoclingServiceStatus {
   diskUsageBytes: number | null
   modelStatus: 'ready' | 'missing' | 'unknown'
 }
+
+export type DoclingModelStatus = 'ready' | 'missing' | 'partial'
+
+export interface DoclingModelStatusInfo {
+  status: DoclingModelStatus
+  diskBytes: number | null
+  files: string[]
+  version: string | null
+}

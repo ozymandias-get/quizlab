@@ -1,5 +1,6 @@
 import type { PdfFile } from '@shared-core/types'
 
+import { useDoclingModelsDownload } from '@platform/electron/api/useDoclingModelsApi'
 import { useOptionalComponents } from '@platform/electron/api/useOptionalComponentsApi'
 
 import type {
@@ -14,7 +15,7 @@ import { useReaderViewMode } from '@features/reader/hooks/useReaderViewMode'
 
 import { InlineSpinner } from '@shared/ui/components/primitives'
 
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 
 import DoclingInstallCta from './DoclingInstallCta'
 import ReaderView from './ReaderView'
@@ -49,6 +50,11 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
   const { document, isConverting, error, retry, reprocess } = useDocumentConversion(
     viewMode === 'reader' && isInstalled ? pdfPath : null
   )
+  const downloadModels = useDoclingModelsDownload()
+
+  useEffect(() => {
+    if (downloadModels.isSuccess) retry()
+  }, [downloadModels.isSuccess, retry])
 
   let readerContent: React.ReactNode = null
   if (viewMode === 'reader' && pdfFile) {
@@ -69,8 +75,10 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
         </div>
       )
     } else if (error) {
-      const msg =
-        error === 'conversion_timeout'
+      const isModelMissing = error.toLowerCase().includes('model')
+      const msg = isModelMissing
+        ? 'Gerekli belge modelleri yüklü değil.'
+        : error === 'conversion_timeout'
           ? 'Dönüşüm zaman aşımına uğradı'
           : error === 'encrypted_pdf'
             ? 'Şifreli PDF desteklenmiyor'
@@ -80,14 +88,25 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
       readerContent = (
         <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
           <p className="text-destructive text-ql-13">{msg}</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={retry}
-              className="bg-primary text-primary-foreground text-ql-12 rounded-lg px-3 py-1.5"
-            >
-              Yeniden dene
-            </button>
+          <div className="flex flex-wrap justify-center gap-2">
+            {isModelMissing ? (
+              <button
+                type="button"
+                onClick={() => downloadModels.mutate()}
+                disabled={downloadModels.isPending}
+                className="bg-primary text-primary-foreground text-ql-12 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
+              >
+                {downloadModels.isPending ? 'İndiriliyor…' : 'Modelleri İndir'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={retry}
+                className="bg-primary text-primary-foreground text-ql-12 rounded-lg px-3 py-1.5"
+              >
+                Yeniden dene
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setViewMode('pdf')}
@@ -96,7 +115,11 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
               PDF ile devam et
             </button>
           </div>
-          <p className="text-muted-foreground text-ql-11">PDF görünümü çalışmaya devam ediyor</p>
+          <p className="text-muted-foreground text-ql-11">
+            {isModelMissing
+              ? 'İndirme bitince belge yeniden işlenecek. Offline için modeller gerekli.'
+              : 'PDF görünümü çalışmaya devam ediyor'}
+          </p>
         </div>
       )
     } else if (document) {

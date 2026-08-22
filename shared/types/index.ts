@@ -33,6 +33,8 @@ export { TEXT_INPUT_MODE_VALUES } from './automation.js'
 export type {
   DoclingInstallPhase,
   DoclingInstallProgressEvent,
+  DoclingModelStatus,
+  DoclingModelStatusInfo,
   DoclingServiceState,
   DoclingServiceStatus
 } from './docling.js'
