@@ -6,12 +6,12 @@ import {
   classifySelector as __sharedClassifySelector,
   SELECTOR_PRIORITY as __SHARED_PRIORITY,
   sortSelectorsByPriority as __sharedSortSelectorsByPriority
-} from '@shared-core/lib/selectorEngine.js'
+} from '../../../../../shared/lib/selectorEngine.js'
 export {
   classifySelector,
   SELECTOR_PRIORITY,
   sortSelectorsByPriority
-} from '@shared-core/lib/selectorEngine.js'
+} from '../../../../../shared/lib/selectorEngine.js'
 
 import { fallbackPipeline } from './fallbackPipeline.js'
 

@@ -1,9 +1,8 @@
 // Unified engine — re-exported for unit-test parity check (shared is source of truth)
-import { escapeCssString as __sharedEscapeCssString } from '@shared-core/lib/selectorEngine.js'
-
+import { escapeCssString as __sharedEscapeCssString } from '../../../../../shared/lib/selectorEngine.js'
 import { fingerprintSearchHelpers } from './fingerprintSearchHelpers.js'
-export { escapeCssString } from '@shared-core/lib/selectorEngine.js'
-export { fingerprintMatchScore } from '@shared-core/lib/selectorEngine.js'
+export { escapeCssString } from '../../../../../shared/lib/selectorEngine.js'
+export { fingerprintMatchScore } from '../../../../../shared/lib/selectorEngine.js'
 
 export const domSearchHelpers =
   `    /**
