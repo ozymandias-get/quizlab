@@ -46,7 +46,7 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
   const docling = components?.find((c) => c.id === 'docling')
   const isInstalled = docling?.status === 'installed'
   const pdfPath = pdfFile?.path ?? null
-  const { document, isConverting, error, retry } = useDocumentConversion(
+  const { document, isConverting, error, retry, reprocess } = useDocumentConversion(
     viewMode === 'reader' && isInstalled ? pdfPath : null
   )
 
@@ -102,7 +102,7 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
     } else if (document) {
       readerContent = (
         <div className="h-full overflow-y-auto overscroll-contain">
-          <ReaderView document={document} />
+          <ReaderView document={document} onReprocess={reprocess} />
         </div>
       )
     } else {

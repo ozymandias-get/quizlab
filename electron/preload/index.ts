@@ -189,6 +189,8 @@ const electronApi: ElectronApi = {
     getResult: (taskId) =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_CONVERT_RESULT, taskId)),
     cancel: (taskId) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_CONVERT_CANCEL, taskId)),
+    reprocess: (pdfPath) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_CONVERT_REPROCESS, pdfPath)),
     onProgress: (callback) =>
       onEvent(IPC_CHANNELS.DOCLING_CONVERT_PROGRESS, (payload) => callback(payload))
   },

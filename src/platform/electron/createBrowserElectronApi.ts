@@ -321,6 +321,15 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         createdAt: Date.now(),
         updatedAt: Date.now()
       }),
+      reprocess: async () => ({
+        taskId: 'web',
+        pdfPath: '',
+        status: 'failed' as const,
+        progress: null,
+        error: { code: 'unknown' as const, message: 'web_dev_mode_only', details: null },
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }),
       onProgress: () => () => {}
     },
     getApiChatConfig: stubReturn({

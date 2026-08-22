@@ -73,4 +73,23 @@ export function registerDoclingConversionHandlers(): void {
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
   )
+
+  registerIpcHandler(
+    IPC_CHANNELS.DOCLING_CONVERT_REPROCESS,
+    async (_event, pdfPath: string) => {
+      if (typeof pdfPath !== 'string' || pdfPath.length === 0 || pdfPath.length > 4096) {
+        return failure('invalid_input', 'Invalid pdfPath')
+      }
+      if (pdfPath.includes('\0')) return failure('invalid_input', 'Invalid pdfPath')
+      try {
+        const task = await doclingConversionService.reconvertPdf(pdfPath)
+        return success(task)
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        return failure('internal_error', msg)
+      }
+    },
+    requireTrustedIpcSender,
+    failure('unauthorized', 'Not authorized')
+  )
 }

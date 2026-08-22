@@ -10,6 +10,7 @@ interface UseDocumentConversionResult {
   isConverting: boolean
   error: string | null
   retry: () => void
+  reprocess: () => void
 }
 
 const POLL_INTERVAL_MS = 900
@@ -82,6 +83,51 @@ export function useDocumentConversion(
     if (pdfPath) void startConversion(pdfPath)
   }, [pdfPath, startConversion])
 
+  const reprocess = useCallback(async () => {
+    if (!pdfPath) return
+    const api = getElectronApi()
+    if (!api?.doclingConversion?.reprocess) {
+      void startConversion(pdfPath)
+      return
+    }
+    try {
+      clearPoll()
+      setError(null)
+      setDocument(null)
+      const t = await api.doclingConversion.reprocess(pdfPath)
+      taskIdRef.current = t.taskId
+      setTask(t)
+      if (t.status === 'completed') {
+        const doc = await api.doclingConversion.getResult(t.taskId)
+        setDocument(doc)
+        return
+      }
+      if (t.status === 'failed') {
+        setError(t.error?.message ?? 'Conversion failed')
+        return
+      }
+      pollRef.current = window.setInterval(async () => {
+        if (!taskIdRef.current) return
+        try {
+          const cur = await api.doclingConversion.getStatus(taskIdRef.current)
+          setTask(cur)
+          if (cur.status === 'completed') {
+            clearPoll()
+            const doc = await api.doclingConversion.getResult(cur.taskId)
+            setDocument(doc)
+          } else if (cur.status === 'failed') {
+            clearPoll()
+            setError(cur.error?.message ?? 'Conversion failed')
+          }
+        } catch {
+          // keep polling
+        }
+      }, POLL_INTERVAL_MS)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [pdfPath, clearPoll, startConversion])
+
   useEffect(() => {
     clearPoll()
     setDocument(null)
@@ -107,5 +153,5 @@ export function useDocumentConversion(
 
   const isConverting = task?.status === 'queued' || task?.status === 'processing'
 
-  return { document, task, isConverting, error, retry }
+  return { document, task, isConverting, error, retry, reprocess }
 }

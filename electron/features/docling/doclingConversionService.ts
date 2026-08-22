@@ -15,6 +15,12 @@ import { Logger } from '../../core/logger.js'
 import { adaptDoclingToQuizLabDocument } from './doclingAdapter.js'
 import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
 import { doclingServiceManager } from './doclingServiceManager.js'
+import {
+  computeFileHash,
+  copyAssetsToCache,
+  getCachedDocument,
+  putCachedDocument
+} from './quizlabDocumentCache.js'
 
 const TASK_TIMEOUT_MS = 5 * 60 * 1000
 const POLL_INTERVAL_MS = 800
@@ -66,17 +72,29 @@ class DoclingConversionService {
     }
   }
 
-  async convertPdf(pdfPath: string): Promise<QuizLabConversionTask> {
+  async convertPdf(
+    pdfPath: string,
+    options: { force?: boolean } = {}
+  ): Promise<QuizLabConversionTask> {
     const layout = this.deps.getLayout()
     const task = createTask(pdfPath, 'queued')
     this.tasks.set(task.taskId, task)
 
     // Fire-and-forget processing (caller polls getTask)
-    void this.processTask(task.taskId, layout).catch((error) => {
+    void this.processTask(task.taskId, layout, options).catch((error) => {
       Logger.error('[DoclingConversion] Unhandled task error', error)
     })
 
     return { ...task }
+  }
+
+  async reconvertPdf(pdfPath: string): Promise<QuizLabConversionTask> {
+    try {
+      const hash = await computeFileHash(pdfPath)
+      const { invalidateCache } = await import('./quizlabDocumentCache.js')
+      await invalidateCache(hash)
+    } catch {}
+    return this.convertPdf(pdfPath, { force: true })
   }
 
   getTask(taskId: string): QuizLabConversionTask | null {
@@ -102,7 +120,8 @@ class DoclingConversionService {
 
   private async processTask(
     taskId: string,
-    layout: ReturnType<typeof getDoclingLayout>
+    layout: ReturnType<typeof getDoclingLayout>,
+    options: { force?: boolean } = {}
   ): Promise<void> {
     const task = this.tasks.get(taskId)
     if (!task) return
@@ -111,6 +130,30 @@ class DoclingConversionService {
       status: 'processing',
       progress: { phase: 'processing', percent: null, message: null }
     })
+
+    // Try cache first (unless forced)
+    let sourceHash: string | null = null
+    if (!options.force) {
+      try {
+        sourceHash = await computeFileHash(task.pdfPath)
+        const cached = await getCachedDocument(sourceHash)
+        if (cached) {
+          this.results.set(taskId, cached)
+          this.updateTask(taskId, {
+            status: 'completed',
+            progress: { phase: 'completed', percent: 100, message: 'cache hit' }
+          })
+          return
+        }
+      } catch (error) {
+        Logger.warn('[DoclingConversion] Cache lookup failed', { error: String(error) })
+        sourceHash = null
+      }
+    } else {
+      try {
+        sourceHash = await computeFileHash(task.pdfPath)
+      } catch {}
+    }
 
     // Ensure runtime installed
     const status = await this.deps.serviceManager.getStatus()
@@ -221,7 +264,46 @@ class DoclingConversionService {
       })
 
       // Rewrite image assetUrls to secure protocol
-      const secured = await this.secureImageAssets(doc, taskId, layout, imagesDir)
+      let secured = await this.secureImageAssets(doc, taskId, layout, imagesDir)
+
+      // Cache the result atomically (if we have a content hash)
+      if (sourceHash) {
+        try {
+          // Copy image assets to cache and rewrite URLs to cache host
+          const cachedAssetsDir = path.join(
+            (await import('electron')).app.getPath('userData'),
+            'document-cache',
+            sourceHash,
+            'assets'
+          )
+          // Already have images in imagesDir, copy to cache
+          await copyAssetsToCache(sourceHash, imagesDir).catch(() => {})
+          // Rewrite assetUrls from taskId-based to cache-based for the cached copy
+          const cachedBlocks = secured.blocks.map((b) => {
+            if (
+              b.type === 'image' &&
+              b.assetUrl?.startsWith(`quizlab-asset://docling/${taskId}/`)
+            ) {
+              const fileName = b.assetId ?? b.assetUrl.split('/').pop() ?? ''
+              return {
+                ...b,
+                assetUrl: `quizlab-asset://docling-cache/${sourceHash}/assets/${fileName}`
+              }
+            }
+            return b
+          })
+          const cachedDoc: QuizLabDocument = {
+            ...secured,
+            blocks: cachedBlocks as QuizLabDocument['blocks'],
+            source: { ...secured.source, fileHash: sourceHash }
+          }
+          await putCachedDocument(sourceHash, cachedDoc)
+          // Also update the in-memory result to use cache URLs for consistency
+          secured = cachedDoc
+        } catch (error) {
+          Logger.warn('[DoclingConversion] Cache write failed', { error: String(error) })
+        }
+      }
 
       this.results.set(taskId, secured)
       this.updateTask(taskId, {

@@ -6,12 +6,16 @@ import { net, protocol } from 'electron'
 import { getDoclingLayout } from './doclingPaths.js'
 
 const ASSET_SCHEME = 'quizlab-asset'
-const ALLOWED_HOST = 'docling'
+const ALLOWED_HOSTS = new Set(['docling', 'docling-cache'])
 
 function isSafeAssetPath(taskId: string, fileName: string): boolean {
-  if (!/^[a-f0-9-]{8,64}$/.test(taskId)) return false
+  if (!/^[a-f0-9-]{8,64}$/.test(taskId) && !/^[a-f0-9]{64}$/.test(taskId)) return false
   if (!/^[a-f0-9-]+\.(png|jpg|jpeg|bin|webp)$/.test(fileName)) return false
   return true
+}
+
+function isSafeHash(hash: string): boolean {
+  return /^[a-f0-9]{64}$/.test(hash)
 }
 
 export function registerDoclingAssetScheme(): void {
@@ -33,30 +37,50 @@ export function registerDoclingAssetProtocol(): void {
   protocol.handle(ASSET_SCHEME, async (request) => {
     try {
       const url = new URL(request.url)
-      if (url.hostname !== ALLOWED_HOST) {
+      if (!ALLOWED_HOSTS.has(url.hostname)) {
         return new Response('Forbidden', { status: 403 })
       }
-      // url: quizlab-asset://docling/<taskId>/images/<fileName>
       const parts = url.pathname.split('/').filter(Boolean)
-      if (parts.length !== 3 || parts[1] !== 'images') {
-        return new Response('Not Found', { status: 404 })
-      }
-      const [taskId, , fileName] = parts
-      if (!isSafeAssetPath(taskId, fileName)) {
-        return new Response('Forbidden', { status: 403 })
-      }
-      const layout = getDoclingLayout()
-      const filePath = path.join(layout.root, 'documents', taskId, 'images', fileName)
 
-      // Path traversal guard: must stay under documents/<taskId>/images
+      let filePath: string
+      let expectedBase: string
+
+      if (url.hostname === 'docling') {
+        // url: quizlab-asset://docling/<taskId>/images/<fileName>
+        if (parts.length !== 3 || parts[1] !== 'images') {
+          return new Response('Not Found', { status: 404 })
+        }
+        const [taskId, , fileName] = parts
+        if (!isSafeAssetPath(taskId, fileName)) {
+          return new Response('Forbidden', { status: 403 })
+        }
+        const layout = getDoclingLayout()
+        filePath = path.join(layout.root, 'documents', taskId, 'images', fileName)
+        expectedBase = path.join(layout.root, 'documents', taskId, 'images')
+      } else {
+        // url: quizlab-asset://docling-cache/<hash>/assets/<fileName>
+        if (parts.length !== 3 || parts[1] !== 'assets') {
+          return new Response('Not Found', { status: 404 })
+        }
+        const [hash, , cFileName] = parts
+        if (!isSafeHash(hash) || !isSafeAssetPath(hash, cFileName)) {
+          return new Response('Forbidden', { status: 403 })
+        }
+        const { app } = await import('electron')
+        const cacheRoot = path.join(app.getPath('userData'), 'document-cache', hash, 'assets')
+        filePath = path.join(cacheRoot, cFileName)
+        expectedBase = cacheRoot
+      }
+
+      // Path traversal guard
       const normalized = path.normalize(filePath)
-      const expectedBase = path.join(layout.root, 'documents', taskId, 'images')
       if (!normalized.startsWith(expectedBase)) {
         return new Response('Forbidden', { status: 403 })
       }
 
       const data = await fs.readFile(normalized)
-      const ext = path.extname(fileName).toLowerCase()
+      const fileNameForMime = path.basename(normalized)
+      const ext = path.extname(fileNameForMime).toLowerCase()
       const mime =
         ext === '.png'
           ? 'image/png'

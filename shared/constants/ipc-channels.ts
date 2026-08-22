@@ -74,6 +74,7 @@ export const IPC_CHANNELS = {
   DOCLING_CONVERT_RESULT: 'docling:convert-result',
   DOCLING_CONVERT_CANCEL: 'docling:convert-cancel',
   DOCLING_CONVERT_PROGRESS: 'docling:convert-progress',
+  DOCLING_CONVERT_REPROCESS: 'docling:convert-reprocess',
 
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',

@@ -344,6 +344,11 @@ export interface IpcInvokeRequestMap {
     args: [taskId: string]
     result: IpcResult<QuizLabConversionTask>
   }
+
+  [IPC_CHANNELS.DOCLING_CONVERT_REPROCESS]: {
+    args: [pdfPath: string]
+    result: IpcResult<QuizLabConversionTask>
+  }
 }
 
 export interface IpcEventMap {

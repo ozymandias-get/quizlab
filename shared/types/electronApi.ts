@@ -199,6 +199,7 @@ export interface ElectronApi {
     getStatus: (taskId: string) => Promise<QuizLabConversionTask>
     getResult: (taskId: string) => Promise<QuizLabDocument>
     cancel: (taskId: string) => Promise<QuizLabConversionTask>
+    reprocess: (pdfPath: string) => Promise<QuizLabConversionTask>
     onProgress: (callback: (task: QuizLabConversionTask) => void) => () => void
   }
 
