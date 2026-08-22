@@ -224,6 +224,23 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       onExtensionConnected: () => () => {},
       onExtensionDisconnected: () => () => {}
     },
+    optionalComponents: {
+      list: stubReturn([]),
+      getState: stubReturn(null),
+      runAction: async () => ({
+        success: false,
+        error: 'web_dev_mode_only',
+        component: {
+          id: '',
+          displayName: '',
+          version: null,
+          installed: false,
+          status: 'error',
+          error: 'web_dev_mode_only',
+          updatedAt: 0
+        }
+      })
+    },
     getApiChatConfig: stubReturn({
       providers: [],
       generalPrompt: '',

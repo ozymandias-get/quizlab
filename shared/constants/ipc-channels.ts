@@ -52,6 +52,11 @@ export const IPC_CHANNELS = {
   GET_APP_SETTINGS: 'get-app-settings',
   SAVE_APP_SETTINGS: 'save-app-settings',
 
+  // Optional Component Manager (installable features, e.g. Docling)
+  OPTIONAL_COMPONENTS_LIST: 'optional-components:list',
+  OPTIONAL_COMPONENTS_GET_STATE: 'optional-components:get-state',
+  OPTIONAL_COMPONENTS_RUN_ACTION: 'optional-components:run-action',
+
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
   NATIVE_MESSAGING_INSTALL_EXTENSION: 'native-messaging-install-extension',

@@ -11,6 +11,9 @@ import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionRefreshEvent,
   GeminiWebSessionStatus,
+  OptionalComponentAction,
+  OptionalComponentActionResult,
+  OptionalComponentInfo,
   PdfSelection,
   PdfSelectOptions,
   PdfStreamResult,
@@ -148,6 +151,26 @@ export interface ElectronApi {
     } | null>
     onExtensionConnected: (callback: () => void) => () => void
     onExtensionDisconnected: (callback: () => void) => () => void
+  }
+  /**
+   * Optional Component Manager. Installable features (e.g. Docling) are
+   * addressed by whitelisted id only — the renderer never passes paths,
+   * commands or arbitrary payloads.
+   */
+  optionalComponents: {
+    /** All registered components with their current persisted state. */
+    list: () => Promise<OptionalComponentInfo[]>
+    /** One component's state; null when the id is not whitelisted. */
+    getState: (componentId: string) => Promise<OptionalComponentInfo | null>
+    /**
+     * Run a lifecycle action. Domain-level failures (e.g. a failed download)
+     * resolve with success:false plus the updated component state; transport
+     * errors (unknown component, invalid transition) reject.
+     */
+    runAction: (
+      componentId: string,
+      action: OptionalComponentAction
+    ) => Promise<OptionalComponentActionResult>
   }
 
   /** Forward a log entry from the renderer to the main process buffer. */

@@ -6,6 +6,7 @@ import { registerAutomationHandlers } from '../features/automation/automationHan
 import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers.js'
 import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers.js'
 import { nativeMessagingManager } from '../features/native-messaging/nativeMessagingManager.js'
+import { registerOptionalComponentsHandlers } from '../features/optional-components/handlers.js'
 import { registerPdfHandlers } from '../features/pdf/pdfHandlers.js'
 import { registerScreenshotHandlers } from '../features/screenshot/screenshotHandlers.js'
 import { registerAppSettingsHandlers } from '../features/settings/appSettingsHandlers.js'
@@ -28,6 +29,7 @@ export function registerGeneralHandlers() {
   registerGeminiWebSessionHandlers()
   registerAppSettingsHandlers()
   registerNativeMessagingHandlers()
+  registerOptionalComponentsHandlers()
 }
 
 export async function initializeNativeMessaging(): Promise<void> {

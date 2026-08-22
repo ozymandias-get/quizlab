@@ -161,6 +161,14 @@ const electronApi: ElectronApi = {
       onEvent(IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_DISCONNECTED, () => callback())
   },
 
+  optionalComponents: {
+    list: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPTIONAL_COMPONENTS_LIST)),
+    getState: (componentId) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPTIONAL_COMPONENTS_GET_STATE, componentId)),
+    runAction: (componentId, action) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPTIONAL_COMPONENTS_RUN_ACTION, componentId, action))
+  },
+
   log: (level, message, timestamp) => {
     ipcRenderer.send(IPC_CHANNELS.LOGGER_LOG, { level, message, timestamp })
   }

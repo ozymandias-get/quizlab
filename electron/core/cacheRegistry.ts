@@ -92,6 +92,7 @@ function buildProtectedFiles(): Set<string> {
     'ai_custom_selectors.json',
     'ai_custom_platforms.json',
     'api_chat_config.json',
+    'components.json',
     'gemini-web-session.json'
   ])
 }

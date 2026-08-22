@@ -11,6 +11,9 @@ import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionRefreshEvent,
   GeminiWebSessionStatus,
+  OptionalComponentAction,
+  OptionalComponentActionResult,
+  OptionalComponentInfo,
   PdfSelection,
   PdfSelectOptions,
   PdfStreamResult,
@@ -273,6 +276,22 @@ export interface IpcInvokeRequestMap {
       host: string
       endpoints: { cookies: string; health: string }
     }>
+  }
+
+  // Optional Component Manager (installable features, e.g. Docling)
+  [IPC_CHANNELS.OPTIONAL_COMPONENTS_LIST]: {
+    args: []
+    result: IpcResult<OptionalComponentInfo[]>
+  }
+
+  [IPC_CHANNELS.OPTIONAL_COMPONENTS_GET_STATE]: {
+    args: [componentId: string]
+    result: IpcResult<OptionalComponentInfo | null>
+  }
+
+  [IPC_CHANNELS.OPTIONAL_COMPONENTS_RUN_ACTION]: {
+    args: [componentId: string, action: OptionalComponentAction]
+    result: IpcResult<OptionalComponentActionResult>
   }
 }
 

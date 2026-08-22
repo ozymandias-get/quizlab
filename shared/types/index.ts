@@ -53,6 +53,13 @@ export type {
   NativeMessagingExtensionInfo
 } from './native-messaging.js'
 export type {
+  OptionalComponentAction,
+  OptionalComponentActionResult,
+  OptionalComponentInfo,
+  OptionalComponentStatus
+} from './optional-components.js'
+export { OPTIONAL_COMPONENT_ACTIONS, OPTIONAL_COMPONENT_STATUSES } from './optional-components.js'
+export type {
   PdfFile,
   PdfSelection,
   PdfSelectOptions,
