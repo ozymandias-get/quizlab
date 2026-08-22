@@ -1,21 +1,46 @@
+import { BrowserWindow } from 'electron'
+
+import type { DoclingInstallProgressEvent } from '../../../shared/types/index.js'
+import { APP_CONFIG } from '../../app/constants.js'
 import type { OptionalComponentDefinition } from '../optional-components/types.js'
+import {
+  inspectDoclingInstallation,
+  removeDoclingComponentArtifacts,
+  runDoclingPipeline
+} from './doclingInstaller.js'
 
 /**
- * Placeholder definition for the Docling-based Smart Reader optional
- * component. This phase only wires the management infrastructure (registry,
- * persisted lifecycle state, typed IPC); the real installation flow — an
- * isolated private Python runtime plus Docling models under the app's own
- * data directory — is implemented in a later phase.
+ * Docling Smart Reader optional component.
  *
- * Every mutating operation therefore fails fast with a descriptive error so
- * the component reports an honest "error" state instead of pretending to be
- * installed.
+ * All filesystem/process work happens in the main process through the private
+ * runtime installer (uv-managed CPython, isolated venv, pinned docling).
+ * Lifecycle state transitions and persistence are owned by the Optional
+ * Component Manager; this definition only performs the artifact work and
+ * broadcasts fine-grained progress to the renderer.
  */
 
-const DOCLING_COMPONENT_VERSION = '0.0.0-placeholder'
+const DOCLING_COMPONENT_VERSION = '0.1.0'
 
-async function notYetAvailable(operation: string): Promise<never> {
-  throw new Error(`The "${operation}" flow for the Docling Smart Reader is not implemented yet`)
+function broadcastProgress(update: {
+  phase: DoclingInstallProgressEvent['phase']
+  percent: number | null
+  message?: string
+}): void {
+  const payload: DoclingInstallProgressEvent = {
+    componentId: 'docling',
+    phase: update.phase,
+    percent: update.percent ?? null,
+    ...(update.message !== undefined ? { message: update.message } : {})
+  }
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send(APP_CONFIG.IPC_CHANNELS.DOCLING_INSTALL_PROGRESS, payload)
+    }
+  }
+}
+
+async function installOrUpdate(): Promise<void> {
+  await runDoclingPipeline({ report: broadcastProgress })
 }
 
 export const doclingComponentDefinition: OptionalComponentDefinition = {
@@ -24,23 +49,28 @@ export const doclingComponentDefinition: OptionalComponentDefinition = {
   version: DOCLING_COMPONENT_VERSION,
 
   install() {
-    return notYetAvailable('install')
+    return installOrUpdate()
   },
 
   uninstall() {
-    return notYetAvailable('uninstall')
+    // Removes only the component's own directories (runtime/environment/
+    // models/temp/bin). User-generated QuizLab content lives elsewhere and is
+    // never touched here.
+    return removeDoclingComponentArtifacts()
   },
 
   repair() {
-    return notYetAvailable('repair')
+    return installOrUpdate()
   },
 
   update() {
-    return notYetAvailable('update')
+    // Bumping pins in doclingVersions.ts invalidates the environment marker;
+    // the pipeline then recreates it with the new pinned versions.
+    return installOrUpdate()
   },
 
-  healthCheck() {
-    // Nothing is provisioned yet, so an "installed" docling can never be healthy.
-    return Promise.resolve(false)
+  async healthCheck() {
+    const report = await inspectDoclingInstallation()
+    return report.healthy
   }
 }

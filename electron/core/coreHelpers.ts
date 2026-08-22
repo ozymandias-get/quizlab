@@ -7,3 +7,4 @@ export const getAiConfigPath = () => path.join(app.getPath('userData'), 'ai_cust
 export const getApiChatConfigPath = () => path.join(app.getPath('userData'), 'api_chat_config.json')
 export const getAppSettingsPath = () => path.join(app.getPath('userData'), 'app_settings.json')
 export const getComponentsStatePath = () => path.join(app.getPath('userData'), 'components.json')
+export const getComponentsRootPath = () => path.join(app.getPath('userData'), 'components')

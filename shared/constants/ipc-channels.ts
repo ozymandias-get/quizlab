@@ -57,6 +57,9 @@ export const IPC_CHANNELS = {
   OPTIONAL_COMPONENTS_GET_STATE: 'optional-components:get-state',
   OPTIONAL_COMPONENTS_RUN_ACTION: 'optional-components:run-action',
 
+  // Docling installer progress (main → renderer broadcast)
+  DOCLING_INSTALL_PROGRESS: 'docling:install-progress',
+
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
   NATIVE_MESSAGING_INSTALL_EXTENSION: 'native-messaging-install-extension',

@@ -1,4 +1,5 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type { DoclingInstallProgressEvent } from '@shared-core/types'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
@@ -296,6 +297,9 @@ export interface IpcInvokeRequestMap {
 }
 
 export interface IpcEventMap {
+  [IPC_CHANNELS.DOCLING_INSTALL_PROGRESS]: {
+    args: [payload: DoclingInstallProgressEvent]
+  }
   [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED]: {
     args: [payload: GeminiWebSessionRefreshEvent]
   }

@@ -169,6 +169,9 @@ const electronApi: ElectronApi = {
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPTIONAL_COMPONENTS_RUN_ACTION, componentId, action))
   },
 
+  onDoclingInstallProgress: (callback) =>
+    onEvent(IPC_CHANNELS.DOCLING_INSTALL_PROGRESS, (payload) => callback(payload)),
+
   log: (level, message, timestamp) => {
     ipcRenderer.send(IPC_CHANNELS.LOGGER_LOG, { level, message, timestamp })
   }

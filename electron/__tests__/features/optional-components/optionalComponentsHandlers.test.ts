@@ -13,17 +13,29 @@ vi.mock('electron', () => ({
   },
   ipcMain: {
     handle: ipcHandle
+  },
+  BrowserWindow: {
+    getAllWindows: vi.fn(() => [])
   }
 }))
 
 vi.mock('../../../core/coreHelpers', () => ({
-  getComponentsStatePath: vi.fn(() => '/tmp/quizlab-test/components.json')
+  getComponentsStatePath: vi.fn(() => '/tmp/quizlab-test/components.json'),
+  getComponentsRootPath: vi.fn(() => '/tmp/quizlab-test/components')
 }))
 
 vi.mock('../../../app/windowManager', () => ({
   getMainWindow: vi.fn(() => ({
     webContents: trustedSender
   }))
+}))
+
+vi.mock('../../../features/docling/doclingInstaller.js', () => ({
+  runDoclingPipeline: vi.fn(async () => {
+    throw new Error('stub: not implemented yet')
+  }),
+  removeDoclingComponentArtifacts: vi.fn(async () => {}),
+  inspectDoclingInstallation: vi.fn(async () => ({ healthy: false, detail: 'stub: not installed' }))
 }))
 
 const storeData = new Map<
@@ -154,13 +166,13 @@ describe('optionalComponentsHandlers', () => {
     const runActionHandler = getHandler(APP_CONFIG.IPC_CHANNELS.OPTIONAL_COMPONENTS_RUN_ACTION)
     const result = (await runActionHandler?.(trustedEvent, 'docling', 'install')) as {
       ok: boolean
-      data: { success: boolean; component: { status: string; error: string } }
+      data: { success: boolean; component: { status: string; error: string | null } }
     }
 
     expect(result.ok).toBe(true)
     expect(result.data.success).toBe(false)
     expect(result.data.component.status).toBe('error')
-    expect(result.data.component.error).toContain('not implemented yet')
+    expect(result.data.component.error).toBeTruthy()
     expect(storeData.get('docling')).toMatchObject({ status: 'error' })
   })
 

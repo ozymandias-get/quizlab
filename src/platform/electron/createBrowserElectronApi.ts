@@ -241,6 +241,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         }
       })
     },
+    onDoclingInstallProgress: () => () => {},
     getApiChatConfig: stubReturn({
       providers: [],
       generalPrompt: '',

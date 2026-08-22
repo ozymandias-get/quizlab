@@ -27,6 +27,7 @@ export default defineConfig({
       ['electron/__tests__/app/**', 'node'],
       ['electron/__tests__/core/**', 'node'],
       ['electron/__tests__/features/optional-components/**', 'node'],
+      ['electron/__tests__/features/docling/**', 'node'],
       ['electron/__tests__/features/pdf/**', 'node'],
       ['electron/__tests__/features/screenshot/**', 'node'],
       ['electron/__tests__/features/ai/**', 'node'],
