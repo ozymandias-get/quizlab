@@ -1,5 +1,5 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
-import type { DoclingInstallProgressEvent } from '@shared-core/types'
+import type { DoclingInstallProgressEvent, DoclingServiceStatus } from '@shared-core/types'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
@@ -294,11 +294,39 @@ export interface IpcInvokeRequestMap {
     args: [componentId: string, action: OptionalComponentAction]
     result: IpcResult<OptionalComponentActionResult>
   }
+
+  [IPC_CHANNELS.DOCLING_SERVICE_GET_STATUS]: {
+    args: []
+    result: IpcResult<DoclingServiceStatus>
+  }
+
+  [IPC_CHANNELS.DOCLING_SERVICE_ENSURE_RUNNING]: {
+    args: []
+    result: IpcResult<DoclingServiceStatus>
+  }
+
+  [IPC_CHANNELS.DOCLING_SERVICE_STOP]: {
+    args: []
+    result: IpcResult<DoclingServiceStatus>
+  }
+
+  [IPC_CHANNELS.DOCLING_SERVICE_RESTART]: {
+    args: []
+    result: IpcResult<DoclingServiceStatus>
+  }
+
+  [IPC_CHANNELS.DOCLING_SERVICE_HEALTH_CHECK]: {
+    args: []
+    result: IpcResult<{ healthy: boolean; detail?: string }>
+  }
 }
 
 export interface IpcEventMap {
   [IPC_CHANNELS.DOCLING_INSTALL_PROGRESS]: {
     args: [payload: DoclingInstallProgressEvent]
+  }
+  [IPC_CHANNELS.DOCLING_SERVICE_STATUS_CHANGED]: {
+    args: [payload: DoclingServiceStatus]
   }
   [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED]: {
     args: [payload: GeminiWebSessionRefreshEvent]

@@ -16,7 +16,7 @@ import {
   startPdfCleanupInterval,
   stopPdfCleanupInterval
 } from '../features/pdf/pdfProtocol.js'
-import { registerGeneralHandlers } from './ipcHandlers.js'
+import { registerGeneralHandlers, shutdownDoclingServiceHandlers } from './ipcHandlers.js'
 import { initializeNativeMessaging, shutdownNativeMessaging } from './ipcHandlers.js'
 import { getProfileName, resolveUserDataProfile } from './userDataProfile.js'
 import { createWindow, getMainWindow } from './windowManager.js'
@@ -81,6 +81,7 @@ async function initializeApp() {
     stopPdfCleanupInterval()
     stopCacheScheduler()
     clearAllPdfPaths()
+    await shutdownDoclingServiceHandlers()
     await shutdownGeminiWebSessionHandlers()
     await shutdownNativeMessaging()
     await flushToDisk()

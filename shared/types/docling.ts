@@ -29,3 +29,15 @@ export interface DoclingInstallProgressEvent {
   percent: number | null
   message?: string
 }
+
+export type DoclingServiceState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
+
+export interface DoclingServiceStatus {
+  state: DoclingServiceState
+  installed: boolean
+  port: number | null
+  pid: number | null
+  uptimeMs: number | null
+  lastError: string | null
+  healthy: boolean
+}

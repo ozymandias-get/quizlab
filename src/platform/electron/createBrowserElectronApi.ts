@@ -242,6 +242,46 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       })
     },
     onDoclingInstallProgress: () => () => {},
+    doclingService: {
+      getStatus: stubReturn({
+        state: 'stopped',
+        installed: false,
+        port: null,
+        pid: null,
+        uptimeMs: null,
+        lastError: null,
+        healthy: false
+      }),
+      ensureRunning: stubReturn({
+        state: 'stopped',
+        installed: false,
+        port: null,
+        pid: null,
+        uptimeMs: null,
+        lastError: 'web_dev_mode_only',
+        healthy: false
+      }),
+      stop: stubReturn({
+        state: 'stopped',
+        installed: false,
+        port: null,
+        pid: null,
+        uptimeMs: null,
+        lastError: null,
+        healthy: false
+      }),
+      restart: stubReturn({
+        state: 'stopped',
+        installed: false,
+        port: null,
+        pid: null,
+        uptimeMs: null,
+        lastError: 'web_dev_mode_only',
+        healthy: false
+      }),
+      healthCheck: stubReturn({ healthy: false, detail: 'web_dev_mode_only' }),
+      onStatusChanged: () => () => {}
+    },
     getApiChatConfig: stubReturn({
       providers: [],
       generalPrompt: '',

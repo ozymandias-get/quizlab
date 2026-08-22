@@ -172,6 +172,16 @@ const electronApi: ElectronApi = {
   onDoclingInstallProgress: (callback) =>
     onEvent(IPC_CHANNELS.DOCLING_INSTALL_PROGRESS, (payload) => callback(payload)),
 
+  doclingService: {
+    getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_SERVICE_GET_STATUS)),
+    ensureRunning: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_SERVICE_ENSURE_RUNNING)),
+    stop: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_SERVICE_STOP)),
+    restart: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_SERVICE_RESTART)),
+    healthCheck: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_SERVICE_HEALTH_CHECK)),
+    onStatusChanged: (callback) =>
+      onEvent(IPC_CHANNELS.DOCLING_SERVICE_STATUS_CHANGED, (payload) => callback(payload))
+  },
+
   log: (level, message, timestamp) => {
     ipcRenderer.send(IPC_CHANNELS.LOGGER_LOG, { level, message, timestamp })
   }

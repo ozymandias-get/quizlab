@@ -1,5 +1,5 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
-import type { DoclingInstallProgressEvent } from '@shared-core/types'
+import type { DoclingInstallProgressEvent, DoclingServiceStatus } from '@shared-core/types'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
@@ -179,6 +179,15 @@ export interface ElectronApi {
    * pipeline stages). Returns an unsubscribe function.
    */
   onDoclingInstallProgress: (callback: (event: DoclingInstallProgressEvent) => void) => () => void
+
+  doclingService: {
+    getStatus: () => Promise<DoclingServiceStatus>
+    ensureRunning: () => Promise<DoclingServiceStatus>
+    stop: () => Promise<DoclingServiceStatus>
+    restart: () => Promise<DoclingServiceStatus>
+    healthCheck: () => Promise<{ healthy: boolean; detail?: string }>
+    onStatusChanged: (callback: (status: DoclingServiceStatus) => void) => () => void
+  }
 
   /** Forward a log entry from the renderer to the main process buffer. */
   log: (level: string, message: string, timestamp: string) => void

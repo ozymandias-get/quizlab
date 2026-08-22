@@ -60,6 +60,14 @@ export const IPC_CHANNELS = {
   // Docling installer progress (main → renderer broadcast)
   DOCLING_INSTALL_PROGRESS: 'docling:install-progress',
 
+  // Docling sidecar service (lazy-start local process)
+  DOCLING_SERVICE_GET_STATUS: 'docling:service-get-status',
+  DOCLING_SERVICE_ENSURE_RUNNING: 'docling:service-ensure-running',
+  DOCLING_SERVICE_STOP: 'docling:service-stop',
+  DOCLING_SERVICE_RESTART: 'docling:service-restart',
+  DOCLING_SERVICE_HEALTH_CHECK: 'docling:service-health-check',
+  DOCLING_SERVICE_STATUS_CHANGED: 'docling:service-status-changed',
+
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
   NATIVE_MESSAGING_INSTALL_EXTENSION: 'native-messaging-install-extension',

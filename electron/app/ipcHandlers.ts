@@ -3,6 +3,10 @@ import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers.js'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js'
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers.js'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
+import {
+  registerDoclingServiceHandlers,
+  shutdownDoclingService
+} from '../features/docling/doclingServiceHandlers.js'
 import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/handlers.js'
 import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers.js'
 import { nativeMessagingManager } from '../features/native-messaging/nativeMessagingManager.js'
@@ -30,6 +34,11 @@ export function registerGeneralHandlers() {
   registerAppSettingsHandlers()
   registerNativeMessagingHandlers()
   registerOptionalComponentsHandlers()
+  registerDoclingServiceHandlers()
+}
+
+export async function shutdownDoclingServiceHandlers(): Promise<void> {
+  await shutdownDoclingService()
 }
 
 export async function initializeNativeMessaging(): Promise<void> {

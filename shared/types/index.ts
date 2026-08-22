@@ -30,7 +30,12 @@ export type {
   TextInputMode
 } from './automation.js'
 export { TEXT_INPUT_MODE_VALUES } from './automation.js'
-export type { DoclingInstallPhase, DoclingInstallProgressEvent } from './docling.js'
+export type {
+  DoclingInstallPhase,
+  DoclingInstallProgressEvent,
+  DoclingServiceState,
+  DoclingServiceStatus
+} from './docling.js'
 export { DOCLING_INSTALL_PHASES } from './docling.js'
 export type {
   GeminiWebSessionActionResult,
