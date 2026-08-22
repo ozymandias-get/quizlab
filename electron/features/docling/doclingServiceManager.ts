@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
+import path from 'node:path'
 
 import type { DoclingServiceState, DoclingServiceStatus } from '../../../shared/types/index.js'
 import { Logger } from '../../core/logger.js'
@@ -90,7 +91,47 @@ export class DoclingServiceManager {
       pid: this.child?.pid ?? null,
       uptimeMs,
       lastError: this.lastError,
-      healthy: this.state === 'running'
+      healthy: this.state === 'running',
+      diskUsageBytes: null,
+      modelStatus: 'unknown'
+    }
+  }
+
+  private async getDiskUsageBytes(): Promise<number | null> {
+    try {
+      const layout = this.deps.getLayoutFn()
+      let total = 0
+      const stack: string[] = [layout.root]
+      while (stack.length > 0) {
+        const current = stack.pop()!
+        const entries = await fs.readdir(current, { withFileTypes: true })
+        for (const entry of entries) {
+          const full = path.join(current, entry.name)
+          if (entry.isDirectory()) stack.push(full)
+          else if (entry.isFile()) {
+            try {
+              const stat = await fs.stat(full)
+              total += stat.size
+            } catch {}
+          }
+        }
+      }
+      return total
+    } catch {
+      return null
+    }
+  }
+
+  private async getModelStatus(): Promise<DoclingServiceStatus['modelStatus']> {
+    try {
+      const layout = this.deps.getLayoutFn()
+      const entries = await fs.readdir(layout.models).catch(() => [] as string[])
+      // fs.readdir with string[] fallback needs handling
+      const list = Array.isArray(entries) ? entries : []
+      if (list.length === 0) return 'missing'
+      return 'ready'
+    } catch {
+      return 'unknown'
     }
   }
 
@@ -110,7 +151,12 @@ export class DoclingServiceManager {
   async getStatus(): Promise<DoclingServiceStatus> {
     const installed = await this.isInstalled()
     const base = this.buildStatusSync()
-    return { ...base, installed }
+    if (!installed) return { ...base, installed, diskUsageBytes: null, modelStatus: 'unknown' }
+    const [diskUsageBytes, modelStatus] = await Promise.all([
+      this.getDiskUsageBytes(),
+      this.getModelStatus()
+    ])
+    return { ...base, installed, diskUsageBytes, modelStatus }
   }
 
   async healthCheck(): Promise<boolean> {

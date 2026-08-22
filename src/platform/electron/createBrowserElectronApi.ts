@@ -250,7 +250,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         pid: null,
         uptimeMs: null,
         lastError: null,
-        healthy: false
+        healthy: false,
+        diskUsageBytes: null,
+        modelStatus: 'unknown'
       }),
       ensureRunning: stubReturn({
         state: 'stopped',
@@ -259,7 +261,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         pid: null,
         uptimeMs: null,
         lastError: 'web_dev_mode_only',
-        healthy: false
+        healthy: false,
+        diskUsageBytes: null,
+        modelStatus: 'unknown'
       }),
       stop: stubReturn({
         state: 'stopped',
@@ -268,7 +272,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         pid: null,
         uptimeMs: null,
         lastError: null,
-        healthy: false
+        healthy: false,
+        diskUsageBytes: null,
+        modelStatus: 'unknown'
       }),
       restart: stubReturn({
         state: 'stopped',
@@ -277,7 +283,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         pid: null,
         uptimeMs: null,
         lastError: 'web_dev_mode_only',
-        healthy: false
+        healthy: false,
+        diskUsageBytes: null,
+        modelStatus: 'unknown'
       }),
       healthCheck: stubReturn({ healthy: false, detail: 'web_dev_mode_only' }),
       onStatusChanged: () => () => {}

@@ -40,4 +40,6 @@ export interface DoclingServiceStatus {
   uptimeMs: number | null
   lastError: string | null
   healthy: boolean
+  diskUsageBytes: number | null
+  modelStatus: 'ready' | 'missing' | 'unknown'
 }

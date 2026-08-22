@@ -41,6 +41,7 @@ const BottomBarSettingsTab = lazy(() => import('../BottomBarSettingsTab'))
 const TextInputModeTab = lazy(() => import('../TextInputModeTab'))
 const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
 const StorageTab = lazy(() => import('../StorageTab'))
+const DoclingTab = lazy(() => import('../DoclingTab'))
 
 export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<SettingsContext>> = {
   prompts: PromptsTab,
@@ -48,6 +49,7 @@ export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<Settin
   sites: SitesTab,
   'ai-lifecycle': AiLifecycleTab,
   'text-input-mode': TextInputModeTab,
+  docling: DoclingTab,
   'gemini-web': GeminiWebSessionTab,
   selectors: SelectorsTabWrapper,
   notifications: NotificationsTab,

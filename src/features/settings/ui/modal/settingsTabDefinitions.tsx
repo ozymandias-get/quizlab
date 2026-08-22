@@ -84,6 +84,15 @@ export const SETTINGS_TABS = [
     glow: '#f97316'
   },
   {
+    id: 'docling',
+    group: 'workspace',
+    labelKey: 'docling',
+    descriptionKey: 'docling_description',
+    icon: GridIcon,
+    accent: 'from-amber-300/28 via-orange-200/12 to-transparent',
+    glow: '#f59e0b'
+  },
+  {
     id: 'api-chat',
     group: 'integration',
     labelKey: 'api_chat_settings_title',
