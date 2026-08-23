@@ -44,7 +44,7 @@ export async function ensureConverterScript(layout: DoclingDirLayout): Promise<s
   await fs.mkdir(path.dirname(scriptPath), { recursive: true })
 
   const script = `
-import os, sys, json, base64, pathlib
+import os, sys, json, base64, hashlib, pathlib
 from pathlib import Path
 
 pdf_path = Path(sys.argv[1])
@@ -172,8 +172,8 @@ def _make_converter(do_ocr_override=None):
             from docling.datamodel.base_models import InputFormat as SafeFmtType
             safe_kwargs = dict(
                 do_ocr=do_ocr,
-                do_table_structure=True,
-                accelerator_options=SafeAcc(device=SafeDev.CPU, num_threads=4),
+                do_table_structure=detect_tables,
+                accelerator_options=SafeAcc(device=SafeDev.CPU, num_threads=num_threads),
             )
             safe_pipeline = SafeOpts(**safe_kwargs)
             print("Using safe CPU fallback pipeline", flush=True)
@@ -206,7 +206,8 @@ def _export_assets(data):
             try:
                 header, b64 = uri.split(",", 1)
                 raw = base64.b64decode(b64)
-                name = f"asset-{idx}-{abs(hash(uri)) % 100000}.{_ext_for(header)}"
+                # P2: deterministic filename – Python's hash() is randomised per process
+                name = f"asset-{idx}-{hashlib.sha256(raw).hexdigest()[:12]}.{_ext_for(header)}"
                 (images_dir / name).write_bytes(raw)
                 img["uri"] = str((images_dir / name).resolve())
                 written += 1
@@ -233,6 +234,17 @@ try:
             doc = retry_result.document
         except Exception as retry_e:
             print(f"OCR retry failed: {retry_e}", file=sys.stderr, flush=True)
+            import traceback as _tb; _tb.print_exc(file=sys.stderr)
+            # P0: retry failure must not silently return empty doc as success
+            raise RuntimeError(f"OCR retry failed: {retry_e}") from retry_e
+        # Verify retry actually produced text; preserve fail-closed semantics
+        try:
+            _has_after = any(t.get("text", "").strip() for t in doc.export_to_dict().get("texts", []))
+        except Exception:
+            _has_after = True
+        if not _has_after:
+            print("OCR retry produced no text – ocr_failed", file=sys.stderr, flush=True)
+            raise RuntimeError("OCR retry produced no text (ocr_failed)")
 
     # Embedded mode guarantees picture data URIs are present for _export_assets
     try:

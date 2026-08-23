@@ -17,6 +17,7 @@ import { buildConverterEnv } from './doclingConversionEnv.js'
 import { ensureConverterScript } from './doclingConverterScript.js'
 import { getModelStatus } from './doclingModelManager.js'
 import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
+import { preflightNeedsOcr as preflightNeedsOcrImported } from './doclingPreflight.js'
 import { mapErrorCode, validatePdfPath } from './doclingValidation.js'
 
 const POLL_INTERVAL_MS = 800
@@ -507,7 +508,6 @@ class DoclingConversionService {
     taskId: string,
     imagesDir: string
   ): Promise<QuizLabDocument> {
-    const normalizedImagesDir = path.normalize(imagesDir).toLowerCase()
     type ImageBlock = Extract<QuizLabDocument['blocks'][number], { type: 'image' }>
     const blocks = await Promise.all(
       doc.blocks.map(async (block): Promise<QuizLabDocument['blocks'][number]> => {
@@ -544,7 +544,22 @@ class DoclingConversionService {
           }
           if (!filePath) return { ...image, assetUrl: null }
           const normalized = path.normalize(filePath)
-          if (normalized.toLowerCase().startsWith(normalizedImagesDir)) {
+          // P1: use path.relative for proper containment, not startsWith prefix
+          const relative = path.relative(imagesDir, normalized)
+          const isInside = (() => {
+            if (!relative || path.isAbsolute(relative)) return false
+            if (relative === '..' || relative.startsWith(`..${path.sep}`)) return false
+            // Windows case-insensitive check
+            if (process.platform === 'win32') {
+              const relLower = path
+                .relative(imagesDir.toLowerCase(), normalized.toLowerCase())
+                .toLowerCase()
+              if (!relLower || path.isAbsolute(relLower)) return false
+              if (relLower === '..' || relLower.startsWith(`..${path.sep}`)) return false
+            }
+            return true
+          })()
+          if (isInside) {
             const fileName = path.basename(normalized)
             const stat = await fs.lstat(normalized).catch(() => null)
             if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
@@ -583,94 +598,8 @@ class DoclingConversionService {
     }
   }
 
-  /**
-   * Cheap preflight that inspects the first pages' text layer via pdfjs-dist.
-   * Returns true if the PDF looks scanned (needs OCR), false if it has
-   * selectable text, null if the check is inconclusive.
-   */
   private async preflightNeedsOcr(pdfPath: string): Promise<boolean | null> {
-    const MAX_PAGES = 5
-    const MIN_CHARS_FOR_TEXT_PDF = 200
-    const overallTimeoutMs = 4000
-    try {
-      const data = await fs.readFile(pdfPath)
-      if (data.length > 50 * 1024 * 1024) return null // huge – skip preflight
-      const uint8 = new Uint8Array(data)
-      // pdfjs-dist 3.11 legacy build – loaded dynamically at runtime only.
-      // Use a variable specifier + @vite-ignore so Vitest/Vite does not try to
-      // bundle pdfjs at transform time (the file only exists in Node/Electron).
-      let pdfjs: unknown = null
-      const mjsSpecifier = 'pdfjs-dist/legacy/build/pdf.mjs'
-      const cjsSpecifier = 'pdfjs-dist/legacy/build/pdf.js'
-      try {
-        // @ts-ignore – dynamic import with variable is intentional
-        pdfjs = await import(/* @vite-ignore */ mjsSpecifier)
-      } catch {
-        try {
-          // @ts-ignore
-          pdfjs = await import(/* @vite-ignore */ cjsSpecifier)
-        } catch {
-          return null
-        }
-      }
-      const lib = pdfjs as {
-        getDocument: (opts: unknown) => { promise: Promise<unknown> }
-        GlobalWorkerOptions?: { workerSrc?: string }
-      }
-      if (!lib.getDocument) return null
-      // Disable worker for Node
-      try {
-        if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = ''
-      } catch {}
-      const loadingTask = lib.getDocument({
-        data: uint8,
-        verbosity: 0,
-        disableWorker: true
-      })
-      const pdf = (await Promise.race([
-        loadingTask.promise,
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), overallTimeoutMs))
-      ])) as null | {
-        numPages: number
-        getPage: (
-          n: number
-        ) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str: string }> }> }>
-        destroy: () => Promise<void>
-      }
-      if (!pdf) return null
-      const pagesToCheck = Math.min(MAX_PAGES, pdf.numPages)
-      let totalChars = 0
-      for (let i = 1; i <= pagesToCheck; i += 1) {
-        try {
-          const page = await Promise.race([
-            pdf.getPage(i),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
-          ])
-          if (!page) continue
-          const content = await Promise.race([
-            (
-              page as { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }
-            ).getTextContent(),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
-          ])
-          if (!content) continue
-          for (const it of (content as { items: Array<{ str: string }> }).items) {
-            if (typeof it.str === 'string') totalChars += it.str.trim().length
-            if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) break
-          }
-          if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) break
-        } catch {}
-      }
-      try {
-        await pdf.destroy().catch(() => {})
-      } catch {}
-      if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) return false
-      if (totalChars === 0) return true
-      // Low but non-zero – consider scanned
-      return totalChars < 50
-    } catch {
-      return null
-    }
+    return preflightNeedsOcrImported(pdfPath)
   }
 
   private enforceResultEviction(): void {

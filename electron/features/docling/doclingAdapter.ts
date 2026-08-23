@@ -219,14 +219,18 @@ export function adaptDoclingToQuizLabDocument(
 
   // P2-12: when Docling provides no body reading order, the previous
   // `texts → pictures → tables` fallback destroys layout order. Do a cheap
-  // geometric sort by page → bbox top → left instead.
+  // geometric sort by page → bbox top → left instead, normalising for
+  // coord_origin (BOTTOMLEFT vs TOPLEFT).
   if (orderRefs.length === 0 && fallbackRefs.length > 1) {
     const withPos = fallbackRefs.map((ref, idx) => {
       const item = refMap.get(ref.$ref) as DoclingTextItem | undefined
       const prov = item?.prov
       const page = prov?.[0]?.page_no ?? 999
       const bbox = prov?.[0]?.bbox
-      const top = bbox?.t ?? idx * 0.0001
+      const origin = bbox?.coord_origin ?? 'BOTTOMLEFT'
+      const rawTop = bbox?.t ?? idx * 0.0001
+      // BOTTOMLEFT: t grows upward (larger t = higher), so invert for reading order
+      const top = origin === 'BOTTOMLEFT' ? -rawTop : rawTop
       const left = bbox?.l ?? 0
       return { ref, page, top, left, idx }
     })
@@ -333,26 +337,53 @@ export function adaptDoclingToQuizLabDocument(
     }
   }
 
-  // P2-13: link captions to nearest figure/table on the same page (heuristic).
-  // Docling emits captions as standalone text blocks; we restore the semantic
-  // link so the Reader and future AI context can associate “Şekil 4 …” with
-  // its picture/table. The association is also written back onto the figure
-  // as `caption` for convenience.
+  // P2-13: link captions to nearest figure/table on the same page.
+  // Priority: 1) explicit Docling relationship if exposed via `forBlockId` or
+  // metadata (future), 2) geometric proximity, 3) readingOrder heuristic.
+  // Most Docling exports emit captions as standalone texts without explicit
+  // links, so we restore the semantic link heuristically.
   {
     const figures = blocks.filter((b) => b.type === 'image' || b.type === 'table')
+    // Build a map of explicit caption references if Docling ever provides them
+    // via `groups` or `caption_text` – keep extensible for future schema.
+    const explicitMap = new Map<string, string>()
+    // (No explicit refs in current 2.x export; placeholder for schema evolution)
     for (const b of blocks) {
       if (b.type !== 'caption') continue
       const cap = b as Extract<QuizLabBlock, { type: 'caption' }>
+      // Explicit link already resolved?
+      if (explicitMap.has(cap.id)) {
+        const targetId = explicitMap.get(cap.id)!
+        const target = figures.find((f) => f.id === targetId)
+        if (target) {
+          cap.forBlockId = target.id
+          const fig = target as Extract<QuizLabBlock, { type: 'image' | 'table' }>
+          if (!fig.caption) fig.caption = cap.text
+          continue
+        }
+      }
       const cands = figures.filter((f) => f.pageNumber === cap.pageNumber)
       if (cands.length === 0) continue
       let best: QuizLabBlock | null = null
-      let bestDist = Infinity
+      let bestScore = Infinity
+      const capBbox = cap.bbox
+      const capCenter = capBbox
+        ? { x: (capBbox.l + capBbox.r) / 2, y: (capBbox.t + capBbox.b) / 2 }
+        : null
       for (const cand of cands) {
-        const dist = Math.abs(cand.readingOrder - cap.readingOrder)
-        // Captions usually follow the figure; slight preference for that.
-        const biased = cand.readingOrder < cap.readingOrder ? dist - 0.1 : dist
-        if (biased < bestDist) {
-          bestDist = biased
+        const orderDist = Math.abs(cand.readingOrder - cap.readingOrder)
+        const biasedOrder = cand.readingOrder < cap.readingOrder ? orderDist - 0.1 : orderDist
+        let geoDist = 0
+        if (capCenter && cand.bbox) {
+          const candCenter = {
+            x: (cand.bbox.l + cand.bbox.r) / 2,
+            y: (cand.bbox.t + cand.bbox.b) / 2
+          }
+          geoDist = Math.hypot(capCenter.x - candCenter.x, capCenter.y - candCenter.y) / 1000
+        }
+        const score = biasedOrder * 10 + geoDist
+        if (score < bestScore) {
+          bestScore = score
           best = cand
         }
       }
@@ -486,6 +517,67 @@ function extractTableRows(
             isHeader: !!(c.column_header || c.row_header)
           }))
         })
+    }
+    // P1: when positional offsets are absent, try grid / num_rows reconstruction
+    // instead of collapsing the whole table into a single row.
+    const tableMeta = data as unknown as {
+      grid?: unknown
+      num_rows?: number
+      num_cols?: number
+    }
+    const grid = (tableMeta as unknown as { grid?: unknown[][] }).grid
+    if (Array.isArray(grid) && grid.length > 0) {
+      const rows: (typeof cells)[] = []
+      for (const row of grid as unknown[][]) {
+        if (!Array.isArray(row)) continue
+        const rowCells: typeof cells = []
+        for (const entry of row) {
+          if (entry == null) continue
+          if (typeof entry === 'number') {
+            if (entry >= 0 && entry < cells.length)
+              rowCells.push(cells[entry] as (typeof cells)[number])
+          } else if (
+            typeof entry === 'object' &&
+            entry !== null &&
+            'text' in (entry as Record<string, unknown>)
+          ) {
+            rowCells.push(entry as unknown as (typeof cells)[number])
+          }
+        }
+        if (rowCells.length) rows.push(rowCells)
+      }
+      if (rows.length) {
+        return rows.map((row) =>
+          row.map((c) => ({
+            text: (c as { text?: string }).text ?? '',
+            rowSpan: (c as { row_span?: number }).row_span,
+            colSpan: (c as { col_span?: number }).col_span,
+            isHeader: !!(
+              (c as { column_header?: boolean }).column_header ||
+              (c as { row_header?: boolean }).row_header
+            )
+          }))
+        )
+      }
+    }
+    const numRows = (tableMeta as unknown as { num_rows?: number }).num_rows
+    const numCols = (tableMeta as unknown as { num_cols?: number }).num_cols
+    if (typeof numRows === 'number' && typeof numCols === 'number' && numRows > 0 && numCols > 0) {
+      const rows: (typeof cells)[] = []
+      for (let r = 0; r < numRows; r += 1) {
+        const slice = cells.slice(r * numCols, (r + 1) * numCols)
+        if (slice.length) rows.push(slice)
+      }
+      if (rows.length) {
+        return rows.map((row) =>
+          row.map((c) => ({
+            text: c.text ?? '',
+            rowSpan: c.row_span,
+            colSpan: c.col_span,
+            isHeader: !!(c.column_header || (c as { row_header?: boolean }).row_header)
+          }))
+        )
+      }
     }
     return [
       cells.map((c) => ({

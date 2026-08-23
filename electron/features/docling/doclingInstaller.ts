@@ -372,7 +372,11 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
         await fs.mkdir(path.dirname(lockPath), { recursive: true })
         await fs.writeFile(lockPath, bundled, 'utf8')
         const lines = parsePackageLines(bundled)
-        if (lines.length >= 2) {
+        // Require a plausibly-full freeze (many packages) – a 2-line placeholder
+        // is not deterministic (transitives would still float) so fall back to
+        // live resolve in that case.
+        const looksFull = lines.length >= 15 && bundled.includes('transformers==')
+        if (looksFull) {
           ctx.report({ phase: 'installing_docling', percent: null, message: 'bundled lock' })
           await io.exec(
             ctx.uvPath,
@@ -383,6 +387,8 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
           await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
           return
         }
+        // Placeholder – discard and fall back to live resolve
+        await fs.rm(lockPath, { force: true }).catch(() => {})
       } catch {
         await fs.rm(lockPath, { force: true }).catch(() => {})
       }
