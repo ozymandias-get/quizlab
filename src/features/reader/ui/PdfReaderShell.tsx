@@ -81,53 +81,73 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
         </div>
       )
     } else if (error) {
-      const isModelMissing = error.toLowerCase().includes('model')
-      const msg = isModelMissing
-        ? 'Gerekli belge modelleri yüklü değil.'
-        : error === 'conversion_timeout'
-          ? 'Dönüşüm zaman aşımına uğradı'
-          : error === 'encrypted_pdf'
-            ? 'Şifreli PDF desteklenmiyor'
-            : error === 'corrupted_pdf'
-              ? 'Bozuk PDF'
-              : error
-      readerContent = (
-        <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-destructive text-ql-13">{msg}</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {isModelMissing ? (
-              <button
-                type="button"
-                onClick={() => downloadModels.mutate()}
-                disabled={downloadModels.isPending}
-                className="bg-primary text-primary-foreground text-ql-12 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
-              >
-                {downloadModels.isPending ? 'İndiriliyor…' : 'Modelleri İndir'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={retry}
-                className="bg-primary text-primary-foreground text-ql-12 rounded-lg px-3 py-1.5"
-              >
-                Yeniden dene
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setViewMode('pdf')}
-              className="border-border bg-card text-ql-12 rounded-lg border px-3 py-1.5"
-            >
-              PDF ile devam et
-            </button>
+      const lower = error.toLowerCase()
+      const isModelMissing = lower.includes('model')
+      const isConcurrent =
+        lower.includes('başka bir dönüşüm') ||
+        lower.includes('too many concurrent') ||
+        lower.includes('concurrent')
+      if (isConcurrent) {
+        // Don't show a red error for a transient queue limit – reuse
+        // the spinner state so the user sees "hazırlanıyor" rather than
+        // "Too many concurrent conversions".
+        readerContent = (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
+            <InlineSpinner />
+            <span className="text-muted-foreground text-ql-13">Sırada bekleniyor…</span>
+            <span className="text-muted-foreground text-ql-11">
+              Başka bir akıllı okuma işlemi bitmek üzere — otomatik devam edecek.
+            </span>
           </div>
-          <p className="text-muted-foreground text-ql-11">
-            {isModelMissing
-              ? 'İndirme bitince belge yeniden işlenecek. Offline için modeller gerekli.'
-              : 'PDF görünümü çalışmaya devam ediyor'}
-          </p>
-        </div>
-      )
+        )
+      } else {
+        const msg = isModelMissing
+          ? 'Gerekli belge modelleri yüklü değil.'
+          : error === 'conversion_timeout'
+            ? 'Dönüşüm zaman aşımına uğradı'
+            : error === 'encrypted_pdf'
+              ? 'Şifreli PDF desteklenmiyor'
+              : error === 'corrupted_pdf'
+                ? 'Bozuk PDF'
+                : error
+        readerContent = (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+            <p className="text-destructive text-ql-13">{msg}</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {isModelMissing ? (
+                <button
+                  type="button"
+                  onClick={() => downloadModels.mutate()}
+                  disabled={downloadModels.isPending}
+                  className="bg-primary text-primary-foreground text-ql-12 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
+                >
+                  {downloadModels.isPending ? 'İndiriliyor…' : 'Modelleri İndir'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="bg-primary text-primary-foreground text-ql-12 rounded-lg px-3 py-1.5"
+                >
+                  Yeniden dene
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setViewMode('pdf')}
+                className="border-border bg-card text-ql-12 rounded-lg border px-3 py-1.5"
+              >
+                PDF ile devam et
+              </button>
+            </div>
+            <p className="text-muted-foreground text-ql-11">
+              {isModelMissing
+                ? 'İndirme bitince belge yeniden işlenecek. Offline için modeller gerekli.'
+                : 'PDF görünümü çalışmaya devam ediyor'}
+            </p>
+          </div>
+        )
+      }
     } else if (document) {
       readerContent = (
         <div className="h-full overflow-y-auto overscroll-contain">

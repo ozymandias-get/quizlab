@@ -38,7 +38,9 @@ const DoclingModelsCard = memo(function DoclingModelsCard({
   return (
     <SurfaceCard className="space-y-3 p-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-ql-13 text-foreground font-semibold">Models — {t('docling_models')}</h3>
+        <h3 className="text-ql-13 text-foreground font-semibold">
+          {t('docling_models', { defaultValue: 'Modeller' })}
+        </h3>
         <span
           className={cn(
             'text-ql-11 rounded-full px-2 py-0.5 font-medium',

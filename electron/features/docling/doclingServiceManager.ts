@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { promises as fs } from 'node:fs'
+import { type Dirent, promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import type { DoclingServiceState, DoclingServiceStatus } from '../../../shared/types/index.js'
@@ -100,13 +100,21 @@ export class DoclingServiceManager {
   private async getDiskUsageBytes(): Promise<number | null> {
     try {
       const layout = this.deps.getLayoutFn()
+      // Engine disk usage must NOT include models/ – that is shown separately
+      // in DoclingModelsCard. Walking the whole root double-counts and
+      // confused users (3624 MB vs 1371 MB in the same screen).
       let total = 0
       const stack: string[] = [layout.root]
       while (stack.length > 0) {
         const current = stack.pop()!
-        const entries = await fs.readdir(current, { withFileTypes: true })
-        for (const entry of entries) {
+        // Skip the models directory entirely for engine accounting
+        if (path.normalize(current) === path.normalize(layout.models)) continue
+        if (current.startsWith(path.normalize(layout.models) + path.sep)) continue
+        const entries = await fs.readdir(current, { withFileTypes: true }).catch(() => [])
+        for (const entry of entries as Dirent[]) {
           const full = path.join(current, entry.name)
+          // Don't descend into models/
+          if (full === layout.models || full.startsWith(layout.models + path.sep)) continue
           if (entry.isDirectory()) stack.push(full)
           else if (entry.isFile()) {
             try {

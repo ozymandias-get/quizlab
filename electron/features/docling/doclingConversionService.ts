@@ -117,7 +117,22 @@ class DoclingConversionService {
     options: { force?: boolean } = {}
   ): Promise<QuizLabConversionTask> {
     if (this.activeConversions >= this.MAX_CONCURRENT) {
-      throw new Error('Too many concurrent conversions, please wait')
+      // Same PDF already converting? Reuse it instead of erroring – avoids
+      // "Too many concurrent" flash when user double-clicks or when
+      // useDocumentConversion retries while a task is still queued.
+      for (const existing of this.tasks.values()) {
+        if (
+          existing.pdfPath === pdfPath &&
+          (existing.status === 'queued' || existing.status === 'processing')
+        ) {
+          Logger.info('[DoclingConversion] Reusing existing task for same PDF', {
+            pdfPath,
+            taskId: existing.taskId
+          })
+          return { ...existing }
+        }
+      }
+      throw new Error('Başka bir dönüşüm devam ediyor, lütfen bekleyin')
     }
     const layout = this.deps.getLayout()
     const task = createTask(pdfPath, 'queued')
