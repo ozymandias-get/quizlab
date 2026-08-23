@@ -1,32 +1,17 @@
-import {
-  useDoclingGpuDetect,
-  useDoclingGpuPrefs,
-  useDoclingGpuSetEnabled
-} from '@platform/electron/api/useDoclingGpuApi'
-
 import { Button } from '@app/components/ui/button'
 import { cn } from '@shared/lib/uiUtils'
 import { InlineSpinner, SurfaceCard } from '@shared/ui/components/primitives'
 import { GridIcon } from '@ui/components/Icons'
 
-import {
-  AlertTriangle,
-  CheckCircle,
-  Cpu,
-  Download,
-  HardDrive,
-  RefreshCw,
-  Trash2,
-  Zap
-} from 'lucide-react'
+import { AlertTriangle, CheckCircle, Download, HardDrive, RefreshCw, Trash2 } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import DoclingGpuCard from './docling/DoclingGpuCard'
 import DoclingModelsCard from './docling/DoclingModelsCard'
 import DoclingRemoveDialog from './docling/DoclingRemoveDialog'
 import { useDoclingTabState } from './docling/useDoclingTabState'
 import SettingsTabIntro from './shared/SettingsTabIntro'
-import SettingsToggleSwitch from './shared/SettingsToggleSwitch'
 
 function formatBytes(bytes: number | null): string {
   if (bytes === null || bytes === undefined) return '-'
@@ -65,16 +50,6 @@ const DoclingTab = memo(function DoclingTab() {
     handleDeleteModels,
     handleRepairModels
   } = useDoclingTabState()
-  const { data: gpuPrefs } = useDoclingGpuPrefs()
-  const {
-    data: gpuDetect,
-    isLoading: gpuDetectLoading,
-    refetch: refetchGpuDetect
-  } = useDoclingGpuDetect(!!isInstalled)
-  const gpuToggle = useDoclingGpuSetEnabled()
-  const gpuEnabled = !!gpuPrefs?.enabled
-  const gpuAvailable = !!gpuDetect?.available
-  const gpuDeviceLabel = gpuDetect?.device ?? gpuPrefs?.lastDetected ?? 'cpu'
 
   const statusDot = isBusy ? 'bg-amber-500' : isInstalled ? 'bg-emerald-500' : 'bg-zinc-400'
   const statusText = isBusy
@@ -202,59 +177,7 @@ const DoclingTab = memo(function DoclingTab() {
         onDelete={handleDeleteModels}
       />
 
-      <SurfaceCard className="space-y-3 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary/10 text-primary rounded-md p-1.5">
-              {gpuEnabled ? <Zap className="h-4 w-4" /> : <Cpu className="h-4 w-4" />}
-            </div>
-            <div>
-              <h3 className="text-ql-13 font-semibold">GPU Hızlandırma (Deneysel)</h3>
-              <p className="text-ql-11 text-muted-foreground">
-                Akıllı okuma dönüşümünü GPU ile hızlandırır. Kapatılırsa CPU kullanılır.
-              </p>
-            </div>
-          </div>
-          <SettingsToggleSwitch
-            checked={gpuEnabled}
-            onChange={(val) => gpuToggle.mutate(val)}
-            disabled={gpuToggle.isPending}
-          />
-        </div>
-        <div className="text-ql-12 text-muted-foreground space-y-1">
-          <div className="flex items-center gap-1.5">
-            <span>Algılanan cihaz:</span>
-            <span className="text-foreground font-mono font-medium">
-              {gpuDetectLoading ? 'taranıyor…' : gpuDeviceLabel}
-            </span>
-            {gpuAvailable ? (
-              <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
-                kullanılabilir
-              </span>
-            ) : (
-              <span className="rounded-full bg-zinc-500/15 px-1.5 py-0.5 text-[11px]">
-                {isInstalled ? 'CPU kullanılacak' : 'Docling kurulu değil'}
-              </span>
-            )}
-          </div>
-          {gpuDetect?.detail && (
-            <p className="text-ql-11 break-words opacity-80">{gpuDetect.detail}</p>
-          )}
-          {gpuEnabled && !gpuAvailable && (
-            <p className="text-amber-600 dark:text-amber-300">
-              GPU açık ama cihaz bulunamadı — işlem otomatik CPU’ya düşecek. NVIDIA driver / CUDA
-              veya Apple MPS gereklidir.
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={() => refetchGpuDetect()}
-            className="text-ql-11 text-primary hover:underline"
-          >
-            Yeniden tara
-          </button>
-        </div>
-      </SurfaceCard>
+      <DoclingGpuCard isInstalled={isInstalled} />
 
       <div className="flex flex-wrap gap-2.5">
         {!isInstalled ? (
