@@ -84,6 +84,11 @@ export const IPC_CHANNELS = {
   DOCLING_MODELS_GET_DISK_USAGE: 'docling:models-get-disk-usage',
   DOCLING_MODELS_PROGRESS: 'docling:models-progress',
 
+  // Docling GPU (accelerator toggle)
+  DOCLING_GPU_GET_PREFS: 'docling:gpu-get-prefs',
+  DOCLING_GPU_SET_ENABLED: 'docling:gpu-set-enabled',
+  DOCLING_GPU_DETECT: 'docling:gpu-detect',
+
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
   NATIVE_MESSAGING_INSTALL_EXTENSION: 'native-messaging-install-extension',

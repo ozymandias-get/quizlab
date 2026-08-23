@@ -14,6 +14,7 @@ import type {
 } from '../../../shared/types/quizlabDocument.js'
 import { Logger } from '../../core/logger.js'
 import { adaptDoclingToQuizLabDocument } from './doclingAdapter.js'
+import { getGpuPrefs } from './doclingGpuSettings.js'
 import { getModelStatus } from './doclingModelManager.js'
 import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
 import { doclingServiceManager } from './doclingServiceManager.js'
@@ -282,6 +283,12 @@ class DoclingConversionService {
       const outputDir = path.join(layout.temp, 'conversions', taskId)
       const outputJson = path.join(outputDir, 'docling.json')
       const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
+      // GPU toggle – read persisted pref, best-effort (default off)
+      let gpuEnabled = false
+      try {
+        const prefs = await getGpuPrefs()
+        gpuEnabled = !!prefs.enabled
+      } catch {}
       try {
         await fs.mkdir(outputDir, { recursive: true })
         await fs.mkdir(imagesDir, { recursive: true })
@@ -296,6 +303,7 @@ class DoclingConversionService {
             env: {
               ...process.env,
               DOCLING_ARTIFACTS_PATH: layout.models,
+              DOCLING_GPU_ENABLED: gpuEnabled ? '1' : '0',
               PYTHONUNBUFFERED: '1',
               PYTHONHOME: undefined,
               PYTHONPATH: undefined
@@ -408,11 +416,15 @@ class DoclingConversionService {
         await fs.rm(scriptPath, { force: true })
         throw new Error('Symlink detected')
       }
-      return scriptPath
+      // GPU toggle was added after 2026-08: old script lacks DOCLING_GPU_ENABLED marker -> force regenerate
+      const existing = await fs.readFile(scriptPath, 'utf8').catch(() => '')
+      if (existing.includes('DOCLING_GPU_ENABLED')) return scriptPath
+      await fs.rm(scriptPath, { force: true }).catch(() => {})
+      throw new Error('Regenerate for GPU support')
     } catch {}
     await fs.mkdir(path.dirname(scriptPath), { recursive: true })
     const script = `
-import sys, json, pathlib
+import os, sys, json, pathlib
 from pathlib import Path
 
 pdf_path = Path(sys.argv[1])
@@ -425,10 +437,44 @@ if pdf_path.suffix.lower() != ".pdf":
     print(f"Not a PDF: {pdf_path}", file=sys.stderr)
     sys.exit(3)
 
-try:
+def _make_converter():
+    use_gpu = os.environ.get("DOCLING_GPU_ENABLED") == "1"
+    if not use_gpu:
+        from docling.document_converter import DocumentConverter
+        return DocumentConverter()
+    # GPU path – try accelerator, fall back to CPU on any failure
+    try:
+        from docling.document_converter import DocumentConverter, PdfFormatOption
+        from docling.datamodel.base_models import InputFormat
+        # Try modern accelerator API (docling 2.x)
+        try:
+            from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+            # AUTO lets docling pick cuda/mps if available
+            try:
+                acc = AcceleratorOptions(device=AcceleratorDevice.AUTO)
+            except Exception:
+                acc = AcceleratorOptions(device="auto")
+            opts = PdfPipelineOptions(accelerator_options=acc)
+            print(f"GPU enabled, using accelerator {acc.device}", flush=True)
+            return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
+        except ImportError:
+            pass
+        # Fallback: PdfPipelineOptions may directly accept device
+        try:
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+            opts = PdfPipelineOptions(enable_accelerator=True)
+            print("GPU enabled (fallback enable_accelerator)", flush=True)
+            return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"GPU setup failed, falling back to CPU: {e}", file=sys.stderr, flush=True)
     from docling.document_converter import DocumentConverter
+    return DocumentConverter()
 
-    converter = DocumentConverter()
+try:
+    converter = _make_converter()
     result = converter.convert(str(pdf_path))
     doc = result.document
 
@@ -446,12 +492,13 @@ except Exception as e:
         print(f"corrupted PDF: {e}", file=sys.stderr)
         sys.exit(11)
     print(f"conversion failed: {e}", file=sys.stderr)
+    import traceback; traceback.print_exc(file=sys.stderr)
     sys.exit(1)
 
 with open(out_path, 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False)
 
-print(f"converted {pdf_path} -> {out_path}")
+print(f"converted {pdf_path} -> {out_path} (gpu={os.environ.get('DOCLING_GPU_ENABLED')})")
 `.trimStart()
     await fs.writeFile(scriptPath, script, 'utf8')
     await fs.chmod(scriptPath, 0o600).catch(() => {})

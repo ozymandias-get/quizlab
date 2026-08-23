@@ -376,6 +376,21 @@ export interface IpcInvokeRequestMap {
     args: []
     result: IpcResult<number>
   }
+
+  [IPC_CHANNELS.DOCLING_GPU_GET_PREFS]: {
+    args: []
+    result: IpcResult<{ enabled: boolean; lastDetected?: string }>
+  }
+
+  [IPC_CHANNELS.DOCLING_GPU_SET_ENABLED]: {
+    args: [enabled: boolean]
+    result: IpcResult<{ enabled: boolean; lastDetected?: string }>
+  }
+
+  [IPC_CHANNELS.DOCLING_GPU_DETECT]: {
+    args: []
+    result: IpcResult<{ device: string; available: boolean; detail?: string }>
+  }
 }
 
 export interface IpcEventMap {

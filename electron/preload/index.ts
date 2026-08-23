@@ -205,6 +205,13 @@ const electronApi: ElectronApi = {
       onEvent(IPC_CHANNELS.DOCLING_MODELS_PROGRESS, (payload) => callback(payload))
   },
 
+  doclingGpu: {
+    getPrefs: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_GET_PREFS)),
+    setEnabled: (enabled) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_SET_ENABLED, enabled)),
+    detect: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_DETECT))
+  },
+
   log: (level, message, timestamp) => {
     ipcRenderer.send(IPC_CHANNELS.LOGGER_LOG, { level, message, timestamp })
   }

@@ -214,6 +214,12 @@ export interface ElectronApi {
     onProgress: (callback: (event: DoclingModelProgressEvent) => void) => () => void
   }
 
+  doclingGpu: {
+    getPrefs: () => Promise<{ enabled: boolean; lastDetected?: string }>
+    setEnabled: (enabled: boolean) => Promise<{ enabled: boolean; lastDetected?: string }>
+    detect: () => Promise<{ device: string; available: boolean; detail?: string }>
+  }
+
   /** Forward a log entry from the renderer to the main process buffer. */
   log: (level: string, message: string, timestamp: string) => void
 }

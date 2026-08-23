@@ -355,6 +355,11 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       getDiskUsage: stubReturn(0),
       onProgress: () => () => {}
     },
+    doclingGpu: {
+      getPrefs: stubReturn({ enabled: false, lastDetected: 'cpu' }),
+      setEnabled: stubReturn({ enabled: false, lastDetected: 'cpu' }),
+      detect: stubReturn({ device: 'cpu', available: false, detail: 'web_dev_mode_only' })
+    },
     getApiChatConfig: stubReturn({
       providers: [],
       generalPrompt: '',
