@@ -26,6 +26,10 @@ export function useDocumentConversion(
   const pollRef = useRef<number | null>(null)
   const taskIdRef = useRef<string | null>(null)
   const prevPdfPathRef = useRef<string | null | undefined>(undefined)
+  const taskRef = useRef<QuizLabConversionTask | null>(null)
+  useEffect(() => {
+    taskRef.current = task
+  }, [task])
 
   const clearPoll = useCallback(() => {
     if (pollRef.current !== null) {
@@ -41,6 +45,32 @@ export function useDocumentConversion(
     // Only cancel if task was still converting; main will no-op for completed
     api?.doclingConversion?.cancel(id).catch(() => {})
   }, [])
+
+  const startPolling = useCallback(
+    (taskId: string) => {
+      const api = getElectronApi()
+      if (!api?.doclingConversion) return
+      if (pollRef.current !== null) return
+      pollRef.current = window.setInterval(async () => {
+        try {
+          const cur = await api.doclingConversion.getStatus(taskId)
+          setTask(cur)
+          if (cur.status === 'completed') {
+            clearPoll()
+            const doc = await api.doclingConversion.getResult(cur.taskId)
+            setDocument(doc)
+          } else if (cur.status === 'failed') {
+            clearPoll()
+            if ((cur.error as { code?: string } | undefined)?.code === 'cancelled') return
+            setError(cur.error?.message ?? 'Conversion failed')
+          }
+        } catch {
+          // keep polling
+        }
+      }, POLL_INTERVAL_MS)
+    },
+    [clearPoll]
+  )
 
   const startConversion = useCallback(
     async (path: string) => {
@@ -187,8 +217,14 @@ export function useDocumentConversion(
       return
     }
 
-    // Same pdfPath but already have a task (e.g. viewMode toggled back) – don't restart
-    if (taskIdRef.current) return
+    // Same pdfPath but already have a task (e.g. viewMode toggled back) – resume polling, don't restart
+    if (taskIdRef.current) {
+      const cur = taskRef.current
+      if (!cur || cur.status === 'queued' || cur.status === 'processing') {
+        if (pollRef.current === null) startPolling(taskIdRef.current)
+      }
+      return
+    }
 
     clearPoll()
     setDocument(null)
@@ -198,7 +234,7 @@ export function useDocumentConversion(
     if (!pdfPath || !enabled) return
     void startConversion(pdfPath)
     return () => clearPoll()
-  }, [pdfPath, enabled, startConversion, clearPoll, cancelCurrent])
+  }, [pdfPath, enabled, startConversion, clearPoll, cancelCurrent, startPolling])
 
   // Cancel on unmount (tab closed while converting)
   useEffect(() => {
