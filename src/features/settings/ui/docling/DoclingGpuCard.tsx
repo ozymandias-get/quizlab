@@ -29,8 +29,10 @@ const DoclingGpuCard = memo(function DoclingGpuCard({ isInstalled }: Props) {
   const gpuEnabled = !!gpuPrefs?.enabled
   const gpuAvailable = !!gpuDetect?.available
   const gpuDeviceLabel = gpuDetect?.device ?? gpuPrefs?.lastDetected ?? 'cpu'
-  const showCudaDownload =
-    gpuEnabled && isInstalled && (gpuDeviceLabel === 'cpu' || gpuDeviceLabel === 'none')
+  const isCudaDriverFoundButTorchCpu =
+    !!gpuDetect?.detail?.includes('torch CUDA') || (!gpuAvailable && gpuDeviceLabel === 'cuda')
+  const showCudaDownload = gpuEnabled && isInstalled && !gpuAvailable
+  const hideGenericGpuWarning = isCudaDriverFoundButTorchCpu
 
   return (
     <SurfaceCard className="space-y-3 p-5">
@@ -62,6 +64,10 @@ const DoclingGpuCard = memo(function DoclingGpuCard({ isInstalled }: Props) {
             <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
               kullanılabilir
             </span>
+          ) : isCudaDriverFoundButTorchCpu ? (
+            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
+              CUDA kurulumu gerekli
+            </span>
           ) : (
             <span className="rounded-full bg-zinc-500/15 px-1.5 py-0.5 text-[11px]">
               {isInstalled ? 'CPU kullanılacak' : 'Docling kurulu değil'}
@@ -71,7 +77,7 @@ const DoclingGpuCard = memo(function DoclingGpuCard({ isInstalled }: Props) {
         {gpuDetect?.detail && (
           <p className="text-ql-11 break-words opacity-80">{gpuDetect.detail}</p>
         )}
-        {gpuEnabled && !gpuAvailable && (
+        {gpuEnabled && !gpuAvailable && !hideGenericGpuWarning && (
           <p className="text-amber-600 dark:text-amber-300">
             GPU açık ama cihaz bulunamadı — işlem otomatik CPU’ya düşecek. NVIDIA driver / CUDA veya
             Apple MPS gereklidir.
