@@ -106,8 +106,19 @@ except ImportError as e:
       detail: result.stderr.slice(0, 300) || 'torch not found'
     }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error)
-    return { device: 'none', available: false, detail: msg.slice(0, 300) }
+    const raw = error instanceof Error ? error.message : String(error)
+    const lower = raw.toLowerCase()
+    // WinError 127 c10_cuda.dll is the typical torch-CUDA broken install on Windows
+    // (missing VCRUNTIME or nvidia-* deps). Show a friendly message instead of the raw traceback.
+    if (lower.includes('c10_cuda') || lower.includes('winerror 127')) {
+      return {
+        device: 'none',
+        available: false,
+        detail:
+          'CUDA torch yüklemesi bozuk (c10_cuda.dll) — GPU kapalı tutuluyor, CPU kullanılacak. Tekrar denemek için Visual C++ Redistributable güncelleyin.'
+      }
+    }
+    return { device: 'none', available: false, detail: raw.slice(0, 300) }
   }
 }
 
