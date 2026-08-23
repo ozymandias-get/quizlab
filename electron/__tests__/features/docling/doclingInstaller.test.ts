@@ -167,6 +167,31 @@ describe('docling installer pipeline', () => {
     expect(reports.at(-1)?.phase).toBe('failed')
   })
 
+  it('reinstalls from the frozen lock file instead of re-resolving', async () => {
+    const root = await makeRoot()
+    roots.push(root)
+    const layout = getDoclingLayout(root)
+    const { io } = createFakeIo(layout)
+    await runDoclingPipeline({ componentsRoot: root, io })
+
+    // First install persists the fully resolved tree (incl. transitives).
+    const lockPath = path.join(layout.environment, 'docling-lock.txt')
+    expect(await fs.readFile(lockPath, 'utf8')).toContain('transitive-dep==9.9.9')
+
+    // Crash between venv and packages → repair must reuse the lock.
+    await fs.rm(path.join(layout.environment, '.docling-pin'), { force: true })
+    const { io: io2, calls } = createFakeIo(layout)
+    await runDoclingPipeline({ componentsRoot: root, io: io2 })
+
+    const pipInstall = calls.execs.filter((label) => label.includes('pip install'))
+    expect(pipInstall).toHaveLength(1)
+    expect(pipInstall[0]).toContain('-r')
+    expect(pipInstall[0]).toContain('docling-lock.txt')
+
+    const manifest = await readDoclingManifest(layout)
+    expect(manifest.status).toBe('ready')
+  })
+
   it('resumes correctly: when venv already exists only packages are reinstalled', async () => {
     const root = await makeRoot()
     roots.push(root)

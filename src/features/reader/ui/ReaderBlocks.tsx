@@ -1,58 +1,10 @@
-/* eslint-disable react/no-array-index-key -- table rows/cells use index as key, no stable id available from Docling */
+/* eslint-disable react/no-array-index-key -- list items use index as key, no stable id available from Docling */
 import type { QuizLabBlock } from '@shared-core/types'
-
-import { useShowInPdf } from '@features/reader/hooks/useReaderPdfLink'
 
 import { cn } from '@shared/lib/uiUtils'
 
-import { ExternalLink, ImageIcon } from 'lucide-react'
-import { memo, useState } from 'react'
-
-function PageBadge({ pageNumber }: { pageNumber: number }) {
-  return (
-    <span
-      className="text-ql-11 text-muted-foreground/70 border-border/60 bg-muted/30 inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono backdrop-blur"
-      title={`Sayfa ${pageNumber}`}
-      aria-label={`Sayfa ${pageNumber}`}
-    >
-      {pageNumber}
-    </span>
-  )
-}
-
-export const BlockWrapper = memo(function BlockWrapper({
-  block,
-  children
-}: {
-  block: QuizLabBlock
-  children: React.ReactNode
-}) {
-  const showInPdf = useShowInPdf()
-  return (
-    <div
-      data-block-id={block.id}
-      data-page={block.pageNumber}
-      className="group/block scroll-mt-4"
-      style={{ contentVisibility: 'auto' as never, containIntrinsicSize: '0 600px' } as never}
-    >
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">{children}</div>
-        <div className="flex shrink-0 items-center gap-1 pt-1">
-          <PageBadge pageNumber={block.pageNumber} />
-          <button
-            type="button"
-            onClick={() => showInPdf(block)}
-            className="border-border/60 bg-card/80 text-muted-foreground hover:text-foreground hover:bg-card hover:border-border hidden h-6 w-6 items-center justify-center rounded-md border opacity-0 backdrop-blur transition-all group-hover/block:opacity-100 md:inline-flex"
-            aria-label={`PDF'de göster, sayfa ${block.pageNumber}`}
-            title="PDF'de göster"
-          >
-            <ExternalLink className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-})
+import { BlockWrapper } from './ReaderBlockShell'
+import { ImageBlockView, TableBlockView } from './ReaderMediaBlocks'
 
 export function HeadingBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'heading' }> }) {
   const Tag = `h${Math.min(6, Math.max(1, block.level))}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
@@ -101,90 +53,6 @@ export function ListBlockView({ block }: { block: Extract<QuizLabBlock, { type: 
           </li>
         ))}
       </Tag>
-    </BlockWrapper>
-  )
-}
-
-export function ImageBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'image' }> }) {
-  const src = block.assetUrl
-  const [failed, setFailed] = useState(false)
-  const showImg = !!src && !failed
-  return (
-    <BlockWrapper block={block}>
-      <figure className="border-border/60 bg-card/60 supports-[backdrop-filter]:bg-card/40 my-6 overflow-hidden rounded-2xl border shadow-sm backdrop-blur">
-        {showImg ? (
-          <div className="bg-muted/20 flex justify-center p-2">
-            <img
-              src={src}
-              alt={block.alt ?? block.caption ?? 'Görsel'}
-              loading="lazy"
-              decoding="async"
-              onError={() => setFailed(true)}
-              className="h-auto max-h-[65vh] w-auto max-w-full rounded-lg object-contain shadow"
-              style={{ aspectRatio: 'auto' }}
-            />
-          </div>
-        ) : (
-          <div className="from-muted/60 to-muted/20 border-border/40 flex flex-col items-center justify-center gap-2 border-b bg-gradient-to-b px-6 py-10">
-            <div className="bg-muted text-muted-foreground/60 rounded-full p-3">
-              <ImageIcon className="h-6 w-6" />
-            </div>
-            <span className="text-muted-foreground text-ql-13">Görsel yüklenemedi</span>
-            {src && (
-              <span className="text-muted-foreground/60 text-ql-11 max-w-full truncate font-mono">
-                {src.slice(0, 48)}…
-              </span>
-            )}
-          </div>
-        )}
-        {block.caption && (
-          <figcaption className="text-muted-foreground bg-muted/30 text-ql-12 border-border/40 border-t px-4 py-2.5 italic">
-            {block.caption}
-          </figcaption>
-        )}
-      </figure>
-    </BlockWrapper>
-  )
-}
-
-export function TableBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'table' }> }) {
-  return (
-    <BlockWrapper block={block}>
-      <figure className="border-border/60 my-6 overflow-hidden rounded-2xl border shadow-sm">
-        <div className="max-w-full overflow-x-auto">
-          <table className="text-ql-13 w-full min-w-[420px] border-collapse">
-            <tbody>
-              {block.rows.map((row, ri) => (
-                <tr
-                  key={ri}
-                  className={cn(
-                    ri === 0 ? 'bg-muted/60' : ri % 2 === 0 ? 'bg-muted/15' : 'bg-card'
-                  )}
-                >
-                  {row.map((cell, ci) => (
-                    <td
-                      key={ci}
-                      colSpan={cell.colSpan}
-                      rowSpan={cell.rowSpan}
-                      className={cn(
-                        'border-border/60 border px-3.5 py-2.5 text-left align-top leading-6',
-                        cell.isHeader && 'bg-muted/80 font-semibold'
-                      )}
-                    >
-                      {cell.text}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {block.caption && (
-          <figcaption className="text-muted-foreground bg-muted/30 text-ql-12 border-border/40 border-t px-4 py-2.5 italic">
-            {block.caption}
-          </figcaption>
-        )}
-      </figure>
     </BlockWrapper>
   )
 }

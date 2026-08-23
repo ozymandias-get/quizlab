@@ -125,20 +125,12 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   useAiSendComposerFeedbackReset(items.length, isSubmitting, setSendFeedback, setLastError)
 
   const portalStyle = useMemo(
-    () =>
-      isExpanded
-        ? {
-            left: layout.x,
-            top: layout.y,
-            width: layout.width,
-            height: layout.height
-          }
-        : {
-            left: layout.x,
-            top: layout.y,
-            width: 'max-content',
-            height: COMPACT_HEIGHT
-          },
+    () => ({
+      left: layout.x,
+      top: layout.y,
+      width: isExpanded ? layout.width : ('max-content' as const),
+      height: isExpanded ? layout.height : COMPACT_HEIGHT
+    }),
     [layout.x, layout.y, layout.width, layout.height, isExpanded]
   )
 
@@ -213,9 +205,9 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
               {showContent ? (
                 <motion.div
                   key="expanded-content"
-                  initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
-                  animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1 }}
-                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: DURATION.normal, ease: 'easeOut' }}
                   className="h-full"
                 >

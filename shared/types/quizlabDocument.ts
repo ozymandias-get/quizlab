@@ -210,6 +210,9 @@ export interface QuizLabDocumentResult {
 }
 
 export interface DoclingPipelinePrefs {
+  // Preset level 1 (minimal) .. 5 (max). Stored to remember user choice; actual
+  // pipeline fields are materialised from the preset when the user picks a level.
+  presetLevel: number
   // Core
   doOcr: boolean
   ocrLang: string
@@ -234,7 +237,6 @@ export interface DoclingPipelinePrefs {
   documentTimeout: number | null
   // Performance
   numThreads: number
-  device: string
   enableHeadingHierarchy: boolean
   ocrBatchSize: number
   layoutBatchSize: number

@@ -3,6 +3,9 @@ import type { QuizLabConversionTask, QuizLabDocument } from '@shared-core/types'
 import { getElectronApi } from '@shared/lib/electronApi'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { pollTaskUntilTerminal, type TaskPollOutcome } from './conversionPolling'
 
 interface UseDocumentConversionResult {
   document: QuizLabDocument | null
@@ -13,63 +16,84 @@ interface UseDocumentConversionResult {
   reprocess: () => void
 }
 
-const POLL_INTERVAL_MS = 900
-
 export function useDocumentConversion(
   pdfPath: string | null | undefined,
   options?: { enabled?: boolean }
 ): UseDocumentConversionResult {
   const enabled = options?.enabled ?? true
+  const { t } = useTranslation()
   const [document, setDocument] = useState<QuizLabDocument | null>(null)
   const [task, setTask] = useState<QuizLabConversionTask | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const pollRef = useRef<number | null>(null)
   const taskIdRef = useRef<string | null>(null)
   const prevPdfPathRef = useRef<string | null | undefined>(undefined)
   const taskRef = useRef<QuizLabConversionTask | null>(null)
+  const abortPollRef = useRef<{ aborted: boolean }>({ aborted: false })
   useEffect(() => {
     taskRef.current = task
   }, [task])
 
-  const clearPoll = useCallback(() => {
-    if (pollRef.current !== null) {
-      window.clearInterval(pollRef.current)
-      pollRef.current = null
-    }
+  const abortPolling = useCallback(() => {
+    abortPollRef.current.aborted = true
+    abortPollRef.current = { aborted: false }
   }, [])
 
-  const cancelCurrent = useCallback(() => {
+  /** Cancel the active conversion and wait until main freed the slot. */
+  const cancelCurrent = useCallback(async () => {
     const id = taskIdRef.current
     if (!id) return
+    taskIdRef.current = null
     const api = getElectronApi()
-    // Only cancel if task was still converting; main will no-op for completed
-    api?.doclingConversion?.cancel(id).catch(() => {})
+    // Main awaits process termination before returning – no fixed sleep here.
+    await api?.doclingConversion?.cancel(id).catch(() => {})
   }, [])
 
-  const startPolling = useCallback(
-    (taskId: string) => {
-      const api = getElectronApi()
-      if (!api?.doclingConversion) return
-      if (pollRef.current !== null) return
-      pollRef.current = window.setInterval(async () => {
-        try {
-          const cur = await api.doclingConversion.getStatus(taskId)
-          setTask(cur)
-          if (cur.status === 'completed') {
-            clearPoll()
-            const doc = await api.doclingConversion.getResult(cur.taskId)
-            setDocument(doc)
-          } else if (cur.status === 'failed') {
-            clearPoll()
-            if ((cur.error as { code?: string } | undefined)?.code === 'cancelled') return
-            setError(cur.error?.message ?? 'Conversion failed')
-          }
-        } catch {
-          // keep polling
+  const runTask = useCallback(
+    async (started: QuizLabConversionTask): Promise<TaskPollOutcome> => {
+      if (started.status === 'completed') {
+        const api = getElectronApi()
+        const doc = await api?.doclingConversion?.getResult(started.taskId).catch(() => null)
+        setTask(started)
+        setDocument(doc ?? null)
+        return 'completed'
+      }
+      if (started.status === 'failed') {
+        setTask(started)
+        if ((started.error as { code?: string } | undefined)?.code !== 'cancelled') {
+          setError(started.error?.message ?? 'Conversion failed')
         }
-      }, POLL_INTERVAL_MS)
+        return 'failed'
+      }
+      abortPolling()
+      const signal = abortPollRef.current
+      return pollTaskUntilTerminal(
+        started.taskId,
+        {
+          onTick: setTask,
+          onCompleted: async (done) => {
+            const api = getElectronApi()
+            const doc = await api?.doclingConversion?.getResult(done.taskId).catch(() => null)
+            setDocument(doc ?? null)
+          },
+          onError: setError
+        },
+        signal
+      )
     },
-    [clearPoll]
+    [abortPolling]
+  )
+
+  const handleOutcome = useCallback(
+    (outcome: TaskPollOutcome) => {
+      if (outcome === 'ipc-unavailable') {
+        setError(
+          t('docling_conversion_status_lost', {
+            defaultValue: 'Conversion status lost – the background process is not responding.'
+          })
+        )
+      }
+    },
+    [t]
   )
 
   const startConversion = useCallback(
@@ -82,51 +106,15 @@ export function useDocumentConversion(
       try {
         setError(null)
         setDocument(null)
-        const t = await api.doclingConversion.convert(path)
-        taskIdRef.current = t.taskId
-        setTask(t)
-        if (t.status === 'completed') {
-          const doc = await api.doclingConversion.getResult(t.taskId)
-          setDocument(doc)
-          return
-        }
-        if (t.status === 'failed') {
-          if ((t.error as { code?: string } | undefined)?.code === 'cancelled') {
-            clearPoll()
-            setTask(t)
-            return
-          }
-          setError(t.error?.message ?? 'Conversion failed')
-          return
-        }
-        // Poll for async task
-        pollRef.current = window.setInterval(async () => {
-          if (!taskIdRef.current) return
-          try {
-            const cur = await api.doclingConversion.getStatus(taskIdRef.current)
-            setTask(cur)
-            if (cur.status === 'completed') {
-              clearPoll()
-              const doc = await api.doclingConversion.getResult(cur.taskId)
-              setDocument(doc)
-            } else if (cur.status === 'failed') {
-              clearPoll()
-              if ((cur.error as { code?: string } | undefined)?.code === 'cancelled') {
-                // User closed PDF – don't show error
-                return
-              }
-              setError(cur.error?.message ?? 'Conversion failed')
-            }
-          } catch {
-            // keep polling
-          }
-        }, POLL_INTERVAL_MS)
+        const started = await api.doclingConversion.convert(path)
+        taskIdRef.current = started.taskId
+        handleOutcome(await runTask(started))
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         setTask((prev) => (prev ? { ...prev, status: 'failed' } : prev))
       }
     },
-    [clearPoll]
+    [runTask, handleOutcome]
   )
 
   const retry = useCallback(() => {
@@ -141,79 +129,49 @@ export function useDocumentConversion(
       return
     }
     try {
-      clearPoll()
+      abortPolling()
       setError(null)
       setDocument(null)
-      const t = await api.doclingConversion.reprocess(pdfPath)
-      taskIdRef.current = t.taskId
-      setTask(t)
-      if (t.status === 'completed') {
-        const doc = await api.doclingConversion.getResult(t.taskId)
-        setDocument(doc)
-        return
-      }
-      if (t.status === 'failed') {
-        if ((t.error as { code?: string } | undefined)?.code === 'cancelled') return
-        setError(t.error?.message ?? 'Conversion failed')
-        return
-      }
-      pollRef.current = window.setInterval(async () => {
-        if (!taskIdRef.current) return
-        try {
-          const cur = await api.doclingConversion.getStatus(taskIdRef.current)
-          setTask(cur)
-          if (cur.status === 'completed') {
-            clearPoll()
-            const doc = await api.doclingConversion.getResult(cur.taskId)
-            setDocument(doc)
-          } else if (cur.status === 'failed') {
-            clearPoll()
-            if ((cur.error as { code?: string } | undefined)?.code === 'cancelled') return
-            setError(cur.error?.message ?? 'Conversion failed')
-          }
-        } catch {
-          // keep polling
-        }
-      }, POLL_INTERVAL_MS)
+      const started = await api.doclingConversion.reprocess(pdfPath)
+      taskIdRef.current = started.taskId
+      handleOutcome(await runTask(started))
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       if (msg.toLowerCase().includes('cancelled')) return
       setError(msg)
     }
-  }, [pdfPath, clearPoll, startConversion])
+  }, [pdfPath, runTask, startConversion, abortPolling, handleOutcome])
 
   useEffect(() => {
     const prev = prevPdfPathRef.current
     const changed = prev !== undefined && prev !== pdfPath
 
     if (changed) {
-      if (prev) cancelCurrent()
       prevPdfPathRef.current = pdfPath
-      clearPoll()
-      // New PDF (or closed) – reset UI state
+      abortPolling()
+      // Reset UI state first; cancel+await runs async below.
       setDocument(null)
       setTask(null)
       setError(null)
-      taskIdRef.current = null
-      if (!enabled || !pdfPath) return
-      // If we just cancelled a previous conversion, give main a moment to free the slot
-      const delay = prev ? 550 : 0
-      if (delay > 0) {
-        const t = window.setTimeout(() => void startConversion(pdfPath), delay)
-        return () => {
-          window.clearTimeout(t)
-          clearPoll()
-        }
+      if (!enabled || !pdfPath) {
+        void cancelCurrent()
+        return
       }
-      void startConversion(pdfPath)
-      return () => clearPoll()
+      const cancelled = cancelCurrent()
+      let stale = false
+      void cancelled.then(() => {
+        if (!stale) void startConversion(pdfPath)
+      })
+      return () => {
+        stale = true
+      }
     }
 
     prevPdfPathRef.current = pdfPath
 
     // View mode disabled (switched to PDF) – keep task/document but stop polling, do NOT cancel
     if (!enabled) {
-      clearPoll()
+      abortPolling()
       return
     }
 
@@ -221,28 +179,42 @@ export function useDocumentConversion(
     if (taskIdRef.current) {
       const cur = taskRef.current
       if (!cur || cur.status === 'queued' || cur.status === 'processing') {
-        if (pollRef.current === null) startPolling(taskIdRef.current)
+        const id = taskIdRef.current
+        abortPolling()
+        const signal = { aborted: false }
+        abortPollRef.current = signal
+        void pollTaskUntilTerminal(
+          id,
+          {
+            onTick: setTask,
+            onCompleted: async (done) => {
+              const api = getElectronApi()
+              const doc = await api?.doclingConversion?.getResult(done.taskId).catch(() => null)
+              setDocument(doc ?? null)
+            },
+            onError: setError
+          },
+          signal
+        ).then(handleOutcome)
       }
       return
     }
 
-    clearPoll()
+    abortPolling()
     setDocument(null)
     setTask(null)
     setError(null)
-    taskIdRef.current = null
     if (!pdfPath || !enabled) return
     void startConversion(pdfPath)
-    return () => clearPoll()
-  }, [pdfPath, enabled, startConversion, clearPoll, cancelCurrent, startPolling])
+  }, [pdfPath, enabled, startConversion, abortPolling, cancelCurrent, handleOutcome])
 
   // Cancel on unmount (tab closed while converting)
   useEffect(() => {
     return () => {
-      cancelCurrent()
-      clearPoll()
+      abortPolling()
+      void cancelCurrent()
     }
-  }, [cancelCurrent, clearPoll])
+  }, [cancelCurrent, abortPolling])
 
   // Subscribe to progress events (real Docling status if available)
   useEffect(() => {

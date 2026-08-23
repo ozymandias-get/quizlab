@@ -4,8 +4,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
-import { app } from 'electron'
-
+import { DOCLING_TASK_TIMEOUT_MS } from '../../../shared/constants/doclingPipeline.js'
 import type {
   QuizLabConversionErrorCode,
   QuizLabConversionStatus,
@@ -14,71 +13,18 @@ import type {
 } from '../../../shared/types/quizlabDocument.js'
 import { Logger } from '../../core/logger.js'
 import { adaptDoclingToQuizLabDocument } from './doclingAdapter.js'
+import { buildConverterEnv } from './doclingConversionEnv.js'
+import { ensureConverterScript } from './doclingConverterScript.js'
 import { getModelStatus } from './doclingModelManager.js'
 import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
-import { doclingServiceManager } from './doclingServiceManager.js'
-import {
-  computeFileHash,
-  copyAssetsToCache,
-  getCachedDocument,
-  invalidateCache,
-  putCachedDocument
-} from './quizlabDocumentCache.js'
+import { mapErrorCode, validatePdfPath } from './doclingValidation.js'
 
-const TASK_TIMEOUT_MS = 15 * 60 * 1000
 const POLL_INTERVAL_MS = 800
-const MAX_PDF_SIZE_BYTES = 500 * 1024 * 1024
 
 interface ConversionDeps {
   spawnFn: typeof spawn
   getLayout: typeof getDoclingLayout
   adapter: typeof adaptDoclingToQuizLabDocument
-  serviceManager: typeof doclingServiceManager
-}
-
-function mapErrorCode(stderr: string, code: number | null): QuizLabConversionErrorCode {
-  const lower = stderr.toLowerCase()
-  if (lower.includes('encrypted') || lower.includes('password')) return 'encrypted_pdf'
-  if (lower.includes('corrupt') || lower.includes('damaged')) return 'corrupted_pdf'
-  if (lower.includes('unsupported') || lower.includes('not a pdf')) return 'unsupported_pdf'
-  if (lower.includes('timeout') || lower.includes('timed out')) return 'conversion_timeout'
-  if (lower.includes('ocr') && lower.includes('fail')) return 'ocr_failure'
-  if (code === 2) return 'scanned_pdf_no_text'
-  return 'unknown'
-}
-
-async function validatePdfPath(
-  pdfPath: string
-): Promise<{ valid: true } | { valid: false; code: QuizLabConversionErrorCode; message: string }> {
-  if (typeof pdfPath !== 'string' || pdfPath.length === 0 || pdfPath.length > 4096) {
-    return { valid: false, code: 'unknown', message: 'Invalid pdfPath length' }
-  }
-  if (pdfPath.includes('\0')) return { valid: false, code: 'unknown', message: 'Invalid pdfPath' }
-  if (!path.isAbsolute(pdfPath))
-    return { valid: false, code: 'unknown', message: 'PDF path must be absolute' }
-  if (pdfPath.split(path.sep).includes('..')) {
-    return { valid: false, code: 'unknown', message: 'Invalid pdfPath traversal' }
-  }
-  try {
-    const stat = await fs.lstat(pdfPath)
-    if (stat.isSymbolicLink())
-      return { valid: false, code: 'unknown', message: 'Symlink PDFs are not allowed' }
-    if (!stat.isFile()) return { valid: false, code: 'unknown', message: 'Not a file' }
-    if (stat.size > MAX_PDF_SIZE_BYTES) {
-      return {
-        valid: false,
-        code: 'unknown',
-        message: `PDF too large (${(stat.size / (1024 * 1024)).toFixed(1)} MB > 500 MB)`
-      }
-    }
-    if (stat.size === 0) return { valid: false, code: 'corrupted_pdf', message: 'Empty PDF file' }
-  } catch {
-    return { valid: false, code: 'corrupted_pdf', message: 'PDF not found or unreadable' }
-  }
-  if (!pdfPath.toLowerCase().endsWith('.pdf')) {
-    return { valid: false, code: 'unsupported_pdf', message: 'File is not a PDF' }
-  }
-  return { valid: true }
 }
 
 function createTask(pdfPath: string, status: QuizLabConversionStatus): QuizLabConversionTask {
@@ -109,7 +55,6 @@ class DoclingConversionService {
       spawnFn: spawn,
       getLayout: getDoclingLayout,
       adapter: adaptDoclingToQuizLabDocument,
-      serviceManager: doclingServiceManager,
       ...deps
     }
   }
@@ -146,6 +91,7 @@ class DoclingConversionService {
   }
 
   async reconvertPdf(pdfPath: string): Promise<QuizLabConversionTask> {
+    const { computeFileHash, invalidateCache } = await import('./quizlabDocumentCache.js')
     try {
       const hash = await computeFileHash(pdfPath)
       await invalidateCache(hash)
@@ -163,23 +109,17 @@ class DoclingConversionService {
     return doc ? { ...doc, blocks: [...doc.blocks], pages: [...doc.pages] } : null
   }
 
-  cancelTask(taskId: string): QuizLabConversionTask | null {
+  /**
+   * Cancel a task and wait until its process has actually terminated (or the
+   * grace timeout expires). Callers can start a new conversion right after
+   * awaiting this without racing the single-conversion slot.
+   */
+  async cancelTask(taskId: string, timeoutMs = 3000): Promise<QuizLabConversionTask | null> {
     const t = this.tasks.get(taskId)
     if (!t) return null
-    if (t.status === 'queued') {
-      const next: QuizLabConversionTask = {
-        ...t,
-        status: 'failed',
-        error: {
-          code: 'cancelled' as QuizLabConversionErrorCode,
-          message: 'Conversion cancelled',
-          details: null
-        },
-        updatedAt: Date.now()
-      }
-      this.tasks.set(taskId, next)
-      return { ...next }
-    }
+    if (t.status !== 'queued' && t.status !== 'processing') return { ...t }
+
+    this.cancelled.add(taskId)
     if (t.status === 'processing') {
       const child = this.children.get(taskId)
       if (child && !child.killed) {
@@ -187,21 +127,36 @@ class DoclingConversionService {
           child.kill('SIGKILL')
         } catch {}
       }
-      this.cancelled.add(taskId)
-      const next: QuizLabConversionTask = {
-        ...t,
-        status: 'failed',
-        error: {
-          code: 'cancelled' as QuizLabConversionErrorCode,
-          message: 'Conversion cancelled',
-          details: null
-        },
-        updatedAt: Date.now()
-      }
-      this.tasks.set(taskId, next)
-      return { ...next }
+      await this.waitForExit(child, timeoutMs)
     }
-    return { ...t }
+    const next: QuizLabConversionTask = {
+      ...t,
+      status: 'failed',
+      error: {
+        code: 'cancelled' as QuizLabConversionErrorCode,
+        message: 'Conversion cancelled',
+        details: null
+      },
+      updatedAt: Date.now()
+    }
+    this.tasks.set(taskId, next)
+    return { ...next }
+  }
+
+  private waitForExit(
+    child: ReturnType<typeof spawn> | undefined,
+    timeoutMs: number
+  ): Promise<void> {
+    if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, timeoutMs)
+      const done = (): void => {
+        clearTimeout(timer)
+        resolve()
+      }
+      child.once('exit', done)
+      child.once('error', done)
+    })
   }
 
   private updateTask(
@@ -213,6 +168,35 @@ class DoclingConversionService {
     const next: QuizLabConversionTask = { ...cur, ...patch, updatedAt: Date.now() }
     this.tasks.set(taskId, next)
     return next
+  }
+
+  /** Engine readiness without touching the (decoupled) sidecar layer. */
+  private async assertEngineReady(
+    layout: ReturnType<typeof getDoclingLayout>
+  ): Promise<string | null> {
+    const { readDoclingManifest } = await import('./doclingManifest.js')
+    const manifest = await readDoclingManifest(layout)
+    if (manifest.status !== 'ready') return 'Docling is not installed'
+    const venvPython = getVenvPythonPath(layout)
+    try {
+      await fs.access(venvPython)
+    } catch {
+      return 'Docling runtime is missing – repair the installation'
+    }
+    return null
+  }
+
+  private async loadPipelinePrefs(): Promise<ReturnType<typeof buildConverterEnv>> {
+    let raw: Parameters<typeof buildConverterEnv>[0] = {}
+    try {
+      const { getPipelinePrefs } = await import('./doclingPipelineSettings.js')
+      raw = (await getPipelinePrefs()) as Parameters<typeof buildConverterEnv>[0]
+    } catch (error) {
+      Logger.warn('[DoclingConversion] Pipeline prefs unavailable, using defaults', {
+        error: String(error)
+      })
+    }
+    return buildConverterEnv(raw)
   }
 
   private async processTask(
@@ -234,6 +218,8 @@ class DoclingConversionService {
         this.activeConversions = Math.max(0, this.activeConversions - 1)
       }
     }
+    const outputDir = path.join(layout.temp, 'conversions', taskId)
+    const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
     try {
       const validation = await validatePdfPath(task.pdfPath)
       if (!validation.valid) {
@@ -244,10 +230,15 @@ class DoclingConversionService {
         return
       }
       let sourceHash: string | null = null
-      if (!options.force) {
+      try {
+        const { computeFileHash } = await import('./quizlabDocumentCache.js')
+        sourceHash = await computeFileHash(task.pdfPath)
+      } catch {}
+      if (!options.force && sourceHash) {
         try {
-          sourceHash = await computeFileHash(task.pdfPath)
-          const cached = await getCachedDocument(sourceHash)
+          const cached = await (
+            await import('./quizlabDocumentCache.js')
+          ).getCachedDocument(sourceHash)
           if (cached) {
             this.results.set(taskId, cached)
             this.updateTask(taskId, {
@@ -260,16 +251,12 @@ class DoclingConversionService {
           Logger.warn('[DoclingConversion] Cache lookup failed', { error: String(error) })
           sourceHash = null
         }
-      } else {
-        try {
-          sourceHash = await computeFileHash(task.pdfPath)
-        } catch {}
       }
-      const status = await this.deps.serviceManager.getStatus()
-      if (!status.installed) {
+      const notReady = await this.assertEngineReady(layout)
+      if (notReady) {
         this.updateTask(taskId, {
           status: 'failed',
-          error: { code: 'not_installed', message: 'Docling is not installed', details: null }
+          error: { code: 'not_installed', message: notReady, details: null }
         })
         return
       }
@@ -279,118 +266,19 @@ class DoclingConversionService {
           this.updateTask(taskId, {
             status: 'failed',
             error: {
-              code: 'model_missing' as unknown as QuizLabConversionErrorCode,
-              message: 'Required document models are not installed',
+              code: 'model_missing',
+              message:
+                modelStatus.status === 'runtime_missing'
+                  ? 'Docling runtime is missing – repair the installation'
+                  : 'Required document models are not installed',
               details: null
             }
           })
           return
         }
       } catch {}
-      // Best-effort ensure the sidecar is up for future HTTP path;
-      // conversion itself is via direct spawn (convert_docling.py) so a
-      // transient service failure should not block the document.
-      try {
-        await this.deps.serviceManager.ensureRunning()
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
-        Logger.warn('[DoclingConversion] Service ensure failed, falling back to direct spawn', {
-          error: msg
-        })
-      }
-      const venvPython = getVenvPythonPath(layout)
-      const outputDir = path.join(layout.temp, 'conversions', taskId)
-      const outputJson = path.join(outputDir, 'docling.json')
-      const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
-      // GPU support removed – always CPU to avoid c10_cuda.dll WinError 127.
-      const gpuEnabled = false
-      let pipelinePrefs: {
-        doOcr: boolean
-        ocrLang: string
-        forceFullPageOcr: boolean
-        detectTables: boolean
-        fastTables: boolean
-        cellMatching: boolean
-        doCodeEnrichment: boolean
-        doFormulaEnrichment: boolean
-        doPictureClassification: boolean
-        doPictureDescription: boolean
-        extractFigures: boolean
-        generatePageImages: boolean
-        generateTableImages: boolean
-        imagesScale: number
-        doChartExtraction: boolean
-        forceBackendText: boolean
-        enableRemoteServices: boolean
-        allowExternalPlugins: boolean
-        documentTimeout: number | null
-        numThreads: number
-        device: string
-        enableHeadingHierarchy: boolean
-        ocrBatchSize: number
-        layoutBatchSize: number
-        tableBatchSize: number
-        queueMaxSize: number
-      } = {
-        doOcr: false,
-        ocrLang: '',
-        forceFullPageOcr: false,
-        detectTables: true,
-        fastTables: true,
-        cellMatching: true,
-        doCodeEnrichment: false,
-        doFormulaEnrichment: false,
-        doPictureClassification: false,
-        doPictureDescription: false,
-        extractFigures: false,
-        generatePageImages: false,
-        generateTableImages: false,
-        imagesScale: 1.0,
-        doChartExtraction: false,
-        forceBackendText: false,
-        enableRemoteServices: false,
-        allowExternalPlugins: false,
-        documentTimeout: null,
-        numThreads: 4,
-        device: 'auto',
-        enableHeadingHierarchy: false,
-        ocrBatchSize: 4,
-        layoutBatchSize: 4,
-        tableBatchSize: 4,
-        queueMaxSize: 100
-      }
-      try {
-        const { getPipelinePrefs } = await import('./doclingPipelineSettings.js')
-        const p = await getPipelinePrefs()
-        pipelinePrefs = {
-          doOcr: !!p.doOcr,
-          ocrLang: typeof p.ocrLang === 'string' ? p.ocrLang : '',
-          forceFullPageOcr: !!p.forceFullPageOcr,
-          detectTables: !!p.detectTables,
-          fastTables: !!p.fastTables,
-          cellMatching: p.cellMatching !== false,
-          doCodeEnrichment: !!p.doCodeEnrichment,
-          doFormulaEnrichment: !!p.doFormulaEnrichment,
-          doPictureClassification: !!p.doPictureClassification,
-          doPictureDescription: !!p.doPictureDescription,
-          extractFigures: !!p.extractFigures,
-          generatePageImages: !!p.generatePageImages,
-          generateTableImages: !!p.generateTableImages,
-          imagesScale: typeof p.imagesScale === 'number' ? p.imagesScale : 1.0,
-          doChartExtraction: !!p.doChartExtraction,
-          forceBackendText: !!p.forceBackendText,
-          enableRemoteServices: !!p.enableRemoteServices,
-          allowExternalPlugins: !!p.allowExternalPlugins,
-          documentTimeout: typeof p.documentTimeout === 'number' ? p.documentTimeout : null,
-          numThreads: typeof p.numThreads === 'number' ? p.numThreads : 4,
-          device: typeof p.device === 'string' ? p.device : 'auto',
-          enableHeadingHierarchy: !!p.enableHeadingHierarchy,
-          ocrBatchSize: typeof p.ocrBatchSize === 'number' ? p.ocrBatchSize : 4,
-          layoutBatchSize: typeof p.layoutBatchSize === 'number' ? p.layoutBatchSize : 4,
-          tableBatchSize: typeof p.tableBatchSize === 'number' ? p.tableBatchSize : 4,
-          queueMaxSize: typeof p.queueMaxSize === 'number' ? p.queueMaxSize : 100
-        }
-      } catch {}
+
+      const envBase = await this.loadPipelinePrefs()
       try {
         if (this.cancelled.has(taskId)) {
           this.cancelled.delete(taskId)
@@ -402,49 +290,19 @@ class DoclingConversionService {
           this.cancelled.delete(taskId)
           return
         }
-        const converterScript = await this.ensureConverterScript(layout)
-        const deadline = Date.now() + TASK_TIMEOUT_MS
+        const converterScript = await ensureConverterScript(layout)
+        const venvPython = getVenvPythonPath(layout)
+        const deadline = Date.now() + DOCLING_TASK_TIMEOUT_MS
         const child = this.deps.spawnFn(
           venvPython,
-          [converterScript, task.pdfPath, outputJson, imagesDir],
+          [converterScript, task.pdfPath, path.join(outputDir, 'docling.json'), imagesDir],
           {
             shell: false,
             windowsHide: true,
             env: {
               ...process.env,
-              DOCLING_ARTIFACTS_PATH: layout.models,
-              DOCLING_GPU_ENABLED: gpuEnabled ? '1' : '0',
-              DOCLING_DO_OCR: pipelinePrefs.doOcr ? '1' : '0',
-              DOCLING_OCR_LANG: pipelinePrefs.ocrLang,
-              DOCLING_FORCE_FULL_PAGE_OCR: pipelinePrefs.forceFullPageOcr ? '1' : '0',
-              DOCLING_EXTRACT_FIGURES: pipelinePrefs.extractFigures ? '1' : '0',
-              DOCLING_DETECT_TABLES: pipelinePrefs.detectTables ? '1' : '0',
-              DOCLING_FAST_TABLES: pipelinePrefs.fastTables ? '1' : '0',
-              DOCLING_CELL_MATCHING: pipelinePrefs.cellMatching ? '1' : '0',
-              DOCLING_DO_CODE_ENRICHMENT: pipelinePrefs.doCodeEnrichment ? '1' : '0',
-              DOCLING_DO_FORMULA_ENRICHMENT: pipelinePrefs.doFormulaEnrichment ? '1' : '0',
-              DOCLING_DO_PICTURE_CLASSIFICATION: pipelinePrefs.doPictureClassification ? '1' : '0',
-              DOCLING_DO_PICTURE_DESCRIPTION: pipelinePrefs.doPictureDescription ? '1' : '0',
-              DOCLING_GENERATE_PAGE_IMAGES: pipelinePrefs.generatePageImages ? '1' : '0',
-              DOCLING_GENERATE_TABLE_IMAGES: pipelinePrefs.generateTableImages ? '1' : '0',
-              DOCLING_IMAGES_SCALE: String(pipelinePrefs.imagesScale),
-              DOCLING_DO_CHART_EXTRACTION: pipelinePrefs.doChartExtraction ? '1' : '0',
-              DOCLING_FORCE_BACKEND_TEXT: pipelinePrefs.forceBackendText ? '1' : '0',
-              DOCLING_ENABLE_REMOTE_SERVICES: pipelinePrefs.enableRemoteServices ? '1' : '0',
-              DOCLING_ALLOW_EXTERNAL_PLUGINS: pipelinePrefs.allowExternalPlugins ? '1' : '0',
-              DOCLING_DOCUMENT_TIMEOUT: pipelinePrefs.documentTimeout
-                ? String(pipelinePrefs.documentTimeout)
-                : '',
-              DOCLING_NUM_THREADS: String(pipelinePrefs.numThreads),
-              DOCLING_DEVICE: pipelinePrefs.device,
-              DOCLING_ENABLE_HEADING_HIERARCHY: pipelinePrefs.enableHeadingHierarchy ? '1' : '0',
-              DOCLING_OCR_BATCH_SIZE: String(pipelinePrefs.ocrBatchSize),
-              DOCLING_LAYOUT_BATCH_SIZE: String(pipelinePrefs.layoutBatchSize),
-              DOCLING_TABLE_BATCH_SIZE: String(pipelinePrefs.tableBatchSize),
-              DOCLING_QUEUE_MAX_SIZE: String(pipelinePrefs.queueMaxSize),
-              PYTHONUNBUFFERED: '1',
-              PYTHONHOME: undefined,
-              PYTHONPATH: undefined
+              ...envBase,
+              DOCLING_ARTIFACTS_PATH: layout.models
             } as NodeJS.ProcessEnv
           }
         )
@@ -503,53 +361,7 @@ class DoclingConversionService {
           })
           return
         }
-        const raw = await fs.readFile(outputJson, 'utf8').catch(() => null)
-        if (!raw) throw new Error('Docling produced no output')
-        let parsed: unknown
-        try {
-          parsed = JSON.parse(raw)
-        } catch {
-          throw new Error('Docling output is not valid JSON')
-        }
-        const doc = this.deps.adapter(parsed, {
-          pdfPath: task.pdfPath,
-          pdfName: path.basename(task.pdfPath),
-          conversionTimeMs: Date.now() - task.createdAt
-        })
-        let secured = await this.secureImageAssets(doc, taskId, layout, imagesDir)
-        if (sourceHash) {
-          try {
-            await copyAssetsToCache(sourceHash, imagesDir).catch(() => {})
-            const cachedBlocks = secured.blocks.map((b) => {
-              if (
-                b.type === 'image' &&
-                b.assetUrl?.startsWith(`quizlab-asset://docling/${taskId}/`)
-              ) {
-                const fileName = b.assetId ?? b.assetUrl.split('/').pop() ?? ''
-                return {
-                  ...b,
-                  assetUrl: `quizlab-asset://docling-cache/${sourceHash}/assets/${fileName}`
-                }
-              }
-              return b
-            })
-            const cachedDoc: QuizLabDocument = {
-              ...secured,
-              blocks: cachedBlocks as QuizLabDocument['blocks'],
-              source: { ...secured.source, fileHash: sourceHash }
-            }
-            await putCachedDocument(sourceHash, cachedDoc)
-            secured = cachedDoc
-          } catch (error) {
-            Logger.warn('[DoclingConversion] Cache write failed', { error: String(error) })
-          }
-        }
-        this.results.set(taskId, secured)
-        this.updateTask(taskId, {
-          status: 'completed',
-          progress: { phase: 'completed', percent: 100, message: null }
-        })
-        await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {})
+        await this.finishConversion(taskId, outputDir, imagesDir, sourceHash)
       } catch (error) {
         if (this.cancelled.has(taskId)) {
           this.cancelled.delete(taskId)
@@ -571,271 +383,165 @@ class DoclingConversionService {
     }
   }
 
-  private async ensureConverterScript(
-    layout: ReturnType<typeof getDoclingLayout>
-  ): Promise<string> {
-    const scriptPath = path.join(layout.root, 'service', 'convert_docling.py')
+  private async finishConversion(
+    taskId: string,
+    outputDir: string,
+    imagesDir: string,
+    sourceHash: string | null,
+    layout: ReturnType<typeof getDoclingLayout> = this.deps.getLayout()
+  ): Promise<void> {
+    const task = this.tasks.get(taskId)!
+    const outputJson = path.join(outputDir, 'docling.json')
+    const raw = await fs.readFile(outputJson, 'utf8').catch(() => null)
+    if (!raw) throw new Error('Docling produced no output')
+    let parsed: unknown
     try {
-      await fs.access(scriptPath)
-      const stat = await fs.lstat(scriptPath)
-      if (stat.isSymbolicLink()) {
-        await fs.rm(scriptPath, { force: true })
-        throw new Error('Symlink detected')
-      }
-      const existing = await fs.readFile(scriptPath, 'utf8').catch(() => '')
-      if (
-        existing.includes('DOCLING_GPU_ENABLED') &&
-        existing.includes('IMAGE_EMBED') &&
-        existing.includes('DOCLING_DO_OCR')
-      )
-        return scriptPath
-      await fs.rm(scriptPath, { force: true }).catch(() => {})
-      throw new Error('Regenerate for 25-opts support')
-    } catch {}
-    await fs.mkdir(path.dirname(scriptPath), { recursive: true })
-    // eslint-disable-next-line no-secrets/no-secrets -- Python script contains env var checks, not secrets
-    const script = `
-import os, sys, json, pathlib
-from pathlib import Path
-
-pdf_path = Path(sys.argv[1])
-out_path = Path(sys.argv[2])
-
-if not pdf_path.is_file():
-    print(f"PDF not found: {pdf_path}", file=sys.stderr)
-    sys.exit(2)
-if pdf_path.suffix.lower() != ".pdf":
-    print(f"Not a PDF: {pdf_path}", file=sys.stderr)
-    sys.exit(3)
-
-def _make_converter():
-    # Full 25-pipeline-prefs from Settings – defaults match doclingPipelineSettings.ts
-    def _b(name, d=False): return os.environ.get(name) == "1"
-    def _f(name, d):
-        try: return float(os.environ.get(name, str(d)))
-        except: return d
-    def _i(name, d):
-        try: return int(float(os.environ.get(name, str(d))))
-        except: return d
-    do_ocr = _b("DOCLING_DO_OCR", False)
-    ocr_lang = os.environ.get("DOCLING_OCR_LANG", "").strip()
-    force_full_page_ocr = _b("DOCLING_FORCE_FULL_PAGE_OCR", False)
-    detect_tables = _b("DOCLING_DETECT_TABLES", True)
-    fast_tables = _b("DOCLING_FAST_TABLES", True)
-    cell_matching = _b("DOCLING_CELL_MATCHING", True)
-    do_code = _b("DOCLING_DO_CODE_ENRICHMENT", False)
-    do_formula = _b("DOCLING_DO_FORMULA_ENRICHMENT", False)
-    do_pic_class = _b("DOCLING_DO_PICTURE_CLASSIFICATION", False)
-    do_pic_desc = _b("DOCLING_DO_PICTURE_DESCRIPTION", False)
-    extract_figs = _b("DOCLING_EXTRACT_FIGURES", False)
-    gen_page_imgs = _b("DOCLING_GENERATE_PAGE_IMAGES", False)
-    gen_table_imgs = _b("DOCLING_GENERATE_TABLE_IMAGES", False)
-    images_scale = _f("DOCLING_IMAGES_SCALE", 1.0)
-    do_chart = _b("DOCLING_DO_CHART_EXTRACTION", False)
-    force_backend_text = _b("DOCLING_FORCE_BACKEND_TEXT", False)
-    enable_remote = _b("DOCLING_ENABLE_REMOTE_SERVICES", False)
-    allow_plugins = _b("DOCLING_ALLOW_EXTERNAL_PLUGINS", False)
-    doc_timeout = _f("DOCLING_DOCUMENT_TIMEOUT", 0) or None
-    num_threads = _i("DOCLING_NUM_THREADS", 4)
-    device = os.environ.get("DOCLING_DEVICE", "auto").strip() or "auto"
-    enable_heading = _b("DOCLING_ENABLE_HEADING_HIERARCHY", False)
-    ocr_bs = _i("DOCLING_OCR_BATCH_SIZE", 4)
-    layout_bs = _i("DOCLING_LAYOUT_BATCH_SIZE", 4)
-    table_bs = _i("DOCLING_TABLE_BATCH_SIZE", 4)
-    queue_max = _i("DOCLING_QUEUE_MAX_SIZE", 100)
-    try:
-        from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode, TableStructureOptions
-        from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
-        from docling.document_converter import DocumentConverter, PdfFormatOption
-        from docling.datamodel.base_models import InputFormat
-        kwargs = dict(
-            do_ocr=do_ocr,
-            do_table_structure=detect_tables,
-            do_code_enrichment=do_code,
-            do_formula_enrichment=do_formula,
-            do_picture_classification=do_pic_class,
-            do_picture_description=do_pic_desc,
-            generate_picture_images=extract_figs,
-            generate_page_images=gen_page_imgs,
-            generate_table_images=gen_table_imgs,
-            images_scale=images_scale,
-            do_chart_extraction=do_chart,
-            force_backend_text=force_backend_text,
-            enable_remote_services=enable_remote,
-            allow_external_plugins=allow_plugins,
-            document_timeout=doc_timeout,
-            ocr_batch_size=ocr_bs,
-            layout_batch_size=layout_bs,
-            table_batch_size=table_bs,
-            queue_max_size=queue_max,
-            batch_polling_interval_seconds=0.5,
-            stage_shutdown_timeout_seconds=15.0,
-        )
-        # OCR lang
-        if ocr_lang:
-            try:
-                from docling.datamodel.pipeline_options import EasyOcrOptions
-                langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
-                kwargs["ocr_options"] = EasyOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
-            except Exception:
-                pass
-        elif force_full_page_ocr:
-            try:
-                from docling.datamodel.pipeline_options import EasyOcrOptions
-                kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
-            except Exception:
-                pass
-        # Table mode
-        if detect_tables:
-            try:
-                mode = TableFormerMode.FAST if fast_tables else TableFormerMode.ACCURATE
-                kwargs["table_structure_options"] = TableStructureOptions(mode=mode, do_cell_matching=cell_matching)
-            except Exception:
-                pass
-        # Accelerator
-        try:
-            dev = AcceleratorDevice.AUTO if device == "auto" else AcceleratorDevice(device)
-        except Exception:
-            try: dev = device
-            except: dev = "auto"
-        try:
-            kwargs["accelerator_options"] = AcceleratorOptions(device=dev, num_threads=num_threads)
-        except Exception:
-            pass
-        # Heading hierarchy
-        if enable_heading:
-            try:
-                from docling.datamodel.pipeline_options import HeadingHierarchyOptions
-                kwargs["heading_hierarchy_options"] = HeadingHierarchyOptions(enabled=True)
-            except Exception:
-                pass
-        opts = PdfPipelineOptions(**{k: v for k, v in kwargs.items() if v is not None})
-        print(f"Pipeline 25-opts ocr={do_ocr} lang={ocr_lang} figs={extract_figs} tables={detect_tables} fast={fast_tables} scale={images_scale} thr={num_threads} dev={device}", flush=True)
-        return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
-    except Exception as e:
-        print(f"Pipeline opts failed, fallback to default: {e}", file=sys.stderr, flush=True)
-        import traceback; traceback.print_exc(file=sys.stderr)
-        from docling.document_converter import DocumentConverter
-        return DocumentConverter()
-
-try:
-    converter = _make_converter()
-    result = converter.convert(str(pdf_path))
-    doc = result.document
-
-    has_text = any(t.get("text", "").strip() for t in doc.export_to_dict().get("texts", []))
-    if not has_text and os.environ.get("DOCLING_DO_OCR") != "1":
-        print("No text found with OCR off – retrying with OCR", flush=True)
-        try:
-            from docling.datamodel.pipeline_options import PdfPipelineOptions as OcrRetryOpts
-            from docling.document_converter import DocumentConverter as OcrConverter, PdfFormatOption as OcrFmt
-            from docling.datamodel.base_models import InputFormat as OcrFmtType
-            retry_kwargs = dict(do_ocr=True, do_table_structure=os.environ.get("DOCLING_DETECT_TABLES")=="1", generate_picture_images=os.environ.get("DOCLING_EXTRACT_FIGURES")=="1", do_picture_classification=os.environ.get("DOCLING_EXTRACT_FIGURES")=="1", images_scale=1.2)
-            if retry_kwargs["do_table_structure"] and os.environ.get("DOCLING_FAST_TABLES")=="1":
-                try:
-                    from docling.datamodel.pipeline_options import TableFormerMode as OcrTableMode, TableStructureOptions as OcrTableOpts
-                    retry_kwargs["table_structure_options"] = OcrTableOpts(mode=OcrTableMode.FAST)
-                except Exception:
-                    pass
-            retry_opts = OcrRetryOpts(**retry_kwargs)
-            retry_converter = OcrConverter(format_options={OcrFmtType.PDF: OcrFmt(pipeline_options=retry_opts)})
-            retry_result = retry_converter.convert(str(pdf_path))
-            doc = retry_result.document
-        except Exception as retry_e:
-            print(f"OCR retry failed: {retry_e}", file=sys.stderr, flush=True)
-
-    # Embed images as base64 so secureImageAssets can write them to disk and serve via quizlab-asset://
-    try:
-        from docling.datamodel.document import ImageRefMode
-        data = doc.export_to_dict(image_mode=ImageRefMode.EMBEDDED)
-    except Exception:
-        # Fallback if ImageRefMode not available
-        try:
-            data = doc.export_to_dict(image_mode="embedded")
-        except Exception:
-            data = doc.export_to_dict()
-except Exception as e:
-    msg = str(e).lower()
-    if "password" in msg or "encrypted" in msg:
-        print(f"encrypted PDF: {e}", file=sys.stderr)
-        sys.exit(10)
-    if "corrupt" in msg or "damaged" in msg:
-        print(f"corrupted PDF: {e}", file=sys.stderr)
-        sys.exit(11)
-    if "c10_cuda" in msg or "winerror 127" in msg:
-        print(f"GPU torch driver missing, retrying with CPU: {e}", file=sys.stderr, flush=True)
-        try:
-            from docling.document_converter import DocumentConverter as CpuConverter
-            cpu_converter = CpuConverter()
-            cpu_result = cpu_converter.convert(str(pdf_path))
-            cpu_doc = cpu_result.document
-            try:
-                from docling.datamodel.document import ImageRefMode as CpuImageMode
-                cpu_data = cpu_doc.export_to_dict(image_mode=CpuImageMode.EMBEDDED)
-            except Exception:
-                try:
-                    cpu_data = cpu_doc.export_to_dict(image_mode="embedded")
-                except Exception:
-                    cpu_data = cpu_doc.export_to_dict()
-            with open(out_path, 'w', encoding='utf-8') as f:
-                json.dump(cpu_data, f, ensure_ascii=False)
-            print(f"CPU fallback succeeded {pdf_path} -> {out_path}", flush=True)
-            sys.exit(0)
-        except Exception as e2:
-            print(f"CPU fallback also failed: {e2}", file=sys.stderr)
-            import traceback; traceback.print_exc(file=sys.stderr)
-            sys.exit(1)
-    print(f"conversion failed: {e}", file=sys.stderr)
-    import traceback; traceback.print_exc(file=sys.stderr)
-    sys.exit(1)
-
-with open(out_path, 'w', encoding='utf-8') as f:
-    json.dump(data, f, ensure_ascii=False)
-
-print(f"converted {pdf_path} -> {out_path} (gpu={os.environ.get('DOCLING_GPU_ENABLED')})")
-`.trimStart()
-    await fs.writeFile(scriptPath, script, 'utf8')
-    await fs.chmod(scriptPath, 0o600).catch(() => {})
-    return scriptPath
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new Error('Docling output is not valid JSON')
+    }
+    const doc = this.deps.adapter(parsed, {
+      pdfPath: task.pdfPath,
+      pdfName: path.basename(task.pdfPath),
+      conversionTimeMs: Date.now() - task.createdAt
+    })
+    let secured = await this.secureImageAssets(doc, taskId, imagesDir)
+    if (sourceHash) {
+      secured = await this.cacheResult(sourceHash, secured, taskId, imagesDir)
+      // Artık docling-cache’e kopyalandı – documents/<taskId> leak olmasın
+      // diye kaynak klasörü temizle. Cache-miss durumunda görsellerin
+      // quizlab-asset://docling/<taskId>/ üzerinden yaşaması gerekir, o
+      // yüzden hash yoksa silme.
+      await fs
+        .rm(path.join(layout.root, 'documents', taskId), { recursive: true, force: true })
+        .catch(() => {})
+    }
+    this.results.set(taskId, secured)
+    this.updateTask(taskId, {
+      status: 'completed',
+      progress: { phase: 'completed', percent: 100, message: null }
+    })
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {})
   }
 
+  private async cacheResult(
+    sourceHash: string,
+    doc: QuizLabDocument,
+    taskId: string,
+    imagesDir: string
+  ): Promise<QuizLabDocument> {
+    try {
+      const cache = await import('./quizlabDocumentCache.js')
+      await cache.copyAssetsToCache(sourceHash, imagesDir).catch(() => {})
+      const cachedBlocks = doc.blocks.map((b) => {
+        if (b.type === 'image' && b.assetUrl?.startsWith(`quizlab-asset://docling/${taskId}/`)) {
+          const fileName = b.assetId ?? b.assetUrl.split('/').pop() ?? ''
+          return {
+            ...b,
+            assetUrl: `quizlab-asset://docling-cache/${sourceHash}/assets/${fileName}`
+          }
+        }
+        return b
+      })
+      const cachedDoc: QuizLabDocument = {
+        ...doc,
+        blocks: cachedBlocks as QuizLabDocument['blocks'],
+        source: { ...doc.source, fileHash: sourceHash }
+      }
+      await cache.putCachedDocument(sourceHash, cachedDoc)
+      return cachedDoc
+    } catch (error) {
+      Logger.warn('[DoclingConversion] Cache write failed', { error: String(error) })
+      return doc
+    }
+  }
+
+  /**
+   * Convert image references into sandboxed quizlab-asset:// URLs.
+   *
+   * The Python converter exports images as real files under imagesDir and
+   * puts absolute file paths into the JSON; legacy data-URI output is still
+   * accepted and written to disk here. Anything outside imagesDir is dropped.
+   */
   private async secureImageAssets(
     doc: QuizLabDocument,
     taskId: string,
-    layout: ReturnType<typeof getDoclingLayout>,
     imagesDir: string
   ): Promise<QuizLabDocument> {
+    const normalizedImagesDir = path.normalize(imagesDir).toLowerCase()
+    type ImageBlock = Extract<QuizLabDocument['blocks'][number], { type: 'image' }>
     const blocks = await Promise.all(
-      doc.blocks.map(async (block) => {
+      doc.blocks.map(async (block): Promise<QuizLabDocument['blocks'][number]> => {
         if (block.type !== 'image' || !block.assetUrl) return block
-        const url: string = block.assetUrl
-        if (!url.startsWith('data:')) {
-          if (url.startsWith('file://')) return { ...block, assetUrl: null }
-          return block
-        }
+        const image = block as ImageBlock
+        const url = image.assetUrl as string
         try {
-          const match = url.match(/^data:image\/[^;]+;base64,(.+)$/)
-          if (!match) return block
-          const b64 = match[1]
-          const buf = Buffer.from(b64, 'base64')
-          if (buf.length > 20 * 1024 * 1024) return { ...block, assetUrl: null }
-          const ext = url.includes('png')
-            ? 'png'
-            : url.includes('jpeg') || url.includes('jpg')
-              ? 'jpg'
-              : 'bin'
-          const fileName = `${block.id}.${ext}`
-          const filePath = path.join(imagesDir, fileName)
-          await fs.mkdir(imagesDir, { recursive: true })
-          await fs.writeFile(filePath, buf)
-          const secureUrl = `quizlab-asset://docling/${taskId}/images/${fileName}`
-          return { ...block, assetUrl: secureUrl, assetId: fileName }
+          if (url.startsWith('data:')) {
+            const match = url.match(/^data:image\/[^;]+;base64,(.+)$/)
+            if (!match) return { ...image, assetUrl: null }
+            const buf = Buffer.from(match[1], 'base64')
+            if (buf.length > 20 * 1024 * 1024) return { ...image, assetUrl: null }
+            const ext = url.includes('png')
+              ? 'png'
+              : url.includes('jpeg') || url.includes('jpg')
+                ? 'jpg'
+                : url.includes('webp')
+                  ? 'webp'
+                  : 'bin'
+            return await this.writeAsset(buf, ext, image, taskId, imagesDir)
+          }
+          // File reference exported by the Python asset exporter.
+          let filePath: string | null = null
+          if (url.startsWith('file://')) {
+            try {
+              filePath = decodeURIComponent(new URL(url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+            } catch {
+              filePath = null
+            }
+          } else if (path.isAbsolute(url)) {
+            filePath = url
+          } else if (url.startsWith('quizlab-asset://')) {
+            return image
+          }
+          if (!filePath) return { ...image, assetUrl: null }
+          const normalized = path.normalize(filePath)
+          if (normalized.toLowerCase().startsWith(normalizedImagesDir)) {
+            const fileName = path.basename(normalized)
+            const stat = await fs.lstat(normalized).catch(() => null)
+            if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+              return { ...image, assetUrl: null }
+            }
+            return {
+              ...image,
+              assetUrl: `quizlab-asset://docling/${taskId}/images/${fileName}`,
+              assetId: fileName
+            }
+          }
+          // Outside the sandboxed dir – refuse to serve.
+          return { ...image, assetUrl: null }
         } catch {
-          return { ...block, assetUrl: null }
+          return { ...image, assetUrl: null }
         }
       })
     )
     return { ...doc, blocks: blocks as QuizLabDocument['blocks'] }
+  }
+
+  private async writeAsset(
+    buf: Buffer,
+    ext: string,
+    block: Extract<QuizLabDocument['blocks'][number], { type: 'image' }>,
+    taskId: string,
+    imagesDir: string
+  ): Promise<QuizLabDocument['blocks'][number]> {
+    const fileName = `${block.id}.${ext}`
+    await fs.mkdir(imagesDir, { recursive: true })
+    await fs.writeFile(path.join(imagesDir, fileName), buf)
+    return {
+      ...block,
+      assetUrl: `quizlab-asset://docling/${taskId}/images/${fileName}`,
+      assetId: fileName
+    }
   }
 
   _clearForTests(): void {

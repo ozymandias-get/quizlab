@@ -1,14 +1,19 @@
 import path from 'node:path'
 
-import type { DoclingPipelinePrefs } from '@shared-core/types'
-
 import { app } from 'electron'
 
+import {
+  clampDocumentTimeout,
+  clampPipelineNumber,
+  DOCLING_PIPELINE_LIMITS
+} from '../../../shared/constants/doclingPipeline.js'
+import type { DoclingPipelinePrefs } from '../../../shared/types/quizlabDocument.js'
 import { ConfigManager as CM } from '../../core/ConfigManager.js'
 
 export type { DoclingPipelinePrefs }
 
 const DEFAULT_PREFS: DoclingPipelinePrefs = {
+  presetLevel: 3,
   doOcr: false,
   ocrLang: '',
   forceFullPageOcr: false,
@@ -22,19 +27,18 @@ const DEFAULT_PREFS: DoclingPipelinePrefs = {
   extractFigures: false,
   generatePageImages: false,
   generateTableImages: false,
-  imagesScale: 1.0,
+  imagesScale: DOCLING_PIPELINE_LIMITS.imagesScale.default,
   doChartExtraction: false,
   forceBackendText: false,
   enableRemoteServices: false,
   allowExternalPlugins: false,
   documentTimeout: null,
-  numThreads: 4,
-  device: 'auto',
+  numThreads: DOCLING_PIPELINE_LIMITS.numThreads.default,
   enableHeadingHierarchy: false,
-  ocrBatchSize: 4,
-  layoutBatchSize: 4,
-  tableBatchSize: 4,
-  queueMaxSize: 100
+  ocrBatchSize: DOCLING_PIPELINE_LIMITS.ocrBatchSize.default,
+  layoutBatchSize: DOCLING_PIPELINE_LIMITS.layoutBatchSize.default,
+  tableBatchSize: DOCLING_PIPELINE_LIMITS.tableBatchSize.default,
+  queueMaxSize: DOCLING_PIPELINE_LIMITS.queueMaxSize.default
 }
 
 function getPipelineConfigPath(): string {
@@ -49,17 +53,23 @@ function getManager(): CM<DoclingPipelinePrefs> {
 
 export async function getPipelinePrefs(): Promise<DoclingPipelinePrefs> {
   const data = await getManager().read()
-  return { ...DEFAULT_PREFS, ...data }
+  // Persisted files may predate schema changes (e.g. removed keys); strip
+  // anything unknown so callers only ever see the current shape.
+  return sanitize(data)
 }
 
-export async function setPipelinePrefs(
-  patch: Partial<DoclingPipelinePrefs>
-): Promise<DoclingPipelinePrefs> {
-  const cur = await getPipelinePrefs()
-  const next: DoclingPipelinePrefs = { ...cur, ...patch, updatedAt: Date.now() }
-  const clean: DoclingPipelinePrefs = {
+/**
+ * Central sanitizer – the single validation boundary for persisted prefs.
+ * The IPC handler type-checks incoming patches and delegates here, so
+ * renderer constraints and backend limits can never drift apart.
+ */
+export function sanitize(input: Partial<DoclingPipelinePrefs>): DoclingPipelinePrefs {
+  const next: DoclingPipelinePrefs = { ...DEFAULT_PREFS, ...input }
+  const rawLevel = typeof next.presetLevel === 'number' ? Math.round(next.presetLevel) : 3
+  return {
+    presetLevel: Math.min(5, Math.max(1, rawLevel)),
     doOcr: !!next.doOcr,
-    ocrLang: typeof next.ocrLang === 'string' ? next.ocrLang : '',
+    ocrLang: typeof next.ocrLang === 'string' ? next.ocrLang.slice(0, 64) : '',
     forceFullPageOcr: !!next.forceFullPageOcr,
     detectTables: !!next.detectTables,
     fastTables: !!next.fastTables,
@@ -72,47 +82,38 @@ export async function setPipelinePrefs(
     generatePageImages: !!next.generatePageImages,
     generateTableImages: !!next.generateTableImages,
     imagesScale:
-      typeof next.imagesScale === 'number' && next.imagesScale >= 0.5 && next.imagesScale <= 3
+      typeof next.imagesScale === 'number' &&
+      next.imagesScale >= DOCLING_PIPELINE_LIMITS.imagesScale.min &&
+      next.imagesScale <= DOCLING_PIPELINE_LIMITS.imagesScale.max
         ? next.imagesScale
-        : 1.0,
+        : DOCLING_PIPELINE_LIMITS.imagesScale.default,
     doChartExtraction: !!next.doChartExtraction,
     forceBackendText: !!next.forceBackendText,
     enableRemoteServices: !!next.enableRemoteServices,
     allowExternalPlugins: !!next.allowExternalPlugins,
-    documentTimeout:
-      typeof next.documentTimeout === 'number' && next.documentTimeout > 0
-        ? next.documentTimeout
-        : null,
-    numThreads:
-      typeof next.numThreads === 'number' && next.numThreads >= 1 && next.numThreads <= 16
-        ? Math.round(next.numThreads)
-        : 4,
-    device: ['auto', 'cpu', 'cuda', 'mps'].includes(next.device) ? next.device : 'auto',
+    documentTimeout: clampDocumentTimeout(next.documentTimeout),
+    numThreads: clampPipelineNumber('numThreads', next.numThreads),
     enableHeadingHierarchy: !!next.enableHeadingHierarchy,
-    ocrBatchSize:
-      typeof next.ocrBatchSize === 'number' && next.ocrBatchSize >= 1
-        ? Math.round(next.ocrBatchSize)
-        : 4,
-    layoutBatchSize:
-      typeof next.layoutBatchSize === 'number' && next.layoutBatchSize >= 1
-        ? Math.round(next.layoutBatchSize)
-        : 4,
-    tableBatchSize:
-      typeof next.tableBatchSize === 'number' && next.tableBatchSize >= 1
-        ? Math.round(next.tableBatchSize)
-        : 4,
-    queueMaxSize:
-      typeof next.queueMaxSize === 'number' && next.queueMaxSize >= 10
-        ? Math.round(next.queueMaxSize)
-        : 100,
-    updatedAt: next.updatedAt
+    ocrBatchSize: clampPipelineNumber('ocrBatchSize', next.ocrBatchSize),
+    layoutBatchSize: clampPipelineNumber('layoutBatchSize', next.layoutBatchSize),
+    tableBatchSize: clampPipelineNumber('tableBatchSize', next.tableBatchSize),
+    queueMaxSize: clampPipelineNumber('queueMaxSize', next.queueMaxSize),
+    updatedAt: Date.now()
   }
+}
+
+export async function setPipelinePrefs(
+  patch: Partial<DoclingPipelinePrefs>
+): Promise<DoclingPipelinePrefs> {
+  const cur = await getPipelinePrefs()
+  const clean = sanitize({ ...cur, ...patch })
   await getManager().write(clean)
   return clean
 }
 
 export function pipelinePrefsHash(prefs: DoclingPipelinePrefs): string {
   return [
+    prefs.presetLevel,
     prefs.doOcr ? 1 : 0,
     prefs.ocrLang,
     prefs.forceFullPageOcr ? 1 : 0,
@@ -133,7 +134,6 @@ export function pipelinePrefsHash(prefs: DoclingPipelinePrefs): string {
     prefs.allowExternalPlugins ? 1 : 0,
     prefs.documentTimeout ?? 0,
     prefs.numThreads,
-    prefs.device,
     prefs.enableHeadingHierarchy ? 1 : 0,
     prefs.ocrBatchSize,
     prefs.layoutBatchSize,

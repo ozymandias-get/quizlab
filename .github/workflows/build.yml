@@ -67,7 +67,6 @@ jobs:
         run: npm run analyze:css
 
       - name: File Size Check
-        continue-on-error: true
         run: npm run analyze:file-sizes
 
       - name: Run Tests with Coverage

@@ -378,26 +378,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<number>
   }
 
-  [IPC_CHANNELS.DOCLING_GPU_GET_PREFS]: {
-    args: []
-    result: IpcResult<{ enabled: boolean; lastDetected?: string }>
-  }
-
-  [IPC_CHANNELS.DOCLING_GPU_SET_ENABLED]: {
-    args: [enabled: boolean]
-    result: IpcResult<{ enabled: boolean; lastDetected?: string }>
-  }
-
-  [IPC_CHANNELS.DOCLING_GPU_DETECT]: {
-    args: []
-    result: IpcResult<{ device: string; available: boolean; detail?: string }>
-  }
-
-  [IPC_CHANNELS.DOCLING_GPU_INSTALL_CUDA]: {
-    args: []
-    result: IpcResult<{ success: boolean; detail?: string }>
-  }
-
   [IPC_CHANNELS.DOCLING_PIPELINE_GET_PREFS]: {
     args: []
     result: IpcResult<DoclingPipelinePrefs>

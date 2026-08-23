@@ -49,4 +49,10 @@ describe('docling pinned versions', () => {
     const key = getUvAssetKey()
     expect(Object.keys(UV_ASSETS)).toContain(key)
   })
+
+  it('fails loudly on unsupported architectures instead of silently using x64', () => {
+    expect(() => getUvAssetKey('win32', 'arm64')).toThrow(/Unsupported architecture/)
+    expect(() => getUvAssetKey('linux', 'arm64')).toThrow(/Unsupported architecture/)
+    expect(() => getUvAssetKey('sunos', 'x64')).toThrow(/Unsupported platform/)
+  })
 })

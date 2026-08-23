@@ -4,7 +4,6 @@ import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers.js'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
 import { registerDoclingConversionHandlers } from '../features/docling/doclingConversionHandlers.js'
-import { registerDoclingGpuHandlers } from '../features/docling/doclingGpuHandlers.js'
 import { registerDoclingModelHandlers } from '../features/docling/doclingModelHandlers.js'
 import { registerDoclingPipelineHandlers } from '../features/docling/doclingPipelineHandlers.js'
 import {
@@ -41,7 +40,6 @@ export function registerGeneralHandlers() {
   registerDoclingServiceHandlers()
   registerDoclingConversionHandlers()
   registerDoclingModelHandlers()
-  registerDoclingGpuHandlers()
   registerDoclingPipelineHandlers()
 }
 

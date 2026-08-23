@@ -1,6 +1,3 @@
-import { useAppToolActions } from '@app/providers/AppToolContext'
-import { useToastActions } from '@shared/stores/toastStore'
-
 import { type SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -17,20 +14,22 @@ import {
   usePdfContextMenu,
   usePdfNavigation,
   usePdfPanTool,
-  usePdfPlugins,
-  usePdfTextActions
+  usePdfPlugins
 } from '../ui/hooks'
 import type { PdfViewerDocumentProps, UsePdfViewerStateReturn } from './pdfViewerStateTypes'
 import {
   useDocumentLoadHandler,
   usePdfViewerElectronScreenshot,
-  usePdfViewerInitialPageResume
+  usePdfViewerExternalNavigation,
+  usePdfViewerInitialPageResume,
+  usePdfViewerTextActions
 } from './usePdfViewerEffects'
 import { usePdfViewerMenuItems } from './usePdfViewerMenuItems'
 import { usePdfViewerZoomOrchestrator } from './usePdfViewerZoomOrchestrator'
 
 export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerStateReturn {
   const {
+    // prettier-ignore
     pdfFile,
     pdfUrl,
     activePdfTab,
@@ -50,13 +49,12 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
   const [isPanMode, setIsPanMode] = useState(false)
   const handleTogglePanMode = useCallback(() => setIsPanMode((v) => !v), [])
-  const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(
-    null
-  )
+  const [pageDimensions, setPageDimensions] = useState<{
+    width: number
+    height: number
+  } | null>(null)
   const appliedResumeSyncKeyRef = useRef<string | null>(null)
   const [, startTransition] = useTransition()
-  const { queueTextForAi } = useAppToolActions()
-  const { showSuccess, showWarning } = useToastActions()
   const { t: tt } = useTranslation()
   const zoomToRef = useRef<(scale: number | SpecialZoomLevel) => void>(() => {})
   const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
@@ -138,17 +136,10 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
 
   const { isDragging: isPanDragging } = usePdfPanTool({ containerRef, isPanMode })
 
-  const { extractCurrentPageText } = usePdfTextActions({
+  const { extractCurrentPageText } = usePdfViewerTextActions({
     containerRef,
     currentPage,
     onTextSelection,
-    onTextExtracted: (text) => {
-      queueTextForAi(text)
-      showSuccess(tt('pdf_text_added_to_ai'))
-    },
-    onNoTextFound: () => {
-      showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
-    },
     textSelectionEnabled:
       !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !isPanMode
   })
@@ -208,15 +199,12 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   })
 
   const { targetPage, onTargetPageConsumed } = props
-  // External navigation request from Reader (e.g., "PDF'de Göster")
-  useEffect(() => {
-    if (targetPage == null || !isDocumentReady) return
-    const id = window.setTimeout(() => {
-      jumpToPageFromNav(targetPage)
-      onTargetPageConsumed?.()
-    }, 100)
-    return () => window.clearTimeout(id)
-  }, [targetPage, isDocumentReady, jumpToPageFromNav, onTargetPageConsumed])
+  usePdfViewerExternalNavigation({
+    targetPage,
+    isDocumentReady,
+    jumpToPageFromNav,
+    onTargetPageConsumed
+  })
 
   return {
     containerRef,

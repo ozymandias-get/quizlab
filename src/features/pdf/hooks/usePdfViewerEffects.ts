@@ -1,8 +1,13 @@
+import { useAppToolActions } from '@app/providers/AppToolContext'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
+import { useToastActions } from '@shared/stores/toastStore'
 
 import type { DocumentLoadEvent, SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { useCallback, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import { usePdfTextActions } from '../ui/hooks'
 
 interface DocumentLoadHandlerInput {
   handleDocumentLoad: (e: DocumentLoadEvent) => void
@@ -124,4 +129,52 @@ export function usePdfViewerInitialPageResume(input: InitialPageResumeInput) {
     appliedResumeSyncKeyRef,
     zoomToRef
   ])
+}
+
+interface ExternalNavigationInput {
+  targetPage: number | null | undefined
+  isDocumentReady: boolean
+  jumpToPageFromNav: (page: number) => void
+  onTargetPageConsumed?: () => void
+}
+
+/** External navigation request from Reader (e.g., "Show in PDF"). */
+export function usePdfViewerExternalNavigation(input: ExternalNavigationInput): void {
+  const { targetPage, isDocumentReady, jumpToPageFromNav, onTargetPageConsumed } = input
+  useEffect(() => {
+    if (targetPage == null || !isDocumentReady) return
+    const id = window.setTimeout(() => {
+      jumpToPageFromNav(targetPage)
+      onTargetPageConsumed?.()
+    }, 100)
+    return () => window.clearTimeout(id)
+  }, [targetPage, isDocumentReady, jumpToPageFromNav, onTargetPageConsumed])
+}
+
+interface TextActionsBridgeInput {
+  containerRef: React.RefObject<HTMLElement | null>
+  currentPage: number
+  onTextSelection?: (text: string, position: { top: number; left: number } | null) => void
+  textSelectionEnabled: boolean
+}
+
+/** Wires extracted page text to AI tooling + toast feedback. */
+export function usePdfViewerTextActions(input: TextActionsBridgeInput) {
+  const { containerRef, currentPage, onTextSelection, textSelectionEnabled } = input
+  const { queueTextForAi } = useAppToolActions()
+  const { showSuccess, showWarning } = useToastActions()
+  const { t: tt } = useTranslation()
+  return usePdfTextActions({
+    containerRef,
+    currentPage,
+    onTextSelection,
+    onTextExtracted: (text) => {
+      queueTextForAi(text)
+      showSuccess(tt('pdf_text_added_to_ai'))
+    },
+    onNoTextFound: () => {
+      showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
+    },
+    textSelectionEnabled
+  })
 }

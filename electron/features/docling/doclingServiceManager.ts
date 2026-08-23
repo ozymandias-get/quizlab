@@ -97,24 +97,17 @@ export class DoclingServiceManager {
     }
   }
 
-  private async getDiskUsageBytes(): Promise<number | null> {
+  private async getDirectorySize(dir: string): Promise<number> {
     try {
-      const layout = this.deps.getLayoutFn()
-      // Engine disk usage must NOT include models/ – that is shown separately
-      // in DoclingModelsCard. Walking the whole root double-counts and
-      // confused users (3624 MB vs 1371 MB in the same screen).
       let total = 0
-      const stack: string[] = [layout.root]
+      const stack: string[] = [dir]
       while (stack.length > 0) {
         const current = stack.pop()!
-        // Skip the models directory entirely for engine accounting
-        if (path.normalize(current) === path.normalize(layout.models)) continue
-        if (current.startsWith(path.normalize(layout.models) + path.sep)) continue
-        const entries = await fs.readdir(current, { withFileTypes: true }).catch(() => [])
-        for (const entry of entries as Dirent[]) {
+        const entries = await fs
+          .readdir(current, { withFileTypes: true })
+          .catch(() => [] as Dirent[])
+        for (const entry of entries) {
           const full = path.join(current, entry.name)
-          // Don't descend into models/
-          if (full === layout.models || full.startsWith(layout.models + path.sep)) continue
           if (entry.isDirectory()) stack.push(full)
           else if (entry.isFile()) {
             try {
@@ -124,6 +117,37 @@ export class DoclingServiceManager {
           }
         }
       }
+      return total
+    } catch {
+      return 0
+    }
+  }
+
+  private async getDiskUsageBytes(): Promise<number | null> {
+    try {
+      const layout = this.deps.getLayoutFn()
+      // Engine = runtime + environment + bin (+ service script). Deliberately
+      // excludes:
+      // - models/ (shown separately in Modeller kartı)
+      // - temp/ (uv-cache + conversions staging, GB’larca olabilir)
+      // - documents/ (dönüşüm görüntüleri, birikirse şişer)
+      // Walking the whole root previously double-counted and produced
+      // ~8–9 GB gibi anlamsız değerler.
+      const candidates = [
+        layout.runtime,
+        layout.environment,
+        layout.bin,
+        path.join(layout.root, 'service')
+      ]
+      let total = 0
+      for (const dir of candidates) {
+        total += await this.getDirectorySize(dir)
+      }
+      // component.json gibi kökteki küçük dosyaları da ekle
+      try {
+        const stat = await fs.stat(layout.manifestFile)
+        if (stat.isFile()) total += stat.size
+      } catch {}
       return total
     } catch {
       return null
@@ -159,11 +183,14 @@ export class DoclingServiceManager {
   async getStatus(): Promise<DoclingServiceStatus> {
     const installed = await this.isInstalled()
     const base = this.buildStatusSync()
-    if (!installed) return { ...base, installed, diskUsageBytes: null, modelStatus: 'unknown' }
+    // Disk kullanımı her zaman gösterilsin – isInstalled=false iken bile
+    // artıklar (örn. yarım kalan kurulum) diskte kalabilir, kullanıcı
+    // görmezse temizleyemez. “Bazen görülmüyor” şikâyeti buydu.
     const [diskUsageBytes, modelStatus] = await Promise.all([
       this.getDiskUsageBytes(),
       this.getModelStatus()
     ])
+    if (!installed) return { ...base, installed, diskUsageBytes, modelStatus: 'unknown' }
     return { ...base, installed, diskUsageBytes, modelStatus }
   }
 

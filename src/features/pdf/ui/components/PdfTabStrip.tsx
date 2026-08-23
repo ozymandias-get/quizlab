@@ -55,11 +55,9 @@ function PdfTabStrip({
     const el = rowRef.current
     if (!el) return
     const observer = new ResizeObserver((entries) => {
-      const width =
-        entries[0]?.contentBoxSize?.[0]?.inlineSize ?? entries[0]?.contentRect?.width ?? 0
-      if (width > 0) {
-        setMaxVisibleTabs(getMaxVisibleTabs(width, !!onHome))
-      }
+      const entry = entries[0]
+      const width = entry?.contentBoxSize?.[0]?.inlineSize ?? entry?.contentRect?.width ?? 0
+      if (width > 0) setMaxVisibleTabs(getMaxVisibleTabs(width, !!onHome))
     })
     observer.observe(el)
     return () => observer.disconnect()
@@ -109,10 +107,8 @@ function PdfTabStrip({
   )
 
   const getTabIcon = useCallback((tab: PdfTab) => {
-    if (tab.kind === 'drive') {
-      return (
-        getAiIcon('gdrive') || <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-      )
+    if (tab.kind === 'drive' && getAiIcon('gdrive')) {
+      return getAiIcon('gdrive')
     }
     return <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
   }, [])
@@ -167,7 +163,6 @@ function PdfTabStrip({
       const menuEl = document.getElementById('tab-context-menu')
       if (menuEl && !menuEl.contains(event.target as Node)) setContextMenu(null)
     }
-
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
   }, [contextMenu])

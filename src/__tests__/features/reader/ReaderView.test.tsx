@@ -156,7 +156,9 @@ describe('ReaderView', () => {
     const img = container.querySelector('img') as HTMLImageElement
     expect(img).toBeInTheDocument()
     expect(img.className).toContain('object-contain')
-    expect(img.className).toContain('max-h-[70vh]')
+    // Reader uses a deliberately tightened cap (65vh) so tall figures do not
+    // push surrounding text out of the viewport.
+    expect(img.className).toContain('max-h-[65vh]')
   })
 
   it('handles large document without crashing (500 blocks)', () => {

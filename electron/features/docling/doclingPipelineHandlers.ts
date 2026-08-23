@@ -1,14 +1,67 @@
 import { failure, success } from '../../../shared/lib/typedIpc.js'
+import type { DoclingPipelinePrefs } from '../../../shared/types/quizlabDocument.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import {
-  type DoclingPipelinePrefs,
   getPipelinePrefs,
+  PIPELINE_PREFS_DEFAULTS,
   setPipelinePrefs
 } from './doclingPipelineSettings.js'
 
 let handlersRegistered = false
+
+const BOOL_KEYS = new Set([
+  'doOcr',
+  'forceFullPageOcr',
+  'detectTables',
+  'fastTables',
+  'cellMatching',
+  'doCodeEnrichment',
+  'doFormulaEnrichment',
+  'doPictureClassification',
+  'doPictureDescription',
+  'extractFigures',
+  'generatePageImages',
+  'generateTableImages',
+  'doChartExtraction',
+  'forceBackendText',
+  'enableRemoteServices',
+  'allowExternalPlugins',
+  'enableHeadingHierarchy'
+])
+
+const NUMBER_KEYS = new Set<keyof DoclingPipelinePrefs>([
+  'presetLevel',
+  'numThreads',
+  'ocrBatchSize',
+  'layoutBatchSize',
+  'tableBatchSize',
+  'queueMaxSize',
+  'imagesScale'
+])
+
+/**
+ * Type-level gate for IPC input. Semantic range validation (min/max clamps)
+ * lives in the shared limits used by `sanitize` – this handler only needs to
+ * reject wrong-typed or unknown fields before they reach the sanitizer.
+ */
+export function validatePipelinePatch(patch: unknown): string | null {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return 'patch must be an object'
+  for (const k of Object.keys(patch as Record<string, unknown>)) {
+    if (!(k in PIPELINE_PREFS_DEFAULTS) && k !== 'updatedAt') return `Unknown key: ${k}`
+    const v = (patch as Record<string, unknown>)[k]
+    if (BOOL_KEYS.has(k as never) && typeof v !== 'boolean') return `${k} must be boolean`
+    if (k === 'ocrLang' && typeof v !== 'string') return `${k} must be string`
+    if (k === 'documentTimeout' && v !== null && typeof v !== 'number') {
+      return `${k} must be number or null`
+    }
+    if (NUMBER_KEYS.has(k as keyof DoclingPipelinePrefs) && typeof v !== 'number') {
+      return `${k} must be number`
+    }
+  }
+  return null
+}
 
 export function registerDoclingPipelineHandlers(): void {
   if (handlersRegistered) return
@@ -28,82 +81,8 @@ export function registerDoclingPipelineHandlers(): void {
   registerIpcHandler(
     IPC_CHANNELS.DOCLING_PIPELINE_SET_PREFS,
     async (_event, patch: Partial<DoclingPipelinePrefs>) => {
-      if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-        return failure('invalid_input', 'patch must be an object')
-      }
-      const allowed = new Set([
-        'doOcr',
-        'ocrLang',
-        'forceFullPageOcr',
-        'detectTables',
-        'fastTables',
-        'cellMatching',
-        'doCodeEnrichment',
-        'doFormulaEnrichment',
-        'doPictureClassification',
-        'doPictureDescription',
-        'extractFigures',
-        'generatePageImages',
-        'generateTableImages',
-        'imagesScale',
-        'doChartExtraction',
-        'forceBackendText',
-        'enableRemoteServices',
-        'allowExternalPlugins',
-        'documentTimeout',
-        'numThreads',
-        'device',
-        'enableHeadingHierarchy',
-        'ocrBatchSize',
-        'layoutBatchSize',
-        'tableBatchSize',
-        'queueMaxSize'
-      ])
-      for (const k of Object.keys(patch)) {
-        if (!allowed.has(k)) return failure('invalid_input', `Unknown key: ${k}`)
-        const v = (patch as Record<string, unknown>)[k]
-        const boolKeys = new Set([
-          'doOcr',
-          'forceFullPageOcr',
-          'detectTables',
-          'fastTables',
-          'cellMatching',
-          'doCodeEnrichment',
-          'doFormulaEnrichment',
-          'doPictureClassification',
-          'doPictureDescription',
-          'extractFigures',
-          'generatePageImages',
-          'generateTableImages',
-          'doChartExtraction',
-          'forceBackendText',
-          'enableRemoteServices',
-          'allowExternalPlugins',
-          'enableHeadingHierarchy'
-        ])
-        if (boolKeys.has(k) && typeof v !== 'boolean')
-          return failure('invalid_input', `${k} must be boolean`)
-        if (k === 'ocrLang' && typeof v !== 'string')
-          return failure('invalid_input', `${k} must be string`)
-        if (k === 'device' && typeof v !== 'string')
-          return failure('invalid_input', `${k} must be string`)
-        if (k === 'imagesScale' && typeof v !== 'number')
-          return failure('invalid_input', `${k} must be number`)
-        if (k === 'documentTimeout' && v !== null && typeof v !== 'number')
-          return failure('invalid_input', `${k} must be number or null`)
-        if (
-          [
-            'numThreads',
-            'ocrBatchSize',
-            'layoutBatchSize',
-            'tableBatchSize',
-            'queueMaxSize'
-          ].includes(k) &&
-          typeof v !== 'number'
-        ) {
-          return failure('invalid_input', `${k} must be number`)
-        }
-      }
+      const invalid = validatePipelinePatch(patch)
+      if (invalid) return failure('invalid_input', invalid)
       const next = await setPipelinePrefs(patch)
       return success(next)
     },

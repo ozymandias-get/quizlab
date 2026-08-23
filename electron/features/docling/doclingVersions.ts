@@ -26,23 +26,6 @@ export const DOCLING_PACKAGES = [
   `docling-core==${DOCLING_CORE_VERSION}`
 ] as const
 
-/**
- * CUDA / GPU extras – only installed when the user enables GPU in Settings.
- * Pinned to avoid floating to untested wheels. Torch CUDA 12.1 covers most
- * desktop NVIDIA drivers (>= 525). onnxruntime-gpu unlocks the ONNX paths Docling
- * uses for layout/table models. Both are large (~2 GB combined) so they stay
- * opt-in behind the toggle.
- */
-export const CUDA_TORCH_VERSION = '2.5.1'
-export const CUDA_ONNXRUNTIME_GPU_VERSION = '1.20.0'
-export const DOCLING_CUDA_PACKAGES = [
-  `torch==${CUDA_TORCH_VERSION}`,
-  `torchvision==0.20.1`,
-  `torchaudio==2.5.1`,
-  `onnxruntime-gpu==${CUDA_ONNXRUNTIME_GPU_VERSION}`
-] as const
-export const CUDA_INDEX_URL = 'https://download.pytorch.org/whl/cu121'
-
 const UV_RELEASE_BASE = `https://github.com/astral-sh/uv/releases/download/${UV_VERSION}`
 
 interface UvAsset {
@@ -80,12 +63,24 @@ export const UV_ASSETS: Record<string, UvAsset> = {
   }
 }
 
+/**
+ * Map the current platform/architecture to an asset key.
+ *
+ * SECURITY/RELIABILITY: unsupported architectures must fail loudly. Silently
+ * handing an x64 binary to an ARM system produces confusing "Bad CPU type" /
+ * "not a valid Win32 application" crashes far from the real cause. ARM64
+ * support for Windows/Linux can be added by extending UV_ASSETS and this map
+ * together – never by falling through to the x64 asset.
+ */
 export function getUvAssetKey(
   platform: string = process.platform,
   arch: string = process.arch
 ): string {
+  if (platform === 'darwin') return arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64'
+  if (arch !== 'x64') {
+    throw new Error(`Unsupported architecture for the Docling runtime: ${platform}/${arch}`)
+  }
   if (platform === 'win32') return 'win32-x64'
   if (platform === 'linux') return 'linux-x64'
-  if (platform === 'darwin') return arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64'
   throw new Error(`Unsupported platform for the Docling runtime: ${platform}/${arch}`)
 }

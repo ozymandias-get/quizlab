@@ -43,8 +43,12 @@ export interface DoclingServiceStatus {
   diskUsageBytes: number | null
   modelStatus: 'ready' | 'missing' | 'unknown'
 }
-
-export type DoclingModelStatus = 'ready' | 'missing' | 'partial'
+/**
+ * `runtime_missing` means model artifacts are marked present but the Python
+ * environment that runs them is gone – the UI must offer repair, never treat
+ * this as ready.
+ */
+export type DoclingModelStatus = 'ready' | 'missing' | 'partial' | 'runtime_missing'
 
 export interface DoclingModelStatusInfo {
   status: DoclingModelStatus

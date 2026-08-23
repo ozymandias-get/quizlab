@@ -55,4 +55,12 @@ export function getVenvPythonPath(layout: DoclingDirLayout): string {
     : path.join(layout.environment, 'bin', 'python')
 }
 
-export const KNOWN_COMPONENT_SUBDIRS = ['runtime', 'environment', 'models', 'temp', 'bin'] as const
+export const KNOWN_COMPONENT_SUBDIRS = [
+  'runtime',
+  'environment',
+  'models',
+  'temp',
+  'bin',
+  'documents',
+  'service'
+] as const

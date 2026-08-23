@@ -59,7 +59,7 @@
     </td>
     <td width="50%">
       <h4>🔐 Privacy-First Architecture</h4>
-      Your PDFs, credentials, and session data remain strictly local. No telemetry, no cloud uploads. AES-256-GCM encryption for sensitive data.
+      Your PDFs, credentials, and session data stay local by default — no telemetry. AES-256-GCM encryption for sensitive data. (Optional cloud OCR/VLM in the Smart Reader is off unless explicitly enabled.)
     </td>
   </tr>
   <tr>
@@ -327,7 +327,8 @@ quizlab/
 
 ## 🔒 Security & Privacy
 
-- **No Telemetry** &mdash; zero data collection, no cloud uploads
+- **No Telemetry** &mdash; zero data collection; PDF processing remains local by default
+- **Local-by-default PDF processing** &mdash; the optional Docling Smart Reader runs entirely on-device. Enabling its experimental "Remote services" option may transmit document data to configured external OCR/VLM services, so it stays off unless you turn it on explicitly.
 - **Isolated Renderer** &mdash; strict `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
 - **Minimal Preload** &mdash; only explicit IPC channels exposed via context bridge
 - **Secure PDF Protocol** &mdash; content served via `local-pdf://` stream protocol with file allowlist and byte-range support

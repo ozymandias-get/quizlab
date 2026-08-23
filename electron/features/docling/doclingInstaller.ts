@@ -127,6 +127,8 @@ const VENV_MARKER = '.venv-python'
  * creation and package installation is repaired by re-running just that part.
  */
 const ENV_PIN_MARKER = '.docling-pin'
+/** Frozen resolution of the full dependency tree (incl. transitives). */
+const ENV_LOCK_FILE = 'docling-lock.txt'
 
 async function stepEnsureUvBinary(ctx: PipelineContext): Promise<void> {
   const { io, layout, report } = ctx
@@ -280,39 +282,34 @@ async function stepCreateEnvironment(ctx: PipelineContext): Promise<void> {
   await fs.writeFile(venvMarker, `${PYTHON_VERSION}\n`, 'utf8')
 }
 
-export async function installCudaPackages(
-  componentsRoot?: string,
-  io: DoclingInstallerIo = defaultDoclingInstallerIo
-): Promise<void> {
-  const layout = getDoclingLayout(componentsRoot)
-  const venvPython = getVenvPythonPath(layout)
-  if (!(await exists(venvPython))) throw new Error('Docling venv not found – install Docling first')
-  const uvPath = getUvBinaryPath(layout)
-  if (!(await exists(uvPath))) throw new Error('uv binary not found')
-  const { CUDA_INDEX_URL, DOCLING_CUDA_PACKAGES } = await import('./doclingVersions.js')
-  // Use --extra-index-url so PyPI stays primary for onnxruntime-gpu, while
-  // torch CUDA wheels are pulled from pytorch's index.
-  await io.exec(
-    uvPath,
-    [
-      'pip',
-      'install',
-      '--python',
-      venvPython,
-      '--extra-index-url',
-      CUDA_INDEX_URL,
-      ...DOCLING_CUDA_PACKAGES
-    ],
-    uvEnvOverrides(layout)
-  )
-}
-
 async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
   const { io, layout } = ctx
   const pinMarker = path.join(layout.environment, ENV_PIN_MARKER)
   const expectedPin = `${DOCLING_VERSION}|${DOCLING_CORE_VERSION}`
 
   if ((await readMarker(pinMarker)) === expectedPin) return
+
+  // Reproducibility: after the first successful resolution we persist the
+  // fully-resolved set (uv pip freeze output) and reuse it for every later
+  // install of the same pins. This makes repair/reinstall byte-identical
+  // instead of letting the resolver drift onto newer transitive releases.
+  const lockPath = path.join(layout.environment, ENV_LOCK_FILE)
+  let args: string[]
+  if ((await readMarker(pinMarker)) === null && (await exists(lockPath))) {
+    const lock = await fs.readFile(lockPath, 'utf8').catch(() => '')
+    const lockMatchesPins =
+      lock.includes(`docling==${DOCLING_VERSION}`) &&
+      lock.includes(`docling-core==${DOCLING_CORE_VERSION}`)
+    if (lockMatchesPins) {
+      ctx.report({ phase: 'installing_docling', percent: null, message: 'locked requirements' })
+      args = ['pip', 'install', '--python', ctx.venvPythonPath, '-r', lockPath]
+      await io.exec(ctx.uvPath, args, uvEnvOverrides(layout))
+      ctx.packages = parsePackageLines(lock)
+      if (ctx.packages.length === 0) throw new Error('Lock file contains no packages')
+      await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
+      return
+    }
+  }
 
   await io.exec(
     ctx.uvPath,
@@ -324,15 +321,21 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
     ['pip', 'freeze', '--python', ctx.venvPythonPath],
     uvEnvOverrides(layout)
   )
-  ctx.packages = freeze.stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
+  ctx.packages = parsePackageLines(freeze.stdout)
 
   if (ctx.packages.length === 0) {
     throw new Error('Package freeze returned no installed packages')
   }
+  // Persist the resolved tree so future installs are deterministic.
+  await fs.writeFile(lockPath, freeze.stdout, 'utf8')
   await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
+}
+
+function parsePackageLines(stdout: string): string[] {
+  return stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
 }
 
 /**

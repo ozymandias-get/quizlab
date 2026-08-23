@@ -357,6 +357,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     },
     doclingPipeline: {
       getPrefs: stubReturn({
+        presetLevel: 3,
         doOcr: false,
         ocrLang: '',
         forceFullPageOcr: false,
@@ -377,7 +378,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         allowExternalPlugins: false,
         documentTimeout: null,
         numThreads: 4,
-        device: 'auto',
         enableHeadingHierarchy: false,
         ocrBatchSize: 4,
         layoutBatchSize: 4,
@@ -385,6 +385,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         queueMaxSize: 100
       }),
       setPrefs: stubReturn({
+        presetLevel: 3,
         doOcr: false,
         ocrLang: '',
         forceFullPageOcr: false,
@@ -405,19 +406,12 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         allowExternalPlugins: false,
         documentTimeout: null,
         numThreads: 4,
-        device: 'auto',
         enableHeadingHierarchy: false,
         ocrBatchSize: 4,
         layoutBatchSize: 4,
         tableBatchSize: 4,
         queueMaxSize: 100
       })
-    },
-    doclingGpu: {
-      getPrefs: stubReturn({ enabled: false, lastDetected: 'cpu' }),
-      setEnabled: stubReturn({ enabled: false, lastDetected: 'cpu' }),
-      detect: stubReturn({ device: 'cpu', available: false, detail: 'web_dev_mode_only' }),
-      installCuda: stubReturn({ success: false, detail: 'web_dev_mode_only' })
     },
     getApiChatConfig: stubReturn({
       providers: [],

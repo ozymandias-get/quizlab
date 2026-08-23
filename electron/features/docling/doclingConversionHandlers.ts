@@ -79,7 +79,9 @@ export function registerDoclingConversionHandlers(): void {
       if (task.status !== 'queued' && task.status !== 'processing') {
         return failure('invalid_input', `Cannot cancel task in ${task.status} state`)
       }
-      const cancelled = doclingConversionService.cancelTask(taskId)
+      // Awaits process termination so the caller can immediately start the
+      // next conversion without racing the single conversion slot.
+      const cancelled = await doclingConversionService.cancelTask(taskId)
       if (!cancelled) return failure('not_found', 'Task not found')
       return success(cancelled)
     },

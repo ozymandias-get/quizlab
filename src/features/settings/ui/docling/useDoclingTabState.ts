@@ -25,7 +25,9 @@ type InstallProgress = { phase: string; percent: number | null; message?: string
 export function useDoclingTabState() {
   const queryClient = useQueryClient()
   const { data: components, isLoading, refetch } = useOptionalComponents()
-  const { data: serviceStatus } = useDoclingServiceStatus()
+  const { data: serviceStatus, isLoading: isServiceLoading } = useDoclingServiceStatus({
+    refetchOnMount: 'always'
+  } as never)
   useDoclingServiceStatusSubscription(true)
   const {
     data: modelStatus,
@@ -110,7 +112,7 @@ export function useDoclingTabState() {
     docling,
     serviceStatus,
     modelStatus,
-    isLoading: isLoading || isModelLoading,
+    isLoading: isLoading || isModelLoading || isServiceLoading,
     isBusy,
     isInstalled,
     progress,
