@@ -3,7 +3,8 @@ import path from 'node:path'
 
 import { Logger } from '../../core/logger.js'
 import { downloadFile } from './doclingDownloader.js'
-import { getDoclingLayout } from './doclingPaths.js'
+import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
+import { runCommandChecked } from './doclingProcessRunner.js'
 
 /**
  * Model lifecycle separated from the engine runtime.
@@ -109,19 +110,81 @@ export async function downloadModels(
   const layout = getDoclingLayout(componentsRoot)
   await fs.mkdir(layout.models, { recursive: true })
 
-  // No explicit assets: Docling will auto-download on first conversion.
-  // Write a tiny sentinel so getModelStatus has a file to report and the
-  // existing "partial when wrong version" test stays valid without a 1 MB
-  // dummy. The sentinel is tiny and cleaned by deleteModels.
+  // No explicit assets: use Docling's official model downloader when the
+  // private venv is available. This is what the user triggers via
+  // "Modelleri İndir". We keep a tiny sentinel fallback for CI / offline
+  // environments where the venv has not been installed (tests use a temp
+  // userData without a venv). In production the venv exists and we fetch
+  // real artifacts into DOCLING_ARTIFACTS_PATH.
   if (MODEL_ASSETS.length === 0) {
     // Remove legacy 1 MB placeholder if it exists (migrated to sentinel)
     const legacyPlaceholder = path.join(layout.models, 'placeholder.bin')
     await fs.rm(legacyPlaceholder, { force: true }).catch(() => {})
+    const venvPython = getVenvPythonPath(layout)
+    let venvExists = false
+    try {
+      await fs.access(venvPython)
+      venvExists = true
+    } catch {
+      venvExists = false
+    }
+    if (venvExists) {
+      Logger.info('[DoclingModels] Downloading models via docling.utils.model_downloader', {
+        modelsDir: layout.models
+      })
+      const script = `
+import os, sys
+from pathlib import Path
+artifacts = Path(os.environ.get("DOCLING_ARTIFACTS_PATH") or os.environ.get("DOCLING_SERVE_ARTIFACTS_PATH") or r"${layout.models.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}")
+print(f"Downloading Docling models to {artifacts}", flush=True)
+try:
+    from docling.utils.model_downloader import download_models
+    # docling 2.x signature: download_models(output_dir=..., progress=True)
+    # Fall back to no-arg call if signature differs
+    try:
+        download_models(output_dir=str(artifacts), progress=True)
+    except TypeError:
+        try:
+            download_models(progress=True)
+        except TypeError:
+            download_models()
+    print("Model download completed", flush=True)
+except Exception as e:
+    print(f"Model download failed: {e}", file=sys.stderr, flush=True)
+    import traceback; traceback.print_exc()
+    sys.exit(1)
+`.trim()
+      try {
+        await runCommandChecked(venvPython, ['-c', script], {
+          envOverrides: {
+            DOCLING_ARTIFACTS_PATH: layout.models,
+            DOCLING_SERVE_ARTIFACTS_PATH: layout.models,
+            PYTHONUNBUFFERED: '1'
+          },
+          timeoutMs: 30 * 60 * 1000
+        })
+        // Real artifacts should now be on disk; write sentinel for test
+        // compat and marker for lifecycle.
+        const sentinel = path.join(layout.models, '.auto-managed')
+        await fs.writeFile(sentinel, 'auto', 'utf8').catch(() => {})
+        await fs.writeFile(getModelsMarkerPath(layout), MODELS_MARKER_VERSION, 'utf8')
+        Logger.info('[DoclingModels] Models downloaded via docling downloader')
+        return
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        Logger.error('[DoclingModels] Real model download failed', {
+          error: msg
+        })
+        throw new Error(`Model download failed: ${msg.slice(0, 500)}`)
+      }
+    }
+    // CI / offline fallback when venv is not installed (tests): tiny sentinel
+    // makes getModelStatus => ready without needing network or venv.
     const sentinel = path.join(layout.models, '.auto-managed')
     await fs.writeFile(sentinel, 'auto', 'utf8').catch(() => {})
     await fs.writeFile(getModelsMarkerPath(layout), MODELS_MARKER_VERSION, 'utf8')
     Logger.info(
-      '[DoclingModels] Models marked ready (auto-download; no explicit MODEL_ASSETS configured)'
+      '[DoclingModels] Models marked ready (sentinel fallback; venv missing – test/offline)'
     )
     return
   }
