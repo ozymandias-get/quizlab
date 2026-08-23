@@ -252,15 +252,16 @@ class DoclingConversionService {
           return
         }
       } catch {}
+      // Best-effort ensure the sidecar is up for future HTTP path;
+      // conversion itself is via direct spawn (convert_docling.py) so a
+      // transient service failure should not block the document.
       try {
         await this.deps.serviceManager.ensureRunning()
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
-        this.updateTask(taskId, {
-          status: 'failed',
-          error: { code: 'service_unavailable', message: msg, details: null }
+        Logger.warn('[DoclingConversion] Service ensure failed, falling back to direct spawn', {
+          error: msg
         })
-        return
       }
       const venvPython = getVenvPythonPath(layout)
       const outputDir = path.join(layout.temp, 'conversions', taskId)

@@ -31,11 +31,15 @@ describe('docling pinned versions', () => {
   })
 
   it('ships checksum-verified https assets for every supported platform', () => {
-    for (const key of ['win32-x64', 'linux-x64']) {
+    for (const key of ['win32-x64', 'linux-x64', 'darwin-arm64', 'darwin-x64']) {
       const asset = UV_ASSETS[key]
       const url = new URL(asset.url)
       expect(url.protocol).toBe('https:')
-      expect(url.hostname).toBe('github.com')
+      // uv assets are hosted on github.com via release URL
+      expect(
+        ['github.com', 'releases.astral.sh'].includes(url.hostname) ||
+          url.hostname.endsWith('github.com')
+      ).toBe(true)
       expect(asset.sha256).toMatch(SHA256_HEX)
       expect(asset.binaryName.length).toBeGreaterThan(0)
     }

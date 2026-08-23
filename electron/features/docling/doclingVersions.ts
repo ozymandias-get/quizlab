@@ -38,6 +38,7 @@ interface UvAsset {
 /**
  * Checksums taken from the official `.sha256` sidecar files published with
  * the uv ${UV_VERSION} GitHub release.
+ * Sources: https://github.com/astral-sh/uv/releases/tag/${UV_VERSION}
  */
 export const UV_ASSETS: Record<string, UvAsset> = {
   'win32-x64': {
@@ -49,11 +50,25 @@ export const UV_ASSETS: Record<string, UvAsset> = {
     url: `${UV_RELEASE_BASE}/uv-x86_64-unknown-linux-gnu.tar.gz`,
     sha256: '68a509da24b06b4223a1c0175fb5eb5bc79342b76cbeff0cfe51ac3f5b17b6b2',
     binaryName: 'uv'
+  },
+  'darwin-arm64': {
+    url: `${UV_RELEASE_BASE}/uv-aarch64-apple-darwin.tar.gz`,
+    sha256: '5bb0e5fe008a773c3dbcb97ff79cd89e1241464fe9d2f986d52ad8f1b037bd62',
+    binaryName: 'uv'
+  },
+  'darwin-x64': {
+    url: `${UV_RELEASE_BASE}/uv-x86_64-apple-darwin.tar.gz`,
+    sha256: 'b3b2137477cf96c9686ebfb71524614cec780c673fd73e59bce099aef02e70e8',
+    binaryName: 'uv'
   }
 }
 
-export function getUvAssetKey(platform: string = process.platform): string {
+export function getUvAssetKey(
+  platform: string = process.platform,
+  arch: string = process.arch
+): string {
   if (platform === 'win32') return 'win32-x64'
   if (platform === 'linux') return 'linux-x64'
-  throw new Error(`Unsupported platform for the Docling runtime: ${platform}`)
+  if (platform === 'darwin') return arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64'
+  throw new Error(`Unsupported platform for the Docling runtime: ${platform}/${arch}`)
 }

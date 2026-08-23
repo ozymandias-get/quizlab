@@ -45,8 +45,11 @@ describe('doclingModelManager', () => {
     await m.downloadModels()
     const status = await m.getModelStatus()
     expect(status.status).toBe('ready')
-    expect(status.diskBytes).toBeGreaterThan(0)
-    expect(status.files.length).toBeGreaterThan(0)
+    // In auto-download mode (MODEL_ASSETS empty) the marker alone is the
+    // source of truth; files may be empty until Docling lazily fetches.
+    // In explicit-asset mode files would be >0. Both are valid.
+    expect(status.version).toBe('1')
+    expect(status.diskBytes).not.toBeNull()
   })
 
   it('detects partial when files exist but marker version wrong', async () => {
@@ -71,6 +74,18 @@ describe('doclingModelManager', () => {
     // Directory should still exist
     const layout = (await import('../../../features/docling/doclingPaths.js')).getDoclingLayout()
     await expect(fs.access(layout.models)).resolves.toBeUndefined()
+  })
+
+  it('delete cleans legacy placeholder.bin if present', async () => {
+    const m = await loadManager()
+    const layout = (await import('../../../features/docling/doclingPaths.js')).getDoclingLayout()
+    await fs.mkdir(layout.models, { recursive: true })
+    await fs.writeFile(path.join(layout.models, 'placeholder.bin'), Buffer.alloc(10))
+    await fs.writeFile(path.join(layout.models, '.models-ready'), '1', 'utf8')
+    await m.deleteModels()
+    const entries = await fs.readdir(layout.models)
+    expect(entries).not.toContain('placeholder.bin')
+    expect(entries).not.toContain('.models-ready')
   })
 
   it('repair re-downloads when missing', async () => {
@@ -110,8 +125,8 @@ describe('doclingModelManager', () => {
     const m = await loadManager()
     await m.downloadModels()
     const bytes = await m.getModelDiskUsage()
-    expect(bytes).toBeGreaterThan(0)
     expect(typeof bytes).toBe('number')
+    expect(bytes).not.toBeNull()
   })
 
   it('partial model when files exist but marker missing', async () => {

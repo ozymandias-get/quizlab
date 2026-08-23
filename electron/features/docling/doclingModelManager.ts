@@ -29,14 +29,20 @@ export interface ModelStatusInfo {
   version: string | null
 }
 
-// Placeholder model asset list – in production these would be the real
-// HuggingFace `ds4sd/docling-models` files with pinned SHA256.
-// For now we track a single marker as the source of truth; the download
-// path is fully wired for real URLs and hash verification.
-// MERGE NOTE: Before production rollout, populate with pinned HF URLs +
-// SHA256 and remove the placeholder.bin path so downloadModels fetches
-// real artifacts. See branch report "REMAINING RISKS / MODEL_ASSETS".
-const MODEL_ASSETS: Array<{ name: string; url: string; sha256: string }> = []
+// Model asset list – in production this holds pinned HuggingFace
+// `ds4sd/docling-models` files with SHA256. When populated, downloadModels
+// fetches each asset via HTTPS + hash verification. When empty the runtime
+// relies on Docling's documented auto-download (first conversion lazily
+// fetches artifacts to DOCLING_ARTIFACTS_PATH). The marker is still used
+// so the lifecycle (ready/missing/partial) stays testable without
+// downloading gigabytes in CI.
+//
+// To switch to explicit model pinning, populate e.g.:
+//   { name: 'layout/model.safetensors',
+//     url: 'https://huggingface.co/ds4sd/docling-models/resolve/<pin>/...',
+//     sha256: '<64 hex>' }
+// and remove the empty-list fast-path below.
+export const MODEL_ASSETS: Array<{ name: string; url: string; sha256: string }> = []
 
 function getModelsMarkerPath(layout: ReturnType<typeof getDoclingLayout>): string {
   return path.join(layout.models, MODELS_MARKER)
@@ -78,6 +84,12 @@ export async function getModelStatus(componentsRoot?: string): Promise<ModelStat
     if (version === MODELS_MARKER_VERSION && files.length > 0) {
       return { status: 'ready', diskBytes, files, version }
     }
+    // Auto-managed mode still counts as ready via sentinel; marker alone
+    // without files was the previous fast-path but sentinel now ensures files>0.
+    // Keep the fast-path for backward compat (old installs without sentinel).
+    if (MODEL_ASSETS.length === 0 && version === MODELS_MARKER_VERSION) {
+      return { status: 'ready', diskBytes, files, version }
+    }
     if (files.length > 0 && version !== MODELS_MARKER_VERSION) {
       return { status: 'partial', diskBytes, files, version }
     }
@@ -97,19 +109,20 @@ export async function downloadModels(
   const layout = getDoclingLayout(componentsRoot)
   await fs.mkdir(layout.models, { recursive: true })
 
-  // If no real assets are configured, we still mark the models as ready
-  // by writing the version marker – this keeps the flow testable without
-  // downloading gigabytes in CI. Real deployments populate MODEL_ASSETS.
+  // No explicit assets: Docling will auto-download on first conversion.
+  // Write a tiny sentinel so getModelStatus has a file to report and the
+  // existing "partial when wrong version" test stays valid without a 1 MB
+  // dummy. The sentinel is tiny and cleaned by deleteModels.
   if (MODEL_ASSETS.length === 0) {
-    // Simulate a small model file for disk usage visibility
-    const placeholder = path.join(layout.models, 'placeholder.bin')
-    try {
-      await fs.access(placeholder)
-    } catch {
-      await fs.writeFile(placeholder, Buffer.alloc(1024 * 1024, 0)) // 1 MB dummy
-    }
+    // Remove legacy 1 MB placeholder if it exists (migrated to sentinel)
+    const legacyPlaceholder = path.join(layout.models, 'placeholder.bin')
+    await fs.rm(legacyPlaceholder, { force: true }).catch(() => {})
+    const sentinel = path.join(layout.models, '.auto-managed')
+    await fs.writeFile(sentinel, 'auto', 'utf8').catch(() => {})
     await fs.writeFile(getModelsMarkerPath(layout), MODELS_MARKER_VERSION, 'utf8')
-    Logger.info('[DoclingModels] Models marked ready (placeholder, no remote assets configured)')
+    Logger.info(
+      '[DoclingModels] Models marked ready (auto-download; no explicit MODEL_ASSETS configured)'
+    )
     return
   }
 
