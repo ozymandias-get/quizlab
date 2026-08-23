@@ -358,7 +358,8 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     doclingGpu: {
       getPrefs: stubReturn({ enabled: false, lastDetected: 'cpu' }),
       setEnabled: stubReturn({ enabled: false, lastDetected: 'cpu' }),
-      detect: stubReturn({ device: 'cpu', available: false, detail: 'web_dev_mode_only' })
+      detect: stubReturn({ device: 'cpu', available: false, detail: 'web_dev_mode_only' }),
+      installCuda: stubReturn({ success: false, detail: 'web_dev_mode_only' })
     },
     getApiChatConfig: stubReturn({
       providers: [],

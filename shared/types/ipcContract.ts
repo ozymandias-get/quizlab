@@ -391,6 +391,11 @@ export interface IpcInvokeRequestMap {
     args: []
     result: IpcResult<{ device: string; available: boolean; detail?: string }>
   }
+
+  [IPC_CHANNELS.DOCLING_GPU_INSTALL_CUDA]: {
+    args: []
+    result: IpcResult<{ success: boolean; detail?: string }>
+  }
 }
 
 export interface IpcEventMap {

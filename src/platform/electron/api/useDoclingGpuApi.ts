@@ -34,3 +34,17 @@ export function useDoclingGpuSetEnabled() {
     }
   )
 }
+
+export function useDoclingGpuInstallCuda() {
+  const qc = useQueryClient()
+  return useElectronMutation<{ success: boolean; detail?: string }, void>(
+    (api) => api.doclingGpu.installCuda(),
+    {
+      errorMessage: 'CUDA paketleri yüklenemedi',
+      onSuccess: () => {
+        void qc.invalidateQueries({ queryKey: DOCLING_GPU_DETECT_KEY })
+        void qc.invalidateQueries({ queryKey: DOCLING_GPU_PREFS_KEY })
+      }
+    }
+  )
+}

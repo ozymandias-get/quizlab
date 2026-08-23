@@ -209,7 +209,8 @@ const electronApi: ElectronApi = {
     getPrefs: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_GET_PREFS)),
     setEnabled: (enabled) =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_SET_ENABLED, enabled)),
-    detect: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_DETECT))
+    detect: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_DETECT)),
+    installCuda: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_INSTALL_CUDA))
   },
 
   log: (level, message, timestamp) => {

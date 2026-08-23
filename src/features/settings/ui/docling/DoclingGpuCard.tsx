@@ -1,12 +1,14 @@
 import {
   useDoclingGpuDetect,
+  useDoclingGpuInstallCuda,
   useDoclingGpuPrefs,
   useDoclingGpuSetEnabled
 } from '@platform/electron/api/useDoclingGpuApi'
 
+import { Button } from '@app/components/ui/button'
 import { SurfaceCard } from '@shared/ui/components/primitives'
 
-import { Cpu, Zap } from 'lucide-react'
+import { Cpu, Download, Zap } from 'lucide-react'
 import { memo } from 'react'
 
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
@@ -23,9 +25,12 @@ const DoclingGpuCard = memo(function DoclingGpuCard({ isInstalled }: Props) {
     refetch: refetchGpuDetect
   } = useDoclingGpuDetect(!!isInstalled)
   const gpuToggle = useDoclingGpuSetEnabled()
+  const gpuCuda = useDoclingGpuInstallCuda()
   const gpuEnabled = !!gpuPrefs?.enabled
   const gpuAvailable = !!gpuDetect?.available
   const gpuDeviceLabel = gpuDetect?.device ?? gpuPrefs?.lastDetected ?? 'cpu'
+  const showCudaDownload =
+    gpuEnabled && isInstalled && (gpuDeviceLabel === 'cpu' || gpuDeviceLabel === 'none')
 
   return (
     <SurfaceCard className="space-y-3 p-5">
@@ -72,13 +77,38 @@ const DoclingGpuCard = memo(function DoclingGpuCard({ isInstalled }: Props) {
             Apple MPS gereklidir.
           </p>
         )}
-        <button
-          type="button"
-          onClick={() => refetchGpuDetect()}
-          className="text-ql-11 text-primary hover:underline"
-        >
-          Yeniden tara
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => refetchGpuDetect()}
+            className="text-ql-11 text-primary hover:underline"
+          >
+            Yeniden tara
+          </button>
+          {showCudaDownload && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => gpuCuda.mutate()}
+              disabled={gpuCuda.isPending}
+              className="gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>
+                {gpuCuda.isPending ? 'CUDA indiriliyor…' : 'CUDA Paketlerini İndir (~2 GB)'}
+              </span>
+            </Button>
+          )}
+        </div>
+        {gpuCuda.isSuccess && gpuCuda.data?.detail && (
+          <p className="text-ql-11 text-emerald-600 dark:text-emerald-300">{gpuCuda.data.detail}</p>
+        )}
+        {gpuCuda.isError && (
+          <p className="text-ql-11 text-destructive break-words">
+            {(gpuCuda.error as Error)?.message ?? 'CUDA indirilemedi'}
+          </p>
+        )}
       </div>
     </SurfaceCard>
   )

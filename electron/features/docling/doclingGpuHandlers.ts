@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
@@ -10,12 +11,39 @@ import { runCommand } from './doclingProcessRunner.js'
 
 let handlersRegistered = false
 
+async function hasNvidiaSmi(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn('nvidia-smi', ['--query-gpu=name', '--format=csv,noheader'], {
+      shell: false,
+      windowsHide: true
+    })
+    let stdout = ''
+    child.stdout?.on('data', (c: Buffer) => (stdout += c.toString('utf8')))
+    child.on('error', () => resolve(false))
+    child.on('close', (code) => resolve(code === 0 && stdout.trim().length > 0))
+    setTimeout(() => {
+      try {
+        child.kill()
+      } catch {}
+      resolve(false)
+    }, 3000)
+  })
+}
+
 async function detectGpuDevice(): Promise<{ device: string; available: boolean; detail?: string }> {
   const layout = getDoclingLayout()
   const venvPython = getVenvPythonPath(layout)
   try {
     await fs.access(venvPython)
   } catch {
+    // Even without venv, check for nvidia-smi to hint CUDA possibility
+    const hasSmi = await hasNvidiaSmi()
+    if (hasSmi)
+      return {
+        device: 'cuda',
+        available: false,
+        detail: 'NVIDIA driver found, but Docling not installed'
+      }
     return { device: 'none', available: false, detail: 'Docling venv not installed' }
   }
   const script = `
@@ -55,6 +83,17 @@ except ImportError as e:
     if (['cuda', 'mps', 'cpu'].includes(out)) {
       const available = out === 'cuda' || out === 'mps'
       await setLastDetected(out as 'cuda' | 'mps' | 'cpu').catch(() => {})
+      if (!available) {
+        const hasSmi = await hasNvidiaSmi()
+        if (hasSmi) {
+          return {
+            device: 'cuda',
+            available: false,
+            detail:
+              'NVIDIA GPU bulundu ama torch CUDA değil — "CUDA Paketlerini İndir" ile CUDA torch kurun'
+          }
+        }
+      }
       return {
         device: out,
         available,
@@ -103,6 +142,23 @@ export function registerDoclingGpuHandlers(): void {
     async () => {
       const res = await detectGpuDevice()
       return success(res)
+    },
+    requireTrustedIpcSender,
+    failure('unauthorized', 'Not authorized')
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.DOCLING_GPU_INSTALL_CUDA,
+    async () => {
+      try {
+        const { installCudaPackages } = await import('./doclingInstaller.js')
+        await installCudaPackages()
+        const res = await detectGpuDevice()
+        return success({ success: true, detail: `CUDA kuruldu, cihaz: ${res.device}` })
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        return failure('internal_error', msg.slice(0, 500))
+      }
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')

@@ -88,6 +88,7 @@ export const IPC_CHANNELS = {
   DOCLING_GPU_GET_PREFS: 'docling:gpu-get-prefs',
   DOCLING_GPU_SET_ENABLED: 'docling:gpu-set-enabled',
   DOCLING_GPU_DETECT: 'docling:gpu-detect',
+  DOCLING_GPU_INSTALL_CUDA: 'docling:gpu-install-cuda',
 
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',

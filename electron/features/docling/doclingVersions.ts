@@ -26,6 +26,23 @@ export const DOCLING_PACKAGES = [
   `docling-core==${DOCLING_CORE_VERSION}`
 ] as const
 
+/**
+ * CUDA / GPU extras – only installed when the user enables GPU in Settings.
+ * Pinned to avoid floating to untested wheels. Torch CUDA 12.1 covers most
+ * desktop NVIDIA drivers (>= 525). onnxruntime-gpu unlocks the ONNX paths Docling
+ * uses for layout/table models. Both are large (~2 GB combined) so they stay
+ * opt-in behind the toggle.
+ */
+export const CUDA_TORCH_VERSION = '2.5.1'
+export const CUDA_ONNXRUNTIME_GPU_VERSION = '1.20.0'
+export const DOCLING_CUDA_PACKAGES = [
+  `torch==${CUDA_TORCH_VERSION}`,
+  `torchvision==0.20.1`,
+  `torchaudio==2.5.1`,
+  `onnxruntime-gpu==${CUDA_ONNXRUNTIME_GPU_VERSION}`
+] as const
+export const CUDA_INDEX_URL = 'https://download.pytorch.org/whl/cu121'
+
 const UV_RELEASE_BASE = `https://github.com/astral-sh/uv/releases/download/${UV_VERSION}`
 
 interface UvAsset {

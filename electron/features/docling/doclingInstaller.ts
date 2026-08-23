@@ -280,6 +280,33 @@ async function stepCreateEnvironment(ctx: PipelineContext): Promise<void> {
   await fs.writeFile(venvMarker, `${PYTHON_VERSION}\n`, 'utf8')
 }
 
+export async function installCudaPackages(
+  componentsRoot?: string,
+  io: DoclingInstallerIo = defaultDoclingInstallerIo
+): Promise<void> {
+  const layout = getDoclingLayout(componentsRoot)
+  const venvPython = getVenvPythonPath(layout)
+  if (!(await exists(venvPython))) throw new Error('Docling venv not found – install Docling first')
+  const uvPath = getUvBinaryPath(layout)
+  if (!(await exists(uvPath))) throw new Error('uv binary not found')
+  const { CUDA_INDEX_URL, DOCLING_CUDA_PACKAGES } = await import('./doclingVersions.js')
+  // Use --extra-index-url so PyPI stays primary for onnxruntime-gpu, while
+  // torch CUDA wheels are pulled from pytorch's index.
+  await io.exec(
+    uvPath,
+    [
+      'pip',
+      'install',
+      '--python',
+      venvPython,
+      '--extra-index-url',
+      CUDA_INDEX_URL,
+      ...DOCLING_CUDA_PACKAGES
+    ],
+    uvEnvOverrides(layout)
+  )
+}
+
 async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
   const { io, layout } = ctx
   const pinMarker = path.join(layout.environment, ENV_PIN_MARKER)
