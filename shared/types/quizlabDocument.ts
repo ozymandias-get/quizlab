@@ -210,9 +210,35 @@ export interface QuizLabDocumentResult {
 }
 
 export interface DoclingPipelinePrefs {
+  // Core
   doOcr: boolean
-  extractFigures: boolean
+  ocrLang: string
+  forceFullPageOcr: boolean
   detectTables: boolean
   fastTables: boolean
+  cellMatching: boolean
+  // Enrichments
+  doCodeEnrichment: boolean
+  doFormulaEnrichment: boolean
+  doPictureClassification: boolean
+  doPictureDescription: boolean
+  extractFigures: boolean
+  generatePageImages: boolean
+  generateTableImages: boolean
+  imagesScale: number
+  doChartExtraction: boolean
+  // Backend / behaviour
+  forceBackendText: boolean
+  enableRemoteServices: boolean
+  allowExternalPlugins: boolean
+  documentTimeout: number | null
+  // Performance
+  numThreads: number
+  device: string
+  enableHeadingHierarchy: boolean
+  ocrBatchSize: number
+  layoutBatchSize: number
+  tableBatchSize: number
+  queueMaxSize: number
   updatedAt?: number
 }

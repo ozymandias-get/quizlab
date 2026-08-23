@@ -304,20 +304,91 @@ class DoclingConversionService {
       const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
       // GPU support removed – always CPU to avoid c10_cuda.dll WinError 127.
       const gpuEnabled = false
-      let pipelinePrefs = {
+      let pipelinePrefs: {
+        doOcr: boolean
+        ocrLang: string
+        forceFullPageOcr: boolean
+        detectTables: boolean
+        fastTables: boolean
+        cellMatching: boolean
+        doCodeEnrichment: boolean
+        doFormulaEnrichment: boolean
+        doPictureClassification: boolean
+        doPictureDescription: boolean
+        extractFigures: boolean
+        generatePageImages: boolean
+        generateTableImages: boolean
+        imagesScale: number
+        doChartExtraction: boolean
+        forceBackendText: boolean
+        enableRemoteServices: boolean
+        allowExternalPlugins: boolean
+        documentTimeout: number | null
+        numThreads: number
+        device: string
+        enableHeadingHierarchy: boolean
+        ocrBatchSize: number
+        layoutBatchSize: number
+        tableBatchSize: number
+        queueMaxSize: number
+      } = {
         doOcr: false,
-        extractFigures: false,
+        ocrLang: '',
+        forceFullPageOcr: false,
         detectTables: true,
-        fastTables: true
+        fastTables: true,
+        cellMatching: true,
+        doCodeEnrichment: false,
+        doFormulaEnrichment: false,
+        doPictureClassification: false,
+        doPictureDescription: false,
+        extractFigures: false,
+        generatePageImages: false,
+        generateTableImages: false,
+        imagesScale: 1.0,
+        doChartExtraction: false,
+        forceBackendText: false,
+        enableRemoteServices: false,
+        allowExternalPlugins: false,
+        documentTimeout: null,
+        numThreads: 4,
+        device: 'auto',
+        enableHeadingHierarchy: false,
+        ocrBatchSize: 4,
+        layoutBatchSize: 4,
+        tableBatchSize: 4,
+        queueMaxSize: 100
       }
       try {
         const { getPipelinePrefs } = await import('./doclingPipelineSettings.js')
         const p = await getPipelinePrefs()
         pipelinePrefs = {
           doOcr: !!p.doOcr,
-          extractFigures: !!p.extractFigures,
+          ocrLang: typeof p.ocrLang === 'string' ? p.ocrLang : '',
+          forceFullPageOcr: !!p.forceFullPageOcr,
           detectTables: !!p.detectTables,
-          fastTables: !!p.fastTables
+          fastTables: !!p.fastTables,
+          cellMatching: p.cellMatching !== false,
+          doCodeEnrichment: !!p.doCodeEnrichment,
+          doFormulaEnrichment: !!p.doFormulaEnrichment,
+          doPictureClassification: !!p.doPictureClassification,
+          doPictureDescription: !!p.doPictureDescription,
+          extractFigures: !!p.extractFigures,
+          generatePageImages: !!p.generatePageImages,
+          generateTableImages: !!p.generateTableImages,
+          imagesScale: typeof p.imagesScale === 'number' ? p.imagesScale : 1.0,
+          doChartExtraction: !!p.doChartExtraction,
+          forceBackendText: !!p.forceBackendText,
+          enableRemoteServices: !!p.enableRemoteServices,
+          allowExternalPlugins: !!p.allowExternalPlugins,
+          documentTimeout: typeof p.documentTimeout === 'number' ? p.documentTimeout : null,
+          numThreads: typeof p.numThreads === 'number' ? p.numThreads : 4,
+          device: typeof p.device === 'string' ? p.device : 'auto',
+          enableHeadingHierarchy: !!p.enableHeadingHierarchy,
+          ocrBatchSize: typeof p.ocrBatchSize === 'number' ? p.ocrBatchSize : 4,
+          layoutBatchSize: typeof p.layoutBatchSize === 'number' ? p.layoutBatchSize : 4,
+          tableBatchSize: typeof p.tableBatchSize === 'number' ? p.tableBatchSize : 4,
+          queueMaxSize: typeof p.queueMaxSize === 'number' ? p.queueMaxSize : 100
         }
       } catch {}
       try {
@@ -344,9 +415,33 @@ class DoclingConversionService {
               DOCLING_ARTIFACTS_PATH: layout.models,
               DOCLING_GPU_ENABLED: gpuEnabled ? '1' : '0',
               DOCLING_DO_OCR: pipelinePrefs.doOcr ? '1' : '0',
+              DOCLING_OCR_LANG: pipelinePrefs.ocrLang,
+              DOCLING_FORCE_FULL_PAGE_OCR: pipelinePrefs.forceFullPageOcr ? '1' : '0',
               DOCLING_EXTRACT_FIGURES: pipelinePrefs.extractFigures ? '1' : '0',
               DOCLING_DETECT_TABLES: pipelinePrefs.detectTables ? '1' : '0',
               DOCLING_FAST_TABLES: pipelinePrefs.fastTables ? '1' : '0',
+              DOCLING_CELL_MATCHING: pipelinePrefs.cellMatching ? '1' : '0',
+              DOCLING_DO_CODE_ENRICHMENT: pipelinePrefs.doCodeEnrichment ? '1' : '0',
+              DOCLING_DO_FORMULA_ENRICHMENT: pipelinePrefs.doFormulaEnrichment ? '1' : '0',
+              DOCLING_DO_PICTURE_CLASSIFICATION: pipelinePrefs.doPictureClassification ? '1' : '0',
+              DOCLING_DO_PICTURE_DESCRIPTION: pipelinePrefs.doPictureDescription ? '1' : '0',
+              DOCLING_GENERATE_PAGE_IMAGES: pipelinePrefs.generatePageImages ? '1' : '0',
+              DOCLING_GENERATE_TABLE_IMAGES: pipelinePrefs.generateTableImages ? '1' : '0',
+              DOCLING_IMAGES_SCALE: String(pipelinePrefs.imagesScale),
+              DOCLING_DO_CHART_EXTRACTION: pipelinePrefs.doChartExtraction ? '1' : '0',
+              DOCLING_FORCE_BACKEND_TEXT: pipelinePrefs.forceBackendText ? '1' : '0',
+              DOCLING_ENABLE_REMOTE_SERVICES: pipelinePrefs.enableRemoteServices ? '1' : '0',
+              DOCLING_ALLOW_EXTERNAL_PLUGINS: pipelinePrefs.allowExternalPlugins ? '1' : '0',
+              DOCLING_DOCUMENT_TIMEOUT: pipelinePrefs.documentTimeout
+                ? String(pipelinePrefs.documentTimeout)
+                : '',
+              DOCLING_NUM_THREADS: String(pipelinePrefs.numThreads),
+              DOCLING_DEVICE: pipelinePrefs.device,
+              DOCLING_ENABLE_HEADING_HIERARCHY: pipelinePrefs.enableHeadingHierarchy ? '1' : '0',
+              DOCLING_OCR_BATCH_SIZE: String(pipelinePrefs.ocrBatchSize),
+              DOCLING_LAYOUT_BATCH_SIZE: String(pipelinePrefs.layoutBatchSize),
+              DOCLING_TABLE_BATCH_SIZE: String(pipelinePrefs.tableBatchSize),
+              DOCLING_QUEUE_MAX_SIZE: String(pipelinePrefs.queueMaxSize),
               PYTHONUNBUFFERED: '1',
               PYTHONHOME: undefined,
               PYTHONPATH: undefined
@@ -487,12 +582,15 @@ class DoclingConversionService {
         await fs.rm(scriptPath, { force: true })
         throw new Error('Symlink detected')
       }
-      // GPU toggle was added after 2026-08: old script lacks DOCLING_GPU_ENABLED marker -> force regenerate
       const existing = await fs.readFile(scriptPath, 'utf8').catch(() => '')
-      if (existing.includes('DOCLING_GPU_ENABLED') && existing.includes('IMAGE_EMBED'))
+      if (
+        existing.includes('DOCLING_GPU_ENABLED') &&
+        existing.includes('IMAGE_EMBED') &&
+        existing.includes('DOCLING_DO_OCR')
+      )
         return scriptPath
       await fs.rm(scriptPath, { force: true }).catch(() => {})
-      throw new Error('Regenerate for GPU/image support')
+      throw new Error('Regenerate for 25-opts support')
     } catch {}
     await fs.mkdir(path.dirname(scriptPath), { recursive: true })
     // eslint-disable-next-line no-secrets/no-secrets -- Python script contains env var checks, not secrets
@@ -511,37 +609,112 @@ if pdf_path.suffix.lower() != ".pdf":
     sys.exit(3)
 
 def _make_converter():
-    # IMAGE_EMBED: generate_picture_images ensures pictures are rasterised, image_mode=EMBEDDED embeds base64
-    # Pipeline prefs from Settings (4 toggles) – defaults match doclingPipelineSettings.ts
-    do_ocr = os.environ.get("DOCLING_DO_OCR") == "1"
-    extract_figs = os.environ.get("DOCLING_EXTRACT_FIGURES") == "1"
-    detect_tables = os.environ.get("DOCLING_DETECT_TABLES") == "1"
-    fast_tables = os.environ.get("DOCLING_FAST_TABLES") == "1"
-    # GPU removed – always CPU
+    # Full 25-pipeline-prefs from Settings – defaults match doclingPipelineSettings.ts
+    def _b(name, d=False): return os.environ.get(name) == "1"
+    def _f(name, d):
+        try: return float(os.environ.get(name, str(d)))
+        except: return d
+    def _i(name, d):
+        try: return int(float(os.environ.get(name, str(d))))
+        except: return d
+    do_ocr = _b("DOCLING_DO_OCR", False)
+    ocr_lang = os.environ.get("DOCLING_OCR_LANG", "").strip()
+    force_full_page_ocr = _b("DOCLING_FORCE_FULL_PAGE_OCR", False)
+    detect_tables = _b("DOCLING_DETECT_TABLES", True)
+    fast_tables = _b("DOCLING_FAST_TABLES", True)
+    cell_matching = _b("DOCLING_CELL_MATCHING", True)
+    do_code = _b("DOCLING_DO_CODE_ENRICHMENT", False)
+    do_formula = _b("DOCLING_DO_FORMULA_ENRICHMENT", False)
+    do_pic_class = _b("DOCLING_DO_PICTURE_CLASSIFICATION", False)
+    do_pic_desc = _b("DOCLING_DO_PICTURE_DESCRIPTION", False)
+    extract_figs = _b("DOCLING_EXTRACT_FIGURES", False)
+    gen_page_imgs = _b("DOCLING_GENERATE_PAGE_IMAGES", False)
+    gen_table_imgs = _b("DOCLING_GENERATE_TABLE_IMAGES", False)
+    images_scale = _f("DOCLING_IMAGES_SCALE", 1.0)
+    do_chart = _b("DOCLING_DO_CHART_EXTRACTION", False)
+    force_backend_text = _b("DOCLING_FORCE_BACKEND_TEXT", False)
+    enable_remote = _b("DOCLING_ENABLE_REMOTE_SERVICES", False)
+    allow_plugins = _b("DOCLING_ALLOW_EXTERNAL_PLUGINS", False)
+    doc_timeout = _f("DOCLING_DOCUMENT_TIMEOUT", 0) or None
+    num_threads = _i("DOCLING_NUM_THREADS", 4)
+    device = os.environ.get("DOCLING_DEVICE", "auto").strip() or "auto"
+    enable_heading = _b("DOCLING_ENABLE_HEADING_HIERARCHY", False)
+    ocr_bs = _i("DOCLING_OCR_BATCH_SIZE", 4)
+    layout_bs = _i("DOCLING_LAYOUT_BATCH_SIZE", 4)
+    table_bs = _i("DOCLING_TABLE_BATCH_SIZE", 4)
+    queue_max = _i("DOCLING_QUEUE_MAX_SIZE", 100)
     try:
-        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode, TableStructureOptions
+        from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
         from docling.document_converter import DocumentConverter, PdfFormatOption
         from docling.datamodel.base_models import InputFormat
         kwargs = dict(
             do_ocr=do_ocr,
             do_table_structure=detect_tables,
+            do_code_enrichment=do_code,
+            do_formula_enrichment=do_formula,
+            do_picture_classification=do_pic_class,
+            do_picture_description=do_pic_desc,
             generate_picture_images=extract_figs,
-            do_picture_classification=extract_figs,
-            images_scale=1.2 if extract_figs else 1.0,
+            generate_page_images=gen_page_imgs,
+            generate_table_images=gen_table_imgs,
+            images_scale=images_scale,
+            do_chart_extraction=do_chart,
+            force_backend_text=force_backend_text,
+            enable_remote_services=enable_remote,
+            allow_external_plugins=allow_plugins,
+            document_timeout=doc_timeout,
+            ocr_batch_size=ocr_bs,
+            layout_batch_size=layout_bs,
+            table_batch_size=table_bs,
+            queue_max_size=queue_max,
+            batch_polling_interval_seconds=0.5,
+            stage_shutdown_timeout_seconds=15.0,
         )
-        # Table mode FAST vs ACCURATE
-        if detect_tables and fast_tables:
+        # OCR lang
+        if ocr_lang:
             try:
-                from docling.datamodel.pipeline_options import TableFormerMode
-                from docling.datamodel.pipeline_options import TableStructureOptions
-                kwargs["table_structure_options"] = TableStructureOptions(mode=TableFormerMode.FAST)
+                from docling.datamodel.pipeline_options import EasyOcrOptions
+                langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
+                kwargs["ocr_options"] = EasyOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
             except Exception:
                 pass
-        opts = PdfPipelineOptions(**kwargs)
-        print(f"Pipeline opts do_ocr={do_ocr} figs={extract_figs} tables={detect_tables} fast={fast_tables}", flush=True)
+        elif force_full_page_ocr:
+            try:
+                from docling.datamodel.pipeline_options import EasyOcrOptions
+                kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
+            except Exception:
+                pass
+        # Table mode
+        if detect_tables:
+            try:
+                mode = TableFormerMode.FAST if fast_tables else TableFormerMode.ACCURATE
+                kwargs["table_structure_options"] = TableStructureOptions(mode=mode, do_cell_matching=cell_matching)
+            except Exception:
+                pass
+        # Accelerator
+        try:
+            dev = AcceleratorDevice.AUTO if device == "auto" else AcceleratorDevice(device)
+        except Exception:
+            try: dev = device
+            except: dev = "auto"
+        try:
+            kwargs["accelerator_options"] = AcceleratorOptions(device=dev, num_threads=num_threads)
+        except Exception:
+            pass
+        # Heading hierarchy
+        if enable_heading:
+            try:
+                from docling.datamodel.pipeline_options import HeadingHierarchyOptions
+                kwargs["heading_hierarchy_options"] = HeadingHierarchyOptions(enabled=True)
+            except Exception:
+                pass
+        opts = PdfPipelineOptions(**{k: v for k, v in kwargs.items() if v is not None})
+        print(f"Pipeline 25-opts ocr={do_ocr} lang={ocr_lang} figs={extract_figs} tables={detect_tables} fast={fast_tables} scale={images_scale} thr={num_threads} dev={device}", flush=True)
         return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
     except Exception as e:
         print(f"Pipeline opts failed, fallback to default: {e}", file=sys.stderr, flush=True)
+        import traceback; traceback.print_exc(file=sys.stderr)
         from docling.document_converter import DocumentConverter
         return DocumentConverter()
 
