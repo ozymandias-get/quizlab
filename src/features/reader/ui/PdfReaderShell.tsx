@@ -103,8 +103,10 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
       } else {
         const msg = isModelMissing
           ? 'Gerekli belge modelleri yüklü değil.'
-          : error === 'conversion_timeout'
-            ? 'Dönüşüm zaman aşımına uğradı'
+          : error === 'conversion_timeout' ||
+              lower.includes('timed out') ||
+              lower.includes('timeout')
+            ? 'Dönüşüm 15 dakikayı aştı — PDF çok büyük, taranmış veya tablo yoğun olabilir. GPU hızlandırmayı açmayı veya daha küçük bir PDF ile yeniden deneyin.'
             : error === 'encrypted_pdf'
               ? 'Şifreli PDF desteklenmiyor'
               : error === 'corrupted_pdf'

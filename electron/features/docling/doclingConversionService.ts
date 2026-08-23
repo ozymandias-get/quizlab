@@ -26,7 +26,7 @@ import {
   putCachedDocument
 } from './quizlabDocumentCache.js'
 
-const TASK_TIMEOUT_MS = 5 * 60 * 1000
+const TASK_TIMEOUT_MS = 15 * 60 * 1000
 const POLL_INTERVAL_MS = 800
 const MAX_PDF_SIZE_BYTES = 500 * 1024 * 1024
 
