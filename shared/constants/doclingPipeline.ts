@@ -88,7 +88,7 @@ export const DOC_PRESETS: Record<DocPresetLevel, DocPresetPatch> = {
   },
   3: {
     doOcr: false,
-    extractFigures: false,
+    extractFigures: true,
     detectTables: true,
     fastTables: true,
     cellMatching: true,
@@ -98,7 +98,7 @@ export const DOC_PRESETS: Record<DocPresetLevel, DocPresetPatch> = {
     doPictureDescription: false,
     doChartExtraction: false,
     forceBackendText: false,
-    enableHeadingHierarchy: false,
+    enableHeadingHierarchy: true,
     imagesScale: 1.0,
     forceFullPageOcr: false
   },

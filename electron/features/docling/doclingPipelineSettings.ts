@@ -5,7 +5,8 @@ import { app } from 'electron'
 import {
   clampDocumentTimeout,
   clampPipelineNumber,
-  DOCLING_PIPELINE_LIMITS
+  DOCLING_PIPELINE_LIMITS,
+  inferPresetLevel
 } from '../../../shared/constants/doclingPipeline.js'
 import type { DoclingPipelinePrefs } from '../../../shared/types/quizlabDocument.js'
 import { ConfigManager as CM } from '../../core/ConfigManager.js'
@@ -24,7 +25,7 @@ const DEFAULT_PREFS: DoclingPipelinePrefs = {
   doFormulaEnrichment: false,
   doPictureClassification: false,
   doPictureDescription: false,
-  extractFigures: false,
+  extractFigures: true,
   generatePageImages: false,
   generateTableImages: false,
   imagesScale: DOCLING_PIPELINE_LIMITS.imagesScale.default,
@@ -34,7 +35,7 @@ const DEFAULT_PREFS: DoclingPipelinePrefs = {
   allowExternalPlugins: false,
   documentTimeout: null,
   numThreads: DOCLING_PIPELINE_LIMITS.numThreads.default,
-  enableHeadingHierarchy: false,
+  enableHeadingHierarchy: true,
   ocrBatchSize: DOCLING_PIPELINE_LIMITS.ocrBatchSize.default,
   layoutBatchSize: DOCLING_PIPELINE_LIMITS.layoutBatchSize.default,
   tableBatchSize: DOCLING_PIPELINE_LIMITS.tableBatchSize.default,
@@ -65,9 +66,33 @@ export async function getPipelinePrefs(): Promise<DoclingPipelinePrefs> {
  */
 export function sanitize(input: Partial<DoclingPipelinePrefs>): DoclingPipelinePrefs {
   const next: DoclingPipelinePrefs = { ...DEFAULT_PREFS, ...input }
-  const rawLevel = typeof next.presetLevel === 'number' ? Math.round(next.presetLevel) : 3
+  // Reader does not consume page/table images – force false even if the
+  // persisted file still carries a user-enabled `true` (P1-5 migration). Keep
+  // the fields in the persisted shape for back-compat but never run them.
+  ;(next as unknown as Record<string, unknown>).generatePageImages = false
+  ;(next as unknown as Record<string, unknown>).generateTableImages = false
+
+  // P1-7: if the pipeline fields no longer match any preset, store `null`
+  // so the UI can show “Özel”. `inferPresetLevel` checks exactly the 14
+  // preset-controlled fields; changes to non-preset fields (e.g. threads,
+  // ocrLang) keep the preset badge.
+  const inferred = inferPresetLevel(next as unknown as Parameters<typeof inferPresetLevel>[0])
+  let level: number | null
+  if (inferred !== null) {
+    level = inferred
+  } else {
+    // No preset matches → custom. For first-run (empty persisted file) the
+    // inferred for DEFAULT_PREFS is 3, so we never fall here for fresh installs.
+    // For legacy data where the persisted presetLevel was numeric but the
+    // fields now diverge (e.g. old 2==3), treat as custom.
+    level = null
+    // Fresh install with no persisted data: input is {} → next is DEFAULT_PREFS
+    // which *does* match a preset (see above), so this branch is not taken.
+    // As a safety net, if inferred is null and input was empty, default to 3.
+    if (Object.keys(input).length === 0) level = 3
+  }
   return {
-    presetLevel: Math.min(5, Math.max(1, rawLevel)),
+    presetLevel: level as DoclingPipelinePrefs['presetLevel'],
     doOcr: !!next.doOcr,
     ocrLang: typeof next.ocrLang === 'string' ? next.ocrLang.slice(0, 64) : '',
     forceFullPageOcr: !!next.forceFullPageOcr,
@@ -79,8 +104,8 @@ export function sanitize(input: Partial<DoclingPipelinePrefs>): DoclingPipelineP
     doPictureClassification: !!next.doPictureClassification,
     doPictureDescription: !!next.doPictureDescription,
     extractFigures: !!next.extractFigures,
-    generatePageImages: !!next.generatePageImages,
-    generateTableImages: !!next.generateTableImages,
+    generatePageImages: false,
+    generateTableImages: false,
     imagesScale:
       typeof next.imagesScale === 'number' &&
       next.imagesScale >= DOCLING_PIPELINE_LIMITS.imagesScale.min &&

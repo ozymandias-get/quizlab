@@ -241,6 +241,7 @@ class DoclingConversionService {
           ).getCachedDocument(sourceHash)
           if (cached) {
             this.results.set(taskId, cached)
+            this.enforceResultEviction()
             this.updateTask(taskId, {
               status: 'completed',
               progress: { phase: 'completed', percent: 100, message: 'cache hit' }
@@ -276,9 +277,41 @@ class DoclingConversionService {
           })
           return
         }
-      } catch {}
+      } catch (error) {
+        Logger.warn('[DoclingConversion] Model status check failed', { error: String(error) })
+        this.updateTask(taskId, {
+          status: 'failed',
+          error: {
+            code: 'model_missing',
+            message: 'Model status is unavailable – please check or repair models',
+            details:
+              error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500)
+          }
+        })
+        return
+      }
 
-      const envBase = await this.loadPipelinePrefs()
+      let envBase = await this.loadPipelinePrefs()
+      // P0-3: avoid the expensive double pass for scanned PDFs. When the
+      // configured pipeline has OCR OFF, probe the PDF text layer cheaply via
+      // PDF.js; if the first pages have almost no selectable text, flip OCR ON
+      // for this single run so the heavy Docling conversion only executes once
+      // with the right mode.
+      if (envBase.DOCLING_DO_OCR !== '1') {
+        try {
+          const needsOcr = await this.preflightNeedsOcr(task.pdfPath)
+          if (needsOcr === true) {
+            Logger.info(
+              '[DoclingConversion] Preflight: scanned PDF detected – forcing OCR ON for this run'
+            )
+            envBase = { ...envBase, DOCLING_DO_OCR: '1' }
+          }
+        } catch (e) {
+          Logger.warn('[DoclingConversion] Preflight failed, using configured OCR setting', {
+            error: String(e)
+          })
+        }
+      }
       try {
         if (this.cancelled.has(taskId)) {
           this.cancelled.delete(taskId)
@@ -406,17 +439,22 @@ class DoclingConversionService {
       conversionTimeMs: Date.now() - task.createdAt
     })
     let secured = await this.secureImageAssets(doc, taskId, imagesDir)
+    let didCache = false
     if (sourceHash) {
-      secured = await this.cacheResult(sourceHash, secured, taskId, imagesDir)
-      // Artık docling-cache’e kopyalandı – documents/<taskId> leak olmasın
-      // diye kaynak klasörü temizle. Cache-miss durumunda görsellerin
-      // quizlab-asset://docling/<taskId>/ üzerinden yaşaması gerekir, o
-      // yüzden hash yoksa silme.
-      await fs
-        .rm(path.join(layout.root, 'documents', taskId), { recursive: true, force: true })
-        .catch(() => {})
+      const cacheOutcome = await this.cacheResult(sourceHash, secured, taskId, imagesDir)
+      secured = cacheOutcome.doc
+      didCache = cacheOutcome.cached
+      // Only remove documents/<taskId> if the atomic cache transaction
+      // succeeded (tmp→document-cache). If it failed we must keep the
+      // source images because secured still points at quizlab-asset://docling/<taskId>/.
+      if (didCache) {
+        await fs
+          .rm(path.join(layout.root, 'documents', taskId), { recursive: true, force: true })
+          .catch(() => {})
+      }
     }
     this.results.set(taskId, secured)
+    this.enforceResultEviction()
     this.updateTask(taskId, {
       status: 'completed',
       progress: { phase: 'completed', percent: 100, message: null }
@@ -429,10 +467,9 @@ class DoclingConversionService {
     doc: QuizLabDocument,
     taskId: string,
     imagesDir: string
-  ): Promise<QuizLabDocument> {
+  ): Promise<{ doc: QuizLabDocument; cached: boolean }> {
     try {
       const cache = await import('./quizlabDocumentCache.js')
-      await cache.copyAssetsToCache(sourceHash, imagesDir).catch(() => {})
       const cachedBlocks = doc.blocks.map((b) => {
         if (b.type === 'image' && b.assetUrl?.startsWith(`quizlab-asset://docling/${taskId}/`)) {
           const fileName = b.assetId ?? b.assetUrl.split('/').pop() ?? ''
@@ -448,11 +485,13 @@ class DoclingConversionService {
         blocks: cachedBlocks as QuizLabDocument['blocks'],
         source: { ...doc.source, fileHash: sourceHash }
       }
-      await cache.putCachedDocument(sourceHash, cachedDoc)
-      return cachedDoc
+      // Atomic transaction: manifest + document + assets are staged in a
+      // single tmp dir and renamed – no separate copyAssetsToCache step.
+      await cache.putCachedDocument(sourceHash, cachedDoc, { sourceImagesDir: imagesDir })
+      return { doc: cachedDoc, cached: true }
     } catch (error) {
       Logger.warn('[DoclingConversion] Cache write failed', { error: String(error) })
-      return doc
+      return { doc, cached: false }
     }
   }
 
@@ -542,6 +581,130 @@ class DoclingConversionService {
       assetUrl: `quizlab-asset://docling/${taskId}/images/${fileName}`,
       assetId: fileName
     }
+  }
+
+  /**
+   * Cheap preflight that inspects the first pages' text layer via pdfjs-dist.
+   * Returns true if the PDF looks scanned (needs OCR), false if it has
+   * selectable text, null if the check is inconclusive.
+   */
+  private async preflightNeedsOcr(pdfPath: string): Promise<boolean | null> {
+    const MAX_PAGES = 5
+    const MIN_CHARS_FOR_TEXT_PDF = 200
+    const overallTimeoutMs = 4000
+    try {
+      const data = await fs.readFile(pdfPath)
+      if (data.length > 50 * 1024 * 1024) return null // huge – skip preflight
+      const uint8 = new Uint8Array(data)
+      // pdfjs-dist 3.11 legacy build – loaded dynamically at runtime only.
+      // Use a variable specifier + @vite-ignore so Vitest/Vite does not try to
+      // bundle pdfjs at transform time (the file only exists in Node/Electron).
+      let pdfjs: unknown = null
+      const mjsSpecifier = 'pdfjs-dist/legacy/build/pdf.mjs'
+      const cjsSpecifier = 'pdfjs-dist/legacy/build/pdf.js'
+      try {
+        // @ts-ignore – dynamic import with variable is intentional
+        pdfjs = await import(/* @vite-ignore */ mjsSpecifier)
+      } catch {
+        try {
+          // @ts-ignore
+          pdfjs = await import(/* @vite-ignore */ cjsSpecifier)
+        } catch {
+          return null
+        }
+      }
+      const lib = pdfjs as {
+        getDocument: (opts: unknown) => { promise: Promise<unknown> }
+        GlobalWorkerOptions?: { workerSrc?: string }
+      }
+      if (!lib.getDocument) return null
+      // Disable worker for Node
+      try {
+        if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = ''
+      } catch {}
+      const loadingTask = lib.getDocument({
+        data: uint8,
+        verbosity: 0,
+        disableWorker: true
+      })
+      const pdf = (await Promise.race([
+        loadingTask.promise,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), overallTimeoutMs))
+      ])) as null | {
+        numPages: number
+        getPage: (
+          n: number
+        ) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str: string }> }> }>
+        destroy: () => Promise<void>
+      }
+      if (!pdf) return null
+      const pagesToCheck = Math.min(MAX_PAGES, pdf.numPages)
+      let totalChars = 0
+      for (let i = 1; i <= pagesToCheck; i += 1) {
+        try {
+          const page = await Promise.race([
+            pdf.getPage(i),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
+          ])
+          if (!page) continue
+          const content = await Promise.race([
+            (
+              page as { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }
+            ).getTextContent(),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
+          ])
+          if (!content) continue
+          for (const it of (content as { items: Array<{ str: string }> }).items) {
+            if (typeof it.str === 'string') totalChars += it.str.trim().length
+            if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) break
+          }
+          if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) break
+        } catch {}
+      }
+      try {
+        await pdf.destroy().catch(() => {})
+      } catch {}
+      if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) return false
+      if (totalChars === 0) return true
+      // Low but non-zero – consider scanned
+      return totalChars < 50
+    } catch {
+      return null
+    }
+  }
+
+  private enforceResultEviction(): void {
+    const MAX_RESULTS = 10
+    const MAX_TASKS = 50
+    while (this.results.size > MAX_RESULTS) {
+      const oldest = this.results.keys().next().value as string | undefined
+      if (!oldest) break
+      this.results.delete(oldest)
+    }
+    while (this.tasks.size > MAX_TASKS) {
+      // Prefer evicting terminal tasks first (completed/failed), oldest first
+      let evict: string | null = null
+      for (const [id, t] of this.tasks) {
+        if (t.status === 'completed' || t.status === 'failed') {
+          evict = id
+          break
+        }
+      }
+      if (!evict) evict = (this.tasks.keys().next().value as string | undefined) ?? null
+      if (!evict) break
+      // Do not evict results that are still referenced? Separate eviction
+      this.tasks.delete(evict)
+      this.results.delete(evict)
+      this.children.delete(evict)
+      this.cancelled.delete(evict)
+    }
+  }
+
+  releaseTask(taskId: string): void {
+    this.tasks.delete(taskId)
+    this.results.delete(taskId)
+    this.children.delete(taskId)
+    this.cancelled.delete(taskId)
   }
 
   _clearForTests(): void {

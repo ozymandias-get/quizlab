@@ -137,11 +137,15 @@ export async function getCachedDocument(sourceHash: string): Promise<QuizLabDocu
 export async function putCachedDocument(
   sourceHash: string,
   document: QuizLabDocument,
-  assets: Array<{ assetId: string; data: Buffer; ext: string }> = []
+  options: {
+    assets?: Array<{ assetId: string; data: Buffer; ext: string }>
+    sourceImagesDir?: string | null
+  } = {}
 ): Promise<void> {
   if (!/^[a-f0-9]{64}$/.test(sourceHash)) throw new Error('Invalid sourceHash')
   const cacheDir = getCacheDir(sourceHash)
   const tmpDir = `${cacheDir}.tmp.${randomBytes(4).toString('hex')}`
+  const assets = options.assets ?? []
 
   try {
     await fs.mkdir(tmpDir, { recursive: true })
@@ -172,9 +176,28 @@ export async function putCachedDocument(
       'utf8'
     )
 
-    // Write assets if any (already handled separately, but keep for future)
+    // Write explicit asset buffers if any (future use)
     for (const asset of assets) {
       await fs.writeFile(path.join(tmpDir, 'assets', `${asset.assetId}.${asset.ext}`), asset.data)
+    }
+
+    // Atomically stage image assets into tmp/assets so the final rename moves
+    // everything together. This avoids the previous race where copyAssetsToCache
+    // created document-cache/<hash>/assets beforehand and broke the atomic
+    // rename(tmpDir, cacheDir) transaction (EEXIST/ENOTEMPTY).
+    if (options.sourceImagesDir) {
+      try {
+        const entries = await fs.readdir(options.sourceImagesDir)
+        for (const entry of entries) {
+          const src = path.join(options.sourceImagesDir, entry)
+          const dest = path.join(tmpDir, 'assets', entry)
+          try {
+            const stat = await fs.lstat(src).catch(() => null)
+            if (!stat || stat.isSymbolicLink() || !stat.isFile()) continue
+            await fs.copyFile(src, dest)
+          } catch {}
+        }
+      } catch {}
     }
 
     // Atomic rename – handle cross-device EXDEV by falling back to copy
@@ -186,10 +209,34 @@ export async function putCachedDocument(
         await fs.mkdir(cacheDir, { recursive: true })
         await fs.cp(tmpDir, cacheDir, { recursive: true, force: true })
         await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
-      } else if (code === 'EEXIST') {
-        // Concurrent write won – keep existing cache, discard tmp
-        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
-        return
+      } else if (code === 'EEXIST' || code === 'ENOTEMPTY' || code === 'EISDIR') {
+        // Concurrent write race. If existing cache is complete (has manifest +
+        // document), keep it and discard tmp. If existing is incomplete (e.g.
+        // left over from an older buggy copyAssetsToCache path), replace it.
+        const hasManifest = await fs
+          .access(path.join(cacheDir, 'manifest.json'))
+          .then(() => true)
+          .catch(() => false)
+        const hasDocument = await fs
+          .access(path.join(cacheDir, 'document.json'))
+          .then(() => true)
+          .catch(() => false)
+        if (hasManifest && hasDocument) {
+          await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+          return
+        }
+        // Incomplete existing – replace atomically
+        await fs.rm(cacheDir, { recursive: true, force: true }).catch(() => {})
+        try {
+          await fs.rename(tmpDir, cacheDir)
+        } catch (retryErr) {
+          const retryCode = (retryErr as NodeJS.ErrnoException)?.code
+          if (retryCode === 'EXDEV') {
+            await fs.mkdir(cacheDir, { recursive: true })
+            await fs.cp(tmpDir, cacheDir, { recursive: true, force: true })
+            await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+          } else throw retryErr
+        }
       } else if (code === 'ENOSPC') {
         await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
         throw new Error('Disk full while writing cache')
@@ -207,6 +254,11 @@ export async function putCachedDocument(
   }
 }
 
+/**
+ * @deprecated Use putCachedDocument(sourceHash, doc, { sourceImagesDir }) instead.
+ * Kept for backwards-compat in tests; new code must not call this directly to
+ * avoid breaking the atomic tmp→cacheDir transaction.
+ */
 export async function copyAssetsToCache(
   sourceHash: string,
   sourceImagesDir: string
@@ -220,6 +272,8 @@ export async function copyAssetsToCache(
       const src = path.join(sourceImagesDir, entry)
       const dest = path.join(destDir, entry)
       try {
+        const stat = await fs.lstat(src).catch(() => null)
+        if (!stat || stat.isSymbolicLink() || !stat.isFile()) continue
         await fs.copyFile(src, dest)
       } catch {}
     }

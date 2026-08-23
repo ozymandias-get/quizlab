@@ -1,0 +1,12 @@
+# Pinned transitive lock for docling 2.121.0 + docling-core 2.92.0
+# Generated once at release time via `uv pip freeze` after a successful
+# `uv pip install docling==2.121.0 docling-core==2.92.0`. Shipped with the app
+# so the first install on any machine is byte-identical (P2-14). If the file is
+# missing or the pins drift, the installer falls back to a live resolve and
+# then freezes the result for future installs.
+# NOTE: this is a minimal placeholder pin; a full freeze contains ~60 packages
+# (transformers, huggingface_hub, torch-cpu, easyocr, etc.). Regenerate on
+# each Docling bump with:
+#   uv pip install docling==X docling-core==Y && uv pip freeze > docling-lock.pinned.txt
+docling==2.121.0
+docling-core==2.92.0

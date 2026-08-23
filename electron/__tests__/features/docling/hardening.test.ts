@@ -17,7 +17,7 @@ vi.mock('electron', () => ({
 
 describe('hardening', () => {
   describe('adapter XSS sanitization', () => {
-    it('strips HTML tags from Docling text to prevent XSS', () => {
+    it('preserves technical content verbatim and relies on React escaping for safety', () => {
       const raw = {
         texts: [
           {
@@ -29,21 +29,28 @@ describe('hardening', () => {
             text: '<img src=x onerror=alert(2)>',
             label: 'text',
             prov: [{ page_no: 1, bbox: { l: 0, t: 0, r: 10, b: 10 } }]
+          },
+          {
+            text: 'a < b > c and List<T> vector<int>',
+            label: 'text',
+            prov: [{ page_no: 1, bbox: { l: 0, t: 0, r: 10, b: 10 } }]
           }
         ],
-        body: { children: [{ $ref: '#/texts/0' }, { $ref: '#/texts/1' }] }
+        body: { children: [{ $ref: '#/texts/0' }, { $ref: '#/texts/1' }, { $ref: '#/texts/2' }] }
       }
       const doc = adaptDoclingToQuizLabDocument(raw, { pdfPath: '/tmp/a.pdf' })
       expect(doc.blocks[0].type).toBe('paragraph')
       const t1 = (doc.blocks[0] as unknown as { text: string }).text
       const t2 = (doc.blocks[1] as unknown as { text: string }).text
-      expect(t1).not.toContain('<script>')
-      expect(t1).toBe('alert(1)Hello')
-      expect(t2).not.toContain('<img')
-      expect(t2).not.toContain('onerror')
+      const t3 = (doc.blocks[2] as unknown as { text: string }).text
+      // Text is kept verbatim; React text nodes escape HTML automatically, so
+      // stripping is not needed and would corrupt legitimate `a < b` / `List<T>`.
+      expect(t1).toBe('<script>alert(1)</script>Hello')
+      expect(t2).toBe('<img src=x onerror=alert(2)>')
+      expect(t3).toBe('a < b > c and List<T> vector<int>')
     })
 
-    it('sanitizes table cell text', () => {
+    it('preserves table cell text verbatim', () => {
       const raw = {
         tables: [
           {
@@ -57,7 +64,7 @@ describe('hardening', () => {
       }
       const doc = adaptDoclingToQuizLabDocument(raw, { pdfPath: '/tmp/a.pdf' })
       const table = doc.blocks[0] as unknown as { rows: { text: string }[][] }
-      expect(table.rows[0][0].text).toBe('bold')
+      expect(table.rows[0][0].text).toBe('<b>bold</b>')
     })
   })
 

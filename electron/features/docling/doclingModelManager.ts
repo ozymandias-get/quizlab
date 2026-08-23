@@ -65,6 +65,14 @@ interface ModelManifest {
 //     sha256: '<64 hex>', revision: '<pin>' }
 export const MODEL_ASSETS: Array<{ name: string; url: string; sha256: string }> = []
 
+// P2-15: HuggingFace revision pin for reproducibility. When set (e.g.
+// "f4b9e4b2..."), the manifest records it and `getModelStatus` treats a
+// different revision as `partial` so repair fetches the pinned revision.
+// While null, any revision is accepted – the manifest still records the
+// integrity (path+bytes+sha256) but not an upstream pin. Populate this
+// together with MODEL_ASSETS when moving to explicit pinning.
+export const PINNED_MODEL_REVISION: string | null = null
+
 function getModelsMarkerPath(layout: ReturnType<typeof getDoclingLayout>): string {
   return path.join(layout.models, MODELS_MARKER)
 }
@@ -141,7 +149,7 @@ async function buildManifestFromDisk(
     schemaVersion: '1',
     mode,
     doclingVersion: DOCLING_VERSION,
-    revision: null,
+    revision: PINNED_MODEL_REVISION,
     createdAt: Date.now(),
     files
   }
@@ -200,6 +208,11 @@ export async function getModelStatus(componentsRoot?: string): Promise<ModelStat
       manifest &&
       (await manifestFilesIntact(layout, manifest))
     ) {
+      // P2-15: if a revision is pinned, mismatched manifests are not `ready`
+      // even if bytes match – they may be a different upstream revision.
+      if (PINNED_MODEL_REVISION && manifest.revision !== PINNED_MODEL_REVISION) {
+        return { status: 'partial', diskBytes, files, version }
+      }
       // Engine gone but artifacts present → surface as repairable, not ready.
       if (!(await venvExists(layout))) {
         return { status: 'runtime_missing', diskBytes, files, version }
@@ -499,7 +512,7 @@ export async function markModelsReadyForTests(componentsRoot?: string): Promise<
     schemaVersion: '1',
     mode: 'test-sentinel',
     doclingVersion: DOCLING_VERSION,
-    revision: null,
+    revision: PINNED_MODEL_REVISION,
     createdAt: Date.now(),
     files: []
   }

@@ -42,7 +42,7 @@ export async function ensureConverterScript(layout: DoclingDirLayout): Promise<s
     // fall through to generation
   }
   await fs.mkdir(path.dirname(scriptPath), { recursive: true })
-  // eslint-disable-next-line no-secrets/no-secrets -- Python script contains env var checks, not secrets
+
   const script = `
 import os, sys, json, base64, pathlib
 from pathlib import Path
@@ -58,8 +58,10 @@ if pdf_path.suffix.lower() != ".pdf":
     print(f"Not a PDF: {pdf_path}", file=sys.stderr)
     sys.exit(3)
 
-def _make_converter():
+def _make_converter(do_ocr_override=None):
     # Full pipeline prefs from Settings – defaults match doclingPipelineSettings.ts
+    # do_ocr_override allows the OCR retry path to reuse the exact same pipeline
+    # construction (CPU, threads, timeouts, enrichment, etc.) with only OCR toggled.
     def _b(name): return os.environ.get(name) == "1"
     def _f(name, d):
         try: return float(os.environ.get(name, str(d)))
@@ -67,7 +69,7 @@ def _make_converter():
     def _i(name, d):
         try: return int(float(os.environ.get(name, str(d))))
         except: return d
-    do_ocr = _b("DOCLING_DO_OCR")
+    do_ocr = do_ocr_override if do_ocr_override is not None else _b("DOCLING_DO_OCR")
     ocr_lang = os.environ.get("DOCLING_OCR_LANG", "").strip()
     force_full_page_ocr = _b("DOCLING_FORCE_FULL_PAGE_OCR")
     detect_tables = _b("DOCLING_DETECT_TABLES")
@@ -158,10 +160,28 @@ def _make_converter():
         print(f"Pipeline ocr={do_ocr} lang={ocr_lang} figs={extract_figs} tables={detect_tables} fast={fast_tables} scale={images_scale} thr={num_threads} dev=cpu", flush=True)
         return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
     except Exception as e:
-        print(f"Pipeline opts failed, fallback to default: {e}", file=sys.stderr, flush=True)
+        print(f"Pipeline opts failed: {e}", file=sys.stderr, flush=True)
         import traceback; traceback.print_exc(file=sys.stderr)
-        from docling.document_converter import DocumentConverter
-        return DocumentConverter()
+        # Do NOT fall back to bare DocumentConverter() which would auto-detect
+        # GPU (AcceleratorDevice.AUTO) and lose all user settings. Use an
+        # explicit safe CPU fallback or fail closed.
+        try:
+            from docling.datamodel.pipeline_options import PdfPipelineOptions as SafeOpts
+            from docling.datamodel.accelerator_options import AcceleratorDevice as SafeDev, AcceleratorOptions as SafeAcc
+            from docling.document_converter import DocumentConverter as SafeConv, PdfFormatOption as SafeFmt
+            from docling.datamodel.base_models import InputFormat as SafeFmtType
+            safe_kwargs = dict(
+                do_ocr=do_ocr,
+                do_table_structure=True,
+                accelerator_options=SafeAcc(device=SafeDev.CPU, num_threads=4),
+            )
+            safe_pipeline = SafeOpts(**safe_kwargs)
+            print("Using safe CPU fallback pipeline", flush=True)
+            return SafeConv(format_options={SafeFmtType.PDF: SafeFmt(pipeline_options=safe_pipeline)})
+        except Exception as e2:
+            print(f"Safe CPU fallback also failed: {e2}", file=sys.stderr, flush=True)
+            traceback.print_exc(file=sys.stderr)
+            sys.exit(1)
 
 def _ext_for(header):
     if "png" in header: return "png"
@@ -201,21 +221,14 @@ try:
     doc = result.document
 
     has_text = any(t.get("text", "").strip() for t in doc.export_to_dict().get("texts", []))
+    # Scanned-PDF fallback. When the Node preflight already forced OCR ON,
+    # this branch is skipped – that is the fast path that avoids a wasted
+    # full first pass. This retry remains only as a safety net for PDFs where
+    # the preflight under-estimated the need for OCR.
     if not has_text and os.environ.get("DOCLING_DO_OCR") != "1":
-        print("No text found with OCR off – retrying with OCR", flush=True)
+        print("No text found with OCR off – retrying with OCR (CPU, preserved pipeline)", flush=True)
         try:
-            from docling.datamodel.pipeline_options import PdfPipelineOptions as OcrRetryOpts
-            from docling.document_converter import DocumentConverter as OcrConverter, PdfFormatOption as OcrFmt
-            from docling.datamodel.base_models import InputFormat as OcrFmtType
-            retry_kwargs = dict(do_ocr=True, do_table_structure=os.environ.get("DOCLING_DETECT_TABLES")=="1", generate_picture_images=os.environ.get("DOCLING_EXTRACT_FIGURES")=="1", do_picture_classification=os.environ.get("DOCLING_EXTRACT_FIGURES")=="1", images_scale=1.2)
-            if retry_kwargs["do_table_structure"] and os.environ.get("DOCLING_FAST_TABLES")=="1":
-                try:
-                    from docling.datamodel.pipeline_options import TableFormerMode as OcrTableMode, TableStructureOptions as OcrTableOpts
-                    retry_kwargs["table_structure_options"] = OcrTableOpts(mode=OcrTableMode.FAST)
-                except Exception:
-                    pass
-            retry_opts = OcrRetryOpts(**retry_kwargs)
-            retry_converter = OcrConverter(format_options={OcrFmtType.PDF: OcrFmt(pipeline_options=retry_opts)})
+            retry_converter = _make_converter(do_ocr_override=True)
             retry_result = retry_converter.convert(str(pdf_path))
             doc = retry_result.document
         except Exception as retry_e:

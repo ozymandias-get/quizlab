@@ -32,7 +32,12 @@ const DoclingPipelineCard = memo(function DoclingPipelineCard({ isInstalled }: P
     )
   }
 
-  const currentLevel = (prefs.presetLevel as 1 | 2 | 3 | 4 | 5) ?? inferPresetLevel(prefs) ?? 3
+  const inferredLevel = inferPresetLevel(prefs)
+  const rawLevel = prefs.presetLevel as number | null
+  // presetLevel === null means custom (P1-7). In that case the badge says “Özel”
+  // and no 1..5 button is highlighted.
+  const isCustom = rawLevel === null || rawLevel === undefined || inferredLevel === null
+  const currentLevel: number | null = isCustom ? null : (rawLevel as 1 | 2 | 3 | 4 | 5)
 
   const applyPreset = (level: 1 | 2 | 3 | 4 | 5) => {
     const patch = DOC_PRESETS[level]
@@ -50,7 +55,9 @@ const DoclingPipelineCard = memo(function DoclingPipelineCard({ isInstalled }: P
         <div className="flex items-center justify-between">
           <span className="text-ql-12 font-medium">{t('docling_preset_label')}</span>
           <span className="text-ql-11 text-muted-foreground">
-            {t(`docling_preset_${currentLevel}_title`)} · {currentLevel}/5
+            {isCustom
+              ? t('docling_preset_custom_title')
+              : `${t(`docling_preset_${currentLevel}_title`)} · ${currentLevel}/5`}
           </span>
         </div>
         <div className="grid grid-cols-5 gap-1.5">
@@ -71,9 +78,13 @@ const DoclingPipelineCard = memo(function DoclingPipelineCard({ isInstalled }: P
           ))}
         </div>
         <div className="bg-muted/30 border-border/50 rounded-lg border px-3 py-2">
-          <p className="text-ql-12 font-medium">{t(`docling_preset_${currentLevel}_title`)}</p>
+          <p className="text-ql-12 font-medium">
+            {isCustom
+              ? t('docling_preset_custom_title')
+              : t(`docling_preset_${currentLevel}_title`)}
+          </p>
           <p className="text-ql-11 text-muted-foreground leading-snug">
-            {t(`docling_preset_${currentLevel}_desc`)}
+            {isCustom ? t('docling_preset_custom_desc') : t(`docling_preset_${currentLevel}_desc`)}
           </p>
         </div>
         <p className="text-ql-11 text-muted-foreground">{t('docling_preset_hint')}</p>

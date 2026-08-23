@@ -56,7 +56,14 @@ export function validatePipelinePatch(patch: unknown): string | null {
     if (k === 'documentTimeout' && v !== null && typeof v !== 'number') {
       return `${k} must be number or null`
     }
-    if (NUMBER_KEYS.has(k as keyof DoclingPipelinePrefs) && typeof v !== 'number') {
+    if (k === 'presetLevel' && v !== null && typeof v !== 'number') {
+      return `${k} must be number or null`
+    }
+    if (
+      NUMBER_KEYS.has(k as keyof DoclingPipelinePrefs) &&
+      k !== 'presetLevel' &&
+      typeof v !== 'number'
+    ) {
       return `${k} must be number`
     }
   }

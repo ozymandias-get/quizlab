@@ -129,6 +129,52 @@ const VENV_MARKER = '.venv-python'
 const ENV_PIN_MARKER = '.docling-pin'
 /** Frozen resolution of the full dependency tree (incl. transitives). */
 const ENV_LOCK_FILE = 'docling-lock.txt'
+/** Shipped with the app – makes the first install deterministic (P2-14). */
+const BUNDLED_LOCK_FILENAME = 'docling-lock.pinned.txt'
+
+async function loadBundledLock(): Promise<string | null> {
+  // In test runs (vitest) the bundled lock would make the fake installer
+  // use a canned package list and break the “live resolve” expectations, so
+  // skip it there – production and dev runs still use it for determinism.
+  if (process.env.VITEST || process.env.NODE_ENV === 'test') return null
+  // Try several roots: dev cwd and packaged app path. Avoid import.meta which
+  // is not available in the CommonJS build output.
+  const candidates: string[] = []
+  try {
+    candidates.push(
+      path.join(process.cwd(), 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME)
+    )
+  } catch {}
+  try {
+    const electron = await import('electron').catch(
+      () => null as unknown as { app?: { getAppPath?: () => string } }
+    )
+    const maybeApp = (electron as unknown as { app?: { getAppPath?: () => string } })?.app
+    if (maybeApp?.getAppPath) {
+      const appPath = maybeApp.getAppPath()
+      candidates.push(path.join(appPath, 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME))
+      candidates.push(path.join(appPath, BUNDLED_LOCK_FILENAME))
+      // dist layout after build: dist/electron/electron/features/docling/...
+      candidates.push(
+        path.join(appPath, 'dist', 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME)
+      )
+    }
+  } catch {}
+  // Also try relative to the compiled file's directory via __dirname fallback
+  try {
+    const dir = typeof __dirname !== 'undefined' ? (__dirname as unknown as string) : ''
+    if (dir) {
+      candidates.push(path.join(dir as string, BUNDLED_LOCK_FILENAME))
+    }
+  } catch {}
+  for (const cand of candidates) {
+    try {
+      const txt = await fs.readFile(cand, 'utf8')
+      if (txt.includes(`docling==${DOCLING_VERSION}`)) return txt
+    } catch {}
+  }
+  return null
+}
 
 async function stepEnsureUvBinary(ctx: PipelineContext): Promise<void> {
   const { io, layout, report } = ctx
@@ -308,6 +354,38 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
       if (ctx.packages.length === 0) throw new Error('Lock file contains no packages')
       await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
       return
+    }
+  }
+
+  // P2-14: fresh install with no frozen lock yet – try the bundled pinned
+  // lock shipped with the app so two machines installing on different dates
+  // get the same transitive versions. If it is absent or fails, fall back to
+  // a live `pip install` and then freeze.
+  if ((await readMarker(pinMarker)) === null && !(await exists(lockPath))) {
+    const bundled = await loadBundledLock()
+    if (
+      bundled &&
+      bundled.includes(`docling==${DOCLING_VERSION}`) &&
+      bundled.includes(`docling-core==${DOCLING_CORE_VERSION}`)
+    ) {
+      try {
+        await fs.mkdir(path.dirname(lockPath), { recursive: true })
+        await fs.writeFile(lockPath, bundled, 'utf8')
+        const lines = parsePackageLines(bundled)
+        if (lines.length >= 2) {
+          ctx.report({ phase: 'installing_docling', percent: null, message: 'bundled lock' })
+          await io.exec(
+            ctx.uvPath,
+            ['pip', 'install', '--python', ctx.venvPythonPath, '-r', lockPath],
+            uvEnvOverrides(layout)
+          )
+          ctx.packages = lines
+          await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
+          return
+        }
+      } catch {
+        await fs.rm(lockPath, { force: true }).catch(() => {})
+      }
     }
   }
 

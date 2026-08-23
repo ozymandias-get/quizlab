@@ -212,7 +212,9 @@ export interface QuizLabDocumentResult {
 export interface DoclingPipelinePrefs {
   // Preset level 1 (minimal) .. 5 (max). Stored to remember user choice; actual
   // pipeline fields are materialised from the preset when the user picks a level.
-  presetLevel: number
+  // `null` means the pipeline is custom – the user edited an advanced option
+  // away from any preset (P1-7). The pipeline still runs, but the UI shows “Özel”.
+  presetLevel: number | null
   // Core
   doOcr: boolean
   ocrLang: string

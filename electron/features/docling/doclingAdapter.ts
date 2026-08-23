@@ -10,11 +10,12 @@ import type {
 import { DOCLING_VERSION } from './doclingVersions.js'
 
 function sanitizeText(input: string): string {
-  // Docling output is untrusted – never render it as HTML. We keep the raw
-  // text but strip any HTML tags that could be misinterpreted if a future
-  // UI change accidentally uses dangerouslySetInnerHTML.
-  // This is defense-in-depth; ReaderView already renders via React text nodes.
-  return input.replaceAll(/<[^>]*>/g, '')
+  // Docling text is rendered as React text nodes, which auto-escape HTML.
+  // Stripping `<...>` previously corrupted legitimate content such as
+  // `a < b > c`, `List<T>` or `vector<int>`. Keep the raw text verbatim and
+  // rely on React escaping for safety. If a future code path needs to render
+  // HTML, sanitise at that boundary instead.
+  return input
 }
 
 interface DoclingBbox {
@@ -216,6 +217,23 @@ export function adaptDoclingToQuizLabDocument(
     ]
   }
 
+  // P2-12: when Docling provides no body reading order, the previous
+  // `texts → pictures → tables` fallback destroys layout order. Do a cheap
+  // geometric sort by page → bbox top → left instead.
+  if (orderRefs.length === 0 && fallbackRefs.length > 1) {
+    const withPos = fallbackRefs.map((ref, idx) => {
+      const item = refMap.get(ref.$ref) as DoclingTextItem | undefined
+      const prov = item?.prov
+      const page = prov?.[0]?.page_no ?? 999
+      const bbox = prov?.[0]?.bbox
+      const top = bbox?.t ?? idx * 0.0001
+      const left = bbox?.l ?? 0
+      return { ref, page, top, left, idx }
+    })
+    withPos.sort((a, b) => a.page - b.page || a.top - b.top || a.left - b.left || a.idx - b.idx)
+    fallbackRefs = withPos.map((p) => p.ref)
+  }
+
   const blocks: QuizLabBlock[] = []
   let readingOrder = 0
 
@@ -312,6 +330,37 @@ export function adaptDoclingToQuizLabDocument(
       blocks.push({ ...base, type: 'unknown', rawText: safeText })
     } else {
       blocks.push({ ...base, type: 'paragraph', text: safeText })
+    }
+  }
+
+  // P2-13: link captions to nearest figure/table on the same page (heuristic).
+  // Docling emits captions as standalone text blocks; we restore the semantic
+  // link so the Reader and future AI context can associate “Şekil 4 …” with
+  // its picture/table. The association is also written back onto the figure
+  // as `caption` for convenience.
+  {
+    const figures = blocks.filter((b) => b.type === 'image' || b.type === 'table')
+    for (const b of blocks) {
+      if (b.type !== 'caption') continue
+      const cap = b as Extract<QuizLabBlock, { type: 'caption' }>
+      const cands = figures.filter((f) => f.pageNumber === cap.pageNumber)
+      if (cands.length === 0) continue
+      let best: QuizLabBlock | null = null
+      let bestDist = Infinity
+      for (const cand of cands) {
+        const dist = Math.abs(cand.readingOrder - cap.readingOrder)
+        // Captions usually follow the figure; slight preference for that.
+        const biased = cand.readingOrder < cap.readingOrder ? dist - 0.1 : dist
+        if (biased < bestDist) {
+          bestDist = biased
+          best = cand
+        }
+      }
+      if (best) {
+        cap.forBlockId = best.id
+        const fig = best as Extract<QuizLabBlock, { type: 'image' | 'table' }>
+        if (!fig.caption) fig.caption = cap.text
+      }
     }
   }
 
@@ -422,14 +471,21 @@ function extractTableRows(
       }
       return [...rowMap.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([, rowCells]) =>
-          rowCells.map((c) => ({
+        .map(([, rowCells]) => {
+          // P1-11: preserve visual column order – Docling does not guarantee
+          // array order, so sort by start_col_offset_idx inside the row.
+          rowCells.sort((a, b) => {
+            const ca = (a as unknown as { start_col_offset_idx?: number }).start_col_offset_idx ?? 0
+            const cb = (b as unknown as { start_col_offset_idx?: number }).start_col_offset_idx ?? 0
+            return ca - cb
+          })
+          return rowCells.map((c) => ({
             text: c.text ?? '',
             rowSpan: c.row_span,
             colSpan: c.col_span,
             isHeader: !!(c.column_header || c.row_header)
           }))
-        )
+        })
     }
     return [
       cells.map((c) => ({
