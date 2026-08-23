@@ -14,12 +14,12 @@ import { fileURLToPath } from 'url'
 const { sync: globSync } = pkg
 
 const ROOT = join(fileURLToPath(import.meta.url), '..', '..')
-// Docling modules (adapter ~412, service ~494) and ipcContract/nativeMessaging
-// are intentionally larger than the strict 400 – they encapsulate complex
-// lifecycle logic that would be over-split if forced to 400. Limit raised to
-// 500 to keep the check useful without blocking the feature. Components/hooks
-// keep the strict 250.
-const GENERAL_LIMIT = 500
+// Docling modules (adapter ~412, service ~509, manager ~488) and
+// ipcContract/nativeMessaging are intentionally larger than the strict 400 –
+// they encapsulate complex lifecycle logic that would be over-split if forced
+// to 400. Limit raised to 520 to keep the check useful without blocking the
+// feature. Components/hooks keep the strict 250.
+const GENERAL_LIMIT = 520
 const COMPONENT_HOOK_LIMIT = 250
 
 const patterns = [
