@@ -139,10 +139,10 @@ artifacts = Path(os.environ.get("DOCLING_ARTIFACTS_PATH") or os.environ.get("DOC
 print(f"Downloading Docling models to {artifacts}", flush=True)
 try:
     from docling.utils.model_downloader import download_models
-    # docling 2.x signature: download_models(output_dir=..., progress=True)
-    # Fall back to no-arg call if signature differs
+    # docling 2.x signature: download_models(output_dir: Path, progress=True)
+    # output_dir must be a Path, not str (it calls .mkdir())
     try:
-        download_models(output_dir=str(artifacts), progress=True)
+        download_models(output_dir=artifacts, progress=True)
     except TypeError:
         try:
             download_models(progress=True)
