@@ -13,10 +13,13 @@ function formatBytes(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+import type { DoclingModelProgressEvent } from '@shared-core/types'
+
 interface Props {
   modelStatus: { status: string; diskBytes: number | null } | null | undefined
   isInstalled: boolean
   pending: boolean
+  modelProgress?: DoclingModelProgressEvent | null
   onDownload: () => void
   onRepair: () => void
   onDelete: () => void
@@ -26,6 +29,7 @@ const DoclingModelsCard = memo(function DoclingModelsCard({
   modelStatus,
   isInstalled,
   pending,
+  modelProgress,
   onDownload,
   onRepair,
   onDelete
@@ -67,6 +71,45 @@ const DoclingModelsCard = memo(function DoclingModelsCard({
           <dd className="text-ql-13 font-mono">{formatBytes(modelStatus?.diskBytes ?? null)}</dd>
         </div>
       </dl>
+      {modelProgress && modelProgress.phase === 'downloading' && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-ql-12 text-muted-foreground">
+              {modelProgress.message ?? 'İndiriliyor...'}
+              {modelProgress.currentFile ? ` — ${modelProgress.currentFile}` : ''}
+            </span>
+            <span className="text-ql-12 font-mono">
+              {modelProgress.percent !== null ? `${modelProgress.percent}%` : '…'}
+            </span>
+          </div>
+          <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+            <div
+              className={cn(
+                'bg-primary h-full transition-all duration-300',
+                modelProgress.percent === null && 'w-full animate-pulse'
+              )}
+              style={
+                modelProgress.percent !== null ? { width: `${modelProgress.percent}%` } : undefined
+              }
+            />
+          </div>
+          {modelProgress.totalFiles ? (
+            <span className="text-ql-11 text-muted-foreground">
+              {modelProgress.currentIndex ?? 0}/{modelProgress.totalFiles} dosya
+            </span>
+          ) : null}
+        </div>
+      )}
+      {modelProgress && modelProgress.phase === 'completed' && (
+        <p className="text-ql-12 text-emerald-600 dark:text-emerald-400">
+          {modelProgress.message ?? 'Modeller hazır ✓'}
+        </p>
+      )}
+      {modelProgress && modelProgress.phase === 'failed' && (
+        <p className="text-ql-12 text-destructive">
+          {modelProgress.message ?? 'İndirme başarısız'}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"

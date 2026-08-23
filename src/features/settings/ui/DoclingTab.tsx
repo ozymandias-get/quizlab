@@ -35,6 +35,7 @@ const DoclingTab = memo(function DoclingTab() {
     isBusy,
     isInstalled,
     progress,
+    modelProgress,
     confirmOpen,
     actionPending,
     modelActionPending,
@@ -169,6 +170,7 @@ const DoclingTab = memo(function DoclingTab() {
         modelStatus={modelStatus}
         isInstalled={isInstalled}
         pending={modelActionPending}
+        modelProgress={modelProgress}
         onDownload={handleDownloadModels}
         onRepair={handleRepairModels}
         onDelete={handleDeleteModels}

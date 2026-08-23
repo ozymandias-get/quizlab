@@ -52,3 +52,13 @@ export interface DoclingModelStatusInfo {
   files: string[]
   version: string | null
 }
+
+export interface DoclingModelProgressEvent {
+  phase: 'downloading' | 'completed' | 'failed'
+  /** 0..100 when byte size known, otherwise null (indeterminate). */
+  percent: number | null
+  message?: string
+  currentFile?: string
+  totalFiles?: number
+  currentIndex?: number
+}

@@ -1,6 +1,7 @@
 import {
   useDoclingModelsDelete,
   useDoclingModelsDownload,
+  useDoclingModelsProgress,
   useDoclingModelsRepair,
   useDoclingModelsStatus
 } from '@platform/electron/api/useDoclingModelsApi'
@@ -34,6 +35,7 @@ export function useDoclingTabState() {
   const downloadModels = useDoclingModelsDownload()
   const deleteModels = useDoclingModelsDelete()
   const repairModels = useDoclingModelsRepair()
+  const modelProgress = useDoclingModelsProgress()
 
   const docling = useMemo(() => components?.find((c) => c.id === 'docling') ?? null, [components])
   const action = useOptionalComponentAction()
@@ -112,6 +114,7 @@ export function useDoclingTabState() {
     isBusy,
     isInstalled,
     progress,
+    modelProgress,
     confirmOpen,
     actionPending: action.isPending,
     modelActionPending:

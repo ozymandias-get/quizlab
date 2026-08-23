@@ -1,6 +1,7 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
 import type {
   DoclingInstallProgressEvent,
+  DoclingModelProgressEvent,
   DoclingModelStatusInfo,
   DoclingServiceStatus,
   QuizLabConversionTask,
@@ -380,6 +381,9 @@ export interface IpcInvokeRequestMap {
 export interface IpcEventMap {
   [IPC_CHANNELS.DOCLING_INSTALL_PROGRESS]: {
     args: [payload: DoclingInstallProgressEvent]
+  }
+  [IPC_CHANNELS.DOCLING_MODELS_PROGRESS]: {
+    args: [payload: DoclingModelProgressEvent]
   }
   [IPC_CHANNELS.DOCLING_SERVICE_STATUS_CHANGED]: {
     args: [payload: DoclingServiceStatus]

@@ -1,4 +1,7 @@
+import { BrowserWindow } from 'electron'
+
 import { failure, success } from '../../../shared/lib/typedIpc.js'
+import type { DoclingModelProgressEvent } from '../../../shared/types/docling.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -9,6 +12,14 @@ import {
   getModelStatus,
   repairModels
 } from './doclingModelManager.js'
+
+function broadcastModelProgress(event: DoclingModelProgressEvent): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
+      win.webContents.send(APP_CONFIG.IPC_CHANNELS.DOCLING_MODELS_PROGRESS, event)
+    }
+  }
+}
 
 let handlersRegistered = false
 
@@ -32,11 +43,12 @@ export function registerDoclingModelHandlers(): void {
     IPC_CHANNELS.DOCLING_MODELS_DOWNLOAD,
     async () => {
       try {
-        await downloadModels()
+        await downloadModels(undefined, undefined, (e) => broadcastModelProgress(e))
         const status = await getModelStatus()
         return success(status)
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
+        broadcastModelProgress({ phase: 'failed', percent: null, message: msg.slice(0, 200) })
         return failure('internal_error', msg)
       }
     },
@@ -64,11 +76,12 @@ export function registerDoclingModelHandlers(): void {
     IPC_CHANNELS.DOCLING_MODELS_REPAIR,
     async () => {
       try {
-        await repairModels()
+        await repairModels(undefined, (e) => broadcastModelProgress(e))
         const status = await getModelStatus()
         return success(status)
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
+        broadcastModelProgress({ phase: 'failed', percent: null, message: msg.slice(0, 200) })
         return failure('internal_error', msg)
       }
     },

@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
+import type { DoclingModelProgressEvent } from '../../../shared/types/docling.js'
 import { Logger } from '../../core/logger.js'
 import { downloadFile } from './doclingDownloader.js'
 import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
@@ -103,12 +104,29 @@ export async function getModelStatus(componentsRoot?: string): Promise<ModelStat
   }
 }
 
+export interface DoclingModelProgressReporter {
+  (event: DoclingModelProgressEvent): void
+}
+
 export async function downloadModels(
   onProgress?: (received: number, total: number | null) => void,
-  componentsRoot?: string
+  componentsRoot?: string,
+  progressReporter?: DoclingModelProgressReporter
 ): Promise<void> {
   const layout = getDoclingLayout(componentsRoot)
   await fs.mkdir(layout.models, { recursive: true })
+  const report = progressReporter
+  const emit = (e: DoclingModelProgressEvent): void => {
+    try {
+      report?.(e)
+    } catch {}
+    try {
+      onProgress?.(
+        e.percent !== null ? (e.percent / 100) * (e.totalFiles ?? 1) : 0,
+        e.percent !== null ? 100 : null
+      )
+    } catch {}
+  }
 
   // No explicit assets: use Docling's official model downloader when the
   // private venv is available. This is what the user triggers via
@@ -131,6 +149,24 @@ export async function downloadModels(
     if (venvExists) {
       Logger.info('[DoclingModels] Downloading models via docling.utils.model_downloader', {
         modelsDir: layout.models
+      })
+      emit({
+        phase: 'downloading',
+        percent: 0,
+        message: 'Modeller indiriliyor...',
+        totalFiles: 1,
+        currentIndex: 0
+      })
+      // Indeterminate phase while the Python downloader runs (real byte
+      // progress is inside HF hub; we show spinner + message until completion).
+      // Emit a second event with percent null to force indeterminate UI.
+      emit({
+        phase: 'downloading',
+        percent: null,
+        message: 'HuggingFace üzerinden indiriliyor (birkaç dakika sürebilir)...',
+        currentFile: 'docling-models',
+        totalFiles: 1,
+        currentIndex: 0
       })
       const script = `
 import os, sys
@@ -169,12 +205,14 @@ except Exception as e:
         await fs.writeFile(sentinel, 'auto', 'utf8').catch(() => {})
         await fs.writeFile(getModelsMarkerPath(layout), MODELS_MARKER_VERSION, 'utf8')
         Logger.info('[DoclingModels] Models downloaded via docling downloader')
+        emit({ phase: 'completed', percent: 100, message: 'Modeller hazır' })
         return
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
         Logger.error('[DoclingModels] Real model download failed', {
           error: msg
         })
+        emit({ phase: 'failed', percent: null, message: msg.slice(0, 200) })
         throw new Error(`Model download failed: ${msg.slice(0, 500)}`)
       }
     }
@@ -186,11 +224,22 @@ except Exception as e:
     Logger.info(
       '[DoclingModels] Models marked ready (sentinel fallback; venv missing – test/offline)'
     )
+    emit({ phase: 'completed', percent: 100, message: 'Modeller hazır (sentinel)' })
     return
   }
 
-  // Real download path – each asset is fetched with hash verification
-  for (const asset of MODEL_ASSETS) {
+  // Real download path – each asset is fetched with hash verification.
+  // We report overall percent across all assets when Content-Length is known.
+  const totalFiles = MODEL_ASSETS.length
+  emit({
+    phase: 'downloading',
+    percent: 0,
+    message: `0/${totalFiles} dosya`,
+    totalFiles,
+    currentIndex: 0
+  })
+  for (let i = 0; i < MODEL_ASSETS.length; i += 1) {
+    const asset = MODEL_ASSETS[i]!
     const dest = path.join(layout.models, asset.name)
     // Skip if already present and hash matches (defensive – downloadFile will re-verify)
     try {
@@ -201,12 +250,45 @@ except Exception as e:
       url: asset.url,
       destPath: dest,
       expectedSha256: asset.sha256,
-      onProgress
+      onProgress: (received, total) => {
+        try {
+          onProgress?.(received, total)
+        } catch {}
+        if (total && total > 0) {
+          const filePercent = (received / total) * 100
+          const overall = ((i + filePercent / 100) / totalFiles) * 100
+          emit({
+            phase: 'downloading',
+            percent: Math.min(99, Math.round(overall)),
+            message: `${asset.name} indiriliyor`,
+            currentFile: asset.name,
+            totalFiles,
+            currentIndex: i
+          })
+        } else {
+          emit({
+            phase: 'downloading',
+            percent: null,
+            message: `${asset.name} indiriliyor`,
+            currentFile: asset.name,
+            totalFiles,
+            currentIndex: i
+          })
+        }
+      }
+    })
+    emit({
+      phase: 'downloading',
+      percent: Math.round(((i + 1) / totalFiles) * 100),
+      message: `${i + 1}/${totalFiles} tamamlandı`,
+      totalFiles,
+      currentIndex: i + 1
     })
   }
 
   await fs.writeFile(getModelsMarkerPath(layout), MODELS_MARKER_VERSION, 'utf8')
   Logger.info('[DoclingModels] Models downloaded', { count: MODEL_ASSETS.length })
+  emit({ phase: 'completed', percent: 100, message: 'Modeller hazır' })
 }
 
 export async function deleteModels(componentsRoot?: string): Promise<void> {
@@ -225,11 +307,14 @@ export async function deleteModels(componentsRoot?: string): Promise<void> {
   }
 }
 
-export async function repairModels(componentsRoot?: string): Promise<void> {
+export async function repairModels(
+  componentsRoot?: string,
+  progressReporter?: DoclingModelProgressReporter
+): Promise<void> {
   const status = await getModelStatus(componentsRoot)
   if (status.status === 'ready') return
   // Partial or missing – re-download
-  await downloadModels(undefined, componentsRoot)
+  await downloadModels(undefined, componentsRoot, progressReporter)
 }
 
 export async function getModelDiskUsage(componentsRoot?: string): Promise<number | null> {

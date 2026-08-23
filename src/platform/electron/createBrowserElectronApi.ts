@@ -352,7 +352,8 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         files: ['placeholder.bin'],
         version: '1'
       }),
-      getDiskUsage: stubReturn(0)
+      getDiskUsage: stubReturn(0),
+      onProgress: () => () => {}
     },
     getApiChatConfig: stubReturn({
       providers: [],

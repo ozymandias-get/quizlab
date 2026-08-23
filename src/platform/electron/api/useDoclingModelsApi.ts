@@ -1,6 +1,9 @@
-import type { DoclingModelStatusInfo } from '@shared-core/types'
+import type { DoclingModelProgressEvent, DoclingModelStatusInfo } from '@shared-core/types'
+
+import { getElectronApi } from '@shared/lib/electronApi'
 
 import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 
 import { useElectronMutation, useElectronQuery } from '../useElectron'
 
@@ -45,4 +48,21 @@ export function useDoclingModelsRepair() {
       void qc.invalidateQueries({ queryKey: ['docling', 'service', 'status'] })
     }
   })
+}
+
+export function useDoclingModelsProgress() {
+  const [progress, setProgress] = useState<DoclingModelProgressEvent | null>(null)
+  useEffect(() => {
+    const api = getElectronApi()
+    if (!api?.doclingModels?.onProgress) return
+    const off = api.doclingModels.onProgress((event) => {
+      setProgress(event)
+      if (event.phase === 'completed' || event.phase === 'failed') {
+        // Keep completed visible briefly, then clear
+        setTimeout(() => setProgress(null), 3000)
+      }
+    })
+    return off
+  }, [])
+  return progress
 }

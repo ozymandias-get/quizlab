@@ -82,6 +82,7 @@ export const IPC_CHANNELS = {
   DOCLING_MODELS_DELETE: 'docling:models-delete',
   DOCLING_MODELS_REPAIR: 'docling:models-repair',
   DOCLING_MODELS_GET_DISK_USAGE: 'docling:models-get-disk-usage',
+  DOCLING_MODELS_PROGRESS: 'docling:models-progress',
 
   // Native Messaging (Chrome Extension auth)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
