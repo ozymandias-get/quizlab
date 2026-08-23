@@ -147,6 +147,23 @@ export async function downloadModels(
       venvExists = false
     }
     if (venvExists) {
+      // Quick stdlib sanity check – the user's log shows `No module named 'http.cookies'`
+      // which means the private venv's stdlib is corrupted (common after a partial
+      // uv python install on Windows). Detect early and surface a repairable error
+      // instead of a generic "download failed".
+      try {
+        await runCommandChecked(venvPython, ['-c', 'import http.cookies; print("ok")'], {
+          envOverrides: { PYTHONUNBUFFERED: '1' },
+          timeoutMs: 8000
+        })
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        const friendly =
+          'Python ortamı bozuk (http.cookies eksik). Lütfen Ayarlar → Docling → Onar ile ortamı yeniden kurun.'
+        Logger.error('[DoclingModels] Stdlib check failed', { error: msg })
+        emit({ phase: 'failed', percent: null, message: friendly })
+        throw new Error(`${friendly} Detay: ${msg.slice(0, 300)}`)
+      }
       Logger.info('[DoclingModels] Downloading models via docling.utils.model_downloader', {
         modelsDir: layout.models
       })
@@ -208,12 +225,20 @@ except Exception as e:
         emit({ phase: 'completed', percent: 100, message: 'Modeller hazır' })
         return
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error)
+        const raw = error instanceof Error ? error.message : String(error)
+        // Map known broken-venv symptom to actionable message
+        const isStdlibBroken =
+          raw.includes('http.cookies') ||
+          raw.includes("No module named 'http") ||
+          raw.includes('No module named')
+        const msg = isStdlibBroken
+          ? `Python ortamı bozuk (http.cookies eksik). Lütfen Ayarlar → Docling → Onar ile ortamı yeniden kurun. Detay: ${raw.slice(0, 300)}`
+          : raw
         Logger.error('[DoclingModels] Real model download failed', {
-          error: msg
+          error: raw
         })
         emit({ phase: 'failed', percent: null, message: msg.slice(0, 200) })
-        throw new Error(`Model download failed: ${msg.slice(0, 500)}`)
+        throw new Error(isStdlibBroken ? msg : `Model download failed: ${raw.slice(0, 500)}`)
       }
     }
     // CI / offline fallback when venv is not installed (tests): tiny sentinel

@@ -174,10 +174,76 @@ async function stepEnsureManagedPython(ctx: PipelineContext): Promise<void> {
   if ((await readMarker(markerPath)) === PYTHON_VERSION) {
     const listing = await fs.readdir(layout.runtime).catch(() => [])
     // A marker alone must not fake success after a wiped runtime directory.
-    if (listing.length > 0) return
+    if (listing.length > 0) {
+      // Verify stdlib integrity – the user's log showed `No module named 'http.cookies'`
+      // which means the managed CPython's Lib/http is missing.
+      let stdlibOk = false
+      if (await exists(ctx.venvPythonPath)) {
+        try {
+          await io.exec(ctx.venvPythonPath, ['-c', 'import http.cookies'], {})
+          stdlibOk = true
+        } catch {}
+      }
+      if (!stdlibOk) {
+        try {
+          await io.exec(
+            ctx.uvPath,
+            ['run', '--python', PYTHON_VERSION, 'python', '-c', 'import http.cookies'],
+            uvEnvOverrides(layout)
+          )
+          stdlibOk = true
+        } catch {}
+      }
+      if (stdlibOk) return
+      // Corrupted runtime – force reinstall below. Use robustRm because
+      // python3.dll is often still memory-mapped on Windows and plain rm
+      // leaves a half-deleted tree that makes the next `uv python install`
+      // fail with "Sistem belirtilen yolu bulamıyor (os error 3)" on
+      // `Lib/EXTERNALLY-MANAGED`.
+      const { Logger } = await import('../../core/logger.js')
+      Logger.warn(
+        '[DoclingInstaller] Managed Python stdlib corrupted (http.cookies missing), reinstalling runtime'
+      )
+      await robustRm(layout.runtime).catch(() => {})
+      // Clean any .old-* leftovers from previous EPERM renames
+      try {
+        const entries = await fs.readdir(path.dirname(layout.runtime)).catch(() => [])
+        for (const e of entries) {
+          if (e.startsWith('runtime.old-') || e.startsWith('runtime.')) continue
+          // handled by robustRm's rename fallback – clean those too
+          if (e.includes('.old-')) {
+            await robustRm(path.join(path.dirname(layout.runtime), e)).catch(() => {})
+          }
+        }
+      } catch {}
+      await fs.mkdir(layout.runtime, { recursive: true }).catch(() => {})
+    }
   }
 
-  await io.exec(ctx.uvPath, ['python', 'install', PYTHON_VERSION], uvEnvOverrides(layout))
+  // Ensure runtime root exists before asking uv to populate it – if the
+  // previous robustRm left a half-deleted `cpython-...` without `Lib`, uv
+  // fails with OS error 3 on `Lib/EXTERNALLY-MANAGED`. A clean mkdir fixes it.
+  await fs.mkdir(layout.runtime, { recursive: true }).catch(() => {})
+  try {
+    await io.exec(ctx.uvPath, ['python', 'install', PYTHON_VERSION], uvEnvOverrides(layout))
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    // If uv failed because the tree is half-deleted, clean once more and retry
+    if (msg.includes('EXTERNALLY-MANAGED') || msg.includes('os error 3')) {
+      const { Logger } = await import('../../core/logger.js')
+      Logger.warn(
+        '[DoclingInstaller] uv python install hit half-deleted tree, cleaning and retrying',
+        {
+          error: msg.slice(0, 400)
+        }
+      )
+      await robustRm(layout.runtime).catch(() => {})
+      await fs.mkdir(layout.runtime, { recursive: true }).catch(() => {})
+      await io.exec(ctx.uvPath, ['python', 'install', PYTHON_VERSION], uvEnvOverrides(layout))
+    } else {
+      throw error
+    }
+  }
   await fs.mkdir(path.dirname(markerPath), { recursive: true })
   await fs.writeFile(markerPath, `${PYTHON_VERSION}\n`, 'utf8')
 }
@@ -345,15 +411,82 @@ export async function runDoclingPipeline(options: RunPipelineOptions = {}): Prom
   }
 }
 
+async function robustRm(target: string, retries = 5): Promise<void> {
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    try {
+      // Node 22+ supports maxRetries/retryDelay, but we also do manual retry for EPERM/EBUSY on Windows
+      await fs.rm(target, {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+        retryDelay: 200
+      } as unknown as Parameters<typeof fs.rm>[1])
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code
+      const isLockError = code === 'EPERM' || code === 'EBUSY' || code === 'ENOTEMPTY'
+      if (isLockError && attempt < retries - 1) {
+        // Windows holds python3.dll / venv files for a short time after process exit.
+        // Try to release by chmod and wait.
+        try {
+          await fs.chmod(target, 0o777).catch(() => {})
+        } catch {}
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+        continue
+      }
+      // Last attempt: try rename-then-delete as fallback for locked files
+      if (isLockError && attempt === retries - 1) {
+        try {
+          const tmp = `${target}.old-${Date.now()}`
+          await fs.rename(target, tmp).catch(() => {})
+          await fs
+            .rm(tmp, {
+              recursive: true,
+              force: true,
+              maxRetries: 3,
+              retryDelay: 200
+            } as unknown as Parameters<typeof fs.rm>[1])
+            .catch(() => {})
+          return
+        } catch {}
+      }
+      throw error
+    }
+  }
+}
+
 /** Remove every directory this component owns; foreign files are preserved. */
 export async function removeDoclingComponentArtifacts(componentsRoot?: string): Promise<void> {
   const layout = getDoclingLayout(componentsRoot)
+  // Give Windows a moment to release file locks after service stop
+  await new Promise((r) => setTimeout(r, 300))
+  const errors: unknown[] = []
   for (const subdir of KNOWN_COMPONENT_SUBDIRS) {
-    await fs.rm(path.join(layout.root, subdir), { recursive: true, force: true })
+    const full = path.join(layout.root, subdir)
+    try {
+      await robustRm(full)
+    } catch (error) {
+      // Don't fail whole uninstall if one subdir is stubbornly locked – log and continue.
+      // The manifest is still reset so the component is considered uninstalled; leftover
+      // files will be cleaned on next install/repair or on app restart.
+      errors.push(error)
+    }
   }
+  // Also try to remove the root if empty (but don't fail if not)
+  try {
+    const entries = await fs.readdir(layout.root).catch(() => [])
+    if (entries.length === 0) await fs.rmdir(layout.root).catch(() => {})
+  } catch {}
   // Reset artifact metadata; lifecycle state in components.json is managed by
   // the Optional Component Manager.
   await patchDoclingManifest(layout, emptyManifest())
+  if (errors.length > 0) {
+    const first = errors[0] as NodeJS.ErrnoException
+    // If all subdirs failed, surface the error so UI can show retry hint
+    const allFailed = errors.length === KNOWN_COMPONENT_SUBDIRS.length
+    if (allFailed) throw first
+    // Partial failure is logged but not thrown – component is logically uninstalled
+  }
 }
 
 export interface DoclingHealthReport {
@@ -387,6 +520,17 @@ export async function inspectDoclingInstallation(
     }
   }
 
+  // Stdlib sanity – catches corrupted managed Python (e.g. missing http/cookies.py
+  // which manifests as `No module named 'http.cookies'` during docling import).
+  try {
+    await io.exec(venvPythonPath, ['-c', 'import http.cookies'], {})
+  } catch (error) {
+    return {
+      healthy: false,
+      detail:
+        error instanceof Error ? error.message : 'stdlib http.cookies missing – runtime corrupted'
+    }
+  }
   try {
     await io.exec(venvPythonPath, ['-c', 'import docling'], {
       DOCLING_ARTIFACTS_PATH: layout.models

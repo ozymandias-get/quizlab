@@ -57,14 +57,25 @@ export const doclingComponentDefinition: OptionalComponentDefinition = {
   },
 
   async uninstall() {
-    // If the sidecar is running, stop it first to avoid holding file locks on Windows
+    // If the sidecar is running, stop it first to avoid holding file locks on Windows.
+    // Windows keeps python3.dll memory-mapped for a short time after the process exits,
+    // so we wait a bit before deleting the runtime directory.
     try {
       const { doclingServiceManager } = await import('./doclingServiceManager.js')
       await doclingServiceManager.stop().catch(() => {})
+      await new Promise((r) => setTimeout(r, 1200))
+      // Also ensure any lingering conversion child is gone
+      try {
+        const { doclingConversionService } = await import('./doclingConversionService.js')
+        // Clear any queued tasks that might hold references
+        ;(doclingConversionService as unknown as { _clearForTests?: () => void })._clearForTests?.()
+      } catch {}
     } catch {}
     // Removes only the component's own directories (runtime/environment/
     // models/temp/bin). User-generated QuizLab content lives elsewhere and is
-    // never touched here.
+    // never touched here. The remover now handles EPERM/EBUSY with retries and
+    // will not throw on partial failure (leftover locked files are cleaned on
+    // next install/repair).
     return removeDoclingComponentArtifacts()
   },
 
