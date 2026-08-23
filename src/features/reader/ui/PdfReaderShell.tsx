@@ -48,9 +48,9 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
   const docling = components?.find((c) => c.id === 'docling')
   const isInstalled = docling?.status === 'installed'
   const pdfPath = pdfFile?.path ?? null
-  const { document, isConverting, error, retry, reprocess } = useDocumentConversion(
-    viewMode === 'reader' && isInstalled ? pdfPath : null
-  )
+  const { document, isConverting, error, retry, reprocess } = useDocumentConversion(pdfPath, {
+    enabled: viewMode === 'reader' && isInstalled
+  })
   const downloadModels = useDoclingModelsDownload()
   const pendingJumpPage = usePdfTabStore(
     (s) => s.pdfTabs.find((t) => t.id === activePdfTab?.id)?.pendingJumpPage ?? null

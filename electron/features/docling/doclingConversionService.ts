@@ -101,6 +101,8 @@ class DoclingConversionService {
   private results = new Map<string, QuizLabDocument>()
   private activeConversions = 0
   private readonly MAX_CONCURRENT = 1
+  private children = new Map<string, ReturnType<typeof spawn>>()
+  private cancelled = new Set<string>()
   private deps: ConversionDeps
 
   constructor(deps: Partial<ConversionDeps> = {}) {
@@ -162,21 +164,39 @@ class DoclingConversionService {
     return doc ? { ...doc, blocks: [...doc.blocks], pages: [...doc.pages] } : null
   }
 
-  /**
-   * Cancellation is not yet safely supported (conversion child is short-lived
-   * and task queue is size 1). We intentionally fail instead of faking success
-   * so the renderer can show a correct message.
-   */
   cancelTask(taskId: string): QuizLabConversionTask | null {
     const t = this.tasks.get(taskId)
     if (!t) return null
-    // Only queued tasks can be cancelled; processing tasks would require killing
-    // the child process – not wired to avoid partial/corrupted state.
     if (t.status === 'queued') {
       const next: QuizLabConversionTask = {
         ...t,
         status: 'failed',
-        error: { code: 'unknown', message: 'Conversion cancelled by user', details: null },
+        error: {
+          code: 'cancelled' as QuizLabConversionErrorCode,
+          message: 'Conversion cancelled',
+          details: null
+        },
+        updatedAt: Date.now()
+      }
+      this.tasks.set(taskId, next)
+      return { ...next }
+    }
+    if (t.status === 'processing') {
+      const child = this.children.get(taskId)
+      if (child && !child.killed) {
+        try {
+          child.kill('SIGKILL')
+        } catch {}
+      }
+      this.cancelled.add(taskId)
+      const next: QuizLabConversionTask = {
+        ...t,
+        status: 'failed',
+        error: {
+          code: 'cancelled' as QuizLabConversionErrorCode,
+          message: 'Conversion cancelled',
+          details: null
+        },
         updatedAt: Date.now()
       }
       this.tasks.set(taskId, next)
@@ -290,8 +310,16 @@ class DoclingConversionService {
         gpuEnabled = !!prefs.enabled
       } catch {}
       try {
+        if (this.cancelled.has(taskId)) {
+          this.cancelled.delete(taskId)
+          return
+        }
         await fs.mkdir(outputDir, { recursive: true })
         await fs.mkdir(imagesDir, { recursive: true })
+        if (this.cancelled.has(taskId)) {
+          this.cancelled.delete(taskId)
+          return
+        }
         const converterScript = await this.ensureConverterScript(layout)
         const deadline = Date.now() + TASK_TIMEOUT_MS
         const child = this.deps.spawnFn(
@@ -310,6 +338,9 @@ class DoclingConversionService {
             } as NodeJS.ProcessEnv
           }
         )
+        this.children.set(taskId, child)
+        child.once('exit', () => this.children.delete(taskId))
+        child.once('error', () => this.children.delete(taskId))
         let stderr = ''
         child.stderr?.on('data', (c: Buffer) => {
           stderr += c.toString('utf8')
@@ -323,6 +354,14 @@ class DoclingConversionService {
           (async () => {
             while (Date.now() < deadline) {
               if (child.exitCode !== null || child.signalCode !== null) break
+              if (this.cancelled.has(taskId)) {
+                try {
+                  child.kill('SIGKILL')
+                } catch {}
+                // Wait briefly for exit then return sentinel
+                await delay(200)
+                return 130 as unknown as number | null
+              }
               await delay(POLL_INTERVAL_MS)
             }
             if (Date.now() >= deadline) {
@@ -334,6 +373,14 @@ class DoclingConversionService {
             return new Promise<number | null>((resolve) => child.once('exit', resolve))
           })()
         ])
+        if (this.cancelled.has(taskId)) {
+          this.cancelled.delete(taskId)
+          this.children.delete(taskId)
+          // Task already marked as cancelled by cancelTask – do not overwrite
+          await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {})
+          await fs.rm(imagesDir, { recursive: true, force: true }).catch(() => {})
+          return
+        }
         if (exitCode !== 0) {
           const code = mapErrorCode(stderr, exitCode)
           const message =
@@ -394,6 +441,13 @@ class DoclingConversionService {
         })
         await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {})
       } catch (error) {
+        if (this.cancelled.has(taskId)) {
+          this.cancelled.delete(taskId)
+          // Already marked as cancelled – keep that status
+          await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {})
+          await fs.rm(imagesDir, { recursive: true, force: true }).catch(() => {})
+          return
+        }
         const msg = error instanceof Error ? error.message : String(error)
         let code: QuizLabConversionErrorCode = 'unknown'
         if (msg === 'conversion_timeout') code = 'conversion_timeout'
@@ -401,6 +455,8 @@ class DoclingConversionService {
         this.updateTask(taskId, { status: 'failed', error: { code, message: msg, details: null } })
       }
     } finally {
+      this.children.delete(taskId)
+      this.cancelled.delete(taskId)
       decrement()
     }
   }

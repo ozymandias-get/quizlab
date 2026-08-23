@@ -180,6 +180,7 @@ export type QuizLabConversionErrorCode =
   | 'not_installed'
   | 'service_unavailable'
   | 'model_missing'
+  | 'cancelled'
   | 'unknown'
 
 export interface QuizLabConversionError {
