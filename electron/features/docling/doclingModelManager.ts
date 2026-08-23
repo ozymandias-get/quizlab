@@ -33,6 +33,9 @@ export interface ModelStatusInfo {
 // HuggingFace `ds4sd/docling-models` files with pinned SHA256.
 // For now we track a single marker as the source of truth; the download
 // path is fully wired for real URLs and hash verification.
+// MERGE NOTE: Before production rollout, populate with pinned HF URLs +
+// SHA256 and remove the placeholder.bin path so downloadModels fetches
+// real artifacts. See branch report "REMAINING RISKS / MODEL_ASSETS".
 const MODEL_ASSETS: Array<{ name: string; url: string; sha256: string }> = []
 
 function getModelsMarkerPath(layout: ReturnType<typeof getDoclingLayout>): string {

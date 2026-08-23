@@ -59,6 +59,7 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
 
   useEffect(() => {
     if (downloadModels.isSuccess) retry()
+    // retry is stable via useCallback in useDocumentConversion; safe to depend
   }, [downloadModels.isSuccess, retry])
 
   let readerContent: React.ReactNode = null

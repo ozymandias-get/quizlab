@@ -1,3 +1,4 @@
+/* eslint-disable react/no-array-index-key -- table rows/cells use index as key, no stable id available from Docling */
 import type { QuizLabBlock, QuizLabDocument } from '@shared-core/types'
 
 import { useShowInPdf } from '@features/reader/hooks/useReaderPdfLink'

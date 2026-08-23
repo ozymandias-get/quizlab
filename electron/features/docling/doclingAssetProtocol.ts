@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
-import { net, protocol } from 'electron'
+import { protocol } from 'electron'
 
 import { getDoclingLayout } from './doclingPaths.js'
 
@@ -115,7 +115,3 @@ export function registerDoclingAssetProtocol(): void {
     }
   })
 }
-
-// For fetch-based handlers, Electron's protocol.handle expects a Response
-
-const _net = net

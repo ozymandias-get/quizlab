@@ -76,7 +76,13 @@ export function registerDoclingConversionHandlers(): void {
         return failure('invalid_input', 'Invalid taskId')
       const task = doclingConversionService.getTask(taskId)
       if (!task) return failure('not_found', 'Task not found')
-      return success(task)
+      // Queue-only cancellation – processing task cannot be killed safely yet
+      if (task.status !== 'queued') {
+        return failure('invalid_input', 'Only queued conversions can be cancelled')
+      }
+      const cancelled = doclingConversionService.cancelTask(taskId)
+      if (!cancelled) return failure('not_found', 'Task not found')
+      return success(cancelled)
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')

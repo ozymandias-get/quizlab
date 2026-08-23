@@ -146,6 +146,29 @@ class DoclingConversionService {
     return doc ? { ...doc, blocks: [...doc.blocks], pages: [...doc.pages] } : null
   }
 
+  /**
+   * Cancellation is not yet safely supported (conversion child is short-lived
+   * and task queue is size 1). We intentionally fail instead of faking success
+   * so the renderer can show a correct message.
+   */
+  cancelTask(taskId: string): QuizLabConversionTask | null {
+    const t = this.tasks.get(taskId)
+    if (!t) return null
+    // Only queued tasks can be cancelled; processing tasks would require killing
+    // the child process – not wired to avoid partial/corrupted state.
+    if (t.status === 'queued') {
+      const next: QuizLabConversionTask = {
+        ...t,
+        status: 'failed',
+        error: { code: 'unknown', message: 'Conversion cancelled by user', details: null },
+        updatedAt: Date.now()
+      }
+      this.tasks.set(taskId, next)
+      return { ...next }
+    }
+    return { ...t }
+  }
+
   private updateTask(
     taskId: string,
     patch: Partial<QuizLabConversionTask>

@@ -79,6 +79,11 @@ export async function ensureSidecarScript(serviceRoot: string): Promise<string> 
   const script = `
 import os, sys, argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
+# NOTE: This is a minimal health-check sidecar placeholder.
+# Real Docling conversion is performed by convert_docling.py via direct spawn
+# in doclingConversionService.ts. This sidecar exists so the service manager
+# can demonstrate lifecycle (start/stop/health) without pulling
+# heavy docling-serve. Future upgrade: replace with docling-serve HTTP.
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--host', default='127.0.0.1')
@@ -112,5 +117,6 @@ print(f"Docling sidecar listening on {args.host}:{args.port}", flush=True)
 server.serve_forever()
 `.trimStart()
   await fs.writeFile(scriptPath, script, 'utf8')
+  await fs.chmod(scriptPath, 0o600).catch(() => {})
   return scriptPath
 }
