@@ -5,7 +5,7 @@ import { useShowInPdf } from '@features/reader/hooks/useReaderPdfLink'
 
 import { cn } from '@shared/lib/uiUtils'
 
-import { ImageIcon } from 'lucide-react'
+import { ExternalLink, ImageIcon } from 'lucide-react'
 import { memo, useState } from 'react'
 
 function PageBadge({ pageNumber }: { pageNumber: number }) {
@@ -35,18 +35,18 @@ export const BlockWrapper = memo(function BlockWrapper({
       className="group/block scroll-mt-4"
       style={{ contentVisibility: 'auto' as never, containIntrinsicSize: '0 600px' } as never}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">{children}</div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1 pt-1">
           <PageBadge pageNumber={block.pageNumber} />
           <button
             type="button"
             onClick={() => showInPdf(block)}
-            className="border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/30 text-ql-11 hidden items-center gap-1 rounded-full border px-2 py-0.5 group-hover/block:inline-flex"
+            className="border-border/60 bg-card/80 text-muted-foreground hover:text-foreground hover:bg-card hover:border-border hidden h-6 w-6 items-center justify-center rounded-md border opacity-0 backdrop-blur transition-all group-hover/block:opacity-100 md:inline-flex"
             aria-label={`PDF'de göster, sayfa ${block.pageNumber}`}
             title="PDF'de göster"
           >
-            PDF’de Göster
+            <ExternalLink className="h-3 w-3" />
           </button>
         </div>
       </div>
