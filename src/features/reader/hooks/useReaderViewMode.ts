@@ -10,12 +10,26 @@ export function useReaderViewMode(activeTabId: string | undefined) {
   })
   const setPdfViewMode = usePdfTabStore((s) => s.setPdfViewMode)
 
+  // DEBUG: trace viewMode reads
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.debug(
+      `[ReaderDebug] useReaderViewMode tab=${activeTabId ?? 'none'} -> viewMode=${viewMode}`
+    )
+  }
+
   const setViewMode = useCallback(
     (mode: ReaderViewMode) => {
-      if (!activeTabId) return
+      if (!activeTabId) {
+        // eslint-disable-next-line no-console
+        console.debug(`[ReaderDebug] setViewMode ignored (no activeTab) -> ${mode}`)
+        return
+      }
+      // eslint-disable-next-line no-console
+      console.debug(`[ReaderDebug] setViewMode tab=${activeTabId} ${viewMode} -> ${mode}`)
       setPdfViewMode(activeTabId, mode)
     },
-    [activeTabId, setPdfViewMode]
+    [activeTabId, setPdfViewMode, viewMode]
   )
 
   return { viewMode, setViewMode }

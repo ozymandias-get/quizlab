@@ -81,6 +81,10 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         viewerSessionKey: nextViewerSessionKey
       }
 
+      // eslint-disable-next-line no-console
+      console.debug(
+        `[ReaderDebug] openPdfInTab reuse existingTab id=${existingTab.id} file=${normalizedFile.name} viewMode=${existingTab.viewMode ?? 'pdf(default)'} -> kept as ${(updatedTab as { viewMode?: string }).viewMode ?? 'pdf(default)'}`
+      )
       set({
         pdfTabs: currentTabs.map((tab) => (tab.id === existingTab.id ? updatedTab : tab)),
         activePdfTabId: existingTab.id
@@ -98,6 +102,10 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         webviewUrl: undefined,
         viewerSessionKey
       }
+      // eslint-disable-next-line no-console
+      console.debug(
+        `[ReaderDebug] openPdfInTab reuse empty activeTab id=${activeTab.id} file=${normalizedFile.name} viewMode=${activeTab.viewMode ?? 'pdf(default)'} -> kept`
+      )
       set({
         pdfTabs: currentTabs.map((tab) => (tab.id === activeTab.id ? updatedTab : tab)),
         activePdfTabId: activeTab.id
@@ -108,6 +116,10 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
     const newTabId = createViewerSessionKey()
     const viewerSessionKey = createViewerSessionKey()
     const newTab: PdfTab = { id: newTabId, file: normalizedFile, kind: 'pdf', viewerSessionKey }
+    // eslint-disable-next-line no-console
+    console.debug(
+      `[ReaderDebug] openPdfInTab newTab id=${newTabId} file=${normalizedFile.name} viewMode=${(newTab as { viewMode?: string }).viewMode ?? 'pdf(default)'}`
+    )
     set({
       pdfTabs: [...currentTabs, newTab],
       activePdfTabId: newTabId
@@ -213,6 +225,8 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
   },
 
   setPdfViewMode: (tabId, viewMode) => {
+    // eslint-disable-next-line no-console
+    console.debug(`[ReaderDebug] store.setPdfViewMode tab=${tabId} -> ${viewMode}`)
     set((state) => ({
       pdfTabs: state.pdfTabs.map((tab) => (tab.id === tabId ? { ...tab, viewMode } : tab))
     }))

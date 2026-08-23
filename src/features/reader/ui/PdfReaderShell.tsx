@@ -57,6 +57,15 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
   )
   const setPendingJumpPage = usePdfTabStore((s) => s.setPendingJumpPage)
 
+  const hasDoc = !!document
+  useEffect(() => {
+    // DEBUG: render trace
+    // eslint-disable-next-line no-console
+    console.debug(
+      `[ReaderDebug] PdfReaderShell render tab=${activePdfTab?.id ?? 'none'} viewMode=${viewMode} pdf=${pdfPath ?? 'null'} installed=${isInstalled} converting=${isConverting} hasDoc=${hasDoc} error=${error ?? 'none'}`
+    )
+  }, [activePdfTab?.id, viewMode, pdfPath, isInstalled, isConverting, hasDoc, error])
+
   useEffect(() => {
     if (downloadModels.isSuccess) retry()
     // retry is stable via useCallback in useDocumentConversion; safe to depend
