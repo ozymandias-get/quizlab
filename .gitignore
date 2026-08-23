@@ -148,3 +148,6 @@ crashes/
 
 # Artifacts
 artifacts/
+
+# Playwright MCP
+.playwright-mcp/

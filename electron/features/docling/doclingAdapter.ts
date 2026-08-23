@@ -119,7 +119,15 @@ function labelToBlockType(
   return { type: 'paragraph' }
 }
 
-function buildRefMap(raw: DoclingDocumentRaw): Map<string, DoclingTextItem & { _kind: string }> {
+interface DoclingGroup {
+  self_ref?: string
+  children?: DoclingRef[]
+  label?: string
+}
+
+function buildRefMap(
+  raw: DoclingDocumentRaw & { groups?: DoclingGroup[] }
+): Map<string, DoclingTextItem & { _kind: string }> {
   const map = new Map<string, DoclingTextItem & { _kind: string }>()
   const push = (arr: DoclingTextItem[] | undefined, kind: string, base: string) => {
     if (!arr) return
@@ -132,6 +140,32 @@ function buildRefMap(raw: DoclingDocumentRaw): Map<string, DoclingTextItem & { _
   push(raw.tables, 'tables', 'tables')
   // Some docling versions use `body` children that reference `texts` etc., but also have `groups`
   return map
+}
+
+function flattenRefs(
+  refs: DoclingRef[],
+  raw: DoclingDocumentRaw & { groups?: DoclingGroup[] },
+  refMap: Map<string, unknown>
+): DoclingRef[] {
+  const groups = (raw as { groups?: DoclingGroup[] }).groups ?? []
+  const groupMap = new Map<string, DoclingGroup>()
+  for (const g of groups) if (g.self_ref) groupMap.set(g.self_ref, g)
+  const out: DoclingRef[] = []
+  const seen = new Set<string>()
+  const expand = (r: DoclingRef) => {
+    if (seen.has(r.$ref)) return
+    seen.add(r.$ref)
+    const g = groupMap.get(r.$ref)
+    if (g?.children?.length) {
+      for (const child of g.children) expand(child)
+      return
+    }
+    // Only keep refs that actually resolve to a text/picture/table item;
+    // otherwise skip (unknown ref)
+    if (refMap.has(r.$ref)) out.push(r)
+  }
+  for (const r of refs) expand(r)
+  return out
 }
 
 function normalizeDoclingRaw(input: unknown): DoclingDocumentRaw {
@@ -161,18 +195,26 @@ export function adaptDoclingToQuizLabDocument(
   const docId = options.docId ?? randomUUID()
   const now = Date.now()
 
-  const refMap = buildRefMap(raw)
+  const refMap = buildRefMap(raw as DoclingDocumentRaw & { groups?: DoclingGroup[] })
   const orderRefs: DoclingRef[] = raw.body?.children ?? []
 
   // Fallback order: all texts/pictures/tables in the order they appear
-  const fallbackRefs: DoclingRef[] =
+  let fallbackRefs: DoclingRef[] =
     orderRefs.length > 0
-      ? orderRefs
+      ? flattenRefs(orderRefs, raw as DoclingDocumentRaw & { groups?: DoclingGroup[] }, refMap)
       : [
           ...(raw.texts ?? []).map((_, i) => ({ $ref: `#/texts/${i}` }) as DoclingRef),
           ...(raw.pictures ?? []).map((_, i) => ({ $ref: `#/pictures/${i}` }) as DoclingRef),
           ...(raw.tables ?? []).map((_, i) => ({ $ref: `#/tables/${i}` }) as DoclingRef)
         ]
+  // If flattening removed everything (e.g. only groups with no resolvable children), fall back to raw order
+  if (fallbackRefs.length === 0 && orderRefs.length > 0) {
+    fallbackRefs = [
+      ...(raw.texts ?? []).map((_, i) => ({ $ref: `#/texts/${i}` }) as DoclingRef),
+      ...(raw.pictures ?? []).map((_, i) => ({ $ref: `#/pictures/${i}` }) as DoclingRef),
+      ...(raw.tables ?? []).map((_, i) => ({ $ref: `#/tables/${i}` }) as DoclingRef)
+    ]
+  }
 
   const blocks: QuizLabBlock[] = []
   let readingOrder = 0
@@ -273,12 +315,30 @@ export function adaptDoclingToQuizLabDocument(
     }
   }
 
-  // Pages
-  const pages: QuizLabPage[] = (raw.pages ?? []).map((p) => ({
-    pageNumber: p.page_no,
-    width: p.size?.width ?? 0,
-    height: p.size?.height ?? 0,
-    dpi: p.dpi ?? null
+  // Pages – defensive: docling has shipped pages as array, dict/object, or missing
+  const rawPages = raw.pages as unknown
+  const pagesArray: Array<{
+    page_no: number
+    size?: { width: number; height: number }
+    dpi?: number
+  }> = Array.isArray(rawPages)
+    ? (rawPages as Array<{
+        page_no: number
+        size?: { width: number; height: number }
+        dpi?: number
+      }>)
+    : rawPages && typeof rawPages === 'object'
+      ? (Object.values(rawPages as Record<string, unknown>) as Array<{
+          page_no: number
+          size?: { width: number; height: number }
+          dpi?: number
+        }>)
+      : []
+  const pages: QuizLabPage[] = pagesArray.map((p) => ({
+    pageNumber: (p as { page_no?: number }).page_no ?? 0,
+    width: (p as { size?: { width: number; height: number } }).size?.width ?? 0,
+    height: (p as { size?: { width: number; height: number } }).size?.height ?? 0,
+    dpi: (p as { dpi?: number }).dpi ?? null
   }))
 
   // Deduce pageCount
