@@ -304,10 +304,20 @@ class DoclingConversionService {
       const outputJson = path.join(outputDir, 'docling.json')
       const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
       // GPU toggle – read persisted pref, best-effort (default off)
+      // If GPU is enabled but no GPU was detected (cpu/none), force CPU to avoid
+      // WinError 127 from c10_cuda.dll when CUDA torch is installed without driver.
       let gpuEnabled = false
       try {
         const prefs = await getGpuPrefs()
-        gpuEnabled = !!prefs.enabled
+        if (prefs.enabled) {
+          const dev = (prefs.lastDetected ?? '').toLowerCase()
+          if (dev === 'cpu' || dev === 'none' || dev === '') {
+            // No GPU detected – don't set DOCLING_GPU_ENABLED, stay on CPU
+            gpuEnabled = false
+          } else {
+            gpuEnabled = true
+          }
+        }
       } catch {}
       try {
         if (this.cancelled.has(taskId)) {
@@ -567,6 +577,29 @@ except Exception as e:
     if "corrupt" in msg or "damaged" in msg:
         print(f"corrupted PDF: {e}", file=sys.stderr)
         sys.exit(11)
+    if "c10_cuda" in msg or "winerror 127" in msg:
+        print(f"GPU torch driver missing, retrying with CPU: {e}", file=sys.stderr, flush=True)
+        try:
+            from docling.document_converter import DocumentConverter as CpuConverter
+            cpu_converter = CpuConverter()
+            cpu_result = cpu_converter.convert(str(pdf_path))
+            cpu_doc = cpu_result.document
+            try:
+                from docling.datamodel.document import ImageRefMode as CpuImageMode
+                cpu_data = cpu_doc.export_to_dict(image_mode=CpuImageMode.EMBEDDED)
+            except Exception:
+                try:
+                    cpu_data = cpu_doc.export_to_dict(image_mode="embedded")
+                except Exception:
+                    cpu_data = cpu_doc.export_to_dict()
+            with open(out_path, 'w', encoding='utf-8') as f:
+                json.dump(cpu_data, f, ensure_ascii=False)
+            print(f"CPU fallback succeeded {pdf_path} -> {out_path}", flush=True)
+            sys.exit(0)
+        except Exception as e2:
+            print(f"CPU fallback also failed: {e2}", file=sys.stderr)
+            import traceback; traceback.print_exc(file=sys.stderr)
+            sys.exit(1)
     print(f"conversion failed: {e}", file=sys.stderr)
     import traceback; traceback.print_exc(file=sys.stderr)
     sys.exit(1)

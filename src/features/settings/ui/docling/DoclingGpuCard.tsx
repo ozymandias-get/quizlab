@@ -31,7 +31,7 @@ const DoclingGpuCard = memo(function DoclingGpuCard({ isInstalled }: Props) {
   const gpuDeviceLabel = gpuDetect?.device ?? gpuPrefs?.lastDetected ?? 'cpu'
   const isCudaDriverFoundButTorchCpu =
     !!gpuDetect?.detail?.includes('torch CUDA') || (!gpuAvailable && gpuDeviceLabel === 'cuda')
-  const showCudaDownload = gpuEnabled && isInstalled && !gpuAvailable
+  const showCudaDownload = gpuEnabled && isInstalled && isCudaDriverFoundButTorchCpu
   const hideGenericGpuWarning = isCudaDriverFoundButTorchCpu
 
   return (
