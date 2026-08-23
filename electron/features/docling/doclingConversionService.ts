@@ -418,9 +418,10 @@ class DoclingConversionService {
       }
       // GPU toggle was added after 2026-08: old script lacks DOCLING_GPU_ENABLED marker -> force regenerate
       const existing = await fs.readFile(scriptPath, 'utf8').catch(() => '')
-      if (existing.includes('DOCLING_GPU_ENABLED')) return scriptPath
+      if (existing.includes('DOCLING_GPU_ENABLED') && existing.includes('IMAGE_EMBED'))
+        return scriptPath
       await fs.rm(scriptPath, { force: true }).catch(() => {})
-      throw new Error('Regenerate for GPU support')
+      throw new Error('Regenerate for GPU/image support')
     } catch {}
     await fs.mkdir(path.dirname(scriptPath), { recursive: true })
     const script = `
@@ -438,10 +439,20 @@ if pdf_path.suffix.lower() != ".pdf":
     sys.exit(3)
 
 def _make_converter():
+    # IMAGE_EMBED: generate_picture_images ensures pictures are rasterised, image_mode=EMBEDDED embeds base64
     use_gpu = os.environ.get("DOCLING_GPU_ENABLED") == "1"
     if not use_gpu:
-        from docling.document_converter import DocumentConverter
-        return DocumentConverter()
+        try:
+            from docling.datamodel.pipeline_options import PdfPipelineOptions
+            from docling.document_converter import DocumentConverter, PdfFormatOption
+            from docling.datamodel.base_models import InputFormat
+            opts = PdfPipelineOptions(generate_picture_images=True, images_scale=1.7, do_picture_classification=True)
+            print("CPU converter with picture images", flush=True)
+            return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
+        except Exception as e:
+            print(f"CPU picture opts failed, fallback to default: {e}", file=sys.stderr, flush=True)
+            from docling.document_converter import DocumentConverter
+            return DocumentConverter()
     # GPU path – try accelerator, fall back to CPU on any failure
     try:
         from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -455,7 +466,7 @@ def _make_converter():
                 acc = AcceleratorOptions(device=AcceleratorDevice.AUTO)
             except Exception:
                 acc = AcceleratorOptions(device="auto")
-            opts = PdfPipelineOptions(accelerator_options=acc)
+            opts = PdfPipelineOptions(generate_picture_images=True, images_scale=1.7, do_picture_classification=True, accelerator_options=acc)
             print(f"GPU enabled, using accelerator {acc.device}", flush=True)
             return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
         except ImportError:
@@ -463,7 +474,7 @@ def _make_converter():
         # Fallback: PdfPipelineOptions may directly accept device
         try:
             from docling.datamodel.pipeline_options import PdfPipelineOptions
-            opts = PdfPipelineOptions(enable_accelerator=True)
+            opts = PdfPipelineOptions(generate_picture_images=True, images_scale=1.7, do_picture_classification=True, enable_accelerator=True)
             print("GPU enabled (fallback enable_accelerator)", flush=True)
             return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
         except Exception:
@@ -482,7 +493,16 @@ try:
     if not has_text:
         pass
 
-    data = doc.export_to_dict()
+    # Embed images as base64 so secureImageAssets can write them to disk and serve via quizlab-asset://
+    try:
+        from docling.datamodel.document import ImageRefMode
+        data = doc.export_to_dict(image_mode=ImageRefMode.EMBEDDED)
+    except Exception:
+        # Fallback if ImageRefMode not available
+        try:
+            data = doc.export_to_dict(image_mode="embedded")
+        except Exception:
+            data = doc.export_to_dict()
 except Exception as e:
     msg = str(e).lower()
     if "password" in msg or "encrypted" in msg:

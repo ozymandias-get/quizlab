@@ -11,7 +11,7 @@ import { DOCLING_CORE_VERSION, DOCLING_VERSION } from './doclingVersions.js'
 // Schema version for the cached document format. Bump when QuizLabDocument changes incompatibly.
 export const QUIZLAB_DOCUMENT_SCHEMA_VERSION = 1
 // Adapter/parser version – bump when doclingAdapter logic changes.
-export const QUIZLAB_ADAPTER_VERSION = '1.0.0'
+export const QUIZLAB_ADAPTER_VERSION = '1.0.1'
 
 export interface CacheManifest {
   sourceHash: string

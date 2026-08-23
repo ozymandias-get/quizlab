@@ -5,12 +5,13 @@ import { useShowInPdf } from '@features/reader/hooks/useReaderPdfLink'
 
 import { cn } from '@shared/lib/uiUtils'
 
-import { memo } from 'react'
+import { ImageIcon } from 'lucide-react'
+import { memo, useState } from 'react'
 
 function PageBadge({ pageNumber }: { pageNumber: number }) {
   return (
     <span
-      className="text-ql-11 text-muted-foreground border-border bg-muted/40 inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono"
+      className="text-ql-11 text-muted-foreground/70 border-border/60 bg-muted/30 inline-flex items-center rounded-full border px-1.5 py-0.5 font-mono backdrop-blur"
       title={`Sayfa ${pageNumber}`}
       aria-label={`Sayfa ${pageNumber}`}
     >
@@ -55,9 +56,17 @@ export const BlockWrapper = memo(function BlockWrapper({
 
 export function HeadingBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'heading' }> }) {
   const Tag = `h${Math.min(6, Math.max(1, block.level))}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+  const level1 = block.level === 1
   return (
     <BlockWrapper block={block}>
-      <Tag className="text-foreground text-ql-15 mt-6 mb-2 font-semibold tracking-tight first:mt-0 data-[level='1']:text-[1.3rem] data-[level='2']:text-[1.15rem]">
+      <Tag
+        className={cn(
+          'text-foreground mt-7 mb-2 font-semibold tracking-tight first:mt-0',
+          level1
+            ? 'border-primary/40 relative border-l-2 pl-3 text-[1.35rem] leading-7'
+            : 'text-ql-15 text-[1.1rem] opacity-95'
+        )}
+      >
         {block.text}
       </Tag>
     </BlockWrapper>
@@ -98,25 +107,38 @@ export function ListBlockView({ block }: { block: Extract<QuizLabBlock, { type: 
 
 export function ImageBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'image' }> }) {
   const src = block.assetUrl
+  const [failed, setFailed] = useState(false)
+  const showImg = !!src && !failed
   return (
     <BlockWrapper block={block}>
-      <figure className="border-border bg-card my-6 overflow-hidden rounded-xl border">
-        {src ? (
-          <img
-            src={src}
-            alt={block.alt ?? block.caption ?? 'Görsel'}
-            loading="lazy"
-            decoding="async"
-            className="h-auto max-h-[70vh] w-full object-contain"
-            style={{ aspectRatio: 'auto' }}
-          />
+      <figure className="border-border/60 bg-card/60 supports-[backdrop-filter]:bg-card/40 my-6 overflow-hidden rounded-2xl border shadow-sm backdrop-blur">
+        {showImg ? (
+          <div className="bg-muted/20 flex justify-center p-2">
+            <img
+              src={src}
+              alt={block.alt ?? block.caption ?? 'Görsel'}
+              loading="lazy"
+              decoding="async"
+              onError={() => setFailed(true)}
+              className="h-auto max-h-[65vh] w-auto max-w-full rounded-lg object-contain shadow"
+              style={{ aspectRatio: 'auto' }}
+            />
+          </div>
         ) : (
-          <div className="bg-muted text-muted-foreground text-ql-13 flex h-32 items-center justify-center">
-            Görsel yüklenemedi
+          <div className="from-muted/60 to-muted/20 border-border/40 flex flex-col items-center justify-center gap-2 border-b bg-gradient-to-b px-6 py-10">
+            <div className="bg-muted text-muted-foreground/60 rounded-full p-3">
+              <ImageIcon className="h-6 w-6" />
+            </div>
+            <span className="text-muted-foreground text-ql-13">Görsel yüklenemedi</span>
+            {src && (
+              <span className="text-muted-foreground/60 text-ql-11 max-w-full truncate font-mono">
+                {src.slice(0, 48)}…
+              </span>
+            )}
           </div>
         )}
         {block.caption && (
-          <figcaption className="text-muted-foreground bg-muted/40 text-ql-12 px-3 py-2 italic">
+          <figcaption className="text-muted-foreground bg-muted/30 text-ql-12 border-border/40 border-t px-4 py-2.5 italic">
             {block.caption}
           </figcaption>
         )}
@@ -128,20 +150,25 @@ export function ImageBlockView({ block }: { block: Extract<QuizLabBlock, { type:
 export function TableBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'table' }> }) {
   return (
     <BlockWrapper block={block}>
-      <figure className="border-border my-6 overflow-hidden rounded-xl border">
+      <figure className="border-border/60 my-6 overflow-hidden rounded-2xl border shadow-sm">
         <div className="max-w-full overflow-x-auto">
-          <table className="text-ql-13 w-full min-w-[400px] border-collapse">
+          <table className="text-ql-13 w-full min-w-[420px] border-collapse">
             <tbody>
               {block.rows.map((row, ri) => (
-                <tr key={ri} className={ri === 0 ? 'bg-muted/50' : ''}>
+                <tr
+                  key={ri}
+                  className={cn(
+                    ri === 0 ? 'bg-muted/60' : ri % 2 === 0 ? 'bg-muted/15' : 'bg-card'
+                  )}
+                >
                   {row.map((cell, ci) => (
                     <td
                       key={ci}
                       colSpan={cell.colSpan}
                       rowSpan={cell.rowSpan}
                       className={cn(
-                        'border-border border px-3 py-2 text-left align-top',
-                        cell.isHeader && 'bg-muted font-semibold'
+                        'border-border/60 border px-3.5 py-2.5 text-left align-top leading-6',
+                        cell.isHeader && 'bg-muted/80 font-semibold'
                       )}
                     >
                       {cell.text}
@@ -153,7 +180,7 @@ export function TableBlockView({ block }: { block: Extract<QuizLabBlock, { type:
           </table>
         </div>
         {block.caption && (
-          <figcaption className="text-muted-foreground bg-muted/40 text-ql-12 px-3 py-2 italic">
+          <figcaption className="text-muted-foreground bg-muted/30 text-ql-12 border-border/40 border-t px-4 py-2.5 italic">
             {block.caption}
           </figcaption>
         )}
