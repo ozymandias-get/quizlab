@@ -7,7 +7,6 @@ import { AlertTriangle, CheckCircle, Download, HardDrive, RefreshCw, Trash2 } fr
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import DoclingGpuCard from './docling/DoclingGpuCard'
 import DoclingModelsCard from './docling/DoclingModelsCard'
 import DoclingRemoveDialog from './docling/DoclingRemoveDialog'
 import { useDoclingTabState } from './docling/useDoclingTabState'
@@ -176,8 +175,6 @@ const DoclingTab = memo(function DoclingTab() {
         onRepair={handleRepairModels}
         onDelete={handleDeleteModels}
       />
-
-      <DoclingGpuCard isInstalled={isInstalled} />
 
       <div className="flex flex-wrap gap-2.5">
         {!isInstalled ? (

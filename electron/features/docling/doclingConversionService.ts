@@ -14,7 +14,6 @@ import type {
 } from '../../../shared/types/quizlabDocument.js'
 import { Logger } from '../../core/logger.js'
 import { adaptDoclingToQuizLabDocument } from './doclingAdapter.js'
-import { getGpuPrefs } from './doclingGpuSettings.js'
 import { getModelStatus } from './doclingModelManager.js'
 import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
 import { doclingServiceManager } from './doclingServiceManager.js'
@@ -303,22 +302,9 @@ class DoclingConversionService {
       const outputDir = path.join(layout.temp, 'conversions', taskId)
       const outputJson = path.join(outputDir, 'docling.json')
       const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
-      // GPU toggle – read persisted pref, best-effort (default off)
-      // If GPU is enabled but no GPU was detected (cpu/none), force CPU to avoid
-      // WinError 127 from c10_cuda.dll when CUDA torch is installed without driver.
-      let gpuEnabled = false
-      try {
-        const prefs = await getGpuPrefs()
-        if (prefs.enabled) {
-          const dev = (prefs.lastDetected ?? '').toLowerCase()
-          if (dev === 'cpu' || dev === 'none' || dev === '') {
-            // No GPU detected – don't set DOCLING_GPU_ENABLED, stay on CPU
-            gpuEnabled = false
-          } else {
-            gpuEnabled = true
-          }
-        }
-      } catch {}
+      // GPU support removed – always CPU to avoid c10_cuda.dll WinError 127.
+      // Previous GPU toggle caused repeated failures on systems without CUDA.
+      const gpuEnabled = false
       try {
         if (this.cancelled.has(taskId)) {
           this.cancelled.delete(taskId)
