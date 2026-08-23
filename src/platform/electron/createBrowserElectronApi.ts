@@ -355,6 +355,20 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       getDiskUsage: stubReturn(0),
       onProgress: () => () => {}
     },
+    doclingPipeline: {
+      getPrefs: stubReturn({
+        doOcr: false,
+        extractFigures: false,
+        detectTables: true,
+        fastTables: true
+      }),
+      setPrefs: stubReturn({
+        doOcr: false,
+        extractFigures: false,
+        detectTables: true,
+        fastTables: true
+      })
+    },
     doclingGpu: {
       getPrefs: stubReturn({ enabled: false, lastDetected: 'cpu' }),
       setEnabled: stubReturn({ enabled: false, lastDetected: 'cpu' }),

@@ -303,8 +303,23 @@ class DoclingConversionService {
       const outputJson = path.join(outputDir, 'docling.json')
       const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
       // GPU support removed – always CPU to avoid c10_cuda.dll WinError 127.
-      // Previous GPU toggle caused repeated failures on systems without CUDA.
       const gpuEnabled = false
+      let pipelinePrefs = {
+        doOcr: false,
+        extractFigures: false,
+        detectTables: true,
+        fastTables: true
+      }
+      try {
+        const { getPipelinePrefs } = await import('./doclingPipelineSettings.js')
+        const p = await getPipelinePrefs()
+        pipelinePrefs = {
+          doOcr: !!p.doOcr,
+          extractFigures: !!p.extractFigures,
+          detectTables: !!p.detectTables,
+          fastTables: !!p.fastTables
+        }
+      } catch {}
       try {
         if (this.cancelled.has(taskId)) {
           this.cancelled.delete(taskId)
@@ -328,6 +343,10 @@ class DoclingConversionService {
               ...process.env,
               DOCLING_ARTIFACTS_PATH: layout.models,
               DOCLING_GPU_ENABLED: gpuEnabled ? '1' : '0',
+              DOCLING_DO_OCR: pipelinePrefs.doOcr ? '1' : '0',
+              DOCLING_EXTRACT_FIGURES: pipelinePrefs.extractFigures ? '1' : '0',
+              DOCLING_DETECT_TABLES: pipelinePrefs.detectTables ? '1' : '0',
+              DOCLING_FAST_TABLES: pipelinePrefs.fastTables ? '1' : '0',
               PYTHONUNBUFFERED: '1',
               PYTHONHOME: undefined,
               PYTHONPATH: undefined
@@ -476,6 +495,7 @@ class DoclingConversionService {
       throw new Error('Regenerate for GPU/image support')
     } catch {}
     await fs.mkdir(path.dirname(scriptPath), { recursive: true })
+    // eslint-disable-next-line no-secrets/no-secrets -- Python script contains env var checks, not secrets
     const script = `
 import os, sys, json, pathlib
 from pathlib import Path
@@ -492,49 +512,38 @@ if pdf_path.suffix.lower() != ".pdf":
 
 def _make_converter():
     # IMAGE_EMBED: generate_picture_images ensures pictures are rasterised, image_mode=EMBEDDED embeds base64
-    use_gpu = os.environ.get("DOCLING_GPU_ENABLED") == "1"
-    if not use_gpu:
-        try:
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
-            from docling.document_converter import DocumentConverter, PdfFormatOption
-            from docling.datamodel.base_models import InputFormat
-            opts = PdfPipelineOptions(generate_picture_images=True, images_scale=1.7, do_picture_classification=True)
-            print("CPU converter with picture images", flush=True)
-            return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
-        except Exception as e:
-            print(f"CPU picture opts failed, fallback to default: {e}", file=sys.stderr, flush=True)
-            from docling.document_converter import DocumentConverter
-            return DocumentConverter()
-    # GPU path – try accelerator, fall back to CPU on any failure
+    # Pipeline prefs from Settings (4 toggles) – defaults match doclingPipelineSettings.ts
+    do_ocr = os.environ.get("DOCLING_DO_OCR") == "1"
+    extract_figs = os.environ.get("DOCLING_EXTRACT_FIGURES") == "1"
+    detect_tables = os.environ.get("DOCLING_DETECT_TABLES") == "1"
+    fast_tables = os.environ.get("DOCLING_FAST_TABLES") == "1"
+    # GPU removed – always CPU
     try:
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import DocumentConverter, PdfFormatOption
         from docling.datamodel.base_models import InputFormat
-        # Try modern accelerator API (docling 2.x)
-        try:
-            from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
-            # AUTO lets docling pick cuda/mps if available
+        kwargs = dict(
+            do_ocr=do_ocr,
+            do_table_structure=detect_tables,
+            generate_picture_images=extract_figs,
+            do_picture_classification=extract_figs,
+            images_scale=1.2 if extract_figs else 1.0,
+        )
+        # Table mode FAST vs ACCURATE
+        if detect_tables and fast_tables:
             try:
-                acc = AcceleratorOptions(device=AcceleratorDevice.AUTO)
+                from docling.datamodel.pipeline_options import TableFormerMode
+                from docling.datamodel.pipeline_options import TableStructureOptions
+                kwargs["table_structure_options"] = TableStructureOptions(mode=TableFormerMode.FAST)
             except Exception:
-                acc = AcceleratorOptions(device="auto")
-            opts = PdfPipelineOptions(generate_picture_images=True, images_scale=1.7, do_picture_classification=True, accelerator_options=acc)
-            print(f"GPU enabled, using accelerator {acc.device}", flush=True)
-            return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
-        except ImportError:
-            pass
-        # Fallback: PdfPipelineOptions may directly accept device
-        try:
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
-            opts = PdfPipelineOptions(generate_picture_images=True, images_scale=1.7, do_picture_classification=True, enable_accelerator=True)
-            print("GPU enabled (fallback enable_accelerator)", flush=True)
-            return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
-        except Exception:
-            pass
+                pass
+        opts = PdfPipelineOptions(**kwargs)
+        print(f"Pipeline opts do_ocr={do_ocr} figs={extract_figs} tables={detect_tables} fast={fast_tables}", flush=True)
+        return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
     except Exception as e:
-        print(f"GPU setup failed, falling back to CPU: {e}", file=sys.stderr, flush=True)
-    from docling.document_converter import DocumentConverter
-    return DocumentConverter()
+        print(f"Pipeline opts failed, fallback to default: {e}", file=sys.stderr, flush=True)
+        from docling.document_converter import DocumentConverter
+        return DocumentConverter()
 
 try:
     converter = _make_converter()
@@ -542,8 +551,25 @@ try:
     doc = result.document
 
     has_text = any(t.get("text", "").strip() for t in doc.export_to_dict().get("texts", []))
-    if not has_text:
-        pass
+    if not has_text and os.environ.get("DOCLING_DO_OCR") != "1":
+        print("No text found with OCR off – retrying with OCR", flush=True)
+        try:
+            from docling.datamodel.pipeline_options import PdfPipelineOptions as OcrRetryOpts
+            from docling.document_converter import DocumentConverter as OcrConverter, PdfFormatOption as OcrFmt
+            from docling.datamodel.base_models import InputFormat as OcrFmtType
+            retry_kwargs = dict(do_ocr=True, do_table_structure=os.environ.get("DOCLING_DETECT_TABLES")=="1", generate_picture_images=os.environ.get("DOCLING_EXTRACT_FIGURES")=="1", do_picture_classification=os.environ.get("DOCLING_EXTRACT_FIGURES")=="1", images_scale=1.2)
+            if retry_kwargs["do_table_structure"] and os.environ.get("DOCLING_FAST_TABLES")=="1":
+                try:
+                    from docling.datamodel.pipeline_options import TableFormerMode as OcrTableMode, TableStructureOptions as OcrTableOpts
+                    retry_kwargs["table_structure_options"] = OcrTableOpts(mode=OcrTableMode.FAST)
+                except Exception:
+                    pass
+            retry_opts = OcrRetryOpts(**retry_kwargs)
+            retry_converter = OcrConverter(format_options={OcrFmtType.PDF: OcrFmt(pipeline_options=retry_opts)})
+            retry_result = retry_converter.convert(str(pdf_path))
+            doc = retry_result.document
+        except Exception as retry_e:
+            print(f"OCR retry failed: {retry_e}", file=sys.stderr, flush=True)
 
     # Embed images as base64 so secureImageAssets can write them to disk and serve via quizlab-asset://
     try:

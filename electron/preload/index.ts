@@ -205,6 +205,12 @@ const electronApi: ElectronApi = {
       onEvent(IPC_CHANNELS.DOCLING_MODELS_PROGRESS, (payload) => callback(payload))
   },
 
+  doclingPipeline: {
+    getPrefs: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_PIPELINE_GET_PREFS)),
+    setPrefs: (patch) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_PIPELINE_SET_PREFS, patch))
+  },
+
   doclingGpu: {
     getPrefs: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DOCLING_GPU_GET_PREFS)),
     setEnabled: (enabled) =>

@@ -11,7 +11,7 @@ import { DOCLING_CORE_VERSION, DOCLING_VERSION } from './doclingVersions.js'
 // Schema version for the cached document format. Bump when QuizLabDocument changes incompatibly.
 export const QUIZLAB_DOCUMENT_SCHEMA_VERSION = 1
 // Adapter/parser version – bump when doclingAdapter logic changes.
-export const QUIZLAB_ADAPTER_VERSION = '1.0.1'
+export const QUIZLAB_ADAPTER_VERSION = '1.1.0'
 
 export interface CacheManifest {
   sourceHash: string
@@ -20,6 +20,7 @@ export interface CacheManifest {
   doclingVersion: string
   doclingCoreVersion: string
   schemaVersion: number
+  pipelineHash?: string
   createdAt: number
   updatedAt: number
 }
@@ -54,11 +55,25 @@ export async function computeFileHash(filePath: string): Promise<string> {
   })
 }
 
-function isCompatibleManifest(manifest: CacheManifest): boolean {
+async function getCurrentPipelineHash(): Promise<string> {
+  try {
+    const { getPipelinePrefs, pipelinePrefsHash } = await import('./doclingPipelineSettings.js')
+    const prefs = await getPipelinePrefs()
+    return pipelinePrefsHash(prefs)
+  } catch {
+    return '0-0-1-1'
+  }
+}
+
+function isCompatibleManifest(manifest: CacheManifest, currentPipelineHash: string): boolean {
   if (manifest.schemaVersion !== QUIZLAB_DOCUMENT_SCHEMA_VERSION) return false
   if (manifest.parserVersion !== QUIZLAB_ADAPTER_VERSION) return false
   if (manifest.doclingVersion !== DOCLING_VERSION) return false
   if (manifest.doclingCoreVersion !== DOCLING_CORE_VERSION) return false
+  // Pipeline prefs changed -> invalidate (old caches lack pipelineHash)
+  if (manifest.pipelineHash !== undefined && manifest.pipelineHash !== currentPipelineHash)
+    return false
+  if (manifest.pipelineHash === undefined && currentPipelineHash !== '0-0-1-1') return false
   return true
 }
 
@@ -82,7 +97,8 @@ export async function getCachedDocument(sourceHash: string): Promise<QuizLabDocu
       return null
     }
 
-    if (!isCompatibleManifest(manifest)) {
+    const currentPipelineHash = await getCurrentPipelineHash()
+    if (!isCompatibleManifest(manifest, currentPipelineHash)) {
       Logger.info('[DocumentCache] Version mismatch, invalidating', { sourceHash })
       await invalidateCache(sourceHash).catch(() => {})
       return null
@@ -131,6 +147,7 @@ export async function putCachedDocument(
     await fs.mkdir(tmpDir, { recursive: true })
     await fs.mkdir(path.join(tmpDir, 'assets'), { recursive: true })
 
+    const pipelineHash = await getCurrentPipelineHash()
     const manifest: CacheManifest = {
       sourceHash,
       parser: 'docling',
@@ -138,6 +155,7 @@ export async function putCachedDocument(
       doclingVersion: DOCLING_VERSION,
       doclingCoreVersion: DOCLING_CORE_VERSION,
       schemaVersion: QUIZLAB_DOCUMENT_SCHEMA_VERSION,
+      pipelineHash,
       createdAt: Date.now(),
       updatedAt: Date.now()
     }

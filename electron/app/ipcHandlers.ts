@@ -6,6 +6,7 @@ import { registerAutomationHandlers } from '../features/automation/automationHan
 import { registerDoclingConversionHandlers } from '../features/docling/doclingConversionHandlers.js'
 import { registerDoclingGpuHandlers } from '../features/docling/doclingGpuHandlers.js'
 import { registerDoclingModelHandlers } from '../features/docling/doclingModelHandlers.js'
+import { registerDoclingPipelineHandlers } from '../features/docling/doclingPipelineHandlers.js'
 import {
   registerDoclingServiceHandlers,
   shutdownDoclingService
@@ -41,6 +42,7 @@ export function registerGeneralHandlers() {
   registerDoclingConversionHandlers()
   registerDoclingModelHandlers()
   registerDoclingGpuHandlers()
+  registerDoclingPipelineHandlers()
 }
 
 export async function shutdownDoclingServiceHandlers(): Promise<void> {

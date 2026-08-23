@@ -208,3 +208,11 @@ export interface QuizLabDocumentResult {
   document: QuizLabDocument | null
   error?: QuizLabConversionError | null
 }
+
+export interface DoclingPipelinePrefs {
+  doOcr: boolean
+  extractFigures: boolean
+  detectTables: boolean
+  fastTables: boolean
+  updatedAt?: number
+}

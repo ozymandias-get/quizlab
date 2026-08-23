@@ -76,6 +76,10 @@ export const IPC_CHANNELS = {
   DOCLING_CONVERT_PROGRESS: 'docling:convert-progress',
   DOCLING_CONVERT_REPROCESS: 'docling:convert-reprocess',
 
+  // Docling pipeline prefs (4 perf toggles)
+  DOCLING_PIPELINE_GET_PREFS: 'docling:pipeline-get-prefs',
+  DOCLING_PIPELINE_SET_PREFS: 'docling:pipeline-set-prefs',
+
   // Docling models (separate from engine)
   DOCLING_MODELS_GET_STATUS: 'docling:models-get-status',
   DOCLING_MODELS_DOWNLOAD: 'docling:models-download',

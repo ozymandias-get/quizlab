@@ -8,6 +8,7 @@ import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import DoclingModelsCard from './docling/DoclingModelsCard'
+import DoclingPipelineCard from './docling/DoclingPipelineCard'
 import DoclingRemoveDialog from './docling/DoclingRemoveDialog'
 import { useDoclingTabState } from './docling/useDoclingTabState'
 import SettingsTabIntro from './shared/SettingsTabIntro'
@@ -175,6 +176,8 @@ const DoclingTab = memo(function DoclingTab() {
         onRepair={handleRepairModels}
         onDelete={handleDeleteModels}
       />
+
+      <DoclingPipelineCard isInstalled={isInstalled} />
 
       <div className="flex flex-wrap gap-2.5">
         {!isInstalled ? (

@@ -3,6 +3,7 @@ import type {
   DoclingInstallProgressEvent,
   DoclingModelProgressEvent,
   DoclingModelStatusInfo,
+  DoclingPipelinePrefs,
   DoclingServiceStatus,
   QuizLabConversionTask,
   QuizLabDocument
@@ -212,6 +213,11 @@ export interface ElectronApi {
     repair: () => Promise<DoclingModelStatusInfo>
     getDiskUsage: () => Promise<number>
     onProgress: (callback: (event: DoclingModelProgressEvent) => void) => () => void
+  }
+
+  doclingPipeline: {
+    getPrefs: () => Promise<DoclingPipelinePrefs>
+    setPrefs: (patch: Partial<DoclingPipelinePrefs>) => Promise<DoclingPipelinePrefs>
   }
 
   doclingGpu: {

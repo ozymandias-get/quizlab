@@ -77,6 +77,7 @@ export type {
   PdfViewerZoomAction
 } from './pdf.js'
 export type {
+  DoclingPipelinePrefs,
   QuizLabBbox,
   QuizLabBlock,
   QuizLabBlockBase,

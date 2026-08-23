@@ -3,6 +3,7 @@ import type {
   DoclingInstallProgressEvent,
   DoclingModelProgressEvent,
   DoclingModelStatusInfo,
+  DoclingPipelinePrefs,
   DoclingServiceStatus,
   QuizLabConversionTask,
   QuizLabDocument
@@ -395,6 +396,16 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.DOCLING_GPU_INSTALL_CUDA]: {
     args: []
     result: IpcResult<{ success: boolean; detail?: string }>
+  }
+
+  [IPC_CHANNELS.DOCLING_PIPELINE_GET_PREFS]: {
+    args: []
+    result: IpcResult<DoclingPipelinePrefs>
+  }
+
+  [IPC_CHANNELS.DOCLING_PIPELINE_SET_PREFS]: {
+    args: [patch: Partial<DoclingPipelinePrefs>]
+    result: IpcResult<DoclingPipelinePrefs>
   }
 }
 
