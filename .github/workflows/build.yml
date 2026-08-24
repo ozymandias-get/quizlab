@@ -98,32 +98,37 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           version: '0.12.5'
           enable-cache: true
+          cache-dependency-glob: resources/docling/docling-lock.pinned.txt
 
-      - name: Install Docling from bundled lock (pip check + import)
+      - name: Install Docling from bundled lock (isolated venv + pip check)
         shell: bash
         run: |
           python --version
           uv --version
-          uv pip install --system -r resources/docling/docling-lock.pinned.txt
-          uv pip check --system || python -m pip check
-          python -c "import docling; print(f'docling {docling.__version__} import ok')"
-          python -c "import docling_core; print('docling_core import ok')"
-          python -c "from docling.datamodel.pipeline_options import RapidOcrOptions; print('RapidOCR options ok')"
+          uv venv .docling-ci --python 3.12 --seed
+          if [[ "$RUNNER_OS" == "Windows" ]]; then PY=".docling-ci/Scripts/python.exe"; else PY=".docling-ci/bin/python"; fi
+          echo "PY=$PY"
+          uv pip install --python "$PY" -r resources/docling/docling-lock.pinned.txt
+          uv pip check --python "$PY"
+          "$PY" -c "import docling; print(f'docling {docling.__version__} import ok')"
+          "$PY" -c "import docling_core; print('docling_core import ok')"
+          "$PY" -c "from docling.datamodel.pipeline_options import RapidOcrOptions; print('RapidOCR options ok')"
 
-      - name: Tiny PDF smoke conversion
+      - name: Tiny PDF smoke conversion (must be SUCCESS)
         shell: bash
         run: |
-          python - << 'PY'
-          import pathlib
+          if [[ "$RUNNER_OS" == "Windows" ]]; then PY=".docling-ci/Scripts/python.exe"; else PY=".docling-ci/bin/python"; fi
+          "$PY" - << 'PY'
+          import pathlib, sys
           import fitz  # pymupdf from lock
           doc = fitz.open()
           page = doc.new_page()
@@ -131,20 +136,16 @@ jobs:
           page.insert_text((72, 100), "Second line for smoke")
           pathlib.Path("tiny-smoke.pdf").write_bytes(doc.tobytes())
           print("tiny PDF created")
-          try:
-              from docling.document_converter import DocumentConverter
-              conv = DocumentConverter()
-              print("converter created")
-              # Try conversion with short timeout; allow failure if models need download but import succeeded
-              res = conv.convert("tiny-smoke.pdf")
-              print(f"smoke status={res.status} pages={len(res.document.pages) if res.document else 0}")
-              if str(res.status) != "ConversionStatus.SUCCESS":
-                  print(f"smoke warning: status {res.status}")
-              print("smoke conversion finished")
-          except Exception as e:
-              print(f"smoke conversion error (may need models, not fatal for import check): {e}")
-              import traceback; traceback.print_exc()
-              # Do not fail job on model download issues – import+pip check already validated lock
+          from docling.datamodel.base_models import ConversionStatus
+          from docling.document_converter import DocumentConverter
+          conv = DocumentConverter()
+          print("converter created")
+          res = conv.convert("tiny-smoke.pdf")
+          print(f"smoke status={res.status} pages={len(res.document.pages) if res.document else 0}")
+          assert res.status == ConversionStatus.SUCCESS, f"Expected SUCCESS, got {res.status} errors={getattr(res,'errors',None)}"
+          assert res.document is not None
+          assert len(res.document.pages) >= 1, "No pages in smoke document"
+          print("smoke conversion SUCCESS")
           PY
 
   build:

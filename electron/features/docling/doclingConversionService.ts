@@ -395,16 +395,16 @@ class DoclingConversionService {
             let message: string | null = null
             if (line.startsWith('STAGE:')) {
               phase = line.slice(6).trim().toLowerCase()
-              message = phase
+              message = null
             } else if (lower.includes('pipeline ocr=')) {
               phase = 'pipeline'
-              message = 'Pipeline hazırlanıyor'
+              message = null
             } else if (lower.includes('assets exported')) {
               phase = 'finalizing'
-              message = 'Görseller işleniyor'
+              message = null
             } else if (lower.includes('converted')) {
               phase = 'finalizing'
-              message = 'Tamamlanıyor'
+              message = null
             }
             if (phase) {
               this.updateTask(taskId, {

@@ -31,7 +31,7 @@ export const CONVERTER_SCRIPT_TOKENS = [
  * version mismatches the code. This is more reliable than token-sniffing
  * because old scripts may already contain the same tokens.
  */
-export const CONVERTER_SCRIPT_VERSION = 5
+export const CONVERTER_SCRIPT_VERSION = 6
 
 export async function ensureConverterScript(layout: DoclingDirLayout): Promise<string> {
   const scriptPath = getConverterScriptPath(layout)
@@ -148,11 +148,11 @@ def _make_converter(do_ocr_override=None):
         # Map UI codes (en,tr,de,fr,es,it,ja,ko,zh,ar,ru) to RapidOCR codes.
         _RAPID_LANG_MAP = {
             "en": "en",
-            "tr": "latin",  # PP-OCR latin covers Turkish; verify with smoke test
-            "de": "german",
-            "fr": "french",
+            "tr": "tr",
+            "de": "de",
+            "fr": "fr",
             "es": "es",
-            "it": "latin",
+            "it": "it",
             "ja": "japan",
             "ko": "korean",
             "zh": "ch",
@@ -169,6 +169,13 @@ def _make_converter(do_ocr_override=None):
         }
         def _map_rapid_langs(langs):
             return [_RAPID_LANG_MAP.get(l, l) for l in langs]
+        # P2-8: prefer OcrMode.FULL_PAGE over deprecated force_full_page_ocr
+        _ocr_mode_full = None
+        try:
+            from docling.datamodel.pipeline_options import OcrMode
+            _ocr_mode_full = OcrMode.FULL_PAGE
+        except Exception:
+            _ocr_mode_full = None
         if ocr_lang or force_full_page_ocr:
             _ocr_set = False
             try:
@@ -176,9 +183,25 @@ def _make_converter(do_ocr_override=None):
                 if ocr_lang:
                     langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
                     langs = _map_rapid_langs(langs[:1])  # RapidOCR single-lang
-                    kwargs["ocr_options"] = RapidOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
+                    if _ocr_mode_full is not None and force_full_page_ocr:
+                        kwargs["ocr_options"] = RapidOcrOptions(lang=langs, mode=_ocr_mode_full)
+                    elif _ocr_mode_full is not None:
+                        kwargs["ocr_options"] = RapidOcrOptions(lang=langs)
+                        # Düşük öncelik: mode olmadan da çalışır
+                        if force_full_page_ocr:
+                            try:
+                                kwargs["ocr_options"] = RapidOcrOptions(lang=langs, mode=_ocr_mode_full)
+                            except Exception:
+                                kwargs["ocr_options"] = RapidOcrOptions(
+                                    lang=langs, force_full_page_ocr=force_full_page_ocr
+                                )
+                    else:
+                        kwargs["ocr_options"] = RapidOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
                 else:
-                    kwargs["ocr_options"] = RapidOcrOptions(force_full_page_ocr=True)
+                    if _ocr_mode_full is not None and force_full_page_ocr:
+                        kwargs["ocr_options"] = RapidOcrOptions(mode=_ocr_mode_full)
+                    else:
+                        kwargs["ocr_options"] = RapidOcrOptions(force_full_page_ocr=True)
                 _ocr_set = True
             except Exception as _rapid_e:
                 # Rapid not available – try Easy
@@ -190,19 +213,36 @@ def _make_converter(do_ocr_override=None):
                     if ocr_lang:
                         langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
                         # P1-6: CPU-only guarantee – EasyOCR must not try GPU
-                        try:
-                            kwargs["ocr_options"] = EasyOcrOptions(
-                                lang=langs, force_full_page_ocr=force_full_page_ocr, use_gpu=False
-                            )
-                        except TypeError:
-                            kwargs["ocr_options"] = EasyOcrOptions(
-                                lang=langs, force_full_page_ocr=force_full_page_ocr
-                            )
+                        # P2-8: try OcrMode.FULL_PAGE first, fallback to deprecated flag
+                        if _ocr_mode_full is not None and force_full_page_ocr:
+                            try:
+                                kwargs["ocr_options"] = EasyOcrOptions(
+                                    lang=langs, mode=_ocr_mode_full, use_gpu=False
+                                )
+                            except TypeError:
+                                kwargs["ocr_options"] = EasyOcrOptions(
+                                    lang=langs, force_full_page_ocr=force_full_page_ocr, use_gpu=False
+                                )
+                        else:
+                            try:
+                                kwargs["ocr_options"] = EasyOcrOptions(
+                                    lang=langs, force_full_page_ocr=force_full_page_ocr, use_gpu=False
+                                )
+                            except TypeError:
+                                kwargs["ocr_options"] = EasyOcrOptions(
+                                    lang=langs, force_full_page_ocr=force_full_page_ocr
+                                )
                     else:
-                        try:
-                            kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True, use_gpu=False)
-                        except TypeError:
-                            kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
+                        if _ocr_mode_full is not None and force_full_page_ocr:
+                            try:
+                                kwargs["ocr_options"] = EasyOcrOptions(mode=_ocr_mode_full, use_gpu=False)
+                            except TypeError:
+                                kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True, use_gpu=False)
+                        else:
+                            try:
+                                kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True, use_gpu=False)
+                            except TypeError:
+                                kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
                     _ocr_set = True
                 except Exception:
                     pass
