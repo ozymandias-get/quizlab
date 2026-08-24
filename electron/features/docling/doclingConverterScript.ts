@@ -31,7 +31,7 @@ export const CONVERTER_SCRIPT_TOKENS = [
  * version mismatches the code. This is more reliable than token-sniffing
  * because old scripts may already contain the same tokens.
  */
-export const CONVERTER_SCRIPT_VERSION = 6
+export const CONVERTER_SCRIPT_VERSION = 7
 
 export async function ensureConverterScript(layout: DoclingDirLayout): Promise<string> {
   const scriptPath = getConverterScriptPath(layout)
@@ -78,6 +78,7 @@ if pdf_path.suffix.lower() != ".pdf":
     sys.exit(3)
 
 def _make_converter(do_ocr_override=None):
+    global DEGRADED_PIPELINE
     # Full pipeline prefs from Settings – defaults match doclingPipelineSettings.ts
     # do_ocr_override allows the OCR retry path to reuse the exact same pipeline
     # construction (CPU, threads, timeouts, enrichment, etc.) with only OCR toggled.
@@ -299,7 +300,6 @@ def _make_converter(do_ocr_override=None):
             safe_pipeline = SafeOpts(**safe_kwargs)
             print("Using safe CPU fallback pipeline – output is DEGRADED (some enrichments disabled)", flush=True)
             print("DEGRADED_PIPELINE=true", flush=True)
-            global DEGRADED_PIPELINE
             DEGRADED_PIPELINE = True
             return SafeConv(format_options={SafeFmtType.PDF: SafeFmt(pipeline_options=safe_pipeline)})
         except Exception as e2:
@@ -356,7 +356,6 @@ try:
             if _status == ConversionStatus.PARTIAL_SUCCESS:
                 print("PARTIAL_SUCCESS detected – timeout or truncated", file=sys.stderr, flush=True)
                 print("STAGE: partial_success", flush=True)
-                global PARTIAL_SUCCESS
                 PARTIAL_SUCCESS = True
             elif _status == ConversionStatus.FAILURE:
                 raise RuntimeError(f"Conversion failed status={_status} errors={_err_txt}")
