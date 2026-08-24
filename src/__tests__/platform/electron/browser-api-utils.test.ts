@@ -1,5 +1,5 @@
 /**
- * Tests for src/platform/electron/browser-api-utils.ts
+ * Tests for src/platform/electron/browserApiUtils.ts
  *
  * Covers pure utility functions. The selectPdfInBrowser function
  * is excluded because it requires real DOM interaction.
@@ -11,7 +11,7 @@ import {
   registerBeforeUnloadCleanup,
   revokeObjectUrl,
   toMapRecord
-} from '@platform/electron/browser-api-utils'
+} from '@platform/electron/browserApiUtils'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

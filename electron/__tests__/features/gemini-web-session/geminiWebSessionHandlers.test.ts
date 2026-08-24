@@ -61,7 +61,7 @@ describe('gemini web session handlers', () => {
 
   it('registers handlers and validates enabledAppIds payload', async () => {
     const { registerGeminiWebSessionHandlers } =
-      await import('../../../features/gemini-web-session/handlers.js')
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
     registerGeminiWebSessionHandlers()
 
     const setEnabledAppsHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS)
@@ -77,7 +77,7 @@ describe('gemini web session handlers', () => {
 
   it('normalizes setEnabled IPC payload to strict booleans', async () => {
     const { registerGeminiWebSessionHandlers } =
-      await import('../../../features/gemini-web-session/handlers.js')
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
     registerGeminiWebSessionHandlers()
 
     const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_SET_ENABLED)
@@ -92,7 +92,7 @@ describe('gemini web session handlers', () => {
 
   it('blocks untrusted sender requests', async () => {
     const { registerGeminiWebSessionHandlers } =
-      await import('../../../features/gemini-web-session/handlers.js')
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
     registerGeminiWebSessionHandlers()
 
     const statusHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_STATUS)

@@ -7,6 +7,7 @@ import { createBrowserElectronApi } from '@platform/electron/createBrowserElectr
 import App from '@app/App'
 import AppProviders from '@app/providers/AppProviders'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { getStorageItem } from '@shared/hooks/localStorageUtils'
 import { hasElectronApi } from '@shared/lib/electronApi'
 import { installGlobalErrorHandlers } from '@shared/lib/globalErrorHandlers'
 import { hydrateSettingsFromMain, installSettingsSync } from '@shared/lib/settingsSync'
@@ -47,14 +48,7 @@ async function bootstrap() {
   // Surface async/effect errors that React's ErrorBoundary cannot see.
   installGlobalErrorHandlers()
 
-  const savedLang = (() => {
-    try {
-      const val = localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)
-      return val
-    } catch {
-      return null
-    }
-  })()
+  const savedLang = getStorageItem(STORAGE_KEYS.APP_LANGUAGE)
 
   if (savedLang && savedLang !== 'en') {
     void i18next.changeLanguage(savedLang)

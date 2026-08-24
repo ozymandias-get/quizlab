@@ -3,7 +3,7 @@ import AppEffects from '@app/effects/AppEffects'
 
 import type { ReactNode } from 'react'
 
-import { AiProvider } from './AiContext'
+import { AiProvider } from './ai-context'
 import AppToolProvider from './AppToolContext'
 import QueryProvider from './QueryProvider'
 import UpdateProvider from './UpdateContext'

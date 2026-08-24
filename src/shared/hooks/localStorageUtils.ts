@@ -19,8 +19,18 @@ export const getStorageItem = (key: string): string | null => {
   }
 }
 
-export const setStorageItem = (key: string, str: string): boolean => {
-  if (!isClient) return false
+export interface StorageWriteResult {
+  ok: boolean
+  /** Raw failure cause (e.g. `QuotaExceededError`) when `ok` is false. */
+  error: unknown
+}
+
+/**
+ * Writes `str` and dispatches the same-tab sync event, surfacing the raw
+ * failure cause so callers can distinguish e.g. quota errors from others.
+ */
+export const writeStorageItem = (key: string, str: string): StorageWriteResult => {
+  if (!isClient) return { ok: false, error: null }
   try {
     localStorage.setItem(key, str)
     window.dispatchEvent(
@@ -28,9 +38,27 @@ export const setStorageItem = (key: string, str: string): boolean => {
         detail: { key, value: str }
       })
     )
-    return true
+    return { ok: true, error: null }
   } catch (error) {
     Logger.warn(`localStorage yazma hatası (set "${key}"):`, error)
+    return { ok: false, error }
+  }
+}
+
+export const setStorageItem = (key: string, str: string): boolean => writeStorageItem(key, str).ok
+
+export const removeStorageItem = (key: string): boolean => {
+  if (!isClient) return false
+  try {
+    localStorage.removeItem(key)
+    window.dispatchEvent(
+      new CustomEvent<LocalStorageChangeDetail>(LOCAL_STORAGE_SYNC_EVENT, {
+        detail: { key, value: '' }
+      })
+    )
+    return true
+  } catch (error) {
+    Logger.warn(`localStorage silme hatası (remove "${key}"):`, error)
     return false
   }
 }

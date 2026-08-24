@@ -1,4 +1,4 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 import type {
   AiRegistryResponse,
   AiSelectorConfig,
@@ -19,7 +19,7 @@ import type {
 } from '@shared-core/types'
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
-import type { IPC_CHANNELS } from '../constants/ipc-channels.js'
+import type { IPC_CHANNELS } from '../constants/ipcChannels.js'
 import type { IpcResult } from '../lib/typedIpc.js'
 import type { CacheInfoResponse, WaitForSubmitReadyOptions } from './electronApi.js'
 

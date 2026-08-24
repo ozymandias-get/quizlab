@@ -1,6 +1,7 @@
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
 import { getElectronApi } from '@shared/lib/electronApi'
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 import { DURATION } from '@shared/lib/motion'
 
@@ -100,7 +101,7 @@ function ExtensionWizardPanel({
         setError(result?.error ?? t('gws_extension_wizard_error_default'))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('gws_extension_wizard_error_default'))
+      setError(ensureErrorMessage(err, t('gws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.install', { cause: err })
     } finally {
       setLoading(false)
@@ -116,7 +117,7 @@ function ExtensionWizardPanel({
       if (result?.success) setSuccess(true)
       else setError(result?.error ?? t('gws_extension_wizard_error_default'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('gws_extension_wizard_error_default'))
+      setError(ensureErrorMessage(err, t('gws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.remove', { cause: err })
     } finally {
       setLoading(false)

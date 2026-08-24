@@ -1,8 +1,7 @@
+import { formatBytes } from '@shared/lib/formatUtils'
 import { cn } from '@shared/lib/uiUtils'
 
 import { memo } from 'react'
-
-import { formatBytes } from './storageUtils'
 
 export const ProgressBar = memo(function ProgressBar({
   value,

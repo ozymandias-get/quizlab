@@ -7,7 +7,8 @@ import {
   SettingsRowDescription,
   SettingsRowHeader,
   SettingsRowIcon,
-  SettingsRowTitle
+  SettingsRowTitle,
+  TabPill
 } from '@shared/ui/components/primitives'
 
 import { ClipboardPaste, Gauge, Keyboard, PenLine, Sparkles } from 'lucide-react'
@@ -73,7 +74,11 @@ const TextInputModeTab = memo(() => {
         description={t('text_input_mode_description')}
       />
 
-      <div className="space-y-2 px-1">
+      <div
+        className="space-y-2 px-1"
+        role="radiogroup"
+        aria-label={t('text_input_mode_description')}
+      >
         {TEXT_INPUT_MODE_OPTIONS.map((option) => {
           const isActive = textInputMode === option.value
           const Icon = option.icon
@@ -82,6 +87,8 @@ const TextInputModeTab = memo(() => {
             <button
               key={option.value}
               type="button"
+              role="radio"
+              aria-checked={isActive}
               onClick={() => handleSelect(option.value)}
               className={`focus-visible:ring-ring/40 flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                 isActive
@@ -136,20 +143,17 @@ const TextInputModeTab = memo(() => {
           </span>
         </SettingsRow>
 
-        <div className="grid grid-cols-4 gap-2 px-1">
+        <div className="grid grid-cols-4 gap-2 px-1" role="tablist" aria-label={t('typing_speed')}>
           {TYPING_SPEED_OPTIONS.map((option) => (
-            <button
-              type="button"
+            <TabPill
               key={option.value}
+              isActive={typingSpeed === option.value}
               onClick={() => handleSpeedChange(option.value)}
-              className={`focus-visible:ring-ring/40 text-ql-12 rounded-xl py-2.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-                typingSpeed === option.value
-                  ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
-                  : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted border'
-              } `}
+              aria-label={t(option.labelKey)}
+              className="justify-center rounded-xl py-2.5"
             >
               {t(option.labelKey)}
-            </button>
+            </TabPill>
           ))}
         </div>
       </div>

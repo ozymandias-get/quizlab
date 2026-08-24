@@ -74,21 +74,23 @@ Her grup içinde import'lar alfabetik sıralanır. Test dosyalarında (`__tests_
 
 ## 5. Naming Conventions
 
-| Varlık                     | Kural                                                                                                  | Örnek                                              |
-| -------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| React component            | `PascalCase`                                                                                           | `PdfViewer`, `AiSendComposer`                      |
-| Hook                       | `useCamelCase`                                                                                         | `useAiSender`, `usePdfTabStore`                    |
-| Store (Zustand)            | `use<Feature>Store` (veya `useApiChatStore`)                                                           | `useApiChatStore`                                  |
-| Provider/Context hook      | `use<Context>`, context value `use<Context>Value`                                                      | `useToastActions`, `useLanguage`                   |
-| Service/Handler            | `register<Domain>Handlers` (electron), `use<Domain>Api` (renderer)                                     | `registerAiConfigHandlers`, `useAiApi`             |
-| Sabitler (modül düzeyinde) | `SCREAMING_SNAKE_CASE`                                                                                 | `STORAGE_KEYS`, `IPC_CHANNELS`, `PDF_ZOOM_STEP`    |
-| Tür (type/interface)       | `PascalCase`, `I` prefix'i YOK                                                                         | `AiConfig`, `PdfTab` (✅), `IAiConfig` (❌)        |
-| Enum/Union sabitleri       | `PascalCase` string union                                                                              | `SubmitMode = 'mixed' \| 'enter' \| 'send-button'` |
-| Dosya adı                  | Component = `kebab-case.tsx` (örn. `confirm-dialog.tsx`, `icon-button.tsx`), hook/lib = `camelCase.ts` | `useAiSender.ts`, `parseMessageContent.ts`         |
-| Genel isimlerden kaçın     | `data`, `value`, `item`, `temp`, `tmp`, `result`, `handler`, `utils`, `helpers` tek başına isim olmaz  | `aiRegistry`, `selectionColor`, `sessionConfig` ✅ |
+| Varlık                     | Kural                                                                                                                                                                                                                                                                                                                                     | Örnek                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| React component            | `PascalCase`                                                                                                                                                                                                                                                                                                                              | `PdfViewer`, `AiSendComposer`                                                                |
+| Hook                       | `useCamelCase`                                                                                                                                                                                                                                                                                                                            | `useAiSender`, `usePdfTabStore`                                                              |
+| Store (Zustand)            | `use<Feature>Store` (veya `useApiChatStore`)                                                                                                                                                                                                                                                                                              | `useApiChatStore`                                                                            |
+| Provider/Context hook      | `use<Context>`, context value `use<Context>Value`                                                                                                                                                                                                                                                                                         | `useToastActions`, `useLanguage`                                                             |
+| Service/Handler            | `register<Domain>Handlers` (electron), `use<Domain>Api` (renderer)                                                                                                                                                                                                                                                                        | `registerAiConfigHandlers`, `useAiApi`                                                       |
+| Sabitler (modül düzeyinde) | `SCREAMING_SNAKE_CASE`                                                                                                                                                                                                                                                                                                                    | `STORAGE_KEYS`, `IPC_CHANNELS`, `PDF_ZOOM_STEP`                                              |
+| Tür (type/interface)       | `PascalCase`, `I` prefix'i YOK                                                                                                                                                                                                                                                                                                            | `AiConfig`, `PdfTab` (✅), `IAiConfig` (❌)                                                  |
+| Enum/Union sabitleri       | `PascalCase` string union                                                                                                                                                                                                                                                                                                                 | `SubmitMode = 'mixed' \| 'enter' \| 'send-button'`                                           |
+| Dosya adı                  | **İki katmanlı kural:** 1) UI primitive'ler (`src/app/components/ui/`) = `kebab-case.tsx` (örn. `button.tsx`, `confirm-dialog.tsx`, `icon-button.tsx`). 2) Feature / layout / composite component'ler = `PascalCase.tsx` (örn. `PdfViewer.tsx`, `AiSession.tsx`, `SettingsModal.tsx`). Hook/lib/type/constants dosyaları = `camelCase.ts` | `button.tsx` + `PdfViewer.tsx`; `useAiSender.ts`, `parseMessageContent.ts`, `ipcChannels.ts` |
+| Genel isimlerden kaçın     | `data`, `value`, `item`, `temp`, `tmp`, `result`, `handler`, `utils`, `helpers` tek başına isim olmaz                                                                                                                                                                                                                                     | `aiRegistry`, `selectionColor`, `sessionConfig` ✅                                           |
 
 - `utils/` veya `helpers/` adlı klasör **önerilmez**; bunun yerine `<domain>Utils.ts` veya doğrudan `<feature>/lib/<concern>.ts` adlandırması yapılır (örn. `electron/features/automation/utils/dom/` yerine `electron/features/automation/dom/` veya `@shared/lib/dom.ts` hedeflenir).
 - `handler` adı tek başına yasak değildir; ama bir IPC handler'ı adlandırırken **kaynak/tür** belirtilir: `aiConfigHandlers.ts`, `pdfHandlers.ts` ✅; `handlers.ts` (tek başına) ❌.
+- **Dosya adı iki katmanlı kuralın gerekçesi:** `src/app/components/ui/` altındaki shadcn/Radix primitive'leri kütüphane kökenli `kebab-case.tsx` geleneğini korur; feature ve composite component'ler React ekosisteminin yaygın teamülü olan `PascalCase.tsx` kullanır. Utilities, hooks, types ve constants dosyalarında `camelCase.ts` esastır (`ipc-channels.ts`, `browser-api-utils.ts` gibi kebab-case util/constants dosyaları ❌ — `ipcChannels.ts`, `browserApiUtils.ts` ✅).
+- Klasör + aynı adda dosya ikilemi (örn. `apiChatHandlers.ts` dosyası **ve** `apiChatHandlers/` klasörü) kurulmaz; bir domain ya tek modül dosyası (`<domain>Handlers.ts`) ya da klasör + doğrudan modül/barrel import'u ile temsil edilir. Kök seviyeye 70 baytlık re-export köprü stub'ları yazmak yasaktır.
 - Test dosyaları `<konu>.test.ts(x)` veya `<konu>.test-helpers.ts(x)` (yardımcı paylaşılan test kodu için) kalıbını izler.
 - **Boolean değişkenler** `is`, `has`, `can`, `should` ile başlar: `isOpen`, `hasPermission`, `canSubmit`, `shouldRetry` ✅; `open`, `permission`, `submit`, `retry` ❌.
 - **Event handler'lar** `handleAction` formatında olur: `handlePageSettled`, `handleConfigSave`, `handleZoomIn` ✅; `pageSettled`, `configSave`, `zoomIn` ❌ (handler olmadığında serbest).
@@ -105,7 +107,7 @@ Tutarlılık için proje genelinde tek stil tercih edilir:
 
 Electron ana süreci (`electron/`) ve `shared/` dosyalarında import yolu stratejisi:
 
-- **`shared/` (cross-process)**: Alias kullanmaz; göreceli yol ile import yapılır (örn. `../constants/ipc-channels`). `@shared-core/*` alias'ı **yalnızca renderer tarafında** kullanılır.
+- **`shared/` (cross-process)**: Alias kullanmaz; göreceli yol ile import yapılır (örn. `../constants/ipcChannels`). `@shared-core/*` alias'ı **yalnızca renderer tarafında** kullanılır.
 - **`electron/`**: Ayni mantık — `../../shared/...` göreceli yollar tercih edilir. Ancak `@shared-core/types` gibi type-only importlarda alias da kabul edilir (mevcut kodda her iki stil de mevcuttur; bir dosya içinde tutarlı olunması yeterlidir).
 - **`src/` (renderer)**: Alias zorunludur; göreceli import yalnızca aynı feature/modül içindedir.
 
@@ -168,7 +170,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
   4. `Logger.error` kullanımı (henüz `console.error` kalan yerler için de hedef).
 
 - Renderer tarafı: her domain için `src/platform/electron/api/use<Domain>Api.ts`. Asla doğrudan `window.electronAPI` çağrısı yapılmaz; `useElectron*` üzerinden.
-- Preload'da API exposure: `electron/preload/index.ts`; her yeni IPC kanalı için `shared/types/ipcContract.ts` + `shared/constants/ipc-channels.ts` + `shared/types/ipc.ts` üçlüsü birlikte güncellenir (tek sözleşme kaynağı).
+- Preload'da API exposure: `electron/preload/index.ts`; her yeni IPC kanalı için `shared/types/ipcContract.ts` + `shared/constants/ipcChannels.ts` + `shared/types/ipc.ts` üçlüsü birlikte güncellenir (tek sözleşme kaynağı).
 
 ## 10. Error Handling
 
@@ -366,7 +368,7 @@ import { tMock } from '../helpers/test-utils'
   1. `npm run format:check && npm run lint && npm run typecheck && npm test && npm run analyze:file-sizes && npm run analyze:css` hepsi yeşil.
   2. Mimari sınır ihlali yok (`@features/<x>/<private>` dışarıdan import edilmiyor, vb.).
   3. `console.*`, `any`, `as any`, `// eslint-disable` ESLint tarafından engellenir (bilinen istisnalar yoksa).
-  4. Yeni IPC kanalı `shared/types/ipcContract.ts` + `shared/constants/ipc-channels.ts` + `shared/types/ipc.ts` üçlüsünde tanımlı; preload + handler + renderer hook güncel.
+  4. Yeni IPC kanalı `shared/types/ipcContract.ts` + `shared/constants/ipcChannels.ts` + `shared/types/ipc.ts` üçlüsünde tanımlı; preload + handler + renderer hook güncel.
   5. Coverage eşiği korunuyor.
   6. Dokümantasyon: yeni bir feature/servise dair barrel değiştiyse bu dosya güncellenir.
 - Versiyon tutarlılığı: `package.json` ↔ `app/version.ts` ↔ release tag (`npm run ci:check-version`).

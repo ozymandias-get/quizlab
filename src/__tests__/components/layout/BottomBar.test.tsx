@@ -24,7 +24,7 @@ vi.mock('@app/providers', () => ({
   useAppToolPickerState: () => ({ isPickerActive: false })
 }))
 
-vi.mock('@app/providers/AiContext', () => ({
+vi.mock('@app/providers/ai-context', () => ({
   useAiTabsList: () => ({ tabs: [] }),
   useAiModelsCatalog: () => ({ enabledModels: [], aiSites: {} }),
   useAiTabActions: () => ({ openAiWorkspace: vi.fn() })
@@ -36,10 +36,6 @@ vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
 
 vi.mock('@features/pdf', () => ({
   usePdfSelection: () => ({ pdfFile: null, activePdfTab: null })
-}))
-
-vi.mock('@ui/layout/BottomBar/SettingsLoadingSpinner', () => ({
-  SettingsLoadingSpinner: () => <div>Loading...</div>
 }))
 
 vi.mock('@ui/layout/BottomBar/SettingsModalPortal', () => ({

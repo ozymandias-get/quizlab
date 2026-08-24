@@ -1,6 +1,6 @@
-﻿import type { GeminiWebSessionStatus } from '@shared-core/types'
+import type { GeminiWebSessionStatus } from '@shared-core/types'
 
-import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps.js'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/googleAiWebApps.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
 import {
   DEFAULT_USER_ENABLED,

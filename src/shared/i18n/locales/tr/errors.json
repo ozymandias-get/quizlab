@@ -61,5 +61,10 @@
   "add_custom_ai": "Yapay Zeka Ekle",
   "error_api_chat_unavailable": "API Chat bu ortamda kullanılamıyor",
   "error_electron_api_missing": "Electron API kullanılamıyor",
-  "error_pdf_moved": "Bu PDF taşınmış veya silinmiş olabilir. Devam etmek için yeni konum seçin."
+  "error_pdf_moved": "Bu PDF taşınmış veya silinmiş olabilir. Devam etmek için yeni konum seçin.",
+  "error_name_required": "İsim gerekli",
+  "error_name_too_short": "İsim çok kısa",
+  "error_url_required": "URL gerekli",
+  "error_url_protocol": "Yalnızca http(s) adresleri desteklenir",
+  "error_url_invalid": "Geçersiz URL"
 }

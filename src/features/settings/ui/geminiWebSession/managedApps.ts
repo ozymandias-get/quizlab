@@ -1,7 +1,7 @@
 import {
   GOOGLE_WEB_SESSION_APPS,
   type GoogleWebSessionAppId
-} from '@shared-core/constants/google-ai-web-apps'
+} from '@shared-core/constants/googleAiWebApps'
 
 export const MANAGED_APP_IDS = new Set(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
 

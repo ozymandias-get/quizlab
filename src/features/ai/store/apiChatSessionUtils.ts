@@ -1,5 +1,7 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
+
 import i18next from 'i18next'
 
 export function generateId(prefix: string): string {
@@ -73,7 +75,7 @@ export function buildCombinedPrompt(parts: {
 
 export function buildErrorReply(err: unknown): ApiChatMessage {
   const fallbackMsg = i18next.language?.startsWith('tr') ? 'İstek başarısız oldu' : 'Request failed'
-  const message = err instanceof Error ? err.message : fallbackMsg
+  const message = ensureErrorMessage(err, fallbackMsg)
   let content: string
   try {
     content = i18next.t('api_chat_send_error', { error: message })

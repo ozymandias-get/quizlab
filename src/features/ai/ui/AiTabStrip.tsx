@@ -4,7 +4,7 @@ import {
   useAiTabsSliceState,
   useAiWebviewHostActions,
   useAiWebviewPresence
-} from '@app/providers/AiContext'
+} from '@app/providers/ai-context'
 import { TabStripHomeButton } from '@shared/ui/components/primitives'
 import {
   TAB_STRIP_BAR_CLASS,

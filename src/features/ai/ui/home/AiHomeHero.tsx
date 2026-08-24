@@ -1,5 +1,5 @@
 import { Button } from '@app/components/ui/button'
-import type { Tab } from '@app/providers/AiContext'
+import type { Tab } from '@app/providers/ai-context'
 
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'

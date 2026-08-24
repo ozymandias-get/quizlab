@@ -1,6 +1,8 @@
 import type { AutomationExecutionDiagnostics, AutomationExecutionResult } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
+
 const DESTROYED_WEBVIEW_PATTERNS = [
   /webcontents was destroyed/i,
   /object has been destroyed/i,
@@ -17,7 +19,7 @@ const DESTROYED_WEBVIEW_PATTERNS = [
  */
 export function isWebviewDestroyedError(error: unknown): boolean {
   if (!error) return false
-  const message = error instanceof Error ? error.message : String(error)
+  const message = ensureErrorMessage(error, '')
   return DESTROYED_WEBVIEW_PATTERNS.some((pattern) => pattern.test(message))
 }
 

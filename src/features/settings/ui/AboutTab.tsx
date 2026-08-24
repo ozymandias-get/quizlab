@@ -7,6 +7,7 @@ import {
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
 
 import type { UpdateInfo } from '@app/providers'
+import { formatBytes } from '@shared/lib/formatUtils'
 import { InfoIcon } from '@ui/components/Icons'
 
 import { memo, useCallback, useMemo } from 'react'
@@ -26,12 +27,6 @@ interface AboutTabProps {
   checkForUpdates: () => Promise<void>
   openReleasesPage: () => Promise<void>
   onClose: () => void
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 const AboutTab = memo(

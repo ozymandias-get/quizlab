@@ -1,7 +1,7 @@
 import {
   DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS,
   GOOGLE_WEB_SESSION_REGISTRY_IDS
-} from '@shared-core/constants/google-ai-web-apps'
+} from '@shared-core/constants/googleAiWebApps'
 import type { AiPlatform, AiRegistryResponse, GeminiWebSessionStatus } from '@shared-core/types'
 
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'

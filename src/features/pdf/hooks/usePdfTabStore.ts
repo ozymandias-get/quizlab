@@ -1,6 +1,6 @@
-import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
+import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/googleAiWebApps'
 
-import { revokeObjectUrl } from '@platform/electron/browser-api-utils'
+import { revokeObjectUrl } from '@platform/electron/browserApiUtils'
 
 import { create } from 'zustand'
 

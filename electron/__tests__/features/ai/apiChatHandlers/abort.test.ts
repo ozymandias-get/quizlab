@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { IPC_CHANNELS } from '../../../../../shared/constants/ipc-channels.js'
+import { IPC_CHANNELS } from '../../../../../shared/constants/ipcChannels.js'
 
 const registerIpcHandler = vi.fn()
 const loadConfig = vi.fn()
@@ -39,7 +39,7 @@ function getHandler(channel: string) {
 
 async function main(): Promise<void> {
   const { registerApiChatHandlers } =
-    await import('../../../../features/ai/apiChatHandlers/handlers.js')
+    await import('../../../../features/ai/apiChatHandlers/apiChatHandlers.js')
   registerApiChatHandlers()
 }
 

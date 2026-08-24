@@ -1,7 +1,9 @@
 import { queryClient } from '@app/providers/queryClient'
 import {
+  getStorageItem,
   LOCAL_STORAGE_SYNC_EVENT,
-  type LocalStorageChangeDetail
+  type LocalStorageChangeDetail,
+  writeStorageItem
 } from '@shared/hooks/localStorageUtils'
 import { Logger } from '@shared/lib/logger'
 import { QUERY_KEYS } from '@shared/query/queryKeys'
@@ -28,7 +30,7 @@ function isChatSession(value: unknown): value is ChatSession {
 
 export function loadSessionsFromStorage(): ChatSession[] {
   try {
-    const data = localStorage.getItem(LOCAL_STORAGE_KEY)
+    const data = getStorageItem(LOCAL_STORAGE_KEY)
     if (!data) return []
     const parsed: unknown = JSON.parse(data)
     if (!Array.isArray(parsed)) return []
@@ -54,9 +56,10 @@ function notifyStorageFailure(error: unknown): void {
   if (storageFailureNotified) return
   storageFailureNotified = true
   try {
-    const message = isQuotaExceededError(error)
-      ? i18next.t('api_chat_storage_quota_error')
-      : i18next.t('api_chat_storage_write_error', { error: String(error) })
+    const message =
+      error !== null && isQuotaExceededError(error)
+        ? i18next.t('api_chat_storage_quota_error')
+        : i18next.t('api_chat_storage_write_error', { error: String(error) })
     useToastStore
       .getState()
       .showWarning(message, i18next.t('api_chat_storage_error_title'), undefined, 8000)
@@ -66,30 +69,22 @@ function notifyStorageFailure(error: unknown): void {
 }
 
 function saveSessionsToStorage(sessions: ChatSession[]) {
-  try {
-    const serialized = JSON.stringify(sessions)
-    localStorage.setItem(LOCAL_STORAGE_KEY, serialized)
-    storageFailureNotified = false
-    // Dispatch same-tab sync event so other hook instances and React Query
-    // caches (useSessionsQuery with staleTime Infinity) are refreshed
-    // synchronously without waiting for the cross-tab `storage` event.
-    try {
-      window.dispatchEvent(
-        new CustomEvent<LocalStorageChangeDetail>(LOCAL_STORAGE_SYNC_EVENT, {
-          detail: { key: LOCAL_STORAGE_KEY, value: serialized }
-        })
-      )
-    } catch {}
-    // Single source of truth: invalidate the sessions query so any stale
-    // in-memory copy (e.g. an open composer holding an old list) is refetched
-    // from the freshly written storage value instead of overwriting it.
-    try {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
-    } catch {}
-  } catch (e) {
-    Logger.error('[ChatPersistence] Failed to save api chat sessions', e)
-    notifyStorageFailure(e)
+  const serialized = JSON.stringify(sessions)
+  // writeStorageItem keeps the raw failure cause so quota errors can be
+  // reported with a dedicated message (see notifyStorageFailure).
+  const result = writeStorageItem(LOCAL_STORAGE_KEY, serialized)
+  if (!result.ok) {
+    Logger.error('[ChatPersistence] Failed to save api chat sessions', result.error ?? undefined)
+    notifyStorageFailure(result.error)
+    return
   }
+  storageFailureNotified = false
+  // Single source of truth: invalidate the sessions query so any stale
+  // in-memory copy (e.g. an open composer holding an old list) is refetched
+  // from the freshly written storage value instead of overwriting it.
+  try {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
+  } catch {}
 }
 
 function handleExternalSessionsChange(): void {

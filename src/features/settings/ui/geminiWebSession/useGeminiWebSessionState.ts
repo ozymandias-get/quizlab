@@ -1,4 +1,4 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionRefreshEvent,
@@ -18,12 +18,13 @@ import {
 
 import { useToastActions } from '@app/providers'
 import { getElectronApi } from '@shared/lib/electronApi'
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { getNextEnabledManagedAppIds, MANAGED_APP_IDS } from './appUtils'
+import { getNextEnabledManagedAppIds, MANAGED_APP_IDS } from './managedApps'
 import {
   computeReasonText,
   computeRefreshReasonText,
@@ -167,7 +168,7 @@ export function useGeminiWebSessionState() {
         return result
       } catch (error) {
         reportSuppressedError('geminiWeb.runSessionAction', { cause: error })
-        const message = error instanceof Error ? error.message : t('error_unknown_error')
+        const message = ensureErrorMessage(error, t('error_unknown_error'))
         showError(message)
         return null
       }

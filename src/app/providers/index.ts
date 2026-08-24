@@ -1,5 +1,5 @@
 /** App-wide provider modules and stores (barrel). */
-export * from './AiContext'
+export * from './ai-context'
 export { default as AppProviders } from './AppProviders'
 export * from './AppToolContext'
 export * from './UpdateContext'

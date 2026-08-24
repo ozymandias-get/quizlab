@@ -5,7 +5,7 @@ import { BrowserWindow, dialog } from 'electron'
 import {
   GOOGLE_WEB_SESSION_APPS,
   type GoogleWebSessionAppId
-} from '../../../shared/constants/google-ai-web-apps.js'
+} from '../../../shared/constants/googleAiWebApps.js'
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'

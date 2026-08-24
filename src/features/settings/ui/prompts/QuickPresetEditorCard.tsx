@@ -7,7 +7,7 @@ import { Textarea } from '@app/components/ui/textarea'
 import { cn } from '@shared/lib/uiUtils'
 
 import { RotateCcw } from 'lucide-react'
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface QuickPresetEditorCardProps {
@@ -22,13 +22,15 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
   onReset
 }: QuickPresetEditorCardProps) {
   const { t } = useTranslation()
+  const [labelError, setLabelError] = useState('')
   const Icon = preset.icon
 
   const handleLabelChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onUpdate({ label: e.target.value })
+      if (labelError) setLabelError(e.target.value.trim() ? '' : 'error_name_required')
     },
-    [onUpdate]
+    [labelError, onUpdate]
   )
 
   const handleValueChange = useCallback(
@@ -77,9 +79,16 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
           <Input
             value={preset.label}
             onChange={handleLabelChange}
+            onBlur={() => setLabelError(preset.label.trim() ? '' : 'error_name_required')}
             placeholder={preset.defaultLabel}
             className="text-ql-12 h-7"
+            aria-invalid={!!labelError}
           />
+          {labelError && (
+            <span role="alert" className="text-destructive text-ql-11 px-1">
+              {t(labelError)}
+            </span>
+          )}
         </div>
         <div className="space-y-1">
           <Label className="text-ql-10 text-muted-foreground/70">{t('prompt_prompt')}</Label>

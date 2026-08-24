@@ -1,4 +1,4 @@
-﻿import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps.js'
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/googleAiWebApps.js'
 
 export default {
   id: 'gemini',

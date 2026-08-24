@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../app/constants.js'
 
@@ -72,7 +72,7 @@ describe('systemHandlers', () => {
   })
 
   it('registers handlers only once per module instance', async () => {
-    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
 
     registerSystemHandlers()
     registerSystemHandlers()
@@ -91,7 +91,7 @@ describe('systemHandlers', () => {
   })
 
   it('blocks quit requests from non-main-window senders', async () => {
-    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
     getMainWindow.mockReturnValue({
       isDestroyed: vi.fn(() => false),
       webContents: trustedSender
@@ -108,7 +108,7 @@ describe('systemHandlers', () => {
   })
 
   it('opens external URLs only for trusted senders and valid protocols', async () => {
-    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
     getMainWindow.mockReturnValue({
       isDestroyed: vi.fn(() => false),
       webContents: trustedSender
@@ -134,7 +134,7 @@ describe('systemHandlers', () => {
   })
 
   it('allows force-paste only for guest contents owned by the main window', async () => {
-    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
     // Use the describe-level trustedSender so it is === to mainWindow.webContents
     const paste = vi.fn()
     getMainWindow.mockReturnValue({
@@ -173,7 +173,7 @@ describe('systemHandlers', () => {
   })
 
   it('clears storage for a registered AI model partition', async () => {
-    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
     getMainWindow.mockReturnValue({
       isDestroyed: vi.fn(() => false),
       webContents: trustedSender
@@ -196,7 +196,7 @@ describe('systemHandlers', () => {
   })
 
   it('rejects AI model data clear requests for unsafe partitions', async () => {
-    const { registerSystemHandlers } = await import('../../core/systemHandlers.js')
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
     getMainWindow.mockReturnValue({
       isDestroyed: vi.fn(() => false),
       webContents: trustedSender

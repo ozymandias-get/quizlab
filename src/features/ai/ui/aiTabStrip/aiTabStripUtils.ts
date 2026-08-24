@@ -1,4 +1,4 @@
-import type { Tab } from '@app/providers/AiContext'
+import type { Tab } from '@app/providers/ai-context'
 
 export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 

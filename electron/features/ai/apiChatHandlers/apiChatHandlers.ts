@@ -1,4 +1,4 @@
-﻿import { IPC_CHANNELS } from '../../../../shared/constants/ipc-channels.js'
+import { IPC_CHANNELS } from '../../../../shared/constants/ipcChannels.js'
 import { failure, success } from '../../../../shared/lib/typedIpc.js'
 import type {
   ApiChatMessage,

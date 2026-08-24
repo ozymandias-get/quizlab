@@ -1,4 +1,4 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 import type { GeminiWebSessionStatus, PdfSelection } from '@shared-core/types'
 
 const objectUrls = new Set<string>()

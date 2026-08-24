@@ -1,6 +1,6 @@
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
 
-import { Logger } from '@shared/lib/logger'
+import { getStorageItem, removeStorageItem } from '@shared/hooks/localStorageUtils'
 import { hexToRgba } from '@shared/lib/uiUtils'
 import { useAppearance } from '@shared/stores/appearanceStore'
 import { DEFAULT_LANGUAGE, LANGUAGES, useLanguage } from '@shared/stores/languageStore'
@@ -64,37 +64,26 @@ function AppEffects() {
   }, [selectionColor])
 
   useEffect(() => {
-    try {
-      const legacySeen = localStorage.getItem(ONBOARDING_STORAGE_KEY)
+    const legacySeen = getStorageItem(ONBOARDING_STORAGE_KEY)
 
-      if (!onboardingDone && !legacySeen) {
-        const timer = setTimeout(() => {
-          startTutorial('general')
-          markOnboardingDone()
-        }, 1500)
-        return () => clearTimeout(timer)
-      }
-
-      if (legacySeen && !onboardingDone) {
+    if (!onboardingDone && !legacySeen) {
+      const timer = setTimeout(() => {
+        startTutorial('general')
         markOnboardingDone()
-        try {
-          localStorage.removeItem(ONBOARDING_STORAGE_KEY)
-        } catch {
-          // best-effort cleanup
-        }
-      }
-    } catch (error) {
-      Logger.warn('Tutorial onboarding check failed:', error)
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+
+    if (legacySeen && !onboardingDone) {
+      markOnboardingDone()
+      // best-effort cleanup of the legacy key
+      removeStorageItem(ONBOARDING_STORAGE_KEY)
     }
   }, [onboardingDone, startTutorial, markOnboardingDone])
 
   // Remove legacy `useCustomPdfEngine` key from Custom PDF Viewer experiment
   useEffect(() => {
-    try {
-      localStorage.removeItem('useCustomPdfEngine')
-    } catch {
-      // best-effort cleanup
-    }
+    removeStorageItem('useCustomPdfEngine')
   }, [])
 
   useEffect(() => {

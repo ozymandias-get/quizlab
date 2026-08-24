@@ -34,20 +34,19 @@ const AddAiModelForm = memo(function AddAiModelForm({
   const [urlError, setUrlError] = useState('')
 
   function validateName(value: string): string {
-    if (!value.trim()) return t('error_name_required') || 'Name is required'
-    if (value.trim().length < 2) return t('error_name_too_short') || 'Name too short'
+    if (!value.trim()) return t('error_name_required')
+    if (value.trim().length < 2) return t('error_name_too_short')
     return ''
   }
 
   function validateUrl(value: string): string {
-    if (!value.trim()) return t('error_url_required') || 'URL is required'
+    if (!value.trim()) return t('error_url_required')
     try {
       const parsed = new URL(value.trim())
-      if (!['https:', 'http:'].includes(parsed.protocol))
-        return t('error_url_protocol') || 'Only http(s) allowed'
-      if (!parsed.hostname.includes('.')) return t('error_url_invalid') || 'Invalid URL'
+      if (!['https:', 'http:'].includes(parsed.protocol)) return t('error_url_protocol')
+      if (!parsed.hostname.includes('.')) return t('error_url_invalid')
     } catch {
-      return t('error_url_invalid') || 'Invalid URL'
+      return t('error_url_invalid')
     }
     return ''
   }

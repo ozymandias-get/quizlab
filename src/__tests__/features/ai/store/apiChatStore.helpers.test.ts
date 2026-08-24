@@ -106,12 +106,19 @@ describe('apiChatStore helpers (pure functions)', () => {
       expect(reply.id.endsWith('-error')).toBe(true)
     })
 
-    it('falls back to a localized message for non-Error throws', () => {
-      expect(buildErrorReply('bad').content).toMatch(
+    it('falls back to a localized message for non-serializable throws', () => {
+      expect(buildErrorReply(undefined).content).toMatch(
         /^(Hata: İstek başarısız oldu|Error: Request failed)$/
       )
-      expect(buildErrorReply({ code: 500 }).content).toMatch(
+      expect(buildErrorReply(() => 'fn').content).toMatch(
         /^(Hata: İstek başarısız oldu|Error: Request failed)$/
+      )
+    })
+
+    it('passes plain-string and serializable throws through', () => {
+      expect(buildErrorReply('bad').content).toMatch(/^(Hata: bad|Error: bad)$/)
+      expect(buildErrorReply({ code: 500 }).content).toMatch(
+        /^(Hata|Error): \{&?quot;code&?quot;:500\}$/
       )
     })
   })

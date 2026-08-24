@@ -5,7 +5,7 @@ import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionAp
 import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
 
 import { useAppearance, useAppToolActions, useAppToolPickerState } from '@app/providers'
-import { useAiModelsCatalog, useAiTabActions } from '@app/providers/AiContext'
+import { useAiModelsCatalog, useAiTabActions } from '@app/providers/ai-context'
 import {
   ExpandIcon,
   GeminiIcon,

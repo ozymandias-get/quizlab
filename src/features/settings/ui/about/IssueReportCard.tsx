@@ -1,5 +1,6 @@
 import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
 
@@ -30,9 +31,7 @@ async function copyToClipboard(text: string): Promise<void> {
       await navigator.clipboard.writeText(text)
       return
     } catch (error) {
-      errors.push(
-        `navigator.clipboard error: ${error instanceof Error ? error.message : String(error)}`
-      )
+      errors.push(`navigator.clipboard error: ${ensureErrorMessage(error)}`)
     }
   }
 
@@ -56,7 +55,7 @@ async function copyToClipboard(text: string): Promise<void> {
     if (copied) return
     errors.push('document.execCommand returned false')
   } catch (error) {
-    errors.push(`execCommand error: ${error instanceof Error ? error.message : String(error)}`)
+    errors.push(`execCommand error: ${ensureErrorMessage(error)}`)
   }
 
   // ── Strateji 3: IPC (Electron main process) ──────────────────────
@@ -71,7 +70,7 @@ async function copyToClipboard(text: string): Promise<void> {
       if (copied) return
       errors.push('IPC returned false')
     } catch (error) {
-      errors.push(`IPC error: ${error instanceof Error ? error.message : String(error)}`)
+      errors.push(`IPC error: ${ensureErrorMessage(error)}`)
     }
   }
 

@@ -2,6 +2,7 @@ import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/
 
 import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
 import { AiIcon } from '@shared/ui/components/icons/AiIcon'
@@ -134,7 +135,7 @@ export default memo(function ApiSettingsTab() {
         setTestResults((s) => ({
           ...s,
           [id]: t('api_chat_fetch_error', {
-            error: err instanceof Error ? err.message : String(err)
+            error: ensureErrorMessage(err)
           })
         }))
       } finally {
@@ -186,7 +187,7 @@ export default memo(function ApiSettingsTab() {
         setTestResults((s) => ({
           ...s,
           [id]: t('api_chat_test_error', {
-            error: err instanceof Error ? err.message : String(err)
+            error: ensureErrorMessage(err)
           })
         }))
       } finally {

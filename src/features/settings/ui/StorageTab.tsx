@@ -5,6 +5,7 @@ import {
 } from '@platform/electron/api/useSettingsSystemApi'
 
 import { Button } from '@app/components/ui/button'
+import { formatBytes } from '@shared/lib/formatUtils'
 import { cn } from '@shared/lib/uiUtils'
 import { RefreshIcon } from '@ui/components/Icons'
 
@@ -14,7 +15,7 @@ import { useTranslation } from 'react-i18next'
 
 import SettingsTabIntro from './shared/SettingsTabIntro'
 import { PartitionRow, ProgressBar, RootCacheRow } from './storage/StorageComponents'
-import { formatBytes, formatTimeAgo, partitionDisplayName } from './storage/storageUtils'
+import { formatTimeAgo, partitionDisplayName } from './storage/storageUtils'
 
 const MAX_TOTAL_CACHE_BYTES = 500 * 1024 * 1024
 

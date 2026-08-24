@@ -1,7 +1,7 @@
 import {
   GOOGLE_AI_WEB_SESSION_PARTITION,
   GOOGLE_DRIVE_WEB_APP
-} from '@shared-core/constants/google-ai-web-apps'
+} from '@shared-core/constants/googleAiWebApps'
 import type { WebviewElement } from '@shared-core/types/webview'
 
 import { Button } from '@app/components/ui/button'

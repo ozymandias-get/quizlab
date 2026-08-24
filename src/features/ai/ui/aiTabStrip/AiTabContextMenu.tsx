@@ -1,6 +1,6 @@
 import { MenuItem, MenuSurface } from '@app/components/ui/menu'
 import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNavigation'
-import type { Tab } from '@app/providers/AiContext'
+import type { Tab } from '@app/providers/ai-context'
 import { DURATION } from '@shared/lib/motion'
 
 import { motion } from 'motion/react'
