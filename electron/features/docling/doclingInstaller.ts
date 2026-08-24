@@ -116,6 +116,43 @@ async function readMarker(markerPath: string): Promise<string | null> {
   }
 }
 
+async function assertDiskSpace(dir: string, requiredBytes: number, context: string): Promise<void> {
+  try {
+    await fs.mkdir(dir, { recursive: true })
+    const maybeStatfs = (
+      fs as unknown as { statfs?: (p: string) => Promise<{ bavail: number; bsize: number }> }
+    ).statfs
+    if (!maybeStatfs) return
+    const stat = await maybeStatfs.call(fs, dir)
+    const available = stat.bavail * stat.bsize
+    if (available < requiredBytes) {
+      const neededGB = (requiredBytes / 1024 ** 3).toFixed(1)
+      const availGB = (available / 1024 ** 3).toFixed(1)
+      throw new Error(
+        `${context} için en az ${neededGB} GB boş alan gerekli, mevcut ${availGB} GB. Lütfen disk alanı açın.`
+      )
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('boş alan gerekli')) throw error
+    // Ignore statfs failures (unsupported FS or permission)
+  }
+}
+
+function mapDownloadError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error)
+  const code = (error as { code?: string })?.code
+  if (code === 'aborted') return 'İndirme iptal edildi'
+  if (code === 'timeout' || msg.includes('timeout'))
+    return 'Ağ zaman aşımı — internet bağlantınızı kontrol edin ve tekrar deneyin'
+  if (code === 'checksum_mismatch') return 'İndirilen dosya doğrulaması başarısız — tekrar deneyin'
+  if (code === 'size_exceeded') return 'Dosya boyutu beklenen sınırı aştı'
+  if (msg.includes('ENOTFOUND') || msg.includes('EAI_AGAIN') || msg.includes('network_error'))
+    return 'Ağ bağlantısı kurulamadı — internet bağlantınızı kontrol edin'
+  if (msg.includes('wheel') || msg.includes('C++') || msg.includes('build'))
+    return 'Gerekli derleme araçları eksik — lütfen tekrar deneyin veya logları paylaşın'
+  return msg
+}
+
 // --- pipeline steps ---------------------------------------------------------
 
 const UV_MARKER = '.uv-version'
@@ -250,21 +287,27 @@ async function stepEnsureUvBinary(ctx: PipelineContext): Promise<void> {
     return
   }
 
+  await assertDiskSpace(layout.temp, 512 * 1024 * 1024, 'Docling runtime indirmesi')
+
   const asset = UV_ASSETS[getUvAssetKey()]
   const archiveExt = asset.url.endsWith('.zip') ? 'zip' : 'tar.gz'
   const archivePath = path.join(layout.temp, `uv-${UV_VERSION}.${archiveExt}`)
   const extractDir = path.join(layout.temp, 'uv-extract')
 
-  await io.downloadAsset(asset.url, archivePath, asset.sha256, (received, total) => {
-    // Real percentage only — reported solely while the byte count is known.
-    if (total && total > 0) {
-      report({
-        phase: 'downloading_runtime',
-        percent: Math.min(100, Math.round((received / total) * 100)),
-        message: 'uv binary'
-      })
-    }
-  })
+  try {
+    await io.downloadAsset(asset.url, archivePath, asset.sha256, (received, total) => {
+      // Real percentage only — reported solely while the byte count is known.
+      if (total && total > 0) {
+        report({
+          phase: 'downloading_runtime',
+          percent: Math.min(100, Math.round((received / total) * 100)),
+          message: 'uv binary'
+        })
+      }
+    })
+  } catch (error) {
+    throw new Error(mapDownloadError(error))
+  }
 
   await fs.mkdir(layout.bin, { recursive: true })
   await io.extractArchive(archivePath, extractDir)
@@ -400,6 +443,9 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
   const expectedPin = await getExpectedPin()
 
   if (isPinCompatible(await readMarker(pinMarker), expectedPin)) return
+
+  await assertDiskSpace(layout.environment, 4 * 1024 * 1024 * 1024, 'Docling paket kurulumu')
+  await assertDiskSpace(layout.temp, 2 * 1024 * 1024 * 1024, 'Docling geçici dosyalar')
 
   /**
    * Install from a lock file with one automatic recovery pass: repeated

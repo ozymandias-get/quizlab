@@ -241,13 +241,36 @@ export interface DoclingModelProgressReporter {
   (event: DoclingModelProgressEvent): void
 }
 
+async function assertDiskSpace(dir: string, requiredBytes: number, context: string): Promise<void> {
+  try {
+    await fs.mkdir(dir, { recursive: true })
+    const maybeStatfs = (
+      fs as unknown as { statfs?: (p: string) => Promise<{ bavail: number; bsize: number }> }
+    ).statfs
+    if (!maybeStatfs) return
+    const stat = await maybeStatfs.call(fs, dir)
+    const available = stat.bavail * stat.bsize
+    if (available < requiredBytes) {
+      const neededGB = (requiredBytes / 1024 ** 3).toFixed(1)
+      const availGB = (available / 1024 ** 3).toFixed(1)
+      throw new Error(
+        `${context} için en az ${neededGB} GB boş alan gerekli, mevcut ${availGB} GB. Lütfen disk alanı açın.`
+      )
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('boş alan gerekli')) throw error
+  }
+}
+
 export async function downloadModels(
   onProgress?: (received: number, total: number | null) => void,
   componentsRoot?: string,
-  progressReporter?: DoclingModelProgressReporter
+  progressReporter?: DoclingModelProgressReporter,
+  options?: { signal?: AbortSignal }
 ): Promise<void> {
   const layout = getDoclingLayout(componentsRoot)
   await fs.mkdir(layout.models, { recursive: true })
+  await assertDiskSpace(layout.models, 4 * 1024 * 1024 * 1024, 'Docling modelleri')
   const report = progressReporter
   const emit = (e: DoclingModelProgressEvent): void => {
     try {

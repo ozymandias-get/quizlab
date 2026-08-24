@@ -8,7 +8,7 @@ import { getDoclingLayout } from './doclingPaths.js'
 const ASSET_SCHEME = 'quizlab-asset'
 const ALLOWED_HOSTS = new Set(['docling', 'docling-cache'])
 
-function isSafeAssetPath(taskId: string, fileName: string): boolean {
+export function isSafeAssetPath(taskId: string, fileName: string): boolean {
   if (
     !/^docling-[a-f0-9]{8,64}$/.test(taskId) &&
     !/^[a-f0-9-]{8,64}$/.test(taskId) &&
@@ -19,7 +19,7 @@ function isSafeAssetPath(taskId: string, fileName: string): boolean {
   return true
 }
 
-function isSafeHash(hash: string): boolean {
+export function isSafeHash(hash: string): boolean {
   return /^[a-f0-9]{64}$/.test(hash)
 }
 

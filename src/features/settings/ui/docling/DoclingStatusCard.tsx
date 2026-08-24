@@ -89,6 +89,33 @@ const DoclingStatusCard = memo(function DoclingStatusCard({
         </Button>
       </div>
 
+      {serviceStatus?.state === 'starting' && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5">
+          <InlineSpinner />
+          <span className="text-ql-12 text-amber-700 dark:text-amber-300">
+            {t('docling_state_starting', { defaultValue: 'Servis başlatılıyor…' })}
+          </span>
+        </div>
+      )}
+      {serviceStatus?.state === 'stopping' && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5">
+          <InlineSpinner />
+          <span className="text-ql-12 text-amber-700 dark:text-amber-300">
+            {t('docling_state_stopping', { defaultValue: 'Servis durduruluyor…' })}
+          </span>
+        </div>
+      )}
+      {serviceStatus && serviceStatus.healthy === false && serviceStatus.state === 'running' && (
+        <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border p-2.5">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="text-ql-12 font-medium">
+            {t('docling_state_unhealthy', {
+              defaultValue: 'Servis çalışıyor ancak sağlıksız — yeniden başlatmayı deneyin'
+            })}
+          </span>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center gap-2 py-4">
           <InlineSpinner />
@@ -138,6 +165,17 @@ const DoclingStatusCard = memo(function DoclingStatusCard({
             <p className="text-ql-11 text-destructive">
               {modelProgress.message ?? t('docling_download_failed')}
             </p>
+          )}
+
+          {serviceStatus?.lastError && (
+            <details className="border-border/30 bg-muted/20 rounded-lg border p-2.5">
+              <summary className="text-ql-11 cursor-pointer font-medium">
+                {t('docling_logs', { defaultValue: 'Son loglar' })}
+              </summary>
+              <pre className="text-ql-11 mt-2 max-h-32 overflow-auto font-mono break-words whitespace-pre-wrap">
+                {serviceStatus.lastError}
+              </pre>
+            </details>
           )}
 
           <div className="border-border/50 flex flex-wrap items-center gap-1.5 border-t pt-2.5">
