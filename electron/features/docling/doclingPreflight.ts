@@ -1,5 +1,49 @@
 import { promises as fs } from 'node:fs'
 
+// pdfjs-dist legacy Node build `require('canvas')` ile DOMMatrix/Path2D polyfill
+// dener; `canvas` native modülü kurulu değilse her preflight'te şu uyarıyı basar:
+// "Warning: Cannot polyfill `DOMMatrix`/`Path2D`, rendering may be broken: Cannot find module 'canvas'".
+// Electron main / Vite dev'de bu polyfill gerekmez – basit stub vererek `require('canvas')` yolunu atlatıyoruz.
+if ((globalThis as unknown as { DOMMatrix?: unknown }).DOMMatrix === undefined) {
+  // @ts-ignore – minimal stub, pdfjs sadece varlık kontrolü yapıyor
+  ;(globalThis as unknown as Record<string, unknown>).DOMMatrix = class DOMMatrix {
+    a = 1
+    b = 0
+    c = 0
+    d = 1
+    e = 0
+    f = 0
+    constructor(..._args: unknown[]) {}
+    multiplySelf() {
+      return this
+    }
+    translateSelf() {
+      return this
+    }
+    scaleSelf() {
+      return this
+    }
+    invertSelf() {
+      return this
+    }
+  }
+}
+if ((globalThis as unknown as { Path2D?: unknown }).Path2D === undefined) {
+  // @ts-ignore
+  ;(globalThis as unknown as Record<string, unknown>).Path2D = class Path2D {
+    constructor(..._args: unknown[]) {}
+    addPath() {}
+    closePath() {}
+    moveTo() {}
+    lineTo() {}
+    bezierCurveTo() {}
+    quadraticCurveTo() {}
+    arc() {}
+    rect() {}
+    ellipse() {}
+  }
+}
+
 /**
  * Cheap preflight that inspects the first pages' text layer via pdfjs-dist.
  * Returns true if the PDF looks scanned (needs OCR), false if it has

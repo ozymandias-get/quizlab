@@ -10,5 +10,7 @@ export const viteAliases: Record<string, string> = {
   '@electron': path.resolve(rootDir, 'electron'),
   '@ui': path.resolve(rootDir, 'src/shared/ui'),
   '@features': path.resolve(rootDir, 'src/features'),
-  '@platform': path.resolve(rootDir, 'src/platform')
+  '@platform': path.resolve(rootDir, 'src/platform'),
+  // pdfjs-dist legacy Node build `require('canvas')` uyarısını susturmak için stub
+  canvas: path.resolve(rootDir, 'src/__mocks__/canvas.ts')
 }

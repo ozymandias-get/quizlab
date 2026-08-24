@@ -22,7 +22,8 @@ import type { DoclingDirLayout } from './doclingPaths.js'
 export const CONVERTER_SCRIPT_TOKENS = [
   'DOCLING_DO_OCR',
   'ASSET_EXPORT',
-  'ACCELERATOR_CPU'
+  'ACCELERATOR_CPU',
+  'FORMAT_ROUTER'
 ] as const
 
 /**
@@ -31,7 +32,7 @@ export const CONVERTER_SCRIPT_TOKENS = [
  * version mismatches the code. This is more reliable than token-sniffing
  * because old scripts may already contain the same tokens.
  */
-export const CONVERTER_SCRIPT_VERSION = 7
+export const CONVERTER_SCRIPT_VERSION = 8
 
 export async function ensureConverterScript(layout: DoclingDirLayout): Promise<string> {
   const scriptPath = getConverterScriptPath(layout)
@@ -70,12 +71,37 @@ pdf_path = Path(sys.argv[1])
 out_path = Path(sys.argv[2])
 images_dir = Path(sys.argv[3])
 
-if not pdf_path.is_file():
-    print(f"PDF not found: {pdf_path}", file=sys.stderr)
-    sys.exit(2)
-if pdf_path.suffix.lower() != ".pdf":
-    print(f"Not a PDF: {pdf_path}", file=sys.stderr)
+# FORMAT_ROUTER – çoklu format girdi yönlendirici (DOCX, PPTX, HTML, MD, images)
+SUPPORTED_EXTENSIONS = {".pdf",".docx",".pptx",".html",".htm",".md",".markdown",".png",".jpg",".jpeg",".tiff",".tif",".bmp",".webp"}
+_ext = pdf_path.suffix.lower()
+if _ext not in SUPPORTED_EXTENSIONS:
+    print(f"Unsupported format: {pdf_path} (ext={_ext})", file=sys.stderr)
     sys.exit(3)
+
+if not pdf_path.is_file():
+    print(f"File not found: {pdf_path}", file=sys.stderr)
+    sys.exit(2)
+
+def _detect_input_format(ext: str):
+    # FORMAT_ROUTER token – doclingConverterScript format yönlendirici
+    ext = ext.lower()
+    if ext == ".pdf":
+        return "PDF"
+    if ext == ".docx":
+        return "DOCX"
+    if ext == ".pptx":
+        return "PPTX"
+    if ext in (".html", ".htm"):
+        return "HTML"
+    if ext in (".md", ".markdown", ".txt"):
+        return "MD"
+    if ext == ".csv":
+        return "CSV"
+    if ext == ".xlsx":
+        return "XLSX"
+    if ext in (".png",".jpg",".jpeg",".tiff",".tif",".bmp",".webp"):
+        return "IMAGE"
+    return "PDF"
 
 def _make_converter(do_ocr_override=None):
     global DEGRADED_PIPELINE
@@ -289,9 +315,26 @@ def _make_converter(do_ocr_override=None):
                 kwargs["local_files_only"] = True
             except:
                 pass
+        # FORMAT_ROUTER – girdi dosya türüne göre uygun parser/backend ayarlarını dinamik belirle
+        # Girdi dosya türüne göre uygun Docling parser/backend ayarlarını (doclingConverterScript) dinamik olarak belirle
+        input_format_name = _detect_input_format(_ext)
         opts = PdfPipelineOptions(**{k: v for k, v in kwargs.items() if v is not None})
-        print(f"Pipeline ocr={do_ocr} lang={ocr_lang} figs={extract_figs} tables={detect_tables} fast={fast_tables} scale={images_scale} thr={num_threads} dev=cpu offline={offline_mode}", flush=True)
-        return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
+        print(f"Pipeline ocr={do_ocr} lang={ocr_lang} figs={extract_figs} tables={detect_tables} fast={fast_tables} scale={images_scale} thr={num_threads} dev=cpu offline={offline_mode} format={input_format_name}", flush=True)
+        try:
+            fmt = getattr(InputFormat, input_format_name, InputFormat.PDF)
+        except Exception:
+            fmt = InputFormat.PDF
+        # Format-specific routing: PDF uses PdfFormatOption, others use generic but keep pipeline
+        if input_format_name == "PDF":
+            return DocumentConverter(format_options={fmt: PdfFormatOption(pipeline_options=opts)})
+        else:
+            # DOCX/PPTX/HTML/MD/IMAGE – Docling natively handles these; reuse pipeline where applicable
+            # For images, OCR is essential; force it via override if needed
+            try:
+                return DocumentConverter(format_options={fmt: PdfFormatOption(pipeline_options=opts)})
+            except Exception:
+                # Fallback to auto-detect converter (supports all formats without custom opts)
+                return DocumentConverter()
     except Exception as e:
         print(f"Pipeline opts failed: {e}", file=sys.stderr, flush=True)
         import traceback; traceback.print_exc(file=sys.stderr)
@@ -313,7 +356,12 @@ def _make_converter(do_ocr_override=None):
             print("Using safe CPU fallback pipeline – output is DEGRADED (some enrichments disabled)", flush=True)
             print("DEGRADED_PIPELINE=true", flush=True)
             DEGRADED_PIPELINE = True
-            return SafeConv(format_options={SafeFmtType.PDF: SafeFmt(pipeline_options=safe_pipeline)})
+            try:
+                _fmt_name = _detect_input_format(_ext)
+                _fmt = getattr(SafeFmtType, _fmt_name, SafeFmtType.PDF)
+            except Exception:
+                _fmt = SafeFmtType.PDF
+            return SafeConv(format_options={_fmt: SafeFmt(pipeline_options=safe_pipeline)})
         except Exception as e2:
             print(f"Safe CPU fallback also failed: {e2}", file=sys.stderr, flush=True)
             traceback.print_exc(file=sys.stderr)

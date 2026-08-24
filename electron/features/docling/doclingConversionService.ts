@@ -18,7 +18,7 @@ import { ensureConverterScript } from './doclingConverterScript.js'
 import { getModelStatus } from './doclingModelManager.js'
 import { getDoclingLayout, getVenvPythonPath } from './doclingPaths.js'
 import { preflightNeedsOcr as preflightNeedsOcrImported } from './doclingPreflight.js'
-import { mapErrorCode, validatePdfPath } from './doclingValidation.js'
+import { mapErrorCode, validateDocumentPath, validatePdfPath } from './doclingValidation.js'
 
 const POLL_INTERVAL_MS = 800
 
@@ -255,7 +255,8 @@ class DoclingConversionService {
     const outputDir = path.join(layout.temp, 'conversions', taskId)
     const imagesDir = path.join(layout.root, 'documents', taskId, 'images')
     try {
-      const validation = await validatePdfPath(task.pdfPath)
+      // Multi-format: validateDocumentPath supports pdf/docx/pptx/html/md/images
+      const validation = await validateDocumentPath(task.pdfPath)
       if (!validation.valid) {
         this.updateTask(taskId, {
           status: 'failed',
@@ -339,7 +340,10 @@ class DoclingConversionService {
       // PDF.js; if the first pages have almost no selectable text, flip OCR ON
       // for this single run so the heavy Docling conversion only executes once
       // with the right mode.
-      if (envBase.DOCLING_DO_OCR !== '1') {
+      // Format yönlendirici: sadece PDF için OCR preflight, diğer formatlarda OCR gerekmez veya zaten açıktır
+      const _extForPreflight = path.extname(task.pdfPath).toLowerCase()
+      const _isPdfForPreflight = _extForPreflight === '.pdf'
+      if (envBase.DOCLING_DO_OCR !== '1' && _isPdfForPreflight) {
         try {
           const needsOcr = await this.preflightNeedsOcr(task.pdfPath)
           if (needsOcr === true) {

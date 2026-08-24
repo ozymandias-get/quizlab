@@ -15,7 +15,12 @@ export function isSafeAssetPath(taskId: string, fileName: string): boolean {
     !/^[a-f0-9]{64}$/.test(taskId)
   )
     return false
-  if (!/^[a-f0-9-]+\.(png|jpg|jpeg|bin|webp)$/.test(fileName)) return false
+  // Python tarafı `asset-{idx}-{hash}.png` üretir (ör. asset-0-5ecc858f0aeb.png) ve
+  // writeAsset `block.id.png` gibi UUID tabanlı adlar üretir. Önceki sıkı
+  // `^[a-f0-9-]+` filtresi `asset` kelimesindeki s,t harfleri nedeniyle
+  // tüm dönüştürülmüş görselleri 403 ile reddediyordu. Güvenli karakter setini
+  // genişletiyoruz: harf/rakam/-/_
+  if (!/^[A-Za-z0-9_-]+\.(png|jpg|jpeg|bin|webp)$/.test(fileName)) return false
   return true
 }
 

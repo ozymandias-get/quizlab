@@ -12,6 +12,28 @@ import type { LastReadingInfo, PdfTab, ResumePdfResult } from './types'
 
 type DroppedPdfFile = File & { path?: string }
 
+// Multi-format: Docling supports DOCX, PPTX, HTML, MD and scanned images
+const SUPPORTED_EXTENSIONS = [
+  'pdf',
+  'docx',
+  'pptx',
+  'html',
+  'htm',
+  'md',
+  'markdown',
+  'png',
+  'jpg',
+  'jpeg',
+  'tiff',
+  'tif',
+  'bmp',
+  'webp'
+]
+function isSupportedDocumentFileName(name: string): boolean {
+  const lower = name.toLowerCase()
+  return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`))
+}
+
 interface UsePdfOpenActionsProps {
   openPdfInTab: (file: PdfFile) => PdfTab
   upsertLastReadingInfo: (info: LastReadingInfo) => void
@@ -54,6 +76,7 @@ export function usePdfOpenActions({
     const currentRequestId = ++lastLoadRequestId.current
 
     try {
+      // Multi-format picker: dialog.showOpenDialog artık pdf+docx+pptx+html+md+image filtrelerini sunuyor
       const result = await selectPdf({ filterName: t('pdf_documents') })
 
       if (currentRequestId !== lastLoadRequestId.current || !result) return
@@ -66,9 +89,12 @@ export function usePdfOpenActions({
     }
   }, [selectPdf, t, handleOpenPdfWithInfo])
 
+  // Alias for new multi-format handling – keeps backwards compat with handleSelectPdf
+  const handleSelectDocument = handleSelectPdf
+
   const handlePdfDrop = useCallback(
     async (file: File) => {
-      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      if (!isSupportedDocumentFileName(file.name)) {
         showError('error_invalid_pdf')
         return
       }
@@ -146,7 +172,9 @@ export function usePdfOpenActions({
 
   return {
     handleSelectPdf,
+    handleSelectDocument,
     handlePdfDrop,
-    resumeLastPdf
+    resumeLastPdf,
+    isSupportedDocumentFileName
   }
 }

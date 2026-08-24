@@ -1,4 +1,6 @@
-﻿import { Logger } from '@shared/lib/logger'
+﻿import { isSupportedDocumentFileName } from '@shared-core/constants/documentFormats'
+
+import { Logger } from '@shared/lib/logger'
 
 import { type DragEvent, type RefObject, useCallback, useMemo, useRef, useState } from 'react'
 
@@ -67,12 +69,13 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
       setIsDragOver(false)
 
       const files = [...e.dataTransfer.files]
-      const pdfFile = files.find((file) => file.name.toLowerCase().endsWith('.pdf'))
+      // Multi-format ingestion: DOCX, PPTX, HTML, Markdown ve taranmış görseller dahil
+      const supportedFile = files.find((file) => isSupportedDocumentFileName(file.name))
 
-      if (!pdfFile) return
+      if (!supportedFile) return
 
       try {
-        const fileWithPath = pdfFile as File & { path?: string }
+        const fileWithPath = supportedFile as File & { path?: string }
         const filePath = fileWithPath.path
 
         if (!filePath) {
@@ -80,7 +83,7 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
           return
         }
 
-        onFileReceived(pdfFile)
+        onFileReceived(supportedFile)
       } catch (error) {
         Logger.error('[DragDrop] Error processing drop:', error)
       }

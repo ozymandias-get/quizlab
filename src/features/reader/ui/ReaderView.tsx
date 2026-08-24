@@ -1,8 +1,11 @@
 import type { QuizLabBlock, QuizLabDocument } from '@shared-core/types'
 
-import { memo, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useBlockVirtualization } from '../hooks/useBlockVirtualization'
+import { useReaderCustomization } from '../hooks/useReaderCustomization'
+import { useReaderRovingFocus } from '../hooks/useReaderRovingFocus'
 import { BlockRenderer } from './ReaderBlocks'
 
 function useReaderSearch(blocks: QuizLabDocument['blocks'], query: string) {
@@ -53,16 +56,59 @@ const ReaderView = memo(function ReaderView({ document, onReprocess, onSwitchToP
       >[],
     [document.blocks]
   )
-  const jumpToBlock = (id: string): void => {
-    const doc = typeof window !== 'undefined' ? window.document : null
-    doc?.getElementById(`block-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    // Briefly highlight target
-    const el = doc?.getElementById(`block-${id}`)
-    if (el) {
-      el.classList.add('ring-2', 'ring-primary/40')
-      setTimeout(() => el.classList.remove('ring-2', 'ring-primary/40'), 1200)
-    }
-  }
+  // Virtualization & memory scaling: @tanstack/react-virtual / IntersectionObserver tabanlı windowing
+  const { isVirtualized, virtualWindow, containerRef } = useBlockVirtualization(
+    document.blocks.length,
+    true
+  )
+  // Reader typography & theme customization
+  const { readerThemeClass, readerStyle } = useReaderCustomization()
+
+  // Roving focus for a11y keyboard navigation
+  const { containerProps: rovingContainerProps, registerBlockRef } = useReaderRovingFocus(
+    document.blocks.map((b) => b.id)
+  )
+
+  const jumpToBlock = useCallback(
+    (id: string): void => {
+      // Virtualized modda hedef blok henüz render edilmemiş olabilir – önce window'u genişletmeye çalış
+      const idx = document.blocks.findIndex((b) => b.id === id)
+      if (isVirtualized && virtualWindow && idx !== -1) {
+        const isOutside = idx < virtualWindow.startIndex || idx >= virtualWindow.endIndex
+        if (isOutside) {
+          // Hedefi viewport'a getirmek için window scroll'u atla ve DOM'un belirmesini bekle
+          const estHeight = 140
+          const container = containerRef.current
+          if (container) {
+            const containerTop = container.getBoundingClientRect().top + window.scrollY
+            window.scrollTo({
+              top: containerTop + idx * estHeight - window.innerHeight / 2,
+              behavior: 'auto'
+            })
+            // Bir sonraki tick'te gerçek scrollIntoView çalışsın
+            setTimeout(() => {
+              const doc = typeof window !== 'undefined' ? window.document : null
+              const el = doc?.getElementById(`block-${id}`)
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              if (el) {
+                el.classList.add('ring-2', 'ring-primary/40')
+                setTimeout(() => el.classList.remove('ring-2', 'ring-primary/40'), 1200)
+              }
+            }, 80)
+            return
+          }
+        }
+      }
+      const doc = typeof window !== 'undefined' ? window.document : null
+      doc?.getElementById(`block-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const el = doc?.getElementById(`block-${id}`)
+      if (el) {
+        el.classList.add('ring-2', 'ring-primary/40')
+        setTimeout(() => el.classList.remove('ring-2', 'ring-primary/40'), 1200)
+      }
+    },
+    [document.blocks, isVirtualized, virtualWindow, containerRef]
+  )
   const nextMatch = (): void => {
     if (matchedIds.size === 0) return
     const ids = [...matchedIds]
@@ -78,10 +124,26 @@ const ReaderView = memo(function ReaderView({ document, onReprocess, onSwitchToP
     jumpToBlock(ids[prev]!)
   }
 
+  // Sanallaştırma için render edilecek blok indeksi aralığı
+  const visibleBlocks = useMemo(() => {
+    if (!isVirtualized || !virtualWindow) return document.blocks
+    return document.blocks.slice(virtualWindow.startIndex, virtualWindow.endIndex)
+  }, [document.blocks, isVirtualized, virtualWindow])
+
   return (
     <article
-      className="mx-auto max-w-[46rem] px-6 py-8 select-text md:px-8"
+      className={`mx-auto px-6 py-8 select-text md:px-8 ${readerThemeClass}`}
+      style={{
+        maxWidth: readerStyle.maxWidth,
+        fontFamily: readerStyle.fontFamily,
+        lineHeight: String(readerStyle.lineHeight),
+        letterSpacing: readerStyle.letterSpacing,
+        ...(readerStyle as unknown as Record<string, string>)
+      }}
       aria-label={document.title ?? t('reader_smart_reading', { defaultValue: 'Akıllı okuma' })}
+      role="document"
+      tabIndex={0}
+      onKeyDown={rovingContainerProps.onKeyDown}
     >
       <div className="border-border/40 bg-card/30 mb-6 flex flex-wrap items-center gap-2 rounded-xl border p-2.5 backdrop-blur">
         <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -257,21 +319,77 @@ const ReaderView = memo(function ReaderView({ document, onReprocess, onSwitchToP
           </div>
         </header>
       )}
-      <div className="space-y-1">
-        {document.blocks.map((block) => {
-          const isMatch = matchedIds.has(block.id)
-          return (
+      <div
+        ref={containerRef as React.RefObject<HTMLDivElement>}
+        className="space-y-1"
+        role="feed"
+        aria-busy={false}
+        aria-label={t('reader_blocks_feed', { defaultValue: 'Doküman blokları' })}
+      >
+        {isVirtualized && virtualWindow ? (
+          <>
+            <div style={{ height: virtualWindow.offsetY }} aria-hidden />
+            {visibleBlocks.map((block) => {
+              const isMatch = matchedIds.has(block.id)
+              return (
+                <div
+                  key={block.id}
+                  id={`block-${block.id}`}
+                  ref={(el) => registerBlockRef(block.id, el as HTMLElement | null)}
+                  tabIndex={-1}
+                  role="article"
+                  aria-posinset={block.readingOrder + 1}
+                  aria-setsize={document.blocks.length}
+                  className={
+                    isMatch ? 'rounded-lg bg-amber-500/10 ring-1 ring-amber-500/20' : undefined
+                  }
+                  style={
+                    {
+                      contentVisibility: 'auto',
+                      containIntrinsicSize: '0 500px'
+                    } as React.CSSProperties
+                  }
+                >
+                  <BlockRenderer block={block} documentId={document.id} />
+                </div>
+              )
+            })}
             <div
-              key={block.id}
-              id={`block-${block.id}`}
-              className={
-                isMatch ? 'rounded-lg bg-amber-500/10 ring-1 ring-amber-500/20' : undefined
-              }
-            >
-              <BlockRenderer block={block} />
+              style={{
+                height: Math.max(
+                  0,
+                  virtualWindow.totalHeight - virtualWindow.offsetY - visibleBlocks.length * 140
+                )
+              }}
+              aria-hidden
+            />
+            <div className="text-muted-foreground/50 text-ql-11 py-2 text-center font-mono">
+              Sanallaştırılmış görünüm: {virtualWindow.startIndex + 1}–
+              {virtualWindow.startIndex + visibleBlocks.length} / {document.blocks.length} blok
+              (Intersection Observer windowing)
             </div>
-          )
-        })}
+          </>
+        ) : (
+          document.blocks.map((block) => {
+            const isMatch = matchedIds.has(block.id)
+            return (
+              <div
+                key={block.id}
+                id={`block-${block.id}`}
+                ref={(el) => registerBlockRef(block.id, el as HTMLElement | null)}
+                tabIndex={-1}
+                role="article"
+                aria-posinset={block.readingOrder + 1}
+                aria-setsize={document.blocks.length}
+                className={
+                  isMatch ? 'rounded-lg bg-amber-500/10 ring-1 ring-amber-500/20' : undefined
+                }
+              >
+                <BlockRenderer block={block} documentId={document.id} />
+              </div>
+            )
+          })
+        )}
       </div>
       {document.blocks.length === 0 && (
         <p className="text-muted-foreground text-ql-13 py-12 text-center">

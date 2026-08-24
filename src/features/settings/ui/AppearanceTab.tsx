@@ -1,4 +1,5 @@
 import { useAppearance } from '@app/providers'
+import type { ReaderFontFamily, ReaderTheme } from '@shared/stores/appearanceStore'
 import { EyeIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
@@ -7,6 +8,7 @@ import { useShallow } from 'zustand/react/shallow'
 
 import BackgroundSettings from './appearance/BackgroundSettings'
 import BarAppearanceSettings from './appearance/BarAppearanceSettings'
+import ReaderAppearanceSettings from './appearance/ReaderAppearanceSettings'
 import SelectionColorSettings from './appearance/SelectionColorSettings'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
@@ -27,7 +29,19 @@ const AppearanceTab = memo(() => {
     bgSolidColor,
     setBgSolidColor,
     selectionColor,
-    setSelectionColor
+    setSelectionColor,
+    readerFontFamily,
+    setReaderFontFamily,
+    readerLineHeight,
+    setReaderLineHeight,
+    readerParagraphGap,
+    setReaderParagraphGap,
+    readerMaxWidth,
+    setReaderMaxWidth,
+    readerLetterSpacing,
+    setReaderLetterSpacing,
+    readerTheme,
+    setReaderTheme
   } = useAppearance(
     useShallow((s) => ({
       bottomBarOpacity: s.bottomBarOpacity,
@@ -39,7 +53,25 @@ const AppearanceTab = memo(() => {
       bgSolidColor: s.bgSolidColor,
       setBgSolidColor: s.setBgSolidColor,
       selectionColor: s.selectionColor,
-      setSelectionColor: s.setSelectionColor
+      setSelectionColor: s.setSelectionColor,
+      readerFontFamily:
+        ((s as unknown as { readerFontFamily?: string })
+          .readerFontFamily as unknown as ReaderFontFamily) ?? 'sans',
+      setReaderFontFamily: s.setReaderFontFamily,
+      readerLineHeight: (s as unknown as { readerLineHeight?: number }).readerLineHeight ?? 1.7,
+      setReaderLineHeight: s.setReaderLineHeight,
+      readerParagraphGap:
+        (s as unknown as { readerParagraphGap?: number }).readerParagraphGap ?? 0.75,
+      setReaderParagraphGap: s.setReaderParagraphGap,
+      readerMaxWidth: (s as unknown as { readerMaxWidth?: string }).readerMaxWidth ?? '46rem',
+      setReaderMaxWidth: s.setReaderMaxWidth,
+      readerLetterSpacing:
+        (s as unknown as { readerLetterSpacing?: string }).readerLetterSpacing ?? '0em',
+      setReaderLetterSpacing: s.setReaderLetterSpacing,
+      readerTheme:
+        ((s as unknown as { readerTheme?: string }).readerTheme as unknown as ReaderTheme) ??
+        'default',
+      setReaderTheme: s.setReaderTheme
     }))
   )
 
@@ -69,6 +101,22 @@ const AppearanceTab = memo(() => {
         setBgMode={setBgMode}
         bgSolidColor={bgSolidColor}
         setBgSolidColor={setBgSolidColor}
+        t={t}
+      />
+
+      <ReaderAppearanceSettings
+        readerFontFamily={readerFontFamily}
+        setReaderFontFamily={setReaderFontFamily}
+        readerLineHeight={readerLineHeight}
+        setReaderLineHeight={setReaderLineHeight}
+        readerParagraphGap={readerParagraphGap}
+        setReaderParagraphGap={setReaderParagraphGap}
+        readerMaxWidth={readerMaxWidth}
+        setReaderMaxWidth={setReaderMaxWidth}
+        readerLetterSpacing={readerLetterSpacing}
+        setReaderLetterSpacing={setReaderLetterSpacing}
+        readerTheme={readerTheme}
+        setReaderTheme={setReaderTheme}
         t={t}
       />
     </div>

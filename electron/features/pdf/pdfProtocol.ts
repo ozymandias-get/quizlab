@@ -57,8 +57,39 @@ function normalizePdfPath(filePath: string): string {
   return path.normalize(filePath)
 }
 
+// Multi-format support: Docling supports pdf, docx, pptx, html, md and images.
+// Dialog filters and drag-drop are no longer locked to .pdf
+const SUPPORTED_DOCUMENT_EXTENSIONS = [
+  'pdf',
+  'docx',
+  'pptx',
+  'html',
+  'htm',
+  'md',
+  'markdown',
+  'txt',
+  'csv',
+  'xlsx',
+  'png',
+  'jpg',
+  'jpeg',
+  'tiff',
+  'tif',
+  'bmp',
+  'webp'
+] as const
+
 function isPdfFilePath(filePath: string): boolean {
   return path.extname(filePath).toLowerCase() === '.pdf'
+}
+
+function isSupportedDocumentFilePath(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase().replace(/^\./, '')
+  return (SUPPORTED_DOCUMENT_EXTENSIONS as readonly string[]).includes(ext)
+}
+
+export function isSupportedDocumentExtensionForTest(ext: string): boolean {
+  return (SUPPORTED_DOCUMENT_EXTENSIONS as readonly string[]).includes(ext.toLowerCase())
 }
 
 function registerPdfPath(filePath: string): string {
@@ -231,10 +262,19 @@ export function registerPdfProtocolHandlers() {
   registerIpcHandler(
     IPC_CHANNELS.SELECT_PDF,
     async (event, options = {}) => {
-      const filterName = options.filterName || 'PDF Documents'
+      const filterName = options.filterName || 'Documents'
+      // Format bazlı pipeline yönlendirmesi için dialog filtreleri: pdf, docx, pptx, html, md, görseller
       const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openFile'],
-        filters: [{ name: filterName, extensions: ['pdf'] }]
+        filters: [
+          { name: filterName, extensions: [...SUPPORTED_DOCUMENT_EXTENSIONS] },
+          { name: 'PDF Documents', extensions: ['pdf'] },
+          { name: 'Word Documents', extensions: ['docx'] },
+          { name: 'PowerPoint Presentations', extensions: ['pptx'] },
+          { name: 'HTML Documents', extensions: ['html', 'htm'] },
+          { name: 'Markdown', extensions: ['md', 'markdown'] },
+          { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'tiff', 'tif', 'bmp', 'webp'] }
+        ]
       })
 
       if (canceled || filePaths.length === 0) return success(null)
@@ -289,6 +329,12 @@ export function registerPdfProtocolHandlers() {
         } catch {
           return failure('not_found', 'File not found')
         }
+        // Multi-format: accept pdf/docx/pptx/html/md/images for Docling ingestion
+        if (isSupportedDocumentFilePath(normalizedPath)) {
+          // PDFs use local-pdf:// streaming; other formats are read directly by Docling converter
+          // still register to allow UI preview via protocol handler
+          return success({ streamUrl: registerPdfPath(normalizedPath) })
+        }
         if (isPdfFilePath(normalizedPath)) {
           return success({ streamUrl: registerPdfPath(normalizedPath) })
         }
@@ -296,7 +342,7 @@ export function registerPdfProtocolHandlers() {
         Logger.error('[PDFProtocol] Resolve Error:', err)
         return failure('internal_error', (err as Error).message)
       }
-      return failure('invalid_input', 'Not a PDF file')
+      return failure('invalid_input', 'Not a supported document file')
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
@@ -308,7 +354,8 @@ export function registerPdfProtocolHandlers() {
       if (!filePath) return failure('invalid_input', 'File path is required')
       try {
         const stats = await fs.promises.stat(filePath)
-        if (!isPdfFilePath(filePath)) return failure('invalid_input', 'Not a PDF file')
+        if (!isSupportedDocumentFilePath(filePath) && !isPdfFilePath(filePath))
+          return failure('invalid_input', 'Not a supported document file')
 
         const normalized = normalizePdfPath(filePath)
 

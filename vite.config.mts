@@ -56,7 +56,8 @@ export default defineConfig({
     alias: viteAliases
   },
   optimizeDeps: {
-    include: ['@welldone-software/why-did-you-render']
+    include: ['@welldone-software/why-did-you-render'],
+    exclude: ['canvas']
   },
   server: {
     port: 5173,

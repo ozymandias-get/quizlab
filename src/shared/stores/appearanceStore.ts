@@ -6,6 +6,10 @@ import { createLocalStorageAdapter } from './storeUtils'
 type FocusMode = 'pdf' | 'ai' | null
 export type BackgroundMode = 'ambient' | 'solid'
 
+// Reader customization – Tipografi, Tema ve Okuma Modu Ayarları
+export type ReaderFontFamily = 'sans' | 'serif' | 'mono' | 'dyslexic'
+export type ReaderTheme = 'default' | 'sepia' | 'solarized' | 'eink' | 'highContrast'
+
 const DEFAULT_VISIBLE_TOOLS: Record<string, boolean> = {
   'tour-target-tool-settings': true,
   'tour-target-tool-swap': true,
@@ -46,6 +50,20 @@ interface AppearanceState {
   // Bottom bar model visibility
   visibleModels: Record<string, boolean>
   setVisibleModel: (modelId: string, visible: boolean) => void
+
+  // Reader typography & theming (AppearanceTab + ReaderBlockShell)
+  readerFontFamily: ReaderFontFamily
+  setReaderFontFamily: (v: ReaderFontFamily) => void
+  readerLineHeight: number
+  setReaderLineHeight: (v: number) => void
+  readerParagraphGap: number
+  setReaderParagraphGap: (v: number) => void
+  readerMaxWidth: string
+  setReaderMaxWidth: (v: string) => void
+  readerLetterSpacing: string
+  setReaderLetterSpacing: (v: string) => void
+  readerTheme: ReaderTheme
+  setReaderTheme: (v: ReaderTheme) => void
 }
 
 export const useAppearance = create<AppearanceState>()(
@@ -81,7 +99,21 @@ export const useAppearance = create<AppearanceState>()(
       setVisibleModel: (modelId, visible) =>
         set((state) => ({
           visibleModels: { ...state.visibleModels, [modelId]: visible }
-        }))
+        })),
+
+      // Reader customization defaults – Sepya / E-Ink / Yüksek Kontrast için hazır
+      readerFontFamily: 'sans' as ReaderFontFamily,
+      setReaderFontFamily: (v) => set({ readerFontFamily: v }),
+      readerLineHeight: 1.7,
+      setReaderLineHeight: (v) => set({ readerLineHeight: Math.min(2.4, Math.max(1.2, v)) }),
+      readerParagraphGap: 0.75,
+      setReaderParagraphGap: (v) => set({ readerParagraphGap: Math.min(2, Math.max(0.2, v)) }),
+      readerMaxWidth: '46rem',
+      setReaderMaxWidth: (v) => set({ readerMaxWidth: v }),
+      readerLetterSpacing: '0em',
+      setReaderLetterSpacing: (v) => set({ readerLetterSpacing: v }),
+      readerTheme: 'default' as ReaderTheme,
+      setReaderTheme: (v) => set({ readerTheme: v })
     }),
     {
       name: 'appearance-storage',
@@ -94,7 +126,13 @@ export const useAppearance = create<AppearanceState>()(
         selectionColor: state.selectionColor,
         isLayoutSwapped: state.isLayoutSwapped,
         visibleTools: state.visibleTools,
-        visibleModels: state.visibleModels
+        visibleModels: state.visibleModels,
+        readerFontFamily: state.readerFontFamily,
+        readerLineHeight: state.readerLineHeight,
+        readerParagraphGap: state.readerParagraphGap,
+        readerMaxWidth: state.readerMaxWidth,
+        readerLetterSpacing: state.readerLetterSpacing,
+        readerTheme: state.readerTheme
       }),
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Record<string, unknown> | undefined

@@ -127,7 +127,8 @@ describe('usePdfSelection', () => {
   })
 
   it('should reject invalid file types on drop', async () => {
-    const mockFile = { name: 'image.png', type: 'image/png', path: '/image.png' }
+    // Multi-format: now supports png/jpg etc for scanned PDFs, so use truly unsupported type
+    const mockFile = { name: 'archive.zip', type: 'application/zip', path: '/archive.zip' }
     const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
 
     await act(async () => {
