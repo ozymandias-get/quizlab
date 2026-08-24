@@ -158,12 +158,14 @@ async function loadBundledLock(): Promise<string | null> {
   if (process.env.VITEST || process.env.NODE_ENV === 'test') return null
   // Try several roots: dev cwd and packaged app path. Avoid import.meta which
   // is not available in the CommonJS build output.
+  // Single source of truth is resources/docling/docling-lock.pinned.txt
+  // The old electron/features/docling/ copy is kept as legacy fallback for one release.
   const candidates: string[] = []
   try {
+    candidates.push(path.join(process.cwd(), 'resources', 'docling', BUNDLED_LOCK_FILENAME))
     candidates.push(
       path.join(process.cwd(), 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME)
     )
-    candidates.push(path.join(process.cwd(), 'resources', 'docling', BUNDLED_LOCK_FILENAME))
   } catch {}
   // Packaged resources path – electron-builder extraResources puts
   // resources/docling/docling-lock.pinned.txt under <resources>/docling/
@@ -186,8 +188,8 @@ async function loadBundledLock(): Promise<string | null> {
     )?.app
     if (maybeApp?.getAppPath) {
       const appPath = maybeApp.getAppPath()
-      candidates.push(path.join(appPath, 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME))
       candidates.push(path.join(appPath, 'resources', 'docling', BUNDLED_LOCK_FILENAME))
+      candidates.push(path.join(appPath, 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME))
       candidates.push(path.join(appPath, BUNDLED_LOCK_FILENAME))
       // dist layout after build: dist/electron/electron/features/docling/...
       candidates.push(
@@ -475,14 +477,14 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
         const msg = error instanceof Error ? error.message : String(error)
         try {
           const { Logger } = await import('../../core/logger.js')
-          Logger.warn(
-            '[DoclingInstaller] Bundled lock install failed, falling back to live resolve',
-            {
-              error: msg.slice(0, 500)
-            }
-          )
+          Logger.warn('[DoclingInstaller] Bundled lock install failed – failing strict', {
+            error: msg.slice(0, 500)
+          })
         } catch {}
         await fs.rm(lockPath, { force: true }).catch(() => {})
+        // Strict production: do not silently fall back to live resolve when bundled lock exists but is broken.
+        // This makes CI smoke fail and prevents non-deterministic installs reaching users.
+        throw new Error(`Bundled lock install failed: ${msg.slice(0, 400)}`)
       }
     }
   }

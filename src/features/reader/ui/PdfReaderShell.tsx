@@ -110,7 +110,7 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
         <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
           <InlineSpinner />
           <span className="text-muted-foreground text-ql-13">{stageLabel}</span>
-          {stagePhase && stagePhase !== 'queued' && (
+          {import.meta.env.DEV && stagePhase && stagePhase !== 'queued' && (
             <span className="text-muted-foreground/70 text-ql-11 font-mono">{stagePhase}</span>
           )}
         </div>

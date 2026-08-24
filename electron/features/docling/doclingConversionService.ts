@@ -379,15 +379,20 @@ class DoclingConversionService {
         child.once('error', () => this.children.delete(taskId))
         let stdout = ''
         let stderr = ''
+        let stdoutLineBuffer = ''
         // P0: stdout must be drained – Node pipe buffer is limited and a blocked
         // stdout can freeze the Python child (see Node docs). We drain and also
         // parse stage markers for real progress (P2-8).
+        // P2: chunk boundary-safe – a STAGE line may be split across two data events.
         const handleStdoutChunk = (c: Buffer): void => {
           const txt = c.toString('utf8')
           stdout += txt
           if (stdout.length > 200_000) stdout = stdout.slice(-200_000)
+          stdoutLineBuffer += txt
+          const lines = stdoutLineBuffer.split('\n')
+          stdoutLineBuffer = lines.pop() ?? ''
           // Structured progress from Python: lines like "STAGE: layout", "STAGE: ocr", etc.
-          for (const rawLine of txt.split('\n')) {
+          for (const rawLine of lines) {
             const line = rawLine.trim()
             if (!line) continue
             const lower = line.toLowerCase()
@@ -453,6 +458,30 @@ class DoclingConversionService {
             return new Promise<number | null>((resolve) => child.once('exit', resolve))
           })()
         ])
+        // Flush any remaining buffered STAGE line without trailing newline
+        if (stdoutLineBuffer.trim()) {
+          const line = stdoutLineBuffer.trim()
+          stdoutLineBuffer = ''
+          const lower = line.toLowerCase()
+          let phase: string | null = null
+          let message: string | null = null
+          if (line.startsWith('STAGE:')) {
+            phase = line.slice(6).trim().toLowerCase()
+            message = null
+          } else if (lower.includes('pipeline ocr=')) {
+            phase = 'pipeline'
+            message = null
+          } else if (lower.includes('assets exported')) {
+            phase = 'finalizing'
+            message = null
+          } else if (lower.includes('converted')) {
+            phase = 'finalizing'
+            message = null
+          }
+          if (phase) {
+            this.updateTask(taskId, { progress: { phase, percent: null, message } })
+          }
+        }
         if (this.cancelled.has(taskId)) {
           this.cancelled.delete(taskId)
           this.children.delete(taskId)

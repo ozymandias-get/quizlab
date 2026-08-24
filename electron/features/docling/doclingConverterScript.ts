@@ -360,10 +360,9 @@ try:
                 PARTIAL_SUCCESS = True
             elif _status == ConversionStatus.FAILURE:
                 raise RuntimeError(f"Conversion failed status={_status} errors={_err_txt}")
+    except RuntimeError:
+        raise
     except Exception as _status_e:
-        # Don't hide original conversion if status check itself fails
-        if "RuntimeError" in str(type(_status_e)):
-            raise
         print(f"Status check warning: {_status_e}", file=sys.stderr, flush=True)
     doc = result.document
     print("STAGE: analyzing", flush=True)
@@ -389,9 +388,9 @@ try:
                         PARTIAL_SUCCESS = True
                     elif _rs == _CS2.FAILURE:
                         raise RuntimeError(f"OCR retry failed status={_rs}")
-            except Exception as _rs_e:
-                if "RuntimeError" in str(type(_rs_e)):
-                    raise
+            except RuntimeError:
+                raise
+            except Exception:
                 pass
             doc = retry_result.document
         except Exception as retry_e:
