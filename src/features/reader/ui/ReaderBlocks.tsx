@@ -68,10 +68,23 @@ export function CodeBlockView({ block }: { block: Extract<QuizLabBlock, { type: 
 }
 
 export function FormulaBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'formula' }> }) {
+  const raw = block.latex ?? block.text
+  // Lazy KaTeX render: if katex is available, render; otherwise fallback to monospace
+  let rendered: React.ReactNode = raw
+  try {
+    const katex = require('katex') as { renderToString: (tex: string, opts: unknown) => string }
+    if (katex?.renderToString) {
+      const html = katex.renderToString(raw, { throwOnError: false, displayMode: true })
+      // eslint-disable-next-line react/no-danger
+      rendered = <span dangerouslySetInnerHTML={{ __html: html }} />
+    }
+  } catch {
+    // Fallback to plain text if katex not installed (keeps bundle small)
+  }
   return (
     <BlockWrapper block={block}>
-      <div className="bg-muted/40 border-border text-ql-13 my-4 rounded-xl border p-4 font-mono">
-        {block.latex ?? block.text}
+      <div className="bg-muted/40 border-border text-ql-13 my-4 rounded-xl border p-4">
+        {rendered}
       </div>
     </BlockWrapper>
   )

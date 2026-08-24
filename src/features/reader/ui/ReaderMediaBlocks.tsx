@@ -51,11 +51,48 @@ export function ImageBlockView({ block }: { block: Extract<QuizLabBlock, { type:
 }
 
 export function TableBlockView({ block }: { block: Extract<QuizLabBlock, { type: 'table' }> }) {
+  const [copied, setCopied] = useState<string | null>(null)
+  const toCsv = (): string =>
+    block.rows
+      .map((r) => r.map((c) => `"${(c.text ?? '').replaceAll('"', '""')}"`).join(','))
+      .join('\n')
+  const toMarkdown = (): string => {
+    if (block.rows.length === 0) return ''
+    const header = `| ${block.rows[0].map((c) => c.text || ' ').join(' | ')} |`
+    const sep = `| ${block.rows[0].map(() => '---').join(' | ')} |`
+    const body = block.rows.slice(1).map((r) => `| ${r.map((c) => c.text || ' ').join(' | ')} |`)
+    return [header, sep, ...body].join('\n')
+  }
+  const copy = async (text: string, kind: string): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(kind)
+      setTimeout(() => setCopied(null), 1500)
+    } catch {}
+  }
   return (
     <BlockWrapper block={block}>
       <figure className="border-border/60 my-6 overflow-hidden rounded-2xl border shadow-sm">
-        <div className="max-w-full overflow-x-auto">
-          <table className="text-ql-13 w-full min-w-[420px] border-collapse">
+        <div className="border-border/30 bg-muted/20 flex items-center justify-end gap-1 border-b px-2 py-1">
+          <button
+            type="button"
+            onClick={() => void copy(toCsv(), 'csv')}
+            className="text-ql-11 border-border bg-card hover:bg-muted rounded-md border px-2 py-1"
+            title="CSV olarak kopyala"
+          >
+            {copied === 'csv' ? 'Kopyalandı ✓' : 'CSV'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copy(toMarkdown(), 'md')}
+            className="text-ql-11 border-border bg-card hover:bg-muted rounded-md border px-2 py-1"
+            title="Markdown olarak kopyala"
+          >
+            {copied === 'md' ? 'Kopyalandı ✓' : 'Markdown'}
+          </button>
+        </div>
+        <div className="max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="text-ql-13 w-full min-w-[420px] border-collapse select-text">
             <tbody>
               {block.rows.map((row, ri) => (
                 <tr
@@ -69,10 +106,18 @@ export function TableBlockView({ block }: { block: Extract<QuizLabBlock, { type:
                       key={ci}
                       colSpan={cell.colSpan}
                       rowSpan={cell.rowSpan}
+                      onClick={(e) => {
+                        const sel = window.getSelection()
+                        const range = document.createRange()
+                        range.selectNodeContents(e.currentTarget)
+                        sel?.removeAllRanges()
+                        sel?.addRange(range)
+                      }}
                       className={cn(
-                        'border-border/60 border px-3.5 py-2.5 text-left align-top leading-6',
+                        'border-border/60 hover:bg-primary/5 cursor-text border px-3.5 py-2.5 text-left align-top leading-6 transition-colors',
                         cell.isHeader && 'bg-muted/80 font-semibold'
                       )}
+                      title="Hücreyi seçmek için tıkla"
                     >
                       {cell.text}
                     </td>

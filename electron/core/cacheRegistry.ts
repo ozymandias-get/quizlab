@@ -104,15 +104,35 @@ function buildProtectedDirs(): Set<string> {
 const protectedFiles = buildProtectedFiles()
 const protectedDirs = buildProtectedDirs()
 
-const BASE_RULES: CacheRule[] = SAFE_CACHE_DIRS.map((dir) => ({
-  relativePath: dir,
-  category: 'cache' as CacheCategory,
-  ttlMs: CACHE_FILE_TTL_MS,
-  maxBytes: null,
-  cleanupOnStartup: false,
-  cleanupOnIdle: true,
-  description: `Root ${dir}`
-}))
+const BASE_RULES: CacheRule[] = [
+  ...SAFE_CACHE_DIRS.map((dir) => ({
+    relativePath: dir,
+    category: 'cache' as CacheCategory,
+    ttlMs: CACHE_FILE_TTL_MS,
+    maxBytes: null,
+    cleanupOnStartup: false,
+    cleanupOnIdle: true,
+    description: `Root ${dir}`
+  })),
+  {
+    relativePath: 'document-cache',
+    category: 'cache',
+    ttlMs: 30 * 24 * 60 * 60 * 1000, // 30 days, invalidated by hash/pipeline version earlier
+    maxBytes: 2 * 1024 * 1024 * 1024, // 2 GB cap for Docling outputs
+    cleanupOnStartup: false,
+    cleanupOnIdle: true,
+    description: 'Docling document-cache (hash/pipeline-version invalidated)'
+  },
+  {
+    relativePath: path.join('components', 'docling', 'temp'),
+    category: 'temp',
+    ttlMs: 24 * 60 * 60 * 1000, // 24h
+    maxBytes: 1 * 1024 * 1024 * 1024,
+    cleanupOnStartup: true,
+    cleanupOnIdle: true,
+    description: 'Docling temp conversions & uv-cache staging'
+  }
+]
 
 /**
  * Tüm AI partition'larının anahtarlarını toplar.

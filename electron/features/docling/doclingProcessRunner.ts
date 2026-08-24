@@ -48,6 +48,60 @@ export interface RunCommandOptions {
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000
 const DEFAULT_MAX_BUFFER_CHARS = 200_000
 
+// Concurrency limiter: at most 2 simultaneous Docling/uv processes to
+// bound CPU/RAM when user opens many tabs quickly.
+const MAX_CONCURRENT = 2
+let activeCount = 0
+const waitQueue: Array<() => void> = []
+
+function acquireSlot(): Promise<void> {
+  if (activeCount < MAX_CONCURRENT) {
+    activeCount += 1
+    return Promise.resolve()
+  }
+  return new Promise<void>((resolve) => waitQueue.push(resolve))
+}
+
+function releaseSlot(): void {
+  activeCount = Math.max(0, activeCount - 1)
+  const next = waitQueue.shift()
+  if (next) {
+    activeCount += 1
+    next()
+  }
+}
+
+/** Kill a process and its entire child tree (Windows taskkill / Unix kill -pid). */
+export async function killProcessTree(pid: number): Promise<void> {
+  try {
+    if (process.platform === 'win32') {
+      const { spawn } = await import('node:child_process')
+      await new Promise<void>((resolve) => {
+        const c = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true })
+        c.on('close', () => resolve())
+        c.on('error', () => resolve())
+        setTimeout(() => resolve(), 3000)
+      })
+    } else {
+      try {
+        process.kill(-pid, 'SIGTERM')
+      } catch {
+        try {
+          process.kill(pid, 'SIGTERM')
+        } catch {}
+      }
+      await new Promise<void>((r) => setTimeout(r, 800))
+      try {
+        process.kill(-pid, 'SIGKILL')
+      } catch {
+        try {
+          process.kill(pid, 'SIGKILL')
+        } catch {}
+      }
+    }
+  } catch {}
+}
+
 function tail(value: string, maxChars: number): string {
   return value.length > maxChars ? value.slice(value.length - maxChars) : value
 }
@@ -63,6 +117,15 @@ export async function runCommand(
     maxBufferChars = DEFAULT_MAX_BUFFER_CHARS
   } = options
 
+  await acquireSlot()
+  let slotReleased = false
+  const releaseOnce = (): void => {
+    if (!slotReleased) {
+      slotReleased = true
+      releaseSlot()
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const child = spawn(exe, args, {
       shell: false,
@@ -76,7 +139,10 @@ export async function runCommand(
 
     const timer = setTimeout(() => {
       settled = true
-      child.kill('SIGKILL')
+      clearTimeout(timer)
+      // Use tree kill for timeout to avoid orphaned grandchildren (e.g. pip inside uv)
+      void killProcessTree(child.pid ?? 0).catch(() => child.kill('SIGKILL'))
+      releaseOnce()
       reject(new CommandError('timeout', `Command timed out after ${timeoutMs}ms`, null))
     }, timeoutMs)
 
@@ -91,6 +157,7 @@ export async function runCommand(
       if (settled) return
       settled = true
       clearTimeout(timer)
+      releaseOnce()
       reject(err)
     })
 
@@ -98,6 +165,7 @@ export async function runCommand(
       if (settled) return
       settled = true
       clearTimeout(timer)
+      releaseOnce()
       resolve({
         code: code ?? -1,
         stdout: tail(stdout, maxBufferChars),

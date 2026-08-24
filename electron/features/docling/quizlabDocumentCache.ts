@@ -15,6 +15,7 @@ export const QUIZLAB_ADAPTER_VERSION = '1.1.0'
 
 export interface CacheManifest {
   sourceHash: string
+  sourceMtimeMs?: number | null
   parser: 'docling'
   parserVersion: string
   doclingVersion: string
