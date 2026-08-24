@@ -1,5 +1,5 @@
+import { Button } from '@app/components/ui/button'
 import { Textarea } from '@app/components/ui/textarea'
-import { cn } from '@shared/lib/uiUtils'
 
 import { Sparkles } from 'lucide-react'
 import { type KeyboardEvent, memo, useCallback, useRef, useState } from 'react'
@@ -40,21 +40,18 @@ function NoteSection({ noteText, hasImages, onNoteTextChange, onKeyDown }: NoteS
         <label className="text-ql-11 text-foreground font-semibold">
           {t('ai_send_note_label')}
         </label>
-        <button
+        <Button
           type="button"
+          variant={showPresets ? 'outline' : 'ghost'}
+          size="xs"
           onClick={() => setShowPresets((v) => !v)}
-          className={cn(
-            'text-ql-10 focus-visible:ring-foreground/20 flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none',
-            showPresets
-              ? 'border-border bg-muted text-foreground border'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          )}
+          className="gap-1"
           aria-label={t('ai_send_presets')}
           aria-expanded={showPresets}
         >
           <Sparkles className="h-3 w-3" strokeWidth={2} />
           {t('ai_send_presets')}
-        </button>
+        </Button>
       </div>
 
       {showPresets && (

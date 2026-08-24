@@ -1,4 +1,4 @@
-import { cn } from '@app/lib/appUtils'
+import { cn } from '@shared/lib/uiUtils'
 
 import * as SelectPrimitive from '@radix-ui/react-select'
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'

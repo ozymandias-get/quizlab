@@ -1,4 +1,4 @@
-import { cn } from '@app/lib/appUtils'
+import { cn } from '@shared/lib/uiUtils'
 
 import * as SeparatorPrimitive from '@radix-ui/react-separator'
 import * as React from 'react'

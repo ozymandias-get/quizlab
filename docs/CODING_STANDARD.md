@@ -74,18 +74,18 @@ Her grup içinde import'lar alfabetik sıralanır. Test dosyalarında (`__tests_
 
 ## 5. Naming Conventions
 
-| Varlık                     | Kural                                                                                                 | Örnek                                              |
-| -------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| React component            | `PascalCase`                                                                                          | `PdfViewer`, `AiSendComposer`                      |
-| Hook                       | `useCamelCase`                                                                                        | `useAiSender`, `usePdfTabStore`                    |
-| Store (Zustand)            | `use<Feature>Store` (veya `useApiChatStore`)                                                          | `useApiChatStore`                                  |
-| Provider/Context hook      | `use<Context>`, context value `use<Context>Value`                                                     | `useToastActions`, `useLanguage`                   |
-| Service/Handler            | `register<Domain>Handlers` (electron), `use<Domain>Api` (renderer)                                    | `registerAiConfigHandlers`, `useAiApi`             |
-| Sabitler (modül düzeyinde) | `SCREAMING_SNAKE_CASE`                                                                                | `STORAGE_KEYS`, `IPC_CHANNELS`, `PDF_ZOOM_STEP`    |
-| Tür (type/interface)       | `PascalCase`, `I` prefix'i YOK                                                                        | `AiConfig`, `PdfTab` (✅), `IAiConfig` (❌)        |
-| Enum/Union sabitleri       | `PascalCase` string union                                                                             | `SubmitMode = 'mixed' \| 'enter' \| 'send-button'` |
-| Dosya adı                  | Component = `PascalCase.tsx`, hook/lib = `camelCase.ts`                                               | `useAiSender.ts`, `parseMessageContent.ts`         |
-| Genel isimlerden kaçın     | `data`, `value`, `item`, `temp`, `tmp`, `result`, `handler`, `utils`, `helpers` tek başına isim olmaz | `aiRegistry`, `selectionColor`, `sessionConfig` ✅ |
+| Varlık                     | Kural                                                                                                  | Örnek                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| React component            | `PascalCase`                                                                                           | `PdfViewer`, `AiSendComposer`                      |
+| Hook                       | `useCamelCase`                                                                                         | `useAiSender`, `usePdfTabStore`                    |
+| Store (Zustand)            | `use<Feature>Store` (veya `useApiChatStore`)                                                           | `useApiChatStore`                                  |
+| Provider/Context hook      | `use<Context>`, context value `use<Context>Value`                                                      | `useToastActions`, `useLanguage`                   |
+| Service/Handler            | `register<Domain>Handlers` (electron), `use<Domain>Api` (renderer)                                     | `registerAiConfigHandlers`, `useAiApi`             |
+| Sabitler (modül düzeyinde) | `SCREAMING_SNAKE_CASE`                                                                                 | `STORAGE_KEYS`, `IPC_CHANNELS`, `PDF_ZOOM_STEP`    |
+| Tür (type/interface)       | `PascalCase`, `I` prefix'i YOK                                                                         | `AiConfig`, `PdfTab` (✅), `IAiConfig` (❌)        |
+| Enum/Union sabitleri       | `PascalCase` string union                                                                              | `SubmitMode = 'mixed' \| 'enter' \| 'send-button'` |
+| Dosya adı                  | Component = `kebab-case.tsx` (örn. `confirm-dialog.tsx`, `icon-button.tsx`), hook/lib = `camelCase.ts` | `useAiSender.ts`, `parseMessageContent.ts`         |
+| Genel isimlerden kaçın     | `data`, `value`, `item`, `temp`, `tmp`, `result`, `handler`, `utils`, `helpers` tek başına isim olmaz  | `aiRegistry`, `selectionColor`, `sessionConfig` ✅ |
 
 - `utils/` veya `helpers/` adlı klasör **önerilmez**; bunun yerine `<domain>Utils.ts` veya doğrudan `<feature>/lib/<concern>.ts` adlandırması yapılır (örn. `electron/features/automation/utils/dom/` yerine `electron/features/automation/dom/` veya `@shared/lib/dom.ts` hedeflenir).
 - `handler` adı tek başına yasak değildir; ama bir IPC handler'ı adlandırırken **kaynak/tür** belirtilir: `aiConfigHandlers.ts`, `pdfHandlers.ts` ✅; `handlers.ts` (tek başına) ❌.
@@ -152,6 +152,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 
 - **Yerel state**: `useState`, `useReducer`.
 - **Cross-component state (renderer)**: Zustand store; feature içinde `src/features/<x>/store/`, app düzeyinde `src/app/providers/<x>/`.
+- **App-wide workspace (tabs/presence)**: `src/app/providers/ai-context` split-context (14 dar slice) — re-render izolasyonu için onaylı istisna; Zustand'a toplu taşıma yüksek regresyon riski nedeniyle RFC gerektirir (STD-005).
 - **Server state**: TanStack Query (`@tanstack/react-query`); mutasyon/hook sarmalayıcıları yalnızca `@platform/electron/api` altında.
 - **Cross-process state**: `@shared-core/types` içindeki tipler + IPC contract (`shared/types/ipcContract.ts` + `IpcInvokeRequestMap`).
 - Persist gereken store'larda `persist` + `partialize` + `version` + `migrate` kalıbı kullanılır; `localStorage` doğrudan yazılmaz, `useLocalStorage` (`src/shared/hooks/useLocalStorage.ts`) veya store persist tercih edilir.

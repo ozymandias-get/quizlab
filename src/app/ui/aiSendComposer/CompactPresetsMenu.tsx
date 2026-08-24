@@ -1,6 +1,7 @@
 import type { QuickPresetItem } from '@features/ai'
 
 import { IconButton } from '@app/components/ui/icon-button'
+import { MenuItem } from '@app/components/ui/menu'
 import { WithTooltip } from '@app/components/ui/tooltip'
 import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
@@ -73,20 +74,19 @@ function CompactPresetsMenu({
               {secondaryPresets.map((preset) => {
                 const Icon = preset.icon
                 return (
-                  <button
+                  <MenuItem
                     key={preset.key}
-                    type="button"
+                    icon={<Icon className="h-3.5 w-3.5 shrink-0 text-amber-300" strokeWidth={2} />}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation()
                       setShowPresetsMenu(false)
                       onSelectPreset(preset.value)
                     }}
-                    className="text-ql-11 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-medium text-neutral-300 transition-colors hover:bg-white/10 hover:text-white"
+                    className="text-neutral-300 hover:bg-white/10 hover:text-white"
                   >
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-amber-300" strokeWidth={2} />
-                    <span className="truncate">{preset.label}</span>
-                  </button>
+                    {preset.label}
+                  </MenuItem>
                 )
               })}
             </div>

@@ -286,11 +286,27 @@ export interface IpcEventMap {
   [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED]: {
     args: [payload: GeminiWebSessionRefreshEvent]
   }
+  [IPC_CHANNELS.GEMINI_WEB_STATUS_UPDATED]: {
+    args: [payload: GeminiWebSessionStatus]
+  }
   [IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_CONNECTED]: {
     args: []
   }
   [IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_DISCONNECTED]: {
     args: []
+  }
+  // Event-style channels (main → renderer) not using invoke
+  [IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU]: {
+    args: [labels: Partial<Record<string, string>>]
+  }
+  [IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM]: {
+    args: [action: string]
+  }
+  [IPC_CHANNELS.TRIGGER_SCREENSHOT]: {
+    args: [type: string]
+  }
+  [IPC_CHANNELS.LOGGER_LOG]: {
+    args: [payload: { level: string; message: string; timestamp?: string }]
   }
 }
 
