@@ -1,4 +1,5 @@
 ﻿import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { getStorageItem, removeStorageItem, setStorageItem } from '@shared/hooks/localStorageUtils'
 import { Logger } from '@shared/lib/logger'
 
 import i18next from 'i18next'
@@ -44,21 +45,17 @@ interface LanguageState {
 }
 
 const getInitialLanguage = (): string => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)
-    return saved && VALID_LANGUAGES.includes(saved) ? saved : DEFAULT_LANGUAGE
-  } catch {
-    return DEFAULT_LANGUAGE
-  }
+  const saved = getStorageItem(STORAGE_KEYS.APP_LANGUAGE)
+  return saved && VALID_LANGUAGES.includes(saved) ? saved : DEFAULT_LANGUAGE
 }
 
-export const getInitialOnboardingDone = (): boolean => {
-  try {
-    return localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE_ONBOARDING_DONE) === 'true'
-  } catch {
-    return false
-  }
-}
+export const getInitialOnboardingDone = (): boolean =>
+  getStorageItem(STORAGE_KEYS.APP_LANGUAGE_ONBOARDING_DONE) === 'true'
+
+const persistOnboardingDone = (done: boolean): boolean =>
+  done
+    ? setStorageItem(STORAGE_KEYS.APP_LANGUAGE_ONBOARDING_DONE, 'true')
+    : removeStorageItem(STORAGE_KEYS.APP_LANGUAGE_ONBOARDING_DONE)
 
 export const useLanguage = create<LanguageState>((set, get) => ({
   language: getInitialLanguage(),
@@ -70,10 +67,8 @@ export const useLanguage = create<LanguageState>((set, get) => ({
     if (!VALID_LANGUAGES.includes(newLang)) return
     const seq = get()._requestSeq + 1
     set({ _requestSeq: seq })
-    try {
-      localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE, newLang)
-    } catch (error) {
-      Logger.warn('LocalStorage language save failed:', error)
+    if (!setStorageItem(STORAGE_KEYS.APP_LANGUAGE, newLang)) {
+      Logger.warn('LocalStorage language save failed')
       set({ lastError: 'Language preference could not be saved persistently' })
     }
     await i18next.changeLanguage(newLang)
@@ -82,10 +77,8 @@ export const useLanguage = create<LanguageState>((set, get) => ({
     }
   },
   completeOnboarding: () => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE_ONBOARDING_DONE, 'true')
-    } catch (error) {
-      Logger.warn('LocalStorage onboarding save failed:', error)
+    if (!persistOnboardingDone(true)) {
+      Logger.warn('LocalStorage onboarding save failed')
     }
     set({ isOnboardingDone: true })
   }

@@ -1,8 +1,8 @@
-﻿import { app, type Session, webContents } from 'electron'
+import { app, type Session, webContents } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/google-ai-web-apps.js'
+import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/googleAiWebApps.js'
 import { Logger } from '../../core/logger.js'
 import { PROFILE_PARTITION } from './sessionConfig.js'
 

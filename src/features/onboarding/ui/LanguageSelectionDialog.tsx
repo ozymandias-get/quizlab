@@ -60,13 +60,19 @@ export function LanguageSelectionDialog() {
               {t('onboarding_language_title', { lng: 'tr' })}
             </p>
 
-            <div className="mt-6 flex flex-col gap-2.5">
+            <div
+              className="mt-6 flex flex-col gap-2.5"
+              role="radiogroup"
+              aria-label={t('onboarding_language_title', { lng: 'en' })}
+            >
               {Object.values(languages).map((lang) => {
                 const isSelected = selectedLang === lang.code
                 return (
                   <button
                     key={lang.code}
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     onClick={() => setSelectedLang(lang.code)}
                     className={`focus-visible:ring-ring/40 flex items-center gap-3.5 rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                       isSelected

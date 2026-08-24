@@ -1,7 +1,7 @@
 import {
   GOOGLE_WEB_SESSION_APPS,
   type GoogleWebSessionAppId
-} from '@shared-core/constants/google-ai-web-apps'
+} from '@shared-core/constants/googleAiWebApps'
 
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'

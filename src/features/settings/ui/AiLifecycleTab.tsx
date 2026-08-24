@@ -4,14 +4,15 @@ import {
   useAiLifecycleSettings
 } from '@features/ai/hooks/useAiLifecycleSettings'
 
-import { useAiSites } from '@app/providers/AiContext'
+import { useAiSites } from '@app/providers/ai-context'
 import { AiIcon } from '@shared/ui/components/icons/AiIcon'
 import {
   SettingsRow,
   SettingsRowDescription,
   SettingsRowHeader,
   SettingsRowIcon,
-  SettingsRowTitle
+  SettingsRowTitle,
+  TabPill
 } from '@shared/ui/components/primitives'
 
 import { Layers, Moon, Timer } from 'lucide-react'
@@ -85,20 +86,17 @@ const AiLifecycleTab = memo(() => {
           </SettingsRowHeader>
         </SettingsRow>
 
-        <div className="flex gap-2 px-1">
+        <div className="flex gap-2 px-1" role="tablist" aria-label={t('max_alive_tabs')}>
           {MAX_ALIVE_TABS_OPTIONS.map((num) => (
-            <button
-              type="button"
+            <TabPill
               key={num}
+              isActive={maxAliveTabs === num}
               onClick={() => setMaxAliveTabs(num)}
-              className={`focus-visible:ring-ring/40 motion-slow text-ql-12 flex-1 rounded-xl py-2.5 font-medium transition-all focus-visible:ring-2 focus-visible:outline-none ${
-                maxAliveTabs === num
-                  ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
-                  : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground border'
-              } `}
+              aria-label={t('max_alive_tabs')}
+              className="flex-1 justify-center rounded-xl py-2.5"
             >
               {num}
-            </button>
+            </TabPill>
           ))}
         </div>
       </div>
@@ -118,20 +116,17 @@ const AiLifecycleTab = memo(() => {
           </span>
         </SettingsRow>
 
-        <div className="grid grid-cols-3 gap-2 px-1">
+        <div className="grid grid-cols-3 gap-2 px-1" role="tablist" aria-label={t('sleep_timeout')}>
           {SLEEP_TIMEOUT_OPTIONS.map((option) => (
-            <button
-              type="button"
+            <TabPill
               key={option.value}
+              isActive={sleepTimeoutMs === option.value}
               onClick={() => setSleepTimeoutMs(option.value)}
-              className={`focus-visible:ring-ring/40 motion-slow text-ql-12 rounded-xl py-2.5 font-medium transition-all focus-visible:ring-2 focus-visible:outline-none ${
-                sleepTimeoutMs === option.value
-                  ? 'border-primary/30 bg-primary/10 text-primary border font-semibold shadow-xs'
-                  : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground border'
-              } `}
+              aria-label={t(option.labelKey)}
+              className="justify-center rounded-xl py-2.5"
             >
               {t(option.labelKey)}
-            </button>
+            </TabPill>
           ))}
         </div>
       </div>

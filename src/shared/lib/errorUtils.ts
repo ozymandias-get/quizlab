@@ -7,8 +7,12 @@ export function ensureErrorMessage(error: unknown, fallback: string = 'Unknown e
   if (error instanceof Error) return error.message
   if (typeof error === 'string') return error
   try {
-    return JSON.stringify(error)
+    // JSON.stringify returns `undefined` (not a throw) for undefined /
+    // functions / symbols, so guard the result explicitly.
+    const serialized = JSON.stringify(error)
+    if (serialized !== undefined && serialized !== null) return serialized
   } catch {
-    return fallback
+    // Circular or otherwise non-serializable value — use the fallback below.
   }
+  return fallback
 }

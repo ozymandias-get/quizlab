@@ -6,7 +6,7 @@ import {
   useAiTabActions,
   useAiTabsSliceState,
   useAiViewRequestNonce
-} from '@app/providers/AiContext'
+} from '@app/providers/ai-context'
 import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion } from 'motion/react'

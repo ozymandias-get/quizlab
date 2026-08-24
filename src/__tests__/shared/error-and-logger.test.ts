@@ -65,24 +65,17 @@ describe('ensureErrorMessage', () => {
     expect(ensureErrorMessage(obj, 'CIRCULAR')).toBe('CIRCULAR')
   })
 
-  it('handles undefined by returning the default fallback', () => {
-    // JSON.stringify(undefined) returns undefined (not the string), and
-    // the function does NOT currently treat this as a fallback case. We
-    // document the actual behavior: undefined in → undefined out, NOT
-    // the fallback string. This is a known quirk — if a caller needs a
-    // string, they should always pass a fallback when the source could
-    // be undefined.
-    const result = ensureErrorMessage(undefined, 'FALLBACK')
-    // Result is undefined — caller's responsibility to handle
-    expect(result).toBeUndefined()
+  it('returns the fallback for undefined (guaranteed string contract)', () => {
+    // JSON.stringify(undefined) returns undefined (not a throw); the helper
+    // guards this case explicitly so the return type is always a string.
+    expect(ensureErrorMessage(undefined, 'FALLBACK')).toBe('FALLBACK')
   })
 
   it('does not throw for non-serializable inputs', () => {
     expect(() => ensureErrorMessage(() => {}, 'FALLBACK')).not.toThrow()
-    // JSON.stringify(function) returns undefined (not throws), so the
-    // function returns undefined — documented behavior. Callers needing
-    // a guaranteed string should use the explicit string check.
-    expect(ensureErrorMessage(() => {}, 'FALLBACK')).toBeUndefined()
+    // JSON.stringify(function) returns undefined (not throws); the guard
+    // maps it to the fallback so callers always receive a string.
+    expect(ensureErrorMessage(() => {}, 'FALLBACK')).toBe('FALLBACK')
   })
 
   it('handles BigInt by falling back (JSON.stringify throws on BigInt)', () => {

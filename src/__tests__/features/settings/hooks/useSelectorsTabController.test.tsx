@@ -32,7 +32,7 @@ vi.mock('@app/providers', () => ({
   })
 }))
 
-vi.mock('@app/providers/AiContext', () => ({
+vi.mock('@app/providers/ai-context', () => ({
   useAiTabActions: () => ({
     openAiWorkspace: mocked.openAiWorkspace
   }),

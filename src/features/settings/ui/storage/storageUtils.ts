@@ -1,10 +1,3 @@
-export function formatBytes(bytes: number): string {
-  const safe = Math.max(0, bytes)
-  if (safe < 1024) return `${safe} B`
-  if (safe < 1024 * 1024) return `${(safe / 1024).toFixed(1)} KB`
-  return `${(safe / (1024 * 1024)).toFixed(1)} MB`
-}
-
 export function formatTimeAgo(timestamp: number, language = 'en'): string {
   const diff = Date.now() - timestamp
   const minutes = Math.floor(diff / 60000)

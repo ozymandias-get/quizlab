@@ -1,4 +1,4 @@
-import { AiProvider, useAi } from '@app/providers/AiContext'
+import { AiProvider, useAi } from '@app/providers/ai-context'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'

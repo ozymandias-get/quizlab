@@ -90,7 +90,7 @@ const ChatInput = memo(function ChatInput({
                     size="compact"
                     onClick={() => onRemoveAttachment(i)}
                     className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground absolute -top-1.5 -right-1.5 rounded-full border shadow-2xs"
-                    aria-label={t('api_chat_remove_attachment') || 'Remove attachment'}
+                    aria-label={t('api_chat_remove_attachment')}
                   >
                     <X className="h-3 w-3" />
                   </IconButton>

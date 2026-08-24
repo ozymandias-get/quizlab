@@ -10,7 +10,7 @@ import {
   useAiSessionActions,
   useAiSessionUiPrefsState,
   useAiWebview
-} from './AiContext'
+} from './ai-context'
 import { type QueuedImageMeta, useAiDraftQueue } from './app-tool/useAiDraftQueue'
 import { useDraftSendOrchestration } from './app-tool/useDraftSendOrchestration'
 import { useElementPickerLifecycle } from './app-tool/useElementPickerLifecycle'

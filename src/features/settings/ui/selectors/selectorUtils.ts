@@ -1,6 +1,3 @@
-import { canonicalizeHostname, toAutomationConfig } from '@shared-core/selectorConfig'
-import type { AiPlatform, AiSelectorConfig } from '@shared-core/types'
-
 // Unified selector engine — single source of truth (see shared/lib/selectorEngine.ts)
 import {
   classifySelector,
@@ -9,7 +6,9 @@ import {
   isSelectorValid,
   normalizeSelector,
   sortSelectorsByPriority
-} from '@shared/lib/selectorEngine'
+} from '@shared-core/lib/selectorEngine'
+import { canonicalizeHostname, toAutomationConfig } from '@shared-core/selectorConfig'
+import type { AiPlatform, AiSelectorConfig } from '@shared-core/types'
 
 import type { SelectorEntry } from './types'
 

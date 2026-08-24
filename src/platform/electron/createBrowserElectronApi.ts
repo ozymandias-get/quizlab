@@ -1,7 +1,7 @@
 import {
   GOOGLE_WEB_SESSION_REGISTRY_IDS,
   type GoogleWebSessionAppId
-} from '@shared-core/constants/google-ai-web-apps'
+} from '@shared-core/constants/googleAiWebApps'
 import type {
   AiPlatform,
   AiRegistryResponse,
@@ -21,7 +21,7 @@ import {
   registerBeforeUnloadCleanup,
   selectPdfInBrowser,
   toMapRecord
-} from './browser-api-utils'
+} from './browserApiUtils'
 import { WEB_AI_REGISTRY } from './web-ai-registry'
 
 const stubReturn =

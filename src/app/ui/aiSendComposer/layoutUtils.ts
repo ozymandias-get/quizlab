@@ -1,3 +1,4 @@
+import { getStorageItem, setStorageItem } from '@shared/hooks/localStorageUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
 import type { DockLayout, ResizeDirection } from './types'
@@ -59,7 +60,7 @@ export function createDefaultLayout(): DockLayout {
 export function loadStoredLayout(): DockLayout {
   if (typeof window === 'undefined') return createDefaultLayout()
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = getStorageItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as DockLayout
       if (
@@ -79,10 +80,10 @@ export function loadStoredLayout(): DockLayout {
 
 export function saveLayoutToStorage(layout: DockLayout) {
   if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout))
-  } catch (err) {
-    reportSuppressedError('aiSendDockLayout.save', { cause: err })
+  if (!setStorageItem(STORAGE_KEY, JSON.stringify(layout))) {
+    reportSuppressedError('aiSendDockLayout.save', {
+      cause: new Error('localStorage write rejected')
+    })
   }
 }
 

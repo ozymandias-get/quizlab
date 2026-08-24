@@ -1,4 +1,4 @@
-import { IPC_CHANNELS } from '@shared-core/constants/ipc-channels'
+import { IPC_CHANNELS } from '@shared-core/constants/ipcChannels'
 import type {
   AutomationScriptAction,
   AutomationScriptArgsByAction,

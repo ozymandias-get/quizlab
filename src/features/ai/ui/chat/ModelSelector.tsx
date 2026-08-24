@@ -115,7 +115,7 @@ const ModelSelector = memo(function ModelSelector({
       <InlineSelector
         open={isOpen}
         onClose={handleClose}
-        closeLabel={t('api_chat_close_selector', 'Close')}
+        closeLabel={t('api_chat_close_selector')}
         popupClassName="max-h-[300px] min-w-[240px]"
         trigger={
           <button

@@ -2,7 +2,7 @@ import { useDeleteCustomAi } from '@platform/electron/api/useSettingsAiApi'
 
 import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { useToastActions } from '@app/providers'
-import { useAiModelActions, useAiModelsCatalog } from '@app/providers/AiContext'
+import { useAiModelActions, useAiModelsCatalog } from '@app/providers/ai-context'
 import { useConfirmDialog } from '@shared/hooks'
 import { Logger } from '@shared/lib/logger'
 import { GridIcon } from '@ui/components/Icons'

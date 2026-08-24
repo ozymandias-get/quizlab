@@ -1,6 +1,6 @@
 import type { AiPlatform } from '@shared-core/types'
 
-import type { Tab } from '@app/providers/AiContext'
+import type { Tab } from '@app/providers/ai-context'
 import { isValidHexColor } from '@shared/lib/uiUtils'
 
 import {

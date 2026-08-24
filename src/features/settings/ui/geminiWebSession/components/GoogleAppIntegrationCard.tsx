@@ -1,4 +1,4 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 
 import { Switch } from '@app/components/ui/switch'
 import { GeminiIcon, getAiIcon } from '@ui/components/Icons'

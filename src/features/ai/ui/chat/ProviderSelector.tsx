@@ -1,5 +1,6 @@
 import type { ApiConfig } from '@shared-core/types'
 
+import { Button } from '@app/components/ui/button'
 import { InlineSelector } from '@app/components/ui/inline-selector'
 
 import { Check, ChevronDown, Database } from 'lucide-react'
@@ -37,13 +38,16 @@ const ProviderSelector = memo(function ProviderSelector({
       <InlineSelector
         open={showProviderSelector}
         onClose={() => setShowProviderSelector(false)}
-        closeLabel={t('close', 'Close')}
+        closeLabel={t('close')}
         popupClassName="min-w-[200px]"
         trigger={
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            data-state={showProviderSelector ? 'open' : 'closed'}
             onClick={() => setShowProviderSelector(!showProviderSelector)}
-            className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="bg-card/80 text-ql-12 h-7 gap-1.5 rounded-lg px-2.5 font-medium shadow-2xs"
             aria-haspopup="listbox"
             aria-expanded={showProviderSelector}
           >
@@ -53,11 +57,11 @@ const ProviderSelector = memo(function ProviderSelector({
 
             <Database className="text-muted-foreground/80 h-3.5 w-3.5" />
 
-            <span className="text-foreground font-medium">
+            <span className="text-foreground">
               {activeProvider?.name || t('api_chat_select_provider')}
             </span>
-            <ChevronDown className="text-muted-foreground motion-normal h-3 w-3 opacity-60 transition-transform group-data-[state=open]:rotate-180" />
-          </button>
+            <ChevronDown className="text-muted-foreground motion-normal h-3 w-3 opacity-60 transition-transform group-data-[state=open]/button:rotate-180" />
+          </Button>
         }
       >
         <div role="listbox" className="space-y-0.5">

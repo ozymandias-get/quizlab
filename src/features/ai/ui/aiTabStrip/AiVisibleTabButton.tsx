@@ -1,7 +1,7 @@
 import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
-import type { Tab } from '@app/providers/AiContext'
+import type { Tab } from '@app/providers/ai-context'
 import { TabPillContainer, TabPillIcon, TabPillLabel } from '@shared/ui/components/primitives'
 import { getAiIcon } from '@ui/components/Icons'
 

@@ -16,7 +16,7 @@ import {
   useAiTabsList,
   useAiWebview,
   useAiWebviewPresence
-} from '@app/providers/AiContext'
+} from '@app/providers/ai-context'
 import { Logger } from '@shared/lib/logger'
 
 import { useCallback, useMemo, useState } from 'react'

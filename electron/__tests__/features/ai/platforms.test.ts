@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tests for the built-in AI platform configurations.
  *
  * These configs drive the AI sidebar — wrong URL, wrong partition, or
@@ -15,7 +15,7 @@ import gemini from '../../../features/ai/platforms/gemini.js'
 import kimi from '../../../features/ai/platforms/kimi.js'
 import qwen from '../../../features/ai/platforms/qwen.js'
 import youtube from '../../../features/ai/platforms/youtube.js'
-import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/google-ai-web-apps.js'
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../../shared/constants/googleAiWebApps.js'
 
 describe('AI platform configs - structural invariants', () => {
   const platforms: Record<string, any> = {

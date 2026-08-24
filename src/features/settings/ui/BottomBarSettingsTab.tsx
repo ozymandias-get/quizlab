@@ -1,7 +1,7 @@
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 
 import { useAppearance } from '@app/providers'
-import { useAiModelActions, useAiModelsCatalog } from '@app/providers/AiContext'
+import { useAiModelActions, useAiModelsCatalog } from '@app/providers/ai-context'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { DURATION } from '@shared/lib/motion'
 import { getAiIcon, GridIcon, SliderIcon } from '@ui/components/Icons'

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import type { Tab } from '../../../../app/providers/AiContext'
+import type { Tab } from '../../../../app/providers/ai-context'
 import { clamp, getVisibleTabIds } from '../../../../features/ai/ui/aiTabStrip/aiTabStripUtils'
 
 function makeTabs(count: number): Tab[] {

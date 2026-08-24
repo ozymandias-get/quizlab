@@ -6,6 +6,7 @@
   "api_chat_input_placeholder": "Bir mesaj yazın...",
   "api_chat_select_provider": "Sağlayıcı",
   "api_chat_select_model": "Model",
+  "api_chat_close_selector": "Kapat",
   "api_chat_clear": "Temizle",
   "api_chat_settings_title": "API Sohbet Ayarları",
   "api_chat_settings_desc": "API sağlayıcılarınızı ve bağlantı ayarlarınızı yönetin",

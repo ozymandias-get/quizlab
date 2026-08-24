@@ -79,7 +79,7 @@ const SettingsModal = memo(function SettingsModal({
             variant="outline"
             size="icon"
             onClick={onClose}
-            aria-label={t('tab_close') || 'Close'}
+            aria-label={t('tab_close')}
             className="border-border bg-card text-muted-foreground hover:bg-accent rounded-lg"
           >
             <CloseIcon className="h-3.5 w-3.5" />

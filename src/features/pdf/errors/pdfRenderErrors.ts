@@ -12,6 +12,8 @@
  * cancellation logic — they must never reach the console as uncaught errors.
  */
 
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
+
 const IGNORED_RENDER_ERROR_MARKERS = [
   'renderingcancelledexception',
   'rendering cancelled',
@@ -21,7 +23,7 @@ const IGNORED_RENDER_ERROR_MARKERS = [
 ]
 
 export function isIgnorablePdfRenderError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = ensureErrorMessage(error, '')
   const normalized = message.toLowerCase()
   return IGNORED_RENDER_ERROR_MARKERS.some((marker) => normalized.includes(marker))
 }

@@ -1,8 +1,8 @@
-﻿/**
+/**
  * Shared constants for the Main Process
  * IPC_CHANNELS are imported from shared/constants for single source of truth
  */
-import { IPC_CHANNELS } from '../../shared/constants/ipc-channels.js'
+import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 import { SCREENSHOT_TYPES } from '../../shared/types/system.js'
 
 export const APP_CONFIG = {

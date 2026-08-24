@@ -14,7 +14,7 @@ const mockNavigationState = {
   totalPages: 10
 }
 
-vi.mock('@app/providers/AiContext', () => ({
+vi.mock('@app/providers/ai-context', () => ({
   useAi: () => ({
     autoSend: false,
     toggleAutoSend: vi.fn(),

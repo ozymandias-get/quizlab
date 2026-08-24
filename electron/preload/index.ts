@@ -2,7 +2,7 @@ import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
-import { IPC_CHANNELS } from '../../shared/constants/ipc-channels.js'
+import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 import { onEvent, typedInvoke, unwrapIpcResult } from './typedIpcPreload.js'
 
 const electronApi: ElectronApi = {

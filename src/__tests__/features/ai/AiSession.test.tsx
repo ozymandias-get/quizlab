@@ -1,9 +1,9 @@
-﻿import AiSession from '@features/ai/ui/AiSession'
+import AiSession from '@features/ai/ui/AiSession'
 
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@app/providers/AiContext', () => ({
+vi.mock('@app/providers/ai-context', () => ({
   useAiRegistryMeta: () => ({
     isRegistryLoaded: true,
     chromeUserAgent: 'mock-user-agent'

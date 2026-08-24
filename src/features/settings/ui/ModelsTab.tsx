@@ -6,7 +6,7 @@ import {
   useAiModelActions,
   useAiModelsCatalog,
   useAiWebviewHostActions
-} from '@app/providers/AiContext'
+} from '@app/providers/ai-context'
 import { useConfirmDialog } from '@shared/hooks'
 import { Logger } from '@shared/lib/logger'
 import { GridIcon } from '@ui/components/Icons'

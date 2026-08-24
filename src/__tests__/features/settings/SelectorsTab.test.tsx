@@ -87,7 +87,7 @@ vi.mock('@app/providers', () => ({
   })
 }))
 
-vi.mock('@app/providers/AiContext', () => ({
+vi.mock('@app/providers/ai-context', () => ({
   useAiTabsList: () => ({ tabs: [{ id: 'tab-chatgpt', modelId: 'chatgpt' }] }),
   useAiTabFocus: () => ({ currentAI: 'chatgpt' }),
   useAiSites: () => aiSites,

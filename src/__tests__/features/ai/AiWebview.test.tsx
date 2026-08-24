@@ -28,7 +28,7 @@ let mockAiState: MockAiState = {
   stopTutorial: vi.fn()
 }
 
-vi.mock('@app/providers/AiContext', () => ({
+vi.mock('@app/providers/ai-context', () => ({
   useAi: () => mockAiState,
   useAiTabsSliceState: () => ({
     tabs: mockAiState.tabs,

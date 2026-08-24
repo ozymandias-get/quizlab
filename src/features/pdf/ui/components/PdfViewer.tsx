@@ -3,7 +3,7 @@ import '@react-pdf-viewer/page-navigation/lib/styles/index.css'
 import '@react-pdf-viewer/zoom/lib/styles/index.css'
 import '@react-pdf-viewer/search/lib/styles/index.css'
 
-import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/google-ai-web-apps'
+import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/googleAiWebApps'
 import type { PdfFile } from '@shared-core/types'
 
 import type {
@@ -17,7 +17,7 @@ import {
   useAiRegistryMeta,
   useAiSessionActions,
   useAiSessionUiPrefsState
-} from '@app/providers/AiContext'
+} from '@app/providers/ai-context'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 
 import { memo, useEffect, useRef, useState } from 'react'

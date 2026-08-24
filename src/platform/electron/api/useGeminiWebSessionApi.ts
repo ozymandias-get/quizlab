@@ -1,4 +1,4 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/google-ai-web-apps'
+import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 import type { GeminiWebSessionActionResult, GeminiWebSessionStatus } from '@shared-core/types'
 
 import type { UseQueryOptions } from '@tanstack/react-query'

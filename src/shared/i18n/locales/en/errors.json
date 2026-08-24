@@ -61,5 +61,10 @@
   "add_custom_ai": "Add Custom AI",
   "error_api_chat_unavailable": "API Chat not available in this environment",
   "error_electron_api_missing": "Electron API is not available",
-  "error_pdf_moved": "This PDF may have been moved or deleted. Choose a new location to continue."
+  "error_pdf_moved": "This PDF may have been moved or deleted. Choose a new location to continue.",
+  "error_name_required": "Name is required",
+  "error_name_too_short": "Name is too short",
+  "error_url_required": "URL is required",
+  "error_url_protocol": "Only http(s) URLs are allowed",
+  "error_url_invalid": "Invalid URL"
 }

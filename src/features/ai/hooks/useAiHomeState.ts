@@ -2,7 +2,7 @@ import {
   useAiModelActions,
   useAiModelsCatalog,
   useAiTabsSliceState
-} from '@app/providers/AiContext'
+} from '@app/providers/ai-context'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 

@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { getStorageItem, removeStorageItem, setStorageItem } from '@shared/hooks/localStorageUtils'
 import { Logger, reportSuppressedError } from '@shared/lib/logger'
 
 import type { LastReadingInfo } from './types'
@@ -26,7 +27,7 @@ export function sanitizeReadingInfo(info: unknown): LastReadingInfo | null {
 
 export function migrateReadingHistory(): void {
   try {
-    const stored = localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING)
+    const stored = getStorageItem(STORAGE_KEYS.LAST_PDF_READING)
     if (!stored) return
 
     const parsed = JSON.parse(stored)
@@ -45,7 +46,7 @@ export function migrateReadingHistory(): void {
     })
 
     if (migrated) {
-      localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(migratedItems))
+      setStorageItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(migratedItems))
       Logger.info('[ReadingHistory] Migrated old entries (stripped library fields)')
     }
   } catch (err) {
@@ -75,7 +76,7 @@ export function parseReadingHistory(stored: string | null): LastReadingInfo[] {
 
 export function readReadingHistory(): LastReadingInfo[] {
   try {
-    return parseReadingHistory(localStorage.getItem(STORAGE_KEYS.LAST_PDF_READING))
+    return parseReadingHistory(getStorageItem(STORAGE_KEYS.LAST_PDF_READING))
   } catch (err) {
     reportSuppressedError('readingHistory.read', { cause: err })
     return []
@@ -85,9 +86,9 @@ export function readReadingHistory(): LastReadingInfo[] {
 export function writeReadingHistory(items: LastReadingInfo[]): void {
   try {
     if (items.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(items))
+      setStorageItem(STORAGE_KEYS.LAST_PDF_READING, JSON.stringify(items))
     } else {
-      localStorage.removeItem(STORAGE_KEYS.LAST_PDF_READING)
+      removeStorageItem(STORAGE_KEYS.LAST_PDF_READING)
     }
   } catch (err) {
     reportSuppressedError('readingHistory.write', { cause: err })

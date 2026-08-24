@@ -10,8 +10,8 @@ import {
   GOOGLE_WEB_SESSION_APPS,
   GOOGLE_WEB_SESSION_REGISTRY_IDS,
   PRIMARY_GOOGLE_AI_WEB_APP
-} from '@shared-core/constants/google-ai-web-apps'
-import { IPC_CHANNELS } from '@shared-core/constants/ipc-channels'
+} from '@shared-core/constants/googleAiWebApps'
+import { IPC_CHANNELS } from '@shared-core/constants/ipcChannels'
 
 import { describe, expect, it } from 'vitest'
 

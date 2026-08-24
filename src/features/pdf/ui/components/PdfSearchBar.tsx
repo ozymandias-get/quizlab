@@ -84,13 +84,13 @@ function PdfSearchBar({
                         size="compact"
                         variant="ghost"
                         onClick={() => onKeywordChange('')}
-                        aria-label={t('clear', 'Clear')}
+                        aria-label={t('clear')}
                         className="text-muted-foreground hover:text-foreground"
                       >
                         <X className="size-3.5" />
                       </IconButton>
                     </TooltipTrigger>
-                    <TooltipContent>{t('clear', 'Clear')}</TooltipContent>
+                    <TooltipContent>{t('clear')}</TooltipContent>
                   </Tooltip>
                 ) : null}
                 <Kbd size="xs" variant="outline" className="opacity-70">

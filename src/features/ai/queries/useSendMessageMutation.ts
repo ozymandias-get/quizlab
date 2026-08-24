@@ -1,3 +1,4 @@
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { QUERY_KEYS } from '@shared/query/queryKeys'
 
 import type { QueryClient } from '@tanstack/react-query'
@@ -113,7 +114,7 @@ export async function sendApiChatMessage(
         return { success: false, error: 'cancelled', cancelled: true, sessionId: activeSessionId }
       }
 
-      const error = err instanceof Error ? err.message : String(err)
+      const error = ensureErrorMessage(err)
       const errorReply = buildErrorReply(err)
       const sessionsWithError = addMessageToSession(
         queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || sessionsWithUser,

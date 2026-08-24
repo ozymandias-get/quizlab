@@ -11,6 +11,11 @@ import { Eye, EyeOff, KeyRound, Search, Sparkles } from 'lucide-react'
 import { memo, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import {
+  validateProviderBaseUrl as validateBaseUrl,
+  validateProviderName as validateName
+} from './providerValidation'
+
 interface ApiProviderCardProps {
   provider: ApiProviderConfig
   testResult: string
@@ -35,6 +40,8 @@ function ApiProviderCard({
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
+  const [nameError, setNameError] = useState('')
+  const [baseUrlError, setBaseUrlError] = useState('')
   const nameId = useId()
   const baseUrlId = useId()
   const apiKeyId = useId()
@@ -76,9 +83,19 @@ function ApiProviderCard({
           <Input
             id={nameId}
             value={provider.name}
-            onChange={(e) => onUpdate(provider.id, { name: e.target.value })}
+            onChange={(e) => {
+              onUpdate(provider.id, { name: e.target.value })
+              if (nameError) setNameError(validateName(e.target.value))
+            }}
+            onBlur={() => setNameError(validateName(provider.name))}
             placeholder={t('api_chat_placeholder_provider')}
+            aria-invalid={!!nameError}
           />
+          {nameError && (
+            <span role="alert" className="text-destructive text-ql-11 px-1">
+              {t(nameError)}
+            </span>
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={baseUrlId} className="text-ql-11 text-muted-foreground font-medium">
@@ -87,10 +104,20 @@ function ApiProviderCard({
           <Input
             id={baseUrlId}
             value={provider.baseUrl}
-            onChange={(e) => onUpdate(provider.id, { baseUrl: e.target.value })}
+            onChange={(e) => {
+              onUpdate(provider.id, { baseUrl: e.target.value })
+              if (baseUrlError) setBaseUrlError(validateBaseUrl(e.target.value))
+            }}
+            onBlur={() => setBaseUrlError(validateBaseUrl(provider.baseUrl))}
             className="text-ql-12 font-mono"
             placeholder="https://api.openai.com/v1"
+            aria-invalid={!!baseUrlError}
           />
+          {baseUrlError && (
+            <span role="alert" className="text-destructive text-ql-11 px-1">
+              {t(baseUrlError)}
+            </span>
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={apiKeyId} className="text-ql-11 text-muted-foreground font-medium">

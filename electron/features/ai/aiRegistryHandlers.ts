@@ -1,11 +1,11 @@
-﻿import type { AiPlatform, CustomAiResult } from '@shared-core/types'
+import type { AiPlatform, CustomAiResult } from '@shared-core/types'
 
 import crypto from 'crypto'
 import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
-import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/google-ai-web-apps.js'
+import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/googleAiWebApps.js'
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { ConfigManager } from '../../core/ConfigManager.js'

@@ -6,6 +6,7 @@
   "api_chat_input_placeholder": "Type a message...",
   "api_chat_select_provider": "Provider",
   "api_chat_select_model": "Model",
+  "api_chat_close_selector": "Close",
   "api_chat_clear": "Clear",
   "api_chat_settings_title": "API Chat Settings",
   "api_chat_settings_desc": "Manage your API providers and connection settings",

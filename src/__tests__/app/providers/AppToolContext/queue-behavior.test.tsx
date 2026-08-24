@@ -2,7 +2,7 @@ import { vi } from 'vitest'
 
 import { mockState } from './mockState'
 
-vi.mock('@app/providers/AiContext', () => ({
+vi.mock('@app/providers/ai-context', () => ({
   useAiMessagingActions: () => ({
     sendTextToAI: (...args: any[]) => (mockState.sendTextToAI as any)(...args),
     sendImageToAI: (...args: any[]) => (mockState.sendImageToAI as any)(...args),
