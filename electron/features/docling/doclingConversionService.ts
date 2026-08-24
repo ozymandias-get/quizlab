@@ -326,6 +326,14 @@ class DoclingConversionService {
       }
 
       let envBase = await this.loadPipelinePrefs()
+      // Offline resilience: when offline, force HF local_files_only to avoid network hangs
+      try {
+        const { net } = await import('electron')
+        if (!net.isOnline()) {
+          envBase = { ...envBase, DOCLING_OFFLINE: '1' }
+          Logger.info('[DoclingConversion] Offline detected – forcing local_files_only')
+        }
+      } catch {}
       // P0-3: avoid the expensive double pass for scanned PDFs. When the
       // configured pipeline has OCR OFF, probe the PDF text layer cheaply via
       // PDF.js; if the first pages have almost no selectable text, flip OCR ON

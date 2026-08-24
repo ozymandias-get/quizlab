@@ -44,35 +44,76 @@ export function DoclingPipelineAdvanced({ prefs, busy, isInstalled }: Props) {
           <ScanText className="h-3.5 w-3.5" /> {t('docling_pipeline_group_ocr')}
         </p>
         <div className="space-y-1 pl-1">
-          <label className="text-ql-12 flex items-center justify-between gap-2">
-            <span>{t('docling_pipeline_ocr_lang')}</span>
-            <select
-              value={prefs.ocrLang.split(',')[0]?.trim() ?? ''}
-              onChange={(e) => setPrefs.mutate({ ocrLang: e.target.value })}
-              disabled={disabled}
-              className="border-border bg-card text-ql-12 w-28 rounded-md border px-2 py-1"
-            >
-              <option value="">
-                {t('docling_pipeline_ocr_lang_auto', { defaultValue: 'Auto' })}
-              </option>
-              <option value="en">en - English</option>
-              <option value="tr">tr - Türkçe</option>
-              <option value="de">de - Deutsch</option>
-              <option value="fr">fr - Français</option>
-              <option value="es">es - Español</option>
-              <option value="it">it - Italiano</option>
-              <option value="ja">ja - 日本語</option>
-              <option value="ko">ko - 한국어</option>
-              <option value="zh">zh - 中文</option>
-              <option value="ar">ar - العربية</option>
-              <option value="ru">ru - Русский</option>
-            </select>
-          </label>
-          <p className="text-ql-11 text-muted-foreground">
-            {t('docling_pipeline_ocr_lang_hint', {
-              defaultValue: 'RapidOCR tek dil destekler; çoklu dil için EasyOCR gerekir.'
-            })}
-          </p>
+          <div className="space-y-2">
+            <p className="text-ql-11 text-muted-foreground">
+              {t('docling_pipeline_ocr_lang')} —{' '}
+              {t('docling_pipeline_ocr_lang_hint', {
+                defaultValue:
+                  'RapidOCR tek dil; çoklu dil için EasyOCR gerekir (dinamik dil paketi indirilir).'
+              })}
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                ['en', 'English'],
+                ['tr', 'Türkçe'],
+                ['de', 'Deutsch'],
+                ['fr', 'Français'],
+                ['es', 'Español'],
+                ['it', 'Italiano'],
+                ['ja', '日本語'],
+                ['ko', '한국어'],
+                ['zh', '中文'],
+                ['ar', 'العربية'],
+                ['ru', 'Русский']
+              ].map(([code, label]) => {
+                const langs = new Set(
+                  prefs.ocrLang
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                )
+                const checked = langs.has(code)
+                return (
+                  <label
+                    key={code}
+                    className="border-border bg-card text-ql-11 flex items-center gap-1.5 rounded-md border px-2 py-1"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={(e) => {
+                        const next = new Set(langs)
+                        if (e.target.checked) next.add(code)
+                        else next.delete(code)
+                        // Keep empty string for Auto
+                        setPrefs.mutate({ ocrLang: [...next].join(',') })
+                      }}
+                      className="h-3 w-3"
+                    />
+                    <span className="truncate">
+                      {code} - {label}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPrefs.mutate({ ocrLang: '' })}
+                disabled={disabled || !prefs.ocrLang}
+                className="text-ql-11 text-muted-foreground hover:text-foreground disabled:opacity-40"
+              >
+                {t('docling_pipeline_ocr_lang_auto', { defaultValue: 'Auto' })} temizle
+              </button>
+              {prefs.ocrLang && (
+                <span className="text-ql-11 text-muted-foreground font-mono">
+                  {prefs.ocrLang || 'auto'}
+                </span>
+              )}
+            </div>
+          </div>
           <PipelineRow
             icon={ScanText}
             title={t('docling_pipeline_force_full_ocr_title')}

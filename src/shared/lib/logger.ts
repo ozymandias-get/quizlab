@@ -119,7 +119,11 @@ export function reportSuppressedError(scope: string, options?: { cause?: unknown
   }
 }
 
-export function createIssueLogReport(params: { appVersion: string; language: string }): string {
+export function createIssueLogReport(params: {
+  appVersion: string
+  language: string
+  extraDiagnostics?: string
+}): string {
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
   const now = new Date().toISOString()
   const logs = getRecentLogs(120)
@@ -129,6 +133,10 @@ export function createIssueLogReport(params: { appVersion: string; language: str
           .map((entry) => `[${entry.timestamp}] [${entry.level.toUpperCase()}] ${entry.message}`)
           .join('\n')
       : 'No buffered logs yet.'
+
+  const diagBlock = params.extraDiagnostics
+    ? `\n## Diagnostics\n\`\`\`text\n${params.extraDiagnostics}\n\`\`\`\n`
+    : ''
 
   return [
     '# Quizlab Reader Error Report',
@@ -148,10 +156,27 @@ export function createIssueLogReport(params: { appVersion: string; language: str
     '',
     '## Actual Behavior',
     '',
+    diagBlock,
     '## Recent Logs',
     '```text',
     logsBlock,
     '```'
+  ].join('\n')
+}
+
+export function formatDoclingDiagnostics(info: {
+  lastError?: string | null
+  doclingVersion?: string | null
+  pythonVersion?: string | null
+  modelStatus?: string | null
+  pipelineHash?: string | null
+}): string {
+  return [
+    `Docling lastError: ${info.lastError ?? 'none'}`,
+    `Docling version: ${info.doclingVersion ?? 'unknown'}`,
+    `Python version: ${info.pythonVersion ?? 'unknown'}`,
+    `Model status: ${info.modelStatus ?? 'unknown'}`,
+    `Pipeline hash: ${info.pipelineHash ?? 'unknown'}`
   ].join('\n')
 }
 

@@ -87,9 +87,35 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
     setIsCopying(true)
 
     try {
+      let extraDiagnostics: string | undefined
+      try {
+        const api = hasElectronApi() ? getElectronApi() : null
+        if (api) {
+          const doclingDiagnostics = (await Promise.allSettled([
+            api.doclingService?.getStatus?.().catch(() => null),
+            api.doclingModels?.getStatus?.().catch(() => null),
+            api.doclingPipeline?.getPrefs?.().catch(() => null)
+          ])) as PromiseSettledResult<unknown>[]
+          const serviceStatus = (doclingDiagnostics[0] as PromiseFulfilledResult<unknown>)
+            ?.value as { lastError?: string | null } | null
+          const modelStatus = (doclingDiagnostics[1] as PromiseFulfilledResult<unknown>)?.value as {
+            status?: string | null
+          } | null
+          const { formatDoclingDiagnostics } = await import('@shared/lib/logger')
+          extraDiagnostics = formatDoclingDiagnostics({
+            lastError: serviceStatus?.lastError ?? null,
+            modelStatus: (modelStatus as { status?: string })?.status ?? null
+          })
+          // Append recent stderr tail if available via service status detail
+          if (serviceStatus?.lastError) {
+            extraDiagnostics += `\nService lastError: ${serviceStatus.lastError.slice(0, 2000)}`
+          }
+        }
+      } catch {}
       const report = createIssueLogReport({
         appVersion: appVersion ?? 'unknown',
-        language: typeof navigator !== 'undefined' ? navigator.language : 'unknown'
+        language: typeof navigator !== 'undefined' ? navigator.language : 'unknown',
+        extraDiagnostics
       })
       await copyToClipboard(report)
       showSuccess(t('toast_logs_copied'), t('toast_system_title'))

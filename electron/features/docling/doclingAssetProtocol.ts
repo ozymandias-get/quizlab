@@ -77,14 +77,26 @@ export function registerDoclingAssetProtocol(): void {
         expectedBase = cacheRoot
       }
 
-      // Path traversal guard
+      // Path traversal + symlink sandbox: resolve realpath and ensure it stays inside expectedBase
       const normalized = path.normalize(filePath)
       if (!normalized.startsWith(expectedBase)) {
         return new Response('Forbidden', { status: 403 })
       }
+      // Resolve realpath for both sides to defeat symlink and `..` tricks
+      let realFile: string
+      let realBase: string
+      try {
+        realFile = await fs.realpath(normalized)
+        realBase = await fs.realpath(expectedBase)
+      } catch {
+        return new Response('Not Found', { status: 404 })
+      }
+      if (!realFile.startsWith(realBase + path.sep) && realFile !== realBase) {
+        return new Response('Forbidden', { status: 403 })
+      }
 
-      // Symlink check: do not follow symlinks to arbitrary files
-      const lstat = await fs.lstat(normalized)
+      // Symlink check: do not follow symlinks to arbitrary files (also covered by realpath above)
+      const lstat = await fs.lstat(realFile)
       if (lstat.isSymbolicLink()) {
         return new Response('Forbidden', { status: 403 })
       }
@@ -96,8 +108,8 @@ export function registerDoclingAssetProtocol(): void {
         return new Response('Payload Too Large', { status: 413 })
       }
 
-      const data = await fs.readFile(normalized)
-      const fileNameForMime = path.basename(normalized)
+      const data = await fs.readFile(realFile)
+      const fileNameForMime = path.basename(realFile)
       const ext = path.extname(fileNameForMime).toLowerCase()
       const mime =
         ext === '.png'

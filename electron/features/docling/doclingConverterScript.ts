@@ -114,6 +114,11 @@ def _make_converter(do_ocr_override=None):
     layout_bs = _i("DOCLING_LAYOUT_BATCH_SIZE", 4)
     table_bs = _i("DOCLING_TABLE_BATCH_SIZE", 4)
     queue_max = _i("DOCLING_QUEUE_MAX_SIZE", 100)
+    offline_mode = _b("DOCLING_OFFLINE")
+    if offline_mode:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        os.environ["HF_DATASETS_OFFLINE"] = "1"
     try:
         from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode, TableStructureOptions
         from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
@@ -277,8 +282,15 @@ def _make_converter(do_ocr_override=None):
                     kwargs["heading_hierarchy_options"] = HeadingHierarchyOptions(enabled=True)
             except Exception:
                 pass
+        # Offline: force local_files_only for HF/transformers if available
+        if offline_mode:
+            try:
+                # PdfPipelineOptions may accept local_files_only in some versions
+                kwargs["local_files_only"] = True
+            except:
+                pass
         opts = PdfPipelineOptions(**{k: v for k, v in kwargs.items() if v is not None})
-        print(f"Pipeline ocr={do_ocr} lang={ocr_lang} figs={extract_figs} tables={detect_tables} fast={fast_tables} scale={images_scale} thr={num_threads} dev=cpu", flush=True)
+        print(f"Pipeline ocr={do_ocr} lang={ocr_lang} figs={extract_figs} tables={detect_tables} fast={fast_tables} scale={images_scale} thr={num_threads} dev=cpu offline={offline_mode}", flush=True)
         return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opts)})
     except Exception as e:
         print(f"Pipeline opts failed: {e}", file=sys.stderr, flush=True)

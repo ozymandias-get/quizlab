@@ -106,6 +106,56 @@ function tail(value: string, maxChars: number): string {
   return value.length > maxChars ? value.slice(value.length - maxChars) : value
 }
 
+async function getProcessMemoryMB(pid: number): Promise<number | null> {
+  try {
+    if (process.platform === 'win32') {
+      const { spawn } = await import('node:child_process')
+      const out = await new Promise<string>((resolve) => {
+        let buf = ''
+        const c = spawn(
+          'wmic',
+          ['process', 'where', `ProcessId=${pid}`, 'get', 'WorkingSetSize', '/value'],
+          {
+            windowsHide: true
+          }
+        )
+        c.stdout?.on('data', (d: Buffer) => (buf += d.toString()))
+        c.on('close', () => resolve(buf))
+        c.on('error', () => resolve(''))
+        setTimeout(() => resolve(buf), 1500)
+      })
+      const m = out.match(/WorkingSetSize=(\d+)/)
+      if (m) return Number(m[1]) / (1024 * 1024)
+    } else {
+      const { readFile } = await import('node:fs/promises')
+      try {
+        const status = await readFile(`/proc/${pid}/status`, 'utf8')
+        const line = status.split('\n').find((l) => l.startsWith('VmRSS:'))
+        if (line) {
+          const kb = Number(line.replaceAll(/[^0-9]/g, ''))
+          if (!Number.isNaN(kb)) return kb / 1024
+        }
+      } catch {
+        // Fallback to ps
+        const { spawn } = await import('node:child_process')
+        const out = await new Promise<string>((resolve) => {
+          let buf = ''
+          const c = spawn('ps', ['-o', 'rss=', '-p', String(pid)], { windowsHide: true })
+          c.stdout?.on('data', (d: Buffer) => (buf += d.toString()))
+          c.on('close', () => resolve(buf))
+          c.on('error', () => resolve(''))
+          setTimeout(() => resolve(buf), 1000)
+        })
+        const kb = Number(out.trim())
+        if (!Number.isNaN(kb) && kb > 0) return kb / 1024
+      }
+    }
+  } catch {}
+  return null
+}
+
+const OOM_LIMIT_MB = 3 * 1024 // 3 GB – Docling shouldn't exceed this for a single PDF
+
 export async function runCommand(
   exe: string,
   args: string[],
@@ -146,6 +196,25 @@ export async function runCommand(
       reject(new CommandError('timeout', `Command timed out after ${timeoutMs}ms`, null))
     }, timeoutMs)
 
+    const oomTimer = setInterval(async () => {
+      if (settled || !child.pid) return
+      const rss = await getProcessMemoryMB(child.pid)
+      if (rss !== null && rss > OOM_LIMIT_MB) {
+        settled = true
+        clearTimeout(timer)
+        clearInterval(oomTimer)
+        void killProcessTree(child.pid ?? 0).catch(() => child.kill('SIGKILL'))
+        releaseOnce()
+        reject(
+          new CommandError(
+            'non_zero_exit',
+            `Process exceeded memory limit ${OOM_LIMIT_MB} MB (RSS ${rss.toFixed(0)} MB) — killed`,
+            null
+          )
+        )
+      }
+    }, 4000)
+
     child.stdout?.on('data', (chunk: Buffer) => {
       if (stdout.length < maxBufferChars) stdout += chunk.toString('utf8')
     })
@@ -157,6 +226,7 @@ export async function runCommand(
       if (settled) return
       settled = true
       clearTimeout(timer)
+      clearInterval(oomTimer)
       releaseOnce()
       reject(err)
     })
@@ -165,6 +235,7 @@ export async function runCommand(
       if (settled) return
       settled = true
       clearTimeout(timer)
+      clearInterval(oomTimer)
       releaseOnce()
       resolve({
         code: code ?? -1,
