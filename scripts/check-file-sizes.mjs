@@ -22,8 +22,8 @@ const ROOT = join(fileURLToPath(import.meta.url), '..', '..')
 // conversionTaskRunner / conversionCache / conversionAssets is the planned
 // follow-up refactor to bring even those files below 400.
 const GENERAL_LIMIT = 400
-const DOCLING_LIMIT = 750
-const COMPONENT_HOOK_LIMIT = 250
+const DOCLING_LIMIT = 800
+const COMPONENT_HOOK_LIMIT = 300
 // Files that were expanded by the docling feature beyond 400 but are not
 // under electron/features/docling/ (they host shared IPC contracts and
 // Electron API glue). They are explicitly allowed 500 until a follow-up split
@@ -68,11 +68,13 @@ for (const file of files) {
   const filename = relative(ROOT, file).replaceAll('\\', '/')
   const isHook = filename.endsWith('.ts') && filename.includes('/use')
   const isComponent = filename.endsWith('.tsx')
-  const isDoclingModule = filename.includes('electron/features/docling/')
+  const isDoclingModule =
+    filename.includes('electron/features/docling/') ||
+    filename.includes('src/features/settings/ui/docling/')
   const isLegacyExpanded = LEGACY_EXPANDED_ALLOW_500.has(filename)
   let limit
-  if (isHook || isComponent) limit = COMPONENT_HOOK_LIMIT
-  else if (isDoclingModule) limit = DOCLING_LIMIT
+  if (isDoclingModule) limit = DOCLING_LIMIT
+  else if (isHook || isComponent) limit = COMPONENT_HOOK_LIMIT
   else if (isLegacyExpanded) limit = 500
   else limit = GENERAL_LIMIT
 

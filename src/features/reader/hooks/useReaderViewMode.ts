@@ -13,8 +13,10 @@ export function useReaderViewMode(activeTabId: string | undefined) {
   const setViewMode = useCallback(
     (mode: ReaderViewMode) => {
       if (!activeTabId) return
-      // eslint-disable-next-line no-console
-      console.debug(`[ReaderDebug] setViewMode tab=${activeTabId} ${viewMode} -> ${mode}`)
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug(`[ReaderDebug] setViewMode tab=${activeTabId} ${viewMode} -> ${mode}`)
+      }
       setPdfViewMode(activeTabId, mode)
     },
     [activeTabId, setPdfViewMode, viewMode]

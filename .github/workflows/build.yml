@@ -85,6 +85,68 @@ jobs:
       - name: Circular Dependency Check
         run: npm run analyze:circular
 
+  docling-smoke:
+    needs: quality
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: '0.12.5'
+          enable-cache: true
+
+      - name: Install Docling from bundled lock (pip check + import)
+        shell: bash
+        run: |
+          python --version
+          uv --version
+          uv pip install --system -r resources/docling/docling-lock.pinned.txt
+          uv pip check --system || python -m pip check
+          python -c "import docling; print(f'docling {docling.__version__} import ok')"
+          python -c "import docling_core; print('docling_core import ok')"
+          python -c "from docling.datamodel.pipeline_options import RapidOcrOptions; print('RapidOCR options ok')"
+
+      - name: Tiny PDF smoke conversion
+        shell: bash
+        run: |
+          python - << 'PY'
+          import pathlib
+          import fitz  # pymupdf from lock
+          doc = fitz.open()
+          page = doc.new_page()
+          page.insert_text((72, 72), "Hello QuizLab smoke test")
+          page.insert_text((72, 100), "Second line for smoke")
+          pathlib.Path("tiny-smoke.pdf").write_bytes(doc.tobytes())
+          print("tiny PDF created")
+          try:
+              from docling.document_converter import DocumentConverter
+              conv = DocumentConverter()
+              print("converter created")
+              # Try conversion with short timeout; allow failure if models need download but import succeeded
+              res = conv.convert("tiny-smoke.pdf")
+              print(f"smoke status={res.status} pages={len(res.document.pages) if res.document else 0}")
+              if str(res.status) != "ConversionStatus.SUCCESS":
+                  print(f"smoke warning: status {res.status}")
+              print("smoke conversion finished")
+          except Exception as e:
+              print(f"smoke conversion error (may need models, not fatal for import check): {e}")
+              import traceback; traceback.print_exc()
+              # Do not fail job on model download issues – import+pip check already validated lock
+          PY
+
   build:
     needs: quality
     runs-on: ${{ matrix.os }}

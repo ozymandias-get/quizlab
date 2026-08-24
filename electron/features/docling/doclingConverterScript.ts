@@ -144,18 +144,45 @@ def _make_converter(do_ocr_override=None):
         # OCR options: prefer RapidOcrOptions (standard bundle includes RapidOCR) and
         # fall back to EasyOcrOptions only if Rapid is unavailable. forceFullPageOcr
         # is not EasyOCR-specific and applies to either engine.
+        # P1-6: RapidOCR expects specific codes (ch, japan, korean, arabic, cyrillic, latin, etc.).
+        # Map UI codes (en,tr,de,fr,es,it,ja,ko,zh,ar,ru) to RapidOCR codes.
+        _RAPID_LANG_MAP = {
+            "en": "en",
+            "tr": "latin",  # PP-OCR latin covers Turkish; verify with smoke test
+            "de": "german",
+            "fr": "french",
+            "es": "es",
+            "it": "latin",
+            "ja": "japan",
+            "ko": "korean",
+            "zh": "ch",
+            "ar": "arabic",
+            "ru": "cyrillic",
+            "ch": "ch",
+            "japan": "japan",
+            "korean": "korean",
+            "arabic": "arabic",
+            "cyrillic": "cyrillic",
+            "latin": "latin",
+            "german": "german",
+            "french": "french",
+        }
+        def _map_rapid_langs(langs):
+            return [_RAPID_LANG_MAP.get(l, l) for l in langs]
         if ocr_lang or force_full_page_ocr:
             _ocr_set = False
             try:
                 from docling.datamodel.pipeline_options import RapidOcrOptions
                 if ocr_lang:
                     langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
+                    langs = _map_rapid_langs(langs[:1])  # RapidOCR single-lang
                     kwargs["ocr_options"] = RapidOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
                 else:
                     kwargs["ocr_options"] = RapidOcrOptions(force_full_page_ocr=True)
                 _ocr_set = True
             except Exception as _rapid_e:
                 # Rapid not available – try Easy
+                print(f"RapidOcrOptions failed: {_rapid_e}", file=sys.stderr, flush=True)
                 pass
             if not _ocr_set:
                 try:

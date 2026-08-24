@@ -17,6 +17,7 @@ import { useReaderViewMode } from '@features/reader/hooks/useReaderViewMode'
 import { InlineSpinner } from '@shared/ui/components/primitives'
 
 import { memo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import DoclingInstallCta from './DoclingInstallCta'
 import ReaderView from './ReaderView'
@@ -42,13 +43,14 @@ interface Props {
 const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
   const { pdfFile, activePdfTab } = props
   const { viewMode, setViewMode } = useReaderViewMode(activePdfTab?.id)
+  const { t } = useTranslation()
 
   const showToggle = !!pdfFile
   const { data: components } = useOptionalComponents()
   const docling = components?.find((c) => c.id === 'docling')
   const isInstalled = docling?.status === 'installed'
   const pdfPath = pdfFile?.path ?? null
-  const { document, isConverting, error, retry, reprocess } = useDocumentConversion(pdfPath, {
+  const { document, task, isConverting, error, retry, reprocess } = useDocumentConversion(pdfPath, {
     enabled: viewMode === 'reader' && isInstalled
   })
   const downloadModels = useDoclingModelsDownload()
@@ -59,11 +61,12 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
 
   const hasDoc = !!document
   useEffect(() => {
-    // DEBUG: render trace
-    // eslint-disable-next-line no-console
-    console.debug(
-      `[ReaderDebug] PdfReaderShell render tab=${activePdfTab?.id ?? 'none'} viewMode=${viewMode} pdf=${pdfPath ?? 'null'} installed=${isInstalled} converting=${isConverting} hasDoc=${hasDoc} error=${error ?? 'none'}`
-    )
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.debug(
+        `[ReaderDebug] PdfReaderShell render tab=${activePdfTab?.id ?? 'none'} viewMode=${viewMode} pdf=${pdfPath ? pdfPath.split(/[\\/]/).pop() : 'null'} installed=${isInstalled} converting=${isConverting} hasDoc=${hasDoc} error=${error ?? 'none'}`
+      )
+    }
   }, [activePdfTab?.id, viewMode, pdfPath, isInstalled, isConverting, hasDoc, error])
 
   useEffect(() => {
@@ -83,10 +86,33 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
         </div>
       )
     } else if (isConverting) {
+      const stagePhase = (task as { progress?: { phase?: string; message?: string | null } } | null)
+        ?.progress?.phase
+      const stageMessage = (task as { progress?: { message?: string | null } } | null)?.progress
+        ?.message
+      const stageKeyMap: Record<string, string> = {
+        queued: t('reader_stage_queued', { defaultValue: 'Sırada bekleniyor…' }),
+        processing: t('reader_stage_processing', { defaultValue: 'İşleniyor…' }),
+        pipeline: t('reader_stage_pipeline', { defaultValue: 'Pipeline hazırlanıyor…' }),
+        converting: t('reader_stage_converting', { defaultValue: 'Belge analiz ediliyor…' }),
+        analyzing: t('reader_stage_analyzing', { defaultValue: 'Sayfa düzeni çıkarılıyor…' }),
+        ocr_retry: t('reader_stage_ocr', { defaultValue: 'OCR uygulanıyor…' }),
+        exporting: t('reader_stage_exporting', { defaultValue: 'Dönüşüm tamamlanıyor…' }),
+        exporting_images: t('reader_stage_images', { defaultValue: 'Görseller hazırlanıyor…' }),
+        finalizing: t('reader_stage_finalizing', { defaultValue: 'Okuma görünümü oluşturuluyor…' }),
+        partial_success: t('reader_stage_partial', { defaultValue: 'Kısmi sonuç işleniyor…' })
+      }
+      const stageLabel =
+        stageMessage ||
+        (stagePhase ? stageKeyMap[stagePhase] : null) ||
+        t('reader_preparing', { defaultValue: 'Akıllı okuma hazırlanıyor…' })
       readerContent = (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
           <InlineSpinner />
-          <span className="text-muted-foreground text-ql-13">Akıllı okuma hazırlanıyor…</span>
+          <span className="text-muted-foreground text-ql-13">{stageLabel}</span>
+          {stagePhase && stagePhase !== 'queued' && (
+            <span className="text-muted-foreground/70 text-ql-11 font-mono">{stagePhase}</span>
+          )}
         </div>
       )
     } else if (error) {
@@ -103,23 +129,32 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
         readerContent = (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
             <InlineSpinner />
-            <span className="text-muted-foreground text-ql-13">Sırada bekleniyor…</span>
+            <span className="text-muted-foreground text-ql-13">
+              {t('reader_queued', { defaultValue: 'Sırada bekleniyor…' })}
+            </span>
             <span className="text-muted-foreground text-ql-11">
-              Başka bir akıllı okuma işlemi bitmek üzere — otomatik devam edecek.
+              {t('reader_queued_hint', {
+                defaultValue: 'Başka bir akıllı okuma işlemi bitmek üzere — otomatik devam edecek.'
+              })}
             </span>
           </div>
         )
       } else {
         const msg = isModelMissing
-          ? 'Gerekli belge modelleri yüklü değil.'
+          ? t('reader_error_model_missing', {
+              defaultValue: 'Gerekli belge modelleri yüklü değil.'
+            })
           : error === 'conversion_timeout' ||
               lower.includes('timed out') ||
               lower.includes('timeout')
-            ? 'Dönüşüm 15 dakikayı aştı — PDF çok büyük, taranmış veya tablo yoğun olabilir. GPU hızlandırmayı açmayı veya daha küçük bir PDF ile yeniden deneyin.'
+            ? t('reader_error_timeout', {
+                defaultValue:
+                  'Dönüşüm 15 dakikayı aştı. Daha hızlı bir işlem profili seçin, OCR/gelişmiş analiz seçeneklerini azaltın veya PDF\u2019yi daha küçük bölümlere ayırarak yeniden deneyin.'
+              })
             : error === 'encrypted_pdf'
-              ? 'Şifreli PDF desteklenmiyor'
+              ? t('reader_error_encrypted', { defaultValue: 'Şifreli PDF desteklenmiyor' })
               : error === 'corrupted_pdf'
-                ? 'Bozuk PDF'
+                ? t('reader_error_corrupted', { defaultValue: 'Bozuk PDF' })
                 : error
         readerContent = (
           <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
@@ -132,7 +167,9 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
                   disabled={downloadModels.isPending}
                   className="bg-primary text-primary-foreground text-ql-12 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
                 >
-                  {downloadModels.isPending ? 'İndiriliyor…' : 'Modelleri İndir'}
+                  {downloadModels.isPending
+                    ? t('common_downloading', { defaultValue: 'İndiriliyor…' })
+                    : t('reader_action_download_models', { defaultValue: 'Modelleri İndir' })}
                 </button>
               ) : (
                 <button
@@ -140,7 +177,7 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
                   onClick={retry}
                   className="bg-primary text-primary-foreground text-ql-12 rounded-lg px-3 py-1.5"
                 >
-                  Yeniden dene
+                  {t('common_retry', { defaultValue: 'Yeniden dene' })}
                 </button>
               )}
               <button
@@ -148,13 +185,18 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
                 onClick={() => setViewMode('pdf')}
                 className="border-border bg-card text-ql-12 rounded-lg border px-3 py-1.5"
               >
-                PDF ile devam et
+                {t('reader_action_continue_pdf', { defaultValue: 'PDF ile devam et' })}
               </button>
             </div>
             <p className="text-muted-foreground text-ql-11">
               {isModelMissing
-                ? 'İndirme bitince belge yeniden işlenecek. Offline için modeller gerekli.'
-                : 'PDF görünümü çalışmaya devam ediyor'}
+                ? t('reader_model_hint', {
+                    defaultValue:
+                      'İndirme bitince belge yeniden işlenecek. Offline için modeller gerekli.'
+                  })
+                : t('reader_pdf_continues', {
+                    defaultValue: 'PDF görünümü çalışmaya devam ediyor'
+                  })}
             </p>
           </div>
         )
@@ -162,7 +204,11 @@ const PdfReaderShell = memo(function PdfReaderShell(props: Props) {
     } else if (document) {
       readerContent = (
         <div className="h-full overflow-y-auto overscroll-contain">
-          <ReaderView document={document} onReprocess={reprocess} />
+          <ReaderView
+            document={document}
+            onReprocess={reprocess}
+            onSwitchToPdf={() => setViewMode('pdf')}
+          />
         </div>
       )
     } else {

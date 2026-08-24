@@ -526,7 +526,7 @@ function parsePackageLines(stdout: string): string[] {
   return stdout
     .split('\n')
     .map((line) => line.trim())
-    .filter(Boolean)
+    .filter((line) => line.length > 0 && !line.startsWith('#'))
 }
 
 /**

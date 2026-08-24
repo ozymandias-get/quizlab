@@ -174,6 +174,9 @@ async function readManifest(
 /**
  * Fast integrity pass: every manifest entry must exist with the recorded byte
  * size. This is O(file count) stats – safe to call on every status poll.
+ * Same-size corruption is not caught here by design for performance; full
+ * SHA-256 verification is used on repair/verify and should be triggered after
+ * conversion/model errors or periodically.
  */
 async function manifestFilesIntact(
   layout: ReturnType<typeof getDoclingLayout>,

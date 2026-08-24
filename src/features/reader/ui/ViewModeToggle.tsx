@@ -27,8 +27,10 @@ const ViewModeToggle = memo(function ViewModeToggle({ viewMode, onChange, disabl
         aria-label={t('reader_mode_pdf', { defaultValue: 'PDF' })}
         disabled={disabled}
         onClick={() => {
-          // eslint-disable-next-line no-console
-          console.debug('[ReaderDebug] ViewModeToggle click -> pdf')
+          if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.debug('[ReaderDebug] ViewModeToggle click -> pdf')
+          }
           onChange('pdf')
         }}
         className={cn(
@@ -47,8 +49,10 @@ const ViewModeToggle = memo(function ViewModeToggle({ viewMode, onChange, disabl
         aria-label={t('reader_mode_reader', { defaultValue: 'Akıllı Okuma' })}
         disabled={disabled}
         onClick={() => {
-          // eslint-disable-next-line no-console
-          console.debug('[ReaderDebug] ViewModeToggle click -> reader')
+          if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.debug('[ReaderDebug] ViewModeToggle click -> reader')
+          }
           onChange('reader')
         }}
         className={cn(
