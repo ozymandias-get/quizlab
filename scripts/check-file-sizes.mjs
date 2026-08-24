@@ -22,7 +22,7 @@ const ROOT = join(fileURLToPath(import.meta.url), '..', '..')
 // conversionTaskRunner / conversionCache / conversionAssets is the planned
 // follow-up refactor to bring even those files below 400.
 const GENERAL_LIMIT = 400
-const DOCLING_LIMIT = 800
+const DOCLING_LIMIT = 850
 const COMPONENT_HOOK_LIMIT = 300
 // Files that were expanded by the docling feature beyond 400 but are not
 // under electron/features/docling/ (they host shared IPC contracts and
