@@ -71,6 +71,13 @@ export function sanitize(input: Partial<DoclingPipelinePrefs>): DoclingPipelineP
   // the fields in the persisted shape for back-compat but never run them.
   ;(next as unknown as Record<string, unknown>).generatePageImages = false
   ;(next as unknown as Record<string, unknown>).generateTableImages = false
+  // P1-5: VLM picture description requires optional models-vlm-inline extra;
+  // disable until VLM component manager is implemented.
+  ;(next as unknown as Record<string, unknown>).doPictureDescription = false
+  // P1-6: RapidOCR single-language; sanitize comma-list to first entry
+  if (typeof next.ocrLang === 'string' && next.ocrLang.includes(',')) {
+    next.ocrLang = next.ocrLang.split(',')[0]!.trim()
+  }
 
   // P1-7: if the pipeline fields no longer match any preset, store `null`
   // so the UI can show “Özel”. `inferPresetLevel` checks exactly the 14

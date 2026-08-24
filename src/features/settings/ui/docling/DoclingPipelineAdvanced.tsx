@@ -46,14 +46,33 @@ export function DoclingPipelineAdvanced({ prefs, busy, isInstalled }: Props) {
         <div className="space-y-1 pl-1">
           <label className="text-ql-12 flex items-center justify-between gap-2">
             <span>{t('docling_pipeline_ocr_lang')}</span>
-            <input
-              value={prefs.ocrLang}
+            <select
+              value={prefs.ocrLang.split(',')[0]?.trim() ?? ''}
               onChange={(e) => setPrefs.mutate({ ocrLang: e.target.value })}
               disabled={disabled}
-              placeholder="en,tr"
               className="border-border bg-card text-ql-12 w-28 rounded-md border px-2 py-1"
-            />
+            >
+              <option value="">
+                {t('docling_pipeline_ocr_lang_auto', { defaultValue: 'Auto' })}
+              </option>
+              <option value="en">en - English</option>
+              <option value="tr">tr - Türkçe</option>
+              <option value="de">de - Deutsch</option>
+              <option value="fr">fr - Français</option>
+              <option value="es">es - Español</option>
+              <option value="it">it - Italiano</option>
+              <option value="ja">ja - 日本語</option>
+              <option value="ko">ko - 한국어</option>
+              <option value="zh">zh - 中文</option>
+              <option value="ar">ar - العربية</option>
+              <option value="ru">ru - Русский</option>
+            </select>
           </label>
+          <p className="text-ql-11 text-muted-foreground">
+            {t('docling_pipeline_ocr_lang_hint', {
+              defaultValue: 'RapidOCR tek dil destekler; çoklu dil için EasyOCR gerekir.'
+            })}
+          </p>
           <PipelineRow
             icon={ScanText}
             title={t('docling_pipeline_force_full_ocr_title')}
@@ -105,9 +124,13 @@ export function DoclingPipelineAdvanced({ prefs, busy, isInstalled }: Props) {
           icon={ImageIcon}
           title={t('docling_pipeline_pic_desc_title')}
           desc={t('docling_pipeline_pic_desc_desc')}
-          checked={prefs.doPictureDescription}
-          onChange={(val) => setPrefs.mutate({ doPictureDescription: val })}
-          disabled={disabled}
+          checked={false}
+          onChange={() => {}}
+          disabled
+          disabledReason={t('docling_pipeline_pic_desc_disabled', {
+            defaultValue:
+              'VLM modelleri henüz sağlanmıyor – bu seçenek yakında ayrı bileşen olarak eklenecek'
+          })}
         />
         <PipelineRow
           icon={ImageIcon}

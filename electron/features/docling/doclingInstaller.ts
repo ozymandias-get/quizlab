@@ -425,6 +425,9 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
   // lock shipped with the app so two machines installing on different dates
   // get the same transitive versions. If it is absent or fails, fall back to
   // a live `pip install` and then freeze.
+  // NOTE: bundled lock failure is NOT silent – we log and fall back but the
+  // fallback is no longer considered deterministic. CI must verify the bundled
+  // lock via `uv pip check` and smoke conversion to catch broken locks.
   if ((await readMarker(pinMarker)) === null && !(await exists(lockPath))) {
     const bundled = await loadBundledLock()
     if (
@@ -447,13 +450,38 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
             ['pip', 'install', '--python', ctx.venvPythonPath, '-r', lockPath],
             uvEnvOverrides(layout)
           )
+          // Verify bundled lock has no dependency conflicts (e.g. transformers/tokenizers)
+          try {
+            await io.exec(
+              ctx.uvPath,
+              ['pip', 'check', '--python', ctx.venvPythonPath],
+              uvEnvOverrides(layout)
+            )
+          } catch (checkErr) {
+            const msg = checkErr instanceof Error ? checkErr.message : String(checkErr)
+            const { Logger } = await import('../../core/logger.js')
+            Logger.warn('[DoclingInstaller] pip check failed for bundled lock', {
+              error: msg.slice(0, 500)
+            })
+            throw new Error(`bundled lock pip check failed: ${msg.slice(0, 300)}`)
+          }
           ctx.packages = lines
           await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
           return
         }
         // Placeholder – discard and fall back to live resolve
         await fs.rm(lockPath, { force: true }).catch(() => {})
-      } catch {
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        try {
+          const { Logger } = await import('../../core/logger.js')
+          Logger.warn(
+            '[DoclingInstaller] Bundled lock install failed, falling back to live resolve',
+            {
+              error: msg.slice(0, 500)
+            }
+          )
+        } catch {}
         await fs.rm(lockPath, { force: true }).catch(() => {})
       }
     }
@@ -464,6 +492,21 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
     ['pip', 'install', '--python', ctx.venvPythonPath, ...DOCLING_PACKAGES],
     uvEnvOverrides(layout)
   )
+  // Validate no dependency conflicts after live resolve (catches broken pins)
+  try {
+    await io.exec(
+      ctx.uvPath,
+      ['pip', 'check', '--python', ctx.venvPythonPath],
+      uvEnvOverrides(layout)
+    )
+  } catch (checkErr) {
+    const msg = checkErr instanceof Error ? checkErr.message : String(checkErr)
+    const { Logger } = await import('../../core/logger.js')
+    Logger.warn('[DoclingInstaller] pip check failed after live resolve', {
+      error: msg.slice(0, 500)
+    })
+    throw new Error(`pip check failed: ${msg.slice(0, 300)}`)
+  }
   const freeze = await io.exec(
     ctx.uvPath,
     ['pip', 'freeze', '--python', ctx.venvPythonPath],
@@ -497,9 +540,27 @@ async function stepPrepareModels(ctx: PipelineContext): Promise<void> {
 
 async function stepVerifyImport(ctx: PipelineContext): Promise<void> {
   const { io, layout } = ctx
+  // Basic import check
   await io.exec(ctx.venvPythonPath, ['-c', 'import docling'], {
     DOCLING_ARTIFACTS_PATH: layout.models
   })
+  // Dependency check – catches version mismatches like transformers/tokenizers
+  try {
+    await io.exec(ctx.venvPythonPath, ['-m', 'pip', 'check'], {
+      DOCLING_ARTIFACTS_PATH: layout.models
+    })
+  } catch {}
+  try {
+    await io.exec(
+      ctx.uvPath,
+      ['pip', 'check', '--python', ctx.venvPythonPath],
+      uvEnvOverrides(layout)
+    )
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    // pip check returns non-zero on conflict – treat as verification failure
+    throw new Error(`pip check failed: ${msg.slice(0, 500)}`)
+  }
 }
 
 // --- pipeline driver --------------------------------------------------------

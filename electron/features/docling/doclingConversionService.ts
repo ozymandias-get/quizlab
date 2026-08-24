@@ -366,6 +366,7 @@ class DoclingConversionService {
           {
             shell: false,
             windowsHide: true,
+            stdio: ['ignore', 'pipe', 'pipe'],
             env: {
               ...process.env,
               ...envBase,
@@ -376,10 +377,54 @@ class DoclingConversionService {
         this.children.set(taskId, child)
         child.once('exit', () => this.children.delete(taskId))
         child.once('error', () => this.children.delete(taskId))
+        let stdout = ''
         let stderr = ''
+        // P0: stdout must be drained – Node pipe buffer is limited and a blocked
+        // stdout can freeze the Python child (see Node docs). We drain and also
+        // parse stage markers for real progress (P2-8).
+        const handleStdoutChunk = (c: Buffer): void => {
+          const txt = c.toString('utf8')
+          stdout += txt
+          if (stdout.length > 200_000) stdout = stdout.slice(-200_000)
+          // Structured progress from Python: lines like "STAGE: layout", "STAGE: ocr", etc.
+          for (const rawLine of txt.split('\n')) {
+            const line = rawLine.trim()
+            if (!line) continue
+            const lower = line.toLowerCase()
+            let phase: string | null = null
+            let message: string | null = null
+            if (line.startsWith('STAGE:')) {
+              phase = line.slice(6).trim().toLowerCase()
+              message = phase
+            } else if (lower.includes('pipeline ocr=')) {
+              phase = 'pipeline'
+              message = 'Pipeline hazırlanıyor'
+            } else if (lower.includes('assets exported')) {
+              phase = 'finalizing'
+              message = 'Görseller işleniyor'
+            } else if (lower.includes('converted')) {
+              phase = 'finalizing'
+              message = 'Tamamlanıyor'
+            }
+            if (phase) {
+              this.updateTask(taskId, {
+                progress: { phase, percent: null, message }
+              })
+            }
+          }
+        }
+        child.stdout?.on('data', handleStdoutChunk)
         child.stderr?.on('data', (c: Buffer) => {
           stderr += c.toString('utf8')
           if (stderr.length > 200_000) stderr = stderr.slice(-200_000)
+          // Also drain stdout-like messages that may go to stderr
+          const txt = c.toString('utf8')
+          for (const rawLine of txt.split('\n')) {
+            const line = rawLine.trim()
+            if (line.includes('DEGRADED_PIPELINE')) {
+              Logger.warn('[DoclingConversion] Degraded pipeline detected via stderr', { taskId })
+            }
+          }
         })
         const exitCode: number | null = await Promise.race([
           new Promise<number | null>((resolve, reject) => {
@@ -467,14 +512,24 @@ class DoclingConversionService {
     } catch {
       throw new Error('Docling output is not valid JSON')
     }
-    // P1-8: detect degraded pipeline (safe CPU fallback) signalled by Python
+    // P1-8 / P0-3: detect degraded or partial signalled by Python
     let isDegraded = false
+    let isPartial = false
     try {
       const obj = parsed as Record<string, unknown>
       if (obj && (obj as Record<string, unknown>)._quizlab_degraded === true) {
         isDegraded = true
         Logger.warn(
           '[DoclingConversion] Conversion used DEGRADED fallback pipeline – some enrichments disabled',
+          {
+            taskId
+          }
+        )
+      }
+      if (obj && (obj as Record<string, unknown>)._quizlab_partial === true) {
+        isPartial = true
+        Logger.warn(
+          '[DoclingConversion] Conversion PARTIAL_SUCCESS – document truncated (timeout)',
           {
             taskId
           }
@@ -493,6 +548,12 @@ class DoclingConversionService {
         ;(doc.metadata as Record<string, unknown>).degradedReason = 'safe_cpu_fallback'
       } catch {}
     }
+    if (isPartial) {
+      try {
+        ;(doc.metadata as Record<string, unknown>).partial = true
+        ;(doc.metadata as Record<string, unknown>).partialReason = 'partial_success_timeout'
+      } catch {}
+    }
     let secured = await this.secureImageAssets(doc, taskId, imagesDir)
     let didCache = false
     if (sourceHash) {
@@ -508,20 +569,31 @@ class DoclingConversionService {
           .catch(() => {})
       }
     }
-    // Propagate degraded flag through secured document as well
+    // Propagate degraded/partial flags through secured document as well
     if (isDegraded) {
       try {
         ;(secured.metadata as Record<string, unknown>).degradedPipeline = true
       } catch {}
     }
+    if (isPartial) {
+      try {
+        ;(secured.metadata as Record<string, unknown>).partial = true
+      } catch {}
+    }
     this.results.set(taskId, secured)
     this.enforceResultEviction()
+    let completedMessage: string | null = null
+    if (isPartial) {
+      completedMessage = 'Belgenin tamamı dönüştürülemedi – zaman aşımı (partial)'
+    } else if (isDegraded) {
+      completedMessage = 'degraded (safe CPU fallback – some features disabled)'
+    }
     this.updateTask(taskId, {
       status: 'completed',
       progress: {
         phase: 'completed',
         percent: 100,
-        message: isDegraded ? 'degraded (safe CPU fallback – some features disabled)' : null
+        message: completedMessage
       }
     })
     await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {})

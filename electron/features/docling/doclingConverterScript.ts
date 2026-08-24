@@ -31,7 +31,7 @@ export const CONVERTER_SCRIPT_TOKENS = [
  * version mismatches the code. This is more reliable than token-sniffing
  * because old scripts may already contain the same tokens.
  */
-export const CONVERTER_SCRIPT_VERSION = 4
+export const CONVERTER_SCRIPT_VERSION = 5
 
 export async function ensureConverterScript(layout: DoclingDirLayout): Promise<string> {
   const scriptPath = getConverterScriptPath(layout)
@@ -62,8 +62,9 @@ export async function ensureConverterScript(layout: DoclingDirLayout): Promise<s
 import os, sys, json, base64, hashlib, pathlib
 from pathlib import Path
 
-# Global flag set to True when safe CPU fallback is used (P1-8 degraded pipeline)
+# Global flags for Node-side warning
 DEGRADED_PIPELINE = False
+PARTIAL_SUCCESS = False
 
 pdf_path = Path(sys.argv[1])
 out_path = Path(sys.argv[2])
@@ -161,9 +162,20 @@ def _make_converter(do_ocr_override=None):
                     from docling.datamodel.pipeline_options import EasyOcrOptions
                     if ocr_lang:
                         langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
-                        kwargs["ocr_options"] = EasyOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
+                        # P1-6: CPU-only guarantee – EasyOCR must not try GPU
+                        try:
+                            kwargs["ocr_options"] = EasyOcrOptions(
+                                lang=langs, force_full_page_ocr=force_full_page_ocr, use_gpu=False
+                            )
+                        except TypeError:
+                            kwargs["ocr_options"] = EasyOcrOptions(
+                                lang=langs, force_full_page_ocr=force_full_page_ocr
+                            )
                     else:
-                        kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
+                        try:
+                            kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True, use_gpu=False)
+                        except TypeError:
+                            kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
                     _ocr_set = True
                 except Exception:
                     pass
@@ -186,7 +198,15 @@ def _make_converter(do_ocr_override=None):
         if enable_heading:
             try:
                 from docling.datamodel.pipeline_options import HeadingHierarchyOptions
-                kwargs["heading_hierarchy_options"] = HeadingHierarchyOptions(enabled=True)
+                # P2-7: style-based inference requires generate_parsed_pages=True;
+                # without it font/style inference is silently skipped. Use
+                # use_style=False for lightweight bookmark/numbering mode (default).
+                # Only detailed profiles that really need style inference should set
+                # generate_parsed_pages=True (higher RAM).
+                try:
+                    kwargs["heading_hierarchy_options"] = HeadingHierarchyOptions(enabled=True, use_style=False)
+                except TypeError:
+                    kwargs["heading_hierarchy_options"] = HeadingHierarchyOptions(enabled=True)
             except Exception:
                 pass
         opts = PdfPipelineOptions(**{k: v for k, v in kwargs.items() if v is not None})
@@ -254,9 +274,32 @@ def _export_assets(data):
     print(f"assets exported: {written}", flush=True)
 
 try:
+    print("STAGE: converting", flush=True)
     converter = _make_converter()
     result = converter.convert(str(pdf_path))
+    # P0/P1-3: check ConversionStatus – document_timeout can return PARTIAL_SUCCESS
+    # with a partial document instead of raising. Treat as partial, not success.
+    try:
+        from docling.datamodel.base_models import ConversionStatus
+        _status = getattr(result, 'status', None)
+        if _status is not None and _status != ConversionStatus.SUCCESS:
+            _errs = getattr(result, 'errors', None) or []
+            _err_txt = str(_errs)[:2000] if _errs else str(_status)
+            print(f"Conversion status: {_status} errors={_err_txt}", file=sys.stderr, flush=True)
+            if _status == ConversionStatus.PARTIAL_SUCCESS:
+                print("PARTIAL_SUCCESS detected – timeout or truncated", file=sys.stderr, flush=True)
+                print("STAGE: partial_success", flush=True)
+                global PARTIAL_SUCCESS
+                PARTIAL_SUCCESS = True
+            elif _status == ConversionStatus.FAILURE:
+                raise RuntimeError(f"Conversion failed status={_status} errors={_err_txt}")
+    except Exception as _status_e:
+        # Don't hide original conversion if status check itself fails
+        if "RuntimeError" in str(type(_status_e)):
+            raise
+        print(f"Status check warning: {_status_e}", file=sys.stderr, flush=True)
     doc = result.document
+    print("STAGE: analyzing", flush=True)
 
     has_text = any(t.get("text", "").strip() for t in doc.export_to_dict().get("texts", []))
     # Scanned-PDF fallback. When the Node preflight already forced OCR ON,
@@ -264,10 +307,25 @@ try:
     # full first pass. This retry remains only as a safety net for PDFs where
     # the preflight under-estimated the need for OCR.
     if not has_text and os.environ.get("DOCLING_DO_OCR") != "1":
+        print("STAGE: ocr_retry", flush=True)
         print("No text found with OCR off – retrying with OCR (CPU, preserved pipeline)", flush=True)
         try:
             retry_converter = _make_converter(do_ocr_override=True)
             retry_result = retry_converter.convert(str(pdf_path))
+            # Also check PARTIAL_SUCCESS for retry
+            try:
+                from docling.datamodel.base_models import ConversionStatus as _CS2
+                _rs = getattr(retry_result, 'status', None)
+                if _rs is not None and _rs != _CS2.SUCCESS:
+                    if _rs == _CS2.PARTIAL_SUCCESS:
+                        print("PARTIAL_SUCCESS on retry", file=sys.stderr, flush=True)
+                        PARTIAL_SUCCESS = True
+                    elif _rs == _CS2.FAILURE:
+                        raise RuntimeError(f"OCR retry failed status={_rs}")
+            except Exception as _rs_e:
+                if "RuntimeError" in str(type(_rs_e)):
+                    raise
+                pass
             doc = retry_result.document
         except Exception as retry_e:
             print(f"OCR retry failed: {retry_e}", file=sys.stderr, flush=True)
@@ -284,6 +342,7 @@ try:
             raise RuntimeError("OCR retry produced no text (ocr_failed)")
 
     # Embedded mode guarantees picture data URIs are present for _export_assets
+    print("STAGE: exporting", flush=True)
     try:
         from docling.datamodel.document import ImageRefMode
         data = doc.export_to_dict(image_mode=ImageRefMode.EMBEDDED)
@@ -298,6 +357,13 @@ try:
             data["_quizlab_degraded_reason"] = "safe_cpu_fallback"
         except Exception:
             pass
+    if PARTIAL_SUCCESS:
+        try:
+            data["_quizlab_partial"] = True
+            data["_quizlab_partial_reason"] = "partial_success_timeout"
+        except Exception:
+            pass
+    print("STAGE: exporting_images", flush=True)
     _export_assets(data)
 except Exception as e:
     msg = str(e).lower()

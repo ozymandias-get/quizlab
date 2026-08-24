@@ -65,15 +65,16 @@ interface ModelManifest {
 //     sha256: '<64 hex>', revision: '<pin>' }
 export const MODEL_ASSETS: Array<{ name: string; url: string; sha256: string }> = []
 
-// P2-10/P2-15: HuggingFace revision pin for reproducibility. When set, the
-// manifest records it and `getModelStatus` treats a different revision as
-// `partial` so repair fetches the pinned revision. Previously `null` meant
-// any revision accepted – now pinned to a stable value so installed models
-// are traceable. Replace with the real upstream HF commit SHA when switching
-// to explicit MODEL_ASSETS pinning (e.g. ds4sd/docling-models revision).
-// For standard `download_models` auto-managed mode this still guarantees a
-// post-download manifest check and prevents silent upstream drift.
-export const PINNED_MODEL_REVISION: string | null = '20260824-docling-2.121.0-stable'
+// Model revision handling:
+// Docling's `download_models()` is auto-managed – it fetches the current
+// upstream snapshot without an explicit HF commit SHA. Pinning a fake revision
+// (as previously done) would only tag the downloaded files with a local label
+// and not guarantee reproducibility. For true reproducibility, populate
+// `MODEL_ASSETS` with pinned HF URLs + SHA256 and set revision to the real
+// upstream commit SHA (e.g. `ds4sd/docling-models` revision). Until then we
+// keep PINNED_MODEL_REVISION=null (auto-managed) and rely on the SHA manifest
+// for corruption detection.
+export const PINNED_MODEL_REVISION: string | null = null
 
 function getModelsMarkerPath(layout: ReturnType<typeof getDoclingLayout>): string {
   return path.join(layout.models, MODELS_MARKER)
