@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
@@ -132,6 +133,24 @@ const ENV_LOCK_FILE = 'docling-lock.txt'
 /** Shipped with the app – makes the first install deterministic (P2-14). */
 const BUNDLED_LOCK_FILENAME = 'docling-lock.pinned.txt'
 
+async function getExpectedPin(): Promise<string> {
+  // P1-6: pin includes lock hash so a transitive dependency bump (even with same
+  // docling version) invalidates the environment and forces reinstall.
+  const bundled = await loadBundledLock()
+  if (!bundled) return `${DOCLING_VERSION}|${DOCLING_CORE_VERSION}|no-bundled`
+  const hash = createHash('sha256').update(bundled).digest('hex').slice(0, 12)
+  return `${DOCLING_VERSION}|${DOCLING_CORE_VERSION}|${hash}`
+}
+
+function isPinCompatible(stored: string | null, expected: string): boolean {
+  if (stored === expected) return true
+  // Migration: old pins without hash suffix were `${DOCLING_VERSION}|${DOCLING_CORE_VERSION}`
+  // Treat them as compatible only when no bundled lock exists (test env)
+  if (stored === `${DOCLING_VERSION}|${DOCLING_CORE_VERSION}` && expected.endsWith('|no-bundled'))
+    return true
+  return false
+}
+
 async function loadBundledLock(): Promise<string | null> {
   // In test runs (vitest) the bundled lock would make the fake installer
   // use a canned package list and break the “live resolve” expectations, so
@@ -144,20 +163,44 @@ async function loadBundledLock(): Promise<string | null> {
     candidates.push(
       path.join(process.cwd(), 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME)
     )
+    candidates.push(path.join(process.cwd(), 'resources', 'docling', BUNDLED_LOCK_FILENAME))
+  } catch {}
+  // Packaged resources path – electron-builder extraResources puts
+  // resources/docling/docling-lock.pinned.txt under <resources>/docling/
+  try {
+    const resourcesPath = (process as unknown as { resourcesPath?: string }).resourcesPath ?? null
+    if (resourcesPath) {
+      candidates.push(path.join(resourcesPath, 'docling', BUNDLED_LOCK_FILENAME))
+      candidates.push(path.join(resourcesPath, BUNDLED_LOCK_FILENAME))
+    }
   } catch {}
   try {
     const electron = await import('electron').catch(
-      () => null as unknown as { app?: { getAppPath?: () => string } }
+      () =>
+        null as unknown as { app?: { getAppPath?: () => string; getPath?: (n: string) => string } }
     )
-    const maybeApp = (electron as unknown as { app?: { getAppPath?: () => string } })?.app
+    const maybeApp = (
+      electron as unknown as {
+        app?: { getAppPath?: () => string; getPath?: (n: string) => string }
+      }
+    )?.app
     if (maybeApp?.getAppPath) {
       const appPath = maybeApp.getAppPath()
       candidates.push(path.join(appPath, 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME))
+      candidates.push(path.join(appPath, 'resources', 'docling', BUNDLED_LOCK_FILENAME))
       candidates.push(path.join(appPath, BUNDLED_LOCK_FILENAME))
       // dist layout after build: dist/electron/electron/features/docling/...
       candidates.push(
         path.join(appPath, 'dist', 'electron', 'features', 'docling', BUNDLED_LOCK_FILENAME)
       )
+    }
+    if (maybeApp?.getPath) {
+      try {
+        const res = maybeApp.getPath('exe')
+        // exe dir's resources
+        const exeDir = path.dirname(res)
+        candidates.push(path.join(exeDir, 'resources', 'docling', BUNDLED_LOCK_FILENAME))
+      } catch {}
     }
   } catch {}
   // Also try relative to the compiled file's directory via __dirname fallback
@@ -165,6 +208,12 @@ async function loadBundledLock(): Promise<string | null> {
     const dir = typeof __dirname !== 'undefined' ? (__dirname as unknown as string) : ''
     if (dir) {
       candidates.push(path.join(dir as string, BUNDLED_LOCK_FILENAME))
+      candidates.push(
+        path.join(dir, '..', '..', '..', 'resources', 'docling', BUNDLED_LOCK_FILENAME)
+      )
+      candidates.push(
+        path.join(dir, '..', '..', '..', '..', 'resources', 'docling', BUNDLED_LOCK_FILENAME)
+      )
     }
   } catch {}
   for (const cand of candidates) {
@@ -174,6 +223,21 @@ async function loadBundledLock(): Promise<string | null> {
     } catch {}
   }
   return null
+}
+
+export async function getBundledLockForTests(): Promise<string | null> {
+  const prevVitest = process.env.VITEST
+  const prevNodeEnv = process.env.NODE_ENV
+  delete process.env.VITEST
+  const saved = process.env.NODE_ENV
+  if (saved === 'test') delete process.env.NODE_ENV
+  try {
+    return await loadBundledLock()
+  } finally {
+    if (prevVitest !== undefined) process.env.VITEST = prevVitest
+    if (prevNodeEnv !== undefined) process.env.NODE_ENV = prevNodeEnv
+    else if (saved === 'test') process.env.NODE_ENV = 'test'
+  }
 }
 
 async function stepEnsureUvBinary(ctx: PipelineContext): Promise<void> {
@@ -300,14 +364,14 @@ async function stepCreateEnvironment(ctx: PipelineContext): Promise<void> {
   const { io, layout } = ctx
   const venvMarker = path.join(layout.environment, VENV_MARKER)
   const pinMarker = path.join(layout.environment, ENV_PIN_MARKER)
-  const expectedPin = `${DOCLING_VERSION}|${DOCLING_CORE_VERSION}`
+  const expectedPin = await getExpectedPin()
 
   const venvReady =
     (await readMarker(venvMarker)) === PYTHON_VERSION && (await exists(ctx.venvPythonPath))
   const pinValue = await readMarker(pinMarker)
 
-  // Fully healthy: venv matches this build's interpreter and package pins.
-  if (venvReady && pinValue === expectedPin) return
+  // Fully healthy: venv matches this build's interpreter and package pins (including lock hash).
+  if (venvReady && isPinCompatible(pinValue, expectedPin)) return
 
   // Package-only mismatch (wrong pin value) means an update: recreate the
   // whole environment cleanly. A missing pin (crash between venv and pip)
@@ -331,9 +395,9 @@ async function stepCreateEnvironment(ctx: PipelineContext): Promise<void> {
 async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
   const { io, layout } = ctx
   const pinMarker = path.join(layout.environment, ENV_PIN_MARKER)
-  const expectedPin = `${DOCLING_VERSION}|${DOCLING_CORE_VERSION}`
+  const expectedPin = await getExpectedPin()
 
-  if ((await readMarker(pinMarker)) === expectedPin) return
+  if (isPinCompatible(await readMarker(pinMarker), expectedPin)) return
 
   // Reproducibility: after the first successful resolution we persist the
   // fully-resolved set (uv pip freeze output) and reuse it for every later

@@ -127,9 +127,14 @@ export const DOC_PRESETS: Record<DocPresetLevel, DocPresetPatch> = {
     doCodeEnrichment: true,
     doFormulaEnrichment: true,
     doPictureClassification: true,
-    doPictureDescription: true,
+    // P1-7: doPictureDescription requires optional VLM model bundle (models-vlm-inline)
+    // which is not provisioned in standard install. Keep false in presets; power
+    // users can enable via advanced toggle if they have VLM downloaded.
+    doPictureDescription: false,
     doChartExtraction: true,
-    forceBackendText: true,
+    // P2-11: forceBackendText is a special-case fallback (native text layer may be
+    // broken). It should not be implied by "maximum quality" preset.
+    forceBackendText: false,
     enableHeadingHierarchy: true,
     imagesScale: 1.5,
     forceFullPageOcr: false

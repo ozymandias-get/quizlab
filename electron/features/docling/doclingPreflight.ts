@@ -72,33 +72,62 @@ export async function preflightNeedsOcr(pdfPath: string): Promise<boolean | null
     }
     const pagesToCheck = Math.min(MAX_PAGES, pdf.numPages)
     let totalChars = 0
+    const perPageChars: number[] = []
     for (let i = 1; i <= pagesToCheck; i += 1) {
+      let pageChars = 0
       try {
         const page = await Promise.race([
           pdf.getPage(i),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
         ])
-        if (!page) continue
+        if (!page) {
+          perPageChars.push(0)
+          continue
+        }
         const content = await Promise.race([
           (
             page as { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }
           ).getTextContent(),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
         ])
-        if (!content) continue
+        if (!content) {
+          perPageChars.push(0)
+          continue
+        }
         for (const it of (content as { items: Array<{ str: string }> }).items) {
-          if (typeof it.str === 'string') totalChars += it.str.trim().length
+          if (typeof it.str === 'string') {
+            const len = it.str.trim().length
+            pageChars += len
+            totalChars += len
+          }
           if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) break
         }
+        perPageChars.push(pageChars)
         if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) break
-      } catch {}
+      } catch {
+        perPageChars.push(pageChars)
+      }
     }
     try {
       await pdf.destroy().catch(() => {})
     } catch {}
     if (totalChars >= MIN_CHARS_FOR_TEXT_PDF) return false
     if (totalChars === 0) return true
-    return totalChars < 50
+    // Grey zone 1..199 chars: previously `return totalChars < 50` mis-classified
+    // scanned PDFs that have a few header/watermark chars (e.g. 80 chars across
+    // 5 pages) as "no OCR needed". Use per-page density instead: if most
+    // sampled pages have <50 chars, treat as scanned.
+    const avgPerPage = totalChars / Math.max(1, perPageChars.length || pagesToCheck)
+    if (avgPerPage < 30) return true
+    const lowPageThreshold = 50
+    const lowPages = perPageChars.filter((c) => c < lowPageThreshold).length
+    const majority = Math.ceil(pagesToCheck / 2)
+    if (lowPages >= majority) return true
+    if (totalChars < 50) return true
+    // Borderline 50–199 with mixed density: inconclusive → let caller keep configured OCR
+    // but bias toward OCR if average still low.
+    if (avgPerPage < 50) return true
+    return null
   } catch {
     return null
   }

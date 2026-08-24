@@ -64,20 +64,53 @@ class DoclingConversionService {
     pdfPath: string,
     options: { force?: boolean } = {}
   ): Promise<QuizLabConversionTask> {
-    if (this.activeConversions >= this.MAX_CONCURRENT) {
-      // Same PDF already converting? Reuse it instead of erroring – avoids
-      // "Too many concurrent" flash when user double-clicks or when
-      // useDocumentConversion retries while a task is still queued.
-      for (const existing of this.tasks.values()) {
+    // P2-9: force reconvert must cancel any existing task for the same PDF
+    // instead of reusing it. The previous logic reused the running task even
+    // when force=true, so "Yeniden dönüştür" did nothing while conversion was in progress.
+    if (options.force) {
+      const toCancel: string[] = []
+      for (const [id, existing] of this.tasks) {
         if (
           existing.pdfPath === pdfPath &&
           (existing.status === 'queued' || existing.status === 'processing')
         ) {
-          Logger.info('[DoclingConversion] Reusing existing task for same PDF', {
-            pdfPath,
-            taskId: existing.taskId
-          })
-          return { ...existing }
+          toCancel.push(id)
+        }
+      }
+      for (const id of toCancel) {
+        Logger.info('[DoclingConversion] Force reconvert: cancelling existing task', {
+          pdfPath,
+          taskId: id
+        })
+        try {
+          await this.cancelTask(id, 4000)
+        } catch (e) {
+          Logger.warn('[DoclingConversion] Force cancel failed', { error: String(e) })
+        }
+      }
+      // Wait briefly for the single-conversion slot to be freed by the cancelled task's cleanup
+      const waitStart = Date.now()
+      while (this.activeConversions >= this.MAX_CONCURRENT && Date.now() - waitStart < 3500) {
+        await delay(100)
+      }
+    }
+    if (this.activeConversions >= this.MAX_CONCURRENT) {
+      // Same PDF already converting? Reuse it instead of erroring – avoids
+      // "Too many concurrent" flash when user double-clicks or when
+      // useDocumentConversion retries while a task is still queued.
+      // Force already handled above, so only reuse when not forced.
+      if (!options.force) {
+        for (const existing of this.tasks.values()) {
+          if (
+            existing.pdfPath === pdfPath &&
+            (existing.status === 'queued' || existing.status === 'processing')
+          ) {
+            Logger.info('[DoclingConversion] Reusing existing task for same PDF', {
+              pdfPath,
+              taskId: existing.taskId
+            })
+            return { ...existing }
+          }
         }
       }
       throw new Error('Başka bir dönüşüm devam ediyor, lütfen bekleyin')
@@ -434,11 +467,32 @@ class DoclingConversionService {
     } catch {
       throw new Error('Docling output is not valid JSON')
     }
+    // P1-8: detect degraded pipeline (safe CPU fallback) signalled by Python
+    let isDegraded = false
+    try {
+      const obj = parsed as Record<string, unknown>
+      if (obj && (obj as Record<string, unknown>)._quizlab_degraded === true) {
+        isDegraded = true
+        Logger.warn(
+          '[DoclingConversion] Conversion used DEGRADED fallback pipeline – some enrichments disabled',
+          {
+            taskId
+          }
+        )
+      }
+    } catch {}
     const doc = this.deps.adapter(parsed, {
       pdfPath: task.pdfPath,
       pdfName: path.basename(task.pdfPath),
       conversionTimeMs: Date.now() - task.createdAt
     })
+    if (isDegraded) {
+      try {
+        // Surface degraded flag in document metadata for UI warning
+        ;(doc.metadata as Record<string, unknown>).degradedPipeline = true
+        ;(doc.metadata as Record<string, unknown>).degradedReason = 'safe_cpu_fallback'
+      } catch {}
+    }
     let secured = await this.secureImageAssets(doc, taskId, imagesDir)
     let didCache = false
     if (sourceHash) {
@@ -454,11 +508,21 @@ class DoclingConversionService {
           .catch(() => {})
       }
     }
+    // Propagate degraded flag through secured document as well
+    if (isDegraded) {
+      try {
+        ;(secured.metadata as Record<string, unknown>).degradedPipeline = true
+      } catch {}
+    }
     this.results.set(taskId, secured)
     this.enforceResultEviction()
     this.updateTask(taskId, {
       status: 'completed',
-      progress: { phase: 'completed', percent: 100, message: null }
+      progress: {
+        phase: 'completed',
+        percent: 100,
+        message: isDegraded ? 'degraded (safe CPU fallback – some features disabled)' : null
+      }
     })
     await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {})
   }

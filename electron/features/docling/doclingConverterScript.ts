@@ -25,6 +25,14 @@ export const CONVERTER_SCRIPT_TOKENS = [
   'ACCELERATOR_CPU'
 ] as const
 
+/**
+ * Increment when the Python converter logic changes. The service stores this
+ * version inside the generated script and regenerates whenever the stored
+ * version mismatches the code. This is more reliable than token-sniffing
+ * because old scripts may already contain the same tokens.
+ */
+export const CONVERTER_SCRIPT_VERSION = 4
+
 export async function ensureConverterScript(layout: DoclingDirLayout): Promise<string> {
   const scriptPath = getConverterScriptPath(layout)
   try {
@@ -35,17 +43,27 @@ export async function ensureConverterScript(layout: DoclingDirLayout): Promise<s
       throw new Error('Symlink detected')
     }
     const existing = await fs.readFile(scriptPath, 'utf8').catch(() => '')
-    if (CONVERTER_SCRIPT_TOKENS.every((token) => existing.includes(token))) return scriptPath
+    const versionMatch = existing.match(/# CONVERTER_SCRIPT_VERSION=(\d+)/)
+    const storedVersion = versionMatch ? parseInt(versionMatch[1]!, 10) : null
+    if (storedVersion === CONVERTER_SCRIPT_VERSION) {
+      if (CONVERTER_SCRIPT_TOKENS.every((token) => existing.includes(token))) return scriptPath
+    }
+    // Version mismatch or missing tokens → stale script, force regeneration
     await fs.rm(scriptPath, { force: true }).catch(() => {})
-    throw new Error('Stale converter script – regenerating')
+    throw new Error(
+      `Stale converter script – regenerating (stored=${storedVersion} expected=${CONVERTER_SCRIPT_VERSION})`
+    )
   } catch {
     // fall through to generation
   }
   await fs.mkdir(path.dirname(scriptPath), { recursive: true })
 
-  const script = `
+  const script = `# CONVERTER_SCRIPT_VERSION=${CONVERTER_SCRIPT_VERSION}
 import os, sys, json, base64, hashlib, pathlib
 from pathlib import Path
+
+# Global flag set to True when safe CPU fallback is used (P1-8 degraded pipeline)
+DEGRADED_PIPELINE = False
 
 pdf_path = Path(sys.argv[1])
 out_path = Path(sys.argv[2])
@@ -122,20 +140,35 @@ def _make_converter(do_ocr_override=None):
             batch_polling_interval_seconds=0.5,
             stage_shutdown_timeout_seconds=15.0,
         )
-        # OCR lang
-        if ocr_lang:
+        # OCR options: prefer RapidOcrOptions (standard bundle includes RapidOCR) and
+        # fall back to EasyOcrOptions only if Rapid is unavailable. forceFullPageOcr
+        # is not EasyOCR-specific and applies to either engine.
+        if ocr_lang or force_full_page_ocr:
+            _ocr_set = False
             try:
-                from docling.datamodel.pipeline_options import EasyOcrOptions
-                langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
-                kwargs["ocr_options"] = EasyOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
-            except Exception:
+                from docling.datamodel.pipeline_options import RapidOcrOptions
+                if ocr_lang:
+                    langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
+                    kwargs["ocr_options"] = RapidOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
+                else:
+                    kwargs["ocr_options"] = RapidOcrOptions(force_full_page_ocr=True)
+                _ocr_set = True
+            except Exception as _rapid_e:
+                # Rapid not available – try Easy
                 pass
-        elif force_full_page_ocr:
-            try:
-                from docling.datamodel.pipeline_options import EasyOcrOptions
-                kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
-            except Exception:
-                pass
+            if not _ocr_set:
+                try:
+                    from docling.datamodel.pipeline_options import EasyOcrOptions
+                    if ocr_lang:
+                        langs = [s.strip() for s in ocr_lang.split(",") if s.strip()]
+                        kwargs["ocr_options"] = EasyOcrOptions(lang=langs, force_full_page_ocr=force_full_page_ocr)
+                    else:
+                        kwargs["ocr_options"] = EasyOcrOptions(force_full_page_ocr=True)
+                    _ocr_set = True
+                except Exception:
+                    pass
+            if not _ocr_set:
+                print("Warning: OCR requested but no OCR engine available (Rapid/Easy)", file=sys.stderr, flush=True)
         # Table mode
         if detect_tables:
             try:
@@ -163,8 +196,9 @@ def _make_converter(do_ocr_override=None):
         print(f"Pipeline opts failed: {e}", file=sys.stderr, flush=True)
         import traceback; traceback.print_exc(file=sys.stderr)
         # Do NOT fall back to bare DocumentConverter() which would auto-detect
-        # GPU (AcceleratorDevice.AUTO) and lose all user settings. Use an
-        # explicit safe CPU fallback or fail closed.
+        # GPU (AcceleratorDevice.AUTO) and lose all user settings. Try an
+        # explicit safe CPU fallback but mark the run as degraded (P1-8) so the
+        # Node side can surface a warning instead of silently returning lower-quality output.
         try:
             from docling.datamodel.pipeline_options import PdfPipelineOptions as SafeOpts
             from docling.datamodel.accelerator_options import AcceleratorDevice as SafeDev, AcceleratorOptions as SafeAcc
@@ -176,7 +210,10 @@ def _make_converter(do_ocr_override=None):
                 accelerator_options=SafeAcc(device=SafeDev.CPU, num_threads=num_threads),
             )
             safe_pipeline = SafeOpts(**safe_kwargs)
-            print("Using safe CPU fallback pipeline", flush=True)
+            print("Using safe CPU fallback pipeline – output is DEGRADED (some enrichments disabled)", flush=True)
+            print("DEGRADED_PIPELINE=true", flush=True)
+            global DEGRADED_PIPELINE
+            DEGRADED_PIPELINE = True
             return SafeConv(format_options={SafeFmtType.PDF: SafeFmt(pipeline_options=safe_pipeline)})
         except Exception as e2:
             print(f"Safe CPU fallback also failed: {e2}", file=sys.stderr, flush=True)
@@ -255,6 +292,12 @@ try:
             data = doc.export_to_dict(image_mode="embedded")
         except Exception:
             data = doc.export_to_dict()
+    if DEGRADED_PIPELINE:
+        try:
+            data["_quizlab_degraded"] = True
+            data["_quizlab_degraded_reason"] = "safe_cpu_fallback"
+        except Exception:
+            pass
     _export_assets(data)
 except Exception as e:
     msg = str(e).lower()
