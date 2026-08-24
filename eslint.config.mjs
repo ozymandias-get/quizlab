@@ -18,6 +18,11 @@ const legacySrcAliasPattern = {
   message: 'Do not use @src/* alias. Use @app, @features, @shared, @shared-core, @platform or @ui.'
 }
 
+const deprecatedAppUtilsPattern = {
+  group: ['@app/lib/appUtils', '@app/lib/appUtils/*'],
+  message: 'Deprecated re-export (STD-001). Import { cn } from @shared/lib/uiUtils directly.'
+}
+
 const featureInternalImportPatterns = [
   {
     group: ['@features/*/ui', '@features/*/ui/*'],
@@ -88,7 +93,10 @@ export default [
       react: { version: 'detect' }
     },
     rules: {
-      'no-restricted-imports': ['error', { patterns: [legacySrcAliasPattern] }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: [legacySrcAliasPattern, deprecatedAppUtilsPattern] }
+      ],
       'react/no-danger': 'warn',
       'prettier/prettier': 'error',
       'simple-import-sort/imports': [

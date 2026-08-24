@@ -1,4 +1,4 @@
-import { cn } from '@app/lib/appUtils'
+import { cn } from '@shared/lib/uiUtils'
 
 import * as LabelPrimitive from '@radix-ui/react-label'
 import * as React from 'react'

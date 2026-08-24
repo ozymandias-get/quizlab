@@ -1,6 +1,6 @@
-import { cn } from '@app/lib/appUtils'
 import { useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
+import { cn } from '@shared/lib/uiUtils'
 
 import { AnimatePresence, motion } from 'motion/react'
 import * as React from 'react'

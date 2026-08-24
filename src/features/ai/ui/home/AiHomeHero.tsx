@@ -1,3 +1,4 @@
+import { Button } from '@app/components/ui/button'
 import type { Tab } from '@app/providers/AiContext'
 
 import { memo } from 'react'
@@ -42,18 +43,16 @@ const AiHomeHero = memo(function AiHomeHero({
             const isActive = tab.id === activeTabId
             const displayName = tab.title || site?.displayName || site?.name || tab.modelId
             return (
-              <button
+              <Button
                 key={tab.id}
                 type="button"
+                variant={isActive ? 'outline' : 'ghost'}
+                size="xs"
                 onClick={() => onOpenModel(tab.modelId)}
-                className={`text-ql-12 rounded-full border px-3 py-1 transition-colors ${
-                  isActive
-                    ? 'border-border bg-card text-foreground'
-                    : 'border-border bg-card text-muted-foreground/70 hover:bg-muted hover:text-muted-foreground/80'
-                }`}
+                className="rounded-full border px-3 py-1"
               >
                 {displayName}
-              </button>
+              </Button>
             )
           })}
         </div>

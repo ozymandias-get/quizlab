@@ -30,10 +30,39 @@ const AddAiModelForm = memo(function AddAiModelForm({
   const { showError } = useToastActions()
   const [newAiName, setNewAiName] = useState('')
   const [newAiUrl, setNewAiUrl] = useState('')
+  const [nameError, setNameError] = useState('')
+  const [urlError, setUrlError] = useState('')
+
+  function validateName(value: string): string {
+    if (!value.trim()) return t('error_name_required') || 'Name is required'
+    if (value.trim().length < 2) return t('error_name_too_short') || 'Name too short'
+    return ''
+  }
+
+  function validateUrl(value: string): string {
+    if (!value.trim()) return t('error_url_required') || 'URL is required'
+    try {
+      const parsed = new URL(value.trim())
+      if (!['https:', 'http:'].includes(parsed.protocol))
+        return t('error_url_protocol') || 'Only http(s) allowed'
+      if (!parsed.hostname.includes('.')) return t('error_url_invalid') || 'Invalid URL'
+    } catch {
+      return t('error_url_invalid') || 'Invalid URL'
+    }
+    return ''
+  }
+
+  function validateForm(): boolean {
+    const nErr = validateName(newAiName)
+    const uErr = validateUrl(newAiUrl)
+    setNameError(nErr)
+    setUrlError(uErr)
+    return !nErr && !uErr
+  }
 
   const handleAddAi = async (e: FormEvent) => {
     e.preventDefault()
-    if (!newAiName.trim() || !newAiUrl.trim()) return
+    if (!validateForm()) return
 
     try {
       const result = await addCustomAi({
@@ -45,8 +74,12 @@ const AddAiModelForm = memo(function AddAiModelForm({
       if (result.ok) {
         setNewAiName('')
         setNewAiUrl('')
+        setNameError('')
+        setUrlError('')
         setShowAddForm(false)
         onSuccess(result.data.id)
+      } else {
+        showError('toast_custom_ai_failed')
       }
     } catch (error) {
       Logger.error('[AddAiModelForm] addCustomAi failed', error)
@@ -83,17 +116,29 @@ const AddAiModelForm = memo(function AddAiModelForm({
               <Label className="text-ql-11 text-foreground pl-1 font-semibold">{t('name')}</Label>
               <Input
                 value={newAiName}
-                onChange={(e) => setNewAiName(e.target.value)}
+                onChange={(e) => {
+                  setNewAiName(e.target.value)
+                  if (nameError) setNameError(validateName(e.target.value))
+                }}
+                onBlur={() => setNameError(validateName(newAiName))}
                 placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
+                aria-invalid={!!nameError}
               />
+              {nameError && <span className="text-destructive text-ql-11 px-1">{nameError}</span>}
             </div>
             <div className="space-y-1.5">
               <Label className="text-ql-11 text-foreground pl-1 font-semibold">{t('url')}</Label>
               <Input
                 value={newAiUrl}
-                onChange={(e) => setNewAiUrl(e.target.value)}
+                onChange={(e) => {
+                  setNewAiUrl(e.target.value)
+                  if (urlError) setUrlError(validateUrl(e.target.value))
+                }}
+                onBlur={() => setUrlError(validateUrl(newAiUrl))}
                 placeholder="https://..."
+                aria-invalid={!!urlError}
               />
+              {urlError && <span className="text-destructive text-ql-11 px-1">{urlError}</span>}
             </div>
           </div>
           <div className="flex justify-end pt-2">

@@ -1,4 +1,4 @@
-import { cn } from '@app/lib/appUtils'
+import { cn } from '@shared/lib/uiUtils'
 
 import type { ISourceOptions } from '@tsparticles/engine'
 import { type Container, tsParticles } from '@tsparticles/engine'
