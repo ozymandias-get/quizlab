@@ -401,12 +401,43 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
 
   if (isPinCompatible(await readMarker(pinMarker), expectedPin)) return
 
+  /**
+   * Install from a lock file with one automatic recovery pass: repeated
+   * SIGKILLed installs (user cancels / crashes) can leave the shared uv cache
+   * (`temp/uv-cache`) with stale locks or partial wheels, which makes later
+   * installs fail even though the lock itself is valid. On failure we wipe the
+   * uv cache and retry once before giving up. The real error text (stderr tail)
+   * is always surfaced so failures stay diagnosable.
+   */
+  const installLockWithCacheRecovery = async (lockFile: string): Promise<void> => {
+    const installArgs = ['pip', 'install', '--python', ctx.venvPythonPath, '-r', lockFile]
+    try {
+      await io.exec(ctx.uvPath, installArgs, uvEnvOverrides(layout))
+      return
+    } catch (firstError) {
+      const firstMsg = firstError instanceof Error ? firstError.message : String(firstError)
+      const { Logger } = await import('../../core/logger.js')
+      Logger.warn('[DoclingInstaller] Lock install failed – wiping uv cache and retrying once', {
+        error: firstMsg.slice(0, 800)
+      })
+      await robustRm(path.join(layout.temp, 'uv-cache')).catch(() => {})
+      await fs.mkdir(path.join(layout.temp, 'uv-cache'), { recursive: true }).catch(() => {})
+      try {
+        await io.exec(ctx.uvPath, installArgs, uvEnvOverrides(layout))
+        Logger.info('[DoclingInstaller] Lock install succeeded after uv cache wipe')
+        return
+      } catch (secondError) {
+        const secondMsg = secondError instanceof Error ? secondError.message : String(secondError)
+        throw new Error(`Lock install failed after cache recovery: ${secondMsg.slice(0, 1500)}`)
+      }
+    }
+  }
+
   // Reproducibility: after the first successful resolution we persist the
   // fully-resolved set (uv pip freeze output) and reuse it for every later
   // install of the same pins. This makes repair/reinstall byte-identical
   // instead of letting the resolver drift onto newer transitive releases.
   const lockPath = path.join(layout.environment, ENV_LOCK_FILE)
-  let args: string[]
   if ((await readMarker(pinMarker)) === null && (await exists(lockPath))) {
     const lock = await fs.readFile(lockPath, 'utf8').catch(() => '')
     const lockMatchesPins =
@@ -414,8 +445,7 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
       lock.includes(`docling-core==${DOCLING_CORE_VERSION}`)
     if (lockMatchesPins) {
       ctx.report({ phase: 'installing_docling', percent: null, message: 'locked requirements' })
-      args = ['pip', 'install', '--python', ctx.venvPythonPath, '-r', lockPath]
-      await io.exec(ctx.uvPath, args, uvEnvOverrides(layout))
+      await installLockWithCacheRecovery(lockPath)
       ctx.packages = parsePackageLines(lock)
       if (ctx.packages.length === 0) throw new Error('Lock file contains no packages')
       await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
@@ -423,13 +453,10 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
     }
   }
 
-  // P2-14: fresh install with no frozen lock yet – try the bundled pinned
-  // lock shipped with the app so two machines installing on different dates
-  // get the same transitive versions. If it is absent or fails, fall back to
-  // a live `pip install` and then freeze.
-  // NOTE: bundled lock failure is NOT silent – we log and fall back but the
-  // fallback is no longer considered deterministic. CI must verify the bundled
-  // lock via `uv pip check` and smoke conversion to catch broken locks.
+  // P2-14: fresh install with no frozen lock yet – use the bundled pinned lock
+  // shipped with the app so two machines installing on different dates get the
+  // same transitive versions. Strict: if the bundled lock fails after cache
+  // recovery we abort instead of silently live-resolving a different tree.
   if ((await readMarker(pinMarker)) === null && !(await exists(lockPath))) {
     const bundled = await loadBundledLock()
     if (
@@ -442,16 +469,11 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
         await fs.writeFile(lockPath, bundled, 'utf8')
         const lines = parsePackageLines(bundled)
         // Require a plausibly-full freeze (many packages) – a 2-line placeholder
-        // is not deterministic (transitives would still float) so fall back to
-        // live resolve in that case.
+        // is not deterministic (transitives would still float).
         const looksFull = lines.length >= 15 && bundled.includes('transformers==')
         if (looksFull) {
           ctx.report({ phase: 'installing_docling', percent: null, message: 'bundled lock' })
-          await io.exec(
-            ctx.uvPath,
-            ['pip', 'install', '--python', ctx.venvPythonPath, '-r', lockPath],
-            uvEnvOverrides(layout)
-          )
+          await installLockWithCacheRecovery(lockPath)
           // Verify bundled lock has no dependency conflicts (e.g. transformers/tokenizers)
           try {
             await io.exec(
@@ -463,9 +485,9 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
             const msg = checkErr instanceof Error ? checkErr.message : String(checkErr)
             const { Logger } = await import('../../core/logger.js')
             Logger.warn('[DoclingInstaller] pip check failed for bundled lock', {
-              error: msg.slice(0, 500)
+              error: msg.slice(0, 800)
             })
-            throw new Error(`bundled lock pip check failed: ${msg.slice(0, 300)}`)
+            throw new Error(`bundled lock pip check failed: ${msg.slice(0, 600)}`)
           }
           ctx.packages = lines
           await fs.writeFile(pinMarker, `${expectedPin}\n`, 'utf8')
@@ -478,13 +500,13 @@ async function stepInstallPackages(ctx: PipelineContext): Promise<void> {
         try {
           const { Logger } = await import('../../core/logger.js')
           Logger.warn('[DoclingInstaller] Bundled lock install failed – failing strict', {
-            error: msg.slice(0, 500)
+            error: msg.slice(0, 1200)
           })
         } catch {}
         await fs.rm(lockPath, { force: true }).catch(() => {})
         // Strict production: do not silently fall back to live resolve when bundled lock exists but is broken.
         // This makes CI smoke fail and prevents non-deterministic installs reaching users.
-        throw new Error(`Bundled lock install failed: ${msg.slice(0, 400)}`)
+        throw new Error(`Bundled lock install failed: ${msg.slice(0, 1200)}`)
       }
     }
   }

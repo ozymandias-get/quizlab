@@ -118,7 +118,8 @@ export async function runCommandChecked(
     throw new CommandError(
       'non_zero_exit',
       `Command failed (${result.code}): ${exe} ${args.join(' ')}` +
-        (result.stderr ? `\n${tail(result.stderr, 2000)}` : ''),
+        (result.stderr ? `\n${tail(result.stderr, 4000)}` : '') +
+        (result.stdout ? `\n[stdout tail] ${tail(result.stdout, 1000)}` : ''),
       result
     )
   }
