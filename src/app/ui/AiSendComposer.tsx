@@ -5,7 +5,7 @@ import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { type CSSProperties, memo, useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -17,7 +17,6 @@ import {
   useAccentStrong,
   usePanelVariants
 } from './aiSendComposer/composerConstants'
-import { COMPACT_HEIGHT } from './aiSendComposer/layoutUtils'
 import type { AiSendComposerProps } from './aiSendComposer/types'
 import {
   useAiSendComposerClickOutside,
@@ -26,6 +25,7 @@ import {
 } from './aiSendComposer/useAiSendComposerEffects'
 import { useAiSendComposerLayout } from './aiSendComposer/useAiSendComposerLayout'
 import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
+import { useAiSendComposerStyles } from './aiSendComposer/useAiSendComposerStyles'
 import { useComposerSendAction } from './aiSendComposer/useComposerSendAction'
 
 function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
@@ -124,40 +124,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, onClearAll)
   useAiSendComposerFeedbackReset(items.length, isSubmitting, setSendFeedback, setLastError)
 
-  const portalStyle = useMemo(
-    () =>
-      isExpanded
-        ? {
-            left: layout.x,
-            top: layout.y,
-            width: layout.width,
-            height: layout.height
-          }
-        : {
-            left: layout.x,
-            top: layout.y,
-            width: 'max-content',
-            height: COMPACT_HEIGHT
-          },
-    [layout.x, layout.y, layout.width, layout.height, isExpanded]
-  )
-
-  const panelStyle: CSSProperties = useMemo(
-    () =>
-      isExpanded
-        ? {
-            boxShadow: 'var(--shadow-ambient-xl)',
-            background: 'oklch(var(--card) / 0.95)',
-            backdropFilter: 'blur(16px)'
-          }
-        : {
-            boxShadow: '0 16px 40px -6px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            background: 'oklch(var(--card) / 0.95)',
-            backdropFilter: 'blur(16px)'
-          },
-    [isExpanded]
-  )
+  const { portalStyle, panelStyle } = useAiSendComposerStyles(isExpanded, layout)
 
   if (typeof document === 'undefined') return null
   const showContent = isExpanded && sendFeedback !== 'sending'
