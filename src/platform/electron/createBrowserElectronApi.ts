@@ -14,10 +14,11 @@ import type {
   UpdateCheckResult
 } from '@shared-core/types'
 
+import { parseUrlWithAllowedProtocols } from '@shared/lib/urlUtils'
+
 import {
   createGeminiStatus,
   getPlatform,
-  parseUrlWithAllowedProtocols,
   registerBeforeUnloadCleanup,
   selectPdfInBrowser,
   toMapRecord

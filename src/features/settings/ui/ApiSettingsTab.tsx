@@ -1,10 +1,14 @@
 import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/types'
 
+import {
+  normalizeApiConfig,
+  useApiChatConfigQuery,
+  useSaveApiChatConfigMutation
+} from '@platform/electron/api/useApiChatApi'
+
 import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
-import { Logger } from '@shared/lib/logger'
-import { useToastActions } from '@shared/stores/toastStore'
 import { AiIcon } from '@shared/ui/components/icons/AiIcon'
 
 import { Loader2 } from 'lucide-react'
@@ -18,7 +22,10 @@ import SettingsTabIntro from './shared/SettingsTabIntro'
 
 export default memo(function ApiSettingsTab() {
   const { t } = useTranslation()
-  const { showError } = useToastActions()
+  // Persisted configuration via TanStack Query (STD-014); the tab edits a
+  // local draft which is hydrated whenever the query delivers fresh data.
+  const { data: savedConfig } = useApiChatConfigQuery()
+  const { mutateAsync: saveConfig, isPending: saving } = useSaveApiChatConfigMutation()
   const [config, setConfig] = useState<ApiConfig>({
     providers: [],
     generalPrompt: '',
@@ -27,7 +34,6 @@ export default memo(function ApiSettingsTab() {
     selectedProviderId: '',
     selectedModel: ''
   })
-  const [saving, setSaving] = useState(false)
   const [fetchingModels, setFetchingModels] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, string>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
@@ -40,25 +46,9 @@ export default memo(function ApiSettingsTab() {
   configRef.current = config
 
   useEffect(() => {
-    if (!hasElectronApi()) return
-    const api = getElectronApi()
-    if (api?.getApiChatConfig) {
-      api
-        .getApiChatConfig()
-        .then((cfg: ApiConfig | null) => {
-          if (!cfg) return
-          setConfig({
-            providers: cfg.providers || [],
-            generalPrompt: cfg.generalPrompt || '',
-            memoryPrompt: cfg.memoryPrompt || '',
-            characterPrompt: cfg.characterPrompt || '',
-            selectedProviderId: cfg.selectedProviderId || '',
-            selectedModel: cfg.selectedModel || ''
-          })
-        })
-        .catch((err) => Logger.error('[ApiSettingsTab] Failed to load API chat config:', err))
-    }
-  }, [])
+    if (!savedConfig) return
+    setConfig(normalizeApiConfig(savedConfig))
+  }, [savedConfig])
 
   const addProvider = useCallback((template?: string) => {
     const id = `provider-${Date.now()}`
@@ -103,23 +93,15 @@ export default memo(function ApiSettingsTab() {
   )
 
   const handleSave = useCallback(async () => {
-    setSaving(true)
     try {
-      if (!hasElectronApi()) return
-      const api = getElectronApi()
-      if (api?.saveApiChatConfig) {
-        // Read the latest config from the ref so we don't need `config` in
-        // the dep array (which would re-create this callback on every
-        // keystroke and bust any memo'd consumer).
-        await api.saveApiChatConfig(configRef.current)
-      }
-    } catch (err: unknown) {
-      Logger.error('[ApiSettingsTab] Failed to save:', err)
-      showError('toast_ai_config_save_failed')
-    } finally {
-      setSaving(false)
+      // Read the latest config from the ref so we don't need `config` in
+      // the dep array (which would re-create this callback on every
+      // keystroke and bust any memo'd consumer).
+      await saveConfig(configRef.current)
+    } catch {
+      // Error toast is surfaced centrally by useSaveApiChatConfigMutation.
     }
-  }, [showError])
+  }, [saveConfig])
 
   const handleFetchModels = useCallback(
     async (id: string) => {

@@ -1,6 +1,6 @@
 import type { PdfFile } from '@shared-core/types'
 
-import { resetPdfTabStore, usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
+import { resetPdfTabStore, usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

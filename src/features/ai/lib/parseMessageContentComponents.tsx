@@ -1,16 +1,12 @@
 import { Button } from '@app/components/ui/button'
-import { useToastActions } from '@app/providers'
+import { useClipboard } from '@shared/hooks/useClipboard'
+
+import { useCallback } from 'react'
 
 export function CodeBlock({ code, lang }: { code: string; lang: string }) {
-  const { showError } = useToastActions()
+  const { copy } = useClipboard()
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code)
-    } catch {
-      showError('toast_clipboard_failed')
-    }
-  }
+  const handleCopy = useCallback(() => void copy(code), [code, copy])
 
   return (
     <div className="border-border bg-muted/40 my-3 overflow-hidden rounded-lg border">

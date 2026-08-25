@@ -8,6 +8,10 @@ import type {
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({
+  useNativeMessagingStatusQuery: () => ({ data: null })
+}))
+
 const translations: Record<string, string> = {
   gws_title: 'Google AI Web Session',
   gws_reason_prefix: 'Reason',

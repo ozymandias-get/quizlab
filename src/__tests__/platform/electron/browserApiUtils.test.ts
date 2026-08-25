@@ -7,11 +7,11 @@
 import {
   createGeminiStatus,
   getPlatform,
-  parseUrlWithAllowedProtocols,
   registerBeforeUnloadCleanup,
   revokeObjectUrl,
   toMapRecord
 } from '@platform/electron/browserApiUtils'
+import { parseUrlWithAllowedProtocols } from '@shared/lib/urlUtils'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

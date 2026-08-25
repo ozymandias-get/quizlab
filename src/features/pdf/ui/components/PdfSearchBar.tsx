@@ -4,6 +4,7 @@ import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 import { Kbd } from '@app/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
+import { SEARCH_INPUT_FOCUS_MS } from '@shared/constants/timingConstants'
 import { DURATION } from '@shared/lib/motion'
 import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
 
@@ -36,7 +37,7 @@ function PdfSearchBar({
 
   useEffect(() => {
     if (isOpen) {
-      const timeout = setTimeout(() => inputRef.current?.focus(), 100)
+      const timeout = setTimeout(() => inputRef.current?.focus(), SEARCH_INPUT_FOCUS_MS)
       return () => clearTimeout(timeout)
     }
   }, [isOpen])

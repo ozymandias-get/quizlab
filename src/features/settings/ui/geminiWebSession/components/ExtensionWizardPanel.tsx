@@ -1,12 +1,12 @@
-import type { NativeMessagingExtensionInfo } from '@shared-core/types'
+import { useNativeMessagingStatusQuery } from '@platform/electron/api/useNativeMessagingApi'
 
-import { getElectronApi } from '@shared/lib/electronApi'
+import { useClipboard } from '@shared/hooks/useClipboard'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { memo, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -49,10 +49,10 @@ function ExtensionWizardPanel({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [copiedLink, setCopiedLink] = useState(false)
   const [installedPath, setInstalledPath] = useState<string | null>(null)
-  const [extensionInfo, setExtensionInfo] = useState<NativeMessagingExtensionInfo | null>(null)
+
+  const pathCopy = useClipboard()
+  const linkCopy = useClipboard()
 
   const isVisible = open
   useEffect(() => {
@@ -62,31 +62,12 @@ function ExtensionWizardPanel({
     setError(null)
     setSuccess(false)
     setConfirmed(false)
-    setCopied(false)
-    setCopiedLink(false)
     setInstalledPath(installedPathProp)
-    setExtensionInfo(null)
   }, [isVisible, mode, installedPathProp])
-  useEffect(() => {
-    if (!isVisible) return
-    const api = getElectronApi()
-    if (!api?.nativeMessaging) return
-    const updateStatus = () => {
-      api.nativeMessaging
-        .getStatus()
-        .then(setExtensionInfo)
-        .catch(() => {})
-    }
-    updateStatus()
-    const interval = setInterval(updateStatus, 3000)
-    const unsubConnected = api.nativeMessaging.onExtensionConnected(updateStatus)
-    const unsubDisconnected = api.nativeMessaging.onExtensionDisconnected(updateStatus)
-    return () => {
-      clearInterval(interval)
-      unsubConnected()
-      unsubDisconnected()
-    }
-  }, [isVisible])
+
+  // Live extension status via TanStack Query — polling and connect/disconnect
+  // event invalidation are handled centrally in the platform hook (STD-014).
+  const { data: extensionInfo } = useNativeMessagingStatusQuery()
 
   const handleNext = useCallback(() => setStep(1), [])
   const handleInstallAction = useCallback(async () => {
@@ -124,35 +105,13 @@ function ExtensionWizardPanel({
       setStep(2)
     }
   }, [onRemove, t])
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const copyLinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(
-    () => () => {
-      if (copyTimeoutRef.current !== null) clearTimeout(copyTimeoutRef.current)
-      if (copyLinkTimeoutRef.current !== null) clearTimeout(copyLinkTimeoutRef.current)
-    },
-    []
-  )
   const handleCopyPath = useCallback(() => {
     if (!installedPath) return
-    navigator.clipboard
-      .writeText(installedPath)
-      .then(() => {
-        setCopied(true)
-        copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
-      })
-      .catch((err) => reportSuppressedError('extensionWizard.copyPath', { cause: err }))
-  }, [installedPath])
+    void pathCopy.copy(installedPath)
+  }, [installedPath, pathCopy])
   const handleCopyLink = useCallback(() => {
-    navigator.clipboard
-      .writeText('chrome://extensions')
-      .then(() => {
-        setCopiedLink(true)
-        if (copyLinkTimeoutRef.current !== null) clearTimeout(copyLinkTimeoutRef.current)
-        copyLinkTimeoutRef.current = setTimeout(() => setCopiedLink(false), 2000)
-      })
-      .catch((err) => reportSuppressedError('extensionWizard.copyLink', { cause: err }))
-  }, [])
+    void linkCopy.copy('chrome://extensions')
+  }, [linkCopy])
   const handleDone = useCallback(() => onClose(), [onClose])
   const total = mode === 'install' ? 4 : 3
   const isConnected = extensionInfo?.status === 'connected'
@@ -190,8 +149,8 @@ function ExtensionWizardPanel({
               mode={mode}
               isConnected={isConnected}
               installedPath={installedPath}
-              copied={copied}
-              copiedLink={copiedLink}
+              copied={pathCopy.isCopied}
+              copiedLink={linkCopy.isCopied}
               onCopyPath={handleCopyPath}
               onCopyLink={handleCopyLink}
               onDone={handleDone}

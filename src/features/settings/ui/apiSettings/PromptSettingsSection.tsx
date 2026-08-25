@@ -1,4 +1,5 @@
 import { Textarea } from '@app/components/ui/textarea'
+import { SurfaceCard } from '@shared/ui/components/primitives'
 
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -23,7 +24,7 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
   const { t } = useTranslation()
 
   return (
-    <div className="border-border bg-card flex flex-col gap-4 rounded-xl border p-4 shadow-xs">
+    <SurfaceCard className="flex flex-col gap-4 rounded-xl p-4">
       <div className="space-y-1">
         <h3 className="text-ql-13 text-foreground font-semibold">{t('api_chat_memory_title')}</h3>
         <p className="text-ql-12 text-muted-foreground">{t('api_chat_memory_desc')}</p>
@@ -60,7 +61,7 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
         rows={2}
         placeholder={t('api_chat_system_prompt_placeholder')}
       />
-    </div>
+    </SurfaceCard>
   )
 })
 

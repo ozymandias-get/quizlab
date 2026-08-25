@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
-import { usePdfTabStore } from './usePdfTabStore'
+import { usePdfTabStore } from '../store/usePdfTabStore'
 
 /**
  * Backwards-compatible hook that returns the PDF tab state with derived

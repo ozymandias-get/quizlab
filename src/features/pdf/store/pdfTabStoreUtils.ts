@@ -1,6 +1,6 @@
 import type { PdfFile } from '@shared-core/types'
 
-import type { PdfTab } from './types'
+import type { PdfTab } from '../hooks/types'
 
 export const createViewerSessionKey = (): string =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'

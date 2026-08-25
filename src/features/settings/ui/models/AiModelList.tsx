@@ -2,6 +2,9 @@ import type { AiPlatform } from '@shared-core/types'
 
 import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
+import { ensureErrorMessage } from '@shared/lib/errorUtils'
+import { Logger } from '@shared/lib/logger'
+import { useToastActions } from '@shared/stores/toastStore'
 import { EmptyState } from '@shared/ui/components/primitives'
 import { InlineSpinner } from '@shared/ui/components/primitives'
 import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
@@ -43,6 +46,7 @@ const AiModelList = memo(function AiModelList({
   setDefaultAiModel,
   t
 }: AiModelListProps) {
+  const { showError } = useToastActions()
   const [localDeletingId, setLocalDeletingId] = useState<string | null>(null)
   const [localClearingId, setLocalClearingId] = useState<string | null>(null)
 
@@ -50,7 +54,9 @@ const AiModelList = memo(function AiModelList({
     setLocalDeletingId(id)
     try {
       await handleDeleteAi(e, id, name)
-    } catch {
+    } catch (err) {
+      Logger.error('[AiModelList] Delete failed:', err)
+      showError(ensureErrorMessage(err, t('toast_ai_config_delete_failed')))
     } finally {
       setLocalDeletingId(null)
     }
@@ -61,7 +67,9 @@ const AiModelList = memo(function AiModelList({
     setLocalClearingId(id)
     try {
       await handleClearModelData(e, id, name)
-    } catch {
+    } catch (err) {
+      Logger.error('[AiModelList] Clear model data failed:', err)
+      showError(ensureErrorMessage(err, t('error_invalid_input')))
     } finally {
       setLocalClearingId(null)
     }
