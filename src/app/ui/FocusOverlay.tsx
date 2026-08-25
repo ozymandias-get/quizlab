@@ -1,3 +1,4 @@
+import { OVERLAY_FOCUS_TRANSFER_MS } from '@shared/constants/timingConstants'
 import { InlineSpinner } from '@shared/ui/components/primitives'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
@@ -100,7 +101,10 @@ function FocusOverlay({
 
   useEffect(() => {
     lastFocusedRef.current = (document.activeElement as HTMLElement | null) ?? null
-    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 80)
+    const focusTimer = window.setTimeout(
+      () => closeButtonRef.current?.focus(),
+      OVERLAY_FOCUS_TRANSFER_MS
+    )
     return () => {
       window.clearTimeout(focusTimer)
       const previous = lastFocusedRef.current

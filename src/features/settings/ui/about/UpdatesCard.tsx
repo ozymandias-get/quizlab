@@ -1,5 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import type { UpdateInfo } from '@app/providers'
+import { SurfaceCard } from '@shared/ui/components/primitives'
 import { DownloadIcon, InfoIcon, LoaderIcon, RefreshIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -160,7 +161,7 @@ const UpdatesCard = memo(
     const showDownloadButton = updateStatus === 'available'
 
     return (
-      <div className="border-border bg-card space-y-4 rounded-xl border p-5 shadow-xs">
+      <SurfaceCard className="space-y-4 rounded-xl p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="border-border bg-muted text-primary rounded-lg border p-2">
@@ -232,7 +233,7 @@ const UpdatesCard = memo(
             </UpdatesActionButton>
           )}
         </div>
-      </div>
+      </SurfaceCard>
     )
   }
 )

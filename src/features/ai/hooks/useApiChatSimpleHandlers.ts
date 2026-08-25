@@ -1,5 +1,6 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
+import { FOCUS_DEFER_MS } from '@shared/constants/timingConstants'
 import { getElectronApi } from '@shared/lib/electronApi'
 
 import { useCallback } from 'react'
@@ -71,7 +72,7 @@ export function useApiChatSimpleHandlers(deps: UseApiChatSimpleHandlersDeps) {
       const result = await createSessionMutation()
       setActiveSessionId(tabId, result.session.id)
     }
-    setTimeout(() => textareaRef.current?.focus(), 50)
+    setTimeout(() => textareaRef.current?.focus(), FOCUS_DEFER_MS)
   }, [messages.length, createSessionMutation, setActiveSessionId, tabId, textareaRef])
 
   const handleDeleteMessage = useCallback(

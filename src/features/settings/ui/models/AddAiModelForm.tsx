@@ -6,6 +6,7 @@ import { Label } from '@app/components/ui/label'
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
 import { DURATION } from '@shared/lib/motion'
+import { parseHttpUrl, validateHttpUrl } from '@shared/lib/urlUtils'
 
 import { Loader2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -41,13 +42,13 @@ const AddAiModelForm = memo(function AddAiModelForm({
 
   function validateUrl(value: string): string {
     if (!value.trim()) return t('error_url_required')
-    try {
-      const parsed = new URL(value.trim())
-      if (!['https:', 'http:'].includes(parsed.protocol)) return t('error_url_protocol')
-      if (!parsed.hostname.includes('.')) return t('error_url_invalid')
-    } catch {
-      return t('error_url_invalid')
+    const parsed = parseHttpUrl(value)
+    if (!parsed) {
+      return validateHttpUrl(value) === 'protocol_not_allowed'
+        ? t('error_url_protocol')
+        : t('error_url_invalid')
     }
+    if (!parsed.hostname.includes('.')) return t('error_url_invalid')
     return ''
   }
 

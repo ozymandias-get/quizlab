@@ -1,10 +1,13 @@
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
+import { useNativeMessagingStatusQuery } from '@platform/electron/api/useNativeMessagingApi'
+
 import { Button } from '@app/components/ui/button'
 import { getElectronApi } from '@shared/lib/electronApi'
+import { SurfaceCard } from '@shared/ui/components/primitives'
 import { LoaderIcon, SettingsIcon } from '@ui/components/Icons'
 
-import { memo, useEffect, useState } from 'react'
+import { memo, useState } from 'react'
 
 interface ExtensionStatusCardProps {
   t: (key: string) => string
@@ -17,36 +20,9 @@ function ExtensionStatusCard({
   onInstallExtension,
   onRemoveExtension
 }: ExtensionStatusCardProps) {
-  const [extensionInfo, setExtensionInfo] = useState<NativeMessagingExtensionInfo | null>(null)
+  // Polling + connect/disconnect invalidation live in the platform hook (STD-014).
+  const { data: extensionInfo } = useNativeMessagingStatusQuery()
   const [installing, setInstalling] = useState(false)
-
-  useEffect(() => {
-    const api = getElectronApi()
-    if (!api?.nativeMessaging) return
-
-    const updateStatus = () => {
-      api.nativeMessaging
-        .getStatus()
-        .then(setExtensionInfo)
-        .catch(() => {})
-    }
-
-    updateStatus()
-    const interval = setInterval(updateStatus, 5000)
-
-    const unsubConnected = api.nativeMessaging.onExtensionConnected(() => {
-      updateStatus()
-    })
-    const unsubDisconnected = api.nativeMessaging.onExtensionDisconnected(() => {
-      updateStatus()
-    })
-
-    return () => {
-      clearInterval(interval)
-      unsubConnected()
-      unsubDisconnected()
-    }
-  }, [])
 
   const handleInstallClick = async () => {
     if (installing) return
@@ -95,15 +71,17 @@ function ExtensionStatusCard({
   }
 
   return (
-    <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
+    <SurfaceCard className="rounded-xl p-4">
       <div className="text-ql-12 text-foreground mb-3 font-semibold">
         {t('gws_extension_title')}
       </div>
 
       <div className="border-border bg-muted/30 flex items-center justify-between rounded-lg border px-3.5 py-2.5">
         <div className="flex items-center gap-2">
-          <div className={`h-2 w-2 rounded-full ${dotColor(extensionInfo)}`} />
-          <span className="text-ql-12 text-muted-foreground">{t(statusKey(extensionInfo))}</span>
+          <div className={`h-2 w-2 rounded-full ${dotColor(extensionInfo ?? null)}`} />
+          <span className="text-ql-12 text-muted-foreground">
+            {t(statusKey(extensionInfo ?? null))}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -146,7 +124,7 @@ function ExtensionStatusCard({
           )}
         </div>
       </div>
-    </div>
+    </SurfaceCard>
   )
 }
 

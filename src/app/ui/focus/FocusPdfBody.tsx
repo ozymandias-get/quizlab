@@ -1,6 +1,6 @@
 import { usePdfOpenActions } from '@features/pdf/hooks/usePdfOpenActions'
-import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
 import { useReadingProgressPersistence } from '@features/pdf/hooks/useReadingProgressPersistence'
+import { usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
 import type { ReadingProgressUpdate, ResumePdfResult } from '@features/pdf/types'
 
 import { useTextSelection } from '@app/hooks/useTextSelection'

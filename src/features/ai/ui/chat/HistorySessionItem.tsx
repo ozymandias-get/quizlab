@@ -3,6 +3,7 @@ import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import { WithTooltip } from '@app/components/ui/tooltip'
+import { FOCUS_DEFER_MS } from '@shared/constants/timingConstants'
 import { useConfirmDialog } from '@shared/hooks'
 
 import { MessageSquare, Pencil, Trash2 } from 'lucide-react'
@@ -53,7 +54,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
 
   useEffect(() => {
     if (isEditing) {
-      setTimeout(() => editInputRef.current?.focus(), 50)
+      setTimeout(() => editInputRef.current?.focus(), FOCUS_DEFER_MS)
     }
   }, [isEditing])
 

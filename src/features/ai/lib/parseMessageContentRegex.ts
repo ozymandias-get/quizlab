@@ -1,3 +1,5 @@
+import { parseUrlWithAllowedProtocols } from '@shared/lib/urlUtils'
+
 export const INLINE_REGEX =
   /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(~~[^~]+~~)|(\[[^\]]+]\([^)]+\)|https?:\/\/[^\s"'<>]+)/g
 export const CODE_BLOCK_REGEX = /```(\w*)\n?([\S\s]*?)```/g
@@ -34,10 +36,5 @@ export const HEADING_WEIGHTS = [
 export const ALLOWED_URL_PROTOCOLS = ['http:', 'https:', 'mailto:']
 
 export function isSafeUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return ALLOWED_URL_PROTOCOLS.includes(parsed.protocol)
-  } catch {
-    return false
-  }
+  return parseUrlWithAllowedProtocols(url, ALLOWED_URL_PROTOCOLS) !== null
 }

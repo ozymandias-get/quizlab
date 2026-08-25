@@ -1,6 +1,6 @@
 import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
-import { useToastActions } from '@app/providers'
+import { useClipboard } from '@shared/hooks/useClipboard'
 
 import { Check, Copy, Square, ThumbsDown, ThumbsUp, Trash2, Volume2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
@@ -17,18 +17,9 @@ const TTS_SAMPLE_LENGTH = 100
 
 export const CopyButton = memo(function CopyButton({ content }: { content: string }) {
   const { t } = useTranslation()
-  const { showError } = useToastActions()
-  const [isCopied, setIsCopied] = useState(false)
+  const { copy, isCopied } = useClipboard()
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(content)
-      setIsCopied(true)
-      setTimeout(() => setIsCopied(false), 1500)
-    } catch {
-      showError('toast_clipboard_failed')
-    }
-  }, [content, showError])
+  const handleCopy = useCallback(() => void copy(content), [content, copy])
 
   return (
     <WithTooltip label={isCopied ? t('api_chat_copied') : t('api_chat_copy')}>

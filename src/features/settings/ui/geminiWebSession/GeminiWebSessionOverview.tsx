@@ -1,6 +1,7 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 
 import { Button } from '@app/components/ui/button'
+import { SurfaceCard } from '@shared/ui/components/primitives'
 import { CheckIcon, GeminiIcon, LoaderIcon, RefreshIcon, XIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
@@ -143,7 +144,7 @@ function GeminiWebSessionOverview({
           </div>
         )}
 
-        <div className="border-border bg-card rounded-xl border p-3.5 shadow-xs">
+        <SurfaceCard className="rounded-xl p-3.5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -162,7 +163,7 @@ function GeminiWebSessionOverview({
               disabled={!status.featureEnabled || disableSessionMutations}
             />
           </div>
-        </div>
+        </SurfaceCard>
 
         <ExtensionStatusCard
           t={t}

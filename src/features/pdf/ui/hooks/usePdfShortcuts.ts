@@ -1,4 +1,4 @@
-import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
+import { usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
 
 import { isMacPlatform } from '@shared/lib/shortcutUtils'
 

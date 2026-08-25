@@ -79,7 +79,7 @@ const PromptsTab = memo(() => {
   ].filter((group) => group.items.length > 0)
 
   return (
-    <div className="space-y-4 pb-10">
+    <div className="space-y-6 pb-20">
       {/* AI Gönder taslağı — açılır/kapanır */}
       <section className="border-border bg-card overflow-hidden rounded-xl border">
         <button

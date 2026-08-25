@@ -1,3 +1,4 @@
+import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
 
 import { Check, Trash2 } from 'lucide-react'
@@ -55,21 +56,19 @@ export const PromptItem = memo(function PromptItem({
 
       {!prompt.isDefault && (
         <WithTooltip label={t('delete')}>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => onDelete(e as unknown as MouseEvent, prompt.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onDelete(e as unknown as MouseEvent, prompt.id)
-              }
+          <IconButton
+            type="button"
+            size="compact"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(e as unknown as MouseEvent, prompt.id)
             }}
-            className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 -mt-0.5 -mr-1 rounded-md p-1 opacity-0 transition-all group-hover:opacity-100 focus:opacity-100"
+            className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 -mt-0.5 -mr-1 opacity-0 transition-all group-hover:opacity-100 focus:opacity-100"
             aria-label={t('delete')}
           >
             <Trash2 className="h-3.5 w-3.5" />
-          </span>
+          </IconButton>
         </WithTooltip>
       )}
     </button>

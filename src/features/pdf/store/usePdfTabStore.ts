@@ -4,6 +4,7 @@ import { revokeObjectUrl } from '@platform/electron/browserApiUtils'
 
 import { create } from 'zustand'
 
+import type { PdfTab } from '../hooks/types'
 import type { PdfTabStore } from './pdfTabStoreUtils'
 import {
   createViewerSessionKey,
@@ -12,7 +13,6 @@ import {
   normalizeTitle,
   toPdfFile
 } from './pdfTabStoreUtils'
-import type { PdfTab } from './types'
 
 /**
  * Resets the PDF tab store to its initial empty state. Test-only helper.

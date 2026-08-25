@@ -1,4 +1,4 @@
-import { usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
+import { usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
 
 import { EmptyState } from '@shared/ui/components/primitives'
 

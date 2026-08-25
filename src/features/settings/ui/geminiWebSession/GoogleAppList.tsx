@@ -3,6 +3,8 @@ import {
   type GoogleWebSessionAppId
 } from '@shared-core/constants/googleAiWebApps'
 
+import { SurfaceCard } from '@shared/ui/components/primitives'
+
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,7 +26,7 @@ function GoogleAppList({
   const { t } = useTranslation()
 
   return (
-    <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
+    <SurfaceCard className="rounded-xl p-4">
       <div className="flex flex-col gap-1.5">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-ql-11 text-foreground font-semibold">
@@ -55,7 +57,7 @@ function GoogleAppList({
       <p className="text-ql-12 text-muted-foreground mt-3 leading-relaxed">
         {t('gws_shared_account_note')}
       </p>
-    </div>
+    </SurfaceCard>
   )
 }
 

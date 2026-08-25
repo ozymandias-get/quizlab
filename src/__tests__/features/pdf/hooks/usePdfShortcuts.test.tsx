@@ -1,6 +1,6 @@
 import type { PdfFile } from '@shared-core/types'
 
-import { resetPdfTabStore, usePdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
+import { resetPdfTabStore, usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
 import { resetPdfSearchStore, usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 import { usePdfShortcuts } from '@features/pdf/ui/hooks/usePdfShortcuts'
 

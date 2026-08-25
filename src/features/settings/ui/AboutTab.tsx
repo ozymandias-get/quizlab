@@ -7,6 +7,7 @@ import {
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
 
 import type { UpdateInfo } from '@app/providers'
+import { MODAL_EXIT_TRANSITION_MS } from '@shared/constants/timingConstants'
 import { formatBytes } from '@shared/lib/formatUtils'
 import { InfoIcon } from '@ui/components/Icons'
 
@@ -53,7 +54,7 @@ const AboutTab = memo(
 
     const handleStartTour = useCallback(() => {
       if (onClose) onClose()
-      window.setTimeout(() => startTutorial('general'), 300)
+      window.setTimeout(() => startTutorial('general'), MODAL_EXIT_TRANSITION_MS)
     }, [onClose, startTutorial])
 
     const handleClearCache = useCallback(() => {

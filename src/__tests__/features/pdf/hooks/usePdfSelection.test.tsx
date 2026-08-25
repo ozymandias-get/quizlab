@@ -1,5 +1,5 @@
 import { usePdfSelection } from '@features/pdf/hooks/usePdfSelection'
-import { resetPdfTabStore } from '@features/pdf/hooks/usePdfTabStore'
+import { resetPdfTabStore } from '@features/pdf/store/usePdfTabStore'
 import { resetReadingProgressStore } from '@features/pdf/hooks/useReadingProgressPersistence'
 
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'

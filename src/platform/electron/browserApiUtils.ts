@@ -65,19 +65,6 @@ export const registerBeforeUnloadCleanup = () => {
   }
 }
 
-export const parseUrlWithAllowedProtocols = (
-  rawUrl: string,
-  allowedProtocols: readonly string[]
-): URL | null => {
-  try {
-    const parsedUrl = new URL(rawUrl.trim())
-    if (!allowedProtocols.includes(parsedUrl.protocol)) return null
-    return parsedUrl
-  } catch {
-    return null
-  }
-}
-
 export const selectPdfInBrowser = (): Promise<PdfSelection | null> => {
   return new Promise((resolve) => {
     const input = document.createElement('input')
