@@ -1,5 +1,12 @@
 import { SCREENSHOT_TYPES } from '@shared-core/types/system'
 
+export const TOAST_DURATION = {
+  SHORT: 3000,
+  DEFAULT: 5000,
+  LONG: 8000,
+  CRITICAL: 12000
+} as const
+
 export const APP_CONSTANTS = {
   GITHUB_RELEASES_URL: 'https://github.com/ozymandias-get/quizlab/releases/latest',
   GITHUB_REPO_URL: 'https://github.com/ozymandias-get/quizlab',

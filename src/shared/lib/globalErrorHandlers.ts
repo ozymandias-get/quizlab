@@ -1,3 +1,4 @@
+import { TOAST_DURATION } from '@shared/constants/appConstants'
 import { useToastStore } from '@shared/stores/toastStore'
 
 import i18next from 'i18next'
@@ -29,7 +30,9 @@ function reportError(error: unknown): void {
 
   const message = ensureErrorMessage(error)
   const shown = i18next.t('toast_unhandled_error', { error: message.slice(0, 200) })
-  useToastStore.getState().showError(shown, i18next.t('toast_error_title'), undefined, 8000)
+  useToastStore
+    .getState()
+    .showError(shown, i18next.t('toast_error_title'), undefined, TOAST_DURATION.LONG)
 }
 
 let installed = false

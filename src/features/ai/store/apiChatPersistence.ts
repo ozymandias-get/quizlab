@@ -1,4 +1,5 @@
 import { queryClient } from '@app/providers/queryClient'
+import { TOAST_DURATION } from '@shared/constants/appConstants'
 import {
   getStorageItem,
   LOCAL_STORAGE_SYNC_EVENT,
@@ -62,7 +63,12 @@ function notifyStorageFailure(error: unknown): void {
         : i18next.t('api_chat_storage_write_error', { error: String(error) })
     useToastStore
       .getState()
-      .showWarning(message, i18next.t('api_chat_storage_error_title'), undefined, 8000)
+      .showWarning(
+        message,
+        i18next.t('api_chat_storage_error_title'),
+        undefined,
+        TOAST_DURATION.LONG
+      )
   } catch {
     // Toasting must never break persistence itself.
   }
