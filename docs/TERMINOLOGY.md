@@ -100,3 +100,17 @@ These product/brand names should NOT be translated:
 | Folders       | Folders       | Klasörler   |
 | PDF Document  | PDF Document  | PDF Belgesi |
 | Untitled File | Untitled File | Adsız Dosya |
+
+## i18n Key Naming (STD-025)
+
+Translation keys in `src/shared/i18n/locales/` use **flat `snake_case` with a domain prefix**:
+
+```
+<domain>_<feature>_<action>   e.g.  toast_unhandled_error, api_chat_save, gws_extension_title
+```
+
+Rules:
+
+- **New keys must use this format.** Do not introduce `nested.dot.notation` (`ai_home.models_title`) for new features; existing dotted keys are grandfathered and will be migrated gradually.
+- The prefix identifies the owning domain (`api_chat_*`, `gws_*`, `pdf_*`, `toast_*`, `error_*`, …) so `i18n.quality.test.ts` and simple `rg` searches reliably find missing translations.
+- Keep the flat JSON structure — one file per domain (`ai-chat.json`, `errors.json`, …) already groups keys; nesting inside the JSON is unnecessary.

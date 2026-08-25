@@ -14,6 +14,8 @@ import type {
   PdfSelection,
   PdfSelectOptions,
   PdfStreamResult,
+  PdfViewerZoomAction,
+  ScreenshotType,
   TextInputMode,
   UpdateCheckResult
 } from '@shared-core/types'
@@ -300,10 +302,10 @@ export interface IpcEventMap {
     args: [labels: Partial<Record<string, string>>]
   }
   [IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM]: {
-    args: [action: string]
+    args: [action: PdfViewerZoomAction]
   }
   [IPC_CHANNELS.TRIGGER_SCREENSHOT]: {
-    args: [type: string]
+    args: [type: ScreenshotType]
   }
   [IPC_CHANNELS.LOGGER_LOG]: {
     args: [payload: { level: string; message: string; timestamp?: string }]

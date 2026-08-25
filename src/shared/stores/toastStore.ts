@@ -1,3 +1,5 @@
+import { TOAST_DURATION } from '@shared/constants/appConstants'
+
 import { create } from 'zustand'
 
 import { type NotificationType, useNotificationPrefs } from './notificationStore'
@@ -51,7 +53,7 @@ interface ToastStoreState {
 }
 
 const MAX_TOASTS = 3
-const DEFAULT_DURATION = 5000
+const DEFAULT_DURATION = TOAST_DURATION.DEFAULT
 const DEDUPE_WINDOW_MS = 1000
 
 let toastCounter = 0
