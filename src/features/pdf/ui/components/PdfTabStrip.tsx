@@ -2,9 +2,8 @@ import type { PdfTab } from '@features/pdf/hooks/types'
 
 import { TabStripHomeButton, ToolbarButton } from '@shared/ui/components/primitives'
 import { TAB_STRIP_BAR_CLASS, TAB_STRIP_ROW_CLASS } from '@shared/ui/tabStripChrome'
-import { getAiIcon } from '@ui/components/Icons'
 
-import { FileText, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import {
   memo,
   type MouseEvent as ReactMouseEvent,
@@ -14,13 +13,13 @@ import {
   useRef,
   useState
 } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import OverflowMenu from './OverflowMenu'
 import PdfTabItem from './PdfTabItem'
 import type { ContextMenuState } from './pdfTabStripUtils'
 import { clamp, computeTabVisibility, getMaxVisibleTabs } from './pdfTabStripUtils'
 import TabContextMenu from './TabContextMenu'
+import { usePdfTabStripDerived } from './usePdfTabStripDerived'
 import { usePdfTabStripRoving } from './usePdfTabStripRoving'
 import { useTabEditing } from './useTabEditing'
 
@@ -43,7 +42,10 @@ function PdfTabStrip({
   onAddTab,
   onHome
 }: PdfTabStripProps) {
-  const { t } = useTranslation()
+  const { t, tr, getTabLabel, getTabIcon, isPdfHomeActive } = usePdfTabStripDerived(
+    tabs,
+    activeTabId
+  )
   const renameInputRef = useRef<HTMLInputElement>(null)
   const rowRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
@@ -86,36 +88,6 @@ function PdfTabStrip({
     editingTabId,
     onSetActiveTab
   })
-
-  const pdfHomeTabId = useMemo(() => {
-    if (!tabs || tabs.length === 0) return ''
-    const landing = tabs.find((tab) => !tab.file && tab.kind !== 'drive')
-    return landing?.id ?? ''
-  }, [tabs])
-
-  const isPdfHomeActive = pdfHomeTabId !== '' && activeTabId === pdfHomeTabId
-
-  const tr = useCallback(
-    (key: string, fallback: string) => {
-      const translated = t(key)
-      return translated === key ? fallback : translated
-    },
-    [t]
-  )
-
-  const getTabLabel = useCallback(
-    (tab: PdfTab) => tab.title || tab.file?.name || tr('new_tab_title', 'New Tab'),
-    [tr]
-  )
-
-  const getTabIcon = useCallback((tab: PdfTab) => {
-    if (tab.kind === 'drive') {
-      return (
-        getAiIcon('gdrive') || <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-      )
-    }
-    return <FileText className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-  }, [])
 
   const beginRename = useCallback(
     (tab: PdfTab) => {

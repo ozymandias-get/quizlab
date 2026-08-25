@@ -11,20 +11,16 @@ import http from 'http'
 import type { AddressInfo } from 'net'
 
 import { APP_CONFIG } from '../../app/constants.js'
-import { DEV_SERVER_ORIGIN } from '../../app/window/environment.js'
 import { Logger } from '../../core/logger.js'
 import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig.js'
 import { importExternalCookies } from '../gemini-web-session/sessionCookies.js'
+import { createBridgeRequestHandler } from './nativeMessagingBridgeHandler.js'
 import { toExternalBrowserCookie } from './nativeMessagingCookieUtils.js'
 import { NativeMessagingInstaller } from './nativeMessagingInstaller.js'
-import {
-  type BridgeOriginPolicy,
-  isAllowedBridgeOrigin,
-  validateCookieDomains
-} from './nativeMessagingOrigin.js'
-import { BRIDGE_PORT, HMAC_HEADER, MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
+import { validateCookieDomains } from './nativeMessagingOrigin.js'
+import { BRIDGE_PORT, MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
-class NativeMessagingManager {
+export class NativeMessagingManager {
   private httpServer: http.Server | null = null
   private _connectionStatus: NativeMessagingConnectionStatus = 'disconnected'
   private _port: number = BRIDGE_PORT
@@ -254,9 +250,7 @@ class NativeMessagingManager {
         return
       }
 
-      this.httpServer = http.createServer((req, res) => {
-        this.handleRequest(req, res)
-      })
+      this.httpServer = http.createServer(createBridgeRequestHandler(this))
 
       this.httpServer.listen(this._port, '127.0.0.1', () => {
         const addr = this.httpServer?.address() as AddressInfo
@@ -293,149 +287,6 @@ class NativeMessagingManager {
     this._connectionStatus = 'disconnected'
     this._waitingSince = null
     this.stopNativeMessagingListener()
-  }
-
-  private getOriginPolicy(): BridgeOriginPolicy {
-    const isDev = !app.isPackaged
-    return {
-      expectedExtensionOrigin: this._expectedExtensionOrigin,
-      allowedDevOrigins: isDev && DEV_SERVER_ORIGIN ? [DEV_SERVER_ORIGIN] : [],
-      isDev
-    }
-  }
-
-  private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-    const requestOrigin = req.headers.origin
-    const originAllowed = isAllowedBridgeOrigin(requestOrigin, this.getOriginPolicy())
-
-    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-hmac-signature, x-bridge-secret')
-    res.setHeader('Vary', 'Origin')
-    if (originAllowed && requestOrigin) {
-      res.setHeader('Access-Control-Allow-Origin', requestOrigin)
-    }
-
-    if (req.method === 'OPTIONS') {
-      if (!originAllowed) {
-        this.rejectDisallowedOrigin(res, requestOrigin)
-        return
-      }
-      res.writeHead(204)
-      res.end()
-      return
-    }
-
-    if (!originAllowed) {
-      this.rejectDisallowedOrigin(res, requestOrigin)
-      return
-    }
-
-    if (req.method === 'GET' && req.url === '/api/health') {
-      this._extensionLastSeenAt = Date.now()
-      Logger.info(`[NativeMessaging] Served bridge shared secret to origin: ${requestOrigin}`)
-      const healthResponse: Record<string, unknown> = {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        secret: this._sharedSecret
-      }
-
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify(healthResponse))
-      return
-    }
-
-    if (req.method === 'POST' && req.url === '/api/cookies') {
-      this.handleCookiePost(req, res)
-      return
-    }
-
-    res.writeHead(404)
-    res.end('Not found')
-  }
-
-  private rejectDisallowedOrigin(res: http.ServerResponse, origin: string | undefined): void {
-    Logger.warn(`[NativeMessaging] Rejected request from disallowed origin: ${origin || '(none)'}`)
-    res.writeHead(403, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ error: 'Forbidden' }))
-  }
-
-  private handleCookiePost(req: http.IncomingMessage, res: http.ServerResponse): void {
-    const signature = req.headers[HMAC_HEADER] as string | undefined
-    if (!signature) {
-      Logger.warn('[NativeMessaging] Rejected cookie POST: missing HMAC signature')
-      res.writeHead(401, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Missing signature' }))
-      return
-    }
-
-    let body = ''
-    let bodySize = 0
-
-    req.on('data', (chunk: Buffer) => {
-      bodySize += chunk.length
-      if (bodySize > MAX_COOKIE_BODY_SIZE) {
-        req.destroy()
-        Logger.warn('[NativeMessaging] Rejected oversized cookie payload')
-        return
-      }
-      body += chunk.toString()
-    })
-
-    req.on('end', async () => {
-      try {
-        // Guard the length BEFORE timingSafeEqual: comparing buffers of
-        // different lengths throws ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH, which
-        // would surface as a misleading 500 instead of a 401.
-        const expectedSig = crypto
-          .createHmac('sha256', this._sharedSecret)
-          .update(body)
-          .digest('hex')
-        if (
-          !/^[0-9a-f]{64}$/i.test(signature) ||
-          !crypto.timingSafeEqual(Buffer.from(signature.toLowerCase()), Buffer.from(expectedSig))
-        ) {
-          Logger.warn('[NativeMessaging] Rejected cookie POST: invalid HMAC signature')
-          res.writeHead(401, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'Invalid signature' }))
-          return
-        }
-
-        const data = JSON.parse(body)
-        const cookies = data.cookies as ChromeExtensionCookie[]
-
-        if (!Array.isArray(cookies) || cookies.length === 0) {
-          res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'No cookies provided' }))
-          return
-        }
-
-        if (!validateCookieDomains(cookies)) {
-          Logger.warn('[NativeMessaging] Rejected cookie POST: invalid domain')
-          res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'Invalid cookie domain' }))
-          return
-        }
-
-        if (this._connectionStatus !== 'connected') {
-          this._connectionStatus = 'connected'
-          this._waitingSince = null
-          this._extensionLastSeenAt = Date.now()
-          this.broadcastExtensionConnected()
-        }
-
-        this._extensionLastSeenAt = Date.now()
-
-        const externalCookies = cookies.map(toExternalBrowserCookie)
-        const targetSession = electronSession.fromPartition(PROFILE_PARTITION)
-        await importExternalCookies(targetSession, externalCookies)
-
-        res.writeHead(200, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ success: true, imported: cookies.length }))
-      } catch {
-        res.writeHead(500, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ error: 'Internal error' }))
-      }
-    })
   }
 
   private startHealthCheck(): void {
