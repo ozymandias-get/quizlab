@@ -149,25 +149,30 @@ function PdfToolsPopup({
                     const colors = colorMap[tool.color]
                     const isActive = tool.isActive ?? false
                     const Icon = tool.icon
+                    const hasSwitch = tool.onClick && 'isActive' in tool
 
-                    return (
-                      <Button
-                        key={tool.label}
-                        asChild
-                        type="button"
-                        variant="ghost"
-                        aria-label={tool.tooltip}
-                        className={cn(
-                          'group text-foreground hover:bg-muted h-auto min-h-8 w-full justify-start gap-2 rounded-md px-2 py-1.5 transition-colors',
-                          isActive && 'bg-muted/70'
-                        )}
-                      >
-                        <motion.button
-                          type="button"
+                    // Avoid nested <button> — Switch itself is a button. Use div with role=button for toggle rows.
+                    if (hasSwitch) {
+                      return (
+                        <motion.div
+                          key={tool.label}
                           variants={itemVariants}
                           whileHover={{ x: 1, transition: { duration: DURATION.normal } }}
                           whileTap={{ scale: 0.98, transition: { duration: DURATION.fast } }}
                           onClick={tool.onClick}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              tool.onClick?.()
+                            }
+                          }}
+                          aria-label={tool.tooltip}
+                          className={cn(
+                            'group hover:bg-muted flex h-auto min-h-8 w-full cursor-pointer items-center justify-start gap-2 rounded-md px-2 py-1.5 transition-colors',
+                            isActive && 'bg-muted/70'
+                          )}
                         >
                           <div
                             className={cn(
@@ -179,7 +184,6 @@ function PdfToolsPopup({
                           >
                             <Icon className="h-3.5 w-3.5" />
                           </div>
-
                           <span
                             className={cn(
                               'text-ql-11 font-medium transition-colors',
@@ -190,17 +194,45 @@ function PdfToolsPopup({
                           >
                             {tool.label}
                           </span>
+                          <Switch
+                            checked={isActive}
+                            onCheckedChange={() => tool.onClick?.()}
+                            size="sm"
+                            className="ml-auto"
+                            aria-label={tool.tooltip}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </motion.div>
+                      )
+                    }
 
-                          {tool.onClick && 'isActive' in tool && (
-                            <Switch
-                              checked={isActive}
-                              onCheckedChange={() => tool.onClick?.()}
-                              size="sm"
-                              className="ml-auto"
-                              aria-label={tool.tooltip}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          )}
+                    return (
+                      <Button
+                        key={tool.label}
+                        asChild
+                        type="button"
+                        variant="ghost"
+                        aria-label={tool.tooltip}
+                        className="group text-foreground hover:bg-muted h-auto min-h-8 w-full justify-start gap-2 rounded-md px-2 py-1.5 transition-colors"
+                      >
+                        <motion.button
+                          type="button"
+                          variants={itemVariants}
+                          whileHover={{ x: 1, transition: { duration: DURATION.normal } }}
+                          whileTap={{ scale: 0.98, transition: { duration: DURATION.fast } }}
+                          onClick={tool.onClick}
+                        >
+                          <div
+                            className={cn(
+                              'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
+                              cn(colors.bg, colors.text)
+                            )}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-ql-11 text-foreground/80 group-hover:text-foreground font-medium transition-colors">
+                            {tool.label}
+                          </span>
                         </motion.button>
                       </Button>
                     )

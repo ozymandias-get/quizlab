@@ -21,14 +21,10 @@ export function createHybridProvider(): OcrProvider {
 
     async initialize(config, signal) {
       if (config.forceOcr) {
-        // Directly init OCR
         await tesseract.initialize(config, signal)
         return
       }
       await native.initialize(config, signal)
-      // Lazily pre-init OCR in background without blocking
-      // Only if not already cached
-      void tesseract.initialize(config, signal).catch(() => {})
     },
 
     async processPage(job, imageData) {

@@ -210,12 +210,10 @@ function PdfToolbar({
           onToggleAutoSend={onToggleAutoSend}
         />
 
-        {/* OCR — page-level on-demand, premium glassmorphism, no toolbar crowding */}
-        {pdfFile && (
-          <ToolbarGroup>
-            <OcrButton onClick={handleOcrPage} currentPage={currentPage} disabled={!pdfFile} />
-          </ToolbarGroup>
-        )}
+        {/* OCR — always visible, disabled when no PDF, amber highlight */}
+        <ToolbarGroup>
+          <OcrButton onClick={handleOcrPage} currentPage={currentPage} disabled={!pdfFile} />
+        </ToolbarGroup>
       </div>
 
       <div className="mx-2 flex min-w-0 flex-1 items-center justify-center">
