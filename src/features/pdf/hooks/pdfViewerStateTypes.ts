@@ -62,7 +62,4 @@ export interface UsePdfViewerStateReturn {
   highlight: ReturnType<typeof usePdfPlugins>['highlight']
   clearHighlights: ReturnType<typeof usePdfPlugins>['clearHighlights']
   tt: (key: string) => string
-  isOcrSelectionMode: boolean
-  handleOcrSelectionCapture: (dataUrl: string) => Promise<void>
-  closeOcrSelection: () => void
 }
