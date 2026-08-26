@@ -25,6 +25,8 @@ interface LogEntry {
 }
 
 const logBuffer: LogEntry[] = []
+// Monotonic counter of every entry ever pushed (see getTotalLogCount).
+let totalEntriesLogged = 0
 
 // SECURITY: Patterns to redact from log output to prevent leaking sensitive
 // user data (home directories, API keys, internal IPs, etc.) into plaintext
@@ -96,6 +98,7 @@ function pushToBuffer(level: LogLevel, args: unknown[]) {
     level,
     message: normalizeArgs(args)
   })
+  totalEntriesLogged++
 
   if (logBuffer.length > LOG_BUFFER_LIMIT) {
     logBuffer.splice(0, logBuffer.length - LOG_BUFFER_LIMIT)
@@ -174,6 +177,18 @@ export function getLogBufferLength(): number {
 }
 
 /**
+ * Total number of entries ever pushed to the buffer (monotonic counter).
+ *
+ * The buffer trims itself to LOG_BUFFER_LIMIT, so array indices shift as old
+ * entries are dropped. Consumers that track "how far have I flushed" must use
+ * this absolute count instead of raw buffer indices, otherwise a saturated
+ * buffer makes `slice(lastFlushedIndex)` return nothing forever.
+ */
+export function getTotalLogCount(): number {
+  return totalEntriesLogged
+}
+
+/**
  * Internal API: push a pre-formatted log entry directly into the buffer.
  * Used by the Electron IPC handler to forward renderer logs into the main
  * process buffer without re-normalizing.
@@ -184,6 +199,7 @@ export function pushToLoggerBuffer(level: LogLevel, message: string, timestamp?:
     level,
     message
   })
+  totalEntriesLogged++
 
   if (logBuffer.length > LOG_BUFFER_LIMIT) {
     logBuffer.splice(0, logBuffer.length - LOG_BUFFER_LIMIT)

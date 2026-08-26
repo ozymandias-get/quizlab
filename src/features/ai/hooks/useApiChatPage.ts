@@ -41,7 +41,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
 
   // ---- Server state from TanStack Query ----
   const { data: messages = EMPTY_MSGS } = useMessagesQuery(activeSessionId)
-  const { data: sessions = [] } = useSessionsQuery()
+  const { data: sessions = [], isSuccess: sessionsLoaded } = useSessionsQuery()
   const { mutateAsync: sendMsgMutation } = useSendMessageMutation()
   const { mutateAsync: regenerateMutation } = useRegenerateMutation()
   const { mutateAsync: editAndRegenMutation } = useEditAndRegenerateMutation()
@@ -78,7 +78,8 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     activeSessionId,
     sessions,
     createSessionMutation,
-    setActiveSessionId
+    setActiveSessionId,
+    enabled: sessionsLoaded
   })
 
   // ---- Config init from TanStack Query ----

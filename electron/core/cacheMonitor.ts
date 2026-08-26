@@ -17,6 +17,26 @@ export interface CacheBreakdown {
   total: number
 }
 
+export interface PartitionDetail {
+  key: string
+  size: number
+  category: 'active' | 'passive' | 'cold'
+  lastActive: number | null
+  ttlMs: number
+}
+
+export interface SmartCacheBreakdown extends CacheBreakdown {
+  pressureLevel: 'normal' | 'moderate' | 'warning' | 'high' | 'critical'
+  pressurePercentage: number
+  recommendation?: {
+    action: string
+    reason: string
+    targetPartitions: string[]
+    estimatedFreeBytes: number
+  }
+  partitionDetails: PartitionDetail[]
+}
+
 export interface CacheFileEntry {
   absolutePath: string
   relativePath: string
@@ -178,4 +198,64 @@ export async function collectExpiredFiles(
   const now = Date.now()
   const allFiles = await collectCacheFiles(dirPath, userDataPath)
   return allFiles.filter((f) => now - f.mtimeMs > maxAgeMs)
+}
+
+export async function measureSmartCacheBreakdown(): Promise<SmartCacheBreakdown> {
+  const breakdown = await measureCacheBreakdown()
+
+  // Lazy import to avoid circular deps - cacheRegistry depends on constants only
+  const {
+    getAllPartitionActivities,
+    getActivityCategory,
+    getEffectiveTtl,
+    getPartitionLastActive
+  } = await import('./cacheRegistry.js')
+  const { getCachePressure, getRecommendation } = await import('./smartCachePolicy.js')
+
+  const pressure = getCachePressure(breakdown.total)
+  const activities = getAllPartitionActivities()
+
+  // Partition details: birleştir diskteki ve activity'si olan tüm key'ler
+  const allKeys = new Set<string>([
+    ...Object.keys(breakdown.partitionCaches),
+    ...Object.keys(activities)
+  ])
+
+  const partitionDetails: PartitionDetail[] = [...allKeys].map((key) => {
+    const size = breakdown.partitionCaches[key] ?? 0
+    const category = getActivityCategory(key)
+    return {
+      key,
+      size,
+      category,
+      lastActive: getPartitionLastActive(key),
+      ttlMs: getEffectiveTtl(key)
+    }
+  })
+
+  // Sadece gerçekte diski olan veya aktivitesi bilinen ve boyutu >0 veya cold olanları filtrele
+  // Ama UI'da tüm partition'lar gözüksün diye hepsini döndür, sıralama boyut + kategori
+  partitionDetails.sort((a, b) => {
+    const order = { cold: 0, passive: 1, active: 2 } as const
+    if (order[a.category] !== order[b.category]) return order[a.category] - order[b.category]
+    return b.size - a.size
+  })
+
+  const recommendation = getRecommendation(
+    pressure,
+    partitionDetails.map((p) => ({ key: p.key, size: p.size, activity: p.category }))
+  )
+
+  return {
+    ...breakdown,
+    pressureLevel: pressure.level,
+    pressurePercentage: pressure.percentage,
+    recommendation: {
+      action: recommendation.action,
+      reason: recommendation.reason,
+      targetPartitions: recommendation.targetPartitions,
+      estimatedFreeBytes: recommendation.estimatedFreeBytes
+    },
+    partitionDetails
+  }
 }

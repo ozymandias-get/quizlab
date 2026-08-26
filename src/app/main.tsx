@@ -1,6 +1,9 @@
-import './wdyr'
 import '@shared/styles/index.css'
 import '@shared/i18n/i18next'
+
+if (import.meta.env.DEV) {
+  void import('./wdyr')
+}
 
 import { createBrowserElectronApi } from '@platform/electron/createBrowserElectronApi'
 

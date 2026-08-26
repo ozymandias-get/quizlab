@@ -46,4 +46,28 @@ describe('ipcSecurity', () => {
 
     expect(result).toBe(false)
   })
+
+  it('rejects crafted localhost subdomain (prefix-matching regression)', async () => {
+    const evilSender = { id: 1, getURL: () => 'http://localhost.evil.com/steal' }
+    getMainWindow.mockReturnValue({ webContents: evilSender })
+
+    const { requireTrustedIpcSender } = await import('../../core/ipcSecurity.js')
+    expect(requireTrustedIpcSender({ sender: evilSender } as never)).toBe(false)
+  })
+
+  it('accepts http://localhost with any port (dev server)', async () => {
+    const devSender = { id: 1, getURL: () => 'http://localhost:5173/' }
+    getMainWindow.mockReturnValue({ webContents: devSender })
+
+    const { requireTrustedIpcSender } = await import('../../core/ipcSecurity.js')
+    expect(requireTrustedIpcSender({ sender: devSender } as never)).toBe(true)
+  })
+
+  it('accepts http://127.0.0.1 with any port', async () => {
+    const loopbackSender = { id: 1, getURL: () => 'http://127.0.0.1:5173/app' }
+    getMainWindow.mockReturnValue({ webContents: loopbackSender })
+
+    const { requireTrustedIpcSender } = await import('../../core/ipcSecurity.js')
+    expect(requireTrustedIpcSender({ sender: loopbackSender } as never)).toBe(true)
+  })
 })

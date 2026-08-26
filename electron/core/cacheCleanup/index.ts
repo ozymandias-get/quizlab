@@ -1,7 +1,7 @@
 ﻿import { app } from 'electron'
 
 import { APP_CONFIG } from '../../app/constants.js'
-import { measureCacheBreakdown } from '../cacheMonitor.js'
+import { measureCacheBreakdown, measureSmartCacheBreakdown } from '../cacheMonitor.js'
 import { Logger } from '../logger.js'
 import { cleanupOrphanedTempFiles, formatBytes } from './cacheCleanupHelpers.js'
 import { isIdleState, startIdleDetection, stopIdleDetection } from './idle.js'
@@ -199,11 +199,41 @@ export async function runManualCleanup(): Promise<CleanupResult> {
 }
 
 export async function getCacheInfo(): Promise<CacheInfo> {
-  const breakdown = await measureCacheBreakdown()
-  return {
-    breakdown,
-    lastCleanup: lastCleanupTime,
-    lastCleanupResult,
-    isIdle: isIdleState()
+  try {
+    const smartBreakdown = await measureSmartCacheBreakdown()
+
+    return {
+      breakdown: {
+        chromiumCache: smartBreakdown.chromiumCache,
+        codeCache: smartBreakdown.codeCache,
+        gpuCache: smartBreakdown.gpuCache,
+        partitionCaches: smartBreakdown.partitionCaches,
+        tempFiles: smartBreakdown.tempFiles,
+        total: smartBreakdown.total
+      },
+      lastCleanup: lastCleanupTime,
+      lastCleanupResult,
+      isIdle: isIdleState(),
+      smart: {
+        pressureLevel: smartBreakdown.pressureLevel,
+        pressurePercentage: smartBreakdown.pressurePercentage,
+        recommendation: smartBreakdown.recommendation!,
+        partitionDetails: smartBreakdown.partitionDetails,
+        autoClean: { enabled: true, lastAutoCleanAt: lastCleanupTime }
+      }
+    }
+  } catch {
+    // Fallback: eski yöntem
+    const breakdown = await measureCacheBreakdown()
+    return {
+      breakdown,
+      lastCleanup: lastCleanupTime,
+      lastCleanupResult,
+      isIdle: isIdleState()
+    }
   }
+}
+
+export async function getSmartCacheInfo(): Promise<CacheInfo> {
+  return getCacheInfo()
 }

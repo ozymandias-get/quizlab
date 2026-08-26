@@ -17,12 +17,35 @@ const AestheticLoader = memo(function AestheticLoader() {
     const visible = containerRef.current?.closest<HTMLElement>('[style*="display: none"], [hidden]')
     if (visible) return
 
-    const intervalId = setInterval(() => {
-      if (document.hidden) return
-      setMsgIndex(Math.floor(Math.random() * 20) + 1)
-    }, 2500)
+    let intervalId: ReturnType<typeof setInterval> | null = null
 
-    return () => clearInterval(intervalId)
+    const start = () => {
+      if (intervalId !== null || document.hidden) return
+      intervalId = setInterval(() => {
+        if (document.hidden) return
+        setMsgIndex(Math.floor(Math.random() * 20) + 1)
+      }, 4000)
+    }
+
+    const stop = () => {
+      if (intervalId !== null) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+    }
+
+    const handleVisibility = () => {
+      if (document.hidden) stop()
+      else start()
+    }
+
+    start()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [prefersReducedMotion])
 
   return (

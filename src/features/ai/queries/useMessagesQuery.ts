@@ -30,7 +30,7 @@ export function useDeleteMessageMutation() {
 
   return useMutation({
     mutationFn: async ({ sessionId, messageId }: { sessionId: string; messageId: string }) => {
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
+      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
       const updated = removeMessageFromSession(prev, sessionId, messageId)
       persistSessions(updated)
       return { sessionId, allSessions: updated }

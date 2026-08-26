@@ -21,15 +21,15 @@ export interface CacheRule {
  * Aktivite kategorileri ve karşılık gelen TTL çarpanları.
  * Son kullanım zamanına göre partition'ların ne kadar hızlı temizleneceğini belirler.
  */
-type ActivityCategory = 'active' | 'passive' | 'cold'
+export type ActivityCategory = 'active' | 'passive' | 'cold'
 
-const ACTIVITY_TTL: Record<ActivityCategory, number> = {
+export const ACTIVITY_TTL: Record<ActivityCategory, number> = {
   active: APP_CONFIG.CLEANUP.CACHE_FILE_TTL_MS, // 7 gün
   passive: 2 * 24 * 60 * 60 * 1000, // 2 gün
   cold: 12 * 60 * 60 * 1000 // 12 saat
 }
 
-const ACTIVITY_THRESHOLDS = {
+export const ACTIVITY_THRESHOLDS = {
   active: 60 * 60 * 1000, // 1 saat
   passive: 24 * 60 * 60 * 1000 // 24 saat
 }
@@ -43,12 +43,16 @@ const partitionActivity = new Map<string, number>()
 
 /** Partition'un son kullanım zamanını günceller */
 export function markPartitionActive(partitionKey: string): void {
-  partitionActivity.set(partitionKey, Date.now())
+  if (!partitionKey) return
+  const normalized = partitionKey.replace(/^persist:/, '')
+  if (!normalized) return
+  partitionActivity.set(normalized, Date.now())
 }
 
 /** Partition'un aktivite kategorisini döndürür */
-function getActivityCategory(partitionKey: string): ActivityCategory {
-  const lastAccessed = partitionActivity.get(partitionKey)
+export function getActivityCategory(partitionKey: string): ActivityCategory {
+  const normalized = partitionKey.replace(/^persist:/, '')
+  const lastAccessed = partitionActivity.get(normalized)
   if (!lastAccessed) return 'cold' // Hiç kullanılmamış → soğuk
 
   const elapsed = Date.now() - lastAccessed
@@ -58,13 +62,65 @@ function getActivityCategory(partitionKey: string): ActivityCategory {
 }
 
 /** Partition için geçerli TTL'yi döndürür (aktiviteye göre) */
-function getEffectiveTtl(partitionKey: string): number {
+export function getEffectiveTtl(partitionKey: string): number {
   const category = getActivityCategory(partitionKey)
   return ACTIVITY_TTL[category]
 }
 
+/** Partition'un son aktivite zamanını döndürür (ms) */
+export function getPartitionLastActive(partitionKey: string): number | null {
+  const normalized = partitionKey.replace(/^persist:/, '')
+  return partitionActivity.get(normalized) ?? null
+}
+
+/** Tüm partition aktivitelerini döndürür */
+export function getAllPartitionActivities(): Record<
+  string,
+  { lastActive: number | null; category: ActivityCategory; ttlMs: number }
+> {
+  const keys = collectAllPartitionKeys()
+  const result: Record<
+    string,
+    { lastActive: number | null; category: ActivityCategory; ttlMs: number }
+  > = {}
+  for (const key of keys) {
+    result[key] = {
+      lastActive: getPartitionLastActive(key),
+      category: getActivityCategory(key),
+      ttlMs: getEffectiveTtl(key)
+    }
+  }
+  // Dinamik (henüz registry'de olmayan ama activity'si olan) partition'lar da ekle
+  for (const [k, v] of partitionActivity.entries()) {
+    if (!(k in result)) {
+      result[k] = {
+        lastActive: v,
+        category: getActivityCategory(k),
+        ttlMs: getEffectiveTtl(k)
+      }
+    }
+  }
+  return result
+}
+
+/** Partition'ları eviction önceliğine göre sırala (cold büyük önce) */
+export function sortPartitionsByEvictionPriority(
+  sizes: Record<string, number>
+): Array<{ key: string; size: number; category: ActivityCategory }> {
+  const entries = Object.entries(sizes).map(([key, size]) => ({
+    key,
+    size,
+    category: getActivityCategory(key)
+  }))
+  return entries.sort((a, b) => {
+    const order = { cold: 0, passive: 1, active: 2 } as const
+    if (order[a.category] !== order[b.category]) return order[a.category] - order[b.category]
+    return b.size - a.size
+  })
+}
+
 /** Sadece test/sıfırlama için */
-function _resetActivityTracker(): void {
+export function _resetActivityTracker(): void {
   partitionActivity.clear()
 }
 

@@ -50,10 +50,27 @@ function PdfRecentListItem({
 
   const handleRemove = useCallback(
     (e: ReactMouseEvent<HTMLButtonElement>) => {
+      e.preventDefault()
       e.stopPropagation()
+      // Radix TooltipTrigger asChild clone may still bubble via native event
+      const native = e.nativeEvent as unknown as { stopImmediatePropagation?: () => void }
+      native.stopImmediatePropagation?.()
       onRemove(item)
     },
     [item, onRemove]
+  )
+
+  const handleRemovePointerDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+  }, [])
+
+  const handleCardClick = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      // Guard: ignore clicks that originated from a button (delete/relink/resume)
+      if ((e.target as HTMLElement).closest('button')) return
+      resumeItem()
+    },
+    [resumeItem]
   )
 
   const handleResumeButtonClick = useCallback(
@@ -71,10 +88,6 @@ function PdfRecentListItem({
     },
     [relinkItem]
   )
-
-  const handleClick = useCallback(() => {
-    resumeItem()
-  }, [resumeItem])
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -103,7 +116,7 @@ function PdfRecentListItem({
     : {
         role: 'button' as const,
         tabIndex: 0,
-        onClick: handleClick,
+        onClick: handleCardClick,
         onKeyDown: handleKeyDown,
         'aria-label': `${t('continue_reading')}: ${item.name}`
       }
@@ -158,6 +171,8 @@ function PdfRecentListItem({
               size="sm"
               variant="outline"
               onClick={handleRelinkButtonClick}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
               aria-label={t('choose_new_location')}
             >
@@ -170,6 +185,8 @@ function PdfRecentListItem({
               size="sm"
               variant="outline"
               onClick={handleResumeButtonClick}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               className="text-foreground hover:border-ring/50 hover:bg-accent opacity-100 transition-opacity md:opacity-70 md:group-hover:opacity-100"
               aria-label={t('continue_reading')}
             >
@@ -182,13 +199,15 @@ function PdfRecentListItem({
             <WithTooltip label={t('remove_from_history')}>
               <IconButton
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="compact"
                 onClick={handleRemove}
-                className="text-muted-foreground hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive opacity-100 md:opacity-70 md:group-hover:opacity-100"
+                onPointerDown={handleRemovePointerDown}
+                onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+                className="text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 opacity-60 transition-all hover:opacity-100 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-60 md:group-hover:hover:opacity-100"
                 aria-label={t('remove_from_history')}
               >
-                <Trash2 />
+                <Trash2 className="h-3.5 w-3.5" />
               </IconButton>
             </WithTooltip>
           )}

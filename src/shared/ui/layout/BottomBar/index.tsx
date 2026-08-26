@@ -38,15 +38,12 @@ const handlebarNode = (
   </>
 )
 
-/** Memoized sparkles particles node — only created once instead of every
- *  render. Uses CSS opacity to hide during resize instead of conditional
- *  rendering, which would unmount/remount the expensive canvas on every
- *  resize start/stop.
- *  `prefersReducedMotion` is static (changes only via media query listener)
- *  so it's safe as a dep — if the user changes preference mid-session the
- *  component toggles correctly, but the common case (resize toggle) avoids
- *  the unmount cycle entirely. */
+/** Single shared particles node — one canvas instead of two.
+ *  Pauses (unmounts) during resize / reduced-motion / hidden tab to stop
+ *  the rAF loop and save GPU/battery. `loadSlim` is globally cached so
+ *  remount after resize is cheap (no re-download). */
 const SparklesNode = memo(function SparklesNode({ hidden }: { hidden: boolean }) {
+  if (hidden) return null
   return (
     <Suspense fallback={null}>
       <SparklesCore
@@ -54,7 +51,8 @@ const SparklesNode = memo(function SparklesNode({ hidden }: { hidden: boolean })
         minSize={0.4}
         maxSize={1}
         particleDensity={12}
-        className={`motion-normal pointer-events-none absolute inset-0 h-full w-full transition-opacity ${hidden ? 'opacity-0' : 'opacity-100'}`}
+        paused={hidden}
+        className="motion-normal pointer-events-none absolute inset-0 h-full w-full opacity-100"
         particleColor="#FFFFFF"
       />
     </Suspense>
@@ -164,15 +162,22 @@ function BottomBar({
     setSettingsInitialTab(undefined)
   }, [])
 
+  const shouldShowSparkles = !prefersReducedMotion && !isResizing
+
   return (
     <>
       <div
         role="presentation"
-        className="resizer-hub-container"
+        className="resizer-hub-container relative"
         style={shellStyle}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
+        {shouldShowSparkles && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+            <SparklesNode hidden={false} />
+          </div>
+        )}
         <div
           role="separator"
           aria-orientation="vertical"
@@ -188,7 +193,6 @@ function BottomBar({
           onKeyDown={handleResizerKeyDown}
         >
           {handlebarNode}
-          {!prefersReducedMotion && <SparklesNode hidden={isResizing} />}
         </div>
 
         <div
@@ -213,7 +217,6 @@ function BottomBar({
           onKeyDown={handleResizerKeyDown}
         >
           {handlebarNode}
-          {!prefersReducedMotion && <SparklesNode hidden={isResizing} />}
         </div>
       </div>
 

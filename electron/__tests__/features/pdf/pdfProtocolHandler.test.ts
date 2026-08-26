@@ -316,5 +316,25 @@ describe('local-pdf:// protocol handler', () => {
       expect(response.status).toBe(206)
       expect(response.headers.get('content-range')).toBe('bytes 0-999/1000')
     })
+
+    it('returns 416 (not a crash/500) for any range on an empty file', async () => {
+      await loadAndRegister()
+      // Both the registration stat and the streaming stat must report size 0.
+      statMock.mockReset().mockResolvedValue({ size: 0, mtimeMs: 1700000000000 })
+      const streamUrl = await registerTestPdf('/test/empty.pdf', { size: 0 })
+
+      const suffixResponse = await getProtocolHandler()(
+        makeRequest(streamUrl, { range: 'bytes=-5' })
+      )
+      expect(suffixResponse.status).toBe(416)
+      expect(suffixResponse.headers.get('content-range')).toBe('bytes */0')
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+
+      const openEndedResponse = await getProtocolHandler()(
+        makeRequest(streamUrl, { range: 'bytes=0-' })
+      )
+      expect(openEndedResponse.status).toBe(416)
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
   })
 })

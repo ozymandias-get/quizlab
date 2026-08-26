@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-import { createLocalStorageAdapter } from './storeUtils'
+import { createDebouncedStorageAdapter } from './storeUtils'
 
 type FocusMode = 'pdf' | 'ai' | null
 export type BackgroundMode = 'ambient' | 'solid'
@@ -85,7 +85,7 @@ export const useAppearance = create<AppearanceState>()(
     }),
     {
       name: 'appearance-storage',
-      storage: createLocalStorageAdapter<Partial<AppearanceState>>(),
+      storage: createDebouncedStorageAdapter<Partial<AppearanceState>>(300),
       partialize: (state) => ({
         bottomBarOpacity: state.bottomBarOpacity,
         bottomBarScale: state.bottomBarScale,

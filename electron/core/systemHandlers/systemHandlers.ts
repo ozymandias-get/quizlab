@@ -92,7 +92,9 @@ export function registerSystemHandlers() {
           const IP_RE = /^(?:\d{1,3}\.){3}\d{1,3}$/
           if (IP_RE.test(host)) return success(false)
 
-          if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return success(false)
+          // URL.hostname keeps brackets for IPv6 literals ("[::1]").
+          if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]')
+            return success(false)
 
           if (!host.includes('.')) return success(false)
         }
@@ -207,10 +209,31 @@ export function registerSystemHandlers() {
     async () => {
       try {
         const cached = getCachedCacheInfo()
-        if (cached) return success(cached)
+        if (cached) {
+          // Enrich cached with live autoClean config if possible
+          try {
+            const { getAutoCleanConfig } = await import('../cacheScheduler.js')
+            const cfg = getAutoCleanConfig()
+            if (cached.smart) {
+              cached.smart.autoClean = {
+                enabled: cfg.enabled,
+                lastAutoCleanAt: cfg.lastAutoCleanAt
+              }
+            }
+          } catch {}
+          return success(cached)
+        }
 
         const now = Date.now()
         const info = await getCacheInfo()
+        // Enrich with scheduler config
+        try {
+          const { getAutoCleanConfig } = await import('../cacheScheduler.js')
+          const cfg = getAutoCleanConfig()
+          if (info.smart) {
+            info.smart.autoClean = { enabled: cfg.enabled, lastAutoCleanAt: cfg.lastAutoCleanAt }
+          }
+        } catch {}
         setCachedCacheInfo(info, now)
         return success(info)
       } catch (error) {
@@ -220,6 +243,137 @@ export function registerSystemHandlers() {
     },
     requireTrustedIpcSender,
     success(EMPTY_CACHE_INFO)
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.GET_SMART_CACHE_INFO,
+    async () => {
+      try {
+        const info = await getCacheInfo()
+        try {
+          const { getAutoCleanConfig } = await import('../cacheScheduler.js')
+          const cfg = getAutoCleanConfig()
+          if (info.smart) {
+            info.smart.autoClean = { enabled: cfg.enabled, lastAutoCleanAt: cfg.lastAutoCleanAt }
+          }
+        } catch {}
+        return success(info)
+      } catch (error) {
+        Logger.error('[IPC] Failed to get smart cache info:', error)
+        return success(EMPTY_CACHE_INFO)
+      }
+    },
+    requireTrustedIpcSender,
+    success(EMPTY_CACHE_INFO)
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.GET_CACHE_AUTO_CLEAN,
+    async () => {
+      try {
+        const { getAutoCleanConfig } = await import('../cacheScheduler.js')
+        return success(getAutoCleanConfig())
+      } catch (error) {
+        Logger.error('[IPC] Failed to get auto clean config:', error)
+        return success({ enabled: true, lastAutoCleanAt: null, cooldownMs: 600000 })
+      }
+    },
+    requireTrustedIpcSender,
+    success({ enabled: true, lastAutoCleanAt: null, cooldownMs: 600000 })
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.SET_CACHE_AUTO_CLEAN,
+    async (_event, enabled: unknown) => {
+      try {
+        const isEnabled = Boolean(enabled)
+        const { setAutoCleanEnabled } = await import('../cacheScheduler.js')
+        setAutoCleanEnabled(isEnabled)
+        invalidateCacheInfo()
+        return success(true)
+      } catch (error) {
+        Logger.error('[IPC] Failed to set auto clean:', error)
+        return success(false)
+      }
+    },
+    requireTrustedIpcSender,
+    success(false)
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.SMART_CACHE_ACTION,
+    async (_event, action: unknown) => {
+      try {
+        const userDataPath = app.getPath('userData')
+        if (action === 'clean_cold') {
+          // Soğuk partition'ları temizle
+          const { getAllPartitionActivities, getActivityCategory } =
+            await import('../cacheRegistry.js')
+          const activities = getAllPartitionActivities()
+          const coldPartitions = Object.entries(activities)
+            .filter(([, v]) => v.category === 'cold')
+            .map(([k]) => `persist:${k}`)
+            .filter((p) => !protectedPartitions.has(p))
+
+          // Fallback: smart recommendation'dan al
+          let targets = coldPartitions
+          if (targets.length === 0) {
+            const info = await getCacheInfo()
+            targets = (info.smart?.recommendation.targetPartitions ?? []).map((k) =>
+              k.startsWith('persist:') ? k : `persist:${k}`
+            )
+          }
+
+          if (targets.length === 0) {
+            // Hiç soğuk yoksa warning seviyesinde en az bir partition temizle
+            const info = await getCacheInfo()
+            const sorted = info.smart?.partitionDetails
+              ?.filter((d) => d.category !== 'active')
+              .sort((a, b) => b.size - a.size)
+              .slice(0, 2)
+              .map((d) => `persist:${d.key}`)
+            targets = sorted ?? []
+          }
+
+          for (const partition of targets) {
+            if (protectedPartitions.has(partition)) continue
+            const pSession = session.fromPartition(partition)
+            await pSession.clearCache()
+            await pSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
+          }
+          await clearSafeCacheDirectories(userDataPath, new Set(targets))
+          // Ek: süresi dolmuş soğuk dosyaları da temizle
+          const { runIdleCleanup } = await import('../cacheCleanup/index.js')
+          await runIdleCleanup()
+          invalidateCacheInfo()
+          Logger.info(`[SmartCache] clean_cold executed for ${targets.join(', ')}`)
+          return success(true)
+        }
+
+        if (action === 'clean_all') {
+          const allPartitions = getAllPartitions()
+          const filtered = [...allPartitions].filter((p) => !protectedPartitions.has(p))
+          for (const partition of filtered) {
+            const pSession = session.fromPartition(partition)
+            await pSession.clearCache()
+            await pSession.clearStorageData({ storages: [...MODEL_STORAGE_TYPES] })
+          }
+          await clearSafeCacheDirectories(userDataPath, new Set(filtered))
+          const { runManualCleanup } = await import('../cacheCleanup/index.js')
+          await runManualCleanup()
+          invalidateCacheInfo()
+          Logger.info('[SmartCache] clean_all executed')
+          return success(true)
+        }
+
+        return success(false)
+      } catch (error) {
+        Logger.error('[IPC] Smart cache action failed:', error)
+        return success(false)
+      }
+    },
+    requireTrustedIpcSender,
+    success(false)
   )
 
   registerIpcHandler(

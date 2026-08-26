@@ -2,7 +2,6 @@ import { GeminiIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
 
-import GeminiWebRiskNotice from './geminiWebSession/GeminiWebRiskNotice'
 import GeminiWebSessionOverview from './geminiWebSession/GeminiWebSessionOverview'
 import { useGeminiWebSessionState } from './geminiWebSession/useGeminiWebSessionState'
 import SettingsTabIntro from './shared/SettingsTabIntro'
@@ -53,7 +52,6 @@ const GeminiWebSessionTab = memo(() => {
         installExtensionMutation={installExtensionMutation}
         removeExtensionMutation={removeExtensionMutation}
       />
-      <GeminiWebRiskNotice t={t} riskItems={riskItems} mitigationItems={mitigationItems} />
     </div>
   )
 })

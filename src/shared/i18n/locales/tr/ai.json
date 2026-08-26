@@ -32,9 +32,9 @@
     "open": "Açık",
     "ready": "Hazır",
     "new_tab": "Yeni sekme",
-    "empty_sites_title": "Site koleksiyonu henüz boş",
-    "empty_sites_description": "Ana sayfayı güçlü bir başlatıcıya dönüştürmek için YouTube veya kendi çalışma sitelerinizi ekleyebilirsiniz.",
-    "empty_sites_hint": "Ayarlar > Siteler",
+    "empty_sites_title": "Henüz site eklenmedi",
+    "empty_sites_description": "YouTube veya sık kullandığınız siteleri ekleyerek bu alanı kişisel başlatıcınıza dönüştürün.",
+    "empty_sites_hint": "Ayarlar → Siteler",
     "get_started_hint": "Başlamak için bir model veya site seçin.",
     "refresh_page": "Sayfayı yenile"
   },

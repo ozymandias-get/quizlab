@@ -121,8 +121,9 @@ describe('BottomBar', () => {
     const { container } = render(<BottomBar />)
     const dragAreas = container.querySelectorAll('.resizer-drag-area')
     expect(dragAreas.length).toBe(2)
+    // Single shared sparkles canvas covering the hub (perf: 1 canvas vs 2)
     const sparkles = screen.getAllByTestId('sparkles-core')
-    expect(sparkles.length).toBe(2)
+    expect(sparkles.length).toBe(1)
   })
 
   it('renders the gradient line and handlebar in each drag area', () => {

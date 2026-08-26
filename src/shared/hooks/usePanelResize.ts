@@ -5,6 +5,7 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState
 } from 'react'
@@ -203,16 +204,28 @@ export function usePanelResize({
     }
   }, [])
 
-  return {
-    leftPanelWidth: clampedPercentage,
-    setLeftPanelWidth,
-    isResizing,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-    handleLostPointerCapture,
-    nudgeLeftPanelWidth,
-    leftPanelRef,
-    resizerRef
-  }
+  return useMemo(
+    () => ({
+      leftPanelWidth: clampedPercentage,
+      setLeftPanelWidth,
+      isResizing,
+      handlePointerDown,
+      handlePointerMove,
+      handlePointerUp,
+      handleLostPointerCapture,
+      nudgeLeftPanelWidth,
+      leftPanelRef,
+      resizerRef
+    }),
+    [
+      clampedPercentage,
+      setLeftPanelWidth,
+      isResizing,
+      handlePointerDown,
+      handlePointerMove,
+      handlePointerUp,
+      handleLostPointerCapture,
+      nudgeLeftPanelWidth
+    ]
+  )
 }

@@ -12,7 +12,11 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import type * as ChatUiStoreModule from '../../../features/ai/store/chatUiStore'
 import { toErrorToastKey } from './errorToastKey'
-import { scheduleApiChatSend, waitForApiChatTab } from './lib/apiChatSend'
+import {
+  cancelScheduledApiChatSends,
+  scheduleApiChatSend,
+  waitForApiChatTab
+} from './lib/apiChatSend'
 import { waitForWebviewReadyForSend } from './webviewSendReadiness'
 
 let chatUiStoreModule: typeof ChatUiStoreModule | null = null
@@ -50,9 +54,10 @@ export function useAiMessaging({
   activeTabIdRef.current = activeTabId
 
   useEffect(() => {
-    const timeout = apiChatSendTimeoutRef.current
+    const timeoutRef = apiChatSendTimeoutRef
     return () => {
-      if (timeout) clearTimeout(timeout)
+      // Settle any awaiting senders instead of leaving their promises pending.
+      cancelScheduledApiChatSends(timeoutRef)
     }
   }, [])
 

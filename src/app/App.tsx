@@ -61,11 +61,13 @@ function App() {
     isPanelResizing: panelResize.isResizing
   })
 
+  // Keep shortcut stable — readingProps changes shouldn't rebind the global handler.
+  usePdfShortcuts({ onSelectPdf: leftPanelProps?.onSelectPdf })
+
   const combinedLeftPanelProps = useMemo(
-    () => ({ ...leftPanelProps, ...readingProps }),
+    () => ({ ...(leftPanelProps ?? {}), ...(readingProps ?? {}) }),
     [leftPanelProps, readingProps]
   )
-  usePdfShortcuts({ onSelectPdf: combinedLeftPanelProps.onSelectPdf })
   const {
     leftPanelWidth,
     leftPanelRef,
