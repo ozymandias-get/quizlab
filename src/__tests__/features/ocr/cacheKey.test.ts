@@ -31,7 +31,7 @@ describe('createOcrCacheKey', () => {
       fingerprint: 'fp1',
       pageNumber: 3,
       engine: 'hybrid',
-      config: { language: 'auto', quality: 'balanced', forceOcr: false }
+      config: { language: 'auto', quality: 'balanced', sensitivity: 'medium', forceOcr: false }
     })
     expect(key).toContain(`ocr:v${OCR_CACHE_SCHEMA_VERSION}:`)
     expect(key).toContain(':3:')
@@ -43,11 +43,11 @@ describe('createOcrCacheKey', () => {
     const base = { fingerprint: 'fp', pageNumber: 1, engine: 'hybrid' } as const
     const k1 = createOcrCacheKey({
       ...base,
-      config: { language: 'auto', quality: 'balanced', forceOcr: false }
+      config: { language: 'auto', quality: 'balanced', sensitivity: 'medium', forceOcr: false }
     })
     const k2 = createOcrCacheKey({
       ...base,
-      config: { language: 'tr', quality: 'balanced', forceOcr: false }
+      config: { language: 'tr', quality: 'balanced', sensitivity: 'medium', forceOcr: false }
     })
     expect(k1).not.toBe(k2)
   })
@@ -57,13 +57,13 @@ describe('createOcrCacheKey', () => {
       fingerprint: 'fp',
       pageNumber: 1,
       engine: 'hybrid',
-      config: { language: 'auto', quality: 'balanced', forceOcr: false }
+      config: { language: 'auto', quality: 'balanced', sensitivity: 'medium', forceOcr: false }
     })
     const k2 = createOcrCacheKey({
       fingerprint: 'fp',
       pageNumber: 2,
       engine: 'hybrid',
-      config: { language: 'auto', quality: 'balanced', forceOcr: false }
+      config: { language: 'auto', quality: 'balanced', sensitivity: 'medium', forceOcr: false }
     })
     expect(k1).not.toBe(k2)
   })

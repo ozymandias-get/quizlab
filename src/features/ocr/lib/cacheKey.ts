@@ -28,7 +28,9 @@ function hashString(s: string): string {
 }
 
 function hashConfig(config: OcrConfig): string {
-  return hashString(`${config.language}:${config.quality}:${config.forceOcr ? '1' : '0'}`)
+  return hashString(
+    `${config.language}:${config.quality}:${config.sensitivity}:${config.forceOcr ? '1' : '0'}`
+  )
 }
 
 export function createOcrCacheKey(params: {
