@@ -182,10 +182,14 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   }, [pdfFile, pdfUrl, currentPage, processPage, setContextMenu])
 
   const handleOcrSelection = useCallback(() => {
-    if (!pdfFile) return
+    if (!pdfFile) {
+      showWarning(tt('pdf_no_text_found'))
+      return
+    }
     setContextMenu(null)
+    // Ensure any previous OCR panel is visible while selecting
     startOcrSelectionRaw()
-  }, [pdfFile, setContextMenu, startOcrSelectionRaw])
+  }, [pdfFile, setContextMenu, showWarning, startOcrSelectionRaw, tt])
 
   useEffect(() => {
     isTransitioningRef.current = true
