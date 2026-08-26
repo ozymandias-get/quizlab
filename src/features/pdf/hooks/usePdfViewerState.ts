@@ -1,4 +1,5 @@
 import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
 
 import { useAppToolActions } from '@app/providers/AppToolContext'
 import { useToastActions } from '@shared/stores/toastStore'
@@ -60,7 +61,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const { queueTextForAi } = useAppToolActions()
   const { showSuccess, showWarning } = useToastActions()
   const { t: tt } = useTranslation()
-  const { processPage } = useOcrActions()
+  const { processPage, processArea } = useOcrActions()
   const zoomToRef = useRef<(scale: number | SpecialZoomLevel) => void>(() => {})
   const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
   const extractCurrentPageTextRef = useRef<() => string | null>(() => null)
@@ -96,6 +97,22 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     initialPage,
     onReadingProgressChange
   })
+
+  const pdfFileRef = useRef(pdfFile)
+  pdfFileRef.current = pdfFile
+
+  // OCR area selection — local screenshot for OCR (separate from global AI screenshot)
+  const {
+    isScreenshotMode: isOcrSelectionMode,
+    startScreenshot: startOcrSelectionRaw,
+    closeScreenshot: closeOcrSelection,
+    handleCapture: handleOcrSelectionCaptureRaw
+  } = useScreenshot(async (dataUrl: string) => {
+    const file = pdfFileRef.current
+    if (!file) return
+    await processArea({ dataUrl, pageNumber: currentPageRef.current, pdfFile: file })
+  })
+
   useEffect(() => {
     isMountedRef.current = true
     isTransitioningRef.current = false
@@ -167,10 +184,8 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const handleOcrSelection = useCallback(() => {
     if (!pdfFile) return
     setContextMenu(null)
-    // Area OCR: for now, trigger full page OCR (selection OCR requires screenshot capture + OCR pipeline)
-    // Future: startScreenshot({ page: currentPage, captureKind: 'selection' }) with OCR flag and handle capture via processSelection
-    void processPage({ pageNumber: currentPage, pdfFile, pdfUrl })
-  }, [pdfFile, pdfUrl, currentPage, processPage, setContextMenu])
+    startOcrSelectionRaw()
+  }, [pdfFile, setContextMenu, startOcrSelectionRaw])
 
   useEffect(() => {
     isTransitioningRef.current = true
@@ -260,7 +275,10 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     handlePageChange,
     highlight,
     clearHighlights,
-    tt
+    tt,
+    isOcrSelectionMode,
+    handleOcrSelectionCapture: handleOcrSelectionCaptureRaw,
+    closeOcrSelection
   }
 }
 

@@ -19,7 +19,7 @@ function getHybridProvider(
   config: OcrConfig,
   signal?: AbortSignal
 ): Promise<ReturnType<typeof createHybridProvider>> {
-  const key = `${config.language}:${config.quality}:${config.forceOcr ? '1' : '0'}`
+  const key = `${config.language}:${config.quality}:${config.sensitivity}:${config.forceOcr ? '1' : '0'}`
   if (hybridProvider && providerConfigKey === key) return Promise.resolve(hybridProvider)
   if (providerInitPromise && providerConfigKey === key)
     return providerInitPromise.then(() => hybridProvider!)
@@ -338,6 +338,140 @@ export function useOcrActions() {
     [showError]
   )
 
+  const processArea = useCallback(
+    async (params: {
+      dataUrl: string
+      pageNumber: number
+      pdfFile: {
+        path?: string | null
+        name?: string | null
+        size?: number | null
+        streamUrl?: string | null
+      }
+    }) => {
+      const { dataUrl, pageNumber, pdfFile } = params
+      const store = useOcrStore.getState()
+      // Force OCR for selections — selections are always image-based
+      const config: OcrConfig = { ...store.config, forceOcr: true }
+      const fingerprint = createDocumentFingerprint(pdfFile)
+      const documentId = fingerprint
+
+      queueAbortRef.current?.()
+      abortRef.current?.abort(new DOMException('Superseded', 'AbortError'))
+
+      const token = store.bumpToken()
+      const abortController = new AbortController()
+      abortRef.current = abortController
+
+      useOcrStore.setState({
+        status: 'processing',
+        currentPage: pageNumber,
+        currentDocumentId: documentId,
+        error: null,
+        isPanelOpen: true
+      })
+
+      Logger.info(`[OCR] area job start page ${pageNumber} fp=${fingerprint.slice(0, 24)}...`)
+
+      const jobPromise = new Promise<OcrPageResult | null>((resolve, reject) => {
+        const { promise, abort } = globalOcrQueue.enqueue(async (signal) => {
+          const combined = new AbortController()
+          const onAbort = () => combined.abort(signal.reason ?? abortController.signal.reason)
+          signal.addEventListener('abort', onAbort, { once: true })
+          abortController.signal.addEventListener('abort', onAbort, { once: true })
+
+          try {
+            if (useOcrStore.getState().requestToken !== token)
+              throw new DOMException('Stale', 'AbortError')
+            useOcrStore.setState({ status: 'initializing-engine' })
+            const provider = await getHybridProvider(config, combined.signal)
+            if (combined.signal.aborted) throw new DOMException('Aborted', 'AbortError')
+            if (useOcrStore.getState().requestToken !== token)
+              throw new DOMException('Stale', 'AbortError')
+            useOcrStore.setState({ status: 'processing' })
+
+            const result = await provider.processPage(
+              {
+                id: `ocr-area-${fingerprint}-${pageNumber}-${Date.now()}`,
+                pageNumber,
+                documentId,
+                documentFingerprint: fingerprint,
+                config,
+                signal: combined.signal
+              },
+              dataUrl
+            )
+
+            if (useOcrStore.getState().requestToken !== token)
+              throw new DOMException('Stale', 'AbortError')
+            if (combined.signal.aborted) throw new DOMException('Aborted', 'AbortError')
+
+            // Prefix markdown to indicate it was an area selection
+            const areaResult: OcrPageResult = {
+              ...result,
+              markdown: result.markdown,
+              blocks: result.blocks
+              // keep original pageNumber
+            }
+
+            useOcrStore.setState({
+              result: areaResult,
+              status: 'success',
+              error: null,
+              currentPage: pageNumber,
+              currentDocumentId: documentId
+            })
+            Logger.info(
+              `[OCR] area completed page ${pageNumber} engine=${result.engine} len=${result.markdown.length}`
+            )
+            resolve(areaResult)
+          } catch (err) {
+            const isAbort =
+              (err as DOMException).name === 'AbortError' ||
+              (err as Error).message === 'Stale' ||
+              (err as Error).message === 'Aborted'
+            const isStale = (err as Error).message === 'Stale'
+            if (isStale || (isAbort && useOcrStore.getState().requestToken !== token)) {
+              Logger.debug('[OCR] area stale/aborted ignored', err)
+              resolve(null)
+              return
+            }
+            if (isAbort) {
+              useOcrStore.setState({ status: 'cancelled' })
+              Logger.info('[OCR] area job aborted', err)
+              resolve(null)
+              return
+            }
+            const message = err instanceof Error ? err.message : String(err)
+            const userMessage = mapErrorToUserMessage(message)
+            useOcrStore.setState({ status: 'error', error: userMessage })
+            Logger.error('[OCR] area job failed', err)
+            showError(userMessage)
+            reject(err)
+          } finally {
+            signal.removeEventListener('abort', onAbort)
+            abortController.signal.removeEventListener('abort', onAbort)
+          }
+        }, abortController.signal)
+
+        queueAbortRef.current = abort
+        promise.then(() => resolve(null)).catch(reject)
+      })
+
+      try {
+        const res = await jobPromise
+        queueAbortRef.current = null
+        abortRef.current = null
+        return res
+      } catch {
+        queueAbortRef.current = null
+        abortRef.current = null
+        return null
+      }
+    },
+    [showError]
+  )
+
   const retry = useCallback(async () => {
     const s = useOcrStore.getState()
     if (s.currentPage == null) return
@@ -349,7 +483,7 @@ export function useOcrActions() {
     Logger.info('[OCR] retry requested')
   }, [])
 
-  return { processPage, cancel, retry }
+  return { processPage, processArea, cancel, retry }
 }
 
 function mapErrorToUserMessage(code: string): string {
