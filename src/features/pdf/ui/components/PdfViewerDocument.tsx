@@ -115,10 +115,10 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
           />
         )}
 
-        {/* OCR Result — floating draggable panel, top-right, does not obscure PDF center */}
+        {/* OCR Result — centered floating draggable panel, does not hide PDF bottom */}
         {ocrIsOpen && (
-          <div className="pointer-events-none absolute inset-0 z-20">
-            <div className="pointer-events-auto absolute top-3 right-3 sm:top-4 sm:right-4">
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4">
+            <div className="pointer-events-auto flex w-full justify-center">
               <OcrResultPanel
                 result={ocrResult}
                 status={ocrStatus}
