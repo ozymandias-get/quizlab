@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 import type { OcrConfig, OcrPageResult, OcrStatus } from '../types'
 import { DEFAULT_OCR_CONFIG } from '../types'
@@ -42,48 +43,75 @@ const initialState: OcrStoreState = {
   requestToken: 0
 }
 
-export const useOcrStore = create<OcrStore>((set, get) => ({
-  ...initialState,
+export const useOcrStore = create<OcrStore>()(
+  persist(
+    (set, get) => ({
+      ...initialState,
 
-  setStatus: (status) => set({ status }),
+      setStatus: (status) => set({ status }),
 
-  setResult: (result, page, docId) =>
-    set({
-      result,
-      error: null,
-      status: result ? 'success' : get().status,
-      currentPage: page ?? get().currentPage,
-      currentDocumentId: docId ?? get().currentDocumentId
+      setResult: (result, page, docId) =>
+        set({
+          result,
+          error: null,
+          status: result ? 'success' : get().status,
+          currentPage: page ?? get().currentPage,
+          currentDocumentId: docId ?? get().currentDocumentId
+        }),
+
+      setError: (error) => set({ error, status: error ? 'error' : get().status }),
+
+      openPanel: () => set({ isPanelOpen: true }),
+      closePanel: () => set({ isPanelOpen: false }),
+
+      setCurrentRequest: (currentPage, currentDocumentId, jobId) =>
+        set({ currentPage, currentDocumentId, jobId, error: null }),
+
+      setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
+
+      reset: () =>
+        set({
+          status: 'idle',
+          error: null,
+          result: null,
+          currentPage: null,
+          currentDocumentId: null,
+          jobId: null,
+          isPanelOpen: false,
+          requestToken: get().requestToken + 1
+        }),
+
+      bumpToken: () => {
+        const next = get().requestToken + 1
+        set({ requestToken: next })
+        return next
+      }
     }),
-
-  setError: (error) => set({ error, status: error ? 'error' : get().status }),
-
-  openPanel: () => set({ isPanelOpen: true }),
-  closePanel: () => set({ isPanelOpen: false }),
-
-  setCurrentRequest: (currentPage, currentDocumentId, jobId) =>
-    set({ currentPage, currentDocumentId, jobId, error: null }),
-
-  setConfig: (patch) => set((s) => ({ config: { ...s.config, ...patch } })),
-
-  reset: () =>
-    set({
-      status: 'idle',
-      error: null,
-      result: null,
-      currentPage: null,
-      currentDocumentId: null,
-      jobId: null,
-      isPanelOpen: false,
-      requestToken: get().requestToken + 1
-    }),
-
-  bumpToken: () => {
-    const next = get().requestToken + 1
-    set({ requestToken: next })
-    return next
-  }
-}))
+    {
+      name: 'ocr-storage',
+      partialize: (state) => ({ config: state.config }) as unknown as OcrStoreState,
+      version: 1,
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<OcrStoreState> | undefined
+        const cfg = (persisted?.config ?? {}) as Partial<OcrConfig>
+        return {
+          ...currentState,
+          ...(persisted ?? {}),
+          config: { ...DEFAULT_OCR_CONFIG, ...cfg },
+          // transient fields must not be restored from storage
+          status: 'idle' as OcrStatus,
+          result: null,
+          error: null,
+          isPanelOpen: false,
+          currentPage: null,
+          currentDocumentId: null,
+          jobId: null,
+          requestToken: 0
+        } as OcrStore
+      }
+    }
+  )
+)
 
 export function resetOcrStore(): void {
   useOcrStore.setState({ ...initialState, config: { ...DEFAULT_OCR_CONFIG } })

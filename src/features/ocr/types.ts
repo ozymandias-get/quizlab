@@ -15,6 +15,8 @@ export type OcrLanguage = 'auto' | 'tr' | 'en'
 
 export type OcrQualityPreset = 'fast' | 'balanced' | 'high'
 
+export type OcrSensitivity = 'low' | 'medium' | 'high'
+
 export type OcrStatus =
   | 'idle'
   | 'rendering-page'
@@ -27,12 +29,14 @@ export type OcrStatus =
 export interface OcrConfig {
   language: OcrLanguage
   quality: OcrQualityPreset
+  sensitivity: OcrSensitivity
   forceOcr: boolean
 }
 
 export const DEFAULT_OCR_CONFIG: OcrConfig = {
   language: 'auto',
   quality: 'balanced',
+  sensitivity: 'medium',
   forceOcr: false
 }
 

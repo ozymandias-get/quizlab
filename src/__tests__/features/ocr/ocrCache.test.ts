@@ -16,7 +16,7 @@ function fakeResult(over: Partial<OcrPageResult> = {}): OcrPageResult {
     engine: 'hybrid',
     engineVersion: '1.0.0',
     createdAt: Date.now(),
-    config: { language: 'auto', quality: 'balanced', forceOcr: false },
+    config: { language: 'auto', quality: 'balanced', sensitivity: 'medium', forceOcr: false },
     isNativeText: true,
     readingOrder: 'single-column',
     ...over
