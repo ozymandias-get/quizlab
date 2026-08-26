@@ -1,6 +1,7 @@
 import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
 import { useOcrStore } from '@features/ocr/store/useOcrStore'
 import OcrResultPanel from '@features/ocr/ui/OcrResultPanel'
+import ScreenshotTool from '@features/screenshot/ui/ScreenshotTool'
 
 import { useAppToolActions } from '@app/providers/AppToolContext'
 
@@ -38,7 +39,10 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     PluginZoomIn,
     PluginZoomOut,
     CurrentScale,
-    handleAddCurrentPageTextToAi
+    handleAddCurrentPageTextToAi,
+    isOcrSelectionMode,
+    handleOcrSelectionCapture,
+    closeOcrSelection
   } = usePdfViewerState(props)
 
   const { pdfFile, autoSend, onToggleAutoSend, pdfUrl } = props
@@ -115,6 +119,16 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
             y={contextMenu.y}
             items={menuItems}
             onClose={handleCloseContextMenu}
+          />
+        )}
+
+        {isOcrSelectionMode && (
+          <ScreenshotTool
+            isActive={isOcrSelectionMode}
+            onCapture={async (image) => {
+              await handleOcrSelectionCapture(image as string)
+            }}
+            onClose={closeOcrSelection}
           />
         )}
       </div>
