@@ -1,4 +1,8 @@
-import { memo, useMemo } from 'react'
+import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { useOcrStore } from '@features/ocr/store/useOcrStore'
+import OcrResultPanel from '@features/ocr/ui/OcrResultPanel'
+
+import { memo, useCallback, useMemo } from 'react'
 
 import { type PdfViewerDocumentProps, usePdfViewerState } from '../../hooks/usePdfViewerState'
 import ContextMenu from './ContextMenu'
@@ -35,12 +39,36 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     handleAddCurrentPageTextToAi
   } = usePdfViewerState(props)
 
-  const { pdfFile, autoSend, onToggleAutoSend } = props
+  const { pdfFile, autoSend, onToggleAutoSend, pdfUrl } = props
+  const ocrStatus = useOcrStore((s) => s.status)
+  const ocrResult = useOcrStore((s) => s.result)
+  const ocrError = useOcrStore((s) => s.error)
+  const ocrIsOpen = useOcrStore((s) => s.isPanelOpen)
+  const ocrCurrentPage = useOcrStore((s) => s.currentPage)
+  const ocrClosePanel = useOcrStore((s) => s.closePanel)
+  const { processPage, cancel } = useOcrActions()
+
+  const handleOcrClose = useCallback(() => {
+    if (
+      ocrStatus === 'processing' ||
+      ocrStatus === 'rendering-page' ||
+      ocrStatus === 'initializing-engine'
+    ) {
+      cancel()
+    }
+    ocrClosePanel()
+  }, [cancel, ocrClosePanel, ocrStatus])
+
+  const handleOcrRetry = useCallback(() => {
+    if (!pdfFile) return
+    const page = ocrCurrentPage ?? currentPage
+    void processPage({ pageNumber: page, pdfFile, pdfUrl })
+  }, [pdfFile, pdfUrl, ocrCurrentPage, currentPage, processPage])
 
   const viewerElement = useMemo(
     () => (
       <PdfViewerElement
-        pdfUrl={props.pdfUrl}
+        pdfUrl={pdfUrl}
         viewerReloadKey={viewerReloadKey}
         plugins={plugins}
         onPageChange={handlePageChange}
@@ -51,7 +79,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
       />
     ),
     [
-      props.pdfUrl,
+      pdfUrl,
       viewerReloadKey,
       plugins,
       handlePageChange,
@@ -81,10 +109,27 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
             onClose={handleCloseContextMenu}
           />
         )}
+
+        {/* OCR Result drawer — glassmorphism, premium, non-blocking */}
+        {ocrIsOpen && (
+          <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex justify-center">
+            <div className="pointer-events-auto w-full max-w-3xl">
+              <OcrResultPanel
+                result={ocrResult}
+                status={ocrStatus}
+                error={ocrError}
+                pageNumber={ocrCurrentPage}
+                onClose={handleOcrClose}
+                onRetry={handleOcrRetry}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <PdfToolbar
         pdfFile={pdfFile}
+        pdfUrl={pdfUrl}
         onStartScreenshot={handleAreaScreenshot}
         onFullPageScreenshot={handleFullPageScreenshot}
         autoSend={autoSend}

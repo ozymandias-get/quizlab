@@ -55,7 +55,7 @@ export function useDeepCleanCache() {
 }
 
 /**
- * Cache Info Query
+ * Cache Info Query (smart enriched)
  */
 export function useCacheInfo() {
   return useElectronQuery({
@@ -66,6 +66,82 @@ export function useCacheInfo() {
       refetchOnWindowFocus: false
     }
   })
+}
+
+export function useSmartCacheInfo() {
+  return useElectronQuery({
+    key: ['system', 'smart-cache-info'],
+    queryFn: (api) => (api.getSmartCacheInfo ? api.getSmartCacheInfo() : api.getCacheInfo()),
+    options: {
+      staleTime: 30 * 1000,
+      refetchOnWindowFocus: false
+    }
+  })
+}
+
+export function useCacheAutoClean() {
+  return useElectronQuery({
+    key: ['system', 'cache-auto-clean'],
+    queryFn: (api) => api.getCacheAutoClean?.(),
+    options: {
+      staleTime: 60 * 1000
+    }
+  })
+}
+
+export function useSetCacheAutoClean() {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  return useElectronMutation<boolean, boolean>((api, enabled) => api.setCacheAutoClean(enabled), {
+    errorMessage: t('toast_cache_cleared_failed'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+      queryClient.invalidateQueries({ queryKey: ['system', 'cache-auto-clean'] })
+    }
+  })
+}
+
+export function useSmartCacheAction() {
+  const queryClient = useQueryClient()
+  const { showSuccess } = useToastActions()
+  const { t } = useTranslation()
+  return useElectronMutation<boolean, 'clean_cold' | 'clean_all'>(
+    (api, action) => api.smartCacheAction(action),
+    {
+      errorMessage: t('toast_cache_cleared_failed'),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+        queryClient.invalidateQueries({ queryKey: ['system', 'smart-cache-info'] })
+        showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
+      }
+    }
+  )
+}
+
+export function useClearPartitionCache() {
+  const queryClient = useQueryClient()
+  const { showSuccess } = useToastActions()
+  const { t } = useTranslation()
+  return useElectronMutation<boolean, { partition: string }>(
+    (api, input) => {
+      const partition = input.partition.startsWith('persist:')
+        ? input.partition
+        : `persist:${input.partition}`
+      const rawKey = partition.replace(/^persist:/, '')
+      const id = rawKey.startsWith('ai_') ? rawKey.replace(/^ai_/, '') : rawKey
+      // id may be empty or not match, but clearAiModelData will fallback to partition check
+      return api.clearAiModelData({ id, partition } as unknown as Parameters<
+        typeof api.clearAiModelData
+      >[0])
+    },
+    {
+      errorMessage: t('toast_cache_cleared_failed'),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+        showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
+      }
+    }
+  )
 }
 
 /**

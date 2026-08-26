@@ -1,5 +1,9 @@
 import type { PdfFile } from '@shared-core/types'
 
+import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { useOcrStore } from '@features/ocr/store/useOcrStore'
+import OcrButton from '@features/ocr/ui/OcrButton'
+
 import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
 import { ToolbarGroup } from '@shared/ui/components/primitives'
@@ -17,6 +21,7 @@ import PdfZoomControls, { type CurrentScaleComponent, type ZoomComponent } from 
 
 interface PdfToolbarProps {
   pdfFile: PdfFile | null
+  pdfUrl?: string | null
   onStartScreenshot: () => void
   onFullPageScreenshot: () => void
   autoSend: boolean
@@ -38,6 +43,7 @@ interface PdfToolbarProps {
 
 function PdfToolbar({
   pdfFile,
+  pdfUrl,
   onStartScreenshot,
   onFullPageScreenshot,
   autoSend,
@@ -135,6 +141,24 @@ function PdfToolbar({
     [scheduleHighlight]
   )
 
+  // OCR handler: on-demand page-level OCR
+  const { processPage } = useOcrActions()
+  const ocrStatus = useOcrStore((s) => s.status)
+  const isOcrLoading =
+    ocrStatus === 'rendering-page' ||
+    ocrStatus === 'initializing-engine' ||
+    ocrStatus === 'processing'
+  const handleOcrPage = useCallback(() => {
+    if (!pdfFile) return
+    // Do not re-trigger if already processing same page
+    if (isOcrLoading) return
+    void processPage({
+      pageNumber: currentPage,
+      pdfFile,
+      pdfUrl: pdfUrl ?? pdfFile.streamUrl ?? null
+    })
+  }, [pdfFile, pdfUrl, currentPage, isOcrLoading, processPage])
+
   return (
     <motion.div
       initial={{ y: 10, opacity: 0 }}
@@ -175,6 +199,13 @@ function PdfToolbar({
           autoSend={autoSend}
           onToggleAutoSend={onToggleAutoSend}
         />
+
+        {/* OCR — page-level on-demand, premium glassmorphism, no toolbar crowding */}
+        {pdfFile && (
+          <ToolbarGroup>
+            <OcrButton onClick={handleOcrPage} currentPage={currentPage} disabled={!pdfFile} />
+          </ToolbarGroup>
+        )}
       </div>
 
       <div className="mx-2 flex min-w-0 flex-1 items-center justify-center">

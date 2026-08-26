@@ -31,16 +31,62 @@ export function useClipboard(timeoutMs: number = COPY_FEEDBACK_MS): UseClipboard
 
   const copy = useCallback(
     async (text: string): Promise<boolean> => {
+      // 1) Electron IPC (en güvenilir - throttling/sanitize main'de yapılır)
+      const electronCopy = (
+        window as unknown as {
+          electronAPI?: { copyTextToClipboard?: (t: string) => Promise<boolean> }
+        }
+      )?.electronAPI?.copyTextToClipboard
+      if (typeof electronCopy === 'function') {
+        try {
+          const ok = await electronCopy(text)
+          if (ok) {
+            setIsCopied(true)
+            if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
+            timeoutRef.current = setTimeout(() => setIsCopied(false), timeoutMs)
+            return true
+          }
+        } catch {
+          // fallback to navigator
+        }
+      }
+
+      // 2) Modern async clipboard
       try {
         await navigator.clipboard.writeText(text)
+        setIsCopied(true)
+        if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
+        timeoutRef.current = setTimeout(() => setIsCopied(false), timeoutMs)
+        return true
       } catch {
-        showError('toast_clipboard_failed')
-        return false
+        // fallback to legacy execCommand
       }
-      setIsCopied(true)
-      if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
-      timeoutRef.current = setTimeout(() => setIsCopied(false), timeoutMs)
-      return true
+
+      // 3) Legacy execCommand fallback (http, insecure context, permission yok)
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.setAttribute('readonly', '')
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        ta.style.pointerEvents = 'none'
+        document.body.appendChild(ta)
+        ta.select()
+        ta.setSelectionRange(0, ta.value.length)
+        const ok = document.execCommand('copy')
+        document.body.removeChild(ta)
+        if (ok) {
+          setIsCopied(true)
+          if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
+          timeoutRef.current = setTimeout(() => setIsCopied(false), timeoutMs)
+          return true
+        }
+      } catch {
+        // ignore
+      }
+
+      showError('toast_clipboard_failed')
+      return false
     },
     [showError, timeoutMs]
   )

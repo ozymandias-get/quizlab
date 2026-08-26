@@ -57,13 +57,19 @@ function invalidateQueriesForStorageKey(key: string): void {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
       return
     }
-    // Generic: any query whose key contains this storage key
+    // Fast-path: most storage-backed queries use [storageKey] as their key.
+    // This uses TanStack's built-in prefix match (cheaper than a predicate scan).
+    queryClient.invalidateQueries({ queryKey: [key] } as never)
+    // Fallback: invalidate any query where the key appears beyond the first segment
+    // (legacy). Check only first element via predicate — cheaper than `includes` over
+    // the whole key array for every query in the cache.
     queryClient.invalidateQueries({
       predicate: (query: { queryKey: unknown[] }) =>
-        Array.isArray(query.queryKey) && query.queryKey.includes(key)
+        Array.isArray(query.queryKey) &&
+        query.queryKey.length > 1 &&
+        query.queryKey[0] !== key &&
+        (query.queryKey as unknown[]).includes(key)
     } as unknown as never)
-    // Exact fallback for tests that use the raw storage key as queryKey
-    queryClient.invalidateQueries({ queryKey: [key] } as never)
   } catch {
     // Never break storage sync due to query errors
   }

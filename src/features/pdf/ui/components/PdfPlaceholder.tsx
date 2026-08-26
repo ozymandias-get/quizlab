@@ -94,7 +94,7 @@ function PdfPlaceholder({
         </div>
 
         {/* Recent Reading Section */}
-        <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto">
+        <div className="custom-scrollbar flex min-h-0 w-full flex-1 [scrollbar-gutter:stable] flex-col gap-2 overflow-y-auto pr-1">
           <PdfRecentControls
             t={t}
             recentCount={recentItems.length}

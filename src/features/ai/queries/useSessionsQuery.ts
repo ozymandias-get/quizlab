@@ -1,6 +1,6 @@
 import { QUERY_KEYS } from '@shared/query/queryKeys'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   clearSessionMessages,
@@ -12,6 +12,15 @@ import {
 } from '../api/sessions.api'
 import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
+
+/**
+ * Read-modify-write source for mutations. Falls back to storage when the
+ * query cache has never been hydrated — treating "not loaded yet" as
+ * "empty" would persist a truncated list and destroy stored history.
+ */
+function currentSessions(queryClient: QueryClient): ChatSession[] {
+  return queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
+}
 
 // Rebinds every tab whose activeSessionId no longer exists in the session
 // list (e.g. after clear-all or deleting the active session). Without this,
@@ -42,7 +51,7 @@ export function useCreateSessionMutation() {
   return useMutation({
     mutationFn: async () => {
       const newSession = createNewSession()
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
+      const prev = currentSessions(queryClient)
       const updated = [newSession, ...prev]
       persistSessions(updated)
       return { session: newSession, allSessions: updated }
@@ -58,7 +67,7 @@ export function useDeleteSessionMutation() {
 
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
+      const prev = currentSessions(queryClient)
       const updated = deleteSessionFromList(prev, sessionId)
       persistSessions(updated)
       return { deletedId: sessionId, allSessions: updated }
@@ -75,7 +84,7 @@ export function useRenameSessionMutation() {
 
   return useMutation({
     mutationFn: async ({ sessionId, title }: { sessionId: string; title: string }) => {
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
+      const prev = currentSessions(queryClient)
       const updated = renameSession(prev, sessionId, title)
       persistSessions(updated)
       return updated
@@ -91,7 +100,7 @@ export function useClearSessionMutation() {
 
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
+      const prev = currentSessions(queryClient)
       const updated = clearSessionMessages(prev, sessionId)
       persistSessions(updated)
       return updated

@@ -3,6 +3,7 @@ import path from 'path'
 
 import { APP_CONFIG } from '../../app/constants.js'
 import { collectExpiredFiles, getDirectorySize, measureCacheBreakdown } from '../cacheMonitor.js'
+import { getActivityCategory } from '../cacheRegistry.js'
 import { getCacheRules } from '../cacheRegistry.js'
 import { Logger } from '../logger.js'
 import {
@@ -73,13 +74,16 @@ async function trimPartitionCache(
   let totalDeleted = 0
   let totalFreed = 0
   let totalErrors = 0
-  let currentSize = 0
 
   for (const cacheDir of SAFE_CACHE_DIRS) {
     const dirPath = path.join(userDataPath, 'Partitions', partitionKey, cacheDir)
     const expired = await collectExpiredFiles(dirPath, userDataPath, 0)
     if (expired.length === 0) continue
 
+    // Re-measure per directory: carrying currentSize over from the previous
+    // cache dir would compare a foreign size against this dir's target and
+    // skip trimming dirs that are still over the limit.
+    let currentSize = 0
     const sorted = expired.sort((a, b) => a.mtimeMs - b.mtimeMs)
 
     for (let i = 0; i < sorted.length; i += batchSize) {
@@ -124,13 +128,24 @@ async function enforceSizeLimits(
   let bytesToFree = excessBytes
   const batchSize = BATCH_DELETE_SIZE_HEAVY
 
-  const partitionEntries = Object.entries(breakdown.partitionCaches).sort(([, a], [, b]) => b - a)
+  // Akıllı eviction: soğuk > pasif > aktif, aynı kategoride büyük önce
+  const partitionEntries = Object.entries(breakdown.partitionCaches)
+    .map(([key, size]) => ({ key, size, category: getActivityCategory(key) }))
+    .sort((a, b) => {
+      const order = { cold: 0, passive: 1, active: 2 } as const
+      if (order[a.category] !== order[b.category]) return order[a.category] - order[b.category]
+      return b.size - a.size
+    })
 
-  for (const [key, size] of partitionEntries) {
+  // 1. Önce limiti aşan partition'ları hedefle (soğuk öncelikli)
+  for (const { key, size } of partitionEntries) {
     if (bytesToFree <= 0) break
     if (size <= MAX_PARTITION_CACHE_BYTES) continue
 
     const targetBytes = Math.max(MAX_PARTITION_CACHE_BYTES, size - bytesToFree)
+    Logger.info(
+      `[enforceSizeLimits] Trimming over-limit ${key} (${(size / 1024 / 1024).toFixed(1)}MB → ${(targetBytes / 1024 / 1024).toFixed(1)}MB, cat=${getActivityCategory(key)})`
+    )
     const result = await trimPartitionCache(key, targetBytes, userDataPath, batchSize)
     totalDeleted += result.deleted
     totalFreed += result.freed
@@ -138,10 +153,21 @@ async function enforceSizeLimits(
     bytesToFree -= result.freed
   }
 
+  // 2. Hala fazla varsa, tüm partition'lardan soğuk öncelikli tam temizlik
   if (bytesToFree > 0) {
-    for (const [key] of partitionEntries) {
+    for (const { key } of partitionEntries) {
       if (bytesToFree <= 0) break
-      const result = await trimPartitionCache(key, 0, userDataPath, batchSize)
+      // Aktif partition'lar için sadece %50'sini hedefle, soğuk/pasif için tamamı
+      const cat = getActivityCategory(key)
+      const aggressive = cat === 'cold' || cat === 'passive'
+      const target = aggressive ? 0 : Math.floor(breakdown.partitionCaches[key] * 0.5)
+      const current = breakdown.partitionCaches[key]
+      // Aktif ve zaten küçükse atla
+      if (!aggressive && current < 20 * 1024 * 1024) continue
+      Logger.info(
+        `[enforceSizeLimits] Aggressive trim ${key} (cat=${cat}) → target ${target} bytes`
+      )
+      const result = await trimPartitionCache(key, target, userDataPath, batchSize)
       totalDeleted += result.deleted
       totalFreed += result.freed
       totalErrors += result.errors
@@ -169,12 +195,13 @@ async function enforceSizeLimits(
       const sorted = expired.sort((a, b) => a.mtimeMs - b.mtimeMs)
       for (let i = 0; i < sorted.length && bytesToFree > 0; i += batchSize) {
         const batch = sorted.slice(i, i + batchSize)
-        const batchBytes = batch.reduce((sum, f) => sum + f.size, 0)
         const result = await deleteBatch(batch, userDataPath, batchSize)
         totalDeleted += result.deleted
         totalFreed += result.freed
         totalErrors += result.errors
-        bytesToFree -= batchBytes
+        // Account ACTUALLY freed bytes (locked files may fail to delete);
+        // subtracting the planned size would stop early while pressure remains.
+        bytesToFree -= result.freed
 
         if (i + batchSize < sorted.length) {
           await new Promise((resolve) => setImmediate(resolve))

@@ -4,22 +4,25 @@ import { getMainWindow } from '../app/windowManager.js'
 import { Logger } from './logger.js'
 
 /**
- * Origins considered safe for IPC access from the main window.
- */
-const TRUSTED_ORIGINS = [
-  'file://', // Production build
-  'http://localhost', // Vite dev server
-  'http://127.0.0.1' // Vite dev server (IPv4 loopback)
-]
-
-/**
- * Returns true if the given URL is from a trusted local origin.
- * This prevents open-redirect / XSS scenarios where the main window
- * has been navigated to a malicious external site while the WebContents
- * identity check (`sender === mainWindow.webContents`) still passes.
+ * Exact origin validation (URL-parsed, no prefix matching) — mirrors
+ * pdfProtocol.isAllowedPdfOrigin. A prefix check like `startsWith('http://localhost')`
+ * would wrongly trust crafted hosts such as `http://localhost.evil.com`.
  */
 function isTrustedOrigin(url: string): boolean {
-  return TRUSTED_ORIGINS.some((origin) => url.startsWith(origin))
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol === 'file:') {
+    return true // Production build
+  }
+  if (parsed.protocol === 'http:') {
+    // Vite dev server (any port) and nothing else.
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
+  }
+  return false
 }
 
 function isTrustedMainWindowSender(sender: WebContents): boolean {

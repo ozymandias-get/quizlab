@@ -1,6 +1,8 @@
 import { useAiRegistry } from '@platform/electron/api/useAiApi'
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 
+import { useChatUiStore } from '@features/ai/store/chatUiStore'
+
 import { useToastActions } from '@shared/stores/toastStore'
 
 import { type ReactNode, useCallback, useRef, useState } from 'react'
@@ -116,6 +118,10 @@ function AiProvider({ children }: { children: ReactNode }) {
     (tabId: string) => {
       closeTab(tabId)
       registerWebview(tabId, null)
+      // Drop the closed tab's per-tab chat UI state (input, attachments,
+      // streaming buffers...). Tab ids are never reused, so leaving entries
+      // behind only leaks memory and risks stale-state reads.
+      useChatUiStore.getState().resetTabState(tabId)
     },
     [closeTab, registerWebview]
   )

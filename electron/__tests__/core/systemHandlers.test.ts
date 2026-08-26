@@ -75,9 +75,12 @@ describe('systemHandlers', () => {
     const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
 
     registerSystemHandlers()
+    const firstCallCount = ipcHandle.mock.calls.length
     registerSystemHandlers()
 
-    expect(ipcHandle).toHaveBeenCalledTimes(8)
+    expect(ipcHandle).toHaveBeenCalledTimes(firstCallCount)
+    // Expect 12 handlers: 8 original + 4 smart cache handlers
+    expect(firstCallCount).toBe(12)
   })
 
   let trustedSender: { id: string; isDestroyed?: () => boolean }

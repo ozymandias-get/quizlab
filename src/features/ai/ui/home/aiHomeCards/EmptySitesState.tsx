@@ -11,8 +11,8 @@ const EmptySitesState = memo(function EmptySitesState() {
     <EmptyState
       bare
       icon={Globe}
-      title={t('ai_home.empty_sites_description')}
-      description={t('ai_home.empty_sites_hint')}
+      title={t('ai_home.empty_sites_title')}
+      description={t('ai_home.empty_sites_description')}
       size="sm"
     />
   )

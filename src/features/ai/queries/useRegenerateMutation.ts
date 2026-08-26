@@ -6,6 +6,7 @@ import {
   addMessageToSession,
   buildCombinedPrompt,
   buildErrorReply,
+  loadSessions,
   persistSessions,
   sendApiChatRequest
 } from '../api/sessions.api'
@@ -35,7 +36,7 @@ export function useRegenerateMutation() {
         truncatedMessages.pop()
       }
 
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
+      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
       const sessionsWithTrunc = prev.map((s) =>
         s.id === activeSessionId ? { ...s, messages: truncatedMessages, updatedAt: Date.now() } : s
       )

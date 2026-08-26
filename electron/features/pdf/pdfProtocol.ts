@@ -337,6 +337,14 @@ export function registerPdfProtocolHandlers() {
 export function startPdfCleanupInterval() {
   if (!cleanupInterval) {
     cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
+    if (
+      cleanupInterval &&
+      typeof cleanupInterval === 'object' &&
+      'unref' in cleanupInterval &&
+      typeof (cleanupInterval as unknown as { unref: () => void }).unref === 'function'
+    ) {
+      ;(cleanupInterval as unknown as { unref: () => void }).unref()
+    }
   }
 }
 

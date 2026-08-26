@@ -7,12 +7,30 @@ import { createElement, Fragment, useRef } from 'react'
 
 type JumpToPage = (pageIndex: number) => void
 
+let prefersReducedMotionCache: boolean | null = null
+function getPrefersReducedMotion(): boolean {
+  if (prefersReducedMotionCache !== null) return prefersReducedMotionCache
+  try {
+    prefersReducedMotionCache =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (typeof window !== 'undefined') {
+      window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', (e) => {
+        prefersReducedMotionCache = e.matches
+      })
+    }
+  } catch {
+    prefersReducedMotionCache = false
+  }
+  return prefersReducedMotionCache
+}
+
 const safeRenderHighlights = (props: RenderHighlightsProps) => {
   if (!props) return createElement(Fragment, null)
   const areas = props.highlightAreas
   if (!areas || !Array.isArray(areas) || areas.length === 0) {
     return createElement(Fragment, null)
   }
+  const reducedMotion = getPrefersReducedMotion()
   return createElement(
     Fragment,
     null,
@@ -24,12 +42,14 @@ const safeRenderHighlights = (props: RenderHighlightsProps) => {
         key: index,
         className: 'rpv-search__highlight',
         'data-index': index,
-        style: {
-          ...baseStyle,
-          opacity: 0,
-          animation:
-            'pdf-highlight-fadein var(--duration-normal) ease var(--duration-deliberate) forwards'
-        },
+        style: reducedMotion
+          ? { ...baseStyle, opacity: 0.3 }
+          : {
+              ...baseStyle,
+              opacity: 0,
+              animation:
+                'pdf-highlight-fadein var(--duration-normal) ease var(--duration-deliberate) forwards'
+            },
         title: area?.keywordStr?.trim() ?? ''
       })
     })

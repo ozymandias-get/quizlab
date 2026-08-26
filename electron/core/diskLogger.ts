@@ -1,10 +1,17 @@
 import fs from 'fs'
 import path from 'path'
 
-import { getLogBufferLength, getPendingLogEntries } from '../../src/shared/lib/logger.js'
+import {
+  getLogBufferLength,
+  getPendingLogEntries,
+  getTotalLogCount
+} from '../../src/shared/lib/logger.js'
 
 let diskLogPath: string | null = null
-let lastFlushedIndex = 0
+// Absolute count of entries already flushed (see getTotalLogCount). Raw
+// buffer indices would shift every time the ring buffer trims itself,
+// permanently stalling disk logging once the buffer saturates.
+let lastFlushedCount = 0
 let flushIntervalTimer: ReturnType<typeof setInterval> | null = null
 let cleanupIntervalTimer: ReturnType<typeof setInterval> | null = null
 const FLUSH_INTERVAL_MS = 30_000
@@ -45,7 +52,7 @@ function stopFlushInterval(): void {
 function startCleanupInterval(): void {
   stopCleanupInterval()
   cleanupIntervalTimer = setInterval(() => {
-    cleanOldLogs()
+    void cleanOldLogs()
   }, CLEANUP_INTERVAL_MS)
   if (
     cleanupIntervalTimer &&
@@ -63,46 +70,80 @@ function stopCleanupInterval(): void {
   }
 }
 
+let flushInProgress = false
+let pendingFlush = false
+
 export async function flushToDisk(): Promise<void> {
   if (!diskLogPath) return
-
-  const entries = getPendingLogEntries(lastFlushedIndex)
-  if (entries.length === 0) return
-
+  if (flushInProgress) {
+    pendingFlush = true
+    return
+  }
+  flushInProgress = true
   try {
-    if (!fs.existsSync(diskLogPath)) {
-      fs.mkdirSync(diskLogPath, { recursive: true })
+    // Map the absolute "already flushed" count onto current buffer indices:
+    // the buffer keeps only the newest `length` entries of `total` ever
+    // logged, so entry N lives at index max(0, length - (total - N)).
+    const total = getTotalLogCount()
+    const bufferSize = getLogBufferLength()
+    const fromIndex = Math.max(0, bufferSize - (total - lastFlushedCount))
+    const entries = getPendingLogEntries(fromIndex)
+    if (entries.length === 0) return
+
+    try {
+      const logDir = diskLogPath!
+      await fs.promises.mkdir(logDir, { recursive: true })
+
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const logFile = path.join(logDir, `quizlab-${dateStr}.log`)
+
+      const lines = entries.map((e) => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`)
+      await fs.promises.appendFile(logFile, lines.join('\n') + '\n', 'utf-8')
+
+      lastFlushedCount = total
+    } catch {
+      // Write failure is non-critical; retry with the same window next flush.
     }
-
-    const dateStr = new Date().toISOString().slice(0, 10)
-    const logFile = path.join(diskLogPath, `quizlab-${dateStr}.log`)
-
-    const lines = entries.map((e) => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`)
-    fs.appendFileSync(logFile, lines.join('\n') + '\n', 'utf-8')
-
-    lastFlushedIndex = getLogBufferLength()
-  } catch {
-    // Write failure is non-critical
+  } finally {
+    flushInProgress = false
+    if (pendingFlush) {
+      pendingFlush = false
+      // Coalesce rapid flush requests — schedule next flush on next tick
+      setImmediate(() => {
+        void flushToDisk()
+      })
+    }
   }
 }
 
-function cleanOldLogs(): void {
+async function cleanOldLogs(): Promise<void> {
   if (!diskLogPath) return
+  const logDir = diskLogPath
 
   try {
-    if (!fs.existsSync(diskLogPath)) return
+    try {
+      await fs.promises.access(logDir)
+    } catch {
+      return
+    }
 
     const cutoff = Date.now() - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000
-    const files = fs.readdirSync(diskLogPath)
+    const files = await fs.promises.readdir(logDir)
 
-    for (const file of files) {
-      if (!file.startsWith('quizlab-') || !file.endsWith('.log')) continue
-      const filePath = path.join(diskLogPath, file)
-      const stat = fs.statSync(filePath)
-      if (stat.isFile() && stat.mtimeMs < cutoff) {
-        fs.unlinkSync(filePath)
-      }
-    }
+    await Promise.all(
+      files.map(async (file) => {
+        if (!file.startsWith('quizlab-') || !file.endsWith('.log')) return
+        const filePath = path.join(logDir, file)
+        try {
+          const stat = await fs.promises.stat(filePath)
+          if (stat.isFile() && stat.mtimeMs < cutoff) {
+            await fs.promises.unlink(filePath)
+          }
+        } catch {
+          // Single file failure is non-critical
+        }
+      })
+    )
   } catch {
     // Cleanup failure is non-critical
   }

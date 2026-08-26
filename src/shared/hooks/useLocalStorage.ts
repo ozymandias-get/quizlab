@@ -44,11 +44,14 @@ function invalidateQueriesForStorageKey(
     for (const qk of keys) {
       client.invalidateQueries({ queryKey: qk } as never)
     }
-    // Also invalidate any query whose key contains the storage key (covers
-    // custom keys used directly as queryKey in tests)
+    // Fallback for legacy/test queryKeys where storage key is not the first segment.
+    // Most prod queries are [storageKey] and already handled above — predicate
+    // skips them via length>1 check to avoid full array scan per query.
     client.invalidateQueries({
       predicate: (query: { queryKey: unknown[] }) =>
-        Array.isArray(query.queryKey) && query.queryKey.includes(key)
+        Array.isArray(query.queryKey) &&
+        query.queryKey.length > 1 &&
+        (query.queryKey as unknown[]).includes(key)
     } as never)
   } catch {
     // Never let query invalidation break storage sync
