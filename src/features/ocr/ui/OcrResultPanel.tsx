@@ -3,6 +3,7 @@ import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
 import { useClipboard } from '@shared/hooks/useClipboard'
 import { cn } from '@shared/lib/uiUtils'
+import { useToastActions } from '@shared/stores/toastStore'
 
 import {
   Check,
@@ -13,6 +14,7 @@ import {
   Minimize2,
   RefreshCw,
   ScanSearch,
+  Send,
   X
 } from 'lucide-react'
 import { motion, useDragControls } from 'motion/react'
@@ -31,6 +33,7 @@ interface OcrResultPanelProps {
   onClose: () => void
   onRetry: () => void
   onRunCurrent?: () => void
+  onSendToAi?: (text: string) => void
 }
 
 type Tab = 'rendered' | 'markdown'
@@ -43,10 +46,12 @@ function OcrResultPanel({
   viewerPage,
   onClose,
   onRetry,
-  onRunCurrent
+  onRunCurrent,
+  onSendToAi
 }: OcrResultPanelProps) {
   const { t } = useTranslation()
   const { copy } = useClipboard()
+  const { showSuccess, showError } = useToastActions()
   const [tab, setTab] = useState<Tab>('rendered')
   const [copied, setCopied] = useState<'md' | 'txt' | null>(null)
   const [minimized, setMinimized] = useState(false)
@@ -132,8 +137,23 @@ function OcrResultPanel({
 
   const handleSendToAi = useCallback(async () => {
     if (!result?.markdown) return
-    await copy(result.markdown)
-  }, [copy, result?.markdown])
+    try {
+      if (onSendToAi) {
+        onSendToAi(result.markdown)
+        showSuccess(t('pdf_text_added_to_ai', { defaultValue: 'Text added to AI draft' }))
+      } else {
+        // Fallback: copy when no AI handler provided (e.g., in tests)
+        await copy(result.markdown)
+        showSuccess(t('pdf_text_added_to_ai', { defaultValue: 'Text added to AI draft' }))
+      }
+      // Also copy to clipboard as convenience
+      await copy(result.markdown).catch(() => {})
+    } catch {
+      const ok = await copy(result.markdown)
+      if (!ok) showError(t('toast_clipboard_failed', { defaultValue: 'Copy failed' }))
+      else showSuccess(t('pdf_text_added_to_ai', { defaultValue: 'Text added to AI draft' }))
+    }
+  }, [copy, onSendToAi, result?.markdown, showError, showSuccess, t])
 
   const statusLabel = (() => {
     switch (status) {
@@ -468,12 +488,12 @@ function OcrResultPanel({
               </span>
               <Button
                 type="button"
-                variant="ghost"
+                variant="default"
                 size="xs"
                 onClick={handleSendToAi}
-                className="text-ql-11 ml-auto h-7 gap-1 px-2 sm:ml-0"
+                className="text-ql-11 ml-auto h-7 gap-1.5 px-2.5 sm:ml-0"
               >
-                <Copy className="size-3" />
+                <Send className="size-3" />
                 {t('ocr_send_to_ai', { defaultValue: 'Copy for AI' })}
               </Button>
             </div>

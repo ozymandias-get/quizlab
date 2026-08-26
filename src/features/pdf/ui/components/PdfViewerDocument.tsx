@@ -2,6 +2,8 @@ import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
 import { useOcrStore } from '@features/ocr/store/useOcrStore'
 import OcrResultPanel from '@features/ocr/ui/OcrResultPanel'
 
+import { useAppToolActions } from '@app/providers/AppToolContext'
+
 import { memo, useCallback, useMemo } from 'react'
 
 import { type PdfViewerDocumentProps, usePdfViewerState } from '../../hooks/usePdfViewerState'
@@ -47,6 +49,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   const ocrCurrentPage = useOcrStore((s) => s.currentPage)
   const ocrClosePanel = useOcrStore((s) => s.closePanel)
   const { processPage, cancel } = useOcrActions()
+  const { queueTextForAi } = useAppToolActions()
 
   const handleOcrClose = useCallback(() => {
     if (
@@ -129,6 +132,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
               onClose={handleOcrClose}
               onRetry={handleOcrRetry}
               onRunCurrent={handleRunCurrentPageOcr}
+              onSendToAi={queueTextForAi}
             />
           </div>
         </div>
