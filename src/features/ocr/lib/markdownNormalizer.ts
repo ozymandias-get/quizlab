@@ -205,6 +205,25 @@ export function normalizeToMarkdown(raw: string): {
       continue
     }
 
+    // Heading detection per line (avoid buffering headings with following paragraph) — before list
+    const headingCandidate = detectHeading(trimmed)
+    if (headingCandidate) {
+      flushParagraph()
+      const hashes = '#'.repeat(headingCandidate.level)
+      blocks.push({ text: headingCandidate.text, kind: 'heading' })
+      markdownLines.push(`${hashes} ${escapeMarkdown(headingCandidate.text)}`)
+      continue
+    }
+
+    // List item — each bullet/numbered line is its own block, not merged with paragraph
+    if (isListItem(trimmed)) {
+      flushParagraph()
+      const normalized = normalizeListItem(trimmed)
+      blocks.push({ text: normalized, kind: 'list-item' })
+      markdownLines.push(normalized)
+      continue
+    }
+
     paragraphBuffer.push(trimmed)
   }
 

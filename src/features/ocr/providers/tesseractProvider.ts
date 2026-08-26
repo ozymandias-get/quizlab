@@ -72,7 +72,6 @@ async function getOrCreateWorker(
     // Use indirect specifier so Vite/Vitest does not try to resolve at build time when not installed.
     // The optional tesseract.js dependency is fully lazy and failure is gracefully handled.
     const specifier = 'tesseract.js'
-    // @ts-expect-error optional dependency
     mod = (await import(/* @vite-ignore */ specifier)) as unknown as TesseractLike
   } catch (e) {
     Logger.warn(

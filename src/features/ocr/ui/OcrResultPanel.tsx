@@ -4,7 +4,18 @@ import { WithTooltip } from '@app/components/ui/tooltip'
 import { useClipboard } from '@shared/hooks/useClipboard'
 import { cn } from '@shared/lib/uiUtils'
 
-import { Check, Copy, Download, RefreshCw, X } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Download,
+  GripHorizontal,
+  Maximize2,
+  Minimize2,
+  RefreshCw,
+  ScanSearch,
+  X
+} from 'lucide-react'
+import { motion, useDragControls } from 'motion/react'
 import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -16,12 +27,12 @@ interface OcrResultPanelProps {
   status: string
   error: string | null
   pageNumber: number | null
+  viewerPage?: number | null
   onClose: () => void
   onRetry: () => void
-  onCopyPlainText?: () => void
+  onRunCurrent?: () => void
 }
 
-// Lightweight tabs
 type Tab = 'rendered' | 'markdown'
 
 function OcrResultPanel({
@@ -29,17 +40,22 @@ function OcrResultPanel({
   status,
   error,
   pageNumber,
+  viewerPage,
   onClose,
-  onRetry
+  onRetry,
+  onRunCurrent
 }: OcrResultPanelProps) {
   const { t } = useTranslation()
   const { copy } = useClipboard()
   const [tab, setTab] = useState<Tab>('rendered')
   const [copied, setCopied] = useState<'md' | 'txt' | null>(null)
+  const [minimized, setMinimized] = useState(false)
+  const dragControls = useDragControls()
 
   const isLoading =
     status === 'rendering-page' || status === 'initializing-engine' || status === 'processing'
   const isError = status === 'error'
+  const isStale = result && pageNumber != null && viewerPage != null && pageNumber !== viewerPage
 
   const handleCopyMarkdown = useCallback(async () => {
     if (!result?.markdown) return
@@ -74,12 +90,9 @@ function OcrResultPanel({
 
   const handleSendToAi = useCallback(async () => {
     if (!result?.markdown) return
-    // Integrate with existing AI draft queue if available via window dispatch
-    // Fallback: copy to clipboard and toast
     await copy(result.markdown)
   }, [copy, result?.markdown])
 
-  // Status label
   const statusLabel = (() => {
     switch (status) {
       case 'rendering-page':
@@ -100,23 +113,48 @@ function OcrResultPanel({
   })()
 
   return (
-    <div
+    <motion.div
+      drag
+      dragListener={false}
+      dragControls={dragControls}
+      dragMomentum={false}
+      dragElastic={0.08}
+      initial={{ y: 16, opacity: 0, scale: 0.98 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      exit={{ y: 8, opacity: 0, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.8 }}
       role="complementary"
       aria-label={t('ocr_result_panel', { defaultValue: 'OCR Result' })}
       className={cn(
-        'border-border bg-popover/95 supports-[backdrop-filter]:bg-popover/80 flex max-h-[52vh] min-h-[280px] w-full flex-col overflow-hidden rounded-t-xl border shadow-lg backdrop-blur-xl',
-        'dark:border-white/10',
-        'animate-in slide-in-from-bottom-2 duration-200'
+        'border-border bg-popover/95 supports-[backdrop-filter]:bg-popover/90 flex flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-2xl',
+        'dark:border-white/10 dark:shadow-black/30',
+        'w-[min(440px,calc(100vw-24px))] sm:w-[420px]',
+        minimized ? 'max-h-[64px]' : 'max-h-[min(62vh,520px)] min-h-[300px]'
       )}
       data-testid="ocr-result-panel"
+      style={{ willChange: 'transform' }}
     >
-      {/* Header */}
-      <div className="border-border flex items-center justify-between border-b px-3 py-2">
-        <div className="flex items-center gap-2">
-          <h3 className="text-ql-13 font-semibold tracking-tight">
-            {t('ocr_panel_title', { defaultValue: 'OCR Result' })}
+      {/* Drag header */}
+      <div
+        onPointerDown={(e) => dragControls.start(e)}
+        className={cn(
+          'border-border flex shrink-0 cursor-grab items-center justify-between border-b px-3 py-2 select-none active:cursor-grabbing',
+          minimized && 'border-b-0'
+        )}
+        aria-label={t('ocr_drag_hint', { defaultValue: 'Drag header to move' })}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <GripHorizontal
+            className="text-muted-foreground/60 size-3.5 shrink-0"
+            aria-hidden="true"
+          />
+          <h3 className="text-ql-13 flex items-center gap-1.5 font-semibold tracking-tight">
+            <ScanSearch className="text-primary size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{t('ocr_panel_title', { defaultValue: 'OCR Result' })}</span>
             {pageNumber ? (
-              <span className="text-muted-foreground ml-1.5 font-normal">— p. {pageNumber}</span>
+              <span className="text-muted-foreground hidden font-mono text-xs font-normal sm:inline">
+                — p. {pageNumber}
+              </span>
             ) : null}
           </h3>
           {isLoading && (
@@ -125,7 +163,14 @@ function OcrResultPanel({
             </span>
           )}
           {!isLoading && status === 'success' && result && (
-            <span className="text-ql-11 rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-700 dark:text-emerald-300">
+            <span
+              className={cn(
+                'text-ql-11 hidden rounded-full px-2 py-0.5 font-medium sm:inline-flex',
+                result.isNativeText
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+              )}
+            >
               {result.isNativeText
                 ? t('ocr_badge_native', { defaultValue: 'Native text' })
                 : t('ocr_badge_ocr', { defaultValue: 'OCR' })}
@@ -133,57 +178,30 @@ function OcrResultPanel({
           )}
         </div>
 
-        <div className="flex items-center gap-1">
-          {/* Copy markdown */}
-          <WithTooltip label={t('ocr_copy_markdown', { defaultValue: 'Copy Markdown' })}>
+        <div className="flex items-center gap-0.5">
+          <WithTooltip
+            label={
+              minimized
+                ? t('ocr_expand', { defaultValue: 'Expand' })
+                : t('ocr_minimize', { defaultValue: 'Minimize' })
+            }
+          >
             <IconButton
               variant="ghost"
               size="compact"
-              onClick={handleCopyMarkdown}
-              disabled={!result?.markdown || isLoading}
-              aria-label={t('ocr_copy_markdown')}
-              className="text-muted-foreground"
+              onClick={() => setMinimized((v) => !v)}
+              aria-label={minimized ? t('ocr_expand') : t('ocr_minimize')}
+              className="text-muted-foreground size-7"
             >
-              {copied === 'md' ? (
-                <Check className="size-3.5 text-emerald-500" />
-              ) : (
-                <Copy className="size-3.5" />
-              )}
+              {minimized ? <Maximize2 className="size-3.5" /> : <Minimize2 className="size-3.5" />}
             </IconButton>
           </WithTooltip>
-
-          <WithTooltip label={t('ocr_save_md', { defaultValue: 'Save as .md' })}>
-            <IconButton
-              variant="ghost"
-              size="compact"
-              onClick={handleSave}
-              disabled={!result?.markdown || isLoading}
-              aria-label={t('ocr_save_md')}
-              className="text-muted-foreground"
-            >
-              <Download className="size-3.5" />
-            </IconButton>
-          </WithTooltip>
-
-          <WithTooltip label={t('ocr_retry', { defaultValue: 'Retry' })}>
-            <IconButton
-              variant="ghost"
-              size="compact"
-              onClick={onRetry}
-              disabled={isLoading}
-              aria-label={t('ocr_retry')}
-              className="text-muted-foreground"
-            >
-              <RefreshCw className={cn('size-3.5', isLoading && 'animate-spin')} />
-            </IconButton>
-          </WithTooltip>
-
           <IconButton
             variant="ghost"
             size="compact"
             onClick={onClose}
-            aria-label={t('close', { defaultValue: 'Close' })}
-            className="text-muted-foreground"
+            aria-label={t('ocr_close', { defaultValue: 'Close' })}
+            className="text-muted-foreground size-7"
             data-testid="ocr-close-button"
           >
             <X className="size-3.5" />
@@ -191,130 +209,231 @@ function OcrResultPanel({
         </div>
       </div>
 
-      {/* Tab strip */}
-      <div className="border-border flex items-center gap-1 border-b px-2 py-1.5">
-        <Button
-          type="button"
-          variant={tab === 'rendered' ? 'secondary' : 'ghost'}
-          size="xs"
-          onClick={() => setTab('rendered')}
-          className="h-7 px-2.5"
-          aria-selected={tab === 'rendered'}
-          role="tab"
-        >
-          {t('ocr_tab_rendered', { defaultValue: 'Rendered' })}
-        </Button>
-        <Button
-          type="button"
-          variant={tab === 'markdown' ? 'secondary' : 'ghost'}
-          size="xs"
-          onClick={() => setTab('markdown')}
-          className="h-7 px-2.5"
-          aria-selected={tab === 'markdown'}
-          role="tab"
-        >
-          {t('ocr_tab_markdown', { defaultValue: 'Markdown' })}
-        </Button>
+      {!minimized && (
+        <>
+          {/* Action bar */}
+          <div className="border-border bg-muted/30 flex flex-wrap items-center gap-1 border-b px-2 py-1.5">
+            <div className="flex items-center gap-1">
+              <WithTooltip label={t('ocr_copy_markdown', { defaultValue: 'Copy Markdown' })}>
+                <IconButton
+                  variant="ghost"
+                  size="compact"
+                  onClick={handleCopyMarkdown}
+                  disabled={!result?.markdown || isLoading}
+                  aria-label={t('ocr_copy_markdown')}
+                  className="text-muted-foreground"
+                >
+                  {copied === 'md' ? (
+                    <Check className="size-3.5 text-emerald-500" />
+                  ) : (
+                    <Copy className="size-3.5" />
+                  )}
+                </IconButton>
+              </WithTooltip>
+              <WithTooltip label={t('ocr_save_md', { defaultValue: 'Save as .md' })}>
+                <IconButton
+                  variant="ghost"
+                  size="compact"
+                  onClick={handleSave}
+                  disabled={!result?.markdown || isLoading}
+                  aria-label={t('ocr_save_md')}
+                  className="text-muted-foreground"
+                >
+                  <Download className="size-3.5" />
+                </IconButton>
+              </WithTooltip>
+              <WithTooltip label={t('ocr_retry', { defaultValue: 'Retry' })}>
+                <IconButton
+                  variant="ghost"
+                  size="compact"
+                  onClick={onRetry}
+                  disabled={isLoading}
+                  aria-label={t('ocr_retry')}
+                  className="text-muted-foreground"
+                >
+                  <RefreshCw className={cn('size-3.5', isLoading && 'animate-spin')} />
+                </IconButton>
+              </WithTooltip>
+            </div>
 
-        {result?.plainText && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={handleCopyPlain}
-            className="text-muted-foreground ml-auto h-7 gap-1 px-2"
-          >
-            {copied === 'txt' ? <Check className="size-3" /> : <Copy className="size-3" />}
-            {t('ocr_copy_plain', { defaultValue: 'Copy plain text' })}
-          </Button>
-        )}
-      </div>
+            <div className="bg-border mx-1 hidden h-4 w-px sm:block" aria-hidden="true" />
 
-      {/* Body */}
-      <div className="flex-1 overflow-auto p-4">
-        {isLoading && (
-          <div className="flex flex-col items-center justify-center gap-3 py-10">
-            <div
-              className="border-primary/30 border-t-primary size-6 animate-spin rounded-full border-2"
-              aria-hidden="true"
-            />
-            <p className="text-ql-13 text-muted-foreground">{statusLabel}</p>
-            <p className="text-ql-11 text-muted-foreground/70">
-              {pageNumber
-                ? t('ocr_processing_page', {
-                    defaultValue: 'Processing page {{page}}…',
-                    page: pageNumber
-                  })
-                : null}
-            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant={tab === 'rendered' ? 'secondary' : 'ghost'}
+                size="xs"
+                onClick={() => setTab('rendered')}
+                className="h-7 px-2.5 text-xs"
+                aria-selected={tab === 'rendered'}
+                role="tab"
+              >
+                {t('ocr_tab_rendered', { defaultValue: 'Preview' })}
+              </Button>
+              <Button
+                type="button"
+                variant={tab === 'markdown' ? 'secondary' : 'ghost'}
+                size="xs"
+                onClick={() => setTab('markdown')}
+                className="h-7 px-2.5 text-xs"
+                aria-selected={tab === 'markdown'}
+                role="tab"
+              >
+                {t('ocr_tab_markdown', { defaultValue: 'Markdown' })}
+              </Button>
+            </div>
+
+            <div className="ml-auto flex items-center gap-1">
+              {result?.plainText && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={handleCopyPlain}
+                  className="text-muted-foreground h-7 gap-1 px-2 text-xs"
+                >
+                  {copied === 'txt' ? <Check className="size-3" /> : <Copy className="size-3" />}
+                  {t('ocr_copy_plain', { defaultValue: 'Copy plain text' })}
+                </Button>
+              )}
+            </div>
           </div>
-        )}
 
-        {isError && !isLoading && (
-          <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-            <p className="text-ql-13 text-destructive font-medium">
-              {t(error || 'ocr_error_generic', { defaultValue: 'Something went wrong' })}
-            </p>
-            <p className="text-ql-11 text-muted-foreground max-w-sm">
-              {t('ocr_error_hint', {
-                defaultValue: 'Try again or use Force OCR from the panel menu.'
-              })}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onRetry}
-              className="mt-2 gap-1.5"
-            >
-              <RefreshCw className="size-3.5" />
-              {t('retry', { defaultValue: 'Retry' })}
-            </Button>
+          {/* Stale banner */}
+          {isStale && (
+            <div className="flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-3 py-2">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
+                <ScanSearch className="size-3 text-amber-600 dark:text-amber-400" />
+              </div>
+              <p className="text-ql-12 flex-1 leading-snug text-amber-800 dark:text-amber-200">
+                {t('ocr_stale_notice', {
+                  defaultValue: 'Result is for page {page} — you are viewing page {current}.',
+                  page: pageNumber,
+                  current: viewerPage
+                })}
+              </p>
+              {onRunCurrent && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={onRunCurrent}
+                  className="h-6 shrink-0 border-amber-500/30 bg-white/60 text-xs text-amber-700 hover:bg-amber-500/10 dark:bg-amber-950/20 dark:text-amber-300"
+                >
+                  {t('ocr_run_this_page', { defaultValue: 'Run OCR for this page' })}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Body */}
+          <div className="bg-background/50 flex-1 overflow-auto p-4">
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center gap-3 py-10">
+                <div
+                  className="border-primary/30 border-t-primary size-6 animate-spin rounded-full border-2"
+                  aria-hidden="true"
+                />
+                <p className="text-ql-13 text-muted-foreground font-medium">{statusLabel}</p>
+                <p className="text-ql-11 text-muted-foreground/70">
+                  {pageNumber
+                    ? t('ocr_processing_page', {
+                        defaultValue: 'Processing page {page}…',
+                        page: pageNumber
+                      })
+                    : null}
+                </p>
+              </div>
+            )}
+
+            {isError && !isLoading && (
+              <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                <p className="text-ql-13 text-destructive font-medium">
+                  {t(error || 'ocr_error_generic', { defaultValue: 'Something went wrong' })}
+                </p>
+                <p className="text-ql-11 text-muted-foreground max-w-sm">
+                  {t('ocr_error_hint', {
+                    defaultValue: 'Try again or use Force OCR from the panel menu.'
+                  })}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetry}
+                  className="mt-2 gap-1.5"
+                >
+                  <RefreshCw className="size-3.5" />
+                  {t('retry', { defaultValue: 'Retry' })}
+                </Button>
+              </div>
+            )}
+
+            {!isLoading && !isError && result && tab === 'rendered' && (
+              <MarkdownRenderer markdown={result.markdown} className="text-sm leading-relaxed" />
+            )}
+
+            {!isLoading && !isError && result && tab === 'markdown' && (
+              <pre className="bg-muted/40 border-border text-foreground overflow-auto rounded-xl border p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
+                {result.markdown}
+              </pre>
+            )}
+
+            {!isLoading && !isError && !result && (
+              <p className="text-muted-foreground py-8 text-center text-sm">
+                {t('ocr_no_result', { defaultValue: 'No OCR result yet.' })}
+              </p>
+            )}
           </div>
-        )}
 
-        {!isLoading && !isError && result && tab === 'rendered' && (
-          <MarkdownRenderer markdown={result.markdown} className="text-sm" />
-        )}
-
-        {!isLoading && !isError && result && tab === 'markdown' && (
-          <pre className="bg-muted/40 border-border text-foreground overflow-auto rounded-lg border p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
-            {result.markdown}
-          </pre>
-        )}
-
-        {!isLoading && !isError && !result && (
-          <p className="text-muted-foreground py-8 text-center text-sm">
-            {t('ocr_no_result', { defaultValue: 'No OCR result yet.' })}
-          </p>
-        )}
-      </div>
-
-      {/* Footer meta */}
-      {result && !isLoading && (
-        <div className="border-border bg-muted/20 flex items-center gap-3 border-t px-3 py-1.5">
-          <span className="text-ql-11 text-muted-foreground">
-            {t('ocr_meta_engine', { defaultValue: 'Engine: {{engine}}', engine: result.engine })} ·{' '}
-            {result.blocks.length} blocks
-            {result.tables.length > 0 ? ` · ${result.tables.length} tables` : ''}
-            {result.formulas.length > 0 ? ` · ${result.formulas.length} formulas` : ''}
-          </span>
-          <span className="text-ql-11 text-muted-foreground/60 ml-auto hidden sm:inline">
-            {new Date(result.createdAt).toLocaleString()}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={handleSendToAi}
-            className="text-ql-11 h-6 gap-1 px-2"
-          >
-            <Copy className="size-3" />
-            {t('ocr_send_to_ai', { defaultValue: 'Copy for AI' })}
-          </Button>
-        </div>
+          {/* Footer meta */}
+          {result && !isLoading && (
+            <div className="border-border bg-muted/20 flex flex-wrap items-center gap-2 border-t px-3 py-2">
+              <span className="text-ql-11 text-muted-foreground inline-flex flex-wrap items-center gap-1.5">
+                <span className="bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
+                  {t('ocr_meta_engine', {
+                    defaultValue: 'Engine: {engine}',
+                    engine: result.engine
+                  })}
+                </span>
+                <span>
+                  {t('ocr_blocks', { defaultValue: '{count} blocks', count: result.blocks.length })}
+                </span>
+                {result.tables.length > 0 && (
+                  <span>
+                    {t('ocr_tables', {
+                      defaultValue: '{count} tables',
+                      count: result.tables.length
+                    })}
+                  </span>
+                )}
+                {result.formulas.length > 0 && (
+                  <span>
+                    {t('ocr_formulas', {
+                      defaultValue: '{count} formulas',
+                      count: result.formulas.length
+                    })}
+                  </span>
+                )}
+              </span>
+              <span className="text-ql-11 text-muted-foreground/60 ml-auto hidden items-center gap-1.5 tabular-nums sm:inline-flex">
+                {new Date(result.createdAt).toLocaleString()}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={handleSendToAi}
+                className="text-ql-11 ml-auto h-7 gap-1 px-2 sm:ml-0"
+              >
+                <Copy className="size-3" />
+                {t('ocr_send_to_ai', { defaultValue: 'Copy for AI' })}
+              </Button>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </motion.div>
   )
 }
 

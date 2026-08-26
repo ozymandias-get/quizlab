@@ -65,6 +65,11 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     void processPage({ pageNumber: page, pdfFile, pdfUrl })
   }, [pdfFile, pdfUrl, ocrCurrentPage, currentPage, processPage])
 
+  const handleRunCurrentPageOcr = useCallback(() => {
+    if (!pdfFile) return
+    void processPage({ pageNumber: currentPage, pdfFile, pdfUrl })
+  }, [currentPage, pdfFile, pdfUrl, processPage])
+
   const viewerElement = useMemo(
     () => (
       <PdfViewerElement
@@ -110,17 +115,19 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
           />
         )}
 
-        {/* OCR Result drawer — glassmorphism, premium, non-blocking */}
+        {/* OCR Result — draggable floating card, premium glassmorphism, non-blocking */}
         {ocrIsOpen && (
-          <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex justify-center">
-            <div className="pointer-events-auto w-full max-w-3xl">
+          <div className="pointer-events-none absolute inset-0 z-20">
+            <div className="pointer-events-auto absolute right-3 bottom-3 flex max-h-[calc(100%-24px)] justify-end sm:right-4 sm:bottom-4">
               <OcrResultPanel
                 result={ocrResult}
                 status={ocrStatus}
                 error={ocrError}
                 pageNumber={ocrCurrentPage}
+                viewerPage={currentPage}
                 onClose={handleOcrClose}
                 onRetry={handleOcrRetry}
+                onRunCurrent={handleRunCurrentPageOcr}
               />
             </div>
           </div>
