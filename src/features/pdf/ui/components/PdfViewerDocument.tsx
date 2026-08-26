@@ -96,7 +96,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div
         ref={containerRef}
         data-tour-id="tour-target-pdf-viewer"
@@ -114,25 +114,25 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
             onClose={handleCloseContextMenu}
           />
         )}
-
-        {/* OCR Result — top-right floating draggable panel, resizable, PDF remains fully visible */}
-        {ocrIsOpen && (
-          <div className="pointer-events-none absolute inset-0 z-20">
-            <div className="pointer-events-auto absolute top-3 right-3 sm:top-4 sm:right-4">
-              <OcrResultPanel
-                result={ocrResult}
-                status={ocrStatus}
-                error={ocrError}
-                pageNumber={ocrCurrentPage}
-                viewerPage={currentPage}
-                onClose={handleOcrClose}
-                onRetry={handleOcrRetry}
-                onRunCurrent={handleRunCurrentPageOcr}
-              />
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* OCR Result — floating draggable panel overlaying viewer, not clipped by overflow-hidden */}
+      {ocrIsOpen && (
+        <div className="pointer-events-none absolute inset-0 z-20 overflow-visible">
+          <div className="pointer-events-auto absolute top-3 right-3 max-h-[calc(100%-24px)] max-w-[calc(100%-24px)] sm:top-4 sm:right-4">
+            <OcrResultPanel
+              result={ocrResult}
+              status={ocrStatus}
+              error={ocrError}
+              pageNumber={ocrCurrentPage}
+              viewerPage={currentPage}
+              onClose={handleOcrClose}
+              onRetry={handleOcrRetry}
+              onRunCurrent={handleRunCurrentPageOcr}
+            />
+          </div>
+        </div>
+      )}
 
       <PdfToolbar
         pdfFile={pdfFile}
