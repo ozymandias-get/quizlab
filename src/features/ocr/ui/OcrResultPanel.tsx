@@ -14,7 +14,6 @@ import {
   Minimize2,
   RefreshCw,
   ScanSearch,
-  Send,
   X
 } from 'lucide-react'
 import { motion, useDragControls } from 'motion/react'
@@ -51,7 +50,7 @@ function OcrResultPanel({
 }: OcrResultPanelProps) {
   const { t } = useTranslation()
   const { copy } = useClipboard()
-  const { showSuccess, showError } = useToastActions()
+  const { showSuccess } = useToastActions()
   const [tab, setTab] = useState<Tab>('rendered')
   const [copied, setCopied] = useState<'md' | 'txt' | null>(null)
   const [minimized, setMinimized] = useState(false)
@@ -59,6 +58,7 @@ function OcrResultPanel({
   const [size, setSize] = useState({ width: 520, height: 520 })
   const resizingRef = useRef(false)
   const startSizeRef = useRef({ w: 520, h: 520, x: 0, y: 0 })
+  const contentRef = useRef<HTMLDivElement>(null)
 
   const handleResizePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -135,25 +135,26 @@ function OcrResultPanel({
     URL.revokeObjectURL(url)
   }, [result])
 
-  const handleSendToAi = useCallback(async () => {
-    if (!result?.markdown) return
+  const handleSelectionToAi = useCallback(() => {
+    if (!onSendToAi) return
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) return
+    const anchor = sel.anchorNode
+    const focus = sel.focusNode
+    const container = contentRef.current
+    if (!container) return
+    const insideAnchor = anchor ? container.contains(anchor) : false
+    const insideFocus = focus ? container.contains(focus) : false
+    if (!insideAnchor && !insideFocus) return
+    const text = sel.toString().trim()
+    if (text.length < 3) return
     try {
-      if (onSendToAi) {
-        onSendToAi(result.markdown)
-        showSuccess(t('pdf_text_added_to_ai', { defaultValue: 'Text added to AI draft' }))
-      } else {
-        // Fallback: copy when no AI handler provided (e.g., in tests)
-        await copy(result.markdown)
-        showSuccess(t('pdf_text_added_to_ai', { defaultValue: 'Text added to AI draft' }))
-      }
-      // Also copy to clipboard as convenience
-      await copy(result.markdown).catch(() => {})
+      onSendToAi(text)
+      showSuccess(t('pdf_text_added_to_ai', { defaultValue: 'Text added to AI draft' }))
     } catch {
-      const ok = await copy(result.markdown)
-      if (!ok) showError(t('toast_clipboard_failed', { defaultValue: 'Copy failed' }))
-      else showSuccess(t('pdf_text_added_to_ai', { defaultValue: 'Text added to AI draft' }))
+      // silent
     }
-  }, [copy, onSendToAi, result?.markdown, showError, showSuccess, t])
+  }, [onSendToAi, showSuccess, t])
 
   const statusLabel = (() => {
     switch (status) {
@@ -393,8 +394,14 @@ function OcrResultPanel({
             </div>
           )}
 
-          {/* Body */}
-          <div className="bg-background/50 flex-1 overflow-auto p-4">
+          {/* Body — selecting text auto-sends to AI draft */}
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- selection container, not a button */}
+          <div
+            ref={contentRef}
+            onPointerUp={handleSelectionToAi}
+            onMouseUp={handleSelectionToAi}
+            className="bg-background/50 selection:bg-primary/20 flex-1 overflow-auto p-4"
+          >
             {isLoading && (
               <div className="flex flex-col items-center justify-center gap-3 py-10">
                 <div
@@ -483,19 +490,9 @@ function OcrResultPanel({
                   </span>
                 )}
               </span>
-              <span className="text-ql-11 text-muted-foreground/60 ml-auto hidden items-center gap-1.5 tabular-nums sm:inline-flex">
+              <span className="text-ql-11 text-muted-foreground/60 ml-auto inline-flex items-center gap-1.5 tabular-nums">
                 {new Date(result.createdAt).toLocaleString()}
               </span>
-              <Button
-                type="button"
-                variant="default"
-                size="xs"
-                onClick={handleSendToAi}
-                className="text-ql-11 ml-auto h-7 gap-1.5 px-2.5 sm:ml-0"
-              >
-                <Send className="size-3" />
-                {t('ocr_send_to_ai', { defaultValue: 'Copy for AI' })}
-              </Button>
             </div>
           )}
         </>
