@@ -68,11 +68,8 @@ async function getOrCreateWorker(
 
   let mod: TesseractLike | null = null
   try {
-    // Lazy load — heavy WASM + ~10MB lang data; never in main chunk
-    // Use indirect specifier so Vite/Vitest does not try to resolve at build time when not installed.
-    // The optional tesseract.js dependency is fully lazy and failure is gracefully handled.
-    const specifier = 'tesseract.js'
-    mod = (await import(/* @vite-ignore */ specifier)) as unknown as TesseractLike
+    // Lazy load — heavy WASM + ~10MB lang data; dynamically imported so main chunk stays small
+    mod = (await import('tesseract.js')) as unknown as TesseractLike
   } catch (e) {
     Logger.warn(
       '[OCR:tesseract] dynamic import failed — tesseract.js not installed or failed to load',
