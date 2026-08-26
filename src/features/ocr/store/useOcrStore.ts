@@ -15,6 +15,14 @@ export interface OcrStoreState {
   jobId: string | null
   // Monotonic token to discard stale results when page/document switches mid-flight
   requestToken: number
+  isAreaSelectionActive: boolean
+  pendingPage: number | null
+  pendingPdfFile: {
+    path?: string | null
+    name?: string | null
+    size?: number | null
+    streamUrl?: string | null
+  } | null
 }
 
 export interface OcrStoreActions {
@@ -27,6 +35,18 @@ export interface OcrStoreActions {
   setConfig: (c: Partial<OcrConfig>) => void
   reset: () => void
   bumpToken: () => number
+  setAreaSelectionActive: (v: boolean) => void
+  startAreaSelection: (
+    page: number,
+    pdfFile: {
+      path?: string | null
+      name?: string | null
+      size?: number | null
+      streamUrl?: string | null
+    },
+    pdfUrl: string | null
+  ) => void
+  cancelAreaSelection: () => void
 }
 
 type OcrStore = OcrStoreState & OcrStoreActions
@@ -40,7 +60,10 @@ const initialState: OcrStoreState = {
   isPanelOpen: false,
   config: { ...DEFAULT_OCR_CONFIG },
   jobId: null,
-  requestToken: 0
+  requestToken: 0,
+  isAreaSelectionActive: false,
+  pendingPage: null,
+  pendingPdfFile: null
 }
 
 export const useOcrStore = create<OcrStore>()(
@@ -85,7 +108,15 @@ export const useOcrStore = create<OcrStore>()(
         const next = get().requestToken + 1
         set({ requestToken: next })
         return next
-      }
+      },
+
+      setAreaSelectionActive: (v) => set({ isAreaSelectionActive: v }),
+
+      startAreaSelection: (page, pdfFile, _pdfUrl) =>
+        set({ isAreaSelectionActive: true, pendingPage: page, pendingPdfFile: pdfFile }),
+
+      cancelAreaSelection: () =>
+        set({ isAreaSelectionActive: false, pendingPage: null, pendingPdfFile: null })
     }),
     {
       name: 'ocr-storage',
@@ -106,7 +137,10 @@ export const useOcrStore = create<OcrStore>()(
           currentPage: null,
           currentDocumentId: null,
           jobId: null,
-          requestToken: 0
+          requestToken: 0,
+          isAreaSelectionActive: false,
+          pendingPage: null,
+          pendingPdfFile: null
         } as OcrStore
       }
     }

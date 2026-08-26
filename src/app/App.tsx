@@ -22,6 +22,8 @@ const LanguageSelectionDialog = lazy(() =>
     default: m.LanguageSelectionDialog
   }))
 )
+import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { useOcrStore } from '@features/ocr/store/useOcrStore'
 import { usePdfShortcuts } from '@features/pdf/ui/hooks/usePdfShortcuts'
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
@@ -163,6 +165,10 @@ function App() {
         </Suspense>
 
         <Suspense fallback={null}>
+          <OcrSelectionToolLayer />
+        </Suspense>
+
+        <Suspense fallback={null}>
           <TutorialLayer isFocusActive={isFocusActive} />
         </Suspense>
 
@@ -213,6 +219,29 @@ const ScreenshotToolLayer = memo(function ScreenshotToolLayer() {
       onClose={closeScreenshot}
     />
   )
+})
+
+const OcrSelectionToolLayer = memo(function OcrSelectionToolLayer() {
+  const isActive = useOcrStore((s) => s.isAreaSelectionActive)
+  const pendingPage = useOcrStore((s) => s.pendingPage)
+  const pendingPdfFile = useOcrStore((s) => s.pendingPdfFile)
+  const cancelAreaSelection = useOcrStore((s) => s.cancelAreaSelection)
+  const { processArea } = useOcrActions()
+
+  const handleCapture = useCallback(
+    async (image: string) => {
+      if (!pendingPdfFile || pendingPage == null) return
+      await processArea({ dataUrl: image, pageNumber: pendingPage, pdfFile: pendingPdfFile })
+      cancelAreaSelection()
+    },
+    [pendingPage, pendingPdfFile, processArea, cancelAreaSelection]
+  )
+
+  const handleClose = useCallback(() => {
+    cancelAreaSelection()
+  }, [cancelAreaSelection])
+
+  return <ScreenshotTool isActive={isActive} onCapture={handleCapture} onClose={handleClose} />
 })
 
 const TutorialLayer = memo(function TutorialLayer({ isFocusActive }: { isFocusActive: boolean }) {
