@@ -16,7 +16,7 @@ import {
   X
 } from 'lucide-react'
 import { motion, useDragControls } from 'motion/react'
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { OcrPageResult } from '../types'
@@ -51,6 +51,48 @@ function OcrResultPanel({
   const [copied, setCopied] = useState<'md' | 'txt' | null>(null)
   const [minimized, setMinimized] = useState(false)
   const dragControls = useDragControls()
+  const [size, setSize] = useState({ width: 520, height: 520 })
+  const resizingRef = useRef(false)
+  const startSizeRef = useRef({ w: 520, h: 520, x: 0, y: 0 })
+
+  const handleResizePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      resizingRef.current = true
+      startSizeRef.current = {
+        w: size.width,
+        h: size.height,
+        x: e.clientX,
+        y: e.clientY
+      }
+      const target = e.currentTarget as HTMLElement
+      target.setPointerCapture(e.pointerId)
+
+      const onMove = (ev: PointerEvent) => {
+        if (!resizingRef.current) return
+        const dx = ev.clientX - startSizeRef.current.x
+        const dy = ev.clientY - startSizeRef.current.y
+        const nextW = Math.min(
+          Math.max(320, startSizeRef.current.w + dx),
+          Math.min(720, window.innerWidth - 32)
+        )
+        const nextH = Math.min(
+          Math.max(300, startSizeRef.current.h + dy),
+          Math.min(760, window.innerHeight - 80)
+        )
+        setSize({ width: nextW, height: nextH })
+      }
+      const onUp = () => {
+        resizingRef.current = false
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp, { once: true })
+    },
+    [size.height, size.width]
+  )
 
   const isLoading =
     status === 'rendering-page' || status === 'initializing-engine' || status === 'processing'
@@ -119,20 +161,25 @@ function OcrResultPanel({
       dragControls={dragControls}
       dragMomentum={false}
       dragElastic={0.08}
-      initial={{ y: 16, opacity: 0, scale: 0.98 }}
+      initial={{ y: 20, opacity: 0, scale: 0.97 }}
       animate={{ y: 0, opacity: 1, scale: 1 }}
-      exit={{ y: 8, opacity: 0, scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.8 }}
+      exit={{ y: 12, opacity: 0, scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.9 }}
       role="complementary"
       aria-label={t('ocr_result_panel', { defaultValue: 'OCR Result' })}
       className={cn(
-        'border-border bg-popover/95 supports-[backdrop-filter]:bg-popover/90 flex flex-col overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-2xl',
-        'dark:border-white/10 dark:shadow-black/30',
-        'w-[min(440px,calc(100vw-24px))] sm:w-[420px]',
-        minimized ? 'max-h-[64px]' : 'max-h-[min(62vh,520px)] min-h-[300px]'
+        'border-border bg-popover/98 supports-[backdrop-filter]:bg-popover/95 relative flex flex-col overflow-hidden rounded-2xl border shadow-[0_20px_60px_-12px_rgba(0,0,0,0.35)] backdrop-blur-2xl',
+        'dark:border-white/10 dark:shadow-black/40',
+        minimized ? 'min-h-0' : 'min-h-[320px]'
       )}
       data-testid="ocr-result-panel"
-      style={{ willChange: 'transform' }}
+      style={{
+        width: minimized ? 340 : size.width,
+        height: minimized ? 52 : size.height,
+        maxWidth: 'calc(100vw - 24px)',
+        maxHeight: minimized ? 52 : 'calc(100vh - 80px)',
+        willChange: 'transform'
+      }}
     >
       {/* Drag header */}
       <div
@@ -432,6 +479,17 @@ function OcrResultPanel({
             </div>
           )}
         </>
+      )}
+      {/* Resize handle */}
+      {!minimized && (
+        <div
+          onPointerDown={handleResizePointerDown}
+          className="absolute right-0 bottom-0 flex size-6 cursor-nwse-resize items-center justify-center rounded-tl-lg bg-transparent opacity-60 hover:opacity-100"
+          aria-label="Resize"
+          role="separator"
+        >
+          <div className="bg-muted-foreground/40 h-3 w-3 rounded-[2px] opacity-40 [background:repeating-linear-gradient(-45deg,transparent_0_2px,currentColor_2px_3px)]" />
+        </div>
       )}
     </motion.div>
   )
