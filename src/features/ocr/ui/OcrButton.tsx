@@ -1,5 +1,6 @@
 import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
+import { cn } from '@shared/lib/uiUtils'
 
 import { Loader2, ScanText } from 'lucide-react'
 import { memo } from 'react'
@@ -32,15 +33,18 @@ function OcrButton({ onClick, disabled, currentPage: _currentPage }: OcrButtonPr
     <WithTooltip label={tooltip}>
       <IconButton
         type="button"
-        variant="ghost"
+        variant={isActivePageLoading ? 'secondary' : 'ghost'}
         size="compact"
         onClick={onClick}
-        disabled={disabled || isActivePageLoading}
+        disabled={disabled}
         aria-label={tooltip}
         aria-busy={isActivePageLoading}
-        className={
-          isActivePageLoading ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
-        }
+        className={cn(
+          'transition-colors',
+          isActivePageLoading
+            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+            : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-amber-500/20 hover:bg-amber-500/10'
+        )}
         data-testid="ocr-button"
       >
         {isActivePageLoading ? (

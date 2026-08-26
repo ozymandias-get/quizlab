@@ -141,23 +141,33 @@ function PdfToolbar({
     [scheduleHighlight]
   )
 
-  // OCR handler: on-demand page-level OCR
+  // OCR handler: on-demand page-level OCR — always opens panel, even on error
   const { processPage } = useOcrActions()
   const ocrStatus = useOcrStore((s) => s.status)
+  const openOcrPanel = useOcrStore((s) => s.openPanel)
   const isOcrLoading =
     ocrStatus === 'rendering-page' ||
     ocrStatus === 'initializing-engine' ||
     ocrStatus === 'processing'
   const handleOcrPage = useCallback(() => {
-    if (!pdfFile) return
-    // Do not re-trigger if already processing same page
-    if (isOcrLoading) return
+    if (!pdfFile) {
+      openOcrPanel()
+      return
+    }
+    // If already loading this exact page, just ensure panel is visible
+    if (isOcrLoading && useOcrStore.getState().currentPage === currentPage) {
+      openOcrPanel()
+      return
+    }
+    openOcrPanel()
     void processPage({
       pageNumber: currentPage,
       pdfFile,
       pdfUrl: pdfUrl ?? pdfFile.streamUrl ?? null
+    }).catch(() => {
+      // panel already shows error state via store
     })
-  }, [pdfFile, pdfUrl, currentPage, isOcrLoading, processPage])
+  }, [pdfFile, pdfUrl, currentPage, isOcrLoading, processPage, openOcrPanel])
 
   return (
     <motion.div
