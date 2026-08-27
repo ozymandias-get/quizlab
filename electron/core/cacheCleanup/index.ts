@@ -201,14 +201,10 @@ export async function runManualCleanup(): Promise<CleanupResult> {
 export async function getCacheInfo(): Promise<CacheInfo> {
   try {
     const smartBreakdown = await measureSmartCacheBreakdown()
-    let autoClean: { enabled: boolean; lastAutoCleanAt: number | null } = {
+    const autoClean: { enabled: boolean; lastAutoCleanAt: number | null } = {
       enabled: true,
       lastAutoCleanAt: lastCleanupTime
     }
-    try {
-      const scheduler = await import('../cacheScheduler.js')
-      autoClean = scheduler.getAutoCleanConfig()
-    } catch {}
 
     return {
       breakdown: {

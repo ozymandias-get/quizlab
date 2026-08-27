@@ -10,12 +10,20 @@ import { Logger } from '../../core/logger.js'
 import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig.js'
 import { importExternalCookies } from '../gemini-web-session/sessionCookies.js'
 import { toExternalBrowserCookie } from './nativeMessagingCookieUtils.js'
-import type { NativeMessagingManager } from './nativeMessagingManager.js'
 import type { BridgeOriginPolicy } from './nativeMessagingOrigin.js'
 import { isAllowedBridgeOrigin, validateCookieDomains } from './nativeMessagingOrigin.js'
 import { MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
-export function getOriginPolicy(manager: NativeMessagingManager): BridgeOriginPolicy {
+type NativeMessagingManagerLike = {
+  _expectedExtensionOrigin: string | null
+  _sharedSecret: string
+  _connectionStatus: string
+  _waitingSince: number | null
+  _extensionLastSeenAt: number
+  broadcastExtensionConnected(): void
+}
+
+export function getOriginPolicy(manager: NativeMessagingManagerLike): BridgeOriginPolicy {
   const isDev = !app.isPackaged
   return {
     expectedExtensionOrigin: (manager as unknown as { _expectedExtensionOrigin: string | null })
@@ -31,7 +39,7 @@ export function rejectDisallowedOrigin(res: ServerResponse, origin: string | und
   res.end(JSON.stringify({ error: 'Forbidden' }))
 }
 
-export function createBridgeRequestHandler(manager: NativeMessagingManager) {
+export function createBridgeRequestHandler(manager: NativeMessagingManagerLike) {
   return (req: IncomingMessage, res: ServerResponse): void => {
     const requestOrigin = req.headers.origin as string | undefined
     const originAllowed = isAllowedBridgeOrigin(requestOrigin, getOriginPolicy(manager))
@@ -88,7 +96,7 @@ export function createBridgeRequestHandler(manager: NativeMessagingManager) {
 function handleCookiePost(
   req: IncomingMessage,
   res: ServerResponse,
-  manager: NativeMessagingManager
+  manager: NativeMessagingManagerLike
 ): void {
   const mgr = manager as unknown as {
     _sharedSecret: string
