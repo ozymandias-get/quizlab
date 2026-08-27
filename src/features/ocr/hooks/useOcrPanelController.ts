@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { createDocumentFingerprint } from '../lib/cacheKey'
 import { cancelActiveJob } from '../lib/ocrJobManager'
-import { getActivePdfDocumentFingerprint } from '../lib/renderPageToImage'
 import { useOcrStore } from '../store/useOcrStore'
 import { useOcrActions } from './useOcrActions'
 
@@ -39,18 +38,20 @@ export function useOcrPanelController(
 
   // Robust document identity: prefer pdf fingerprint when available, else same algorithm as cacheKey
 
+  // Authoritative document identity: pdfFile fields only (stable, no race)
+  // Do NOT call getActivePdfDocumentFingerprint() here — it may be stale/null
+  // at effect time and would miss the later real fingerprint registration,
+  // causing a race where fallback fingerprint vs real fingerprint diverge.
   useEffect(() => {
     if (!pdfFile) {
       prevFingerprintRef.current = null
       return
     }
-    const pdfFp = getActivePdfDocumentFingerprint()
     const nextFingerprint = createDocumentFingerprint({
       path: pdfFile.path ?? null,
       name: pdfFile.name ?? null,
       size: pdfFile.size ?? null,
-      streamUrl: pdfFile.streamUrl ?? null,
-      pdfFingerprint: pdfFp
+      streamUrl: pdfFile.streamUrl ?? null
     })
     const prev = prevFingerprintRef.current
     prevFingerprintRef.current = nextFingerprint

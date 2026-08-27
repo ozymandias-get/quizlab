@@ -1,3 +1,5 @@
+import { getActiveViewerSnapshot } from '@features/pdf/lib/activeViewerSnapshot'
+
 import { Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
 
@@ -7,10 +9,7 @@ import { createDocumentFingerprint, createOcrCacheKey } from '../lib/cacheKey'
 import { ocrCache } from '../lib/ocrCache'
 import { cancelActiveJob, clearActiveJobIf, getActiveJob, setActiveJob } from '../lib/ocrJobManager'
 import { globalOcrQueue } from '../lib/ocrQueue'
-import {
-  getActivePdfDocumentFingerprint,
-  renderPageToImageFallback
-} from '../lib/renderPageToImage'
+import { renderPageToImageFallback } from '../lib/renderPageToImage'
 import { createHybridProvider, HYBRID_ENGINE_NAME } from '../providers/hybridProvider'
 import { useOcrStore } from '../store/useOcrStore'
 import type { OcrConfig, OcrPageResult } from '../types'
@@ -44,15 +43,14 @@ function getHybridProvider(
   return providerInitPromise.then(() => hybridProvider!)
 }
 
-/** Build document fingerprint preferring PDF.js fingerprint when available (P0-6) */
+/** Build document fingerprint — authoritative source is pdfFile fields only for stability */
 function buildFingerprint(pdfFile: {
   path?: string | null
   name?: string | null
   size?: number | null
   streamUrl?: string | null
 }): string {
-  const pdfFp = getActivePdfDocumentFingerprint()
-  return createDocumentFingerprint({ ...pdfFile, pdfFingerprint: pdfFp })
+  return createDocumentFingerprint(pdfFile)
 }
 
 export function useOcrActions() {
@@ -273,10 +271,13 @@ export function useOcrActions() {
               throw new DOMException('Aborted', 'AbortError')
             }
 
-            // Validate result still matches active document/page before caching
-            const cur = useOcrStore.getState()
-            if (cur.currentDocumentId !== documentId || cur.currentPage !== pageNumber) {
-              if (cur.requestToken !== token) throw new DOMException('Stale', 'AbortError')
+            // Validate staleness before caching — token and document must still match
+            if (useOcrStore.getState().requestToken !== token)
+              throw new DOMException('Stale', 'AbortError')
+            {
+              const cur = useOcrStore.getState()
+              if (cur.currentDocumentId !== documentId || cur.currentPage !== pageNumber)
+                throw new DOMException('Stale', 'AbortError')
             }
 
             try {
@@ -384,32 +385,64 @@ export function useOcrActions() {
         streamUrl?: string | null
       }
     }) => {
-      const { dataUrl, pageNumber, pdfFile } = params
+      const { dataUrl, pageNumber, pdfFile: _pdfFile } = params
+      void _pdfFile
       const store = useOcrStore.getState()
 
-      // Capture-time validation: ensure pending metadata still matches current request (P1-16)
-      const fingerprintAtCapture = buildFingerprint(pdfFile)
-      const areaTokenDocMatch = store.pendingPdfFile
-        ? buildFingerprint(store.pendingPdfFile) === fingerprintAtCapture
-        : true
-      if (
-        store.isAreaSelectionActive &&
-        store.pendingPage != null &&
-        store.pendingPage !== pageNumber
-      ) {
-        Logger.warn('[OCR] area capture page mismatch — cancelling')
+      // Capture-time validation: immutable snapshot vs CURRENT active viewer
+      // Snapshot was stored at selection start as pendingFingerprint/pendingPage/pendingToken
+      const snapshotFingerprint = store.pendingFingerprint
+      const snapshotPage = store.pendingPage
+      const snapshotToken = store.pendingToken
+      const snapshotGen = store.selectionGeneration
+      const currentViewer = getActiveViewerSnapshot()
+      const currentToken = store.requestToken
+      const currentGen = store.selectionGeneration
+
+      // If selection was cleared or superseded, discard
+      if (snapshotFingerprint == null || snapshotPage == null || snapshotToken == null) {
+        Logger.warn('[OCR] area capture without valid snapshot — discarding')
+        return null
+      }
+      // Document changed since selection start
+      if (currentViewer.fingerprint != null && snapshotFingerprint !== currentViewer.fingerprint) {
+        Logger.warn('[OCR] area capture document stale — discarding', {
+          snapshot: snapshotFingerprint.slice(0, 16),
+          current: currentViewer.fingerprint.slice(0, 16)
+        })
         useOcrStore.getState().cancelAreaSelection()
         return null
       }
-      if (!areaTokenDocMatch) {
-        Logger.warn('[OCR] area capture document mismatch — cancelling')
+      // Page changed since selection start
+      if (snapshotPage !== pageNumber || currentViewer.page !== snapshotPage) {
+        Logger.warn('[OCR] area capture page stale — discarding', {
+          snapshotPage,
+          paramPage: pageNumber,
+          currentPage: currentViewer.page
+        })
         useOcrStore.getState().cancelAreaSelection()
+        return null
+      }
+      // Token changed (new OCR / document switch bumped token)
+      if (snapshotToken !== currentToken) {
+        Logger.warn('[OCR] area capture token stale — discarding', {
+          snapshotToken,
+          currentToken
+        })
+        useOcrStore.getState().cancelAreaSelection()
+        return null
+      }
+      // Generation changed (selection cancelled/restarted)
+      if (snapshotGen !== currentGen) {
+        Logger.warn('[OCR] area capture generation stale — discarding')
         return null
       }
 
+      // Passed snapshot check — use snapshot's fingerprint/documentId rather than rebuilding
+      const fingerprint = snapshotFingerprint
+      const documentId = store.pendingDocumentId ?? fingerprint
+
       const config: OcrConfig = { ...store.config, forceOcr: true }
-      const fingerprint = fingerprintAtCapture
-      const documentId = fingerprint
 
       const prev = getActiveJob()
       if (prev) await cancelActiveJob()
@@ -431,6 +464,7 @@ export function useOcrActions() {
 
       const jobPromise = new Promise<OcrPageResult | null>((resolve, reject) => {
         const { promise, abort } = globalOcrQueue.enqueue(async (signal) => {
+          Logger.info(`[OCR] area queue job started id=${jobId}`)
           setActiveJob({ id: jobId, documentId, pageNumber, abortController, queueAbort: abort })
           const combined = new AbortController()
           const onAbort = () => combined.abort(signal.reason ?? abortController.signal.reason)
@@ -438,6 +472,9 @@ export function useOcrActions() {
           abortController.signal.addEventListener('abort', onAbort, { once: true })
 
           try {
+            Logger.info(
+              `[OCR] area queue check token ${useOcrStore.getState().requestToken} vs ${token}`
+            )
             if (useOcrStore.getState().requestToken !== token)
               throw new DOMException('Stale', 'AbortError')
             useOcrStore.setState({ status: 'initializing-engine' })
