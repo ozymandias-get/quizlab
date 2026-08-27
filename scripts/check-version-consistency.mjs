@@ -70,9 +70,14 @@ if (ref?.startsWith('refs/tags/')) {
   if (tag.startsWith('v')) {
     const expected = `v${version}`
     if (tag !== expected) {
-      fail(
-        `git tag ${JSON.stringify(tag)} does not match package.json version: expected ${JSON.stringify(expected)}`
-      )
+      // Allow vX.Y to match vX.Y.0 for ergonomic tags like v5.4 -> 5.4.0
+      const tagWithPatch = /^v\d+\.\d+$/.test(tag) ? `${tag}.0` : null
+      const expectedShort = expected.replace(/\.0$/, '')
+      if (tagWithPatch !== expected && tag !== expectedShort) {
+        fail(
+          `git tag ${JSON.stringify(tag)} does not match package.json version: expected ${JSON.stringify(expected)} (or ${JSON.stringify(expectedShort)} for x.y.0)`
+        )
+      }
     }
   }
 }
