@@ -89,7 +89,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
 
     return {
       aiRegistry,
-      defaultAiId: allAiIds.includes('chatgpt') ? 'chatgpt' : allAiIds[0] || 'chatgpt',
+      defaultAiId: allAiIds.includes('chatgpt') ? 'chatgpt' : (allAiIds[0] ?? ''),
       allAiIds,
       chromeUserAgent: navigator.userAgent
     }

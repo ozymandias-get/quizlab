@@ -139,7 +139,12 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
     // The closed tab's document is gone for good — release its blob URL
     // (web mode) so memory does not leak per open/close cycle.
     if (closedTab?.file?.streamUrl?.startsWith('blob:')) {
-      revokeObjectUrl(closedTab.file.streamUrl)
+      const stillReferenced = nextTabs.some(
+        (tab) => tab.file?.streamUrl === closedTab.file?.streamUrl
+      )
+      if (!stillReferenced) {
+        revokeObjectUrl(closedTab.file.streamUrl)
+      }
     }
   },
 

@@ -74,6 +74,8 @@ const webviewQueues = new WeakMap<WebviewController, Promise<unknown>>()
  * Bu sayede yeni bir istek geldiğinde eski istek yarı yolda iptal edilir.
  */
 const webviewCancelFlags = new WeakMap<WebviewController, { cancelled: boolean }>()
+const webviewVersions = new WeakMap<WebviewController, number>()
+const webviewRunningVersions = new WeakMap<WebviewController, number>()
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -154,6 +156,8 @@ export function getOrCreateCancelFlag(webview: WebviewController): { cancelled: 
 export function cancelWebviewSends(webview: WebviewController): void {
   const flag = getOrCreateCancelFlag(webview)
   flag.cancelled = true
+  const v = (webviewVersions.get(webview) ?? 0) + 1
+  webviewVersions.set(webview, v)
 }
 
 /**
@@ -161,6 +165,11 @@ export function cancelWebviewSends(webview: WebviewController): void {
  * çağrısı öncesinde bunu kontrol eder.
  */
 export function isWebviewCancelled(webview: WebviewController): boolean {
+  const running = webviewRunningVersions.get(webview)
+  if (running !== undefined) {
+    const current = webviewVersions.get(webview)
+    if (current !== undefined && current !== running) return true
+  }
   return webviewCancelFlags.get(webview)?.cancelled === true
 }
 
@@ -201,21 +210,34 @@ export function mergeAiConfigs(base: AiConfig, override: AiConfig | null | undef
  * iptal bayrağını set eder. Yani "en yeni istek kazanır" semantiği.
  */
 export function queueForWebview<T>(webview: WebviewController, task: () => Promise<T>): Promise<T> {
-  // Önceki bekleyen/işleyen görevi iptal et.
-  cancelWebviewSends(webview)
-  // Yeni iptal bayrağı ayarla — sıradaki task yeni bir ömür başlatır.
-  const flag = getOrCreateCancelFlag(webview)
-  flag.cancelled = false
+  // Version-based cancellation: each queue entry gets a monotonic version.
+  // If a newer entry arrives while this one is queued or running, the older
+  // one is discarded via version mismatch (covers both queue wait and
+  // mid-pipeline isWebviewCancelled checks via webviewRunningVersions).
+  const myVersion = (webviewVersions.get(webview) ?? 0) + 1
+  webviewVersions.set(webview, myVersion)
+  // Keep flag compatibility for external cancelWebviewSends callers
+  const flag: { cancelled: boolean } = { cancelled: false }
+  webviewCancelFlags.set(webview, flag)
+  // Mark any previous running task as cancelled via version bump
+  // (the previous flag object remains reachable by its task's closure via
+  // version mismatch, not via shared mutation).
 
   const previous = webviewQueues.get(webview) ?? Promise.resolve()
   const next = previous
     .catch(() => undefined)
     .then(async () => {
-      if (flag.cancelled) {
-        // Önceki task bunu tetiklemiş; bu task çalışmadan çıkar.
+      if ((webviewVersions.get(webview) ?? 0) !== myVersion) {
         return undefined as unknown as T
       }
-      return task()
+      webviewRunningVersions.set(webview, myVersion)
+      try {
+        return await task()
+      } finally {
+        if (webviewRunningVersions.get(webview) === myVersion) {
+          webviewRunningVersions.delete(webview)
+        }
+      }
     })
   webviewQueues.set(
     webview,
