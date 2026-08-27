@@ -77,10 +77,16 @@ export function useOcrActions() {
         config
       })
 
-      // Cache hit — instant
+      // Cache hit — instant, but must invalidate any in-flight job
+      // otherwise that job's later completion would overwrite this cached result.
       const cached = ocrCache.get(cacheKey)
       if (cached) {
         Logger.info(`[OCR] cache hit page ${pageNumber} (${fingerprint})`)
+        queueAbortRef.current?.()
+        abortRef.current?.abort(new DOMException('Superseded', 'AbortError'))
+        // Bump token so the stale job is discarded via requestToken check
+        const t = useOcrStore.getState().bumpToken()
+        void t
         useOcrStore.setState({
           result: cached,
           status: 'success',

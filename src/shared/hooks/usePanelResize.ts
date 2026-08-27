@@ -110,8 +110,15 @@ export function usePanelResize({
     const widthDiff = Math.abs(finalWidth - startWidthRef.current)
     setIsResizing(false)
 
-    if (widthDiff >= WIDTH_CHANGE_THRESHOLD) {
+    if (widthDiff + Number.EPSILON >= WIDTH_CHANGE_THRESHOLD) {
       setLeftPanelWidth(finalWidth)
+    } else {
+      // Snap visual width back to the committed value to avoid DOM/style desync
+      // when the drag was below threshold (pendingWidth was rendered via direct
+      // style.width but not persisted).
+      if (leftPanelRef.current) {
+        leftPanelRef.current.style.width = `${leftPanelWidthRef.current}%`
+      }
     }
   }, [setLeftPanelWidth])
 
@@ -184,6 +191,8 @@ export function usePanelResize({
       const currentPx = (leftPanelWidthRef.current / 100) * containerWidth
       const nextPx = Math.max(bounds.safeMinLeft, Math.min(currentPx + deltaPx, bounds.safeMaxLeft))
       const nextPercentage = containerWidth > 0 ? (nextPx / containerWidth) * 100 : 50
+      const diff = Math.abs(nextPercentage - leftPanelWidthRef.current)
+      if (diff + Number.EPSILON < WIDTH_CHANGE_THRESHOLD) return
       leftPanelWidthRef.current = nextPercentage
       setLeftPanelWidth(nextPercentage)
     },

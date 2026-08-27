@@ -169,6 +169,8 @@ function useBaseStorage<T>({
         }
 
         if (serialized !== null && serialized !== serializedValueRef.current) {
+          storedValueRef.current = valueToStore
+          serializedValueRef.current = serialized
           setStoredValue(valueToStore)
           setStorageItem(key, serialized)
         }

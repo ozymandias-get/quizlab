@@ -53,7 +53,7 @@ export const removeStorageItem = (key: string): boolean => {
     localStorage.removeItem(key)
     window.dispatchEvent(
       new CustomEvent<LocalStorageChangeDetail>(LOCAL_STORAGE_SYNC_EVENT, {
-        detail: { key, value: '' }
+        detail: { key, value: null }
       })
     )
     return true
@@ -67,7 +67,7 @@ export type SetValue<T> = Dispatch<SetStateAction<T>>
 
 export interface LocalStorageChangeDetail {
   key: string
-  value: string
+  value: string | null
 }
 
 export const isLocalStorageChangeEvent = (
@@ -76,7 +76,8 @@ export const isLocalStorageChangeEvent = (
   return (
     'detail' in event &&
     typeof (event as CustomEvent<LocalStorageChangeDetail>).detail?.key === 'string' &&
-    typeof (event as CustomEvent<LocalStorageChangeDetail>).detail?.value === 'string'
+    (typeof (event as CustomEvent<LocalStorageChangeDetail>).detail?.value === 'string' ||
+      (event as CustomEvent<LocalStorageChangeDetail>).detail?.value === null)
   )
 }
 

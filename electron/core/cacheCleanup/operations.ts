@@ -95,12 +95,11 @@ async function trimPartitionCache(
       if (currentSize <= targetBytes) break
 
       const batch = sorted.slice(i, i + batchSize)
-      const batchBytes = batch.reduce((sum, f) => sum + f.size, 0)
       const result = await deleteBatch(batch, userDataPath, batchSize)
       totalDeleted += result.deleted
       totalFreed += result.freed
       totalErrors += result.errors
-      currentSize -= batchBytes
+      currentSize -= result.freed
 
       if (i + batchSize < sorted.length) {
         await new Promise((resolve) => setImmediate(resolve))

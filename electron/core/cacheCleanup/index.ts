@@ -201,6 +201,14 @@ export async function runManualCleanup(): Promise<CleanupResult> {
 export async function getCacheInfo(): Promise<CacheInfo> {
   try {
     const smartBreakdown = await measureSmartCacheBreakdown()
+    let autoClean: { enabled: boolean; lastAutoCleanAt: number | null } = {
+      enabled: true,
+      lastAutoCleanAt: lastCleanupTime
+    }
+    try {
+      const scheduler = await import('../cacheScheduler.js')
+      autoClean = scheduler.getAutoCleanConfig()
+    } catch {}
 
     return {
       breakdown: {
@@ -219,7 +227,7 @@ export async function getCacheInfo(): Promise<CacheInfo> {
         pressurePercentage: smartBreakdown.pressurePercentage,
         recommendation: smartBreakdown.recommendation!,
         partitionDetails: smartBreakdown.partitionDetails,
-        autoClean: { enabled: true, lastAutoCleanAt: lastCleanupTime }
+        autoClean
       }
     }
   } catch {

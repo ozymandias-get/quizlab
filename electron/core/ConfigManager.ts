@@ -71,9 +71,8 @@ export class ConfigManager<T extends object> {
   }
 
   public async read(force: boolean = false): Promise<T> {
-    if (this.cache && !force) return this.cache
-
     return this.enqueue(async () => {
+      if (this.cache && !force) return this.cache
       try {
         await this.ensureFile()
         const data = await fs.readFile(this.filePath, 'utf8')

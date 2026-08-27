@@ -1,23 +1,24 @@
 import { useNativeMessagingStatusQuery } from '@platform/electron/api/useNativeMessagingApi'
 
+import { Dialog } from '@app/components/ui/dialog'
 import { useClipboard } from '@shared/hooks/useClipboard'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 import { DURATION } from '@shared/lib/motion'
 
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { memo, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
   InstallConfirmStepContent,
-  LoadingContent,
   RemoveConfirmStepContent,
-  ResultContent,
   RiskStepContent,
-  StatusIndicator,
   StepIndicator
 } from './wizard'
+import LoadingContent from './wizard/LoadingContent'
+import ResultContent from './wizard/ResultContent'
+import StatusIndicator from './wizard/StatusIndicator'
 
 interface ExtensionWizardPanelProps {
   open: boolean
@@ -41,7 +42,6 @@ function ExtensionWizardPanel({
   onClose
 }: ExtensionWizardPanelProps) {
   const { t } = useTranslation()
-  const prefersReducedMotion = useReducedMotion()
   const titleId = useId()
 
   const [step, setStep] = useState(0)
@@ -122,68 +122,69 @@ function ExtensionWizardPanel({
       : `${mode}-step-${step}`
 
   return (
-    <motion.section
-      key="extension-wizard-panel"
-      aria-labelledby={titleId}
-      initial={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 8 }) }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DURATION.slow, ease: 'easeOut' }}
-      className="border-border bg-card overflow-hidden rounded-2xl border"
+    <Dialog
+      isOpen={open}
+      onClose={loading ? () => {} : onClose}
+      size="md"
+      ariaLabelledBy={titleId}
+      panelClassName="overflow-hidden p-0"
     >
-      <StepIndicator total={total} step={step} success={success} />
+      <div className="bg-card overflow-hidden rounded-2xl">
+        <StepIndicator total={total} step={step} success={success} />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={contentKey}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: DURATION.slow, ease: 'easeOut' }}
-        >
-          {loading ? (
-            <LoadingContent mode={mode} />
-          ) : success || error ? (
-            <ResultContent
-              success={success}
-              error={error}
-              mode={mode}
-              isConnected={isConnected}
-              installedPath={installedPath}
-              copied={pathCopy.isCopied}
-              copiedLink={linkCopy.isCopied}
-              onCopyPath={handleCopyPath}
-              onCopyLink={handleCopyLink}
-              onDone={handleDone}
-              statusIndicator={<StatusIndicator isConnected={isConnected} mode={mode} />}
-            />
-          ) : mode === 'install' ? (
-            step === 0 ? (
-              <RiskStepContent
-                titleId={titleId}
-                confirmed={confirmed}
-                onConfirmedChange={(checked) => setConfirmed(checked)}
-                onNext={handleNext}
-                onClose={onClose}
-                riskItems={riskItems}
-                mitigationItems={mitigationItems}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={contentKey}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: DURATION.slow, ease: 'easeOut' }}
+          >
+            {loading ? (
+              <LoadingContent mode={mode} />
+            ) : success || error ? (
+              <ResultContent
+                success={success}
+                error={error}
+                mode={mode}
+                isConnected={isConnected}
+                installedPath={installedPath}
+                copied={pathCopy.isCopied}
+                copiedLink={linkCopy.isCopied}
+                onCopyPath={handleCopyPath}
+                onCopyLink={handleCopyLink}
+                onDone={handleDone}
+                statusIndicator={<StatusIndicator isConnected={isConnected} mode={mode} />}
               />
+            ) : mode === 'install' ? (
+              step === 0 ? (
+                <RiskStepContent
+                  titleId={titleId}
+                  confirmed={confirmed}
+                  onConfirmedChange={(checked) => setConfirmed(checked)}
+                  onNext={handleNext}
+                  onClose={onClose}
+                  riskItems={riskItems}
+                  mitigationItems={mitigationItems}
+                />
+              ) : (
+                <InstallConfirmStepContent
+                  titleId={titleId}
+                  onInstall={handleInstallAction}
+                  onClose={onClose}
+                />
+              )
             ) : (
-              <InstallConfirmStepContent
+              <RemoveConfirmStepContent
                 titleId={titleId}
-                onInstall={handleInstallAction}
+                onRemove={handleRemoveAction}
                 onClose={onClose}
               />
-            )
-          ) : (
-            <RemoveConfirmStepContent
-              titleId={titleId}
-              onRemove={handleRemoveAction}
-              onClose={onClose}
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
-    </motion.section>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </Dialog>
   )
 }
 
