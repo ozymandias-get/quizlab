@@ -13,7 +13,6 @@ export interface OcrStoreState {
   isPanelOpen: boolean
   config: OcrConfig
   jobId: string | null
-  // Monotonic token to discard stale results when page/document switches mid-flight
   requestToken: number
   isAreaSelectionActive: boolean
   pendingPage: number | null
@@ -47,6 +46,7 @@ export interface OcrStoreActions {
     pdfUrl: string | null
   ) => void
   cancelAreaSelection: () => void
+  clearTransientResult: () => void
 }
 
 type OcrStore = OcrStoreState & OcrStoreActions
@@ -101,7 +101,10 @@ export const useOcrStore = create<OcrStore>()(
           currentDocumentId: null,
           jobId: null,
           isPanelOpen: false,
-          requestToken: get().requestToken + 1
+          requestToken: get().requestToken + 1,
+          isAreaSelectionActive: false,
+          pendingPage: null,
+          pendingPdfFile: null
         }),
 
       bumpToken: () => {
@@ -116,7 +119,17 @@ export const useOcrStore = create<OcrStore>()(
         set({ isAreaSelectionActive: true, pendingPage: page, pendingPdfFile: pdfFile }),
 
       cancelAreaSelection: () =>
-        set({ isAreaSelectionActive: false, pendingPage: null, pendingPdfFile: null })
+        set({ isAreaSelectionActive: false, pendingPage: null, pendingPdfFile: null }),
+
+      clearTransientResult: () =>
+        set({
+          result: null,
+          error: null,
+          status: 'idle',
+          currentPage: null,
+          currentDocumentId: null,
+          jobId: null
+        })
     }),
     {
       name: 'ocr-storage',
@@ -129,7 +142,6 @@ export const useOcrStore = create<OcrStore>()(
           ...currentState,
           ...(persisted ?? {}),
           config: { ...DEFAULT_OCR_CONFIG, ...cfg },
-          // transient fields must not be restored from storage
           status: 'idle' as OcrStatus,
           result: null,
           error: null,

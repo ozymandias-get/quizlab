@@ -29,6 +29,8 @@ interface OcrResultPanelProps {
   error: string | null
   pageNumber: number | null
   viewerPage?: number | null
+  // Document isolation invariant: panel result must belong to active document
+  viewerDocumentId?: string | null
   onClose: () => void
   onRetry: () => void
   onRunCurrent?: () => void
@@ -43,6 +45,7 @@ function OcrResultPanel({
   error,
   pageNumber,
   viewerPage,
+  viewerDocumentId,
   onClose,
   onRetry,
   onRunCurrent,
@@ -93,6 +96,7 @@ function OcrResultPanel({
         window.removeEventListener('pointermove', onMove)
         window.removeEventListener('pointerup', onUp)
       }
+      // Cleanup on unmount: ensure listeners removed if component unmounts mid-resize
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp, { once: true })
     },
@@ -102,7 +106,12 @@ function OcrResultPanel({
   const isLoading =
     status === 'rendering-page' || status === 'initializing-engine' || status === 'processing'
   const isError = status === 'error'
-  const isStale = result && pageNumber != null && viewerPage != null && pageNumber !== viewerPage
+  // Document + page staleness invariant (P0-4): never show old doc's result as if it's current
+  const isDocumentStale =
+    result?.documentId != null && viewerDocumentId != null && result.documentId !== viewerDocumentId
+  const isPageStale =
+    result && pageNumber != null && viewerPage != null && pageNumber !== viewerPage
+  const isStale = isPageStale || isDocumentStale
 
   const handleCopyMarkdown = useCallback(async () => {
     if (!result?.markdown) return
@@ -139,13 +148,18 @@ function OcrResultPanel({
     if (!onSendToAi) return
     const sel = window.getSelection()
     if (!sel || sel.isCollapsed || !sel.toString().trim()) return
-    const anchor = sel.anchorNode
-    const focus = sel.focusNode
     const container = contentRef.current
     if (!container) return
-    const insideAnchor = anchor ? container.contains(anchor) : false
-    const insideFocus = focus ? container.contains(focus) : false
-    if (!insideAnchor && !insideFocus) return
+    // Require both anchor and focus inside panel and range contained within panel (prevents partial outside selection)
+    const anchor = sel.anchorNode
+    const focus = sel.focusNode
+    if (!anchor || !focus) return
+    const range = sel.rangeCount > 0 ? sel.getRangeAt(0) : null
+    const isRangeInside = range ? container.contains(range.commonAncestorContainer) : false
+    const insideAnchor = container.contains(anchor)
+    const insideFocus = container.contains(focus)
+    if (!insideAnchor || !insideFocus) return
+    if (!isRangeInside) return
     const text = sel.toString().trim()
     if (text.length < 3) return
     try {
@@ -395,11 +409,10 @@ function OcrResultPanel({
           )}
 
           {/* Body — selecting text auto-sends to AI draft */}
-          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- selection container, not a button */}
+          {}
           <div
             ref={contentRef}
             onPointerUp={handleSelectionToAi}
-            onMouseUp={handleSelectionToAi}
             className="bg-background/50 selection:bg-primary/20 flex-1 overflow-auto p-4"
           >
             {isLoading && (

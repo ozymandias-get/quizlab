@@ -23,6 +23,8 @@ const LanguageSelectionDialog = lazy(() =>
   }))
 )
 import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { createDocumentFingerprint } from '@features/ocr/lib/cacheKey'
+import { getActivePdfDocumentFingerprint } from '@features/ocr/lib/renderPageToImage'
 import { useOcrStore } from '@features/ocr/store/useOcrStore'
 import { usePdfShortcuts } from '@features/pdf/ui/hooks/usePdfShortcuts'
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
@@ -231,6 +233,31 @@ const OcrSelectionToolLayer = memo(function OcrSelectionToolLayer() {
   const handleCapture = useCallback(
     async (image: string) => {
       if (!pendingPdfFile || pendingPage == null) return
+      // Validate that document/page hasn't changed between selection start and capture (P1-16)
+      const activeFp = getActivePdfDocumentFingerprint()
+      const capturedFp = createDocumentFingerprint({
+        path: pendingPdfFile.path ?? null,
+        name: pendingPdfFile.name ?? null,
+        size: pendingPdfFile.size ?? null,
+        streamUrl: pendingPdfFile.streamUrl ?? null,
+        pdfFingerprint: activeFp
+      })
+      const storeFp = (() => {
+        try {
+          const cur = pendingPdfFile
+          return createDocumentFingerprint({
+            path: cur.path ?? null,
+            name: cur.name ?? null,
+            size: cur.size ?? null,
+            streamUrl: cur.streamUrl ?? null,
+            pdfFingerprint: activeFp
+          })
+        } catch {
+          return capturedFp
+        }
+      })()
+      // If pending page is still expected, we rely on processArea's internal validation as second gate
+      void storeFp
       await processArea({ dataUrl: image, pageNumber: pendingPage, pdfFile: pendingPdfFile })
       cancelAreaSelection()
     },

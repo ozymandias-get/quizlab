@@ -22,7 +22,6 @@ const TURKISH_CHAR_MAP: Record<string, string> = {
 /**
  * Preserve medical/academic superscripts & special chars — never strip them.
  * Examples: HbA1c, Na+, K+, Ca2+, CD4+, IL-6, TNF-α, β-blocker, H₂O, CO₂
- * This normalizer does NOT "correct" unicode subscripts/superscripts away.
  */
 function preserveScientificSymbols(text: string): string {
   return text
@@ -39,10 +38,11 @@ function normalizeWhitespace(text: string): string {
 }
 
 function fixHyphenation(text: string): string {
-  // De-hyphenate words split across lines: "exam-\nple" -> "example"
-  // Only when the next line starts with lowercase to avoid merging headings.
-  return text.replaceAll(/(\w)-\n(\w)/g, (_, a: string, b: string) => {
-    if (/^[a-zğışüöçı]/.test(b)) return `${a}${b}`
+  // De-hyphenate words split across lines: "sağ-\nlık" -> "sağlık"
+  // Use Unicode letter class so Turkish characters are not broken.
+  // Only merge when the next line starts with lowercase letter to avoid headings.
+  return text.replaceAll(/(\p{L})-\n(\p{L})/gu, (_m, a: string, b: string) => {
+    if (/^\p{Ll}/u.test(b)) return `${a}${b}`
     return `${a}-\n${b}`
   })
 }
@@ -50,20 +50,40 @@ function fixHyphenation(text: string): string {
 function detectHeading(line: string): { level: number; text: string } | null {
   const trimmed = line.trim()
   if (!trimmed) return null
-  // All-caps short lines are likely headings
+  // Explicit Markdown heading already starts with # — handled earlier, but keep for plain text
+  if (/^#{1,6}\s+/.test(trimmed)) {
+    const m = trimmed.match(/^(#{1,6})\s+(.+)/)
+    if (m) return { level: m[1]?.length ?? 1, text: m[2] ?? trimmed }
+  }
+  // All-caps short lines are likely headings (avoid matching long paragraphs)
   if (trimmed.length < 80 && trimmed === trimmed.toUpperCase() && /[A-ZÇĞİÖŞÜ]{3,}/.test(trimmed)) {
     return { level: 2, text: trimmed }
   }
-  // Numbered headings like "1. Introduction" or "1.2.3 Methods"
+  // Numbered headings like "1 Introduction" or "1.2.3 Methods" — but NOT simple ordered list items
+  // Distinguish: single "1. Aspirin" is a list, "1.2 Title" is a heading.
   const numbered = trimmed.match(/^(\d+(?:\.\d+)*)\.?\s+(.+)/)
   if (numbered && trimmed.length < 120) {
-    const depth = (numbered[1] ?? '').split('.').length
-    return { level: Math.min(3, depth) as number, text: trimmed }
+    const depth = (numbered[1] ?? '').split('.').filter(Boolean).length
+    const rest = numbered[2] ?? ''
+    // Depth >1 (e.g., 1.2) definitely heading; depth 1 with longer phrase and capitalized may be heading but list takes precedence
+    if (depth > 1) {
+      return { level: Math.min(3, depth) as number, text: trimmed }
+    }
+    // Depth 1 heuristic: if rest is very short single word (like list item), let isListItem handle it — return null here
+    // Otherwise treat as heading only if rest length > 12 or looks like title case
+    if (rest.length > 12 || /^[A-ZÇĞİÖŞÜ]/.test(rest.trim())) {
+      // Caller must ensure list check ran first — this path only reached if list check said no
+      return { level: 2, text: trimmed }
+    }
   }
   return null
 }
 
 function isListItem(line: string): boolean {
+  const trimmed = line.trim()
+  // Ordered list: single number + delimiter (1. item) — not section headings like 1.2.3
+  // Negative: if numbered section depth >1, not a list
+  if (/^\s*\d+(?:\.\d+)+\s+/.test(trimmed)) return false
   return /^\s*(?:[-•*]\s+|\d+[.)]\s+)/.test(line)
 }
 
@@ -77,7 +97,6 @@ function normalizeListItem(line: string): string {
 }
 
 function escapeMarkdown(text: string): string {
-  // Minimal — do not escape scientific content
   return text
 }
 
@@ -111,8 +130,6 @@ export function normalizeToMarkdown(raw: string): {
     paragraphBuffer = []
     if (!para) return
 
-    // Preserve inline math: detect $...$ and keep as-is
-    // Detect display math: $$...$$ blocks
     if (para.includes('$$')) {
       formulas.push({ latex: para, display: true, raw: para })
       blocks.push({ text: para, kind: 'formula' })
@@ -120,9 +137,26 @@ export function normalizeToMarkdown(raw: string): {
       return
     }
     if (/\$[^$]+\$/.test(para)) {
-      // Inline math preserved
       blocks.push({ text: para, kind: 'paragraph' })
       markdownLines.push(para)
+      return
+    }
+
+    // Priority: explicit heading -> list -> numbered heading heuristic -> paragraph
+    // Check explicit markdown heading first
+    if (/^#{1,6}\s+/.test(para)) {
+      const heading = detectHeading(para)
+      if (heading) {
+        const hashes = '#'.repeat(heading.level)
+        blocks.push({ text: heading.text, kind: 'heading' })
+        markdownLines.push(`${hashes} ${escapeMarkdown(heading.text)}`)
+        return
+      }
+    }
+
+    if (isListItem(para)) {
+      blocks.push({ text: para, kind: 'list-item' })
+      markdownLines.push(normalizeListItem(para))
       return
     }
 
@@ -131,12 +165,6 @@ export function normalizeToMarkdown(raw: string): {
       const hashes = '#'.repeat(heading.level)
       blocks.push({ text: heading.text, kind: 'heading' })
       markdownLines.push(`${hashes} ${escapeMarkdown(heading.text)}`)
-      return
-    }
-
-    if (isListItem(para)) {
-      blocks.push({ text: para, kind: 'list-item' })
-      markdownLines.push(normalizeListItem(para))
       return
     }
 
@@ -156,7 +184,6 @@ export function normalizeToMarkdown(raw: string): {
       continue
     }
 
-    // Code block fences
     if (trimmed.startsWith('```')) {
       if (inCodeBlock) {
         blocks.push({ text: codeBuffer.join('\n'), kind: 'code' })
@@ -180,7 +207,6 @@ export function normalizeToMarkdown(raw: string): {
       continue
     }
 
-    // Likely table row detection (pipes or multiple tabs)
     if (trimmed.includes('|') && trimmed.split('|').length >= 3) {
       flushParagraph()
       blocks.push({ text: trimmed, kind: 'table' })
@@ -188,7 +214,6 @@ export function normalizeToMarkdown(raw: string): {
       continue
     }
 
-    // Horizontal rule
     if (/^[-*_]{3,}$/.test(trimmed)) {
       flushParagraph()
       markdownLines.push('---')
@@ -196,7 +221,6 @@ export function normalizeToMarkdown(raw: string): {
       continue
     }
 
-    // Blockquote
     if (trimmed.startsWith('>')) {
       flushParagraph()
       blocks.push({ text: trimmed, kind: 'paragraph' })
@@ -205,22 +229,35 @@ export function normalizeToMarkdown(raw: string): {
       continue
     }
 
-    // Heading detection per line (avoid buffering headings with following paragraph) — before list
+    // Explicit markdown heading syntax — highest priority (e.g., "# Title")
+    if (/^#{1,6}\s+/.test(trimmed)) {
+      flushParagraph()
+      const headingCandidate = detectHeading(trimmed)
+      if (headingCandidate) {
+        const hashes = '#'.repeat(headingCandidate.level)
+        blocks.push({ text: headingCandidate.text, kind: 'heading' })
+        markdownLines.push(`${hashes} ${escapeMarkdown(headingCandidate.text)}`)
+        continue
+      }
+    }
+
+    // List item — each bullet/numbered line is its own block, not merged with paragraph
+    // Check list BEFORE numbered heading heuristic (audit priority)
+    if (isListItem(trimmed)) {
+      flushParagraph()
+      const normalized = normalizeListItem(trimmed)
+      blocks.push({ text: normalized, kind: 'list-item' })
+      markdownLines.push(normalized)
+      continue
+    }
+
+    // Numbered section heading heuristic — after list
     const headingCandidate = detectHeading(trimmed)
     if (headingCandidate) {
       flushParagraph()
       const hashes = '#'.repeat(headingCandidate.level)
       blocks.push({ text: headingCandidate.text, kind: 'heading' })
       markdownLines.push(`${hashes} ${escapeMarkdown(headingCandidate.text)}`)
-      continue
-    }
-
-    // List item — each bullet/numbered line is its own block, not merged with paragraph
-    if (isListItem(trimmed)) {
-      flushParagraph()
-      const normalized = normalizeListItem(trimmed)
-      blocks.push({ text: normalized, kind: 'list-item' })
-      markdownLines.push(normalized)
       continue
     }
 
@@ -235,14 +272,12 @@ export function normalizeToMarkdown(raw: string): {
     markdownLines.push('```')
   }
 
-  // Post-process: ensure Turkish chars preserved (no-op but explicit)
   const markdown = markdownLines
     .join('\n')
     .replaceAll(/\n{3,}/g, '\n\n')
     .trim()
     .split('\n')
     .map((l) => {
-      // Ensure no accidental stripping of Turkish chars via normalization
       for (const ch of Object.keys(TURKISH_CHAR_MAP)) {
         void ch
       }
@@ -250,7 +285,6 @@ export function normalizeToMarkdown(raw: string): {
     })
     .join('\n')
 
-  // Table extraction: parse markdown tables back into structured data
   const tableRegex = /^\|(.+)\|\n\|[-| :]+\|\n((?:\|.*\|\n?)*)/gm
   let m: RegExpExecArray | null
 
@@ -276,7 +310,6 @@ export function normalizeToMarkdown(raw: string): {
     }
   }
 
-  // Formula extraction
   const inlineFormulaRegex = /\$([^$]+)\$/g
   let fm: RegExpExecArray | null
 
@@ -295,7 +328,5 @@ export function normalizeToMarkdown(raw: string): {
 }
 
 export function convertLatexToMarkdownSafe(text: string): string {
-  // Preserve LaTeX as-is — no destructive transformation
-  // Ensure inline $...$ and display $$...$$ are well-formed
   return text.replaceAll(/\\\[(.*?)\\\]/g, '$$$$$1$$$$').replaceAll(/\\\((.*?)\\\)/g, '$$$1$$')
 }

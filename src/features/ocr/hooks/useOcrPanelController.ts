@@ -1,5 +1,8 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
+import { createDocumentFingerprint } from '../lib/cacheKey'
+import { cancelActiveJob } from '../lib/ocrJobManager'
+import { getActivePdfDocumentFingerprint } from '../lib/renderPageToImage'
 import { useOcrStore } from '../store/useOcrStore'
 import { useOcrActions } from './useOcrActions'
 
@@ -19,39 +22,63 @@ export function useOcrPanelController(
   const error = useOcrStore((s) => s.error)
   const currentPage = useOcrStore((s) => s.currentPage)
   const closePanel = useOcrStore((s) => s.closePanel)
+  const prevFingerprintRef = useRef<string | null>(null)
   const { cancel } = useOcrActions()
 
   const handleClose = useCallback(() => {
-    // Cancel in-flight if closing while loading
     if (
       status === 'processing' ||
       status === 'rendering-page' ||
       status === 'initializing-engine'
     ) {
+      void cancelActiveJob()
       cancel()
     }
     closePanel()
   }, [cancel, closePanel, status])
 
-  // Auto-close panel when document changes to avoid stale results showing for new doc
+  // Robust document identity: prefer pdf fingerprint when available, else same algorithm as cacheKey
+
   useEffect(() => {
-    const docId = pdfFile?.path || pdfFile?.streamUrl || pdfFile?.name || null
-    const storeDocId = useOcrStore.getState().currentDocumentId
-    if (
-      docId &&
-      storeDocId &&
-      docId !== storeDocId &&
-      !docId.includes(storeDocId) &&
-      !storeDocId.includes(docId)
-    ) {
-      // Different document — if panel open with success for old doc, keep but stale check will hide?
-      // Instead we just keep; cancel any in-flight for old doc
-      const s = useOcrStore.getState().status
-      if (s === 'processing' || s === 'rendering-page' || s === 'initializing-engine') {
-        cancel()
-      }
+    if (!pdfFile) {
+      prevFingerprintRef.current = null
+      return
     }
-  }, [pdfFile?.name, pdfFile?.path, pdfFile?.streamUrl, cancel])
+    const pdfFp = getActivePdfDocumentFingerprint()
+    const nextFingerprint = createDocumentFingerprint({
+      path: pdfFile.path ?? null,
+      name: pdfFile.name ?? null,
+      size: pdfFile.size ?? null,
+      streamUrl: pdfFile.streamUrl ?? null,
+      pdfFingerprint: pdfFp
+    })
+    const prev = prevFingerprintRef.current
+    prevFingerprintRef.current = nextFingerprint
+
+    if (!prev) return
+    if (prev === nextFingerprint) return
+
+    // Document truly changed — invariant: cancel any in-flight, clear transient result, close panel, bump token, cancel area selection
+    const s = useOcrStore.getState()
+    const isProcessing =
+      s.status === 'processing' ||
+      s.status === 'rendering-page' ||
+      s.status === 'initializing-engine'
+    if (isProcessing) {
+      void cancelActiveJob()
+    }
+    // Clear area selection if active
+    if (s.isAreaSelectionActive) {
+      s.cancelAreaSelection()
+    }
+    // Clear transient result so PDF A's text never shows on PDF B (P0-4 privacy/isolation)
+    s.clearTransientResult()
+    // Close panel
+    s.closePanel()
+    // Bump token so any late completion is discarded
+    s.bumpToken()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfFile?.name, pdfFile?.path, pdfFile?.streamUrl, pdfFile?.size])
 
   return { isPanelOpen, status, result, error, currentPage, handleClose }
 }
