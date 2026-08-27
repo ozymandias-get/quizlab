@@ -483,8 +483,9 @@ export function useOcrActions() {
             if (useOcrStore.getState().requestToken !== token)
               throw new DOMException('Stale', 'AbortError')
             // Snapshot documentId at processing time — if changed since scheduling, abort
+            // P2 fix: document mismatch alone is stale, don't gate it behind token check
             const curDoc = useOcrStore.getState().currentDocumentId
-            if (curDoc !== documentId && useOcrStore.getState().requestToken !== token) {
+            if (curDoc !== documentId) {
               throw new DOMException('Stale', 'AbortError')
             }
             useOcrStore.setState({ status: 'processing' })

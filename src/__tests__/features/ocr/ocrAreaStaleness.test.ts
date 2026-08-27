@@ -155,4 +155,26 @@ describe('area OCR staleness — selection snapshot vs current viewer', () => {
     expect(res).toBeNull()
     expect(mockProcessPage).not.toHaveBeenCalled()
   })
+
+  it('area job queued -> documentId changes but token same => provider not called (P2)', async () => {
+    setActiveViewerSnapshot(fileA, 2)
+    useOcrStore.getState().startAreaSelection(2, fileA, 'local-pdf://a')
+    mockProcessPage.mockResolvedValue(
+      fakeResult({ pageNumber: 2, documentId: 'different', markdown: 'should not happen' })
+    )
+    const { result } = renderHook(() => useOcrActions())
+    const p = result.current.processArea({
+      dataUrl: 'data:image/png;base64,abc',
+      pageNumber: 2,
+      pdfFile: fileA
+    })
+    // Change documentId without bumping token while job is queued (queue is deferred via microtask)
+    await Promise.resolve()
+    useOcrStore.setState({ currentDocumentId: 'different-doc-id' })
+    const res = await p
+    expect(res).toBeNull()
+    expect(mockProcessPage).not.toHaveBeenCalled()
+    expect(useOcrStore.getState().result).toBeNull()
+    expect(ocrCache.size()).toBe(0)
+  })
 })
