@@ -1,4 +1,5 @@
 import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { useOcrPanelController } from '@features/ocr/hooks/useOcrPanelController'
 import { createDocumentFingerprint } from '@features/ocr/lib/cacheKey'
 import { useOcrStore } from '@features/ocr/store/useOcrStore'
 import OcrResultPanel from '@features/ocr/ui/OcrResultPanel'
@@ -89,6 +90,9 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   useEffect(() => {
     setActiveViewerSnapshot(pdfFile ?? null, currentPage)
   }, [pdfFile, currentPage])
+
+  // Document change staleness: close panel, clear stale result, cancel area selection
+  useOcrPanelController(pdfFile, pdfUrl, currentPage)
 
   const viewerElement = useMemo(
     () => (
