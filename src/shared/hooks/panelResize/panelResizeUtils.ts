@@ -1,7 +1,7 @@
 import { PANEL_RESIZING_BODY_CLASS } from '@shared/constants/panelResize'
 
 export const DEFAULT_RESIZER_WIDTH = 48
-export const WIDTH_CHANGE_THRESHOLD = 0.05
+export const WIDTH_CHANGE_THRESHOLD = 0.3
 
 export function setBodyResizingState(isResizing: boolean) {
   if (typeof document === 'undefined') return

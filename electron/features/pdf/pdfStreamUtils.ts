@@ -28,6 +28,11 @@ export function parseByteRange(
     if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
       return null
     }
+    // An empty representation has no bytes, so no range can be satisfied
+    // (RFC 9110 §14.1.1) — report 416 instead of streaming start=0,end=-1.
+    if (totalSize === 0) {
+      return null
+    }
     if (suffixLength >= totalSize) {
       return { start: 0, end: totalSize - 1 }
     }

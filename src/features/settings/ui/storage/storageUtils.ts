@@ -45,3 +45,41 @@ export function partitionDisplayName(partitionKey: string): string {
 
   return key
 }
+
+export function activityLabel(category: string, t: (k: string) => string): string {
+  if (category === 'active') return t('partition_activity_active')
+  if (category === 'passive') return t('partition_activity_passive')
+  return t('partition_activity_cold')
+}
+
+export function activityColor(category: string): string {
+  if (category === 'active') return 'bg-emerald-500'
+  if (category === 'passive') return 'bg-amber-500'
+  return 'bg-slate-400'
+}
+
+export function pressureLabel(level: string, t: (k: string) => string): string {
+  const map: Record<string, string> = {
+    normal: t('cache_pressure_normal'),
+    moderate: t('cache_pressure_moderate'),
+    warning: t('cache_pressure_warning'),
+    high: t('cache_pressure_high'),
+    critical: t('cache_pressure_critical')
+  }
+  return map[level] ?? level
+}
+
+export function pressureColor(level: string): string {
+  switch (level) {
+    case 'critical':
+      return 'bg-rose-500'
+    case 'high':
+      return 'bg-orange-500'
+    case 'warning':
+      return 'bg-amber-500'
+    case 'moderate':
+      return 'bg-yellow-500'
+    default:
+      return 'bg-emerald-500'
+  }
+}

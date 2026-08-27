@@ -8,6 +8,13 @@ interface UseApiChatSessionInitOptions {
   sessions: { id: string; updatedAt: number }[]
   createSessionMutation: () => Promise<{ session: { id: string } }>
   setActiveSessionId: (tabId: string, sessionId: string) => void
+  /**
+   * Gates the init effect until the sessions query has actually resolved.
+   * While the query is loading the caller sees `[]`, which is NOT the same
+   * as "the user has no sessions" — creating a session then would race the
+   * query and orphan/persist over existing history.
+   */
+  enabled?: boolean
 }
 
 /**
@@ -19,12 +26,14 @@ export function useApiChatSessionInit({
   activeSessionId,
   sessions,
   createSessionMutation,
-  setActiveSessionId
+  setActiveSessionId,
+  enabled = true
 }: UseApiChatSessionInitOptions): void {
   const sessionInitInFlightRef = useRef(false)
   const sessionInitRetryCountRef = useRef(0)
 
   useEffect(() => {
+    if (!enabled) return
     if (activeSessionId) return
     if (sessionInitInFlightRef.current) return
     if (sessions.length === 0) {
@@ -47,5 +56,5 @@ export function useApiChatSessionInit({
     }
     const mostRecent = sessions.reduce((best, s) => (s.updatedAt > best.updatedAt ? s : best))
     setActiveSessionId(tabId, mostRecent.id)
-  }, [tabId, activeSessionId, sessions, createSessionMutation, setActiveSessionId])
+  }, [tabId, activeSessionId, sessions, createSessionMutation, setActiveSessionId, enabled])
 }

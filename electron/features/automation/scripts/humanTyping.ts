@@ -16,8 +16,11 @@ export function buildHumanTypingScript(): string {
                 element.select();
             }
 
-            for (let i = 0; i < value.length; i++) {
-                const char = value[i];
+            // Iterate code points (not UTF-16 units) so astral characters
+            // such as emoji are typed whole instead of as lone surrogates.
+            const chars = Array.from(value);
+            for (let i = 0; i < chars.length; i++) {
+                const char = chars[i];
 
                 if (isContentEditable) {
                     try {
@@ -48,7 +51,7 @@ export function buildHumanTypingScript(): string {
                     bubbles: true, composed: true, inputType: 'insertText', data: char
                 }));
 
-                if (i < value.length - 1) {
+                if (i < chars.length - 1) {
                     await wait(delayMs);
                 }
             }

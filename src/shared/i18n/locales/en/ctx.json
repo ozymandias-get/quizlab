@@ -6,5 +6,7 @@
   "ctx_reset_zoom": "Reset Zoom",
   "ctx_zoom_in": "Zoom In",
   "ctx_zoom_out": "Zoom Out",
-  "full_page_screenshot": "Full Page Screenshot"
+  "full_page_screenshot": "Full Page Screenshot",
+  "ctx_ocr_page": "Scan Page with OCR",
+  "ctx_ocr_selection": "Scan Area with OCR"
 }

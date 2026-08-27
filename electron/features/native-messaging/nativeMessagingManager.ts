@@ -83,6 +83,12 @@ export class NativeMessagingManager {
   public handleStdinData(chunk: Buffer): void {
     const bufferChunk = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as unknown as string)
     this.pendingBuffer = Buffer.concat([this.pendingBuffer, bufferChunk])
+    // Global cap: slow-drip or coalesced chunks must not exceed MAX + header
+    if (this.pendingBuffer.length > this.MAX_NATIVE_MESSAGE_SIZE + 4 + 1024) {
+      Logger.error('[NativeMessaging] Pending buffer overflow, discarding')
+      this.pendingBuffer = Buffer.alloc(0)
+      return
+    }
     this.processPendingBuffer()
   }
 
@@ -115,11 +121,14 @@ export class NativeMessagingManager {
       }
 
       if (this.pendingBuffer.length < 4 + messageLength) {
+        // Slow-drip guard: if we have a valid length but body never completes,
+        // the global cap in handleStdinData will eventually discard.
         break
       }
 
       const messageBody = this.pendingBuffer.subarray(4, 4 + messageLength)
       const remaining = this.pendingBuffer.subarray(4 + messageLength)
+      // Copy to free the original large backing buffer (subarray shares memory)
       this.pendingBuffer = remaining.length > 0 ? Buffer.from(remaining) : Buffer.alloc(0)
 
       try {

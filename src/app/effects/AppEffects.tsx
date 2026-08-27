@@ -42,8 +42,17 @@ function AppEffects() {
 
   useEffect(() => {
     const root = document.documentElement
-    root.classList.add('dark', 'low-perf')
+    root.classList.add('dark')
     root.classList.remove('light')
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const hwConcurrency =
+      (navigator as unknown as { hardwareConcurrency?: number }).hardwareConcurrency ?? 8
+    const deviceMemory = (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8
+    const isLowEnd = prefersReducedMotion || hwConcurrency <= 4 || deviceMemory <= 4
+
+    if (isLowEnd) root.classList.add('low-perf')
+    else root.classList.remove('low-perf')
   }, [])
 
   useEffect(() => {

@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetPendingLogEntries = vi.fn()
 const mockGetLogBufferLength = vi.fn()
+const mockGetTotalLogCount = vi.fn()
 
 vi.mock('../../../src/shared/lib/logger.js', () => ({
   getPendingLogEntries: (...args: any[]) => mockGetPendingLogEntries(...args),
-  getLogBufferLength: (...args: any[]) => mockGetLogBufferLength(...args)
+  getLogBufferLength: (...args: any[]) => mockGetLogBufferLength(...args),
+  getTotalLogCount: (...args: any[]) => mockGetTotalLogCount(...args)
 }))
 
 const mockExistsSync = vi.fn()

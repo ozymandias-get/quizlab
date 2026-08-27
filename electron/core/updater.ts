@@ -73,15 +73,18 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 12000)
 
-    const response = await globalThis.fetch(url, {
-      headers: {
-        'User-Agent': `Electron-App/${app.getVersion()}`, // Generic UA to avoid GitHub blocking
-        Accept: 'application/vnd.github.v3+json'
-      },
-      signal: controller.signal
-    })
-
-    clearTimeout(timeoutId)
+    let response: globalThis.Response
+    try {
+      response = await globalThis.fetch(url, {
+        headers: {
+          'User-Agent': `Electron-App/${app.getVersion()}`, // Generic UA to avoid GitHub blocking
+          Accept: 'application/vnd.github.v3+json'
+        },
+        signal: controller.signal
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!response.ok) {
       Logger.warn(`[Updater] Fetch failed: ${response.status} ${response.statusText}`)
@@ -93,8 +96,28 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
     const message = err instanceof Error ? err.message : String(err)
     Logger.warn(`[Updater] Network error:`, message)
 
+    // Fallback path must be time-bounded too: an unbounded request that
+    // neither responds nor errors would leave the IPC handler (and the
+    // `isChecking` guard) stuck forever, disabling update checks.
     return new Promise((resolve) => {
+      let settled = false
+      const settle = (result: LatestReleaseResult) => {
+        if (settled) return
+        settled = true
+        clearTimeout(fallbackTimeoutId)
+        resolve(result)
+      }
+
       const request = net.request(url)
+      const fallbackTimeoutId = setTimeout(() => {
+        try {
+          request.abort()
+        } catch {
+          // Request may already be destroyed.
+        }
+        settle({ error: 'Fallback request timed out' })
+      }, 12000)
+
       request.setHeader('User-Agent', `Electron-App/${app.getVersion()}`)
       request.on('response', (response) => {
         let data = ''
@@ -104,17 +127,17 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
         response.on('end', () => {
           try {
             if (response.statusCode !== 200) {
-              resolve({ error: `HTTP ${response.statusCode}` })
+              settle({ error: `HTTP ${response.statusCode}` })
             } else {
-              resolve(parseReleasePayload(JSON.parse(data)))
+              settle(parseReleasePayload(JSON.parse(data)))
             }
           } catch {
-            resolve({ error: 'Parse error' })
+            settle({ error: 'Parse error' })
           }
         })
       })
       request.on('error', (error) => {
-        resolve({ error: error.message })
+        settle({ error: error.message })
       })
       request.end()
     })

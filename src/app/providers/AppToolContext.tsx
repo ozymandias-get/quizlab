@@ -209,12 +209,25 @@ export const useAppToolActions = () => {
   return context
 }
 
-export const useAppTools = () => {
+/**
+ * @deprecated Prefer granular hooks (`useAppToolQueueState`, `useAppToolFlagsState`,
+ * `useAppToolScreenshotState`, `useAppToolPickerState`, `useAppToolActions`) to avoid
+ * global re-renders. This helper spreads queue+flags+actions into a new object on
+ * every flag change, so any consumer re-renders when *any* slice changes.
+ * A selector overload is provided to isolate renders when migration is not trivial.
+ */
+export function useAppTools(): AppToolQueueState & AppToolFlagsState & AppToolActionsType
+export function useAppTools<T>(
+  selector: (state: AppToolQueueState & AppToolFlagsState & AppToolActionsType) => T
+): T
+export function useAppTools<T>(
+  selector?: (state: AppToolQueueState & AppToolFlagsState & AppToolActionsType) => T
+) {
   const queue = useAppToolQueueState()
   const flags = useAppToolFlagsState()
   const actions = useAppToolActions()
 
-  return useMemo(
+  const combined = useMemo(
     () => ({
       ...queue,
       ...flags,
@@ -222,4 +235,9 @@ export const useAppTools = () => {
     }),
     [queue, flags, actions]
   )
+
+  if (typeof selector === 'function') {
+    return selector(combined)
+  }
+  return combined
 }

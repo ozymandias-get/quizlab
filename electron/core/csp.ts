@@ -14,7 +14,8 @@ export function getStrictCsp(nonce: string): string {
     'child-src blob:',
     "worker-src 'self' blob:",
     "img-src 'self' data: blob:",
-    "connect-src 'self' blob: local-pdf:",
+    // connect-src keeps CDN for optional language data fallback; worker script itself is local (no remote code execution)
+    "connect-src 'self' blob: local-pdf: https://cdn.jsdelivr.net",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'"
@@ -31,7 +32,7 @@ export function getDevCsp(): string {
     'child-src blob:',
     "worker-src 'self' blob:",
     "img-src 'self' data: blob:",
-    "connect-src 'self' blob: local-pdf:",
+    "connect-src 'self' blob: local-pdf: https://cdn.jsdelivr.net",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'"

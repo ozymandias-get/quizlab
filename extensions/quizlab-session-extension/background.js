@@ -23,11 +23,14 @@ let bridgeSecret = null
 // be driven by the alarm system + top-level startup hook below, never by
 // in-memory state that does not survive a worker restart.
 
-chrome.storage.session.get('bridgeSecret', (result) => {
-  if (result.bridgeSecret) {
-    bridgeSecret = result.bridgeSecret
-  }
-})
+try {
+  const storageArea = chrome.storage.session || chrome.storage.local
+  storageArea.get('bridgeSecret', (result) => {
+    if (result && result.bridgeSecret) {
+      bridgeSecret = result.bridgeSecret
+    }
+  })
+} catch {}
 
 async function computeHmac(body, secret) {
   const encoder = new TextEncoder()
@@ -90,6 +93,8 @@ async function sendCookiesToApp() {
 
     const body = JSON.stringify(payload)
     const headers = { 'Content-Type': 'application/json' }
+    const origin = getExtensionOrigin()
+    if (origin) headers['Origin'] = origin
     if (bridgeSecret) {
       headers['x-hmac-signature'] = await computeHmac(body, bridgeSecret)
     }
@@ -131,21 +136,43 @@ function isGoogleDomain(domain) {
   return GOOGLE_COOKIE_DOMAINS.some((d) => domain === d || domain.endsWith(d))
 }
 
+function getExtensionOrigin() {
+  try {
+    return `chrome-extension://${chrome.runtime.id}`
+  } catch {
+    return ''
+  }
+}
+
 async function fetchBridgeSecret(port) {
   try {
+    const headers = {}
+    const origin = getExtensionOrigin()
+    if (origin) headers['Origin'] = origin
     const response = await fetch(`http://${BRIDGE_HOST}:${port}/api/health`, {
       method: 'GET',
+      headers,
       signal: AbortSignal.timeout(2000)
     })
     if (response.ok) {
       const data = await response.json()
       if (data && data.secret) {
         bridgeSecret = data.secret
-        chrome.storage.session.set({ bridgeSecret: data.secret }).catch(() => {})
+        try {
+          if (chrome.storage && chrome.storage.session) {
+            chrome.storage.session.set({ bridgeSecret: data.secret }).catch(() => {})
+          } else {
+            chrome.storage.local.set({ bridgeSecret: data.secret }).catch(() => {})
+          }
+        } catch {}
         return true
       }
+    } else {
+      console.warn('[Quizlab Bridge] fetchBridgeSecret rejected', port, response.status)
     }
-  } catch {}
+  } catch (e) {
+    console.warn('[Quizlab Bridge] fetchBridgeSecret failed', port, e?.message || e)
+  }
   return false
 }
 
@@ -173,8 +200,12 @@ async function scanForBridge() {
   //   - top-level (SW warm start) + cookie/webNavigation events
   for (let port = PORT_START; port <= PORT_END; port++) {
     try {
+      const headers = {}
+      const origin = getExtensionOrigin()
+      if (origin) headers['Origin'] = origin
       const response = await fetch(`http://${BRIDGE_HOST}:${port}/api/health`, {
         method: 'GET',
+        headers,
         signal: AbortSignal.timeout(2000)
       })
       if (response.ok) {

@@ -41,6 +41,7 @@ const BottomBarSettingsTab = lazy(() => import('../BottomBarSettingsTab'))
 const TextInputModeTab = lazy(() => import('../TextInputModeTab'))
 const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
 const StorageTab = lazy(() => import('../StorageTab'))
+const OcrTab = lazy(() => import('../OcrTab'))
 
 export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<SettingsContext>> = {
   prompts: PromptsTab,
@@ -53,6 +54,7 @@ export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<Settin
   notifications: NotificationsTab,
   appearance: AppearanceTab,
   'bottom-bar': BottomBarSettingsTab,
+  ocr: OcrTab,
   language: LanguageTab,
   tutorial: TutorialTabWrapper,
   about: AboutTabWrapper,

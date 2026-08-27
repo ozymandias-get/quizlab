@@ -87,7 +87,23 @@ export function setupSessions(getMainWindow: MainWindowResolver) {
       const partitionKey = partition.replace('persist:', '')
       markPartitionActive(partitionKey)
 
+      // Akıllı takip: her istekte partition'u canlı işaretle (LRU için)
+      try {
+        aiSession.webRequest.onCompleted(() => {
+          markPartitionActive(partitionKey)
+        })
+        aiSession.webRequest.onBeforeRequest((_details, callback) => {
+          // Aktiviteyi güncelle, isteği engelleme
+          markPartitionActive(partitionKey)
+          callback({})
+        })
+      } catch {
+        // webRequest hook fails shouldn't break session setup
+      }
+
       aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
+        // Header aşamasında da aktiviteyi tazele (en sık tetiklenen hook)
+        markPartitionActive(partitionKey)
         details.requestHeaders['User-Agent'] = APP_CONFIG.CHROME_USER_AGENT
         callback({ requestHeaders: details.requestHeaders })
       })

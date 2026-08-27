@@ -100,6 +100,32 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
   const handleShowHome = useCallback(() => setShowHome(true), [])
   const handleHideHome = useCallback(() => setShowHome(false), [])
 
+  const aliveSet = useMemo(() => new Set(aliveTabIds), [aliveTabIds])
+
+  const renderedSessions = useMemo(
+    () =>
+      tabs.map((tab) => {
+        const isMounted = tab.id === activeTabId || aliveSet.has(tab.id)
+        if (!isMounted) return null
+
+        const isActive = tab.id === activeTabId && !showHome
+        const cached = tabUrlCacheRef.current[tab.id]
+        const restoredUrl = cached && cached.modelId === tab.modelId ? cached.url : undefined
+
+        return (
+          <AiSession
+            key={tab.id}
+            tab={tab}
+            isActive={isActive}
+            isBarHovered={isActive && isBarHovered}
+            restoredUrl={restoredUrl}
+            onTabUrlRecorded={handleTabUrlChange}
+          />
+        )
+      }),
+    [tabs, aliveSet, activeTabId, showHome, isBarHovered, handleTabUrlChange]
+  )
+
   const panelStyle = useMemo(
     () => ({
       ...PANEL_STYLE,
@@ -137,25 +163,7 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
             )}
           </AnimatePresence>
 
-          {tabs.map((tab) => {
-            const isMounted = tab.id === activeTabId || aliveTabIds.includes(tab.id)
-            if (!isMounted) return null
-
-            const isActive = tab.id === activeTabId && !showHome
-            const cached = tabUrlCacheRef.current[tab.id]
-            const restoredUrl = cached && cached.modelId === tab.modelId ? cached.url : undefined
-
-            return (
-              <AiSession
-                key={tab.id}
-                tab={tab}
-                isActive={isActive}
-                isBarHovered={isActive && isBarHovered}
-                restoredUrl={restoredUrl}
-                onTabUrlRecorded={handleTabUrlChange}
-              />
-            )
-          })}
+          {renderedSessions}
         </div>
 
         {isTutorialActive && (

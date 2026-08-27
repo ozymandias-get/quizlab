@@ -8,6 +8,7 @@ import {
   addMessageToSession,
   buildCombinedPrompt,
   buildErrorReply,
+  loadSessions,
   persistSessions,
   sendApiChatRequest
 } from '../api/sessions.api'
@@ -60,7 +61,9 @@ export async function sendApiChatMessage(
     requestId = beginChatRequest(tabId)
     const userMsg = getUserMessage(text, images, providerId)
 
-    const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || []
+    // Never treat an unhydrated cache as "empty": falling back to storage
+    // prevents persisting a truncated session list (history loss).
+    const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
     const sessionsWithUser = addMessageToSession(prev, activeSessionId, userMsg)
     persistSessions(sessionsWithUser)
     queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithUser)

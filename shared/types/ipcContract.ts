@@ -148,6 +148,26 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<boolean>
   }
 
+  [IPC_CHANNELS.GET_SMART_CACHE_INFO]: {
+    args: []
+    result: IpcResult<CacheInfoResponse>
+  }
+
+  [IPC_CHANNELS.GET_CACHE_AUTO_CLEAN]: {
+    args: []
+    result: IpcResult<{ enabled: boolean; lastAutoCleanAt: number | null }>
+  }
+
+  [IPC_CHANNELS.SET_CACHE_AUTO_CLEAN]: {
+    args: [enabled: boolean]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.SMART_CACHE_ACTION]: {
+    args: [action: 'clean_cold' | 'clean_all']
+    result: IpcResult<boolean>
+  }
+
   [IPC_CHANNELS.FORCE_PASTE]: {
     args: [webContentsId: number]
     result: IpcResult<boolean>

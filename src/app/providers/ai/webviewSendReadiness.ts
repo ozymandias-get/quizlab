@@ -32,14 +32,34 @@ export async function waitForWebviewReadyForSend(
 ): Promise<boolean> {
   const startedAt = Date.now()
 
+  // Fast-path: check cheap synchronous guards before any IPC. This avoids
+  // calling executeJavaScript when the guest has no URL or is destroyed,
+  // which would otherwise trigger a needless round-trip.
+  const isControllerCheapReady = (controller: WebviewController | null) => {
+    if (!controller) return false
+    if (controller.isDestroyed?.() === true) return false
+    if (!controller.getURL?.()) return false
+    // If the guest is still loading, document.readyState is likely 'loading' — skip IPC.
+    const isLoading = (controller as unknown as { isLoading?: () => boolean }).isLoading
+    if (typeof isLoading === 'function' && isLoading()) return false
+    return true
+  }
+
+  let attempt = 0
   while (Date.now() - startedAt < timeoutMs) {
-    if (await isWebviewReadyForSend(getController())) return true
+    const controller = getController()
+    if (isControllerCheapReady(controller) && (await isWebviewReadyForSend(controller))) return true
 
     const elapsed = Date.now() - startedAt
     const remaining = timeoutMs - elapsed
     if (remaining <= 0) break
 
-    await new Promise((resolve) => setTimeout(resolve, Math.min(pollIntervalMs, remaining)))
+    // Exponential backoff: start at min(pollIntervalMs, 50) and grow to pollIntervalMs
+    // so the first few checks are eager (fast connect) but we don't spam IPC
+    // for 10s straight. ~12 attempts total vs. 100 previously.
+    const backoff = Math.min(pollIntervalMs, 50 * Math.pow(1.5, attempt))
+    attempt += 1
+    await new Promise((resolve) => setTimeout(resolve, Math.min(backoff, remaining)))
   }
 
   return isWebviewReadyForSend(getController())

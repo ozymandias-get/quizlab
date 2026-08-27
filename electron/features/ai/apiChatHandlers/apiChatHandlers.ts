@@ -273,9 +273,8 @@ export function registerApiChatHandlers() {
         activeModelFetchController.abort()
       }
       activeModelFetchController = controller
-      const fetchTimeout = provider.requestTimeout
-        ? Math.min(provider.requestTimeout, 30000)
-        : 15000
+      const fetchTimeout =
+        provider.requestTimeout != null ? Math.min(provider.requestTimeout, 30000) : 15000
       let fetchAbortedByTimeout = false
       const timeoutId = setTimeout(() => {
         fetchAbortedByTimeout = true

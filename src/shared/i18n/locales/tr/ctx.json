@@ -6,5 +6,7 @@
   "ctx_reset_zoom": "Ölçeği Sıfırla",
   "ctx_zoom_in": "Yakınlaştır",
   "ctx_zoom_out": "Uzaklaştır",
-  "full_page_screenshot": "Tam Sayfa Görüntüsü Al"
+  "full_page_screenshot": "Tam Sayfa Görüntüsü Al",
+  "ctx_ocr_page": "Sayfayı OCR ile Tara",
+  "ctx_ocr_selection": "Alanı OCR ile Tara"
 }

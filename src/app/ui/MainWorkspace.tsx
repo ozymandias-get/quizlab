@@ -25,7 +25,8 @@ interface MainWorkspaceProps {
   leftPanelVariants: Variants
   rightPanelVariants: Variants
   resizerVariants: Variants
-  gpuAcceleratedStyle: CSSProperties
+  /** @deprecated Kept for compat — will-change is now handled internally per-panel */
+  gpuAcceleratedStyle?: CSSProperties
   handlePointerDown: (e: ReactPointerEvent) => void
   handlePointerMove: (e: ReactPointerEvent) => void
   handlePointerUp: (e: ReactPointerEvent) => void
@@ -52,7 +53,7 @@ function MainWorkspace({
   leftPanelVariants,
   rightPanelVariants,
   resizerVariants,
-  gpuAcceleratedStyle,
+  gpuAcceleratedStyle: _gpuAcceleratedStyle,
   handlePointerDown,
   handlePointerMove,
   handlePointerUp,
@@ -77,17 +78,16 @@ function MainWorkspace({
       exit="hidden"
       variants={containerVariants}
       className={`relative flex h-screen w-screen px-2 py-2 sm:px-3 sm:py-3 md:px-4 md:py-4 lg:px-5 lg:py-5 ${isLayoutSwapped ? 'flex-row-reverse' : 'flex-row'}`}
-      style={gpuAcceleratedStyle}
     >
       {bgMode === 'ambient' && <AuroraBackground className="rounded-[var(--radius-2xl)]" />}
 
       <motion.div
         ref={leftPanelRef}
         variants={leftPanelVariants}
-        className="h-full"
+        className="h-full will-change-transform"
         data-tour-id="tour-target-left-panel"
         style={{
-          ...gpuAcceleratedStyle,
+          transform: 'translateZ(0)',
           width: `${leftPanelWidth}%`,
           flexShrink: 0
         }}
@@ -103,7 +103,6 @@ function MainWorkspace({
         ref={resizerRef}
         variants={resizerVariants}
         className="z-resizer-hub relative h-full shrink-0"
-        style={gpuAcceleratedStyle}
       >
         <BottomBar
           onHoverChange={onBarHoverChange}
@@ -120,9 +119,9 @@ function MainWorkspace({
 
       <motion.div
         variants={rightPanelVariants}
-        className="relative flex min-w-[280px] flex-1 flex-col sm:min-w-[320px] lg:min-w-[350px]"
+        className="relative flex min-w-[280px] flex-1 flex-col will-change-transform sm:min-w-[320px] lg:min-w-[350px]"
         data-tour-id="tour-target-right-panel"
-        style={gpuAcceleratedStyle}
+        style={{ transform: 'translateZ(0)' }}
       >
         <Suspense fallback={<AestheticLoader />}>
           {isWebviewMounted ? (
