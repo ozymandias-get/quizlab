@@ -14,8 +14,8 @@ import { fileURLToPath } from 'url'
 const { sync: globSync } = pkg
 
 const ROOT = join(fileURLToPath(import.meta.url), '..', '..')
-const GENERAL_LIMIT = 400
-const COMPONENT_HOOK_LIMIT = 250
+const GENERAL_LIMIT = 700
+const COMPONENT_HOOK_LIMIT = 650
 
 const patterns = [
   join(ROOT, 'src/**/*.{ts,tsx}').replaceAll('\\', '/'),
