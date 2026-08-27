@@ -79,12 +79,6 @@ async function runSmartForegroundCheck(): Promise<void> {
           await runIdleCleanup()
         } else {
           await runQuickCheck()
-          // Ek olarak soğuk partition'ların süresi dolmuş dosyalarını temizle
-          const { runIdleCleanup: doIdle } = await import('./cacheCleanup/index.js')
-          // warning seviyesinde idle cleanup yarısı kadar: sadece 1 kez extra
-          if (pressure.level === 'warning') {
-            // zaten quickCheck size limit yaptı, warning'de ek idle gerekmez - logla
-          }
         }
         markAutoCleanExecuted()
       } finally {
