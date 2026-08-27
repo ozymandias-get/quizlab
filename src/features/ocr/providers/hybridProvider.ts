@@ -35,7 +35,7 @@ export function createHybridProvider(): OcrProvider {
           return await tesseract.processPage(job, imageData)
         } catch (e) {
           // If tesseract not available, degrade to native attempt
-          const msg = (e as Error).message
+          const msg = e instanceof Error ? e.message : String(e ?? '')
           if (msg === 'TESSERACT_NOT_AVAILABLE') {
             Logger.warn('[OCR:hybrid] tesseract not available, falling back to native')
             return native.processPage(job, imageData)
@@ -55,7 +55,7 @@ export function createHybridProvider(): OcrProvider {
         )
         return nativeResult
       } catch (e) {
-        const msg = (e as Error).message
+        const msg = e instanceof Error ? e.message : String(e ?? '')
         if (msg !== 'NO_NATIVE_TEXT') {
           // Unexpected native error — propagate
           if ((e as DOMException).name === 'AbortError') throw e
@@ -64,14 +64,22 @@ export function createHybridProvider(): OcrProvider {
           Logger.debug(`[OCR:hybrid] page ${job.pageNumber} native miss → OCR`)
         }
 
-        // Fall back to OCR
+        // Fall back to OCR — but if caller passed dummy empty image (phase 1 native check), don't invoke tesseract yet
+        // otherwise tesseract will throw "Image file /input cannot be read!" and trigger GlobalErrorHandler via worker throw.
+        const isEmptyImage =
+          !imageData ||
+          (typeof imageData === 'string' && imageData.trim() === '') ||
+          (imageData instanceof Blob && imageData.size === 0)
+        if (isEmptyImage) {
+          throw new Error('NO_NATIVE_TEXT')
+        }
         try {
           const ocrResult = await tesseract.processPage(job, imageData)
           // Mark hybrid source but keep engine name as tesseract for cache discrimination?
           // Keep original engine for precise invalidation; hybrid callers can inspect isNativeText.
           return ocrResult
         } catch (ocrErr) {
-          const ocrMsg = (ocrErr as Error).message
+          const ocrMsg = ocrErr instanceof Error ? ocrErr.message : String(ocrErr ?? '')
           if (ocrMsg === 'TESSERACT_NOT_AVAILABLE' || ocrMsg === 'NO_TEXT_RECOGNIZED') {
             // No OCR runtime available and no native text — produce empty structured result
             // rather than crashing UX; caller can show "no text found" state.

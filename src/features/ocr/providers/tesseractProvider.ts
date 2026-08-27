@@ -1,5 +1,10 @@
 import { Logger } from '@shared/lib/logger'
 
+// Vite ?url import — bundles worker locally so CSP does not need to allow CDN for worker script.
+// Using local worker avoids "script-src" violation for https://cdn.jsdelivr.net/.../worker.min.js
+// and works offline (file://) via `workerBlobURL: false`.
+import tesseractWorkerPath from 'tesseract.js/dist/worker.min.js?url'
+
 import { normalizeToMarkdown } from '../lib/markdownNormalizer'
 import type { OcrConfig, OcrPageResult, OcrProvider, OcrProviderCapabilities } from '../types'
 import { OCR_ENGINE_VERSION } from '../types'
@@ -80,10 +85,27 @@ async function getOrCreateWorker(
 
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 
-  const worker = await mod.createWorker(lang, 1, {
-    // Use local worker path when inside Electron file://
-    // Do not set logger to avoid IPC spam
-  })
+  // Try local worker first (bundled via Vite, allowed by 'self' CSP). Fallback to CDN default on failure.
+  let worker: Awaited<ReturnType<TesseractLike['createWorker']>>
+  const tesseractOpts = {
+    workerPath: tesseractWorkerPath,
+    workerBlobURL: false,
+    // langPath defaults to jsDelivr CDN (now allowed via connect-src). Keep gzip/cache defaults.
+    gzip: true,
+    logger: () => {},
+    errorHandler: (e: unknown) => Logger.warn('[OCR:tesseract] worker error', e)
+    // cacheMethod 'write' allows IndexedDB caching of .traineddata to avoid re-download
+  } as unknown as Record<string, unknown>
+  try {
+    worker = await mod.createWorker(lang, 1, tesseractOpts)
+  } catch (err) {
+    Logger.warn('[OCR:tesseract] local workerPath failed, retrying with default CDN worker', err)
+    // Fallback: let tesseract.js use its default CDN workerPath (requires CSP allow cdn.jsdelivr.net)
+    worker = await mod.createWorker(lang, 1, {
+      logger: () => {},
+      errorHandler: (e: unknown) => Logger.warn('[OCR:tesseract] worker error', e)
+    } as unknown as Record<string, unknown>)
+  }
 
   cachedWorker = worker as never
   cachedLang = lang
