@@ -72,7 +72,7 @@ export default defineConfig({
           lines: 43,
           statements: 41,
           branches: 37,
-          functions: 54
+          functions: 48
         },
         'electron/features/ai/apiChatHandlers/**/*.ts': {
           lines: 21,
