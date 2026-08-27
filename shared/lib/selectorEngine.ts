@@ -52,10 +52,34 @@ export function normalizeSelector(selector: string): string {
   if (!s) return ''
   // Collapse whitespace
   s = s.replaceAll(/\s+/g, ' ')
-  // Remove :has() wrapper — keep inner selector for fallback search
-  // e.g. "div:has(button)" -> "div"
-  s = s.replaceAll(/:has\([^)]*\)/g, '')
+  // Remove :has() wrapper with balanced parentheses — handles nested like :has(div:not(.a))
+  s = stripHasPseudo(s)
   return s.trim()
+}
+
+function stripHasPseudo(input: string): string {
+  let out = ''
+  let i = 0
+  while (i < input.length) {
+    const idx = input.indexOf(':has(', i)
+    if (idx === -1) {
+      out += input.slice(i)
+      break
+    }
+    out += input.slice(i, idx)
+    let depth = 1
+    let j = idx + 5 // after ':has('
+    while (j < input.length && depth > 0) {
+      const ch = input[j]
+      if (ch === '(') depth++
+      else if (ch === ')') depth--
+      j++
+    }
+    // If unmatched, drop rest (invalid selector) and break
+    if (depth !== 0) break
+    i = j
+  }
+  return out
 }
 
 /**

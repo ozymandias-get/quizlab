@@ -89,7 +89,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
 
     return {
       aiRegistry,
-      defaultAiId: allAiIds.includes('chatgpt') ? 'chatgpt' : allAiIds[0] || 'chatgpt',
+      defaultAiId: allAiIds.includes('chatgpt') ? 'chatgpt' : (allAiIds[0] ?? ''),
       allAiIds,
       chromeUserAgent: navigator.userAgent
     }
@@ -153,7 +153,23 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       lastCleanupResult: null,
       isIdle: false
     }),
+    getSmartCacheInfo: stubReturn({
+      breakdown: {
+        chromiumCache: 0,
+        codeCache: 0,
+        gpuCache: 0,
+        partitionCaches: {},
+        tempFiles: 0,
+        total: 0
+      },
+      lastCleanup: null,
+      lastCleanupResult: null,
+      isIdle: false
+    }),
     deepCleanCache: stubReturn(true),
+    getCacheAutoClean: stubReturn({ enabled: true, lastAutoCleanAt: null }),
+    setCacheAutoClean: stubReturn(true),
+    smartCacheAction: stubReturn(true),
 
     saveAiConfig: async (hostname, config) => {
       aiConfigs.set(hostname, config)

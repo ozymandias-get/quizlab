@@ -67,13 +67,16 @@ export const useLanguage = create<LanguageState>((set, get) => ({
     if (!VALID_LANGUAGES.includes(newLang)) return
     const seq = get()._requestSeq + 1
     set({ _requestSeq: seq })
-    if (!setStorageItem(STORAGE_KEYS.APP_LANGUAGE, newLang)) {
+    const persisted = setStorageItem(STORAGE_KEYS.APP_LANGUAGE, newLang)
+    if (!persisted) {
       Logger.warn('LocalStorage language save failed')
       set({ lastError: 'Language preference could not be saved persistently' })
     }
     await i18next.changeLanguage(newLang)
     if (get()._requestSeq === seq) {
-      set({ language: newLang, lastError: get().lastError })
+      // A successful save also clears a stale error from an earlier failure;
+      // a failed save keeps its error visible.
+      set(persisted ? { language: newLang, lastError: null } : { language: newLang })
     }
   },
   completeOnboarding: () => {

@@ -1,3 +1,5 @@
+import { clearActivePdfDocument, setActivePdfDocument } from '@features/ocr/lib/renderPageToImage'
+
 import { InlineSpinner } from '@shared/ui/components/primitives'
 
 import type { Plugin } from '@react-pdf-viewer/core'
@@ -58,8 +60,14 @@ function PdfViewerElement({
     isMountedRef.current = true
     return () => {
       isMountedRef.current = false
+      clearActivePdfDocument()
     }
   }, [])
+
+  useEffect(() => {
+    // When pdfUrl changes, old document is no longer active until next load
+    clearActivePdfDocument()
+  }, [pdfUrl])
 
   // Stable callbacks — prevent Viewer from re-subscribing on every render
   const safePageChange = useCallback((e: { currentPage: number }) => {
@@ -67,10 +75,22 @@ function PdfViewerElement({
     onPageChangeRef.current(e)
   }, [])
 
-  const safeDocumentLoad = useCallback((e: DocumentLoadEvent) => {
-    if (!isMountedRef.current) return
-    onDocumentLoadRef.current(e)
-  }, [])
+  const safeDocumentLoad = useCallback(
+    (e: DocumentLoadEvent) => {
+      if (!isMountedRef.current) return
+      try {
+        const doc = (e as unknown as { doc?: unknown }).doc as
+          | { fingerprints?: string[]; fingerprint?: string }
+          | undefined
+        const fp =
+          doc?.fingerprints?.[0] ?? (doc as unknown as Record<string, unknown>)?.fingerprint
+        const fingerprint = typeof fp === 'string' ? fp : null
+        setActivePdfDocument(e.doc as never, pdfUrl, fingerprint)
+      } catch {}
+      onDocumentLoadRef.current(e)
+    },
+    [pdfUrl]
+  )
 
   const safeZoom = useCallback((e: { scale: number }) => {
     if (!isMountedRef.current) return

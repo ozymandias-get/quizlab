@@ -1,5 +1,3 @@
-import { ScrollArea } from '@app/components/ui/scroll-area'
-
 import { Globe, Sparkles } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,7 +34,10 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
   } = useAiHomeState()
 
   return (
-    <ScrollArea ref={pageRef} className="absolute inset-0">
+    <div
+      ref={pageRef}
+      className="custom-scrollbar absolute inset-0 overflow-y-auto overscroll-contain"
+    >
       <div className="relative min-h-full px-4 py-8 sm:px-6 sm:py-10">
         <div className="relative z-10 flex flex-col gap-7">
           <AiHomeHero
@@ -86,7 +87,7 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
           </AiHomeSection>
         </div>
       </div>
-    </ScrollArea>
+    </div>
   )
 }
 

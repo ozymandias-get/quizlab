@@ -118,7 +118,7 @@ export async function executeImageSendPipeline(
   diagnostics.currentUrl = resolved.currentUrl
   const effectivePromptText = mergePromptText(activePromptText, promptText)
   const minimumReadyWaitMs = Math.max(
-    resolved.aiConfig.imageWaitTime || IMAGE_UPLOAD_WAIT_DELAY,
+    resolved.aiConfig.imageWaitTime ?? IMAGE_UPLOAD_WAIT_DELAY,
     IMAGE_UPLOAD_WAIT_DELAY
   )
   const submitReadyTimeoutMs = minimumReadyWaitMs + IMAGE_SUBMIT_READY_TIMEOUT_BUFFER

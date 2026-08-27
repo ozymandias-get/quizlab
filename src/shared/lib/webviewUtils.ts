@@ -15,12 +15,11 @@ export const safeWebviewPaste = (webview: WebviewController | null): boolean => 
       webview.paste()
       return true
     } catch (error) {
-      Logger.error('[WebviewUtils] Native paste failed:', error)
-      return false
+      Logger.error('[WebviewUtils] Native paste failed, falling back to input simulation:', error)
     }
   }
 
-  Logger.warn('[WebviewUtils] webview.paste() not found, attempting input simulation.')
+  Logger.warn('[WebviewUtils] webview.paste() not found or failed, attempting input simulation.')
 
   try {
     const isMac = hasElectronApi() && getElectronApi()?.platform === 'darwin'

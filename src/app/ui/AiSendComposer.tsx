@@ -121,7 +121,10 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
   }, [clearNote, t, confirm])
 
   useAiSendComposerKeyboard(isSubmitting, handleToggleExpand)
-  useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, onClearAll)
+  // Route outside-clicks through the same guarded clear as the UI button so
+  // an accidental click (e.g. starting a PDF text selection) cannot silently
+  // wipe a multi-item draft queue.
+  useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, handleClearAll)
   useAiSendComposerFeedbackReset(items.length, isSubmitting, setSendFeedback, setLastError)
 
   const { portalStyle, panelStyle } = useAiSendComposerStyles(isExpanded, layout)

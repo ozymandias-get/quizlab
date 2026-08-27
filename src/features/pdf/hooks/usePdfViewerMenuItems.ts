@@ -1,6 +1,6 @@
 import { PDF_ZOOM_MAX_SCALE } from '@features/pdf/constants/pdfZoom'
 
-import { Crop, Image as ImageIcon, RefreshCw, Type } from 'lucide-react'
+import { Crop, Image as ImageIcon, RefreshCw, Scan, ScanSearch, Type } from 'lucide-react'
 import type { Dispatch, SetStateAction } from 'react'
 import { useCallback, useMemo } from 'react'
 
@@ -10,6 +10,8 @@ interface MenuItemsInput {
   t: (key: string) => string
   tt: (key: string) => string
   handleAreaScreenshot: () => void
+  handleOcrPage: () => void
+  handleOcrSelection: () => void
   extractCurrentPageTextRef: React.MutableRefObject<() => string | null>
   handleFullPageScreenshotRef: React.MutableRefObject<() => Promise<void>>
   jumpToPageFromNav: (page: number) => void
@@ -33,6 +35,8 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
     t,
     tt,
     handleAreaScreenshot,
+    handleOcrPage,
+    handleOcrSelection,
     extractCurrentPageTextRef,
     handleFullPageScreenshotRef,
     jumpToPageFromNav,
@@ -76,6 +80,16 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
       },
       { label: tt('pdf_send_page_as_image'), icon: ImageIcon, onClick: handleSendPageAsImageToAi },
       { label: tt('ctx_crop_screenshot_ai'), icon: Crop, onClick: () => handleAreaScreenshot() },
+      {
+        label: tt('ctx_ocr_page'),
+        icon: ScanSearch,
+        onClick: handleOcrPage
+      },
+      {
+        label: tt('ctx_ocr_selection'),
+        icon: Scan,
+        onClick: handleOcrSelection
+      },
       { separator: true, label: '', onClick: () => {} },
       {
         label: t('ctx_reload'),
@@ -95,6 +109,8 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
       handleAddCurrentPageTextToAi,
       handleSendPageAsImageToAi,
       handleAreaScreenshot,
+      handleOcrPage,
+      handleOcrSelection,
       setViewerReloadKey,
       startTransition
     ]

@@ -1,0 +1,282 @@
+import { Logger } from '@shared/lib/logger'
+
+import type { OcrQualityPreset } from '../types'
+import { getRenderPreset, OCR_DEFAULT_SCALE, OCR_MAX_PIXELS } from '../types'
+
+export interface RenderOptions {
+  scale?: number
+  maxPixels?: number
+  quality?: OcrQualityPreset
+}
+
+/**
+ * Active PDFDocumentProxy registry — avoids reloading the PDF for each OCR job.
+ * Viewer sets the active document on load; OCR reuses it if fingerprint matches.
+ */
+let activePdfDocument: {
+  fingerprint: string
+  getPage: (n: number) => Promise<{
+    getViewport: (o: { scale: number }) => { width: number; height: number }
+    render: (o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => {
+      promise: Promise<void>
+      cancel?: () => void
+    }
+  }>
+  destroy: () => void
+} | null = null
+let activePdfUrl: string | null = null
+
+export function setActivePdfDocument(
+  doc: typeof activePdfDocument,
+  pdfUrl: string | null,
+  fingerprint?: string | null
+): void {
+  activePdfDocument = doc
+  activePdfUrl = pdfUrl ?? null
+  // Prefer fingerprint from doc if available
+  if (doc && fingerprint) {
+    try {
+      ;(doc as unknown as Record<string, unknown>).fingerprint = fingerprint
+    } catch {}
+  }
+}
+
+export function clearActivePdfDocument(): void {
+  activePdfDocument = null
+  activePdfUrl = null
+}
+
+export function getActivePdfDocumentFingerprint(): string | null {
+  if (!activePdfDocument) return null
+  const anyDoc = activePdfDocument as unknown as Record<string, unknown>
+  const fp = anyDoc.fingerprint ?? (anyDoc.fingerprints as string[] | undefined)?.[0]
+  if (typeof fp === 'string' && fp.length > 0) return fp
+  const fingerprints = anyDoc.fingerprints as string[] | undefined
+  if (fingerprints && fingerprints[0]) return fingerprints[0]
+  return null
+}
+
+/**
+ * Render a PDF page to an ImageData/Blob for OCR.
+ * Tries pdf.js direct render first for balanced/high quality to avoid fake 2x upscaling.
+ * Falls back to canvas clone only for fast path when the exact page canvas is already mounted.
+ * Returns a Blob (png) and an object URL — caller must revoke.
+ */
+export async function renderPageToImageFallback(
+  pdfUrl: string,
+  pageNumber: number,
+  options: RenderOptions = {},
+  signal?: AbortSignal
+): Promise<{ blob: Blob; blobUrl: string; width: number; height: number } | null> {
+  if (signal?.aborted) return null
+
+  // Resolve preset from quality if provided
+  let scale = options.scale
+  let maxPixels = options.maxPixels
+  let preferDirectRender = true
+
+  if (options.quality) {
+    const preset = getRenderPreset(options.quality)
+    scale = scale ?? preset.scale
+    maxPixels = maxPixels ?? preset.maxPixels
+    preferDirectRender = preset.useDirectPdfRender
+  }
+  scale = scale ?? OCR_DEFAULT_SCALE
+  maxPixels = maxPixels ?? OCR_MAX_PIXELS
+
+  // For balanced/high, direct PDF.js render gives true high-DPI detail — do it first
+  if (preferDirectRender) {
+    try {
+      const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels }, signal)
+      if (offscreen) return offscreen
+    } catch (e) {
+      Logger.warn('[OCR] pdfjs direct render failed, trying canvas clone fallback', e)
+    }
+    // Fallthrough to canvas clone as secondary
+  }
+
+  // Fast path: try exact page canvas clone (no arbitrary fallback)
+  try {
+    const canvas = findCurrentPageCanvas(pageNumber)
+    if (canvas) {
+      if (signal?.aborted) return null
+      const result = await cloneCanvasAtScale(canvas, scale, maxPixels, signal)
+      if (result) return result
+    }
+  } catch (e) {
+    Logger.warn('[OCR] canvas clone failed', e)
+  }
+
+  // Finally try pdf.js if not already tried (fast quality secondary path, or after canvas miss)
+  if (!preferDirectRender) {
+    try {
+      const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels }, signal)
+      if (offscreen) return offscreen
+    } catch (e) {
+      Logger.warn('[OCR] pdfjs offscreen render failed', e)
+    }
+  }
+
+  return null
+}
+
+/**
+ * Find canvas for the *exact* requested page only.
+ * Never returns an arbitrary canvas — that would OCR the wrong page.
+ */
+function findCurrentPageCanvas(pageNumber: number): HTMLCanvasElement | null {
+  const selectors = [
+    `.rpv-core__page-layer[data-page-number="${pageNumber}"]`,
+    `.pdf-page-wrapper[data-page-number="${pageNumber}"]`,
+    `.rpv-core__page-layer[data-virtual-index="${pageNumber - 1}"]`
+  ]
+  for (const sel of selectors) {
+    const layer = document.querySelector(sel)
+    if (layer) {
+      const c = layer.querySelector('canvas') as HTMLCanvasElement | null
+      if (c && c.width > 0 && c.height > 0) return c
+    }
+  }
+  return null
+}
+
+async function cloneCanvasAtScale(
+  source: HTMLCanvasElement,
+  scale: number,
+  maxPixels: number,
+  signal?: AbortSignal
+): Promise<{ blob: Blob; blobUrl: string; width: number; height: number } | null> {
+  if (signal?.aborted) return null
+  const srcW = source.width
+  const srcH = source.height
+  if (srcW === 0 || srcH === 0) return null
+
+  // Avoid fake upscaling: if source already covers the requested scale, don't blow up beyond 1.1x
+  // We keep scale param but clamp upscale to avoid 2x pixel waste without new detail.
+  // For fast path, allow moderate upscale; for true high quality we already used pdfjs direct render.
+  let targetW = Math.round(srcW * scale)
+  let targetH = Math.round(srcH * scale)
+  const area = targetW * targetH
+  if (area > maxPixels) {
+    const ratio = Math.sqrt(maxPixels / area)
+    targetW = Math.max(1, Math.round(targetW * ratio))
+    targetH = Math.max(1, Math.round(targetH * ratio))
+  }
+
+  const offscreen = document.createElement('canvas')
+  offscreen.width = targetW
+  offscreen.height = targetH
+  const ctx = offscreen.getContext('2d')
+  if (!ctx) return null
+
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, targetW, targetH)
+  ctx.drawImage(source, 0, 0, targetW, targetH)
+
+  if (signal?.aborted) return null
+
+  const blob = await canvasToBlob(offscreen, 'image/png')
+  if (!blob) return null
+
+  const blobUrl = URL.createObjectURL(blob)
+  return { blob, blobUrl, width: targetW, height: targetH }
+}
+
+async function renderWithPdfJs(
+  pdfUrl: string,
+  pageNumber: number,
+  options: { scale: number; maxPixels: number },
+  signal?: AbortSignal
+): Promise<{ blob: Blob; blobUrl: string; width: number; height: number } | null> {
+  if (signal?.aborted) return null
+
+  // Try to reuse active PdfDocumentProxy to avoid reloading large PDFs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pdf.js types vary by version
+  let pdf: any = null
+  let shouldDestroy = false
+
+  if (activePdfDocument && activePdfUrl === pdfUrl) {
+    pdf = activePdfDocument as unknown as never
+  } else {
+    const pdfjs = await import('pdfjs-dist')
+    const pdfjsLib: unknown = pdfjs
+    const getDocument =
+      (pdfjsLib as { getDocument?: (src: unknown) => { promise: Promise<unknown> } }).getDocument ??
+      (pdfjsLib as { default?: { getDocument?: (src: unknown) => { promise: Promise<unknown> } } })
+        .default?.getDocument
+    if (!getDocument) return null
+
+    const loadingTask = getDocument({ url: pdfUrl, isEvalSupported: false, useWorkerFetch: false })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const loaded = (await (loadingTask as { promise: Promise<any> }).promise) as any
+    pdf = loaded
+    shouldDestroy = true
+  }
+
+  if (!pdf) return null
+
+  let renderTask: { promise: Promise<void>; cancel?: () => void } | null = null
+  const onAbort = () => {
+    try {
+      renderTask?.cancel?.()
+    } catch {}
+  }
+  if (signal) signal.addEventListener('abort', onAbort, { once: true })
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const page = (await (pdf as any).getPage(pageNumber)) as {
+      getViewport: (o: { scale: number }) => { width: number; height: number }
+      render: (o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => {
+        promise: Promise<void>
+        cancel?: () => void
+      }
+    }
+    const scale = options.scale
+    const maxPixels = options.maxPixels
+
+    // Compute viewport with correct adjusted scale when maxPixels exceeded — previously stored in adjViewport but not used (P0-1)
+    let renderViewport = page.getViewport({ scale })
+    let w = Math.round(renderViewport.width)
+    let h = Math.round(renderViewport.height)
+    const area = w * h
+    if (area > maxPixels) {
+      const ratio = Math.sqrt(maxPixels / area)
+      const adjScale = scale * ratio
+      renderViewport = page.getViewport({ scale: adjScale })
+      w = Math.round(renderViewport.width)
+      h = Math.round(renderViewport.height)
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, w)
+    canvas.height = Math.max(1, h)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    if (signal?.aborted) return null
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    renderTask = page.render({ canvasContext: ctx, viewport: renderViewport })
+    await renderTask!.promise
+    if (signal?.aborted) return null
+    const blob = await canvasToBlob(canvas, 'image/png')
+    if (!blob) return null
+    const blobUrl = URL.createObjectURL(blob)
+    return { blob, blobUrl, width: canvas.width, height: canvas.height }
+  } finally {
+    if (signal) signal.removeEventListener('abort', onAbort)
+    if (shouldDestroy && pdf) {
+      try {
+        ;(pdf as { destroy: () => void }).destroy()
+      } catch {}
+    }
+  }
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    canvas.toBlob((b) => resolve(b), type)
+  })
+}

@@ -22,6 +22,9 @@ const LanguageSelectionDialog = lazy(() =>
     default: m.LanguageSelectionDialog
   }))
 )
+import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { useOcrStore } from '@features/ocr/store/useOcrStore'
+import { getActiveViewerSnapshot } from '@features/pdf/lib/activeViewerSnapshot'
 import { usePdfShortcuts } from '@features/pdf/ui/hooks/usePdfShortcuts'
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
@@ -30,6 +33,7 @@ import { getTutorialEntry } from '@features/tutorial/tutorialRegistry'
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
+import { Logger } from '@shared/lib/logger'
 
 function App() {
   // Önbellek boyutunu izle ve %80 eşiği aşılırsa uyarı göster (oturum başına bir kez)
@@ -61,11 +65,13 @@ function App() {
     isPanelResizing: panelResize.isResizing
   })
 
+  // Keep shortcut stable — readingProps changes shouldn't rebind the global handler.
+  usePdfShortcuts({ onSelectPdf: leftPanelProps?.onSelectPdf })
+
   const combinedLeftPanelProps = useMemo(
-    () => ({ ...leftPanelProps, ...readingProps }),
+    () => ({ ...(leftPanelProps ?? {}), ...(readingProps ?? {}) }),
     [leftPanelProps, readingProps]
   )
-  usePdfShortcuts({ onSelectPdf: combinedLeftPanelProps.onSelectPdf })
   const {
     leftPanelWidth,
     leftPanelRef,
@@ -161,6 +167,10 @@ function App() {
         </Suspense>
 
         <Suspense fallback={null}>
+          <OcrSelectionToolLayer />
+        </Suspense>
+
+        <Suspense fallback={null}>
           <TutorialLayer isFocusActive={isFocusActive} />
         </Suspense>
 
@@ -211,6 +221,54 @@ const ScreenshotToolLayer = memo(function ScreenshotToolLayer() {
       onClose={closeScreenshot}
     />
   )
+})
+
+const OcrSelectionToolLayer = memo(function OcrSelectionToolLayer() {
+  const isActive = useOcrStore((s) => s.isAreaSelectionActive)
+  const cancelAreaSelection = useOcrStore((s) => s.cancelAreaSelection)
+  const { processArea } = useOcrActions()
+
+  const handleCapture = useCallback(
+    async (image: string) => {
+      const st = useOcrStore.getState()
+      if (!st.pendingPdfFile || st.pendingPage == null || st.pendingFingerprint == null) return
+      const snapshotPage = st.pendingPage
+      const snapshotFingerprint = st.pendingFingerprint
+      const snapshotToken = st.pendingToken
+      const current = getActiveViewerSnapshot()
+      const isDocStale =
+        current.fingerprint != null &&
+        snapshotFingerprint != null &&
+        current.fingerprint !== snapshotFingerprint
+      const isPageStale = current.page !== snapshotPage
+      const isTokenStale = snapshotToken != null && snapshotToken !== st.requestToken
+      if (isDocStale || isPageStale || isTokenStale) {
+        Logger.warn('[OCR] stale area capture discarded', {
+          snapshotPage,
+          currentPage: current.page,
+          snapshotDoc: snapshotFingerprint?.slice(0, 16),
+          currentDoc: current.fingerprint?.slice(0, 16),
+          snapshotToken,
+          currentToken: st.requestToken
+        })
+        useOcrStore.getState().cancelAreaSelection()
+        return
+      }
+      await processArea({
+        dataUrl: image,
+        pageNumber: snapshotPage,
+        pdfFile: st.pendingPdfFile!
+      })
+      useOcrStore.getState().cancelAreaSelection()
+    },
+    [processArea]
+  )
+
+  const handleClose = useCallback(() => {
+    cancelAreaSelection()
+  }, [cancelAreaSelection])
+
+  return <ScreenshotTool isActive={isActive} onCapture={handleCapture} onClose={handleClose} />
 })
 
 const TutorialLayer = memo(function TutorialLayer({ isFocusActive }: { isFocusActive: boolean }) {

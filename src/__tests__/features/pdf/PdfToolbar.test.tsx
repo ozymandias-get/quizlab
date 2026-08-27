@@ -38,7 +38,7 @@ describe('PdfToolbar', () => {
       </TooltipProvider>
     )
 
-    expect(container.querySelectorAll('.bg-muted\\/40.rounded-lg.p-1\\.5')).toHaveLength(3)
+    expect(container.querySelectorAll('.bg-muted\\/40.rounded-lg.p-1\\.5')).toHaveLength(4)
     expect(container.querySelectorAll('.glass-tier-3')).toHaveLength(0)
   })
 })

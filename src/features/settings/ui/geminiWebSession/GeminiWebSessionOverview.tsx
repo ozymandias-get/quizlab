@@ -9,6 +9,7 @@ import { memo, useCallback } from 'react'
 
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { ExtensionStatusCard, ExtensionWizardPanel } from './components'
+import GeminiWebRiskNotice from './GeminiWebRiskNotice'
 import GoogleAppList from './GoogleAppList'
 import { getCardClasses, getStatusIconContainerClass } from './statusHelpers'
 import type {
@@ -170,6 +171,8 @@ function GeminiWebSessionOverview({
           onInstallExtension={handlers.onInstallExtension}
           onRemoveExtension={handlers.onRemoveExtension}
         />
+
+        <GeminiWebRiskNotice t={t} riskItems={riskItems} mitigationItems={mitigationItems} />
 
         <div className="flex justify-start">
           <Button

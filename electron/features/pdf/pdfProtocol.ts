@@ -108,6 +108,7 @@ export function registerPdfScheme() {
 // Exact origin validation (no prefix matching): a crafted origin like
 // "http://localhost.evil.com" or "local-pdf://<unregistered>" must not pass.
 function isAllowedPdfOrigin(origin: string): boolean {
+  if (origin === 'null') return true // opaque file:// origin
   let parsed: URL
   try {
     parsed = new URL(origin)
@@ -160,8 +161,29 @@ export function registerPdfProtocol() {
       }
 
       const requestOrigin = request.headers.get('origin')
-      if (requestOrigin && !isAllowedPdfOrigin(requestOrigin)) {
-        return new Response('Forbidden', { status: 403 })
+      if (requestOrigin) {
+        if (!isAllowedPdfOrigin(requestOrigin)) {
+          return new Response('Forbidden', { status: 403 })
+        }
+      } else {
+        // No Origin header: typically file:// opaque origin or navigation request.
+        // Fall back to Referer / Sec-Fetch-Site checks to avoid blind allow.
+        const referer = request.headers.get('referer')
+        if (referer) {
+          try {
+            const refOrigin = new URL(referer).origin
+            if (refOrigin !== 'null' && !isAllowedPdfOrigin(refOrigin)) {
+              return new Response('Forbidden', { status: 403 })
+            }
+          } catch {
+            return new Response('Forbidden', { status: 403 })
+          }
+        } else {
+          const secFetchSite = request.headers.get('sec-fetch-site')
+          if (secFetchSite === 'cross-site') {
+            return new Response('Forbidden', { status: 403 })
+          }
+        }
       }
 
       const response = createPdfStreamResponse(filePath, stats, request.headers.get('range'))
@@ -337,6 +359,14 @@ export function registerPdfProtocolHandlers() {
 export function startPdfCleanupInterval() {
   if (!cleanupInterval) {
     cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS)
+    if (
+      cleanupInterval &&
+      typeof cleanupInterval === 'object' &&
+      'unref' in cleanupInterval &&
+      typeof (cleanupInterval as unknown as { unref: () => void }).unref === 'function'
+    ) {
+      ;(cleanupInterval as unknown as { unref: () => void }).unref()
+    }
   }
 }
 

@@ -14,6 +14,12 @@ import {
   SliderIcon
 } from '@ui/components/Icons'
 
+import { ScanSearch } from 'lucide-react'
+
+function OcrSettingsIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return <ScanSearch className={className} />
+}
+
 export const SETTINGS_SIDEBAR_GROUP_ORDER = [
   'workspace',
   'integration',
@@ -136,6 +142,15 @@ export const SETTINGS_TABS = [
     icon: SliderIcon,
     accent: 'from-sky-300/28 via-cyan-200/12 to-transparent',
     glow: '#38bdf8'
+  },
+  {
+    id: 'ocr',
+    group: 'preferences',
+    labelKey: 'ocr',
+    descriptionKey: 'ocr_description',
+    icon: OcrSettingsIcon,
+    accent: 'from-amber-300/28 via-yellow-200/12 to-transparent',
+    glow: '#f59e0b'
   },
   {
     id: 'language',

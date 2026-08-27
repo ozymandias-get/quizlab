@@ -31,11 +31,17 @@ export const useTutorialStore = create<TutorialState>()(
 
       closeTutorial: () => set({ activeTutorialId: null, currentStep: 0 }),
 
-      nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
+      nextStep: () =>
+        set((state) => ({
+          currentStep: Number.isFinite(state.currentStep) ? state.currentStep + 1 : 0
+        })),
 
       prevStep: () => set((state) => ({ currentStep: Math.max(0, state.currentStep - 1) })),
 
-      setStep: (step) => set({ currentStep: step }),
+      setStep: (step) =>
+        set({
+          currentStep: Number.isFinite(step) ? Math.max(0, Math.floor(step)) : 0
+        }),
 
       skipTutorial: () => set({ activeTutorialId: null, currentStep: 0 }),
 

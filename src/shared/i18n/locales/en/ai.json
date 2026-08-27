@@ -32,9 +32,9 @@
     "open": "Open",
     "ready": "Ready",
     "new_tab": "New tab",
-    "empty_sites_title": "Your site collection is empty",
-    "empty_sites_description": "Add YouTube or other working sites to turn this view into a powerful launchpad.",
-    "empty_sites_hint": "Settings > Sites",
+    "empty_sites_title": "No sites yet",
+    "empty_sites_description": "Add YouTube or your favorite sites to turn this space into your personal launchpad.",
+    "empty_sites_hint": "Settings → Sites",
     "get_started_hint": "Pick a model or site to get started.",
     "refresh_page": "Reload current AI page"
   },

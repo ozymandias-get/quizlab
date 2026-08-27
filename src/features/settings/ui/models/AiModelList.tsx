@@ -79,8 +79,8 @@ const AiModelList = memo(function AiModelList({
     return (
       <EmptyState
         icon={Globe}
-        title={t('empty_sites_title')}
-        description={t('empty_sites_description')}
+        title={t('ai_home.empty_sites_title')}
+        description={t('ai_home.empty_sites_description')}
         size="sm"
       />
     )
