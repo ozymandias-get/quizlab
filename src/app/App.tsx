@@ -23,9 +23,8 @@ const LanguageSelectionDialog = lazy(() =>
   }))
 )
 import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
-import { createDocumentFingerprint } from '@features/ocr/lib/cacheKey'
-import { getActivePdfDocumentFingerprint } from '@features/ocr/lib/renderPageToImage'
 import { useOcrStore } from '@features/ocr/store/useOcrStore'
+import { getActiveViewerSnapshot } from '@features/pdf/lib/activeViewerSnapshot'
 import { usePdfShortcuts } from '@features/pdf/ui/hooks/usePdfShortcuts'
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
@@ -34,6 +33,7 @@ import { getTutorialEntry } from '@features/tutorial/tutorialRegistry'
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
+import { Logger } from '@shared/lib/logger'
 
 function App() {
   // Önbellek boyutunu izle ve %80 eşiği aşılırsa uyarı göster (oturum başına bir kez)
@@ -225,43 +225,43 @@ const ScreenshotToolLayer = memo(function ScreenshotToolLayer() {
 
 const OcrSelectionToolLayer = memo(function OcrSelectionToolLayer() {
   const isActive = useOcrStore((s) => s.isAreaSelectionActive)
-  const pendingPage = useOcrStore((s) => s.pendingPage)
-  const pendingPdfFile = useOcrStore((s) => s.pendingPdfFile)
   const cancelAreaSelection = useOcrStore((s) => s.cancelAreaSelection)
   const { processArea } = useOcrActions()
 
   const handleCapture = useCallback(
     async (image: string) => {
-      if (!pendingPdfFile || pendingPage == null) return
-      // Validate that document/page hasn't changed between selection start and capture (P1-16)
-      const activeFp = getActivePdfDocumentFingerprint()
-      const capturedFp = createDocumentFingerprint({
-        path: pendingPdfFile.path ?? null,
-        name: pendingPdfFile.name ?? null,
-        size: pendingPdfFile.size ?? null,
-        streamUrl: pendingPdfFile.streamUrl ?? null,
-        pdfFingerprint: activeFp
+      const st = useOcrStore.getState()
+      if (!st.pendingPdfFile || st.pendingPage == null || st.pendingFingerprint == null) return
+      const snapshotPage = st.pendingPage
+      const snapshotFingerprint = st.pendingFingerprint
+      const snapshotToken = st.pendingToken
+      const current = getActiveViewerSnapshot()
+      const isDocStale =
+        current.fingerprint != null &&
+        snapshotFingerprint != null &&
+        current.fingerprint !== snapshotFingerprint
+      const isPageStale = current.page !== snapshotPage
+      const isTokenStale = snapshotToken != null && snapshotToken !== st.requestToken
+      if (isDocStale || isPageStale || isTokenStale) {
+        Logger.warn('[OCR] stale area capture discarded', {
+          snapshotPage,
+          currentPage: current.page,
+          snapshotDoc: snapshotFingerprint?.slice(0, 16),
+          currentDoc: current.fingerprint?.slice(0, 16),
+          snapshotToken,
+          currentToken: st.requestToken
+        })
+        useOcrStore.getState().cancelAreaSelection()
+        return
+      }
+      await processArea({
+        dataUrl: image,
+        pageNumber: snapshotPage,
+        pdfFile: st.pendingPdfFile!
       })
-      const storeFp = (() => {
-        try {
-          const cur = pendingPdfFile
-          return createDocumentFingerprint({
-            path: cur.path ?? null,
-            name: cur.name ?? null,
-            size: cur.size ?? null,
-            streamUrl: cur.streamUrl ?? null,
-            pdfFingerprint: activeFp
-          })
-        } catch {
-          return capturedFp
-        }
-      })()
-      // If pending page is still expected, we rely on processArea's internal validation as second gate
-      void storeFp
-      await processArea({ dataUrl: image, pageNumber: pendingPage, pdfFile: pendingPdfFile })
-      cancelAreaSelection()
+      useOcrStore.getState().cancelAreaSelection()
     },
-    [pendingPage, pendingPdfFile, processArea, cancelAreaSelection]
+    [processArea]
   )
 
   const handleClose = useCallback(() => {

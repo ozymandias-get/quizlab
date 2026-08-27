@@ -59,7 +59,9 @@ export class OcrQueue {
     }
 
     this.queue.push(job)
-    this.drain()
+    // Defer drain to next microtask so that `abort` is assigned before the job
+    // function executes and captures it (avoids TDZ ReferenceError)
+    queueMicrotask(() => this.drain())
 
     const abort = () => {
       if (controller.signal.aborted) return

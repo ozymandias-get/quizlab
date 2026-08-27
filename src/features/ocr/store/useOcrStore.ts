@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+import { createDocumentFingerprint } from '../lib/cacheKey'
 import type { OcrConfig, OcrPageResult, OcrStatus } from '../types'
 import { DEFAULT_OCR_CONFIG } from '../types'
 
@@ -22,6 +23,11 @@ export interface OcrStoreState {
     size?: number | null
     streamUrl?: string | null
   } | null
+  /** Immutable snapshot at selection start — authoritative for staleness checks */
+  pendingDocumentId: string | null
+  pendingFingerprint: string | null
+  pendingToken: number | null
+  selectionGeneration: number
 }
 
 export interface OcrStoreActions {
@@ -63,7 +69,11 @@ const initialState: OcrStoreState = {
   requestToken: 0,
   isAreaSelectionActive: false,
   pendingPage: null,
-  pendingPdfFile: null
+  pendingPdfFile: null,
+  pendingDocumentId: null,
+  pendingFingerprint: null,
+  pendingToken: null,
+  selectionGeneration: 0
 }
 
 export const useOcrStore = create<OcrStore>()(
@@ -104,7 +114,11 @@ export const useOcrStore = create<OcrStore>()(
           requestToken: get().requestToken + 1,
           isAreaSelectionActive: false,
           pendingPage: null,
-          pendingPdfFile: null
+          pendingPdfFile: null,
+          pendingDocumentId: null,
+          pendingFingerprint: null,
+          pendingToken: null,
+          selectionGeneration: get().selectionGeneration + 1
         }),
 
       bumpToken: () => {
@@ -115,11 +129,36 @@ export const useOcrStore = create<OcrStore>()(
 
       setAreaSelectionActive: (v) => set({ isAreaSelectionActive: v }),
 
-      startAreaSelection: (page, pdfFile, _pdfUrl) =>
-        set({ isAreaSelectionActive: true, pendingPage: page, pendingPdfFile: pdfFile }),
+      startAreaSelection: (page, pdfFile, _pdfUrl) => {
+        const fingerprint = createDocumentFingerprint({
+          path: pdfFile.path ?? null,
+          name: pdfFile.name ?? null,
+          size: pdfFile.size ?? null,
+          streamUrl: pdfFile.streamUrl ?? null
+        })
+        const documentId = fingerprint
+        const token = get().requestToken
+        return set({
+          isAreaSelectionActive: true,
+          pendingPage: page,
+          pendingPdfFile: pdfFile,
+          pendingDocumentId: documentId,
+          pendingFingerprint: fingerprint,
+          pendingToken: token,
+          selectionGeneration: get().selectionGeneration + 1
+        })
+      },
 
       cancelAreaSelection: () =>
-        set({ isAreaSelectionActive: false, pendingPage: null, pendingPdfFile: null }),
+        set({
+          isAreaSelectionActive: false,
+          pendingPage: null,
+          pendingPdfFile: null,
+          pendingDocumentId: null,
+          pendingFingerprint: null,
+          pendingToken: null,
+          selectionGeneration: get().selectionGeneration + 1
+        }),
 
       clearTransientResult: () =>
         set({
@@ -134,7 +173,7 @@ export const useOcrStore = create<OcrStore>()(
     {
       name: 'ocr-storage',
       partialize: (state) => ({ config: state.config }) as unknown as OcrStoreState,
-      version: 1,
+      version: 2,
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<OcrStoreState> | undefined
         const cfg = (persisted?.config ?? {}) as Partial<OcrConfig>
@@ -152,7 +191,11 @@ export const useOcrStore = create<OcrStore>()(
           requestToken: 0,
           isAreaSelectionActive: false,
           pendingPage: null,
-          pendingPdfFile: null
+          pendingPdfFile: null,
+          pendingDocumentId: null,
+          pendingFingerprint: null,
+          pendingToken: null,
+          selectionGeneration: 0
         } as OcrStore
       }
     }

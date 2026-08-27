@@ -1,14 +1,14 @@
 import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
 import { createDocumentFingerprint } from '@features/ocr/lib/cacheKey'
-import { getActivePdfDocumentFingerprint } from '@features/ocr/lib/renderPageToImage'
 import { useOcrStore } from '@features/ocr/store/useOcrStore'
 import OcrResultPanel from '@features/ocr/ui/OcrResultPanel'
 
 import { useAppToolActions } from '@app/providers/AppToolContext'
 
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useEffect, useMemo } from 'react'
 
 import { type PdfViewerDocumentProps, usePdfViewerState } from '../../hooks/usePdfViewerState'
+import { setActiveViewerSnapshot } from '../../lib/activeViewerSnapshot'
 import ContextMenu from './ContextMenu'
 import PdfToolbar from './PdfToolbar'
 import PdfViewerElement from './PdfViewerElement'
@@ -55,13 +55,11 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
 
   const viewerDocumentId = useMemo(() => {
     if (!pdfFile) return null
-    const fp = getActivePdfDocumentFingerprint()
     return createDocumentFingerprint({
       path: pdfFile.path ?? null,
       name: pdfFile.name ?? null,
       size: pdfFile.size ?? null,
-      streamUrl: pdfFile.streamUrl ?? null,
-      pdfFingerprint: fp
+      streamUrl: pdfFile.streamUrl ?? null
     })
   }, [pdfFile])
 
@@ -87,6 +85,10 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     if (!pdfFile) return
     void processPage({ pageNumber: currentPage, pdfFile, pdfUrl })
   }, [currentPage, pdfFile, pdfUrl, processPage])
+
+  useEffect(() => {
+    setActiveViewerSnapshot(pdfFile ?? null, currentPage)
+  }, [pdfFile, currentPage])
 
   const viewerElement = useMemo(
     () => (

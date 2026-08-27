@@ -52,14 +52,18 @@ async function disposeWorker(): Promise<void> {
     clearTimeout(idleTimer)
     idleTimer = null
   }
-  if (cachedWorker) {
+  const workerToDispose = cachedWorker
+  // Ownership check: only clear global if still same instance
+  if (workerToDispose) {
+    if (cachedWorker === workerToDispose) {
+      cachedWorker = null
+      cachedLang = null
+    }
     try {
-      await cachedWorker.terminate()
+      await workerToDispose.terminate()
     } catch (e) {
       Logger.warn('[OCR:tesseract] worker terminate failed', e)
     }
-    cachedWorker = null
-    cachedLang = null
   }
 }
 
@@ -106,11 +110,8 @@ async function getOrCreateWorker(
   try {
     worker = await mod.createWorker(lang, 1, tesseractOpts)
   } catch (err) {
-    Logger.warn('[OCR:tesseract] local workerPath failed, retrying with default CDN worker', err)
-    worker = await mod.createWorker(lang, 1, {
-      logger: () => {},
-      errorHandler: (e: unknown) => Logger.warn('[OCR:tesseract] worker error', e)
-    } as unknown as Record<string, unknown>)
+    Logger.error('[OCR:tesseract] local worker creation failed — no CDN fallback', err)
+    throw new OcrError('TESSERACT_NOT_AVAILABLE')
   }
 
   cachedWorker = worker as never
