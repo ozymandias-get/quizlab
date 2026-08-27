@@ -187,14 +187,24 @@ export function useOcrActions() {
                   '' as unknown as Blob
                 )
               } catch (e) {
-                const msg = (e as Error).message
+                const msg = e instanceof Error ? e.message : String(e ?? '')
                 if (msg === 'NO_NATIVE_TEXT' || msg.includes('NO_NATIVE')) {
                   needsOcrRender = true
                 } else if ((e as DOMException).name === 'AbortError') {
                   throw e
                 } else {
-                  // Other error → treat as OCR needed fallback?
-                  Logger.warn('[OCR] native phase error, falling back to render', e)
+                  // Tesseract image-read errors are expected when dummy '' is passed for native check
+                  const isImageReadError =
+                    msg.includes('pixRead') ||
+                    msg.includes('Unknown format') ||
+                    msg.includes('cannot be read') ||
+                    msg.includes('attempting to read image') ||
+                    msg.includes('/input')
+                  if (isImageReadError) {
+                    Logger.debug('[OCR] native phase awaiting render (image not yet available)', e)
+                  } else {
+                    Logger.warn('[OCR] native phase error, falling back to render', e)
+                  }
                   needsOcrRender = true
                 }
               }
