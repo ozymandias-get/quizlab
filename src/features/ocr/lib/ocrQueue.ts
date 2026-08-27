@@ -15,6 +15,7 @@ export class OcrQueue {
   private concurrency: number
   private running = 0
   private queue: QueuedJob[] = []
+  private activeJobs = new Set<QueuedJob>()
   private idCounter = 0
 
   constructor(concurrency: number = OCR_CONCURRENCY) {
@@ -52,7 +53,6 @@ export class OcrQueue {
       reject
     }
 
-    // If already aborted, reject immediately
     if (controller.signal.aborted) {
       reject(new DOMException('Aborted', 'AbortError'))
       return { id, promise, abort: () => controller.abort() }
@@ -61,20 +61,19 @@ export class OcrQueue {
     this.queue.push(job)
     this.drain()
 
-    return {
-      id,
-      promise,
-      abort: () => {
-        if (controller.signal.aborted) return
-        controller.abort(new DOMException('Aborted', 'AbortError'))
-        // If still queued, remove and reject
-        const idx = this.queue.findIndex((j) => j.id === id)
-        if (idx >= 0) {
-          this.queue.splice(idx, 1)
-          reject(new DOMException('Aborted', 'AbortError'))
-        }
+    const abort = () => {
+      if (controller.signal.aborted) return
+      controller.abort(new DOMException('Aborted', 'AbortError'))
+      const idx = this.queue.findIndex((j) => j.id === id)
+      if (idx >= 0) {
+        this.queue.splice(idx, 1)
+        reject(new DOMException('Aborted', 'AbortError'))
       }
+      // If already running, the signal listener inside job.fn should handle termination.
+      // We also proactively trigger slot release check via drain if job was the only runner and aborted handler will decrement.
     }
+
+    return { id, promise, abort }
   }
 
   private drain(): void {
@@ -86,6 +85,7 @@ export class OcrQueue {
         continue
       }
       this.running++
+      this.activeJobs.add(job)
       void (async () => {
         try {
           await job.fn(job.signal)
@@ -94,7 +94,7 @@ export class OcrQueue {
           job.reject(e)
         } finally {
           this.running--
-          // Use queueMicrotask to avoid stack overflow with sync jobs
+          this.activeJobs.delete(job)
           queueMicrotask(() => this.drain())
         }
       })()
@@ -109,12 +109,24 @@ export class OcrQueue {
     return this.running
   }
 
-  clear(): void {
+  /**
+   * Abort both queued and actively running jobs.
+   * Running job's signal is aborted; its termination must be handled by the job's
+   * own abort listener (e.g., tesseract worker termination).
+   */
+  abortAll(): void {
     for (const job of this.queue) {
       job.abortController.abort(new DOMException('Cleared', 'AbortError'))
       job.reject(new DOMException('Cleared', 'AbortError'))
     }
     this.queue = []
+    for (const job of this.activeJobs) {
+      job.abortController.abort(new DOMException('Cancelled', 'AbortError'))
+    }
+  }
+
+  clear(): void {
+    this.abortAll()
   }
 
   setConcurrency(n: number): void {

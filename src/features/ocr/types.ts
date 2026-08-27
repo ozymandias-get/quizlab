@@ -26,6 +26,33 @@ export type OcrStatus =
   | 'error'
   | 'cancelled'
 
+export type OcrOutcome =
+  | 'success'
+  | 'noText'
+  | 'engineUnavailable'
+  | 'cancelled'
+  | 'timeout'
+  | 'error'
+
+export type OcrErrorCode =
+  | 'PAGE_RENDER_FAILED'
+  | 'TESSERACT_NOT_AVAILABLE'
+  | 'NO_TEXT_RECOGNIZED'
+  | 'OCR_FAILED'
+  | 'NO_NATIVE_TEXT'
+  | 'CANCELLED'
+  | 'TIMEOUT'
+  | 'STALE'
+
+export class OcrError extends Error {
+  code: OcrErrorCode
+  constructor(code: OcrErrorCode, message?: string) {
+    super(message ?? code)
+    this.name = 'OcrError'
+    this.code = code
+  }
+}
+
 export interface OcrConfig {
   language: OcrLanguage
   quality: OcrQualityPreset
@@ -38,6 +65,45 @@ export const DEFAULT_OCR_CONFIG: OcrConfig = {
   quality: 'balanced',
   sensitivity: 'medium',
   forceOcr: false
+}
+
+/**
+ * Quality preset → render config mapping
+ * Ensures preset actually changes pipeline behaviour instead of being a no-op.
+ */
+export interface OcrRenderPreset {
+  scale: number
+  maxPixels: number
+  useDirectPdfRender: boolean
+}
+
+export const OCR_QUALITY_PRESETS: Record<OcrQualityPreset, OcrRenderPreset> = {
+  fast: { scale: 1.25, maxPixels: 6_000_000, useDirectPdfRender: false },
+  balanced: { scale: 2.0, maxPixels: 12_000_000, useDirectPdfRender: true },
+  high: { scale: 2.8, maxPixels: 16_000_000, useDirectPdfRender: true }
+}
+
+export function getRenderPreset(quality: OcrQualityPreset): OcrRenderPreset {
+  return OCR_QUALITY_PRESETS[quality] ?? OCR_QUALITY_PRESETS.balanced
+}
+
+/**
+ * Sensitivity preset → thresholds used for native-text decision and confidence gating
+ */
+export interface OcrSensitivityPreset {
+  nativeMinChars: number
+  nativeMinBlocks: number
+  confidenceThreshold: number
+}
+
+export const OCR_SENSITIVITY_PRESETS: Record<OcrSensitivity, OcrSensitivityPreset> = {
+  low: { nativeMinChars: 10, nativeMinBlocks: 1, confidenceThreshold: 30 },
+  medium: { nativeMinChars: 50, nativeMinBlocks: 2, confidenceThreshold: 55 },
+  high: { nativeMinChars: 120, nativeMinBlocks: 3, confidenceThreshold: 75 }
+}
+
+export function getSensitivityPreset(sensitivity: OcrSensitivity): OcrSensitivityPreset {
+  return OCR_SENSITIVITY_PRESETS[sensitivity] ?? OCR_SENSITIVITY_PRESETS.medium
 }
 
 export interface OcrBlock {
@@ -72,6 +138,8 @@ export interface OcrPageResult {
   config: OcrConfig
   isNativeText: boolean
   readingOrder: 'single-column' | 'two-column' | 'unknown'
+  outcome?: OcrOutcome
+  confidence?: number
 }
 
 export interface OcrJob {
@@ -81,6 +149,8 @@ export interface OcrJob {
   documentFingerprint: string
   config: OcrConfig
   signal: AbortSignal
+  /** Distinguish page-level OCR vs region/area OCR — region must never fallback to full-page native text */
+  kind?: 'page' | 'region'
 }
 
 export interface OcrState {
@@ -105,6 +175,8 @@ export interface OcrProvider {
   readonly version: string
   initialize: (config: OcrConfig, signal?: AbortSignal) => Promise<void>
   processPage: (job: OcrJob, imageData: ImageData | Blob | string) => Promise<OcrPageResult>
+  /** Optional region-specific processing — if implemented, region jobs should use this and never fallback to native page text */
+  processRegion?: (job: OcrJob, imageData: ImageData | Blob | string) => Promise<OcrPageResult>
   dispose: () => Promise<void>
   getCapabilities: () => OcrProviderCapabilities
 }

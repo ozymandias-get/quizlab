@@ -1,16 +1,22 @@
 import { Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
 
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 
 import { createDocumentFingerprint, createOcrCacheKey } from '../lib/cacheKey'
 import { ocrCache } from '../lib/ocrCache'
+import { cancelActiveJob, clearActiveJobIf, getActiveJob, setActiveJob } from '../lib/ocrJobManager'
 import { globalOcrQueue } from '../lib/ocrQueue'
-import { renderPageToImageFallback } from '../lib/renderPageToImage'
+import {
+  getActivePdfDocumentFingerprint,
+  renderPageToImageFallback
+} from '../lib/renderPageToImage'
 import { createHybridProvider, HYBRID_ENGINE_NAME } from '../providers/hybridProvider'
 import { useOcrStore } from '../store/useOcrStore'
 import type { OcrConfig, OcrPageResult } from '../types'
+import { OcrError } from '../types'
 
+// Singleton provider instance — shared across all hook callers
 let hybridProvider: ReturnType<typeof createHybridProvider> | null = null
 let providerInitPromise: Promise<void> | null = null
 let providerConfigKey: string | null = null
@@ -38,19 +44,23 @@ function getHybridProvider(
   return providerInitPromise.then(() => hybridProvider!)
 }
 
+/** Build document fingerprint preferring PDF.js fingerprint when available (P0-6) */
+function buildFingerprint(pdfFile: {
+  path?: string | null
+  name?: string | null
+  size?: number | null
+  streamUrl?: string | null
+}): string {
+  const pdfFp = getActivePdfDocumentFingerprint()
+  return createDocumentFingerprint({ ...pdfFile, pdfFingerprint: pdfFp })
+}
+
 export function useOcrActions() {
   const { showError } = useToastActions()
-  const abortRef = useRef<AbortController | null>(null)
-  const queueAbortRef = useRef<(() => void) | null>(null)
 
   const cancel = useCallback(() => {
-    queueAbortRef.current?.()
-    queueAbortRef.current = null
-    abortRef.current?.abort(new DOMException('Cancelled', 'AbortError'))
-    abortRef.current = null
-    const { requestToken } = useOcrStore.getState()
-    useOcrStore.setState({ status: 'cancelled', requestToken: requestToken + 1 })
-    Logger.info('[OCR] cancelled')
+    void cancelActiveJob()
+    Logger.info('[OCR] cancelled via useOcrActions')
   }, [])
 
   const processPage = useCallback(
@@ -68,7 +78,7 @@ export function useOcrActions() {
       const { pageNumber, pdfFile, pdfUrl, configOverride } = params
       const store = useOcrStore.getState()
       const config: OcrConfig = { ...store.config, ...configOverride }
-      const fingerprint = createDocumentFingerprint(pdfFile)
+      const fingerprint = buildFingerprint(pdfFile)
       const documentId = fingerprint
       const cacheKey = createOcrCacheKey({
         fingerprint,
@@ -77,14 +87,12 @@ export function useOcrActions() {
         config
       })
 
-      // Cache hit — instant, but must invalidate any in-flight job
-      // otherwise that job's later completion would overwrite this cached result.
       const cached = ocrCache.get(cacheKey)
       if (cached) {
         Logger.info(`[OCR] cache hit page ${pageNumber} (${fingerprint})`)
-        queueAbortRef.current?.()
-        abortRef.current?.abort(new DOMException('Superseded', 'AbortError'))
-        // Bump token so the stale job is discarded via requestToken check
+        // Abort any in-flight globally
+        const active = getActiveJob()
+        if (active) void cancelActiveJob()
         const t = useOcrStore.getState().bumpToken()
         void t
         useOcrStore.setState({
@@ -98,29 +106,38 @@ export function useOcrActions() {
         return cached
       }
 
-      // Cancel previous job if any
-      queueAbortRef.current?.()
-      abortRef.current?.abort(new DOMException('Superseded', 'AbortError'))
+      // Cancel previous job globally before starting new one
+      const prev = getActiveJob()
+      if (prev) await cancelActiveJob()
 
       const token = store.bumpToken()
       const abortController = new AbortController()
-      abortRef.current = abortController
 
+      // Clear stale result when new job starts (P0-4: avoid showing old doc's result)
       useOcrStore.setState({
         status: 'rendering-page',
         currentPage: pageNumber,
         currentDocumentId: documentId,
         error: null,
+        result: null,
         isPanelOpen: true
       })
 
       Logger.info(
-        `[OCR] job start page ${pageNumber} fp=${fingerprint.slice(0, 24)}... force=${config.forceOcr}`
+        `[OCR] job start page ${pageNumber} fp=${fingerprint.slice(0, 24)}... force=${config.forceOcr} q=${config.quality}`
       )
+
+      const jobId = `ocr-${fingerprint}-${pageNumber}-${Date.now()}`
 
       const jobPromise = new Promise<OcrPageResult | null>((resolve, reject) => {
         const { promise, abort } = globalOcrQueue.enqueue(async (signal) => {
-          // Merge external abort with queue signal
+          setActiveJob({
+            id: jobId,
+            documentId,
+            pageNumber,
+            abortController,
+            queueAbort: abort
+          })
           const combined = new AbortController()
           const onAbort = () => combined.abort(signal.reason ?? abortController.signal.reason)
           signal.addEventListener('abort', onAbort, { once: true })
@@ -128,23 +145,12 @@ export function useOcrActions() {
 
           let blobUrl: string | null = null
           try {
-            // Check token still current before heavy work
             if (useOcrStore.getState().requestToken !== token) {
               throw new DOMException('Stale', 'AbortError')
             }
 
-            // Step 1: Try native path first without image if not forceOcr
-            // Native provider only needs DOM, no image.
-            // We still need to handle rendering for OCR fallback.
-
             let imageForOcr: Blob | string | null = null
 
-            // If we will need OCR (either force or native miss), prepare image
-            // For performance, we don't pre-render if native succeeds; we lazy-render.
-            // To avoid double logic, we attempt native inside provider which will
-            // throw NO_NATIVE_TEXT if needed — then we render and retry via OCR.
-
-            // Set initializing state
             if (useOcrStore.getState().requestToken !== token)
               throw new DOMException('Stale', 'AbortError')
             useOcrStore.setState({ status: 'initializing-engine' })
@@ -156,20 +162,6 @@ export function useOcrActions() {
 
             useOcrStore.setState({ status: 'processing' })
 
-            // Hybrid provider internally tries native → OCR.
-            // For OCR branch it needs imageData — we supply lazily via closure:
-            // Instead, we pre-render image now (cheap if native succeeds we waste it,
-            // but avoids complex branching inside provider). The waste is small (16Mpx PNG).
-            // Optimize: only render if forceOcr or after native miss? Simpler: render now.
-
-            // Only render if pdfUrl available or canvas available
-            // If we are in forceOcr=false path, provider will first try native which ignores image,
-            // so we could skip render until fallback. To honor spec's "render scale 2.0" only when needed,
-            // we implement two-phase: try native without image, on miss render.
-
-            // Phase 1: try native-only via provider with dummy image (provider ignores it for native path)
-            // But Hybrid provider's native path doesn't need image; it will succeed without it.
-            // So we call with dummy empty blob — if it succeeds we never rendered.
             let result: OcrPageResult | null = null
             let needsOcrRender = false
 
@@ -177,23 +169,30 @@ export function useOcrActions() {
               try {
                 result = await provider.processPage(
                   {
-                    id: `ocr-${fingerprint}-${pageNumber}`,
+                    id: jobId,
                     pageNumber,
                     documentId,
                     documentFingerprint: fingerprint,
                     config,
-                    signal: combined.signal
+                    signal: combined.signal,
+                    kind: 'page'
                   },
                   '' as unknown as Blob
                 )
               } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e ?? '')
-                if (msg === 'NO_NATIVE_TEXT' || msg.includes('NO_NATIVE')) {
+                const code =
+                  e instanceof OcrError ? e.code : e instanceof Error ? e.message : String(e ?? '')
+                if (
+                  code === 'NO_NATIVE_TEXT' ||
+                  (typeof code === 'string' && code.includes('NO_NATIVE'))
+                ) {
                   needsOcrRender = true
                 } else if ((e as DOMException).name === 'AbortError') {
                   throw e
+                } else if (e instanceof OcrError) {
+                  throw e
                 } else {
-                  // Tesseract image-read errors are expected when dummy '' is passed for native check
+                  const msg = e instanceof Error ? e.message : String(e ?? '')
                   const isImageReadError =
                     msg.includes('pixRead') ||
                     msg.includes('Unknown format') ||
@@ -201,7 +200,7 @@ export function useOcrActions() {
                     msg.includes('attempting to read image') ||
                     msg.includes('/input')
                   if (isImageReadError) {
-                    Logger.debug('[OCR] native phase awaiting render (image not yet available)', e)
+                    Logger.debug('[OCR] native phase awaiting render', e)
                   } else {
                     Logger.warn('[OCR] native phase error, falling back to render', e)
                   }
@@ -218,11 +217,11 @@ export function useOcrActions() {
               const rendered = await renderPageToImageFallback(
                 pdfUrl || pdfFile.streamUrl || '',
                 pageNumber,
-                {},
+                { quality: config.quality },
                 combined.signal
               )
               if (!rendered) {
-                throw new Error('PAGE_RENDER_FAILED')
+                throw new OcrError('PAGE_RENDER_FAILED')
               }
               blobUrl = rendered.blobUrl
               imageForOcr = rendered.blob
@@ -237,16 +236,16 @@ export function useOcrActions() {
               useOcrStore.setState({ status: 'processing' })
               result = await provider.processPage(
                 {
-                  id: `ocr-${fingerprint}-${pageNumber}`,
+                  id: jobId,
                   pageNumber,
                   documentId,
                   documentFingerprint: fingerprint,
                   config,
-                  signal: combined.signal
+                  signal: combined.signal,
+                  kind: 'page'
                 },
                 imageForOcr
               )
-              // Clean up blob URL after processing
               if (blobUrl) {
                 try {
                   URL.revokeObjectURL(blobUrl)
@@ -255,12 +254,10 @@ export function useOcrActions() {
               }
             }
 
-            if (!result) throw new Error('OCR_FAILED')
+            if (!result) throw new OcrError('OCR_FAILED')
 
-            // Stale check before committing
             if (useOcrStore.getState().requestToken !== token) {
-              Logger.info(`[OCR] stale result discarded page ${pageNumber} (newer request exists)`)
-              // Clean blob URL if any
+              Logger.info(`[OCR] stale result discarded page ${pageNumber}`)
               if (blobUrl)
                 try {
                   URL.revokeObjectURL(blobUrl)
@@ -276,7 +273,12 @@ export function useOcrActions() {
               throw new DOMException('Aborted', 'AbortError')
             }
 
-            // Cache
+            // Validate result still matches active document/page before caching
+            const cur = useOcrStore.getState()
+            if (cur.currentDocumentId !== documentId || cur.currentPage !== pageNumber) {
+              if (cur.requestToken !== token) throw new DOMException('Stale', 'AbortError')
+            }
+
             try {
               ocrCache.set(cacheKey, result)
             } catch (e) {
@@ -286,16 +288,20 @@ export function useOcrActions() {
             if (useOcrStore.getState().requestToken !== token)
               throw new DOMException('Stale', 'AbortError')
 
-            useOcrStore.setState({
-              result,
-              status: 'success',
-              error: null,
-              currentPage: pageNumber,
-              currentDocumentId: documentId
-            })
-            Logger.info(
-              `[OCR] completed page ${pageNumber} engine=${result.engine} len=${result.markdown.length}`
-            )
+            // Final documentId + pageNumber invariant check (P0-4)
+            const finalState = useOcrStore.getState()
+            if (finalState.requestToken === token) {
+              useOcrStore.setState({
+                result,
+                status: 'success',
+                error: null,
+                currentPage: pageNumber,
+                currentDocumentId: documentId
+              })
+              Logger.info(
+                `[OCR] completed page ${pageNumber} engine=${result.engine} len=${result.markdown.length}`
+              )
+            }
             resolve(result)
           } catch (err) {
             const isAbort =
@@ -304,10 +310,27 @@ export function useOcrActions() {
               (err as Error).message === 'Aborted'
             const isStale = (err as Error).message === 'Stale'
             if (isStale || (isAbort && useOcrStore.getState().requestToken !== token)) {
-              // Silently ignore stale
               Logger.debug('[OCR] stale/aborted job ignored', err)
               resolve(null)
               return
+            }
+            if (err instanceof OcrError) {
+              const userMessage = mapErrorToUserMessage(err.code)
+              // Distinguish outcomes: noText vs engineUnavailable should not be cached as success
+              if (err.code === 'NO_TEXT_RECOGNIZED' || err.code === 'TESSERACT_NOT_AVAILABLE') {
+                // Don't cache these — set appropriate error state instead of success with fake markdown
+                useOcrStore.setState({ status: 'error', error: userMessage })
+                Logger.warn('[OCR] job no-text/engine unavailable', err)
+                showError(userMessage)
+                reject(err)
+                return
+              }
+              if (err.code === 'TIMEOUT') {
+                useOcrStore.setState({ status: 'error', error: userMessage })
+                showError(userMessage)
+                reject(err)
+                return
+              }
             }
             if (isAbort) {
               useOcrStore.setState({ status: 'cancelled' })
@@ -316,16 +339,17 @@ export function useOcrActions() {
               return
             }
 
-            const message = err instanceof Error ? err.message : String(err)
-            const userMessage = mapErrorToUserMessage(message)
+            const code =
+              err instanceof OcrError ? err.code : err instanceof Error ? err.message : String(err)
+            const userMessage = mapErrorToUserMessage(code)
             useOcrStore.setState({ status: 'error', error: userMessage })
             Logger.error('[OCR] job failed', err)
-            // Do not show toast for PAGE_RENDER_FAILED when panel already explains?
             showError(userMessage)
             reject(err)
           } finally {
             signal.removeEventListener('abort', onAbort)
             abortController.signal.removeEventListener('abort', onAbort)
+            clearActiveJobIf(jobId)
             if (blobUrl) {
               try {
                 URL.revokeObjectURL(blobUrl)
@@ -334,20 +358,15 @@ export function useOcrActions() {
           }
         }, abortController.signal)
 
-        queueAbortRef.current = abort
-
         promise.then(() => resolve(null)).catch(reject)
       })
 
       try {
         const res = await jobPromise
-        queueAbortRef.current = null
-        abortRef.current = null
+        clearActiveJobIf(jobId)
         return res
       } catch {
-        queueAbortRef.current = null
-        abortRef.current = null
-        // Error already set in store
+        clearActiveJobIf(jobId)
         return null
       }
     },
@@ -367,23 +386,44 @@ export function useOcrActions() {
     }) => {
       const { dataUrl, pageNumber, pdfFile } = params
       const store = useOcrStore.getState()
-      // Force OCR for selections — selections are always image-based
+
+      // Capture-time validation: ensure pending metadata still matches current request (P1-16)
+      const fingerprintAtCapture = buildFingerprint(pdfFile)
+      const areaTokenDocMatch = store.pendingPdfFile
+        ? buildFingerprint(store.pendingPdfFile) === fingerprintAtCapture
+        : true
+      if (
+        store.isAreaSelectionActive &&
+        store.pendingPage != null &&
+        store.pendingPage !== pageNumber
+      ) {
+        Logger.warn('[OCR] area capture page mismatch — cancelling')
+        useOcrStore.getState().cancelAreaSelection()
+        return null
+      }
+      if (!areaTokenDocMatch) {
+        Logger.warn('[OCR] area capture document mismatch — cancelling')
+        useOcrStore.getState().cancelAreaSelection()
+        return null
+      }
+
       const config: OcrConfig = { ...store.config, forceOcr: true }
-      const fingerprint = createDocumentFingerprint(pdfFile)
+      const fingerprint = fingerprintAtCapture
       const documentId = fingerprint
 
-      queueAbortRef.current?.()
-      abortRef.current?.abort(new DOMException('Superseded', 'AbortError'))
+      const prev = getActiveJob()
+      if (prev) await cancelActiveJob()
 
       const token = store.bumpToken()
       const abortController = new AbortController()
-      abortRef.current = abortController
+      const jobId = `ocr-area-${fingerprint}-${pageNumber}-${Date.now()}`
 
       useOcrStore.setState({
         status: 'processing',
         currentPage: pageNumber,
         currentDocumentId: documentId,
         error: null,
+        result: null,
         isPanelOpen: true
       })
 
@@ -391,6 +431,7 @@ export function useOcrActions() {
 
       const jobPromise = new Promise<OcrPageResult | null>((resolve, reject) => {
         const { promise, abort } = globalOcrQueue.enqueue(async (signal) => {
+          setActiveJob({ id: jobId, documentId, pageNumber, abortController, queueAbort: abort })
           const combined = new AbortController()
           const onAbort = () => combined.abort(signal.reason ?? abortController.signal.reason)
           signal.addEventListener('abort', onAbort, { once: true })
@@ -404,16 +445,22 @@ export function useOcrActions() {
             if (combined.signal.aborted) throw new DOMException('Aborted', 'AbortError')
             if (useOcrStore.getState().requestToken !== token)
               throw new DOMException('Stale', 'AbortError')
+            // Snapshot documentId at processing time — if changed since scheduling, abort
+            const curDoc = useOcrStore.getState().currentDocumentId
+            if (curDoc !== documentId && useOcrStore.getState().requestToken !== token) {
+              throw new DOMException('Stale', 'AbortError')
+            }
             useOcrStore.setState({ status: 'processing' })
 
             const result = await provider.processPage(
               {
-                id: `ocr-area-${fingerprint}-${pageNumber}-${Date.now()}`,
+                id: jobId,
                 pageNumber,
                 documentId,
                 documentFingerprint: fingerprint,
                 config,
-                signal: combined.signal
+                signal: combined.signal,
+                kind: 'region'
               },
               dataUrl
             )
@@ -422,12 +469,16 @@ export function useOcrActions() {
               throw new DOMException('Stale', 'AbortError')
             if (combined.signal.aborted) throw new DOMException('Aborted', 'AbortError')
 
-            // Prefix markdown to indicate it was an area selection
             const areaResult: OcrPageResult = {
               ...result,
               markdown: result.markdown,
               blocks: result.blocks
-              // keep original pageNumber
+            }
+
+            // Final staleness check includes documentId (P0-4)
+            const finalState = useOcrStore.getState()
+            if (finalState.requestToken !== token || finalState.currentDocumentId !== documentId) {
+              throw new DOMException('Stale', 'AbortError')
             }
 
             useOcrStore.setState({
@@ -452,14 +503,22 @@ export function useOcrActions() {
               resolve(null)
               return
             }
+            if (err instanceof OcrError) {
+              const userMessage = mapErrorToUserMessage(err.code)
+              useOcrStore.setState({ status: 'error', error: userMessage })
+              Logger.warn('[OCR] area job typed error', err)
+              if (err.code !== 'NO_TEXT_RECOGNIZED') showError(userMessage)
+              reject(err)
+              return
+            }
             if (isAbort) {
               useOcrStore.setState({ status: 'cancelled' })
               Logger.info('[OCR] area job aborted', err)
               resolve(null)
               return
             }
-            const message = err instanceof Error ? err.message : String(err)
-            const userMessage = mapErrorToUserMessage(message)
+            const code = err instanceof Error ? err.message : String(err)
+            const userMessage = mapErrorToUserMessage(code)
             useOcrStore.setState({ status: 'error', error: userMessage })
             Logger.error('[OCR] area job failed', err)
             showError(userMessage)
@@ -467,42 +526,71 @@ export function useOcrActions() {
           } finally {
             signal.removeEventListener('abort', onAbort)
             abortController.signal.removeEventListener('abort', onAbort)
+            clearActiveJobIf(jobId)
           }
         }, abortController.signal)
 
-        queueAbortRef.current = abort
         promise.then(() => resolve(null)).catch(reject)
       })
 
       try {
         const res = await jobPromise
-        queueAbortRef.current = null
-        abortRef.current = null
+        clearActiveJobIf(jobId)
         return res
       } catch {
-        queueAbortRef.current = null
-        abortRef.current = null
+        clearActiveJobIf(jobId)
         return null
       }
     },
     [showError]
   )
 
-  const retry = useCallback(async () => {
-    const s = useOcrStore.getState()
-    if (s.currentPage == null) return
-    // Force OCR on retry to give better chance on scanned pages
-    // But respect original config unless user explicitly wants native again — we'll just re-run with same config
-    // Better to offer both; here we just re-run.
-    // Need pdfFile context — caller should supply; retry without context cannot render.
-    // So this retry is placeholder; actual retry is via OcrResultPanel that knows pdfFile.
-    Logger.info('[OCR] retry requested')
-  }, [])
+  const retry = useCallback(
+    async (params?: {
+      pageNumber?: number
+      pdfFile?: {
+        path?: string | null
+        name?: string | null
+        size?: number | null
+        streamUrl?: string | null
+      }
+      pdfUrl?: string | null
+    }) => {
+      const s = useOcrStore.getState()
+      const page = params?.pageNumber ?? s.currentPage
+      const file = params?.pdfFile ?? null
+      const url = params?.pdfUrl ?? null
+      if (page == null || !file) {
+        Logger.warn('[OCR] retry called without page/file context')
+        return null
+      }
+      Logger.info(`[OCR] retry page ${page}`)
+      // On retry, clear cache for that page to force re-run
+      try {
+        const fp = buildFingerprint(file)
+        const cfg = s.config
+        const key = createOcrCacheKey({
+          fingerprint: fp,
+          pageNumber: page,
+          engine: HYBRID_ENGINE_NAME,
+          config: cfg
+        })
+        ocrCache.delete(key)
+      } catch {}
+      return processPage({ pageNumber: page, pdfFile: file, pdfUrl: url })
+    },
+    [processPage]
+  )
 
   return { processPage, processArea, cancel, retry }
 }
 
 function mapErrorToUserMessage(code: string): string {
+  if (code.includes('PAGE_RENDER_FAILED')) return 'ocr_error_render_failed'
+  if (code.includes('TESSERACT_NOT_AVAILABLE')) return 'ocr_error_engine_not_available'
+  if (code.includes('NO_TEXT_RECOGNIZED') || code.includes('NO_NATIVE_TEXT'))
+    return 'ocr_error_no_text'
+  if (code.includes('TIMEOUT')) return 'ocr_error_timeout'
   switch (code) {
     case 'PAGE_RENDER_FAILED':
       return 'ocr_error_render_failed'
@@ -514,6 +602,8 @@ function mapErrorToUserMessage(code: string): string {
       return 'ocr_error_generic'
     case 'NO_NATIVE_TEXT':
       return 'ocr_error_no_text'
+    case 'TIMEOUT':
+      return 'ocr_error_timeout'
     default:
       return 'ocr_error_generic'
   }

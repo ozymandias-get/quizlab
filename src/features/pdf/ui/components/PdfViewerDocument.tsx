@@ -1,4 +1,6 @@
 import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
+import { createDocumentFingerprint } from '@features/ocr/lib/cacheKey'
+import { getActivePdfDocumentFingerprint } from '@features/ocr/lib/renderPageToImage'
 import { useOcrStore } from '@features/ocr/store/useOcrStore'
 import OcrResultPanel from '@features/ocr/ui/OcrResultPanel'
 
@@ -48,8 +50,20 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   const ocrIsOpen = useOcrStore((s) => s.isPanelOpen)
   const ocrCurrentPage = useOcrStore((s) => s.currentPage)
   const ocrClosePanel = useOcrStore((s) => s.closePanel)
-  const { processPage, cancel } = useOcrActions()
+  const { processPage, cancel, retry } = useOcrActions()
   const { queueTextForAi } = useAppToolActions()
+
+  const viewerDocumentId = useMemo(() => {
+    if (!pdfFile) return null
+    const fp = getActivePdfDocumentFingerprint()
+    return createDocumentFingerprint({
+      path: pdfFile.path ?? null,
+      name: pdfFile.name ?? null,
+      size: pdfFile.size ?? null,
+      streamUrl: pdfFile.streamUrl ?? null,
+      pdfFingerprint: fp
+    })
+  }, [pdfFile])
 
   const handleOcrClose = useCallback(() => {
     if (
@@ -65,8 +79,9 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   const handleOcrRetry = useCallback(() => {
     if (!pdfFile) return
     const page = ocrCurrentPage ?? currentPage
-    void processPage({ pageNumber: page, pdfFile, pdfUrl })
-  }, [pdfFile, pdfUrl, ocrCurrentPage, currentPage, processPage])
+    // Use typed retry that clears cache and re-runs with fresh render
+    void retry({ pageNumber: page, pdfFile, pdfUrl })
+  }, [pdfFile, pdfUrl, ocrCurrentPage, currentPage, retry])
 
   const handleRunCurrentPageOcr = useCallback(() => {
     if (!pdfFile) return
@@ -129,6 +144,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
               error={ocrError}
               pageNumber={ocrCurrentPage}
               viewerPage={currentPage}
+              viewerDocumentId={viewerDocumentId}
               onClose={handleOcrClose}
               onRetry={handleOcrRetry}
               onRunCurrent={handleRunCurrentPageOcr}

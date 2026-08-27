@@ -1,11 +1,10 @@
 /**
  * Hybrid provider: native text first, OCR second (unless forceOcr).
- * Implements the spec: PDF.js text layer check → native text + layout reconstruction,
- * otherwise real OCR → structured Markdown + LaTeX.
  */
 import { Logger } from '@shared/lib/logger'
 
-import type { OcrPageResult, OcrProvider } from '../types'
+import type { OcrProvider } from '../types'
+import { OcrError } from '../types'
 import { createNativeTextProvider, NATIVE_TEXT_ENGINE_NAME } from './nativeTextProvider'
 import { createTesseractProvider, TESSERACT_ENGINE_NAME } from './tesseractProvider'
 
@@ -28,15 +27,32 @@ export function createHybridProvider(): OcrProvider {
     },
 
     async processPage(job, imageData) {
-      // If forceOcr requested, go straight to OCR
+      // Region jobs: strict image-only path — never fallback to full-page native text (P0-5)
+      if (job.kind === 'region') {
+        Logger.debug(`[OCR:hybrid] region job page ${job.pageNumber} → tesseract only`)
+        try {
+          const ocrResult = await tesseract.processPage(job, imageData)
+          return ocrResult
+        } catch (e) {
+          if (e instanceof OcrError && e.code === 'TESSERACT_NOT_AVAILABLE') {
+            // Do not fallback to native full-page — propagate as engine unavailable
+            throw e
+          }
+          if (e instanceof OcrError && e.code === 'NO_TEXT_RECOGNIZED') {
+            throw e
+          }
+          throw e
+        }
+      }
+
       if (job.config.forceOcr) {
         Logger.debug(`[OCR:hybrid] forceOcr page ${job.pageNumber} → tesseract`)
         try {
           return await tesseract.processPage(job, imageData)
         } catch (e) {
-          // If tesseract not available, degrade to native attempt
-          const msg = e instanceof Error ? e.message : String(e ?? '')
-          if (msg === 'TESSERACT_NOT_AVAILABLE') {
+          const code =
+            e instanceof OcrError ? e.code : e instanceof Error ? e.message : String(e ?? '')
+          if (code === 'TESSERACT_NOT_AVAILABLE') {
             Logger.warn('[OCR:hybrid] tesseract not available, falling back to native')
             return native.processPage(job, imageData)
           }
@@ -44,67 +60,46 @@ export function createHybridProvider(): OcrProvider {
         }
       }
 
-      // Try native first unless image explicitly indicates scanned
       try {
         const nativeResult = await native.processPage(job, imageData)
-        // Heuristic: if native text is very short vs expected page density, treat as scanned
-        // We don't have expected density, so just trust native if length > 50 already validated inside provider.
-        // For academic two-column, native provider already does column ordering.
         Logger.debug(
           `[OCR:hybrid] page ${job.pageNumber} served via native-text (${nativeResult.plainText.length} chars)`
         )
         return nativeResult
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e ?? '')
-        if (msg !== 'NO_NATIVE_TEXT') {
-          // Unexpected native error — propagate
+        const code =
+          e instanceof OcrError ? e.code : e instanceof Error ? e.message : String(e ?? '')
+        if (code !== 'NO_NATIVE_TEXT') {
           if ((e as DOMException).name === 'AbortError') throw e
+          if (e instanceof OcrError) throw e
           Logger.warn('[OCR:hybrid] native provider error, trying OCR', e)
         } else {
           Logger.debug(`[OCR:hybrid] page ${job.pageNumber} native miss → OCR`)
         }
 
-        // Fall back to OCR — but if caller passed dummy empty image (phase 1 native check), don't invoke tesseract yet
-        // otherwise tesseract will throw "Image file /input cannot be read!" and trigger GlobalErrorHandler via worker throw.
         const isEmptyImage =
           !imageData ||
           (typeof imageData === 'string' && imageData.trim() === '') ||
           (imageData instanceof Blob && imageData.size === 0)
         if (isEmptyImage) {
-          throw new Error('NO_NATIVE_TEXT')
+          throw new OcrError('NO_NATIVE_TEXT')
         }
         try {
           const ocrResult = await tesseract.processPage(job, imageData)
-          // Mark hybrid source but keep engine name as tesseract for cache discrimination?
-          // Keep original engine for precise invalidation; hybrid callers can inspect isNativeText.
           return ocrResult
         } catch (ocrErr) {
-          const ocrMsg = ocrErr instanceof Error ? ocrErr.message : String(ocrErr ?? '')
-          if (ocrMsg === 'TESSERACT_NOT_AVAILABLE' || ocrMsg === 'NO_TEXT_RECOGNIZED') {
-            // No OCR runtime available and no native text — produce empty structured result
-            // rather than crashing UX; caller can show "no text found" state.
-            Logger.warn(
-              '[OCR:hybrid] OCR unavailable and no native text — returning empty result',
-              ocrErr
-            )
-            const empty: OcrPageResult = {
-              pageNumber: job.pageNumber,
-              documentId: job.documentId,
-              markdown:
-                '_No selectable text found on this page. Try Force OCR or use a searchable PDF._',
-              plainText: '',
-              language: job.config.language,
-              blocks: [],
-              tables: [],
-              formulas: [],
-              engine: NATIVE_TEXT_ENGINE_NAME,
-              engineVersion: native.version,
-              createdAt: Date.now(),
-              config: job.config,
-              isNativeText: true,
-              readingOrder: 'unknown'
+          const ocrCode =
+            ocrErr instanceof OcrError
+              ? ocrErr.code
+              : ocrErr instanceof Error
+                ? ocrErr.message
+                : String(ocrErr ?? '')
+          if (ocrCode === 'TESSERACT_NOT_AVAILABLE' || ocrCode === 'NO_TEXT_RECOGNIZED') {
+            // Map to typed outcomes instead of fake success (P1-13)
+            if (ocrCode === 'TESSERACT_NOT_AVAILABLE') {
+              throw new OcrError('TESSERACT_NOT_AVAILABLE', 'Engine unavailable')
             }
-            return empty
+            throw new OcrError('NO_TEXT_RECOGNIZED', 'No text recognized')
           }
           throw ocrErr
         }
@@ -116,7 +111,6 @@ export function createHybridProvider(): OcrProvider {
     },
 
     getCapabilities() {
-      // Union of both
       const n = native.getCapabilities()
       const t = tesseract.getCapabilities()
       return {

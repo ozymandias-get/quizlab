@@ -1,13 +1,17 @@
 import { Logger } from '@shared/lib/logger'
 
 // Vite ?url import — bundles worker locally so CSP does not need to allow CDN for worker script.
-// Using local worker avoids "script-src" violation for https://cdn.jsdelivr.net/.../worker.min.js
-// and works offline (file://) via `workerBlobURL: false`.
 import tesseractWorkerPath from 'tesseract.js/dist/worker.min.js?url'
 
 import { normalizeToMarkdown } from '../lib/markdownNormalizer'
 import type { OcrConfig, OcrPageResult, OcrProvider, OcrProviderCapabilities } from '../types'
-import { OCR_ENGINE_VERSION } from '../types'
+import {
+  getSensitivityPreset,
+  OCR_ENGINE_VERSION,
+  OCR_IDLE_TIMEOUT_MS,
+  OCR_TIMEOUT_MS,
+  OcrError
+} from '../types'
 
 export const TESSERACT_ENGINE_NAME = 'tesseract' as const
 
@@ -38,10 +42,9 @@ function langForConfig(config: OcrConfig): string {
 
 function scheduleIdleDispose(): void {
   if (idleTimer) clearTimeout(idleTimer)
-  // Release after 5 min idle to free ~30MB WASM heap
   idleTimer = setTimeout(() => {
     void disposeWorker()
-  }, 300_000)
+  }, OCR_IDLE_TIMEOUT_MS)
 }
 
 async function disposeWorker(): Promise<void> {
@@ -60,6 +63,14 @@ async function disposeWorker(): Promise<void> {
   }
 }
 
+/**
+ * Forcefully terminate the active worker — used by cancel/timeout to truly stop WASM computation
+ * and free the queue slot (P0-3).
+ */
+export async function forceTerminateWorker(): Promise<void> {
+  await disposeWorker()
+}
+
 async function getOrCreateWorker(
   lang: string,
   signal?: AbortSignal
@@ -73,34 +84,29 @@ async function getOrCreateWorker(
 
   let mod: TesseractLike | null = null
   try {
-    // Lazy load — heavy WASM + ~10MB lang data; dynamically imported so main chunk stays small
     mod = (await import('tesseract.js')) as unknown as TesseractLike
   } catch (e) {
     Logger.warn(
       '[OCR:tesseract] dynamic import failed — tesseract.js not installed or failed to load',
       e
     )
-    throw new Error('TESSERACT_NOT_AVAILABLE')
+    throw new OcrError('TESSERACT_NOT_AVAILABLE')
   }
 
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 
-  // Try local worker first (bundled via Vite, allowed by 'self' CSP). Fallback to CDN default on failure.
   let worker: Awaited<ReturnType<TesseractLike['createWorker']>>
   const tesseractOpts = {
     workerPath: tesseractWorkerPath,
     workerBlobURL: false,
-    // langPath defaults to jsDelivr CDN (now allowed via connect-src). Keep gzip/cache defaults.
     gzip: true,
     logger: () => {},
     errorHandler: (e: unknown) => Logger.warn('[OCR:tesseract] worker error', e)
-    // cacheMethod 'write' allows IndexedDB caching of .traineddata to avoid re-download
   } as unknown as Record<string, unknown>
   try {
     worker = await mod.createWorker(lang, 1, tesseractOpts)
   } catch (err) {
     Logger.warn('[OCR:tesseract] local workerPath failed, retrying with default CDN worker', err)
-    // Fallback: let tesseract.js use its default CDN workerPath (requires CSP allow cdn.jsdelivr.net)
     worker = await mod.createWorker(lang, 1, {
       logger: () => {},
       errorHandler: (e: unknown) => Logger.warn('[OCR:tesseract] worker error', e)
@@ -133,43 +139,87 @@ export function createTesseractProvider(): OcrProvider {
           ReturnType<TesseractLike['createWorker']>
         >
       } catch (e) {
-        // Tesseract not available — fallback error propagated to caller
         throw e
       }
 
       if (job.signal.aborted) throw new DOMException('Aborted', 'AbortError')
 
-      // Normalize imageData to data URL or blob suitable for tesseract
       let imageForWorker: string | Blob
       if (typeof imageData === 'string') {
         imageForWorker = imageData
       } else if (imageData instanceof Blob) {
         imageForWorker = imageData
       } else if (imageData && typeof imageData === 'object' && 'data' in imageData) {
-        // ImageData — convert to canvas blob
         const canvas = document.createElement('canvas')
         canvas.width = (imageData as ImageData).width
         canvas.height = (imageData as ImageData).height
         const ctx = canvas.getContext('2d')
-        if (!ctx) throw new Error('Canvas 2D unavailable')
+        if (!ctx) throw new OcrError('OCR_FAILED', 'Canvas 2D unavailable')
         ctx.putImageData(imageData as ImageData, 0, 0)
         const blob = await new Promise<Blob | null>((res) =>
           canvas.toBlob((b) => res(b), 'image/png')
         )
-        if (!blob) throw new Error('Failed to convert ImageData to blob')
+        if (!blob) throw new OcrError('OCR_FAILED', 'Failed to convert ImageData to blob')
         imageForWorker = blob
       } else {
-        throw new Error('Unsupported imageData type for Tesseract')
+        throw new OcrError('OCR_FAILED', 'Unsupported imageData type for Tesseract')
       }
 
       if (job.signal.aborted) throw new DOMException('Aborted', 'AbortError')
 
-      const result = await worker.recognize(imageForWorker)
+      // Race recognize against abort signal and timeout (P0-3 timeout must actually terminate worker)
+      const timeoutMs = OCR_TIMEOUT_MS
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      let abortHandler: (() => void) | null = null
+
+      const abortPromise = new Promise<never>((_, reject) => {
+        if (job.signal.aborted) {
+          reject(new DOMException('Aborted', 'AbortError'))
+          return
+        }
+        abortHandler = () => {
+          // Terminate WASM worker so the slot is freed promptly
+          void forceTerminateWorker()
+          reject(new DOMException('Aborted', 'AbortError'))
+        }
+        job.signal.addEventListener('abort', abortHandler, { once: true })
+      })
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          void forceTerminateWorker()
+          reject(new OcrError('TIMEOUT', `OCR timeout after ${timeoutMs}ms`))
+        }, timeoutMs)
+      })
+
+      let rawText = ''
+      let confidence = 0
+      try {
+        const result = (await Promise.race([
+          worker.recognize(imageForWorker),
+          abortPromise,
+          timeoutPromise
+        ])) as { data: { text: string; confidence: number } }
+        rawText = result.data.text || ''
+        confidence = result.data.confidence ?? 0
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId)
+        if (abortHandler) job.signal.removeEventListener('abort', abortHandler)
+      }
 
       if (job.signal.aborted) throw new DOMException('Aborted', 'AbortError')
 
-      const rawText = result.data.text || ''
-      if (!rawText.trim()) throw new Error('NO_TEXT_RECOGNIZED')
+      if (!rawText.trim()) throw new OcrError('NO_TEXT_RECOGNIZED')
+
+      // Apply sensitivity-based confidence gating (P1-10)
+      const sensitivityPreset = getSensitivityPreset(job.config.sensitivity)
+      if (confidence > 0 && confidence < sensitivityPreset.confidenceThreshold) {
+        // Low confidence — depending on sensitivity, treat as no-text to allow retry or fallback handling
+        // For low sensitivity we keep result anyway; for medium/high we throw to let hybrid decide
+        if (job.config.sensitivity === 'high') {
+          throw new OcrError('NO_TEXT_RECOGNIZED', `Low confidence ${confidence}`)
+        }
+      }
 
       const { markdown, plainText, blocks, tables, formulas } = normalizeToMarkdown(rawText)
 
@@ -187,7 +237,9 @@ export function createTesseractProvider(): OcrProvider {
         createdAt: Date.now(),
         config: job.config,
         isNativeText: false,
-        readingOrder: 'unknown'
+        readingOrder: 'unknown',
+        outcome: 'success',
+        confidence
       }
     },
 
