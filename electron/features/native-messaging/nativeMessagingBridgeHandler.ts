@@ -14,16 +14,7 @@ import type { BridgeOriginPolicy } from './nativeMessagingOrigin.js'
 import { isAllowedBridgeOrigin, validateCookieDomains } from './nativeMessagingOrigin.js'
 import { MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
-type NativeMessagingManagerLike = {
-  _expectedExtensionOrigin: string | null
-  _sharedSecret: string
-  _connectionStatus: string
-  _waitingSince: number | null
-  _extensionLastSeenAt: number
-  broadcastExtensionConnected(): void
-}
-
-export function getOriginPolicy(manager: NativeMessagingManagerLike): BridgeOriginPolicy {
+export function getOriginPolicy(manager: unknown): BridgeOriginPolicy {
   const isDev = !app.isPackaged
   return {
     expectedExtensionOrigin: (manager as unknown as { _expectedExtensionOrigin: string | null })
@@ -39,7 +30,7 @@ export function rejectDisallowedOrigin(res: ServerResponse, origin: string | und
   res.end(JSON.stringify({ error: 'Forbidden' }))
 }
 
-export function createBridgeRequestHandler(manager: NativeMessagingManagerLike) {
+export function createBridgeRequestHandler(manager: unknown) {
   return (req: IncomingMessage, res: ServerResponse): void => {
     const requestOrigin = req.headers.origin as string | undefined
     const originAllowed = isAllowedBridgeOrigin(requestOrigin, getOriginPolicy(manager))
@@ -93,11 +84,7 @@ export function createBridgeRequestHandler(manager: NativeMessagingManagerLike) 
   }
 }
 
-function handleCookiePost(
-  req: IncomingMessage,
-  res: ServerResponse,
-  manager: NativeMessagingManagerLike
-): void {
+function handleCookiePost(req: IncomingMessage, res: ServerResponse, manager: unknown): void {
   const mgr = manager as unknown as {
     _sharedSecret: string
     _connectionStatus: string
