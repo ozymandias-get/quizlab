@@ -42,6 +42,12 @@ export const APP_CONFIG = {
       'cachestorage'
     ] as const
   },
+  DOCLING: {
+    UV_CACHE_TTL_MS: 7 * 24 * 60 * 60 * 1000, // Failed install cache 7 gün
+    UV_CACHE_SIZE_THRESHOLD_BYTES: 2 * 1024 * 1024 * 1024, // 2 GB guard
+    STALE_RUNTIME_TTL_MS: 7 * 24 * 60 * 60 * 1000,
+    COMPONENT_DIR: 'components/docling' as const
+  },
   IPC_CHANNELS,
   SCREENSHOT_TYPES
 } as const

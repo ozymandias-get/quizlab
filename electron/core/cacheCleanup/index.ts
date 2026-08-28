@@ -3,7 +3,13 @@
 import { APP_CONFIG } from '../../app/constants.js'
 import { measureCacheBreakdown, measureSmartCacheBreakdown } from '../cacheMonitor.js'
 import { Logger } from '../logger.js'
-import { cleanupOrphanedTempFiles, formatBytes } from './cacheCleanupHelpers.js'
+import {
+  cleanupDoclingTempConversions,
+  cleanupDoclingUvCache,
+  cleanupOrphanedTempFiles,
+  cleanupStaleDoclingRuntimes,
+  formatBytes
+} from './cacheCleanupHelpers.js'
 import { isIdleState, startIdleDetection, stopIdleDetection } from './idle.js'
 import { cleanupExpiredCacheFiles, enforceSizeLimits } from './operations.js'
 import type { CacheInfo, CleanupResult } from './types.js'
@@ -83,6 +89,16 @@ export async function runStartupCleanup(): Promise<CleanupResult> {
     bytesFreed += tempResult.freed
     errors += tempResult.errors
 
+    // Docling temp/conversions: sadece 7 günden eski orphan'lar (agresif değil)
+    try {
+      const conv = await cleanupDoclingTempConversions(userDataPath)
+      filesDeleted += conv.deleted
+      bytesFreed += conv.freed
+      errors += conv.errors
+    } catch (e) {
+      Logger.warn('[CacheCleanup] Docling conversions cleanup failed (non-fatal):', e)
+    }
+
     // Kullanıcı oturum profilleri startup'ta temizlenmez —
     // kullanıcı oturumları silinmesin diye otomatik temizlikten muaftır.
     // Oturumu sıfırlamak için ayarlardaki "Profili Sıfırla" işlemi kullanılır.
@@ -132,6 +148,44 @@ export async function runIdleCleanup(): Promise<CleanupResult> {
     bytesFreed += cacheResult.freed
     errors += cacheResult.errors
 
+    // Docling lifecycle: uv-cache size guard (>2GB) ve conversions TTL
+    try {
+      const doclingUv = await cleanupDoclingUvCache(userDataPath)
+      if (doclingUv.freed > 0) {
+        Logger.info(
+          `[Docling] UV cache pruned: ${formatBytes(doclingUv.freed)} (${doclingUv.reason})`
+        )
+      }
+      filesDeleted += doclingUv.deleted
+      bytesFreed += doclingUv.freed
+      errors += doclingUv.errors
+    } catch (e) {
+      Logger.warn('[Docling] UV cache cleanup failed (non-fatal):', e)
+    }
+
+    try {
+      const conv = await cleanupDoclingTempConversions(userDataPath)
+      filesDeleted += conv.deleted
+      bytesFreed += conv.freed
+      errors += conv.errors
+    } catch (e) {
+      Logger.warn('[Docling] Conversions cleanup failed (non-fatal):', e)
+    }
+
+    try {
+      const stale = await cleanupStaleDoclingRuntimes(userDataPath)
+      if (stale.removed.length > 0) {
+        Logger.info(
+          `[Docling] Removed stale runtime: ${stale.removed.join(', ')} (${formatBytes(stale.freed)})`
+        )
+      }
+      filesDeleted += stale.deleted
+      bytesFreed += stale.freed
+      errors += stale.errors
+    } catch (e) {
+      Logger.warn('[Docling] Stale runtime cleanup failed (non-fatal):', e)
+    }
+
     const sizeResult = await enforceSizeLimits(userDataPath)
     filesDeleted += sizeResult.deleted
     bytesFreed += sizeResult.freed
@@ -177,6 +231,31 @@ export async function runManualCleanup(): Promise<CleanupResult> {
     bytesFreed += cacheResult.freed
     errors += cacheResult.errors
 
+    // Docling: manual cleanup her zaman uv-cache ve stale runtime'ı force prune eder
+    try {
+      const doclingUv = await cleanupDoclingUvCache(userDataPath, { force: true })
+      if (doclingUv.freed > 0) {
+        Logger.info(`[Docling] Manual UV cache pruned: ${formatBytes(doclingUv.freed)}`)
+      }
+      filesDeleted += doclingUv.deleted
+      bytesFreed += doclingUv.freed
+      errors += doclingUv.errors
+    } catch (e) {
+      Logger.warn('[Docling] Manual UV cache cleanup failed (non-fatal):', e)
+    }
+
+    try {
+      const stale = await cleanupStaleDoclingRuntimes(userDataPath)
+      if (stale.removed.length > 0) {
+        Logger.info(`[Docling] Manual removed stale runtime: ${stale.removed.join(', ')}`)
+      }
+      filesDeleted += stale.deleted
+      bytesFreed += stale.freed
+      errors += stale.errors
+    } catch (e) {
+      Logger.warn('[Docling] Manual stale runtime cleanup failed (non-fatal):', e)
+    }
+
     const sizeResult = await enforceSizeLimits(userDataPath)
     filesDeleted += sizeResult.deleted
     bytesFreed += sizeResult.freed
@@ -196,6 +275,50 @@ export async function runManualCleanup(): Promise<CleanupResult> {
   )
 
   return result
+}
+
+export async function runDoclingInstallCleanup(userDataPath?: string): Promise<CleanupResult> {
+  const startTime = Date.now()
+  let filesDeleted = 0
+  let bytesFreed = 0
+  let errors = 0
+  const targetPath = userDataPath ?? app.getPath('userData')
+
+  Logger.info('[Docling] Install completed — running post-install cleanup')
+
+  try {
+    const beforeUv = await cleanupDoclingUvCache(targetPath, { force: true })
+    Logger.info(
+      `[Docling] UV cache size before cleanup: ${formatBytes(beforeUv.freed + (beforeUv.deleted === 0 ? 0 : 0))} — pruned: ${formatBytes(beforeUv.freed)} (${beforeUv.reason})`
+    )
+    filesDeleted += beforeUv.deleted
+    bytesFreed += beforeUv.freed
+    errors += beforeUv.errors
+
+    const stale = await cleanupStaleDoclingRuntimes(targetPath)
+    if (stale.removed.length > 0) {
+      Logger.info(
+        `[Docling] Active Python runtime validated — removed stale: ${stale.removed.join(', ')} (${formatBytes(stale.freed)})`
+      )
+    }
+    filesDeleted += stale.deleted
+    bytesFreed += stale.freed
+    errors += stale.errors
+  } catch (error) {
+    Logger.warn(
+      '[Docling] Post-install cleanup failed (non-fatal, component remains usable):',
+      error
+    )
+    errors++
+  }
+
+  const duration = Date.now() - startTime
+  if (bytesFreed > 0) {
+    Logger.info(
+      `[Docling] Post-install cleanup: ${formatBytes(bytesFreed)} freed, ${filesDeleted} entries, ${errors} errors, ${duration}ms`
+    )
+  }
+  return buildResult(filesDeleted, bytesFreed, errors, duration)
 }
 
 export async function getCacheInfo(): Promise<CacheInfo> {

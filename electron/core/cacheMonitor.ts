@@ -200,6 +200,77 @@ export async function collectExpiredFiles(
   return allFiles.filter((f) => now - f.mtimeMs > maxAgeMs)
 }
 
+export interface DoclingBreakdown {
+  uvCache: number
+  tempConversions: number
+  runtime: number
+  staleRuntime: number
+  total: number
+  activeRuntime: string | null
+  staleRuntimes: string[]
+  uvCacheExists: boolean
+}
+
+export async function measureDoclingBreakdown(): Promise<DoclingBreakdown> {
+  const userDataPath = app.getPath('userData')
+  const doclingBase = path.join(userDataPath, 'components', 'docling')
+  const uvCachePath = path.join(doclingBase, 'temp', 'uv-cache')
+  const tempPath = path.join(doclingBase, 'temp')
+  const runtimePath = path.join(doclingBase, 'runtime')
+
+  const [uvCache, tempAll, runtimeAll] = await Promise.all([
+    getDirectorySize(uvCachePath),
+    getDirectorySize(tempPath),
+    getDirectorySize(runtimePath)
+  ])
+
+  let activeRuntime: string | null = null
+  let staleRuntimes: string[] = []
+  let staleRuntimeBytes = 0
+
+  try {
+    const pyvenv = path.join(doclingBase, 'environment', 'pyvenv.cfg')
+    const cfg = await fs.readFile(pyvenv, 'utf-8')
+    const homeMatch = cfg.match(/home\s*=\s*(.+)/)
+    if (homeMatch) {
+      const home = homeMatch[1].trim()
+      activeRuntime = path.basename(home)
+    }
+  } catch {
+    // No pyvenv.cfg yet
+  }
+
+  try {
+    const runtimeEntries = await fs.readdir(runtimePath, { withFileTypes: true })
+    for (const entry of runtimeEntries) {
+      if (!entry.isDirectory()) continue
+      if (entry.name === '.temp') continue
+      if (activeRuntime && entry.name === activeRuntime) continue
+      const full = path.join(runtimePath, entry.name)
+      const sz = await getDirectorySize(full)
+      if (sz.totalBytes > 0) {
+        staleRuntimes.push(entry.name)
+        staleRuntimeBytes += sz.totalBytes
+      }
+    }
+  } catch {
+    // No runtime dir
+  }
+
+  const tempConversions = Math.max(0, tempAll.totalBytes - uvCache.totalBytes)
+
+  return {
+    uvCache: uvCache.totalBytes,
+    tempConversions,
+    runtime: runtimeAll.totalBytes,
+    staleRuntime: staleRuntimeBytes,
+    total: uvCache.totalBytes + staleRuntimeBytes + tempConversions,
+    activeRuntime,
+    staleRuntimes,
+    uvCacheExists: uvCache.totalBytes > 0
+  }
+}
+
 export async function measureSmartCacheBreakdown(): Promise<SmartCacheBreakdown> {
   const breakdown = await measureCacheBreakdown()
 
