@@ -1,5 +1,6 @@
-﻿import { ipcRenderer } from 'electron'
+import { ipcRenderer } from 'electron'
 
+import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 import { failure, type IpcResult } from '../../shared/lib/typedIpc.js'
 import type {
   IpcEventChannel,
@@ -9,8 +10,11 @@ import type {
 } from '../../shared/types/ipcContract.js'
 
 const MAX_IPC_ARG_SIZE = 1024 * 512
+const MAX_IMAGE_IPC_ARG_SIZE = 50 * 1024 * 1024 // 50 MB for image data
 
 function safeInvoke(channel: string, ...args: unknown[]): Promise<unknown> {
+  const maxLimit = channel === IPC_CHANNELS.COPY_IMAGE ? MAX_IMAGE_IPC_ARG_SIZE : MAX_IPC_ARG_SIZE
+
   let totalSize = 0
   for (const arg of args) {
     if (arg === null || arg === undefined) {
@@ -26,9 +30,9 @@ function safeInvoke(channel: string, ...args: unknown[]): Promise<unknown> {
         return ipcRenderer.invoke(channel, ...args)
       }
     }
-    if (totalSize > MAX_IPC_ARG_SIZE) {
+    if (totalSize > maxLimit) {
       console.warn(
-        `[Preload] IPC argument size exceeded (${totalSize} bytes > ${MAX_IPC_ARG_SIZE} bytes) for channel "${channel}". Request rejected.`
+        `[Preload] IPC argument size exceeded (${totalSize} bytes > ${maxLimit} bytes) for channel "${channel}". Request rejected.`
       )
       return Promise.resolve(failure('internal_error', 'Payload too large'))
     }

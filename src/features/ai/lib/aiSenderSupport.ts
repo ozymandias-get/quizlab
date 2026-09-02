@@ -228,7 +228,7 @@ export function queueForWebview<T>(webview: WebviewController, task: () => Promi
     .catch(() => undefined)
     .then(async () => {
       if ((webviewVersions.get(webview) ?? 0) !== myVersion) {
-        return undefined as unknown as T
+        return { success: false, error: 'cancelled' } as unknown as T
       }
       webviewRunningVersions.set(webview, myVersion)
       try {

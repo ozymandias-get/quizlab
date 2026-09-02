@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../../app/constants.js'
 
@@ -12,13 +12,14 @@ const writeText = vi.fn()
 const writeHTML = vi.fn()
 const clear = vi.fn()
 const createFromDataURL = vi.fn()
+const createFromBuffer = vi.fn()
 const requireTrustedIpcSender = vi.fn()
 
 vi.mock('electron', () => ({
   ipcMain: { handle: ipcHandle },
   BrowserWindow: { fromWebContents },
   clipboard: { writeImage, readImage, readText, readHTML, writeText, writeHTML, clear },
-  nativeImage: { createFromDataURL }
+  nativeImage: { createFromDataURL, createFromBuffer }
 }))
 
 vi.mock('../../../core/ipcSecurity', () => ({
@@ -42,6 +43,7 @@ describe('screenshotHandlers', () => {
     writeHTML.mockReset()
     clear.mockReset()
     createFromDataURL.mockReset()
+    createFromBuffer.mockReset().mockReturnValue({ isEmpty: () => true })
     requireTrustedIpcSender.mockReset()
     readText.mockReturnValue('')
     readHTML.mockReturnValue('')
@@ -109,6 +111,7 @@ describe('screenshotHandlers', () => {
   it('rejects copy when image parses to an empty native image', async () => {
     requireTrustedIpcSender.mockReturnValue(true)
     createFromDataURL.mockReturnValue({ isEmpty: () => true })
+    createFromBuffer.mockReturnValue({ isEmpty: () => true })
     const { registerScreenshotHandlers } =
       await import('../../../features/screenshot/screenshotHandlers.js')
     registerScreenshotHandlers()
@@ -119,6 +122,42 @@ describe('screenshotHandlers', () => {
       data: false
     })
     expect(writeImage).not.toHaveBeenCalled()
+  })
+
+  it('falls back to createFromBuffer when createFromDataURL produces an empty image', async () => {
+    requireTrustedIpcSender.mockReturnValue(true)
+    createFromDataURL.mockReturnValue({ isEmpty: () => true })
+    createFromBuffer.mockReturnValue({ isEmpty: () => false })
+    const { registerScreenshotHandlers } =
+      await import('../../../features/screenshot/screenshotHandlers.js')
+    registerScreenshotHandlers()
+
+    const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+    const result = await copyHandler?.({ sender: {} }, 'data:image/png;base64,YWJj')
+
+    expect(result).toEqual({ ok: true, data: true })
+    expect(createFromBuffer).toHaveBeenCalledTimes(1)
+    expect(writeImage).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries writeImage on transient clipboard failure', async () => {
+    requireTrustedIpcSender.mockReturnValue(true)
+    createFromDataURL.mockReturnValue({ isEmpty: () => false })
+    writeImage
+      .mockImplementationOnce(() => {
+        throw new Error('Clipboard locked')
+      })
+      .mockImplementationOnce(() => undefined)
+
+    const { registerScreenshotHandlers } =
+      await import('../../../features/screenshot/screenshotHandlers.js')
+    registerScreenshotHandlers()
+
+    const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+    const result = await copyHandler?.({ sender: {} }, 'data:image/png;base64,YWJj')
+
+    expect(result).toEqual({ ok: true, data: true })
+    expect(writeImage).toHaveBeenCalledTimes(2)
   })
 
   it('rejects copy when data URL exceeds the size limit', async () => {

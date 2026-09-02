@@ -1,4 +1,4 @@
-﻿import { BrowserWindow, clipboard, nativeImage } from 'electron'
+import { BrowserWindow, clipboard, nativeImage } from 'electron'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
@@ -7,6 +7,7 @@ import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 
 const MAX_CAPTURE_DIMENSION = 16384
+const MAX_CAPTURE_AREA = 50 * 1024 * 1024 // ~50MP — prevents OOM via 16384x16384 (268MP) rect
 const MAX_DATA_URL_LENGTH = 50 * 1024 * 1024 // 50 MB — prevents memory exhaustion via oversized base64 payloads
 
 /** Minimum interval between successive screen captures (ms). */
@@ -35,13 +36,26 @@ let clipboardSnapshots: ClipboardSnapshot[] = []
 function snapshotClipboard(): void {
   try {
     if (clipboardSnapshots.length >= MAX_CLIPBOARD_SNAPSHOTS) return
-    const text = clipboard.readText()
-    const html = clipboard.readHTML()
-    const image = clipboard.readImage()
+    let text: string | undefined
+    let html: string | undefined
+    let image: Electron.NativeImage | undefined
+    try {
+      const t = clipboard.readText()
+      if (t) text = t
+    } catch {}
+    try {
+      const h = clipboard.readHTML()
+      if (h) html = h
+    } catch {}
+    try {
+      const img = clipboard.readImage()
+      if (img && !img.isEmpty()) image = img
+    } catch {}
+
     clipboardSnapshots.push({
-      text: text || undefined,
-      html: html || undefined,
-      image: image.isEmpty() ? undefined : image
+      text,
+      html,
+      image
     })
   } catch (error) {
     Logger.warn('[Clipboard] Failed to snapshot clipboard:', error)
@@ -105,7 +119,8 @@ export function registerScreenshotHandlers() {
             rect.width <= 0 ||
             rect.height <= 0 ||
             rect.width > MAX_CAPTURE_DIMENSION ||
-            rect.height > MAX_CAPTURE_DIMENSION
+            rect.height > MAX_CAPTURE_DIMENSION ||
+            rect.width * rect.height > MAX_CAPTURE_AREA
           ) {
             Logger.warn('[Screenshot] Capture rejected: invalid or out-of-bounds rect', {
               x: rect.x,
@@ -151,13 +166,64 @@ export function registerScreenshotHandlers() {
           await new Promise<void>((resolve) => setImmediate(resolve))
         }
 
-        const image = nativeImage.createFromDataURL(dataUrl)
+        let image = nativeImage.createFromDataURL(dataUrl)
+
+        // Chromium's GURL constructor has a ~2MB limit (kMaxURLChars = 2*1024*1024).
+        // High-res screenshots and full-page renders larger than 2MB cause createFromDataURL
+        // to return an empty image. Fallback: decode base64 to Buffer and use createFromBuffer.
+        if (image.isEmpty() && typeof nativeImage.createFromBuffer === 'function') {
+          try {
+            const commaIndex = dataUrl.indexOf(',')
+            if (commaIndex !== -1) {
+              const base64Str = dataUrl.slice(commaIndex + 1)
+              const buffer = Buffer.from(base64Str, 'base64')
+              if (buffer.length > 0) {
+                const bufferImage = nativeImage.createFromBuffer(buffer)
+                if (bufferImage && !bufferImage.isEmpty()) {
+                  image = bufferImage
+                }
+              }
+            }
+          } catch (err) {
+            Logger.warn('[Clipboard] Buffer fallback decoding failed:', err)
+          }
+        }
+
         if (image.isEmpty()) return success(false)
 
-        snapshotClipboard()
-        clipboard.writeImage(image)
+        if (typeof image.getSize === 'function') {
+          const imgSize = image.getSize()
+          Logger.info(`[Clipboard] Image ready for clipboard: ${imgSize.width}x${imgSize.height}`)
+        }
 
-        typeof image.resize === 'function' && image.resize({ width: 1, height: 1 })
+        snapshotClipboard()
+
+        // Windows clipboard locks can be transiently held by other apps
+        // (Clipboard history, Office, etc.). Retry with short backoff.
+        let writeSuccess = false
+        let lastError: unknown = null
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            clipboard.writeImage(image)
+            writeSuccess = true
+            break
+          } catch (err) {
+            lastError = err
+            if (attempt < 2) {
+              await new Promise<void>((resolve) => setTimeout(resolve, 50 * (attempt + 1)))
+            }
+          }
+        }
+
+        if (!writeSuccess) {
+          Logger.error('[Clipboard] Copy failed after retries:', lastError)
+          return success(false)
+        }
+
+        // Do not mutate the NativeImage after writeImage – on Linux the
+        // object is reference-counted and the clipboard may still hold a
+        // reference. Resizing would corrupt the clipboard contents. Let GC
+        // handle the temporary image.
 
         return success(true)
       } catch (error) {

@@ -114,7 +114,9 @@ export class OcrQueue {
   /**
    * Abort both queued and actively running jobs.
    * Running job's signal is aborted; its termination must be handled by the job's
-   * own abort listener (e.g., tesseract worker termination).
+   * own abort listener (e.g., tesseract worker termination). We also proactively
+   * reject active jobs and reset the running counter to avoid queue stall when
+   * the worker's abort handler is slow or never settles.
    */
   abortAll(): void {
     for (const job of this.queue) {
@@ -124,7 +126,13 @@ export class OcrQueue {
     this.queue = []
     for (const job of this.activeJobs) {
       job.abortController.abort(new DOMException('Cancelled', 'AbortError'))
+      // Proactively reject so callers don't hang if the worker ignores the signal
+      try {
+        job.reject(new DOMException('Cancelled', 'AbortError'))
+      } catch {}
     }
+    this.activeJobs.clear()
+    this.running = 0
   }
 
   clear(): void {

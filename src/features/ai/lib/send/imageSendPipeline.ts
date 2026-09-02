@@ -126,10 +126,16 @@ export async function executeImageSendPipeline(
 
   const clipboardStartedAt = nowMs()
   let copied = false
-  try {
-    copied = await copyImageToClipboard(imageDataUrl)
-  } catch (clipboardError) {
-    reportSuppressedError('imageSend.clipboardCopy', { cause: clipboardError })
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      copied = await copyImageToClipboard(imageDataUrl)
+      if (copied) break
+    } catch (clipboardError) {
+      reportSuppressedError('imageSend.clipboardCopy', { cause: clipboardError })
+    }
+    if (attempt < 2) {
+      await sleep(100 * (attempt + 1))
+    }
   }
   diagnostics.timings.clipboardMs = roundMs(nowMs() - clipboardStartedAt)
   if (!copied) {
@@ -204,9 +210,14 @@ export async function executeImageSendPipeline(
   }
 
   // The image lives on the system clipboard only for the duration of the
-  // paste. Restore the user's previous clipboard contents immediately so a
-  // Ctrl+C race cannot permanently destroy it or paste the wrong content.
+  // paste. Give the webview time to read the clipboard before restoring,
+  // otherwise the paste can race with the restore and the previous text
+  // (the user's last Ctrl+C) is pasted instead of the image.
+  // A short settle delay is enough for the guest renderer to finish the
+  // async clipboard read, yet short enough to keep the Ctrl+C race window
+  // small.
   try {
+    await sleep(700)
     await getElectronApi()?.restoreClipboard?.()
   } catch (restoreError) {
     reportSuppressedError('imageSend.clipboardRestore', { cause: restoreError })

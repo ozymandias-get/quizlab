@@ -41,9 +41,14 @@ export function usePdfTextActions({
    * triggers this callback (click / menu), currentPageRef.current always
    * holds the latest value.
    */
+  const idleHandleRef = useRef<number | null>(null)
+  const timeoutHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const extractCurrentPageText = useCallback(() => {
     const page = currentPageRef.current
     const extract = () => {
+      // Guard against stale extraction after navigation/unmount
+      if (!onTextExtractedRef.current && !onNoTextFoundRef.current) return null
       const text = extractPageTextFromDom(page)
 
       if (!text) {
@@ -55,6 +60,16 @@ export function usePdfTextActions({
       return text
     }
 
+    // Cancel any previously scheduled extraction to avoid detached DOM reads
+    if (idleHandleRef.current != null && typeof cancelIdleCallback !== 'undefined') {
+      cancelIdleCallback(idleHandleRef.current)
+      idleHandleRef.current = null
+    }
+    if (timeoutHandleRef.current != null) {
+      clearTimeout(timeoutHandleRef.current)
+      timeoutHandleRef.current = null
+    }
+
     // Defer extraction past the page transition settle period.
     // Using requestIdleCallback (with a forced timeout) lets the browser
     // schedule the work when the main thread is idle while guaranteeing it
@@ -63,12 +78,32 @@ export function usePdfTextActions({
     // The setTimeout fallback waits 500ms to avoid competing with the page
     // render.
     if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(extract, { timeout: 2000 })
+      idleHandleRef.current = requestIdleCallback(
+        () => {
+          idleHandleRef.current = null
+          extract()
+        },
+        { timeout: 2000 }
+      )
       return null
     }
 
-    setTimeout(extract, 500)
+    timeoutHandleRef.current = setTimeout(() => {
+      timeoutHandleRef.current = null
+      extract()
+    }, 500)
     return null
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (idleHandleRef.current != null && typeof cancelIdleCallback !== 'undefined') {
+        cancelIdleCallback(idleHandleRef.current)
+      }
+      if (timeoutHandleRef.current != null) {
+        clearTimeout(timeoutHandleRef.current)
+      }
+    }
   }, [])
 
   useEffect(() => {

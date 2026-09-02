@@ -430,7 +430,7 @@ export function registerSystemHandlers() {
     }
   )
 
-  let lastClipboardWrite = 0
+  const lastClipboardWriteBySender = new Map<number, { time: number; text: string }>()
   const CLIPBOARD_THROTTLE_MS = 500
   const CLIPBOARD_MAX_LENGTH = 100 * 1024
 
@@ -445,12 +445,16 @@ export function registerSystemHandlers() {
           return success(false)
         }
 
+        const senderId = (event.sender as unknown as { id?: number })?.id ?? 0
         const now = Date.now()
-        if (now - lastClipboardWrite < CLIPBOARD_THROTTLE_MS) {
-          Logger.warn('[Clipboard] Throttled rapid clipboard write')
+        const last = lastClipboardWriteBySender.get(senderId)
+        // Sadece aynı metin 500ms içinde tekrar kopyalanırsa throttle et;
+        // farklı metinlerin hızlı kopyalanması (legit kullanıcı davranışı) engellenmemeli.
+        if (last && now - last.time < CLIPBOARD_THROTTLE_MS && last.text === text) {
+          Logger.warn('[Clipboard] Throttled rapid duplicate clipboard write')
           return success(false)
         }
-        lastClipboardWrite = now
+        lastClipboardWriteBySender.set(senderId, { time: now, text })
 
         const sanitized = sanitizeClipboardText(text)
 
