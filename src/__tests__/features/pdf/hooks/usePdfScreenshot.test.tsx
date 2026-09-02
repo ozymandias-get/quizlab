@@ -65,7 +65,8 @@ describe('usePdfCaptureActions', () => {
     await result.current.handleFullPageScreenshot()
 
     expect(queueImageForAi).toHaveBeenCalledTimes(1)
-    expect(queueImageForAi).toHaveBeenCalledWith('blob:mock-url', {
+    // Prefer dataUrl path (avoids blob fetch round-trip)
+    expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,mockScreenshotData', {
       page: 13,
       captureKind: 'full-page'
     })
@@ -87,12 +88,85 @@ describe('usePdfCaptureActions', () => {
     expect(showError).toHaveBeenCalledWith('toast_capture_failed')
   })
 
-  it('shows a toast when canvas capture throws', async () => {
-    // Force toBlob to throw — captureCanvasAsBlob will surface the failure
+  it('queues via dataUrl when toDataURL succeeds (toBlob not needed)', async () => {
+    // toBlob would throw but dataUrl path is preferred now, so it should still succeed via toDataURL
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
       configurable: true,
       value: () => {
         throw new Error('boom')
+      }
+    })
+
+    const layer = document.createElement('div')
+    layer.className = 'rpv-core__page-layer'
+    layer.setAttribute('data-page-number', '1')
+    layer.appendChild(document.createElement('canvas'))
+    document.body.appendChild(layer)
+
+    const { result } = renderHook(() =>
+      usePdfCaptureActions({
+        currentPage: 1,
+        queueImageForAi,
+        startScreenshot
+      })
+    )
+
+    await result.current.handleFullPageScreenshot()
+
+    expect(queueImageForAi).toHaveBeenCalledTimes(1)
+    expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,mockScreenshotData', {
+      page: 1,
+      captureKind: 'full-page'
+    })
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('falls back to blob when toDataURL fails but toBlob succeeds', async () => {
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
+      configurable: true,
+      value: () => {
+        throw new Error('dataUrl boom')
+      }
+    })
+
+    const layer = document.createElement('div')
+    layer.className = 'rpv-core__page-layer'
+    layer.setAttribute('data-page-number', '1')
+    const canvas = document.createElement('canvas')
+    Object.defineProperty(canvas, 'width', { configurable: true, value: 400 })
+    Object.defineProperty(canvas, 'height', { configurable: true, value: 300 })
+    layer.appendChild(canvas)
+    document.body.appendChild(layer)
+
+    const { result } = renderHook(() =>
+      usePdfCaptureActions({
+        currentPage: 1,
+        queueImageForAi,
+        startScreenshot
+      })
+    )
+
+    await result.current.handleFullPageScreenshot()
+
+    expect(queueImageForAi).toHaveBeenCalledTimes(1)
+    expect(queueImageForAi).toHaveBeenCalledWith('blob:mock-url', {
+      page: 1,
+      captureKind: 'full-page'
+    })
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('shows a toast when both toBlob and toDataURL fail', async () => {
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      configurable: true,
+      value: () => {
+        throw new Error('boom')
+      }
+    })
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
+      configurable: true,
+      value: () => {
+        throw new Error('dataUrl boom')
       }
     })
 
@@ -151,8 +225,13 @@ describe('usePdfCaptureActions', () => {
       let calls = 0
       const spy = vi.spyOn(document, 'querySelector').mockImplementation((selector: string) => {
         calls += 1
-        // First 2 lookups (initial + 1 retry) return null to simulate canvas still rendering
-        if (selector.includes('data-page-number="5"') && calls <= 2) {
+        // First 4 lookups (initial + 1 retry with multiple selectors) return null
+        // to simulate canvas still rendering — covers both data-page-number
+        // and data-virtual-index paths
+        if (selector.includes('data-page-number="5"') && calls <= 4) {
+          return null
+        }
+        if (selector.includes('data-virtual-index="4"') && calls <= 4) {
           return null
         }
         return originalQuerySelector(selector)
@@ -167,12 +246,12 @@ describe('usePdfCaptureActions', () => {
       )
 
       const capturePromise = result.current.handleFullPageScreenshot()
-      // Advance timers for the retry sleeps
-      await vi.advanceTimersByTimeAsync(200)
+      // Advance timers for the retry sleeps (new progressive delays: 30+50+70... total ~900ms)
+      await vi.advanceTimersByTimeAsync(600)
       await capturePromise
 
       expect(queueImageForAi).toHaveBeenCalledTimes(1)
-      expect(queueImageForAi).toHaveBeenCalledWith('blob:mock-url', {
+      expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,mockScreenshotData', {
         page: 5,
         captureKind: 'full-page'
       })

@@ -58,16 +58,42 @@ export function useAiDraftQueue(onDrop?: () => void) {
 
     if (imageUri.startsWith('blob:')) {
       blobUrl = imageUri
+      // Keep a dataUrl copy for direct send without fetch if possible — will be
+      // lazily resolved via blobUrlToDataUrl at send time if needed. For
+      // robustness we keep blobUrl as primary and let the send path fetch it.
     } else if (imageUri.startsWith('data:image/')) {
+      // Keep original dataUrl for direct send; also create a lightweight
+      // blobUrl for preview rendering to avoid large base64 strings in the DOM.
+      dataUrl = imageUri
       try {
-        const byteString = atob(imageUri.split(',')[1])
+        const base64 = imageUri.split(',')[1] ?? ''
         const mimeMatch = imageUri.match(/data:([^;]+);/)
         const mime = mimeMatch?.[1] ?? 'image/png'
-        const bytes = Uint8Array.from(byteString, (c) => c.charCodeAt(0))
-        blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }))
+        if (base64.length < 2_000_000) {
+          const binary = atob(base64)
+          const len = binary.length
+          const bytes = new Uint8Array(len)
+          for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i)
+          blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }))
+        } else {
+          void fetch(imageUri)
+            .then((res) => res.blob())
+            .then((blob) => {
+              const url = URL.createObjectURL(blob)
+              setPendingAiItems((current) =>
+                current.map((item) =>
+                  item.type === 'image' && item.dataUrl === imageUri
+                    ? { ...item, blobUrl: url }
+                    : item
+                )
+              )
+            })
+            .catch(() => {})
+        }
       } catch (err) {
         reportSuppressedError('draftQueue.imageBlobUrl', { cause: err })
-        dataUrl = imageUri
+        // Keep dataUrl, leave blobUrl empty — send path will use dataUrl directly
+        blobUrl = ''
       }
     } else {
       return

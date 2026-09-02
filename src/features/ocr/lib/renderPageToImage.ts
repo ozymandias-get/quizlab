@@ -1,5 +1,7 @@
 import { Logger } from '@shared/lib/logger'
 
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
+
 import type { OcrQualityPreset } from '../types'
 import { getRenderPreset, OCR_DEFAULT_SCALE, OCR_MAX_PIXELS } from '../types'
 
@@ -125,10 +127,13 @@ export async function renderPageToImageFallback(
  * Never returns an arbitrary canvas — that would OCR the wrong page.
  */
 function findCurrentPageCanvas(pageNumber: number): HTMLCanvasElement | null {
+  const virtualIndex = pageNumber - 1
   const selectors = [
     `.rpv-core__page-layer[data-page-number="${pageNumber}"]`,
+    `.rpv-core__page-layer[data-virtual-index="${virtualIndex}"]`,
+    `[data-testid="core__page-layer-${virtualIndex}"]`,
     `.pdf-page-wrapper[data-page-number="${pageNumber}"]`,
-    `.rpv-core__page-layer[data-virtual-index="${pageNumber - 1}"]`
+    `.pdf-page-wrapper[data-virtual-index="${virtualIndex}"]`
   ]
   for (const sel of selectors) {
     const layer = document.querySelector(sel)
@@ -200,19 +205,25 @@ async function renderWithPdfJs(
   if (activePdfDocument && activePdfUrl === pdfUrl) {
     pdf = activePdfDocument as unknown as never
   } else {
-    const pdfjs = await import('pdfjs-dist')
-    const pdfjsLib: unknown = pdfjs
-    const getDocument =
-      (pdfjsLib as { getDocument?: (src: unknown) => { promise: Promise<unknown> } }).getDocument ??
-      (pdfjsLib as { default?: { getDocument?: (src: unknown) => { promise: Promise<unknown> } } })
-        .default?.getDocument
-    if (!getDocument) return null
+    try {
+      const pdfjs = await import('pdfjs-dist')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfjsLib: any = (pdfjs as any).default ?? pdfjs
+      if (pdfjsLib?.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
+      }
+      const getDocument = pdfjsLib.getDocument
+      if (!getDocument) return null
 
-    const loadingTask = getDocument({ url: pdfUrl, isEvalSupported: false, useWorkerFetch: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const loaded = (await (loadingTask as { promise: Promise<any> }).promise) as any
-    pdf = loaded
-    shouldDestroy = true
+      const loadingTask = getDocument({ url: pdfUrl, isEvalSupported: false })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const loaded = (await (loadingTask as { promise: Promise<any> }).promise) as any
+      pdf = loaded
+      shouldDestroy = true
+    } catch (loadError) {
+      Logger.warn('[OCR] Direct PDF.js document load failed:', loadError)
+      return null
+    }
   }
 
   if (!pdf) return null
@@ -223,7 +234,11 @@ async function renderWithPdfJs(
       renderTask?.cancel?.()
     } catch {}
   }
-  if (signal) signal.addEventListener('abort', onAbort, { once: true })
+  if (signal?.aborted) return null
+  if (signal) {
+    if (signal.aborted) return null
+    signal.addEventListener('abort', onAbort, { once: true })
+  }
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -256,13 +271,21 @@ async function renderWithPdfJs(
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
     if (signal?.aborted) return null
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
+    Logger.info(
+      `[RenderPage] Rendering PDF page ${pageNumber} via PDF.js: ${w}x${h} at scale ${scale}`
+    )
     renderTask = page.render({ canvasContext: ctx, viewport: renderViewport })
     await renderTask!.promise
     if (signal?.aborted) return null
     const blob = await canvasToBlob(canvas, 'image/png')
     if (!blob) return null
+    Logger.info(
+      `[RenderPage] Rendered page ${pageNumber} PNG: ${w}x${h}, size: ${(blob.size / 1024).toFixed(1)} KB`
+    )
     const blobUrl = URL.createObjectURL(blob)
     return { blob, blobUrl, width: canvas.width, height: canvas.height }
   } finally {

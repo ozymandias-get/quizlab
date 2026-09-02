@@ -139,7 +139,8 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({
     currentPage,
     queueImageForAi,
-    startScreenshot
+    startScreenshot,
+    pdfUrl
   })
 
   const { isDragging: isPanDragging } = usePdfPanTool({ containerRef, isPanMode })

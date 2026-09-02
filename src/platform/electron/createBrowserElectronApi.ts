@@ -56,7 +56,31 @@ const writeImageToClipboard = async (dataUrl: string): Promise<boolean> => {
 
     const response = await fetch(dataUrl)
     const blob = await response.blob()
-    const clipboardItem = new ClipboardItem({ [blob.type]: blob })
+
+    // Browsers (Chromium, Firefox) only reliably support image/png for Async Clipboard write
+    let pngBlob = blob
+    if (blob.type !== 'image/png' && typeof document !== 'undefined') {
+      try {
+        const img = new Image()
+        img.src = dataUrl
+        await img.decode()
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0)
+          const converted = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve, 'image/png')
+          )
+          if (converted) pngBlob = converted
+        }
+      } catch {
+        // Fallback to original blob if conversion fails
+      }
+    }
+
+    const clipboardItem = new ClipboardItem({ [pngBlob.type]: pngBlob })
     await navigator.clipboard.write([clipboardItem])
     return true
   } catch {
