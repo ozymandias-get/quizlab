@@ -28,14 +28,20 @@ import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
 import { useAiSendComposerStyles } from './aiSendComposer/useAiSendComposerStyles'
 import { useComposerSendAction } from './aiSendComposer/useComposerSendAction'
 
-function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
+function AiSendComposer({
+  items,
+  onClearAll,
+  onSend,
+  autoSend = false,
+  onToggleAutoSend
+}: AiSendComposerProps) {
   const selectionColor = useAppearance((s) => s.selectionColor)
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const prefersReducedMotion = useReducedMotion()
   const [isStoredExpanded, setStoredExpanded] = useLocalStorage<boolean>(EXPANDED_PREF_KEY, true)
   const [isExpanded, setIsExpanded] = useState(isStoredExpanded)
-  const effectiveAutoSend = !isExpanded
+  const effectiveAutoSend = autoSend
 
   const { noteText, setNoteText, isSubmitting, setIsSubmitting, clearNote } =
     useAiSendComposerState()
@@ -165,6 +171,7 @@ function AiSendComposer({ items, onClearAll, onSend }: AiSendComposerProps) {
               textCount={textCount}
               imageCount={imageCount}
               autoSend={effectiveAutoSend}
+              onToggleAutoSend={onToggleAutoSend}
               isExpanded={isExpanded}
               sendFeedback={sendFeedback}
               onToggleExpand={handleToggleExpand}
