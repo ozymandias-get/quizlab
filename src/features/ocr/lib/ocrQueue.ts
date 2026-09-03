@@ -95,9 +95,14 @@ export class OcrQueue {
         } catch (e) {
           job.reject(e)
         } finally {
-          this.running--
-          this.activeJobs.delete(job)
-          queueMicrotask(() => this.drain())
+          // abortAll() proactively rejects active jobs and resets `running` to 0.
+          // Only decrement when this job is still tracked as active; otherwise
+          // the slot was already released by abortAll and decrementing again
+          // would drive the counter negative (-1) and corrupt concurrency.
+          if (this.activeJobs.delete(job)) {
+            this.running = Math.max(0, this.running - 1)
+            queueMicrotask(() => this.drain())
+          }
         }
       })()
     }
