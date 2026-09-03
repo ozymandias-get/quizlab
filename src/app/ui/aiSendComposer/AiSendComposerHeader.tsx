@@ -12,6 +12,7 @@ interface AiSendComposerHeaderProps {
   textCount: number
   imageCount: number
   autoSend: boolean
+  onToggleAutoSend?: () => void
   isExpanded: boolean
   sendFeedback: SendFeedback
   onToggleExpand: () => void
@@ -30,6 +31,7 @@ function AiSendComposerHeader({
   textCount,
   imageCount,
   autoSend,
+  onToggleAutoSend,
   isExpanded,
   sendFeedback,
   onToggleExpand,
@@ -51,6 +53,7 @@ function AiSendComposerHeader({
     return (
       <CompactComposerBar
         autoSend={autoSend}
+        onToggleAutoSend={onToggleAutoSend}
         isSending={isSending}
         isSubmitting={isSubmitting}
         isSendDisabled={isSendDisabled}

@@ -58,4 +58,29 @@ describe('AiSendComposerHeader', () => {
     )
     expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
   })
+
+  it('renders auto-send toggle button with active state and handles click', () => {
+    const onToggleAutoSend = vi.fn()
+    renderWithTooltip(
+      <AiSendComposerHeader
+        {...baseProps}
+        isExpanded={false}
+        autoSend
+        onToggleAutoSend={onToggleAutoSend}
+      />
+    )
+    const toggleButton = screen.getByRole('button', { name: 'auto_send_on' })
+    expect(toggleButton).toBeInTheDocument()
+    expect(toggleButton).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(toggleButton)
+    expect(onToggleAutoSend).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders auto-send toggle button with inactive state when autoSend is false', () => {
+    renderWithTooltip(<AiSendComposerHeader {...baseProps} isExpanded={false} autoSend={false} />)
+    const toggleButton = screen.getByRole('button', { name: 'auto_send_off' })
+    expect(toggleButton).toBeInTheDocument()
+    expect(toggleButton).toHaveAttribute('aria-pressed', 'false')
+  })
 })

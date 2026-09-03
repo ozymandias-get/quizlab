@@ -42,6 +42,7 @@ interface AppToolActionsType {
   clearPendingAiItems: () => void
   sendPendingAiItems: (options?: AiSendOptions) => Promise<AiSendResult>
   setAutoSend: (value: boolean) => void
+  toggleAutoSend: () => void
   startPicker: () => void
   startPickerWhenReady: () => void
   togglePicker: () => void
@@ -56,7 +57,7 @@ const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
 
 function AppToolProvider({ children }: { children: ReactNode }) {
   const { sendTextToAI, sendImageToAI, cancelOngoing } = useAiMessagingActions()
-  const { setAutoSend } = useAiSessionActions()
+  const { setAutoSend, toggleAutoSend } = useAiSessionActions()
   const { autoSend } = useAiSessionUiPrefsState()
   const { showError } = useToastActions()
   const { getWebviewInstance } = useAiWebview()
@@ -134,6 +135,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       clearPendingAiItems,
       sendPendingAiItems,
       setAutoSend,
+      toggleAutoSend,
       startPicker,
       startPickerWhenReady,
       togglePicker
@@ -148,6 +150,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       clearPendingAiItems,
       sendPendingAiItems,
       setAutoSend,
+      toggleAutoSend,
       startPicker,
       startPickerWhenReady,
       togglePicker

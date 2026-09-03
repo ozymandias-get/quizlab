@@ -195,4 +195,50 @@ describe('AiSendComposer', () => {
       resolveSend?.({ success: true })
     })
   })
+
+  it('passes autoSend: false when autoSend prop is false', async () => {
+    const onSend = vi.fn().mockResolvedValue({ success: true })
+
+    render(
+      <AiSendComposer
+        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
+        onClearAll={vi.fn()}
+        onSend={onSend}
+        autoSend={false}
+      />
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Submit Draft' }))
+    })
+
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoSend: false
+      })
+    )
+  })
+
+  it('passes autoSend: true when autoSend prop is true', async () => {
+    const onSend = vi.fn().mockResolvedValue({ success: true })
+
+    render(
+      <AiSendComposer
+        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
+        onClearAll={vi.fn()}
+        onSend={onSend}
+        autoSend
+      />
+    )
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Submit Draft' }))
+    })
+
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoSend: true
+      })
+    )
+  })
 })

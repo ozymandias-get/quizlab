@@ -94,12 +94,12 @@ export function useComposerSendAction({
   }, [])
 
   const handleForceSend = useCallback(() => {
-    void handleSend({ forceAutoSend: true })
+    void handleSend()
   }, [handleSend])
 
   const handleSendWithPreset = useCallback(
     (presetValue: string) => {
-      void handleSend({ noteText: presetValue, forceAutoSend: true })
+      void handleSend({ noteText: presetValue })
     },
     [handleSend]
   )

@@ -13,6 +13,7 @@ import CompactPresetsMenu from './CompactPresetsMenu'
 
 interface CompactComposerBarProps {
   autoSend: boolean
+  onToggleAutoSend?: () => void
   isSending: boolean
   isSubmitting: boolean
   isSendDisabled: boolean
@@ -28,6 +29,7 @@ interface CompactComposerBarProps {
 
 function CompactComposerBar({
   autoSend,
+  onToggleAutoSend,
   isSending,
   isSubmitting,
   isSendDisabled,
@@ -101,15 +103,33 @@ function CompactComposerBar({
       onPointerCancel={onDragEnd}
       onLostPointerCapture={onDragLostCapture}
     >
-      {/* Brand AI Icon */}
+      {/* Auto-Send Toggle Button */}
       <div className="flex shrink-0 items-center">
-        <WithTooltip label={autoSend ? t('ai_send_mode_auto') : 'QuizLab AI'}>
-          <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-amber-300 shadow-2xs">
-            <Sparkles className="size-3.5" />
-            {autoSend && (
-              <span className="ring-background absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 shadow-xs ring-2" />
+        <WithTooltip label={autoSend ? t('auto_send_on') : t('auto_send_off')}>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onToggleAutoSend}
+            disabled={isSubmitting}
+            className={cn(
+              'group relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 shadow-2xs transition-all outline-none hover:border-white/20 hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white/30 active:scale-95 disabled:pointer-events-none disabled:opacity-40',
+              autoSend ? 'bg-white/15' : 'bg-white/5'
             )}
-          </div>
+            aria-label={autoSend ? t('auto_send_on') : t('auto_send_off')}
+            aria-pressed={autoSend}
+          >
+            <Sparkles
+              className={cn(
+                'size-3.5 transition-transform group-hover:scale-110',
+                autoSend ? 'text-amber-300' : 'text-neutral-400'
+              )}
+            />
+            {autoSend ? (
+              <span className="ring-background absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 shadow-xs ring-2" />
+            ) : (
+              <span className="ring-background absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-neutral-500/60 shadow-xs ring-2" />
+            )}
+          </button>
         </WithTooltip>
       </div>
 

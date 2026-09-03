@@ -14,6 +14,8 @@ export interface AiSendComposerProps {
   items: AiDraftItem[]
   onClearAll: () => void
   onSend: (payload: ComposerPayload) => Promise<unknown>
+  autoSend?: boolean
+  onToggleAutoSend?: () => void
 }
 
 export interface DockLayout {

@@ -185,8 +185,8 @@ function App() {
 }
 
 const PendingAiSendLayer = memo(function PendingAiSendLayer() {
-  const { pendingAiItems } = useAppToolQueueState()
-  const { clearPendingAiItems, sendPendingAiItems } = useAppToolActions()
+  const { pendingAiItems, autoSend } = useAppToolQueueState()
+  const { clearPendingAiItems, sendPendingAiItems, toggleAutoSend } = useAppToolActions()
 
   const handleSend = useCallback(
     ({
@@ -206,7 +206,13 @@ const PendingAiSendLayer = memo(function PendingAiSendLayer() {
   }
 
   return (
-    <AiSendComposer items={pendingAiItems} onClearAll={clearPendingAiItems} onSend={handleSend} />
+    <AiSendComposer
+      items={pendingAiItems}
+      onClearAll={clearPendingAiItems}
+      onSend={handleSend}
+      autoSend={autoSend}
+      onToggleAutoSend={toggleAutoSend}
+    />
   )
 })
 

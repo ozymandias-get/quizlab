@@ -6,9 +6,10 @@ import OcrButton from '@features/ocr/ui/OcrButton'
 
 import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
+import { cn } from '@shared/lib/uiUtils'
 import { ToolbarGroup } from '@shared/ui/components/primitives'
-import { Grid3x3Icon } from '@ui/components/Icons'
 
+import { Hand } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,16 +17,15 @@ import { useTranslation } from 'react-i18next'
 import { usePdfSearchStore } from '../hooks/usePdfSearchStore'
 import PdfPageNav from './PdfPageNav'
 import PdfSearchBar from './PdfSearchBar'
-import PdfToolsPopup from './PdfToolsPopup'
 import PdfZoomControls, { type CurrentScaleComponent, type ZoomComponent } from './PdfZoomControls'
 
 interface PdfToolbarProps {
   pdfFile: PdfFile | null
   pdfUrl?: string | null
-  onStartScreenshot: () => void
-  onFullPageScreenshot: () => void
-  autoSend: boolean
-  onToggleAutoSend: () => void
+  onStartScreenshot?: () => void
+  onFullPageScreenshot?: () => void
+  autoSend?: boolean
+  onToggleAutoSend?: () => void
   panMode: boolean
   onTogglePanMode: () => void
   currentPage: number
@@ -44,10 +44,6 @@ interface PdfToolbarProps {
 function PdfToolbar({
   pdfFile,
   pdfUrl,
-  onStartScreenshot,
-  onFullPageScreenshot,
-  autoSend,
-  onToggleAutoSend,
   panMode,
   onTogglePanMode,
   currentPage,
@@ -59,8 +55,7 @@ function PdfToolbar({
   clearHighlights,
   ZoomIn,
   ZoomOut,
-  CurrentScale,
-  onAddCurrentPageTextToAi
+  CurrentScale
 }: PdfToolbarProps) {
   const { t } = useTranslation()
   // Shared store: the app-level Ctrl/Cmd+F shortcut opens the search bar
@@ -68,7 +63,6 @@ function PdfToolbar({
   const isSearchOpen = usePdfSearchStore((s) => s.isOpen)
   const openSearch = usePdfSearchStore((s) => s.open)
   const closeSearch = usePdfSearchStore((s) => s.close)
-  const [isToolsOpen, setIsToolsOpen] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const searchKeywordRef = useRef(searchKeyword)
   searchKeywordRef.current = searchKeyword
@@ -127,10 +121,6 @@ function PdfToolbar({
     clearHighlights()
   }, [closeSearch, clearHighlights])
 
-  const toggleTools = useCallback(() => {
-    setIsToolsOpen((prev) => !prev)
-  }, [])
-
   const handleOpenSearch = useCallback(() => openSearch(), [openSearch])
 
   const handleKeywordChange = useCallback(
@@ -178,40 +168,28 @@ function PdfToolbar({
     >
       <div className="relative flex items-center gap-2">
         <ToolbarGroup>
-          <WithTooltip label={t('pdf_tools')}>
+          {/* Pan Mode — Kaydır */}
+          <WithTooltip label={t('pdf_pan_mode')}>
             <IconButton
-              asChild
               type="button"
-              data-tools-trigger
-              variant="ghost"
+              variant={panMode ? 'secondary' : 'ghost'}
               size="compact"
-              onClick={toggleTools}
-              aria-label={t('pdf_tools')}
-              className={
-                isToolsOpen ? 'bg-accent text-foreground shadow-xs' : 'text-muted-foreground'
-              }
+              onClick={onTogglePanMode}
+              aria-label={t('pdf_pan_mode')}
+              aria-pressed={panMode}
+              className={cn(
+                'transition-colors',
+                panMode
+                  ? 'border-sky-500/30 bg-sky-500/15 text-sky-600 shadow-xs dark:text-sky-400'
+                  : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-sky-500/20 hover:bg-sky-500/10'
+              )}
+              data-testid="pan-mode-button"
             >
-              <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Grid3x3Icon size="sm" />
-              </motion.button>
+              <Hand className="size-3.5" aria-hidden="true" />
             </IconButton>
           </WithTooltip>
-        </ToolbarGroup>
 
-        <PdfToolsPopup
-          isOpen={isToolsOpen}
-          onToggle={toggleTools}
-          onAddCurrentPageTextToAi={onAddCurrentPageTextToAi}
-          panMode={panMode}
-          onTogglePanMode={onTogglePanMode}
-          onStartScreenshot={onStartScreenshot}
-          onFullPageScreenshot={onFullPageScreenshot}
-          autoSend={autoSend}
-          onToggleAutoSend={onToggleAutoSend}
-        />
-
-        {/* OCR — always visible, disabled when no PDF, amber highlight */}
-        <ToolbarGroup>
+          {/* OCR — always visible, disabled when no PDF, amber highlight */}
           <OcrButton onClick={handleOcrPage} currentPage={currentPage} disabled={!pdfFile} />
         </ToolbarGroup>
       </div>
