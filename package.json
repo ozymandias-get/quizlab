@@ -64,15 +64,15 @@
       "buildResources": "resources"
     },
     "files": [
-      "dist/**/*",
-      "resources/**/*"
+      "dist/**/*"
     ],
     "extraResources": [
       {
         "from": "resources/",
         "to": "resources/",
         "filter": [
-          "**/*"
+          "icon.ico",
+          "icon.png"
         ]
       },
       {
@@ -93,14 +93,18 @@
         }
       ],
       "icon": "resources/icon.ico",
-      "artifactName": "QuizlabReader-Setup-${version}.${ext}",
+      "artifactName": "QuizLab-Setup-${version}-x64.${ext}",
+      "executableName": "Quizlab Reader",
+      "requestedExecutionLevel": "asInvoker",
       "signExecutable": false,
       "forceCodeSigning": false
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "allowElevation": false,
+      "packElevateHelper": false,
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",
       "installerHeaderIcon": "resources/icon.ico",
@@ -115,7 +119,7 @@
       "language": "1033",
       "warningsAsErrors": false,
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": false
     },
     "mac": {
       "target": [

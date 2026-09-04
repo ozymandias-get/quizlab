@@ -202,11 +202,11 @@ A comprehensive [terminology standard](docs/TERMINOLOGY.md) ensures consistent E
 
 Download the latest installer for your platform from the [Releases page](https://github.com/ozymandias-get/quizlab/releases):
 
-| Platform   | Format                                               |
-| ---------- | ---------------------------------------------------- |
-| 🪟 Windows | `QuizlabReader-Setup-<version>.exe` (NSIS installer) |
-| 🍏 macOS   | `QuizlabReader-<version>.dmg`                        |
-| 🐧 Linux   | `QuizlabReader-<version>.AppImage` or `.deb`         |
+| Platform   | Format                                                       |
+| ---------- | ------------------------------------------------------------ |
+| 🪟 Windows | `QuizLab-Setup-<version>-x64.exe` (NSIS installer, per-user) |
+| 🍏 macOS   | `QuizlabReader-<version>.dmg`                                |
+| 🐧 Linux   | `QuizlabReader-<version>.AppImage` or `.deb`                 |
 
 The installer optionally registers a Chrome Native Messaging Host for the Google session bridge extension.
 
