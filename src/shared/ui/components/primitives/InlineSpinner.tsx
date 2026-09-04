@@ -1,5 +1,7 @@
 import { cn } from '@shared/lib/uiUtils'
 
+import { useTranslation } from 'react-i18next'
+
 interface InlineSpinnerProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   className?: string
@@ -15,10 +17,11 @@ const SPINNER_SIZES = {
 } as const
 
 function InlineSpinner({ size = 'sm', className, 'aria-label': ariaLabel }: InlineSpinnerProps) {
+  const { t } = useTranslation()
   return (
     <div
       role="status"
-      aria-label={ariaLabel ?? 'loading'}
+      aria-label={ariaLabel ?? t('loading')}
       className={cn(
         'animate-spin rounded-full border-2 border-current border-t-transparent',
         SPINNER_SIZES[size],

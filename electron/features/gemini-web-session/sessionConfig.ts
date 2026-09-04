@@ -15,24 +15,6 @@ function parseEnvNumber(name: string, fallback: number, min: number, max: number
   return Math.min(Math.max(Math.floor(parsed), min), max)
 }
 
-export const SILENT_REFRESH_TIMEOUT_MS = parseEnvNumber(
-  'GEMINI_WEB_SILENT_REFRESH_TIMEOUT_MS',
-  25_000,
-  10_000,
-  120_000
-)
-export const SILENT_REFRESH_COOLDOWN_MS = parseEnvNumber(
-  'GEMINI_WEB_SILENT_REFRESH_COOLDOWN_MS',
-  10 * 60 * 1000,
-  60_000,
-  60 * 60 * 1000
-)
-export const REFRESH_GRACE_PERIOD_MS = parseEnvNumber(
-  'GEMINI_WEB_REFRESH_GRACE_PERIOD_MS',
-  5_000,
-  1_000,
-  30_000
-)
 export const COOKIE_REFRESH_THRESHOLD_MS = parseEnvNumber(
   'GEMINI_WEB_COOKIE_REFRESH_THRESHOLD_MS',
   5 * 60 * 1000,

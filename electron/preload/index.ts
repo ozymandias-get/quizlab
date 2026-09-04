@@ -91,9 +91,7 @@ const electronApi: ElectronApi = {
   clearAiModelData: (input) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.CLEAR_AI_MODEL_DATA, input)),
   getCacheInfo: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CACHE_INFO)),
-  getSmartCacheInfo: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_SMART_CACHE_INFO)),
   deepCleanCache: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DEEP_CLEAN_CACHE)),
-  getCacheAutoClean: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_CACHE_AUTO_CLEAN)),
   setCacheAutoClean: (enabled) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.SET_CACHE_AUTO_CLEAN, enabled)),
   smartCacheAction: (action) =>

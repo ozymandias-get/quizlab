@@ -36,7 +36,6 @@
   "gws_shared_account_note": "Gemini, NotebookLM, AI Studio, YouTube ve Google Drive aynı Google hesap oturumunu yeniden kullanabilir. Google Drive PDF panelinde aynı oturumu kullanmaya devam eder; yukarıdaki uygulamalar ise yalnızca bu bölümden yönetilir.",
   "gws_reset_btn": "Profili Sıfırla",
   "gws_toolbar_title": "Google Oturumu",
-  "gws_toolbar_authenticated": "Google AI web oturumu hazır.",
   "gws_toolbar_auth_required": "Google AI web oturumu için giriş gerekiyor.",
   "gws_toolbar_reauth_required": "Google AI web oturumu yeniden doğrulama istiyor.",
   "gws_toolbar_degraded": "Google AI web oturumu kontrol edilmeli.",
@@ -56,7 +55,6 @@
   "gws_mitigation_manual_reauth": "Sorun halinde otomatik bypass beklemeyin; manuel yeniden giriş yapın.",
   "gws_mitigation_no_shared_machine": "Paylaşılan cihazlarda bu özelliği açık bırakmayın.",
   "gws_official_warning": "Bu akış paylaşılan web oturumu kalıcılığına dayanır ve resmi bir API entegrasyonu değildir.",
-
   "gws_extension_title": "Chrome Eklentisi",
   "gws_extension_status_connected": "Eklenti bağlandı",
   "gws_extension_status_disconnected": "Eklenti bağlı değil",
@@ -67,7 +65,6 @@
   "gws_extension_status_not_installed": "Eklenti yüklü değil.",
   "gws_extension_install_btn": "Eklentiyi Yükle",
   "gws_extension_install_success": "Eklenti dosyaları hazır.",
-  "gws_extension_path_label": "Eklenti yolu (panoya kopyalandı)",
   "gws_extension_manual_instructions": "1. chrome://extensions adresini açın\n2. Geliştirici modunu etkinleştirin\n3. 'Load unpacked' butonuna tıklayın\n4. Yolu yapıştırın (Ctrl+V) ve onaylayın",
   "gws_extension_install_error": "Eklenti kurulumu başarısız",
   "gws_extension_remove_btn": "Eklenti Kurulumunu Kaldır",

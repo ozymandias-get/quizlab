@@ -129,7 +129,7 @@ export function getSelectorPriority(selector: string): number {
  */
 export function sortSelectorsByPriority(selectors: string[]): string[] {
   const list = [...new Set((selectors || []).filter(Boolean) as string[])]
-  return [...list].sort((a, b) => {
+  return list.sort((a, b) => {
     const pa = getSelectorPriority(a)
     const pb = getSelectorPriority(b)
     if (pa !== pb) return pb - pa
@@ -185,7 +185,7 @@ export function fingerprintMatchScore(element: Element, fingerprint?: Fingerprin
   return score
 }
 
-export interface ConfidenceCandidate {
+interface ConfidenceCandidate {
   element: Element
   matchedSelector?: string | null
   strategy?: string

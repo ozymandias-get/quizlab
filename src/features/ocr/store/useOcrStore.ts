@@ -30,7 +30,7 @@ export interface OcrStoreState {
   selectionGeneration: number
 }
 
-export interface OcrStoreActions {
+interface OcrStoreActions {
   setStatus: (s: OcrStatus) => void
   setResult: (r: OcrPageResult | null, page?: number | null, docId?: string | null) => void
   setError: (e: string | null) => void
@@ -205,9 +205,3 @@ export const useOcrStore = create<OcrStore>()(
 export function resetOcrStore(): void {
   useOcrStore.setState({ ...initialState, config: { ...DEFAULT_OCR_CONFIG } })
 }
-
-// Selectors — stable for consumers
-export const selectOcrStatus = (s: OcrStore) => s.status
-export const selectOcrResult = (s: OcrStore) => s.result
-export const selectOcrIsPanelOpen = (s: OcrStore) => s.isPanelOpen
-export const selectOcrConfig = (s: OcrStore) => s.config

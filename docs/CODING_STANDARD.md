@@ -269,14 +269,6 @@ Proje, Tailwind v4 `@theme` ile tanımlanmış merkezi bir token sistemine sahip
 - `motion-not:` — `prefers-reduced-motion: reduce` için conditional variant
   Kullanım: `<div class="motion-ok:opacity-100 motion-not:opacity-0">`
 
-**Responsive breakpoint tokenları** (`@custom-media`):
-
-- `--viewport-sm`: max-width 768px
-- `--viewport-md`: max-width 1024px
-- `--viewport-lg`: max-width 1280px
-
-Kullanım (CSS): `@media (--viewport-md) { ... }`
-
 ### Yazım Kuralları
 
 1. Yeni CSS değerleri eklerken önce mevcut token'ları kontrol edin

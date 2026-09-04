@@ -21,7 +21,7 @@ import { getElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { getNextEnabledManagedAppIds, MANAGED_APP_IDS } from './managedApps'
@@ -61,16 +61,11 @@ export function useGeminiWebSessionState() {
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardMode, setWizardMode] = useState<'install' | 'remove' | null>(null)
-  const isRefreshingRef = useRef(isRefreshing)
 
   const closeWizard = useCallback(() => {
     setWizardOpen(false)
     setWizardMode(null)
   }, [])
-
-  useEffect(() => {
-    isRefreshingRef.current = isRefreshing
-  }, [isRefreshing])
 
   const safeRefetchWebSession = useCallback(() => {
     void refetchWebSession().catch((err) =>

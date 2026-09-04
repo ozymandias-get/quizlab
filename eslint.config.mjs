@@ -52,6 +52,9 @@ export default [
       'out.txt',
       'build/**',
       'coverage/**',
+      // Vendored third-party bundles (tesseract core) — not source, and their
+      // size crashes the stylish formatter (RangeError: Invalid string length).
+      'src/public/tesseract-core/**',
       '*.json',
       '.dependency-cruiser.cjs'
     ]

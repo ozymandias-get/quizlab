@@ -5,8 +5,8 @@ import { Logger } from '@shared/lib/logger'
 
 import type { OcrProvider } from '../types'
 import { OcrError } from '../types'
-import { createNativeTextProvider, NATIVE_TEXT_ENGINE_NAME } from './nativeTextProvider'
-import { createTesseractProvider, TESSERACT_ENGINE_NAME } from './tesseractProvider'
+import { createNativeTextProvider } from './nativeTextProvider'
+import { createTesseractProvider } from './tesseractProvider'
 
 export const HYBRID_ENGINE_NAME = 'hybrid' as const
 
@@ -122,10 +122,4 @@ export function createHybridProvider(): OcrProvider {
       }
     }
   }
-}
-
-export const ocrEngineDisplayNames: Record<string, string> = {
-  [NATIVE_TEXT_ENGINE_NAME]: 'Native',
-  [TESSERACT_ENGINE_NAME]: 'Tesseract',
-  [HYBRID_ENGINE_NAME]: 'Hybrid'
 }

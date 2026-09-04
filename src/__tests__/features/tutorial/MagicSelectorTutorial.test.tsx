@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, params?: Record<string, string | number>) => {
       const translations: Record<string, string> = {
         tut_welcome_title: 'Welcome',
         tut_welcome_desc: 'Learn automation',
@@ -27,9 +27,13 @@ vi.mock('react-i18next', () => ({
         tut_click_input: 'Click Input',
         tut_click_btn: 'Click Button',
         tut_input_label: 'Input',
-        tut_btn_label: 'Button'
+        tut_btn_label: 'Button',
+        tutorial_step_aria: 'Step {n}: {title}',
+        tutorial_magic_selector_title: 'Magic Selector'
       }
-      return translations[key] ?? key
+      const template = translations[key] ?? key
+      if (!params) return template
+      return Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), template)
     },
     i18n: { language: 'en' }
   })

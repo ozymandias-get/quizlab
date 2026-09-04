@@ -9,10 +9,10 @@ import { motion, useSpring } from 'motion/react'
 import type { CSSProperties } from 'react'
 import { memo, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
-export const DOCK_ICON_BASE = 32
-export const DOCK_ICON_HOVER = 34
+const DOCK_ICON_BASE = 32
+const DOCK_ICON_HOVER = 34
 
-export const ICON_CONTAINER_STYLE: CSSProperties = {
+const ICON_CONTAINER_STYLE: CSSProperties = {
   width: 'calc(1.125rem * var(--bar-scale-factor, 1))',
   height: 'calc(1.125rem * var(--bar-scale-factor, 1))'
 }

@@ -13,7 +13,7 @@ import {
   OcrError
 } from '../types'
 
-export const TESSERACT_ENGINE_NAME = 'tesseract' as const
+const TESSERACT_ENGINE_NAME = 'tesseract' as const
 
 type TesseractLike = {
   createWorker: (
@@ -26,6 +26,7 @@ type TesseractLike = {
       opts?: unknown,
       out?: unknown
     ) => Promise<{ data: { text: string; confidence: number } }>
+    setParameters: (params: Record<string, string>) => Promise<void>
     terminate: () => Promise<void>
   }>
 }
@@ -33,6 +34,36 @@ type TesseractLike = {
 let cachedWorker: Awaited<ReturnType<TesseractLike['createWorker']>> | null = null
 let cachedLang: string | null = null
 let idleTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Worker creation attempts. Language-data download (CDN) and WASM init can
+ * fail transiently (engine-unavailable errors appearing sometimes), so a
+ * failed creation is retried with backoff instead of surfacing immediately.
+ */
+const WORKER_CREATE_MAX_ATTEMPTS = 3
+const WORKER_CREATE_RETRY_DELAYS_MS = [400, 1200]
+
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+  return new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | null = setTimeout(done, ms)
+    function done() {
+      timer = null
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }
+    function onAbort() {
+      if (timer) clearTimeout(timer)
+      timer = null
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    if (signal) {
+      signal.addEventListener('abort', onAbort, { once: true })
+      // Aborted between the pre-check and listener registration.
+      if (signal.aborted) onAbort()
+    }
+  })
+}
 
 function langForConfig(config: OcrConfig): string {
   if (config.language === 'tr') return 'tur'
@@ -75,6 +106,19 @@ export async function forceTerminateWorker(): Promise<void> {
   await disposeWorker()
 }
 
+/**
+ * Directory holding the bundled tesseract core scripts
+ * (`src/public/tesseract-core`, copied next to index.html at build time).
+ * Served same-origin in dev and loaded via file:// in production, so the
+ * worker's importScripts(core) satisfies script-src 'self' without any CDN
+ * exception. Only the directory is passed: the worker appends the
+ * SIMD-appropriate filename itself. Our createWorker calls always use
+ * OEM_LSTM_ONLY, so the three *-lstm variants cover every branch.
+ */
+function getLocalCorePath(): string {
+  return new URL('tesseract-core', document.baseURI).href
+}
+
 async function getOrCreateWorker(
   lang: string,
   signal?: AbortSignal
@@ -103,21 +147,41 @@ async function getOrCreateWorker(
   const tesseractOpts = {
     workerPath: tesseractWorkerPath,
     workerBlobURL: false,
+    corePath: getLocalCorePath(),
     gzip: true,
     logger: () => {},
     errorHandler: (e: unknown) => Logger.warn('[OCR:tesseract] worker error', e)
   } as unknown as Record<string, unknown>
-  try {
-    worker = await mod.createWorker(lang, 1, tesseractOpts)
-  } catch (err) {
-    Logger.error('[OCR:tesseract] local worker creation failed — no CDN fallback', err)
-    throw new OcrError('TESSERACT_NOT_AVAILABLE')
+  let lastError: unknown = null
+  for (let attempt = 1; attempt <= WORKER_CREATE_MAX_ATTEMPTS; attempt++) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    try {
+      worker = await mod.createWorker(lang, 1, tesseractOpts)
+      cachedWorker = worker as never
+      cachedLang = lang
+      scheduleIdleDispose()
+      if (attempt > 1) {
+        Logger.info(`[OCR:tesseract] worker creation succeeded on attempt ${attempt}`)
+      }
+      return worker as never
+    } catch (err) {
+      lastError = err
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      if (attempt < WORKER_CREATE_MAX_ATTEMPTS) {
+        Logger.warn(
+          `[OCR:tesseract] worker creation attempt ${attempt}/${WORKER_CREATE_MAX_ATTEMPTS} failed, retrying`,
+          err
+        )
+        await abortableSleep(WORKER_CREATE_RETRY_DELAYS_MS[attempt - 1] ?? 1000, signal)
+      }
+    }
   }
 
-  cachedWorker = worker as never
-  cachedLang = lang
-  scheduleIdleDispose()
-  return worker as never
+  Logger.error(
+    '[OCR:tesseract] local worker creation failed after retries — no CDN fallback',
+    lastError
+  )
+  throw new OcrError('TESSERACT_NOT_AVAILABLE')
 }
 
 export function createTesseractProvider(): OcrProvider {
@@ -168,6 +232,21 @@ export function createTesseractProvider(): OcrProvider {
 
       if (job.signal.aborted) throw new DOMException('Aborted', 'AbortError')
 
+      // Page segmentation must match the input shape. Region jobs receive
+      // small user-selected snippets, not full pages: PSM AUTO (3) frequently
+      // finds no text blocks there and returns empty text. PSM SINGLE_BLOCK
+      // (6) treats the crop as one uniform text block. The worker instance is
+      // shared/cached across page and region jobs, so the mode is set
+      // explicitly before every recognition. A tuning failure must never
+      // break recognition — fall back to whatever mode is active.
+      try {
+        await worker.setParameters({
+          tessedit_pageseg_mode: job.kind === 'region' ? '6' : '3'
+        })
+      } catch (e) {
+        Logger.warn('[OCR:tesseract] setParameters failed, continuing with defaults', e)
+      }
+
       // Race recognize against abort signal and timeout (P0-3 timeout must actually terminate worker)
       const timeoutMs = OCR_TIMEOUT_MS
       let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -215,9 +294,17 @@ export function createTesseractProvider(): OcrProvider {
       // Apply sensitivity-based confidence gating (P1-10)
       const sensitivityPreset = getSensitivityPreset(job.config.sensitivity)
       if (confidence > 0 && confidence < sensitivityPreset.confidenceThreshold) {
-        // Low confidence — depending on sensitivity, treat as no-text to allow retry or fallback handling
-        // For low sensitivity we keep result anyway; for medium/high we throw to let hybrid decide
-        if (job.config.sensitivity === 'high') {
+        // Region jobs have no fallback path (hybrid never falls back to
+        // full-page native text for regions), so a low-confidence reading is
+        // kept: recognized text with a confidence value is strictly more
+        // useful than a "no text" error. Page jobs keep the previous
+        // throw-to-hybrid behavior.
+        if (job.kind === 'region') {
+          Logger.warn(
+            `[OCR:tesseract] low-confidence region result kept (confidence ${confidence})`
+          )
+        } else if (job.config.sensitivity === 'high') {
+          // Low confidence — treat as no-text to allow retry or fallback handling
           throw new OcrError('NO_TEXT_RECOGNIZED', `Low confidence ${confidence}`)
         }
       }
@@ -258,8 +345,4 @@ export function createTesseractProvider(): OcrProvider {
       }
     }
   }
-}
-
-export async function releaseTesseractIdle(): Promise<void> {
-  await disposeWorker()
 }

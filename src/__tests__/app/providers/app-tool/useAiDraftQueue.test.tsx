@@ -48,4 +48,19 @@ describe('useAiDraftQueue', () => {
 
     expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:preview')
   })
+
+  it('resolves large data URL previews with local decode (no fetch)', async () => {
+    const { result } = renderHook(() => useAiDraftQueue())
+
+    // >= 2MB base64 takes the large-capture branch, which must not rely on
+    // fetch(data:) — blocked by connect-src under Electron's CSP.
+    const largeDataUrl = `data:image/png;base64,${'QUJD'.repeat(500001)}`
+    await act(async () => {
+      result.current.queueImageForAi(largeDataUrl)
+      // flush the preview-resolution microtasks
+      await new Promise((r) => setTimeout(r, 10))
+    })
+
+    expect(mockCreateObjectURL).toHaveBeenCalled()
+  })
 })

@@ -4,7 +4,7 @@
  * these helpers before being opened or rendered.
  */
 
-export const HTTP_PROTOCOLS: readonly string[] = ['http:', 'https:']
+const HTTP_PROTOCOLS: readonly string[] = ['http:', 'https:']
 
 export type UrlValidationResult = 'ok' | 'invalid_format' | 'protocol_not_allowed'
 
@@ -25,10 +25,6 @@ export function parseUrlWithAllowedProtocols(
 /** Parses an HTTP(S) URL; returns null for malformed or non-HTTP(S) input. */
 export function parseHttpUrl(rawUrl: string): URL | null {
   return parseUrlWithAllowedProtocols(rawUrl, HTTP_PROTOCOLS)
-}
-
-export function isValidHttpUrl(url: string): boolean {
-  return parseHttpUrl(url) !== null
 }
 
 /**

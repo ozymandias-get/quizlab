@@ -3,11 +3,11 @@ import { cn } from '@shared/lib/uiUtils'
 import { motion } from 'motion/react'
 import * as React from 'react'
 
-export const TAB_PILL_BASE =
+const TAB_PILL_BASE =
   'focus-visible:ring-ring/40 motion-normal relative flex h-8 max-w-[240px] min-w-0 items-center gap-2 rounded-full border px-3 transition-colors outline-none select-none focus-visible:ring-2'
 
-export const TAB_PILL_ACTIVE = 'border-border bg-card text-foreground shadow-xs'
-export const TAB_PILL_INACTIVE =
+const TAB_PILL_ACTIVE = 'border-border bg-card text-foreground shadow-xs'
+const TAB_PILL_INACTIVE =
   'text-muted-foreground hover:border-border/60 hover:bg-muted/40 hover:text-foreground border-transparent bg-transparent'
 
 export interface TabPillProps extends Omit<

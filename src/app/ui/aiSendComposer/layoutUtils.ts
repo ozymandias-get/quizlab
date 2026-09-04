@@ -14,7 +14,7 @@ export const MIN_WIDTH = 280
 export const MAX_WIDTH = 600
 export const MIN_HEIGHT = 140
 export const MAX_HEIGHT = 700
-export const BOTTOM_OFFSET = 92
+const BOTTOM_OFFSET = 92
 export const VIEWPORT_PADDING = 8
 export const EDGE_THICKNESS = 6
 
@@ -49,7 +49,7 @@ export function clampLayout(layout: DockLayout): DockLayout {
   }
 }
 
-export function createDefaultLayout(): DockLayout {
+function createDefaultLayout(): DockLayout {
   if (typeof window === 'undefined') return DEFAULT_LAYOUT
   return clampLayout({
     ...DEFAULT_LAYOUT,

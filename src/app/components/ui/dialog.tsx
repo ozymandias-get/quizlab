@@ -27,43 +27,6 @@ const panelSizeClasses: Record<DialogPanelSize, string> = {
   fullscreen: 'h-full w-full rounded-none border-0'
 }
 
-export interface DialogPanelProps extends React.HTMLAttributes<HTMLDivElement> {
-  size?: DialogPanelSize
-  /**
-   * When true, the panel fills the backdrop (used by HistoryModal).
-   * The outer backdrop still provides p-4; the panel itself is the card.
-   */
-  noPadding?: boolean
-}
-
-export function DialogPanel({
-  className,
-  size = 'md',
-  noPadding,
-  children,
-  ...props
-}: DialogPanelProps) {
-  return (
-    <div
-      className={cn(
-        'border-border shadow-ambient-xl bg-background relative flex flex-col overflow-hidden border',
-        panelSizeClasses[size],
-        !noPadding && size !== 'fullscreen' && 'px-6 py-5',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  )
-}
-
-export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn('flex shrink-0 items-center justify-between gap-3', className)} {...props} />
-  )
-}
-
 export function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return <h2 className={cn('text-ql-15 text-foreground font-semibold', className)} {...props} />
 }

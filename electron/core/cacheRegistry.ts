@@ -23,13 +23,13 @@ export interface CacheRule {
  */
 export type ActivityCategory = 'active' | 'passive' | 'cold'
 
-export const ACTIVITY_TTL: Record<ActivityCategory, number> = {
+const ACTIVITY_TTL: Record<ActivityCategory, number> = {
   active: APP_CONFIG.CLEANUP.CACHE_FILE_TTL_MS, // 7 gün
   passive: 2 * 24 * 60 * 60 * 1000, // 2 gün
   cold: 12 * 60 * 60 * 1000 // 12 saat
 }
 
-export const ACTIVITY_THRESHOLDS = {
+const ACTIVITY_THRESHOLDS = {
   active: 60 * 60 * 1000, // 1 saat
   passive: 24 * 60 * 60 * 1000 // 24 saat
 }
@@ -101,27 +101,6 @@ export function getAllPartitionActivities(): Record<
     }
   }
   return result
-}
-
-/** Partition'ları eviction önceliğine göre sırala (cold büyük önce) */
-export function sortPartitionsByEvictionPriority(
-  sizes: Record<string, number>
-): Array<{ key: string; size: number; category: ActivityCategory }> {
-  const entries = Object.entries(sizes).map(([key, size]) => ({
-    key,
-    size,
-    category: getActivityCategory(key)
-  }))
-  return entries.sort((a, b) => {
-    const order = { cold: 0, passive: 1, active: 2 } as const
-    if (order[a.category] !== order[b.category]) return order[a.category] - order[b.category]
-    return b.size - a.size
-  })
-}
-
-/** Sadece test/sıfırlama için */
-export function _resetActivityTracker(): void {
-  partitionActivity.clear()
 }
 
 const { SAFE_CACHE_DIRS, TEMP_FILE_TTL_MS, CACHE_FILE_TTL_MS } = APP_CONFIG.CLEANUP

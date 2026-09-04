@@ -44,15 +44,15 @@ export function usePdfWorkspaceState({
   lastReadingInfoRef.current = recentReadingInfo
 
   const handleResumePdf = useCallback(
-    async (path?: string) => {
+    (path?: string) => {
       const current = lastReadingInfoRef.current
       const target = path ? current.find((entry) => entry.path === path) : current[0]
 
       if (target) {
-        return await resumeLastPdf(target.path)
+        return resumeLastPdf(target.path)
       }
 
-      return await resumeLastPdf(path)
+      return resumeLastPdf(path)
     },
     [resumeLastPdf]
   )

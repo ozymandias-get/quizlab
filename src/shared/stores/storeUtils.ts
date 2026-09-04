@@ -8,7 +8,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist, type PersistOptions } from 'zustand/middleware'
 
 /** localStorage adapter (repeated in every persisted store). */
-export const createLocalStorageAdapter = <T>() => createJSONStorage<T>(() => localStorage)
+const createLocalStorageAdapter = <T>() => createJSONStorage<T>(() => localStorage)
 
 /**
  * Debounced localStorage adapter for high-frequency stores (e.g. sliders).

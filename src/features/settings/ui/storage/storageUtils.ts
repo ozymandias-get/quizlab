@@ -1,3 +1,5 @@
+import i18next from 'i18next'
+
 export function formatTimeAgo(timestamp: number, language = 'en'): string {
   const diff = Date.now() - timestamp
   const minutes = Math.floor(diff / 60000)
@@ -5,11 +7,15 @@ export function formatTimeAgo(timestamp: number, language = 'en'): string {
   // we keep simple {count} interpolation for consistency with common.json keys.
   // For Turkish 'az önce' etc, caller passes language to pick correct string via Intl or manual.
   const locale = language === 'tr' ? 'tr-TR' : 'en-US'
+  const justNow = i18next.t('time_just_now', {
+    lng: language,
+    defaultValue: language === 'tr' ? 'az önce' : 'just now'
+  })
   try {
     const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
     if (minutes < 1) {
       // Keep short 'just now' / 'az önce' for <1m to avoid 'in 0 minutes'
-      return language === 'tr' ? 'az önce' : 'just now'
+      return justNow
     }
     if (minutes < 60) return rtf.format(-minutes, 'minute')
     const hours = Math.floor(minutes / 60)
@@ -17,16 +23,30 @@ export function formatTimeAgo(timestamp: number, language = 'en'): string {
     const days = Math.floor(hours / 24)
     return rtf.format(-days, 'day')
   } catch {
-    if (minutes < 1) return language === 'tr' ? 'az önce' : 'just now'
-    if (minutes < 60) return `${minutes}m ago`
+    if (minutes < 1) return justNow
+    if (minutes < 60)
+      return i18next.t('time_minutes_ago', {
+        lng: language,
+        count: minutes,
+        defaultValue: `${minutes}m ago`
+      })
     const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
+    if (hours < 24)
+      return i18next.t('time_hours_ago', {
+        lng: language,
+        count: hours,
+        defaultValue: `${hours}h ago`
+      })
     const days = Math.floor(hours / 24)
-    return `${days}d ago`
+    return i18next.t('time_days_ago', {
+      lng: language,
+      count: days,
+      defaultValue: `${days}d ago`
+    })
   }
 }
 
-export function partitionDisplayName(partitionKey: string): string {
+export function partitionDisplayName(partitionKey: string, t?: (key: string) => string): string {
   const key = partitionKey.replace(/^persist:/, '')
 
   const known: Record<string, string> = {
@@ -36,7 +56,7 @@ export function partitionDisplayName(partitionKey: string): string {
   }
   if (known[key]) return known[key]
 
-  if (key.startsWith('ai_custom_')) return 'Custom Platform'
+  if (key.startsWith('ai_custom_')) return t?.('partition_custom_platform') ?? 'Custom Platform'
 
   if (key.startsWith('ai_')) {
     const name = key.replace(/^ai_/, '')
@@ -44,18 +64,6 @@ export function partitionDisplayName(partitionKey: string): string {
   }
 
   return key
-}
-
-export function activityLabel(category: string, t: (k: string) => string): string {
-  if (category === 'active') return t('partition_activity_active')
-  if (category === 'passive') return t('partition_activity_passive')
-  return t('partition_activity_cold')
-}
-
-export function activityColor(category: string): string {
-  if (category === 'active') return 'bg-emerald-500'
-  if (category === 'passive') return 'bg-amber-500'
-  return 'bg-slate-400'
 }
 
 export function pressureLabel(level: string, t: (k: string) => string): string {

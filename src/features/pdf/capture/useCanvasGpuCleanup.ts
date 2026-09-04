@@ -17,7 +17,7 @@
 import { type RefObject, useEffect } from 'react'
 
 /** Cap on total rasterized canvas area in pixels (50 megapixels). */
-export const MAX_CANVAS_PIXEL_BUDGET = 50_000_000
+const MAX_CANVAS_PIXEL_BUDGET = 50_000_000
 
 function canvasArea(canvas: HTMLCanvasElement): number {
   return canvas.width * canvas.height

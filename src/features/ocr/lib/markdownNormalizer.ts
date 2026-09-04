@@ -326,7 +326,3 @@ export function normalizeToMarkdown(raw: string): {
 
   return { markdown: markdown || plainText, plainText, blocks, tables, formulas }
 }
-
-export function convertLatexToMarkdownSafe(text: string): string {
-  return text.replaceAll(/\\\[(.*?)\\\]/g, '$$$$$1$$$$').replaceAll(/\\\((.*?)\\\)/g, '$$$1$$')
-}

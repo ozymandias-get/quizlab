@@ -10,6 +10,7 @@ import {
   useQuery,
   type UseQueryOptions
 } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 
 // SECURITY: Patterns to redact from error messages before displaying them
 // in the UI.  Raw system error messages (ENOENT, EACCES, etc.) often contain
@@ -27,18 +28,20 @@ const ERROR_PATH_PATTERNS: RegExp[] = [
 /**
  * Sanitise a raw error message by removing filesystem paths that could
  * disclose the user's home directory name, application structure, or
- * system configuration.  Returns a user-safe generic message when paths
- * are detected, or the original message if it contains no paths.
+ * system configuration.  Returns the redacted message, or null when a path
+ * was detected so the caller can fall back to a translated generic message
+ * instead of leaking partial path info through context clues.
  */
-function sanitizeErrorMessage(raw: string): string {
+function sanitizeErrorMessage(raw: string): string | null {
   let sanitized = raw
   for (const pattern of ERROR_PATH_PATTERNS) {
     sanitized = sanitized.replace(pattern, '[path]')
   }
   if (sanitized !== raw) {
-    // At least one path was redacted — return a generic message to avoid
-    // leaking partial path info through context clues in the remaining text.
-    return 'An unexpected error occurred. Please check file permissions and try again.'
+    // At least one path was redacted — signal the caller to use a generic,
+    // translated message to avoid leaking partial path info through
+    // context clues in the remaining text.
+    return null
   }
   return sanitized
 }
@@ -51,6 +54,7 @@ export function useElectronQuery<TData = unknown>(options: {
   queryFn: (api: ElectronApi) => Promise<TData>
   options?: Omit<UseQueryOptions<TData, Error, TData, QueryKey>, 'queryKey' | 'queryFn'>
 }) {
+  const { t } = useTranslation()
   return useQuery({
     queryKey: options.key,
     // SECURITY: Gracefully handle missing Electron API (browser, test, SSR).
@@ -58,7 +62,7 @@ export function useElectronQuery<TData = unknown>(options: {
     // React component tree, resulting in a White Screen of Death.
     queryFn: () => {
       const api = getElectronApi()
-      if (!api) return Promise.reject(new Error('Electron API is not available'))
+      if (!api) return Promise.reject(new Error(t('error_electron_unavailable')))
       return options.queryFn(api)
     },
     ...options.options
@@ -76,6 +80,7 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
   }
 ) {
   const { showError } = useToastActions()
+  const { t } = useTranslation()
 
   return useMutation({
     // SECURITY: Gracefully handle missing Electron API. Instead of crashing
@@ -83,7 +88,7 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
     // so React Query's error handling can display a user-friendly message.
     mutationFn: (variables) => {
       const api = getElectronApi()
-      if (!api) return Promise.reject(new Error('Electron API is not available'))
+      if (!api) return Promise.reject(new Error(t('error_electron_unavailable')))
       return mutationFn(api, variables)
     },
     ...options,
@@ -102,11 +107,13 @@ export function useElectronMutation<TData = unknown, TVariables = void>(
         // directory name and system structure to any UI component rendering
         // the toast, including split-screen panels where another context
         // could observe the error.
+        const rawMessage = (error as Error).message
+        const sanitized = sanitizeErrorMessage(rawMessage)
         const friendlyMessage =
           options?.errorMessage ||
-          sanitizeErrorMessage((error as Error).message) ||
-          'An error occurred'
-        showError(friendlyMessage, 'Mutation Error', undefined, undefined)
+          sanitized ||
+          (rawMessage ? t('error_unexpected_retry') : t('error_unknown_error'))
+        showError(friendlyMessage, t('toast_error_title'), undefined, undefined)
       }
     }
   })

@@ -174,7 +174,7 @@ const BottomBarSettingsTab = memo(() => {
                 className="cursor-grab active:cursor-grabbing"
                 aria-roledescription="sortable"
                 aria-label={t('model_sort_label', {
-                  defaultValue: `${displayName} - ${t('drag_to_reorder', { defaultValue: 'Drag to reorder' })}`
+                  name: displayName
                 })}
                 onKeyDown={(e) => {
                   const items = enabledModels

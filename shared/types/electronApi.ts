@@ -118,9 +118,7 @@ export interface ElectronApi {
   clearCache: () => Promise<boolean>
   clearAiModelData: (input: ClearAiModelDataInput) => Promise<boolean>
   getCacheInfo: () => Promise<CacheInfoResponse>
-  getSmartCacheInfo: () => Promise<CacheInfoResponse | null>
   deepCleanCache: () => Promise<boolean>
-  getCacheAutoClean: () => Promise<{ enabled: boolean; lastAutoCleanAt: number | null } | null>
   setCacheAutoClean: (enabled: boolean) => Promise<boolean>
   smartCacheAction: (action: 'clean_cold' | 'clean_all') => Promise<boolean>
   saveAiConfig: (hostname: string, config: AiSelectorConfig) => Promise<boolean>

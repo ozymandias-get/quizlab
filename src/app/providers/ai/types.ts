@@ -27,7 +27,7 @@ export interface SelectionPosition {
   height?: number
 }
 
-export interface AiDraftTextItem {
+interface AiDraftTextItem {
   id: string
   type: 'text'
   text: string

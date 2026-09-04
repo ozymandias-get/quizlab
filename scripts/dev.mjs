@@ -131,6 +131,49 @@ async function runBuildBackend() {
   })
 }
 
+// Substrings identifying dev-only noise on Electron's stderr. Matching is
+// deliberately narrow so real app errors are never swallowed.
+const ELECTRON_NOISE_MARKERS = [
+  // Low-level Linux/Chromium spam that bypasses log-level (pre-existing).
+  'vaapi_video_decoder',
+  'object_proxy.cc',
+  'media/gpu/',
+  'wayland_surface_factory.cc',
+  // Electron's dev-only "Insecure Content-Security-Policy" warning. It is
+  // printed for unpackaged builds only and has two expected triggers here:
+  // - our own pages use 'wasm-unsafe-eval' (required by tesseract.js/pdf.js
+  //   WebAssembly; the CSP is otherwise strict — see electron/core/csp.ts),
+  //   which trips Electron's naive "unsafe-eval" substring check;
+  // - third-party AI webview guests (Google/Microsoft/OpenAI pages) send no
+  //   CSP of their own, and we must not inject ours (it would break them).
+  'Electron Security Warning',
+  'Insecure Content-Security-Policy',
+  'electronjs.org/docs/tutorial/security',
+  'once the app is packaged',
+  // Google Identity Services chatter from AI webview guest pages (Gemini /
+  // ChatGPT login flows). Third-party code — not app errors, not actionable.
+  'GSI_LOGGER',
+  'FedCM',
+  'fedcm-migration',
+  'accounts list is empty',
+  'Error retrieving a token'
+]
+
+function isNoiseLine(line) {
+  return ELECTRON_NOISE_MARKERS.some((marker) => line.includes(marker))
+}
+
+// Drop known noise lines from Electron's stderr while preserving everything
+// else. Line-based (not chunk-based) so a real error sharing a chunk with
+// noise is still printed.
+function filterElectronNoise(msg) {
+  const result = msg
+    .split('\n')
+    .filter((line) => !isNoiseLine(line))
+    .join('\n')
+  return result.trim() ? result : ''
+}
+
 function launchElectron() {
   electronProc = spawnCommand('electron', ['.'], {
     stdio: ['inherit', 'pipe', 'pipe'],
@@ -142,17 +185,8 @@ function launchElectron() {
   }
   if (electronProc.stderr) {
     electronProc.stderr.on('data', (data) => {
-      const msg = data.toString()
-      // Filter out low-level Linux/Chromium spam that bypasses log-level
-      if (
-        msg.includes('vaapi_video_decoder') ||
-        msg.includes('object_proxy.cc') ||
-        msg.includes('media/gpu/') ||
-        msg.includes('wayland_surface_factory.cc')
-      ) {
-        return
-      }
-      process.stderr.write(data)
+      const filtered = filterElectronNoise(data.toString())
+      if (filtered) process.stderr.write(filtered)
     })
   }
 

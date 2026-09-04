@@ -4,6 +4,7 @@ import { WithTooltip } from '@app/components/ui/tooltip'
 import { DURATION } from '@shared/lib/motion'
 import { MagicWandIcon } from '@ui/components/Icons'
 
+import type { TFunction } from 'i18next'
 import { Check, ChevronDown, Lightbulb, Sparkles, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 
@@ -29,7 +30,7 @@ export function TutorialHeader({ onClose, t }: TutorialHeaderProps) {
       </div>
       <div className="flex items-center gap-2.5">
         <div className="text-ql-11 border-primary/20 bg-primary/10 text-primary hidden items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-medium uppercase sm:flex">
-          <Sparkles className="h-3 w-3" /> Magic Selector
+          <Sparkles className="h-3 w-3" /> {t('tutorial_magic_selector_title')}
         </div>
         <WithTooltip label={t('tut_close')}>
           <IconButton size="compact" variant="ghost" onClick={onClose} aria-label={t('tut_close')}>
@@ -45,7 +46,7 @@ interface TutorialStepIndicatorProps {
   step: number
   STEPS: readonly { readonly key: string; readonly titleKey: string; readonly descKey: string }[]
   goToStep: (n: number) => void
-  t: (key: string) => string
+  t: TFunction
 }
 
 export function TutorialStepIndicator({ step, STEPS, goToStep, t }: TutorialStepIndicatorProps) {
@@ -60,7 +61,7 @@ export function TutorialStepIndicator({ step, STEPS, goToStep, t }: TutorialStep
             type="button"
             onClick={() => goToStep(i)}
             className="group flex min-w-0 items-center gap-2"
-            aria-label={`Step ${i + 1}: ${t(s.titleKey)}`}
+            aria-label={t('tutorial_step_aria', { n: i + 1, title: t(s.titleKey) })}
           >
             <span
               className={`text-ql-11 flex h-5 w-5 items-center justify-center rounded-full font-semibold transition-all ${

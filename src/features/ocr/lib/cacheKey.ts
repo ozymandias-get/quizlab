@@ -76,20 +76,3 @@ export function createOcrCacheKey(params: {
   const cfgHash = hashConfig(params.config)
   return `ocr:v${OCR_CACHE_SCHEMA_VERSION}:${params.fingerprint}:${params.pageNumber}:${params.engine}:${cfgHash}:${OCR_ENGINE_VERSION}`
 }
-
-export function parseOcrCacheKey(key: string): {
-  version: number
-  fingerprint: string
-  pageNumber: number
-  engine: string
-} | null {
-  const parts = key.split(':')
-  if (parts.length < 6) return null
-  const version = Number(parts[1]?.replace('v', ''))
-  if (!Number.isFinite(version)) return null
-  const fingerprint = parts[2] ?? ''
-  const pageNumber = Number(parts[3])
-  const engine = parts[4] ?? ''
-  if (!Number.isFinite(pageNumber)) return null
-  return { version, fingerprint, pageNumber, engine }
-}

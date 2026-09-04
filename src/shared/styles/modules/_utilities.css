@@ -47,11 +47,6 @@ webview {
   display: none;
 }
 
-.scrollbar-hidden.scrollable-panel {
-  content-visibility: auto;
-  contain-intrinsic-size: 400px;
-}
-
 /* ColorPicker (react-colorful) overrides */
 
 .custom-color-picker .react-colorful {

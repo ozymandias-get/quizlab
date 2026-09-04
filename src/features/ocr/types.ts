@@ -26,13 +26,7 @@ export type OcrStatus =
   | 'error'
   | 'cancelled'
 
-export type OcrOutcome =
-  | 'success'
-  | 'noText'
-  | 'engineUnavailable'
-  | 'cancelled'
-  | 'timeout'
-  | 'error'
+type OcrOutcome = 'success' | 'noText' | 'engineUnavailable' | 'cancelled' | 'timeout' | 'error'
 
 export type OcrErrorCode =
   | 'PAGE_RENDER_FAILED'
@@ -68,6 +62,17 @@ export const DEFAULT_OCR_CONFIG: OcrConfig = {
 }
 
 /**
+ * Minimal PDF identity passed from the viewer to OCR actions.
+ * Authoritative source for document fingerprints — pdfFile fields only.
+ */
+export interface OcrPdfFile {
+  path?: string | null
+  name?: string | null
+  size?: number | null
+  streamUrl?: string | null
+}
+
+/**
  * Quality preset → render config mapping
  * Ensures preset actually changes pipeline behaviour instead of being a no-op.
  */
@@ -77,7 +82,7 @@ export interface OcrRenderPreset {
   useDirectPdfRender: boolean
 }
 
-export const OCR_QUALITY_PRESETS: Record<OcrQualityPreset, OcrRenderPreset> = {
+const OCR_QUALITY_PRESETS: Record<OcrQualityPreset, OcrRenderPreset> = {
   fast: { scale: 1.25, maxPixels: 6_000_000, useDirectPdfRender: false },
   balanced: { scale: 2.0, maxPixels: 12_000_000, useDirectPdfRender: true },
   high: { scale: 2.8, maxPixels: 16_000_000, useDirectPdfRender: true }
@@ -96,7 +101,7 @@ export interface OcrSensitivityPreset {
   confidenceThreshold: number
 }
 
-export const OCR_SENSITIVITY_PRESETS: Record<OcrSensitivity, OcrSensitivityPreset> = {
+const OCR_SENSITIVITY_PRESETS: Record<OcrSensitivity, OcrSensitivityPreset> = {
   low: { nativeMinChars: 10, nativeMinBlocks: 1, confidenceThreshold: 30 },
   medium: { nativeMinChars: 50, nativeMinBlocks: 2, confidenceThreshold: 55 },
   high: { nativeMinChars: 120, nativeMinBlocks: 3, confidenceThreshold: 75 }
@@ -142,7 +147,7 @@ export interface OcrPageResult {
   confidence?: number
 }
 
-export interface OcrJob {
+interface OcrJob {
   id: string
   pageNumber: number
   documentId: string
@@ -151,15 +156,6 @@ export interface OcrJob {
   signal: AbortSignal
   /** Distinguish page-level OCR vs region/area OCR — region must never fallback to full-page native text */
   kind?: 'page' | 'region'
-}
-
-export interface OcrState {
-  status: OcrStatus
-  currentPage: number | null
-  currentDocumentId: string | null
-  result: OcrPageResult | null
-  error: string | null
-  isPanelOpen: boolean
 }
 
 export interface OcrProviderCapabilities {

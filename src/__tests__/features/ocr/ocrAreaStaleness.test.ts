@@ -142,6 +142,25 @@ describe('area OCR staleness — selection snapshot vs current viewer', () => {
     expect(globalOcrQueue.runningCount).toBe(0)
   })
 
+  it('undecodable capture falls back to the original image (prep never breaks flow)', async () => {
+    setActiveViewerSnapshot(fileA, 2)
+    useOcrStore.getState().startAreaSelection(2, fileA, 'local-pdf://a')
+    const expectedFp = useOcrStore.getState().pendingFingerprint!
+    mockProcessPage.mockResolvedValue(
+      fakeResult({ pageNumber: 2, documentId: expectedFp, markdown: 'ok' })
+    )
+    const { result } = renderHook(() => useOcrActions())
+    const res = await result.current.processArea({
+      dataUrl: 'data:image/png;base64,abc',
+      pageNumber: 2,
+      pdfFile: fileA
+    })
+    expect(res).not.toBeNull()
+    // jsdom cannot decode the fake capture, so the provider must receive it unchanged.
+    expect(mockProcessPage).toHaveBeenCalledTimes(1)
+    expect(mockProcessPage.mock.calls[0]?.[1]).toBe('data:image/png;base64,abc')
+  })
+
   it('token bump after selection start => stale discard even if doc/page same', async () => {
     setActiveViewerSnapshot(fileA, 2)
     useOcrStore.getState().startAreaSelection(2, fileA, 'local-pdf://a')

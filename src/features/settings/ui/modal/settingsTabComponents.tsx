@@ -7,15 +7,15 @@ const SelectorsTab = lazy(() => import('../SelectorsTab'))
 const TutorialCenterTab = lazy(() => import('../TutorialCenterTab'))
 const AboutTab = lazy(() => import('../AboutTab'))
 
-export const SelectorsTabWrapper = memo(function SelectorsTabWrapper({ onClose }: SettingsContext) {
+const SelectorsTabWrapper = memo(function SelectorsTabWrapper({ onClose }: SettingsContext) {
   return <SelectorsTab onCloseSettings={onClose} />
 })
 
-export const TutorialTabWrapper = memo(function TutorialTabWrapper({ onClose }: SettingsContext) {
+const TutorialTabWrapper = memo(function TutorialTabWrapper({ onClose }: SettingsContext) {
   return <TutorialCenterTab onCloseSettings={onClose} />
 })
 
-export const AboutTabWrapper = memo(function AboutTabWrapper({ onClose }: SettingsContext) {
+const AboutTabWrapper = memo(function AboutTabWrapper({ onClose }: SettingsContext) {
   const settings = useSettings()
   return (
     <AboutTab

@@ -24,7 +24,7 @@ const kbdVariants = cva(
   }
 )
 
-export interface KbdProps extends React.ComponentProps<'kbd'>, VariantProps<typeof kbdVariants> {}
+interface KbdProps extends React.ComponentProps<'kbd'>, VariantProps<typeof kbdVariants> {}
 
 function Kbd({ className, variant, size, ...props }: KbdProps) {
   return (
@@ -32,4 +32,4 @@ function Kbd({ className, variant, size, ...props }: KbdProps) {
   )
 }
 
-export { Kbd, kbdVariants }
+export { Kbd }

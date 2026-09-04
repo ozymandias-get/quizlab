@@ -108,10 +108,10 @@ describe('apiChatStore helpers (pure functions)', () => {
 
     it('falls back to a localized message for non-serializable throws', () => {
       expect(buildErrorReply(undefined).content).toMatch(
-        /^(Hata: İstek başarısız oldu|Error: Request failed)$/
+        /^(Hata: Bilinmeyen bir hata oluştu|Error: An unknown error occurred)$/
       )
       expect(buildErrorReply(() => 'fn').content).toMatch(
-        /^(Hata: İstek başarısız oldu|Error: Request failed)$/
+        /^(Hata: Bilinmeyen bir hata oluştu|Error: An unknown error occurred)$/
       )
     })
 
@@ -126,7 +126,7 @@ describe('apiChatStore helpers (pure functions)', () => {
   describe('constants', () => {
     it('exposes the localStorage key and default title', () => {
       expect(LOCAL_STORAGE_KEY).toBe('quizlab_api_chat_sessions_v2')
-      expect(DEFAULT_SESSION_TITLE).toBe('Yeni Sohbet')
+      expect(DEFAULT_SESSION_TITLE).toBe('New Chat')
     })
   })
 })

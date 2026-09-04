@@ -33,7 +33,7 @@ export const HEADING_WEIGHTS = [
   'font-medium'
 ]
 
-export const ALLOWED_URL_PROTOCOLS = ['http:', 'https:', 'mailto:']
+const ALLOWED_URL_PROTOCOLS = ['http:', 'https:', 'mailto:']
 
 export function isSafeUrl(url: string): boolean {
   return parseUrlWithAllowedProtocols(url, ALLOWED_URL_PROTOCOLS) !== null
