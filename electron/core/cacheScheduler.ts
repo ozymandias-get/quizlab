@@ -39,10 +39,6 @@ export function setAutoCleanEnabled(enabled: boolean): void {
   Logger.info(`[CacheScheduler] Auto-clean ${enabled ? 'enabled' : 'disabled'}`)
 }
 
-export function getLastAutoCleanTime(): number | null {
-  return lastAutoCleanAt
-}
-
 function markAutoCleanExecuted(): void {
   lastAutoCleanAt = Date.now()
 }
@@ -183,9 +179,4 @@ export function stopCacheScheduler(): void {
   stopIdleDetection()
 
   Logger.info('[CacheScheduler] Stopped')
-}
-
-// Test / manual trigger için
-export async function triggerSmartCheck(): Promise<void> {
-  await runSmartForegroundCheck()
 }

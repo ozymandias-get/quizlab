@@ -1,7 +1,15 @@
 import { formatBytes } from '@shared/lib/formatUtils'
 import { cn } from '@shared/lib/uiUtils'
 
+import type { TFunction } from 'i18next'
+import i18next from 'i18next'
 import { memo } from 'react'
+
+import { pressureLabel } from './storageUtils'
+
+function appLocale(): 'tr-TR' | 'en-US' {
+  return i18next.language === 'tr' ? 'tr-TR' : 'en-US'
+}
 
 export const ProgressBar = memo(function ProgressBar({
   value,
@@ -44,7 +52,8 @@ export const PartitionRow = memo(function PartitionRow({
   size,
   category,
   lastActive,
-  onClear
+  onClear,
+  t
 }: {
   partitionKey: string
   label: string
@@ -52,6 +61,7 @@ export const PartitionRow = memo(function PartitionRow({
   category?: 'active' | 'passive' | 'cold'
   lastActive?: number | null
   onClear?: () => void
+  t: TFunction
 }) {
   const dotColor =
     category === 'active'
@@ -59,6 +69,14 @@ export const PartitionRow = memo(function PartitionRow({
       : category === 'passive'
         ? 'bg-amber-500'
         : 'bg-slate-400'
+  const categoryLabel =
+    category === 'active'
+      ? t('storage_category_active')
+      : category === 'passive'
+        ? t('storage_category_passive')
+        : category === 'cold'
+          ? t('storage_category_cold')
+          : null
   return (
     <div className="flex items-center justify-between gap-3 px-5 py-3">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -71,7 +89,7 @@ export const PartitionRow = memo(function PartitionRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-ql-12 text-foreground block truncate font-medium">{label}</span>
-            {category && (
+            {category && categoryLabel && (
               <span
                 className={cn(
                   'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium',
@@ -82,7 +100,7 @@ export const PartitionRow = memo(function PartitionRow({
                       : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                 )}
               >
-                {category}
+                {categoryLabel}
               </span>
             )}
           </div>
@@ -91,7 +109,9 @@ export const PartitionRow = memo(function PartitionRow({
           </span>
           {lastActive && (
             <span className="text-ql-11 text-muted-foreground block truncate">
-              last: {new Date(lastActive).toLocaleDateString()}
+              {t('storage_last_active', {
+                date: new Date(lastActive).toLocaleDateString(appLocale())
+              })}
             </span>
           )}
         </div>
@@ -103,8 +123,8 @@ export const PartitionRow = memo(function PartitionRow({
             type="button"
             onClick={onClear}
             className="hover:bg-muted text-muted-foreground hover:text-foreground rounded-md p-1.5 transition-colors"
-            title="Clear this partition cache"
-            aria-label={`Clear ${label} cache`}
+            title={t('partition_clear_title')}
+            aria-label={t('partition_clear_aria', { name: label })}
           >
             <svg
               width="14"
@@ -128,7 +148,8 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
   pressureLevel,
   pressurePercentage,
   recommendation,
-  onAction
+  onAction,
+  t
 }: {
   pressureLevel: string
   pressurePercentage: number
@@ -139,6 +160,7 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
     estimatedFreeBytes: number
   } | null
   onAction?: (action: string) => void
+  t: TFunction
 }) {
   if (!recommendation || recommendation.action === 'none') {
     if (pressureLevel === 'warning' || pressureLevel === 'high' || pressureLevel === 'critical') {
@@ -147,10 +169,13 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
           <span className="text-lg text-amber-600 dark:text-amber-400">⚠</span>
           <div className="min-w-0 flex-1">
             <p className="text-ql-12 font-medium text-amber-800 dark:text-amber-300">
-              Cache pressure {pressureLevel} ({pressurePercentage.toFixed(0)}%)
+              {t('storage_pressure_status', {
+                level: pressureLabel(pressureLevel, t),
+                percent: pressurePercentage.toFixed(0)
+              })}
             </p>
             <p className="text-ql-11 mt-1 text-amber-700 dark:text-amber-400">
-              Automatic cleanup will run soon. You can also clean manually.
+              {t('storage_cleanup_hint')}
             </p>
           </div>
         </div>
@@ -177,11 +202,15 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
             isCold ? 'text-sky-800 dark:text-sky-300' : 'text-amber-800 dark:text-amber-300'
           )}
         >
-          {recommendation.targetPartitions.length} partitions • ~
-          {formatBytes(recommendation.estimatedFreeBytes)} reclaimable
+          {t('storage_reclaim_info', {
+            count: recommendation.targetPartitions.length,
+            size: formatBytes(recommendation.estimatedFreeBytes)
+          })}
         </p>
         <p className="text-ql-11 text-muted-foreground mt-1 truncate">
-          Target: {recommendation.targetPartitions.slice(0, 3).join(', ')}
+          {t('storage_reclaim_target', {
+            targets: recommendation.targetPartitions.slice(0, 3).join(', ')
+          })}
           {recommendation.targetPartitions.length > 3
             ? ` +${recommendation.targetPartitions.length - 3}`
             : ''}
@@ -200,7 +229,7 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
               : 'border-amber-600 bg-amber-600 text-white hover:bg-amber-700'
           )}
         >
-          Clean
+          {t('storage_clean_action')}
         </button>
       )}
     </div>

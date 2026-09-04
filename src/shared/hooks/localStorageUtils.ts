@@ -81,7 +81,7 @@ export const isLocalStorageChangeEvent = (
   )
 }
 
-export const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false
   }

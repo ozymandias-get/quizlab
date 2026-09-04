@@ -4,7 +4,7 @@ import type {
   GeminiWebSessionStatus
 } from '@shared-core/types'
 
-export type ProbeKind = 'authenticated' | 'login_redirect' | 'challenge' | 'network' | 'unknown'
+type ProbeKind = 'authenticated' | 'login_redirect' | 'challenge' | 'network' | 'unknown'
 
 export interface ProbeOutcome {
   kind: ProbeKind

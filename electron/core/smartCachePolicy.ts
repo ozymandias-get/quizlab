@@ -22,14 +22,6 @@ export interface CachePressure {
   urgency: number // 0..100
 }
 
-export interface PartitionHealth {
-  key: string
-  size: number
-  percentage: number
-  level: PressureLevel
-  isOverLimit: boolean
-}
-
 export interface SmartCacheRecommendation {
   action: 'none' | 'clean_cold' | 'clean_passive' | 'clean_all_partitions' | 'deep_clean'
   reason: string
@@ -91,47 +83,6 @@ export function getCachePressure(totalBytes: number): CachePressure {
     shouldAutoClean,
     urgency
   }
-}
-
-export function getPartitionPressure(partitionSize: number): PartitionHealth {
-  const limit = MAX_PARTITION_CACHE_BYTES
-  const pct = limit > 0 ? partitionSize / limit : 0
-  let level: PressureLevel = 'normal'
-  if (pct >= PARTITION_WATERMARKS.critical) level = 'critical'
-  else if (pct >= PARTITION_WATERMARKS.high) level = 'high'
-  else if (pct >= PARTITION_WATERMARKS.warning) level = 'warning'
-  else if (pct >= 0.6) level = 'moderate'
-
-  return {
-    key: '',
-    size: partitionSize,
-    percentage: pct * 100,
-    level,
-    isOverLimit: partitionSize > limit
-  }
-}
-
-/**
- * Eviction önceliği: soğuk > pasif > aktif, aynı kategori içinde büyük boyut önce
- * Düşük skor = daha önce silinecek
- */
-export function evictionScore(activity: 'cold' | 'passive' | 'active', size: number): number {
-  const activityWeight = activity === 'cold' ? 0 : activity === 'passive' ? 1 : 2
-  // Normalize size to 0..1 based on partition limit
-  const sizeNorm = Math.min(size / MAX_PARTITION_CACHE_BYTES, 1)
-  // Cold large partitions get lowest score (highest priority)
-  return activityWeight * 10 - sizeNorm
-}
-
-export function sortPartitionsByEvictionPriority(
-  partitions: Array<{ key: string; size: number; activity: 'cold' | 'passive' | 'active' }>
-): Array<{ key: string; size: number; activity: 'cold' | 'passive' | 'active' }> {
-  return [...partitions].sort((a, b) => {
-    const sa = evictionScore(a.activity, a.size)
-    const sb = evictionScore(b.activity, b.size)
-    if (sa !== sb) return sa - sb
-    return b.size - a.size
-  })
 }
 
 export function getRecommendation(

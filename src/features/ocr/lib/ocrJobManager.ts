@@ -57,7 +57,3 @@ export async function cancelActiveJob(): Promise<void> {
   const { requestToken } = useOcrStore.getState()
   useOcrStore.setState({ status: 'cancelled', requestToken: requestToken + 1 })
 }
-
-export function bumpRequestToken(): number {
-  return useOcrStore.getState().bumpToken()
-}

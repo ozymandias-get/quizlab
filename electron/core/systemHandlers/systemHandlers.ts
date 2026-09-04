@@ -246,43 +246,6 @@ export function registerSystemHandlers() {
   )
 
   registerIpcHandler(
-    IPC_CHANNELS.GET_SMART_CACHE_INFO,
-    async () => {
-      try {
-        const info = await getCacheInfo()
-        try {
-          const { getAutoCleanConfig } = await import('../cacheScheduler.js')
-          const cfg = getAutoCleanConfig()
-          if (info.smart) {
-            info.smart.autoClean = { enabled: cfg.enabled, lastAutoCleanAt: cfg.lastAutoCleanAt }
-          }
-        } catch {}
-        return success(info)
-      } catch (error) {
-        Logger.error('[IPC] Failed to get smart cache info:', error)
-        return success(EMPTY_CACHE_INFO)
-      }
-    },
-    requireTrustedIpcSender,
-    success(EMPTY_CACHE_INFO)
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.GET_CACHE_AUTO_CLEAN,
-    async () => {
-      try {
-        const { getAutoCleanConfig } = await import('../cacheScheduler.js')
-        return success(getAutoCleanConfig())
-      } catch (error) {
-        Logger.error('[IPC] Failed to get auto clean config:', error)
-        return success({ enabled: true, lastAutoCleanAt: null, cooldownMs: 600000 })
-      }
-    },
-    requireTrustedIpcSender,
-    success({ enabled: true, lastAutoCleanAt: null, cooldownMs: 600000 })
-  )
-
-  registerIpcHandler(
     IPC_CHANNELS.SET_CACHE_AUTO_CLEAN,
     async (_event, enabled: unknown) => {
       try {

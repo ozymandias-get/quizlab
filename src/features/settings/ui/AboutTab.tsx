@@ -98,6 +98,7 @@ const AboutTab = memo(
 
           <CacheControl
             t={t}
+            language={language}
             handleClearCache={handleClearCache}
             isClearing={isClearing}
             isClearSuccess={isClearSuccess}

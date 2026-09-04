@@ -1,6 +1,6 @@
 import { isIP } from 'node:net'
 
-export const PRIVATE_IP_RANGES = [
+const PRIVATE_IP_RANGES = [
   { start: '10.0.0.0', end: '10.255.255.255' },
   { start: '172.16.0.0', end: '172.31.255.255' },
   { start: '192.168.0.0', end: '192.168.255.255' },
@@ -11,16 +11,16 @@ export const PRIVATE_IP_RANGES = [
   { start: '198.18.0.0', end: '198.19.255.255' }
 ]
 
-export const IPV4_RE = /^(?:\d{1,3}\.){3}\d{1,3}$/
+const IPV4_RE = /^(?:\d{1,3}\.){3}\d{1,3}$/
 
-export const ipToInt = (ip: string): number => {
+const ipToInt = (ip: string): number => {
   const parts = ip.split('.').map(Number)
   return (
     ((parts[0] || 0) << 24) | ((parts[1] || 0) << 16) | ((parts[2] || 0) << 8) | (parts[3] || 0)
   )
 }
 
-export function isPrivateIPv4(ip: string): boolean {
+function isPrivateIPv4(ip: string): boolean {
   if (!IPV4_RE.test(ip)) return false
   const ipInt = ipToInt(ip)
   return PRIVATE_IP_RANGES.some(({ start, end }) => {
@@ -33,7 +33,7 @@ export function isPrivateIPv4(ip: string): boolean {
  * hextets. An embedded IPv4 tail ("::ffff:127.0.0.1") is converted to its two
  * hextets first. Returns null when the input is not a valid IPv6 address.
  */
-export function expandIPv6(host: string): string[] | null {
+function expandIPv6(host: string): string[] | null {
   let address = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host
   if (isIP(address) !== 6) return null
   address = address.toLowerCase()
@@ -65,7 +65,7 @@ export function expandIPv6(host: string): string[] | null {
   ]
 }
 
-export function isPrivateIPv6(host: string): boolean {
+function isPrivateIPv6(host: string): boolean {
   const groups = expandIPv6(host)
   if (!groups) return false
 

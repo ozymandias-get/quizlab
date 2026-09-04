@@ -6,7 +6,7 @@ import { ZoomIn as ZoomInIcon, ZoomOut as ZoomOutIcon } from 'lucide-react'
 import { type ComponentType, memo, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export interface RenderChildProps {
+interface RenderChildProps {
   onClick: () => void
   scale?: number
 }

@@ -14,7 +14,7 @@ import type { BridgeOriginPolicy } from './nativeMessagingOrigin.js'
 import { isAllowedBridgeOrigin, validateCookieDomains } from './nativeMessagingOrigin.js'
 import { MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
-export function getOriginPolicy(manager: unknown): BridgeOriginPolicy {
+function getOriginPolicy(manager: unknown): BridgeOriginPolicy {
   const isDev = !app.isPackaged
   return {
     expectedExtensionOrigin: (manager as unknown as { _expectedExtensionOrigin: string | null })
@@ -24,7 +24,7 @@ export function getOriginPolicy(manager: unknown): BridgeOriginPolicy {
   }
 }
 
-export function rejectDisallowedOrigin(res: ServerResponse, origin: string | undefined): void {
+function rejectDisallowedOrigin(res: ServerResponse, origin: string | undefined): void {
   Logger.warn(`[NativeMessaging] Rejected request from disallowed origin: ${origin || '(none)'}`)
   res.writeHead(403, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify({ error: 'Forbidden' }))

@@ -21,15 +21,15 @@ export type IconSize = 'xs' | 'sm' | 'default' | 'lg'
 
 export type IconVariant = 'default' | 'subtle'
 
-export const ICON_SIZE_CLASSES: Record<IconSize, string> = {
+const ICON_SIZE_CLASSES: Record<IconSize, string> = {
   xs: 'size-3',
   sm: 'size-3.5',
   default: 'size-4',
   lg: 'size-5'
 }
 
-export const ICON_DEFAULT_STROKE_WIDTH = 2
-export const ICON_SUBTLE_STROKE_WIDTH = 1.5
+const ICON_DEFAULT_STROKE_WIDTH = 2
+const ICON_SUBTLE_STROKE_WIDTH = 1.5
 
 export const ICON_VARIANT_STROKE_WIDTHS: Record<IconVariant, number> = {
   default: ICON_DEFAULT_STROKE_WIDTH,

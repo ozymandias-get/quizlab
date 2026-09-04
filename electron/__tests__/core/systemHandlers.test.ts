@@ -79,8 +79,9 @@ describe('systemHandlers', () => {
     registerSystemHandlers()
 
     expect(ipcHandle).toHaveBeenCalledTimes(firstCallCount)
-    // Expect 12 handlers: 8 original + 4 smart cache handlers
-    expect(firstCallCount).toBe(12)
+    // Expect 10 handlers: 8 original + 2 smart cache handlers
+    // (GET_SMART_CACHE_INFO / GET_CACHE_AUTO_CLEAN were removed: no renderer caller)
+    expect(firstCallCount).toBe(10)
   })
 
   let trustedSender: { id: string; isDestroyed?: () => boolean }

@@ -16,7 +16,7 @@ export interface ChatSession {
   updatedAt: number
 }
 
-export const DEFAULT_SESSION_TITLE = 'Yeni Sohbet'
+export const DEFAULT_SESSION_TITLE = 'New Chat'
 
 export function getDefaultSessionTitle(): string {
   try {
@@ -25,7 +25,7 @@ export function getDefaultSessionTitle(): string {
   } catch {
     // ignore and fall back
   }
-  return i18next.language?.startsWith('tr') ? 'Yeni Sohbet' : 'New Chat'
+  return 'New Chat'
 }
 
 export function isDefaultSessionTitle(title: string): boolean {
@@ -74,14 +74,26 @@ export function buildCombinedPrompt(parts: {
 }
 
 export function buildErrorReply(err: unknown): ApiChatMessage {
-  const fallbackMsg = i18next.language?.startsWith('tr') ? 'İstek başarısız oldu' : 'Request failed'
+  let fallbackMsg = 'Unknown error'
+  try {
+    const v = i18next.t('error_unknown_error')
+    if (v && v !== 'error_unknown_error') fallbackMsg = v
+  } catch {
+    // ignore and keep the generic fallback
+  }
   const message = ensureErrorMessage(err, fallbackMsg)
   let content: string
   try {
     content = i18next.t('api_chat_send_error', { error: message })
     if (!content || content === 'api_chat_send_error') throw new Error('missing key')
   } catch {
-    const prefix = i18next.language?.startsWith('tr') ? 'Hata' : 'Error'
+    let prefix = 'Error'
+    try {
+      const v = i18next.t('toast_error_title')
+      if (v && v !== 'toast_error_title') prefix = v
+    } catch {
+      // ignore and keep the generic prefix
+    }
     content = `${prefix}: ${message}`
   }
   return {

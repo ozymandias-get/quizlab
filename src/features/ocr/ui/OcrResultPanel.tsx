@@ -20,6 +20,7 @@ import { motion, useDragControls } from 'motion/react'
 import { memo, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useOcrPanelResize } from '../hooks/useOcrPanelResize'
 import type { OcrPageResult } from '../types'
 import MarkdownRenderer from './MarkdownRenderer'
 
@@ -51,57 +52,15 @@ function OcrResultPanel({
   onRunCurrent,
   onSendToAi
 }: OcrResultPanelProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { copy } = useClipboard()
   const { showSuccess } = useToastActions()
   const [tab, setTab] = useState<Tab>('rendered')
   const [copied, setCopied] = useState<'md' | 'txt' | null>(null)
   const [minimized, setMinimized] = useState(false)
   const dragControls = useDragControls()
-  const [size, setSize] = useState({ width: 520, height: 520 })
-  const resizingRef = useRef(false)
-  const startSizeRef = useRef({ w: 520, h: 520, x: 0, y: 0 })
+  const { size, handleResizePointerDown } = useOcrPanelResize()
   const contentRef = useRef<HTMLDivElement>(null)
-
-  const handleResizePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      resizingRef.current = true
-      startSizeRef.current = {
-        w: size.width,
-        h: size.height,
-        x: e.clientX,
-        y: e.clientY
-      }
-      const target = e.currentTarget as HTMLElement
-      target.setPointerCapture(e.pointerId)
-
-      const onMove = (ev: PointerEvent) => {
-        if (!resizingRef.current) return
-        const dx = ev.clientX - startSizeRef.current.x
-        const dy = ev.clientY - startSizeRef.current.y
-        const nextW = Math.min(
-          Math.max(320, startSizeRef.current.w + dx),
-          Math.min(720, window.innerWidth - 32)
-        )
-        const nextH = Math.min(
-          Math.max(300, startSizeRef.current.h + dy),
-          Math.min(760, window.innerHeight - 80)
-        )
-        setSize({ width: nextW, height: nextH })
-      }
-      const onUp = () => {
-        resizingRef.current = false
-        window.removeEventListener('pointermove', onMove)
-        window.removeEventListener('pointerup', onUp)
-      }
-      // Cleanup on unmount: ensure listeners removed if component unmounts mid-resize
-      window.addEventListener('pointermove', onMove)
-      window.addEventListener('pointerup', onUp, { once: true })
-    },
-    [size.height, size.width]
-  )
 
   const isLoading =
     status === 'rendering-page' || status === 'initializing-engine' || status === 'processing'
@@ -451,7 +410,7 @@ function OcrResultPanel({
                   className="mt-2 gap-1.5"
                 >
                   <RefreshCw className="size-3.5" />
-                  {t('retry', { defaultValue: 'Retry' })}
+                  {t('ocr_retry')}
                 </Button>
               </div>
             )}
@@ -504,7 +463,9 @@ function OcrResultPanel({
                 )}
               </span>
               <span className="text-ql-11 text-muted-foreground/60 ml-auto inline-flex items-center gap-1.5 tabular-nums">
-                {new Date(result.createdAt).toLocaleString()}
+                {new Date(result.createdAt).toLocaleString(
+                  i18n.language === 'tr' ? 'tr-TR' : 'en-US'
+                )}
               </span>
             </div>
           )}
@@ -515,7 +476,7 @@ function OcrResultPanel({
         <div
           onPointerDown={handleResizePointerDown}
           className="absolute right-0 bottom-0 flex size-6 cursor-nwse-resize items-center justify-center rounded-tl-lg bg-transparent opacity-60 hover:opacity-100"
-          aria-label="Resize"
+          aria-label={t('ai_send_resize')}
           role="separator"
         >
           <div className="bg-muted-foreground/40 h-3 w-3 rounded-[2px] opacity-40 [background:repeating-linear-gradient(-45deg,transparent_0_2px,currentColor_2px_3px)]" />

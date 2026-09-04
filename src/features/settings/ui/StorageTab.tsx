@@ -77,7 +77,7 @@ const StorageTab = memo(function StorageTab() {
         .sort((a, b) => b.size - a.size)
         .map((d) => ({
           key: d.key,
-          label: partitionDisplayName(d.key),
+          label: partitionDisplayName(d.key, t),
           size: d.size,
           category: d.category,
           lastActive: d.lastActive
@@ -88,12 +88,12 @@ const StorageTab = memo(function StorageTab() {
       .sort(([, a], [, b]) => b - a)
       .map(([key, size]) => ({
         key,
-        label: partitionDisplayName(key),
+        label: partitionDisplayName(key, t),
         size,
         category: undefined as unknown as 'active' | 'passive' | 'cold',
         lastActive: null as number | null
       }))
-  }, [smart?.partitionDetails, breakdown?.partitionCaches])
+  }, [smart?.partitionDetails, breakdown?.partitionCaches, t])
 
   const totalCache = breakdown?.total ?? 0
   const pressureLevel =
@@ -197,7 +197,7 @@ const StorageTab = memo(function StorageTab() {
           <Switch
             checked={autoCleanEnabled}
             onCheckedChange={handleToggleAutoClean}
-            aria-label="auto-clean"
+            aria-label={t('cache_auto_clean')}
           />
         </div>
       </div>
@@ -209,6 +209,7 @@ const StorageTab = memo(function StorageTab() {
           pressurePercentage={pressurePct}
           recommendation={smart.recommendation}
           onAction={handleSmartClean}
+          t={t}
         />
       )}
 
@@ -351,13 +352,17 @@ const StorageTab = memo(function StorageTab() {
                 category={category}
                 lastActive={lastActive}
                 onClear={() => handleClearPartition(key)}
+                t={t}
               />
             ))}
           </div>
           <p className="text-ql-11 text-muted-foreground px-1">
-            {t('smart_cache_desc')} — {partitionDetails.filter((p) => p.category === 'cold').length}{' '}
-            cold · {partitionDetails.filter((p) => p.category === 'passive').length} idle ·{' '}
-            {partitionDetails.filter((p) => p.category === 'active').length} active
+            {t('storage_partition_summary', {
+              smart: t('smart_cache_desc'),
+              cold: partitionDetails.filter((p) => p.category === 'cold').length,
+              idle: partitionDetails.filter((p) => p.category === 'passive').length,
+              active: partitionDetails.filter((p) => p.category === 'active').length
+            })}
           </p>
         </div>
       )}

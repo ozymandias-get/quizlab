@@ -68,27 +68,6 @@ export function useCacheInfo() {
   })
 }
 
-export function useSmartCacheInfo() {
-  return useElectronQuery({
-    key: ['system', 'smart-cache-info'],
-    queryFn: (api) => (api.getSmartCacheInfo ? api.getSmartCacheInfo() : api.getCacheInfo()),
-    options: {
-      staleTime: 30 * 1000,
-      refetchOnWindowFocus: false
-    }
-  })
-}
-
-export function useCacheAutoClean() {
-  return useElectronQuery({
-    key: ['system', 'cache-auto-clean'],
-    queryFn: (api) => api.getCacheAutoClean?.(),
-    options: {
-      staleTime: 60 * 1000
-    }
-  })
-}
-
 export function useSetCacheAutoClean() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
@@ -96,7 +75,6 @@ export function useSetCacheAutoClean() {
     errorMessage: t('toast_cache_cleared_failed'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
-      queryClient.invalidateQueries({ queryKey: ['system', 'cache-auto-clean'] })
     }
   })
 }
@@ -111,7 +89,6 @@ export function useSmartCacheAction() {
       errorMessage: t('toast_cache_cleared_failed'),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
-        queryClient.invalidateQueries({ queryKey: ['system', 'smart-cache-info'] })
         showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
       }
     }

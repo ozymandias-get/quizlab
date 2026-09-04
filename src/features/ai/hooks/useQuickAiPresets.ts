@@ -25,7 +25,7 @@ export type QuickPresetKey =
   | 'clinical'
   | 'review'
 
-export interface QuickPresetConfig {
+interface QuickPresetConfig {
   key: QuickPresetKey
   defaultLabelKey: string
   defaultValueKey: string
@@ -33,7 +33,7 @@ export interface QuickPresetConfig {
   isPrimary: boolean
 }
 
-export const QUICK_PRESET_CONFIGS: QuickPresetConfig[] = [
+const QUICK_PRESET_CONFIGS: QuickPresetConfig[] = [
   {
     key: 'explain',
     defaultLabelKey: 'ai_preset_explain',

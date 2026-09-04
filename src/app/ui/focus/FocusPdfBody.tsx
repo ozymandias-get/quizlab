@@ -69,11 +69,11 @@ const FocusPdfBody = memo(function FocusPdfBody() {
   const lastReadingInfoRef = readingHistoryRef
 
   const handleResumePdf = useCallback(
-    async (path?: string): Promise<ResumePdfResult> => {
+    (path?: string): Promise<ResumePdfResult> => {
       const current = lastReadingInfoRef.current
       const target = path ? current.find((entry) => entry.path === path) : current[0]
-      if (target) return await resumeLastPdf(target.path)
-      return await resumeLastPdf(path)
+      if (target) return resumeLastPdf(target.path)
+      return resumeLastPdf(path)
     },
     [resumeLastPdf, lastReadingInfoRef]
   )

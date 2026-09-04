@@ -2,16 +2,16 @@ import fs from 'fs'
 
 import { Logger } from '../../core/logger.js'
 
-export const PDF_STREAM_HEADERS = {
+const PDF_STREAM_HEADERS = {
   'Content-Type': 'application/pdf',
   'Cache-Control': 'private, max-age=0, must-revalidate',
   'X-Content-Type-Options': 'nosniff',
   'Accept-Ranges': 'bytes'
 } as const
 
-export const READ_BUFFER_BYTES = 1024 * 1024
+const READ_BUFFER_BYTES = 1024 * 1024
 
-export function parseByteRange(
+function parseByteRange(
   rangeHeader: string,
   totalSize: number
 ): { start: number; end: number } | null {
@@ -64,7 +64,7 @@ export function createPdfResponseHeaders(stats: fs.Stats): Record<string, string
   }
 }
 
-export function fileStreamToWebStream(fileStream: fs.ReadStream): ReadableStream<Uint8Array> {
+function fileStreamToWebStream(fileStream: fs.ReadStream): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>({
     start(controller) {
       fileStream.on('data', (chunk) => controller.enqueue(new Uint8Array(chunk as Buffer)))

@@ -53,10 +53,6 @@ function generateId() {
   return `pdf_${crypto.randomBytes(6).toString('hex')}_${Date.now()}`
 }
 
-function normalizePdfPath(filePath: string): string {
-  return path.normalize(filePath)
-}
-
 function isPdfFilePath(filePath: string): boolean {
   return path.extname(filePath).toLowerCase() === '.pdf'
 }
@@ -205,13 +201,13 @@ export function registerPdfProtocolHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
 
   const addToAllowlist = async (filePath: string) => {
-    const normalized = normalizePdfPath(filePath)
+    const normalized = path.normalize(filePath)
     const manager = getAllowListManager()
     await manager.setItem(normalized, true)
   }
 
   const isAllowed = async (filePath: string) => {
-    const normalized = normalizePdfPath(filePath)
+    const normalized = path.normalize(filePath)
 
     if (sessionAllowedPdfPaths.has(normalized)) return true
 
@@ -267,7 +263,7 @@ export function registerPdfProtocolHandlers() {
 
         // SECURITY: Persist allowlist only for explicit file-picker selection
         await addToAllowlist(filePath)
-        const normalized = normalizePdfPath(filePath)
+        const normalized = path.normalize(filePath)
         sessionAllowedPdfPaths.add(normalized)
 
         // Register the NORMALIZED path so the protocol handler and the
@@ -296,7 +292,7 @@ export function registerPdfProtocolHandlers() {
       if (!filePath) return failure('invalid_input', 'File path is required')
 
       try {
-        const normalizedPath = normalizePdfPath(filePath)
+        const normalizedPath = path.normalize(filePath)
 
         if (!(await isAllowed(normalizedPath))) {
           Logger.warn(
@@ -332,7 +328,7 @@ export function registerPdfProtocolHandlers() {
         const stats = await fs.promises.stat(filePath)
         if (!isPdfFilePath(filePath)) return failure('invalid_input', 'Not a PDF file')
 
-        const normalized = normalizePdfPath(filePath)
+        const normalized = path.normalize(filePath)
 
         // SECURITY: Add to persistent allowlist (same as SELECT_PDF) to prevent
         // unregistered files from being served via GET_PDF_STREAM_URL later.

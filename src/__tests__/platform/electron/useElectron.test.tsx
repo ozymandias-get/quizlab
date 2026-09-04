@@ -101,7 +101,7 @@ describe('useElectron', () => {
       expect(customOnError).toHaveBeenCalled()
       expect(showErrorMock).toHaveBeenCalledWith(
         'Custom Mutation Failed',
-        'Mutation Error',
+        'Error',
         undefined,
         undefined
       )

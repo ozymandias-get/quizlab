@@ -71,8 +71,8 @@ function AiSendComposerHeader({
 
   // Expanded state: full header
   const summaryParts: string[] = []
-  if (textCount > 0) summaryParts.push(`${textCount} ${t('ai_send_text_count_label')}`)
-  if (imageCount > 0) summaryParts.push(`${imageCount} ${t('ai_send_image_count_label')}`)
+  if (textCount > 0) summaryParts.push(t('ai_send_text_count', { count: textCount }))
+  if (imageCount > 0) summaryParts.push(t('ai_send_image_count', { count: imageCount }))
   const summary = summaryParts.join(' · ')
 
   return (

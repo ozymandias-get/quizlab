@@ -345,7 +345,7 @@ export async function getCachedAiConfig(options: {
         try {
           regex = new RegExp(finalConfig.domainRegex)
         } catch {
-          regex = null
+          // invalid pattern — regex stays null
         }
       }
     }

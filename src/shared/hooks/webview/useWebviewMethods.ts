@@ -60,7 +60,7 @@ export function useWebviewMethods({
         if (id) {
           const api = getElectronApi()
           if (!api) return false
-          return await api.forcePaste(id)
+          return api.forcePaste(id)
         }
         return false
       },

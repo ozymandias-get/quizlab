@@ -4,7 +4,7 @@ import { Button } from './button'
 
 export type IconButtonSize = 'compact' | 'default'
 
-export interface IconButtonProps extends Omit<React.ComponentProps<typeof Button>, 'size'> {
+interface IconButtonProps extends Omit<React.ComponentProps<typeof Button>, 'size'> {
   size?: IconButtonSize
   variant?: React.ComponentProps<typeof Button>['variant']
 }

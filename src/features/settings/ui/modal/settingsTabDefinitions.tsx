@@ -27,7 +27,7 @@ export const SETTINGS_SIDEBAR_GROUP_ORDER = [
   'app'
 ] as const
 
-export type SettingsTabGroup = (typeof SETTINGS_SIDEBAR_GROUP_ORDER)[number]
+type SettingsTabGroup = (typeof SETTINGS_SIDEBAR_GROUP_ORDER)[number]
 
 interface SettingsTabMeta {
   id: string
@@ -214,10 +214,6 @@ export interface SettingsSidebarSection {
 }
 
 export const SETTINGS_MODAL_MAIN_PANEL_ID = 'settings-modal-main-panel'
-
-export function settingsTabButtonId(tabId: SettingsTabId): string {
-  return `settings-tab-${tabId}`
-}
 
 export function toSettingsTabId(value?: string): SettingsTabId | null {
   const matchedTab = SETTINGS_TABS.find((tab) => tab.id === value)

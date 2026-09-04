@@ -71,20 +71,8 @@
   box-shadow: var(--shadow-ambient-sm);
 }
 
-.glass-tier-card {
-  border-radius: var(--radius-xl);
-}
-
-.glass-tier-toolbar {
-  border-radius: var(--radius-lg);
-}
-
 .glass-tier-control {
   border-radius: var(--radius-full);
-}
-
-.glass-tier-tabstrip {
-  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
 }
 
 /* Panel Containers */

@@ -6,7 +6,7 @@ import { normalizeToMarkdown } from '../lib/markdownNormalizer'
 import type { OcrConfig, OcrPageResult, OcrProvider, OcrProviderCapabilities } from '../types'
 import { getSensitivityPreset, OCR_ENGINE_VERSION, OcrError } from '../types'
 
-export const NATIVE_TEXT_ENGINE_NAME = 'native-text' as const
+const NATIVE_TEXT_ENGINE_NAME = 'native-text' as const
 
 function isNativeTextUsable(raw: string | null, sensitivity: OcrConfig['sensitivity']): boolean {
   if (!raw) return false

@@ -1,12 +1,15 @@
 import { Button } from '@app/components/ui/button'
 
+import type { TFunction } from 'i18next'
 import { Check, Loader2, Trash2 } from 'lucide-react'
 import { memo } from 'react'
 
+import { formatTimeAgo } from '../storage/storageUtils'
 import AboutActionCard from './AboutActionCard'
 
 interface CacheControlProps {
-  t: (key: string) => string
+  t: TFunction
+  language: string
   handleClearCache: () => void
   isClearing: boolean
   isClearSuccess: boolean
@@ -16,20 +19,10 @@ interface CacheControlProps {
   lastCleanupTime?: number | null
 }
 
-function formatTimeAgo(timestamp: number): string {
-  const diff = Date.now() - timestamp
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
-}
-
 const CacheControl = memo(
   ({
     t,
+    language,
     handleClearCache,
     isClearing,
     isClearSuccess,
@@ -39,7 +32,7 @@ const CacheControl = memo(
     lastCleanupTime
   }: CacheControlProps) => {
     const lastCleanupText = lastCleanupTime
-      ? t('cache_last_cleanup').replace('{{time}}', formatTimeAgo(lastCleanupTime))
+      ? t('cache_last_cleanup', { time: formatTimeAgo(lastCleanupTime, language) })
       : null
 
     const description = cacheSize

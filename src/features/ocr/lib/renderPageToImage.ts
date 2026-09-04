@@ -4,58 +4,21 @@ import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 import type { OcrQualityPreset } from '../types'
 import { getRenderPreset, OCR_DEFAULT_SCALE, OCR_MAX_PIXELS } from '../types'
+import { getActivePdfDocument } from './activePdfDocumentRegistry'
+
+// Backward-compatible re-exports: registry lives in
+// `./activePdfDocumentRegistry`; existing importers keep working.
+export type { ActivePdfDocument } from './activePdfDocumentRegistry'
+export {
+  clearActivePdfDocument,
+  getActivePdfDocumentFingerprint,
+  setActivePdfDocument
+} from './activePdfDocumentRegistry'
 
 export interface RenderOptions {
   scale?: number
   maxPixels?: number
   quality?: OcrQualityPreset
-}
-
-/**
- * Active PDFDocumentProxy registry — avoids reloading the PDF for each OCR job.
- * Viewer sets the active document on load; OCR reuses it if fingerprint matches.
- */
-let activePdfDocument: {
-  fingerprint: string
-  getPage: (n: number) => Promise<{
-    getViewport: (o: { scale: number }) => { width: number; height: number }
-    render: (o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => {
-      promise: Promise<void>
-      cancel?: () => void
-    }
-  }>
-  destroy: () => void
-} | null = null
-let activePdfUrl: string | null = null
-
-export function setActivePdfDocument(
-  doc: typeof activePdfDocument,
-  pdfUrl: string | null,
-  fingerprint?: string | null
-): void {
-  activePdfDocument = doc
-  activePdfUrl = pdfUrl ?? null
-  // Prefer fingerprint from doc if available
-  if (doc && fingerprint) {
-    try {
-      ;(doc as unknown as Record<string, unknown>).fingerprint = fingerprint
-    } catch {}
-  }
-}
-
-export function clearActivePdfDocument(): void {
-  activePdfDocument = null
-  activePdfUrl = null
-}
-
-export function getActivePdfDocumentFingerprint(): string | null {
-  if (!activePdfDocument) return null
-  const anyDoc = activePdfDocument as unknown as Record<string, unknown>
-  const fp = anyDoc.fingerprint ?? (anyDoc.fingerprints as string[] | undefined)?.[0]
-  if (typeof fp === 'string' && fp.length > 0) return fp
-  const fingerprints = anyDoc.fingerprints as string[] | undefined
-  if (fingerprints && fingerprints[0]) return fingerprints[0]
-  return null
 }
 
 /**
@@ -202,8 +165,9 @@ async function renderWithPdfJs(
   let pdf: any = null
   let shouldDestroy = false
 
-  if (activePdfDocument && activePdfUrl === pdfUrl) {
-    pdf = activePdfDocument as unknown as never
+  const reusedDocument = getActivePdfDocument(pdfUrl)
+  if (reusedDocument) {
+    pdf = reusedDocument as unknown as never
   } else {
     try {
       const pdfjs = await import('pdfjs-dist')
@@ -236,7 +200,6 @@ async function renderWithPdfJs(
   }
   if (signal?.aborted) return null
   if (signal) {
-    if (signal.aborted) return null
     signal.addEventListener('abort', onAbort, { once: true })
   }
 

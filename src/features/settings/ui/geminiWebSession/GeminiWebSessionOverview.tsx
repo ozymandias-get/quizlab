@@ -4,6 +4,7 @@ import { Button } from '@app/components/ui/button'
 import { SurfaceCard } from '@shared/ui/components/primitives'
 import { CheckIcon, GeminiIcon, LoaderIcon, RefreshIcon, XIcon } from '@ui/components/Icons'
 
+import i18next from 'i18next'
 import { motion } from 'motion/react'
 import { memo, useCallback } from 'react'
 
@@ -62,13 +63,13 @@ function GeminiWebSessionOverview({
 
   const handleWizardInstall = useCallback(async () => {
     const result = await installExtensionMutation()
-    return result ?? { success: false, error: 'Unknown error' }
-  }, [installExtensionMutation])
+    return result ?? { success: false, error: t('error_unknown_error') }
+  }, [installExtensionMutation, t])
 
   const handleWizardRemove = useCallback(async () => {
     const result = await removeExtensionMutation()
-    return result ?? { success: false, error: 'Unknown error' }
-  }, [removeExtensionMutation])
+    return result ?? { success: false, error: t('error_unknown_error') }
+  }, [removeExtensionMutation, t])
 
   return (
     <motion.div
@@ -106,12 +107,18 @@ function GeminiWebSessionOverview({
                 </div>
                 {status.lastCheckAt && (
                   <div className="text-muted-foreground mt-1">
-                    {t('gws_last_check')}: {new Date(status.lastCheckAt).toLocaleString()}
+                    {t('gws_last_check')}:{' '}
+                    {new Date(status.lastCheckAt).toLocaleString(
+                      i18next.language === 'tr' ? 'tr-TR' : 'en-US'
+                    )}
                   </div>
                 )}
                 {status.lastRefreshedAt && (
                   <div className="text-muted-foreground mt-1">
-                    {t('gws_last_refreshed')}: {new Date(status.lastRefreshedAt).toLocaleString()}
+                    {t('gws_last_refreshed')}:{' '}
+                    {new Date(status.lastRefreshedAt).toLocaleString(
+                      i18next.language === 'tr' ? 'tr-TR' : 'en-US'
+                    )}
                   </div>
                 )}
                 {refreshReasonText && (

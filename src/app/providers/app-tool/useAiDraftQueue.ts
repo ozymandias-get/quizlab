@@ -76,10 +76,21 @@ export function useAiDraftQueue(onDrop?: () => void) {
           for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i)
           blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }))
         } else {
-          void fetch(imageUri)
-            .then((res) => res.blob())
-            .then((blob) => {
-              const url = URL.createObjectURL(blob)
+          // Large captures: decode locally instead of fetch(data:) — fetch is
+          // blocked by connect-src (no data: source) under Electron's CSP.
+          // Async via microtask to avoid blocking the queue update on huge images.
+          void Promise.resolve()
+            .then(() => {
+              const largeBase64 = imageUri.split(',')[1] ?? ''
+              const largeMimeMatch = imageUri.match(/data:([^;]+);/)
+              const largeMime = largeMimeMatch?.[1] ?? 'image/png'
+              const largeBinary = atob(largeBase64)
+              const largeLen = largeBinary.length
+              const largeBytes = new Uint8Array(largeLen)
+              for (let i = 0; i < largeLen; i++) largeBytes[i] = largeBinary.charCodeAt(i)
+              return URL.createObjectURL(new Blob([largeBytes], { type: largeMime }))
+            })
+            .then((url) => {
               setPendingAiItems((current) =>
                 current.map((item) =>
                   item.type === 'image' && item.dataUrl === imageUri

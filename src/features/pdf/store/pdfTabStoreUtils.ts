@@ -41,7 +41,7 @@ export interface PdfTabState {
   activePdfTabId: string
 }
 
-export interface PdfTabActions {
+interface PdfTabActions {
   openPdfInTab: (file: PdfFile) => PdfTab
   setActivePdfTab: (tabId: string) => void
   closePdfTab: (tabId: string) => void

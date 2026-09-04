@@ -157,7 +157,3 @@ export function findPageCanvas(currentPage: number): HTMLCanvasElement | null {
   }
   return null
 }
-
-export function clearFindPageCanvasCache(): void {
-  canvasCache = null
-}

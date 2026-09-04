@@ -181,7 +181,7 @@ export async function executeImageSendPipeline(
       const webContentsId = webview.getWebContentsId()
       if (webContentsId) {
         const result = webview.pasteNative(webContentsId)
-        pasteSuccess = typeof result === 'boolean' ? result : await result
+        pasteSuccess = await result
       }
     } catch (err) {
       reportSuppressedError('imageSend.nativePaste', { cause: err })
