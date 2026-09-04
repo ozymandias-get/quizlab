@@ -216,7 +216,7 @@ jobs:
 
             ### Download
 
-            **Windows:** `QuizlabReader-Setup-*.exe` — run the installer.
+            **Windows:** `QuizLab-Setup-*-x64.exe` — run the installer (per-user, no admin required).
 
             **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
 

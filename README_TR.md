@@ -202,11 +202,11 @@ Kapsamlı bir [terminoloji standardı](docs/TERMINOLOGY.md), uygulama genelinde 
 
 Platformunuza uygun en son yükleyiciyi [Sürümler sayfasından](https://github.com/ozymandias-get/quizlab/releases) indirin:
 
-| Platform   | Format                                               |
-| ---------- | ---------------------------------------------------- |
-| 🪟 Windows | `QuizlabReader-Setup-<version>.exe` (NSIS yükleyici) |
-| 🍏 macOS   | `QuizlabReader-<version>.dmg`                        |
-| 🐧 Linux   | `QuizlabReader-<version>.AppImage` veya `.deb`       |
+| Platform   | Format                                                               |
+| ---------- | -------------------------------------------------------------------- |
+| 🪟 Windows | `QuizLab-Setup-<version>-x64.exe` (NSIS yükleyici, kullanıcı düzeyi) |
+| 🍏 macOS   | `QuizlabReader-<version>.dmg`                                        |
+| 🐧 Linux   | `QuizlabReader-<version>.AppImage` veya `.deb`                       |
 
 Yükleyici, isteğe bağlı olarak Google oturum köprüsü eklentisi için bir Chrome Native Messaging Sunucusu kaydeder.
 
