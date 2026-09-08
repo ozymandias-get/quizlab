@@ -46,6 +46,7 @@ vi.mock('@features/ai/store/apiChatSessionUtils', async () => {
 import type { ApiChatMessage } from '@shared-core/types'
 
 import {
+  sendApiChatMessage,
   useEditAndRegenerateMutation,
   useRegenerateMutation
 } from '@features/ai/queries/useSendMessageMutation'
@@ -298,5 +299,153 @@ describe('useEditAndRegenerateMutation', () => {
     })
 
     expect(useChatUiStore.getState().isStreamingByTab['tab1']).toBe(false)
+  })
+})
+
+describe('chat send lock (shared by send, regenerate and edit)', () => {
+  let queryClient: QueryClient
+
+  const emptyUiState = (sessionId: string) => ({
+    activeSessionIdByTab: { tab1: sessionId },
+    inputValueByTab: {},
+    attachmentsByTab: {},
+    selectedModelByTab: {},
+    activeProviderByTab: {},
+    isStreamingByTab: {}
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetChatUiStore()
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+    })
+
+    mockAddMessageToSession.mockImplementation(
+      (sessions: ChatSession[], sessionId: string, message: ApiChatMessage) =>
+        sessions.map((s) =>
+          s.id === sessionId
+            ? { ...s, messages: [...s.messages, message], updatedAt: Date.now() }
+            : s
+        )
+    )
+    mockBuildCombinedPrompt.mockReturnValue('combined prompt')
+  })
+
+  it('rejects a second regenerate while one is in flight, then allows a later one', async () => {
+    useChatUiStore.setState(emptyUiState('session-lock'))
+
+    const messages: ApiChatMessage[] = [
+      { id: 'u1', role: 'user', content: 'Q', timestamp: 1000 },
+      { id: 'a1', role: 'assistant', content: 'A', timestamp: 2000 }
+    ]
+    queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
+      mockSession({ id: 'session-lock', messages })
+    ])
+
+    let resolveFirst: ((msg: ApiChatMessage) => void) | undefined
+    mockSendApiChatRequest.mockImplementationOnce(
+      () =>
+        new Promise<ApiChatMessage>((resolve) => {
+          resolveFirst = resolve
+        })
+    )
+
+    const { result } = renderHook(() => useRegenerateMutation(), {
+      wrapper: createWrapper(queryClient)
+    })
+
+    let first: Promise<unknown> | undefined
+    act(() => {
+      first = result.current.mutateAsync({ tabId: 'tab1', messages })
+    })
+    await act(async () => {})
+
+    await expect(result.current.mutateAsync({ tabId: 'tab1', messages })).rejects.toThrow(
+      'Send in progress'
+    )
+    expect(mockSendApiChatRequest).toHaveBeenCalledTimes(1)
+
+    mockSendApiChatRequest.mockResolvedValue(mockAssistantMessage({ content: 'late reply' }))
+    await act(async () => {
+      resolveFirst?.(mockAssistantMessage({ content: 'first reply' }))
+      await first
+    })
+
+    await act(async () => {
+      const res = await result.current.mutateAsync({ tabId: 'tab1', messages })
+      expect(res.reply?.content).toBe('late reply')
+    })
+  })
+
+  it('shares the lock between plain send and regenerate on the same tab', async () => {
+    useChatUiStore.setState(emptyUiState('session-shared'))
+
+    const messages: ApiChatMessage[] = [{ id: 'u1', role: 'user', content: 'Q', timestamp: 1000 }]
+    queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
+      mockSession({ id: 'session-shared', messages })
+    ])
+
+    let resolveSend: ((msg: ApiChatMessage) => void) | undefined
+    mockSendApiChatRequest.mockImplementationOnce(
+      () =>
+        new Promise<ApiChatMessage>((resolve) => {
+          resolveSend = resolve
+        })
+    )
+
+    let sendPromise: Promise<unknown> | undefined
+    act(() => {
+      sendPromise = sendApiChatMessage(queryClient, { tabId: 'tab1', text: 'hi', images: [] })
+    })
+    await act(async () => {})
+
+    const { result } = renderHook(() => useRegenerateMutation(), {
+      wrapper: createWrapper(queryClient)
+    })
+    await expect(result.current.mutateAsync({ tabId: 'tab1', messages })).rejects.toThrow(
+      'Send in progress'
+    )
+
+    mockSendApiChatRequest.mockResolvedValue(mockAssistantMessage({ content: 'send reply' }))
+    await act(async () => {
+      resolveSend?.(mockAssistantMessage({ content: 'send reply' }))
+      await sendPromise
+    })
+  })
+
+  it('does not deadlock the tab when edit validation throws before sending', async () => {
+    useChatUiStore.setState(emptyUiState('session-deadlock'))
+
+    const messages: ApiChatMessage[] = [{ id: 'u1', role: 'user', content: 'Q', timestamp: 1000 }]
+    queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
+      mockSession({ id: 'session-deadlock', messages })
+    ])
+
+    const { result } = renderHook(() => useEditAndRegenerateMutation(), {
+      wrapper: createWrapper(queryClient)
+    })
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          tabId: 'tab1',
+          messages,
+          messageId: 'stale-id',
+          newContent: 'Edited'
+        })
+      ).rejects.toThrow('Message not found')
+    })
+
+    // The failed edit must have released the lock: a plain send works.
+    mockSendApiChatRequest.mockResolvedValue(mockAssistantMessage({ content: 'after failed edit' }))
+    await act(async () => {
+      const res = await sendApiChatMessage(queryClient, {
+        tabId: 'tab1',
+        text: 'hi again',
+        images: []
+      })
+      expect(res.success).toBe(true)
+    })
   })
 })

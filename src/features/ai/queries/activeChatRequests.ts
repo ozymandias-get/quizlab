@@ -23,3 +23,28 @@ export function endChatRequest(tabId: string, requestId: string): void {
 export function getActiveChatRequestId(tabId: string): string | undefined {
   return activeRequestIdsByTab.get(tabId)
 }
+
+/**
+ * Serializes concurrent sends per tab: a second send/regenerate/edit would
+ * read-modify-write the same session concurrently and corrupt the transcript
+ * order. Previously only the plain send path held this lock, so a rapid
+ * Regenerate (or Send+Regenerate) on the same tab could run two requests in
+ * parallel with last-write-wins on the reply.
+ */
+const inFlightSendsByTab = new Set<string>()
+
+/**
+ * Acquires the per-tab send lock. Returns true when acquired, false when
+ * another send/regenerate/edit is already in flight for the tab.
+ */
+export function acquireChatSendLock(tabId: string): boolean {
+  if (inFlightSendsByTab.has(tabId)) {
+    return false
+  }
+  inFlightSendsByTab.add(tabId)
+  return true
+}
+
+export function releaseChatSendLock(tabId: string): void {
+  inFlightSendsByTab.delete(tabId)
+}

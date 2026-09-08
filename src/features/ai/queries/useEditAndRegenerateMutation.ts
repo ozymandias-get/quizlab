@@ -12,7 +12,12 @@ import {
 } from '../api/sessions.api'
 import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
-import { beginChatRequest, endChatRequest } from './activeChatRequests'
+import {
+  acquireChatSendLock,
+  beginChatRequest,
+  endChatRequest,
+  releaseChatSendLock
+} from './activeChatRequests'
 import {
   type EditAndRegenerateParams,
   getMessagesFromSessions,
@@ -46,77 +51,93 @@ export function useEditAndRegenerateMutation() {
       const msgIndex = session.messages.findIndex((m) => m.id === messageId)
       if (msgIndex === -1) throw new Error('Message not found')
 
-      const truncatedMessages = session.messages.slice(0, msgIndex + 1)
-      truncatedMessages[msgIndex] = {
-        ...truncatedMessages[msgIndex],
-        content: newContent,
-        timestamp: Date.now()
+      // Same per-tab send lock as sends/regenerates (see useRegenerateMutation).
+      // Acquired only after the read-only validation above, and everything
+      // after acquisition runs inside try/finally so a throw can never leak
+      // a permanently locked tab.
+      if (!acquireChatSendLock(tabId)) {
+        throw new Error('Send in progress')
       }
 
-      const sessionsWithEdit = prev.map((s) =>
-        s.id === activeSessionId ? { ...s, messages: truncatedMessages, updatedAt: Date.now() } : s
-      )
-      persistSessions(sessionsWithEdit)
-      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithEdit)
-      queryClient.setQueryData(QUERY_KEYS.AI.MESSAGES(activeSessionId), truncatedMessages)
-
-      useChatUiStore.getState().setStreaming(tabId, true)
-      const requestId = beginChatRequest(tabId)
-
-      const combinedPrompt = buildCombinedPrompt({
-        memoryPrompt: memoryPrompt || '',
-        characterPrompt: characterPrompt || '',
-        generalPrompt: generalPrompt || ''
-      })
-
+      let requestId: string | undefined
       try {
-        const reply = await sendApiChatRequest(
-          truncatedMessages,
-          model || undefined,
-          combinedPrompt || undefined,
-          providerId || undefined,
-          requestId
-        )
-
-        if (!reply) {
-          throw new Error('Empty reply')
+        const truncatedMessages = session.messages.slice(0, msgIndex + 1)
+        truncatedMessages[msgIndex] = {
+          ...truncatedMessages[msgIndex],
+          content: newContent,
+          timestamp: Date.now()
         }
 
-        const sessionsWithReply = addMessageToSession(
-          queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || sessionsWithEdit,
-          activeSessionId,
-          reply
+        const sessionsWithEdit = prev.map((s) =>
+          s.id === activeSessionId
+            ? { ...s, messages: truncatedMessages, updatedAt: Date.now() }
+            : s
         )
-        persistSessions(sessionsWithReply)
-        queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithReply)
-        queryClient.setQueryData(
-          QUERY_KEYS.AI.MESSAGES(activeSessionId),
-          getMessagesFromSessions(sessionsWithReply, activeSessionId)
-        )
+        persistSessions(sessionsWithEdit)
+        queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithEdit)
+        queryClient.setQueryData(QUERY_KEYS.AI.MESSAGES(activeSessionId), truncatedMessages)
 
-        return { reply, sessionId: activeSessionId }
-      } catch (err) {
-        // A user-initiated cancel (Stop button) must not write an error bubble.
-        if (!isCancelledError(err)) {
-          const errorReply = buildErrorReply(err)
-          const sessionsWithError = addMessageToSession(
+        useChatUiStore.getState().setStreaming(tabId, true)
+        requestId = beginChatRequest(tabId)
+
+        const combinedPrompt = buildCombinedPrompt({
+          memoryPrompt: memoryPrompt || '',
+          characterPrompt: characterPrompt || '',
+          generalPrompt: generalPrompt || ''
+        })
+
+        try {
+          const reply = await sendApiChatRequest(
+            truncatedMessages,
+            model || undefined,
+            combinedPrompt || undefined,
+            providerId || undefined,
+            requestId
+          )
+
+          if (!reply) {
+            throw new Error('Empty reply')
+          }
+
+          const sessionsWithReply = addMessageToSession(
             queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || sessionsWithEdit,
             activeSessionId,
-            errorReply
+            reply
           )
-          persistSessions(sessionsWithError)
-          queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithError)
+          persistSessions(sessionsWithReply)
+          queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithReply)
           queryClient.setQueryData(
             QUERY_KEYS.AI.MESSAGES(activeSessionId),
-            getMessagesFromSessions(sessionsWithError, activeSessionId)
+            getMessagesFromSessions(sessionsWithReply, activeSessionId)
           )
 
-          return { reply: errorReply, sessionId: activeSessionId }
-        }
+          return { reply, sessionId: activeSessionId }
+        } catch (err) {
+          // A user-initiated cancel (Stop button) must not write an error bubble.
+          if (!isCancelledError(err)) {
+            const errorReply = buildErrorReply(err)
+            const sessionsWithError = addMessageToSession(
+              queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) || sessionsWithEdit,
+              activeSessionId,
+              errorReply
+            )
+            persistSessions(sessionsWithError)
+            queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithError)
+            queryClient.setQueryData(
+              QUERY_KEYS.AI.MESSAGES(activeSessionId),
+              getMessagesFromSessions(sessionsWithError, activeSessionId)
+            )
 
-        return { reply: null, sessionId: activeSessionId }
+            return { reply: errorReply, sessionId: activeSessionId }
+          }
+
+          return { reply: null, sessionId: activeSessionId }
+        }
       } finally {
-        endChatRequest(tabId, requestId)
+        if (requestId !== undefined) {
+          endChatRequest(tabId, requestId)
+        }
+        releaseChatSendLock(tabId)
         useChatUiStore.getState().setStreaming(tabId, false)
         useChatUiStore.getState().clearStreamingContent(tabId)
       }
