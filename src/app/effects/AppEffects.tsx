@@ -90,9 +90,11 @@ function AppEffects() {
     }
   }, [onboardingDone, startTutorial, markOnboardingDone])
 
-  // Remove legacy `useCustomPdfEngine` key from Custom PDF Viewer experiment
+  // Remove legacy keys from removed experiments/features. `ocr-storage` is
+  // left behind on disks that ran a version with the local OCR integration.
   useEffect(() => {
     removeStorageItem('useCustomPdfEngine')
+    removeStorageItem('ocr-storage')
   }, [])
 
   useEffect(() => {

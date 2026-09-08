@@ -165,6 +165,7 @@ async function renderWithPdfJs(
   if (!pdf) return null
 
   let renderTask: { promise: Promise<void>; cancel?: () => void } | null = null
+  let pageForCleanup: { cleanup?: () => void } | null = null
   const onAbort = () => {
     try {
       renderTask?.cancel?.()
@@ -183,7 +184,9 @@ async function renderWithPdfJs(
         promise: Promise<void>
         cancel?: () => void
       }
+      cleanup?: () => void
     }
+    pageForCleanup = page
     const scale = options.scale
     const maxPixels = options.maxPixels
 
@@ -224,6 +227,14 @@ async function renderWithPdfJs(
     return { blob, blobUrl, width: canvas.width, height: canvas.height }
   } finally {
     if (signal) signal.removeEventListener('abort', onAbort)
+    // Release per-page resources even when the shared document proxy is
+    // reused across captures; otherwise each high-DPI capture accumulates
+    // page-level memory in the live document.
+    if (pageForCleanup) {
+      try {
+        pageForCleanup.cleanup?.()
+      } catch {}
+    }
     if (shouldDestroy && pdf) {
       try {
         ;(pdf as { destroy: () => void }).destroy()
