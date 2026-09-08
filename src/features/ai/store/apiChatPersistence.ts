@@ -74,8 +74,52 @@ function notifyStorageFailure(error: unknown): void {
   }
 }
 
+function mergeSessionsWithStored(incoming: ChatSession[]): ChatSession[] {
+  // Read-modify-write: another window/tab may have persisted sessions after
+  // this tab last loaded. A blind overwrite would silently drop those
+  // (last-write-wins data loss). Merge by session id instead.
+  let stored: ChatSession[] = []
+  try {
+    const raw = getStorageItem(LOCAL_STORAGE_KEY)
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw)
+      if (Array.isArray(parsed)) stored = parsed.filter(isChatSession)
+    }
+  } catch {
+    stored = []
+  }
+  if (stored.length === 0) return incoming
+
+  const incomingById = new Map(incoming.map((s) => [s.id, s]))
+  const storedById = new Map(stored.map((s) => [s.id, s]))
+  const merged: ChatSession[] = []
+
+  for (const [id, inc] of incomingById) {
+    const prev = storedById.get(id)
+    if (!prev) {
+      merged.push(inc)
+      continue
+    }
+    // Same session edited in two tabs: union messages by id so neither
+    // tab's appended messages are lost; newer session fields win.
+    const base = inc.updatedAt >= prev.updatedAt ? inc : prev
+    const other = inc.updatedAt >= prev.updatedAt ? prev : inc
+    const msgById = new Map(other.messages.map((m) => [m.id, m]))
+    for (const m of base.messages) msgById.set(m.id, m)
+    const messages = [...msgById.values()].sort((a, b) => a.timestamp - b.timestamp)
+    merged.push({ ...base, messages, updatedAt: Math.max(inc.updatedAt, prev.updatedAt) })
+    storedById.delete(id)
+  }
+  // Sessions only present in storage (created by the other tab) survive.
+  for (const [, s] of storedById) {
+    if (!incomingById.has(s.id)) merged.push(s)
+  }
+  return merged.sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
 function saveSessionsToStorage(sessions: ChatSession[]) {
-  const serialized = JSON.stringify(sessions)
+  const merged = mergeSessionsWithStored(sessions)
+  const serialized = JSON.stringify(merged)
   // writeStorageItem keeps the raw failure cause so quota errors can be
   // reported with a dedicated message (see notifyStorageFailure).
   const result = writeStorageItem(LOCAL_STORAGE_KEY, serialized)

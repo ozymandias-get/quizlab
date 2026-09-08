@@ -34,6 +34,10 @@ type TesseractLike = {
 let cachedWorker: Awaited<ReturnType<TesseractLike['createWorker']>> | null = null
 let cachedLang: string | null = null
 let idleTimer: ReturnType<typeof setTimeout> | null = null
+// Guards concurrent getOrCreateWorker() calls: without this, two rapid OCR
+// requests both see cachedWorker === null and create duplicate WASM instances
+// (~80-150 MB each), with the loser leaking after the winner overwrites cache.
+let workerInitPromise: Promise<never> | null = null
 
 /**
  * Worker creation attempts. Language-data download (CDN) and WASM init can
@@ -119,14 +123,52 @@ function getLocalCorePath(): string {
   return new URL('tesseract-core', document.baseURI).href
 }
 
-async function getOrCreateWorker(
+/**
+ * `local-ocr://` scheme serving the vendored language data in packaged builds.
+ * Registered by the main process (see `electron/features/ocr/ocrProtocol.ts`).
+ * A fetch-capable scheme is required because the packaged renderer runs on
+ * `file://`, where the Fetch API cannot load files — while the Tesseract
+ * worker downloads its `*.traineddata.gz` with `fetch`.
+ */
+export const OCR_BUNDLED_SCHEME_TESSDATA_URL = 'local-ocr://tessdata'
+
+/**
+ * Packaged (installed from the exe) renderers run on `file://`; dev and web
+ * builds run on `http(s)://`.
+ */
+export function isFileProtocolRenderer(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.location?.protocol === 'file:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Directory holding the vendored `*.traineddata.gz` files
+ * (`src/public/tessdata`, copied next to index.html at build time).
+ */
+export function getBundledTessdataUrl(): string {
+  // Packaged Electron: fetch-capable custom scheme (works offline).
+  if (isFileProtocolRenderer()) return OCR_BUNDLED_SCHEME_TESSDATA_URL
+  // Dev server / http(s) web builds: tessdata shipped next to index.html.
+  return new URL('tessdata', document.baseURI).href.replace(/\/$/, '')
+}
+
+/**
+ * Language-data sources tried in order when creating the worker.
+ * `undefined` keeps tesseract.js's jsDelivr CDN default as a last resort
+ * (e.g. a file is missing from the bundle but network is available).
+ */
+export function getOcrLangPathCandidates(): (string | undefined)[] {
+  const bundled = getBundledTessdataUrl()
+  return bundled ? [bundled, undefined] : [undefined]
+}
+
+async function createWorkerInner(
   lang: string,
   signal?: AbortSignal
 ): Promise<ReturnType<TesseractLike['createWorker']> extends Promise<infer U> ? U : never> {
-  if (cachedWorker && cachedLang === lang) {
-    scheduleIdleDispose()
-    return cachedWorker as never
-  }
   if (cachedWorker) await disposeWorker()
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 
@@ -144,7 +186,7 @@ async function getOrCreateWorker(
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 
   let worker: Awaited<ReturnType<TesseractLike['createWorker']>>
-  const tesseractOpts = {
+  const baseOpts = {
     workerPath: tesseractWorkerPath,
     workerBlobURL: false,
     corePath: getLocalCorePath(),
@@ -152,36 +194,78 @@ async function getOrCreateWorker(
     logger: () => {},
     errorHandler: (e: unknown) => Logger.warn('[OCR:tesseract] worker error', e)
   } as unknown as Record<string, unknown>
+  // Language data sources tried in order: the vendored bundle first (works
+  // offline in packaged builds), the jsDelivr CDN default last. A failed
+  // bundled source must not mask the CDN fallback — and vice versa — so each
+  // source gets its own retry budget instead of one shared loop.
+  const langPathCandidates = getOcrLangPathCandidates()
   let lastError: unknown = null
-  for (let attempt = 1; attempt <= WORKER_CREATE_MAX_ATTEMPTS; attempt++) {
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-    try {
-      worker = await mod.createWorker(lang, 1, tesseractOpts)
-      cachedWorker = worker as never
-      cachedLang = lang
-      scheduleIdleDispose()
-      if (attempt > 1) {
-        Logger.info(`[OCR:tesseract] worker creation succeeded on attempt ${attempt}`)
-      }
-      return worker as never
-    } catch (err) {
-      lastError = err
+  let totalAttempt = 0
+  for (const [sourceIndex, langPath] of langPathCandidates.entries()) {
+    const sourceLabel = langPath ?? '<cdn-default>'
+    const tesseractOpts = langPath === undefined ? baseOpts : { ...baseOpts, langPath }
+    for (let attempt = 1; attempt <= WORKER_CREATE_MAX_ATTEMPTS; attempt++) {
+      totalAttempt += 1
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-      if (attempt < WORKER_CREATE_MAX_ATTEMPTS) {
-        Logger.warn(
-          `[OCR:tesseract] worker creation attempt ${attempt}/${WORKER_CREATE_MAX_ATTEMPTS} failed, retrying`,
-          err
-        )
-        await abortableSleep(WORKER_CREATE_RETRY_DELAYS_MS[attempt - 1] ?? 1000, signal)
+      try {
+        worker = await mod.createWorker(lang, 1, tesseractOpts)
+        cachedWorker = worker as never
+        cachedLang = lang
+        scheduleIdleDispose()
+        if (totalAttempt > 1) {
+          Logger.info(
+            `[OCR:tesseract] worker creation succeeded (source ${sourceLabel}, attempt ${attempt})`
+          )
+        }
+        return worker as never
+      } catch (err) {
+        lastError = err
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+        if (attempt < WORKER_CREATE_MAX_ATTEMPTS) {
+          Logger.warn(
+            `[OCR:tesseract] worker creation via ${sourceLabel} attempt ${attempt}/${WORKER_CREATE_MAX_ATTEMPTS} failed, retrying`,
+            err
+          )
+          await abortableSleep(WORKER_CREATE_RETRY_DELAYS_MS[attempt - 1] ?? 1000, signal)
+        }
       }
+    }
+    if (sourceIndex < langPathCandidates.length - 1) {
+      Logger.warn(
+        `[OCR:tesseract] language source ${sourceLabel} failed after retries, trying next source`
+      )
     }
   }
 
-  Logger.error(
-    '[OCR:tesseract] local worker creation failed after retries — no CDN fallback',
-    lastError
-  )
+  Logger.error('[OCR:tesseract] worker creation failed for all language sources', lastError)
   throw new OcrError('TESSERACT_NOT_AVAILABLE')
+}
+
+async function getOrCreateWorker(
+  lang: string,
+  signal?: AbortSignal
+): Promise<ReturnType<TesseractLike['createWorker']> extends Promise<infer U> ? U : never> {
+  if (cachedWorker && cachedLang === lang) {
+    scheduleIdleDispose()
+    return cachedWorker as never
+  }
+  // Another caller is already creating/disposing — wait for it, then reuse.
+  if (workerInitPromise) {
+    try {
+      await workerInitPromise
+    } catch {}
+    if (cachedWorker && cachedLang === lang) {
+      scheduleIdleDispose()
+      return cachedWorker as never
+    }
+  }
+  const task = createWorkerInner(lang, signal) as unknown as Promise<never>
+  workerInitPromise = task
+  try {
+    return (await task) as never
+  } finally {
+    if (workerInitPromise === task) workerInitPromise = null
+  }
 }
 
 export function createTesseractProvider(): OcrProvider {

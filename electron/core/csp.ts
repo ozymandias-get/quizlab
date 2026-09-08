@@ -15,7 +15,8 @@ export function getStrictCsp(nonce: string): string {
     "worker-src 'self' blob:",
     "img-src 'self' data: blob:",
     // connect-src keeps CDN for optional language data fallback; worker script itself is local (no remote code execution)
-    "connect-src 'self' blob: local-pdf: https://cdn.jsdelivr.net",
+    // local-ocr: serves the vendored Tesseract language data offline in packaged builds (see electron/features/ocr/ocrProtocol.ts)
+    "connect-src 'self' blob: local-pdf: local-ocr: https://cdn.jsdelivr.net",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'"
@@ -32,7 +33,7 @@ export function getDevCsp(): string {
     'child-src blob:',
     "worker-src 'self' blob:",
     "img-src 'self' data: blob:",
-    "connect-src 'self' blob: local-pdf: https://cdn.jsdelivr.net",
+    "connect-src 'self' blob: local-pdf: local-ocr: https://cdn.jsdelivr.net",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'"

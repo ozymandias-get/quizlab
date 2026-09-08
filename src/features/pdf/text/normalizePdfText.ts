@@ -31,6 +31,31 @@ const TURKISH_CORRUPTION_MAP = {
 } as const satisfies Record<string, string>
 
 /**
+ * Typographic ligatures emitted by PDF fonts (pdfjs-dist passes them through
+ * verbatim). NFC does NOT expand compatibility characters, so without this
+ * map "efﬁcient" / "ﬁzyoloji" keep the single U+FB01 glyph and break both
+ * in-app search and AI prompts.
+ */
+const LIGATURE_MAP = {
+  ﬀ: 'ff',
+  ﬁ: 'fi',
+  ﬂ: 'fl',
+  ﬃ: 'ffi',
+  ﬄ: 'ffl',
+  ﬅ: 'st',
+  ﬆ: 'st'
+} as const
+
+const LIGATURE_REGEX = /[ﬀﬁﬂﬃﬄﬅﬆ]/g
+
+function expandLigatures(text: string): string {
+  return text.replaceAll(
+    LIGATURE_REGEX,
+    (match) => LIGATURE_MAP[match as keyof typeof LIGATURE_MAP] || match
+  )
+}
+
+/**
  * Checks whether a string likely contains Turkish text by looking for
  * common Turkish characters (ı, ş, ç, ğ, ü, ö, İ, Ş, Ç, Ğ, Ü, Ö).
  */
@@ -62,9 +87,10 @@ function repairPdfjsTurkishCorruption(text: string): string {
 
 /**
  * Normalizes raw PDF text output: collapses whitespace, fixes line breaks,
- * removes excessive blank lines, applies Unicode NFC normalization to combine
- * decomposed characters, and attempts to repair known pdfjs-dist Turkish
- * character corruption patterns. Shared across all text extraction paths.
+ * removes excessive blank lines, expands typographic ligatures (ﬁ→fi),
+ * applies Unicode NFC normalization to combine decomposed characters, and
+ * attempts to repair known pdfjs-dist Turkish character corruption patterns.
+ * Shared across all text extraction paths.
  */
 export function normalizePdfText(raw: string): string {
   const normalized = raw
@@ -75,10 +101,14 @@ export function normalizePdfText(raw: string): string {
     .replaceAll(/\n{3,}/g, '\n\n')
     .trim()
 
+  // Expand ligatures before NFC: NFC preserves compatibility characters, so
+  // without this "ﬁzyoloji" would keep the single U+FB01 glyph.
+  const deligatured = expandLigatures(normalized)
+
   // NFC normalization combines decomposed characters (e.g., o + combining
   // diaeresis → ö). This fixes characters that pdfjs-dist may have output
   // in NFD form.
-  const nfc = normalized.normalize('NFC')
+  const nfc = deligatured.normalize('NFC')
 
   // Attempt to repair known pdfjs-dist Turkish font encoding corruption.
   return repairPdfjsTurkishCorruption(nfc)

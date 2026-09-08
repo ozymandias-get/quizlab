@@ -180,6 +180,14 @@ export function useWebviewLifecycle({
   const handleRetry = useCallback(() => {
     clearCrashRetryTimeout()
     setError(null)
+    // A crashed renderer often ignores reload() (OOM/GPU kill). Prefer a full
+    // remount via onCrashRecoveryRequested (key={tabId-crashCount}) and only
+    // fall back to reload() when no remount handler is wired.
+    if (onCrashRecoveryRequestedRef.current) {
+      setIsLoading(true)
+      onCrashRecoveryRequestedRef.current()
+      return
+    }
     activeWebviewRef.current?.reload()
   }, [clearCrashRetryTimeout])
 

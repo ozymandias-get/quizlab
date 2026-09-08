@@ -29,10 +29,14 @@ export function processRecentItems(
   sortMode: SortMode,
   language: string
 ) {
-  const query = searchQuery.trim().toLowerCase()
+  // Locale-aware case folding: plain toLowerCase() maps 'I'→'i', which
+  // breaks Turkish filename search (DİYABETİK → dıyabetik). Both sides use
+  // the UI language's locale so TR users get 'I'→'ı' / 'İ'→'i' rules.
+  const locale = language === 'en' ? 'en-US' : 'tr-TR'
+  const query = searchQuery.trim().toLocaleLowerCase(locale)
   const filtered =
     query.length > 0
-      ? recentItems.filter((item) => item.name.toLowerCase().includes(query))
+      ? recentItems.filter((item) => item.name.toLocaleLowerCase(locale).includes(query))
       : recentItems
 
   return filtered.sort((a, b) => {

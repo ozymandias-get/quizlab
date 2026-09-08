@@ -44,6 +44,14 @@ describe('getStrictCsp', () => {
     const scriptSrc = csp.split(';').find((s) => s.trim().startsWith('script-src'))
     expect(scriptSrc).not.toContain("'unsafe-inline'")
   })
+
+  it('allows the vendored OCR language-data scheme in connect-src', () => {
+    const csp = getStrictCsp('abc')
+    const connectSrc = csp.split(';').find((s) => s.trim().startsWith('connect-src'))
+    expect(connectSrc).toContain('local-ocr:')
+    // CDN stays as a last-resort fallback for language data.
+    expect(connectSrc).toContain('https://cdn.jsdelivr.net')
+  })
 })
 
 describe('getDevCsp', () => {
@@ -60,5 +68,11 @@ describe('getDevCsp', () => {
   it('contains frame-src with gemini.google.com', () => {
     const csp = getDevCsp()
     expect(csp).toContain('gemini.google.com')
+  })
+
+  it('allows the vendored OCR language-data scheme in connect-src', () => {
+    const csp = getDevCsp()
+    const connectSrc = csp.split(';').find((s) => s.trim().startsWith('connect-src'))
+    expect(connectSrc).toContain('local-ocr:')
   })
 })

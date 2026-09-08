@@ -8,6 +8,7 @@ import { startCacheScheduler, stopCacheScheduler } from '../core/cacheScheduler.
 import { createIssueLogReport, flushToDisk, initLogger, Logger } from '../core/logger.js'
 import { initUpdater } from '../core/updater.js'
 import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/geminiWebSessionHandlers.js'
+import { registerOcrProtocol, registerOcrScheme } from '../features/ocr/ocrProtocol.js'
 import {
   clearAllPdfPaths,
   registerPdfProtocol,
@@ -50,6 +51,7 @@ if (getProfileName() === 'stable') {
 }
 
 registerPdfScheme()
+registerOcrScheme()
 
 app.commandLine.appendSwitch('enable-gpu-rasterization')
 app.commandLine.appendSwitch('enable-accelerated-2d-canvas')
@@ -88,6 +90,7 @@ async function initializeApp() {
 
   registerPdfProtocol()
   registerPdfProtocolHandlers()
+  registerOcrProtocol()
 
   startPdfCleanupInterval()
 

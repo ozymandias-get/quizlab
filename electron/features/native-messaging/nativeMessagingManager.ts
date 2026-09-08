@@ -290,8 +290,14 @@ export class NativeMessagingManager {
     }
 
     if (this.httpServer) {
-      this.httpServer.close()
+      const server = this.httpServer
       this.httpServer = null
+      try {
+        server.removeAllListeners()
+        server.close()
+      } catch {
+        // close() on an already-closing server must not break dispose()
+      }
     }
     this._connectionStatus = 'disconnected'
     this._waitingSince = null
