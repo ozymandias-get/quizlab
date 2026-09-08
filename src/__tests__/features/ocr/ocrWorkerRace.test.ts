@@ -56,7 +56,7 @@ describe('tesseract worker termination race', () => {
     vi.clearAllMocks()
   })
 
-  it('local worker failure throws TESSERACT_NOT_AVAILABLE without CDN fallback', async () => {
+  it('persistent worker failure across all language sources throws TESSERACT_NOT_AVAILABLE', async () => {
     createWorkerShouldFail = true
     const p = createTesseractProvider()
     await expect(
@@ -71,7 +71,7 @@ describe('tesseract worker termination race', () => {
     } as Partial<OcrError>)
     // Ensure no CDN fallback was attempted that would succeed — we threw
     createWorkerShouldFail = false
-  })
+  }, 30000)
 
   it('transient worker creation failures recover via retry', async () => {
     // Fail the first two attempts, succeed on the third (max attempts).

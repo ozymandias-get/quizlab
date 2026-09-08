@@ -96,5 +96,6 @@ void i18next.use(initReactI18next).init({
     suffix: '}'
   },
   returnObjects: false,
-  returnNull: false
+  returnNull: false,
+  returnEmptyString: false
 })

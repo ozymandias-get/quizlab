@@ -13,8 +13,19 @@ export function parseUrlWithAllowedProtocols(
   rawUrl: string,
   allowedProtocols: readonly string[]
 ): URL | null {
+  if (typeof rawUrl !== 'string') return null
+  // Defense in depth: WHATWG URL strips ASCII tab/LF/CR before parsing, so
+  // "jav\tascript:..." would otherwise normalize to "javascript:..." and rely
+  // solely on the protocol check below. Reject any control/whitespace inside
+  // the scheme portion explicitly so obfuscated schemes never get that far.
+  const trimmed = rawUrl.trim()
+  if (trimmed.length === 0 || trimmed.length > 8192) return null
+
+  if (/[\u0000-\u0020\u007f-\u00a0\u2000-\u200b\u2028\u2029]/.test(trimmed.split(':')[0])) {
+    return null
+  }
   try {
-    const parsed = new URL(rawUrl.trim())
+    const parsed = new URL(trimmed)
     if (!allowedProtocols.includes(parsed.protocol)) return null
     return parsed
   } catch {

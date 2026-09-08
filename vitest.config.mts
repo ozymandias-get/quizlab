@@ -31,6 +31,7 @@ export default defineConfig({
       ['electron/__tests__/features/ai/**', 'node'],
       ['electron/__tests__/features/gemini-web-session/**', 'node'],
       ['electron/__tests__/features/native-messaging/**', 'node'],
+      ['electron/__tests__/features/ocr/**', 'node'],
       ['electron/__tests__/preload/**', 'node']
     ],
     coverage: {

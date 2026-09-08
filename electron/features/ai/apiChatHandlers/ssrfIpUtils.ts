@@ -8,7 +8,14 @@ const PRIVATE_IP_RANGES = [
   { start: '169.254.0.0', end: '169.254.255.255' },
   { start: '0.0.0.0', end: '0.255.255.255' },
   { start: '100.64.0.0', end: '100.127.255.255' },
-  { start: '198.18.0.0', end: '198.19.255.255' }
+  { start: '198.18.0.0', end: '198.19.255.255' },
+  // Documentation / TEST-NET blocks (RFC 5737) — never valid SSRF targets.
+  { start: '192.0.2.0', end: '192.0.2.255' },
+  { start: '198.51.100.0', end: '198.51.100.255' },
+  { start: '203.0.113.0', end: '203.0.113.255' },
+  // Multicast (224.0.0.0/4) + reserved/future use (240.0.0.0/4, incl. broadcast).
+  { start: '224.0.0.0', end: '239.255.255.255' },
+  { start: '240.0.0.0', end: '255.255.255.255' }
 ]
 
 const IPV4_RE = /^(?:\d{1,3}\.){3}\d{1,3}$/
