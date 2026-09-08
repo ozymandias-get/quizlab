@@ -293,10 +293,17 @@ export class NativeMessagingManager {
       const server = this.httpServer
       this.httpServer = null
       try {
-        server.removeAllListeners()
         server.close()
       } catch {
         // close() on an already-closing server must not break dispose()
+      }
+      // Listener cleanup must never skip the close() above: a throwing
+      // removeAllListeners would otherwise leak the server (and break
+      // consumers whose server doubles lack the EventEmitter API).
+      try {
+        server.removeAllListeners()
+      } catch {
+        // Non-EventEmitter server doubles or already-disposed servers.
       }
     }
     this._connectionStatus = 'disconnected'
