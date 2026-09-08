@@ -26,6 +26,7 @@ const mockServerListen = vi.hoisted(() =>
 )
 const mockServerOn = vi.hoisted(() => vi.fn())
 const mockServerClose = vi.hoisted(() => vi.fn())
+const mockServerRemoveAllListeners = vi.hoisted(() => vi.fn())
 const mockServerAddress = vi.hoisted(() =>
   vi.fn(() => ({ port: 51999, address: '127.0.0.1', family: 'IPv4' }))
 )
@@ -33,6 +34,7 @@ const mockServer = {
   listen: mockServerListen,
   on: mockServerOn,
   close: mockServerClose,
+  removeAllListeners: mockServerRemoveAllListeners,
   address: mockServerAddress,
   listening: false
 }
@@ -176,6 +178,7 @@ describe('NativeMessagingManager', () => {
     mockServerListen.mockReset()
     mockServerOn.mockReset()
     mockServerClose.mockReset()
+    mockServerRemoveAllListeners.mockReset()
     mockServerAddress.mockReset()
     mockExecFile.mockReset()
     mockExecFile.mockImplementation(
@@ -404,6 +407,18 @@ describe('NativeMessagingManager', () => {
 
     it('closes the HTTP server, clears interval, sets status to disconnected', () => {
       expect(manager.connectionStatus).toBe('connecting')
+
+      manager.stopServer()
+
+      expect(mockServerClose).toHaveBeenCalledTimes(1)
+      expect(mockServerRemoveAllListeners).toHaveBeenCalledTimes(1)
+      expect(manager.connectionStatus).toBe('disconnected')
+    })
+
+    it('still closes the server when listener cleanup throws', () => {
+      mockServerRemoveAllListeners.mockImplementationOnce(() => {
+        throw new Error('already disposed')
+      })
 
       manager.stopServer()
 
