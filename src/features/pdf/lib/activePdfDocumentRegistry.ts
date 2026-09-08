@@ -1,11 +1,10 @@
 /**
- * Active PDFDocumentProxy registry — avoids reloading the PDF for each OCR job.
- * Viewer sets the active document on load; OCR reuses it if fingerprint matches.
+ * Active PDFDocumentProxy registry — avoids reloading the PDF for each
+ * high-DPI page render (screenshot capture).
  *
- * Extracted from `renderPageToImage.ts`: document registration changes for
- * viewer-lifecycle reasons, while page rendering changes for quality/perf
- * reasons. `renderPageToImage.ts` re-exports the public functions so existing
- * import paths keep working.
+ * Viewer sets the active document on load; render paths reuse it when the
+ * fingerprint matches. Previously lived under the OCR feature; moved here
+ * because the PDF viewer and screenshot capture rely on it independently.
  */
 
 export interface ActivePdfDocument {

@@ -38,7 +38,7 @@ export function usePdfCaptureActions({
       // bağımsız olarak metin ve mikroskop fotoğraflarının kristal netliğinde çıkmasını sağlar.
       if (pdfUrl) {
         try {
-          const { renderPageToImageFallback } = await import('@features/ocr/lib/renderPageToImage')
+          const { renderPageToImageFallback } = await import('@features/pdf/lib/renderPageToImage')
           const rendered = await renderPageToImageFallback(pdfUrl, pageAtCaptureTime, {
             scale: 4.0,
             maxPixels: 20_000_000
@@ -105,7 +105,7 @@ export function usePdfCaptureActions({
         if (pdfUrl) {
           try {
             const { renderPageToImageFallback } =
-              await import('@features/ocr/lib/renderPageToImage')
+              await import('@features/pdf/lib/renderPageToImage')
             const rendered = await renderPageToImageFallback(pdfUrl, pageAtCaptureTime, {
               scale: 2
             })

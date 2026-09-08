@@ -42,7 +42,7 @@ describe('PdfToolbar', () => {
     expect(container.querySelectorAll('.glass-tier-3')).toHaveLength(0)
   })
 
-  it('renders pan mode button next to OCR button and handles toggle', () => {
+  it('renders pan mode button and handles toggle', () => {
     const onTogglePanMode = vi.fn()
     const { getByTestId, queryByLabelText } = render(
       <TooltipProvider>
@@ -71,9 +71,6 @@ describe('PdfToolbar', () => {
     const panButton = getByTestId('pan-mode-button')
     expect(panButton).toBeInTheDocument()
     expect(panButton).toHaveAttribute('aria-pressed', 'false')
-
-    // OCR button should also be present
-    expect(getByTestId('ocr-button')).toBeInTheDocument()
 
     panButton.click()
     expect(onTogglePanMode).toHaveBeenCalledTimes(1)

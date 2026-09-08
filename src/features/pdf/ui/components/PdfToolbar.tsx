@@ -1,9 +1,5 @@
 import type { PdfFile } from '@shared-core/types'
 
-import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
-import { useOcrStore } from '@features/ocr/store/useOcrStore'
-import OcrButton from '@features/ocr/ui/OcrButton'
-
 import { IconButton } from '@app/components/ui/icon-button'
 import { WithTooltip } from '@app/components/ui/tooltip'
 import { cn } from '@shared/lib/uiUtils'
@@ -21,7 +17,6 @@ import PdfZoomControls, { type CurrentScaleComponent, type ZoomComponent } from 
 
 interface PdfToolbarProps {
   pdfFile: PdfFile | null
-  pdfUrl?: string | null
   onStartScreenshot?: () => void
   onFullPageScreenshot?: () => void
   autoSend?: boolean
@@ -43,7 +38,6 @@ interface PdfToolbarProps {
 
 function PdfToolbar({
   pdfFile,
-  pdfUrl,
   panMode,
   onTogglePanMode,
   currentPage,
@@ -131,34 +125,6 @@ function PdfToolbar({
     [scheduleHighlight]
   )
 
-  // OCR handler: on-demand page-level OCR — always opens panel, even on error
-  const { processPage } = useOcrActions()
-  const ocrStatus = useOcrStore((s) => s.status)
-  const openOcrPanel = useOcrStore((s) => s.openPanel)
-  const isOcrLoading =
-    ocrStatus === 'rendering-page' ||
-    ocrStatus === 'initializing-engine' ||
-    ocrStatus === 'processing'
-  const handleOcrPage = useCallback(() => {
-    if (!pdfFile) {
-      openOcrPanel()
-      return
-    }
-    // If already loading this exact page, just ensure panel is visible
-    if (isOcrLoading && useOcrStore.getState().currentPage === currentPage) {
-      openOcrPanel()
-      return
-    }
-    openOcrPanel()
-    void processPage({
-      pageNumber: currentPage,
-      pdfFile,
-      pdfUrl: pdfUrl ?? pdfFile.streamUrl ?? null
-    }).catch(() => {
-      // panel already shows error state via store
-    })
-  }, [pdfFile, pdfUrl, currentPage, isOcrLoading, processPage, openOcrPanel])
-
   return (
     <motion.div
       initial={{ y: 10, opacity: 0 }}
@@ -188,9 +154,6 @@ function PdfToolbar({
               <Hand className="size-3.5" aria-hidden="true" />
             </IconButton>
           </WithTooltip>
-
-          {/* OCR — always visible, disabled when no PDF, amber highlight */}
-          <OcrButton onClick={handleOcrPage} currentPage={currentPage} disabled={!pdfFile} />
         </ToolbarGroup>
       </div>
 
