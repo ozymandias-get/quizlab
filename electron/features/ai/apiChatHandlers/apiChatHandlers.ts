@@ -124,6 +124,11 @@ export function registerApiChatHandlers() {
 
       const resolvedRequestId = requestId ?? `auto-${Date.now()}-${++autoRequestIdCounter}`
       const controller = new AbortController()
+      if (activeRequestControllers.has(resolvedRequestId)) {
+        // Same requestId re-sent (renderer retry/double-submit): drop the
+        // orphaned controller so cancel/timeout accounting stays exact.
+        activeRequestControllers.get(resolvedRequestId)?.abort()
+      }
       activeRequestControllers.set(resolvedRequestId, controller)
 
       const requestTimeout = provider.requestTimeout ?? 60000
@@ -157,9 +162,11 @@ export function registerApiChatHandlers() {
                 .join('\n\n')
         const systemMessages = systemContent ? [{ role: 'system', content: systemContent }] : []
 
-        const safeMessages = messages
-          .map((m) => sanitizeChatMessage(m))
-          .filter((m): m is NonNullable<ReturnType<typeof sanitizeChatMessage>> => m !== null)
+        const safeMessages = Array.isArray(messages)
+          ? messages
+              .map((m) => sanitizeChatMessage(m))
+              .filter((m): m is NonNullable<ReturnType<typeof sanitizeChatMessage>> => m !== null)
+          : []
 
         if (safeMessages.length === 0) {
           return failure('invalid_input', 'No valid user messages to send')
@@ -207,12 +214,28 @@ export function registerApiChatHandlers() {
         )
 
         if (!response.ok) {
-          const errorText = await response.text()
-          return failure('internal_error', `API error: ${response.status} ${errorText}`)
+          const errorText = (await response.text()).slice(0, 500)
+          if (response.status === 401 || response.status === 403) {
+            return failure(
+              'unauthorized',
+              `API error ${response.status}: invalid or missing API key. ${errorText}`.trim()
+            )
+          }
+          if (response.status === 429) {
+            return failure(
+              'internal_error',
+              `API rate limit exceeded (429). Please wait and retry. ${errorText}`.trim()
+            )
+          }
+          return failure('internal_error', `API error: ${response.status} ${errorText}`.trim())
         }
 
         const data = await response.json()
-        const reply = data.choices?.[0]?.message?.content || ''
+        const replyContent = data.choices?.[0]?.message?.content
+        if (typeof replyContent !== 'string' || replyContent.length === 0) {
+          return failure('internal_error', 'Invalid API response: missing message content')
+        }
+        const reply = replyContent
 
         return success({
           id: `msg-${Date.now()}`,

@@ -20,6 +20,13 @@ vi.mock('electron', () => ({
 
 type ExposedApi = {
   clearAiModelData: (input: { id: string; partition?: string }) => Promise<boolean>
+  sendApiChatRequest: (
+    messages: unknown[],
+    selectedModel?: string,
+    generalPrompt?: string,
+    providerId?: string,
+    requestId?: string
+  ) => Promise<unknown>
   automation: {
     generateAutoSendScript: (
       config: Record<string, unknown>,
@@ -191,5 +198,25 @@ describe('preload electronAPI', () => {
     const result = await (automation.generateAutoSendScript as Function)(config, 'small text', true)
     expect(result).toBe('script-result')
     expect(invoke).toHaveBeenCalled()
+  })
+
+  it('lets chat sends with large image data URLs through (main enforces 20MB)', async () => {
+    invoke.mockResolvedValue({ ok: true, data: { id: 'msg-1' } })
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+
+    // A 4K capture data URL easily exceeds the generic 512KB IPC cap.
+    const bigImage = `data:image/png;base64,${'a'.repeat(600_000)}`
+    const messages = [{ role: 'user', content: 'describe', images: [bigImage] }]
+
+    await api.sendApiChatRequest(messages)
+    expect(invoke).toHaveBeenCalledWith(
+      IPC_CHANNELS.SEND_API_CHAT_REQUEST,
+      messages,
+      undefined,
+      undefined,
+      undefined,
+      undefined
+    )
   })
 })

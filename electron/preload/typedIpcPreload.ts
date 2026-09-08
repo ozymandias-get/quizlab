@@ -12,8 +12,16 @@ import type {
 const MAX_IPC_ARG_SIZE = 1024 * 512
 const MAX_IMAGE_IPC_ARG_SIZE = 50 * 1024 * 1024 // 50 MB for image data
 
+// Channels that legitimately carry image data URLs (chat attachments travel
+// as data URLs inside the messages payload; the main process enforces its
+// own 20 MB body cap, so this preload cap only needs to not be tighter).
+const LARGE_PAYLOAD_CHANNELS: ReadonlySet<string> = new Set([
+  IPC_CHANNELS.COPY_IMAGE,
+  IPC_CHANNELS.SEND_API_CHAT_REQUEST
+])
+
 function safeInvoke(channel: string, ...args: unknown[]): Promise<unknown> {
-  const maxLimit = channel === IPC_CHANNELS.COPY_IMAGE ? MAX_IMAGE_IPC_ARG_SIZE : MAX_IPC_ARG_SIZE
+  const maxLimit = LARGE_PAYLOAD_CHANNELS.has(channel) ? MAX_IMAGE_IPC_ARG_SIZE : MAX_IPC_ARG_SIZE
 
   let totalSize = 0
   for (const arg of args) {

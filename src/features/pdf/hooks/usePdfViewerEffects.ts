@@ -106,14 +106,28 @@ export function usePdfViewerInitialPageResume(input: InitialPageResumeInput) {
     // zoomToRef now runs through a rAF-coalesced channel, so the zoom is
     // executed one frame later. Wait for it to commit before jumping so the
     // navigation measures the post-zoom layout (three frames total).
-    const rafId = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    // All frame ids are tracked: cancelling only the outer one would still
+    // let an already-fired frame schedule (and run) the jump after unmount.
+    const frameIds: number[] = []
+    let cancelled = false
+    const queueFrame = (fn: () => void) => {
+      frameIds.push(
         requestAnimationFrame(() => {
+          if (!cancelled) fn()
+        })
+      )
+    }
+    queueFrame(() => {
+      queueFrame(() => {
+        queueFrame(() => {
           jumpToPageFromNav(initialPage)
         })
       })
     })
-    return () => cancelAnimationFrame(rafId)
+    return () => {
+      cancelled = true
+      for (const id of frameIds) cancelAnimationFrame(id)
+    }
   }, [
     isDocumentReady,
     fitScale,
