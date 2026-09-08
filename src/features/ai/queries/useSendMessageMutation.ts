@@ -14,7 +14,12 @@ import {
 } from '../api/sessions.api'
 import type { ChatSession } from '../store/apiChatSessionUtils'
 import { useChatUiStore } from '../store/chatUiStore'
-import { beginChatRequest, endChatRequest } from './activeChatRequests'
+import {
+  acquireChatSendLock,
+  beginChatRequest,
+  endChatRequest,
+  releaseChatSendLock
+} from './activeChatRequests'
 import {
   getMessagesFromSessions,
   getUserMessage,
@@ -22,11 +27,6 @@ import {
   type SendApiChatResult,
   type SendMessageParams
 } from './sendMessageUtils'
-
-// Serializes concurrent sends per tab: the previous send's streaming flag is
-// still true until its reply lands, so a second send would read-modify-write
-// the same session concurrently and corrupt the transcript order.
-const inFlightSendsByTab = new Set<string>()
 
 /**
  * Imperative send used by the mutation hook and by api-chat's debounced
@@ -48,10 +48,9 @@ export async function sendApiChatMessage(
   }
   const activeSessionId = useChatUiStore.getState().activeSessionIdByTab[tabId]
   if (!activeSessionId) throw new Error('No active session')
-  if (inFlightSendsByTab.has(tabId)) {
+  if (!acquireChatSendLock(tabId)) {
     throw new Error('Send in progress')
   }
-  inFlightSendsByTab.add(tabId)
 
   // Lock invariant: everything after the lock acquisition runs inside the
   // try/finally below so the lock is released no matter where it fails.
@@ -137,7 +136,7 @@ export async function sendApiChatMessage(
     if (requestId !== undefined) {
       endChatRequest(tabId, requestId)
     }
-    inFlightSendsByTab.delete(tabId)
+    releaseChatSendLock(tabId)
     // Only reset streaming state when it was actually turned on for this send.
     if (streamingStarted) {
       useChatUiStore.getState().setStreaming(tabId, false)
