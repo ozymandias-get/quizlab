@@ -2,8 +2,6 @@ import { Logger } from '@shared/lib/logger'
 
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
-import type { OcrQualityPreset } from '../types'
-import { getRenderPreset, OCR_DEFAULT_SCALE, OCR_MAX_PIXELS } from '../types'
 import { getActivePdfDocument } from './activePdfDocumentRegistry'
 
 // Backward-compatible re-exports: registry lives in
@@ -15,17 +13,18 @@ export {
   setActivePdfDocument
 } from './activePdfDocumentRegistry'
 
+export const PDF_RENDER_DEFAULT_SCALE = 2.0
+export const PDF_RENDER_MAX_PIXELS = 16_000_000
+
 export interface RenderOptions {
   scale?: number
   maxPixels?: number
-  quality?: OcrQualityPreset
 }
 
 /**
- * Render a PDF page to an ImageData/Blob for OCR.
- * Tries pdf.js direct render first for balanced/high quality to avoid fake 2x upscaling.
- * Falls back to canvas clone only for fast path when the exact page canvas is already mounted.
- * Returns a Blob (png) and an object URL — caller must revoke.
+ * Render a PDF page to an ImageData/Blob for high-DPI screenshot capture.
+ * Tries pdf.js direct render first, falls back to cloning the mounted page
+ * canvas. Returns a Blob (png) and an object URL — caller must revoke.
  */
 export async function renderPageToImageFallback(
   pdfUrl: string,
@@ -35,29 +34,15 @@ export async function renderPageToImageFallback(
 ): Promise<{ blob: Blob; blobUrl: string; width: number; height: number } | null> {
   if (signal?.aborted) return null
 
-  // Resolve preset from quality if provided
-  let scale = options.scale
-  let maxPixels = options.maxPixels
-  let preferDirectRender = true
+  const scale = options.scale ?? PDF_RENDER_DEFAULT_SCALE
+  const maxPixels = options.maxPixels ?? PDF_RENDER_MAX_PIXELS
 
-  if (options.quality) {
-    const preset = getRenderPreset(options.quality)
-    scale = scale ?? preset.scale
-    maxPixels = maxPixels ?? preset.maxPixels
-    preferDirectRender = preset.useDirectPdfRender
-  }
-  scale = scale ?? OCR_DEFAULT_SCALE
-  maxPixels = maxPixels ?? OCR_MAX_PIXELS
-
-  // For balanced/high, direct PDF.js render gives true high-DPI detail — do it first
-  if (preferDirectRender) {
-    try {
-      const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels }, signal)
-      if (offscreen) return offscreen
-    } catch (e) {
-      Logger.warn('[OCR] pdfjs direct render failed, trying canvas clone fallback', e)
-    }
-    // Fallthrough to canvas clone as secondary
+  // Direct PDF.js render gives true high-DPI detail — try it first.
+  try {
+    const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels }, signal)
+    if (offscreen) return offscreen
+  } catch (e) {
+    Logger.warn('[RenderPage] pdfjs direct render failed, trying canvas clone fallback', e)
   }
 
   // Fast path: try exact page canvas clone (no arbitrary fallback)
@@ -69,17 +54,7 @@ export async function renderPageToImageFallback(
       if (result) return result
     }
   } catch (e) {
-    Logger.warn('[OCR] canvas clone failed', e)
-  }
-
-  // Finally try pdf.js if not already tried (fast quality secondary path, or after canvas miss)
-  if (!preferDirectRender) {
-    try {
-      const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels }, signal)
-      if (offscreen) return offscreen
-    } catch (e) {
-      Logger.warn('[OCR] pdfjs offscreen render failed', e)
-    }
+    Logger.warn('[RenderPage] canvas clone failed', e)
   }
 
   return null
@@ -87,7 +62,7 @@ export async function renderPageToImageFallback(
 
 /**
  * Find canvas for the *exact* requested page only.
- * Never returns an arbitrary canvas — that would OCR the wrong page.
+ * Never returns an arbitrary canvas — that would capture the wrong page.
  */
 function findCurrentPageCanvas(pageNumber: number): HTMLCanvasElement | null {
   const virtualIndex = pageNumber - 1
@@ -119,9 +94,6 @@ async function cloneCanvasAtScale(
   const srcH = source.height
   if (srcW === 0 || srcH === 0) return null
 
-  // Avoid fake upscaling: if source already covers the requested scale, don't blow up beyond 1.1x
-  // We keep scale param but clamp upscale to avoid 2x pixel waste without new detail.
-  // For fast path, allow moderate upscale; for true high quality we already used pdfjs direct render.
   let targetW = Math.round(srcW * scale)
   let targetH = Math.round(srcH * scale)
   const area = targetW * targetH
@@ -185,7 +157,7 @@ async function renderWithPdfJs(
       pdf = loaded
       shouldDestroy = true
     } catch (loadError) {
-      Logger.warn('[OCR] Direct PDF.js document load failed:', loadError)
+      Logger.warn('[RenderPage] Direct PDF.js document load failed:', loadError)
       return null
     }
   }
@@ -215,7 +187,6 @@ async function renderWithPdfJs(
     const scale = options.scale
     const maxPixels = options.maxPixels
 
-    // Compute viewport with correct adjusted scale when maxPixels exceeded — previously stored in adjViewport but not used (P0-1)
     let renderViewport = page.getViewport({ scale })
     let w = Math.round(renderViewport.width)
     let h = Math.round(renderViewport.height)

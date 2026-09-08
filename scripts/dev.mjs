@@ -141,7 +141,7 @@ const ELECTRON_NOISE_MARKERS = [
   'wayland_surface_factory.cc',
   // Electron's dev-only "Insecure Content-Security-Policy" warning. It is
   // printed for unpackaged builds only and has two expected triggers here:
-  // - our own pages use 'wasm-unsafe-eval' (required by tesseract.js/pdf.js
+  // - our own pages use 'wasm-unsafe-eval' (required by pdf.js
   //   WebAssembly; the CSP is otherwise strict — see electron/core/csp.ts),
   //   which trips Electron's naive "unsafe-eval" substring check;
   // - third-party AI webview guests (Google/Microsoft/OpenAI pages) send no

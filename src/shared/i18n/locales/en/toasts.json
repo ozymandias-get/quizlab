@@ -19,7 +19,6 @@
   "toast_gws_apps_failed": "Google AI app visibility update failed",
   "toast_cache_cleared": "Application cache cleared",
   "toast_cache_cleared_failed": "Failed to clear cache",
-  "ocr_cache_cleared": "OCR cache cleared",
   "quick_preset_reset_done": "Quick presets reset",
   "toast_ai_model_data_cleared": "Model cookies and data cleared",
   "toast_ai_model_data_clear_failed": "Failed to clear model cookies and data",

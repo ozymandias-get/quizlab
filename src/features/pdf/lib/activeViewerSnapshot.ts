@@ -1,4 +1,4 @@
-import { createDocumentFingerprint } from '@features/ocr/lib/cacheKey'
+import { createDocumentFingerprint } from './documentFingerprint'
 
 type PdfFileLite = {
   path?: string | null

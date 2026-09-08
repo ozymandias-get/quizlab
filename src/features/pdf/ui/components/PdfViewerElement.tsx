@@ -1,5 +1,3 @@
-import { clearActivePdfDocument, setActivePdfDocument } from '@features/ocr/lib/renderPageToImage'
-
 import { InlineSpinner } from '@shared/ui/components/primitives'
 
 import type { Plugin } from '@react-pdf-viewer/core'
@@ -13,6 +11,8 @@ import {
   ViewMode
 } from '@react-pdf-viewer/core'
 import { memo, useCallback, useEffect, useRef } from 'react'
+
+import { clearActivePdfDocument, setActivePdfDocument } from '../../lib/activePdfDocumentRegistry'
 
 interface PdfViewerElementProps {
   pdfUrl: string

@@ -5,5 +5,3 @@ coverage
 release
 .cache
 *.log
-# Vendored third-party bundles (tesseract core) — not source (mirrors eslint ignore).
-src/public/tesseract-core/**

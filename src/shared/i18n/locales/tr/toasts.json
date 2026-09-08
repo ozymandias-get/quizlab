@@ -19,7 +19,6 @@
   "toast_gws_apps_failed": "Google AI uygulama görünürlüğü güncellenemedi",
   "toast_cache_cleared": "Uygulama önbelleği temizlendi",
   "toast_cache_cleared_failed": "Önbellek temizlenemedi",
-  "ocr_cache_cleared": "OCR \u00f6nbelle\u011fi temizlendi",
   "quick_preset_reset_done": "Haz\u0131r komutlar s\u0131f\u0131rland\u0131",
   "toast_ai_model_data_cleared": "Model çerezleri ve verileri temizlendi",
   "toast_ai_model_data_clear_failed": "Model çerezleri ve verileri temizlenemedi",

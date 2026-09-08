@@ -1,6 +1,3 @@
-import { useOcrActions } from '@features/ocr/hooks/useOcrActions'
-import { useOcrStore } from '@features/ocr/store/useOcrStore'
-
 import { useAppToolActions } from '@app/providers/AppToolContext'
 import { useToastActions } from '@shared/stores/toastStore'
 
@@ -61,8 +58,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const { queueTextForAi } = useAppToolActions()
   const { showSuccess, showWarning } = useToastActions()
   const { t: tt } = useTranslation()
-  const { processPage } = useOcrActions()
-  const startAreaSelection = useOcrStore((s) => s.startAreaSelection)
   const zoomToRef = useRef<(scale: number | SpecialZoomLevel) => void>(() => {})
   const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
   const extractCurrentPageTextRef = useRef<() => string | null>(() => null)
@@ -162,21 +157,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
 
   const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
 
-  const handleOcrPage = useCallback(() => {
-    if (!pdfFile) return
-    setContextMenu(null)
-    void processPage({ pageNumber: currentPage, pdfFile, pdfUrl })
-  }, [pdfFile, pdfUrl, currentPage, processPage, setContextMenu])
-
-  const handleOcrSelection = useCallback(() => {
-    if (!pdfFile) {
-      showWarning(tt('pdf_no_text_found'))
-      return
-    }
-    setContextMenu(null)
-    startAreaSelection(currentPage, pdfFile, pdfUrl)
-  }, [pdfFile, pdfUrl, currentPage, startAreaSelection, setContextMenu, showWarning, tt])
-
   useEffect(() => {
     isTransitioningRef.current = true
     startTransition(() => {
@@ -220,8 +200,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     t,
     tt,
     handleAreaScreenshot,
-    handleOcrPage,
-    handleOcrSelection,
     extractCurrentPageTextRef,
     handleFullPageScreenshotRef,
     jumpToPageFromNav,

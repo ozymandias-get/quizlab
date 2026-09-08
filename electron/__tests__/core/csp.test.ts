@@ -45,12 +45,12 @@ describe('getStrictCsp', () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'")
   })
 
-  it('allows the vendored OCR language-data scheme in connect-src', () => {
+  it('keeps connect-src limited to the PDF pipeline', () => {
     const csp = getStrictCsp('abc')
     const connectSrc = csp.split(';').find((s) => s.trim().startsWith('connect-src'))
-    expect(connectSrc).toContain('local-ocr:')
-    // CDN stays as a last-resort fallback for language data.
-    expect(connectSrc).toContain('https://cdn.jsdelivr.net')
+    expect(connectSrc).toContain('local-pdf:')
+    expect(connectSrc).not.toContain('local-ocr:')
+    expect(connectSrc).not.toContain('https://cdn.jsdelivr.net')
   })
 })
 
@@ -70,9 +70,10 @@ describe('getDevCsp', () => {
     expect(csp).toContain('gemini.google.com')
   })
 
-  it('allows the vendored OCR language-data scheme in connect-src', () => {
+  it('keeps connect-src limited to the PDF pipeline', () => {
     const csp = getDevCsp()
     const connectSrc = csp.split(';').find((s) => s.trim().startsWith('connect-src'))
-    expect(connectSrc).toContain('local-ocr:')
+    expect(connectSrc).toContain('local-pdf:')
+    expect(connectSrc).not.toContain('local-ocr:')
   })
 })
