@@ -108,6 +108,8 @@
   "off": "Off",
   "shell_integration_title": "Right-Click Menu (PDF)",
   "shell_integration_description": "Adds an “Open with QuizLab” entry to the right-click menu for PDF files. Your default PDF app stays unchanged.",
+  "shell_integration_toplevel_on": "Visible in the Windows 11 top-level menu.",
+  "shell_integration_toplevel_off": "Not in the Windows 11 top-level menu (classic menu only). Press Repair to enable.",
   "shell_integration_install": "Install Right-Click Menu",
   "shell_integration_remove": "Remove from Menu",
   "shell_integration_repair": "Repair / Update Label",

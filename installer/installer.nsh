@@ -10,6 +10,7 @@
 ;   productName    = Quizlab Reader
 ;   executable     = Quizlab Reader.exe
 ;   default dir    = %LocalAppData%\Programs\Quizlab Reader
+;   shell CLSID    = {C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F} (QuizLabShellExt.dll)
 ;
 ; electron-builder already handles: running-app detection on upgrade,
 ; single-version registry identity, shortcut creation without duplicates,
@@ -18,6 +19,7 @@
 
 !include "LogicLib.nsh"
 !include "WordFunc.nsh"
+!include "FileFunc.nsh"
 
 !macro customHeader
   !system "echo QuizLab Reader custom NSIS header loaded"
@@ -49,6 +51,21 @@
   ${EndIf}
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader" "Icon" "$INSTDIR\Quizlab Reader.exe,0"
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader\command" "" '"$INSTDIR\Quizlab Reader.exe" "%1"'
+
+  ; --- Windows 11 top-level menu: IExplorerCommand COM extension ---
+  ; The same verb above is promoted to the new (sade) context menu by
+  ; pointing it at our in-proc COM server. Manual HKCU registration is
+  ; used instead of regsvr32 (keeps per-user, no elevation). The DLL only
+  ; returns a title/icon and launches the exe — no other side effects.
+  ; If the DLL is missing from the package, the classic verb above still
+  ; works ("Show more options" fallback).
+  ; CLSID is identity-locked: {C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}
+  ${If} ${FileExists} "$INSTDIR\resources\shell\QuizLabShellExt.dll"
+    WriteRegStr HKCU "Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}" "" "QuizLab Shell Extension"
+    WriteRegStr HKCU "Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}\InprocServer32" "" "$INSTDIR\resources\shell\QuizLabShellExt.dll"
+    WriteRegStr HKCU "Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}\InprocServer32" "ThreadingModel" "Apartment"
+    WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader" "ExplorerCommandHandler" "{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}"
+  ${EndIf}
 
   ; --- Chrome Native Messaging host registration ---
   ; Chromium resolves the host by reading the path stored in the registry and
@@ -110,6 +127,8 @@
 !macro customUnInstall
   ; --- Explorer context menu: remove the "QuizLab ile Aç" entry. ---
   DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader"
+  ; --- Windows 11 top-level menu: remove the COM extension registration. ---
+  DeleteRegKey HKCU "Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}"
 
   ; Remove the Chrome Native Messaging host registration. The value is
   ; deleted regardless of whether the installer or the app wrote it last

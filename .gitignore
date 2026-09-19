@@ -9,6 +9,10 @@ release/
 *.tsbuildinfo
 .cache/
 
+# Rust shell extension (built locally/CI, packaged into resources/shell/)
+shell-ext/target/
+resources/shell/*.dll
+
 # Vite
 .vite/
 

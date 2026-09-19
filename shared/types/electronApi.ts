@@ -101,6 +101,7 @@ export interface ElectronApi {
     getStatus: () => Promise<{
       supported: boolean
       installed: boolean
+      topLevel: boolean
       label: string | null
       exePath: string | null
     } | null>
