@@ -22,5 +22,11 @@
   "tool_area_screenshot": "Crop Area",
   "tool_fullpage_screenshot": "Full Page",
   "pdf_view_single_page": "Single Page",
-  "pdf_view_continuous": "Continuous View"
+  "pdf_view_continuous": "Continuous View",
+  "pdf_toolbar_show_ai_actions": "AI Actions",
+  "pdf_toolbar_show_viewer": "Viewer Tools",
+  "pdf_ai_quick_actions": "AI Actions",
+  "pdf_quick_text_ai": "Add Text to AI",
+  "pdf_quick_image_ai": "Send Image to AI",
+  "pdf_quick_area_ai": "Crop to AI"
 }

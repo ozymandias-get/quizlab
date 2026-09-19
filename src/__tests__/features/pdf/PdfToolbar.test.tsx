@@ -1,7 +1,7 @@
 import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
 
 import { TooltipProvider } from '@app/components/ui/tooltip'
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('react-i18next', () => ({
@@ -99,5 +99,117 @@ describe('PdfToolbar', () => {
 
     const panButton = getByTestId('pan-mode-button')
     expect(panButton).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('defaults to viewer mode with mode toggle visible', () => {
+    const { getByTestId, queryByTestId } = render(
+      <TooltipProvider>
+        <PdfToolbar
+          pdfFile={null}
+          panMode={false}
+          onTogglePanMode={vi.fn()}
+          currentPage={2}
+          totalPages={61}
+          onPreviousPage={vi.fn()}
+          onNextPage={vi.fn()}
+          highlight={vi.fn()}
+          clearHighlights={vi.fn()}
+          ZoomIn={ZoomIn}
+          ZoomOut={ZoomOut}
+          CurrentScale={CurrentScale}
+          onJumpToPage={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    expect(getByTestId('pan-mode-button')).toBeInTheDocument()
+    expect(getByTestId('pdf-toolbar-mode-toggle')).toBeInTheDocument()
+    expect(queryByTestId('pdf-ai-quick-bar')).not.toBeInTheDocument()
+  })
+
+  it('toggles to actions-only mode and back without touching right-click menu', () => {
+    const { getByTestId, queryByTestId } = render(
+      <TooltipProvider>
+        <PdfToolbar
+          pdfFile={null}
+          onStartScreenshot={vi.fn()}
+          onFullPageScreenshot={vi.fn()}
+          onAddCurrentPageTextToAi={vi.fn()}
+          onReload={vi.fn()}
+          panMode={false}
+          onTogglePanMode={vi.fn()}
+          currentPage={2}
+          totalPages={61}
+          onPreviousPage={vi.fn()}
+          onNextPage={vi.fn()}
+          highlight={vi.fn()}
+          clearHighlights={vi.fn()}
+          ZoomIn={ZoomIn}
+          ZoomOut={ZoomOut}
+          CurrentScale={CurrentScale}
+          onJumpToPage={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
+
+    expect(getByTestId('pdf-ai-quick-bar')).toBeInTheDocument()
+    expect(getByTestId('pdf-quick-text-ai')).toBeInTheDocument()
+    expect(getByTestId('pdf-quick-image-ai')).toBeInTheDocument()
+    expect(getByTestId('pdf-quick-area-ai')).toBeInTheDocument()
+    expect(getByTestId('pdf-quick-reload')).toBeInTheDocument()
+    // actions modunda viewer kontrolleri gizlenir
+    expect(queryByTestId('pan-mode-button')).not.toBeInTheDocument()
+    // kompakt sayfa göstergesi görünür
+    const indicator = getByTestId('pdf-actions-page-indicator')
+    expect(indicator).toBeInTheDocument()
+    expect(indicator).toHaveTextContent('2')
+    expect(indicator).toHaveTextContent('61')
+
+    fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
+    expect(queryByTestId('pdf-ai-quick-bar')).not.toBeInTheDocument()
+    expect(getByTestId('pan-mode-button')).toBeInTheDocument()
+  })
+
+  it('wires quick-bar buttons to toolbar props', () => {
+    const onAddCurrentPageTextToAi = vi.fn()
+    const onFullPageScreenshot = vi.fn()
+    const onStartScreenshot = vi.fn()
+    const onReload = vi.fn()
+    const { getByTestId } = render(
+      <TooltipProvider>
+        <PdfToolbar
+          pdfFile={null}
+          onStartScreenshot={onStartScreenshot}
+          onFullPageScreenshot={onFullPageScreenshot}
+          onAddCurrentPageTextToAi={onAddCurrentPageTextToAi}
+          onReload={onReload}
+          panMode={false}
+          onTogglePanMode={vi.fn()}
+          currentPage={2}
+          totalPages={61}
+          onPreviousPage={vi.fn()}
+          onNextPage={vi.fn()}
+          highlight={vi.fn()}
+          clearHighlights={vi.fn()}
+          ZoomIn={ZoomIn}
+          ZoomOut={ZoomOut}
+          CurrentScale={CurrentScale}
+          onJumpToPage={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
+    fireEvent.click(getByTestId('pdf-quick-text-ai'))
+    fireEvent.click(getByTestId('pdf-quick-image-ai'))
+    fireEvent.click(getByTestId('pdf-quick-area-ai'))
+    fireEvent.click(getByTestId('pdf-quick-reload'))
+
+    expect(onAddCurrentPageTextToAi).toHaveBeenCalledTimes(1)
+    expect(onFullPageScreenshot).toHaveBeenCalledTimes(1)
+    expect(onStartScreenshot).toHaveBeenCalledTimes(1)
+    expect(onReload).toHaveBeenCalledTimes(1)
   })
 })
