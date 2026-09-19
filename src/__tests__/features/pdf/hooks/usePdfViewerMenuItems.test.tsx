@@ -2,6 +2,7 @@ import { PDF_ZOOM_MAX_SCALE } from '@features/pdf/constants/pdfZoom'
 import { usePdfViewerMenuItems } from '@features/pdf/hooks/usePdfViewerMenuItems'
 
 import { renderHook } from '@testing-library/react'
+import type { SetStateAction } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('usePdfViewerMenuItems', () => {
@@ -15,8 +16,8 @@ describe('usePdfViewerMenuItems', () => {
   const setScaleFactor = vi.fn()
 
   let reloadKey = 0
-  const setViewerReloadKey = vi.fn((updater: (c: number) => number) => {
-    reloadKey = updater(reloadKey)
+  const setViewerReloadKey = vi.fn((action: SetStateAction<number>) => {
+    reloadKey = typeof action === 'function' ? action(reloadKey) : action
   })
   const startTransition = vi.fn((fn: () => void) => fn())
 
