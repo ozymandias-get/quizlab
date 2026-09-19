@@ -33,7 +33,8 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     PluginZoomIn,
     PluginZoomOut,
     CurrentScale,
-    handleAddCurrentPageTextToAi
+    handleAddCurrentPageTextToAi,
+    handleReload
   } = usePdfViewerState(props)
 
   const { pdfFile, autoSend, onToggleAutoSend, pdfUrl } = props
@@ -107,6 +108,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         ZoomOut={PluginZoomOut}
         CurrentScale={CurrentScale}
         onAddCurrentPageTextToAi={handleAddCurrentPageTextToAi}
+        onReload={handleReload}
       />
     </div>
   )

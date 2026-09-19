@@ -22,5 +22,11 @@
   "tool_area_screenshot": "Alan Seç",
   "tool_fullpage_screenshot": "Tam Sayfa",
   "pdf_view_single_page": "Tek Sayfa",
-  "pdf_view_continuous": "Sürekli Görünüm"
+  "pdf_view_continuous": "Sürekli Görünüm",
+  "pdf_toolbar_show_ai_actions": "AI İşlemleri",
+  "pdf_toolbar_show_viewer": "Görüntüleyici Araçları",
+  "pdf_ai_quick_actions": "AI İşlemleri",
+  "pdf_quick_text_ai": "Metni AI'ye Ekle",
+  "pdf_quick_image_ai": "Görsel AI'ye Ekle",
+  "pdf_quick_area_ai": "Alan Seç AI'ye Ekle"
 }

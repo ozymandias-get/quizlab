@@ -58,6 +58,7 @@ export interface UsePdfViewerStateReturn {
   menuItems: MenuItem[]
   handleAddCurrentPageTextToAi: () => void
   handleSendPageAsImageToAi: () => void
+  handleReload: () => void
   handlePageChange: (e: { currentPage: number }) => void
   highlight: ReturnType<typeof usePdfPlugins>['highlight']
   clearHighlights: ReturnType<typeof usePdfPlugins>['clearHighlights']

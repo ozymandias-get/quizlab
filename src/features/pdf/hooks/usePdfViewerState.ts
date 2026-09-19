@@ -192,6 +192,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const {
     handleAddCurrentPageTextToAi,
     handleSendPageAsImageToAi,
+    handleReload,
     handleZoom,
     handleJumpToPage,
     handleCloseContextMenu,
@@ -240,6 +241,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     menuItems,
     handleAddCurrentPageTextToAi,
     handleSendPageAsImageToAi,
+    handleReload,
     handlePageChange,
     highlight,
     clearHighlights,

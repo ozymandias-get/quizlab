@@ -22,6 +22,7 @@ interface MenuItemsInput {
 interface MenuItemsOutput {
   handleAddCurrentPageTextToAi: () => void
   handleSendPageAsImageToAi: () => void
+  handleReload: () => void
   handleZoom: (e: { scale: number }) => void
   handleJumpToPage: (page: number) => void
   handleCloseContextMenu: () => void
@@ -67,6 +68,12 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
 
   const handleCloseContextMenu = useCallback(() => setContextMenu(null), [setContextMenu])
 
+  const handleReload = useCallback(() => {
+    startTransition(() => {
+      setViewerReloadKey((c) => c + 1)
+    })
+  }, [setViewerReloadKey, startTransition])
+
   const menuItems: MenuItem[] = useMemo(
     () => [
       {
@@ -80,11 +87,7 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
       {
         label: t('ctx_reload'),
         icon: RefreshCw,
-        onClick: () => {
-          startTransition(() => {
-            setViewerReloadKey((c) => c + 1)
-          })
-        },
+        onClick: handleReload,
         shortcut: 'Ctrl+R',
         danger: true
       }
@@ -95,14 +98,14 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
       handleAddCurrentPageTextToAi,
       handleSendPageAsImageToAi,
       handleAreaScreenshot,
-      setViewerReloadKey,
-      startTransition
+      handleReload
     ]
   )
 
   return {
     handleAddCurrentPageTextToAi,
     handleSendPageAsImageToAi,
+    handleReload,
     handleZoom,
     handleJumpToPage,
     handleCloseContextMenu,
