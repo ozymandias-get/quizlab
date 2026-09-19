@@ -108,6 +108,8 @@
   "off": "Kapalı",
   "shell_integration_title": "Sağ Tık Menüsü (PDF)",
   "shell_integration_description": "PDF dosyalarına sağ tıkladığınızda “QuizLab ile Aç” seçeneği çıkar. Varsayılan PDF programınız değişmez.",
+  "shell_integration_toplevel_on": "Windows 11 üst menüsünde görünüyor.",
+  "shell_integration_toplevel_off": "Windows 11 üst menüsünde görünmüyor (klasik menüde var). Onar'a basarak etkinleştirin.",
   "shell_integration_install": "Sağ Tık Menüsünü Kur",
   "shell_integration_remove": "Menüden Kaldır",
   "shell_integration_repair": "Onar / Dili Güncelle",

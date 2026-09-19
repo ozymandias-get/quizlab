@@ -108,7 +108,13 @@ around with PowerShell/encoding hacks: installer reliability first.
 ## Explorer right-click menu ("QuizLab ile Aç")
 
 The installer adds a per-user Explorer context-menu entry for `.pdf`
-files — right-click → `QuizLab ile Aç` / `Open with QuizLab`:
+files — right-click → `QuizLab ile Aç` / `Open with QuizLab`. On
+Windows 11 the entry appears in the **top-level (sade) menu** via a
+minimal `IExplorerCommand` COM extension; on Windows 10 (and under
+"Show more options" on Windows 11) the same verb works as a classic
+menu entry.
+
+Classic verb (always registered):
 
 ```
 HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader
@@ -117,23 +123,51 @@ HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader
   command   = '"$INSTDIR\Quizlab Reader.exe" "%1"'
 ```
 
+Top-level menu (Windows 11, registered when the DLL is packaged):
+
+```
+HKCU\Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}
+  (Default) = "QuizLab Shell Extension"
+  InprocServer32
+    (Default)     = "$INSTDIR\resources\shell\QuizLabShellExt.dll"
+    ThreadingModel = "Apartment"
+HKCU\...\shell\QuizlabReader
+  ExplorerCommandHandler = "{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}"
+```
+
 Rules:
 
 - **No default-handler hijacking.** Double-click still opens the user's
   previous PDF app. Only the extra right-click entry is added.
 - **Per-user (HKCU), no UAC** — same install model as the rest of the
-  installer.
-- **Label follows the installer language** (`LANG_TR` → `QuizLab ile Aç`,
-  otherwise `Open with QuizLab`). The app can relabel it from
-  Settings → About → right-click menu (repair), e.g. after the user
-  switches the interface language.
-- **Shell → app flow:** Explorer launches `"Quizlab Reader.exe" "%1"`.
-  The main process parses `process.argv` (`parseShellPdfPaths`), forwards
-  each path to the running window via `second-instance` (or queues it when
-  the window isn't ready yet), and the renderer opens every PDF in a new
-  tab (`openPdfInTab`) — the split-screen / AI panel is untouched.
+  installer. COM registration is manual (registry writes, no `regsvr32`).
+- **CLSID is identity-locked** (`{C7D9E4A1-...}`): it is hardcoded in
+  `shell-ext/src/lib.rs`, `installer/installer.nsh` and
+  `electron/features/shell-open/shellIntegrationManager.ts`. Never change
+  it — old installs would be left with a dead entry.
+- **The DLL is intentionally dumb** (see `shell-ext/`): it only returns a
+  localized title/icon and launches the exe next to it with the selected
+  PDF paths. No network, no disk writes, no settings reads. `Invoke` is
+  wrapped in `catch_unwind` so a bug surfaces as `E_FAIL`, never as an
+  Explorer crash. Kill switch: Settings → About → right-click menu →
+  remove.
+- **Label follows the UI language at click time** (`GetUserDefaultUI-
+Language`: Turkish → `QuizLab ile Aç`, otherwise `Open with QuizLab`).
+  The classic verb label follows the installer language and can be
+  relabeled from Settings (repair).
+- **Shell → app flow:** Explorer (or the DLL) launches
+  `"Quizlab Reader.exe" "%1"`. The main process parses `process.argv`
+  (`parseShellPdfPaths`), forwards each path to the running window via
+  `second-instance` (or queues it when the window isn't ready yet), and
+  the renderer opens every PDF in a new tab (`openPdfInTab`) — the
+  split-screen / AI panel is untouched.
+- **Build:** `npm run build:shell-ext` compiles `shell-ext/` (Rust) and
+  copies the DLL to `resources/shell/` (git-ignored, packaged via
+  `extraResources`). It no-ops off Windows. CI installs the Rust
+  toolchain on the Windows job. `cargo test` in `shell-ext/` covers
+  command-line building and extension checks.
 - **Upgrade** rewrites the keys idempotently (no duplicate entries).
-  **Uninstall** deletes the `QuizlabReader` key.
+  **Uninstall** deletes the `QuizlabReader` verb key and the CLSID key.
 - Out of scope on purpose: no default `.pdf` association, no custom URL
   protocol.
 

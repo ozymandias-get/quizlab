@@ -132,6 +132,10 @@ jobs:
           npm --version
           npm ci
 
+      - name: Setup Rust (shell extension)
+        if: matrix.platform == 'win'
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Build and Package (Windows)
         if: matrix.platform == 'win'
         run: npm run build && npx electron-builder --win --publish never

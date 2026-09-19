@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 export interface ShellIntegrationStatus {
   supported: boolean
   installed: boolean
+  topLevel: boolean
   label: string | null
   exePath: string | null
 }
