@@ -3,6 +3,11 @@ export const IPC_CHANNELS = {
   SELECT_FOLDER: 'select-folder',
   GET_PDF_STREAM_URL: 'get-pdf-stream-url',
   PDF_REGISTER_PATH: 'pdf:register-path',
+  /** Main → renderer: Explorer sağ-tık ile açılan PDF yolu. */
+  OPEN_PDF_FROM_SHELL: 'open-pdf-from-shell',
+  SHELL_INTEGRATION_STATUS: 'shell-integration-status',
+  SHELL_INTEGRATION_INSTALL: 'shell-integration-install',
+  SHELL_INTEGRATION_REMOVE: 'shell-integration-remove',
 
   CAPTURE_SCREEN: 'capture-screen',
   COPY_IMAGE: 'copy-image-to-clipboard',

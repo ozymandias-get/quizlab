@@ -18,6 +18,7 @@ import AppInfoSection from './about/AppInfoSection'
 import CacheControl from './about/CacheControl'
 import IssueReportCard from './about/IssueReportCard'
 import RepositoryLink from './about/RepositoryLink'
+import ShellIntegrationCard from './about/ShellIntegrationCard'
 import UpdatesCard from './about/UpdatesCard'
 import SettingsTabIntro from './shared/SettingsTabIntro'
 
@@ -95,6 +96,8 @@ const AboutTab = memo(
           />
 
           <RepositoryLink t={t} />
+
+          <ShellIntegrationCard />
 
           <CacheControl
             t={t}

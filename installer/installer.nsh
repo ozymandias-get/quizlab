@@ -35,10 +35,20 @@
 !macroend
 
 !macro customInstall
-  ; --- File associations: intentionally none (see docs/windows-installer.md).
-  ; QuizLab never hijacks the default PDF handler. Example left for reference:
-  ; WriteRegStr HKCR "*\shell\QuizlabReader" "" "Open with Quizlab Reader"
-  ; WriteRegStr HKCR "*\shell\QuizlabReader\command" "" '"$INSTDIR\Quizlab Reader.exe" "%1"'
+  ; --- Explorer context menu: "QuizLab ile Aç" (see docs/windows-installer.md).
+  ; Per-user HKCU only (no UAC, asInvoker-safe). This does NOT hijack the
+  ; default PDF handler — it only adds an extra right-click entry for .pdf
+  ; files under SystemFileAssociations (ProgID-independent).
+  ; The menu label follows the installer language: Turkish setup writes
+  ; "QuizLab ile Aç" (LANG_TR = 1055), every other language writes
+  ; "Open with QuizLab". The app can relabel it later from Settings.
+  ${If} $LANGUAGE == 1055
+    WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader" "" "QuizLab ile Aç"
+  ${Else}
+    WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader" "" "Open with QuizLab"
+  ${EndIf}
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader" "Icon" "$INSTDIR\Quizlab Reader.exe,0"
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader\command" "" '"$INSTDIR\Quizlab Reader.exe" "%1"'
 
   ; --- Chrome Native Messaging host registration ---
   ; Chromium resolves the host by reading the path stored in the registry and
@@ -98,7 +108,8 @@
 !macroend
 
 !macro customUnInstall
-  ; --- File associations: none were created, nothing to remove. ---
+  ; --- Explorer context menu: remove the "QuizLab ile Aç" entry. ---
+  DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader"
 
   ; Remove the Chrome Native Messaging host registration. The value is
   ; deleted regardless of whether the installer or the app wrote it last

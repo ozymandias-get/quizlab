@@ -22,6 +22,7 @@ const LanguageSelectionDialog = lazy(() =>
     default: m.LanguageSelectionDialog
   }))
 )
+import { useShellOpenPdf } from '@features/pdf/hooks/useShellOpenPdf'
 import { usePdfShortcuts } from '@features/pdf/ui/hooks/usePdfShortcuts'
 import { useCacheThresholdWarning } from '@features/settings/hooks/useCacheThresholdWarning'
 import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
@@ -63,6 +64,9 @@ function App() {
 
   // Keep shortcut stable — readingProps changes shouldn't rebind the global handler.
   usePdfShortcuts({ onSelectPdf: leftPanelProps?.onSelectPdf })
+
+  // Windows Explorer sağ-tık "QuizLab ile Aç" ile gelen PDF'leri karşıla.
+  useShellOpenPdf()
 
   const combinedLeftPanelProps = useMemo(
     () => ({ ...(leftPanelProps ?? {}), ...(readingProps ?? {}) }),

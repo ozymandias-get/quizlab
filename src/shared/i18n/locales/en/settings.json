@@ -105,5 +105,13 @@
   "quick_settings_description": "Frequently used settings.",
   "change": "Change",
   "on": "On",
-  "off": "Off"
+  "off": "Off",
+  "shell_integration_title": "Right-Click Menu (PDF)",
+  "shell_integration_description": "Adds an “Open with QuizLab” entry to the right-click menu for PDF files. Your default PDF app stays unchanged.",
+  "shell_integration_install": "Install Right-Click Menu",
+  "shell_integration_remove": "Remove from Menu",
+  "shell_integration_repair": "Repair / Update Label",
+  "shell_integration_installed": "Right-click menu installed",
+  "shell_integration_removed": "Right-click menu removed",
+  "shell_integration_failed": "Right-click menu operation failed"
 }

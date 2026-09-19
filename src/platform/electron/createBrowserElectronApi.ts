@@ -139,6 +139,12 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     selectFolder: stubReturn(null),
     getPdfStreamUrl: stubReturn(null),
     registerPdfPath: stubReturn(null),
+    onShellOpenPdf: () => () => {},
+    shellIntegration: {
+      getStatus: stubReturn(null),
+      install: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      remove: stubReturn({ success: false, error: 'web_dev_mode_only' })
+    },
 
     captureScreen: stubReturn(null),
     copyImageToClipboard: (dataUrl: string) => writeImageToClipboard(dataUrl),

@@ -1,5 +1,5 @@
 ﻿import { app, BrowserWindow, dialog } from 'electron'
-import { promises as fs } from 'fs'
+import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 
 import { registerCleanup, runCleanup } from '../core/appCleanup.js'
@@ -16,6 +16,8 @@ import {
   startPdfCleanupInterval,
   stopPdfCleanupInterval
 } from '../features/pdf/pdfProtocol.js'
+import { extractShellPdfPaths } from '../features/shell-open/parseShellPdfPaths.js'
+import { APP_CONFIG } from './constants.js'
 import { registerGeneralHandlers } from './ipcHandlers.js'
 import { initializeNativeMessaging, shutdownNativeMessaging } from './ipcHandlers.js'
 import { getProfileName, resolveUserDataProfile } from './userDataProfile.js'
@@ -33,6 +35,47 @@ app.commandLine.appendSwitch(
 )
 app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization')
 
+/** Pencere henüz hazır değilken gelen sağ-tık PDF yolları. */
+const pendingShellPdfPaths: string[] = []
+let shellRendererReady = false
+
+function deliverShellPdfPaths(filePaths: string[]) {
+  if (filePaths.length === 0) return
+  const mainWindow = getMainWindow()
+  if (
+    shellRendererReady &&
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    mainWindow.webContents &&
+    !mainWindow.webContents.isDestroyed()
+  ) {
+    // Uygulama zaten açıkken: her PDF yeni sekmede açılır (renderer tarafı),
+    // pencere öne getirilir.
+    for (const filePath of filePaths) {
+      mainWindow.webContents.send(APP_CONFIG.IPC_CHANNELS.OPEN_PDF_FROM_SHELL, filePath)
+    }
+  } else {
+    pendingShellPdfPaths.push(...filePaths)
+  }
+}
+
+function flushPendingShellPdfPaths() {
+  if (pendingShellPdfPaths.length === 0) return
+  const paths = pendingShellPdfPaths.splice(0, pendingShellPdfPaths.length)
+  deliverShellPdfPaths(paths)
+}
+
+function handleShellArgv(argv: string[]) {
+  try {
+    const pdfPaths = extractShellPdfPaths(argv, { existsSync })
+    if (pdfPaths.length > 0) {
+      deliverShellPdfPaths(pdfPaths)
+    }
+  } catch (error) {
+    Logger.warn('[App] Shell argv parse failed:', error)
+  }
+}
+
 if (getProfileName() === 'stable') {
   const gotTheLock = app.requestSingleInstanceLock()
   if (!gotTheLock) {
@@ -40,14 +83,21 @@ if (getProfileName() === 'stable') {
     process.exit(0)
   }
 
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     const mainWindow = getMainWindow()
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.focus()
     }
+    handleShellArgv(argv)
   })
 }
+
+// macOS: Finder'dan "Birlikte Aç" ile gelen dosya.
+app.on('open-file', (event, filePath) => {
+  event.preventDefault()
+  handleShellArgv([process.execPath, filePath])
+})
 
 registerPdfScheme()
 
@@ -93,6 +143,21 @@ async function initializeApp() {
 
   await initializeNativeMessaging()
   await createWindow()
+
+  // İlk açılışta sağ-tık ile gelen PDF varsa pencere hazır olunca ilet.
+  handleShellArgv(process.argv)
+  const createdWindow = getMainWindow()
+  if (createdWindow && !createdWindow.isDestroyed()) {
+    createdWindow.webContents.once('did-finish-load', () => {
+      shellRendererReady = true
+      flushPendingShellPdfPaths()
+    })
+    // did-finish-load kaçarsa güvenlik ağı: kısa gecikmeyle tekrar dene.
+    setTimeout(() => {
+      shellRendererReady = true
+      flushPendingShellPdfPaths()
+    }, 3000)
+  }
 
   initUpdater()
 
