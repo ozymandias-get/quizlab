@@ -95,6 +95,18 @@ export interface ElectronApi {
   }) => Promise<{ path: string } | null>
   getPdfStreamUrl: (filePath: string) => Promise<PdfStreamResult | null>
   registerPdfPath: (filePath: string) => Promise<PdfSelection | null>
+  /** Explorer sağ-tık ile açılan PDF yolu için dinleyici (Windows). */
+  onShellOpenPdf: (callback: (filePath: string) => void) => () => void
+  shellIntegration: {
+    getStatus: () => Promise<{
+      supported: boolean
+      installed: boolean
+      label: string | null
+      exePath: string | null
+    } | null>
+    install: (locale?: string) => Promise<{ success: boolean; error?: string }>
+    remove: () => Promise<{ success: boolean; error?: string }>
+  }
   captureScreen: (rect?: {
     x: number
     y: number

@@ -56,6 +56,14 @@ const electronApi: ElectronApi = {
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_PDF_STREAM_URL, filePath)),
   registerPdfPath: (filePath) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.PDF_REGISTER_PATH, filePath)),
+  onShellOpenPdf: (callback) =>
+    onEvent(IPC_CHANNELS.OPEN_PDF_FROM_SHELL, (filePath) => callback(filePath)),
+  shellIntegration: {
+    getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SHELL_INTEGRATION_STATUS)),
+    install: (locale?) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SHELL_INTEGRATION_INSTALL, locale)),
+    remove: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SHELL_INTEGRATION_REMOVE))
+  },
 
   captureScreen: (rect?) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CAPTURE_SCREEN, rect)),
   copyImageToClipboard: (dataUrl) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.COPY_IMAGE, dataUrl)),

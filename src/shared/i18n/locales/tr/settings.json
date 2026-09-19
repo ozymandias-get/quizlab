@@ -105,5 +105,13 @@
   "quick_settings_description": "Sık kullanılan ayarlar.",
   "change": "Değiştir",
   "on": "Açık",
-  "off": "Kapalı"
+  "off": "Kapalı",
+  "shell_integration_title": "Sağ Tık Menüsü (PDF)",
+  "shell_integration_description": "PDF dosyalarına sağ tıkladığınızda “QuizLab ile Aç” seçeneği çıkar. Varsayılan PDF programınız değişmez.",
+  "shell_integration_install": "Sağ Tık Menüsünü Kur",
+  "shell_integration_remove": "Menüden Kaldır",
+  "shell_integration_repair": "Onar / Dili Güncelle",
+  "shell_integration_installed": "Sağ tık menüsü kuruldu",
+  "shell_integration_removed": "Sağ tık menüsü kaldırıldı",
+  "shell_integration_failed": "Sağ tık menüsü işlemi başarısız oldu"
 }

@@ -65,6 +65,26 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<PdfSelection>
   }
 
+  [IPC_CHANNELS.SHELL_INTEGRATION_STATUS]: {
+    args: []
+    result: IpcResult<{
+      supported: boolean
+      installed: boolean
+      label: string | null
+      exePath: string | null
+    }>
+  }
+
+  [IPC_CHANNELS.SHELL_INTEGRATION_INSTALL]: {
+    args: [locale?: string]
+    result: IpcResult<{ success: boolean; error?: string }>
+  }
+
+  [IPC_CHANNELS.SHELL_INTEGRATION_REMOVE]: {
+    args: []
+    result: IpcResult<{ success: boolean; error?: string }>
+  }
+
   // Screenshot & clipboard
   [IPC_CHANNELS.CAPTURE_SCREEN]: {
     args: [rect?: { x: number; y: number; width: number; height: number }]
@@ -308,6 +328,9 @@ export interface IpcEventMap {
     args: []
   }
   // Event-style channels (main → renderer) not using invoke
+  [IPC_CHANNELS.OPEN_PDF_FROM_SHELL]: {
+    args: [filePath: string]
+  }
   [IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU]: {
     args: [labels: Partial<Record<string, string>>]
   }

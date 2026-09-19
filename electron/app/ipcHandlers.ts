@@ -9,6 +9,7 @@ import { nativeMessagingManager } from '../features/native-messaging/nativeMessa
 import { registerPdfHandlers } from '../features/pdf/pdfHandlers.js'
 import { registerScreenshotHandlers } from '../features/screenshot/screenshotHandlers.js'
 import { registerAppSettingsHandlers } from '../features/settings/appSettingsHandlers.js'
+import { registerShellOpenHandlers } from '../features/shell-open/shellOpenHandlers.js'
 
 let handlersRegistered = false
 
@@ -21,6 +22,7 @@ export function registerGeneralHandlers() {
   registerScreenshotHandlers()
   registerSystemHandlers()
   registerPdfHandlers()
+  registerShellOpenHandlers()
   registerAiConfigHandlers()
   registerAiRegistryHandlers()
   registerApiChatHandlers()

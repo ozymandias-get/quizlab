@@ -105,8 +105,37 @@ out-of-box bridge manifest is affected, and Settings → session bridge →
 "install extension" rewrites it as proper UTF-8. Deliberately not worked
 around with PowerShell/encoding hacks: installer reliability first.
 
-Out of scope on purpose: no `.pdf` file association, no custom URL
-protocol, no default-handler hijacking.
+## Explorer right-click menu ("QuizLab ile Aç")
+
+The installer adds a per-user Explorer context-menu entry for `.pdf`
+files — right-click → `QuizLab ile Aç` / `Open with QuizLab`:
+
+```
+HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader
+  (Default) = "<label>"
+  Icon      = "$INSTDIR\Quizlab Reader.exe,0"
+  command   = '"$INSTDIR\Quizlab Reader.exe" "%1"'
+```
+
+Rules:
+
+- **No default-handler hijacking.** Double-click still opens the user's
+  previous PDF app. Only the extra right-click entry is added.
+- **Per-user (HKCU), no UAC** — same install model as the rest of the
+  installer.
+- **Label follows the installer language** (`LANG_TR` → `QuizLab ile Aç`,
+  otherwise `Open with QuizLab`). The app can relabel it from
+  Settings → About → right-click menu (repair), e.g. after the user
+  switches the interface language.
+- **Shell → app flow:** Explorer launches `"Quizlab Reader.exe" "%1"`.
+  The main process parses `process.argv` (`parseShellPdfPaths`), forwards
+  each path to the running window via `second-instance` (or queues it when
+  the window isn't ready yet), and the renderer opens every PDF in a new
+  tab (`openPdfInTab`) — the split-screen / AI panel is untouched.
+- **Upgrade** rewrites the keys idempotently (no duplicate entries).
+  **Uninstall** deletes the `QuizlabReader` key.
+- Out of scope on purpose: no default `.pdf` association, no custom URL
+  protocol.
 
 ## Package contents
 
