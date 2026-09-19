@@ -1,6 +1,6 @@
-import { useToastActions } from '@app/providers'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
+import { useToastActions } from '@shared/stores/toastStore'
 
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
