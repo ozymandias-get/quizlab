@@ -6,6 +6,7 @@ import { APP_CONFIG } from '../../app/constants.js'
 import { getMainWindow } from '../../app/windowManager.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 import type { getCacheInfo } from '../cacheCleanup/index.js'
+import { getActivityCategory } from '../cacheRegistry.js'
 import { Logger } from '../logger.js'
 
 const SAFE_CACHE_DIRS = APP_CONFIG.CLEANUP.SAFE_CACHE_DIRS
@@ -13,7 +14,16 @@ const MODEL_STORAGE_TYPES = [...APP_CONFIG.CLEANUP.PARTITION_STORAGE_TYPES] as c
 
 const protectedPartitions = new Set<string>()
 
-export { MODEL_STORAGE_TYPES, protectedPartitions }
+export { MODEL_STORAGE_TYPES }
+
+export function isProtectedPartition(partition: string): boolean {
+  const normalized = partition.replace(/^persist:/, '')
+  return (
+    protectedPartitions.has(partition) ||
+    protectedPartitions.has(normalized) ||
+    getActivityCategory(partition) === 'active'
+  )
+}
 
 let cachedCacheInfo: Awaited<ReturnType<typeof getCacheInfo>> | null = null
 let cachedCacheInfoTime = 0

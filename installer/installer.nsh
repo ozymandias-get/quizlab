@@ -52,13 +52,16 @@
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader" "Icon" "$INSTDIR\Quizlab Reader.exe,0"
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader\command" "" '"$INSTDIR\Quizlab Reader.exe" "%1"'
 
-  ; --- Windows 11 top-level menu: IExplorerCommand COM extension ---
-  ; The same verb above is promoted to the new (sade) context menu by
-  ; pointing it at our in-proc COM server. Manual HKCU registration is
-  ; used instead of regsvr32 (keeps per-user, no elevation). The DLL only
-  ; returns a title/icon and launches the exe — no other side effects.
-  ; If the DLL is missing from the package, the classic verb above still
-  ; works ("Show more options" fallback).
+  ; --- IExplorerCommand COM extension (classic-menu upgrade) ---
+  ; Pointing the verb above at our in-proc COM server gives the classic
+  ; entry multi-select (one process, PDF-only filter). NOTE: on current
+  ; Windows 11 builds this alone does NOT promote the verb to the new
+  ; (sade) top-level menu — that additionally requires package identity
+  ; (MSIX / Sparse Package, not yet implemented), so "Show more options"
+  ; remains the expected home. Manual HKCU registration is used instead
+  ; of regsvr32 (keeps per-user, no elevation). The DLL only returns a
+  ; title/icon and launches the exe — no other side effects. If the DLL
+  ; is missing from the package, the classic verb above still works.
   ; CLSID is identity-locked: {C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}
   ${If} ${FileExists} "$INSTDIR\resources\shell\QuizLabShellExt.dll"
     WriteRegStr HKCU "Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}" "" "QuizLab Shell Extension"

@@ -1,6 +1,6 @@
 ﻿import crypto from 'crypto'
 import type { DesktopCapturerSource } from 'electron'
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
 
 import { Logger } from '../core/logger.js'
@@ -73,12 +73,7 @@ function buildPickerHtml(): { html: string; nonce: string } {
 }
 
 function getPreloadPath(): string {
-  // SECURITY: Use app.getAppPath() instead of __dirname for preload path
-  // resolution.  When the app is packaged (electron-builder asar), __dirname
-  // points to the unpacked path inside the asar archive, but webPreferences.preload
-  // must resolve to a real filesystem path.  app.getAppPath() + relative path
-  // is handled correctly by Electron's asar support for preload scripts.
-  return path.join(app.getAppPath(), 'dist', 'electron', 'preload', 'displayMediaPickerPreload.js')
+  return path.join(__dirname, '../preload/displayMediaPickerPreload.js')
 }
 
 /**

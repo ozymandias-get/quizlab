@@ -5,9 +5,17 @@
   GeminiWebSessionStatus
 } from '@shared-core/types'
 
+import type { ProbeOutcome } from './stateMachine.js'
+
 export interface SessionMetadata extends GeminiWebSessionStatus {
   accountHash: string | null
   lastSilentRefreshAttemptAt?: number
+}
+
+export interface ProbeExecutionResult {
+  outcome: ProbeOutcome
+  accountHash: string | null
+  timedOut: boolean
 }
 
 export interface LockResult {

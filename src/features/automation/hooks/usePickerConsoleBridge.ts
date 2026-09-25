@@ -41,6 +41,8 @@ export function usePickerConsoleBridge({
   mountedRef
 }: UsePickerConsoleBridgeProps) {
   const activeWebviewElementRef = useRef<WebviewElement | null>(null)
+  const targetControllerRef = useRef<WebviewController | null>(null)
+  const getWebviewRef = useRef(getWebviewInstance)
   const isListeningRef = useRef(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
@@ -54,6 +56,7 @@ export function usePickerConsoleBridge({
   // would either force a re-bind (defeating the purpose) or risk stale
   // closures if a new prop slips past.
   useEffect(() => {
+    getWebviewRef.current = getWebviewInstance
     onResultRef.current = onResult
     onCancelledRef.current = onCancelled
     onErrorRef.current = onError
@@ -82,6 +85,7 @@ export function usePickerConsoleBridge({
       }
       activeWebviewElementRef.current = null
     }
+    targetControllerRef.current = null
   }, [stableConsoleHandler])
 
   useEffect(() => {
@@ -93,6 +97,11 @@ export function usePickerConsoleBridge({
       if (!msg || !msg.startsWith('_aiPicker:')) return
 
       if (!mountedRef.current) {
+        stopListening()
+        return
+      }
+
+      if (getWebviewRef.current() !== targetControllerRef.current) {
         stopListening()
         return
       }
@@ -114,50 +123,55 @@ export function usePickerConsoleBridge({
     }
   }, [mountedRef, stopListening])
 
-  const startListening = useCallback(() => {
-    stopListening()
+  const startListening = useCallback(
+    (targetController?: WebviewController | null) => {
+      stopListening()
 
-    const controller = getWebviewInstance()
-    if (!controller) return
+      const controller = targetController ?? getWebviewRef.current()
+      if (!controller) return
 
-    isListeningRef.current = true
+      targetControllerRef.current = controller
+      isListeningRef.current = true
 
-    const attachToElement = (el: WebviewElement | null) => {
-      if (activeWebviewElementRef.current === el) return
+      const attachToElement = (el: WebviewElement | null) => {
+        if (getWebviewRef.current() !== controller) return
+        if (activeWebviewElementRef.current === el) return
 
-      // Clean up previous element if any
-      if (activeWebviewElementRef.current) {
-        try {
-          activeWebviewElementRef.current.removeEventListener(
-            'console-message',
-            stableConsoleHandler
-          )
-        } catch {
-          // ignore
+        // Clean up previous element if any
+        if (activeWebviewElementRef.current) {
+          try {
+            activeWebviewElementRef.current.removeEventListener(
+              'console-message',
+              stableConsoleHandler
+            )
+          } catch {
+            // ignore
+          }
+        }
+
+        activeWebviewElementRef.current = el
+
+        if (el && isListeningRef.current) {
+          try {
+            el.addEventListener('console-message', stableConsoleHandler)
+          } catch (err) {
+            Logger.warn('[PickerConsoleBridge] Error adding console listener:', err)
+          }
         }
       }
 
-      activeWebviewElementRef.current = el
-
-      if (el && isListeningRef.current) {
-        try {
-          el.addEventListener('console-message', stableConsoleHandler)
-        } catch (err) {
-          Logger.warn('[PickerConsoleBridge] Error adding console listener:', err)
-        }
-      }
-    }
-
-    // Subscribe to element updates to handle dynamic mounting/unmounting
-    if (controller.subscribeWebviewElement) {
-      unsubscribeRef.current = controller.subscribeWebviewElement((el) => {
+      // Subscribe to element updates to handle dynamic mounting/unmounting
+      if (controller.subscribeWebviewElement) {
+        unsubscribeRef.current = controller.subscribeWebviewElement((el) => {
+          attachToElement(el)
+        })
+      } else {
+        const el = controller.getWebview?.() ?? null
         attachToElement(el)
-      })
-    } else {
-      const el = controller.getWebview?.() ?? null
-      attachToElement(el)
-    }
-  }, [getWebviewInstance, stableConsoleHandler, stopListening])
+      }
+    },
+    [stableConsoleHandler, stopListening]
+  )
 
   useEffect(() => {
     return () => {

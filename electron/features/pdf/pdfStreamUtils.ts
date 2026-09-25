@@ -11,7 +11,7 @@ const PDF_STREAM_HEADERS = {
 
 const READ_BUFFER_BYTES = 1024 * 1024
 
-function parseByteRange(
+export function parseByteRange(
   rangeHeader: string,
   totalSize: number
 ): { start: number; end: number } | null {
@@ -50,11 +50,11 @@ function parseByteRange(
     return null
   }
 
-  if (start >= totalSize || end >= totalSize) {
+  if (start >= totalSize) {
     return null
   }
 
-  return { start, end }
+  return { start, end: Math.min(end, totalSize - 1) }
 }
 
 export function createPdfResponseHeaders(stats: fs.Stats): Record<string, string> {

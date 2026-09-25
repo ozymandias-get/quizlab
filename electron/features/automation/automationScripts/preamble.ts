@@ -13,6 +13,7 @@ function createScriptPreamble(
   return `
     (async function() {
         ${buildCommonHelpers(ambiguousSelectorBehavior)}
+        getAbortSignal();
         const scriptStartedAt = now();
         const config = ${JSON.stringify(config)};
         const diagnostics = createDiagnostics('${kind}', {

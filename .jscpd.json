@@ -1,12 +1,10 @@
 {
-  "$schema": "https://json.schemastore.org/jscpd.json",
   "threshold": 0,
   "minLines": 5,
   "minTokens": 50,
   "reporters": ["html", "console"],
   "output": "reports/duplicates/jscpd",
-  "format": "typescript,javascript,tsx,jsx",
-  "pattern": "^(?!.*node_modules).*\\.(ts|tsx|js|jsx)$",
+  "format": ["typescript", "javascript", "tsx", "jsx"],
   "ignore": [
     "**/node_modules/**",
     "**/dist/**",
@@ -19,7 +17,5 @@
     "**/*.d.ts"
   ],
   "silent": false,
-  "skipLocal": true,
-  "skipFiles": [],
-  "cloneAlgorithm": "levenshtein"
+  "skipLocal": true
 }

@@ -1,4 +1,4 @@
-﻿import { app, type BrowserWindow, shell } from 'electron'
+﻿import { app, type BrowserWindow, session, shell } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -88,7 +88,13 @@ export function isAllowedMainFrameUrl(rawUrl: string) {
 
     const targetPath = path.normalize(fileURLToPath(parsed))
     const distRoot = path.normalize(path.join(app.getAppPath(), 'dist'))
-    return targetPath.startsWith(distRoot)
+    const relativePath = path.relative(distRoot, targetPath)
+    return (
+      relativePath === '' ||
+      (relativePath !== '..' &&
+        !relativePath.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relativePath))
+    )
   } catch {
     return false
   }
@@ -145,16 +151,10 @@ export function hardenWindowWebContents(window: BrowserWindow) {
       return
     }
 
-    // Validate that the webview uses an allowed partition. A renderer-level
-    // compromise could attempt to create webviews with arbitrary partitions
-    // to escape the permission boundaries set up in sessions.ts.
-    // Custom site partitions (persist:ai_custom_*) are allowed dynamically.
-    const ALLOWED_CUSTOM_PREFIX = 'persist:ai_custom_'
-    const partition = webPreferences.partition as string | undefined
+    const partition = webPreferences.partition
     if (
-      partition &&
-      !ALLOWED_WEBVIEW_PARTITIONS.has(partition) &&
-      !partition.startsWith(ALLOWED_CUSTOM_PREFIX)
+      typeof partition !== 'string' ||
+      (!ALLOWED_WEBVIEW_PARTITIONS.has(partition) && !partition.startsWith('persist:ai_custom_'))
     ) {
       Logger.warn(
         `[Security] Blocked webview with disallowed partition: ${partition} (src: ${params.src})`
@@ -184,21 +184,6 @@ export function hardenWindowWebContents(window: BrowserWindow) {
 
     // Disable navigation via drag-drop to prevent accidental file: URIs.
     webPreferences.navigateOnDragDrop = false
-
-    // Inject clipboard protection script when the webview loads.
-    // We cannot access the guest webContents from will-attach-webview,
-    // so we rely on the global web-contents-created handler below to
-    // inject the script into every guest page that belongs to a webview.
-    // The flag ensures we only inject into webview guests, not the
-    // main window or popups.
-    ;(webPreferences as Record<string, unknown>).__quizlabWebview = true
-
-    // Store the partition so web-contents-created can make
-    // partition-aware security decisions (e.g. opening auth
-    // domain URLs in the system browser for Google session apps).
-    if (partition) {
-      ;(webPreferences as Record<string, unknown>).__quizlabPartition = partition
-    }
   })
 }
 
@@ -230,10 +215,7 @@ function setupClipboardProtection(): void {
   }
 
   app.on('web-contents-created', (_event, wc) => {
-    // Only inject into webview guest pages (not the main window).
-    // We check for the flag set in will-attach-webview instead of
-    // inspecting type-based heuristics.
-    if (!(wc as unknown as Record<string, unknown>).__quizlabWebview) return
+    if (wc.getType() !== 'webview') return
 
     // SECURITY: Intercept window.open() calls from webview guest pages.
     // Without this handler, Electron creates a new unhardened BrowserWindow
@@ -260,11 +242,7 @@ function setupClipboardProtection(): void {
       return { action: 'deny' }
     })
 
-    // Read the partition set in will-attach-webview so we can make
-    // partition-aware decisions for auth domain navigations.
-    const partition = (wc as unknown as Record<string, unknown>).__quizlabPartition as
-      | string
-      | undefined
+    const isGeminiPartition = wc.session === session.fromPartition('persist:gemini_web_profile')
 
     // SECURITY: Prevent guest webview from navigating to auth domains.
     // Google blocks sign-in pages in webview environments (ERR_ABORTED),
@@ -281,7 +259,7 @@ function setupClipboardProtection(): void {
         // Open auth domain URLs in the system browser for Google web
         // session apps so the user can complete sign-in there.  The Chrome
         // extension will forward cookies back to the Electron partition.
-        if (partition === 'persist:gemini_web_profile') {
+        if (isGeminiPartition) {
           void shell.openExternal(url).catch(() => {
             // If opening the URL fails (no default browser, etc.)
             // the navigation is already prevented — safe to ignore.

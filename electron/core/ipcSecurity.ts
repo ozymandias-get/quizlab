@@ -1,29 +1,8 @@
 ﻿import type { IpcMainInvokeEvent, WebContents } from 'electron'
 
+import { isAllowedMainFrameUrl } from '../app/window/security.js'
 import { getMainWindow } from '../app/windowManager.js'
 import { Logger } from './logger.js'
-
-/**
- * Exact origin validation (URL-parsed, no prefix matching) — mirrors
- * pdfProtocol.isAllowedPdfOrigin. A prefix check like `startsWith('http://localhost')`
- * would wrongly trust crafted hosts such as `http://localhost.evil.com`.
- */
-function isTrustedOrigin(url: string): boolean {
-  let parsed: URL
-  try {
-    parsed = new URL(url)
-  } catch {
-    return false
-  }
-  if (parsed.protocol === 'file:') {
-    return true // Production build
-  }
-  if (parsed.protocol === 'http:') {
-    // Vite dev server (any port) and nothing else.
-    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
-  }
-  return false
-}
 
 function isTrustedMainWindowSender(sender: WebContents): boolean {
   const mainWindow = getMainWindow()
@@ -39,7 +18,7 @@ function isTrustedMainWindowSender(sender: WebContents): boolean {
   // NOTE: Use guarded access for getURL() — it is always available on
   // real Electron WebContents but may be absent on mock objects in tests.
   const currentUrl = typeof sender.getURL === 'function' ? sender.getURL() : 'file://'
-  if (!isTrustedOrigin(currentUrl)) {
+  if (!isAllowedMainFrameUrl(currentUrl)) {
     Logger.warn('[IPC] Blocked sender from untrusted origin', {
       url: currentUrl
     })

@@ -8,6 +8,7 @@ import path from 'path'
 import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/googleAiWebApps.js'
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
+import { setupAiSession } from '../../app/window/sessions.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
 import { getCustomPlatformsPath } from '../../core/coreHelpers.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
@@ -58,7 +59,7 @@ const normalizeCustomAiName = (name: unknown): string | null => {
   return normalized
 }
 
-const normalizeCustomAiUrl = (url: unknown): string | null => {
+export const normalizeCustomAiUrl = (url: unknown): string | null => {
   if (typeof url !== 'string') return null
 
   let normalized = url.trim()
@@ -69,8 +70,8 @@ const normalizeCustomAiUrl = (url: unknown): string | null => {
 
   try {
     const parsed = new URL(normalized)
-    if (!parsed.hostname) return null
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    if (!parsed.hostname || parsed.username || parsed.password) return null
+    if (parsed.protocol !== 'https:') return null
     return parsed.toString()
   } catch {
     return null
@@ -132,6 +133,11 @@ export function registerAiRegistryHandlers() {
         }
 
         await manager.setItem(id, newPlatform)
+        try {
+          if (newPlatform.partition) setupAiSession(newPlatform.partition)
+        } catch (error) {
+          Logger.warn('[AI] Failed to configure custom session permissions:', error)
+        }
         return success({
           ok: true,
           data: {
@@ -181,6 +187,15 @@ export function registerAiRegistryHandlers() {
         const customPlatforms = await manager.read(forceRefresh)
 
         const mergedRegistry: Record<string, AiPlatform> = { ...AI_REGISTRY, ...customPlatforms }
+
+        for (const platform of Object.values(customPlatforms)) {
+          if (!platform.partition?.startsWith('persist:ai_custom_')) continue
+          try {
+            setupAiSession(platform.partition)
+          } catch (error) {
+            Logger.warn('[AI] Failed to configure custom session permissions:', error)
+          }
+        }
 
         try {
           const geminiStatus = await geminiWebSessionManager.getStatus()

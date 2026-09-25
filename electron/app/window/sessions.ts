@@ -59,6 +59,49 @@ async function handleDisplayMediaRequest(
 }
 
 let sessionsConfigured = false
+const configuredAiPartitions = new Set<string>()
+
+const defaultMainWindowResolver: MainWindowResolver = () => BrowserWindow.getFocusedWindow()
+
+export function setupAiSession(
+  partition: string,
+  getMainWindow: MainWindowResolver = defaultMainWindowResolver
+): void {
+  if (configuredAiPartitions.has(partition)) return
+
+  const aiSession = session.fromPartition(partition)
+  const partitionKey = partition.replace('persist:', '')
+  markPartitionActive(partitionKey)
+
+  try {
+    aiSession.webRequest.onCompleted(() => {
+      markPartitionActive(partitionKey)
+    })
+    aiSession.webRequest.onBeforeRequest((_details, callback) => {
+      markPartitionActive(partitionKey)
+      callback({})
+    })
+  } catch {}
+
+  aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    markPartitionActive(partitionKey)
+    details.requestHeaders['User-Agent'] = APP_CONFIG.CHROME_USER_AGENT
+    callback({ requestHeaders: details.requestHeaders })
+  })
+
+  aiSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(ALLOWED_AI_PERMISSIONS.has(permission))
+  })
+  aiSession.setPermissionCheckHandler((_webContents, permission) =>
+    ALLOWED_AI_PERMISSIONS.has(permission as string)
+  )
+
+  aiSession.setDisplayMediaRequestHandler((request, callback) => {
+    void handleDisplayMediaRequest(request, callback, getMainWindow)
+  })
+
+  configuredAiPartitions.add(partition)
+}
 
 export function setupSessions(getMainWindow: MainWindowResolver) {
   if (sessionsConfigured) return
@@ -77,47 +120,10 @@ export function setupSessions(getMainWindow: MainWindowResolver) {
     const aiPartitions = new Set<string>()
     if (APP_CONFIG.PARTITIONS.AI) aiPartitions.add(APP_CONFIG.PARTITIONS.AI)
     for (const p of Object.values(AI_REGISTRY)) p.partition && aiPartitions.add(p.partition)
-
     for (const p of Object.values(INACTIVE_PLATFORMS)) p.partition && aiPartitions.add(p.partition)
 
     for (const partition of aiPartitions) {
-      const aiSession = session.fromPartition(partition)
-
-      // Partition aktivite takibi: kurulum anında aktif işaretle
-      const partitionKey = partition.replace('persist:', '')
-      markPartitionActive(partitionKey)
-
-      // Akıllı takip: her istekte partition'u canlı işaretle (LRU için)
-      try {
-        aiSession.webRequest.onCompleted(() => {
-          markPartitionActive(partitionKey)
-        })
-        aiSession.webRequest.onBeforeRequest((_details, callback) => {
-          // Aktiviteyi güncelle, isteği engelleme
-          markPartitionActive(partitionKey)
-          callback({})
-        })
-      } catch {
-        // webRequest hook fails shouldn't break session setup
-      }
-
-      aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
-        // Header aşamasında da aktiviteyi tazele (en sık tetiklenen hook)
-        markPartitionActive(partitionKey)
-        details.requestHeaders['User-Agent'] = APP_CONFIG.CHROME_USER_AGENT
-        callback({ requestHeaders: details.requestHeaders })
-      })
-
-      aiSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-        callback(ALLOWED_AI_PERMISSIONS.has(permission))
-      })
-      aiSession.setPermissionCheckHandler((_webContents, permission) =>
-        ALLOWED_AI_PERMISSIONS.has(permission as string)
-      )
-
-      aiSession.setDisplayMediaRequestHandler((request, callback) => {
-        void handleDisplayMediaRequest(request, callback, getMainWindow)
-      })
+      setupAiSession(partition, getMainWindow)
     }
 
     sessionsConfigured = true

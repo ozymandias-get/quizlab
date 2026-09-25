@@ -23,6 +23,7 @@ import {
   createWrapper,
   mockAiRegistry,
   mockCopyImageToClipboard,
+  mockRestoreClipboard,
   mockGenerateAutoSendScript,
   mockGenerateClickSendScript,
   mockGenerateFocusScript,
@@ -48,14 +49,7 @@ describe('useAiSender - error handling', () => {
   it('handles clipboard failure', async () => {
     mockCopyImageToClipboard.mockResolvedValue(false)
     const { result } = renderHook(
-      () =>
-        useAiSender(
-          mockWebviewRef,
-          'gpt-4',
-          false,
-          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
-          'tab-1'
-        ),
+      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry, 'tab-1'),
       {
         wrapper: createWrapper()
       }
@@ -69,6 +63,25 @@ describe('useAiSender - error handling', () => {
     expect(res.success).toBe(false)
     expect(res.error).toBe('clipboard_failed')
     expect(res.diagnostics?.timings.clipboardMs).toBeDefined()
+  })
+
+  it('restores the clipboard when image focus fails', async () => {
+    mockCopyImageToClipboard.mockResolvedValue(true)
+    mockWebview.executeJavaScript.mockResolvedValueOnce({
+      success: false,
+      error: 'focus_failed',
+      diagnostics: mockScriptDiagnostics
+    })
+    const { result } = renderHook(
+      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry, 'tab-1'),
+      { wrapper: createWrapper() }
+    )
+
+    await act(async () => {
+      await result.current.sendImageToAI('data:image/png;base64,xxxx')
+    })
+
+    expect(mockRestoreClipboard).toHaveBeenCalledTimes(1)
   })
 
   it('returns autosend_failed_draft_saved when click step fails in image autosend', async () => {
@@ -86,14 +99,7 @@ describe('useAiSender - error handling', () => {
       .mockResolvedValueOnce({ success: false, error: 'autosend_failed_draft_saved' })
 
     const { result } = renderHook(
-      () =>
-        useAiSender(
-          mockWebviewRef,
-          'gpt-4',
-          true,
-          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
-          'tab-1'
-        ),
+      () => useAiSender(mockWebviewRef, 'gpt-4', true, mockAiRegistry, 'tab-1'),
       { wrapper: createWrapper() }
     )
 
@@ -112,14 +118,7 @@ describe('useAiSender - error handling', () => {
     } as unknown as Parameters<typeof useAiSender>[0]
 
     const { result } = renderHook(
-      () =>
-        useAiSender(
-          swappedRef,
-          'gpt-4',
-          false,
-          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
-          'tab-1'
-        ),
+      () => useAiSender(swappedRef, 'gpt-4', false, mockAiRegistry, 'tab-1'),
       { wrapper: createWrapper() }
     )
 
@@ -141,14 +140,7 @@ describe('useAiSender - error handling', () => {
   it('returns diagnostics when no webview is available', async () => {
     const emptyRef = { current: null } as unknown as Parameters<typeof useAiSender>[0]
     const { result } = renderHook(
-      () =>
-        useAiSender(
-          emptyRef,
-          'gpt-4',
-          false,
-          mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
-          'tab-stale'
-        ),
+      () => useAiSender(emptyRef, 'gpt-4', false, mockAiRegistry, 'tab-stale'),
       {
         wrapper: createWrapper()
       }

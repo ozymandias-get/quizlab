@@ -17,9 +17,11 @@ import type { SessionImportResult } from './sessionContracts.js'
 import { SessionOrchestrator } from './sessionOrchestrator.js'
 
 class GeminiWebSessionManager {
-  private readonly orchestrator: SessionOrchestrator
+  private orchestrator: SessionOrchestrator | null = null
 
-  constructor() {
+  private getOrchestrator(): SessionOrchestrator {
+    if (this.orchestrator) return this.orchestrator
+
     const paths = createGeminiSessionPaths()
     const config: GeminiWebSessionConfig = createGeminiSessionConfig(paths.profileDir)
     this.orchestrator = new SessionOrchestrator({
@@ -44,38 +46,39 @@ class GeminiWebSessionManager {
         mainWindow.webContents.send(channel, event)
       }
     })
+    return this.orchestrator
   }
 
   getConfig(): GeminiWebSessionConfig {
-    return this.orchestrator.getConfig()
+    return this.getOrchestrator().getConfig()
   }
 
   async initialize(): Promise<void> {
-    return this.orchestrator.initialize()
+    return this.getOrchestrator().initialize()
   }
 
   async getStatus(): Promise<GeminiWebSessionStatus> {
-    return this.orchestrator.getStatus()
+    return this.getOrchestrator().getStatus()
   }
 
   async setEnabled(enabled: unknown): Promise<GeminiWebSessionActionResult> {
-    return this.orchestrator.setEnabled(enabled)
+    return this.getOrchestrator().setEnabled(enabled)
   }
 
   async setEnabledApps(enabledAppIds: string[]): Promise<GeminiWebSessionActionResult> {
-    return this.orchestrator.setEnabledApps(enabledAppIds)
+    return this.getOrchestrator().setEnabledApps(enabledAppIds)
   }
 
   async exportSession(filePath: string): Promise<{ success: boolean; error?: string }> {
-    return this.orchestrator.exportSession(filePath)
+    return this.getOrchestrator().exportSession(filePath)
   }
 
   async importSession(filePath: string): Promise<SessionImportResult> {
-    return this.orchestrator.importSession(filePath)
+    return this.getOrchestrator().importSession(filePath)
   }
 
   async resetProfile(): Promise<GeminiWebSessionActionResult> {
-    return this.orchestrator.resetProfile()
+    return this.getOrchestrator().resetProfile()
   }
 
   async ensureAuthenticated(): Promise<{
@@ -83,11 +86,11 @@ class GeminiWebSessionManager {
     error?: string
     status: GeminiWebSessionStatus
   }> {
-    return this.orchestrator.ensureAuthenticated()
+    return this.getOrchestrator().ensureAuthenticated()
   }
 
   async dispose(): Promise<void> {
-    return this.orchestrator.dispose()
+    return this.getOrchestrator().dispose()
   }
 }
 

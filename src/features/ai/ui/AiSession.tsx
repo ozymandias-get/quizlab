@@ -63,8 +63,8 @@ const AiSession = memo(
     )
 
     const registerInstance = useCallback(
-      (instance: WebviewController | null) => {
-        registerWebview(tab.id, instance)
+      (instance: WebviewController | null, expectedInstance?: WebviewController) => {
+        registerWebview(tab.id, instance, expectedInstance)
       },
       [registerWebview, tab.id]
     )

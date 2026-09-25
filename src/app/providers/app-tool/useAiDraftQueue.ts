@@ -23,6 +23,7 @@ function revokeDraftBlobUrls(items: AiDraftItem[]) {
 
 export function useAiDraftQueue(onDrop?: () => void) {
   const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
+  const pendingDraftIdsRef = useRef(new Set<string>())
 
   const pendingAiItemsRef = useRef(pendingAiItems)
   pendingAiItemsRef.current = pendingAiItems
@@ -31,8 +32,10 @@ export function useAiDraftQueue(onDrop?: () => void) {
   onDropRef.current = onDrop
 
   useEffect(() => {
+    const pendingDraftIds = pendingDraftIdsRef.current
     return () => {
       revokeDraftBlobUrls(pendingAiItemsRef.current)
+      pendingDraftIds.clear()
     }
   }, [])
 
@@ -53,6 +56,8 @@ export function useAiDraftQueue(onDrop?: () => void) {
   }, [])
 
   const queueImageForAi = useCallback((imageUri: string, imageMeta?: QueuedImageMeta) => {
+    const draftId = buildPendingId('image')
+    pendingDraftIdsRef.current.add(draftId)
     let blobUrl = ''
     let dataUrl: string | undefined
 
@@ -91,12 +96,12 @@ export function useAiDraftQueue(onDrop?: () => void) {
               return URL.createObjectURL(new Blob([largeBytes], { type: largeMime }))
             })
             .then((url) => {
+              if (!pendingDraftIdsRef.current.has(draftId)) {
+                URL.revokeObjectURL(url)
+                return
+              }
               setPendingAiItems((current) =>
-                current.map((item) =>
-                  item.type === 'image' && item.dataUrl === imageUri
-                    ? { ...item, blobUrl: url }
-                    : item
-                )
+                current.map((item) => (item.id === draftId ? { ...item, blobUrl: url } : item))
               )
             })
             .catch(() => {})
@@ -107,12 +112,14 @@ export function useAiDraftQueue(onDrop?: () => void) {
         blobUrl = ''
       }
     } else {
+      pendingDraftIdsRef.current.delete(draftId)
       return
     }
 
     setPendingAiItems((current) => {
       if (current.length >= MAX_QUEUE_SIZE) {
         const dropped = current[0]
+        pendingDraftIdsRef.current.delete(dropped.id)
         revokeDraftItemBlob(dropped)
         Logger?.warn?.(`[DraftQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest item`)
         onDropRef.current?.()
@@ -120,7 +127,7 @@ export function useAiDraftQueue(onDrop?: () => void) {
         return [
           ...trimmed,
           {
-            id: buildPendingId('image'),
+            id: draftId,
             type: 'image',
             ...(dataUrl ? { dataUrl } : {}),
             blobUrl,
@@ -131,7 +138,7 @@ export function useAiDraftQueue(onDrop?: () => void) {
       return [
         ...current,
         {
-          id: buildPendingId('image'),
+          id: draftId,
           type: 'image',
           ...(dataUrl ? { dataUrl } : {}),
           blobUrl,
@@ -144,7 +151,10 @@ export function useAiDraftQueue(onDrop?: () => void) {
   const removePendingAiItem = useCallback((id: string) => {
     setPendingAiItems((current) => {
       const removed = current.find((draft) => draft.id === id)
-      if (removed) revokeDraftItemBlob(removed)
+      if (removed) {
+        pendingDraftIdsRef.current.delete(id)
+        revokeDraftItemBlob(removed)
+      }
       return current.filter((draft) => draft.id !== id)
     })
   }, [])
@@ -153,6 +163,7 @@ export function useAiDraftQueue(onDrop?: () => void) {
     clearBrowserTextSelection()
     setPendingAiItems((current) => {
       revokeDraftBlobUrls(current)
+      pendingDraftIdsRef.current.clear()
       return []
     })
   }, [])

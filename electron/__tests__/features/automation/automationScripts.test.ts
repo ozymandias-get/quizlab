@@ -99,6 +99,28 @@ describe('automationScripts', () => {
     expect(result.diagnostics.input.strategy).toBe('fingerprint')
   })
 
+  it('skips an invalid selector and continues with valid candidates', async () => {
+    document.body.innerHTML = `
+      <textarea></textarea>
+      <button type="button">Send</button>
+    `
+
+    const script = generateAutoSendScript(
+      {
+        input: null,
+        inputCandidates: ['[aria-label="broken', 'textarea'],
+        button: 'button',
+        submitMode: 'click'
+      },
+      'hello',
+      false
+    )
+
+    const result = await window.eval(script)
+    expect(result.success).toBe(true)
+    expect(result.diagnostics.input.matchedSelector).toBe('textarea')
+  })
+
   it('rejects ambiguous selector matches and surfaces re-pick requirement', async () => {
     document.body.innerHTML = `
             <textarea placeholder="Ask"></textarea>
@@ -171,6 +193,25 @@ describe('automationScripts', () => {
     expect(result.action).toBe('submit_ready')
     expect(result.diagnostics.submitMs).toBeGreaterThan(0)
   }, 10000)
+
+  it('cancels a wait when the guest navigation aborts the run', async () => {
+    const script = generateWaitForSubmitReadyScript(
+      { input: '#missing-input', button: '#missing-send', submitMode: 'click' },
+      { timeoutMs: 1500, settleMs: 50, minimumWaitMs: 50 }
+    )
+
+    const execution = window.eval(script)
+    setTimeout(() => {
+      const automationWindow = window as Window & {
+        __quizlabAbortController?: AbortController
+      }
+      automationWindow.__quizlabAbortController?.abort()
+    }, 50)
+
+    const result = await execution
+    expect(result.success).toBe(false)
+    expect(result.diagnostics.totalMs).toBeLessThan(1000)
+  })
 
   it('reports input_not_found when submit readiness input selector is missing', async () => {
     document.body.innerHTML = `<button id="send" type="button">Send</button>`

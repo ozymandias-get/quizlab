@@ -281,6 +281,32 @@ describe('useElementPicker', () => {
     )
   })
 
+  it('does not inject a picker after the active webview changes during setup', async () => {
+    let resolveGenerate!: (value: string) => void
+    mockGeneratePickerScriptMutate.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveGenerate = resolve
+      })
+    )
+    const { result } = renderPicker()
+
+    let startPromise!: Promise<void>
+    await act(async () => {
+      startPromise = result.current.startPicker()
+    })
+    currentWebview.current = {
+      executeJavaScript: vi.fn().mockResolvedValue(undefined),
+      getURL: vi.fn().mockReturnValue('https://other.example/')
+    }
+    resolveGenerate('// script')
+    await act(async () => {
+      await startPromise
+    })
+
+    expect(mockWebview.executeJavaScript).not.toHaveBeenCalled()
+    expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
+  })
+
   // S11: C1 re-entrance guard. Without the guard, the second startPicker
   // would inject a duplicate picker script into the same webview,
   // orphaning the first script's listeners.

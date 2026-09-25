@@ -45,6 +45,17 @@ describe('window/sessions', () => {
     showDisplayMediaPicker.mockReset()
   })
 
+  it('configures a dynamic custom AI partition only once', async () => {
+    const module = await import('../../../app/window/sessions.js')
+
+    module.setupAiSession('persist:ai_custom_dynamic')
+    module.setupAiSession('persist:ai_custom_dynamic')
+
+    expect(setPermissionRequestHandler).toHaveBeenCalledTimes(1)
+    expect(setPermissionCheckHandler).toHaveBeenCalledTimes(1)
+    expect(setDisplayMediaRequestHandler).toHaveBeenCalledTimes(1)
+  })
+
   it('configures permissions and display media handler', async () => {
     getSources.mockResolvedValue([
       { id: 'screen:1', name: 'Display 1' },

@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { AiPlatform } from '@shared-core/types'
 import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 
@@ -77,8 +78,11 @@ export const mockWebviewRef = { current: mockWebview } as unknown as Parameters<
   typeof import('@features/ai/hooks/useAiSender').useAiSender
 >[0]
 
-export const mockAiRegistry = {
+export const mockAiRegistry: Record<string, AiPlatform> = {
   'gpt-4': {
+    id: 'gpt-4',
+    name: 'GPT-4',
+    url: 'https://chatgpt.com',
     input: '#input',
     button: '#send',
     submitMode: 'click',
@@ -91,4 +95,5 @@ export const mockGenerateClickSendScript = vi.fn()
 export const mockGenerateFocusScript = vi.fn()
 export const mockGenerateWaitForSubmitReadyScript = vi.fn()
 export const mockCopyImageToClipboard = vi.fn()
+export const mockRestoreClipboard = vi.fn()
 export const mockGetAiConfig = vi.fn()

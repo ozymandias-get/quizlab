@@ -2,7 +2,7 @@ import { useToastActions } from '@app/providers'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import { Logger } from '@shared/lib/logger'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import { captureCanvasAsBlob } from './captureCanvasAsBlob'
 import { findPageCanvas } from './findPageCanvas'
@@ -26,23 +26,44 @@ export function usePdfCaptureActions({
   const { showError } = useToastActions()
   const currentPageRef = useRef(currentPage)
   currentPageRef.current = currentPage
+  const pdfUrlRef = useRef(pdfUrl)
+  pdfUrlRef.current = pdfUrl
+  const mountedRef = useRef(true)
+  const captureRequestIdRef = useRef(0)
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+      captureRequestIdRef.current += 1
+    }
+  }, [])
 
   const handleFullPageScreenshot = useCallback(async () => {
     const pageAtCaptureTime = currentPageRef.current
+    const pdfUrlAtCaptureTime = pdfUrlRef.current
+    const requestId = ++captureRequestIdRef.current
+    const isCurrentCapture = () =>
+      mountedRef.current &&
+      requestId === captureRequestIdRef.current &&
+      pdfUrlRef.current === pdfUrlAtCaptureTime
     Logger.info(
-      `[PdfCapture] handleFullPageScreenshot triggered for page ${pageAtCaptureTime}, hasPdfUrl=${!!pdfUrl}`
+      `[PdfCapture] handleFullPageScreenshot triggered for page ${pageAtCaptureTime}, hasPdfUrl=${!!pdfUrlAtCaptureTime}`
     )
     try {
       // Kalite öncelikli: pdfUrl varsa doğrudan PDF.js ile ultra yüksek çözünürlüklü
       // (scale 4.0, ~288 DPI - 4K Ultra HD) render al. Bu, ekrandaki zoom seviyesinden
       // bağımsız olarak metin ve mikroskop fotoğraflarının kristal netliğinde çıkmasını sağlar.
-      if (pdfUrl) {
+      if (pdfUrlAtCaptureTime) {
         try {
           const { renderPageToImageFallback } = await import('@features/pdf/lib/renderPageToImage')
-          const rendered = await renderPageToImageFallback(pdfUrl, pageAtCaptureTime, {
+          const rendered = await renderPageToImageFallback(pdfUrlAtCaptureTime, pageAtCaptureTime, {
             scale: 4.0,
             maxPixels: 20_000_000
           })
+          if (!isCurrentCapture()) {
+            if (rendered?.blobUrl) URL.revokeObjectURL(rendered.blobUrl)
+            return
+          }
           if (rendered?.blob && rendered?.blobUrl) {
             Logger.info(
               `[PdfCapture] High-DPI page render ready: ${rendered.width}x${rendered.height}, size: ${(rendered.blob.size / 1024).toFixed(1)} KB`
@@ -54,6 +75,10 @@ export function usePdfCaptureActions({
                 reader.onerror = () => reject(new Error('read failed'))
                 reader.readAsDataURL(rendered.blob)
               })
+              if (!isCurrentCapture()) {
+                URL.revokeObjectURL(rendered.blobUrl)
+                return
+              }
               if (dataUrl.startsWith('data:image/')) {
                 queueImageForAi(dataUrl, {
                   page: pageAtCaptureTime,
@@ -64,6 +89,10 @@ export function usePdfCaptureActions({
               }
             } catch (readErr) {
               Logger.warn('[PdfCapture] FileReader failed:', readErr)
+            }
+            if (!isCurrentCapture()) {
+              URL.revokeObjectURL(rendered.blobUrl)
+              return
             }
             queueImageForAi(rendered.blobUrl, {
               page: pageAtCaptureTime,
@@ -93,6 +122,7 @@ export function usePdfCaptureActions({
         for (let i = 0; i < MAX_RETRIES; i++) {
           const delayMs = 30 + i * 20 // 30, 50, 70, ... 210 ms
           await new Promise((r) => setTimeout(r, delayMs))
+          if (!isCurrentCapture()) return
           targetCanvas = findPageCanvas(pageAtCaptureTime)
           if (targetCanvas) break
         }
@@ -102,13 +132,21 @@ export function usePdfCaptureActions({
         // Last resort: try direct PDF.js render if we have a URL. This
         // covers cases where the canvas hasn't been rasterized yet (e.g.
         // fast navigation, large document, or hidden viewer).
-        if (pdfUrl) {
+        if (pdfUrlAtCaptureTime) {
           try {
             const { renderPageToImageFallback } =
               await import('@features/pdf/lib/renderPageToImage')
-            const rendered = await renderPageToImageFallback(pdfUrl, pageAtCaptureTime, {
-              scale: 2
-            })
+            const rendered = await renderPageToImageFallback(
+              pdfUrlAtCaptureTime,
+              pageAtCaptureTime,
+              {
+                scale: 2
+              }
+            )
+            if (!isCurrentCapture()) {
+              if (rendered?.blobUrl) URL.revokeObjectURL(rendered.blobUrl)
+              return
+            }
             if (rendered?.blobUrl) {
               queueImageForAi(rendered.blobUrl, {
                 page: pageAtCaptureTime,
@@ -122,6 +160,8 @@ export function usePdfCaptureActions({
         return
       }
 
+      if (!isCurrentCapture()) return
+
       // Defensive: canvas may have been zeroed by GPU cleanup between
       // discovery and blob conversion (e.g. rapid navigation). Re-validate.
       if (targetCanvas.width === 0 || targetCanvas.height === 0) {
@@ -133,6 +173,8 @@ export function usePdfCaptureActions({
           return
         }
       }
+
+      if (!isCurrentCapture()) return
 
       // Prefer a synchronous data URL for the queue: it keeps both dataUrl
       // and a lightweight blobUrl for preview, and avoids the later
@@ -163,15 +205,19 @@ export function usePdfCaptureActions({
           showError('toast_capture_failed')
           return
         }
+        if (!isCurrentCapture()) {
+          URL.revokeObjectURL(result.blobUrl)
+          return
+        }
         queueImageForAi(result.blobUrl, {
           page: pageAtCaptureTime,
           captureKind: 'full-page'
         })
       }
     } catch {
-      showError('toast_capture_failed')
+      if (isCurrentCapture()) showError('toast_capture_failed')
     }
-  }, [queueImageForAi, showError, pdfUrl])
+  }, [queueImageForAi, showError])
 
   const handleAreaScreenshot = useCallback(() => {
     startScreenshot({

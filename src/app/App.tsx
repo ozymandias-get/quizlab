@@ -6,7 +6,7 @@ import AppBackground from '@ui/layout/AppBackground'
 
 import { AnimatePresence, LayoutGroup } from 'motion/react'
 import type { RefObject } from 'react'
-import { lazy, memo, Suspense, useCallback, useMemo } from 'react'
+import { lazy, memo, Suspense, useCallback, useMemo, useRef } from 'react'
 
 const FocusOverlay = lazy(() => import('@app/ui/FocusOverlay'))
 const ScreenshotTool = lazy(() =>
@@ -89,6 +89,7 @@ function App() {
   }, [setLeftPanelWidth])
 
   const isFocusActive = focus.mode !== null
+  const aiTabUrlCacheRef = useRef<Record<string, { url: string; modelId: string }>>({})
   const isOnboardingDone = useLanguage((s) => s.isOnboardingDone)
 
   return (
@@ -111,37 +112,37 @@ function App() {
           />
         </Suspense>
 
-        <div
-          className={isFocusActive ? 'pointer-events-none invisible absolute' : ''}
-          aria-hidden={isFocusActive}
-        >
-          <MainWorkspace
-            isLayoutSwapped={isLayoutSwapped}
-            leftPanelWidth={leftPanelWidth}
-            leftPanelRef={leftPanelRef as RefObject<HTMLDivElement>}
-            resizerRef={resizerRef as RefObject<HTMLDivElement>}
-            containerVariants={animations.containerVariants}
-            leftPanelVariants={animations.leftPanelVariants}
-            rightPanelVariants={animations.rightPanelVariants}
-            resizerVariants={animations.resizerVariants}
-            gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
-            handlePointerDown={handlePointerDown}
-            handlePointerMove={handlePointerMove}
-            handlePointerUp={handlePointerUp}
-            handleLostPointerCapture={handleLostPointerCapture}
-            handleResizerDoubleClick={handleResizerDoubleClick}
-            onKeyboardResize={nudgeLeftPanelWidth}
-            isResizeReversed={isLayoutSwapped}
-            isWebviewMounted={isWebviewMounted}
-            isResizing={isResizing}
-            isBarHovered={workspaceState.isBarHovered}
-            onBarHoverChange={workspaceState.setIsBarHovered}
-            leftPanelProps={combinedLeftPanelProps}
-            isInteractionBlocked={isInteractionBlocked}
-            isPanelResizing={isPanelResizing}
-            bgMode={bgMode}
-          />
-        </div>
+        {!isFocusActive && (
+          <div>
+            <MainWorkspace
+              isLayoutSwapped={isLayoutSwapped}
+              leftPanelWidth={leftPanelWidth}
+              leftPanelRef={leftPanelRef as RefObject<HTMLDivElement>}
+              resizerRef={resizerRef as RefObject<HTMLDivElement>}
+              containerVariants={animations.containerVariants}
+              leftPanelVariants={animations.leftPanelVariants}
+              rightPanelVariants={animations.rightPanelVariants}
+              resizerVariants={animations.resizerVariants}
+              gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
+              handlePointerDown={handlePointerDown}
+              handlePointerMove={handlePointerMove}
+              handlePointerUp={handlePointerUp}
+              handleLostPointerCapture={handleLostPointerCapture}
+              handleResizerDoubleClick={handleResizerDoubleClick}
+              onKeyboardResize={nudgeLeftPanelWidth}
+              isResizeReversed={isLayoutSwapped}
+              isWebviewMounted={isWebviewMounted}
+              isResizing={isResizing}
+              isBarHovered={workspaceState.isBarHovered}
+              onBarHoverChange={workspaceState.setIsBarHovered}
+              leftPanelProps={combinedLeftPanelProps}
+              isInteractionBlocked={isInteractionBlocked}
+              isPanelResizing={isPanelResizing}
+              bgMode={bgMode}
+              aiTabUrlCacheRef={aiTabUrlCacheRef}
+            />
+          </div>
+        )}
 
         <AnimatePresence>
           {focus.mode !== null && (
@@ -153,6 +154,7 @@ function App() {
                 isWebviewMounted={isWebviewMounted}
                 isResizing={false}
                 isBarHovered={false}
+                aiTabUrlCacheRef={aiTabUrlCacheRef}
               />
             </Suspense>
           )}

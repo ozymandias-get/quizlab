@@ -11,7 +11,10 @@ import { useWebviewMethods } from './useWebviewMethods'
 
 interface UseWebviewLifecycleProps {
   currentAI: string
-  registerWebview?: (methods: WebviewController | null) => void
+  registerWebview?: (
+    methods: WebviewController | null,
+    expectedInstance?: WebviewController
+  ) => void
   t: (key: string) => string
   showWarning: (key: string) => void
   onUrlChange?: (url: string) => void
@@ -110,16 +113,16 @@ export function useWebviewLifecycle({
         }
       }
       activeWebviewRef.current = null
-      if (registerWebview) registerWebview(null)
+      if (registerWebview) registerWebview(null, webviewMethods)
     }
-  }, [clearCrashRetryTimeout, registerWebview])
+  }, [clearCrashRetryTimeout, registerWebview, webviewMethods])
 
   useEffect(() => {
-    if (registerWebview) {
-      registerWebview(webviewElement ? webviewMethods : null)
+    if (registerWebview && webviewElement) {
+      registerWebview(webviewMethods)
     }
     return () => {
-      if (registerWebview) registerWebview(null)
+      if (registerWebview) registerWebview(null, webviewMethods)
     }
   }, [registerWebview, webviewElement, webviewMethods])
 

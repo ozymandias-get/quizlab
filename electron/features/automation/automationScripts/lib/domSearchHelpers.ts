@@ -143,9 +143,19 @@ export const domSearchHelpers =
     };
 
     const findUniqueSelectorMatch = (selector, fingerprint) => {
-        const roots = getSearchRoots();
-        const directMatches = uniqueElements(Array.from(document.querySelectorAll(selector)));
-        const allMatches = uniqueElements(roots.flatMap((root) => Array.from(root.querySelectorAll(selector))));
+        let directMatches = [];
+        let allMatches = [];
+        try {
+            const roots = getSearchRoots();
+            directMatches = uniqueElements(Array.from(document.querySelectorAll(selector)));
+            allMatches = uniqueElements(roots.flatMap((root) => Array.from(root.querySelectorAll(selector))));
+        } catch (_) {
+            return {
+                element: null,
+                matchedSelector: null,
+                strategy: 'none'
+            };
+        }
 
         if (allMatches.length === 0) {
             return {

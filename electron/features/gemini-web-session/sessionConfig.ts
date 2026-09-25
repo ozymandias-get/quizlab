@@ -6,6 +6,18 @@ import type {
 
 export const PROFILE_PARTITION = 'persist:gemini_web_profile'
 export const HEALTH_TIMEOUT_MS = 30_000
+export const REFRESH_GRACE_PERIOD_MS = parseEnvNumber(
+  'GEMINI_WEB_REFRESH_GRACE_PERIOD_MS',
+  5_000,
+  1_000,
+  30_000
+)
+export const SILENT_REFRESH_COOLDOWN_MS = parseEnvNumber(
+  'GEMINI_WEB_SILENT_REFRESH_COOLDOWN_MS',
+  10 * 60 * 1000,
+  60_000,
+  60 * 60 * 1000
+)
 
 function parseEnvNumber(name: string, fallback: number, min: number, max: number): number {
   const raw = process.env[name]?.trim()

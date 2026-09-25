@@ -1,10 +1,8 @@
-import { normalizeSubmitMode } from '@shared-core/selectorConfig'
-import type {
-  AiPlatform,
-  AiSelectorConfig,
-  AutomationConfig,
-  SelectorHealth
-} from '@shared-core/types'
+import {
+  normalizeSubmitMode,
+  toAutomationConfig as normalizeAutomationConfig
+} from '@shared-core/selectorConfig'
+import type { AiPlatform, AiSelectorConfig, SelectorHealth } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
@@ -246,24 +244,7 @@ export function queueForWebview<T>(webview: WebviewController, task: () => Promi
   return next
 }
 
-export function toAutomationConfig(config: AiConfig): AutomationConfig {
-  return {
-    input: typeof config.input === 'string' || config.input === null ? config.input : null,
-    button: typeof config.button === 'string' || config.button === null ? config.button : null,
-    waitFor: typeof config.waitFor === 'string' || config.waitFor === null ? config.waitFor : null,
-    submitMode: normalizeSubmitMode(config.submitMode) || undefined,
-    inputCandidates: Array.isArray(config.inputCandidates) ? config.inputCandidates : null,
-    buttonCandidates: Array.isArray(config.buttonCandidates) ? config.buttonCandidates : null,
-    inputFingerprint: config.inputFingerprint || null,
-    buttonFingerprint: config.buttonFingerprint || null,
-    sourceUrl: typeof config.sourceUrl === 'string' ? config.sourceUrl : null,
-    sourceHostname: typeof config.sourceHostname === 'string' ? config.sourceHostname : null,
-    canonicalHostname:
-      typeof config.canonicalHostname === 'string' ? config.canonicalHostname : null,
-    health: config.health || undefined,
-    version: config.version === 2 ? 2 : undefined
-  }
-}
+export const toAutomationConfig = normalizeAutomationConfig
 
 export function buildPromptText(text: string, prompt?: string | null) {
   if (!prompt) {

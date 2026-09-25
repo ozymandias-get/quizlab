@@ -68,7 +68,11 @@ describe('systemHandlers', () => {
     fromPartition.mockClear()
     fromId.mockReset()
     getMainWindow.mockReset()
-    trustedSender = { id: 'trusted', isDestroyed: vi.fn(() => false) }
+    trustedSender = {
+      id: 'trusted',
+      isDestroyed: vi.fn(() => false),
+      getURL: vi.fn(() => 'http://localhost:5173')
+    }
   })
 
   it('registers handlers only once per module instance', async () => {
@@ -84,14 +88,22 @@ describe('systemHandlers', () => {
     expect(firstCallCount).toBe(10)
   })
 
-  let trustedSender: { id: string; isDestroyed?: () => boolean }
+  let trustedSender: {
+    id: string
+    isDestroyed?: () => boolean
+    getURL?: () => string
+  }
 
   beforeEach(() => {
     // SECURITY: The trustedSender mock doubles as both the IPC event.sender
     // (a WebContents-like object) and mainWindow.webContents.  It must have
     // isDestroyed() because our isMainWindowGuestContents() now calls
     // mainWindow.webContents.isDestroyed() and contents.isDestroyed().
-    trustedSender = { id: 'trusted', isDestroyed: vi.fn(() => false) }
+    trustedSender = {
+      id: 'trusted',
+      isDestroyed: vi.fn(() => false),
+      getURL: vi.fn(() => 'http://localhost:5173')
+    }
   })
 
   it('blocks quit requests from non-main-window senders', async () => {
