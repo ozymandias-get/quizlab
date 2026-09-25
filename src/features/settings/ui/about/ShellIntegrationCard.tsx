@@ -49,7 +49,6 @@ const ShellIntegrationCard = memo(() => {
   if (!isLoading && (!status || !status.supported)) return null
 
   const installed = status?.installed ?? false
-  const topLevel = status?.topLevel ?? false
   const pending = isInstalling || isRemoving || isLoading
 
   return (
@@ -78,7 +77,7 @@ const ShellIntegrationCard = memo(() => {
 
       {!isLoading && installed && (
         <p className="text-ql-12 text-muted-foreground font-medium">
-          {topLevel ? t('shell_integration_toplevel_on') : t('shell_integration_toplevel_off')}
+          {t('shell_integration_location')}
         </p>
       )}
 

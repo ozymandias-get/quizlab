@@ -44,11 +44,10 @@
     "analyze:sonar": "eslint . --max-warnings=9999 --plugin sonarjs",
     "analyze:all": "npm run analyze:deadcode && npm run analyze:duplicates && npm run analyze:circular && npm run analyze:architecture && npm run analyze:security && npm run analyze:types && npm run analyze:electron && npm run analyze:bundle",
     "build:backend": "tsc -b tsconfig.node.json --force && esbuild electron/preload/index.ts --bundle --platform=node --format=cjs --outfile=dist/electron/electron/preload/index.js --external:electron",
-    "build:shell-ext": "node scripts/build-shell-ext.mjs",
     "build:renderer:web": "vite build",
     "build:renderer:electron": "node scripts/build-electron.mjs",
     "build:web": "tsc -b && npm run build:renderer:web",
-    "build": "tsc -b && npm run build:renderer:electron && npm run build:backend && npm run build:shell-ext",
+    "build": "tsc -b && npm run build:renderer:electron && npm run build:backend",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
@@ -73,8 +72,7 @@
         "to": "resources/",
         "filter": [
           "icon.ico",
-          "icon.png",
-          "shell/QuizLabShellExt.dll"
+          "icon.png"
         ]
       },
       {
