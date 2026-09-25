@@ -70,7 +70,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<{
       supported: boolean
       installed: boolean
-      topLevel: boolean
       label: string | null
       exePath: string | null
     }>

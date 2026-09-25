@@ -111,12 +111,9 @@ The installer adds a per-user Explorer context-menu entry for `.pdf`
 files — right-click → `QuizLab ile Aç` / `Open with QuizLab`. On
 Windows 10 it appears directly; on Windows 11 it lives under
 **"Show more options"** — that is the expected behavior for an
-unpackaged (NSIS, no MSIX identity) app. A minimal `IExplorerCommand`
-COM extension is also registered so the classic entry supports
-multi-select (single process, PDF-only filter) instead of one process
-per file.
+unpackaged (NSIS, no MSIX identity) app.
 
-Classic verb (always registered):
+Registry verb (the only mechanism; always registered):
 
 ```
 HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader
@@ -125,64 +122,63 @@ HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader
   command   = '"$INSTDIR\Quizlab Reader.exe" "%1"'
 ```
 
-COM handler (registered when the DLL is packaged — improves the
-classic entry, does NOT promote to the top level on its own):
-
-```
-HKCU\Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}
-  (Default) = "QuizLab Shell Extension"
-  InprocServer32
-    (Default)     = "$INSTDIR\resources\shell\QuizLabShellExt.dll"
-    ThreadingModel = "Apartment"
-HKCU\...\shell\QuizlabReader
-  ExplorerCommandHandler = "{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}"
-```
-
-> Windows 11 top-level note: on current builds (22H2+, incl. 24H2),
-> an `ExplorerCommandHandler` registration alone is NOT enough for the
-> new (sade) top-level menu — Explorer additionally requires
-> **package identity** (MSIX packaging or a Sparse Package with
-> `windows.fileExplorerContextMenus`, see
-> "Grant package identity to unpackaged apps"). Until that is
-> implemented, "Show more options" is the correct/expected home for
-> this entry. Do not "fix" this by duplicating verbs — one verb only.
+> Windows 11 top-level note: promoting this entry to the new (sade)
+> top-level menu requires **package identity** (MSIX packaging or a
+> Sparse Package with `windows.fileExplorerContextMenus`, see "Grant
+> package identity to unpackaged apps"). That is not implemented, so
+> "Show more options" is the correct/expected home. Do not "fix" this by
+> duplicating verbs — one verb only.
 
 Rules:
 
 - **No default-handler hijacking.** Double-click still opens the user's
   previous PDF app. Only the extra right-click entry is added.
 - **Per-user (HKCU), no UAC** — same install model as the rest of the
-  installer. COM registration is manual (registry writes, no `regsvr32`).
-- **CLSID is identity-locked** (`{C7D9E4A1-...}`): it is hardcoded in
-  `shell-ext/src/lib.rs`, `installer/installer.nsh` and
-  `electron/features/shell-open/shellIntegrationManager.ts`. Never change
-  it — old installs would be left with a dead entry.
-- **The DLL is intentionally dumb** (see `shell-ext/`): it only returns a
-  localized title/icon and launches the installed exe
-  (`$INSTDIR\Quizlab Reader.exe`, two levels above
-  `resources\shell\QuizLabShellExt.dll`) with the selected PDF paths. No network, no disk writes, no settings reads. `Invoke` is
-  wrapped in `catch_unwind` so a bug surfaces as `E_FAIL`, never as an
-  Explorer crash. Kill switch: Settings → About → right-click menu →
-  remove.
-- **Label follows the UI language at click time** (`GetUserDefaultUI-
-Language`: Turkish → `QuizLab ile Aç`, otherwise `Open with QuizLab`).
-  The classic verb label follows the installer language and can be
-  relabeled from Settings (repair).
-- **Shell → app flow:** Explorer (or the DLL) launches
+  installer.
+- **Label follows the installer language**, and the app can relabel it
+  later from Settings ("Onar / Dili Güncelle"), which writes the label
+  from the current UI locale.
+- **Multi-select** starts one process per selected file (Explorer
+  behavior for a plain verb). Each instance forwards its path to the
+  running window via `second-instance`, so every selected PDF still
+  opens in its own tab — see "Shell → app flow" below.
+- **Shell → app flow:** Explorer launches
   `"Quizlab Reader.exe" "%1"`. The main process parses `process.argv`
   (`parseShellPdfPaths`), forwards each path to the running window via
   `second-instance` (or queues it when the window isn't ready yet), and
   the renderer opens every PDF in a new tab (`openPdfInTab`) — the
   split-screen / AI panel is untouched.
-- **Build:** `npm run build:shell-ext` compiles `shell-ext/` (Rust) and
-  copies the DLL to `resources/shell/` (git-ignored, packaged via
-  `extraResources`). It no-ops off Windows. CI installs the Rust
-  toolchain on the Windows job. `cargo test` in `shell-ext/` covers
-  command-line building and extension checks.
+- **Runtime manager:** `electron/features/shell-open/shellIntegrationManager.ts`
+  (status / install / remove) and the Settings → About card. It only
+  writes and deletes the verb key above.
 - **Upgrade** rewrites the keys idempotently (no duplicate entries).
-  **Uninstall** deletes the `QuizlabReader` verb key and the CLSID key.
+  **Uninstall** deletes the `QuizlabReader` verb key.
 - Out of scope on purpose: no default `.pdf` association, no custom URL
-  protocol.
+  protocol, no COM shell extension.
+
+### Removed: `IExplorerCommand` COM extension (≤ v6.0.4)
+
+Up to v6.0.4 the build also compiled `shell-ext/` (a Rust
+`IExplorerCommand` in-proc DLL) and registered it under
+`HKCU\...\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}` as the verb's
+`ExplorerCommandHandler`. It was removed because:
+
+- it did **not** achieve its goal — an `ExplorerCommandHandler` alone
+  does not promote the entry to the Windows 11 top-level menu (package
+  identity is required, see the note above);
+- its only remaining benefit was starting a single process for a
+  multi-selection, which the plain verb already achieves functionally
+  through `second-instance`;
+- it forced a Rust toolchain on every Windows build.
+
+The PDF-only filter and the localized title are both covered by the
+plain verb (it lives under `SystemFileAssociations\.pdf`, and Settings
+writes the label from the current locale).
+
+The CLSID is **not** reused. Both the installer (`customUnInstall`) and
+the runtime `removeShellIntegration()` still delete that key so
+machines upgraded from ≤ v6.0.4 do not keep a live handler pointing at a
+DLL that is no longer shipped.
 
 ## Package contents
 
