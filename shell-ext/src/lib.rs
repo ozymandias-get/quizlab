@@ -82,7 +82,31 @@ fn alloc_pwstr(text: &str) -> PWSTR {
     PWSTR(ptr)
 }
 
-/// Bu DLL'in bulunduğu klasördeki `Quizlab Reader.exe` tam yolu.
+/// `Quizlab Reader.exe` tam yolu.
+/// Kurulum düzeni: `$INSTDIR\resources\shell\QuizLabShellExt.dll` ->
+/// `$INSTDIR\Quizlab Reader.exe` (iki üst dizin).
+/// Test düzeni: DLL ile aynı klasördeki exe (sahnelenmiş klasör).
+fn exe_path_for_dll(dll_path: &str) -> Option<String> {
+    use std::path::Path;
+    let dll = Path::new(dll_path);
+    let dir = dll.parent()?;
+    let is_shell_layout = dir
+        .file_name()
+        .is_some_and(|n| n.eq_ignore_ascii_case("shell"))
+        && dir
+            .parent()
+            .and_then(|p| p.file_name())
+            .is_some_and(|n| n.eq_ignore_ascii_case("resources"));
+    if is_shell_layout {
+        // ...\resources\shell\X.dll -> ...\ + exe
+        let root = dir.parent()?.parent()?;
+        return root.join(EXE_FILE_NAME).to_str().map(|s| s.to_owned());
+    }
+    // Aynı klasör düzeni (test / eski kurulum).
+    dir.join(EXE_FILE_NAME).to_str().map(|s| s.to_owned())
+}
+
+/// Bu DLL'e karşılık gelen `Quizlab Reader.exe` tam yolu.
 fn sibling_exe_path() -> Option<String> {
     unsafe {
         let mut module = HMODULE::default();
@@ -100,10 +124,7 @@ fn sibling_exe_path() -> Option<String> {
             return None;
         }
         let dll_path = String::from_utf16_lossy(&buf[..len]);
-        let mut dir = std::path::PathBuf::from(dll_path);
-        dir.pop();
-        dir.push(EXE_FILE_NAME);
-        dir.to_str().map(|s| s.to_owned())
+        exe_path_for_dll(&dll_path)
     }
 }
 
@@ -361,5 +382,23 @@ mod tests {
     fn empty_selection_builds_exe_only() {
         let cmd = build_command_line("C:\\q.exe", &[]);
         assert_eq!(cmd, "\"C:\\q.exe\"");
+    }
+
+    #[test]
+    fn resolves_exe_from_installed_shell_layout() {
+        let exe = exe_path_for_dll(
+            "C:\\Users\\U\\AppData\\Local\\Programs\\Quizlab Reader\\resources\\shell\\QuizLabShellExt.dll",
+        )
+        .expect("exe path");
+        assert_eq!(
+            exe,
+            "C:\\Users\\U\\AppData\\Local\\Programs\\Quizlab Reader\\Quizlab Reader.exe"
+        );
+    }
+
+    #[test]
+    fn resolves_exe_from_same_folder_layout() {
+        let exe = exe_path_for_dll("C:\\Temp\\stage\\QuizLabShellExt.dll").expect("exe path");
+        assert_eq!(exe, "C:\\Temp\\stage\\Quizlab Reader.exe");
     }
 }

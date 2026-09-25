@@ -109,10 +109,12 @@ around with PowerShell/encoding hacks: installer reliability first.
 
 The installer adds a per-user Explorer context-menu entry for `.pdf`
 files — right-click → `QuizLab ile Aç` / `Open with QuizLab`. On
-Windows 11 the entry appears in the **top-level (sade) menu** via a
-minimal `IExplorerCommand` COM extension; on Windows 10 (and under
-"Show more options" on Windows 11) the same verb works as a classic
-menu entry.
+Windows 10 it appears directly; on Windows 11 it lives under
+**"Show more options"** — that is the expected behavior for an
+unpackaged (NSIS, no MSIX identity) app. A minimal `IExplorerCommand`
+COM extension is also registered so the classic entry supports
+multi-select (single process, PDF-only filter) instead of one process
+per file.
 
 Classic verb (always registered):
 
@@ -123,7 +125,8 @@ HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader
   command   = '"$INSTDIR\Quizlab Reader.exe" "%1"'
 ```
 
-Top-level menu (Windows 11, registered when the DLL is packaged):
+COM handler (registered when the DLL is packaged — improves the
+classic entry, does NOT promote to the top level on its own):
 
 ```
 HKCU\Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}
@@ -134,6 +137,15 @@ HKCU\Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}
 HKCU\...\shell\QuizlabReader
   ExplorerCommandHandler = "{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}"
 ```
+
+> Windows 11 top-level note: on current builds (22H2+, incl. 24H2),
+> an `ExplorerCommandHandler` registration alone is NOT enough for the
+> new (sade) top-level menu — Explorer additionally requires
+> **package identity** (MSIX packaging or a Sparse Package with
+> `windows.fileExplorerContextMenus`, see
+> "Grant package identity to unpackaged apps"). Until that is
+> implemented, "Show more options" is the correct/expected home for
+> this entry. Do not "fix" this by duplicating verbs — one verb only.
 
 Rules:
 
@@ -146,8 +158,9 @@ Rules:
   `electron/features/shell-open/shellIntegrationManager.ts`. Never change
   it — old installs would be left with a dead entry.
 - **The DLL is intentionally dumb** (see `shell-ext/`): it only returns a
-  localized title/icon and launches the exe next to it with the selected
-  PDF paths. No network, no disk writes, no settings reads. `Invoke` is
+  localized title/icon and launches the installed exe
+  (`$INSTDIR\Quizlab Reader.exe`, two levels above
+  `resources\shell\QuizLabShellExt.dll`) with the selected PDF paths. No network, no disk writes, no settings reads. `Invoke` is
   wrapped in `catch_unwind` so a bug surfaces as `E_FAIL`, never as an
   Explorer crash. Kill switch: Settings → About → right-click menu →
   remove.

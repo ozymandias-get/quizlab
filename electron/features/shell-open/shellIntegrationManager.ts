@@ -24,7 +24,9 @@ const SHELL_EXT_DLL_NAME = 'QuizLabShellExt.dll'
 export interface ShellIntegrationStatus {
   supported: boolean
   installed: boolean
-  /** Windows 11 üst (sade) menü girdisi de kayıtlı mı. */
+  /** COM handler (ExplorerCommandHandler) kaydı var mı. Not: güncel
+   * Win11'de tek başına üst (sade) menüye çıkarmaz — orası için paket
+   * kimliği (MSIX/Sparse) de gerekir; bkz. docs/windows-installer.md. */
   topLevel: boolean
   label: string | null
   exePath: string | null

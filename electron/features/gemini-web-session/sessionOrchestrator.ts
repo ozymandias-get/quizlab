@@ -74,7 +74,9 @@ export class SessionOrchestrator {
     })
     this.recovery = new SessionRecovery({
       resolvePersistentSession: () => this.resolvePersistentSession(),
-      snapshotRepository: this.snapshotRepository
+      ensureProfileDirectory: () => this.ensureProfileDirectory(),
+      snapshotRepository: this.snapshotRepository,
+      metadataRepository: this.metadataRepository
     })
     this.monitor = new SessionMonitor()
     this.emitRefreshEvent = options.emitRefreshEvent || (() => {})
@@ -118,8 +120,17 @@ export class SessionOrchestrator {
     await this.metadataRepository.ensureMetadata()
 
     this.refreshTriggerPolicy.configureReactiveRefreshListeners()
+    await this.recovery.loadPersistedCooldowns()
 
     this.initialized = true
+
+    const metadata = await this.metadataRepository.readMetadata()
+    if (FEATURE_ENABLED && metadata.enabled) {
+      this.scheduleMonitor()
+      void this.healthCheckPolicy.performHealthCheck({ allowRetry: false }).catch((error) => {
+        logSuppressedError('initial Gemini health check failed', error)
+      })
+    }
   }
 
   async getStatus(): Promise<GeminiWebSessionStatus> {

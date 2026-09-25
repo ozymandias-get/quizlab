@@ -282,4 +282,24 @@ describe('AiContext', () => {
       await result.current.sendImageToAI('data:image...')
     })
   })
+
+  it('does not let stale webview cleanup remove a replacement instance', async () => {
+    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+    act(() => {
+      result.current.openAiWorkspace('chatgpt')
+    })
+    const tabId = result.current.activeTabId
+    const first = { getURL: () => 'https://chatgpt.com/first' }
+    const replacement = { getURL: () => 'https://chatgpt.com/replacement' }
+
+    act(() => {
+      result.current.registerWebview(tabId, first as never)
+      result.current.registerWebview(tabId, replacement as never)
+      result.current.registerWebview(tabId, null, first as never)
+    })
+
+    expect(result.current.getWebviewInstance(tabId)).toBe(replacement)
+  })
 })

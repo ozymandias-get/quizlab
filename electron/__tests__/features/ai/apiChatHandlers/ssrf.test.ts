@@ -228,6 +228,24 @@ describe('fetchWithSsrProtection (redirect revalidation + DNS pinning)', () => {
     expect(a.requests.map((r) => r.url)).toEqual(['/start', '/final'])
   })
 
+  it('blocks a same-host redirect to a different port', async () => {
+    const target = await startTestServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end('{}')
+    })
+    handles.push(target)
+    const source = await startTestServer((_req, res) => {
+      res.writeHead(307, { location: `http://127.0.0.1:${target.port}/target` })
+      res.end()
+    })
+    handles.push(source)
+
+    await expect(fetchWithSsrProtection(`http://127.0.0.1:${source.port}/start`)).rejects.toThrow(
+      'Cross-origin redirect blocked'
+    )
+    expect(target.requests).toHaveLength(0)
+  })
+
   it('follows relative redirects on the same origin', async () => {
     const a = await startTestServer((req, res) => {
       if (req.url === '/v1/chat') {

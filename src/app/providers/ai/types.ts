@@ -106,7 +106,11 @@ interface AiContextActions {
   setDefaultAiModel: (model: string) => void
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
-  registerWebview: (id: string, instance: WebviewController | null) => void
+  registerWebview: (
+    id: string,
+    instance: WebviewController | null,
+    expectedInstance?: WebviewController
+  ) => void
   /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron webview.reload). */
   reloadActiveWebview: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>

@@ -14,6 +14,7 @@ import {
   type CSSProperties,
   lazy,
   memo,
+  type MutableRefObject,
   Suspense,
   useCallback,
   useEffect,
@@ -36,6 +37,7 @@ interface FocusOverlayProps {
   isWebviewMounted: boolean
   isResizing: boolean
   isBarHovered: boolean
+  aiTabUrlCacheRef?: MutableRefObject<Record<string, { url: string; modelId: string }>>
 }
 
 const SHELL_STYLE: CSSProperties = {
@@ -63,7 +65,8 @@ function FocusOverlay({
   onClose,
   isWebviewMounted,
   isResizing,
-  isBarHovered
+  isBarHovered,
+  aiTabUrlCacheRef
 }: FocusOverlayProps) {
   const { t } = useTranslation()
   const reducedMotion = useReducedMotion()
@@ -170,7 +173,11 @@ function FocusOverlay({
               {mode === 'pdf' ? (
                 <FocusPdfBody />
               ) : isWebviewMounted ? (
-                <AiWebview isResizing={isResizing} isBarHovered={isBarHovered} />
+                <AiWebview
+                  isResizing={isResizing}
+                  isBarHovered={isBarHovered}
+                  sharedTabUrlCacheRef={aiTabUrlCacheRef}
+                />
               ) : (
                 <AestheticLoader />
               )}

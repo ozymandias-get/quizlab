@@ -100,6 +100,7 @@ vi.mock('../../../features/gemini-web-session/profileLock', () => {
 vi.mock('../../../features/gemini-web-session/sessionRecovery', () => {
   class SessionRecovery {
     resetCooldowns = mocked.resetCooldowns
+    loadPersistedCooldowns = vi.fn().mockResolvedValue(undefined)
   }
   return { SessionRecovery }
 })
@@ -224,7 +225,7 @@ describe('sessionOrchestrator', () => {
   it('setEnabled schedules monitor when enabling and stops when disabling', async () => {
     const orchestrator = await createOrchestrator()
     await orchestrator.setEnabled(true)
-    expect(mocked.schedule).toHaveBeenCalledTimes(1)
+    expect(mocked.schedule).toHaveBeenCalled()
     expect(mocked.stop).not.toHaveBeenCalled()
 
     await orchestrator.setEnabled(false)

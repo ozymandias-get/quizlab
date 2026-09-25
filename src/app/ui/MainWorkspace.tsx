@@ -9,6 +9,7 @@ import {
   type CSSProperties,
   lazy,
   memo,
+  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   Suspense
@@ -42,6 +43,7 @@ interface MainWorkspaceProps {
   isInteractionBlocked?: boolean
   isPanelResizing?: boolean
   bgMode: 'ambient' | 'solid'
+  aiTabUrlCacheRef?: MutableRefObject<Record<string, { url: string; modelId: string }>>
 }
 
 function MainWorkspace({
@@ -68,7 +70,8 @@ function MainWorkspace({
   leftPanelProps,
   isInteractionBlocked,
   isPanelResizing,
-  bgMode
+  bgMode,
+  aiTabUrlCacheRef
 }: MainWorkspaceProps) {
   return (
     <motion.main
@@ -125,7 +128,11 @@ function MainWorkspace({
       >
         <Suspense fallback={<AestheticLoader />}>
           {isWebviewMounted ? (
-            <AiWebview isResizing={isResizing} isBarHovered={isBarHovered} />
+            <AiWebview
+              isResizing={isResizing}
+              isBarHovered={isBarHovered}
+              sharedTabUrlCacheRef={aiTabUrlCacheRef}
+            />
           ) : (
             <AestheticLoader />
           )}

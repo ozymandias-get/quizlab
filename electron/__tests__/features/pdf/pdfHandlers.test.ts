@@ -24,6 +24,10 @@ class MockMenuItem {
 }
 
 vi.mock('electron', () => ({
+  app: {
+    isPackaged: false,
+    getAppPath: vi.fn(() => '/mock-app')
+  },
   ipcMain: { on: ipcOn },
   BrowserWindow: { fromWebContents },
   Menu: MockMenu,
@@ -47,6 +51,7 @@ describe('pdfHandlers', () => {
 
   it('registers menu handler and forwards screenshot action to renderer', async () => {
     const webContents = {
+      getURL: vi.fn(() => 'http://localhost:5173'),
       send: (channel: string, payload: unknown) => sentMessages.push([channel, payload])
     }
     const win = { isDestroyed: () => false, webContents }
@@ -79,6 +84,7 @@ describe('pdfHandlers', () => {
 
   it('forwards area screenshot, zoom in/out/reset, and reload via context menu', async () => {
     const webContents = {
+      getURL: vi.fn(() => 'http://localhost:5173'),
       send: (channel: string, payload: unknown) => sentMessages.push([channel, payload])
     }
     const win = { isDestroyed: () => false, webContents }
@@ -117,6 +123,7 @@ describe('pdfHandlers', () => {
 
   it('uses localized labels when provided', async () => {
     const webContents = {
+      getURL: vi.fn(() => 'http://localhost:5173'),
       send: (channel: string, payload: unknown) => sentMessages.push([channel, payload])
     }
     const win = { isDestroyed: () => false, webContents }
@@ -154,9 +161,11 @@ describe('pdfHandlers', () => {
 
   it('rejects menu opening from a foreign webContents (sender spoofing)', async () => {
     const trustedWebContents = {
+      getURL: vi.fn(() => 'http://localhost:5173'),
       send: (channel: string, payload: unknown) => sentMessages.push([channel, payload])
     }
     const foreignWebContents = {
+      getURL: vi.fn(() => 'http://localhost:5173'),
       send: (channel: string, payload: unknown) => sentMessages.push([channel, payload])
     }
     const win = { isDestroyed: () => false, webContents: trustedWebContents }
@@ -177,6 +186,7 @@ describe('pdfHandlers', () => {
 
   it('skips menu when BrowserWindow is missing or destroyed', async () => {
     const webContents = {
+      getURL: vi.fn(() => 'http://localhost:5173'),
       send: (channel: string, payload: unknown) => sentMessages.push([channel, payload])
     }
     getMainWindow.mockReturnValue({ webContents })

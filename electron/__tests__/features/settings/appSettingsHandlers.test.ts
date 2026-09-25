@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APP_CONFIG } from '../../../app/constants.js'
 
 const ipcHandle = vi.fn()
-const trustedSender = { id: 1 }
+const trustedSender = { id: 1, getURL: vi.fn(() => 'http://localhost:5173') }
 const trustedEvent = { sender: trustedSender, type: 'invoke' }
 
 const managerState: {

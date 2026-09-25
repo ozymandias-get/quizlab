@@ -1,14 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getMainWindow = vi.fn()
+const isAllowedMainFrameUrl = vi.fn()
 
 vi.mock('../../app/windowManager', () => ({
   getMainWindow
 }))
 
+vi.mock('../../app/window/security.js', () => ({
+  isAllowedMainFrameUrl
+}))
+
 describe('ipcSecurity', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    isAllowedMainFrameUrl.mockImplementation((url: string) => {
+      if (url === 'file:///app/index.html') return true
+      try {
+        const parsed = new URL(url)
+        return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
+      } catch {
+        return false
+      }
+    })
   })
 
   it('accepts trusted sender from main window with local origin', async () => {

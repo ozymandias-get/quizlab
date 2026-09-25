@@ -15,8 +15,8 @@ import {
   getCachedCacheInfo,
   invalidateCacheInfo,
   isMainWindowGuestContents,
+  isProtectedPartition,
   MODEL_STORAGE_TYPES,
-  protectedPartitions,
   resolveAiModelPartition,
   setCachedCacheInfo
 } from './cache.js'
@@ -143,7 +143,7 @@ export function registerSystemHandlers() {
         const allPartitions = getAllPartitions()
 
         const filtered = [...allPartitions].filter((partition) => {
-          if (protectedPartitions.has(partition)) {
+          if (isProtectedPartition(partition)) {
             Logger.warn(
               `[systemHandlers] Skipping CLEAR_CACHE for protected partition "${partition}" — active sessions are using it`
             )
@@ -179,7 +179,7 @@ export function registerSystemHandlers() {
         const partition = resolveAiModelPartition(input || {})
         if (!partition) return success(false)
 
-        if (protectedPartitions.has(partition)) {
+        if (isProtectedPartition(partition)) {
           Logger.warn(
             `[systemHandlers] Skipping CLEAR_AI_MODEL_DATA for protected partition "${partition}" — active sessions are using it`
           )
@@ -276,7 +276,7 @@ export function registerSystemHandlers() {
           const coldPartitions = Object.entries(activities)
             .filter(([, v]) => v.category === 'cold')
             .map(([k]) => `persist:${k}`)
-            .filter((p) => !protectedPartitions.has(p))
+            .filter((p) => !isProtectedPartition(p))
 
           // Fallback: smart recommendation'dan al
           let targets = coldPartitions
@@ -298,24 +298,24 @@ export function registerSystemHandlers() {
             targets = sorted ?? []
           }
 
-          for (const partition of targets) {
-            if (protectedPartitions.has(partition)) continue
+          const targetsToClean = targets.filter((partition) => !isProtectedPartition(partition))
+          for (const partition of targetsToClean) {
             const pSession = session.fromPartition(partition)
             await pSession.clearCache()
             await pSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
           }
-          await clearSafeCacheDirectories(userDataPath, new Set(targets))
+          await clearSafeCacheDirectories(userDataPath, new Set(targetsToClean))
           // Ek: süresi dolmuş soğuk dosyaları da temizle
           const { runIdleCleanup } = await import('../cacheCleanup/index.js')
           await runIdleCleanup()
           invalidateCacheInfo()
-          Logger.info(`[SmartCache] clean_cold executed for ${targets.join(', ')}`)
+          Logger.info(`[SmartCache] clean_cold executed for ${targetsToClean.join(', ')}`)
           return success(true)
         }
 
         if (action === 'clean_all') {
           const allPartitions = getAllPartitions()
-          const filtered = [...allPartitions].filter((p) => !protectedPartitions.has(p))
+          const filtered = [...allPartitions].filter((p) => !isProtectedPartition(p))
           for (const partition of filtered) {
             const pSession = session.fromPartition(partition)
             await pSession.clearCache()
@@ -350,7 +350,7 @@ export function registerSystemHandlers() {
         const allPartitions = getAllPartitions()
 
         const filtered = [...allPartitions].filter((partition) => {
-          if (protectedPartitions.has(partition)) {
+          if (isProtectedPartition(partition)) {
             Logger.warn(
               `[systemHandlers] Skipping DEEP_CLEAN_CACHE for protected partition "${partition}" — active sessions are using it`
             )

@@ -49,6 +49,40 @@ describe('useAiDraftQueue', () => {
     expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:preview')
   })
 
+  it('keeps duplicate large-image previews associated with their own draft ids', async () => {
+    mockCreateObjectURL.mockReturnValueOnce('blob:first').mockReturnValueOnce('blob:second')
+    const { result } = renderHook(() => useAiDraftQueue())
+    const largeDataUrl = `data:image/png;base64,${'QUJD'.repeat(500001)}`
+
+    await act(async () => {
+      result.current.queueImageForAi(largeDataUrl)
+      result.current.queueImageForAi(largeDataUrl)
+      await new Promise((r) => setTimeout(r, 100))
+    })
+
+    const blobUrls = result.current.pendingAiItems.flatMap((item) =>
+      item.type === 'image' ? [item.blobUrl] : []
+    )
+    expect(blobUrls).toEqual(['blob:first', 'blob:second'])
+  })
+
+  it('revokes a preview created for an item removed during conversion', async () => {
+    mockCreateObjectURL.mockReturnValueOnce('blob:orphan')
+    const { result } = renderHook(() => useAiDraftQueue())
+    const largeDataUrl = `data:image/png;base64,${'QUJD'.repeat(500001)}`
+
+    await act(async () => {
+      result.current.queueImageForAi(largeDataUrl)
+    })
+    const id = result.current.pendingAiItems[0].id
+    await act(async () => {
+      result.current.removePendingAiItem(id)
+      await new Promise((r) => setTimeout(r, 100))
+    })
+
+    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:orphan')
+  })
+
   it('resolves large data URL previews with local decode (no fetch)', async () => {
     const { result } = renderHook(() => useAiDraftQueue())
 
@@ -58,7 +92,7 @@ describe('useAiDraftQueue', () => {
     await act(async () => {
       result.current.queueImageForAi(largeDataUrl)
       // flush the preview-resolution microtasks
-      await new Promise((r) => setTimeout(r, 10))
+      await new Promise((r) => setTimeout(r, 100))
     })
 
     expect(mockCreateObjectURL).toHaveBeenCalled()

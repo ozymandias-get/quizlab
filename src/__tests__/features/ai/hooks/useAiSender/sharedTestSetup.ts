@@ -13,6 +13,7 @@ import {
   mockGenerateFocusScript,
   mockGenerateWaitForSubmitReadyScript,
   mockGetAiConfig,
+  mockRestoreClipboard,
   mockScriptDiagnostics,
   mockWebview
 } from './mocks'
@@ -29,6 +30,7 @@ export function setupUseAiSenderMocks(): void {
       generateWaitForSubmitReadyScript: mockGenerateWaitForSubmitReadyScript
     },
     copyImageToClipboard: mockCopyImageToClipboard,
+    restoreClipboard: mockRestoreClipboard,
     getAiConfig: mockGetAiConfig
   } as unknown as Window['electronAPI']
 

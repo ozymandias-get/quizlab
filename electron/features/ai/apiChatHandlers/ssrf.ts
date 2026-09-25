@@ -285,13 +285,7 @@ async function fetchWithSsrProtection(
     if (redirectErr) {
       throw new Error(`SSRF blocked on redirect: ${redirectErr}`)
     }
-    // Compare hostname + protocol only (ignore port) to allow
-    // implicit vs explicit default-port redirects (e.g. :443) while still
-    // blocking true cross-origin hops.
-    if (
-      target.hostname !== originalParsed.hostname ||
-      target.protocol !== originalParsed.protocol
-    ) {
+    if (target.origin !== originalParsed.origin) {
       throw new Error(`Cross-origin redirect blocked: "${target.href}"`)
     }
     currentUrl = target.href

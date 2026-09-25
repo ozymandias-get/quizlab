@@ -62,6 +62,15 @@ describe('systemHandlers/cache', () => {
     expect(partitions instanceof Set).toBe(true)
   })
 
+  it('protects recently active partitions from cleanup', async () => {
+    const { isProtectedPartition } = await import('../../../core/systemHandlers/cache.js')
+    const { markPartitionActive } = await import('../../../core/cacheRegistry.js')
+
+    markPartitionActive('ai_chatgpt')
+
+    expect(isProtectedPartition('persist:ai_chatgpt')).toBe(true)
+  })
+
   it('resolveAiModelPartition returns null for empty input', async () => {
     const { resolveAiModelPartition } = await import('../../../core/systemHandlers/cache.js')
     expect(resolveAiModelPartition({})).toBeNull()

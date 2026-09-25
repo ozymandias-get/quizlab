@@ -67,23 +67,20 @@ describe('findPageCanvas', () => {
     expect(result).toBe(layer1.querySelector('canvas'))
   })
 
-  it('falls back to previous page when current page has no layer', () => {
+  it('returns null when the current page layer is missing', () => {
     const layer1 = makePageLayer(1)
     container.appendChild(layer1)
 
-    const result = findPageCanvas(2)
-    expect(result).toBe(layer1.querySelector('canvas'))
+    expect(findPageCanvas(2)).toBeNull()
   })
 
-  it('skips current page when layer has no canvas', () => {
-    const layer1 = makePageLayer(1, false) // no canvas
+  it('returns null when the current page has no canvas', () => {
+    const layer1 = makePageLayer(1, false)
     const layer2 = makePageLayer(2)
     container.appendChild(layer1)
     container.appendChild(layer2)
 
-    // page 3 is the current page, page 2 is the fallback
-    const result = findPageCanvas(3)
-    expect(result).toBe(layer2.querySelector('canvas'))
+    expect(findPageCanvas(3)).toBeNull()
   })
 
   it('skips zero-sized canvases', () => {
@@ -93,25 +90,22 @@ describe('findPageCanvas', () => {
     expect(findPageCanvas(1)).toBeNull()
   })
 
-  it('picks the closest visible page when no exact match', () => {
+  it('does not select a nearby page when the exact page is missing', () => {
     const layer1 = makePageLayer(1)
     const layer5 = makePageLayer(5)
     container.appendChild(layer1)
     container.appendChild(layer5)
 
-    // Asking for page 2 — layer 1 is closer than layer 5
-    const result = findPageCanvas(2)
-    expect(result).toBe(layer1.querySelector('canvas'))
+    expect(findPageCanvas(2)).toBeNull()
   })
 
-  it('falls back to .pdf-viewer-container canvas when no page layer has canvases', () => {
-    // A stray canvas inside .pdf-viewer-container with no page layer
+  it('does not select an unidentifiable canvas', () => {
     const canvas = document.createElement('canvas')
     canvas.width = 100
     canvas.height = 100
     container.appendChild(canvas)
 
-    expect(findPageCanvas(1)).toBe(canvas)
+    expect(findPageCanvas(1)).toBeNull()
   })
 
   it('returns null from fallback if canvas is zero-sized', () => {
@@ -123,8 +117,7 @@ describe('findPageCanvas', () => {
     expect(findPageCanvas(1)).toBeNull()
   })
 
-  it('skips off-screen canvases when no exact page match exists (uses viewport scoring)', () => {
-    // Page 5 doesn't exist as a layer, so we fall into the "all canvases" scoring branch
+  it('does not use an off-screen page as a substitute', () => {
     const layer1 = makePageLayer(1)
     const canvas = layer1.querySelector('canvas') as HTMLCanvasElement
     canvas.getBoundingClientRect = () =>
@@ -140,16 +133,8 @@ describe('findPageCanvas', () => {
         toJSON: () => ({})
       }) as DOMRect
     container.appendChild(layer1)
-    // container has class .pdf-viewer-container but the fallback in the source
-    // also returns a zero-visibility canvas if its width > 0 (no viewport check).
-    // So the canvas with no visible area is NOT picked as best candidate (no candidate at all)
-    // — but the fallback selector WILL return it. This test verifies that the
-    // best-candidate scoring does not pick off-screen canvases when there are
-    // multiple ones. We add a visible canvas to confirm the off-screen one is ignored.
-    const layer2 = makePageLayer(2)
-    container.appendChild(layer2)
-    const result = findPageCanvas(5) // no exact match for 5
-    expect(result).toBe(layer2.querySelector('canvas'))
+
+    expect(findPageCanvas(5)).toBeNull()
   })
 
   it('drops a cached canvas once it disconnects from the DOM', () => {

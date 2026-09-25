@@ -146,86 +146,30 @@ export async function executeImageSendPipeline(
     )
   }
 
-  try {
-    if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
-      webview.focus()
+  let pasteCompleted = false
+  let clipboardRestorePending = true
+  const restoreClipboard = async () => {
+    if (!clipboardRestorePending) return
+    clipboardRestorePending = false
+    try {
+      if (pasteCompleted) await sleep(700)
+      await getElectronApi()?.restoreClipboard?.()
+    } catch (restoreError) {
+      reportSuppressedError('imageSend.clipboardRestore', { cause: restoreError })
     }
-  } catch (err) {
-    reportSuppressedError('imageSend.webviewFocus', { cause: err })
   }
 
-  // 1. Initial Focus
-  const focusStep = await executePipelineStep<SendImageResult>({
-    name: 'Focus',
-    webview,
-    scheduledWebview,
-    diagnostics,
-    requestStartedAt,
-    canUseWebview,
-    generateScript: () => generateFocusScript(toAutomationConfig(resolved.aiConfig)),
-    onTiming: (ms) => (diagnostics.timings.focusScriptGenerationMs = ms),
-    onExecuteTiming: (ms) => (diagnostics.timings.focusExecuteJavaScriptMs = ms),
-    onResult: (res) => (diagnostics.focusScript = cloneScriptDiagnostics(res?.diagnostics))
-  })
-  if (!focusStep.success) return focusStep.error
-
-  // 2. Paste Image
-  let pasteSuccess = false
-  const pasteStartedAt = nowMs()
-  if (
-    canUseWebview(webview, scheduledWebview) &&
-    typeof webview.pasteNative === 'function' &&
-    typeof webview.getWebContentsId === 'function'
-  ) {
+  try {
     try {
-      const webContentsId = webview.getWebContentsId()
-      if (webContentsId) {
-        const result = webview.pasteNative(webContentsId)
-        pasteSuccess = await result
+      if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
+        webview.focus()
       }
     } catch (err) {
-      reportSuppressedError('imageSend.nativePaste', { cause: err })
-      pasteSuccess = false
+      reportSuppressedError('imageSend.webviewFocus', { cause: err })
     }
-  }
 
-  if (!pasteSuccess) {
-    if (!canUseWebview(webview, scheduledWebview)) {
-      return attachDiagnostics(
-        { success: false, error: 'webview_destroyed' },
-        diagnostics,
-        requestStartedAt
-      )
-    }
-    pasteSuccess = safeWebviewPaste(webview)
-  }
-  diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
-
-  if (!pasteSuccess) {
-    return attachDiagnostics(
-      { success: false, error: 'paste_failed' },
-      diagnostics,
-      requestStartedAt
-    )
-  }
-
-  // The image lives on the system clipboard only for the duration of the
-  // paste. Give the webview time to read the clipboard before restoring,
-  // otherwise the paste can race with the restore and the previous text
-  // (the user's last Ctrl+C) is pasted instead of the image.
-  // A short settle delay is enough for the guest renderer to finish the
-  // async clipboard read, yet short enough to keep the Ctrl+C race window
-  // small.
-  try {
-    await sleep(700)
-    await getElectronApi()?.restoreClipboard?.()
-  } catch (restoreError) {
-    reportSuppressedError('imageSend.clipboardRestore', { cause: restoreError })
-  }
-
-  // 3. Optional Prompt
-  if (effectivePromptText) {
-    const refocusStep = await executePipelineStep<SendImageResult>({
+    // 1. Initial Focus
+    const focusStep = await executePipelineStep<SendImageResult>({
       name: 'Focus',
       webview,
       scheduledWebview,
@@ -233,110 +177,171 @@ export async function executeImageSendPipeline(
       requestStartedAt,
       canUseWebview,
       generateScript: () => generateFocusScript(toAutomationConfig(resolved.aiConfig)),
-      onTiming: (ms) => (diagnostics.timings.refocusScriptGenerationMs = ms),
-      onExecuteTiming: (ms) => (diagnostics.timings.refocusExecuteJavaScriptMs = ms),
-      onResult: (res) => (diagnostics.refocusScript = cloneScriptDiagnostics(res?.diagnostics))
+      onTiming: (ms) => (diagnostics.timings.focusScriptGenerationMs = ms),
+      onExecuteTiming: (ms) => (diagnostics.timings.focusExecuteJavaScriptMs = ms),
+      onResult: (res) => (diagnostics.focusScript = cloneScriptDiagnostics(res?.diagnostics))
     })
-    if (!refocusStep.success) return refocusStep.error
+    if (!focusStep.success) return focusStep.error
 
-    await sleep(POST_PASTE_PROMPT_DELAY)
-    diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
-
-    const shouldAppendPromptAfterPaste =
-      resolved.aiConfig.appendPromptAfterPaste !== false && appendPromptAfterPaste !== false
-
-    const promptStep = await executePipelineStep<SendImageResult>({
-      name: 'Script',
-      webview,
-      scheduledWebview,
-      diagnostics,
-      requestStartedAt,
-      canUseWebview,
-      generateScript: () =>
-        generateAutoSendScript({
-          config: toAutomationConfig(resolved.aiConfig),
-          text: effectivePromptText,
-          submit: false,
-          append: shouldAppendPromptAfterPaste,
-          textInputMode,
-          typingSpeed
-        }),
-      onTiming: (ms) => (diagnostics.timings.promptScriptGenerationMs = ms),
-      onExecuteTiming: (ms) => (diagnostics.timings.promptExecuteJavaScriptMs = ms),
-      onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
-    })
-
-    if (!promptStep.success) return promptStep.error
-
-    promptApplied = true
-    if (!effectiveAutoSend) {
-      return attachDiagnostics(
-        { success: true, mode: 'paste_and_prompt' },
-        diagnostics,
-        requestStartedAt
-      )
+    // 2. Paste Image
+    let pasteSuccess = false
+    const pasteStartedAt = nowMs()
+    if (
+      canUseWebview(webview, scheduledWebview) &&
+      typeof webview.pasteNative === 'function' &&
+      typeof webview.getWebContentsId === 'function'
+    ) {
+      try {
+        const webContentsId = webview.getWebContentsId()
+        if (webContentsId) {
+          const result = webview.pasteNative(webContentsId)
+          pasteSuccess = await result
+        }
+      } catch (err) {
+        reportSuppressedError('imageSend.nativePaste', { cause: err })
+        pasteSuccess = false
+      }
     }
-  }
 
-  // 4. Auto-send (Wait for upload + Click)
-  if (effectiveAutoSend) {
-    const submitReadyStep = await executePipelineStep<SendImageResult>({
-      name: 'Submit_ready',
-      webview,
-      scheduledWebview,
-      diagnostics,
-      requestStartedAt,
-      canUseWebview,
-      generateScript: () =>
-        generateWaitForSubmitReadyScript({
-          config: toAutomationConfig(resolved.aiConfig),
-          options: {
-            timeoutMs: submitReadyTimeoutMs,
-            settleMs: IMAGE_SUBMIT_READY_SETTLE_DELAY,
-            minimumWaitMs: minimumReadyWaitMs
-          }
-        }),
-      onTiming: (ms) => (diagnostics.timings.submitReadyScriptGenerationMs = ms),
-      onExecuteTiming: (ms) => (diagnostics.timings.submitReadyExecuteJavaScriptMs = ms),
-      onResult: (res) => {
-        diagnostics.submitReadyScript = cloneScriptDiagnostics(res?.diagnostics)
-        diagnostics.timings.imageUploadWaitMs = roundMs(
-          res?.diagnostics?.totalMs ??
-            diagnostics.timings.submitReadyExecuteJavaScriptMs ??
-            minimumReadyWaitMs
+    if (!pasteSuccess) {
+      if (!canUseWebview(webview, scheduledWebview)) {
+        return attachDiagnostics(
+          { success: false, error: 'webview_destroyed' },
+          diagnostics,
+          requestStartedAt
         )
       }
-    })
-    if (!submitReadyStep.success) {
-      return submitReadyStep.error
+      pasteSuccess = safeWebviewPaste(webview)
+    }
+    diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
+
+    if (!pasteSuccess) {
+      return attachDiagnostics(
+        { success: false, error: 'paste_failed' },
+        diagnostics,
+        requestStartedAt
+      )
+    }
+    pasteCompleted = true
+    await restoreClipboard()
+
+    // 3. Optional Prompt
+    if (effectivePromptText) {
+      const refocusStep = await executePipelineStep<SendImageResult>({
+        name: 'Focus',
+        webview,
+        scheduledWebview,
+        diagnostics,
+        requestStartedAt,
+        canUseWebview,
+        generateScript: () => generateFocusScript(toAutomationConfig(resolved.aiConfig)),
+        onTiming: (ms) => (diagnostics.timings.refocusScriptGenerationMs = ms),
+        onExecuteTiming: (ms) => (diagnostics.timings.refocusExecuteJavaScriptMs = ms),
+        onResult: (res) => (diagnostics.refocusScript = cloneScriptDiagnostics(res?.diagnostics))
+      })
+      if (!refocusStep.success) return refocusStep.error
+
+      await sleep(POST_PASTE_PROMPT_DELAY)
+      diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
+
+      const shouldAppendPromptAfterPaste =
+        resolved.aiConfig.appendPromptAfterPaste !== false && appendPromptAfterPaste !== false
+
+      const promptStep = await executePipelineStep<SendImageResult>({
+        name: 'Script',
+        webview,
+        scheduledWebview,
+        diagnostics,
+        requestStartedAt,
+        canUseWebview,
+        generateScript: () =>
+          generateAutoSendScript({
+            config: toAutomationConfig(resolved.aiConfig),
+            text: effectivePromptText,
+            submit: false,
+            append: shouldAppendPromptAfterPaste,
+            textInputMode,
+            typingSpeed
+          }),
+        onTiming: (ms) => (diagnostics.timings.promptScriptGenerationMs = ms),
+        onExecuteTiming: (ms) => (diagnostics.timings.promptExecuteJavaScriptMs = ms),
+        onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
+      })
+
+      if (!promptStep.success) return promptStep.error
+
+      promptApplied = true
+      if (!effectiveAutoSend) {
+        return attachDiagnostics(
+          { success: true, mode: 'paste_and_prompt' },
+          diagnostics,
+          requestStartedAt
+        )
+      }
     }
 
-    const clickStep = await executePipelineStep<SendImageResult>({
-      name: 'Click',
-      webview,
-      scheduledWebview,
-      diagnostics,
-      requestStartedAt,
-      canUseWebview,
-      generateScript: () => generateClickSendScript(toAutomationConfig(resolved.aiConfig)),
-      onTiming: (ms) => (diagnostics.timings.clickScriptGenerationMs = ms),
-      onExecuteTiming: (ms) => (diagnostics.timings.clickExecuteJavaScriptMs = ms),
-      onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
-    })
-    if (!clickStep.success) {
+    // 4. Auto-send (Wait for upload + Click)
+    if (effectiveAutoSend) {
+      const submitReadyStep = await executePipelineStep<SendImageResult>({
+        name: 'Submit_ready',
+        webview,
+        scheduledWebview,
+        diagnostics,
+        requestStartedAt,
+        canUseWebview,
+        generateScript: () =>
+          generateWaitForSubmitReadyScript({
+            config: toAutomationConfig(resolved.aiConfig),
+            options: {
+              timeoutMs: submitReadyTimeoutMs,
+              settleMs: IMAGE_SUBMIT_READY_SETTLE_DELAY,
+              minimumWaitMs: minimumReadyWaitMs
+            }
+          }),
+        onTiming: (ms) => (diagnostics.timings.submitReadyScriptGenerationMs = ms),
+        onExecuteTiming: (ms) => (diagnostics.timings.submitReadyExecuteJavaScriptMs = ms),
+        onResult: (res) => {
+          diagnostics.submitReadyScript = cloneScriptDiagnostics(res?.diagnostics)
+          diagnostics.timings.imageUploadWaitMs = roundMs(
+            res?.diagnostics?.totalMs ??
+              diagnostics.timings.submitReadyExecuteJavaScriptMs ??
+              minimumReadyWaitMs
+          )
+        }
+      })
+      if (!submitReadyStep.success) {
+        return submitReadyStep.error
+      }
+
+      const clickStep = await executePipelineStep<SendImageResult>({
+        name: 'Click',
+        webview,
+        scheduledWebview,
+        diagnostics,
+        requestStartedAt,
+        canUseWebview,
+        generateScript: () => generateClickSendScript(toAutomationConfig(resolved.aiConfig)),
+        onTiming: (ms) => (diagnostics.timings.clickScriptGenerationMs = ms),
+        onExecuteTiming: (ms) => (diagnostics.timings.clickExecuteJavaScriptMs = ms),
+        onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
+      })
+      if (!clickStep.success) {
+        return attachDiagnostics(
+          { success: false, error: 'autosend_failed_draft_saved' },
+          diagnostics,
+          requestStartedAt
+        )
+      }
+
       return attachDiagnostics(
-        { success: false, error: 'autosend_failed_draft_saved' },
+        { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
         diagnostics,
         requestStartedAt
       )
     }
 
-    return attachDiagnostics(
-      { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
-      diagnostics,
-      requestStartedAt
-    )
+    return attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+  } finally {
+    await restoreClipboard()
   }
-
-  return attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
 }

@@ -10,7 +10,17 @@ import {
 import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  lazy,
+  memo,
+  type MutableRefObject,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 
 import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
@@ -26,9 +36,10 @@ const PANEL_STYLE = {
 interface AiWebviewProps {
   isResizing: boolean
   isBarHovered: boolean
+  sharedTabUrlCacheRef?: MutableRefObject<Record<string, { url: string; modelId: string }>>
 }
 
-function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
+function AiWebview({ isResizing, isBarHovered, sharedTabUrlCacheRef }: AiWebviewProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
   const aiViewRequestNonce = useAiViewRequestNonce()
   const { isTutorialActive } = useAiSessionUiPrefsState()
@@ -37,7 +48,8 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
   const { maxAliveTabs } = useAiLifecycleSettings()
   const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
   const [showHome, setShowHome] = useState(() => tabs.length === 0 || !activeTabId)
-  const tabUrlCacheRef = useRef<Record<string, { url: string; modelId: string }>>({})
+  const localTabUrlCacheRef = useRef<Record<string, { url: string; modelId: string }>>({})
+  const tabUrlCacheRef = sharedTabUrlCacheRef ?? localTabUrlCacheRef
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -47,9 +59,12 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
     }
   }, [])
 
-  const handleTabUrlChange = useCallback((tabId: string, modelId: string, url: string) => {
-    tabUrlCacheRef.current[tabId] = { url, modelId }
-  }, [])
+  const handleTabUrlChange = useCallback(
+    (tabId: string, modelId: string, url: string) => {
+      tabUrlCacheRef.current[tabId] = { url, modelId }
+    },
+    [tabUrlCacheRef]
+  )
 
   // Combine showHome logic into one effect to avoid cascade:
   // when activeTabId/tabs change, both effects would fire separately.
@@ -95,7 +110,7 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
       // reference so React doesn't perform a redundant follow-up render.
       return isUnchanged ? prev : boundedNext
     })
-  }, [activeTabId, maxAliveTabs, tabs])
+  }, [activeTabId, maxAliveTabs, tabs, tabUrlCacheRef])
 
   const handleShowHome = useCallback(() => setShowHome(true), [])
   const handleHideHome = useCallback(() => setShowHome(false), [])
@@ -123,7 +138,7 @@ function AiWebview({ isResizing, isBarHovered }: AiWebviewProps) {
           />
         )
       }),
-    [tabs, aliveSet, activeTabId, showHome, isBarHovered, handleTabUrlChange]
+    [tabs, aliveSet, activeTabId, showHome, isBarHovered, handleTabUrlChange, tabUrlCacheRef]
   )
 
   const panelStyle = useMemo(
