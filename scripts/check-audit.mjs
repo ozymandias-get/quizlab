@@ -23,7 +23,7 @@
 
 import { execFileSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
 const ROOT = join(fileURLToPath(import.meta.url), '..', '..')
@@ -239,4 +239,9 @@ const main = () => {
   }
 }
 
-main()
+// Only run when invoked directly. Without this guard the unit tests that
+// import the validation helpers would shell out to npm audit and npm ls, and
+// an import would have the side effect of running a real gate.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main()
+}
