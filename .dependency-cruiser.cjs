@@ -45,8 +45,14 @@ module.exports = {
     {
       name: 'no-circular',
       severity: 'error',
-      comment: 'Döngüsel bağımlılıklara izin verme',
-      from: {},
+      comment: 'Döngüsel bağımlılıklara izin verme (yalnızca first-party kod)',
+      // Scoped away from node_modules on purpose. A direct dependency is
+      // resolved into the graph even with --do-not-follow, so a cycle inside
+      // a third-party package would otherwise fail the build. That is not
+      // actionable here, and a gate that cries wolf gets ignored.
+      from: {
+        pathNot: '(^|/)node_modules/'
+      },
       to: {
         circular: true
       }
