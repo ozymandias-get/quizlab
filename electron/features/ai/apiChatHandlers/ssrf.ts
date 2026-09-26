@@ -61,9 +61,7 @@ function validateProviderUrl(baseUrl: string, options?: SsrProtectionOptions): s
   }
 }
 
-// Alias for issue naming — validateSsrfTarget is the name used in the bug report
-const validateSsrfTarget = validateProviderUrl
-
+export { fetchWithSsrProtection, validateProviderUrl }
 // ─────────────────────────────────────────────────────────────────────────────
 // DNS rebinding (TOCTOU) protection
 // ─────────────────────────────────────────────────────────────────────────────
@@ -297,5 +295,4 @@ async function fetchWithSsrProtection(
   throw new Error('Too many redirects')
 }
 
-export { fetchWithSsrProtection, validateProviderUrl, validateSsrfTarget }
 export type {} // satisfy isolatedModules

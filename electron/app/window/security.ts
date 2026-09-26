@@ -1,4 +1,4 @@
-﻿import { app, type BrowserWindow, session, shell } from 'electron'
+import { app, type BrowserWindow, session, shell } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 

@@ -2,6 +2,7 @@ import { IPC_CHANNELS } from '@shared-core/constants/ipcChannels'
 import type {
   AutomationScriptAction,
   AutomationScriptArgsByAction,
+  IpcEventChannel,
   IpcInvokeChannel,
   IpcInvokeRequestMap
 } from '@shared-core/types/ipcContract'
@@ -20,14 +21,27 @@ function assertAutomationAction<_A extends AutomationScriptAction>(
   // no-op – purely for type checking
 }
 
-// Compile-time: verify every IPC_CHANNELS key used in invoke/handle is in IpcInvokeRequestMap
-type _ContractCoverageCheck = {
-  [K in keyof typeof IPC_CHANNELS]: (typeof IPC_CHANNELS)[K] extends IpcInvokeChannel
-    ? true
-    : (typeof IPC_CHANNELS)[K] extends import('@shared-core/types/ipcContract').IpcEventChannel
-      ? true
-      : never
+// Compile-time: every key of IPC_CHANNELS must be declared in either
+// IpcInvokeRequestMap (invoke/handle) or IpcEventMap (send/on).
+//
+// The mapping is deliberately INVERTED — a covered channel maps to `never` and
+// an uncovered one maps to its own key. Indexing the result therefore yields
+// `never` only when *all* channels are covered. Mapping covered channels to
+// `true` and uncovered ones to `never` (the previous shape) could never fail,
+// because `never` is absorbed into any union it is joined to.
+type UncoveredIpcChannels = {
+  [K in keyof typeof IPC_CHANNELS]: (typeof IPC_CHANNELS)[K] extends
+    | IpcInvokeChannel
+    | IpcEventChannel
+    ? never
+    : (typeof IPC_CHANNELS)[K]
 }[keyof typeof IPC_CHANNELS]
+
+/** Fails to compile unless `T` is `never` — i.e. unless nothing is uncovered. */
+type AssertNever<T extends never> = T
+
+// Exported so the assertion is evaluated and retained; never used at runtime.
+export type AllIpcChannelsCovered = AssertNever<UncoveredIpcChannels>
 
 describe('IPC contract', () => {
   it('covers all invoke-style channels used in preload', () => {

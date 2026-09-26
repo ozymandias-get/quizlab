@@ -1,4 +1,4 @@
-﻿import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'

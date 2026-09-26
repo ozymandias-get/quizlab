@@ -12,13 +12,13 @@ import { useTranslation } from 'react-i18next'
 
 import {
   InstallConfirmStepContent,
+  LoadingContent,
   RemoveConfirmStepContent,
+  ResultContent,
   RiskStepContent,
+  StatusIndicator,
   StepIndicator
 } from './wizard'
-import LoadingContent from './wizard/LoadingContent'
-import ResultContent from './wizard/ResultContent'
-import StatusIndicator from './wizard/StatusIndicator'
 
 interface ExtensionWizardPanelProps {
   open: boolean

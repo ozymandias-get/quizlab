@@ -151,7 +151,7 @@ export function registerScreenshotHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.COPY_IMAGE,
-    async (event, dataUrl: string) => {
+    async (_event, dataUrl: string) => {
       try {
         if (!dataUrl?.startsWith('data:image/')) return success(false)
         if (dataUrl.length > MAX_DATA_URL_LENGTH) {

@@ -1,4 +1,4 @@
-﻿import { ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 
 import { failure } from '../../shared/lib/typedIpc.js'
 import type { IpcInvokeChannel, IpcInvokeRequestMap } from '../../shared/types/ipcContract.js'

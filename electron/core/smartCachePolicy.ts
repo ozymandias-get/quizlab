@@ -10,7 +10,7 @@ import { APP_CONFIG } from '../app/constants.js'
 
 const { MAX_TOTAL_CACHE_BYTES, MAX_PARTITION_CACHE_BYTES } = APP_CONFIG.CLEANUP
 
-export type PressureLevel = 'normal' | 'moderate' | 'warning' | 'high' | 'critical'
+type PressureLevel = 'normal' | 'moderate' | 'warning' | 'high' | 'critical'
 
 export interface CachePressure {
   level: PressureLevel

@@ -1,4 +1,4 @@
-﻿import type { Session } from 'electron'
+import type { Session } from 'electron'
 
 import { Logger } from '../../core/logger.js'
 import type { CookieExpiryCheckResult } from './sessionContracts.js'

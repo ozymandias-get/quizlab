@@ -1,6 +1,6 @@
 import { generateAutoSendScript } from '@electron/features/automation/automationScripts'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 /**
  * SPA-aware cache invalidation testleri.

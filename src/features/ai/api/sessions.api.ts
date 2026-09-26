@@ -36,7 +36,7 @@ export function addMessageToSession(
         // SECURITY: Use Array.from() instead of .slice() to safely handle
         // multi-byte Unicode characters (emojis, CJK, surrogate pairs).
         // String.prototype.slice() operates on UTF-16 code units and can
-        // split a surrogate pair in half, producing garbled text (�).
+        // split a surrogate pair in half, producing garbled text.
         const chars = [...message.content]
         const safeTitle = chars.slice(0, 30).join('').trim()
         // SECURITY: If the message content is only whitespace (spaces, newlines,

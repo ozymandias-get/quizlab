@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tüm picker DOM yardımcıları tek dosyada: userElementPicker .toString() enjeksiyonu için.
  * Vitest/SSR modül importlarını gövdeye soktuğundan, çapraz dosya importu olmamalı.
  */

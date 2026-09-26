@@ -5,7 +5,7 @@ import type {
 } from '@shared-core/types'
 
 import crypto from 'crypto'
-import { app, BrowserWindow, session as electronSession } from 'electron'
+import { BrowserWindow, session as electronSession } from 'electron'
 import { promises as fs } from 'fs'
 import http from 'http'
 import type { AddressInfo } from 'net'
@@ -20,7 +20,7 @@ import { NativeMessagingInstaller } from './nativeMessagingInstaller.js'
 import { validateCookieDomains } from './nativeMessagingOrigin.js'
 import { BRIDGE_PORT, MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
-export class NativeMessagingManager {
+class NativeMessagingManager {
   private httpServer: http.Server | null = null
   private _connectionStatus: NativeMessagingConnectionStatus = 'disconnected'
   private _port: number = BRIDGE_PORT

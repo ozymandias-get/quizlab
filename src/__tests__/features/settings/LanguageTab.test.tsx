@@ -1,4 +1,4 @@
-﻿import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { type ComponentProps, forwardRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import LanguageTab from '@features/settings/ui/LanguageTab'

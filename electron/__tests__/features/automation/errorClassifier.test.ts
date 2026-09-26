@@ -1,4 +1,4 @@
-﻿import {
+import {
   classifyAutomationError,
   errorCategoryOf,
   isRetryable,

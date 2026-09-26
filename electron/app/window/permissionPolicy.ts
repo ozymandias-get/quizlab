@@ -39,12 +39,12 @@ import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 export const APP_SESSION_PARTITION = 'app'
 
 /** Partitions minted for user-added platforms, see aiRegistryHandlers. */
-export const CUSTOM_PARTITION_PREFIX = 'persist:ai_custom_'
+const CUSTOM_PARTITION_PREFIX = 'persist:ai_custom_'
 
 /** Fallback partition for non-site custom/API models. Hosts no fixed origin. */
-export const GENERIC_AI_PARTITION = 'persist:ai_session'
+const GENERIC_AI_PARTITION = 'persist:ai_session'
 
-export type PermissionDenialReason =
+type PermissionDenialReason =
   | 'not_a_known_partition'
   | 'malformed_origin'
   | 'origin_not_registered'
@@ -249,11 +249,11 @@ const consentGrants = new Set<string>()
 const consentDenials = new Set<string>()
 
 const consentKey = (partition: string, host: string, permission: string): string =>
-  `${partition} ${host} ${permission}`
+  `${partition}\0${host}\0${permission}`
 
-export type ConsentState = 'granted' | 'denied' | 'undecided'
+type ConsentState = 'granted' | 'denied' | 'undecided'
 
-export function getConsentState(partition: string, host: string, permission: string): ConsentState {
+function getConsentState(partition: string, host: string, permission: string): ConsentState {
   const key = consentKey(partition, host, permission)
   if (consentGrants.has(key)) return 'granted'
   if (consentDenials.has(key)) return 'denied'

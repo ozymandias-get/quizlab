@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Electron main-process Logger shim.
  *
  * Re-exports from the shared logger so all code (renderer + main process)

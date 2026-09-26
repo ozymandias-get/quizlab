@@ -3,8 +3,8 @@ import { reportSuppressedError } from '@shared/lib/logger'
 
 import type { DockLayout, ResizeDirection } from './types'
 
-export const STORAGE_KEY = 'aiSendDockLayout'
-export const DEFAULT_LAYOUT: DockLayout = {
+const STORAGE_KEY = 'aiSendDockLayout'
+const DEFAULT_LAYOUT: DockLayout = {
   x: 28,
   y: 0,
   width: 320,

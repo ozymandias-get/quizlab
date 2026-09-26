@@ -1,4 +1,4 @@
-﻿import { useToastList } from '@app/providers'
+import { useToastList } from '@app/providers'
 
 import { AnimatePresence } from 'motion/react'
 import { memo } from 'react'

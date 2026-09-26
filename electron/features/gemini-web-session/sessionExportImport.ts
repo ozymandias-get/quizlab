@@ -1,9 +1,8 @@
-﻿import { safeStorage } from 'electron'
+import { safeStorage } from 'electron'
 import { promises as fs } from 'fs'
 
 import { Logger } from '../../core/logger.js'
 import type {
-  SessionExportData,
   SessionExportDataV1,
   SessionExportDataV2,
   SessionExportResult,

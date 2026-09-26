@@ -1,8 +1,7 @@
-﻿import { app, clipboard, ipcMain, session, shell, webContents } from 'electron'
+import { app, clipboard, ipcMain, session, shell, webContents } from 'electron'
 
 import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
-import { getMainWindow } from '../../app/windowManager.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { runCleanup } from '../appCleanup.js'
 import { getCacheInfo, runManualCleanup } from '../cacheCleanup/index.js'
@@ -60,7 +59,7 @@ export function registerSystemHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.OPEN_EXTERNAL,
-    async (event, url: string) => {
+    async (_event, url: string) => {
       if (!url || typeof url !== 'string') return success(false)
 
       const FORBIDDEN_PATTERN = /[\x00-\x1f\x7f-\x9f]/
@@ -113,7 +112,7 @@ export function registerSystemHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.FORCE_PASTE,
-    async (event, webContentsId: number) => {
+    async (_event, webContentsId: number) => {
       try {
         if (!webContentsId) return success(false)
         const contents = webContents.fromId(webContentsId)
@@ -174,7 +173,7 @@ export function registerSystemHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.CLEAR_AI_MODEL_DATA,
-    async (event, input: { id?: unknown; partition?: unknown }) => {
+    async (_event, input: { id?: unknown; partition?: unknown }) => {
       try {
         const partition = resolveAiModelPartition(input || {})
         if (!partition) return success(false)
@@ -270,8 +269,7 @@ export function registerSystemHandlers() {
         const userDataPath = app.getPath('userData')
         if (action === 'clean_cold') {
           // Soğuk partition'ları temizle
-          const { getAllPartitionActivities, getActivityCategory } =
-            await import('../cacheRegistry.js')
+          const { getAllPartitionActivities } = await import('../cacheRegistry.js')
           const activities = getAllPartitionActivities()
           const coldPartitions = Object.entries(activities)
             .filter(([, v]) => v.category === 'cold')

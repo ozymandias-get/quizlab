@@ -8,7 +8,7 @@ if (import.meta.env.DEV) {
 import { createBrowserElectronApi } from '@platform/electron/createBrowserElectronApi'
 
 import App from '@app/App'
-import AppProviders from '@app/providers/AppProviders'
+import { AppProviders } from '@app/providers'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { getStorageItem } from '@shared/hooks/localStorageUtils'
 import { hasElectronApi } from '@shared/lib/electronApi'

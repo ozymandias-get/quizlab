@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tests for electron/features/gemini-web-session/metadataUpdatePolicy.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -98,7 +98,7 @@ describe('MetadataUpdatePolicy', () => {
         'hash-1'
       )
       expect(mocked.scheduleMonitor).toHaveBeenCalled()
-      expect(mocked.performHealthCheck).toHaveBeenCalledWith({ allowRetry: false })
+      expect(mocked.performHealthCheck).toHaveBeenCalledWith()
     })
 
     it('writes enabled=false and stops monitor', async () => {

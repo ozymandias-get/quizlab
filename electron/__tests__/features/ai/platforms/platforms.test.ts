@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import aistudioPlatform from '../../../../features/ai/platforms/aistudio.js'
 import chatgptPlatform from '../../../../features/ai/platforms/chatgpt.js'

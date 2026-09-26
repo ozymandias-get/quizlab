@@ -70,7 +70,7 @@ function AiWebview({ isResizing, isBarHovered, sharedTabUrlCacheRef }: AiWebview
 
   // Combine showHome logic into one effect to avoid cascade:
   // when activeTabId/tabs change, both effects would fire separately.
-  // Single effect â†’ single re-render from showHome change.
+  // Single effect → single re-render from showHome change.
   useEffect(() => {
     if (tabs.length === 0 || !activeTabId) {
       setShowHome(true)

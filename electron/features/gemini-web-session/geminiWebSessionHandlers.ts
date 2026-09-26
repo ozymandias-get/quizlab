@@ -70,7 +70,7 @@ export function registerGeminiWebSessionHandlers(): void {
 
   registerIpcHandler(
     IPC_CHANNELS.GEMINI_WEB_SET_ENABLED,
-    async (event, enabled: unknown) => {
+    async (_event, enabled: unknown) => {
       const result = await geminiWebSessionManager.setEnabled(toStrictBoolean(enabled))
       broadcastStatus(result.status)
       return success(result)
@@ -81,7 +81,7 @@ export function registerGeminiWebSessionHandlers(): void {
 
   registerIpcHandler(
     IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS,
-    async (event, enabledAppIds: unknown) => {
+    async (_event, enabledAppIds: unknown) => {
       if (!Array.isArray(enabledAppIds)) return success({ success: false, error: 'Unauthorized' })
       const valid: GoogleWebSessionAppId[] = []
       const validSet = new Set<string>(GOOGLE_WEB_SESSION_APPS.map((a) => a.id))

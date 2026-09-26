@@ -42,16 +42,6 @@ export function clearActivePdfDocument(): void {
   activePdfUrl = null
 }
 
-export function getActivePdfDocumentFingerprint(): string | null {
-  if (!activePdfDocument) return null
-  const anyDoc = activePdfDocument as unknown as Record<string, unknown>
-  const fp = anyDoc.fingerprint ?? (anyDoc.fingerprints as string[] | undefined)?.[0]
-  if (typeof fp === 'string' && fp.length > 0) return fp
-  const fingerprints = anyDoc.fingerprints as string[] | undefined
-  if (fingerprints && fingerprints[0]) return fingerprints[0]
-  return null
-}
-
 /**
  * Returns the registered document when it belongs to `pdfUrl`, so render
  * paths can reuse it instead of reloading large PDFs. Returns `null` when no

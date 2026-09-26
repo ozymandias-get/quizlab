@@ -1,4 +1,4 @@
-﻿import type { GeminiWebSessionConfig } from '@shared-core/types'
+import type { GeminiWebSessionConfig } from '@shared-core/types'
 
 import { app, type Session, session as electronSession } from 'electron'
 import path from 'path'

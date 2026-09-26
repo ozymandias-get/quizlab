@@ -6,7 +6,6 @@ export {
   ExternalLinkIcon,
   ImportIcon,
   LoaderIcon,
-  PlusIcon,
   RefreshIcon,
   SwapIcon,
   TrashIcon,
@@ -15,7 +14,6 @@ export {
 export {
   GeminiIcon,
   GithubIcon,
-  GoogleIcon,
   MagicWandIcon,
   SparklesExpandIcon,
   UpdateIcon
@@ -36,10 +34,3 @@ export {
   SettingsIcon,
   SliderIcon
 } from './icons/IconsUI'
-export {
-  Grid3x3Icon,
-  type LucideIconName,
-  lucideIcons,
-  SemanticIcon,
-  type SemanticIconProps
-} from './icons/LucideIcons'

@@ -1,4 +1,4 @@
-﻿import { getBaseHelpers } from './lib/baseHelpers.js'
+import { getBaseHelpers } from './lib/baseHelpers.js'
 import { cachingHelpers } from './lib/cachingHelpers.js'
 import { confidenceScoring } from './lib/confidenceScoring.js'
 import { domSearchHelpers } from './lib/domSearchHelpers.js'

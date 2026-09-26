@@ -1,4 +1,4 @@
-﻿import type { AutomationConfig, TextInputMode } from '@shared-core/types'
+import type { AutomationConfig, TextInputMode } from '@shared-core/types'
 
 import { serializeAutomationConfig } from '../../scripts/config.js'
 import { buildHumanTypingScript } from '../../scripts/humanTyping.js'

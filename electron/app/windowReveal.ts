@@ -1,4 +1,4 @@
-﻿import { dialog } from 'electron'
+import { dialog } from 'electron'
 
 import { Logger } from '../core/logger.js'
 

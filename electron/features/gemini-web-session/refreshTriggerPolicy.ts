@@ -1,4 +1,4 @@
-﻿import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
+import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
 
 import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/googleAiWebApps.js'
 import type { ProfileLock } from './profileLock.js'

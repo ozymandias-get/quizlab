@@ -1,7 +1,5 @@
 import fs from 'fs'
 
-import { Logger } from '../../core/logger.js'
-
 const PDF_STREAM_HEADERS = {
   'Content-Type': 'application/pdf',
   'Cache-Control': 'private, max-age=0, must-revalidate',

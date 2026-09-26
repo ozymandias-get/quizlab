@@ -4,17 +4,8 @@ import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 import { getActivePdfDocument } from './activePdfDocumentRegistry'
 
-// Backward-compatible re-exports: registry lives in
-// `./activePdfDocumentRegistry`; existing importers keep working.
-export type { ActivePdfDocument } from './activePdfDocumentRegistry'
-export {
-  clearActivePdfDocument,
-  getActivePdfDocumentFingerprint,
-  setActivePdfDocument
-} from './activePdfDocumentRegistry'
-
-export const PDF_RENDER_DEFAULT_SCALE = 2.0
-export const PDF_RENDER_MAX_PIXELS = 16_000_000
+const PDF_RENDER_DEFAULT_SCALE = 2.0
+const PDF_RENDER_MAX_PIXELS = 16_000_000
 
 export interface RenderOptions {
   scale?: number

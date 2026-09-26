@@ -36,7 +36,7 @@ export const isSamePdfFull = (a: PdfFile | null | undefined, b: PdfFile): boolea
   )
 }
 
-export interface PdfTabState {
+interface PdfTabState {
   pdfTabs: PdfTab[]
   activePdfTabId: string
 }

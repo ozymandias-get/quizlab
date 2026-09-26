@@ -1,4 +1,4 @@
-﻿import type { UpdateCheckResult } from '@shared-core/types'
+import type { UpdateCheckResult } from '@shared-core/types'
 
 import { useToastActions } from '@shared/stores/toastStore'
 

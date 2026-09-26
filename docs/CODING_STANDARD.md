@@ -18,7 +18,7 @@ Aşağıdaki komutlar her PR'da temiz geçmelidir. Hepsi `package.json` script'l
 | Format kontrolü     | `npm run format:check`            | Tüm kaynak dosyalar Prettier uyumlu.               |
 | Lint                | `npm run lint`                    | `--max-warnings=0` ile hatasız.                    |
 | Tür denetimi        | `npm run typecheck`               | `tsc -b` hatasız (3 referans: app/node/node.test). |
-| Test                | `npm test`                        | 241 dosya / 2285 test geçer.                       |
+| Test                | `npm test`                        | 291 dosya / 2756 test geçer.                       |
 | Repo hijyeni        | `npm run ci:check-hygiene`        | `.cache`, `out.txt`, build artifact yok.           |
 | Sürüm tutarlılığı   | `npm run ci:check-version`        | `package.json` ↔ `app/version` senkron.            |
 | Bağımlılık denetimi | `npm run check:audit`             | Kargo ağacında yüksek/critical CVE yok.            |

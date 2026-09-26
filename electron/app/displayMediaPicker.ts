@@ -1,4 +1,4 @@
-﻿import crypto from 'crypto'
+import crypto from 'crypto'
 import type { DesktopCapturerSource } from 'electron'
 import { BrowserWindow, ipcMain } from 'electron'
 import path from 'path'

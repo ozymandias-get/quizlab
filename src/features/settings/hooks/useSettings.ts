@@ -1,4 +1,4 @@
-﻿import { useAppVersion, useOpenExternal } from '@platform/electron/api/useSettingsSystemApi'
+import { useAppVersion, useOpenExternal } from '@platform/electron/api/useSettingsSystemApi'
 
 import { type UpdateInfo, useUpdate } from '@app/providers'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'

@@ -1,4 +1,4 @@
-﻿import type { SerializedAutomationConfig } from '../scripts/config.js'
+import type { SerializedAutomationConfig } from '../scripts/config.js'
 import { buildCommonHelpers } from './runtimeHelpers.js'
 
 type ScriptKind = 'focus' | 'auto_send' | 'click_send' | 'validate' | 'submit_ready'

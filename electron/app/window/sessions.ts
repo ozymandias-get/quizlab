@@ -1,4 +1,4 @@
-﻿import type { DisplayMediaRequestHandlerHandlerRequest, Streams } from 'electron'
+import type { DisplayMediaRequestHandlerHandlerRequest, Streams } from 'electron'
 import { BrowserWindow, desktopCapturer, session } from 'electron'
 
 import { markPartitionActive } from '../../core/cacheRegistry.js'

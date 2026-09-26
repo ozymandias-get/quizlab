@@ -66,5 +66,3 @@ export function Table({ headers, rows }: { headers: string[]; rows: string[][] }
     </div>
   )
 }
-
-export default CodeBlock

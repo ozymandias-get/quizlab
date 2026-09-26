@@ -1,4 +1,4 @@
-﻿import ColorPicker from '@features/settings/ui/ColorPicker'
+import ColorPicker from '@features/settings/ui/ColorPicker'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'

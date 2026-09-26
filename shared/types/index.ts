@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Shared Types - Single Source of Truth
  * These types are used by both electron (backend) and src (frontend)
  *

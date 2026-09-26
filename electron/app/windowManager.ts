@@ -1,4 +1,4 @@
-﻿import type { BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 
 import { APP_CONFIG } from './constants.js'
 import {
@@ -9,12 +9,7 @@ import {
   MAIN_WINDOW_REVEAL_TIMEOUT_MS
 } from './window/environment.js'
 import { loadRenderer } from './window/rendererLoader.js'
-import {
-  hardenWindowWebContents,
-  isAllowedMainFrameUrl,
-  isSafeExternalUrl,
-  setupWebviewSecurity
-} from './window/security.js'
+import { hardenWindowWebContents, setupWebviewSecurity } from './window/security.js'
 import { setupSessions } from './window/sessions.js'
 import { clampWindowStateToDisplay, loadWindowState, saveWindowState } from './window/state.js'
 import { createMainBrowserWindow } from './window/windows.js'

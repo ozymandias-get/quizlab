@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetPath = vi.fn()
 const mockFromPartition = vi.fn()
-const mockClearCache = vi.fn()
-const mockClearStorageData = vi.fn()
 
 vi.mock('electron', () => ({
   app: {

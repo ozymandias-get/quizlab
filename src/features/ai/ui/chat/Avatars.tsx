@@ -39,5 +39,3 @@ export const Timestamp = memo(function Timestamp({ ts }: { ts: number }) {
     </span>
   )
 })
-
-export default AiAvatar

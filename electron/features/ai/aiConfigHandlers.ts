@@ -1,4 +1,4 @@
-﻿import type { AiSelectorConfig } from '@shared-core/types'
+import type { AiSelectorConfig } from '@shared-core/types'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
@@ -27,7 +27,7 @@ export function registerAiConfigHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.SAVE_AI_CONFIG,
-    async (event, hostname: string, config: AiSelectorConfig) => {
+    async (_event, hostname: string, config: AiSelectorConfig) => {
       const normalizedHostname = normalizeHostname(hostname)
       const sanitizedConfig = sanitizeConfig(config)
       if (!normalizedHostname || !sanitizedConfig) return success(false)
@@ -57,7 +57,7 @@ export function registerAiConfigHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.GET_AI_CONFIG,
-    async (event, hostname?: string) => {
+    async (_event, hostname?: string) => {
       const configMap = await readMigratedConfigMap(manager)
       if (!hostname) return success(configMap)
       const resolved = resolveConfigForHostname(configMap, hostname)
@@ -70,7 +70,7 @@ export function registerAiConfigHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.DELETE_AI_CONFIG,
-    async (event, hostname: string) => {
+    async (_event, hostname: string) => {
       const normalizedHostname = normalizeHostname(hostname)
       if (!normalizedHostname) return success(false)
       return success(await manager.deleteItem(normalizedHostname))

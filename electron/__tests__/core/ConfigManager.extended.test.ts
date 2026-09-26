@@ -18,7 +18,7 @@ type TestConfig = {
 
 const tempDirs: string[] = []
 
-function createTempManager<T extends object>(data?: T) {
+function createTempManager<T extends object>(_data?: T) {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), 'cfg-test-'))
   tempDirs.push(tempDir)
   const filePath = path.join(tempDir, 'config.json')

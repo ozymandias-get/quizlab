@@ -1,4 +1,4 @@
-﻿import { DEFAULT_PROMPTS, type Prompt as BasePrompt } from '@shared/constants/prompts'
+import { DEFAULT_PROMPTS, type Prompt as BasePrompt } from '@shared/constants/prompts'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useLocalStorage, useLocalStorageString } from '@shared/hooks/useLocalStorage'
 import { useLanguage } from '@shared/stores/languageStore'
