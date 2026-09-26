@@ -77,4 +77,26 @@ export interface SessionImportResult {
   success: boolean
   error?: string
   status?: GeminiWebSessionStatus
+  /**
+   * Set when the import succeeded but the source file deserves a caveat,
+   * e.g. `imported_unencrypted_legacy_file` for a pre-encryption v1 export.
+   * The UI should surface it instead of implying the file was encrypted.
+   */
+  warning?: string
+  /**
+   * User-facing explanation when the import was refused because the system
+   * cannot protect the session material.
+   */
+  detail?: string
+}
+
+export interface SessionExportResult {
+  success: boolean
+  error?: string
+  /**
+   * User-facing explanation for a refusal. Present when the export was
+   * declined because the system cannot protect the session material, so the
+   * reason is never just a bare error code.
+   */
+  detail?: string
 }

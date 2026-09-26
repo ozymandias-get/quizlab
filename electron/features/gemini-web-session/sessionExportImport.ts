@@ -6,8 +6,14 @@ import type {
   SessionExportData,
   SessionExportDataV1,
   SessionExportDataV2,
+  SessionExportResult,
   SessionImportResult
 } from './sessionContracts.js'
+import {
+  describeUnavailableCapability,
+  getEncryptionCapability,
+  unavailableErrorCode
+} from './sessionEncryptionCapability.js'
 import { toErrorMessage } from './sessionErrors.js'
 import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
 import type { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
@@ -75,7 +81,18 @@ export class SessionExportImport {
     private metadataRepository: SessionMetadataRepository
   ) {}
 
-  async exportSession(filePath: string): Promise<{ success: boolean; error?: string }> {
+  async exportSession(filePath: string): Promise<SessionExportResult> {
+    // SECURITY: Fail closed. An earlier version fell back to writing the
+    // plaintext v1 payload (cookies included) to a file the user had been
+    // told was "Encrypted Session", and still reported success. Only write
+    // when the OS keystore can actually protect the material.
+    const capability = getEncryptionCapability()
+    if (!capability.available) {
+      const detail = describeUnavailableCapability(capability)
+      Logger.error('[GeminiWebSession] Export refused:', capability.reason)
+      return { success: false, error: unavailableErrorCode(capability), detail }
+    }
+
     try {
       const storageState =
         (await this.snapshotRepository?.readStorageStateSnapshot().catch(() => null)) ?? null
@@ -93,29 +110,19 @@ export class SessionExportImport {
         }
       }
 
-      if (safeStorage.isEncryptionAvailable()) {
-        // SECURITY: Encrypt session data using OS-level encryption
-        // (DPAPI on Windows, Keychain on macOS, libsecret on Linux).
-        // This prevents other processes or users from reading Google
-        // session cookies from the exported file.
-        const innerJson = JSON.stringify(innerData)
-        const encrypted = safeStorage.encryptString(innerJson)
-        const exportData: SessionExportDataV2 = {
-          version: 2,
-          exportedAt: new Date().toISOString(),
-          encrypted: encrypted.toString('base64')
-        }
-        await fs.writeFile(filePath, JSON.stringify(exportData, null, 2), {
-          mode: 0o600
-        })
-      } else {
-        // Fallback: safeStorage unavailable (e.g. headless Linux).
-        // Log a warning so the user knows the export is unencrypted.
-        Logger.warn('[GeminiWebSession] safeStorage unavailable, exporting session as plaintext')
-        await fs.writeFile(filePath, JSON.stringify(innerData, null, 2), {
-          mode: 0o600
-        })
+      // Encrypt with OS-level storage (DPAPI on Windows, Keychain on macOS,
+      // libsecret/kwallet on Linux) so other processes or users cannot read
+      // the Google session cookies back out of the exported file.
+      const innerJson = JSON.stringify(innerData)
+      const encrypted = safeStorage.encryptString(innerJson)
+      const exportData: SessionExportDataV2 = {
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        encrypted: encrypted.toString('base64')
       }
+      await fs.writeFile(filePath, JSON.stringify(exportData, null, 2), {
+        mode: 0o600
+      })
 
       return { success: true }
     } catch (error) {
@@ -139,9 +146,16 @@ export class SessionExportImport {
       if (isSessionExportDataV2(parsed)) {
         const v2 = parsed as SessionExportDataV2
 
-        if (!safeStorage.isEncryptionAvailable()) {
-          Logger.warn('[GeminiWebSession] Import rejected: safeStorage unavailable for decryption')
-          return { success: false, error: 'encryption_unavailable' }
+        // Same bar as export: an API that reports "available" while running on
+        // the plaintext Linux backend cannot actually decrypt anything.
+        const capability = getEncryptionCapability()
+        if (!capability.available) {
+          Logger.warn(`[GeminiWebSession] Import rejected: ${capability.reason} for decryption`)
+          return {
+            success: false,
+            error: unavailableErrorCode(capability),
+            detail: describeUnavailableCapability(capability)
+          }
         }
 
         let decryptedJson: string
@@ -162,10 +176,14 @@ export class SessionExportImport {
         return this.applyImportedData(innerData)
       }
 
-      // Try version 1 (legacy plaintext)
+      // Legacy plaintext (v1). Still accepted so files exported by older
+      // versions remain importable, but the caller is told the source was not
+      // encrypted instead of silently treating it as an "Encrypted Session".
       if (isSessionExportDataV1(parsed)) {
-        Logger.info('[GeminiWebSession] Importing legacy plaintext session (v1)')
-        return this.applyImportedData(parsed)
+        Logger.warn('[GeminiWebSession] Importing legacy plaintext session (v1)')
+        const applied = await this.applyImportedData(parsed)
+        if (!applied.success) return applied
+        return { ...applied, warning: 'imported_unencrypted_legacy_file' }
       }
 
       Logger.warn('[GeminiWebSession] Import rejected: unknown format')
