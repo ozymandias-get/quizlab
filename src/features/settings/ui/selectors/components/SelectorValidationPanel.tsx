@@ -1,3 +1,5 @@
+import type { AutomationSelectorDiagnostics } from '@shared-core/types'
+
 import { memo } from 'react'
 
 import type { TranslateFn, ValidationState } from '../types'
@@ -6,6 +8,48 @@ interface SelectorValidationPanelProps {
   validation: ValidationState
   t: TranslateFn
 }
+
+interface SelectorDiagnosticTileProps {
+  labelKey: string
+  diagnostics: AutomationSelectorDiagnostics | undefined
+  t: TranslateFn
+}
+
+/**
+ * One locator's resolution summary. Besides the raw strategy (still useful for
+ * debugging) it surfaces the two signals that actually explain a surprise:
+ * whether the element was *recovered* rather than found directly, and how
+ * confident the scoring was. Both come from the injected diagnostics, so nothing
+ * extra is executed.
+ */
+const SelectorDiagnosticTile = memo(function SelectorDiagnosticTile({
+  labelKey,
+  diagnostics,
+  t
+}: SelectorDiagnosticTileProps) {
+  return (
+    <div className="border-border bg-muted/30 rounded-xl border p-3">
+      <p className="text-ql-10 text-muted-foreground font-medium">{t(labelKey)}</p>
+      <p className="text-ql-13 text-foreground mt-0.5 font-semibold">
+        {diagnostics?.strategy || t('selectors_no_match')}
+      </p>
+      <p className="text-ql-12 text-muted-foreground mt-1 break-all">
+        {diagnostics?.matchedSelector || diagnostics?.requestedSelector || t('selectors_no_match')}
+      </p>
+      {diagnostics && (
+        <p className="text-ql-11 text-muted-foreground mt-1.5">
+          {t(
+            diagnostics.recovered ? 'selectors_resolution_recovered' : 'selectors_resolution_direct'
+          )}
+          {diagnostics.confidenceLevel
+            ? ` · ${t(`selectors_confidence_${diagnostics.confidenceLevel}`)}`
+            : ''}
+        </p>
+      )}
+    </div>
+  )
+})
+SelectorDiagnosticTile.displayName = 'SelectorDiagnosticTile'
 
 const SelectorValidationPanel = memo(function SelectorValidationPanel({
   validation,
@@ -48,29 +92,17 @@ const SelectorValidationPanel = memo(function SelectorValidationPanel({
 
       {validation.diagnostics && (
         <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <div className="border-border bg-muted/30 rounded-xl border p-3">
-            <p className="text-ql-10 text-muted-foreground font-medium">{t('input_label')}</p>
-            <p className="text-ql-13 text-foreground mt-0.5 font-semibold">
-              {validation.diagnostics.input.strategy}
-            </p>
-            <p className="text-ql-12 text-muted-foreground mt-1">
-              {validation.diagnostics.input.matchedSelector ||
-                validation.diagnostics.input.requestedSelector ||
-                t('selectors_no_match')}
-            </p>
-          </div>
+          <SelectorDiagnosticTile
+            labelKey="input_label"
+            diagnostics={validation.diagnostics.input}
+            t={t}
+          />
 
-          <div className="border-border bg-muted/30 rounded-xl border p-3">
-            <p className="text-ql-10 text-muted-foreground font-medium">{t('picker_el_submit')}</p>
-            <p className="text-ql-13 text-foreground mt-0.5 font-semibold">
-              {validation.diagnostics.button?.strategy || t('selectors_no_match')}
-            </p>
-            <p className="text-ql-12 text-muted-foreground mt-1">
-              {validation.diagnostics.button?.matchedSelector ||
-                validation.diagnostics.button?.requestedSelector ||
-                t('selectors_no_match')}
-            </p>
-          </div>
+          <SelectorDiagnosticTile
+            labelKey="picker_el_submit"
+            diagnostics={validation.diagnostics.button}
+            t={t}
+          />
         </div>
       )}
     </div>

@@ -98,6 +98,7 @@ export default memo(function SelectorCard({
             submitMode={submitMode}
             hasSelectors={hasSelectors}
             isSaving={isSaving}
+            selectorConfig={selectorConfig}
             selectorEntry={selectorEntry}
             onSubmitModeChange={onSubmitModeChange}
             t={t}

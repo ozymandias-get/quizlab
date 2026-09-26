@@ -1,9 +1,10 @@
-import type { SubmitMode } from '@shared-core/types'
+import type { AiSelectorConfig, SubmitMode } from '@shared-core/types'
 
 import { memo } from 'react'
 
 import { SUBMIT_MODE_OPTIONS } from '../constants'
 import type { SelectorEntry, SelectorHealthState, TranslateFn } from '../types'
+import SelectorLocatorHealth from './SelectorLocatorHealth'
 
 interface SelectorCardDetailsProps {
   savedHost: string | null
@@ -13,6 +14,7 @@ interface SelectorCardDetailsProps {
   submitMode: SubmitMode
   hasSelectors: boolean
   isSaving: boolean
+  selectorConfig: AiSelectorConfig | null
   selectorEntry: SelectorEntry | null
   onSubmitModeChange: (hostname: string, mode: SubmitMode) => void
   t: TranslateFn
@@ -26,6 +28,7 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
   submitMode,
   hasSelectors,
   isSaving,
+  selectorConfig,
   selectorEntry,
   onSubmitModeChange,
   t
@@ -62,7 +65,9 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
         )}
       </div>
 
-      <div className="border-border bg-muted/30 rounded-xl border p-3">
+      <SelectorLocatorHealth config={selectorConfig} t={t} />
+
+      <div className="border-border bg-muted/30 rounded-xl border p-3 md:col-span-2">
         <p className="text-ql-10 text-muted-foreground font-medium">
           {t('selectors_submit_mode_label')}
         </p>

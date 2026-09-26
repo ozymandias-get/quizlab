@@ -26,7 +26,7 @@
   "error_registry_not_loaded": "AI registry not loaded",
   "error_script_failed": "Failed to input text into AI",
   "error_script_generation_failed": "Failed to generate automation",
-  "error_selector_repick_required": "Selectors no longer match the page. Open the AI tab and pick them again.",
+  "error_selector_repick_required": "The AI site's interface may have changed. Quizlab could not safely recover the required element. Use Magic Picker to select it again.",
   "error_submit_not_ready": "The attachment is still processing. Wait a moment and try again.",
   "error_submit_ready_script_failed": "Failed to prepare attachment readiness check.",
   "error_unexpected_retry": "An unexpected error occurred. Please check file permissions and try again.",

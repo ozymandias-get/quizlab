@@ -26,7 +26,7 @@
   "error_registry_not_loaded": "AI listesi yüklenemedi",
   "error_script_failed": "AI sayfasına metin yazılamadı",
   "error_script_generation_failed": "Komut oluşturulamadı",
-  "error_selector_repick_required": "Selektörler artık sayfayla eşleşmiyor. AI sekmesini açıp yeniden seçin.",
+  "error_selector_repick_required": "Yapay zeka sitesinin arayüzü değişmiş olabilir. Quizlab gerekli mesaj alanını güvenli biçimde yeniden bulamadı. Sihirli Seçici ile yeniden seçim yapın.",
   "error_submit_not_ready": "Ek görsel hâlâ işleniyor. Biraz bekleyip tekrar deneyin.",
   "error_submit_ready_script_failed": "Görsel hazır olma kontrolü hazırlanamadı.",
   "error_unexpected_retry": "Beklenmeyen bir hata olu\u015ftu. L\u00fctfen dosya izinlerini kontrol edip tekrar deneyin.",
