@@ -19,6 +19,7 @@ import {
   toAutomationConfig
 } from '../aiSenderSupport'
 import { mergePromptText } from '../aiSenderSupport'
+import { reportSelectorRepair } from '../selectorRepair/reportSelectorRepair'
 import { executePipelineStep } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
@@ -123,6 +124,22 @@ export async function executeImageSendPipeline(
   )
   const submitReadyTimeoutMs = minimumReadyWaitMs + IMAGE_SUBMIT_READY_TIMEOUT_BUFFER
   let promptApplied = false
+
+  /**
+   * Self-healing: the image pipeline runs several injected scripts, and only
+   * the ones that actually used an element (`promptScript` inserted text,
+   * `clickScript` submitted) may teach the selector repair loop anything.
+   * Fire-and-forget so a repair never delays or fails the send.
+   */
+  const reportRepair = () => {
+    void reportSelectorRepair({
+      aiConfig: resolved.aiConfig,
+      currentUrl: resolved.currentUrl,
+      diagnostics,
+      queryClient,
+      configCache
+    })
+  }
 
   const clipboardStartedAt = nowMs()
   let copied = false
@@ -272,6 +289,7 @@ export async function executeImageSendPipeline(
 
       promptApplied = true
       if (!effectiveAutoSend) {
+        reportRepair()
         return attachDiagnostics(
           { success: true, mode: 'paste_and_prompt' },
           diagnostics,
@@ -333,6 +351,7 @@ export async function executeImageSendPipeline(
         )
       }
 
+      reportRepair()
       return attachDiagnostics(
         { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
         diagnostics,
@@ -340,6 +359,7 @@ export async function executeImageSendPipeline(
       )
     }
 
+    reportRepair()
     return attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
   } finally {
     await restoreClipboard()

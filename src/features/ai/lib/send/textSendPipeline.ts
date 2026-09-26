@@ -9,6 +9,7 @@ import type { AiSendDiagnostics, SendTextResult } from '../../model/types'
 import type { ConfigCache } from '../aiSenderSupport'
 import { toAutomationConfig } from '../aiSenderSupport'
 import { buildPromptText, mergePromptText } from '../aiSenderSupport'
+import { reportSelectorRepair } from '../selectorRepair/reportSelectorRepair'
 import { executePipelineStep } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
@@ -111,6 +112,17 @@ export async function executeTextSendPipeline(
   if (!sendStep.success) {
     return sendStep.error
   }
+
+  // Self-healing: hand this send's diagnostics to the selector repair loop.
+  // Fire-and-forget on purpose — a repair is a background improvement, so it
+  // must not add latency to (or be able to fail) a successful send.
+  void reportSelectorRepair({
+    aiConfig: resolved.aiConfig,
+    currentUrl: resolved.currentUrl,
+    diagnostics,
+    queryClient,
+    configCache
+  })
 
   return attachDiagnostics(
     {
