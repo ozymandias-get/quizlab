@@ -23,7 +23,7 @@ import packageJson from '../../../package.json'
 // rather than widening `*.cjs` to `any` project-wide.
 const require = createRequire(import.meta.url)
 const depcruiseConfig = require('../../../.dependency-cruiser.cjs') as {
-  forbidden: Array<{ name: string }>
+  forbidden: Array<{ name: string; from?: { pathNot?: string } }>
 }
 
 const FEATURE_DIRS = ['ai', 'pdf', 'settings', 'tutorial', 'screenshot', 'automation', 'onboarding']
@@ -184,6 +184,15 @@ describe('architecture gate: dependency-cruiser rules', () => {
         'no-nodejs-from-browser'
       ])
     )
+  })
+
+  it('does not hold third-party cycles against the build', () => {
+    // A direct dependency is resolved into the graph even with
+    // --do-not-follow, so an unscoped no-circular rule fails on a cycle inside
+    // a vendored package. That is not actionable, and it would only teach
+    // everyone to ignore this gate.
+    const circular = depcruiseConfig.forbidden.find((rule) => rule.name === 'no-circular')
+    expect(circular?.from?.pathNot).toMatch(/node_modules/)
   })
 })
 

@@ -176,6 +176,7 @@
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.62.0",
     "@typescript-eslint/parser": "^8.62.0",
     "@vitejs/plugin-react": "^6.0.3",
@@ -208,6 +209,7 @@
     "patch-package": "^8.0.1",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "semver": "^7.8.5",
     "shadcn": "^4.11.0",
     "stylelint": "^17.13.0",
     "stylelint-config-standard": "^40.0.0",
@@ -265,7 +267,8 @@
     "madge": {
       "typescript": "6.0.3"
     },
-    "tar": ">=7.5.21"
+    "tar": ">=7.5.21",
+    "pdfjs-dist": "3.11.174"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md,css}": "prettier --write",
