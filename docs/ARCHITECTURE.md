@@ -16,6 +16,49 @@ This document defines stable architectural boundaries for the Quizlab Reader cod
 
 The AI send draft queue (`pendingAiItems` → `planBulkAiSend`) delivers excerpts to the active tab **in user order**, with the composer UI reflecting that same sequence.
 
+### Selector Self-Healing
+
+The selector engine already _recovers_ elements after the saved selector breaks
+(`primary → candidates → fingerprint → semantic → provider/site strategy →
+heuristic`). Self-healing adds the missing half: turning that recovery into
+persistent configuration, deterministically and without an LLM.
+
+```
+saved selector
+  → normal resolve (cache → primary/candidates → fingerprint → fallback)
+  → recovered? (candidate | fingerprint | semantic | provider | heuristic)
+  → confidence gate (score, ambiguity gap, stability, send-control blocklist)
+  → real pipeline success (text inserted / submit clicked) required
+  → staged SelectorRepairCandidate (consecutive success counter)
+  → threshold reached → promote (old primary kept as first fallback)
+  → sanitizeConfig → disk
+```
+
+Ownership:
+
+| Concern                                              | Owner                                                           |
+| ---------------------------------------------------- | --------------------------------------------------------------- |
+| Policy (thresholds, confidence, promotion, flapping) | `shared/selectorRepair.ts` (single source of truth)             |
+| Runtime evidence + stable selector re-derivation     | `electron/.../lib/selectorRepairRuntime.ts`                     |
+| Stable CSS selector generation                       | `pickerDomRuntime.ts` — reused verbatim, never re-implemented   |
+| Sanitization / persistence                           | `electron/features/ai/aiConfigSanitize.ts`, `aiConfigDomain.ts` |
+| Staging / promotion decisions                        | `src/features/ai/lib/selectorRepair/evaluateRepairEvidence.ts`  |
+| Write + cache invalidation                           | `src/features/ai/lib/selectorRepair/applySelectorRepair.ts`     |
+
+Rules that are easy to break and therefore covered by tests:
+
+- The injected script never persists anything. Only serializable metadata
+  (selector, strategy, score, counters) crosses IPC — never an `Element`.
+- "Found in the DOM" is **not** a success. Only a completed pipeline operation
+  counts, and the input and the send button are credited independently.
+- Medium/low confidence, an ambiguous score gap, a blocklisted send control, a
+  build-generated class and a runtime marker selector all refuse promotion.
+- Button repairs are strictly more conservative than input repairs.
+- A promoted selector keeps the old primary as its first fallback, and a repair
+  that keeps flapping inside `REPAIR_FLAP_WINDOW_MS` is refused.
+- Config writes only happen on a material transition; the runtime `ConfigCache`
+  is dropped after a promotion so the next send uses the new selector.
+
 ## Alias Policy
 
 | Alias            | Path              |
