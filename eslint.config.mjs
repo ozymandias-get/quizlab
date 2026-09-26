@@ -18,28 +18,53 @@ const legacySrcAliasPattern = {
   message: 'Do not use @src/* alias. Use @app, @features, @shared, @shared-core, @platform or @ui.'
 }
 
-const featureInternalImportPatterns = [
-  {
-    group: ['@features/*/ui', '@features/*/ui/*'],
-    message: 'Feature internals are private. Import via @features/<feature> public API.'
-  },
-  {
-    group: ['@features/*/model', '@features/*/model/*'],
-    message: 'Feature internals are private. Import via @features/<feature> public API.'
-  },
-  {
-    group: ['@features/*/api', '@features/*/api/*'],
-    message: 'Feature internals are private. Import via @features/<feature> public API.'
-  },
-  {
-    group: ['@features/*/hooks', '@features/*/hooks/*'],
-    message: 'Feature internals are private. Import via @features/<feature> public API.'
-  },
-  {
-    group: ['@features/*/lib', '@features/*/lib/*'],
-    message: 'Feature internals are private. Import via @features/<feature> public API.'
-  }
+/**
+ * Sub-entrypoints a feature may expose in addition to its root barrel.
+ *
+ * The rule of thumb is "everything under a feature root is private except
+ * the barrel", but two patterns are legitimately public and are documented
+ * as such by the feature that owns them:
+ *
+ *   - heavy lazy-load chunks, so a dynamic import does not pull the whole
+ *     feature into the caller's chunk
+ *   - zero-runtime type-only modules
+ *
+ * Anything not listed here (hooks/, lib/, model/, store/, ui/, queries/,
+ * capture/, constants/, ...) is an implementation detail and must be
+ * re-exported from the feature barrel instead.
+ *
+ * NOTE: keep this list explicit rather than a regex on directory names.
+ * A denylist of directory names silently rots — it did not cover store/,
+ * queries/, constants/, capture/, text/, viewport/, interaction/ or
+ * errors/, which is exactly how the deep imports below got in.
+ */
+const PUBLIC_FEATURE_ENTRYPOINTS = [
+  'ai/webview', // lazy chunk: the <webview> host component
+  'pdf/viewer', // lazy chunk: PdfViewer + tab strip + worker host
+  'pdf/types', // type-only, no runtime cost
+  'screenshot/tool' // lazy chunk: ScreenshotTool (depends on @app/providers)
 ]
+
+const publicEntryAlternatives = PUBLIC_FEATURE_ENTRYPOINTS.map((entry) =>
+  entry.replace('/', '\\/')
+).join('|')
+
+/**
+ * Matches any `@features/<feature>/<sub>` that is not an approved
+ * sub-entrypoint. The bare barrel `@features/<feature>` never matches,
+ * which is the point: it is the public API.
+ */
+const featureInternalImportPattern = {
+  regex: `^@features/(?!${publicEntryAlternatives}(?:/|$))[^/]+/`,
+  message:
+    'Feature internals are private. Import from the @features/<feature> barrel, ' +
+    'or add a documented sub-entrypoint to PUBLIC_FEATURE_ENTRYPOINTS in eslint.config.mjs.'
+}
+
+/** Same scope as the static rule above, for `import()` expressions. */
+const featureInternalImportSelector =
+  `ImportExpression[source.value=/^@features\\/[^/]+\\//u]` +
+  `:not([source.value=/^@features\\/(?:${publicEntryAlternatives})(?:\\/|$)/u])`
 
 export default [
   {
@@ -200,22 +225,32 @@ export default [
     }
   },
   {
+    // Single block on purpose. A second `src/**/*` block used to redefine
+    // `no-restricted-imports` and silently drop the feature-internal patterns
+    // (flat config replaces a rule wholesale, it does not merge options), so
+    // the architecture rule looked configured but never ran.
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/features/**/*', 'src/__tests__/**/*'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
-          patterns: [legacySrcAliasPattern, ...featureInternalImportPatterns]
+          patterns: [
+            legacySrcAliasPattern,
+            featureInternalImportPattern,
+            {
+              regex: '^electron(/|$)',
+              message:
+                'Renderer must not import Electron directly. Use the preload bridge via @platform/electron.'
+            }
+          ]
         }
       ],
       'no-restricted-syntax': [
         'error',
         {
-          selector:
-            'ImportExpression[source.value=/^@features\\/[^/]+\\/(ui|model|api|hooks|lib)(\\/.*)?$/]',
-          message:
-            'Feature internals are private. Use dynamic import from @features/<feature> public API.'
+          selector: featureInternalImportSelector,
+          message: featureInternalImportPattern.message
         }
       ]
     }
@@ -228,12 +263,20 @@ export default [
         {
           patterns: [
             legacySrcAliasPattern,
+            featureInternalImportPattern,
             {
               group: ['electron', 'electron/*', '@electron/*'],
               message:
                 'shared-core must stay platform-agnostic. Do not import Electron modules here.'
             }
           ]
+        }
+      ],
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: featureInternalImportSelector,
+          message: featureInternalImportPattern.message
         }
       ],
       'no-restricted-globals': [
@@ -245,24 +288,6 @@ export default [
         {
           name: 'document',
           message: 'shared-core should not depend on DOM globals.'
-        }
-      ]
-    }
-  },
-  {
-    files: ['src/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            legacySrcAliasPattern,
-            {
-              regex: '^electron(/|$)',
-              message:
-                'Renderer must not import Electron directly. Use the preload bridge via @platform/electron.'
-            }
-          ]
         }
       ]
     }

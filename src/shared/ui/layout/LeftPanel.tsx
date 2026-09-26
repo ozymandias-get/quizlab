@@ -1,6 +1,6 @@
 import type { PdfFile } from '@shared-core/types'
 
-import { useReadingProgressPersistence } from '@features/pdf/hooks/useReadingProgressPersistence'
+import { useReadingProgressPersistence } from '@features/pdf'
 import type {
   LastReadingInfo,
   PdfTab,

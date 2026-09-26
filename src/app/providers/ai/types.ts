@@ -1,7 +1,7 @@
 import type { AiPlatform } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
-import type { AiSendOptions, AiSendResult } from '@features/ai/model/types'
+import type { AiSendOptions, AiSendResult } from '@features/ai'
 
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -60,36 +60,36 @@ interface AiContextState {
   isTutorialActive: boolean
 }
 
-/** Yalnızca sekme listesi (aktif sekme değişince referans genelde aynı kalır). */
+/** YalnÄ±zca sekme listesi (aktif sekme deÄŸiÅŸince referans genelde aynÄ± kalÄ±r). */
 export type AiTabsListSliceState = Pick<AiContextState, 'tabs'>
 
-/** Aktif sekme ve seçili model (liste uzunluğu değişmeden güncellenebilir). */
+/** Aktif sekme ve seÃ§ili model (liste uzunluÄŸu deÄŸiÅŸmeden gÃ¼ncellenebilir). */
 export type AiTabFocusSliceState = Pick<AiContextState, 'activeTabId' | 'currentAI'>
 
-/** Sadece AiWebview'in abone olduğu nonce — bu değer değiştiğinde tüm sekme tüketicilerinin
- *  gereksiz yere yeniden render olmasını önler. openAiWorkspace her çağrıldığında artar. */
+/** Sadece AiWebview'in abone olduÄŸu nonce â€” bu deÄŸer deÄŸiÅŸtiÄŸinde tÃ¼m sekme tÃ¼keticilerinin
+ *  gereksiz yere yeniden render olmasÄ±nÄ± Ã¶nler. openAiWorkspace her Ã§aÄŸrÄ±ldÄ±ÄŸÄ±nda artar. */
 export type AiViewRequestNonceState = Pick<AiContextState, 'aiViewRequestNonce'>
 
-/** Birleşik sekme dilimi (`useAiTabsList` / `useAiTabFocus` ile daha dar abonelik mümkün). */
+/** BirleÅŸik sekme dilimi (`useAiTabsList` / `useAiTabFocus` ile daha dar abonelik mÃ¼mkÃ¼n). */
 export type AiTabsSliceState = AiTabsListSliceState & AiTabFocusSliceState
 
-/** Yükleme + UA — model/site listesinden ayrı; PDF viewer yalnızca buna abone olabilir. */
+/** YÃ¼kleme + UA â€” model/site listesinden ayrÄ±; PDF viewer yalnÄ±zca buna abone olabilir. */
 export type AiRegistryMetaSliceState = Pick<AiContextState, 'isRegistryLoaded' | 'chromeUserAgent'>
 
-/** Siteler + etkin modeller — UA değişmeden güncellenebilir. */
+/** Siteler + etkin modeller â€” UA deÄŸiÅŸmeden gÃ¼ncellenebilir. */
 export type AiModelsCatalogSliceState = Pick<
   AiContextState,
   'enabledModels' | 'defaultAiModel' | 'aiSites'
 >
 
-/** Gönderim / tutorial gibi hızlı UI tercihleri (katalogdan ayrı abonelik). */
+/** GÃ¶nderim / tutorial gibi hÄ±zlÄ± UI tercihleri (katalogdan ayrÄ± abonelik). */
 export type AiSessionUiPrefsSliceState = Pick<AiContextState, 'autoSend' | 'isTutorialActive'>
 
 export interface AiWebviewState {
   getWebviewInstance: (tabId?: string) => WebviewController | null
 }
 
-/** Aktif sekmede webview var mı (referans değişiminden bağımsız; şerit yenile butonu için). */
+/** Aktif sekmede webview var mÄ± (referans deÄŸiÅŸiminden baÄŸÄ±msÄ±z; ÅŸerit yenile butonu iÃ§in). */
 export interface AiWebviewPresenceState {
   hasActiveWebview: boolean
 }
@@ -111,7 +111,7 @@ interface AiContextActions {
     instance: WebviewController | null,
     expectedInstance?: WebviewController
   ) => void
-  /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron webview.reload). */
+  /** Aktif sekmedeki AI web gÃ¶rÃ¼nÃ¼mÃ¼nÃ¼ yeniden yÃ¼kler (Electron webview.reload). */
   reloadActiveWebview: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
@@ -120,22 +120,22 @@ interface AiContextActions {
   stopTutorial: () => void
 }
 
-/** Webview tabanlı gönderim; aktif sekme değişince güncellenir (dar abonelik: useAiMessagingActions). */
+/** Webview tabanlÄ± gÃ¶nderim; aktif sekme deÄŸiÅŸince gÃ¼ncellenir (dar abonelik: useAiMessagingActions). */
 export type AiMessagingActions = Pick<
   AiContextActions,
   'sendTextToAI' | 'sendImageToAI' | 'cancelOngoing'
 >
 
-/** Sekme, model ve webview kayıt aksiyonları (gönderimden bağımsız). */
+/** Sekme, model ve webview kayÄ±t aksiyonlarÄ± (gÃ¶nderimden baÄŸÄ±msÄ±z). */
 type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI'>
 
-/** Webview örneğine bağlı kayıt / yenileme (dar abonelik: useAiWebviewHostActions). */
+/** Webview Ã¶rneÄŸine baÄŸlÄ± kayÄ±t / yenileme (dar abonelik: useAiWebviewHostActions). */
 export type AiWebviewHostActions = Pick<
   AiWorkspaceActions,
   'registerWebview' | 'reloadActiveWebview'
 >
 
-/** Sekme ve modeller; aktif webview değişince güncellenmez. */
+/** Sekme ve modeller; aktif webview deÄŸiÅŸince gÃ¼ncellenmez. */
 export type AiCoreWorkspaceActions = Omit<
   AiWorkspaceActions,
   'registerWebview' | 'reloadActiveWebview' | 'cancelOngoing'

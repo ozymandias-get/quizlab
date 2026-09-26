@@ -1,5 +1,5 @@
-import { resolveAutoSend } from '@features/ai/lib/sendUtils'
-import type { AiSendOptions } from '@features/ai/model/types'
+import type { AiSendOptions } from '@features/ai'
+import { resolveAutoSend } from '@features/ai'
 
 import { Logger } from '@shared/lib/logger'
 

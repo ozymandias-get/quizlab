@@ -35,7 +35,9 @@ vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
 }))
 
 vi.mock('@features/pdf', () => ({
-  usePdfSelection: () => ({ pdfFile: null, activePdfTab: null })
+  usePdfSelection: () => ({ pdfFile: null, activePdfTab: null }),
+  usePdfTabStore: (selector: (s: { pdfTabs: never[]; activePdfTabId: null }) => unknown) =>
+    selector({ pdfTabs: [], activePdfTabId: null })
 }))
 
 vi.mock('@ui/layout/BottomBar/SettingsModalPortal', () => ({

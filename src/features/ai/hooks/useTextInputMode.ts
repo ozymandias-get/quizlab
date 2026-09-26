@@ -16,7 +16,7 @@ export const TYPING_SPEED_OPTIONS = [
   { value: 100, labelKey: 'typing_speed_very_slow' }
 ] as const
 
-interface UseTextInputModeReturn {
+export interface UseTextInputModeReturn {
   textInputMode: TextInputMode
   typingSpeed: number
   setTextInputMode: (mode: TextInputMode) => void

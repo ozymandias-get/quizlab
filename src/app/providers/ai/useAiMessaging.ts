@@ -1,16 +1,16 @@
 import type { AiPlatform } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
-import { useAiSender } from '@features/ai/hooks/useAiSender'
-import { resolveAutoSend } from '@features/ai/lib/sendUtils'
-import type { AiSendOptions } from '@features/ai/model/types'
+import type * as AiFeatureModule from '@features/ai'
+import type { AiSendOptions } from '@features/ai'
+import { useAiSender } from '@features/ai'
+import { resolveAutoSend } from '@features/ai'
 
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import type * as ChatUiStoreModule from '../../../features/ai/store/chatUiStore'
 import { toErrorToastKey } from './errorToastKey'
 import {
   cancelScheduledApiChatSends,
@@ -19,11 +19,11 @@ import {
 } from './lib/apiChatSend'
 import { waitForWebviewReadyForSend } from './webviewSendReadiness'
 
-let chatUiStoreModule: typeof ChatUiStoreModule | null = null
+let chatUiStoreModule: typeof AiFeatureModule | null = null
 
 async function getChatUiStore() {
   if (!chatUiStoreModule) {
-    chatUiStoreModule = await import('../../../features/ai/store/chatUiStore')
+    chatUiStoreModule = await import('@features/ai')
   }
   return chatUiStoreModule.useChatUiStore
 }

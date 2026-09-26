@@ -11,8 +11,20 @@ vi.mock('@shared/stores/languageStore', () => {
     language: 'en',
     isOnboardingDone: true,
     languages: {
-      en: { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧', dir: 'ltr' as const },
-      tr: { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷', dir: 'ltr' as const }
+      en: {
+        code: 'en',
+        name: 'English',
+        nativeName: 'English',
+        flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¬Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â§',
+        dir: 'ltr' as const
+      },
+      tr: {
+        code: 'tr',
+        name: 'Turkish',
+        nativeName: 'TÃƒÆ’Ã‚Â¼rkÃƒÆ’Ã‚Â§e',
+        flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¹Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â·',
+        dir: 'ltr' as const
+      }
     },
     setLanguage: mockSetLanguage,
     completeOnboarding: mockCompleteOnboarding
@@ -30,11 +42,16 @@ vi.mock('@shared/stores/appearanceStore', () => ({
 }))
 
 vi.mock('@app/ui/FocusOverlay', () => ({ default: () => null }))
-vi.mock('@features/screenshot', () => ({ ScreenshotTool: () => null }))
-vi.mock('@features/tutorial', () => ({ TutorialOverlay: () => null }))
+vi.mock('@features/screenshot/tool', () => ({ ScreenshotTool: () => null }))
+vi.mock('@features/tutorial', () => ({
+  TutorialOverlay: () => null,
+  useTutorialStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ activeTutorialId: null, closeTutorial: vi.fn() }),
+  getTutorialEntry: () => null
+}))
 vi.mock('@ui/components/UpdateBanner', () => ({ default: () => null }))
 vi.mock('@app/ui/AiSendComposer', () => ({ default: () => null }))
-vi.mock('@features/settings/hooks/useCacheThresholdWarning', () => ({
+vi.mock('@features/settings', () => ({
   useCacheThresholdWarning: () => {}
 }))
 vi.mock('@app/hooks/useAppShellState', () => ({

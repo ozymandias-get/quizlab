@@ -1,4 +1,4 @@
-import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
+import { useTutorialStore } from '@features/tutorial'
 
 import { useAppearance, useUpdate } from '@app/providers'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'

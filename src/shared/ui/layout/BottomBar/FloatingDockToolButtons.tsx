@@ -2,7 +2,7 @@ import type { GeminiWebSessionState } from '@shared-core/types'
 
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 
-import { usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
+import { usePdfTabStore } from '@features/pdf'
 
 import { useAppearance, useAppToolActions, useAppToolPickerState } from '@app/providers'
 import { useAiModelsCatalog, useAiTabActions } from '@app/providers/ai-context'

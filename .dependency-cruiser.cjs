@@ -1,3 +1,44 @@
+/**
+ * Feature modules reachable from outside a feature.
+ *
+ * Everything else under a feature root is private. Keep in sync with
+ * PUBLIC_FEATURE_ENTRYPOINTS in eslint.config.mjs.
+ */
+const PUBLIC_FEATURE_ENTRYPOINTS = ['ai/webview', 'pdf/viewer', 'pdf/types', 'screenshot/tool']
+
+const FEATURE_NAMES = [
+  'ai',
+  'automation',
+  'onboarding',
+  'pdf',
+  'screenshot',
+  'settings',
+  'tutorial'
+]
+
+/**
+ * One rule per ordered feature pair.
+ *
+ * dependency-cruiser has no backreferences, so "A must not reach into B,
+ * for every A != B" cannot be written as a single regex. The previous
+ * `no-teeny-uncrossable-boundaries` rule tried to express that with
+ * `^src/features/[^/]+/` on both sides, which also matches A -> A: it
+ * flagged 368 ordinary intra-feature imports (ui/ importing model/,
+ * hooks/ importing lib/, ...) that are perfectly legitimate. Because the
+ * config's `options` block replaced depcruise's default exitCode, none of
+ * those were ever surfaced. Generating the pairs keeps the real constraint
+ * and leaves intra-feature imports alone.
+ */
+const crossFeatureRules = FEATURE_NAMES.flatMap((from) =>
+  FEATURE_NAMES.filter((to) => to !== from).map((to) => ({
+    name: `no-cross-feature-internals:${from}->${to}`,
+    severity: 'error',
+    comment: `"${from}" must reach "${to}" only through @features/${to}.`,
+    from: { path: `^src/features/${from}/` },
+    to: { path: `^src/features/${to}/`, pathNot: `^src/features/${to}/index\\.ts$` }
+  }))
+)
+
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
@@ -10,16 +51,19 @@ module.exports = {
         circular: true
       }
     },
+    ...crossFeatureRules,
     {
-      name: 'no-teeny-uncrossable-boundaries',
+      name: 'app-no-feature-internals',
       severity: 'error',
-      comment: 'Feature modülleri birbirini iç import ile import etmemeli',
+      comment:
+        'Feature internals are private. app/ ve shared/ yalnızca @features/<feature> barrel veya onaylı sub-entrypoint kullanabilir.',
       from: {
-        path: '^src/features/[^/]+/'
+        path: '^(src/(app|shared)|shared)/'
       },
       to: {
-        path: '^src/features/[^/]+/',
-        pathNot: '^src/features/[^/]+/index\\.ts'
+        path: `^src/features/(?!${PUBLIC_FEATURE_ENTRYPOINTS.map((entry) =>
+          entry.replace('/', '\\/')
+        ).join('|')})[\\w-]+/(?!index\\.ts$)`
       }
     },
     {

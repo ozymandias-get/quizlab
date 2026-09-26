@@ -1,4 +1,4 @@
-import { useScreenshot } from '@features/screenshot/hooks/useScreenshot'
+import { useScreenshot } from '@features/screenshot'
 
 import { useCallback, useRef } from 'react'
 

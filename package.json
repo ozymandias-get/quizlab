@@ -29,7 +29,7 @@
     "analyze:deadcode": "npm run analyze:knip && npm run analyze:prune",
     "analyze:duplicates": "jscpd src electron shared --reporters console",
     "analyze:circular": "madge --circular --extensions ts,tsx,js,jsx src/ electron/ shared/",
-    "analyze:architecture": "depcruise --config .dependency-cruiser.cjs --output-type text --do-not-follow 'node_modules' src electron shared",
+    "analyze:architecture": "depcruise --config .dependency-cruiser.cjs --validate --output-type err --do-not-follow 'node_modules' src electron shared",
     "analyze:imports": "tsc -b --noEmit",
     "analyze:security": "semgrep --config .semgrep.yml src/ electron/ shared/ && npm audit --audit-level=high",
     "analyze:types": "type-coverage --strict --project tsconfig.app.json --detail --ignore-files '**/*.test.*' --ignore-files '**/*.spec.*' --ignore-files '**/__tests__/**'",

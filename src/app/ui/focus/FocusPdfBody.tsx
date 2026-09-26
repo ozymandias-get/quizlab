@@ -1,7 +1,7 @@
-import { usePdfOpenActions } from '@features/pdf/hooks/usePdfOpenActions'
-import { useReadingProgressPersistence } from '@features/pdf/hooks/useReadingProgressPersistence'
-import { usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
-import type { ReadingProgressUpdate, ResumePdfResult } from '@features/pdf/types'
+import type { ReadingProgressUpdate, ResumePdfResult } from '@features/pdf'
+import { usePdfOpenActions } from '@features/pdf'
+import { useReadingProgressPersistence } from '@features/pdf'
+import { usePdfTabStore } from '@features/pdf'
 
 import { useTextSelection } from '@app/hooks/useTextSelection'
 import ErrorBoundary from '@ui/components/ErrorBoundary'

@@ -1,4 +1,4 @@
-import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
+import { useTutorialStore } from '@features/tutorial'
 
 import { getStorageItem, removeStorageItem } from '@shared/hooks/localStorageUtils'
 import { hexToRgba } from '@shared/lib/uiUtils'

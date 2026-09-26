@@ -1,6 +1,6 @@
 import type { WebviewController } from '@shared-core/types/webview'
 
-import type { AiSendOptions } from '@features/ai/model/types'
+import type { AiSendOptions } from '@features/ai'
 
 import { useMemo } from 'react'
 

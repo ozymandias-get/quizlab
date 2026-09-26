@@ -1,6 +1,6 @@
 import type { TextInputMode } from '@shared-core/types'
 
-import { TYPING_SPEED_OPTIONS, useTextInputMode } from '@features/ai/hooks/useTextInputMode'
+import { TYPING_SPEED_OPTIONS, useTextInputMode } from '@features/ai'
 
 import {
   SettingsRow,
