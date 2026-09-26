@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ProfileLock } from '../../../features/gemini-web-session/profileLock.js'
 
@@ -46,8 +46,6 @@ vi.mock('fs', () => ({
 vi.mock('../../../features/gemini-web-session/sessionUtils', () => sessionUtilsMocks)
 
 const handle = () => ({ writeFile: fsMocks.writeFile, close: fsMocks.close })
-
-const eexist = () => Promise.reject(Object.assign(new Error('EEXIST'), { code: 'EEXIST' }))
 
 function makeLock() {
   return new ProfileLock({

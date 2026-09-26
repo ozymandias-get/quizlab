@@ -1,4 +1,4 @@
-﻿import type { PickerConfidence, PickerElementInfo } from './domHelpers.js'
+import type { PickerConfidence, PickerElementInfo } from './domHelpers.js'
 
 export type PickerStep = 'input' | 'typing' | 'submit' | 'done'
 export type TranslationMap = Record<string, string>

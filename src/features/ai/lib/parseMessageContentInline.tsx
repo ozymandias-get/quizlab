@@ -89,5 +89,3 @@ export function formatInline(text: string): ReactNode[] {
 
   return parts
 }
-
-export { isSafeUrl } from './parseMessageContentRegex'

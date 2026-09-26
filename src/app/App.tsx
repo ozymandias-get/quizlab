@@ -24,16 +24,16 @@ const LanguageSelectionDialog = lazy(() =>
 )
 import { useShellOpenPdf } from '@features/pdf'
 import { usePdfShortcuts } from '@features/pdf'
-import { useCacheThresholdWarning } from '@features/settings'
 import { useTutorialStore } from '@features/tutorial'
 import { getTutorialEntry } from '@features/tutorial'
 
 import { useAppShellState } from '@app/hooks/useAppShellState'
+import { useCacheThresholdWarning } from '@app/hooks/useCacheThresholdWarning'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
 
 function App() {
-  // ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œnbellek boyutunu izle ve %80 eÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸iÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸i aÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±lÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±rsa uyarÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â± gÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¶ster (oturum baÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±na bir kez)
+  // Önbellek boyutunu izler ve %80 eşiği aşıldığında kullanıcıya uyarı toast'ı gösterir.
   useCacheThresholdWarning()
 
   const {
@@ -62,10 +62,10 @@ function App() {
     isPanelResizing: panelResize.isResizing
   })
 
-  // Keep shortcut stable ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â readingProps changes shouldn't rebind the global handler.
+  // Keep shortcut stable — readingProps changes shouldn't rebind the global handler.
   usePdfShortcuts({ onSelectPdf: leftPanelProps?.onSelectPdf })
 
-  // Windows Explorer saÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸-tÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±k "QuizLab ile AÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" ile gelen PDF'leri karÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±la.
+  // Windows Explorer sağ-tık "QuizLab ile Aç" ile gelen PDF'leri karşıla.
   useShellOpenPdf()
 
   const combinedLeftPanelProps = useMemo(

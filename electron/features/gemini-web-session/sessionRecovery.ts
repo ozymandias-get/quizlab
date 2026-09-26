@@ -1,10 +1,9 @@
-﻿import type { Session } from 'electron'
+import type { Session } from 'electron'
 
 import { REFRESH_GRACE_PERIOD_MS, SILENT_REFRESH_COOLDOWN_MS } from './sessionConfig.js'
 import type { ProbeExecutionResult } from './sessionContracts.js'
 import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
 import { probePersistentSession } from './sessionProbe.js'
-import type { SessionSnapshotRepository } from './sessionSnapshotRepository.js'
 import type { ProbeOutcome } from './stateMachine.js'
 
 type ProbeSession = (session: Session, signal?: AbortSignal) => Promise<ProbeExecutionResult>
@@ -13,7 +12,6 @@ export class SessionRecovery {
   private readonly resolvePersistentSession: () => Session
   private readonly ensureProfileDirectory: () => Promise<void>
   private readonly probeSession: ProbeSession
-  private readonly snapshotRepository: SessionSnapshotRepository | null
   private readonly metadataRepository: Pick<
     SessionMetadataRepository,
     'readMetadata' | 'writeStatus'
@@ -25,13 +23,11 @@ export class SessionRecovery {
     resolvePersistentSession: () => Session
     ensureProfileDirectory?: () => Promise<void>
     probeSession?: ProbeSession
-    snapshotRepository?: SessionSnapshotRepository | null
     metadataRepository?: Pick<SessionMetadataRepository, 'readMetadata' | 'writeStatus'> | null
   }) {
     this.resolvePersistentSession = options.resolvePersistentSession
     this.ensureProfileDirectory = options.ensureProfileDirectory ?? (async () => {})
     this.probeSession = options.probeSession ?? probePersistentSession
-    this.snapshotRepository = options.snapshotRepository ?? null
     this.metadataRepository = options.metadataRepository ?? null
   }
 

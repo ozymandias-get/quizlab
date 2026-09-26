@@ -1,4 +1,4 @@
-﻿import { constants as fsConstants, promises as fs } from 'fs'
+import { constants as fsConstants, promises as fs } from 'fs'
 import type { FileHandle } from 'fs/promises'
 
 import type { LockResult } from './sessionContracts.js'

@@ -1,5 +1,3 @@
-﻿import type { AutomationConfig } from '@shared-core/types'
-
 import { generateAutoSendScript } from './automationScripts/generators/autoSend.js'
 import { generateClickSendScript } from './automationScripts/generators/clickSend.js'
 import { generateFocusScript } from './automationScripts/generators/focus.js'

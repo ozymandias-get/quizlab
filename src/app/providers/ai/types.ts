@@ -60,36 +60,36 @@ interface AiContextState {
   isTutorialActive: boolean
 }
 
-/** YalnÄ±zca sekme listesi (aktif sekme deÄŸiÅŸince referans genelde aynÄ± kalÄ±r). */
+/** Yalnızca sekme listesi (aktif sekme değişince referans genelde aynı kalır). */
 export type AiTabsListSliceState = Pick<AiContextState, 'tabs'>
 
-/** Aktif sekme ve seÃ§ili model (liste uzunluÄŸu deÄŸiÅŸmeden gÃ¼ncellenebilir). */
+/** Aktif sekme ve seçili model (liste uzunluğu değişmeden güncellenebilir). */
 export type AiTabFocusSliceState = Pick<AiContextState, 'activeTabId' | 'currentAI'>
 
-/** Sadece AiWebview'in abone olduÄŸu nonce â€” bu deÄŸer deÄŸiÅŸtiÄŸinde tÃ¼m sekme tÃ¼keticilerinin
- *  gereksiz yere yeniden render olmasÄ±nÄ± Ã¶nler. openAiWorkspace her Ã§aÄŸrÄ±ldÄ±ÄŸÄ±nda artar. */
+/** Sadece AiWebview'in abone olduğu nonce — bu değer değiştiğinde tüm sekme tüketicilerinin
+ *  gereksiz yere yeniden render olmasını önler. openAiWorkspace her çağrıldığında artar. */
 export type AiViewRequestNonceState = Pick<AiContextState, 'aiViewRequestNonce'>
 
-/** BirleÅŸik sekme dilimi (`useAiTabsList` / `useAiTabFocus` ile daha dar abonelik mÃ¼mkÃ¼n). */
+/** Birleşik sekme dilimi (`useAiTabsList` / `useAiTabFocus` ile daha dar abonelik mümkün). */
 export type AiTabsSliceState = AiTabsListSliceState & AiTabFocusSliceState
 
-/** YÃ¼kleme + UA â€” model/site listesinden ayrÄ±; PDF viewer yalnÄ±zca buna abone olabilir. */
+/** Yükleme + UA — model/site listesinden ayrı; PDF viewer yalnızca buna abone olabilir. */
 export type AiRegistryMetaSliceState = Pick<AiContextState, 'isRegistryLoaded' | 'chromeUserAgent'>
 
-/** Siteler + etkin modeller â€” UA deÄŸiÅŸmeden gÃ¼ncellenebilir. */
+/** Siteler + etkin modeller — UA değişmeden güncellenebilir. */
 export type AiModelsCatalogSliceState = Pick<
   AiContextState,
   'enabledModels' | 'defaultAiModel' | 'aiSites'
 >
 
-/** GÃ¶nderim / tutorial gibi hÄ±zlÄ± UI tercihleri (katalogdan ayrÄ± abonelik). */
+/** Gönderim / tutorial gibi hızlı UI tercihleri (katalogdan ayrı abonelik). */
 export type AiSessionUiPrefsSliceState = Pick<AiContextState, 'autoSend' | 'isTutorialActive'>
 
 export interface AiWebviewState {
   getWebviewInstance: (tabId?: string) => WebviewController | null
 }
 
-/** Aktif sekmede webview var mÄ± (referans deÄŸiÅŸiminden baÄŸÄ±msÄ±z; ÅŸerit yenile butonu iÃ§in). */
+/** Aktif sekmede webview var mı (referans değişiminden bağımsız; şerit yenile butonu için). */
 export interface AiWebviewPresenceState {
   hasActiveWebview: boolean
 }
@@ -111,7 +111,7 @@ interface AiContextActions {
     instance: WebviewController | null,
     expectedInstance?: WebviewController
   ) => void
-  /** Aktif sekmedeki AI web gÃ¶rÃ¼nÃ¼mÃ¼nÃ¼ yeniden yÃ¼kler (Electron webview.reload). */
+  /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron webview.reload). */
   reloadActiveWebview: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
@@ -120,22 +120,22 @@ interface AiContextActions {
   stopTutorial: () => void
 }
 
-/** Webview tabanlÄ± gÃ¶nderim; aktif sekme deÄŸiÅŸince gÃ¼ncellenir (dar abonelik: useAiMessagingActions). */
+/** Webview tabanlı gönderim; aktif sekme değişince güncellenir (dar abonelik: useAiMessagingActions). */
 export type AiMessagingActions = Pick<
   AiContextActions,
   'sendTextToAI' | 'sendImageToAI' | 'cancelOngoing'
 >
 
-/** Sekme, model ve webview kayÄ±t aksiyonlarÄ± (gÃ¶nderimden baÄŸÄ±msÄ±z). */
+/** Sekme, model ve webview kayıt aksiyonları (gönderimden bağımsız). */
 type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI'>
 
-/** Webview Ã¶rneÄŸine baÄŸlÄ± kayÄ±t / yenileme (dar abonelik: useAiWebviewHostActions). */
+/** Webview örneğine bağlı kayıt / yenileme (dar abonelik: useAiWebviewHostActions). */
 export type AiWebviewHostActions = Pick<
   AiWorkspaceActions,
   'registerWebview' | 'reloadActiveWebview'
 >
 
-/** Sekme ve modeller; aktif webview deÄŸiÅŸince gÃ¼ncellenmez. */
+/** Sekme ve modeller; aktif webview değişince güncellenmez. */
 export type AiCoreWorkspaceActions = Omit<
   AiWorkspaceActions,
   'registerWebview' | 'reloadActiveWebview' | 'cancelOngoing'

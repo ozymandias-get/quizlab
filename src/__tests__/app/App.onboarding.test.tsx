@@ -16,14 +16,14 @@ vi.mock('@shared/stores/languageStore', () => {
         code: 'en',
         name: 'English',
         nativeName: 'English',
-        flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¬Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â§',
+        flag: 'ğŸ‡¬ğŸ‡§',
         dir: 'ltr' as const
       },
       tr: {
         code: 'tr',
         name: 'Turkish',
-        nativeName: 'TÃƒÆ’Ã‚Â¼rkÃƒÆ’Ã‚Â§e',
-        flag: 'Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¹Ã„Å¸Ã…Â¸Ã¢â‚¬Â¡Ã‚Â·',
+        nativeName: 'Türkçe',
+        flag: 'ğŸ‡¹ğŸ‡·',
         dir: 'ltr' as const
       }
     },
@@ -52,7 +52,7 @@ vi.mock('@features/tutorial', () => ({
 }))
 vi.mock('@ui/components/UpdateBanner', () => ({ default: () => null }))
 vi.mock('@app/ui/AiSendComposer', () => ({ default: () => null }))
-vi.mock('@features/settings', () => ({
+vi.mock('@app/hooks/useCacheThresholdWarning', () => ({
   useCacheThresholdWarning: () => {}
 }))
 vi.mock('@app/hooks/useAppShellState', () => ({
@@ -83,7 +83,6 @@ vi.mock('@app/hooks/usePdfWorkspaceState', () => ({ usePdfWorkspaceState: () => 
 vi.mock('@app/providers', () => ({
   useAppearance: () => ({ bgMode: 'light', bottomBarOpacity: 1, bottomBarScale: 1 }),
   useAppToolActions: () => ({}),
-  useAppToolGeminiSessionState: () => ({}),
   useAppToolPickerState: () => ({ isPickerActive: false }),
   useAppToolQueueState: () => ({}),
   useAppToolScreenshotState: () => ({})

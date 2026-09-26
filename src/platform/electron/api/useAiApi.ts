@@ -1,4 +1,4 @@
-﻿import type { AiRegistryResponse, AiSelectorConfig } from '@shared-core/types'
+import type { AiRegistryResponse, AiSelectorConfig } from '@shared-core/types'
 
 import { useToastActions } from '@shared/stores/toastStore'
 

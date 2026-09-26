@@ -1,4 +1,4 @@
-﻿import type { IpcMainInvokeEvent, WebContents } from 'electron'
+import type { WebContents } from 'electron'
 
 import { isAllowedMainFrameUrl } from '../app/window/security.js'
 import { getMainWindow } from '../app/windowManager.js'

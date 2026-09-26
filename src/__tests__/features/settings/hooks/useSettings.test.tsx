@@ -1,4 +1,4 @@
-﻿import { useSettings } from '@features/settings/hooks/useSettings'
+import { useSettings } from '@features/settings/hooks/useSettings'
 
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

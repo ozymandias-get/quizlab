@@ -18,7 +18,7 @@ export function DialogBackdrop({ className, ...props }: React.HTMLAttributes<HTM
   )
 }
 
-export type DialogPanelSize = 'sm' | 'md' | 'lg' | 'fullscreen'
+type DialogPanelSize = 'sm' | 'md' | 'lg' | 'fullscreen'
 
 const panelSizeClasses: Record<DialogPanelSize, string> = {
   sm: 'w-full max-w-sm rounded-2xl',

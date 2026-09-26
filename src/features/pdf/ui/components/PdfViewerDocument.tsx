@@ -1,7 +1,6 @@
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useMemo } from 'react'
 
 import { type PdfViewerDocumentProps, usePdfViewerState } from '../../hooks/usePdfViewerState'
-import { setActiveViewerSnapshot } from '../../lib/activeViewerSnapshot'
 import ContextMenu from './ContextMenu'
 import PdfToolbar from './PdfToolbar'
 import PdfViewerElement from './PdfViewerElement'
@@ -38,10 +37,6 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   } = usePdfViewerState(props)
 
   const { pdfFile, autoSend, onToggleAutoSend, pdfUrl } = props
-
-  useEffect(() => {
-    setActiveViewerSnapshot(pdfFile ?? null, currentPage)
-  }, [pdfFile, currentPage])
 
   const viewerElement = useMemo(
     () => (

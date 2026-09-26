@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Shared application lifecycle state.
  *
  * Both `electron/app/index.ts` (the main entry point) and

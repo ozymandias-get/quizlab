@@ -1,4 +1,4 @@
-﻿import type { AutomationConfig } from '@shared-core/types'
+import type { AutomationConfig } from '@shared-core/types'
 
 import { serializeAutomationConfig } from '../../scripts/config.js'
 import { buildPerformSubmitScript } from '../../scripts/submit.js'

@@ -1,4 +1,4 @@
-﻿import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
+import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
 import type { RefreshTriggerContext } from '../../../../electron/features/gemini-web-session/refreshTriggerPolicy.js'
 import type {
   ProbeExecutionResult,

@@ -1,26 +1,18 @@
-// Unified selector engine — single source of truth (see shared/lib/selectorEngine.ts)
-import {
-  classifySelector,
-  escapeCssString,
-  getSelectorPriority,
-  isSelectorValid,
-  normalizeSelector,
-  sortSelectorsByPriority
-} from '@shared-core/lib/selectorEngine'
+// Selector data helpers for the Settings › Selectors UI.
+//
+// Note: selector classification, priority ordering and validation are
+// deliberately NOT re-exported here. Those rules are mirrored into the
+// automation script injected into the page (see
+// electron/features/automation/automationScripts), and that script is what
+// actually scores and validates selectors at runtime via the
+// generateValidateSelectorsScript IPC. Re-exporting a second copy here would
+// only suggest a single source of truth that does not exist.
 import { canonicalizeHostname, toAutomationConfig } from '@shared-core/selectorConfig'
 import type { AiPlatform, AiSelectorConfig } from '@shared-core/types'
 
 import type { SelectorEntry } from './types'
 
 export { toAutomationConfig }
-export {
-  classifySelector,
-  escapeCssString,
-  getSelectorPriority,
-  isSelectorValid,
-  normalizeSelector,
-  sortSelectorsByPriority
-}
 
 export function normalizeSelectorsData(
   selectorsData: AiSelectorConfig | Record<string, AiSelectorConfig> | null | undefined

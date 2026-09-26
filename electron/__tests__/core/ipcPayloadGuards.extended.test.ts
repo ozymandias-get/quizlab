@@ -1,6 +1,6 @@
 import { toStrictBoolean } from '@electron/core/ipcPayloadGuards'
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 describe('toStrictBoolean', () => {
   it('returns true for literal true', () => {

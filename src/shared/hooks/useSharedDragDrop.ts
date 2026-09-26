@@ -1,4 +1,4 @@
-﻿import { Logger } from '@shared/lib/logger'
+import { Logger } from '@shared/lib/logger'
 
 import { type DragEvent, type RefObject, useCallback, useMemo, useRef, useState } from 'react'
 

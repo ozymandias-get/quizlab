@@ -1,4 +1,4 @@
-﻿import { registerSystemHandlers } from '../core/systemHandlers/systemHandlers.js'
+import { registerSystemHandlers } from '../core/systemHandlers/systemHandlers.js'
 import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers.js'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js'
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers/apiChatHandlers.js'

@@ -1,4 +1,4 @@
-﻿import { app, type BrowserWindow, dialog } from 'electron'
+import { app, type BrowserWindow, dialog } from 'electron'
 import path from 'path'
 
 import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp.js'

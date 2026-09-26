@@ -37,7 +37,6 @@ describe('electron/core/coreHelpers', () => {
 
   it('all paths are within the userData directory', async () => {
     const helpers = await import('../../core/coreHelpers.js')
-    const { app } = await import('electron')
 
     const paths = [
       helpers.getCustomPlatformsPath(),

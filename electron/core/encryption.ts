@@ -1,4 +1,4 @@
-﻿import crypto from 'crypto'
+import crypto from 'crypto'
 import { safeStorage } from 'electron'
 
 import { Logger } from './logger.js'
@@ -89,14 +89,6 @@ function aesDecrypt(stored: string): string {
     }
   }
   throw lastError instanceof Error ? lastError : new Error('AES decryption failed')
-}
-
-function isEncryptionAvailable(): boolean {
-  try {
-    return safeStorage.isEncryptionAvailable()
-  } catch {
-    return false
-  }
 }
 
 /**

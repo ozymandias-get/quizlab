@@ -1,4 +1,4 @@
-﻿import type { HealthCheckResult, SessionActionLike } from '@shared-core/types'
+import type { HealthCheckResult, SessionActionLike } from '@shared-core/types'
 
 import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'
 import { FEATURE_ENABLED } from './sessionConfig.js'
@@ -15,7 +15,7 @@ export interface MetadataUpdateContext {
   monitor: SessionMonitor
   initialize: () => Promise<void>
   scheduleMonitor: () => void
-  performHealthCheck: (options: { allowRetry: boolean }) => Promise<HealthCheckResult>
+  performHealthCheck: () => Promise<HealthCheckResult>
 }
 
 export class MetadataUpdatePolicy {
@@ -74,7 +74,7 @@ export class MetadataUpdatePolicy {
       }
       if (nextEnabled) {
         scheduleMonitor()
-        void performHealthCheck({ allowRetry: false }).catch((error) => {
+        void performHealthCheck().catch((error) => {
           logSuppressedError('setEnabled health check failed', error)
         })
       }

@@ -78,7 +78,7 @@ export function registerApiChatHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.SAVE_API_CHAT_CONFIG,
-    async (event, config: ApiConfig) => {
+    async (_event, config: ApiConfig) => {
       if (config?.providers?.length) {
         for (const provider of config.providers) {
           const ssrOptions = getSsrOptionsForProvider(provider)
@@ -99,7 +99,7 @@ export function registerApiChatHandlers() {
   registerIpcHandler(
     IPC_CHANNELS.SEND_API_CHAT_REQUEST,
     async (
-      event,
+      _event,
       messages: ApiChatMessage[],
       selectedModel?: string,
       generalPrompt?: string,
@@ -270,7 +270,7 @@ export function registerApiChatHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.FETCH_API_CHAT_MODELS,
-    async (event, providerId?: string) => {
+    async (_event, providerId?: string) => {
       const config = await loadConfig()
       const provider = config.providers.find(
         (p) => p.id === (providerId || config.selectedProviderId)

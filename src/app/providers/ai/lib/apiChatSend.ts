@@ -47,7 +47,7 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
  *
  * Every caller gets its promise settled: when a newer call restarts the
  * debounce window the earlier callers are carried over (grouped per tab) and
- * resolved by the flush that eventually runs Ã¢â‚¬â€ never silently dropped.
+ * resolved by the flush that eventually runs — never silently dropped.
  */
 type SendTimeoutRef = { current: ReturnType<typeof setTimeout> | null }
 
