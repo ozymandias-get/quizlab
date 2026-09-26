@@ -25,6 +25,26 @@ function hasLocator(locator: {
   return Boolean(selector || candidates?.length || fingerprint)
 }
 
+function normalizeRepairState(
+  repair: AiSelectorConfig['repair']
+): AiSelectorConfig['repair'] | null {
+  if (!repair || typeof repair !== 'object') return null
+  const input = repair.input ?? null
+  const button = repair.button ?? null
+  if (!input && !button) return null
+  return { input, button }
+}
+
+function normalizeLastRepair(
+  lastRepair: AiSelectorConfig['lastRepair']
+): AiSelectorConfig['lastRepair'] | null {
+  if (!lastRepair || typeof lastRepair !== 'object') return null
+  if (typeof lastRepair.repairedAt !== 'number' || !Number.isFinite(lastRepair.repairedAt)) {
+    return null
+  }
+  return lastRepair
+}
+
 export function finalizeStoredConfig(
   hostname: string,
   config: AiSelectorConfig,
@@ -52,6 +72,11 @@ export function finalizeStoredConfig(
   const submitMode = normalizeSubmitMode(config.submitMode) || 'mixed'
   const inputFingerprint = config.inputFingerprint ?? null
   const buttonFingerprint = config.buttonFingerprint ?? null
+  // Self-healing state is carried through verbatim. It is bounded, sanitized
+  // metadata (selector + counters + timestamps) and holds no DOM, page text,
+  // prompt content or credentials.
+  const repair = normalizeRepairState(config.repair)
+  const lastRepair = normalizeLastRepair(config.lastRepair)
 
   let health = normalizeSelectorHealth(config.health) || options.defaultHealth
   const hasInput = hasLocator({
@@ -82,6 +107,8 @@ export function finalizeStoredConfig(
     sourceHostname,
     canonicalHostname,
     health,
+    repair,
+    lastRepair,
     ...(options.timestamp !== undefined ? { timestamp: options.timestamp } : {})
   }
 }

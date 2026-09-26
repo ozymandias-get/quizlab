@@ -10,6 +10,16 @@ export const MAX_CLASS_TOKEN_LENGTH = 64
 export const MAX_PATH_SEGMENTS = 8
 export const MAX_SEGMENT_LENGTH = 256
 
+/**
+ * Self-healing repair metadata limits. The repair blob is attacker-reachable
+ * (it arrives from the AI webview over the pipeline) and is persisted verbatim,
+ * so every scalar needs an explicit bound.
+ */
+export const MAX_REPAIR_SELECTOR_LENGTH = 2000
+export const MAX_REPAIR_SUCCESS_COUNT = 1000
+export const MAX_REPAIR_CONFIDENCE_SCORE = 1000
+export const MAX_REPAIR_TIMESTAMP = 4102444800000
+
 export const HOSTNAME_REGEX = /^(?=.{1,253}$)(?!-)[\da-z-]+(\.[\da-z-]+)*$/i
 
 export const CONFIG_KEYS = [
@@ -25,5 +35,7 @@ export const CONFIG_KEYS = [
   'sourceUrl',
   'sourceHostname',
   'canonicalHostname',
-  'health'
+  'health',
+  'repair',
+  'lastRepair'
 ] as const satisfies readonly (keyof AiSelectorConfig)[]

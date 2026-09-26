@@ -1,7 +1,11 @@
 import type {
   AiSelectorConfig,
   AutomationElementFingerprint,
-  AutomationHostDescriptor
+  AutomationHostDescriptor,
+  SelectorLastRepair,
+  SelectorRepairCandidate,
+  SelectorRepairKind,
+  SelectorRepairState
 } from '@shared-core/types'
 
 import {
@@ -9,6 +13,7 @@ import {
   normalizeSelectorHealth,
   normalizeSubmitMode
 } from '../../../shared/selectorConfig.js'
+import { isPersistableSelector, normalizeLookupStrategy } from '../../../shared/selectorRepair.js'
 import {
   CONFIG_VERSION,
   HOSTNAME_REGEX,
@@ -16,6 +21,10 @@ import {
   MAX_CLASS_TOKEN_LENGTH,
   MAX_CLASS_TOKENS,
   MAX_PATH_SEGMENTS,
+  MAX_REPAIR_CONFIDENCE_SCORE,
+  MAX_REPAIR_SELECTOR_LENGTH,
+  MAX_REPAIR_SUCCESS_COUNT,
+  MAX_REPAIR_TIMESTAMP,
   MAX_SEGMENT_LENGTH,
   MAX_SELECTOR_LENGTH,
   MAX_SUBMIT_MODE_LENGTH,
@@ -201,6 +210,158 @@ function sanitizeSourceUrl(value: unknown): string | null | undefined {
   }
 }
 
+function sanitizeBoundedNumber(value: unknown, max: number, min: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  const truncated = Math.trunc(value)
+  if (truncated < min || truncated > max) return undefined
+  return truncated
+}
+
+/**
+ * Repaired selectors go through the *same* persistence gate the runtime used to
+ * decide they were promotable, so a hand-crafted IPC payload cannot smuggle a
+ * marker string (`fingerprint:descriptor`, `gemini:button-fallback`, …) into
+ * `input` / `button` / the candidate lists.
+ */
+function sanitizeRepairSelector(value: unknown): string | null | undefined {
+  if (value === null) return null
+  if (typeof value !== 'string') return undefined
+  if (!isPersistableSelector(value, MAX_REPAIR_SELECTOR_LENGTH)) return undefined
+  return value.trim()
+}
+
+const REPAIR_CANDIDATE_KEYS = new Set([
+  'selector',
+  'strategy',
+  'confidenceScore',
+  'confidenceLevel',
+  'firstSeenAt',
+  'lastSeenAt',
+  'successCount',
+  'consecutiveSuccessCount',
+  'sourceFingerprint'
+])
+
+function sanitizeRepairCandidate(value: unknown): SelectorRepairCandidate | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+
+  const raw = value as Partial<SelectorRepairCandidate>
+
+  // Fail closed on unknown keys: an unvetted field (a DOM snapshot, a prompt, a
+  // cookie) must never ride along inside the persisted repair record.
+  for (const key of Object.keys(raw)) {
+    if (!REPAIR_CANDIDATE_KEYS.has(key)) return undefined
+  }
+
+  const strategy = normalizeLookupStrategy(raw.strategy)
+  if (!strategy) return undefined
+
+  const selector = sanitizeRepairSelector(raw.selector)
+  if (selector === undefined) return undefined
+
+  const confidenceScore = sanitizeBoundedNumber(raw.confidenceScore, MAX_REPAIR_CONFIDENCE_SCORE, 0)
+  if (confidenceScore === undefined) return undefined
+
+  const confidenceLevel = raw.confidenceLevel
+  if (confidenceLevel !== 'high' && confidenceLevel !== 'medium' && confidenceLevel !== 'low') {
+    return undefined
+  }
+
+  const firstSeenAt = sanitizeBoundedNumber(raw.firstSeenAt, MAX_REPAIR_TIMESTAMP, 0)
+  const lastSeenAt = sanitizeBoundedNumber(raw.lastSeenAt, MAX_REPAIR_TIMESTAMP, 0)
+  if (firstSeenAt === undefined || lastSeenAt === undefined) return undefined
+
+  const successCount = sanitizeBoundedNumber(raw.successCount, MAX_REPAIR_SUCCESS_COUNT, 0)
+  const consecutiveSuccessCount = sanitizeBoundedNumber(
+    raw.consecutiveSuccessCount,
+    MAX_REPAIR_SUCCESS_COUNT,
+    0
+  )
+  if (successCount === undefined || consecutiveSuccessCount === undefined) return undefined
+
+  const sourceFingerprint =
+    raw.sourceFingerprint === undefined ? null : sanitizeFingerprint(raw.sourceFingerprint)
+  if (sourceFingerprint === undefined) return undefined
+
+  return {
+    selector,
+    strategy,
+    confidenceScore,
+    confidenceLevel,
+    firstSeenAt,
+    lastSeenAt,
+    successCount,
+    consecutiveSuccessCount,
+    sourceFingerprint
+  }
+}
+
+const REPAIR_KINDS: readonly SelectorRepairKind[] = ['input', 'button']
+
+function sanitizeRepairState(value: unknown): SelectorRepairState | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+
+  const raw = value as Record<string, unknown>
+  for (const key of Object.keys(raw)) {
+    if (!REPAIR_KINDS.includes(key as SelectorRepairKind)) return undefined
+  }
+
+  const next: SelectorRepairState = {}
+  for (const kind of REPAIR_KINDS) {
+    if (!(kind in raw)) continue
+    const candidate = sanitizeRepairCandidate(raw[kind])
+    if (candidate === undefined) return undefined
+    next[kind] = candidate
+  }
+
+  return next
+}
+
+function sanitizeLastRepair(value: unknown): SelectorLastRepair | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+
+  const raw = value as Partial<SelectorLastRepair>
+  const repairedAt = sanitizeBoundedNumber(raw.repairedAt, MAX_REPAIR_TIMESTAMP, 0)
+  if (repairedAt === undefined) return undefined
+
+  // Only a *present* field can be invalid; an absent one simply stays absent,
+  // so a record that only promoted the input stays valid.
+  let inputSelector: string | null | undefined
+  if (raw.inputSelector !== undefined) {
+    inputSelector = sanitizeRepairSelector(raw.inputSelector)
+    if (inputSelector === undefined) return undefined
+  }
+
+  let buttonSelector: string | null | undefined
+  if (raw.buttonSelector !== undefined) {
+    buttonSelector = sanitizeRepairSelector(raw.buttonSelector)
+    if (buttonSelector === undefined) return undefined
+  }
+
+  const inputStrategy = normalizeLookupStrategy(raw.inputStrategy)
+  if (raw.inputStrategy !== undefined && raw.inputStrategy !== null && !inputStrategy) {
+    return undefined
+  }
+  const buttonStrategy = normalizeLookupStrategy(raw.buttonStrategy)
+  if (raw.buttonStrategy !== undefined && raw.buttonStrategy !== null && !buttonStrategy) {
+    return undefined
+  }
+
+  return {
+    repairedAt,
+    ...setIfDefined('inputSelector', inputSelector ?? undefined),
+    ...setIfDefined('buttonSelector', buttonSelector ?? undefined),
+    ...setIfDefined('inputStrategy', inputStrategy),
+    ...setIfDefined('buttonStrategy', buttonStrategy)
+  }
+}
+
 export function sanitizeConfig(config: unknown): AiSelectorConfig | null {
   if (!config || typeof config !== 'object') return null
   const raw = config as AiSelectorConfig
@@ -216,6 +377,8 @@ export function sanitizeConfig(config: unknown): AiSelectorConfig | null {
   const sourceHostname = normalizeHostname(raw.sourceHostname)
   const canonicalHostname = canonicalizeHostname(raw.canonicalHostname || sourceHostname || null)
   const health = normalizeSelectorHealth(raw.health)
+  const repair = sanitizeRepairState(raw.repair)
+  const lastRepair = sanitizeLastRepair(raw.lastRepair)
 
   if (
     (raw.input !== undefined && input === undefined) ||
@@ -228,7 +391,9 @@ export function sanitizeConfig(config: unknown): AiSelectorConfig | null {
     (raw.sourceUrl !== undefined && sourceUrl === undefined) ||
     (raw.sourceHostname !== undefined && sourceHostname === null) ||
     (raw.canonicalHostname !== undefined && canonicalHostname === null) ||
-    (raw.health !== undefined && !health)
+    (raw.health !== undefined && !health) ||
+    (raw.repair !== undefined && repair === undefined) ||
+    (raw.lastRepair !== undefined && lastRepair === undefined)
   ) {
     return null
   }
@@ -256,6 +421,8 @@ export function sanitizeConfig(config: unknown): AiSelectorConfig | null {
     ...setIfDefined('sourceUrl', sourceUrl),
     ...(sourceHostname ? { sourceHostname } : {}),
     ...(canonicalHostname ? { canonicalHostname } : {}),
-    ...(health ? { health } : {})
+    ...(health ? { health } : {}),
+    ...setIfDefined('repair', repair),
+    ...setIfDefined('lastRepair', lastRepair)
   }
 }
