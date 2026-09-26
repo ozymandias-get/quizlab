@@ -246,6 +246,19 @@ export function queueForWebview<T>(webview: WebviewController, task: () => Promi
 
 export const toAutomationConfig = normalizeAutomationConfig
 
+/**
+ * Drops the memoized per-webview AI config.
+ *
+ * The cache key embeds the URL, the current AI and the *base* registry config
+ * — none of which change when a selector repair is promoted on disk. Without
+ * this reset the runtime would keep feeding the pre-repair selectors into the
+ * next send even though the persisted config is already correct.
+ */
+export function resetConfigCache(configCache: ConfigCache): void {
+  configCache.key = null
+  configCache.cache = null
+}
+
 export function buildPromptText(text: string, prompt?: string | null) {
   if (!prompt) {
     return text
