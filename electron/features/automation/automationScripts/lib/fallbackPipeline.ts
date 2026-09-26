@@ -76,43 +76,6 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
         const roots = getSearchRoots();
         const candidates = [];
 
-        // Blocklist knocks out nav/utility buttons before scoring
-        const SEND_BLOCKLIST = [
-            /(^|\\s|-|_)(new|newchat|new-chat|new_chat|newconversation|new-conversation)(\\s|-|_|$)/i,
-            /(^|\\s|-|_)(close|sidebar|menu|settings|options|model|picker|theme|dark|light|logout|sign[-_ ]?out|profile|account)(\\s|-|_|$)/i,
-            /(^|\\s|-|_)(attach|upload|file|image|emoji|gif|mic|microphone|voice|speak|stop|pause|cancel|clear|delete|edit|copy|share|bookmark|pin|archive|more)(button|btn)?(\\s|-|_|$)/i,
-            /^(nav|header|aside|footer|sidebar)/i
-        ];
-        const isLikelySendButton = (el) => {
-            if (!el || el.disabled) return false;
-            const text = String(
-                (el.getAttribute('aria-label') || el.getAttribute('title') ||
-                 el.innerText || el.textContent || '')
-            ).toLowerCase().trim();
-            for (const pattern of SEND_BLOCKLIST) {
-                if (pattern.test(text)) return false;
-            }
-            if (/\\b(send|g(ö|o)nder|submit|env(í|i)ar|envoyer|senden)\\b/i.test(text)) return true;
-            if (!text) {
-                try {
-                    const inForm = el.closest && el.closest('form, [role="form"]');
-                    const hasHostChain = typeof config !== 'undefined' && config && config.fingerprint && config.fingerprint.hostChain && config.fingerprint.hostChain.length;
-                    if (inForm && hasHostChain) {
-                        return true;
-                    }
-                } catch (_) {}
-                return false;
-            }
-            try {
-                const inForm = el.closest && el.closest('form, [role="form"]');
-                const hasHostChain = typeof config !== 'undefined' && config && config.fingerprint && config.fingerprint.hostChain && config.fingerprint.hostChain.length;
-                if (inForm && hasHostChain) {
-                    return true;
-                }
-            } catch (_) {}
-            return false;
-        };
-
         if (kind === 'input') {
             for (const root of roots) {
                 try {
@@ -123,13 +86,17 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
                 } catch {}
             }
         } else {
+            // Blocklist knocks out nav/utility buttons before scoring. The rule
+            // itself lives in selectorRepairRuntime (SEND_LABEL_BLOCKLIST) so
+            // runtime selection and persisted auto-repair cannot disagree.
+            const buttonLookup = config ? config.button : null;
             for (const root of roots) {
                 try {
                     root.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(el => candidates.push(el));
                 } catch {}
                 try {
                     root.querySelectorAll('[role="button"], button').forEach(el => {
-                        if (candidates.indexOf(el) === -1 && isLikelySendButton(el)) {
+                        if (candidates.indexOf(el) === -1 && __isLikelySendButton(el, buttonLookup)) {
                             candidates.push(el);
                         }
                     });
@@ -152,10 +119,16 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
         const best = scored[0];
         if (best.score < CONFIDENCE_THRESHOLD_MEDIUM) return null;
 
+        // Score gap to the runner-up travels with the candidate so the
+        // self-healing evidence can refuse to persist an ambiguous recovery.
+        const runnerUp = scored[1];
+        const scoreGap = runnerUp ? best.score - runnerUp.score : best.score;
+
         return {
             element: best.element,
             matchedSelector: best.matchedSelector,
-            strategy: 'semantic'
+            strategy: 'semantic',
+            scoreGap: scoreGap
         };
     };
 

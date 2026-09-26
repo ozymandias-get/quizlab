@@ -2,6 +2,15 @@ interface BuildPerformSubmitScriptOptions {
   includeInputLookupForEnter: boolean
 }
 
+/**
+ * Builds the shared submit routine used by the auto-send and click-send scripts.
+ *
+ * Besides submitting, this is the single place that decides whether a *button*
+ * or *input* recovery counts as a real, successful usage. The rule is
+ * deliberately branch-local: a `click` submit only credits the button, an
+ * `enter_key` submit only credits the input, so an untouched locator can never
+ * be promoted on the strength of the other one's success.
+ */
 export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOptions): string {
   const inputLookup = options.includeInputLookupForEnter
     ? `
@@ -23,8 +32,10 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
                     inputElement.dispatchEvent(new KeyboardEvent('keypress', eventParams));
                     inputElement.dispatchEvent(new KeyboardEvent('keyup', eventParams));
                     success = true;
+                    __finalizeSelectorRepair(diagnostics.input, 'input', true);
                 } else {
                     error = resolveLookupError(config.input, 'input_not_found', config.health);
+                    __finalizeSelectorRepair(diagnostics.input, 'input', false);
                 }
 `
     : `
@@ -42,6 +53,7 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
                 inputElement.dispatchEvent(new KeyboardEvent('keypress', eventParams));
                 inputElement.dispatchEvent(new KeyboardEvent('keyup', eventParams));
                 success = true;
+                __finalizeSelectorRepair(diagnostics.input, 'input', true);
 `
 
   return `
@@ -58,8 +70,11 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
                 if (button) {
                     button.click();
                     success = true;
+                    // A completed click is the send button's only "real usage".
+                    __finalizeSelectorRepair(diagnostics.button, 'button', true);
                 } else if (mode === 'click') {
                     error = resolveLookupError(config.button, 'button_not_found', config.health);
+                    __finalizeSelectorRepair(diagnostics.button, 'button', false);
                 }
             }
 
@@ -73,5 +88,5 @@ ${inputLookup}
                 error
             };
         };
-`
+    `
 }

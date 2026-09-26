@@ -56,3 +56,34 @@ export function buildInjectedPickerDomHelpers(): string {
   const body = parts.map((fn) => `${indent}const ${fn.name} = ${fn.toString()};`).join('\n')
   return `${INJECTED_DOM_MODULE_PREFIX}\n${body}`
 }
+
+/**
+ * Minimal subset of the picker DOM helpers needed to re-derive a *stable* CSS
+ * selector for an element that the selector engine only found through a
+ * fingerprint / semantic / provider recovery.
+ *
+ * This is what keeps self-healing free of a second selector generator: the
+ * exact same `buildCssCandidates` implementation the Magic Selector persists is
+ * reused verbatim, so generated-class and id filtering
+ * (`GENERATED_TOKEN_REGEX`, `SAFE_CLASS_TOKEN_REGEX`) cannot drift between the
+ * manual and the automatic path.
+ *
+ * Only the transitive callees of `buildCssCandidates` are emitted — including
+ * `normalizeText` here would collide with the automation runtime's own
+ * `normalizeText` from `baseHelpers`.
+ */
+export function buildInjectedStableSelectorHelper(): string {
+  const parts = [
+    getSafeId,
+    getSafeClassTokens,
+    pushCandidate,
+    isElementContentEditable,
+    cssEscape,
+    escapeCssStringValue,
+    buildCssCandidates
+  ] as const
+
+  const indent = '    '
+  const body = parts.map((fn) => `${indent}const ${fn.name} = ${fn.toString()};`).join('\n')
+  return `${INJECTED_DOM_MODULE_PREFIX}\n${body}`
+}

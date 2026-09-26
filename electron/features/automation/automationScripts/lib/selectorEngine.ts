@@ -180,17 +180,46 @@ export const selectorEngine =
         }
 
         if (best && best.element) {
-            cacheElement(kind, lookup, best.matchedSelector, best.element);
+            // A non-primary entry of the candidate list only counts as a
+            // *recovery* when the saved primary genuinely stopped matching.
+            // Priority ordering can legitimately prefer another candidate (and
+            // reporting that as a recovery would be noise), so the primary is
+            // probed before relabelling. The probe only runs when a non-primary
+            // selector won, so the common fast path stays untouched.
+            const savedPrimary = lookup && Array.isArray(lookup.selectors) ? lookup.selectors[0] : null;
+            if (savedPrimary && best.selector && best.selector !== savedPrimary) {
+                const primaryMatch = findUniqueSelectorMatch(savedPrimary, fingerprint);
+                if (!primaryMatch.element) {
+                    best.strategy = 'candidate';
+                }
+            }
             diagnostics.strategy = best.strategy;
             diagnostics.matchedSelector = best.matchedSelector;
+            // Self-healing: annotate the resolution so the renderer can learn
+            // from it. __annotateSelectorResolution short-circuits for
+            // direct/primary hits, so the fast path stays free.
+            const evidence = __annotateSelectorResolution(diagnostics, kind, best, config);
+            cacheElement(kind, lookup, best.matchedSelector, best.element, evidence);
             return best;
         }
 
         const fingerprintMatch = findElementByFingerprint(lookup && lookup.fingerprint);
         if (fingerprintMatch && fingerprintMatch.element) {
-            cacheElement(kind, lookup, fingerprintMatch.matchedSelector, fingerprintMatch.element);
             diagnostics.strategy = 'fingerprint';
             diagnostics.matchedSelector = fingerprintMatch.matchedSelector;
+            const fingerprintEvidence = __annotateSelectorResolution(
+                diagnostics,
+                kind,
+                fingerprintMatch,
+                config
+            );
+            cacheElement(
+                kind,
+                lookup,
+                fingerprintMatch.matchedSelector,
+                fingerprintMatch.element,
+                fingerprintEvidence
+            );
             return fingerprintMatch;
         }
 
@@ -200,9 +229,21 @@ export const selectorEngine =
 
         const fallbackResult = runFallbackPipeline(kind, config, diagnostics, fallbackDepth);
         if (fallbackResult && fallbackResult.element) {
-            cacheElement(kind, lookup, fallbackResult.matchedSelector, fallbackResult.element);
             diagnostics.strategy = fallbackResult.strategy;
             diagnostics.matchedSelector = fallbackResult.matchedSelector;
+            const fallbackEvidence = __annotateSelectorResolution(
+                diagnostics,
+                kind,
+                fallbackResult,
+                config
+            );
+            cacheElement(
+                kind,
+                lookup,
+                fallbackResult.matchedSelector,
+                fallbackResult.element,
+                fallbackEvidence
+            );
             return fallbackResult;
         }
 
