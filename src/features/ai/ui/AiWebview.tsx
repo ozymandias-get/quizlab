@@ -26,7 +26,9 @@ import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
 
 const AiHomePage = lazy(() => import('./AiHomePage'))
-const MagicSelectorTutorial = lazy(() => import('@features/tutorial/ui/MagicSelectorTutorial'))
+const MagicSelectorTutorial = lazy(() =>
+  import('@features/tutorial').then((m) => ({ default: m.MagicSelectorTutorial }))
+)
 
 const PANEL_STYLE = {
   border: '1px solid oklch(var(--border))',
@@ -68,7 +70,7 @@ function AiWebview({ isResizing, isBarHovered, sharedTabUrlCacheRef }: AiWebview
 
   // Combine showHome logic into one effect to avoid cascade:
   // when activeTabId/tabs change, both effects would fire separately.
-  // Single effect → single re-render from showHome change.
+  // Single effect â†’ single re-render from showHome change.
   useEffect(() => {
     if (tabs.length === 0 || !activeTabId) {
       setShowHome(true)

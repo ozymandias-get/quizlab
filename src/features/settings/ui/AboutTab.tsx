@@ -4,7 +4,7 @@ import {
   useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
-import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
+import { useTutorialStore } from '@features/tutorial'
 
 import type { UpdateInfo } from '@app/providers'
 import { MODAL_EXIT_TRANSITION_MS } from '@shared/constants/timingConstants'

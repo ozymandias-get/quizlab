@@ -1,4 +1,4 @@
-import { sendApiChatMessage } from '@features/ai/queries/useSendMessageMutation'
+import { sendApiChatMessage } from '@features/ai'
 
 import { queryClient } from '@app/providers/queryClient'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
@@ -12,7 +12,7 @@ import type { AiSendResult } from '../types'
  * redirects the send to the wrong tab.
  */
 export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
-  const { useChatUiStore } = await import('@features/ai/store/chatUiStore')
+  const { useChatUiStore } = await import('@features/ai')
   const uiState = useChatUiStore.getState()
   const text = uiState.inputValueByTab[tabId] || ''
   const images = uiState.attachmentsByTab[tabId] || []
@@ -47,7 +47,7 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
  *
  * Every caller gets its promise settled: when a newer call restarts the
  * debounce window the earlier callers are carried over (grouped per tab) and
- * resolved by the flush that eventually runs — never silently dropped.
+ * resolved by the flush that eventually runs Ã¢â‚¬â€ never silently dropped.
  */
 type SendTimeoutRef = { current: ReturnType<typeof setTimeout> | null }
 

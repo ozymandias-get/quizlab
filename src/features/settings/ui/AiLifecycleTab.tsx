@@ -1,8 +1,4 @@
-import {
-  MAX_ALIVE_TABS_OPTIONS,
-  SLEEP_TIMEOUT_OPTIONS,
-  useAiLifecycleSettings
-} from '@features/ai/hooks/useAiLifecycleSettings'
+import { MAX_ALIVE_TABS_OPTIONS, SLEEP_TIMEOUT_OPTIONS, useAiLifecycleSettings } from '@features/ai'
 
 import { useAiSites } from '@app/providers/ai-context'
 import { AiIcon } from '@shared/ui/components/icons/AiIcon'

@@ -1,5 +1,5 @@
-import { useTutorialStore } from '@features/tutorial/store/tutorialStore'
-import TutorialCenter from '@features/tutorial/ui/TutorialCenter'
+import { useTutorialStore } from '@features/tutorial'
+import { TutorialCenter } from '@features/tutorial'
 
 import { MODAL_EXIT_TRANSITION_MS } from '@shared/constants/timingConstants'
 

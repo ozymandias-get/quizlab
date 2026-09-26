@@ -17,7 +17,7 @@ export const SLEEP_TIMEOUT_OPTIONS = [
 
 export const MAX_ALIVE_TABS_OPTIONS = [1, 2, 3, 4, 5] as const
 
-interface AiLifecycleSettingsReturn {
+export interface AiLifecycleSettingsReturn {
   maxAliveTabs: number
   sleepTimeoutMs: number
   neverSleepSiteIds: string[]
@@ -68,7 +68,7 @@ export function useAiLifecycleSettings(): AiLifecycleSettingsReturn {
   // Without this, every change to `neverSleepSiteIds` (e.g. toggling a
   // different site) recreates the callback, which propagates a new
   // `useAiLifecycleSettings` return value, re-rendering every AiSession
-  // that consumes it — even when the sleep timer logic is unaffected.
+  // that consumes it â€” even when the sleep timer logic is unaffected.
   const isNeverSleepSite = useCallback(
     (siteId: string) => neverSleepSiteIdsRef.current.includes(siteId),
     []

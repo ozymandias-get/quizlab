@@ -27,10 +27,23 @@ vi.mock('@app/hooks/useTextSelection', () => ({
 
 const mockUsePdfSelection = vi.fn()
 vi.mock('@features/pdf', () => ({
-  usePdfSelection: () => mockUsePdfSelection()
-}))
-vi.mock('@features/pdf/hooks/usePdfOpenActions', () => ({
-  usePdfOpenActions: () => ({ handleSelectPdf: vi.fn(), resumeLastPdf: vi.fn() })
+  usePdfSelection: () => mockUsePdfSelection(),
+  usePdfOpenActions: () => ({ handleSelectPdf: vi.fn(), resumeLastPdf: vi.fn() }),
+  useReadingProgressPersistence: () => ({}),
+  usePdfTabStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector(
+      new Proxy(
+        {},
+        {
+          get: (_t, prop) =>
+            typeof prop === 'string' && prop.startsWith('pdf')
+              ? []
+              : prop === 'activePdfTabId'
+                ? null
+                : vi.fn()
+        }
+      )
+    )
 }))
 
 vi.mock('@features/pdf/viewer', () => ({

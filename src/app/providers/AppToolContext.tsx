@@ -1,4 +1,4 @@
-import type { AiSendOptions } from '@features/ai/model/types'
+import type { AiSendOptions } from '@features/ai'
 
 import { useToastActions } from '@shared/stores/toastStore'
 

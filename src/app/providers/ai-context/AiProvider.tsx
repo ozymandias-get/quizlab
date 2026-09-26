@@ -1,7 +1,7 @@
 import { useAiRegistry } from '@platform/electron/api/useAiApi'
 import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 
-import { useChatUiStore } from '@features/ai/store/chatUiStore'
+import { useChatUiStore } from '@features/ai'
 
 import { useToastActions } from '@shared/stores/toastStore'
 
