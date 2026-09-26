@@ -234,7 +234,7 @@ npm run test:coverage # Coverage raporu
 
 # Analiz
 npm run analyze:all  # Tüm analiz paketi (bundle, türler, ölü kod, kopyalar, döngüsel bağımlılıklar, vb.)
-npm run analyze:security  # Electronegativity + Semgrep güvenlik taraması
+npm run analyze:security  # Semgrep + production audit + Electronegativity (hepsi blocking)
 
 # Derleme
 npm run build:win    # Windows NSIS yükleyicisi

@@ -13,17 +13,19 @@
 
 Aşağıdaki komutlar her PR'da temiz geçmelidir. Hepsi `package.json` script'leridir.
 
-| Amaç                | Komut                        | Kabul Kriteri                                      |
-| ------------------- | ---------------------------- | -------------------------------------------------- |
-| Format kontrolü     | `npm run format:check`       | Tüm kaynak dosyalar Prettier uyumlu.               |
-| Lint                | `npm run lint`               | `--max-warnings=0` ile hatasız.                    |
-| Tür denetimi        | `npm run typecheck`          | `tsc -b` hatasız (3 referans: app/node/node.test). |
-| Test                | `npm test`                   | 241 dosya / 2285 test geçer.                       |
-| Repo hijyeni        | `npm run ci:check-hygiene`   | `.cache`, `out.txt`, build artifact yok.           |
-| Sürüm tutarlılığı   | `npm run ci:check-version`   | `package.json` ↔ `app/version` senkron.            |
-| Bağımlılık denetimi | `npm run audit:high`         | Yüksek/critical CVE yok.                           |
-| Dosya boyutu        | `npm run analyze:file-sizes` | Hook/component ≤ 250 satır, diğer ≤ 400 satır.     |
-| CSS denetimi        | `npm run analyze:css`        | Stylelint kurallarına uygun.                       |
+| Amaç                | Komut                             | Kabul Kriteri                                      |
+| ------------------- | --------------------------------- | -------------------------------------------------- |
+| Format kontrolü     | `npm run format:check`            | Tüm kaynak dosyalar Prettier uyumlu.               |
+| Lint                | `npm run lint`                    | `--max-warnings=0` ile hatasız.                    |
+| Tür denetimi        | `npm run typecheck`               | `tsc -b` hatasız (3 referans: app/node/node.test). |
+| Test                | `npm test`                        | 241 dosya / 2285 test geçer.                       |
+| Repo hijyeni        | `npm run ci:check-hygiene`        | `.cache`, `out.txt`, build artifact yok.           |
+| Sürüm tutarlılığı   | `npm run ci:check-version`        | `package.json` ↔ `app/version` senkron.            |
+| Bağımlılık denetimi | `npm run check:audit`             | Kargo ağacında yüksek/critical CVE yok.            |
+| Semgrep             | `npm run analyze:semgrep`         | Production kaynaklarda ERROR severity yok.         |
+| Electron hardening  | `npm run check:electron-security` | Electronegativity HIGH/CRITICAL yok.               |
+| Dosya boyutu        | `npm run analyze:file-sizes`      | Hook/component ≤ 250 satır, diğer ≤ 400 satır.     |
+| CSS denetimi        | `npm run analyze:css`             | Stylelint kurallarına uygun.                       |
 
 Yerel geliştirmede pre-commit hook (`.husky/pre-commit`) `format:check` + `lint` + `lint-staged` çalıştırır; büyük commit öncesi mutlaka `npm test` ve `npm run typecheck` da çalıştırılmalıdır.
 
@@ -343,7 +345,10 @@ import { tMock } from '../helpers/test-utils'
 - Her IPC handler `requireTrustedIpcSender(event)` ile başlar.
 - Kullanıcıdan gelen HTML/metin render edilmeden önce `sanitize*` veya `DOMPurify` benzeri geçitten geçirilir (`tutorial` HTML ipuçları gibi).
 - API anahtarları kod içinde, logda, versiyon kontrolünde **olmaz**; IPC üzerinden main süreçte tutulur, renderer'a geri dönmez.
-- Dependency audit: `npm run audit:high` her PR'da temizdir.
+- Dependency audit: `npm run check:audit` her PR'da temizdir. Kargo ağacı `npm ls --omit=dev` ile belirlenir; dev araçları (eslint, stryker, electron-builder) gate'e girmez.
+- Kabul edilmiş tek production advisory `pdfjs-dist` içindir ve `security/audit-exceptions.json`da zaman sınırlı olarak durur. Checker; advisory id, kurulu sürüm, son kullanma tarihi ve "artık raporlanmıyor" durumlarında ayrı ayrı başarısız olur, böylece istisna gerekçesiz yaşayamaz.
+- Semgrep: `npm run analyze:semgrep` yalnız production kaynakları tarar ve `--error` kullanır; test dosyalarındaki `eval` kullanımları gate dışıdır.
+- Electronegativity: `npm run check:electron-security` HIGH/CRITICAL bulguda durur. Reviewed baseline 12 MEDIUM + 1 LOW'dur.
 
 ## 17. Performans Kuralları
 

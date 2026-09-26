@@ -86,6 +86,23 @@ jobs:
       - name: Circular Dependency Check
         run: npm run analyze:circular
 
+      - name: Setup Python (Semgrep)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Semgrep
+        run: python -m pip install --disable-pip-version-check semgrep==1.144.0
+
+      - name: Semgrep (production sources)
+        run: npm run analyze:semgrep
+
+      - name: Production Dependency Audit
+        run: npm run check:audit
+
+      - name: Electron Hardening (Electronegativity)
+        run: npm run check:electron-security
+
   build:
     needs: quality
     runs-on: ${{ matrix.os }}

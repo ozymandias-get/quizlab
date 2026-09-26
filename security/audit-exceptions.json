@@ -1,0 +1,42 @@
+{
+  "_comment": [
+    "Accepted production advisories for `npm run check:audit`.",
+    "",
+    "Anything not listed here fails the build. Each entry needs a reason, the",
+    "advisory id it accepts, the version it was reviewed against, and an expires",
+    "date. The checker fails when the advisory id or installed version no longer",
+    "matches what npm audit reports, when an entry is past its date, and when a",
+    "listed advisory is no longer reported at all, so an exception cannot",
+    "outlive its justification.",
+    "",
+    "Scope is the shipped application. The reachable set comes from",
+    "`npm ls --omit=dev`, not from `npm audit --omit=dev`: the two disagree, and",
+    "audit reported brace-expansion as a production high while it was reachable",
+    "only through eslint, stryker and electron-builder. Gating on dev tooling",
+    "would have required 12 accepted entries that buried the one finding that",
+    "actually mattered."
+  ],
+  "exceptions": [
+    {
+      "package": "pdfjs-dist",
+      "installed": "3.11.174",
+      "advisories": ["GHSA-wgrm-67xf-hhpq", "CVE-2024-4367"],
+      "severity": "high",
+      "reason": [
+        "Mitigated, not fixed: the advisory's own documented workaround is",
+        "isEvalSupported: false, set on both getDocument call sites",
+        "(pdf/ui/components/PdfViewerElement.tsx and pdf/lib/renderPageToImage.ts).",
+        "pdfjs-dist cannot be upgraded on its own: @react-pdf-viewer/core bundles",
+        "its own PDF.js engine and receives a worker built from this package, so",
+        "the two must move together. See src/features/pdf/index.ts and",
+        "src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts.",
+        "A migration must replace the viewer and upgrade pdfjs in one change, and",
+        "must add enableScripting: false for CVE-2026-16633 (a separate CVE that",
+        "does not affect 3.x and whose knob does not replace isEvalSupported)."
+      ],
+      "owner": "maintainer",
+      "expires": "2026-12-31",
+      "reviewNote": "Re-check pdfjs 3.x advisories on each release. If a new one lands there is no 3.x fix, so the migration becomes mandatory rather than optional."
+    }
+  ]
+}
