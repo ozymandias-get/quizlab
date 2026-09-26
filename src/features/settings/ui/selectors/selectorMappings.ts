@@ -14,6 +14,12 @@ export function getHealthTone(health: SelectorHealthState): HealthTone {
         icon: 'border-primary/30 bg-primary/10 text-primary',
         border: 'border-primary/20 bg-card'
       }
+    case 'repaired':
+      return {
+        badge: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+        icon: 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400',
+        border: 'border-sky-500/20 bg-card'
+      }
     case 'needs_repick':
       return {
         badge: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
@@ -35,6 +41,8 @@ export function getHealthLabelKey(health: SelectorHealthState) {
       return 'selectors_health_ready'
     case 'migrated':
       return 'selectors_health_migrated'
+    case 'repaired':
+      return 'selectors_health_repaired'
     case 'needs_repick':
       return 'selectors_health_needs_repick'
     default:
