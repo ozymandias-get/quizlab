@@ -12,6 +12,11 @@ import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import {
+  describeUnavailableCapability,
+  getEncryptionCapability,
+  unavailableErrorCode
+} from './sessionEncryptionCapability.js'
 import { geminiWebSessionManager } from './sessionManager.js'
 
 let handlersRegistered = false
@@ -98,24 +103,31 @@ export function registerGeminiWebSessionHandlers(): void {
     IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION,
     async (event) => {
       try {
+        // Check before opening the dialog: on a system with no usable keyring
+        // the export is refused, and there is no point letting the user pick a
+        // destination for a file that will never be written.
+        const capability = getEncryptionCapability()
+        if (!capability.available) {
+          Logger.error('[GeminiWebSession] Export refused:', capability.reason)
+          return success({
+            success: false,
+            error: unavailableErrorCode(capability),
+            detail: describeUnavailableCapability(capability)
+          })
+        }
+
         const win = BrowserWindow.fromWebContents(event.sender)
+        const saveOptions = {
+          title: 'Export Gemini Session',
+          defaultPath: 'gemini-session.enc',
+          // Every file this dialog can produce is encrypted with the OS
+          // keystore; the previous code could write plaintext here while
+          // still advertising the file as encrypted.
+          filters: [{ name: 'Encrypted Session', extensions: ['enc'] }]
+        }
         const { canceled, filePath } = win
-          ? await dialog.showSaveDialog(win, {
-              title: 'Export Gemini Session',
-              defaultPath: 'gemini-session.enc',
-              filters: [
-                { name: 'Encrypted Session', extensions: ['enc'] },
-                { name: 'All files', extensions: ['*'] }
-              ]
-            })
-          : await dialog.showSaveDialog({
-              title: 'Export Gemini Session',
-              defaultPath: 'gemini-session.enc',
-              filters: [
-                { name: 'Encrypted Session', extensions: ['enc'] },
-                { name: 'All files', extensions: ['*'] }
-              ]
-            })
+          ? await dialog.showSaveDialog(win, saveOptions)
+          : await dialog.showSaveDialog(saveOptions)
 
         if (canceled || !filePath) return success({ success: false, error: 'canceled' })
         return success(await geminiWebSessionManager.exportSession(filePath))
@@ -134,17 +146,19 @@ export function registerGeminiWebSessionHandlers(): void {
     async (event) => {
       try {
         const win = BrowserWindow.fromWebContents(event.sender)
+        // Pre-encryption v1 exports are still importable, so the picker must
+        // not hide them behind an "Encrypted Session" label.
+        const openOptions = {
+          title: 'Import Gemini Session',
+          filters: [
+            { name: 'Encrypted Session', extensions: ['enc'] },
+            { name: 'All files', extensions: ['*'] }
+          ],
+          properties: ['openFile' as const]
+        }
         const { canceled, filePaths } = win
-          ? await dialog.showOpenDialog(win, {
-              title: 'Import Gemini Session',
-              filters: [{ name: 'Encrypted Session', extensions: ['enc'] }],
-              properties: ['openFile']
-            })
-          : await dialog.showOpenDialog({
-              title: 'Import Gemini Session',
-              filters: [{ name: 'Encrypted Session', extensions: ['enc'] }],
-              properties: ['openFile']
-            })
+          ? await dialog.showOpenDialog(win, openOptions)
+          : await dialog.showOpenDialog(openOptions)
 
         if (canceled || !filePaths?.length) return success({ success: false, error: 'canceled' })
         return success(await geminiWebSessionManager.importSession(filePaths[0]))

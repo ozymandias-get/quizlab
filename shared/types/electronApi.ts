@@ -164,11 +164,13 @@ export interface ElectronApi {
     setEnabledApps: (
       enabledAppIds: GoogleWebSessionAppId[]
     ) => Promise<GeminiWebSessionActionResult>
-    exportSession: () => Promise<{ success: boolean; error?: string }>
+    exportSession: () => Promise<{ success: boolean; error?: string; detail?: string }>
     importSession: () => Promise<{
       success: boolean
       error?: string
       status?: GeminiWebSessionStatus
+      warning?: string
+      detail?: string
     }>
     onRefreshEvent: (callback: (event: GeminiWebSessionRefreshEvent) => void) => () => void
   }

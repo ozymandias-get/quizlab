@@ -263,12 +263,18 @@ export interface IpcInvokeRequestMap {
 
   [IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION]: {
     args: []
-    result: IpcResult<{ success: boolean; error?: string }>
+    result: IpcResult<{ success: boolean; error?: string; detail?: string }>
   }
 
   [IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION]: {
     args: []
-    result: IpcResult<{ success: boolean; error?: string; status?: GeminiWebSessionStatus }>
+    result: IpcResult<{
+      success: boolean
+      error?: string
+      status?: GeminiWebSessionStatus
+      warning?: string
+      detail?: string
+    }>
   }
 
   // App settings sync (renderer localStorage <-> main ConfigManager)
