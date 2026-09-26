@@ -25,7 +25,15 @@ export type {
   AutomationExecutionDiagnostics,
   AutomationExecutionResult,
   AutomationHostDescriptor,
+  AutomationLookupStrategy,
+  AutomationSelectorDiagnostics,
+  ConfidenceLevel,
   SelectorHealth,
+  SelectorLastRepair,
+  SelectorRepairCandidate,
+  SelectorRepairKind,
+  SelectorRepairReason,
+  SelectorRepairState,
   SubmitMode,
   TextInputMode
 } from './automation.js'
