@@ -4,13 +4,16 @@ import { fileURLToPath } from 'url'
 
 import { Logger } from '../../core/logger.js'
 import { DEV_SERVER_ORIGIN, isDev } from './environment.js'
+import { isAllowedWebviewPartition } from './permissionPolicy.js'
 
 const ALLOWED_WEBVIEW_PROTOCOLS = new Set(['https:'])
 
 /**
- * Partitions that webviews are allowed to use. Derived from the AI_REGISTRY
- * and GOOGLE_AI_WEB_SESSION_PARTITION. A webview attempting to use any other
- * partition is blocked to prevent renderer-level partition escape.
+ * Partitions that webviews are allowed to use, derived from the AI registry
+ * (see permissionPolicy.isAllowedWebviewPartition). A webview attempting to
+ * use any other partition is blocked to prevent renderer-level partition
+ * escape. User-added platforms are covered by the `persist:ai_custom_`
+ * prefix, which is minted only by the registry handler.
  */
 
 // SECURITY: Script injected into <webview> guest pages to block clipboard
@@ -46,23 +49,6 @@ const WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT = `
   });
 })();
 `
-
-const ALLOWED_WEBVIEW_PARTITIONS = new Set([
-  'persist:ai_session',
-  'persist:ai_chatgpt',
-  'persist:ai_claude',
-  'persist:ai_deepseek',
-  'persist:ai_qwen',
-  'persist:ai_kimi',
-  'persist:ai_m365',
-  'persist:ai_copilot',
-  'persist:ai_grok',
-  'persist:ai_huggingchat',
-  'persist:ai_manus',
-  'persist:ai_mistral',
-  'persist:ai_perplexity',
-  'persist:gemini_web_profile'
-])
 
 export function isSafeExternalUrl(rawUrl: string) {
   try {
@@ -152,10 +138,7 @@ export function hardenWindowWebContents(window: BrowserWindow) {
     }
 
     const partition = webPreferences.partition
-    if (
-      typeof partition !== 'string' ||
-      (!ALLOWED_WEBVIEW_PARTITIONS.has(partition) && !partition.startsWith('persist:ai_custom_'))
-    ) {
+    if (!isAllowedWebviewPartition(partition)) {
       Logger.warn(
         `[Security] Blocked webview with disallowed partition: ${partition} (src: ${params.src})`
       )
