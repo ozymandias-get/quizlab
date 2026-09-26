@@ -40,6 +40,11 @@ ${performSubmitScript}
             }
 
             await humanType(inputElement, ${safeText}, ${typingSpeed});
+            // Text insertion really landed, so an input recovery is now an
+            // observed success. Without this the self-healing loop would only
+            // ever see "element found", which is exactly the false positive the
+            // staged promotion policy exists to prevent.
+            __finalizeSelectorRepair(diagnostics.input, 'input', true);
             if (!${shouldSubmit}) {
                 return {
                     success: true,
@@ -51,6 +56,7 @@ ${performSubmitScript}
 
             await wait(500);
             const submitResult = await performSubmit(inputElement);
+            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
             return {
                 success: submitResult.success,
                 mode: config.submitMode,
@@ -62,6 +68,7 @@ ${performSubmitScript}
                 ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
             };
         } catch (error) {
+            __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'script_failed',
@@ -112,6 +119,9 @@ ${performSubmitScript}
                 await humanType(inputElement, ${safeText}, ${typingSpeed});
             }
 
+            // Pasted or typed text is now verifiably inside the field: this is
+            // the "real usage" signal the self-healing loop counts.
+            __finalizeSelectorRepair(diagnostics.input, 'input', true);
             if (!${shouldSubmit}) {
                 return {
                     success: true,
@@ -123,6 +133,7 @@ ${performSubmitScript}
 
             await wait(500);
             const submitResult = await performSubmit(inputElement);
+            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
             return {
                 success: submitResult.success,
                 mode: config.submitMode,
@@ -134,6 +145,7 @@ ${performSubmitScript}
                 ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
             };
         } catch (error) {
+            __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'script_failed',
@@ -169,6 +181,7 @@ ${performSubmitScript}
             }
 
             await setInputValue(inputElement, ${safeText});
+            __finalizeSelectorRepair(diagnostics.input, 'input', true);
             if (!${shouldSubmit}) {
                 return {
                     success: true,
@@ -180,6 +193,7 @@ ${performSubmitScript}
 
             await wait(500);
             const submitResult = await performSubmit(inputElement);
+            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
             return {
                 success: submitResult.success,
                 mode: config.submitMode,
@@ -191,6 +205,7 @@ ${performSubmitScript}
                 ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
             };
         } catch (error) {
+            __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'script_failed',

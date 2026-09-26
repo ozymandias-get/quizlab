@@ -36,7 +36,8 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
                 lastUsedAt: 0,
                 lastConnectedAt: 0,
                 createdAt: Date.now(),
-                version: null
+                version: null,
+                repairEvidence: null
             };
         }
 
@@ -51,6 +52,7 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
 
         entry.element = null;
         entry.matchedSelector = null;
+        entry.repairEvidence = null;
         if (diagnostics) {
             diagnostics.cacheInvalidations += 1;
         }
@@ -93,6 +95,26 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
      * Üçü de geçerse cache hit. Birinci adımda başarısız olursa hemen invalidate;
      * ikinci adım periyodik olduğu için maliyetli değil.
      */
+    /**
+     * Self-healing: a cache hit on a *recovered* element still counts as one
+     * more real usage of that recovery. Without replaying the snapshot here the
+     * consecutive-success counter would only ever advance on the very first send
+     * after the DOM drift, and the promotion threshold could never be reached
+     * while the cache stayed warm.
+     */
+    const __replayRepairEvidence = (entry, diagnostics) => {
+        const evidence = entry.repairEvidence;
+        if (!evidence) return;
+        diagnostics.recovered = true;
+        diagnostics.confidenceScore = evidence.confidenceScore;
+        diagnostics.confidenceLevel = evidence.confidenceLevel;
+        diagnostics.stableSelector = evidence.stableSelector;
+        diagnostics.ambiguous = evidence.ambiguous;
+        diagnostics.unstableSelector = evidence.unstableSelector;
+        diagnostics.repairEligible = evidence.repairEligible;
+        diagnostics.repairReason = evidence.repairReason;
+    };
+
     const getCachedElement = (kind, lookup, diagnostics) => {
         const entry = getCacheEntry(kind, lookup);
 
@@ -100,6 +122,7 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
             if (entry.element) {
                 entry.element = null;
                 entry.matchedSelector = null;
+                entry.repairEvidence = null;
             }
             return null;
         }
@@ -149,6 +172,7 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
         diagnostics.matchedSelector = entry.matchedSelector || diagnostics.requestedSelector || null;
         entry.lastUsedAt = nowMs;
         entry.successCount = (entry.successCount || 0) + 1;
+        __replayRepairEvidence(entry, diagnostics);
         return {
             element,
             matchedSelector: diagnostics.matchedSelector,
@@ -156,7 +180,7 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
         };
     };
 
-    const cacheElement = (kind, lookup, matchedSelector, element) => {
+    const cacheElement = (kind, lookup, matchedSelector, element, repairEvidence) => {
         const entry = getCacheEntry(kind, lookup);
         entry.element = element || null;
         entry.matchedSelector = matchedSelector || null;
@@ -164,6 +188,7 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
         entry.lastConnectedAt = Date.now();
         entry.successCount = (entry.successCount || 0) + 1;
         entry.createdAt = Date.now();
+        entry.repairEvidence = repairEvidence || null;
 
         enforceCacheLimit();
     };

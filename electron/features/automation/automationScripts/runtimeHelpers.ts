@@ -7,6 +7,7 @@ import { eventDrivenWaitRuntime } from './lib/eventDrivenWait.js'
 import { fallbackHeuristics } from './lib/fallbackHeuristics.js'
 import { interactionHelpers } from './lib/interactionHelpers.js'
 import { selectorEngine } from './lib/selectorEngine.js'
+import { selectorRepairRuntime } from './lib/selectorRepairRuntime.js'
 import { shadowRootRegistryRuntime } from './lib/shadowRootRegistry.js'
 import { siteStrategyRuntime } from './lib/siteStrategyRegistry.js'
 
@@ -14,7 +15,8 @@ export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject')
   return [
     getBaseHelpers(ambiguousSelectorBehavior),
     // Sıralama önemli: önce error classifier (selectorEngine kullanır),
-    // sonra cache, dom arama, güven skoru, fallback, selector engine.
+    // sonra cache, dom arama, güven skoru, self-heal evidence, fallback,
+    // selector engine.
     errorClassifierRuntime,
     siteStrategyRuntime,
     eventDrivenWaitRuntime,
@@ -24,6 +26,10 @@ export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject')
     shadowRootRegistryRuntime,
     domSearchHelpers,
     confidenceScoring,
+    // Self-healing evidence: send-control blocklist + stable selector
+    // re-derivation. Must precede fallbackPipeline (which consumes the
+    // blocklist) and selectorEngine (which annotates resolutions).
+    selectorRepairRuntime,
     fallbackHeuristics,
     selectorEngine,
     interactionHelpers
