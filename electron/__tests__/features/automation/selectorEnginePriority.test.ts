@@ -1,4 +1,5 @@
 import { selectorEngine } from '@electron/features/automation/automationScripts/lib/selectorEngine'
+import { selectorRepairRuntime } from '@electron/features/automation/automationScripts/lib/selectorRepairRuntime'
 import { siteStrategyRuntime } from '@electron/features/automation/automationScripts/lib/siteStrategyRegistry'
 
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -150,13 +151,17 @@ describe('selectorEngine template behavior', () => {
     })
   })
 
-  // S11 (runtime): the button filter (SEND_BLOCKLIST + isLikelySendButton)
-  // lives inside the template literal as a closure that depends on
-  // `config`. The harness below exposes it so we can assert the
-  // "icon-only send button in a form" case — without the recent fix
-  // the function returned false for an empty-text button regardless
-  // of form association, dropping the real send button on sites
-  // that hide the icon.
+  // S11 (runtime): the button filter (SEND_BLOCKLIST + __isLikelySendButton)
+  // lives inside the runtime template. The blocklist used to be a closure
+  // inside `trySemanticFallback`; it now lives in the shared self-healing
+  // runtime block so that runtime selection and persisted auto-repair apply the
+  // exact same rule and cannot drift. The harness below therefore has to embed
+  // that block first, in the same order `buildCommonHelpers` uses.
+  //
+  // The harness exposes the filter so we can assert the "icon-only send button
+  // in a form" case — without the recent fix the function returned false for an
+  // empty-text button regardless of form association, dropping the real send
+  // button on sites that hide the icon.
   describe('trySemanticFallback button filter', () => {
     type FilterHarness = {
       trySemanticFallback: (
@@ -175,6 +180,7 @@ describe('selectorEngine template behavior', () => {
       const roundMs = (v) => Math.round(v);
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const CONFIDENCE_THRESHOLD_MEDIUM = 0.3;
+      const CONFIDENCE_THRESHOLD_HIGH = 0.7;
       const getSearchRoots = () => [document];
       const getAutomationCache = () => ({ elements: {}, pageUrl: location.href });
       const isReadyForInteraction = (el) => !!el && el.isConnected;
@@ -188,6 +194,7 @@ describe('selectorEngine template behavior', () => {
       const tryGeminiComposerFallback = () => null;
       const tryGeminiButtonFallback = () => null;
       const uniqueElements = (arr) => Array.from(new Set(arr));
+      ${selectorRepairRuntime}
       ${siteStrategyRuntime}
       ${selectorEngine}
       return { trySemanticFallback }
