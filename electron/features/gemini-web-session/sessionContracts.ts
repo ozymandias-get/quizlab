@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   GeminiWebSessionActionResult,
   GeminiWebSessionRefreshEvent,
   GeminiWebSessionRefreshReason,
@@ -20,11 +20,6 @@ export interface ProbeExecutionResult {
 
 export interface LockResult {
   ok: boolean
-  error?: string
-}
-
-interface RefreshExecutionResult {
-  success: boolean
   error?: string
 }
 
@@ -70,8 +65,6 @@ export interface SessionExportDataV2 {
   /** Base64-encoded safeStorage-encrypted blob of the original JSON. */
   encrypted: string
 }
-
-export type SessionExportData = SessionExportDataV1 | SessionExportDataV2
 
 export interface SessionImportResult {
   success: boolean

@@ -6,7 +6,6 @@ import type {
 
 import type { Session } from 'electron'
 import { promises as fs } from 'fs'
-import path from 'path'
 
 import { Logger } from '../../core/logger.js'
 import { HealthCheckPolicy } from './healthCheckPolicy.js'
@@ -75,7 +74,6 @@ export class SessionOrchestrator {
     this.recovery = new SessionRecovery({
       resolvePersistentSession: () => this.resolvePersistentSession(),
       ensureProfileDirectory: () => this.ensureProfileDirectory(),
-      snapshotRepository: this.snapshotRepository,
       metadataRepository: this.metadataRepository
     })
     this.monitor = new SessionMonitor()
@@ -106,7 +104,7 @@ export class SessionOrchestrator {
       monitor: this.monitor,
       initialize: () => this.initialize(),
       scheduleMonitor: () => this.scheduleMonitor(),
-      performHealthCheck: (opts) => this.healthCheckPolicy.performHealthCheck(opts)
+      performHealthCheck: () => this.healthCheckPolicy.performHealthCheck()
     })
   }
 
@@ -127,7 +125,7 @@ export class SessionOrchestrator {
     const metadata = await this.metadataRepository.readMetadata()
     if (FEATURE_ENABLED && metadata.enabled) {
       this.scheduleMonitor()
-      void this.healthCheckPolicy.performHealthCheck({ allowRetry: false }).catch((error) => {
+      void this.healthCheckPolicy.performHealthCheck().catch((error) => {
         logSuppressedError('initial Gemini health check failed', error)
       })
     }
@@ -217,7 +215,7 @@ export class SessionOrchestrator {
     if (current.state === 'authenticated') return { ok: true, status: current }
     if (current.state === 'reauth_required')
       return { ok: false, error: 'reauth_required', status: current }
-    const result = await this.healthCheckPolicy.performHealthCheck({ allowRetry: true })
+    const result = await this.healthCheckPolicy.performHealthCheck()
     if (result.state === 'authenticated') return { ok: true, status: result }
     if (result.state === 'reauth_required')
       return { ok: false, error: 'reauth_required', status: result }

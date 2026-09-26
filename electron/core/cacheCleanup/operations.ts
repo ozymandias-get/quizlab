@@ -1,19 +1,11 @@
-﻿import { promises as fs } from 'fs'
+import { promises as fs } from 'fs'
 import path from 'path'
 
 import { APP_CONFIG } from '../../app/constants.js'
 import { collectExpiredFiles, getDirectorySize, measureCacheBreakdown } from '../cacheMonitor.js'
-import { getActivityCategory } from '../cacheRegistry.js'
-import { getCacheRules } from '../cacheRegistry.js'
+import { getActivityCategory, getCacheRules } from '../cacheRegistry.js'
 import { Logger } from '../logger.js'
-import {
-  cleanupOrphanedTempFiles,
-  deleteBatch,
-  deleteDirectoryContents,
-  formatBytes,
-  safeDeleteFile
-} from './cacheCleanupHelpers.js'
-import type { CleanupResult } from './types.js'
+import { deleteBatch } from './cacheCleanupHelpers.js'
 
 const {
   MAX_TOTAL_CACHE_BYTES,

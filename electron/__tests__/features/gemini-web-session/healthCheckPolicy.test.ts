@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tests for electron/features/gemini-web-session/healthCheckPolicy.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -83,25 +83,25 @@ describe('HealthCheckPolicy', () => {
   describe('performHealthCheck', () => {
     it('returns degraded when lock cannot be acquired', async () => {
       mocked.acquire.mockResolvedValueOnce({ ok: false, error: 'already_in_use' })
-      const result = await policy.performHealthCheck({ allowRetry: false })
+      const result = await policy.performHealthCheck()
       expect(result.state).toBe('degraded')
       expect(result.reasonCode).toBe('unknown')
     })
 
     it('returns early when feature is disabled', async () => {
       mocked.FEATURE_ENABLED = false
-      const result = await policy.performHealthCheck({ allowRetry: false })
+      const result = await policy.performHealthCheck()
       expect(result.state).not.toBe('authenticated')
     })
 
     it('returns early when metadata says disabled', async () => {
       mocked.readMetadata.mockResolvedValueOnce({ enabled: false, state: 'uninitialized' })
-      const result = await policy.performHealthCheck({ allowRetry: false })
+      await policy.performHealthCheck()
       expect(mocked.writeStatus).not.toHaveBeenCalled()
     })
 
     it('runs profile health check', async () => {
-      await policy.performHealthCheck({ allowRetry: false })
+      await policy.performHealthCheck()
       expect(mocked.checkProfileHealth).toHaveBeenCalled()
     })
 
@@ -113,7 +113,7 @@ describe('HealthCheckPolicy', () => {
         profileSizeBytes: 0,
         profileSizeWarning: false
       })
-      const result = await policy.performHealthCheck({ allowRetry: false })
+      const result = await policy.performHealthCheck()
       expect(mocked.runAutoProfileRecovery).toHaveBeenCalled()
       expect(result.state).toBe('auth_required')
     })
@@ -130,16 +130,13 @@ describe('HealthCheckPolicy', () => {
         profileSizeBytes: 0,
         profileSizeWarning: false
       })
-      const result = await policy.performHealthCheck({ allowRetry: false })
+      const result = await policy.performHealthCheck()
       expect(result.state).toBe('reauth_required')
       expect(result.reasonCode).toBe('auto_profile_recovery')
     })
 
     it('deduplicates concurrent checks', async () => {
-      const [r1, r2] = await Promise.all([
-        policy.performHealthCheck({ allowRetry: false }),
-        policy.performHealthCheck({ allowRetry: false })
-      ])
+      await Promise.all([policy.performHealthCheck(), policy.performHealthCheck()])
       expect(mocked.checkProfileHealth).toHaveBeenCalledTimes(1)
     })
   })

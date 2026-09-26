@@ -1,4 +1,4 @@
-﻿import type { AutomationConfig, TextInputMode } from '@shared-core/types'
+import type { AutomationConfig, TextInputMode } from '@shared-core/types'
 import type {
   AutomationScriptAction,
   AutomationScriptArgsByAction,
@@ -83,7 +83,7 @@ export function registerAutomationHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
-    (event, ...invokeArgs: AutomationScriptInvokeArgs) => {
+    (_event, ...invokeArgs: AutomationScriptInvokeArgs) => {
       try {
         const [action, ...args] = invokeArgs
 

@@ -1,4 +1,4 @@
-﻿import { app, net, shell } from 'electron'
+import { app, net, shell } from 'electron'
 
 import { failure, success } from '../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../app/constants.js'
@@ -152,7 +152,7 @@ export function initUpdater() {
 
   registerIpcHandler(
     IPC_CHANNELS.CHECK_FOR_UPDATES,
-    async (event) => {
+    async (_event) => {
       if (isChecking) return success({ available: !!updateInfo, cached: true })
 
       const now = Date.now()

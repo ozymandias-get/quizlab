@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Kullanıcı Tanımlı Element Seçici (Picker) Modülü
  *
  * Bu modül, webview içine enjekte edilecek ve kullanıcının

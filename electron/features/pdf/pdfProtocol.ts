@@ -1,4 +1,4 @@
-﻿import crypto from 'crypto'
+import crypto from 'crypto'
 import { app, dialog, protocol } from 'electron'
 import fs from 'fs'
 import path from 'path'
@@ -231,7 +231,7 @@ export function registerPdfProtocolHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.SELECT_FOLDER,
-    async (event, options = {}) => {
+    async (_event, options = {}) => {
       const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openDirectory'],
         title: options.title || 'Select Folder',
@@ -248,7 +248,7 @@ export function registerPdfProtocolHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.SELECT_PDF,
-    async (event, options = {}) => {
+    async (_event, options = {}) => {
       const filterName = options.filterName || 'PDF Documents'
       const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openFile'],
@@ -288,7 +288,7 @@ export function registerPdfProtocolHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.GET_PDF_STREAM_URL,
-    async (event, filePath) => {
+    async (_event, filePath) => {
       if (!filePath) return failure('invalid_input', 'File path is required')
 
       try {
@@ -322,7 +322,7 @@ export function registerPdfProtocolHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.PDF_REGISTER_PATH,
-    async (event, filePath) => {
+    async (_event, filePath) => {
       if (!filePath) return failure('invalid_input', 'File path is required')
       try {
         const stats = await fs.promises.stat(filePath)

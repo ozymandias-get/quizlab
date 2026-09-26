@@ -153,10 +153,6 @@ export function useSendMessageMutation() {
   })
 }
 
-export type {
-  EditAndRegenerateParams,
-  RegenerateParams,
-  SendApiChatResult
-} from './sendMessageUtils'
+export type { SendApiChatResult } from './sendMessageUtils'
 export { useEditAndRegenerateMutation } from './useEditAndRegenerateMutation'
 export { useRegenerateMutation } from './useRegenerateMutation'

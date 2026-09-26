@@ -1,9 +1,8 @@
-﻿import { app } from 'electron'
+import { app } from 'electron'
 import path from 'path'
 
 import { APP_CONFIG } from '../app/constants.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager.js'
-import { Logger } from './logger.js'
 
 type CacheCategory = 'temp' | 'cache' | 'session-cache'
 
@@ -103,7 +102,7 @@ export function getAllPartitionActivities(): Record<
   return result
 }
 
-const { SAFE_CACHE_DIRS, TEMP_FILE_TTL_MS, CACHE_FILE_TTL_MS } = APP_CONFIG.CLEANUP
+const { SAFE_CACHE_DIRS, CACHE_FILE_TTL_MS } = APP_CONFIG.CLEANUP
 
 function partitionCacheRules(partitionKey: string): CacheRule[] {
   // Aktivite bazlı TTL: soğuk partition'lar daha hızlı temizlenir

@@ -1,4 +1,4 @@
-﻿import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { getStorageItem, removeStorageItem, setStorageItem } from '@shared/hooks/localStorageUtils'
 import { Logger } from '@shared/lib/logger'
 

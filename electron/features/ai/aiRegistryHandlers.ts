@@ -40,22 +40,6 @@ const MAX_CUSTOM_AI_URL = 2048
 const CUSTOM_AI_ID_REGEX =
   /^custom_[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i
 
-const makeInvalidInput = (message: string): CustomAiResult => ({
-  ok: false,
-  error: {
-    code: 'invalid_input',
-    message
-  }
-})
-
-const makeInternalError = (message: string): CustomAiResult => ({
-  ok: false,
-  error: {
-    code: 'internal_error',
-    message
-  }
-})
-
 const normalizeCustomAiName = (name: unknown): string | null => {
   if (typeof name !== 'string') return null
   const normalized = name.trim()
@@ -95,7 +79,7 @@ export function registerAiRegistryHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.ADD_CUSTOM_AI,
-    async (event, platformData: AddCustomAiInput) => {
+    async (_event, platformData: AddCustomAiInput) => {
       try {
         const name = normalizeCustomAiName(platformData?.name)
         const normalizedUrl = normalizeCustomAiUrl(platformData?.url)
@@ -166,7 +150,7 @@ export function registerAiRegistryHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.DELETE_CUSTOM_AI,
-    async (event, id: string) => {
+    async (_event, id: string) => {
       if (typeof id !== 'string' || !CUSTOM_AI_ID_REGEX.test(id)) {
         return success(false)
       }
@@ -193,7 +177,7 @@ export function registerAiRegistryHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.GET_AI_REGISTRY,
-    async (event, forceRefresh: boolean = false) => {
+    async (_event, forceRefresh: boolean = false) => {
       try {
         const customPlatforms = await manager.read(forceRefresh)
 
@@ -248,7 +232,7 @@ export function registerAiRegistryHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.IS_AUTH_DOMAIN,
-    (event, urlOrHostname: string) => {
+    (_event, urlOrHostname: string) => {
       try {
         const parsed = new URL(urlOrHostname)
         return success(isAuthDomain(parsed.hostname))

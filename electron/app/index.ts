@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog } from 'electron'
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 

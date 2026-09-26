@@ -1,10 +1,10 @@
-﻿import { app } from 'electron'
+import { app } from 'electron'
 
 import { APP_CONFIG } from '../../app/constants.js'
 import { measureCacheBreakdown, measureSmartCacheBreakdown } from '../cacheMonitor.js'
 import { Logger } from '../logger.js'
 import { cleanupOrphanedTempFiles, formatBytes } from './cacheCleanupHelpers.js'
-import { isIdleState, startIdleDetection, stopIdleDetection } from './idle.js'
+import { isIdleState } from './idle.js'
 import { cleanupExpiredCacheFiles, enforceSizeLimits } from './operations.js'
 import type { CacheInfo, CleanupResult } from './types.js'
 
@@ -236,8 +236,4 @@ export async function getCacheInfo(): Promise<CacheInfo> {
       isIdle: isIdleState()
     }
   }
-}
-
-export async function getSmartCacheInfo(): Promise<CacheInfo> {
-  return getCacheInfo()
 }

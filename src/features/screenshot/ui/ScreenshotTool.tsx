@@ -1,4 +1,4 @@
-﻿import { useCaptureScreen } from '@platform/electron/api/useSystemApi'
+import { useCaptureScreen } from '@platform/electron/api/useSystemApi'
 
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'

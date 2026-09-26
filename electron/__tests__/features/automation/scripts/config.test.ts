@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { serializeAutomationConfig } from '../../../../features/automation/scripts/config.js'
 

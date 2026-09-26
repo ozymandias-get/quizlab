@@ -1,4 +1,4 @@
-﻿import { cn } from '@shared/lib/uiUtils'
+import { cn } from '@shared/lib/uiUtils'
 
 import * as SliderPrimitive from '@radix-ui/react-slider'
 import { type ComponentPropsWithoutRef, type ElementRef, forwardRef } from 'react'

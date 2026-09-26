@@ -1,11 +1,4 @@
-﻿import type {
-  AiPlatform,
-  AiPlatformMeta,
-  AiRegistry,
-  AiSelectorConfig,
-  InactivePlatforms,
-  SubmitMode
-} from '@shared-core/types'
+import type { AiPlatform, AiRegistry, InactivePlatforms } from '@shared-core/types'
 
 import { normalizeSubmitMode } from '../../../shared/selectorConfig.js'
 import { APP_CONFIG } from '../../app/constants.js'
@@ -160,10 +153,6 @@ const inactivePlatforms: InactivePlatforms = {
 const AI_REGISTRY: AiRegistry = platforms
 
 const DEFAULT_AI_ID = 'chatgpt'
-
-const GET_AI_CONFIG = (id: string): AiPlatform => {
-  return platforms[id] || platforms[DEFAULT_AI_ID]
-}
 
 export {
   AI_REGISTRY,

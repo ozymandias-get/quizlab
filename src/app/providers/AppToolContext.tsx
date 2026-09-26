@@ -30,7 +30,6 @@ export interface AppToolFlagsState {
 
 type AppToolScreenshotState = Pick<AppToolFlagsState, 'isScreenshotMode'>
 type AppToolPickerState = Pick<AppToolFlagsState, 'isPickerActive'>
-type AppToolGeminiSessionState = Pick<AppToolFlagsState, 'isGeminiWebSessionRefreshing'>
 
 interface AppToolActionsType {
   startScreenshot: (imageMeta?: QueuedImageMeta) => void
@@ -52,7 +51,6 @@ const AppToolQueueContext = createContext<AppToolQueueState | null>(null)
 const AppToolFlagsContext = createContext<AppToolFlagsState | null>(null)
 const AppToolScreenshotContext = createContext<AppToolScreenshotState | null>(null)
 const AppToolPickerContext = createContext<AppToolPickerState | null>(null)
-const AppToolGeminiSessionContext = createContext<AppToolGeminiSessionState | null>(null)
 const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
 
 function AppToolProvider({ children }: { children: ReactNode }) {
@@ -117,13 +115,6 @@ function AppToolProvider({ children }: { children: ReactNode }) {
 
   const pickerValue = useMemo<AppToolPickerState>(() => ({ isPickerActive }), [isPickerActive])
 
-  const geminiSessionValue = useMemo<AppToolGeminiSessionState>(
-    () => ({
-      isGeminiWebSessionRefreshing
-    }),
-    [isGeminiWebSessionRefreshing]
-  )
-
   const actionsValue = useMemo<AppToolActionsType>(
     () => ({
       startScreenshot,
@@ -162,11 +153,9 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       <AppToolFlagsContext.Provider value={flagsValue}>
         <AppToolScreenshotContext.Provider value={screenshotValue}>
           <AppToolPickerContext.Provider value={pickerValue}>
-            <AppToolGeminiSessionContext.Provider value={geminiSessionValue}>
-              <AppToolActionsContext.Provider value={actionsValue}>
-                {children}
-              </AppToolActionsContext.Provider>
-            </AppToolGeminiSessionContext.Provider>
+            <AppToolActionsContext.Provider value={actionsValue}>
+              {children}
+            </AppToolActionsContext.Provider>
           </AppToolPickerContext.Provider>
         </AppToolScreenshotContext.Provider>
       </AppToolFlagsContext.Provider>
@@ -182,7 +171,7 @@ export const useAppToolQueueState = () => {
   return context
 }
 
-export const useAppToolFlagsState = () => {
+const useAppToolFlagsState = () => {
   const context = useContext(AppToolFlagsContext)
   if (!context) throw new Error('useAppToolFlagsState must be used within AppToolProvider')
   return context
@@ -197,12 +186,6 @@ export const useAppToolScreenshotState = () => {
 export const useAppToolPickerState = () => {
   const context = useContext(AppToolPickerContext)
   if (!context) throw new Error('useAppToolPickerState must be used within AppToolProvider')
-  return context
-}
-
-export const useAppToolGeminiSessionState = () => {
-  const context = useContext(AppToolGeminiSessionContext)
-  if (!context) throw new Error('useAppToolGeminiSessionState must be used within AppToolProvider')
   return context
 }
 

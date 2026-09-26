@@ -1,4 +1,4 @@
-import type { ElectronApi, WaitForSubmitReadyOptions } from '@shared-core/types/ipcContract'
+import type { ElectronApi } from '@shared-core/types/ipcContract'
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 

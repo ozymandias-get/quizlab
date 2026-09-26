@@ -1,4 +1,4 @@
-﻿import type { PdfSelection, PdfSelectOptions } from '@shared-core/types'
+import type { PdfSelection, PdfSelectOptions } from '@shared-core/types'
 
 import { useElectronMutation } from '../useElectron'
 

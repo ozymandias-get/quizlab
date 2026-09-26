@@ -1,4 +1,4 @@
-﻿import { app, type BrowserWindow, screen } from 'electron'
+import { app, type BrowserWindow, screen } from 'electron'
 import path from 'path'
 
 import { ConfigManager } from '../../core/ConfigManager.js'

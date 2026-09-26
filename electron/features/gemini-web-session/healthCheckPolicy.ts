@@ -1,4 +1,4 @@
-﻿import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
+import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-core/types'
 
 import { Logger } from '../../core/logger.js'
 import type { ProfileHealthChecker } from './profileHealthChecker.js'
@@ -29,12 +29,19 @@ export class HealthCheckPolicy {
     return this.activeCheck
   }
 
-  async performHealthCheck(options: { allowRetry: boolean }): Promise<GeminiWebSessionStatus> {
+  /**
+   * Runs one profile health check, de-duplicating concurrent callers.
+   *
+   * Takes no retry option on purpose: there is no retry loop here. Retry and
+   * cooldown gating belong to `RefreshTriggerPolicy`, which calls
+   * `SessionRecovery.runSilentRefreshProbe` directly. A former `allowRetry`
+   * argument was accepted and ignored here.
+   */
+  async performHealthCheck(): Promise<GeminiWebSessionStatus> {
     if (this.activeCheck) return this.activeCheck
 
     this.activeCheck = (async () => {
-      const { metadataRepository, profileLock, recovery, config, profileHealthChecker } =
-        this.context
+      const { metadataRepository, profileLock, recovery, profileHealthChecker } = this.context
       const currentBeforeCheck = await metadataRepository.readMetadata()
 
       if (!FEATURE_ENABLED || !currentBeforeCheck.enabled) {

@@ -1,4 +1,4 @@
-﻿import type { CacheBreakdown, PartitionDetail } from '../cacheMonitor.js'
+import type { CacheBreakdown, PartitionDetail } from '../cacheMonitor.js'
 
 export interface CleanupResult {
   filesDeleted: number
@@ -7,7 +7,7 @@ export interface CleanupResult {
   duration: number
 }
 
-export interface SmartRecommendation {
+interface SmartRecommendation {
   action: string
   reason: string
   targetPartitions: string[]

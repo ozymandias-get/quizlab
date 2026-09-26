@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AI Platform & Registry Types
  */
 

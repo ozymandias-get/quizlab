@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Akıllı Cache Zamanlayıcı (Smart Scheduler)
  *
  * Önbellek temizliğini periyodik ve baskı bazlı tetikler:

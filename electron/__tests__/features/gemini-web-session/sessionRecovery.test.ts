@@ -1,4 +1,4 @@
-﻿import type { Session } from 'electron'
+import type { Session } from 'electron'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {

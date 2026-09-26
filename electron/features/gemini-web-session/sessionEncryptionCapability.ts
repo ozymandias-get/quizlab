@@ -15,7 +15,7 @@ import { Logger } from '../../core/logger.js'
 /** Backend name Electron uses when no OS keystore is actually in use. */
 const WEAK_BACKEND = 'basic_text'
 
-export type EncryptionUnavailableReason = 'unavailable' | 'weak_backend' | 'backend_unknown'
+type EncryptionUnavailableReason = 'unavailable' | 'weak_backend' | 'backend_unknown'
 
 export type EncryptionUnavailable = {
   available: false
