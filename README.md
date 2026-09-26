@@ -234,7 +234,7 @@ npm run test:coverage # Coverage report
 
 # Analysis
 npm run analyze:all  # Full analysis suite (bundle, types, dead code, duplicates, circular deps, etc.)
-npm run analyze:security  # Electronegativity + Semgrep security scan
+npm run analyze:security  # Semgrep + production audit + Electronegativity (all blocking)
 
 # Build for production
 npm run build:win    # Windows NSIS installer
