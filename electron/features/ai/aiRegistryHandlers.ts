@@ -8,6 +8,10 @@ import path from 'path'
 import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/googleAiWebApps.js'
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
+import {
+  registerCustomPlatformOrigin,
+  unregisterCustomPlatformOrigin
+} from '../../app/window/permissionPolicy.js'
 import { setupAiSession } from '../../app/window/sessions.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
 import { getCustomPlatformsPath } from '../../core/coreHelpers.js'
@@ -134,6 +138,11 @@ export function registerAiRegistryHandlers() {
 
         await manager.setItem(id, newPlatform)
         try {
+          // Bind the partition to the origin the user actually chose. Without
+          // this the permission policy has no trusted host for the platform
+          // and would deny every permission; with it, passive capabilities
+          // work while ambient ones stay default-denied.
+          registerCustomPlatformOrigin(newPlatform.partition!, newPlatform.url)
           if (newPlatform.partition) setupAiSession(newPlatform.partition)
         } catch (error) {
           Logger.warn('[AI] Failed to configure custom session permissions:', error)
@@ -169,6 +178,8 @@ export function registerAiRegistryHandlers() {
           await fs.promises.rm(partitionDir, { recursive: true, force: true }).catch(() => {})
         } catch {}
 
+        unregisterCustomPlatformOrigin(`persist:ai_custom_${id}`)
+
         return success(deleted)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
@@ -191,6 +202,10 @@ export function registerAiRegistryHandlers() {
         for (const platform of Object.values(customPlatforms)) {
           if (!platform.partition?.startsWith('persist:ai_custom_')) continue
           try {
+            // Re-bind the saved origin on every registry read. This runs after
+            // a restart, so without it a custom platform would have no trusted
+            // host and the permission policy would deny it.
+            registerCustomPlatformOrigin(platform.partition, platform.url)
             setupAiSession(platform.partition)
           } catch (error) {
             Logger.warn('[AI] Failed to configure custom session permissions:', error)

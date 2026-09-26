@@ -3,12 +3,15 @@ import { BrowserWindow, desktopCapturer, session } from 'electron'
 
 import { markPartitionActive } from '../../core/cacheRegistry.js'
 import { Logger } from '../../core/logger.js'
-import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 import { APP_CONFIG } from '../constants.js'
 import { showDisplayMediaPicker } from '../displayMediaPicker.js'
-
-const ALLOWED_DEFAULT_PERMISSIONS = new Set(['notifications', 'media'])
-const ALLOWED_AI_PERMISSIONS = new Set(['notifications', 'media', 'geolocation', 'display-capture'])
+import { resolveWebPermission } from './permissionConsent.js'
+import {
+  APP_SESSION_PARTITION,
+  evaluateWebPermission,
+  listManagedAiPartitions,
+  type WebPermissionRequest
+} from './permissionPolicy.js'
 
 export type MainWindowResolver = () => BrowserWindow | null
 
@@ -63,6 +66,64 @@ const configuredAiPartitions = new Set<string>()
 
 const defaultMainWindowResolver: MainWindowResolver = () => BrowserWindow.getFocusedWindow()
 
+/** Chromium reports the requesting frame; anything unusable falls back to a deny. */
+function toPolicyRequest(
+  partition: string,
+  permission: string,
+  details: { requestingUrl?: string; requestingOrigin?: string; isMainFrame?: boolean } | undefined
+): WebPermissionRequest {
+  return {
+    partition,
+    permission,
+    requestingUrl: details?.requestingUrl,
+    requestingOrigin: details?.requestingOrigin,
+    isMainFrame: details?.isMainFrame
+  }
+}
+
+/**
+ * Attaches the shared policy to a session.
+ *
+ * Both handlers delegate to {@link evaluateWebPermission}; the only difference
+ * is that a request may pause for user consent while a check must answer
+ * synchronously. Chromium consults the check handler before some Web APIs
+ * (Geolocation in particular), so answering only requests would leave those
+ * paths unguarded.
+ */
+function applyPermissionPolicy(
+  targetSession: Electron.Session,
+  partition: string,
+  getMainWindow: MainWindowResolver
+): void {
+  targetSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
+    const request = toPolicyRequest(partition, permission, details)
+    const decision = evaluateWebPermission(request)
+    if (!decision.requiresConsent) {
+      if (!decision.granted) {
+        Logger.warn(
+          `[Sessions] Denied ${permission} in ${partition} ` +
+            `(origin: ${request.requestingOrigin ?? 'unknown'}, reason: ${decision.reason})`
+        )
+      }
+      callback(decision.granted)
+      return
+    }
+    void resolveWebPermission(request, decision, getMainWindow).then(callback)
+  })
+
+  targetSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin, details) => {
+    const request = toPolicyRequest(partition, permission, {
+      requestingOrigin,
+      requestingUrl: details?.requestingUrl,
+      isMainFrame: details?.isMainFrame ?? true
+    })
+    // A synchronous handler cannot show UI. A capability that still needs
+    // consent is reported as not-yet-permitted; the check passes once
+    // resolveWebPermission has recorded the user's decision.
+    return evaluateWebPermission(request).granted
+  })
+}
+
 export function setupAiSession(
   partition: string,
   getMainWindow: MainWindowResolver = defaultMainWindowResolver
@@ -89,12 +150,7 @@ export function setupAiSession(
     callback({ requestHeaders: details.requestHeaders })
   })
 
-  aiSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(ALLOWED_AI_PERMISSIONS.has(permission))
-  })
-  aiSession.setPermissionCheckHandler((_webContents, permission) =>
-    ALLOWED_AI_PERMISSIONS.has(permission as string)
-  )
+  applyPermissionPolicy(aiSession, partition, getMainWindow)
 
   aiSession.setDisplayMediaRequestHandler((request, callback) => {
     void handleDisplayMediaRequest(request, callback, getMainWindow)
@@ -109,18 +165,10 @@ export function setupSessions(getMainWindow: MainWindowResolver) {
   try {
     const defaultSession = session.defaultSession
     if (defaultSession) {
-      defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-        callback(ALLOWED_DEFAULT_PERMISSIONS.has(permission))
-      })
-      defaultSession.setPermissionCheckHandler((_webContents, permission) =>
-        ALLOWED_DEFAULT_PERMISSIONS.has(permission)
-      )
+      applyPermissionPolicy(defaultSession, APP_SESSION_PARTITION, getMainWindow)
     }
 
-    const aiPartitions = new Set<string>()
-    if (APP_CONFIG.PARTITIONS.AI) aiPartitions.add(APP_CONFIG.PARTITIONS.AI)
-    for (const p of Object.values(AI_REGISTRY)) p.partition && aiPartitions.add(p.partition)
-    for (const p of Object.values(INACTIVE_PLATFORMS)) p.partition && aiPartitions.add(p.partition)
+    const aiPartitions = new Set<string>(listManagedAiPartitions())
 
     for (const partition of aiPartitions) {
       setupAiSession(partition, getMainWindow)
