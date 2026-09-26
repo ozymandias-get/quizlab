@@ -68,7 +68,12 @@ export function canonicalizeHostname(hostname: unknown): string | null {
 }
 
 export function normalizeSelectorHealth(value: unknown): SelectorHealth | undefined {
-  if (value === 'ready' || value === 'migrated' || value === 'needs_repick') {
+  if (
+    value === 'ready' ||
+    value === 'migrated' ||
+    value === 'repaired' ||
+    value === 'needs_repick'
+  ) {
     return value
   }
 
