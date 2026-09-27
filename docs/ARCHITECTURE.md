@@ -2,6 +2,11 @@
 
 This document defines stable architectural boundaries for the Quizlab Reader codebase.
 
+For the runtime picture — which process does what, and how renderer, preload and
+main talk to each other — see the Architecture section of
+[README.md](../README.md). This document is about the rules that changes must
+respect.
+
 ## Layers
 
 | Layer           | Path                         | Purpose                                                                           |

@@ -1,361 +1,430 @@
-<h1 align="center">Quizlab Reader</h1>
+# Quizlab Reader
 
 <p align="center">
-  <strong>AI-Powered PDF Study Workspace</strong>
-  <br>
-  <sub>Read, highlight, and send content to AI platforms — all in one split-screen desktop app.</sub>
+  A local-first desktop workspace for reading PDFs side by side with AI assistants.
 </p>
 
 <p align="center">
-  <a href="README_TR.md">🇹🇷 Türkçe</a>
+  <a href="README_TR.md">Türkçe</a>
   &nbsp;•&nbsp;
-  <a href="https://github.com/ozymandias-get/quizlab/releases">📦 Releases</a>
+  <a href="https://github.com/ozymandias-get/quizlab/releases">Releases</a>
   &nbsp;•&nbsp;
-  <a href="CONTRIBUTING.md">🤝 Contributing</a>
+  <a href="CONTRIBUTING.md">Contributing</a>
   &nbsp;•&nbsp;
-  <a href="SECURITY.md">🔒 Security</a>
+  <a href="SECURITY.md">Security</a>
   &nbsp;•&nbsp;
-  <a href="docs/ARCHITECTURE.md">📐 Architecture</a>
+  <a href="docs/ARCHITECTURE.md">Architecture</a>
   &nbsp;•&nbsp;
-  <a href="docs/ROADMAP.md">🗺️ Roadmap</a>
+  <a href="docs/ROADMAP.md">Roadmap</a>
   <br>
-  <img alt="GitHub version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&query=%24.version&label=version&color=blue">
+  <img alt="Version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&query=%24.version&label=version&color=blue">
 </p>
 
 ---
 
-## 📋 Table of Contents
+## Overview
 
-- [✨ Features](#-features)
-- [📖 Overview](#-overview)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🌐 Internationalization](#-internationalization)
-- [📦 Installation](#-installation)
-- [⚙️ Developer Guide](#️-developer-guide)
-- [🔬 CI/CD Pipeline](#-cicd-pipeline)
-- [📂 Project Structure](#-project-structure)
-- [🔒 Security & Privacy](#-security--privacy)
-- [📄 License](#-license)
+Quizlab Reader keeps a PDF reader and a set of AI assistants in one window. The
+left panel is a multi-tab PDF workspace; the right panel holds tabbed AI
+sessions, each one an isolated `<webview>` with its own persistent Chromium
+session. Selected text, page images and cropped screenshots are collected in a
+floating send composer and delivered into the active AI tab through DOM
+automation, so you never have to leave the document you are reading.
 
----
+It is built for people who read papers, lecture notes and textbooks and want to
+ask an AI about them. The app bundles no analytics and never uploads your
+documents: everything it writes stays under its own user-data folder on your
+machine. Network traffic only happens where you point it — the AI sites you
+open, the model providers you configure, the localhost cookie bridge, and a
+GitHub Releases lookup for the update notifier.
 
-## ✨ Features
+## Screenshots
 
-<table>
-  <tr>
-    <td width="50%">
-      <h4>📑 Multi-Tab PDF Workspace</h4>
-      Open, read, search, and swap layouts in a fully customizable pane with smooth scrolling and fast rendering.
-    </td>
-    <td width="50%">
-      <h4>🤖 Multi-AI Integration</h4>
-      Built-in support for <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, <strong>DeepSeek</strong>, <strong>Perplexity</strong>, <strong>Mistral</strong>, <strong>Grok</strong>, and more — all accessible from one workspace.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>⚡ Instant Handoff Pipelines</h4>
-      Drag screenshots or send highlighted text straight into the active AI tab with zero context-switching.
-    </td>
-    <td width="50%">
-      <h4>🔐 Privacy-First Architecture</h4>
-      Your PDFs, credentials, and session data remain strictly local. No telemetry, no cloud uploads. AES-256-GCM encryption for sensitive data.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🎨 Glassmorphic UI</h4>
-      Dynamic background animations, adjustable glass scales, directionally-lit panels, and refined stone tones.
-    </td>
-    <td width="50%">
-      <h4>📚 Prompt Library</h4>
-      Store context prompts, design study macros, and configure automated data-flow routines for quick recall.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🛡️ Secure PDF Protocol</h4>
-      Custom <code>local-pdf://</code> stream protocol for bulletproof security and fast rendering with byte-range support.
-    </td>
-    <td width="50%">
-      <h4>🌐 Custom AI Sites</h4>
-      Easily configure and save custom web endpoints with targeted CSS input hooks for any AI surface.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>💬 Direct API Chat</h4>
-      Chat directly with AI models using your own API keys (Gemini, ChatGPT, Claude, OpenRouter-compatible) in a native, privacy-first interface.
-    </td>
-    <td width="50%">
-      <h4>⚙️ Flexible Key Management</h4>
-      Securely configure, test, and save your custom API keys and model parameters directly from the settings panel.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🔍 Screenshot & Capture</h4>
-      Capture full-page or cropped screenshots, copy to clipboard, or send directly to AI.
-    </td>
-    <td width="50%">
-      <h4>🤖 Gemini Web Session</h4>
-      Persistent Google AI sessions with cookie-based auth, health monitoring, automatic recovery, and session export/import.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🖱️ Element Picker</h4>
-      Magic CSS selector picker for targeting AI chat inputs — no manual configuration needed.
-    </td>
-    <td width="50%">
-      <h4>🔌 Chrome Extension Bridge</h4>
-      Native messaging host + Chrome extension for sharing Google session cookies between Chrome and Electron.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>📖 Interactive Tutorials</h4>
-      Built-in guided tutorials for onboarding and feature discovery.
-    </td>
-    <td width="50%">
-      <h4>🗣️ Full i18n Support</h4>
-      Complete English and Turkish localization with 19 translation namespaces each.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-  <h4>🔄 Update Notifications</h4>
-  Update checks against GitHub Releases with semver comparison; new versions are announced in-app with a direct link to the release page.
-    </td>
-    <td width="50%">
-      <h4>🧹 Cache Management</h4>
-      Intelligent cache monitoring, cleanup scheduler, and threshold warnings at 80% capacity.
-    </td>
-  </tr>
-</table>
+**Workspace home** — every registered model and site in one launchpad, next to
+the PDF panel and the tool hub:
 
----
+![Workspace home with AI models, the PDF panel and the tool hub](docs/images/workspace-home-ai-models.png)
 
-## 📖 Overview
+**Reading and sending** — a PDF page on the left, ChatGPT on the right, and the
+send composer with quick prompts ready:
 
-**Quizlab Reader** is a state-of-the-art, open-source, local-first desktop workspace that brings native document reading and multiple AI interfaces together under a unified Glassmorphic UI. Designed specifically for **academics, researchers, and professional students**, it eliminates constant app-switching and tab-clutter.
+![PDF page next to ChatGPT, with the send composer and quick prompts](docs/images/pdf-chatgpt-send-composer.png)
 
-The application combines a high-performance PDF viewer with embedded AI webviews, direct API chat, automation scripting, and comprehensive session management — all while maintaining strict privacy guarantees with zero telemetry.
+**Focus mode** — the same document expanded to full width, without the AI panel:
 
----
+![Focus mode showing the PDF at full width](docs/images/pdf-focus-mode.png)
 
-## 🛠️ Tech Stack
+**Settings** — the settings modal groups its tabs into AI & Workspace,
+Automation & Integrations, Interface & Appearance, and System & Diagnostics.
 
-| Category              | Technology                                                                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Desktop Framework** | [Electron 42](https://www.electronjs.org/)                                                                           |
-| **UI Library**        | [React 19](https://react.dev/)                                                                                       |
-| **Language**          | [TypeScript 6.0](https://www.typescriptlang.org/)                                                                    |
-| **Bundler**           | [Vite 8](https://vitejs.dev/)                                                                                        |
-| **PDF Engine**        | [pdfjs-dist 3.11](https://mozilla.github.io/pdf.js/) + [@react-pdf-viewer 3.12](https://react-pdf-viewer.dev/)       |
-| **Styling**           | [Tailwind CSS 4](https://tailwindcss.com/)                                                                           |
-| **Animation**         | [Motion](https://motion.dev/) (formerly Framer Motion)                                                               |
-| **State Management**  | [Zustand 5](https://zustand-demo.pmnd.rs/) + [TanStack React Query 5](https://tanstack.com/query/latest)             |
-| **AI Automation**     | [Playwright](https://playwright.dev/) (webview session management & scripting)                                       |
-| **UI Components**     | [Radix UI](https://www.radix-ui.com/) + [Headless UI](https://headlessui.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| **Icons**             | [Lucide](https://lucide.dev/) via semantic icon registry + custom SVG icon set                                       |
-| **Particles**         | [tsParticles](https://particles.js.org/)                                                                             |
-| **Fonts**             | [Inter Variable](https://fonts.google.com/specimen/Inter) via Fontsource                                             |
-| **i18n**              | [i18next](https://www.i18next.com/) + [react-i18next](https://react.i18next.com/)                                    |
-| **Testing**           | [Vitest 4](https://vitest.dev/) + [Testing Library](https://testing-library.com/)                                    |
-| **Linting**           | [ESLint 10](https://eslint.org/) + [Prettier](https://prettier.io/)                                                  |
-| **Security Analysis** | [Electronegativity](https://github.com/doyensec/electronegativity) + [Semgrep](https://semgrep.dev/)                 |
-| **Mutation Testing**  | [Stryker](https://stryker-mutator.io/)                                                                               |
-| **Installer**         | [electron-builder](https://www.electron.build/) + NSIS (Windows)                                                     |
+Prompts — quick commands and the prompt library:
 
----
+![Settings - Prompts tab with quick commands and prompt library](docs/images/settings-prompts.png)
 
-## 🌐 Internationalization
+Models — enable, reorder and pin the models you use, or add your own:
 
-Quizlab Reader is fully localized in two languages:
+![Settings - Models tab with per-model toggles](docs/images/settings-models.png)
 
-| Language    | Code | Namespaces    |
-| ----------- | ---- | ------------- |
-| **English** | `en` | 19 JSON files |
-| **Turkish** | `tr` | 19 JSON files |
+About — version, update check, Windows right-click menu, cache cleaning and
+diagnostics:
 
-Namespaces cover: common UI, navigation, settings, appearance, PDF viewer, AI integration, AI chat, selectors, tutorials, Gemini web session, errors, toasts, notifications, auto-send, and context prompts.
+![Settings - About tab with version, updates, shell integration and cache](docs/images/settings-about.png)
 
-A language selection dialog is shown on first run. Language can be changed at any time from settings.
+## Features
 
-A comprehensive [terminology standard](docs/TERMINOLOGY.md) ensures consistent EN/TR translation across the entire application.
+- **Multi-tab PDF workspace** — open, rename and close documents, search, zoom,
+  page navigation, reading-progress history, drag and drop, plus a Google Drive
+  tab. `Ctrl/Cmd+O` opens a file, `Ctrl/Cmd+F` focuses search.
+- **Split-screen layout** — a draggable divider sets the PDF/AI ratio, and a
+  focus mode expands either side to full width.
+- **Tabbed AI sessions** — ChatGPT, Gemini, AI Studio, YouTube, DeepSeek, Qwen,
+  Claude, Kimi and M365 Copilot are registered out of the box, and custom sites
+  can be added. Each site runs in its own persistent session, so logins survive
+  restarts. An `API Chat` tab provides a native, renderer-drawn chat surface.
+  Gemini, AI Studio and YouTube are only listed while their Google session is
+  enabled in **Settings → Google AI Web Session**.
+- **Send composer** — selected text, a whole page as an image, a selection
+  rectangle, or a cropped screenshot are queued and then delivered in order.
+  Auto Send is a global preference: with it off, the app only stages content and
+  you press send on the site yourself.
+- **Quick prompts** — eight built-in presets (explain, summarize, quiz,
+  flashcard, terms, mechanism, clinical, review) that prepend a prompt to the
+  outgoing message; labels and prompt text are user-editable.
+- **Magic Picker** — pick a chat input and send button on any AI site with the
+  mouse instead of writing CSS. Selectors are stored per hostname and
+  self-heal: when a saved selector breaks, the runtime recovers a replacement
+  and promotes it after the pipeline actually succeeds, subject to confidence
+  and flapping checks.
+- **Direct API chat** — bring your own API key and talk to models over an
+  OpenAI-compatible `/chat/completions` and `/models` endpoint. Provider
+  templates ship for OpenAI, Anthropic, Google and NVIDIA, and `custom` covers
+  any compatible gateway. Requests are made from the main process with SSRF
+  validation and DNS pinning.
+- **Google AI web session** — Gemini, AI Studio and YouTube share one Google
+  sign-in held in a dedicated session partition, with periodic health checks
+  and encrypted export/import. A bundled Chrome extension can hand over existing
+  Google cookies over a localhost bridge.
+- **Appearance** — animated or solid backgrounds, glass scaling, selection
+  colour, accent colour, and a configurable hub/dock for the tools you actually
+  use.
+- **Language** — English and Turkish, selectable on first run and changeable in
+  settings. 19 per-domain JSON bundles per language.
+- **Storage and cache management** — measured cache totals, a scheduled cleanup
+  routine and a warning toast at 80% of the 500 MB budget.
+- **Update notifier** — checks the GitHub Releases API about five seconds after
+  start, compares semver and offers a link to the release page. It never
+  downloads or installs anything.
+- **Guided tours** — five built-in tours (general, PDF, AI, settings, Magic
+  Picker) plus a Usage Guide page in settings.
+- **Windows shell integration** — an optional "Open with QuizLab" entry in the
+  Explorer right-click menu for `.pdf` files, without taking over your default
+  PDF handler.
 
----
+## Tech Stack
 
-## 📦 Installation
+| Area             | Choice                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| Desktop runtime  | Electron 42                                                                           |
+| UI               | React 19, no router (custom state-driven workspace)                                   |
+| Language         | TypeScript 5.9                                                                        |
+| Build            | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (packaging)       |
+| PDF engine       | `pdfjs-dist` 3.11 with `@react-pdf-viewer` 3.12 (core, page-navigation, search, zoom) |
+| Styling          | Tailwind CSS 4 (`@theme` tokens), plus a small number of CSS modules                  |
+| State            | Zustand 5 for cross-component state, TanStack React Query 5 for IPC-backed reads      |
+| UI primitives    | Radix UI, Headless UI, shadcn/ui, Lucide icons                                        |
+| Motion / effects | Motion, tsParticles, Inter Variable (Fontsource)                                      |
+| i18n             | i18next + react-i18next                                                               |
+| Tests            | Vitest 4 + Testing Library                                                            |
+| Lint / format    | ESLint 10, Prettier, Stylelint, cspell, dependency-cruiser                            |
+| Security tooling | Electronegativity, Semgrep, `npm audit`                                               |
+| Packaging        | electron-builder 26 — NSIS (Windows), dmg/zip (macOS), AppImage/deb (Linux)           |
 
-### Requirements
+## Requirements
 
-| Metric       | Minimum                                 | Recommended                           |
-| ------------ | --------------------------------------- | ------------------------------------- |
-| **OS**       | Windows 10 / macOS 10.15 / Ubuntu 20.04 | Windows 11 / macOS 13+ / Ubuntu 22.04 |
-| **RAM**      | 4 GB                                    | 8 GB+                                 |
-| **Storage**  | 500 MB                                  | 2 GB+                                 |
-| **Internet** | Required for AI features                | High-speed broadband                  |
+**To run the app**
 
-### Download
+- Windows 10/11 (x64) — the published installer is a per-user NSIS package. The
+  Explorer right-click entry and the Chrome extension bridge are Windows-only.
+- macOS — `dmg`/`zip` targets are configured, but the release workflow does not
+  build macOS; produce it locally with `npm run build:mac`.
+- Linux — AppImage and `deb` are built in CI.
+- A network connection is required for AI features. Nothing else is needed to
+  read PDFs.
 
-Download the latest installer for your platform from the [Releases page](https://github.com/ozymandias-get/quizlab/releases):
+**To build from source**
 
-| Platform   | Format                                                       |
-| ---------- | ------------------------------------------------------------ |
-| 🪟 Windows | `QuizLab-Setup-<version>-x64.exe` (NSIS installer, per-user) |
-| 🍏 macOS   | `QuizlabReader-<version>.dmg`                                |
-| 🐧 Linux   | `QuizlabReader-<version>.AppImage` or `.deb`                 |
+- Node.js `20.19+`, `22.12+` or `24+` (CI uses 24; Vite and Vitest publish
+  `engines` ranges that exclude some intermediate releases)
+- npm — the lockfile is `package-lock.json` and CI uses `npm ci`
+- Git
+- A Google account, only if you want the Google AI web session
+- API keys, only if you want the direct API chat
+- Google Chrome, only if you want the session-bridge extension
 
-The installer optionally registers a Chrome Native Messaging Host for the Google session bridge extension.
+## Installation
 
----
+Download the installer for your platform from
+[Releases](https://github.com/ozymandias-get/quizlab/releases).
 
-## ⚙️ Developer Guide
+| Platform | Artifact                                                     |
+| -------- | ------------------------------------------------------------ |
+| Windows  | `QuizLab-Setup-<version>-x64.exe` — NSIS, per-user, no admin |
+| Linux    | `.AppImage` (run directly) or `.deb` (install with `dpkg`)   |
+| macOS    | Not built by CI — run `npm run build:mac` locally            |
 
-> [!TIP]
-> **Windows Users**: This repository enforces `LF` line endings. Run <code>git config --global core.autocrlf input</code> before cloning.
+The Windows installer is unsigned, so SmartScreen will warn on first run. It
+installs per user, never requests elevation, and leaves `%AppData%\Quizlab Reader`
+in place on uninstall. See [docs/windows-installer.md](docs/windows-installer.md)
+for the full install story, including the Explorer context-menu entry and
+code-signing readiness.
+
+## Configuration
+
+Almost everything is configured in the app. There is no config file to edit and
+no `.env` loader: the Electron main process reads `process.env` directly, so
+variables must be exported in the shell that launches it. `.env.example`
+documents the full list with defaults; the ones that matter in development are:
+
+| Variable                        | Effect                                                                 |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `APP_RENDERER_URL`              | Dev-server URL the main window loads (default `http://localhost:5173`) |
+| `APP_OPEN_DEVTOOLS=1`           | Open DevTools on startup                                               |
+| `QUIZLAB_PROFILE`               | Suffix for the user-data directory (see below)                         |
+| `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                   |
+| `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                          |
+| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge (default `51999`)          |
+| `GEMINI_WEB_*`                  | Google session health-check intervals and timeouts                     |
+
+Using a `QUIZLAB_PROFILE` other than `stable` also disables the single-instance
+lock, which is useful for running two profiles side by side.
+
+**Where data lives.** The app relocates its user-data directory before anything
+else runs, so profiles never mix:
+
+| Profile  | Directory                                                          |
+| -------- | ------------------------------------------------------------------ |
+| `stable` | `<appData>/Quizlab Reader` — `%AppData%\Quizlab Reader` on Windows |
+| `dev`    | `<appData>/Quizlab Reader Dev` (unpackaged runs)                   |
+| other    | `<appData>/Quizlab Reader <profile>`                               |
+| override | `QUIZLAB_USER_DATA_DIR`                                            |
+
+Inside it: JSON configuration files, `Partitions/<name>/` Chromium session and
+cache data, `logs/`, and the installed copy of the Chrome extension. There is no
+database.
+
+**API keys** are stored in `api_chat_config.json` (mode `0600`) encrypted with
+Electron `safeStorage` where the OS keychain is available, and otherwise with
+AES-256-GCM under a key derived from a machine fingerprint via PBKDF2. The
+fallback obfuscates the value at rest; it is not a substitute for a keychain.
+
+## Usage
+
+1. Launch the app. On first run, pick a language; the general tour then starts.
+2. Drop a PDF on the left panel, or press `Ctrl/Cmd+O`. A tab opens per document.
+3. Open an AI site from the home panel on the right, or add your own under
+   **Settings → Sites**. Sign in once; the session is remembered.
+4. Select text in the PDF, or right-click the page for _Add This Page's Text to
+   AI_ / _Send Page as Image to AI_ / _Add Area Selection as Image to AI_.
+5. Content lands in the send composer. Pick a quick prompt if you want one, then
+   press **Send to AI**.
+6. Turn on **Auto Send** in the composer if you would rather not press send on
+   the site each time.
+7. If a site's layout changes, run **Magic Picker** on that tab and re-pick the
+   input. Until you do, the app refuses to send rather than typing into the
+   wrong element.
+
+## Architecture
+
+```
+Renderer (src/)
+  React workspace: PDF panel, AI webview panel, send composer, settings
+  hooks + TanStack Query over window.electronAPI
+        |  typed invoke (channel -> request/result types)
+        v
+Preload (electron/preload/)
+  contextBridge: one explicit method per allowed channel, nothing else
+        |  ipcRenderer.invoke
+        v
+Main (electron/)
+  ipcMain handlers, trusted-sender check on every call
+  feature modules: ai, automation, gemini-web-session, native-messaging,
+                   pdf, screenshot, settings, shell-open
+  core: config store, encryption, CSP, logging, cache accounting, updater
+        |
+        +--> local-pdf:// protocol  -> local PDF files (allowlist, byte ranges)
+        +--> Chromium partitions   -> per-AI-site cookies and cache
+        +--> model provider HTTP   -> direct API chat (SSRF-validated)
+        +--> GitHub Releases API   -> update notifier
+```
+
+Shared contracts live in `shared/` and are imported by both sides through the
+`@shared-core/*` alias: channel names (`shared/constants/ipcChannels.ts`), the
+request/result map (`shared/types/ipcContract.ts`) and shared domain types.
+
+Two design points worth knowing before changing things: navigation is state,
+not routing — there is no router, and the PDF tabs (Zustand) and AI tabs
+(`useState` behind split contexts) are independent; and every AI interaction
+works by generating JavaScript in the main process and running it inside the
+target `<webview>`, not by driving an external browser.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for layer boundaries, the
+import rules enforced by dependency-cruiser, and the selector self-healing flow.
+
+## Project Structure
+
+```
+electron/            Main process
+  app/               Entry point, window creation, session/CSP/security, IPC wiring
+  core/              Config store, encryption, logging, cache, updater, typed IPC
+  features/          Feature handlers (ai, automation, gemini-web-session,
+                     native-messaging, pdf, screenshot, settings, shell-open)
+  preload/           contextBridge surface
+  __tests__/         Main-process tests
+shared/              Cross-process contracts: IPC channels, types, constants
+src/                 Renderer
+  app/               Shell, providers, app effects, floating composer
+  features/          ai, automation, onboarding, pdf, screenshot, settings, tutorial
+  platform/electron/ Adapters between the app and window.electronAPI
+  shared/            Shared UI, hooks, i18n, styles, stores, lib
+  __tests__/         Renderer tests
+extensions/          Chrome extension for the Google session bridge
+installer/           NSIS custom installer logic
+scripts/             Dev and build automation
+docs/                Architecture, coding standard, terminology, roadmap
+```
+
+## Development
 
 ```bash
-# Clone & install
 git clone https://github.com/ozymandias-get/quizlab.git
 cd quizlab
 npm install
-
-# Development
-npm run dev
-
-# Quality checks
-npm run typecheck    # TypeScript
-npm run lint         # ESLint (zero warnings required)
-npm run test         # Vitest (~2480 tests)
-npm run test:coverage # Coverage report
-
-# Analysis
-npm run analyze:all  # Full analysis suite (bundle, types, dead code, duplicates, circular deps, etc.)
-npm run analyze:security  # Semgrep + production audit + Electronegativity (all blocking)
-
-# Build for production
-npm run build:win    # Windows NSIS installer
-npm run build:mac    # macOS DMG
-npm run build:linux  # Linux AppImage + deb
+npm run dev          # Vite dev server + Electron
 ```
 
-### Commit Convention
+`npm run dev` builds the main process, starts Vite on port 5173 (reusing it if
+this app is already being served there), then launches Electron. It filters known
+Chromium noise from Electron's stderr but prints everything else.
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/):
+Other entry points:
 
-- `feat:` — new feature
-- `fix:` — bug fix
-- `docs:` — documentation
-- `refactor:` — code restructuring
-- `test:` — test changes
-- `chore:` — maintenance
+| Command                | What it does                                                       |
+| ---------------------- | ------------------------------------------------------------------ |
+| `npm run dev:web`      | Vite only; the renderer runs in a browser against a stubbed API    |
+| `npm run dev:electron` | Backend build, then Electron against an already-running dev server |
 
-Commit messages are validated via commitlint with husky hooks.
+Quality gates — all of these run in CI:
 
----
-
-## 🔬 CI/CD Pipeline
-
-The project uses GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)) with three stages:
-
-1. **Quality** (ubuntu-latest, every push to main/PR):
-   - Repository hygiene & version consistency checks
-   - ESLint (zero warnings), Prettier formatting, CSS lint
-   - TypeScript type checking
-   - Architecture validation (dependency-cruiser)
-   - Test suite with coverage
-   - Type coverage guard, spell check
-   - Duplicate code & circular dependency detection
-
-2. **Build** (windows-latest + ubuntu-22.04, on tags):
-   - Windows: NSIS installer
-   - Linux: AppImage + deb
-   - Artifacts uploaded
-
-3. **Release** (on tags):
-   - Creates GitHub Release with auto-generated release notes
-   - Attaches all platform artifacts
-
----
-
-## 📂 Project Structure
-
-```
-quizlab/
-├── .github/               # Issue templates, CI workflows
-├── docs/                  # Roadmaps, architecture docs, terminology
-├── electron/              # Main process (Electron)
-│   ├── app/               # Entrypoints, IPC handlers, window management
-│   │   └── window/        # Security, sessions, environment, renderer loader
-│   ├── core/              # Config manager, encryption, logger, CSP, updater, IPC security
-│   ├── features/          # Feature handlers (AI, Automation, Gemini, PDF, Screenshot, Native Messaging)
-│   ├── preload/           # Context bridge scripts
-│   └── __tests__/         # Main-process tests (69 test files)
-├── extensions/            # Chrome extension for Google session bridge
-│   └── quizlab-session-extension/
-├── installer/             # NSIS Windows installer script
-├── patches/               # patch-package patches
-├── resources/             # Static installer assets, app icons
-├── scripts/               # Dev/build automation scripts
-├── shared/                # Cross-process contracts (IPC channels, types, constants)
-│   ├── constants/
-│   ├── lib/
-│   └── types/
-├── src/                   # Renderer UI (React + Vite)
-│   ├── app/               # Shell, providers, global contexts, effects
-│   │   ├── components/    # shadcn/ui components
-│   │   ├── hooks/
-│   │   ├── providers/     # AppProviders, AiContext, QueryProvider, UpdateContext, AppTool
-│   │   └── ui/            # MainWorkspace, FocusOverlay, AiSendComposer
-│   ├── features/          # Feature modules (AI, PDF, Settings, Screenshot, Automation, Tutorial, Onboarding)
-│   ├── platform/          # Electron bridge adapters
-│   ├── public/            # Static assets
-│   ├── shared/            # Shared UI components, hooks, i18n, styles, stores, lib
-│   │   ├── i18n/locales/  # en/ (19 files) + tr/ (19 files)
-│   │   ├── stores/        # Zustand stores (appearance, language, notifications, toasts)
-│   │   └── ui/            # Shared layout & components
-│   ├── types/             # Global type declarations
-│   └── __tests__/         # Renderer tests (177 test files)
-├── package.json
-└── tsconfig.json
+```bash
+npm run typecheck     # tsc -b (app, node, node.test projects)
+npm run lint          # ESLint, zero warnings tolerated
+npm run format:check  # Prettier
+npm test              # Vitest, full suite
+npm run test:coverage # Vitest with coverage thresholds
 ```
 
----
+Analysis tooling:
 
-## 🔒 Security & Privacy
+```bash
+npm run analyze:architecture  # dependency-cruiser import rules
+npm run analyze:circular      # madge
+npm run analyze:duplicates    # jscpd
+npm run analyze:deadcode      # knip + ts-prune
+npm run analyze:types         # type-coverage
+npm run analyze:css           # stylelint
+npm run analyze:security      # Semgrep + npm audit + Electronegativity
+npm run analyze:all           # all of the above plus the bundle report
+```
 
-- **No Telemetry** &mdash; zero data collection, no cloud uploads
-- **Isolated Renderer** &mdash; strict `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
-- **Minimal Preload** &mdash; only explicit IPC channels exposed via context bridge
-- **Secure PDF Protocol** &mdash; content served via `local-pdf://` stream protocol with file allowlist and byte-range support
-- **WebView Hardening** &mdash; partition allowlist validation, clipboard access blocked, certificate errors rejected, external navigation redirected to system browser, popup blocking
-- **Content Security Policy** &mdash; strict CSP with nonce-based script tags, limited `frame-src` to allowed AI domains
-- **IPC Security** &mdash; trusted sender validation on all IPC handlers
-- **Encryption** &mdash; AES-256-GCM with machine-derived key + Electron `safeStorage` fallback for API keys and credentials
-- **Encrypted Sessions** &mdash; encrypted cookies within isolated Chromium session profiles
-- **Automated Security Scanning** &mdash; Electronegativity and Semgrep run in CI
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
+and are checked by commitlint through a Husky hook.
 
-See [SECURITY.md](SECURITY.md) for our security policy and vulnerability reporting guidelines.
+## Testing
 
----
+Vitest runs both processes: `src/__tests__/` in jsdom and `electron/__tests__/`
+in Node, selected by `environmentMatchGlobs` in `vitest.config.mts`. The current
+suite is 309 files / 3106 tests.
 
-## 📄 License
+Coverage thresholds are enforced per scope in `vitest.config.mts` — globally
+50% lines, with separate floors for `electron/features/gemini-web-session`,
+`electron/features/automation`, `electron/core`, `electron/features/ai/apiChatHandlers`
+and the PDF feature. `npm run analyze:mutation` runs Stryker.
 
-This project is open-source and licensed under the [MIT License](LICENSE).
+## Build
 
----
+```bash
+npm run build         # renderer + main + preload into dist/
+npm run build:web     # renderer only, for browser preview
+npm run build:win     # then electron-builder --win  -> release/*.exe
+npm run build:mac     # then electron-builder --mac  -> release/*.dmg, *.zip
+npm run build:linux   # then electron-builder --linux -> release/*.AppImage, *.deb
+```
 
-<p align="center">
-  <sub>
-    <a href="https://github.com/ozymandias-get/quizlab/issues">Report Bug</a>
-    &nbsp;•&nbsp;
-    <a href="https://github.com/ozymandias-get/quizlab/discussions">Discussions</a>
-    &nbsp;•&nbsp;
-    <a href="CONTRIBUTING.md">Contributing Guide</a>
-  </sub>
-  <br>
-  <sub>Built with ❤️ for academics, researchers, and lifelong learners.</sub>
-</p>
+Packaging output goes to `release/`. Only `dist/**` is packed into `app.asar`;
+the icons and the Chrome extension are shipped as extra resources. Windows
+builds are unsigned by default — see
+[docs/windows-installer.md](docs/windows-installer.md) for the signing variables
+if you want to change that.
+
+## CI/CD
+
+`.github/workflows/build.yml` has three jobs:
+
+1. **quality** (ubuntu-latest, on push and pull request) — repository hygiene,
+   version consistency, ESLint, Prettier, CSS lint, typecheck, dependency-cruiser,
+   tests with coverage, type-coverage guard, duplicate and circular dependency
+   detection, Semgrep, production dependency audit, Electronegativity. File size
+   and spell checks run but are non-blocking.
+2. **build** (windows-latest and ubuntu-22.04, on tags) — produces the Windows
+   and Linux installers and uploads them as artifacts.
+3. **release** (on tags) — attaches the artifacts to a GitHub Release with
+   generated notes.
+
+Tags must match `package.json`'s version; `npm run ci:check-version` enforces
+this and also guards the version badge in both READMEs.
+
+## Security and Privacy
+
+Verified properties of this build:
+
+- **Isolated renderer** — `contextIsolation: true`, `nodeIntegration: false`,
+  `sandbox: true`, `webSecurity: true`; renderer-supplied webview preloads are
+  stripped and webview preferences are forced on `will-attach-webview`.
+- **Narrow preload bridge** — one explicit method per allowed IPC channel; the
+  renderer has no direct Node access.
+- **Sender validation** — every IPC handler requires the main frame of the main
+  window, so subframes and webviews cannot invoke them.
+- **No analytics** — no telemetry or crash-reporting SDK is bundled, and nothing
+  is sent anywhere automatically. Crash reports and logs are written to
+  `logs/` inside the user-data folder and stay there. Outbound requests are
+  limited to the sites you open, the providers you configure, the localhost
+  cookie bridge, and the GitHub release lookup.
+- **PDF delivery** — `local-pdf://` resolves opaque ids from an in-process
+  registry, requires the file to be on the allowlist, validates the request
+  origin, and serves byte ranges.
+- **Strict CSP** — a nonce-based policy is injected into the main frame; the
+  document also declares a `frame-src` allowlist.
+- **Outbound hardening** — API chat URLs must be HTTPS (or localhost), are
+  checked against private and reserved address space, pinned to a resolved IP
+  with TLS SNI preserved, and the `Authorization` header is dropped across
+  redirects.
+- **Bridge authentication** — the cookie bridge requires an exact extension
+  origin, HMAC-SHA256 over the request body with a per-run secret compared in
+  constant time, a 512 KB body cap, and a cookie-domain allowlist.
+- **Electronegativity and Semgrep** run in CI.
+
+What this does **not** give you: live AI session cookies are stored by Chromium
+in its own partition store and are not encrypted by the application; the
+machine-derived AES key is obfuscation, not protection against someone with
+access to your machine profile; and builds are unsigned.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branch strategy, the pull
+request checklist, and the coding rules in
+[docs/CODING_STANDARD.md](docs/CODING_STANDARD.md). Please read
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) as well.
+
+## License
+
+[MIT](LICENSE) © Quizlab Reader contributors.

@@ -1,361 +1,444 @@
-<h1 align="center">Quizlab Reader</h1>
+# Quizlab Reader
 
 <p align="center">
-  <strong>Yapay Zeka Destekli PDF Çalışma Alanı</strong>
-  <br>
-  <sub>PDF okuyun, vurgulayın ve içerikleri yapay zeka platformlarına &mdash; tek bir bölünmüş ekran uygulamasında gönderin.</sub>
+  PDF'leri yapay zeka asistanlarıyla yan yana okumak için yerel odaklı masaüstü çalışma alanı.
 </p>
 
 <p align="center">
-  <a href="README.md">🇬🇧 English</a>
+  <a href="README.md">English</a>
   &nbsp;•&nbsp;
-  <a href="https://github.com/ozymandias-get/quizlab/releases">📦 Sürümler</a>
+  <a href="https://github.com/ozymandias-get/quizlab/releases">Sürümler</a>
   &nbsp;•&nbsp;
-  <a href="CONTRIBUTING.md">🤝 Katkıda Bulunma</a>
+  <a href="CONTRIBUTING.md">Katkıda bulunma</a>
   &nbsp;•&nbsp;
-  <a href="SECURITY.md">🔒 Güvenlik</a>
+  <a href="SECURITY.md">Güvenlik</a>
   &nbsp;•&nbsp;
-  <a href="docs/ARCHITECTURE.md">📐 Mimari</a>
+  <a href="docs/ARCHITECTURE.md">Mimari</a>
   &nbsp;•&nbsp;
-  <a href="docs/ROADMAP.md">🗺️ Yol Haritası</a>
+  <a href="docs/ROADMAP.md">Yol haritası</a>
   <br>
-  <img alt="GitHub version" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&query=%24.version&label=sürüm&color=blue">
+  <img alt="Sürüm" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json&query=%24.version&label=s%C3%BCr%C3%BCm&color=blue">
 </p>
 
 ---
 
-## 📋 İçindekiler
+## Genel bakış
 
-- [✨ Özellikler](#-özellikler)
-- [📖 Genel Bakış](#-genel-bakış)
-- [🛠️ Teknoloji Altyapısı](#️-teknoloji-altyapısı)
-- [🌐 Uluslararasılaştırma](#-uluslararasılaştırma)
-- [📦 Kurulum](#-kurulum)
-- [⚙️ Geliştirici Kılavuzu](#️-geliştirici-kılavuzu)
-- [🔬 CI/CD Süreci](#-cicd-süreci)
-- [📂 Proje Yapısı](#-proje-yapısı)
-- [🔒 Güvenlik & Gizlilik](#-güvenlik--gizlilik)
-- [📄 Lisans](#-lisans)
+Quizlab Reader, bir PDF görüntüleyici ile bir dizi yapay zeka asistanını tek
+pencerede tutar. Sol panel çok sekmeli bir PDF çalışma alanıdır; sağ panel ise
+sekme sekme düzenlenmiş, her biri kendi kalıcı Chromium oturumuna sahip izole
+`<webview>`'lerden oluşan yapay zeka oturumlarıdır. Seçilen metin, sayfa
+görüntüleri ve kırpılmış ekran görüntüleri yüzen bir gönderme bileşeninde
+toplanır ve DOM otomasyonu ile aktif yapay zeka sekmesine iletilir; böylece
+okuduğunuz belgeden çıkmak zorunda kalmazsınız.
 
----
+Uygulama; makale, ders notu ve kitap okuyup bunlar hakkında bir yapay zekaya
+sorular soran kişiler için tasarlanmıştır. Paketlenmiş bir analiz (telemetri)
+SDK'sı yoktur ve belgeleriniz hiçbir zaman yüklenmez: uygulamanın yazdığı her
+şey kendi kullanıcı verisi klasöründe, kendi makinenizde kalır. Ağ trafiği
+yalnızca sizin yönlendirdiğiniz yerlerde oluşur: açtığınız yapay zeka siteleri,
+yapılandırdığınız model sağlayıcıları, yerel çerez köprüsü ve güncelleme bildirimi
+için GitHub Releases sorgusu.
 
-## ✨ Özellikler
+## Ekran görüntüleri
 
-<table>
-  <tr>
-    <td width="50%">
-      <h4>📑 Çok Sekmeli PDF Çalışma Alanı</h4>
-      Özelleştirilebilir panellerde PDF'leri açın, okuyun, arama yapın ve yerleşimleri değiştirin.
-    </td>
-    <td width="50%">
-      <h4>🤖 Çoklu Yapay Zeka Entegrasyonu</h4>
-      <strong>ChatGPT</strong>, <strong>Gemini</strong>, <strong>Claude</strong>, <strong>DeepSeek</strong>, <strong>Perplexity</strong>, <strong>Mistral</strong>, <strong>Grok</strong> ve daha fazlası için yerleşik destek &mdash; tek bir çalışma alanından erişilebilir.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>⚡ Hızlı Aktarım Kanalları</h4>
-      Ekran görüntülerini sürükleyin veya seçilen metinleri sıfır bağlam değişikliğiyle aktif yapay zeka sekmesine gönderin.
-    </td>
-    <td width="50%">
-      <h4>🔐 Gizlilik Odaklı Mimari</h4>
-      PDF'leriniz, kimlik bilgileriniz ve oturum verileriniz tamamen yerel kalır. Telemetri yok, bulut yüklemesi yok. Hassas veriler AES-256-GCM şifreleme ile korunur.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🎨 Glassmorphic Arayüz</h4>
-      Dinamik arka plan animasyonları, ayarlanabilir cam efekt seviyeleri, yönsel ışıklandırma ve zarif taş tonları.
-    </td>
-    <td width="50%">
-      <h4>📚 Prompt Kütüphanesi</h4>
-      Bağlamsal prompt taslaklarını kaydedin, çalışma makroları oluşturun ve hızlı gönderim için otomasyon rutinleri yapılandırın.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🛡️ Güvenli PDF Protokolü</h4>
-      Üst düzey güvenlik ve hızlı işleme için özel <code>local-pdf://</code> akış protokolü, bayt aralığı desteğiyle.
-    </td>
-    <td width="50%">
-      <h4>🌐 Özel Yapay Zeka Siteleri</h4>
-      Herhangi bir yapay zeka arayüzü için hedef CSS giriş alanlarıyla özel web uç noktalarını kolayca yapılandırın ve kaydedin.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>💬 Doğrudan API Sohbeti</h4>
-      Kendi API anahtarlarınızı (Gemini, ChatGPT, Claude, OpenRouter uyumlu) kullanarak yapay zeka modelleriyle doğrudan, gizlilik odaklı bir arayüzde sohbet edin.
-    </td>
-    <td width="50%">
-      <h4>⚙️ Esnek Anahtar Yönetimi</h4>
-      Özel API anahtarlarınızı ve model parametrelerinizi doğrudan ayarlar panelinden güvenli bir şekilde yapılandırın, test edin ve kaydedin.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🔍 Ekran Görüntüsü & Yakalama</h4>
-      Tam sayfa veya kırpılmış ekran görüntüleri alın, panoya kopyalayın veya doğrudan yapay zekaya gönderin.
-    </td>
-    <td width="50%">
-      <h4>🤖 Gemini Web Oturumu</h4>
-      Çerez tabanlı kimlik doğrulama, sağlık izleme, otomatik kurtarma ve oturum dışa/içe aktarma ile kalıcı Google AI oturumları.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🖱️ Eleman Seçici</h4>
-      Yapay zeka sohbet giriş alanlarını hedeflemek için sihirli CSS seçici &mdash; manuel yapılandırma gerektirmez.
-    </td>
-    <td width="50%">
-      <h4>🔌 Chrome Eklenti Köprüsü</h4>
-      Google oturum çerezlerini Chrome ve Electron arasında paylaşmak için native messaging sunucusu ve Chrome eklentisi.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>📖 Interaktif Eğitimler</h4>
-      Kullanıcıyı tanıtma ve özellik keşfi için yerleşik rehberli eğitimler.
-    </td>
-    <td width="50%">
-      <h4>🗣️ Tam i18n Desteği</h4>
-      Her biri 19 çeviri ad alanıyla eksiksiz İngilizce ve Türkçe yerelleştirme.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h4>🔄 Otomatik Güncellemeler</h4>
-      Semver karşılaştırması ve periyodik kontrollerle GitHub Releases tabanlı otomatik güncelleme.
-    </td>
-    <td width="50%">
-      <h4>🧹 Önbellek Yönetimi</h4>
-      Akıllı önbellek izleme, zamanlanmış temizlik ve %80 kapasitede uyarı eşiği.
-    </td>
-  </tr>
-</table>
+**Çalışma alanı ana ekranı** — kayıtlı tüm modeller ve siteler tek bir başlangıç
+panelinde, yanında PDF paneli ve araç merkezi:
 
----
+![Yapay zeka modelleri, PDF paneli ve araç merkezi ile çalışma alanı ana ekranı](docs/images/workspace-home-ai-models.png)
 
-## 📖 Genel Bakış
+**Okuma ve gönderme** — solda bir PDF sayfası, sağda ChatGPT, altında hızlı
+istemler hazır gönderme bileşeni:
 
-**Quizlab Reader**, çok sekmeli bir belge okuma deneyimini ve popüler yapay zeka arayüzlerini şık bir "Glassmorphic" tasarım altında bir araya getiren, açık kaynaklı ve yerel odaklı bir masaüstü çalışma alanıdır. **Akademisyenler, araştırmacılar ve profesyonel öğrenciler** için özel olarak geliştirilmiş olup, sürekli uygulama değiştirme ve sekme kalabalığı sorununu ortadan kaldırır.
+![ChatGPT'nin yanında PDF sayfası, gönderme bileşeni ve hızlı istemler](docs/images/pdf-chatgpt-send-composer.png)
 
-Uygulama, yüksek performanslı bir PDF görüntüleyiciyi gömülü yapay zeka webview'ları, doğrudan API sohbeti, otomasyon betikleri ve kapsamlı oturum yönetimi ile birleştirir &mdash; tüm bunları sıfır telemetri ile katı gizlilik garantileri altında sunar.
+**Odak modu** — aynı belge, AI paneli olmadan tam genişlikte:
 
----
+![PDF'nin tam genişlikte göründüğü odak modu](docs/images/pdf-focus-mode.png)
 
-## 🛠️ Teknoloji Altyapısı
+**Ayarlar** — ayarlar penceresi sekmelerini "YZ ve Çalışma Alanı", "Entegrasyon
+ve Otomasyon", "Arayüz ve Görünüm" ve "Uygulama ve Geliştirici" başlıklarına
+ayırır.
 
-| Kategori                  | Teknoloji                                                                                                            |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Masaüstü Çatısı**       | [Electron 42](https://www.electronjs.org/)                                                                           |
-| **Arayüz Kütüphanesi**    | [React 19](https://react.dev/)                                                                                       |
-| **Dil**                   | [TypeScript 6.0](https://www.typescriptlang.org/)                                                                    |
-| **Paketleyici**           | [Vite 8](https://vitejs.dev/)                                                                                        |
-| **PDF Motoru**            | [pdfjs-dist 3.11](https://mozilla.github.io/pdf.js/) + [@react-pdf-viewer 3.12](https://react-pdf-viewer.dev/)       |
-| **Stil**                  | [Tailwind CSS 4](https://tailwindcss.com/)                                                                           |
-| **Animasyon**             | [Motion](https://motion.dev/) (eski adıyla Framer Motion)                                                            |
-| **Durum Yönetimi**        | [Zustand 5](https://zustand-demo.pmnd.rs/) + [TanStack React Query 5](https://tanstack.com/query/latest)             |
-| **Yapay Zeka Otomasyonu** | [Playwright](https://playwright.dev/) (webview oturum yönetimi ve betikleme)                                         |
-| **Arayüz Bileşenleri**    | [Radix UI](https://www.radix-ui.com/) + [Headless UI](https://headlessui.com/) + [shadcn/ui](https://ui.shadcn.com/) |
-| **İkonlar**               | [Lucide](https://lucide.dev/) semantic ikon kaydı üzerinden + özel SVG ikon seti                                     |
-| **Parçacıklar**           | [tsParticles](https://particles.js.org/)                                                                             |
-| **Yazı Tipleri**          | [Inter Variable](https://fonts.google.com/specimen/Inter) üzerinden Fontsource                                       |
-| **i18n**                  | [i18next](https://www.i18next.com/) + [react-i18next](https://react.i18next.com/)                                    |
-| **Test**                  | [Vitest 4](https://vitest.dev/) + [Testing Library](https://testing-library.com/)                                    |
-| **Lint**                  | [ESLint 10](https://eslint.org/) + [Prettier](https://prettier.io/)                                                  |
-| **Güvenlik Analizi**      | [Electronegativity](https://github.com/doyensec/electronegativity) + [Semgrep](https://semgrep.dev/)                 |
-| **Mutasyon Testi**        | [Stryker](https://stryker-mutator.io/)                                                                               |
-| **Yükleyici**             | [electron-builder](https://www.electron.build/) + NSIS (Windows)                                                     |
+Promptlar — hızlı komutlar ve prompt kütüphanesi:
 
----
+![Ayarlar - hızlı komutlar ve prompt kütüphanesi olan Promptlar sekmesi](docs/images/settings-prompts.png)
 
-## 🌐 Uluslararasılaştırma
+Modeller — kullandığınız modelleri etkinleştirin, sıralayın, sabitleyin ya da
+kendi modelinizi ekleyin:
 
-Quizlab Reader iki dilde tamamen yerelleştirilmiştir:
+![Ayarlar - model başına anahtarların bulunduğu Modeller sekmesi](docs/images/settings-models.png)
 
-| Dil           | Kod  | Ad Alanı Sayısı |
-| ------------- | ---- | --------------- |
-| **İngilizce** | `en` | 19 JSON dosyası |
-| **Türkçe**    | `tr` | 19 JSON dosyası |
+Hakkında — sürüm, güncelleme denetimi, Windows sağ tık menüsü, önbellek temizliği
+ve tanılama araçları:
 
-Ad alanları şunları kapsar: genel arayüz, navigasyon, ayarlar, görünüm, PDF görüntüleyici, yapay zeka entegrasyonu, yapay zeka sohbeti, seçiciler, eğitimler, Gemini web oturumu, hatalar, bildirimler, otomatik gönderim ve bağlamsal promptlar.
+![Ayarlar - sürüm, güncellemeler, kabuk entegrasyonu ve önbellek bulunan Hakkında sekmesi](docs/images/settings-about.png)
 
-İlk çalıştırmada dil seçimi iletişim kutusu gösterilir. Dil ayarlardan her zaman değiştirilebilir.
+## Özellikler
 
-Kapsamlı bir [terminoloji standardı](docs/TERMINOLOGY.md), uygulama genelinde tutarlı EN/TR çevirisi sağlar.
+- **Çok sekmeli PDF çalışma alanı** — belge açma, yeniden adlandırma, kapatma,
+  arama, yakınlaştırma, sayfa gezinme, okuma ilerlemesi geçmişi, sürükle-bırak ve
+  bir Google Drive sekmesi. `Ctrl/Cmd+O` dosya açar, `Ctrl/Cmd+F` aramaya odaklanır.
+- **Bölünmüş ekran düzeni** — sürüklenebilir ayraç PDF/yapay zeka oranını ayarlar,
+  odak modu ise iki tarafı da tam genişliğe açar.
+- **Sekmeli yapay zeka oturumları** — ChatGPT, Gemini, AI Studio, YouTube,
+  DeepSeek, Qwen, Claude, Kimi ve M365 Copilot hazır olarak kayıtlıdır; kendi
+  siteleriniz de eklenebilir. Her site kendi kalıcı oturumunda çalışır, böylece
+  girişler yeniden başlatmalardan sonra korunur. `API Chat` sekmesi ise uygulama
+  içinde çizilen yerel bir sohbet yüzeyi sunar. Gemini, AI Studio ve YouTube
+  yalnızca Google oturumu **Ayarlar → Google AI Web Oturumu** bölümünde etkinken
+  listelenir.
+- **Gönderme bileşeni** — seçilen metin, sayfanın tamamı görüntü olarak, seçim
+  dikdörtgeni ya da kırpılmış ekran görüntüsü kuyruğa alınır ve sırayla
+  iletilir. Otomatik Gönderim genel bir tercihtir: kapalıyken uygulama yalnızca
+  içeriği hazırlar, gönderme düğmesine siz basarsınız.
+- **Hızlı istemler** — hazır sekiz ön ayar (açıkla, özetle, quiz, flashcard,
+  terimler, mekanizma, klinik, tekrar); gönderilen mesajın başına otomatik bir
+  istem ekler. Etiketler ve istem metinleri kullanıcı tarafından düzenlenebilir.
+- **Magic Picker** — herhangi bir yapay zeka sitesinde sohbet giriş alanını ve
+  gönderme düğmesini CSS yazmadan fareyle seçin. Seçiciler ana makine adına göre
+  saklanır ve kendini onarır: kayıtlı seçici bozulduğunda çalışma zamanı yeni bir
+  seçici bulur ve güven eşiği ile titreme kontrolünden geçtikten sonra, hattı
+  gerçekten tamamlayabildiğinde bunu kalıcılaştırır.
+- **Doğrudan API sohbeti** — kendi API anahtarınızı kullanın ve OpenAI uyumlu
+  `/chat/completions` ve `/models` uç noktaları üzerinden modellerle konuşun.
+  OpenAI, Anthropic, Google ve NVIDIA için hazır sağlayıcı şablonları gelir;
+  `custom` ise uyumlu herhangi bir geçidi kapsar. İstekler SSRF doğrulaması ve
+  DNS sabitleme ile ana süreçten yapılır.
+- **Google AI web oturumu** — Gemini, AI Studio ve YouTube, ayrılmış bir oturum
+  bölümünde tutulan tek bir Google oturumunu paylaşır; periyodik sağlık
+  kontrolleri ve şifrelenmiş dışa/içe aktarma desteklenir. Paketlenmiş Chrome
+  eklentisi mevcut Google çerezlerini yerel köprü üzerinden devredebilir.
+- **Görünüm** — animasyonlu veya düz arka planlar, cam ölçeği, seçim rengi, vurgu
+  rengi ve gerçekten kullandığınız araçlar için yapılandırılabilir merkez (hub).
+- **Dil** — İngilizce ve Türkçe; ilk çalıştırmada seçilir, ayarlardan değiştirilir.
+  Dil başına 19 alan adı JSON dosyası vardır.
+- **Depolama ve önbellek yönetimi** — ölçülen önbellek toplamı, zamanlanmış temizlik
+  ve 500 MB bütçesinin %80'inde uyarı balonu.
+- **Güncelleme bildirimi** — başlangıçtan yaklaşık beş saniye sonra GitHub
+  Releases API'sini sorgular, semver karşılaştırması yapar ve sürüm sayfasına
+  bağlantı sunar. Hiçbir şey indirmez veya kurmaz.
+- **Rehberli turlar** — beş hazır tur (genel, PDF, yapay zeka, ayarlar, Magic
+  Picker) ve ayarlarda bir Kullanım Rehberi sayfası.
+- **Windows kabuk entegrasyonu** — `.pdf` dosyaları için Gezgin sağ tık menüsünde
+  isteğe bağlı bir "QuizLab ile Aç" girdisi; varsayılan PDF uygulamanız değişmez.
 
----
+## Teknoloji altyapısı
 
-## 📦 Kurulum
+| Alan                    | Seçim                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| Masaüstü çalışma zamanı | Electron 42                                                                               |
+| Arayüz                  | React 19; yönlendirici yok (özel durum tabanlı çalışma alanı)                             |
+| Dil                     | TypeScript 5.9                                                                            |
+| Derleme                 | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (paketleme)           |
+| PDF motoru              | `pdfjs-dist` 3.11 + `@react-pdf-viewer` 3.12 (core, page-navigation, search, zoom)        |
+| Stil                    | Tailwind CSS 4 (`@theme` token'ları) ve az sayıda CSS modülü                              |
+| Durum                   | Bileşenler arası durum için Zustand 5, IPC üzerinden okumalar için TanStack React Query 5 |
+| Arayüz primitifleri     | Radix UI, Headless UI, shadcn/ui, Lucide ikonlar                                          |
+| Animasyon / efekt       | Motion, tsParticles, Inter Variable (Fontsource)                                          |
+| i18n                    | i18next + react-i18next                                                                   |
+| Test                    | Vitest 4 + Testing Library                                                                |
+| Lint / biçimlendirme    | ESLint 10, Prettier, Stylelint, cspell, dependency-cruiser                                |
+| Güvenlik araçları       | Electronegativity, Semgrep, `npm audit`                                                   |
+| Paketleme               | electron-builder 26 — NSIS (Windows), dmg/zip (macOS), AppImage/deb (Linux)               |
 
-### Gereksinimler
+## Gereksinimler
 
-| Ölçüt               | Minimum                                 | Önerilen                              |
-| ------------------- | --------------------------------------- | ------------------------------------- |
-| **İşletim Sistemi** | Windows 10 / macOS 10.15 / Ubuntu 20.04 | Windows 11 / macOS 13+ / Ubuntu 22.04 |
-| **RAM**             | 4 GB                                    | 8 GB+                                 |
-| **Depolama**        | 500 MB                                  | 2 GB+                                 |
-| **İnternet**        | Yapay zeka özellikleri için gerekli     | Yüksek hızlı genişbant                |
+**Uygulamayı çalıştırmak için**
 
-### İndirme
+- Windows 10/11 (x64) — yayınlanan yükleyici kullanıcı düzeyinde bir NSIS
+  paketidir. Gezgin sağ tık menüsü girdisi ve Chrome eklenti köprüsü yalnızca
+  Windows'ta çalışır.
+- macOS — `dmg`/`zip` hedefleri yapılandırılmıştır ancak sürüm iş akışı macOS
+  derlemesi yapmaz; `npm run build:mac` ile yerelde üretin.
+- Linux — AppImage ve `deb` CI tarafından derlenir.
+- Yapay zeka özellikleri için ağ bağlantısı gerekir. PDF okumak için başka hiçbir
+  şey gerekmez.
 
-Platformunuza uygun en son yükleyiciyi [Sürümler sayfasından](https://github.com/ozymandias-get/quizlab/releases) indirin:
+**Kaynaktan derlemek için**
 
-| Platform   | Format                                                               |
-| ---------- | -------------------------------------------------------------------- |
-| 🪟 Windows | `QuizLab-Setup-<version>-x64.exe` (NSIS yükleyici, kullanıcı düzeyi) |
-| 🍏 macOS   | `QuizlabReader-<version>.dmg`                                        |
-| 🐧 Linux   | `QuizlabReader-<version>.AppImage` veya `.deb`                       |
+- Node.js `20.19+`, `22.12+` veya `24+` (CI 24 kullanır; Vite ve Vitest'in
+  `engines` aralıkları bazı ara sürümleri dışlar)
+- npm — kilit dosyası `package-lock.json`, CI `npm ci` kullanır
+- Git
+- Yalnızca Google AI web oturumunu istiyorsanız Google hesabı
+- Yalnızca doğrudan API sohbetini istiyorsanız API anahtarları
+- Yalnızca oturum köprüsü eklentisini istiyorsanız Google Chrome
 
-Yükleyici, isteğe bağlı olarak Google oturum köprüsü eklentisi için bir Chrome Native Messaging Sunucusu kaydeder.
+## Kurulum
 
----
+Platformunuz için yükleyiciyi [Sürümler](https://github.com/ozymandias-get/quizlab/releases)
+sayfasından indirin.
 
-## ⚙️ Geliştirici Kılavuzu
+| Platform | Dosya                                                                               |
+| -------- | ----------------------------------------------------------------------------------- |
+| Windows  | `QuizLab-Setup-<version>-x64.exe` — NSIS, kullanıcı düzeyinde, yönetici gerektirmez |
+| Linux    | `.AppImage` (doğrudan çalıştırın) veya `.deb` (`dpkg` ile kurun)                    |
+| macOS    | CI derlemez — `npm run build:mac` ile yerelde üretin                                |
 
-> [!TIP]
-> **Windows Kullanıcıları**: Bu depo `LF` satır sonlarını zorunlu kılar. Kopyalamadan önce <code>git config --global core.autocrlf input</code> komutunu çalıştırın.
+Windows yükleyicisi imzasızdır, bu yüzden ilk çalıştırmada SmartScreen uyarısı
+gösterebilir. Kullanıcı düzeyinde kurulur, hiçbir zaman yetki istemez ve
+kaldırma sırasında `%AppData%\Quizlab Reader` yerinde bırakılır. Gezgin bağlam
+menüsü ve kod imzalama hazırlığı dahil eksiksiz kurulum anlatısı için
+[docs/windows-installer.md](docs/windows-installer.md) dosyasına bakın.
+
+## Yapılandırma
+
+Neredeyse her şey uygulama içinden yapılandırılır. Düzenlenecek bir yapılandırma
+dosyası ve bir `.env` yükleyicisi yoktur: Electron ana süreci doğrudan
+`process.env` okur, dolayısıyla değişkenleri onu başlatan kabukta dışa aktarmanız
+gerekir. `.env.example` varsayılanlarla birlikte listenin tamamını belgeler;
+geliştirmede önemli olanlar:
+
+| Değişken                        | Etkisi                                                                                 |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
+| `APP_RENDERER_URL`              | Ana pencerenin yüklediği geliştirme sunucu adresi (varsayılan `http://localhost:5173`) |
+| `APP_OPEN_DEVTOOLS=1`           | Başlangıçta DevTools'u aç                                                              |
+| `QUIZLAB_PROFILE`               | Kullanıcı verisi dizini son eki (aşağıya bakın)                                        |
+| `QUIZLAB_USER_DATA_DIR`         | Kullanıcı verisi için mutlak yol geçersiz kılma                                        |
+| `QUIZLAB_DISABLE_GPU=1`         | Donanım hızlandırmayı kapat                                                            |
+| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Chrome çerez köprüsü için yerel port (varsayılan `51999`)                              |
+| `GEMINI_WEB_*`                  | Google oturumu sağlık kontrol aralıkları ve zaman aşımları                             |
+
+`stable` dışında bir `QUIZLAB_PROFILE` kullanmak tek örnekli kilidi de devre dışı
+bırakır; bu, iki profili yan yana çalıştırmak için kullanışlıdır.
+
+**Veriler nerede durur.** Uygulama her şeyden önce kullanıcı verisi dizinini
+taşıdığı için profiller birbirine karışmaz:
+
+| Profil   | Dizin                                                              |
+| -------- | ------------------------------------------------------------------ |
+| `stable` | `<appData>/Quizlab Reader` — Windows'ta `%AppData%\Quizlab Reader` |
+| `dev`    | `<appData>/Quizlab Reader Dev` (paketlenmemiş çalıştırmalar)       |
+| diğer    | `<appData>/Quizlab Reader <profil>`                                |
+| geçersiz | `QUIZLAB_USER_DATA_DIR`                                            |
+
+Bu dizinin içinde: JSON yapılandırma dosyaları, `Partitions/<ad>/` Chromium
+oturum ve önbellek verisi, `logs/` ve yüklenmiş Chrome eklentisinin kopyası.
+Veritabanı yoktur.
+
+**API anahtarları** `api_chat_config.json` içinde (`0600` modunda) saklanır;
+işletim sistemi anahtar deposu varsa Electron `safeStorage` ile, yoksa makine
+parmak izinden PBKDF2 ile türetilen anahtarla AES-256-GCM kullanılarak
+şifrelenir. Yedek yöntem değeri diskte yalnızca gizler; makine profilinize
+erişimi olan biri için anahtar deposunun yerine geçmez.
+
+## Kullanım
+
+1. Uygulamayı başlatın. İlk çalıştırmada dil seçin; ardından genel tur başlar.
+2. Sol panele bir PDF bırakın veya `Ctrl/Cmd+O` tuşlarına basın. Belge başına bir
+   sekme açılır.
+3. Sağdaki ana panelden bir yapay zeka sitesi açın veya **Ayarlar → Siteler**
+   altından kendi sitenizi ekleyin. Bir kez giriş yapın; oturum hatırlanır.
+4. PDF içinde metin seçin veya sayfaya sağ tıklayıp _Add This Page's Text to
+   AI_ / _Send Page as Image to AI_ / _Add Area Selection as Image to AI_
+   seçeneklerinden birini kullanın.
+5. İçerik gönderme bileşeninde birikir. İsterseniz bir hızlı istem seçin, sonra
+   **Send to AI** düğmesine basın.
+6. Her seferinde sitede gönder düğmesine basmak istemiyorsanız bileşendeki
+   **Otomatik Gönderim** anahtarını açın.
+7. Bir sitenin düzeni değişirse o sekmede **Magic Picker**'ı çalıştırıp giriş
+   alanını yeniden seçin. Siz seçene kadar uygulama yanlış öğeye yazmak yerine
+   göndermeyi reddeder.
+
+## Mimari
+
+```
+Renderer (src/)
+  React çalışma alanı: PDF paneli, yapay zeka webview paneli,
+  gönderme bileşeni, ayarlar
+  hook'lar + window.electronAPI üzerinde TanStack Query
+        |  tipli invoke (kanal -> istek/sonuç tipleri)
+        v
+Preload (electron/preload/)
+  contextBridge: izin verilen her kanal için tek açık metot, fazlası yok
+        |  ipcRenderer.invoke
+        v
+Main (electron/)
+  ipcMain handler'ları, her çağrıda güvenilir gönderici kontrolü
+  özellik modülleri: ai, automation, gemini-web-session, native-messaging,
+                     pdf, screenshot, settings, shell-open
+  core: yapılandırma deposu, şifreleme, CSP, günlükleme, önbellek, güncelleyici
+        |
+        +--> local-pdf:// protokolü -> yerel PDF dosyaları (izin listesi, bayt aralıkları)
+        +--> Chromium bölümleri   -> her yapay zeka sitesi için çerez ve önbellek
+        +--> model sağlayıcı HTTP -> doğrudan API sohbeti (SSRF doğrulamalı)
+        +--> GitHub Releases API  -> güncelleme bildirimi
+```
+
+Ortak sözleşmeler `shared/` dizininde durur ve `@shared-core/*` alias'ı üzerinden
+iki tarafça da içe aktarılır: kanal adları (`shared/constants/ipcChannels.ts`),
+istek/sonuç haritası (`shared/types/ipcContract.ts`) ve paylaşılan alan tipleri.
+
+Değişiklik yapmadan önce bilinmesi gereken iki tasarım noktası: gezinme durumdur,
+yönlendirme değil — bir yönlendirici yoktur ve PDF sekmeleri (Zustand) ile
+yapay zeka sekmeleri (bölünmüş context'ler arkasında `useState`) birbirinden
+bağımsızdır; ve her yapay zeka etkileşimi, harici bir tarayıcıyı sürmek yerine
+ana süreçte JavaScript üretip bunu hedef `<webview>` içinde çalıştırarak gerçekleşir.
+
+Katman sınırları, dependency-cruiser'ın uyguladığı import kuralları ve seçici
+kendini onarma akışı için [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+dosyasına bakın.
+
+## Proje yapısı
+
+```
+electron/            Ana süreç
+  app/               Giriş noktası, pencere oluşturma, oturum/CSP/güvenlik, IPC bağlantısı
+  core/              Yapılandırma deposu, şifreleme, günlükleme, önbellek, güncelleyici, tipli IPC
+  features/          Özellik handler'ları (ai, automation, gemini-web-session,
+                     native-messaging, pdf, screenshot, settings, shell-open)
+  preload/           contextBridge yüzeyi
+  __tests__/         Ana süreç testleri
+shared/              Süreçler arası sözleşmeler: IPC kanalları, tipler, sabitler
+src/                 Renderer
+  app/               Kabuk, sağlayıcılar, uygulama efektleri, yüzen gönderme bileşeni
+  features/          ai, automation, onboarding, pdf, screenshot, settings, tutorial
+  platform/electron/ Uygulama ile window.electronAPI arasındaki adaptörler
+  shared/            Paylaşılan arayüz, hook'lar, i18n, stiller, store'lar, lib
+  __tests__/         Renderer testleri
+extensions/          Google oturum köprüsü için Chrome eklentisi
+installer/           NSIS özel yükleyici mantığı
+scripts/             Geliştirme ve derleme otomasyonu
+docs/                Mimari, kodlama standardı, terminoloji, yol haritası
+```
+
+## Geliştirme
 
 ```bash
-# Kopyalama ve kurulum
 git clone https://github.com/ozymandias-get/quizlab.git
 cd quizlab
 npm install
-
-# Geliştirme
-npm run dev
-
-# Kalite kontrolleri
-npm run typecheck    # TypeScript
-npm run lint         # ESLint (sıfır uyarı)
-npm run test         # Vitest (~2285 test)
-npm run test:coverage # Coverage raporu
-
-# Analiz
-npm run analyze:all  # Tüm analiz paketi (bundle, türler, ölü kod, kopyalar, döngüsel bağımlılıklar, vb.)
-npm run analyze:security  # Semgrep + production audit + Electronegativity (hepsi blocking)
-
-# Derleme
-npm run build:win    # Windows NSIS yükleyicisi
-npm run build:mac    # macOS DMG
-npm run build:linux  # Linux AppImage + deb
+npm run dev          # Vite geliştirme sunucusu + Electron
 ```
 
-### Commit Kuralı
+`npm run dev` ana süreci derler, Vite'ı 5173 portunda başlatır (bu uygulama
+orada zaten sunuluyorsa onu yeniden kullanır) ve ardından Electron'u çalıştırır.
+Electron'un stderr çıktısındaki bilinen Chromium gürültüsünü süzer, geri kalanı
+olduğu gibi yazar.
 
-Bu proje [Geleneksel Commitler](https://www.conventionalcommits.org/) kullanır:
+Diğer giriş noktaları:
 
-- `feat:` — yeni özellik
-- `fix:` — hata düzeltmesi
-- `docs:` — dokümantasyon
-- `refactor:` — kod yeniden yapılandırması
-- `test:` — test değişiklikleri
-- `chore:` — bakım
+| Komut                  | Ne yapar                                                          |
+| ---------------------- | ----------------------------------------------------------------- |
+| `npm run dev:web`      | Yalnızca Vite; renderer bir tarayıcıda sahte API'ye karşı çalışır |
+| `npm run dev:electron` | Arka uç derlemesi, sonra çalışan geliştirme sunucusuna Electron   |
 
-Commit mesajları, husky hook'ları ile commitlint tarafından doğrulanır.
+Kalite kapıları — hepsi CI'da çalışır:
 
----
-
-## 🔬 CI/CD Süreci
-
-Proje, üç aşamalı GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)) kullanır:
-
-1. **Kalite** (ubuntu-latest, main'e her push/PR'da):
-   - Depo hijyeni ve versiyon tutarlılığı kontrolleri
-   - ESLint (sıfır uyarı), Prettier biçimlendirme, CSS lint
-   - TypeScript tip kontrolü
-   - Mimari doğrulama (dependency-cruiser)
-   - Test takımı ve coverage
-   - Tip coverage kontrolü, yazım denetimi
-   - Kopya kod ve döngüsel bağımlılık tespiti
-
-2. **Derleme** (windows-latest + ubuntu-22.04, etiketlerde):
-   - Windows: NSIS yükleyici
-   - Linux: AppImage + deb
-   - Yapıtlar yüklenir
-
-3. **Sürüm** (etiketlerde):
-   - Otomatik oluşturulan sürüm notlarıyla GitHub Release oluşturur
-   - Tüm platform yapıtlarını ekler
-
----
-
-## 📂 Proje Yapısı
-
-```
-quizlab/
-├── .github/               # Issue şablonları, CI iş akışları
-├── docs/                  # Yol haritaları, mimari dökümanlar, terminoloji
-├── electron/              # Ana süreç (Electron)
-│   ├── app/               # Giriş noktaları, IPC işleyicileri, pencere yönetimi
-│   │   └── window/        # Güvenlik, oturumlar, ortam, arayüz yükleyici
-│   ├── core/              # Config yöneticisi, şifreleme, logger, CSP, güncelleyici, IPC güvenliği
-│   ├── features/          # Özellik işleyicileri (AI, Otomasyon, Gemini, PDF, Ekran Gör., Native Mesajlaşma)
-│   ├── preload/           # Context bridge betikleri
-│   └── __tests__/         # Ana süreç testleri (69 test dosyası)
-├── extensions/            # Google oturum köprüsü için Chrome eklentisi
-│   └── quizlab-session-extension/
-├── installer/             # NSIS Windows yükleyici betiği
-├── patches/               # patch-package yamaları
-├── resources/             # Statik yükleyici varlıkları, uygulama ikonları
-├── scripts/               # Geliştirme/derleme otomasyon betikleri
-├── shared/                # Süreçler arası sözleşmeler (IPC kanalları, tipler, sabitler)
-│   ├── constants/
-│   ├── lib/
-│   └── types/
-├── src/                   # Arayüz (React + Vite)
-│   ├── app/               # Kabuk, sağlayıcılar, global bağlamlar, efektler
-│   │   ├── components/    # shadcn/ui bileşenleri
-│   │   ├── hooks/
-│   │   ├── providers/     # AppProviders, AiContext, QueryProvider, UpdateContext, AppTool
-│   │   └── ui/            # MainWorkspace, FocusOverlay, AiSendComposer
-│   ├── features/          # Özellik modülleri (AI, PDF, Ayarlar, Ekran Gör., Otomasyon, Eğitim, Tanıtım)
-│   ├── platform/          # Electron köprü adaptörleri
-│   ├── public/            # Statik varlıklar
-│   ├── shared/            # Paylaşılan UI bileşenleri, hook'lar, i18n, stiller, store'lar, lib
-│   │   ├── i18n/locales/  # en/ (19 dosya) + tr/ (19 dosya)
-│   │   ├── stores/        # Zustand store'ları (görünüm, dil, bildirimler)
-│   │   └── ui/            # Paylaşılan düzen ve bileşenler
-│   ├── types/             # Global tip bildirimleri
-│   └── __tests__/         # Arayüz testleri (177 test dosyası)
-├── package.json
-└── tsconfig.json
+```bash
+npm run typecheck     # tsc -b (app, node, node.test projeleri)
+npm run lint          # ESLint, uyarı sıfır toleranslı
+npm run format:check  # Prettier
+npm test              # Vitest, tüm paket
+npm run test:coverage # Vitest + eşiklerle coverage
 ```
 
----
+Analiz araçları:
 
-## 🔒 Güvenlik & Gizlilik
+```bash
+npm run analyze:architecture  # dependency-cruiser import kuralları
+npm run analyze:circular      # madge
+npm run analyze:duplicates    # jscpd
+npm run analyze:deadcode      # knip + ts-prune
+npm run analyze:types         # type-coverage
+npm run analyze:css           # stylelint
+npm run analyze:security      # Semgrep + npm audit + Electronegativity
+npm run analyze:all           # yukarıdakilerin tümü + paket raporu
+```
 
-- **Telemetri Yok** &mdash; sıfır veri toplama, bulut yüklemesi yok
-- **İzole Arayüz** &mdash; sıkı `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
-- **Minimal Preload** &mdash; yalnızca açık IPC kanalları context bridge üzerinden sunulur
-- **Güvenli PDF Protokolü** &mdash; içerik `local-pdf://` akış protokolü üzerinden dosya beyaz listesi ve bayt aralığı desteğiyle sunulur
-- **WebView Sertleştirme** &mdash; bölüm beyaz liste doğrulaması, pano erişimi engelleme, sertifika hatalarını reddetme, harici navigasyonu sistem tarayıcısına yönlendirme, açılır pencere engelleme
-- **İçerik Güvenlik Politikası** &mdash; nonce tabanlı script etiketleri ile katı CSP, sınırlı `frame-src` izin verilen AI alan adlarına
-- **IPC Güvenliği** &mdash; tüm IPC işleyicilerinde güvenilir gönderici doğrulaması
-- **Şifreleme** &mdash; API anahtarları ve kimlik bilgileri için makine kaynaklı anahtar + Electron `safeStorage` yedeklemesi ile AES-256-GCM
-- **Şifrelenmiş Oturumlar** &mdash; izole Chromium oturum profillerinde şifrelenmiş çerezler
-- **Otomatik Güvenlik Taraması** &mdash; CI'da Electronegativity ve Semgrep çalıştırılır
+Commit mesajları [Conventional Commits](https://www.conventionalcommits.org/)
+biçimini izler ve Husky kancası üzerinden commitlint tarafından denetlenir.
 
-Güvenlik politikamız ve zafiyet bildirim talimatları için [SECURITY.md](SECURITY.md) dosyasını inceleyin.
+## Test
 
----
+Vitest her iki süreci de çalıştırır: `src/__tests__/` jsdom'da,
+`electron/__tests__/` Node ortamında; seçim `vitest.config.mts` içindeki
+`environmentMatchGlobs` ile yapılır. Mevcut paket 309 dosya / 3106 testtir.
 
-## 📄 Lisans
+Coverage eşikleri `vitest.config.mts` içinde kapsam başına uygulanır — genel
+olarak satır için %50, ayrıca `electron/features/gemini-web-session`,
+`electron/features/automation`, `electron/core`,
+`electron/features/ai/apiChatHandlers` ve PDF özelliği için ayrı tabanlar.
+`npm run analyze:mutation` ile Stryker çalıştırılır.
 
-Bu proje açık kaynaklı olup [MIT Lisansı](LICENSE) ile korunmaktadır.
+## Derleme
 
----
+```bash
+npm run build         # renderer + main + preload -> dist/
+npm run build:web     # yalnızca renderer, tarayıcı önizlemesi için
+npm run build:win     # ardından electron-builder --win  -> release/*.exe
+npm run build:mac     # ardından electron-builder --mac  -> release/*.dmg, *.zip
+npm run build:linux   # ardından electron-builder --linux -> release/*.AppImage, *.deb
+```
 
-<p align="center">
-  <sub>
-    <a href="https://github.com/ozymandias-get/quizlab/issues">Hata Bildir</a>
-    &nbsp;•&nbsp;
-    <a href="https://github.com/ozymandias-get/quizlab/discussions">Tartışmalar</a>
-    &nbsp;•&nbsp;
-    <a href="CONTRIBUTING.md">Katkı Rehberi</a>
-  </sub>
-  <br>
-  <sub>Akademisyenler, araştırmacılar ve yaşam boyu öğrenenler için ❤️ ile geliştirildi.</sub>
-</p>
+Paketleme çıktısı `release/` dizinine gider. `app.asar` içine yalnızca
+`dist/**` konur; ikonlar ve Chrome eklentisi ek kaynak olarak dağıtılır.
+Windows derlemeleri varsayılan olarak imzasızdır — bunu değiştirmek için
+gereken imzalama değişkenleri için
+[docs/windows-installer.md](docs/windows-installer.md) dosyasına bakın.
+
+## CI/CD
+
+`.github/workflows/build.yml` üç iş içerir:
+
+1. **quality** (ubuntu-latest, push ve pull request üzerinde) — depo hijyeni,
+   sürüm tutarlılığı, ESLint, Prettier, CSS lint, typecheck, dependency-cruiser,
+   coverage'lı testler, type-coverage denetimi, kopya kod ve döngüsel bağımlılık
+   tespiti, Semgrep, üretim bağımlılık denetimi, Electronegativity. Dosya boyutu
+   ve yazım denetimi çalışır ancak engelleyici değildir.
+2. **build** (windows-latest ve ubuntu-22.04, etiketlerde) — Windows ve Linux
+   yükleyicilerini üretir ve yapıtları artifact olarak yükler.
+3. **release** (etiketlerde) — yapıtları otomatik notlarla bir GitHub
+   Release'e ekler.
+
+Etiketler `package.json` sürümüyle eşleşmelidir; `npm run ci:check-version`
+bunu ve her iki README'deki sürüm rozetini de denetler.
+
+## Güvenlik ve gizlilik
+
+Bu derlemenin doğrulanmış özellikleri:
+
+- **İzole renderer** — `contextIsolation: true`, `nodeIntegration: false`,
+  `sandbox: true`, `webSecurity: true`; renderer tarafından verilen webview
+  preload'ları soyulur ve webview tercihleri `will-attach-webview` üzerinde
+  zorlanır.
+- **Dar preload köprüsü** — izin verilen her IPC kanalı için tek açık metot;
+  renderer'ın doğrudan Node erişimi yoktur.
+- **Gönderici doğrulaması** — her IPC handler'ı ana pencerenin ana çerçevesini
+  zorunlu tutar; alt çerçeveler ve webview'ler bunları çağıramaz.
+- **Analiz yok** — paketlenmiş telemetri veya çökme bildirimi SDK'sı yok ve
+  hiçbir şey kendiliğinden bir yere gönderilmez. Çökme raporları ve günlükler
+  kullanıcı verisi klasöründeki `logs/` altına yazılır, orada kalır. Giden
+  istekler yalnızca açtığınız sitelere, yapılandırdığınız sağlayıcılara, yerel
+  çerez köprüsüne ve GitHub sürüm sorgusuna sınırlıdır.
+- **PDF teslimi** — `local-pdf://`, süreç içi bir kayıt deposundaki opak kimlikleri
+  çözer, dosyanın izin listesinde olmasını ister, istek kaynağını doğrular ve
+  bayt aralıkları sunar.
+- **Katı CSP** — ana çerçeveye nonce tabanlı bir politika enjekte edilir; belge
+  ayrıca bir `frame-src` izin listesi bildirir.
+- **Giden istek sertleştirmesi** — API sohbeti adresleri HTTPS (veya localhost)
+  olmalı, özel ve ayrılmış adres uzayına karşı denetlenir, TLS SNI korunarak
+  çözülen IP'ye sabitlenir ve yönlendirmeler boyunca `Authorization` başlığı
+  düşürülür.
+- **Köprü kimlik doğrulaması** — çerez köprüsü tam bir eklenti kaynağı ister,
+  gövdeyi çalışma zamanında üretilen bir sırla HMAC-SHA256 ile imzalar ve sabit
+  zamanlı karşılaştırır, 512 KB gövde sınırı uygular ve çerez alan adı izin
+  listesi kullanır.
+- **Electronegativity ve Semgrep** CI'da çalışır.
+
+Bunların size **sağlamadığı** şeyler: canlı yapay zeka oturum çerezleri
+Chromium'un kendi bölüm deposunda saklanır ve uygulama tarafından şifrelenmez;
+makine kaynaklı AES anahtarı gizlemedir, makine profilinize erişimi olan birine
+karşı koruma değildir; ve derlemeler imzasızdır.
+
+## Katkıda bulunma
+
+Kurulum, dal stratejisi, pull request kontrol listesi ve
+[docs/CODING_STANDARD.md](docs/CODING_STANDARD.md) içindeki yazım kuralları için
+[CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın. Lütfen
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) dosyasını da okuyun.
+
+## Lisans
+
+[MIT](LICENSE) © Quizlab Reader katkıda bulunanları.

@@ -13,19 +13,24 @@
 
 Aşağıdaki komutlar her PR'da temiz geçmelidir. Hepsi `package.json` script'leridir.
 
-| Amaç                | Komut                             | Kabul Kriteri                                      |
-| ------------------- | --------------------------------- | -------------------------------------------------- |
-| Format kontrolü     | `npm run format:check`            | Tüm kaynak dosyalar Prettier uyumlu.               |
-| Lint                | `npm run lint`                    | `--max-warnings=0` ile hatasız.                    |
-| Tür denetimi        | `npm run typecheck`               | `tsc -b` hatasız (3 referans: app/node/node.test). |
-| Test                | `npm test`                        | 291 dosya / 2756 test geçer.                       |
-| Repo hijyeni        | `npm run ci:check-hygiene`        | `.cache`, `out.txt`, build artifact yok.           |
-| Sürüm tutarlılığı   | `npm run ci:check-version`        | `package.json` ↔ `app/version` senkron.            |
-| Bağımlılık denetimi | `npm run check:audit`             | Kargo ağacında yüksek/critical CVE yok.            |
-| Semgrep             | `npm run analyze:semgrep`         | Production kaynaklarda ERROR severity yok.         |
-| Electron hardening  | `npm run check:electron-security` | Electronegativity HIGH/CRITICAL yok.               |
-| Dosya boyutu        | `npm run analyze:file-sizes`      | Hook/component ≤ 250 satır, diğer ≤ 400 satır.     |
-| CSS denetimi        | `npm run analyze:css`             | Stylelint kurallarına uygun.                       |
+| Amaç                | Komut                             | Kabul Kriteri                                                 |
+| ------------------- | --------------------------------- | ------------------------------------------------------------- |
+| Format kontrolü     | `npm run format:check`            | Tüm kaynak dosyalar Prettier uyumlu.                          |
+| Lint                | `npm run lint`                    | `--max-warnings=0` ile hatasız.                               |
+| Tür denetimi        | `npm run typecheck`               | `tsc -b` hatasız (3 referans: app/node/node.test).            |
+| Test                | `npm test`                        | 309 dosya / 3106 test geçer.                                  |
+| Repo hijyeni        | `npm run ci:check-hygiene`        | `.cache`, `out.txt`, build artifact yok.                      |
+| Sürüm tutarlılığı   | `npm run ci:check-version`        | Sürüm rozeti biçimi geçerli + tag `package.json` ile eşleşir. |
+| Bağımlılık denetimi | `npm run check:audit`             | Kargo ağacında yüksek/critical CVE yok.                       |
+| Semgrep             | `npm run analyze:semgrep`         | Production kaynaklarda ERROR severity yok.                    |
+| Electron hardening  | `npm run check:electron-security` | Electronegativity HIGH/CRITICAL yok.                          |
+| Dosya boyutu        | `npm run analyze:file-sizes`      | Hook/component ≤ 650 satır, diğer ≤ 700 satır.                |
+| CSS denetimi        | `npm run analyze:css`             | Stylelint kurallarına uygun.                                  |
+
+> `ci:check-version` bir `app/version.ts` dosyasıyla karşılaştırma yapmaz. Script
+> iki şeyi denetler: `README.md` / `README_TR.md` içindeki sürüm rozetinin
+> `shields.io/badge/dynamic/json` biçiminde olması ve CI'da push edilen
+> `v*` tag'ının `package.json` sürümüyle eşleşmesi.
 
 Yerel geliştirmede pre-commit hook (`.husky/pre-commit`) `format:check` + `lint` + `lint-staged` çalıştırır; büyük commit öncesi mutlaka `npm test` ve `npm run typecheck` da çalıştırılmalıdır.
 
@@ -62,7 +67,7 @@ ESLint `no-restricted-imports` ile şunları zorunlu kılar:
 5. `"^@features"` — feature barrel'ları
 6. `"^@(app\|ui\|shared)"` — app shell, UI, shared yardımcılar
 7. `"^@?\\w"` — üçüncü parti paketler
-8. `"^\\.\\.", "^\\.\\."` — göreceli import'lar (ebeveyn, aynı dizin)
+8. `"^\\.\\."`, `"^\\."` — göreceli import'lar (ebeveyn, aynı dizin)
 
 Her grup içinde import'lar alfabetik sıralanır. Test dosyalarında (`__tests__/`, `*.test.*`, `*.spec.*`) `vi.mock` hoisting sorunları nedeniyle bu kural devre dışıdır. Test dosyalarında import grupları arasında boş satır bırakılmamalıdır.
 
@@ -139,7 +144,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
   - Bağımlılık dizisi **her zaman açıkça** yazılır; boş `[]` yalnızca mount/unmount effect'leri içindir.
   - Effect içinden `setState` zinciri yalnızca event→state→effect akışını zorunlu kıldığında kullanılır; doğrudan olay işleyicisinde çağrılabilir mi diye önce düşünülür.
   - Cleanup fonksiyonu: listener, interval, observer, AbortController, timeout, Promise iptali — her biri için yazılır.
-  - "İçeride asla `useMemo`, `useRef`, `useEffect` taşıma" gibi **küresel yasaklar** yorum olarak bırakılmaz; mimari kararsa koda yansır (`src/features/pdf/ui/hooks/usePdfPlugins.ts:57` örneği, kabul edilebilir tek örnek).
+  - "`@react-pdf-viewer` plugin factory'leri HER render'da koşulsuz çağrılmalıdır" kuralı, mimari bir zorunluluk olduğu için kalıcı yorum olarak bırakılmıştır (`src/features/pdf/ui/hooks/usePdfPlugins.ts:69`).
 - Render sırasında yan etki yasak: `fetch`, `localStorage.setItem`, `Date.now()`-kritik zaman damgası gibi şeyler effect veya olay işleyicisine taşınır.
 
 ## 7. Hook Kuralları
@@ -156,7 +161,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 
 - **Yerel state**: `useState`, `useReducer`.
 - **Cross-component state (renderer)**: Zustand store; feature içinde `src/features/<x>/store/`, app düzeyinde `src/app/providers/<x>/`.
-- **App-wide workspace (tabs/presence)**: `src/app/providers/ai-context` split-context (14 dar slice) — re-render izolasyonu için onaylı istisna; Zustand'a toplu taşıma yüksek regresyon riski nedeniyle RFC gerektirir (STD-005).
+- **App-wide workspace (tabs/presence)**: `src/app/providers/ai-context` split-context (15 dar slice) — re-render izolasyonu için onaylı istisna; Zustand'a toplu taşıma yüksek regresyon riski nedeniyle RFC gerektirir (STD-005).
 - **Server state**: TanStack Query (`@tanstack/react-query`); mutasyon/hook sarmalayıcıları yalnızca `@platform/electron/api` altında.
 - **Cross-process state**: `@shared-core/types` içindeki tipler + IPC contract (`shared/types/ipcContract.ts` + `IpcInvokeRequestMap`).
 - Persist gereken store'larda `persist` + `partialize` + `version` + `migrate` kalıbı kullanılır; `localStorage` doğrudan yazılmaz, `useLocalStorage` (`src/shared/hooks/useLocalStorage.ts`) veya store persist tercih edilir.
@@ -166,13 +171,13 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 - Her domain için tek handler dosyası: `electron/features/<x>/<x>Handlers.ts` (örn. `aiConfigHandlers.ts`, `pdfHandlers.ts`).
 - `electron/app/ipcHandlers.ts` aggregator'ı tüm handler'ları tek noktada `ipcMain.handle(...)` ile bağlar. **Ek `ipcMain.handle/on` çağrıları doğrudan handler dosyalarında yapılmaz.**
 - Her handler'da:
-  1. `requireTrustedIpcSender(event)` ilk satır olarak (`electron/core/ipcSecurity.ts`). **Bu kural `ipcMain.handle` VE `ipcMain.on` handler'ları için geçerlidir.** `ipcMain.on` handler'larında `event` tipi `IpcMainInvokeEvent` değil `IpcMainInvokeEvent`'e benzer; `as never` cast'i ile `requireTrustedIpcSender` çağrılabilir (bkz. `pdfHandlers.ts`).
+  1. `requireTrustedIpcSender(event)` ilk satır olarak (`electron/core/ipcSecurity.ts`). **Bu kural `ipcMain.handle` VE `ipcMain.on` handler'ları için geçerlidir.** `ipcMain.on` handler'larında `event` tipi `IpcMainInvokeEvent` değil `IpcMainEvent`'tir; ikisi de `.sender` alanını paylaştığı için `pdfHandlers.ts` içindeki gibi aynı çağrı kullanılabilir.
   2. Payload doğrulaması: `ipcPayloadGuards.ts` (`toStrictBoolean`, vb.) veya feature içi `sanitize*` (`aiConfigSanitize.ts` örnek kalıbı).
   3. Hata: `Logger.error` + IPC tarafında `throw new Error('user_message_key')` veya `result` discriminated union.
   4. `Logger.error` kullanımı (henüz `console.error` kalan yerler için de hedef).
 
 - Renderer tarafı: her domain için `src/platform/electron/api/use<Domain>Api.ts`. Asla doğrudan `window.electronAPI` çağrısı yapılmaz; `useElectron*` üzerinden.
-- Preload'da API exposure: `electron/preload/index.ts`; her yeni IPC kanalı için `shared/types/ipcContract.ts` + `shared/constants/ipcChannels.ts` + `shared/types/ipc.ts` üçlüsü birlikte güncellenir (tek sözleşme kaynağı).
+- Preload'da API exposure: `electron/preload/index.ts`; her yeni IPC kanalı için `shared/constants/ipcChannels.ts` + `shared/types/ipcContract.ts` + `shared/types/electronApi.ts` üçlüsü birlikte güncellenir (tek sözleşme kaynağı).
 
 ## 10. Error Handling
 
@@ -194,12 +199,12 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 - `console.*` kullanımı:
   - Test dosyalarında (geçici spy amaçlı) serbesttir.
   - Üretim kodunda **yasak** (electron handler'ları, renderer component'leri, i18n, vs.).
-  - **Bilinen istisna**: `src/shared/i18n/locales/_index.ts:126` — geliştirme zamanı i18n çakışma uyarısı, `process.env.NODE_ENV !== 'production'` ile zaten korunur. Kalıcı istisna olarak bu standartta kayıtlıdır; başka yerlerde benzer kalıp eklenirse aynı dev-gate zorunludur.
-- Electron ana sürecinde `Logger` (`electron/core/logger.ts`) zorunludur. Bu, `src/shared/lib/logger.ts` API'sini birebir yansıtan bir shim'dir (sebep: TypeScript project reference sınırı — renderer `app` projesinde, electron `node`/`node.test` projelerinde değil).
+  - Tek istisna logger uygulamasının kendisidir (`src/shared/lib/logger.ts`); bkz. "Bilinen ve Kalıcı İstisnalar".
+- Electron ana sürecinde `Logger` (`electron/core/logger.ts`) zorunludur. Bu, `src/shared/lib/logger.ts` API'sini birebir yansıtan saf bir yeniden-export shim'idir (dosya 19 satır; `Logger`, `reportSuppressedError`, `getRecentElectronLogs`, `redactSensitive` ve `initLogger`/`flushToDisk`). Sebep: TypeScript project reference sınırı — renderer `app` projesinde, electron `node`/`node.test` projelerinde değil.
   - Yeni hata yolları `Logger.warn` / `Logger.error` / `Logger.info` ile yazılır.
   - `reportSuppressedError` de aynı shim'den import edilir.
   - **Göç hedefi**: `src/shared/lib/logger.ts` ile `electron/core/logger.ts` birleştirilip `shared/lib/logger.ts` (cross-process) konumuna taşınacak. Bu yapıldığında import path'leri tek seferde güncellenir; API değişmez.
-  - `console.*` üretim kodunda **yalnızca** `electron/core/logger.ts` içinde kullanılabilir (shim tanımı). Diğer tüm electron dosyaları `Logger` kullanır.
+  - `console.*` üretim kodunda **yalnızca** `src/shared/lib/logger.ts` içinde kullanılabilir (uygulamanın kendisi). Diğer tüm electron dosyaları `Logger` kullanır.
 
 ## 12. Async / Promise Kuralları
 
@@ -215,7 +220,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
   2. `data-*` attribute ile conditional style geçişi.
   3. Üçüncü parti bileşenin (örn. PDF viewer plugin) iç API'sinin zorunlu kıldığı durum.
   - Bu üçü dışında `style` attribute'u PR review'da geri çevrilir.
-- Renk paleti: `tailwind.config.js` içindeki `sand` ve `stone` paletleri. Yeni renk eklenirse palete eklenir, hex literal JSX/CSS içinde yazılmaz.
+- Renk paleti: Tailwind v4 `@theme` bloğu `src/shared/styles/index.css` içinde tanımlıdır; repo'da `tailwind.config.js` **yoktur** (Tailwind `@tailwindcss/vite` plugin'i ile yüklenir). Yeni renk eklenirse `@theme` bloğuna eklenir, hex literal JSX/CSS içinde yazılmaz.
 - `cn(...)` her zaman `@shared/lib/uiUtils`'tan alınır; `clsx`/`classnames` doğrudan kullanılmaz.
 - Tailwind utility class'ları `prettier-plugin-tailwindcss` ile otomatik sıralanır (`npm run format`). `w-4 h-4` yerine `h-4 w-4` şeklinde düzenlenir.
 - CSS dosyaları `npm run analyze:css` (Stylelint) ile denetlenir. `.stylelintrc.json` yapılandırması projenin mevcut CSS kod stiline uyumludur.
@@ -281,11 +286,11 @@ Proje, Tailwind v4 `@theme` ile tanımlanmış merkezi bir token sistemine sahip
 
 ## 14. Test Kuralları
 
-- Vitest (`npm test`) ana test runner'ıdır; jsdom ortamı.
+- Vitest (`npm test`) ana test runner'ıdır. `src/__tests__/**` jsdom'da, `electron/__tests__/**` Node ortamında çalışır; seçim `vitest.config.mts` içindeki `environmentMatchGlobs` ile yapılır. Global kurulum `src/__tests__/setup.ts` (jest-dom, i18n, `ResizeObserver`/`matchMedia` stub'ları, `electron` mock'u, `afterEach` içinde `vi.restoreAllMocks()`).
 - Konum: `src/__tests__/...` (paylaşılan test kodu) ve `<source>/__tests__/...` (kolokasyon). Testler kaynak dosyaya bitişik tutulur.
-- Test factory'leri `src/__tests__/helpers/factories.ts` içinde; render helper'ları `src/__tests__/helpers/render-helpers.tsx` içinde.
-- `useElectronQuery`/`useElectronMutation` testlerinde `getElectronApi` mock'u `src/__tests__/helpers/render-helpers.tsx` üzerinden sağlanır.
-- Coverage threshold'ları `vitest.config.mts`'te tanımlıdır: global `52/50/45/42`, feature bazlı override'lar (örn. `gemini-web-session 58/55`, `pdf 43/41`, `automation 65/63`). Bu eşikler bilinçli olarak aşağı çekilmez; yeni feature için eşik eklenir.
+- Paylaşılan test kodu `src/__tests__/helpers/` altındadır: `factories.ts` (veri fabrikaları) ve `test-utils.tsx` (olay yardımcıları). Yeni paylaşılan yardımcı bu iki dosyadan birine eklenir; ayrı bir "her şeyi re-export eden" tek giriş noktası dosyası yoktur ve eklenmemelidir.
+- `useElectronQuery`/`useElectronMutation` testlerinde Electron API mock'u, testin kendi `__mocks__`/`mockState` dosyasından veya `src/__tests__/setup.ts` içindeki `electron` mock'undan sağlanır.
+- Coverage threshold'ları `vitest.config.mts` içinde tanımlıdır. Sıra: lines / statements / branches / functions. Global taban `50/48/41/47`; kapsam bazlı override'lar `electron/features/gemini-web-session 60/59/56/46`, `**/features/pdf 59/55/50/50`, `electron/features/automation 57/57/55/45`, `electron/core 43/41/37/48`, `electron/features/ai/apiChatHandlers 21/22/31/24`. Bu eşikler bilinçli olarak aşağı çekilmez; yeni feature için eşik eklenir.
 - IPC contract testi (`electron/__tests__/core/ipcContract.test.ts`) **tip düzeyinde** sözleşmeyi doğrular; yeni IPC kanalı eklenirken bu teste de karşılık düşen vaka eklenir.
 - Testlerde `any` kabul edilebilir; ancak test edilen davranışın asıl dış yüzeyini (public API) test etmek tercih edilir. İç implementasyon detayına bağlanan testler kırılgan kabul edilir.
 
@@ -311,30 +316,25 @@ describe('useLocalStorage Hooks', () => {
 })
 ```
 
-### Test Yardımcıları (Single Import Point)
+### Test Yardımcıları
 
-Tüm test yardımcıları `src/__tests__/helpers/render-helpers.tsx` üzerinden tek noktadan import edilir:
+Paylaşılan yardımcılar `src/__tests__/helpers/` altından import edilir:
 
 ```ts
-// ✅ Doğru — tek dosyadan tüm yardımcılar
-import {
-  renderWithProviders,
-  tMock,
-  defaultLanguageMock,
-  fireStorageEvent,
-  fireLocalStorageSyncEvent
-} from '../helpers/render-helpers'
-
-// ❌ Yanlış — ayrı dosyalardan import (halen çalışır ama tercih edilmez)
-import { tMock } from '../helpers/test-utils'
+// ✅ Doğru
+import { fireStorageEvent, fireLocalStorageSyncEvent } from '../helpers/test-utils'
+import { createAiConfig } from '../helpers/factories'
 ```
 
-`test-utils.tsx` içindeki yardımcılar `render-helpers.tsx` üzerinden re-export edilir; bu dosya tek gerçek giriş noktasıdır.
+Alan özelinde mock'lar testin kendi yanında tutulur; örnekler için
+`src/__tests__/app/providers/AppToolContext/mockState.ts`,
+`src/__tests__/features/ai/hooks/useAiSender/mocks.tsx` ve
+`src/__tests__/hooks/webview/useWebviewLifecycle/mocks.ts` dosyalarına bakın.
 
 ## 15. Dosya / Modül Organizasyonu
 
-- Bir dosya 400 satırı aştığında bölünür. Hook/component dosyaları 250 satır civarı "rahat" üst sınırdır; aşılırsa bölünür.
-- Bu kural `npm run analyze:file-sizes` ile denetlenir; CI pipeline'de `scripts/check-file-sizes.mjs` çalışır.
+- Bir dosya 700 satırı aştığında bölünür. Hook (`use*.ts`) ve component (`*.tsx`) dosyaları için denetim sınırı 650 satırdır; bu ikisi "rahat" sınır olarak 250–400 satır bandında tutulmalı, denetim sınırına dayanmadan bölünmelidir.
+- Bu kural `npm run analyze:file-sizes` ile denetlenir; CI'da `scripts/check-file-sizes.mjs` çalışır ancak `continue-on-error: true` ile engelleyici değildir. Sabitler: `GENERAL_LIMIT = 700`, `COMPONENT_HOOK_LIMIT = 650`.
 - Bir modül **tek bir sorumluluğa** sahip olur; "util-collection" modülleri (`utils.ts`, `helpers.ts`, `common.ts`) yasak.
 - Re-export amaçlı `types.ts` veya `public.ts` gibi ince barrel'lar kabul edilir; ancak ana barrel her zaman tek gerçek kaynaktır.
 - `index.ts` barrel'ları sadece export içerir; default export re-export etmez, yorum/JSdoc dışında başka şey barındırmaz.
@@ -365,10 +365,10 @@ import { tMock } from '../helpers/test-utils'
   1. `npm run format:check && npm run lint && npm run typecheck && npm test && npm run analyze:file-sizes && npm run analyze:css` hepsi yeşil.
   2. Mimari sınır ihlali yok (`@features/<x>/<private>` dışarıdan import edilmiyor, vb.).
   3. `console.*`, `any`, `as any`, `// eslint-disable` ESLint tarafından engellenir (bilinen istisnalar yoksa).
-  4. Yeni IPC kanalı `shared/types/ipcContract.ts` + `shared/constants/ipcChannels.ts` + `shared/types/ipc.ts` üçlüsünde tanımlı; preload + handler + renderer hook güncel.
+  4. Yeni IPC kanalı `shared/constants/ipcChannels.ts` + `shared/types/ipcContract.ts` + `shared/types/electronApi.ts` üçlüsünde tanımlı; preload + handler + renderer hook güncel.
   5. Coverage eşiği korunuyor.
   6. Dokümantasyon: yeni bir feature/servise dair barrel değiştiyse bu dosya güncellenir.
-- Versiyon tutarlılığı: `package.json` ↔ `app/version.ts` ↔ release tag (`npm run ci:check-version`).
+- Versiyon tutarlılığı (`npm run ci:check-version`): `package.json` sürümü ↔ push edilen `v*` release tag'ı ve her iki README'deki dinamik sürüm rozeti. Ayrı bir `app/version.ts` dosyası yoktur.
 - **Release ve Tag Politikası**:
   - Her commit/yüklemede kesinlikle versiyon artırımı yapılmaz ve git tag (`git tag v*`) oluşturulmaz/push edilmez.
   - Normal commit'lerde sadece ilgili branch'e push yapılır (`git push origin master`), `--tags` kullanılmaz.
@@ -396,18 +396,19 @@ Proje kökünde `.vscode/settings.json` ve `.vscode/extensions.json` dosyaları 
 
 ## Bilinen ve Kalıcı İstisnalar
 
-| Konum                                                    | İstisna                                                                                   | Gerekçe                                                                                                                                                                |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/features/ai/ui/AiSession.tsx:198`                   | `allowpopups={… as any}` + açıklayıcı yorum                                               | Electron `<webview>` JSX attribute tip uyumsuzluğu (React `boolean` vs Electron `string`). Augmentasyon denendi; yetersiz kaldı.                                       |
-| `src/features/pdf/ui/components/GoogleDrivePanel.tsx:60` | Aynı kalıp                                                                                | Aynı.                                                                                                                                                                  |
-| `src/shared/i18n/locales/_index.ts:126`                  | `console.warn` (dev-only, `NODE_ENV !== 'production'` gate'li)                            | Geliştiriciye i18n çakışmasını **hemen** göstermek; `Logger.warn` sadece buffer'a yazıp prod'da logu basmaz, oysa bu uyarı kullanıcıya değil geliştiriciye yöneliktir. |
-| `src/features/pdf/ui/hooks/usePdfPlugins.ts:57`          | Effect bağımlılıklarında "asla `useMemo`/`useRef`/`useEffect` içine taşıma" kalıcı yorumu | PDF plugin init sırası nedeniyle bilinçli mimari karar; yorum silinirse plugin init sırası bozulur.                                                                    |
-| `src/features/automation/automationScripts/helpers/*`    | `try { … } catch { /* expected */ }` veya boş catch                                       | Tarayıcı otomasyonu sırasında `disconnect`, `removeEventListener`, selector sorgusu başarısızlıkları "expected" kabul edilir.                                          |
-| `electron/core/logger.ts`, `src/shared/lib/logger.ts`    | `console.*` ve `any` kullanımı                                                            | Logger shim'in kendisi — `console` ve `any` zorunlu.                                                                                                                   |
-| `src/shared/i18n/locales/_index.ts`                      | `console.warn` (dev-only)                                                                 | Geliştiriciye i18n çakışmasını göstermek; `Logger.warn` prod'da logu basmaz. (ESLint `no-console` istisnası)                                                           |
-| `electron/app/index.ts`                                  | `any` kullanımı                                                                           | Electron IPC start-up tiplendirmesi için.                                                                                                                              |
-| `src/app/components/ui/sparkles.tsx`                     | `any` kullanımı                                                                           | Üçüncü parti particle kütüphanesi tip uyumsuzluğu.                                                                                                                     |
-| `src/features/ai/lib/aiSenderSupport.ts`                 | `any` kullanımı                                                                           | Karmaşık send pipeline tip bağlayıcı.                                                                                                                                  |
-| `scripts/**`                                             | `console.*` kullanımı                                                                     | Build/development script'leri — üretim kodu değil.                                                                                                                     |
+| Konum                                                    | İstisna                                                                                              | Gerekçe                                                                                                                                                             |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/features/ai/ui/AiSession.tsx:128`                   | `allowpopups={… as any}` + açıklayıcı yorum                                                          | Electron `<webview>` JSX attribute tip uyumsuzluğu (React `boolean` vs Electron `string`). Augmentasyon denendi; yetersiz kaldı.                                    |
+| `src/features/pdf/ui/components/GoogleDrivePanel.tsx:71` | Aynı kalıp                                                                                           | Aynı.                                                                                                                                                               |
+| `src/features/pdf/ui/hooks/usePdfPlugins.ts:69`          | "Plugin factory'leri HER render'da koşulsuz çağrılmalıdır" kalıcı yorumu ve koşulsuz factory çağrısı | `@react-pdf-viewer` plugin'leri içeride React hook kullanır; koşullu çağrılırsa hook sırası render'lar arası değişir. Yorum silinirse plugin init sırası bozulur.   |
+| `electron/features/automation/automationScripts/lib/*`   | `try { … } catch (_) { }` veya boş catch                                                             | Tarayıcı otomasyonu sırasında `disconnect`, `removeEventListener`, selector sorgusu başarısızlıkları "expected" kabul edilir.                                       |
+| `src/shared/lib/logger.ts`                               | `console.*` ve `any` kullanımı                                                                       | Logger uygulamasının kendisi — `console` ve `any` zorunlu. `electron/core/logger.ts` yalnızca bunu yeniden export eden 19 satırlık bir shim'dir ve istisna taşımaz. |
+| `electron/app/index.ts:230`                              | `any` kullanımı                                                                                      | Electron IPC start-up tiplendirmesi için.                                                                                                                           |
+| `src/features/ai/lib/aiSenderSupport.ts:188`             | `any` kullanımı                                                                                      | Karmaşık send pipeline tip bağlayıcı.                                                                                                                               |
+| `scripts/**`                                             | `console.*` kullanımı                                                                                | Build/development script'leri — üretim kodu değil.                                                                                                                  |
+
+> Bu tablo güncel tutulur. Bir istisna kaldırıldığında (dosya silinir, `any`
+> kalıbı düzeltilir, yorum taşınır) satır buradan da silinmelidir; aksi halde
+> "izin verilen" ama artık var olmayan bir muafiyet listelenmiş olur.
 
 Bu istisnalar dışındaki tüm ihlaller PR review'da geri çevrilir.

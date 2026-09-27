@@ -2,83 +2,118 @@
 
 ## Supported Versions
 
-We actively support and provide security updates for the following versions:
+Security updates go to the current major line only. Older lines do not receive
+backported fixes.
 
-| Version | Supported |
-| ------- | --------- |
-| 4.0.x   | Yes       |
-| 3.0.x   | No        |
-| 2.x.x   | No        |
-| 1.x.x   | No        |
+| Version  | Supported |
+| -------- | --------- |
+| **6.x**  | Yes       |
+| 5.x, 4.x | No        |
+| ≤ 3.x    | No        |
+
+The current major is whatever `package.json` declares — see
+[Releases](https://github.com/ozymandias-get/quizlab/releases) for what is
+published.
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability, please follow responsible disclosure.
+Do **not** open a public GitHub issue for a security vulnerability.
 
-### How to Report
-
-Do **not** open a public GitHub issue for security vulnerabilities.
-
-Report via GitHub Security Advisory:
+Report it through GitHub Security Advisories:
 
 - https://github.com/ozymandias-get/quizlab/security/advisories/new
 
-Or contact the maintainer directly through GitHub.
-
 ### What to Include
 
-When reporting a vulnerability, please provide:
-
-- Description: clear explanation of the issue
-- Impact: what could be compromised
+- Description — a clear explanation of the issue
+- Impact — what an attacker could achieve
 - Steps to reproduce
 - Affected versions
 - Suggested mitigation (optional)
-- Minimal proof of concept (if applicable)
+- A minimal proof of concept, if you have one
 
 ### Response Timeline
 
-| Phase              | Timeline               |
-| ------------------ | ---------------------- |
-| Acknowledgment     | Within 48 hours        |
-| Initial Assessment | Within 5 business days |
-| Fix Development    | Depends on severity    |
-| Public Disclosure  | After fix is released  |
+| Phase              | Timeline                  |
+| ------------------ | ------------------------- |
+| Acknowledgment     | Within 48 hours           |
+| Initial Assessment | Within 5 business days    |
+| Fix Development    | Depends on severity       |
+| Public Disclosure  | After the fix is released |
 
-## Security Best Practices
+## Hardening in This Repository
 
-### For Users
+The Electron layer enforces the following, and CI fails the build if it is
+regressed:
 
-- Use the latest release
-- Download only from official GitHub releases
-- Keep API keys and credentials secure
-- Report suspicious behavior immediately
+- **Window isolation** — `contextIsolation: true`, `nodeIntegration: false`,
+  `sandbox: true`, `webSecurity: true` in
+  `electron/app/window/windows.ts`. On `will-attach-webview`,
+  `electron/app/window/security.ts` strips renderer-supplied preloads and
+  forces the same preferences on every `<webview>`.
+- **Narrow preload bridge** — `electron/preload/index.ts` exposes one explicit
+  method per allowed channel through `contextBridge`; nothing else crosses.
+- **IPC sender validation** — `electron/core/ipcSecurity.ts` requires both that
+  the sender is the main window's web contents and that the frame is its main
+  frame, so subframes and webviews cannot invoke main-process handlers.
+- **Content Security Policy** — a nonce-based policy is injected into the main
+  frame (`electron/core/csp.ts`); the document also declares a `frame-src`
+  allowlist.
+- **PDF delivery** — `local-pdf://` (`electron/features/pdf/pdfProtocol.ts`)
+  resolves opaque in-process ids only, requires the file to be on a persistent
+  allowlist, validates the request origin, and serves byte ranges. It never
+  accepts a raw filesystem path from the renderer.
+- **Outbound request hardening** — API chat endpoints must be HTTPS (or
+  localhost), are rejected for private and reserved address space, are pinned to
+  the resolved IP with TLS SNI preserved
+  (`electron/features/ai/apiChatHandlers/ssrf.ts`), and drop the
+  `Authorization` header across redirects.
+- **Extension bridge** — a loopback HTTP server that requires an exact
+  extension origin, verifies an HMAC-SHA256 signature over the request body in
+  constant time, caps the body at 512 KB, and only accepts cookies for
+  `.google.com` and `.youtube.com`
+  (`electron/features/native-messaging/`).
+- **Secret storage** — API keys are written with mode `0600` and encrypted with
+  Electron `safeStorage` where the OS keychain is available, falling back to
+  AES-256-GCM under a PBKDF2-derived machine key. The fallback obfuscates the
+  value at rest; it is not a substitute for a keychain.
+- **Automated scanning** — Electronegativity, Semgrep, `npm audit` and
+  dependency-cruiser all run in the `quality` CI job. The Electronegativity
+  baseline (12 MEDIUM, 1 LOW) is documented in
+  `scripts/check-electron-security.mjs`; the gate fails on HIGH/CRITICAL.
+- **Dependency exceptions** — accepted advisories live in
+  `security/audit-exceptions.json` with an id, installed version and expiry, and
+  the checker fails when an exception no longer justifies itself.
 
-### For Contributors
+## Known Limits
 
-- Never commit secrets or credentials
-- Validate all IPC inputs
-- Keep `shared/` (`@shared-core/*`) platform-agnostic
-- Keep renderer-only logic in `src/` (`@shared/*`)
-- Keep Node.js APIs out of renderer; use preload/IPC bridge
+- Live AI web session cookies are stored by Chromium in its own partition
+  directory under the user-data folder. The application does not encrypt them.
+- Windows installers are unsigned
+  (`signExecutable: false`, `forceCodeSigning: false`).
+- The machine-derived AES fallback key is derived from publicly readable machine
+  identifiers, so it protects against casual inspection, not against someone
+  with access to your user profile.
+- The Google AI web session uses ordinary web sign-in and browser-profile
+  persistence, not an official API. Google's own terms apply to that use.
 
-## Security Features in This Repo
+## For Contributors
 
-- Context isolation via preload script
-- No direct Node.js access in renderer
-- Custom `local-pdf://` protocol for PDF loading
-- Content Security Policy configuration
-- External links opened via `shell.openExternal()`
+- Never commit secrets or credentials.
+- Keep `shared/` (`@shared-core/*`) platform-agnostic — no Electron, no DOM.
+- Keep Node.js APIs out of the renderer; go through the preload bridge.
+- Start every IPC handler with `requireTrustedIpcSender(event)` and validate
+  payloads.
+- Prefer `shared/constants/ipcChannels.ts` + `shared/types/ipcContract.ts` +
+  `shared/types/electronApi.ts` as the single place a new channel is declared.
 
 ## Disclosure Policy
 
-When we receive a security report:
-
-1. We confirm receipt and begin investigation.
+1. We confirm receipt and begin investigating.
 2. We develop and test a fix.
 3. We release the fix in a new version.
-4. We disclose the issue publicly (with credit if desired).
+4. We disclose the issue publicly, with credit if you want it.
 
 ---
 
-Last updated: 2026-04-11
+Last reviewed: 2026-09-28

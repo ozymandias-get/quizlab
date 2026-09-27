@@ -20,10 +20,12 @@ Thank you for your interest in contributing. This guide reflects the current rep
 
 ### Prerequisites
 
-- **Node.js 20+** (recommended: 22)
+- **Node.js 20.19+ / 22.12+ / 24+** (CI uses 24 — see the `engines` range of
+  Vite and Vitest)
 - **npm**
 - **Git**
-- **Google Account** (optional, for Gemini Web and Google AI surfaces)
+- **Google account** (optional, for the Google AI web session)
+- **API keys** (optional, for the direct API chat)
 
 ### Initial Setup
 
@@ -39,13 +41,29 @@ npm install
 npm run dev
 ```
 
-Optional environment variables (see `.env.example`):
+### Environment variables
 
-| Variable                     | Effect                                                      |
-| ---------------------------- | ----------------------------------------------------------- |
-| `APP_ALLOW_MULTI_INSTANCE=1` | Allow multiple instances (default: single-instance).        |
-| `APP_RENDERER_URL`           | Renderer dev server URL (default: `http://localhost:5173`). |
-| `APP_OPEN_DEVTOOLS=1`        | Open DevTools on startup.                                   |
+The Electron main process reads `process.env` directly — there is no `.env`
+loader, so exporting a `.env` file has no effect. Set variables in the shell
+that launches the app instead. `.env.example` lists the full set with
+defaults; the ones you are most likely to want:
+
+| Variable                        | Effect                                                                                                |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `APP_RENDERER_URL`              | Dev-server URL the main window loads (default `http://localhost:5173`)                                |
+| `APP_OPEN_DEVTOOLS=1`           | Open DevTools on startup                                                                              |
+| `QUIZLAB_PROFILE`               | Suffix for the user-data directory; any value other than `stable` also lifts the single-instance lock |
+| `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                                                  |
+| `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                                                         |
+| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge (default `51999`)                                         |
+| `GEMINI_WEB_*`                  | Google session health-check intervals and timeouts (see `.env.example`)                               |
+
+On Windows PowerShell:
+
+```powershell
+$env:APP_OPEN_DEVTOOLS = '1'
+npm run dev
+```
 
 ---
 
@@ -154,6 +172,9 @@ npm run typecheck
 # ESLint (zero warnings required)
 npm run lint
 
+# Prettier check (what CI runs)
+npm run format:check
+
 # Run tests
 npm run test
 
@@ -164,7 +185,12 @@ npm run build
 npm run format
 ```
 
-Pre-commit hooks are set up via **Husky** and **lint-staged** — they run lint and format automatically on staged files.
+Pre-commit hooks are set up via **Husky** and **lint-staged** — they run Prettier and ESLint automatically on staged files.
+
+`npm run analyze:architecture` (dependency-cruiser) is the other gate worth
+running before opening a PR: it enforces the import boundaries below. The full
+set of CI gates is listed in
+[.github/workflows/build.yml](.github/workflows/build.yml).
 
 ---
 
