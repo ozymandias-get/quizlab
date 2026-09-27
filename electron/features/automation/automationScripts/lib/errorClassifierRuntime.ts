@@ -40,6 +40,7 @@ export const errorClassifierRuntime = `    /**
         [/^submit_failed$/, 'same-strategy', true, 'submit', 'toast_submit_failed'],
         [/^click_failed$/, 'same-strategy', false, 'submit', 'toast_click_failed'],
         [/^paste_failed$/, 'different-strategy', true, 'paste', 'toast_paste_failed'],
+        [/^paste_not_applied$/, 'different-strategy', true, 'paste', 'toast_paste_not_applied'],
         [/^clipboard_failed$/, 'after-backoff', true, 'clipboard', 'toast_clipboard_failed'],
         [/^upload_failed$/, 'different-strategy', true, 'upload', 'toast_upload_failed'],
         [/^upload_timed_out$/, 'after-backoff', true, 'upload', 'toast_upload_timed_out'],

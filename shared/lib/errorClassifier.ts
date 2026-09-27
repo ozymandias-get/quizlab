@@ -174,6 +174,18 @@ const ERROR_TABLE: ReadonlyArray<{
     toastKey: 'toast_upload_timed_out',
     description: 'Upload progress stalled or never reached 100%.'
   },
+  {
+    // The composer never changed at all after the paste: the clipboard write
+    // succeeded but the guest page never received the event, so the send button
+    // stayed disabled. Reported separately because "still processing" sends the
+    // user in the wrong direction — waiting cannot help.
+    match: /^paste_not_applied$/,
+    category: 'paste',
+    retry: 'different-strategy',
+    toastKey: 'toast_paste_not_applied',
+    description: 'Paste produced no change in the page composer.',
+    triggerFallback: true
+  },
   // ── Network / timeout ───────────────────────────────────────────────
   {
     match: /^network_error$/,

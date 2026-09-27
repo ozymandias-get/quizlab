@@ -189,5 +189,25 @@ export interface AutomationExecutionResult {
   error?: string
   mode?: string
   action?: string
+  /**
+   * Why a submit-ready wait gave up. `submit_not_ready` alone cannot
+   * distinguish "the button is still disabled while the upload finishes" from
+   * "the selector matched a hidden placeholder", and those need different fixes.
+   */
+  notReadyReason?: string
+  /** Which lookup the wait was blocked on: `button` or `input`. */
+  notReadyTarget?: string
+  /** How long the wait actually ran, and the budget it was allowed. */
+  waitedMs?: number
+  budgetMs?: number
+  minimumWaitMs?: number
+  /**
+   * Whether the submit target was ever interactive during the wait. `false`
+   * alongside a low `mutationCount` means the paste likely attached nothing.
+   */
+  everReady?: boolean
+  mutationCount?: number
+  sinceLastMutationMs?: number
+  checkIterations?: number
   diagnostics?: AutomationExecutionDiagnostics
 }

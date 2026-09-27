@@ -261,6 +261,130 @@ describe('automationScripts', () => {
     expect(result.error).toBe('submit_not_ready')
   }, 10000)
 
+  // A generic "still processing" error gives no way to tell a genuinely slow
+  // upload from a stale selector or a paste that attached nothing. These
+  // fields are what make the difference diagnosable from the log alone.
+  describe('submit_not_ready diagnostics', () => {
+    function prepareDisabledButton() {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button" disabled>Send</button>
+          `
+      const sendButton = document.getElementById('send') as HTMLButtonElement
+      Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
+      Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
+      return sendButton
+    }
+
+    it('names the disabled button and reports the wait budget', async () => {
+      prepareDisabledButton()
+
+      const result = await window.eval(
+        generateWaitForSubmitReadyScript(
+          { input: '#input', button: '#send', submitMode: 'click' },
+          { timeoutMs: 500, settleMs: 100, minimumWaitMs: 100 }
+        )
+      )
+
+      expect(result.error).toBe('submit_not_ready')
+      expect(result.notReadyTarget).toBe('button')
+      expect(result.notReadyReason).toMatch(/disabled/)
+      expect(result.budgetMs).toBe(500)
+      expect(result.minimumWaitMs).toBe(100)
+      expect(result.waitedMs).toBeGreaterThan(0)
+    }, 10000)
+
+    it('reports that the target was never ready when the button stays disabled', async () => {
+      prepareDisabledButton()
+
+      const result = await window.eval(
+        generateWaitForSubmitReadyScript(
+          { input: '#input', button: '#send', submitMode: 'click' },
+          { timeoutMs: 400, settleMs: 80, minimumWaitMs: 80 }
+        )
+      )
+
+      expect(result.everReady).toBe(false)
+    }, 10000)
+
+    it('reports everReady when the button briefly enabled then re-disabled', async () => {
+      const sendButton = prepareDisabledButton()
+
+      const execution = window.eval(
+        generateWaitForSubmitReadyScript(
+          { input: '#input', button: '#send', submitMode: 'click' },
+          { timeoutMs: 900, settleMs: 900, minimumWaitMs: 50 }
+        )
+      )
+      setTimeout(() => {
+        sendButton.disabled = false
+        sendButton.removeAttribute('disabled')
+      }, 150)
+
+      const result = await execution
+
+      expect(result.error).toBe('submit_not_ready')
+      // The stale-button flap is a different failure from "never enabled".
+      expect(result.everReady).toBe(true)
+    }, 10000)
+
+    it('reports aria-disabled distinctly from the disabled property', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button" aria-disabled="true">Send</button>
+          `
+      const sendButton = document.getElementById('send') as HTMLButtonElement
+      Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
+      Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
+
+      const result = await window.eval(
+        generateWaitForSubmitReadyScript(
+          { input: '#input', button: '#send', submitMode: 'click' },
+          { timeoutMs: 300, settleMs: 60, minimumWaitMs: 60 }
+        )
+      )
+
+      expect(result.notReadyReason).toBe('aria_disabled')
+    }, 10000)
+
+    it('reports a hidden match instead of claiming the target is disabled', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button" style="display:none">Send</button>
+          `
+      const sendButton = document.getElementById('send') as HTMLButtonElement
+      // jsdom performs no layout, so size must be stubbed for visibility
+      // checks to be about `display` rather than `zero_size`.
+      Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
+      Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
+
+      const result = await window.eval(
+        generateWaitForSubmitReadyScript(
+          { input: '#input', button: '#send', submitMode: 'click' },
+          { timeoutMs: 300, settleMs: 60, minimumWaitMs: 60 }
+        )
+      )
+
+      expect(result.notReadyReason).toBe('display_none')
+    }, 10000)
+
+    it('reports zero_size for a matched but unrendered element', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+
+      const result = await window.eval(
+        generateWaitForSubmitReadyScript(
+          { input: '#input', button: '#send', submitMode: 'click' },
+          { timeoutMs: 300, settleMs: 60, minimumWaitMs: 60 }
+        )
+      )
+
+      expect(result.notReadyReason).toBe('zero_size')
+    }, 10000)
+  })
+
   describe('generated script structure', () => {
     it('builds auto-send script with core execution steps', () => {
       const script = generateAutoSendScript(

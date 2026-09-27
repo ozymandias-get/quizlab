@@ -67,6 +67,15 @@ export function normalizeExecutionResult(value: unknown): AutomationExecutionRes
     error: candidate.error,
     mode: candidate.mode,
     action: candidate.action,
+    notReadyReason: candidate.notReadyReason,
+    notReadyTarget: candidate.notReadyTarget,
+    waitedMs: candidate.waitedMs,
+    budgetMs: candidate.budgetMs,
+    minimumWaitMs: candidate.minimumWaitMs,
+    everReady: candidate.everReady,
+    mutationCount: candidate.mutationCount,
+    sinceLastMutationMs: candidate.sinceLastMutationMs,
+    checkIterations: candidate.checkIterations,
     diagnostics: candidate.diagnostics
   }
 }

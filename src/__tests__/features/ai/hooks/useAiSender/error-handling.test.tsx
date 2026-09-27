@@ -3,7 +3,8 @@ import { vi } from 'vitest'
 import { mockState } from './mockState'
 
 vi.mock('@shared/lib/logger', () => ({
-  Logger: mockState.mockLogger
+  Logger: mockState.mockLogger,
+  reportSuppressedError: vi.fn()
 }))
 
 vi.mock('@features/ai/hooks/usePrompts', () => ({

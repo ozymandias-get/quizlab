@@ -1,4 +1,4 @@
-import type { AiPlatform, TextInputMode } from '@shared-core/types'
+import type { AiPlatform, AutomationExecutionResult, TextInputMode } from '@shared-core/types'
 import type { WebviewController } from '@shared-core/types/webview'
 
 import { getElectronApi } from '@shared/lib/electronApi'
@@ -58,6 +58,54 @@ interface ImageSendPipelineParams {
     options?: { timeoutMs?: number; settleMs?: number; minimumWaitMs?: number }
   }) => Promise<string | null>
   generateClickSendScript: (config: ReturnType<typeof toAutomationConfig>) => Promise<string | null>
+}
+
+/**
+ * Explains a submit-ready timeout in one line.
+ *
+ * The user-visible error is a single generic "still processing" string, so
+ * without this the only way to tell a genuinely slow upload from a stale
+ * selector or a failed paste is to reproduce it by hand. Emitted at `warn` so it
+ * reaches both the in-app issue-report buffer and the production disk log.
+ */
+function logSubmitReadyFailure(params: {
+  step: { error?: unknown; scriptResult?: AutomationExecutionResult | null }
+  platformId: string
+  currentUrl: string
+  minimumReadyWaitMs: number
+  submitReadyTimeoutMs: number
+  clipboardRestored: boolean
+  pasteIgnoredPage: boolean
+  diagnostics: AiSendDiagnostics
+}): void {
+  const { step, currentUrl, diagnostics } = params
+  const result = step.scriptResult
+  const failure = step.error as { error?: string } | undefined
+
+  const detail = {
+    platform: params.platformId,
+    url: currentUrl,
+    errorCode: failure?.error ?? result?.error ?? 'unknown',
+    notReadyTarget: result?.notReadyTarget,
+    notReadyReason: result?.notReadyReason,
+    // never-ready + no DOM movement == the paste attached nothing
+    everReady: result?.everReady,
+    mutationCount: result?.mutationCount,
+    checkIterations: result?.checkIterations,
+    waitedMs: result?.waitedMs ?? diagnostics.timings.imageUploadWaitMs,
+    budgetMs: result?.budgetMs ?? params.submitReadyTimeoutMs,
+    platformMinWaitMs: params.minimumReadyWaitMs,
+    clipboardRestored: params.clipboardRestored,
+    pasteIgnoredPage: params.pasteIgnoredPage,
+    pasteMs: diagnostics.timings.pasteMs,
+    clipboardMs: diagnostics.timings.clipboardMs,
+    submitReadyExecuteMs: diagnostics.timings.submitReadyExecuteJavaScriptMs
+  }
+
+  // `submit_not_ready` means the element was found but stayed un-interactive.
+  // Surface it as a warning so it is not lost in the noise of info logs.
+  Logger.warn('[imageSend] submit-ready gave up', JSON.stringify(detail))
+  reportSuppressedError('imageSend.submitNotReady', { cause: new Error(JSON.stringify(detail)) })
 }
 
 export async function executeImageSendPipeline(
@@ -328,6 +376,32 @@ export async function executeImageSendPipeline(
         }
       })
       if (!submitReadyStep.success) {
+        const scriptResult = submitReadyStep.scriptResult
+        // Zero DOM mutations and a target that was never interactive means the
+        // paste never reached the page at all. Reporting the generic
+        // `submit_not_ready` ("still processing") would have the user waiting
+        // on something that can never finish.
+        const pasteIgnoredPage =
+          scriptResult?.everReady === false && (scriptResult?.mutationCount ?? 0) === 0
+
+        logSubmitReadyFailure({
+          step: submitReadyStep,
+          platformId: currentAI,
+          currentUrl: resolved.currentUrl,
+          minimumReadyWaitMs,
+          submitReadyTimeoutMs,
+          clipboardRestored: !clipboardRestorePending,
+          pasteIgnoredPage,
+          diagnostics
+        })
+
+        if (pasteIgnoredPage) {
+          return attachDiagnostics(
+            { success: false, error: 'paste_not_applied' },
+            diagnostics,
+            requestStartedAt
+          ) as SendImageResult
+        }
         return submitReadyStep.error
       }
 

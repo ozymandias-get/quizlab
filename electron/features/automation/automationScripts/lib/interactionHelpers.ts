@@ -39,34 +39,49 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
         }
     };
 
-    const isReadyForInteraction = (element) => {
+    /**
+     * Explains why \`isReadyForInteraction\` would reject an element.
+     * Returns null when the element is ready. Kept in lockstep with
+     * \`isReadyForInteraction\` so a \`submit_not_ready\` timeout can report the
+     * actual blocker instead of only "still processing".
+     */
+    const describeNotReady = (element) => {
         if (!element) {
-            return false;
+            return 'element_missing';
         }
 
         const style = window.getComputedStyle(element);
-        const isVisible = element.offsetWidth > 0
-            && element.offsetHeight > 0
-            && style.visibility !== 'hidden'
-            && style.display !== 'none';
-
+        if (!element.offsetWidth || !element.offsetHeight) {
+            return 'zero_size';
+        }
+        if (style.visibility === 'hidden') {
+            return 'visibility_hidden';
+        }
+        if (style.display === 'none') {
+            return 'display_none';
+        }
         if (element.disabled) {
-            return false;
+            return 'disabled_property';
         }
         if (element.getAttribute('disabled') !== null) {
-            return false;
+            return 'disabled_attribute';
         }
         if (element.getAttribute('aria-disabled') === 'true') {
-            return false;
+            return 'aria_disabled';
         }
 
-        const hasDisabledClass = Array.from(element.classList || []).some(className => {
+        const disabledClass = Array.from(element.classList || []).find((className) => {
             const normalized = String(className).toLowerCase();
             return normalized.includes('disabled') || normalized.includes('inactive');
         });
+        if (disabledClass) {
+            return 'disabled_class:' + String(disabledClass);
+        }
 
-        return isVisible && !hasDisabledClass;
+        return null;
     };
+
+    const isReadyForInteraction = (element) => describeNotReady(element) === null;
 
     const resolveLookupError = (lookup, fallbackError, configHealth) => {
         if (lookup && lookup.fingerprint) {
