@@ -152,10 +152,7 @@ export const ModelIconsList = memo(function ModelIconsList({
   )
 
   return (
-    <div
-      className="flex w-full flex-col items-center gap-1.5"
-      data-tour-id="tour-target-models-list"
-    >
+    <div className="flex w-full flex-col items-center gap-1" data-tour-id="tour-target-models-list">
       {displayModels.map((modelKey) => (
         <ModelDockIcon key={modelKey} modelKey={modelKey} site={aiSites[modelKey]} />
       ))}

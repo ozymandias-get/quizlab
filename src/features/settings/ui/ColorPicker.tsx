@@ -1,3 +1,5 @@
+import { cn } from '@shared/lib/uiUtils'
+
 import { Popover, PopoverButton, PopoverPanel, Transition } from '@headlessui/react'
 import { type CSSProperties, Fragment, memo, useMemo } from 'react'
 import { HexColorPicker } from 'react-colorful'
@@ -16,26 +18,33 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
   const swatchStyle = useMemo<CSSProperties>(() => ({ backgroundColor: color }), [color])
 
   return (
-    <div className="relative flex flex-col gap-2">
-      {label && <span className="text-ql-11 text-muted-foreground ml-1 font-medium">{label}</span>}
+    <div className="border-border/60 bg-background/40 flex flex-col gap-3 rounded-xl border p-4">
+      {label && (
+        <div className="text-muted-foreground flex items-center gap-2">
+          <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
+            {label}
+          </span>
+          <span aria-hidden className="bg-border h-px flex-1" />
+        </div>
+      )}
 
       <Popover className="relative w-full">
         {({ open }) => (
           <>
             <PopoverButton
-              className={`group focus-visible:ring-ring/40 flex w-full items-center gap-3 rounded-xl border p-1.5 transition-colors outline-none focus-visible:ring-2 ${
-                open
-                  ? 'border-primary/40 bg-muted shadow-xs'
-                  : 'border-border bg-card hover:bg-muted/60'
-              } `}
+              className={cn(
+                'focus-visible:ring-ring/40 flex w-full items-center gap-3 rounded-lg border p-1.5 transition-colors outline-none focus-visible:ring-2',
+                open ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/50'
+              )}
             >
-              <div
-                className="border-border/80 h-8 w-8 rounded-lg border shadow-xs"
+              <span
+                aria-hidden
+                className="border-border/60 h-8 w-8 shrink-0 rounded-lg border shadow-xs"
                 style={swatchStyle}
               />
-              <div className="flex flex-col items-start gap-0.5">
-                <span className="text-ql-12 text-foreground font-mono font-medium">{color}</span>
-              </div>
+              <span className="text-ql-12 text-foreground truncate font-mono font-medium">
+                {color}
+              </span>
             </PopoverButton>
 
             <Transition
@@ -53,17 +62,11 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
                     <HexColorPicker color={color} onChange={onChange} />
                   </div>
 
-                  <div className="mt-3 flex items-center gap-3 px-1">
-                    <div
-                      className="border-border/80 h-7 w-7 rounded-lg border shadow-xs"
-                      style={swatchStyle}
-                    />
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-ql-10 text-muted-foreground font-medium">
-                        {t('value')}
-                      </span>
-                      <span className="text-ql-12 text-foreground truncate font-mono">{color}</span>
-                    </div>
+                  <div className="border-border/60 mt-3 flex items-center justify-between gap-3 border-t pt-2.5">
+                    <span className="text-ql-10 text-muted-foreground tracking-ql-label shrink-0 font-semibold uppercase">
+                      {t('value')}
+                    </span>
+                    <span className="text-ql-12 text-foreground truncate font-mono">{color}</span>
                   </div>
                 </div>
               </PopoverPanel>

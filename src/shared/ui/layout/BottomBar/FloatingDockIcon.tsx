@@ -13,8 +13,8 @@ const DOCK_ICON_BASE = 32
 const DOCK_ICON_HOVER = 34
 
 const ICON_CONTAINER_STYLE: CSSProperties = {
-  width: 'calc(1.125rem * var(--bar-scale-factor, 1))',
-  height: 'calc(1.125rem * var(--bar-scale-factor, 1))'
+  width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
+  height: 'calc(1.25rem * var(--bar-scale-factor, 1))'
 }
 
 export interface FloatingDockIconProps {
@@ -78,7 +78,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
             onClick={onClick}
             onKeyDown={handleKeyDown}
             style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
-            className="group border-border bg-card hover:border-ring/40 hover:bg-muted focus-visible:ring-ring/40 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg border shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="group hover:bg-muted focus-visible:ring-ring/40 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none"
           >
             <div
               className="text-muted-foreground group-hover:text-foreground flex items-center justify-center transition-colors"

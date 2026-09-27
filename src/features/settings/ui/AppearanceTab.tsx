@@ -1,4 +1,5 @@
 import { useAppearance } from '@app/providers'
+import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 import { EyeIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
@@ -8,12 +9,11 @@ import { useShallow } from 'zustand/react/shallow'
 import BackgroundSettings from './appearance/BackgroundSettings'
 import BarAppearanceSettings from './appearance/BarAppearanceSettings'
 import SelectionColorSettings from './appearance/SelectionColorSettings'
-import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const APPEARANCE_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+  <SettingsTabIcon>
     <EyeIcon className="h-5 w-5" />
-  </div>
+  </SettingsTabIcon>
 )
 
 const AppearanceTab = memo(() => {
@@ -50,27 +50,29 @@ const AppearanceTab = memo(() => {
     <div className="space-y-6" data-app-locale={language}>
       <SettingsTabIntro icon={APPEARANCE_ICON} description={t('appearance_description')} />
 
-      <BarAppearanceSettings
-        bottomBarOpacity={bottomBarOpacity}
-        setBottomBarOpacity={setBottomBarOpacity}
-        bottomBarScale={bottomBarScale}
-        setBottomBarScale={setBottomBarScale}
-        t={t}
-      />
+      <div className="space-y-4">
+        <BarAppearanceSettings
+          bottomBarOpacity={bottomBarOpacity}
+          setBottomBarOpacity={setBottomBarOpacity}
+          bottomBarScale={bottomBarScale}
+          setBottomBarScale={setBottomBarScale}
+          t={t}
+        />
 
-      <SelectionColorSettings
-        selectionColor={selectionColor}
-        setSelectionColor={setSelectionColor}
-        t={t}
-      />
+        <SelectionColorSettings
+          selectionColor={selectionColor}
+          setSelectionColor={setSelectionColor}
+          t={t}
+        />
 
-      <BackgroundSettings
-        bgMode={bgMode}
-        setBgMode={setBgMode}
-        bgSolidColor={bgSolidColor}
-        setBgSolidColor={setBgSolidColor}
-        t={t}
-      />
+        <BackgroundSettings
+          bgMode={bgMode}
+          setBgMode={setBgMode}
+          bgSolidColor={bgSolidColor}
+          setBgSolidColor={setBgSolidColor}
+          t={t}
+        />
+      </div>
     </div>
   )
 })

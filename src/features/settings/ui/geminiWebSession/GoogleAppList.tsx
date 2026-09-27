@@ -3,7 +3,8 @@ import {
   type GoogleWebSessionAppId
 } from '@shared-core/constants/googleAiWebApps'
 
-import { SurfaceCard } from '@shared/ui/components/primitives'
+import { SettingsSection } from '@shared/ui/components/primitives'
+import { GlobeIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,20 +27,17 @@ function GoogleAppList({
   const { t } = useTranslation()
 
   return (
-    <SurfaceCard className="rounded-xl p-4">
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-ql-11 text-foreground font-semibold">
-            {t('gws_supported_apps_title')}
-          </p>
-          <span className="text-ql-12 text-muted-foreground">{t('gws_supported_apps_desc')}</span>
-        </div>
-        <p className="text-ql-12 text-muted-foreground leading-relaxed">
-          {t('gws_supported_apps_hint')}
-        </p>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-2.5">
+    <SettingsSection
+      icon={<GlobeIcon className="h-4 w-4" />}
+      title={t('gws_supported_apps_title')}
+      detail={t('gws_supported_apps_hint')}
+      action={
+        <span className="bg-muted text-muted-foreground text-ql-11 shrink-0 rounded-full px-2.5 py-1 font-medium">
+          {t('gws_supported_apps_desc')}
+        </span>
+      }
+    >
+      <div className="flex flex-col gap-2.5">
         {GOOGLE_WEB_SESSION_APPS.map((app) => {
           const isEnabled = enabledAppIds.has(app.id)
           return (
@@ -54,10 +52,10 @@ function GoogleAppList({
         })}
       </div>
 
-      <p className="text-ql-12 text-muted-foreground mt-3 leading-relaxed">
+      <p className="text-ql-12 text-muted-foreground leading-relaxed">
         {t('gws_shared_account_note')}
       </p>
-    </SurfaceCard>
+    </SettingsSection>
   )
 }
 

@@ -2,20 +2,22 @@ import type { TextInputMode } from '@shared-core/types'
 
 import { TYPING_SPEED_OPTIONS, useTextInputMode } from '@features/ai'
 
+import { cn } from '@shared/lib/uiUtils'
 import {
-  SettingsRow,
   SettingsRowDescription,
   SettingsRowHeader,
   SettingsRowIcon,
   SettingsRowTitle,
-  TabPill
+  SettingsSection,
+  SettingsTabIcon,
+  SettingsTabIntro,
+  TabPill,
+  TabPillLabel
 } from '@shared/ui/components/primitives'
 
 import { ClipboardPaste, Gauge, Keyboard, PenLine, Sparkles } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-
-import SettingsTabIntro from './shared/SettingsTabIntro'
 
 const TEXT_INPUT_MODE_OPTIONS: {
   value: TextInputMode
@@ -44,9 +46,9 @@ const TEXT_INPUT_MODE_OPTIONS: {
 ]
 
 const TEXT_INPUT_MODE_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+  <SettingsTabIcon>
     <Keyboard className="h-5 w-5" />
-  </div>
+  </SettingsTabIcon>
 )
 
 const TextInputModeTab = memo(() => {
@@ -74,88 +76,81 @@ const TextInputModeTab = memo(() => {
         description={t('text_input_mode_description')}
       />
 
-      <div
-        className="space-y-2 px-1"
-        role="radiogroup"
-        aria-label={t('text_input_mode_description')}
-      >
-        {TEXT_INPUT_MODE_OPTIONS.map((option) => {
-          const isActive = textInputMode === option.value
-          const Icon = option.icon
+      <div className="space-y-4">
+        <SettingsSection icon={<Keyboard className="h-4 w-4" />} title={t('text_input_mode')}>
+          <div
+            className="flex flex-col gap-2"
+            role="radiogroup"
+            aria-label={t('text_input_mode_description')}
+          >
+            {TEXT_INPUT_MODE_OPTIONS.map((option) => {
+              const isActive = textInputMode === option.value
+              const Icon = option.icon
 
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              onClick={() => handleSelect(option.value)}
-              className={`focus-visible:ring-ring/40 flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-                isActive
-                  ? 'border-primary/40 bg-muted/80 shadow-xs'
-                  : 'bg-card border-border hover:bg-muted/40'
-              } `}
-            >
-              <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
-                  isActive
-                    ? 'border-primary/30 bg-primary/15 text-primary'
-                    : 'border-border bg-muted/60 text-muted-foreground'
-                } `}
-              >
-                <Icon className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 grow">
-                <h4 className="text-foreground text-ql-12 leading-tight font-semibold">
-                  {t(option.labelKey)}
-                </h4>
-                <p className="text-muted-foreground text-ql-12 mt-0.5 leading-relaxed">
-                  {t(option.descKey)}
-                </p>
-              </div>
-              <div
-                className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 transition-colors ${
-                  isActive ? 'border-primary bg-primary' : 'border-border bg-transparent'
-                } `}
-              >
-                {isActive && (
-                  <div className="flex h-full items-center justify-center">
-                    <div className="bg-primary-foreground h-1.5 w-1.5 rounded-full" />
-                  </div>
-                )}
-              </div>
-            </button>
-          )
-        })}
-      </div>
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  onClick={() => handleSelect(option.value)}
+                  className={cn(
+                    'focus-visible:ring-ring/40 flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                    isActive
+                      ? 'border-ring/50 bg-accent/30'
+                      : 'border-border/60 bg-card hover:bg-muted/50'
+                  )}
+                >
+                  <SettingsRowIcon>
+                    <Icon className="h-4 w-4" />
+                  </SettingsRowIcon>
+                  <SettingsRowHeader>
+                    <SettingsRowTitle>{t(option.labelKey)}</SettingsRowTitle>
+                    <SettingsRowDescription>{t(option.descKey)}</SettingsRowDescription>
+                  </SettingsRowHeader>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'mt-1 size-4 shrink-0 rounded-full border-2 transition-colors',
+                      isActive ? 'border-primary bg-primary' : 'border-border bg-transparent'
+                    )}
+                  />
+                </button>
+              )
+            })}
+          </div>
+        </SettingsSection>
 
-      <div className="space-y-3">
-        <SettingsRow className="shadow-xs">
-          <SettingsRowIcon>
-            <Gauge className="h-4 w-4" />
-          </SettingsRowIcon>
-          <SettingsRowHeader>
-            <SettingsRowTitle>{t('typing_speed')}</SettingsRowTitle>
-            <SettingsRowDescription>{t('typing_speed_description')}</SettingsRowDescription>
-          </SettingsRowHeader>
-          <span className="text-muted-foreground text-ql-12 shrink-0 font-medium">
-            {typingSpeed}ms
-          </span>
-        </SettingsRow>
+        <SettingsSection
+          icon={<Gauge className="h-4 w-4" />}
+          title={t('typing_speed')}
+          detail={t('typing_speed_description')}
+          action={
+            <span className="text-muted-foreground text-ql-12 shrink-0 font-medium tabular-nums">
+              {typingSpeed}ms
+            </span>
+          }
+        >
+          <div className="grid grid-cols-4 gap-2" role="tablist" aria-label={t('typing_speed')}>
+            {TYPING_SPEED_OPTIONS.map((option) => {
+              const isActive = typingSpeed === option.value
 
-        <div className="grid grid-cols-4 gap-2 px-1" role="tablist" aria-label={t('typing_speed')}>
-          {TYPING_SPEED_OPTIONS.map((option) => (
-            <TabPill
-              key={option.value}
-              isActive={typingSpeed === option.value}
-              onClick={() => handleSpeedChange(option.value)}
-              aria-label={t(option.labelKey)}
-              className="justify-center rounded-xl py-2.5"
-            >
-              {t(option.labelKey)}
-            </TabPill>
-          ))}
-        </div>
+              return (
+                <TabPill
+                  key={option.value}
+                  isActive={isActive}
+                  onClick={() => handleSpeedChange(option.value)}
+                  aria-label={t(option.labelKey)}
+                  className="justify-center rounded-lg py-2.5"
+                >
+                  <TabPillLabel isActive={isActive} className="text-center">
+                    {t(option.labelKey)}
+                  </TabPillLabel>
+                </TabPill>
+              )
+            })}
+          </div>
+        </SettingsSection>
       </div>
     </div>
   )

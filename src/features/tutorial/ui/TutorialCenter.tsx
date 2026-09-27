@@ -1,6 +1,7 @@
 import { Button } from '@app/components/ui/button'
+import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 
-import { RotateCcw } from 'lucide-react'
+import { BookOpenIcon, RotateCcw } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -53,24 +54,30 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
   }, [resetProgress])
 
   return (
-    <div className="space-y-6 pb-4">
-      <div className="space-y-1">
-        <h2 className="text-ql-20 text-foreground tracking-ql-tight font-bold">
-          {t('tutorial_center_title')}
-        </h2>
-        <p className="text-ql-13 text-muted-foreground">{t('tutorial_center_desc')}</p>
-      </div>
+    <div className="space-y-6">
+      <SettingsTabIntro
+        icon={
+          <SettingsTabIcon>
+            <BookOpenIcon className="h-5 w-5" />
+          </SettingsTabIcon>
+        }
+        description={t('tutorial_center_desc')}
+        title={t('tutorial_center_title')}
+      />
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {CATEGORY_ORDER.map((category) => {
           const categoryTutorials = grouped.get(category)
           if (!categoryTutorials || categoryTutorials.length === 0) return null
 
           return (
-            <div key={category} className="space-y-3">
-              <h3 className="text-ql-12 text-muted-foreground tracking-ql-caps font-medium uppercase">
-                {t(CATEGORY_LABELS[category])}
-              </h3>
+            <div key={category} className="flex flex-col gap-3">
+              <div className="text-muted-foreground flex items-center gap-2">
+                <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
+                  {t(CATEGORY_LABELS[category])}
+                </span>
+                <span aria-hidden className="bg-border h-px flex-1" />
+              </div>
               <div className="grid grid-cols-1 gap-3">
                 {categoryTutorials.map((tutorial) => (
                   <TutorialCard
@@ -95,7 +102,7 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="border-border border-t pt-5"
+          className="border-border/60 border-t pt-5"
         >
           <Button
             type="button"
@@ -105,7 +112,7 @@ const TutorialCenter = memo(function TutorialCenter({ onStartTutorial }: Tutoria
             className="gap-2"
           >
             <RotateCcw className="h-4 w-4" />
-            <span>{t('tutorial_center_reset')}</span>
+            <span className="text-ql-12">{t('tutorial_center_reset')}</span>
           </Button>
         </motion.div>
       )}

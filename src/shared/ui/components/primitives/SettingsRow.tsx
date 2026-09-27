@@ -9,8 +9,8 @@ export interface SettingsRowProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const variantClasses: Record<NonNullable<SettingsRowProps['variant']>, string> = {
-  default: 'border-border bg-card shadow-xs',
-  muted: 'border-border/60 bg-muted/40',
+  default: 'border-border/60 bg-card/30',
+  muted: 'border-border/60 bg-muted/30',
   accent: 'border-ring/30 bg-accent/20'
 }
 
@@ -26,7 +26,7 @@ export function SettingsRow({
       className={cn(
         'rounded-xl border p-4',
         variantClasses[variant],
-        interactive && 'hover:bg-muted/60 hover:border-border cursor-pointer transition-colors',
+        interactive && 'hover:bg-muted/50 cursor-pointer transition-colors',
         className
       )}
       {...props}
@@ -46,7 +46,7 @@ export function SettingsRowIcon({
   return (
     <div
       className={cn(
-        'border-primary/20 bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border',
+        'bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg',
         className
       )}
     >
@@ -65,7 +65,7 @@ export function SettingsRowTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h4
-      className={cn('text-foreground text-ql-12 leading-tight font-semibold', className)}
+      className={cn('text-foreground text-ql-13 leading-tight font-semibold', className)}
       {...props}
     />
   )

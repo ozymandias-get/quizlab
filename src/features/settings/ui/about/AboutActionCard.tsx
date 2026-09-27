@@ -33,13 +33,13 @@ function AboutActionCard({
 }: AboutActionCardProps) {
   const content = (
     <>
-      <div className="flex items-center gap-3.5">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {leading}
-        <div className={cn('space-y-0.5', bodyClassName)}>
-          <h4 className={cn('text-ql-13 text-foreground font-semibold', titleClassName)}>
+        <div className={cn('min-w-0', bodyClassName)}>
+          <h4 className={cn('text-ql-13 text-foreground truncate font-semibold', titleClassName)}>
             {title}
           </h4>
-          <p className={cn('text-ql-12 text-muted-foreground', descriptionClassName)}>
+          <p className={cn('text-ql-12 text-muted-foreground mt-0.5', descriptionClassName)}>
             {description}
           </p>
         </div>
@@ -50,9 +50,11 @@ function AboutActionCard({
   )
 
   const rootClassName = cn(
-    'flex items-center justify-between rounded-xl border border-border bg-card p-4 min-w-0 shadow-xs',
-    interactive && 'transition-colors motion-normal hover:bg-muted/40',
-    'focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
+    'flex min-w-0 items-center justify-between gap-4 rounded-2xl border p-5',
+    interactive
+      ? 'border-border/60 bg-card transition-colors hover:bg-muted/50'
+      : 'border-border/60 bg-card/30',
+    'focus-visible:ring-ring/40 focus-visible:ring-2 focus-visible:outline-none',
     className
   )
 

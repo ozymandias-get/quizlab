@@ -1,6 +1,5 @@
 import { Button } from '@app/components/ui/button'
 import { getElectronApi } from '@shared/lib/electronApi'
-import { cn } from '@shared/lib/uiUtils'
 
 import { AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
 import { memo } from 'react'
@@ -15,11 +14,7 @@ function StatusIndicator({ isConnected, mode }: StatusIndicatorProps) {
   const { t } = useTranslation()
 
   return (
-    <div
-      className={cn(
-        'border-border bg-muted/40 mt-4 flex w-full items-start gap-3 rounded-xl border p-3.5 shadow-xs transition-colors'
-      )}
-    >
+    <div className="border-border/60 bg-background/40 mt-2 flex w-full items-start gap-3 rounded-xl border p-4">
       {isConnected ? (
         mode === 'install' ? (
           <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -50,9 +45,9 @@ function StatusIndicator({ isConnected, mode }: StatusIndicatorProps) {
             variant="link"
             size="xs"
             onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
-            className="text-ql-11 mt-2 text-amber-600 dark:text-amber-400"
+            className="mt-1 text-amber-600 dark:text-amber-400"
           >
-            {t('gws_extension_wake_btn')}
+            <span className="text-ql-11 font-semibold">{t('gws_extension_wake_btn')}</span>
           </Button>
         )}
       </div>

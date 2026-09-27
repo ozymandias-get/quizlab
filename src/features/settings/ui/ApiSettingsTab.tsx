@@ -10,6 +10,7 @@ import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { AiIcon } from '@shared/ui/components/icons/AiIcon'
+import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 
 import { Loader2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
@@ -18,7 +19,6 @@ import { useTranslation } from 'react-i18next'
 import ApiProviderList from './apiSettings/ApiProviderList'
 import { DEFAULT_PROVIDER_TEMPLATES } from './apiSettings/constants'
 import PromptSettingsSection from './apiSettings/PromptSettingsSection'
-import SettingsTabIntro from './shared/SettingsTabIntro'
 
 export default memo(function ApiSettingsTab() {
   const { t } = useTranslation()
@@ -183,9 +183,9 @@ export default memo(function ApiSettingsTab() {
     <div className="flex max-w-2xl flex-col gap-6 p-6">
       <SettingsTabIntro
         icon={
-          <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+          <SettingsTabIcon>
             <AiIcon modelKey="api-chat" className="h-5 w-5" />
-          </div>
+          </SettingsTabIcon>
         }
         description={t('api_chat_settings_desc')}
         action={
@@ -196,13 +196,15 @@ export default memo(function ApiSettingsTab() {
             size="sm"
             className="gap-1.5"
           >
+            {/* `font: inherit` in _base.css is unlayered and beats Tailwind's
+                `text-*` on <button>, so the label size lives on the span. */}
             {saving ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>{t('saving')}</span>
+                <span className="text-ql-12">{t('saving')}</span>
               </>
             ) : (
-              <span>{t('api_chat_save')}</span>
+              <span className="text-ql-12">{t('api_chat_save')}</span>
             )}
           </Button>
         }

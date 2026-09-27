@@ -55,9 +55,10 @@ const ResizableHandle = memo(function ResizableHandle({ onResize }: ResizableHan
         }
       }}
     >
-      <div className="bg-border absolute inset-y-0 left-1/2 w-px -translate-x-1/2" />
+      {/* Single track + a wider hover wash. Previously three stacked divs drew
+          the same 1px line, and the third narrowed from 2px to 1px on hover. */}
+      <div className="bg-muted-foreground/45 absolute inset-y-0 left-1/2 w-px -translate-x-1/2" />
       <div className="group-hover:bg-ring/10 absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 rounded-sm transition-colors" />
-      <div className="bg-ring/50 absolute inset-y-0 left-1/2 hidden w-0.5 -translate-x-1/2 rounded-full transition-all group-hover:block group-hover:w-px" />
     </div>
   )
 })

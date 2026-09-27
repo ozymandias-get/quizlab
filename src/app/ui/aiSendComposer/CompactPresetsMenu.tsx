@@ -43,17 +43,17 @@ function CompactPresetsMenu({
         <IconButton
           type="button"
           variant="ghost"
-          size="compact"
+          size="default"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setShowPresetsMenu((v) => !v)}
           disabled={disabled}
           className={cn(
-            'border-white/10 bg-white/5 text-neutral-400 hover:border-white/20 hover:bg-white/15 hover:text-white active:scale-95',
-            showPresetsMenu && 'border-white/20 bg-white/15 text-white'
+            'border-border/60 bg-background/40 text-muted-foreground hover:border-ring/40 hover:bg-muted hover:text-foreground',
+            showPresetsMenu && 'border-ring/50 bg-accent text-foreground'
           )}
           aria-label={t('ai_preset_more')}
         >
-          <MoreHorizontal strokeWidth={2} />
+          <MoreHorizontal className="size-4" strokeWidth={2} />
         </IconButton>
       </WithTooltip>
 
@@ -65,9 +65,9 @@ function CompactPresetsMenu({
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: DURATION.normal }}
             onPointerDown={(e) => e.stopPropagation()}
-            className="z-dropdown bg-popover/98 shadow-ambient-xl absolute bottom-full left-1/2 mb-2 w-48 -translate-x-1/2 rounded-xl border border-white/10 p-1 text-neutral-100"
+            className="border-border bg-popover text-popover-foreground z-dropdown shadow-ambient-xl absolute bottom-full left-1/2 mb-2 w-48 -translate-x-1/2 rounded-xl border p-1"
           >
-            <div className="text-ql-10 tracking-ql-caps border-b border-white/10 px-2.5 py-1.5 font-semibold text-neutral-400 uppercase">
+            <div className="text-muted-foreground border-border text-ql-10 tracking-ql-label border-b px-2.5 py-1.5 font-semibold uppercase">
               {t('ai_send_presets')}
             </div>
             <div className="flex flex-col gap-0.5 pt-1">
@@ -76,14 +76,18 @@ function CompactPresetsMenu({
                 return (
                   <MenuItem
                     key={preset.key}
-                    icon={<Icon className="h-3.5 w-3.5 shrink-0 text-amber-300" strokeWidth={2} />}
+                    icon={
+                      <Icon
+                        className="text-muted-foreground h-3.5 w-3.5 shrink-0"
+                        strokeWidth={2}
+                      />
+                    }
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation()
                       setShowPresetsMenu(false)
                       onSelectPreset(preset.value)
                     }}
-                    className="text-neutral-300 hover:bg-white/10 hover:text-white"
                   >
                     {preset.label}
                   </MenuItem>

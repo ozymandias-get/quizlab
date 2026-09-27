@@ -1,4 +1,5 @@
-import { InfoIcon } from '@ui/components/Icons'
+import { SettingsSection } from '@shared/ui/components/primitives'
+import { CheckIcon, InfoIcon } from '@ui/components/Icons'
 
 interface GeminiWebRiskNoticeProps {
   t: (key: string) => string
@@ -8,50 +9,64 @@ interface GeminiWebRiskNoticeProps {
 
 function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNoticeProps) {
   return (
-    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
-      <div className="flex items-start gap-3">
-        <div className="rounded-lg bg-rose-500/20 p-1.5">
-          <InfoIcon className="h-4 w-4 text-rose-300" />
-        </div>
-        <div className="flex-1">
-          <p className="text-ql-13 font-bold text-rose-100/90">{t('gws_warning_title')}</p>
-          <p className="text-ql-12 mt-1 leading-relaxed text-rose-100/70">
-            {t('gws_warning_intro')}
-          </p>
+    <SettingsSection
+      icon={<InfoIcon className="h-4 w-4" />}
+      title={t('gws_warning_title')}
+      detail={t('gws_warning_intro')}
+    >
+      <div className="border-border/60 bg-background/40 flex flex-col gap-5 rounded-xl border p-4">
+        <div className="flex flex-col gap-2.5">
+          <div className="text-muted-foreground flex items-center gap-2">
+            <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-amber-600 uppercase dark:text-amber-400">
+              {t('gws_risk_list_title')}
+            </span>
+            <span aria-hidden className="bg-border h-px flex-1" />
+          </div>
 
-          <p className="text-ql-11 tracking-ql-tight mt-3 font-semibold text-rose-200/80">
-            {t('gws_risk_list_title')}
-          </p>
-          <div className="mt-1.5 space-y-1.5">
+          <ol className="flex flex-col gap-2">
             {riskItems.map((item, index) => (
-              // eslint-disable-next-line react/no-array-index-key -- Static risk items, stable render order
-              <p key={`risk-${index}`} className="text-ql-12 leading-relaxed text-rose-100/70">
-                {index + 1}. {item}
-              </p>
+              <li key={`risk-${item}`} className="flex items-start gap-2.5">
+                <span
+                  aria-hidden
+                  className="text-ql-11 flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 font-semibold text-amber-600 dark:text-amber-400"
+                >
+                  {index + 1}
+                </span>
+                <span className="text-ql-12 text-muted-foreground leading-relaxed">{item}</span>
+              </li>
             ))}
-          </div>
-
-          <p className="text-ql-11 tracking-ql-tight mt-3 font-semibold text-rose-200/80">
-            {t('gws_mitigation_title')}
-          </p>
-          <div className="mt-1.5 space-y-1.5">
-            {mitigationItems.map((item, index) => (
-              <p
-                // eslint-disable-next-line react/no-array-index-key -- Static mitigation items, stable render order
-                key={`mitigation-${index}`}
-                className="text-ql-12 leading-relaxed text-rose-100/70"
-              >
-                {index + 1}. {item}
-              </p>
-            ))}
-          </div>
-
-          <p className="text-ql-12 mt-3 leading-relaxed text-rose-200/70">
-            <strong>{t('gcli_note')}</strong> {t('gws_official_warning')}
-          </p>
+          </ol>
         </div>
+
+        <div className="flex flex-col gap-2.5">
+          <div className="text-muted-foreground flex items-center gap-2">
+            <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-emerald-600 uppercase dark:text-emerald-400">
+              {t('gws_mitigation_title')}
+            </span>
+            <span aria-hidden className="bg-border h-px flex-1" />
+          </div>
+
+          <ul className="flex flex-col gap-2">
+            {mitigationItems.map((item) => (
+              <li key={`mitigation-${item}`} className="flex items-start gap-2.5">
+                <span
+                  aria-hidden
+                  className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                >
+                  <CheckIcon className="h-3 w-3" />
+                </span>
+                <span className="text-ql-12 text-muted-foreground leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="text-ql-12 text-muted-foreground leading-relaxed">
+          <span className="text-foreground font-semibold">{t('gcli_note')}</span>{' '}
+          {t('gws_official_warning')}
+        </p>
       </div>
-    </div>
+    </SettingsSection>
   )
 }
 

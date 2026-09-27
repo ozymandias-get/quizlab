@@ -43,19 +43,22 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
   return (
     <div
       className={cn(
-        'bg-card border-border/70 flex flex-col gap-2 rounded-lg border px-3 py-2.5 transition-colors',
-        preset.isCustomized && 'border-primary/30 bg-primary/[0.04]'
+        'border-border/60 bg-card flex flex-col gap-3 rounded-xl border p-4',
+        preset.isCustomized && 'border-ring/50 bg-accent/30'
       )}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="bg-muted text-muted-foreground border-border/50 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border">
-            <Icon className="size-3 w-3" />
+          <span
+            aria-hidden
+            className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+          >
+            <Icon className="h-4 w-4" />
           </span>
-          <span className="text-ql-12 text-foreground truncate font-medium">
+          <span className="text-ql-13 text-foreground truncate font-semibold">
             {preset.label || preset.defaultLabel}
           </span>
-          <span className="text-ql-10 text-muted-foreground/60 hidden sm:inline">
+          <span className="text-ql-10 text-muted-foreground hidden shrink-0 sm:inline">
             · {preset.isPrimary ? t('preset_primary_short') : t('preset_menu_short')}
           </span>
         </div>
@@ -65,23 +68,23 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
             variant="ghost"
             size="xs"
             onClick={onReset}
-            className="text-ql-10 text-muted-foreground h-6 gap-1 px-1.5"
+            className="shrink-0 gap-1 px-1.5"
           >
             <RotateCcw className="h-3 w-3" />
-            {t('reset')}
+            <span className="text-ql-10 text-muted-foreground">{t('reset')}</span>
           </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_1fr]">
-        <div className="space-y-1">
-          <Label className="text-ql-10 text-muted-foreground/70">{t('prompt_label')}</Label>
+        <div className="text-ql-12 space-y-1">
+          <Label className="text-ql-10 text-muted-foreground">{t('prompt_label')}</Label>
           <Input
             value={preset.label}
             onChange={handleLabelChange}
             onBlur={() => setLabelError(preset.label.trim() ? '' : 'error_name_required')}
             placeholder={preset.defaultLabel}
-            className="text-ql-12 h-7"
+            className="h-7"
             aria-invalid={!!labelError}
           />
           {labelError && (
@@ -90,14 +93,14 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
             </span>
           )}
         </div>
-        <div className="space-y-1">
-          <Label className="text-ql-10 text-muted-foreground/70">{t('prompt_prompt')}</Label>
+        <div className="text-ql-12 space-y-1">
+          <Label className="text-ql-10 text-muted-foreground">{t('prompt_prompt')}</Label>
           <Textarea
             value={preset.value}
             onChange={handleValueChange}
             placeholder={preset.defaultValue}
             rows={1}
-            className="text-ql-12 min-h-[30px] resize-none py-1.5 leading-snug"
+            className="min-h-[30px] py-1.5 leading-snug"
           />
         </div>
       </div>

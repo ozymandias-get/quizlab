@@ -151,8 +151,8 @@ function AiSendComposerContent({
       />
 
       {sendFeedback === 'error' && lastError && (
-        <div className="mx-4 mb-2 rounded-xl border border-red-400/20 bg-red-500/[0.08] px-3 py-2.5">
-          <p className="text-ql-12 font-medium text-red-300/80">{lastError}</p>
+        <div className="border-destructive/30 bg-destructive/10 mx-4 mb-2 rounded-xl border px-3 py-2.5">
+          <p className="text-destructive text-ql-12 font-medium">{lastError}</p>
         </div>
       )}
 

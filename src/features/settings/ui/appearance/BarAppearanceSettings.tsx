@@ -1,4 +1,5 @@
 import { DURATION } from '@shared/lib/motion'
+import { SettingsSection } from '@shared/ui/components/primitives'
 import { SliderIcon } from '@ui/components/Icons'
 import Slider from '@ui/components/Slider'
 
@@ -34,45 +35,42 @@ const BarAppearanceSettings = memo(
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: DURATION.fast }}
-        className="bg-card border-border space-y-6 rounded-xl border p-5"
       >
-        <div className="flex items-center gap-3">
-          <div className="bg-muted text-muted-foreground/60 border-border rounded-lg border p-2">
-            <SliderIcon className="h-4 w-4" />
+        <SettingsSection
+          icon={<SliderIcon className="h-4 w-4" />}
+          title={t('bar_appearance')}
+          detail={t('opacity_scale')}
+        >
+          <div className="flex flex-col gap-2">
+            <div className="text-ql-12 text-muted-foreground flex items-center justify-between">
+              <span>{t('opacity')}</span>
+              <span className="text-foreground tabular-nums">
+                {Math.round(bottomBarOpacity * 100)}%
+              </span>
+            </div>
+            <Slider
+              min={0.1}
+              max={1.0}
+              step={0.01}
+              value={[bottomBarOpacity]}
+              onValueChange={handleOpacityChange}
+            />
           </div>
-          <div className="space-y-0.5">
-            <h3 className="text-ql-13 text-foreground font-bold">{t('bar_appearance')}</h3>
-            <p className="text-ql-11 text-foreground/75 tracking-ql-tight">{t('opacity_scale')}</p>
-          </div>
-        </div>
 
-        <div className="space-y-3">
-          <div className="text-ql-12 flex items-center justify-between font-medium">
-            <span className="text-foreground/75">{t('opacity')}</span>
-            <span className="text-foreground/90">{Math.round(bottomBarOpacity * 100)}%</span>
+          <div className="flex flex-col gap-2">
+            <div className="text-ql-12 text-muted-foreground flex items-center justify-between">
+              <span>{t('scale')}</span>
+              <span className="text-foreground tabular-nums">x{bottomBarScale.toFixed(2)}</span>
+            </div>
+            <Slider
+              min={0.7}
+              max={1.3}
+              step={0.01}
+              value={[bottomBarScale]}
+              onValueChange={handleScaleChange}
+            />
           </div>
-          <Slider
-            min={0.1}
-            max={1.0}
-            step={0.01}
-            value={[bottomBarOpacity]}
-            onValueChange={handleOpacityChange}
-          />
-        </div>
-
-        <div className="space-y-3">
-          <div className="text-ql-12 flex items-center justify-between font-medium">
-            <span className="text-foreground/75">{t('scale')}</span>
-            <span className="text-foreground/90">x{bottomBarScale.toFixed(2)}</span>
-          </div>
-          <Slider
-            min={0.7}
-            max={1.3}
-            step={0.01}
-            value={[bottomBarScale]}
-            onValueChange={handleScaleChange}
-          />
-        </div>
+        </SettingsSection>
       </motion.div>
     )
   }

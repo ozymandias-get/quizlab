@@ -3,7 +3,7 @@
   "ai_home": {
     "badge": "AI Home",
     "title": "Centralize your workflow in a single launchpad",
-    "description": "Reorder models, jump straight back into your active session, or open sites in a new tab. This serves as a quick-start layer for your AI workspace.",
+    "description": "Reorder models, jump straight back into your open session, or launch sites in a new tab.",
     "open_tab": "Open tab",
     "ready_model": "Ready model",
     "custom_site_count": "Custom site",
@@ -28,7 +28,6 @@
     "site": "Site",
     "model": "Model",
     "custom_site": "Custom site",
-    "ready_flow": "Ready flow",
     "open": "Open",
     "ready": "Ready",
     "new_tab": "New tab",
@@ -38,6 +37,7 @@
     "get_started_hint": "Pick a model or site to get started.",
     "refresh_page": "Reload current AI page"
   },
+  "ai_home_open_tabs_label": "Open tabs",
   "ai_session": {
     "sleep_title": "Tab in sleep mode",
     "sleep_description": "This tab was put to sleep to reduce memory use. Click anywhere to resume and refresh the view."

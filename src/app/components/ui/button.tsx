@@ -18,6 +18,11 @@ const buttonVariants = cva(
           'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground',
         destructive:
           'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
+        /* Quiet danger for non-confirming destructive actions (reset, remove).
+           Filled `destructive` is reserved for confirm-dialog primaries, where
+           the weight is what makes the user read the consequence. */
+        'destructive-outline':
+          'text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 focus-visible:border-destructive/50 focus-visible:ring-destructive/20',
         link: 'text-primary underline-offset-4 hover:underline',
         toolbar:
           'glass-tier-3 glass-tier-3-dim glass-interactive glass-tier-control text-muted-foreground glass-control-hover hover:text-foreground border'

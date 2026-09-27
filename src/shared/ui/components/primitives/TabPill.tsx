@@ -8,7 +8,7 @@ const TAB_PILL_BASE =
 
 const TAB_PILL_ACTIVE = 'border-border bg-card text-foreground shadow-xs'
 const TAB_PILL_INACTIVE =
-  'text-muted-foreground hover:border-border/60 hover:bg-muted/40 hover:text-foreground border-transparent bg-transparent'
+  'text-muted-foreground border-transparent bg-transparent hover:border-border/60 hover:bg-muted/50 hover:text-foreground'
 
 export interface TabPillProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -44,7 +44,7 @@ export const TabPill = React.forwardRef<HTMLButtonElement, TabPillProps>(functio
       {...props}
     >
       {isActive && (
-        <div className="bg-primary/70 pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
+        <div className="bg-ring pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
       )}
       {children}
     </motion.button>
@@ -108,7 +108,7 @@ export function TabPillContainer({
       {...props}
     >
       {isActive && (
-        <div className="bg-primary/70 pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
+        <div className="bg-ring pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
       )}
       {children}
     </div>

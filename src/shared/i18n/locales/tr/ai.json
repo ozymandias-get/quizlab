@@ -3,7 +3,7 @@
   "ai_home": {
     "badge": "Yapay zeka ana sayfası",
     "title": "Çalışma akışınızı tek bir merkezde toplayın",
-    "description": "Modelleri yeniden sıralayın, aktif oturuma anında geçin veya siteleri yeni sekmede açın. Bu alan yapay zeka çalışma alanınız için hızlı bir başlangıç noktasıdır.",
+    "description": "Modelleri yeniden sıralayın, açık oturumunuza anında geçin veya siteleri yeni sekmede açın.",
     "open_tab": "Açık sekme",
     "ready_model": "Hazır model",
     "custom_site_count": "Özel site",
@@ -28,7 +28,6 @@
     "site": "Site",
     "model": "Model",
     "custom_site": "Özel site",
-    "ready_flow": "Hazır akış",
     "open": "Açık",
     "ready": "Hazır",
     "new_tab": "Yeni sekme",
@@ -38,6 +37,7 @@
     "get_started_hint": "Başlamak için bir model veya site seçin.",
     "refresh_page": "Sayfayı yenile"
   },
+  "ai_home_open_tabs_label": "Açık sekmeler",
   "ai_session": {
     "sleep_title": "Sekme uyku modunda",
     "sleep_description": "Bellek kullanımını azaltmak için sekme uyutuldu. Devam etmek ve görünümü tazelemek için herhangi bir yere tıklayın."

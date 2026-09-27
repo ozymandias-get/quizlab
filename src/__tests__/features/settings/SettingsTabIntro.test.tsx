@@ -1,4 +1,4 @@
-import SettingsTabIntro from '@features/settings/ui/shared/SettingsTabIntro'
+import { SettingsTabIntro } from '@shared/ui/components/primitives'
 
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'

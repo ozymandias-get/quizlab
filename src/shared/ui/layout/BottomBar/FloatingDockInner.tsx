@@ -40,11 +40,11 @@ const FloatingDockInner = memo(function FloatingDockInner({
     <motion.div
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeaveReset}
-      className="flex w-full flex-col items-center gap-1.5 py-2"
+      className="border-border/60 bg-card/30 flex w-full flex-col items-center gap-1.5 rounded-2xl border p-1.5 py-2"
       data-tour-id="tour-target-hub-btn"
     >
       <div
-        className="flex w-full flex-col items-center gap-1.5"
+        className="flex w-full flex-col items-center gap-1"
         data-tour-id="tour-target-tools-panel"
       >
         {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
@@ -65,7 +65,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
       </div>
 
       <div
-        className="bg-border/80 my-[calc(0.25rem*var(--bar-scale-factor,1))] h-px w-4"
+        className="bg-border/70 my-[calc(0.25rem*var(--bar-scale-factor,1))] h-px w-5"
         role="separator"
       />
 

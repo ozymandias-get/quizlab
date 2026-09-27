@@ -11,42 +11,9 @@
   transform: translateZ(0);
 }
 
-.resizer-hub-container::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 6%;
-  bottom: 6%;
-  width: 16px;
-  border-radius: var(--radius-full);
-  transform: translateX(-50%) translateZ(0);
-  background: transparent;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 0;
-  transition: opacity var(--duration-slow) var(--ease-glass);
-}
-
-.resizer-hub-container::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 6%;
-  bottom: 6%;
-  width: 8px;
-  border-radius: var(--radius-full);
-  transform: translateX(-50%) translateZ(0);
-  background: oklch(var(--muted) / 0.5);
-  border: 1px solid oklch(var(--border) / 0.6);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 0;
-  transition: opacity var(--duration-slow) var(--ease-glass);
-}
-
-.resizer-hub-container:has(.resizer-drag-area:hover)::after {
-  opacity: calc(0.12 + (var(--bar-opacity-factor, 0.7) * 0.25));
-}
+/* The dock surface is translucent, so a full-height hover band behind this
+   container would bleed through it. The `.resizer-drag-area::after` track and
+   the `.resizer-handle` pill carry the affordance on their own. */
 
 .resizer-hub-container > * {
   position: relative;
@@ -76,11 +43,11 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(var(--border) / 0.7) 15%,
-    oklch(var(--border) / 0.7) 85%,
+    oklch(var(--muted-foreground) / 0.45) 15%,
+    oklch(var(--muted-foreground) / 0.45) 85%,
     transparent 100%
   );
-  opacity: calc(0.3 + (var(--bar-opacity-factor, 0.7) * 0.2));
+  opacity: calc(0.35 + (var(--bar-opacity-factor, 0.7) * 0.25));
   transition:
     width var(--duration-slow) var(--ease-glass),
     opacity var(--duration-slow) var(--ease-glass),
@@ -93,10 +60,35 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(var(--ring) / 0.7) 15%,
-    oklch(var(--ring) / 0.7) 85%,
+    oklch(var(--ring) / 0.8) 15%,
+    oklch(var(--ring) / 0.8) 85%,
     transparent 100%
   );
+}
+
+/* Handlebar pill — the single source of truth for its surface and states.
+   Unlayered, so it wins over the :where()-wrapped utilities on the element.
+   `--shadow-ambient-*` already carries the 1px border ring, so the pill needs
+   no border of its own. */
+
+.resizer-handle {
+  background-color: oklch(var(--card));
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-ambient-sm);
+  transition:
+    background-color var(--duration-normal) var(--ease-glass),
+    box-shadow var(--duration-normal) var(--ease-glass);
+}
+
+.resizer-drag-area:hover .resizer-handle,
+.resizer-drag-area:focus-visible .resizer-handle {
+  background-color: oklch(var(--accent));
+  box-shadow: var(--shadow-ambient-md);
+}
+
+.resizer-drag-area:hover .resizer-handle svg,
+.resizer-drag-area:focus-visible .resizer-handle svg {
+  color: oklch(var(--foreground));
 }
 
 .dragging .resizer-drag-area::after,
@@ -112,13 +104,8 @@
   );
 }
 
-body.panel-resizing .resizer-hub-container::before,
-body.panel-resizing .resizer-hub-container::after {
-  animation: none !important;
-  opacity: 0 !important;
-}
-
-body.panel-resizing .resizer-drag-area::after {
+body.panel-resizing .resizer-drag-area::after,
+.resizer-hub-container.dragging .resizer-drag-area::after {
   animation: none !important;
   transition: none !important;
 }

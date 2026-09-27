@@ -40,11 +40,11 @@ function ComposerFooter({
   const statusIcon = (() => {
     switch (sendFeedback) {
       case 'sending':
-        return <Loader2 className="h-4 w-4 animate-spin text-amber-400" strokeWidth={2} />
+        return <Loader2 className="text-primary h-4 w-4 animate-spin" strokeWidth={2} />
       case 'success':
         return <CheckCircle2 className="h-4 w-4 text-emerald-400" strokeWidth={2} />
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-400" strokeWidth={2} />
+        return <AlertCircle className="text-destructive h-4 w-4" strokeWidth={2} />
       default:
         return null
     }

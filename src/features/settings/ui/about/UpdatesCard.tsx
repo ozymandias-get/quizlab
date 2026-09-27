@@ -1,6 +1,7 @@
+import { Button } from '@app/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import type { UpdateInfo } from '@app/providers'
-import { SurfaceCard } from '@shared/ui/components/primitives'
+import { SettingsSection } from '@shared/ui/components/primitives'
 import { DownloadIcon, InfoIcon, LoaderIcon, RefreshIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -22,15 +23,13 @@ interface UpdatesActionButtonProps {
   tone: UpdatesActionTone
 }
 
-import { Button } from '@app/components/ui/button'
-
-const UPDATE_ACTION_BUTTON_VARIANTS: Record<
-  UpdatesActionTone,
-  'outline' | 'default' | 'secondary'
-> = {
+const UPDATE_ACTION_BUTTON_VARIANTS: Record<UpdatesActionTone, 'outline' | 'secondary'> = {
   accent: 'outline',
-  neutral: 'default',
-  success: 'default'
+  // `default` is `bg-primary`, which is a near-white surface in dark mode —
+  // at this button's width it read as a glaring white slab. `secondary` keeps
+  // the emphasis without the glare.
+  neutral: 'secondary',
+  success: 'secondary'
 }
 
 function UpdatesActionButton({
@@ -50,7 +49,7 @@ function UpdatesActionButton({
       className="w-full gap-2 sm:flex-1"
     >
       {icon}
-      <span>{children}</span>
+      <span className="text-ql-12 inline-flex items-center gap-1.5 font-medium">{children}</span>
     </Button>
   )
 }
@@ -62,19 +61,17 @@ function renderUpdateStatusContent(
 ) {
   switch (status) {
     case 'idle':
-      return (
-        <p className="text-ql-12 text-muted-foreground font-medium">{t('update_not_available')}</p>
-      )
+      return <p className="text-ql-12 text-muted-foreground">{t('update_not_available')}</p>
     case 'latest':
       return (
         <div className="text-ql-12 flex items-center gap-2.5 font-semibold text-emerald-600 dark:text-emerald-400">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-xs" />
+          <div className="h-2 w-2 rounded-full bg-emerald-500" />
           {t('you_have_latest')}
         </div>
       )
     case 'checking':
       return (
-        <div className="text-ql-12 text-muted-foreground flex items-center gap-2.5 font-medium">
+        <div className="text-ql-12 text-muted-foreground flex items-center gap-2.5">
           <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
           {t('checking_updates')}
         </div>
@@ -90,12 +87,12 @@ function renderUpdateStatusContent(
             <span className="text-ql-12 font-semibold text-emerald-600 dark:text-emerald-400">
               {t('new_version')}:
             </span>
-            <span className="text-ql-12 text-foreground font-mono font-bold transition-colors">
+            <span className="text-ql-12 text-foreground font-mono font-medium">
               {updateInfo.version}
             </span>
           </div>
           {updateInfo.releaseName && (
-            <p className="text-ql-11 text-muted-foreground font-medium italic">
+            <p className="text-ql-11 text-muted-foreground italic">
               &ldquo;{updateInfo.releaseName}&rdquo;
             </p>
           )}
@@ -161,15 +158,10 @@ const UpdatesCard = memo(
     const showDownloadButton = updateStatus === 'available'
 
     return (
-      <SurfaceCard className="space-y-4 rounded-xl p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="border-border bg-muted text-primary rounded-lg border p-2">
-              <RefreshIcon className="h-4 w-4" />
-            </div>
-            <h4 className="text-ql-13 text-foreground font-semibold">{t('updates')}</h4>
-          </div>
-
+      <SettingsSection
+        icon={<RefreshIcon className="h-4 w-4" />}
+        title={t('updates')}
+        action={
           <AnimatePresence mode="wait">
             {showDownloadButton && (
               <motion.span
@@ -181,9 +173,9 @@ const UpdatesCard = memo(
               </motion.span>
             )}
           </AnimatePresence>
-        </div>
-
-        <div className="border-border bg-muted/30 rounded-lg border p-3.5">
+        }
+      >
+        <div className="border-border/60 bg-background/40 rounded-xl border p-4">
           <UpdateStatusMessage status={updateStatus} updateInfo={updateInfo} t={t} />
         </div>
 
@@ -193,12 +185,7 @@ const UpdatesCard = memo(
               <UpdatesActionButton
                 onClick={handleStartTour}
                 tone="accent"
-                icon={
-                  <InfoIcon
-                    className="h-4 w-4 opacity-70 transition-opacity group-hover:opacity-100"
-                    strokeWidth={2}
-                  />
-                }
+                icon={<InfoIcon className="h-4 w-4" strokeWidth={2} />}
               >
                 {t('usage_assistant_start')}
               </UpdatesActionButton>
@@ -227,13 +214,13 @@ const UpdatesCard = memo(
             <UpdatesActionButton
               onClick={openReleasesPage}
               tone="success"
-              icon={<DownloadIcon className="h-4 w-4 opacity-70" />}
+              icon={<DownloadIcon className="h-4 w-4" />}
             >
               {t('download_from_github')}
             </UpdatesActionButton>
           )}
         </div>
-      </SurfaceCard>
+      </SettingsSection>
     )
   }
 )

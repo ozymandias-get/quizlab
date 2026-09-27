@@ -129,7 +129,7 @@ function ExtensionWizardPanel({
       ariaLabelledBy={titleId}
       panelClassName="overflow-hidden p-0"
     >
-      <div className="bg-card overflow-hidden rounded-2xl">
+      <div className="flex flex-col overflow-hidden">
         <StepIndicator total={total} step={step} success={success} />
 
         <AnimatePresence mode="wait">

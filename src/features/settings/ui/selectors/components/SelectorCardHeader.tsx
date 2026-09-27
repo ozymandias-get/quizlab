@@ -41,10 +41,12 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
         type="button"
         onClick={() => onToggleExpanded(cardId)}
         aria-expanded={isExpanded}
-        className="focus-visible:ring-ring ring-offset-background flex min-w-0 flex-1 items-center gap-4 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
         <div className="relative shrink-0">
-          <div className={`motion-slower rounded-2xl border p-2.5 transition-colors ${tone.icon} `}>
+          <div
+            className={`flex size-10 items-center justify-center rounded-xl border transition-colors ${tone.icon} `}
+          >
             {getAiPlatformIcon(ai, key, <GlobeIcon className="h-5 w-5" />)}
           </div>
 
@@ -66,23 +68,19 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
               {t(getHealthLabelKey(selectorHealth))}
             </span>
           </div>
-          <div className="text-ql-12 text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
+          <div className="text-ql-12 text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>{hasSelectors ? t('selectors_active') : t('no_selectors')}</span>
-            {savedHost && (
-              <span className="text-muted-foreground/60">
-                {t('selectors_saved_host', { host: savedHost })}
-              </span>
-            )}
+            {savedHost && <span>{t('selectors_saved_host', { host: savedHost })}</span>}
           </div>
         </div>
       </button>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() => onOpenRepick(key, cardId)}
-          className="gap-1.5"
+          className="gap-1.5 rounded-lg"
         >
           <ExternalLinkIcon />
           <span className="text-ql-11 font-semibold">{t('selectors_open_repick')}</span>
@@ -94,6 +92,7 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
           size="compact"
           onClick={() => onToggleExpanded(cardId)}
           aria-label={isExpanded ? t('ai_send_collapse') : t('ai_send_expand')}
+          className="text-muted-foreground hover:text-foreground"
         >
           <ChevronRightIcon className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
         </IconButton>

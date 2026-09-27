@@ -1,6 +1,6 @@
 import { ScrollArea } from '@app/components/ui/scroll-area'
 import { DURATION } from '@shared/lib/motion'
-import { EmptyState, InlineSpinner } from '@shared/ui/components/primitives'
+import { InlineSpinner, SettingsTabIcon } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -92,12 +92,15 @@ export default memo(function SettingsModalContent({
               transition={{ duration: DURATION.normal }}
               className="flex h-full min-h-[300px] items-center justify-center"
             >
-              <EmptyState
-                icon={SettingsIcon}
-                title={t('select_setting_from_list')}
-                bare
-                size="sm"
-              />
+              <div className="border-border/60 bg-card/40 relative flex w-full max-w-sm flex-col items-center gap-3.5 rounded-2xl border px-6 py-7 text-center">
+                <div className="bg-muted/40 motion-slow pointer-events-none absolute top-2 h-20 w-32 rounded-full blur-2xl" />
+                <SettingsTabIcon>
+                  <SettingsIcon className="h-5 w-5" />
+                </SettingsTabIcon>
+                <p className="text-ql-13 text-foreground font-semibold">
+                  {t('select_setting_from_list')}
+                </p>
+              </div>
             </motion.div>
           ) : (
             <motion.div

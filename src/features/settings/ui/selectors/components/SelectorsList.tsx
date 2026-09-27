@@ -1,5 +1,8 @@
 import type { AiSelectorConfig, SubmitMode } from '@shared-core/types'
 
+import { SettingsSection } from '@shared/ui/components/primitives'
+import { SelectorIcon } from '@ui/components/Icons'
+
 import { memo } from 'react'
 
 import type { AiEntry, SelectorEntry, TranslateFn, ValidationState } from '../types'
@@ -45,7 +48,7 @@ export default memo(function SelectorsList(props: SelectorsListProps) {
   } = props
 
   return (
-    <div className="grid gap-3">
+    <SettingsSection icon={<SelectorIcon className="h-4 w-4" />} title={t('element_selectors')}>
       {aiEntries.map((aiEntry) => {
         const cardId = aiEntry.ai.id || aiEntry.key
         return (
@@ -71,6 +74,6 @@ export default memo(function SelectorsList(props: SelectorsListProps) {
           />
         )
       })}
-    </div>
+    </SettingsSection>
   )
 })

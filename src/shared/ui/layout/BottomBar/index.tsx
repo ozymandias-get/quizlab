@@ -25,17 +25,32 @@ const SparklesCore = lazy(() => import('@app/components/ui/sparkles'))
 const RESIZE_KEY_STEP_PX = 32
 
 /**
- * Hoisted JSX for the resize handlebar visual cue (vertical line + grab dots).
- * Defined outside the component so both resizer-drag-area instances share
- * the same element reference — avoids re-creating DOM on every render.
+ * Hoisted JSX for the resize handlebar pill. Defined outside the component so
+ * both resizer-drag-area instances share the same element reference — avoids
+ * re-creating DOM on every render.
+ *
+ * The pill's surface is owned by `.resizer-handle` in `_resizer.css`, which is
+ * also what carries its hover/focus states. The vertical track is drawn
+ * separately by `.resizer-drag-area::after` — the two never overlap.
+ *
+ * One pill flanks the top of the dock, one the bottom. Anchoring them to the
+ * dock's edges (instead of the middle of each empty rail segment) keeps the
+ * pair reading as a single affordance that frames the dock, rather than two
+ * lozenges stranded far from the thing they resize.
  */
-const handlebarNode = (
-  <>
-    <div className="via-border pointer-events-none absolute inset-y-[15%] left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent to-transparent" />
-    <div className="border-border/80 bg-background/80 pointer-events-none absolute top-1/2 left-1/2 flex h-9 w-3.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border shadow-xs">
-      <GripVertical className="text-muted-foreground h-3 w-3" />
-    </div>
-  </>
+const HANDLE_CLASS =
+  'resizer-handle pointer-events-none absolute left-1/2 flex h-10 w-5 -translate-x-1/2 items-center justify-center'
+
+const handlebarAboveDock = (
+  <div className={`${HANDLE_CLASS} bottom-1.5`}>
+    <GripVertical className="text-muted-foreground h-3.5 w-3.5" />
+  </div>
+)
+
+const handlebarBelowDock = (
+  <div className={`${HANDLE_CLASS} top-1.5`}>
+    <GripVertical className="text-muted-foreground h-3.5 w-3.5" />
+  </div>
 )
 
 /** Single shared particles node — one canvas instead of two.
@@ -192,7 +207,7 @@ function BottomBar({
           onDoubleClick={handleResizerDoubleClick}
           onKeyDown={handleResizerKeyDown}
         >
-          {handlebarNode}
+          {handlebarAboveDock}
         </div>
 
         <div
@@ -216,7 +231,7 @@ function BottomBar({
           onDoubleClick={handleResizerDoubleClick}
           onKeyDown={handleResizerKeyDown}
         >
-          {handlebarNode}
+          {handlebarBelowDock}
         </div>
       </div>
 

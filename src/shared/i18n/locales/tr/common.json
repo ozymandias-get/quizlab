@@ -83,6 +83,7 @@
   "select_language": "Dil Seçin",
   "onboarding_language_title": "Dilinizi Seçin",
   "select_pdf": "PDF Dosyası Seç",
+  "select_pdf_hint": "ile de açabilirsin",
   "sent_successfully": "Başarıyla gönderildi!",
   "draft_queue_full": "AI kuyruğu dolu. En eski taslak kaldırıldı.",
   "settings": "Ayarlar",

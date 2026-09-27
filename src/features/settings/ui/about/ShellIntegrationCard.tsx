@@ -6,7 +6,7 @@ import {
 
 import { Button } from '@app/components/ui/button'
 import { useToastActions } from '@shared/stores/toastStore'
-import { SurfaceCard } from '@shared/ui/components/primitives'
+import { SettingsSection } from '@shared/ui/components/primitives'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
 
 import { memo, useCallback } from 'react'
@@ -52,31 +52,26 @@ const ShellIntegrationCard = memo(() => {
   const pending = isInstalling || isRemoving || isLoading
 
   return (
-    <SurfaceCard className="space-y-4 rounded-xl p-5">
-      <div className="flex items-center gap-3">
-        <div className="border-border bg-muted text-primary rounded-lg border p-2">
-          <ImportIcon className="h-4 w-4" />
-        </div>
-        <h4 className="text-ql-13 text-foreground font-semibold">{t('shell_integration_title')}</h4>
-        {!isLoading && (
+    <SettingsSection
+      icon={<ImportIcon className="h-4 w-4" />}
+      title={t('shell_integration_title')}
+      detail={t('shell_integration_description')}
+      action={
+        !isLoading && (
           <span
             className={
               installed
                 ? 'text-ql-10 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-600 dark:text-emerald-400'
-                : 'text-ql-10 text-muted-foreground border-border bg-muted rounded-full border px-2.5 py-0.5 font-semibold'
+                : 'text-ql-10 text-muted-foreground border-border/60 bg-muted rounded-full border px-2.5 py-0.5 font-semibold'
             }
           >
             {installed ? t('on') : t('off')}
           </span>
-        )}
-      </div>
-
-      <p className="text-ql-12 text-muted-foreground font-medium">
-        {t('shell_integration_description')}
-      </p>
-
+        )
+      }
+    >
       {!isLoading && installed && (
-        <p className="text-ql-12 text-muted-foreground font-medium">
+        <p className="border-border/60 bg-background/40 text-ql-12 text-muted-foreground rounded-xl border p-4">
           {t('shell_integration_location')}
         </p>
       )}
@@ -93,18 +88,18 @@ const ShellIntegrationCard = memo(() => {
               className="w-full gap-2 sm:flex-1"
             >
               {pending && <LoaderIcon className="h-3.5 w-3.5 animate-spin" />}
-              {t('shell_integration_repair')}
+              <span className="text-ql-12 font-medium">{t('shell_integration_repair')}</span>
             </Button>
             <Button
               type="button"
               onClick={() => void handleRemove()}
               disabled={pending}
-              variant="default"
+              variant="destructive-outline"
               size="sm"
               className="w-full gap-2 sm:flex-1"
             >
               {pending && <LoaderIcon className="h-3.5 w-3.5 animate-spin" />}
-              {t('shell_integration_remove')}
+              <span className="text-ql-12 font-medium">{t('shell_integration_remove')}</span>
             </Button>
           </>
         ) : (
@@ -112,16 +107,16 @@ const ShellIntegrationCard = memo(() => {
             type="button"
             onClick={() => void handleInstall()}
             disabled={pending}
-            variant="default"
+            variant="secondary"
             size="sm"
             className="w-full gap-2"
           >
             {pending && <LoaderIcon className="h-3.5 w-3.5 animate-spin" />}
-            {t('shell_integration_install')}
+            <span className="text-ql-12 font-medium">{t('shell_integration_install')}</span>
           </Button>
         )}
       </div>
-    </SurfaceCard>
+    </SettingsSection>
   )
 })
 

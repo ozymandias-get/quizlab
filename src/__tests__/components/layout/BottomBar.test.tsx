@@ -128,12 +128,14 @@ describe('BottomBar', () => {
     expect(sparkles.length).toBe(1)
   })
 
-  it('renders the gradient line and handlebar in each drag area', () => {
+  it('renders the handlebar pill in each drag area', () => {
     const { container } = render(<BottomBar />)
-    const gradientLines = container.querySelectorAll('[class*="bg-gradient-to-b"]')
-    expect(gradientLines.length).toBe(2)
-    const dotIcons = container.querySelectorAll('[class*="lucide-grip-vertical"]')
-    expect(dotIcons.length).toBe(2)
+    // The vertical track is a `.resizer-drag-area::after` pseudo-element, so
+    // only the pill is observable in the DOM.
+    const handles = container.querySelectorAll('.resizer-handle')
+    expect(handles.length).toBe(2)
+    const gripIcons = container.querySelectorAll('[class*="lucide-grip-vertical"]')
+    expect(gripIcons.length).toBe(2)
   })
 
   it('renders settings icon in floating dock inner', () => {

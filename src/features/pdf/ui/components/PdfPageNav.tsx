@@ -99,7 +99,7 @@ function PdfPageNav({
           onClick={startPageInput}
           className="text-ql-12 text-foreground hover:text-primary h-auto min-w-[54px] cursor-text px-2 text-center font-medium tabular-nums"
         >
-          {currentPage} <span className="text-muted-foreground/40 mx-0.5">/</span>{' '}
+          {currentPage} <span className="text-muted-foreground mx-0.5">/</span>{' '}
           <span className="text-muted-foreground">{totalPages}</span>
         </Button>
       )}

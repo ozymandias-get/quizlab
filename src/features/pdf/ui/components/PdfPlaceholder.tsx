@@ -55,46 +55,52 @@ function PdfPlaceholder({
   })
 
   return (
-    <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center justify-center overflow-hidden px-6 py-8 select-none motion-reduce:animate-none">
-      <div className="flex max-h-full w-full max-w-[680px] flex-col items-center gap-4 text-center">
-        {/* Hero — now built on the shared EmptyState primitive for a11y + token consistency */}
-        <div className="border-border/80 hover:border-ring/60 bg-card/60 hover:bg-card/90 motion-slow relative flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-dashed p-6 shadow-2xs transition-all">
-          <Button
-            type="button"
-            size="icon-lg"
-            onClick={onSelectPdf}
-            className="border-primary/20 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground focus-visible:ring-ring/40 motion-slow h-14 w-14 cursor-pointer rounded-xl border shadow-2xs transition-all focus-visible:ring-2 focus-visible:outline-none"
-            aria-label={t('select_pdf')}
+    /* Top-aligned (not `justify-center`): with centring, the hero drifted
+       upward every time the reading history grew. The column now fills the
+       panel so the history section can extend down and scroll instead. */
+    <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center overflow-hidden px-5 py-6 select-none motion-reduce:animate-none">
+      <div className="flex h-full w-full max-w-[680px] flex-col items-center gap-5">
+        {/* Hero — flat drop surface, no nested dashed card */}
+        <div className="border-border/60 bg-card/40 relative flex w-full max-w-sm shrink-0 flex-col items-center gap-3.5 rounded-2xl border px-6 py-7 text-center">
+          <div className="bg-primary/5 motion-slow pointer-events-none absolute top-2 h-20 w-32 rounded-full blur-2xl" />
+          <span
+            aria-hidden
+            className="border-primary/20 bg-primary/10 text-primary relative flex size-12 items-center justify-center rounded-2xl border"
           >
-            <Upload className="motion-slow h-6 w-6 transition-transform group-hover:-translate-y-0.5 motion-reduce:transform-none" />
-          </Button>
+            <Upload className="h-5 w-5" />
+          </span>
 
-          <div className="space-y-1.5 text-center">
-            <h2 className="text-ql-15 text-foreground tracking-ql-tight font-semibold">
+          <div className="space-y-1.5">
+            <h2 className="text-ql-16 text-foreground tracking-ql-tight font-semibold">
               {t('no_pdf_loaded')}
             </h2>
-            <p className="text-ql-12 text-muted-foreground mx-auto max-w-[240px] leading-relaxed">
+            <p className="text-ql-12 text-muted-foreground mx-auto max-w-[280px] leading-relaxed">
               {t('drop_pdf_here')}
             </p>
           </div>
 
           <Button
             type="button"
-            variant="outline"
-            size="sm"
+            variant="default"
+            size="lg"
             onClick={onSelectPdf}
-            className="pdf-placeholder-cta border-border/80 bg-background text-foreground hover:border-ring/50 hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 gap-2 px-3.5 shadow-2xs"
+            className="pdf-placeholder-cta focus-visible:ring-ring/40 h-9 cursor-pointer gap-2 px-4"
+            aria-label={t('select_pdf')}
           >
-            <FileText className="text-primary h-3.5 w-3.5" />
+            <FileText className="h-3.5 w-3.5" />
             <span>{t('select_pdf')}</span>
-            <Kbd size="xs" variant="default" className="ml-0.5 opacity-75">
+          </Button>
+
+          <div className="text-muted-foreground flex items-center gap-1.5">
+            <Kbd size="xs" variant="default">
               {getShortcutModifierLabel()}+O
             </Kbd>
-          </Button>
+            <span className="text-ql-11">{t('select_pdf_hint')}</span>
+          </div>
         </div>
 
         {/* Recent Reading Section */}
-        <div className="custom-scrollbar flex min-h-0 w-full flex-1 [scrollbar-gutter:stable] flex-col gap-2 overflow-y-auto pr-1">
+        <div className="border-border/60 bg-card/30 flex min-h-0 w-full flex-1 flex-col gap-3 rounded-2xl border p-4 text-left">
           <PdfRecentControls
             t={t}
             recentCount={recentItems.length}
@@ -109,19 +115,21 @@ function PdfPlaceholder({
             onClearAll={handleClearAll}
           />
 
-          <PdfRecentList
-            t={t}
-            language={language}
-            recentCount={recentItems.length}
-            processedCount={processedItems.length}
-            groupedItems={groupedItems}
-            invalidPaths={invalidPaths}
-            canResume={!!onResumePdf}
-            canClear={!!onClearResumePdf}
-            onResume={handleResume}
-            onRelink={handleRelink}
-            onRemove={handleRemove}
-          />
+          <div className="custom-scrollbar -mr-1 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+            <PdfRecentList
+              t={t}
+              language={language}
+              recentCount={recentItems.length}
+              processedCount={processedItems.length}
+              groupedItems={groupedItems}
+              invalidPaths={invalidPaths}
+              canResume={!!onResumePdf}
+              canClear={!!onClearResumePdf}
+              onResume={handleResume}
+              onRelink={handleRelink}
+              onRemove={handleRemove}
+            />
+          </div>
         </div>
       </div>
     </div>

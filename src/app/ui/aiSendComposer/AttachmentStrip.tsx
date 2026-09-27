@@ -36,7 +36,7 @@ function AttachmentStrip({ images }: AttachmentStripProps) {
         return (
           <li
             key={image.id}
-            className="animate-app-enter border-border/80 bg-card h-16 w-16 overflow-hidden rounded-lg border shadow-2xs"
+            className="animate-app-enter border-border/60 bg-card h-16 w-16 overflow-hidden rounded-lg border shadow-2xs"
             title={label}
           >
             {source ? (

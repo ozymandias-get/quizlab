@@ -18,17 +18,17 @@ const RepositoryLink = memo(({ t }: RepositoryLinkProps) => {
       target="_blank"
       rel="noopener noreferrer"
       interactive
-      className="group shadow-xs"
-      bodyClassName="space-y-0.5"
-      titleClassName="transition-colors group-hover:text-primary"
-      descriptionClassName="text-ql-11 font-medium text-muted-foreground"
+      className="group"
       leading={
-        <div className="border-border bg-muted text-foreground group-hover:bg-muted/80 rounded-lg border p-2 shadow-xs transition-colors">
-          <GithubIcon className="h-5 w-5" />
-        </div>
+        <span
+          aria-hidden
+          className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+        >
+          <GithubIcon className="h-4 w-4" />
+        </span>
       }
       trailing={
-        <ChevronRightIcon className="text-muted-foreground group-hover:text-foreground h-4 w-4 transform transition-colors group-hover:translate-x-0.5" />
+        <ChevronRightIcon className="text-muted-foreground group-hover:text-foreground h-4 w-4 shrink-0 transition-colors" />
       }
     />
   )
