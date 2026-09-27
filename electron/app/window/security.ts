@@ -22,7 +22,9 @@ const ALLOWED_WEBVIEW_PROTOCOLS = new Set(['https:'])
 // sessions.ts, but document.execCommand('copy'|'cut'|'paste') bypasses that
 // entirely and allows cross-partition clipboard leakage — a malicious webview
 // can read system clipboard content written by another partition.
-const WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT = `
+// Exported for tests: the paste/copy policy is a security boundary and must be
+// pinned by unit tests rather than only by end-to-end behaviour.
+export const WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT = `
 (() => {
   // Block programmatic clipboard access via execCommand
   const origExecCommand = document.execCommand.bind(document);
@@ -36,6 +38,15 @@ const WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT = `
 
   // Block clipboard events at the document level (catches addEventListener
   // and oncopy/oncut/onpaste attributes set by the page after load).
+  //
+  // Only UNTRUSTED events are blocked. \`isTrusted\` cannot be forged by page
+  // script, so this still prevents a malicious webview from reading the system
+  // clipboard programmatically (synthetic events and execCommand stay blocked
+  // above), while allowing genuine user/app pastes through. Blocking trusted
+  // events broke the "send page as image to AI" flow: the app writes a real
+  // image to the clipboard and calls webContents.paste(), which the browser
+  // marks trusted, but the guest page never saw the event and the send button
+  // stayed aria-disabled.
   ['copy', 'cut', 'paste'].forEach((type) => {
     document.addEventListener(type, (e) => {
       // Allow paste events synthesized by the app's own automation scripts
@@ -43,6 +54,9 @@ const WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT = `
       // payload in their clipboardData and never touch the system clipboard,
       // so they cannot leak another partition's clipboard content.
       if (e && e.__quizlabInternalPaste) return;
+      // A trusted event originated in the browser: the user pressed the
+      // shortcut, or the main process invoked a paste command.
+      if (e && e.isTrusted) return;
       e.preventDefault();
       e.stopImmediatePropagation();
     }, true);
