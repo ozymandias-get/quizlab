@@ -63,5 +63,7 @@
   "ai_preset_review": "Review",
   "ai_preset_review_value": "Do a quick review",
   "ai_preset_more": "More",
-  "ai_send_custom_note": "Add Note / Ask"
+  "ai_send_custom_note": "Add Note / Ask",
+  "ai_send_image_only_prompt": "Describe this image.",
+  "ai_send_staged": "Added to the chat box. Press Send to deliver."
 }

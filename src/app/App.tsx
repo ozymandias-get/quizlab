@@ -187,15 +187,8 @@ const PendingAiSendLayer = memo(function PendingAiSendLayer() {
   const { clearPendingAiItems, sendPendingAiItems, toggleAutoSend } = useAppToolActions()
 
   const handleSend = useCallback(
-    ({
-      noteText,
-      autoSend,
-      forceAutoSend
-    }: {
-      noteText?: string
-      autoSend?: boolean
-      forceAutoSend?: boolean
-    }) => sendPendingAiItems({ promptText: noteText, autoSend, forceAutoSend }),
+    ({ noteText, autoSend }: { noteText?: string; autoSend?: boolean }) =>
+      sendPendingAiItems({ promptText: noteText, autoSend }),
     [sendPendingAiItems]
   )
 

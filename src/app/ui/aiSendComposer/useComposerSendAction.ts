@@ -1,3 +1,5 @@
+import { isStagedSendResult } from '@features/ai'
+
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -6,7 +8,6 @@ import type { SendFeedback } from './types'
 interface ComposerPayload {
   noteText?: string
   autoSend?: boolean
-  forceAutoSend?: boolean
 }
 
 interface UseComposerSendActionOptions {
@@ -52,18 +53,25 @@ export function useComposerSendAction({
               ? options.noteText
               : noteTextRef.current.trim() || undefined,
           autoSend:
-            options?.autoSend !== undefined ? options.autoSend : effectiveAutoSendRef.current,
-          forceAutoSend: options?.forceAutoSend
+            options?.autoSend !== undefined ? options.autoSend : effectiveAutoSendRef.current
         })
-        const wasSuccessful =
+        const succeeded =
           result &&
           typeof result === 'object' &&
           'success' in result &&
           (result as { success: boolean }).success === true
 
-        if (wasSuccessful) {
+        // Auto-send off means the content was staged (pasted into the site's
+        // composer, prompt filled) and the user still has to submit. Showing
+        // the green badge there would claim a delivery that did not happen.
+        const staged =
+          succeeded && isStagedSendResult(result as { success: boolean; mode?: string })
+
+        if (succeeded && !staged) {
           setSendFeedback('success')
           setTimeout(() => setSendFeedback('idle'), 1500)
+        } else if (staged) {
+          setSendFeedback('idle')
         } else {
           setSendFeedback('error')
           const rawError =
@@ -93,6 +101,10 @@ export function useComposerSendAction({
     setLastError(null)
   }, [])
 
+  // Every composer affordance — Send button and prompt presets — defers to the
+  // global auto-send preference. With auto-send off they stage the content
+  // (paste the image, fill the prompt) and the user submits on the site; there
+  // is no path that submits regardless, so a disabled setting is never bypassed.
   const handleForceSend = useCallback(() => {
     void handleSend()
   }, [handleSend])

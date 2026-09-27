@@ -14,6 +14,7 @@
   "error_button_not_found": "Send button not found. Try re-picking selectors.",
   "error_input_not_found": "AI input field not found. Try reloading the page.",
   "error_invalid_input": "Invalid input provided",
+  "error_invalid_image_format": "Unsupported image format",
   "error_webview_not_ready": "AI window is not ready. Open the AI tab and try again.",
   "error_empty_text": "Text to send is empty.",
   "error_invalid_name": "Invalid folder name",

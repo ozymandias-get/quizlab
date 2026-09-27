@@ -98,4 +98,93 @@ describe('isVisionCapable', () => {
       expect(isVisionCapable('some-random-model')).toBe(false)
     })
   })
+
+  // Regression: the allowlist used to stop at gpt-4o/claude-3-5/gemini-2, so
+  // the attachment button was simply not rendered for most current models.
+  describe('modern OpenAI models', () => {
+    it.each([
+      'gpt-4.1',
+      'gpt-4.1-mini',
+      'gpt-4.1-nano',
+      'gpt-4.5-preview',
+      'gpt-5',
+      'gpt-5-mini',
+      'gpt-5.1',
+      'o1',
+      'o1-mini',
+      'o3',
+      'o3-mini',
+      'o4-mini'
+    ])('should return true for %s', (model) => {
+      expect(isVisionCapable(model)).toBe(true)
+    })
+
+    it('should return false for text-only gpt-3.5 and gpt-4 base ids', () => {
+      expect(isVisionCapable('gpt-3.5-turbo')).toBe(false)
+      expect(isVisionCapable('gpt-3.5')).toBe(false)
+      expect(isVisionCapable('gpt-40')).toBe(false)
+    })
+  })
+
+  describe('modern Anthropic models', () => {
+    it.each([
+      'claude-3-7-sonnet-20250219',
+      'claude-3-5-haiku-latest',
+      'claude-sonnet-4-20250514',
+      'claude-sonnet-4-5',
+      'claude-opus-4-1',
+      'claude-haiku-4-5',
+      'claude-4-opus'
+    ])('should return true for %s', (model) => {
+      expect(isVisionCapable(model)).toBe(true)
+    })
+
+    it('should return false for claude-2.x', () => {
+      expect(isVisionCapable('claude-2.1')).toBe(false)
+      expect(isVisionCapable('claude-2')).toBe(false)
+    })
+  })
+
+  describe('modern Gemini models', () => {
+    it.each(['gemini-3-pro', 'gemini-2.5-flash', 'gemini-2.5-pro-latest', 'gemini-1.5-flash'])(
+      'should return true for %s',
+      (model) => {
+        expect(isVisionCapable(model)).toBe(true)
+      }
+    )
+  })
+
+  describe('local / open-weight vision models', () => {
+    it.each([
+      'llava',
+      'llava:13b',
+      'llava-llama3',
+      'bakllava',
+      'moondream',
+      'moondream2',
+      'llama3.2-vision',
+      'llama-3.2-11b-vision-instruct',
+      'qwen2-vl',
+      'qwen2.5-vl-7b-instruct',
+      'minicpm-v',
+      'gemma3:4b',
+      'internvl3-8b',
+      'phi-3.5-vision-instruct',
+      'glm-4v',
+      'pixtral-12b'
+    ])('should return true for %s', (model) => {
+      expect(isVisionCapable(model)).toBe(true)
+    })
+  })
+
+  describe('guard rails', () => {
+    it('should not treat a bare "vl" substring inside a word as vision support', () => {
+      expect(isVisionCapable('my-vllm-text-model')).toBe(false)
+    })
+
+    it('should return false for an undefined-ish runtime value', () => {
+      expect(isVisionCapable(undefined as unknown as string)).toBe(false)
+      expect(isVisionCapable(null as unknown as string)).toBe(false)
+    })
+  })
 })

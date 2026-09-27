@@ -106,14 +106,26 @@ describe('useDraftSendOrchestration', () => {
     expect(setPendingAiItems).not.toHaveBeenCalled()
   })
 
-  it('respects forceAutoSend over autoSend option', async () => {
+  it('passes the per-call autoSend through to the sender', async () => {
     const { result, sendTextToAI } = buildHarness([textItem('t1', 'hi')])
 
     await act(async () => {
-      await result.current.sendPendingAiItems({ autoSend: false, forceAutoSend: true })
+      await result.current.sendPendingAiItems({ autoSend: true })
     })
 
     expect(sendTextToAI).toHaveBeenCalledWith('hi', { autoSend: true })
+  })
+
+  // Regression: a forced send used to win over autoSend:false, so a disabled
+  // preference still submitted.
+  it('does not override an explicit autoSend:false', async () => {
+    const { result, sendTextToAI } = buildHarness([textItem('t1', 'hi')])
+
+    await act(async () => {
+      await result.current.sendPendingAiItems({ autoSend: false })
+    })
+
+    expect(sendTextToAI).toHaveBeenCalledWith('hi', { autoSend: false })
   })
 
   it('prevents concurrent sends via the in-flight guard', async () => {

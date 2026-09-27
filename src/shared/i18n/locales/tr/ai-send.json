@@ -63,5 +63,7 @@
   "ai_preset_review": "Tekrar",
   "ai_preset_review_value": "Kısa tekrar yap",
   "ai_preset_more": "Daha fazla",
-  "ai_send_custom_note": "Not / Soru Yaz"
+  "ai_send_custom_note": "Not / Soru Yaz",
+  "ai_send_image_only_prompt": "Bu g\u00f6rseli a\u00e7\u0131kla ve a\u00e7\u0131kla.",
+  "ai_send_staged": "Sohbet kutusuna eklendi. G\u00f6ndermek i\u00e7in G\u00f6nder'e bas\u0131n."
 }

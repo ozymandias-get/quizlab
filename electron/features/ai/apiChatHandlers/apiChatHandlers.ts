@@ -11,8 +11,12 @@ import { registerIpcHandler } from '../../../core/typedIpcMain.js'
 import { loadConfig, sanitizeApiKey, saveConfig } from './config.js'
 import type { SsrProtectionOptions } from './ssrf.js'
 import { fetchWithSsrProtection, validateProviderUrl } from './ssrf.js'
-import type { ChatCompletionBody, ChatContentItem, ModelListItem } from './validation.js'
-import { MAX_REQUEST_BODY_SIZE, sanitizeChatMessage } from './validation.js'
+import type { ChatCompletionBody, ModelListItem } from './validation.js'
+import {
+  buildChatCompletionMessages,
+  MAX_REQUEST_BODY_SIZE,
+  sanitizeChatMessage
+} from './validation.js'
 
 function getSsrOptionsForProvider(provider: ApiProviderConfig): SsrProtectionOptions | undefined {
   const allow =
@@ -174,22 +178,7 @@ export function registerApiChatHandlers() {
 
         const body: ChatCompletionBody = {
           model,
-          messages: [
-            ...systemMessages,
-            ...safeMessages.map(({ role, content, images }) => {
-              if (images && images.length > 0) {
-                const contentArray: ChatContentItem[] = [{ type: 'text', text: content }]
-                for (const img of images) {
-                  contentArray.push({
-                    type: 'image_url',
-                    image_url: { url: img }
-                  })
-                }
-                return { role, content: contentArray }
-              }
-              return { role, content }
-            })
-          ]
+          messages: [...systemMessages, ...buildChatCompletionMessages(safeMessages)]
         }
 
         const bodyJson = JSON.stringify(body)
@@ -198,7 +187,7 @@ export function registerApiChatHandlers() {
           Logger.warn(`[apiChatHandlers] Request body too large: ${sizeMb} MB`)
           return failure(
             'invalid_input',
-            `Request body too large (${sizeMb} MB). Reduce the number of attached images or shorten the message.`
+            `Request body too large (${sizeMb} MB). Remove an attached image or start a new chat, then try again.`
           )
         }
 

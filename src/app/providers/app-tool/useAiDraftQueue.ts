@@ -104,7 +104,12 @@ export function useAiDraftQueue(onDrop?: () => void) {
                 current.map((item) => (item.id === draftId ? { ...item, blobUrl: url } : item))
               )
             })
-            .catch(() => {})
+            .catch((err) => {
+              // The composer renders a placeholder until blobUrl resolves, so a
+              // failure here is only visible as a missing thumbnail. Report it
+              // instead of swallowing it; the inline dataUrl still sends fine.
+              reportSuppressedError('draftQueue.imageBlobUrlLarge', { cause: err })
+            })
         }
       } catch (err) {
         reportSuppressedError('draftQueue.imageBlobUrl', { cause: err })

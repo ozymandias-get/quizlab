@@ -3,13 +3,15 @@ import type { WebviewController } from '@shared-core/types/webview'
 
 import type * as AiFeatureModule from '@features/ai'
 import type { AiSendOptions } from '@features/ai'
-import { useAiSender } from '@features/ai'
-import { resolveAutoSend } from '@features/ai'
+import { prepareImageForUpload, useAiSender } from '@features/ai'
+import { isDeliveredSendResult, isStagedSendResult, resolveAutoSend } from '@features/ai'
 
+import type { Tab } from '@app/providers/ai/types'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { toErrorToastKey } from './errorToastKey'
 import {
@@ -30,6 +32,8 @@ async function getChatUiStore() {
 
 interface UseAiMessagingParams {
   getWebviewInstance: (tabId?: string) => WebviewController | null
+  /** Reads the active tab, or undefined when there is none. */
+  getActiveTab: () => Tab | undefined
   currentAI: string
   activeTabId: string
   autoSend: boolean
@@ -41,6 +45,7 @@ interface UseAiMessagingParams {
 
 export function useAiMessaging({
   getWebviewInstance,
+  getActiveTab,
   currentAI,
   activeTabId,
   autoSend,
@@ -49,6 +54,7 @@ export function useAiMessaging({
   showWarning,
   openAiWorkspace
 }: UseAiMessagingParams) {
+  const { t } = useTranslation()
   const apiChatSendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeTabIdRef = useRef(activeTabId)
   activeTabIdRef.current = activeTabId
@@ -81,10 +87,15 @@ export function useAiMessaging({
   )
 
   const ensureApiChatTab = useCallback(async () => {
-    if (activeTabIdRef.current) return activeTabIdRef.current
+    // The active tab is not necessarily an api-chat tab. Attaching to a PDF or
+    // webview tab id writes the image into per-tab state that no composer
+    // reads, so the send then reports success while nothing is ever delivered.
+    if (getActiveTab()?.modelId === 'api-chat') return activeTabIdRef.current
     openAiWorkspace('api-chat')
-    return waitForApiChatTab(() => activeTabIdRef.current)
-  }, [openAiWorkspace])
+    return waitForApiChatTab(() =>
+      getActiveTab()?.modelId === 'api-chat' ? activeTabIdRef.current : ''
+    )
+  }, [getActiveTab, openAiWorkspace])
 
   const handleApiChatSendResult = useCallback(
     (result: { success: boolean; error?: string }) => {
@@ -168,15 +179,34 @@ export function useAiMessaging({
           return { success: false, error: 'webview_not_ready' }
         }
         try {
+          // The api-chat branch stores the string verbatim as an
+          // `image_url.url`. A blob: or http(s): source cannot be resolved by
+          // the provider, so reject it here instead of failing the whole
+          // request later. Mirrors the guard in the webview image pipeline.
+          if (!imageData.startsWith('data:image/')) {
+            reportSuppressedError('useAiMessaging.apiChatImage', {
+              cause: new Error('unsupported image source')
+            })
+            showWarning(toErrorToastKey('invalid_image_format'))
+            return { success: false, error: 'invalid_image_format' }
+          }
           const UiStore = await getChatUiStore()
           const uiState = UiStore.getState()
-          uiState.addAttachment(currentTabId, imageData)
+          // Page captures arrive at 4x scale and routinely exceed the request
+          // body budget once base64-inflated; scale them down before storing.
+          const prepared = await prepareImageForUpload(imageData)
+          uiState.addAttachment(currentTabId, prepared)
           if (options?.promptText) {
             const val = uiState.inputValueByTab[currentTabId] || ''
             uiState.updateInput(
               currentTabId,
               val ? val + '\n' + options.promptText : options.promptText
             )
+          } else if (!uiState.inputValueByTab[currentTabId]?.trim()) {
+            // No note was written, so the turn would carry an image with empty
+            // text. Not every provider accepts an image-only content array, so
+            // seed a minimal instruction to keep the attachment meaningful.
+            uiState.updateInput(currentTabId, t('ai_send_image_only_prompt'))
           }
           const effectiveAutoSend = resolveAutoSend(autoSend, options)
           if (effectiveAutoSend) {
@@ -185,7 +215,11 @@ export function useAiMessaging({
             if (result.success) showSuccess('sent_successfully')
             return result
           }
-          return { success: true }
+          // Auto-send is off: the attachment is staged in the api-chat composer
+          // and waits for the user to press send. Reporting success here would
+          // claim a delivery that has not happened yet.
+          showSuccess(t('ai_send_staged'))
+          return { success: true, mode: 'staged' }
         } catch (err) {
           return { success: false, error: ensureErrorMessage(err, 'send_failed') }
         }
@@ -209,8 +243,15 @@ export function useAiMessaging({
         success: false,
         error: 'cancelled'
       }
-      if (result.success) showSuccess('sent_successfully')
-      else if (result.error !== 'cancelled') showWarning(toErrorToastKey(result.error))
+      if (isDeliveredSendResult(result)) {
+        showSuccess('sent_successfully')
+      } else if (isStagedSendResult(result)) {
+        // Auto-send off: the image is now in the site's composer and the user
+        // submits there. Say so instead of claiming a delivery.
+        showSuccess(t('ai_send_staged'))
+      } else if (result.error !== 'cancelled') {
+        showWarning(toErrorToastKey(result.error))
+      }
       return result
     },
     [
@@ -223,6 +264,7 @@ export function useAiMessaging({
       rawSendImage,
       showSuccess,
       showWarning,
+      t,
       waitForWebviewReady
     ]
   )

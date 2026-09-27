@@ -1,4 +1,4 @@
-import type { AiDraftItem } from '@app/providers/ai/types'
+import type { AiDraftImageItem, AiDraftItem } from '@app/providers/ai/types'
 
 import {
   type KeyboardEventHandler,
@@ -9,6 +9,7 @@ import {
   useMemo
 } from 'react'
 
+import AttachmentStrip from './AttachmentStrip'
 import ComposerFooter from './ComposerFooter'
 import NoteSection from './NoteSection'
 import type { ResizeDirection } from './types'
@@ -29,7 +30,7 @@ interface AiSendComposerContentProps {
   lastError: string | null
   accentStrong: string
   onNoteTextChange: (text: string) => void
-  onSubmit: (options?: { autoSend?: boolean; forceAutoSend?: boolean }) => void
+  onSubmit: (options?: { autoSend?: boolean }) => void
   onRetry: () => void
   onResizeStart: (direction: ResizeDirection) => PointerEventHandler<HTMLDivElement>
   onResizeKeyDown?: (direction: ResizeDirection) => KeyboardEventHandler<HTMLDivElement>
@@ -55,10 +56,13 @@ function AiSendComposerContent({
   resizeHandlers,
   edgeThickness
 }: AiSendComposerContentProps) {
-  const hasImages = useMemo(() => items.some((i) => i.type === 'image'), [items])
+  const images = useMemo(
+    () => items.filter((i): i is AiDraftImageItem => i.type === 'image'),
+    [items]
+  )
+  const hasImages = images.length > 0
 
   const handleNoteKeyDown = useNoteKeyboardHandler({
-    hasNoteText: noteText.trim().length > 0,
     isSubmitting,
     totalItems,
     onNoteTextChange,
@@ -136,6 +140,8 @@ function AiSendComposerContent({
           style={{ ...position, cursor }}
         />
       ))}
+
+      <AttachmentStrip images={images} />
 
       <NoteSection
         noteText={noteText}

@@ -7,7 +7,6 @@ export type ResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 interface ComposerPayload {
   noteText?: string
   autoSend?: boolean
-  forceAutoSend?: boolean
 }
 
 export interface AiSendComposerProps {
