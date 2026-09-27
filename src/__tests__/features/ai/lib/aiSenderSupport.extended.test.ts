@@ -38,28 +38,27 @@ const makeQueryClient = (fetchResult: unknown) =>
   }) as any
 
 describe('resolveAutoSend', () => {
-  it('returns true when forceAutoSend is true (overrides everything)', () => {
-    expect(resolveAutoSend(false, { forceAutoSend: true })).toBe(true)
-    expect(resolveAutoSend(false, { forceAutoSend: true, autoSend: false })).toBe(true)
-  })
-
-  it('uses the per-call option when no forceAutoSend is set', () => {
+  it('uses the per-call option when provided', () => {
     expect(resolveAutoSend(false, { autoSend: true })).toBe(true)
     expect(resolveAutoSend(true, { autoSend: false })).toBe(false)
   })
 
-  it('falls back to the default when no options are provided', () => {
+  it('falls back to the global preference when no options are provided', () => {
     expect(resolveAutoSend(true)).toBe(true)
     expect(resolveAutoSend(false)).toBe(false)
   })
 
-  it('falls back to the default when options is empty', () => {
+  it('falls back to the global preference when options is empty', () => {
     expect(resolveAutoSend(true, {})).toBe(true)
     expect(resolveAutoSend(false, {})).toBe(false)
   })
 
-  it('prefers forceAutoSend over per-call autoSend', () => {
-    expect(resolveAutoSend(false, { forceAutoSend: true, autoSend: false })).toBe(true)
+  // Regression: the removed `forceAutoSend` escape hatch let the composer submit
+  // even with auto-send off, silently overriding a setting the user had turned
+  // off. A disabled preference must now be un-bypassable.
+  it('cannot be bypassed while the global preference is off', () => {
+    expect(resolveAutoSend(false, { autoSend: false })).toBe(false)
+    expect(resolveAutoSend(false, {})).toBe(false)
   })
 
   it('handles truthy/falsy options correctly', () => {

@@ -123,7 +123,7 @@ describe('useAiSender - image sending', () => {
     expect(res.diagnostics?.clickScript?.kind).toBe('click_send')
   })
 
-  it('forceAutoSend runs click after note prompt when global auto-send is off', async () => {
+  it('per-send autoSend: true clicks through even when the global preference is off', async () => {
     const imageDataUrl = 'data:image/png;base64,xxxx'
     mockCopyImageToClipboard.mockResolvedValue(true)
     mockGenerateFocusScript.mockResolvedValue('focus()')
@@ -174,7 +174,7 @@ describe('useAiSender - image sending', () => {
     await act(async () => {
       res = await result.current.sendImageToAI(imageDataUrl, {
         promptText: 'Ek not',
-        forceAutoSend: true
+        autoSend: true
       })
     })
 

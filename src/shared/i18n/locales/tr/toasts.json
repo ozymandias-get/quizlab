@@ -27,6 +27,7 @@
   "toast_system_title": "Sistem",
   "toast_open_link_failed": "Harici bağlantı açılamadı",
   "toast_copy_failed": "Resim panoya kopyalanamadı",
+  "toast_paste_not_applied": "Site görseli kabul etmedi. Sohbet kutusuna tıklayıp tekrar yapıştırmayı deneyin.",
   "toast_clipboard_failed": "Metin panoya kopyalanamadı",
   "toast_capture_failed": "Ekran görüntüsü alınamadı",
   "toast_screenshot_captured": "Ekran görüntüsü alındı",

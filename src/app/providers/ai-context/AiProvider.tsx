@@ -103,8 +103,14 @@ function AiProvider({ children }: { children: ReactNode }) {
     [addTab, setActiveTab]
   )
 
+  const getActiveTab = useCallback(
+    () => tabsRef.current.find((tab) => tab.id === activeTabId),
+    [activeTabId]
+  )
+
   const { sendTextToAI, sendImageToAI, cancelOngoing } = useAiMessaging({
     getWebviewInstance,
+    getActiveTab,
     currentAI,
     activeTabId,
     autoSend,

@@ -26,7 +26,10 @@ vi.mock('../../../../features/ai/apiChatHandlers/ssrf.js', () => ({
   fetchWithSsrProtection,
   validateProviderUrl
 }))
-vi.mock('../../../../features/ai/apiChatHandlers/validation.js', () => ({
+vi.mock('../../../../features/ai/apiChatHandlers/validation.js', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('../../../../features/ai/apiChatHandlers/validation.js')
+  >()),
   MAX_REQUEST_BODY_SIZE: 1024 * 1024 * 8,
   sanitizeChatMessage
 }))

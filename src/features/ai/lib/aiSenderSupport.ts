@@ -78,10 +78,9 @@ const webviewRunningVersions = new WeakMap<WebviewController, number>()
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Resolves the effective auto-send flag for a single send request.
- * `forceAutoSend` always wins (e.g. user-clicked "Send" with auto-send disabled),
- * otherwise the per-call `autoSend` option is preferred, falling back to the
- * global `autoSend` preference.
+ * Resolves the effective auto-send flag for a single send request. The global
+ * preference applies unless a caller overrides it per send; there is no "force"
+ * override, so a disabled auto-send is never bypassed.
  */
 export { normalizeSendErrorCode, resolveAutoSend } from './sendUtils'
 

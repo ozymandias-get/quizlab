@@ -81,9 +81,12 @@ export interface SendImageResult {
 }
 
 export interface AiSendOptions {
+  /**
+   * Per-send override of the global auto-send preference. `false` stages the
+   * content (paste the image, fill the prompt) and leaves submitting to the
+   * user; there is no override that submits regardless.
+   */
   autoSend?: boolean
-  /** Composer’dan tek seferlik: global otomatik gönder kapalı olsa da tarayıcıda gönder (tıkla) */
-  forceAutoSend?: boolean
   promptText?: string
   /**
    * Görsel yapıştırdıktan sonra ek notu giriş alanının sonuna ekle (Quill/contenteditable uyumu).

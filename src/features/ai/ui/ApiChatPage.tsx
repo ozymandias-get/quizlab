@@ -62,6 +62,7 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         {isDragging && <DragOverlay onDragLeave={handleDragLeave} onDrop={handleDrop} />}
 

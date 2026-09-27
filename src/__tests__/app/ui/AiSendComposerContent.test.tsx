@@ -52,76 +52,79 @@ describe('AiSendComposerContent', () => {
     edgeThickness: 6
   }
 
-  it('calls onSubmit with forceAutoSend on Enter from note textarea', () => {
+  // Regression: Enter used to submit with `forceAutoSend`, which bypassed a
+  // disabled auto-send preference. Enter now defers to the global setting so the
+  // note field agrees with the Send button.
+  it.each([
+    { label: 'Enter with text', noteText: 'hello' },
+    { label: 'Enter with empty note', noteText: '' }
+  ])('defers to the auto-send preference on $label', ({ noteText }) => {
     const onSubmit = vi.fn()
+    render(
+      <AiSendComposerContent
+        {...baseProps}
+        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
+        noteText={noteText}
+        onSubmit={onSubmit}
+      />
+    )
+
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    // No argument at all: the global preference decides, nothing overrides it.
+    expect(onSubmit).toHaveBeenCalledWith()
+  })
+
+  // Shift+Enter is the newline shortcut in every chat composer; Enter is
+  // reserved for submitting. It used to submit, which both surprised users and
+  // removed the only way to write a multi-line prompt while auto-send is on.
+  it.each([
+    { label: 'Shift+Enter', init: { shiftKey: true } },
+    { label: 'Ctrl+Enter', init: { ctrlKey: true } },
+    { label: 'Cmd+Enter', init: { metaKey: true } }
+  ])('inserts a newline on $label instead of submitting', ({ init }) => {
+    const onSubmit = vi.fn()
+    const onNoteTextChange = vi.fn()
     render(
       <AiSendComposerContent
         {...baseProps}
         items={[{ id: 't1', type: 'text', text: 'quoted' }]}
         noteText="hello"
+        onNoteTextChange={onNoteTextChange}
         onSubmit={onSubmit}
       />
     )
 
-    const textarea = screen.getByRole('textbox')
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement
+    textarea.value = 'hello'
+    fireEvent.keyDown(textarea, { key: 'Enter', ...init })
 
-    expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(onSubmit).toHaveBeenCalledWith({ forceAutoSend: true })
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onNoteTextChange).toHaveBeenCalledTimes(1)
+    expect(onNoteTextChange.mock.calls[0][0]).toContain('\n')
   })
 
-  it('calls onSubmit without auto send on Shift+Enter from note textarea', () => {
+  it('keeps newlines working when the queue is empty', () => {
     const onSubmit = vi.fn()
+    const onNoteTextChange = vi.fn()
     render(
       <AiSendComposerContent
         {...baseProps}
-        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
-        noteText="hello"
+        items={[]}
+        totalItems={0}
+        noteText=""
+        onNoteTextChange={onNoteTextChange}
         onSubmit={onSubmit}
       />
     )
 
-    const textarea = screen.getByRole('textbox')
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement
+    textarea.value = ''
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
 
-    expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(onSubmit).toHaveBeenCalledWith()
-  })
-
-  it('calls onSubmit without auto send on Enter when note is empty', () => {
-    const onSubmit = vi.fn()
-    render(
-      <AiSendComposerContent
-        {...baseProps}
-        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
-        noteText=""
-        onSubmit={onSubmit}
-      />
-    )
-
-    const textarea = screen.getByRole('textbox')
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
-
-    expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(onSubmit).toHaveBeenCalledWith()
-  })
-
-  it('calls onSubmit with forceAutoSend on Shift+Enter when note is empty', () => {
-    const onSubmit = vi.fn()
-    render(
-      <AiSendComposerContent
-        {...baseProps}
-        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
-        noteText=""
-        onSubmit={onSubmit}
-      />
-    )
-
-    const textarea = screen.getByRole('textbox')
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
-
-    expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(onSubmit).toHaveBeenCalledWith({ forceAutoSend: true })
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onNoteTextChange).toHaveBeenCalledWith('\n')
   })
 
   it('does not submit on Enter when queue is empty', () => {
@@ -136,7 +139,24 @@ describe('AiSendComposerContent', () => {
       />
     )
 
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter', shiftKey: false })
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('does not submit while a send is already in flight', () => {
+    const onSubmit = vi.fn()
+    render(
+      <AiSendComposerContent
+        {...baseProps}
+        isSubmitting
+        items={[{ id: 't1', type: 'text', text: 'quoted' }]}
+        noteText="hello"
+        onSubmit={onSubmit}
+      />
+    )
+
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
 
     expect(onSubmit).not.toHaveBeenCalled()
   })

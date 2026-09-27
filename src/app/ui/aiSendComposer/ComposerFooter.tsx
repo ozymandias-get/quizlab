@@ -11,7 +11,7 @@ interface ComposerFooterProps {
   lastError: string | null
   totalItems: number
   accentStrong?: string
-  onSubmit: (options?: { forceAutoSend?: boolean }) => void
+  onSubmit: (options?: { autoSend?: boolean }) => void
   onRetry: () => void
 }
 

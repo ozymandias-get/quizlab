@@ -2,6 +2,7 @@ import type { ApiChatMessage } from '@shared-core/types'
 
 import { useCallback, useRef } from 'react'
 
+import { prepareImageForUpload } from '../lib/imageDownscale'
 import { useChatUiStore } from '../store/chatUiStore'
 import { useApiChatSimpleHandlers } from './useApiChatSimpleHandlers'
 
@@ -116,16 +117,29 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
     [handleSend]
   )
 
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
+  const addPreparedAttachment = useCallback(
+    (file: File) => {
       const reader = new FileReader()
-      reader.onload = () => addAttachment(tabId, reader.result as string)
+      reader.onload = () => {
+        void prepareImageForUpload(reader.result as string).then(
+          (dataUrl) => addAttachment(tabId, dataUrl),
+          () => addAttachment(tabId, reader.result as string)
+        )
+      }
       reader.readAsDataURL(file)
-      e.target.value = ''
     },
     [addAttachment, tabId]
+  )
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
+      for (const file of files) {
+        addPreparedAttachment(file)
+      }
+      e.target.value = ''
+    },
+    [addPreparedAttachment]
   )
 
   const handleDragEnter = useCallback(
@@ -168,12 +182,10 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
       setIsDragging(false)
       const files = [...(e.dataTransfer?.files || [])]
       for (const file of files.filter((f) => f.type.startsWith('image/'))) {
-        const reader = new FileReader()
-        reader.onload = () => addAttachment(tabId, reader.result as string)
-        reader.readAsDataURL(file)
+        addPreparedAttachment(file)
       }
     },
-    [addAttachment, tabId, setIsDragging]
+    [addPreparedAttachment, setIsDragging]
   )
 
   const simple = useApiChatSimpleHandlers(deps)

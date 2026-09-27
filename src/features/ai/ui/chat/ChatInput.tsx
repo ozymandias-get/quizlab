@@ -68,6 +68,12 @@ const ChatInput = memo(function ChatInput({
     fileInputRef.current?.click()
   }, [fileInputRef])
 
+  // The request actually falls back to the provider's default model when no
+  // model was picked in settings, so the gate has to use the same value —
+  // otherwise the button stays hidden for a perfectly capable model.
+  const effectiveModel = selectedModel || activeProvider?.defaultModel || ''
+  const canAttachImage = Boolean(activeProvider) && isVisionCapable(effectiveModel)
+
   const wordCount = inputValue.trim().split(/\s+/).filter(Boolean).length
   const charCount = inputValue.length
 
@@ -130,12 +136,13 @@ const ChatInput = memo(function ChatInput({
                 onSelectModel={onSelectModel}
               />
 
-              {activeProvider && isVisionCapable(selectedModel) && (
+              {canAttachImage && (
                 <div className="relative">
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={onFileSelect}
                     className="hidden"
                   />
