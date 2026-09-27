@@ -7,6 +7,7 @@
  * bookkeeping are all pinned down once, in one place.
  */
 import type { SelectorRepairCandidate } from '@shared-core/types/automation'
+import type { SelectorRepairEvidence } from '@shared-core/selectorRepair'
 
 import { describe, expect, it } from 'vitest'
 
@@ -18,6 +19,7 @@ import {
   classifyRepairEligibility,
   CONFIDENCE_LEVELS,
   getLocatorSelectorKeys,
+  compareRepairEvidence,
   isConfidenceLevel,
   isInternalMarkerSelector,
   isLookupStrategy,
@@ -26,6 +28,7 @@ import {
   isProviderDerivedStrategy,
   isRecoveryStrategy,
   isRepairFlapping,
+  isUsableRepairEvidence,
   isSameRepairCandidate,
   MAX_REPAIR_CANDIDATE_COUNT,
   MIN_AUTO_REPAIR_SCORE_GAP,
@@ -33,6 +36,7 @@ import {
   normalizeLookupStrategy,
   RECOVERY_LOOKUP_STRATEGIES,
   REPAIR_FLAP_WINDOW_MS,
+  REPAIR_STRATEGY_TRUST_ORDER,
   REPAIR_SCORE_BONUS_MAX,
   SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD
 } from '../../../shared/selectorRepair'
@@ -512,6 +516,110 @@ describe('buildPromotedSelectors', () => {
     })
     expect(result.primary).toBe('#new')
     expect(result.candidates).toEqual(['#new', '#old'])
+  })
+})
+
+describe('classifyRepairEligibility ordering', () => {
+  it('reports not_recovered before operation_failed for a healthy locator', () => {
+    // A locator that was never recovered must not be reported as a failed
+    // operation; "the saved selector still works" is the actionable fact.
+    expect(
+      classifyRepairEligibility({ ...ELIGIBLE_BASE, strategy: 'direct', operationSucceeded: false })
+        .reason
+    ).toBe('not_recovered')
+  })
+
+  it('still reports operation_failed for a real recovery whose operation failed', () => {
+    expect(classifyRepairEligibility({ ...ELIGIBLE_BASE, operationSucceeded: false }).reason).toBe(
+      'operation_failed'
+    )
+  })
+})
+
+describe('evidence ranking', () => {
+  const EVIDENCE: SelectorRepairEvidence = {
+    strategy: 'candidate',
+    confidenceScore: 95,
+    confidenceLevel: 'high',
+    stableSelector: 'textarea[data-testid="ask"]',
+    ambiguous: false,
+    unstableSelector: false,
+    blockedSendControl: false,
+    operationSucceeded: true
+  }
+
+  it('prefers usable evidence over refused evidence regardless of score', () => {
+    const refused: SelectorRepairEvidence = {
+      ...EVIDENCE,
+      strategy: 'heuristic',
+      confidenceScore: 200,
+      ambiguous: true
+    }
+    expect(compareRepairEvidence('input', EVIDENCE, refused)).toBeGreaterThan(0)
+    expect(isUsableRepairEvidence('input', refused)).toBe(false)
+  })
+
+  it('prefers the blocklisted record last', () => {
+    const blocked: SelectorRepairEvidence = {
+      ...EVIDENCE,
+      strategy: 'candidate',
+      confidenceScore: 500,
+      blockedSendControl: true
+    }
+    expect(compareRepairEvidence('input', EVIDENCE, blocked)).toBeGreaterThan(0)
+  })
+
+  it('orders the canonical strategy trust chain', () => {
+    const chain = [...REPAIR_STRATEGY_TRUST_ORDER]
+    for (let i = 0; i < chain.length - 1; i++) {
+      const better: SelectorRepairEvidence = { ...EVIDENCE, strategy: chain[i] as never }
+      const worse: SelectorRepairEvidence = { ...EVIDENCE, strategy: chain[i + 1] as never }
+      expect(compareRepairEvidence('input', better, worse)).toBeGreaterThan(0)
+      expect(compareRepairEvidence('input', worse, better)).toBeLessThan(0)
+    }
+  })
+
+  it('prefers the higher confidence score within one strategy', () => {
+    const high: SelectorRepairEvidence = { ...EVIDENCE, confidenceScore: 120 }
+    const low: SelectorRepairEvidence = { ...EVIDENCE, confidenceScore: 40 }
+    expect(compareRepairEvidence('input', high, low)).toBeGreaterThan(0)
+    expect(compareRepairEvidence('input', low, high)).toBeLessThan(0)
+  })
+
+  it('is a total order: never positive in both directions', () => {
+    const variants: SelectorRepairEvidence[] = [
+      EVIDENCE,
+      { ...EVIDENCE, strategy: 'semantic' },
+      { ...EVIDENCE, strategy: 'heuristic', confidenceScore: 10 },
+      { ...EVIDENCE, ambiguous: true },
+      { ...EVIDENCE, stableSelector: null },
+      { ...EVIDENCE, stableSelector: 'textarea[aria-label="Ask"]' }
+    ]
+    for (const a of variants) {
+      for (const b of variants) {
+        const ab = compareRepairEvidence('input', a, b)
+        const ba = compareRepairEvidence('input', b, a)
+        expect(ab === 0 ? ba === 0 : ab * ba < 0).toBe(true)
+      }
+    }
+  })
+
+  it('is antisymmetric for the button kind as well', () => {
+    const providerButton: SelectorRepairEvidence = { ...EVIDENCE, strategy: 'provider' }
+    // A provider button recovery is refused, so it must rank below a
+    // fingerprint button recovery.
+    const fingerprintButton: SelectorRepairEvidence = { ...EVIDENCE, strategy: 'fingerprint' }
+    expect(compareRepairEvidence('button', fingerprintButton, providerButton)).toBeGreaterThan(0)
+  })
+
+  it('exposes the trust order as the canonical ranking', () => {
+    expect(REPAIR_STRATEGY_TRUST_ORDER).toEqual([
+      'candidate',
+      'fingerprint',
+      'semantic',
+      'provider',
+      'heuristic'
+    ])
   })
 })
 
