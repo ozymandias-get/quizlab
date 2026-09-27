@@ -56,6 +56,12 @@ export const eventDrivenWaitRuntime = `    /**
         const start = now();
         let lastMutationAt = start;
         let iterations = 0;
+        let mutationCount = 0;
+        // Bir submit hedefi hiç "hazır" olmadıysa bu, yapıştırmanın hiçbir
+        // şey eklememiş olduğunun en güçlü göstergesidir. Site butonu
+        // kısa bir süre açıp kapatıyorsa (bilinen "stale" salınımı)
+        // everReady true döner ve farklı bir açıklama gerekir.
+        let everReady = false;
         let observer = null;
         let wakeResolve = null;
         let mutationPending = false;
@@ -63,6 +69,7 @@ export const eventDrivenWaitRuntime = `    /**
         const createObserver = (target) => {
             const obs = new MutationObserver(() => {
                 lastMutationAt = now();
+                mutationCount += 1;
                 mutationPending = true;
                 if (wakeResolve) {
                     const resolve = wakeResolve;
@@ -94,6 +101,7 @@ export const eventDrivenWaitRuntime = `    /**
             const waitedMs = now() - start;
             const sinceLastMutation = now() - lastMutationAt;
             const candidate = check();
+            if (candidate) everReady = true;
             if (candidate && waitedMs >= (minimumWaitMs || 0) && sinceLastMutation >= (settleMs || 0)) {
                 return { result: candidate, totalMs: roundMs(waitedMs), iterations };
             }
@@ -136,6 +144,13 @@ export const eventDrivenWaitRuntime = `    /**
         // timeout'a düştük — son bir kontrol daha yap
         const final = resultOrNull();
         if (final) return final;
-        return { result: null, totalMs: roundMs(now() - start), iterations };
+        return {
+            result: null,
+            totalMs: roundMs(now() - start),
+            iterations,
+            mutationCount,
+            everReady,
+            sinceLastMutationMs: roundMs(now() - lastMutationAt)
+        };
     };
 `

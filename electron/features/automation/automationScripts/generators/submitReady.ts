@@ -110,12 +110,30 @@ const generateWaitForSubmitReadyScript = (
                 ? 'submit_not_ready'
                 : resolveLookupError(targetLookup, buttonConfigured ? 'button_not_found' : 'input_not_found', config.health);
 
+            // Neden hazır olmadı? Sadece "submit_not_ready" demek, butonun
+            // disabled mı yoksa görünmez mi olduğunu ayırt etmeye yetmiyor.
+            const notReadyReason = targetResult.element
+                ? describeNotReady(targetResult.element)
+                : 'element_missing';
+
             diagnostics.submitMs = result.totalMs;
             return {
                 success: false,
                 action: 'submit_ready',
                 mode: config.submitMode,
                 error,
+                notReadyReason,
+                notReadyTarget: buttonConfigured ? 'button' : 'input',
+                waitedMs: result.totalMs,
+                budgetMs: ${timeoutMs},
+                minimumWaitMs: ${minimumWaitMs},
+                // everReady=false + mutationCount=0 → yapıştırma muhtemelen
+                // hiçbir ekleme yapmadı. everReady=true → buton sonradan
+                // kapanmış (bilinen stale salınımı).
+                everReady: result.everReady === true,
+                mutationCount: result.mutationCount,
+                sinceLastMutationMs: result.sinceLastMutationMs,
+                checkIterations: result.iterations,
                 diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, error)
             };
         } catch (error) {
