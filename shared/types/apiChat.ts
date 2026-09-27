@@ -16,7 +16,7 @@ export interface ApiProviderConfig {
   defaultModel: string
   enabled: boolean
   models: string[]
-  providerType: 'openai' | 'anthropic' | 'google' | 'custom'
+  providerType: 'openai' | 'anthropic' | 'google' | 'nvidia' | 'custom'
   /** Request timeout in milliseconds (default: 60000 for chat, 15000 for model list). */
   requestTimeout?: number
   /** When true, allows loopback/private (Ollama, LM Studio, vLLM, LocalAI) endpoints. */
