@@ -266,11 +266,15 @@ export function classifyRepairEligibility(evidence: RepairEvidenceInput): {
   eligible: boolean
   reason: SelectorRepairReason
 } {
-  if (!evidence.operationSucceeded) {
-    return { eligible: false, reason: 'operation_failed' }
-  }
+  // "The saved selector still works" is checked first: it is the most
+  // fundamental and most actionable fact, and reporting a failure for a locator
+  // that was never recovered is misleading. Both verdicts are ineligible, so the
+  // ordering only sharpens the reason, it never relaxes a gate.
   if (!isRecoveryStrategy(evidence.strategy)) {
     return { eligible: false, reason: 'not_recovered' }
+  }
+  if (!evidence.operationSucceeded) {
+    return { eligible: false, reason: 'operation_failed' }
   }
   if (evidence.blockedSendControl) {
     return { eligible: false, reason: 'blocked_send_control' }
@@ -460,4 +464,93 @@ export function getLocatorSelectorKeys(kind: SelectorRepairKind): {
   return kind === 'input'
     ? { primary: 'input', candidates: 'inputCandidates' }
     : { primary: 'button', candidates: 'buttonCandidates' }
+}
+
+/**
+ * A single locator's recovery evidence, reduced to what the policy needs.
+ *
+ * The renderer builds these from `AutomationSelectorDiagnostics` so evidence
+ * selection and promotion share one vocabulary instead of growing a second
+ * scoring path.
+ */
+export interface SelectorRepairEvidence {
+  strategy: AutomationLookupStrategy
+  confidenceScore: number
+  confidenceLevel: ConfidenceLevel
+  stableSelector: string | null
+  ambiguous: boolean
+  unstableSelector: boolean
+  blockedSendControl: boolean
+  operationSucceeded: boolean
+}
+
+/**
+ * Strategy trust order, lowest risk first.
+ *
+ * A recovery that came from the user's own saved candidate list is the most
+ * trustworthy ("the primary drifted, a fallback carried us"), then a fingerprint
+ * match, then semantics inferred from the page, then the provider guesses.
+ *
+ * This is the same ordering the persistence policy already enforces
+ * (`isProviderDerivedStrategy` refuses button promotion outright); it is exposed
+ * as an explicit list so ranking several evidence records inside one logical
+ * send uses the canonical source instead of a parallel score.
+ */
+export const REPAIR_STRATEGY_TRUST_ORDER = [
+  'candidate',
+  'fingerprint',
+  'semantic',
+  'provider',
+  'heuristic'
+] as const satisfies readonly AutomationLookupStrategy[]
+
+function getStrategyTrustRank(strategy: AutomationLookupStrategy): number {
+  const index = (REPAIR_STRATEGY_TRUST_ORDER as readonly string[]).indexOf(strategy)
+  // Unknown strategies sort last so a regression can never outrank a known one.
+  return index >= 0 ? index : REPAIR_STRATEGY_TRUST_ORDER.length
+}
+
+/** True when the evidence clears every persistence gate for this locator kind. */
+export function isUsableRepairEvidence(
+  kind: SelectorRepairKind,
+  evidence: SelectorRepairEvidence
+): boolean {
+  return classifyRepairEligibility({ kind, ...evidence }).eligible
+}
+
+/**
+ * Orders two evidence records for the same locator, best first.
+ *
+ * `> 0` means `a` is the better record; `< 0` means `b` is. The ordering is
+ * total and deterministic so the winner never depends on which internal script
+ * happened to finish first:
+ *
+ *   1. usable evidence always beats refused evidence, so an ambiguous or
+ *      blocklisted record can never displace a trustworthy one;
+ *   2. then the canonical strategy trust order (lower risk wins);
+ *   3. then the higher confidence score;
+ *   4. then a present stable selector over an absent one;
+ *   5. finally a stable string comparison, purely to break exact ties.
+ */
+export function compareRepairEvidence(
+  kind: SelectorRepairKind,
+  a: SelectorRepairEvidence,
+  b: SelectorRepairEvidence
+): number {
+  const aUsable = isUsableRepairEvidence(kind, a) ? 1 : 0
+  const bUsable = isUsableRepairEvidence(kind, b) ? 1 : 0
+  if (aUsable !== bUsable) return aUsable - bUsable
+
+  // A lower trust rank is better, so subtract in that order to keep every
+  // clause of this comparator pointing the same way ("> 0 means a is better").
+  const trustDelta = getStrategyTrustRank(b.strategy) - getStrategyTrustRank(a.strategy)
+  if (trustDelta !== 0) return trustDelta
+
+  if (a.confidenceScore !== b.confidenceScore) return a.confidenceScore - b.confidenceScore
+
+  const aSelector = a.stableSelector ?? ''
+  const bSelector = b.stableSelector ?? ''
+  if (aSelector !== bSelector) return aSelector < bSelector ? -1 : 1
+
+  return 0
 }

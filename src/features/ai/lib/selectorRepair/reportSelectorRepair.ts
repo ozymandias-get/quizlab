@@ -1,12 +1,24 @@
 /**
- * Single entry point used by both send pipelines to feed the self-healing loop.
+ * Self-healing orchestrator: the single entry point both send pipelines use to
+ * feed the repair loop.
  *
- * Keeping this in one place is what stops `textSendPipeline` and
- * `imageSendPipeline` from each growing their own copy of the repair logic: the
- * pipelines only hand over the diagnostics of a send that already succeeded.
+ * Responsibilities, in order:
  *
- * Intentionally fire-and-forget and never throwing — a repair is a background
- * improvement, so failing it must never turn a successful send into an error.
+ *   1. **Aggregate** one logical user send into at most one observation per
+ *      locator (see `logicalSendEvidence.ts`). Cheap and synchronous, so the
+ *      healthy path — where nothing drifted — costs nothing and never queues.
+ *   2. **Serialize** per hostname (see `repairQueue.ts`) so two sends finishing
+ *      close together cannot both read the same counter and lose an update.
+ *   3. **Re-read the latest persisted config** inside the queue, immediately
+ *      before evaluating. The `aiConfig` snapshot handed over by the pipeline
+ *      was resolved at the *start* of the send and is stale by the time the
+ *      repair runs; without the re-read, serialization alone would merely
+ *      serialize two writes of the same wrong value.
+ *   4. **Evaluate + persist** through the existing config domain.
+ *
+ * Fire-and-forget by design: the caller's `void` means a user never waits on a
+ * repair, and this function never rejects, so a background failure can never
+ * turn a successful send into an error.
  */
 import type {
   AiPlatform,
@@ -14,6 +26,7 @@ import type {
   AutomationExecutionDiagnostics
 } from '@shared-core/types'
 
+import { getElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
 
 import type { QueryClient } from '@tanstack/react-query'
@@ -22,33 +35,16 @@ import type { AiSendDiagnostics } from '../../model/types'
 import type { ConfigCache } from '../aiSenderSupport'
 import { applySelectorRepair, SELECTOR_REPAIR_LOG_PREFIX } from './applySelectorRepair'
 import { evaluateSelectorRepairEvidence } from './evaluateRepairEvidence'
+import { aggregateLogicalSendEvidence } from './logicalSendEvidence'
+import { enqueueSelectorRepair } from './repairQueue'
 
 export interface ReportSelectorRepairParams {
+  /** Config snapshot resolved at the *start* of the send; only a fallback. */
   aiConfig: AiPlatform | AiSelectorConfig
   currentUrl: string
   diagnostics: AiSendDiagnostics
   queryClient: QueryClient
   configCache: ConfigCache
-}
-
-/**
- * The pipeline records each injected script's diagnostics separately
- * (`script`, `focusScript`, `promptScript`, `submitReadyScript`, `clickScript`).
- * Only the ones that performed a *real* operation are allowed to feed the repair
- * loop — a focus or a "wait until ready" run resolves an element without using
- * it, and counting those would promote selectors on a false positive.
- */
-const OPERATION_DIAGNOSTICS_KEYS = ['script', 'promptScript', 'clickScript'] as const
-
-function collectOperationDiagnostics(
-  diagnostics: AiSendDiagnostics
-): AutomationExecutionDiagnostics[] {
-  const collected: AutomationExecutionDiagnostics[] = []
-  for (const key of OPERATION_DIAGNOSTICS_KEYS) {
-    const entry = diagnostics[key]
-    if (entry) collected.push(entry)
-  }
-  return collected
 }
 
 function extractHostname(currentUrl: string): string | null {
@@ -59,50 +55,95 @@ function extractHostname(currentUrl: string): string | null {
   }
 }
 
+/** Narrows the API's config-or-map union to a single selector config. */
+function asSingleSelectorConfig(
+  value: AiSelectorConfig | Record<string, AiSelectorConfig> | null
+): AiSelectorConfig | null {
+  if (!value || typeof value !== 'object') return null
+  // A map has hostnames as keys; a single config carries selector fields.
+  return 'input' in value || 'button' in value ? (value as AiSelectorConfig) : null
+}
+
 /**
- * Evaluates the evidence of the last successful send and, when a meaningful
- * transition happened, persists the resulting patch.
+ * Reads the current persisted config for a hostname straight from the main
+ * process, bypassing React Query and the renderer's `ConfigCache` so a queued
+ * repair can never observe its own previous write as stale.
  *
- * Safe to call on every send: when the saved selector still works, or when the
- * recovery was not trustworthy, it performs no write at all.
+ * @returns the latest config, or `null` when it cannot be read.
  */
-export async function reportSelectorRepair(params: ReportSelectorRepairParams): Promise<boolean> {
+async function readLatestSelectorConfig(hostname: string): Promise<AiSelectorConfig | null> {
+  try {
+    const api = getElectronApi()
+    if (!api) return null
+    return asSingleSelectorConfig(await api.getAiConfig(hostname))
+  } catch (err) {
+    Logger.warn(`${SELECTOR_REPAIR_LOG_PREFIX} could not re-read ${hostname}`, err)
+    return null
+  }
+}
+
+async function processRepair(params: {
+  hostname: string
+  evidence: AutomationExecutionDiagnostics
+  aiConfig: AiPlatform | AiSelectorConfig
+  queryClient: QueryClient
+  configCache: ConfigCache
+}): Promise<boolean> {
+  const { hostname, evidence, aiConfig, queryClient, configCache } = params
+
+  // Read *inside* the queue: the previous task has already persisted, so this
+  // sees its own result and the streak advances instead of oscillating.
+  const latest = await readLatestSelectorConfig(hostname)
+  const baseConfig = latest ?? aiConfig
+
+  const evaluation = evaluateSelectorRepairEvidence({
+    config: baseConfig,
+    diagnostics: evidence
+  })
+  if (!evaluation?.shouldPersist) return false
+
+  const persisted = await applySelectorRepair({
+    hostname,
+    patch: evaluation.patch,
+    queryClient,
+    configCache
+  })
+  if (!persisted) return false
+
+  Logger.info(
+    `${SELECTOR_REPAIR_LOG_PREFIX} ${hostname} promoted=${evaluation.promoted} ` +
+      `input=${evaluation.reasons.input} button=${evaluation.reasons.button}`
+  )
+  return true
+}
+
+/**
+ * Queues one logical send's repair evidence for evaluation.
+ *
+ * @returns true when this send produced and persisted a repair transition.
+ */
+export function reportSelectorRepair(params: ReportSelectorRepairParams): Promise<boolean> {
   const { aiConfig, currentUrl, diagnostics, queryClient, configCache } = params
 
   try {
     const hostname = extractHostname(currentUrl)
-    if (!hostname) return false
+    if (!hostname) return Promise.resolve(false)
 
-    const operationDiagnostics = collectOperationDiagnostics(diagnostics)
-    if (operationDiagnostics.length === 0) return false
+    // Synchronous and cheap: a send that used no recovered locator never
+    // touches the queue or the disk.
+    const evidence = aggregateLogicalSendEvidence(diagnostics)
+    if (!evidence) return Promise.resolve(false)
 
-    for (const scriptDiagnostics of operationDiagnostics) {
-      const evaluation = evaluateSelectorRepairEvidence({
-        config: aiConfig,
-        diagnostics: scriptDiagnostics
-      })
-      if (!evaluation?.shouldPersist) continue
-
-      const persisted = await applySelectorRepair({
-        hostname,
-        patch: evaluation.patch,
-        queryClient,
-        configCache
-      })
-
-      if (persisted) {
-        Logger.info(
-          `${SELECTOR_REPAIR_LOG_PREFIX} ${hostname} promoted=${evaluation.promoted} ` +
-            `input=${evaluation.reasons.input} button=${evaluation.reasons.button}`
-        )
-        // The in-memory config is now stale; the next send must re-read it.
-        return true
-      }
-    }
-
-    return false
+    return enqueueSelectorRepair(hostname, () =>
+      processRepair({ hostname, evidence, aiConfig, queryClient, configCache })
+    ).catch((err: unknown) => {
+      // Failure isolation: log and return. The queue tail is never rejected, so
+      // the next send for this host still runs.
+      Logger.error(`${SELECTOR_REPAIR_LOG_PREFIX} repair failed for ${hostname}`, err)
+      return false
+    })
   } catch (err) {
     Logger.error(`${SELECTOR_REPAIR_LOG_PREFIX} evaluation failed`, err)
-    return false
+    return Promise.resolve(false)
   }
 }
