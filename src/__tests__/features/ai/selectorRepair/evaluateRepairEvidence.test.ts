@@ -118,7 +118,10 @@ describe('evaluateSelectorRepairEvidence', () => {
     expect(result?.patch.health).toBeUndefined()
   })
 
-  it('does not persist on a counter that has not reached a threshold step', () => {
+  it('persists every staged success so the streak can actually reach the threshold', () => {
+    // Replays the real write/read cycle instead of hand-crafting `count = 2`.
+    // Skipping a write here used to pin the persisted counter at 1 forever, so
+    // `1 → 2 → 3 → promote` was unreachable no matter how many sends ran.
     const staged: AiSelectorConfig = {
       ...BASE_CONFIG,
       repair: {
@@ -136,15 +139,28 @@ describe('evaluateSelectorRepairEvidence', () => {
       }
     }
 
-    const result = evaluateSelectorRepairEvidence({
+    const second = evaluateSelectorRepairEvidence({
       config: staged,
       diagnostics: executionDiagnostics(),
       now: NOW + 1
     })
 
-    // Second success: the counter grew, but writing on every send would be
-    // config churn, so nothing is persisted yet.
-    expect(result).toBeNull()
+    // Second success: staged at 2 and written, not skipped as "churn".
+    expect(second?.shouldPersist).toBe(true)
+    expect(second?.promoted).toBe(false)
+    expect(second?.patch.repair?.input?.consecutiveSuccessCount).toBe(2)
+
+    // Thread the persisted result into the third send.
+    const persistedAfterSecond: AiSelectorConfig = { ...staged, ...second?.patch }
+
+    const third = evaluateSelectorRepairEvidence({
+      config: persistedAfterSecond,
+      diagnostics: executionDiagnostics(),
+      now: NOW + 2
+    })
+
+    expect(third?.promoted).toBe(true)
+    expect(third?.patch.input).toBe('textarea[data-testid="ask"]')
   })
 
   it('promotes after the shared consecutive success threshold', () => {
