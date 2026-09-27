@@ -24,14 +24,14 @@ import {
   isRecoveryStrategy,
   isRepairFlapping,
   normalizeConfidenceLevel,
-  normalizeLookupStrategy,
-  SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD
+  normalizeLookupStrategy
 } from '@shared-core/selectorRepair'
 import type {
   AiSelectorConfig,
   AutomationExecutionDiagnostics,
   AutomationLookupStrategy,
   ConfidenceLevel,
+  SelectorLastRepair,
   SelectorRepairCandidate,
   SelectorRepairKind,
   SelectorRepairReason
@@ -166,11 +166,16 @@ function evaluateLocator(params: {
   return {
     candidate: advanced.candidate,
     reason: verdict.reason,
-    // Persist on identity change and on every threshold step, so the counter
-    // survives an app restart without a write on every single send.
-    shouldPersist:
-      advanced.identityChanged ||
-      advanced.candidate.consecutiveSuccessCount % SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD === 0
+    // Every staged observation is persisted, without exception.
+    //
+    // An earlier version only wrote on an identity change and on every Nth
+    // success, reasoning that a counter ticking from 2 to 3 could be
+    // recomputed. It cannot: the *next* send re-reads the persisted config, so a
+    // skipped write pins the counter forever and the 1 → 2 → 2 → 2 chain never
+    // reaches the threshold. With SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD = 3 the
+    // cost of being correct is at most two small writes before the promotion
+    // write, and correctness has to win over config churn.
+    shouldPersist: true
   }
 }
 
@@ -218,11 +223,24 @@ function promoteLocator(params: {
     repairSelector: candidate.selector as string
   })
 
+  // Record the promotion. `lastRepair` is the only durable trace of it, and two
+  // things depend on it: the flapping guard on the *next* drift, and the
+  // "Auto-repaired" state the Settings panel shows. The other locator's entry is
+  // preserved because input and button promote independently.
+  const lastRepair = {
+    ...(config.lastRepair ?? {}),
+    repairedAt: now,
+    ...(kind === 'input'
+      ? { inputSelector: promoted.primary, inputStrategy: candidate.strategy }
+      : { buttonSelector: promoted.primary, buttonStrategy: candidate.strategy })
+  } satisfies SelectorLastRepair
+
   return {
     patch: {
       [keys.primary]: promoted.primary,
       [keys.candidates]: promoted.candidates,
-      health: 'repaired'
+      health: 'repaired',
+      lastRepair
     },
     promoted: true,
     blocked: false
@@ -248,10 +266,10 @@ export function evaluateSelectorRepairEvidence(
   let shouldPersist = false
   let promoted = false
   let needsRepick = false
-  // A counter that ticks from 2 to 3 is not a reason to write to disk. The
-  // repair blob is only rewritten on a *material* transition: a new identity, a
-  // dropped streak, a threshold step, or a promotion. Everything else is
-  // recomputed from the same evidence on the next send.
+  // A staged counter only reaches disk when it actually moved (a fresh
+  // observation) or when a previously staged candidate was dropped. A healthy
+  // primary produces no candidate and therefore no write at all, so the normal
+  // path stays churn-free.
   let repairStateChanged = false
 
   for (const kind of REPAIR_KINDS) {
