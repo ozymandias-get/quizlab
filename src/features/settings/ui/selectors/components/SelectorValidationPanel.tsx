@@ -28,16 +28,18 @@ const SelectorDiagnosticTile = memo(function SelectorDiagnosticTile({
   t
 }: SelectorDiagnosticTileProps) {
   return (
-    <div className="border-border bg-muted/30 rounded-xl border p-3">
-      <p className="text-ql-10 text-muted-foreground font-medium">{t(labelKey)}</p>
-      <p className="text-ql-13 text-foreground mt-0.5 font-semibold">
+    <div className="border-border/60 bg-background/40 flex flex-col gap-1 rounded-xl border p-4">
+      <p className="text-muted-foreground text-ql-10 tracking-ql-label font-semibold uppercase">
+        {t(labelKey)}
+      </p>
+      <p className="text-ql-13 text-foreground font-semibold">
         {diagnostics?.strategy || t('selectors_no_match')}
       </p>
-      <p className="text-ql-12 text-muted-foreground mt-1 break-all">
+      <p className="text-ql-12 text-muted-foreground break-all">
         {diagnostics?.matchedSelector || diagnostics?.requestedSelector || t('selectors_no_match')}
       </p>
       {diagnostics && (
-        <p className="text-ql-11 text-muted-foreground mt-1.5">
+        <p className="text-ql-11 text-muted-foreground">
           {t(
             diagnostics.recovered ? 'selectors_resolution_recovered' : 'selectors_resolution_direct'
           )}
@@ -61,7 +63,7 @@ const SelectorValidationPanel = memo(function SelectorValidationPanel({
 
   return (
     <div
-      className={`rounded-xl border px-4 py-3 ${
+      className={`flex flex-col gap-3 rounded-xl border p-4 ${
         validation.status === 'success'
           ? 'border-emerald-500/30 bg-emerald-500/10'
           : validation.status === 'loading'
@@ -91,7 +93,7 @@ const SelectorValidationPanel = memo(function SelectorValidationPanel({
       </div>
 
       {validation.diagnostics && (
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <SelectorDiagnosticTile
             labelKey="input_label"
             diagnostics={validation.diagnostics.input}

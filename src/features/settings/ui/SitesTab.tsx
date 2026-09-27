@@ -5,6 +5,7 @@ import { useToastActions } from '@app/providers'
 import { useAiModelActions, useAiModelsCatalog } from '@app/providers/ai-context'
 import { useConfirmDialog } from '@shared/hooks'
 import { Logger } from '@shared/lib/logger'
+import { SettingsTabIcon } from '@shared/ui/components/primitives'
 import { GridIcon } from '@ui/components/Icons'
 
 import { memo, type MouseEvent, useCallback, useMemo, useState } from 'react'
@@ -16,9 +17,9 @@ import { isCustomSitePlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const SITES_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+  <SettingsTabIcon>
     <GridIcon className="h-5 w-5" />
-  </div>
+  </SettingsTabIcon>
 )
 
 const SitesTab = memo(() => {
@@ -116,9 +117,13 @@ const SitesTab = memo(() => {
           />
         }
         footer={
-          <div className="border-border border-t px-1 pt-4">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-ql-11 text-muted-foreground tracking-ql-normal">
-              {t('active_sites')}: {enabledSitesCount} / {sitesList.length} {t('sites_count')}
+              {t('active_sites')}
+            </p>
+            <p className="text-ql-11 text-muted-foreground shrink-0 tabular-nums">
+              <span className="text-foreground font-semibold">{enabledSitesCount}</span>
+              {` / ${sitesList.length} ${t('sites_count')}`}
             </p>
           </div>
         }

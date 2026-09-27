@@ -25,21 +25,19 @@ export function useAiSendComposerStyles(
     [layout.x, layout.y, layout.width, layout.height, isExpanded]
   )
 
+  /* Surface and colours are owned by the className (`bg-card` / `bg-card/95`)
+     so the `transition-[background-color]` on the panel actually animates —
+     an inline `background` silently beat it.
+     No `backdrop-filter`: it promotes the panel to its own composited layer,
+     and a composited layer antialiases its `border-radius` edges separately
+     from the element, which is what made the pill's corners look jagged.
+     The opaque surface plus `--shadow-ambient-xl` still reads as floating. */
   const panelStyle: CSSProperties = useMemo(
     () =>
-      isExpanded
-        ? {
-            boxShadow: 'var(--shadow-ambient-xl)',
-            background: 'oklch(var(--card) / 0.95)',
-            backdropFilter: 'blur(16px)'
-          }
-        : {
-            boxShadow: '0 16px 40px -6px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            background: 'oklch(var(--card) / 0.95)',
-            backdropFilter: 'blur(16px)'
-          },
-    [isExpanded]
+      ({
+        boxShadow: 'var(--shadow-ambient-xl)'
+      }) as CSSProperties,
+    []
   )
 
   return { portalStyle, panelStyle }

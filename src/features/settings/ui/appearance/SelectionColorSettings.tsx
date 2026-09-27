@@ -1,4 +1,5 @@
 import { DURATION } from '@shared/lib/motion'
+import { SettingsSection } from '@shared/ui/components/primitives'
 import { SelectionIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
@@ -24,35 +25,28 @@ const SelectionColorSettings = memo(
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: DURATION.fast }}
-        className="bg-card border-border space-y-5 rounded-xl border p-5"
       >
-        <div className="flex items-center gap-3">
-          <div className="bg-muted text-muted-foreground/60 border-border rounded-lg border p-2">
-            <SelectionIcon className="h-4 w-4" />
-          </div>
-          <div className="space-y-0.5">
-            <h3 className="text-ql-13 text-foreground font-bold">
-              {t('selection_color_settings')}
-            </h3>
-            <p className="text-ql-11 text-foreground/75 tracking-ql-tight">
-              {t('selection_color_desc')}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-card border-border rounded-xl border p-4">
+        <SettingsSection
+          icon={<SelectionIcon className="h-4 w-4" />}
+          title={t('selection_color_settings')}
+          detail={t('selection_color_desc')}
+        >
           <ColorPicker
             label={t('select_color')}
             color={selectionColor}
             onChange={setSelectionColor}
           />
-          <div className="bg-card border-border mt-3 flex items-center gap-3 rounded-lg border p-3">
-            <div className="h-6 w-10 rounded-md shadow-lg" style={previewStyle} />
-            <span className="text-ql-10 text-foreground/75 font-medium">
+          <div className="border-border/60 bg-background/40 flex items-center gap-3 rounded-xl border p-4">
+            <div
+              aria-hidden
+              className="border-border/60 h-6 w-10 shrink-0 rounded-lg border shadow-xs"
+              style={previewStyle}
+            />
+            <span className="text-ql-12 text-muted-foreground truncate">
               {t('selection_color_preview_hint')}
             </span>
           </div>
-        </div>
+        </SettingsSection>
       </motion.div>
     )
   }

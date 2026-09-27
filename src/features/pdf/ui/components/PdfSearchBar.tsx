@@ -64,7 +64,7 @@ function PdfSearchBar({
           >
             <InputGroup className="flex-1">
               <InputGroupAddon align="inline-start">
-                <Search className="text-muted-foreground/80 h-3.5 w-3.5" />
+                <Search className="text-muted-foreground h-3.5 w-3.5" />
               </InputGroupAddon>
               <Input
                 ref={inputRef}
@@ -141,23 +141,23 @@ function PdfSearchBar({
               asChild
               type="button"
               variant="outline"
-              className="group border-border/80 bg-card/70 hover:border-border hover:bg-muted/60 h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 rounded-lg px-2.5 py-1 text-left shadow-2xs transition-colors"
+              className="group border-border/60 bg-background/40 hover:bg-muted/60 motion-normal h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 rounded-lg px-2.5 py-1 text-left transition-colors"
             >
               <motion.button
                 type="button"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                whileHover={{ scale: 1.005 }}
-                whileTap={{ scale: 0.995 }}
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={onToggle}
               >
-                <div className="border-primary/20 bg-primary/10 text-primary flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors">
+                <div className="bg-muted text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-md transition-colors">
                   <FileText className="h-3.5 w-3.5" />
                 </div>
 
                 <div className="flex min-w-0 flex-1 flex-col justify-center">
-                  <span className="text-ql-10 text-muted-foreground/80 tracking-ql-label hidden leading-none font-semibold uppercase sm:block">
+                  <span className="text-ql-10 text-muted-foreground tracking-ql-label hidden leading-none font-semibold uppercase sm:block">
                     {t('reading_now') === 'reading_now' ? 'READING' : t('reading_now')}
                   </span>
                   <span className="text-ql-12 text-foreground block w-full truncate leading-tight font-medium">
@@ -165,7 +165,7 @@ function PdfSearchBar({
                   </span>
                 </div>
 
-                <div className="bg-border/80 h-4 w-px shrink-0" />
+                <div className="bg-border/60 h-4 w-px shrink-0" />
 
                 <div className="flex items-center gap-1.5">
                   <div className="text-muted-foreground group-hover:text-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors">

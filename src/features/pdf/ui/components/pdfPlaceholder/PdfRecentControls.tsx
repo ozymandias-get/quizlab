@@ -1,4 +1,3 @@
-import { Button } from '@app/components/ui/button'
 import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import {
@@ -8,14 +7,16 @@ import {
   SelectTrigger,
   SelectValue
 } from '@app/components/ui/select'
+import { WithTooltip } from '@app/components/ui/tooltip'
 
-import { ArrowUpDown, Search } from 'lucide-react'
+import type { TFunction } from 'i18next'
+import { ArrowUpDown, History, Search, Trash2 } from 'lucide-react'
 import { memo, useCallback } from 'react'
 
 import type { SortMode } from './types'
 
 interface PdfRecentControlsProps {
-  t: (key: string) => string
+  t: TFunction
   recentCount: number
   shouldShowAdvancedControls: boolean
   searchQuery: string
@@ -52,61 +53,76 @@ function PdfRecentControls({
 
   return (
     <>
-      <div className="flex items-start justify-between gap-3 px-1">
-        <div className="min-w-0 text-left">
-          <h3 className="text-ql-13 text-foreground font-semibold">{t('resume_reading')}</h3>
-          <p className="text-ql-12 text-muted-foreground mt-0.5">{t('resume_reading_desc')}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <History className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+          <h3 className="text-ql-13 text-foreground truncate font-semibold">
+            {t('resume_reading')}
+          </h3>
+          {recentCount > 0 && (
+            <span
+              className="bg-muted text-muted-foreground text-ql-11 rounded-full px-1.5 tabular-nums"
+              aria-label={t('recent_count_aria', { count: recentCount })}
+            >
+              {recentCount}
+            </span>
+          )}
         </div>
         {recentCount > 0 && canClear && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onClearAll}
-            className="text-ql-12 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive font-medium"
-            aria-label={t('clear_recent')}
-          >
-            {t('clear_recent')}
-          </Button>
+          <WithTooltip label={t('clear_recent')}>
+            <IconButton
+              type="button"
+              variant="ghost"
+              size="compact"
+              onClick={onClearAll}
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20"
+              aria-label={t('clear_recent')}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </IconButton>
+          </WithTooltip>
         )}
       </div>
 
       {shouldShowAdvancedControls && recentCount > 0 && (
-        <div className="flex items-center justify-between gap-2 px-1">
-          <div className="flex items-center gap-2">
-            <IconButton
-              type="button"
-              variant="outline"
-              size="compact"
-              onClick={onToggleMobileSearch}
-              className="text-muted-foreground sm:hidden"
-              aria-label={t('search_recent')}
-            >
-              <Search />
-            </IconButton>
+        <div className="flex items-center gap-2">
+          <IconButton
+            type="button"
+            variant="outline"
+            size="compact"
+            onClick={onToggleMobileSearch}
+            className="text-muted-foreground sm:hidden"
+            aria-label={t('search_recent')}
+          >
+            <Search className="h-3.5 w-3.5" />
+          </IconButton>
 
-            <label
-              className={`${isMobileSearchOpen ? 'flex' : 'hidden'} border-border bg-card focus-within:ring-foreground/15 h-7 items-center gap-2 rounded-md border px-2.5 shadow-xs transition-colors focus-within:border-neutral-400 focus-within:ring-1 sm:flex dark:focus-within:border-neutral-500`}
-            >
-              <Search className="text-muted-foreground h-3.5 w-3.5" />
+          <div
+            className={`${isMobileSearchOpen ? 'flex' : 'hidden'} text-ql-12 min-w-0 flex-1 sm:flex`}
+          >
+            <div className="relative w-full">
+              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2" />
               <Input
                 value={searchQuery}
                 onChange={handleSearchChange}
                 placeholder={t('search_recent_placeholder')}
-                className="text-ql-12 h-auto w-36 border-none bg-transparent px-0 shadow-none sm:w-44"
+                size="sm"
+                className="pl-7"
                 aria-label={t('search_recent')}
               />
-            </label>
+            </div>
           </div>
 
           <Select value={sortMode} onValueChange={handleSortChange}>
             <SelectTrigger
               size="sm"
-              className="text-ql-12 border-border bg-card text-foreground hover:border-border hover:bg-muted gap-1 rounded-md border px-2 pl-7 shadow-xs"
+              className="border-border bg-background/50 text-foreground gap-1.5 pr-2 pl-6 [&_svg]:h-3.5 [&_svg]:w-3.5"
               aria-label={t('sort_recent_list')}
             >
               <ArrowUpDown className="text-muted-foreground pointer-events-none absolute left-2 h-3.5 w-3.5" />
-              <SelectValue />
+              <span className="text-ql-12">
+                <SelectValue />
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="recent">{t('sort_recent')}</SelectItem>

@@ -118,7 +118,9 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
           ) : (
             <Copy className="h-3.5 w-3.5" />
           )}
-          <span>{isCopying ? t('loading') : t('copy_logs')}</span>
+          <span className="text-ql-12 font-medium">
+            {isCopying ? t('loading') : t('copy_logs')}
+          </span>
         </Button>
       }
     />

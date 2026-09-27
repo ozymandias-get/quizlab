@@ -40,58 +40,56 @@ const CacheControl = memo(
       : t('clear_cache_desc')
 
     return (
-      <div className="space-y-3">
-        <AboutActionCard
-          title={t('clear_cache_title')}
-          description={description}
-          trailing={
-            <div className="flex items-center gap-2">
-              {handleDeepClean && (
-                <Button
-                  type="button"
-                  onClick={handleDeepClean}
-                  disabled={isDeepCleaning}
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                >
-                  {isDeepCleaning ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
-                  )}
-                  <span>{t('deep_clean')}</span>
-                </Button>
-              )}
+      <AboutActionCard
+        title={t('clear_cache_title')}
+        description={description}
+        trailing={
+          <div className="flex shrink-0 items-center gap-2">
+            {handleDeepClean && (
               <Button
                 type="button"
-                onClick={handleClearCache}
-                disabled={isClearing}
-                variant={isClearSuccess ? 'default' : 'destructive'}
+                onClick={handleDeepClean}
+                disabled={isDeepCleaning}
+                variant="outline"
                 size="sm"
                 className="gap-1.5"
               >
-                {isClearing ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>{t('clearing')}</span>
-                  </>
-                ) : isClearSuccess ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" />
-                    <span>{t('cleared')}</span>
-                  </>
+                {isDeepCleaning ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <>
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>{t('clear_cache')}</span>
-                  </>
+                  <Trash2 className="h-3.5 w-3.5" />
                 )}
+                <span className="text-ql-12 font-medium">{t('deep_clean')}</span>
               </Button>
-            </div>
-          }
-        />
-      </div>
+            )}
+            <Button
+              type="button"
+              onClick={handleClearCache}
+              disabled={isClearing}
+              variant={isClearSuccess ? 'secondary' : 'destructive'}
+              size="sm"
+              className="gap-1.5"
+            >
+              {isClearing ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span className="text-ql-12 font-medium">{t('clearing')}</span>
+                </>
+              ) : isClearSuccess ? (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  <span className="text-ql-12 font-medium">{t('cleared')}</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span className="text-ql-12 font-medium">{t('clear_cache')}</span>
+                </>
+              )}
+            </Button>
+          </div>
+        }
+      />
     )
   }
 )

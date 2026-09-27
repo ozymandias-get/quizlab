@@ -83,6 +83,7 @@
   "select_language": "Select Language",
   "onboarding_language_title": "Select Your Language",
   "select_pdf": "Select PDF File",
+  "select_pdf_hint": "you can also use the shortcut",
   "sent_successfully": "Sent successfully!",
   "draft_queue_full": "AI queue is full. Oldest draft was removed.",
   "settings": "Settings",

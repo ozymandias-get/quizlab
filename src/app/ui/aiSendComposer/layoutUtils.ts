@@ -18,13 +18,30 @@ const BOTTOM_OFFSET = 92
 export const VIEWPORT_PADDING = 8
 export const EDGE_THICKNESS = 6
 
-export const COMPACT_HEIGHT = 44
-export const COMPACT_WIDTH = 560
+/* Compact bar metrics. `COMPACT_HEIGHT` is applied as the portal's inline
+   height, so it must stay equal to the bar's `h-*` class in
+   `CompactComposerBar`. `COMPACT_WIDTH` is a cap used only for the
+   anchor-centering maths — the real width is `max-content`. */
+export const COMPACT_HEIGHT = 52
+export const COMPACT_WIDTH = 660
 export const HEADER_RESERVED_HEIGHT = 200
 export const MIN_BODY_HEIGHT = 80
 
 export function clamp(n: number, min: number, max: number) {
   return Math.min(Math.max(n, min), max)
+}
+
+/**
+ * Snaps a CSS-pixel value onto the device pixel grid.
+ *
+ * The panel is positioned from a text-selection rect, which returns fractional
+ * values. At a fractional offset the browser antialiases `border-radius` across
+ * two device pixels and the pill's rounded corners come out jagged — most
+ * visible on the 1px `--border` ring carried by `--shadow-ambient-xl`.
+ */
+export function snapToDevicePixel(value: number): number {
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
+  return Math.round(value * dpr) / dpr
 }
 
 export function clampLayout(layout: DockLayout): DockLayout {

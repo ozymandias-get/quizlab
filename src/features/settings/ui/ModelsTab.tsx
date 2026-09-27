@@ -9,6 +9,7 @@ import {
 } from '@app/providers/ai-context'
 import { useConfirmDialog } from '@shared/hooks'
 import { Logger } from '@shared/lib/logger'
+import { SettingsSection, SettingsTabIcon } from '@shared/ui/components/primitives'
 import { GridIcon } from '@ui/components/Icons'
 
 import { memo, type MouseEvent, useCallback, useMemo, useState } from 'react'
@@ -20,9 +21,9 @@ import { isCustomModelPlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const MODELS_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+  <SettingsTabIcon>
     <GridIcon className="h-5 w-5" />
-  </div>
+  </SettingsTabIcon>
 )
 
 const ModelsTab = memo(() => {
@@ -156,27 +157,33 @@ const ModelsTab = memo(() => {
           />
         }
         list={
-          <AiModelList
-            modelsList={modelsList}
-            enabledModels={enabledModels}
-            aiSites={aiSites}
-            toggleModel={toggleModel}
-            handleDeleteAi={handleDeleteAi}
-            handleClearModelData={handleClearModelData}
-            isDeleting={isDeleting}
-            isClearingModelData={isClearingModelData}
-            minEnabledModels={MIN_ENABLED_MODELS}
-            defaultAiModel={defaultAiModel}
-            setDefaultAiModel={setDefaultAiModel}
-            t={t}
-          />
+          <SettingsSection icon={<GridIcon className="h-4 w-4" />} title={t('models')}>
+            <AiModelList
+              modelsList={modelsList}
+              enabledModels={enabledModels}
+              aiSites={aiSites}
+              toggleModel={toggleModel}
+              handleDeleteAi={handleDeleteAi}
+              handleClearModelData={handleClearModelData}
+              isDeleting={isDeleting}
+              isClearingModelData={isClearingModelData}
+              minEnabledModels={MIN_ENABLED_MODELS}
+              defaultAiModel={defaultAiModel}
+              setDefaultAiModel={setDefaultAiModel}
+              t={t}
+            />
+          </SettingsSection>
         }
         footer={
-          <div className="border-border border-t px-1 pt-4">
-            <p className="text-ql-11 text-muted-foreground tracking-ql-normal">
-              {t('active_models')}: {enabledModelsCount} / {modelsList.length} {t('models_count')}
+          <div className="border-border/60 space-y-1 border-t px-1 pt-4">
+            <p className="text-ql-12 text-muted-foreground">
+              {t('active_models')}:{' '}
+              <span className="text-foreground tabular-nums">
+                {enabledModelsCount} / {modelsList.length}
+              </span>{' '}
+              {t('models_count')}
             </p>
-            <p className="text-ql-11 text-muted-foreground tracking-ql-normal mt-1">
+            <p className="text-ql-12 text-muted-foreground">
               {t('google_models_managed_separately')}
             </p>
           </div>

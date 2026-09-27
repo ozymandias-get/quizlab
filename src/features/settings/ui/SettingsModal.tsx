@@ -59,13 +59,13 @@ const SettingsModal = memo(function SettingsModal({
       >
         <header className="flex shrink-0 items-center justify-between px-3 py-3 sm:px-5 sm:py-4 md:px-8">
           <div className="flex items-center gap-3">
-            <div className="border-border bg-card flex h-8 w-8 items-center justify-center rounded-lg border">
-              <SettingsIcon className="text-muted-foreground h-4 w-4" />
+            <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
+              <SettingsIcon className="h-4 w-4" />
             </div>
             <div className="space-y-0.5">
               <h1
                 id="settings-dialog-title"
-                className="text-foreground tracking-ql-tight text-ql-14 font-semibold"
+                className="text-foreground tracking-ql-tight text-ql-16 font-semibold"
               >
                 {t('settings_title')}
               </h1>
@@ -76,11 +76,11 @@ const SettingsModal = memo(function SettingsModal({
           </div>
           <Button
             ref={closeButtonRef}
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={onClose}
             aria-label={t('tab_close')}
-            className="border-border bg-card text-muted-foreground hover:bg-accent rounded-lg"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground rounded-lg"
           >
             <CloseIcon className="h-3.5 w-3.5" />
           </Button>

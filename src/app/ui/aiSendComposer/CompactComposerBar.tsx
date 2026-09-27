@@ -11,6 +11,28 @@ import { useTranslation } from 'react-i18next'
 
 import CompactPresetsMenu from './CompactPresetsMenu'
 
+/* Chip recipe shared by the auto-send toggle and the preset buttons, so the
+   two never drift. Surfaces come from theme tokens — the bar is a floating
+   overlay, but it still has to stay legible when the app is in light mode.
+   The preset chips keep their border transparent at rest: three bordered pills
+   side by side was the busiest thing on the bar. The border arrives on hover,
+   where it does useful work as a focus cue.
+
+   `CHIP_DANGER` mirrors `CHIP_BORDERED` so the leading and trailing edge
+   controls carry the same visual weight. With a bare ghost X on the right and
+   a filled chip on the left, the pill read as lopsided — the right-hand gap
+   looked far wider than the left even though `px-3` was symmetric. */
+const CHIP_IDLE =
+  'border-transparent bg-background/40 text-foreground hover:border-ring/40 hover:bg-muted'
+const CHIP_BORDERED =
+  'border-border/60 bg-background/40 text-foreground hover:border-ring/40 hover:bg-muted'
+const CHIP_ACTIVE = 'border-ring/50 bg-accent text-foreground'
+const CHIP_DANGER =
+  'border-border/60 bg-background/40 text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive'
+
+const BAR_LAYOUT =
+  'flex h-13 w-max cursor-grab touch-none items-center gap-2 px-3 py-2 select-none active:cursor-grabbing'
+
 interface CompactComposerBarProps {
   autoSend: boolean
   onToggleAutoSend?: () => void
@@ -59,7 +81,7 @@ function CompactComposerBar({
   if (isSending) {
     return (
       <div
-        className="flex h-11 w-max cursor-grab touch-none items-center justify-between gap-3 px-3 py-1.5 text-white select-none active:cursor-grabbing"
+        className={`${BAR_LAYOUT} gap-3.5 px-3.5`}
         onPointerDown={onDragStart}
         onPointerMove={onDragMove}
         onPointerUp={onDragEnd}
@@ -67,12 +89,15 @@ function CompactComposerBar({
         onLostPointerCapture={onDragLostCapture}
       >
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-amber-300 shadow-2xs">
-            <Loader2 className="size-3.5 animate-spin text-amber-300" />
+          <div
+            className="border-border/60 bg-muted text-primary flex size-8 shrink-0 items-center justify-center rounded-lg border"
+            aria-hidden
+          >
+            <Loader2 className="size-4 animate-spin" />
           </div>
           <div className="flex flex-col">
-            <span className="text-ql-11 font-semibold text-white">{t('sending_to_ai')}</span>
-            <span className="text-ql-10 font-medium text-neutral-400">
+            <span className="text-ql-12 text-foreground font-semibold">{t('sending_to_ai')}</span>
+            <span className="text-ql-11 text-muted-foreground">
               {t('ai_send_sending_subtitle')}
             </span>
           </div>
@@ -81,10 +106,10 @@ function CompactComposerBar({
         <WithTooltip label={t('ai_send_clear_all')}>
           <IconButton
             variant="ghost"
-            size="compact"
+            size="default"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onClearAll}
-            className="text-neutral-400 transition-colors hover:bg-red-500/15 hover:text-red-400"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             aria-label={t('ai_send_clear_all')}
           >
             <X strokeWidth={2} />
@@ -96,7 +121,7 @@ function CompactComposerBar({
 
   return (
     <div
-      className="flex h-11 w-max cursor-grab touch-none items-center justify-between gap-1.5 px-2.5 py-1.5 text-white select-none active:cursor-grabbing"
+      className={BAR_LAYOUT}
       onPointerDown={onDragStart}
       onPointerMove={onDragMove}
       onPointerUp={onDragEnd}
@@ -112,23 +137,20 @@ function CompactComposerBar({
             onClick={onToggleAutoSend}
             disabled={isSubmitting}
             className={cn(
-              'group relative flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 shadow-2xs transition-all outline-none hover:border-white/20 hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white/30 active:scale-95 disabled:pointer-events-none disabled:opacity-40',
-              autoSend ? 'bg-white/15' : 'bg-white/5'
+              'motion-normal focus-visible:ring-ring/40 group relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-40',
+              autoSend ? CHIP_ACTIVE : CHIP_BORDERED
             )}
             aria-label={autoSend ? t('auto_send_on') : t('auto_send_off')}
             aria-pressed={autoSend}
           >
-            <Sparkles
+            <Sparkles className="motion-slow size-4 transition-transform group-hover:scale-110" />
+            <span
+              aria-hidden
               className={cn(
-                'size-3.5 transition-transform group-hover:scale-110',
-                autoSend ? 'text-amber-300' : 'text-neutral-400'
+                'ring-card absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2',
+                autoSend ? 'bg-emerald-500' : 'bg-muted-foreground/50'
               )}
             />
-            {autoSend ? (
-              <span className="ring-background absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 shadow-xs ring-2" />
-            ) : (
-              <span className="ring-background absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-neutral-500/60 shadow-xs ring-2" />
-            )}
           </button>
         </WithTooltip>
       </div>
@@ -141,14 +163,14 @@ function CompactComposerBar({
             <WithTooltip key={preset.key} label={preset.value}>
               <Button
                 type="button"
-                size="sm"
+                size="default"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => handleSelectPreset(preset.value)}
                 disabled={isSubmitting || isSendDisabled}
-                className="group/btn text-ql-11 relative border border-white/10 bg-white/5 px-2.5 font-medium text-neutral-200 shadow-2xs transition-all hover:border-white/20 hover:bg-white/15 hover:text-white focus-visible:ring-2 focus-visible:ring-white/30 active:translate-y-0 active:scale-95"
+                className={cn('group/btn motion-normal relative px-3', CHIP_IDLE)}
               >
-                <Icon className="size-3 shrink-0 text-amber-300 transition-transform group-hover/btn:scale-110" />
-                <span className="whitespace-nowrap">{preset.label}</span>
+                <Icon className="text-muted-foreground motion-slow group-hover/btn:text-foreground size-3.5 shrink-0 transition-transform group-hover/btn:scale-110" />
+                <span className="text-ql-12 font-medium whitespace-nowrap">{preset.label}</span>
               </Button>
             </WithTooltip>
           )
@@ -161,47 +183,47 @@ function CompactComposerBar({
         />
       </div>
 
-      {/* Divider */}
-      <div className="mx-0.5 h-4 w-px shrink-0 bg-white/15" />
+      {/* Divider — no `mx`: the shell's `gap-2` already spaces it, and the
+          extra margin made it sit further from the send group than from the
+          preset group. */}
+      <div className="bg-border h-5 w-px shrink-0" />
 
       {/* Right Tools: Expand/Note, Direct Send, Dismiss */}
       <div className="flex shrink-0 items-center gap-1">
         <WithTooltip label={t('ai_send_custom_note')}>
           <IconButton
             variant="ghost"
-            size="compact"
+            size="default"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onToggleExpand}
             disabled={isSubmitting}
-            className="text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label={t('ai_send_custom_note')}
           >
-            <Pencil className="h-3 w-3" strokeWidth={2} />
+            <Pencil className="size-3.5" strokeWidth={2} />
           </IconButton>
         </WithTooltip>
 
         <Button
           type="button"
+          size="default"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={onSend}
           disabled={isSubmitting || isSendDisabled}
-          className={cn(
-            'text-ql-11 h-7 shrink-0 rounded-lg border border-white/20 bg-white px-2.5 font-semibold text-neutral-950 shadow-xs transition-all hover:bg-neutral-200 active:scale-95 disabled:opacity-40',
-            isSubmitting && 'pointer-events-none'
-          )}
+          className="h-8 shrink-0 px-3"
           aria-label={t('send_to_ai')}
         >
-          <Send className="mr-1 size-3" />
-          <span>{t('send_to_ai')}</span>
+          <Send className="mr-1.5 size-3.5" />
+          <span className="text-ql-12 font-semibold">{t('send_to_ai')}</span>
         </Button>
 
         <WithTooltip label={t('ai_send_clear_all')}>
           <IconButton
             variant="ghost"
-            size="compact"
+            size="default"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={onClearAll}
-            className="text-neutral-400 transition-colors hover:bg-red-500/15 hover:text-red-400"
+            className={CHIP_DANGER}
             aria-label={t('ai_send_clear_all')}
           >
             <X strokeWidth={2} />

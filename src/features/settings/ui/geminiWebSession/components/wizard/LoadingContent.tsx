@@ -11,7 +11,7 @@ function LoadingContent({ mode }: LoadingContentProps) {
   const { t } = useTranslation()
 
   return (
-    <div className="flex flex-col items-center gap-4 px-8 pt-4 pb-8">
+    <div className="flex flex-col items-center gap-4 p-6">
       <InlineSpinner size="xl" className="text-primary" />
       <p className="text-ql-13 text-muted-foreground">
         {mode === 'install'

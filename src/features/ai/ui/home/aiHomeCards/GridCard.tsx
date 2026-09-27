@@ -36,10 +36,12 @@ const GridCard = memo<GridCardProps>(function GridCard({
   const accent = safeAiAccentColor(site.color)
   const displayName = site.displayName || site.name || itemId
   const icon = getAiIcon(site.icon || itemId)
+  // Sites carry a real subtitle (their host). Models are pure launchers, so
+  // repeating "ready flow" on every card is noise — they render name only.
   const subtitle =
     tone === 'site'
       ? site.url?.replace(/^https?:\/\//, '').replace(/\/$/, '') || t('ai_home.custom_site')
-      : t('ai_home.ready_flow')
+      : null
 
   const letterFallback = <span className="text-ql-13 font-medium">{displayName.charAt(0)}</span>
 
@@ -57,32 +59,32 @@ const GridCard = memo<GridCardProps>(function GridCard({
         <button
           type="button"
           onClick={() => onClick(itemId)}
-          className={`group hover:shadow-ambient-sm motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-2xs transition-all hover:-translate-y-0.5 motion-reduce:transform-none ${
-            isActive
-              ? 'border-ring/60 bg-accent/20'
-              : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
+          className={`group hover:shadow-ambient-sm motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-xs transition-colors ${
+            isActive ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/60'
           }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className="border-border/60 bg-muted/60 motion-normal flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105 motion-reduce:scale-100"
+              className="border-border/60 bg-muted/60 motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105 motion-reduce:scale-100"
               style={{ color: accent }}
             >
               {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-ql-13 text-foreground truncate font-semibold">{displayName}</h3>
-              <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">{subtitle}</p>
+              {subtitle && (
+                <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">{subtitle}</p>
+              )}
             </div>
             {isActive && (
               <span
-                className="h-2 w-2 shrink-0 rounded-full"
+                className="size-2 shrink-0 rounded-full"
                 style={{
                   background: accent
                 }}
               />
             )}
-            <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
+            <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
               <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
             </div>
           </div>

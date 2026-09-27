@@ -60,7 +60,7 @@ const STATE_STYLES: Record<string, string> = {
   migrated: 'border-primary/30 bg-primary/10 text-primary',
   repaired: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
   needs_repick: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  missing: 'border-border bg-muted/60 text-muted-foreground'
+  missing: 'border-border/60 bg-muted text-muted-foreground'
 }
 
 export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHealthProps) {
@@ -68,16 +68,22 @@ export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHeal
   const configHealth: SelectorHealthState = config?.health ?? 'ready'
 
   return (
-    <div className="border-border bg-muted/30 rounded-xl border p-3">
-      <p className="text-ql-10 text-muted-foreground font-medium">
-        {t('selectors_locator_health_label')}
-      </p>
-      <ul className="mt-2 space-y-2">
+    <div className="border-border/60 bg-background/40 flex flex-col gap-2 rounded-xl border p-4">
+      <div className="text-muted-foreground flex items-center gap-2">
+        <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
+          {t('selectors_locator_health_label')}
+        </span>
+        <span aria-hidden className="bg-border h-px flex-1" />
+      </div>
+
+      <ul className="flex flex-col gap-2">
         {rows.map((row) => {
           const state = row.hasLocator ? resolveHealthState(row, configHealth) : 'missing'
           return (
             <li key={row.kind} className="flex flex-wrap items-center gap-2">
-              <span className="text-ql-12 text-foreground w-16 font-medium">{t(row.labelKey)}</span>
+              <span className="text-ql-12 text-foreground w-16 shrink-0 font-medium">
+                {t(row.labelKey)}
+              </span>
               <span
                 className={`text-ql-10 rounded-full border px-2 py-0.5 font-medium ${
                   STATE_STYLES[state] ?? STATE_STYLES.missing

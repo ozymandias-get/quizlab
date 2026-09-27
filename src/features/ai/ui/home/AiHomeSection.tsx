@@ -6,6 +6,7 @@ import { memo, type ReactNode, useState } from 'react'
 
 interface AiHomeSectionProps {
   children: ReactNode
+  count?: number
   defaultOpen?: boolean
   detail: string
   icon: ReactNode
@@ -14,6 +15,7 @@ interface AiHomeSectionProps {
 
 const AiHomeSection = memo(function AiHomeSection({
   children,
+  count = 0,
   defaultOpen = true,
   detail,
   icon,
@@ -23,22 +25,29 @@ const AiHomeSection = memo(function AiHomeSection({
   const handleToggle = () => setIsOpen((current) => !current)
 
   return (
-    <section>
+    <section className="border-border/60 bg-card/30 overflow-hidden rounded-2xl border">
       <button
         type="button"
         aria-expanded={isOpen}
-        className="hover:bg-card focus-visible:ring-ring flex w-full cursor-pointer items-center gap-3 rounded-lg px-1 py-2.5 text-left transition-colors select-none focus-visible:ring-1 focus-visible:outline-none"
+        className="hover:bg-muted/40 focus-visible:ring-ring flex w-full cursor-pointer items-center gap-2.5 px-4 pt-4 pb-3 text-left transition-colors select-none focus-visible:ring-1 focus-visible:outline-none"
         onClick={handleToggle}
       >
-        <div className="bg-card text-muted-foreground/80 flex h-8 w-8 items-center justify-center rounded-md">
+        <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-ql-12 text-foreground/80 tracking-ql-tight font-medium">{title}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-ql-13 text-foreground truncate font-semibold">{title}</span>
+            {count > 0 && (
+              <span className="bg-muted text-muted-foreground text-ql-11 rounded-full px-1.5 tabular-nums">
+                {count}
+              </span>
+            )}
+          </div>
           <div className="text-ql-12 text-muted-foreground mt-0.5">{detail}</div>
         </div>
         <div
-          className="text-muted-foreground motion-slow flex h-6 w-6 items-center justify-center transition-transform"
+          className="text-muted-foreground motion-slow flex size-6 shrink-0 items-center justify-center transition-transform"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
         >
           <ChevronDown className="h-3.5 w-3.5" />
@@ -55,7 +64,8 @@ const AiHomeSection = memo(function AiHomeSection({
             transition={{ duration: DURATION.slow, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden will-change-[height,opacity]"
           >
-            <div className="px-1 pt-3 pb-1">{children}</div>
+            <div className="bg-border mx-4 h-px" />
+            <div className="px-4 pt-3 pb-4">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

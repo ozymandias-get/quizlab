@@ -16,6 +16,13 @@ import PdfPageNav from './PdfPageNav'
 import PdfSearchBar from './PdfSearchBar'
 import PdfZoomControls, { type CurrentScaleComponent, type ZoomComponent } from './PdfZoomControls'
 
+/* Toggle states for the two left-hand mode buttons. These used to be hardcoded
+   `sky-500` tints, which ignored the theme and did not match any other
+   selected control in the app. */
+const TOGGLE_ACTIVE = 'border-ring/50 bg-accent/30 text-foreground'
+const TOGGLE_IDLE =
+  'border border-transparent text-muted-foreground hover:border-ring/30 hover:bg-accent/20 hover:text-foreground'
+
 interface PdfToolbarProps {
   pdfFile: PdfFile | null
   onStartScreenshot?: () => void
@@ -144,7 +151,7 @@ function PdfToolbar({
       initial={{ y: 10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       data-tour-id="tour-target-pdf-toolbar"
-      className="border-border/80 bg-card/90 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
+      className="border-border/60 bg-card/60 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
     >
       <div className="relative flex items-center gap-2">
         <ToolbarGroup>
@@ -158,7 +165,7 @@ function PdfToolbar({
                 onClick={handleToggleMode}
                 aria-label={t('pdf_toolbar_show_viewer')}
                 aria-pressed
-                className="border-sky-500/30 bg-sky-500/15 text-sky-600 shadow-xs transition-colors dark:text-sky-400"
+                className={cn(TOGGLE_ACTIVE, 'motion-normal transition-colors')}
                 data-testid="pdf-toolbar-mode-toggle"
               >
                 <SlidersHorizontal className="size-3.5" aria-hidden="true" />
@@ -176,10 +183,8 @@ function PdfToolbar({
                   aria-label={t('pdf_pan_mode')}
                   aria-pressed={panMode}
                   className={cn(
-                    'transition-colors',
-                    panMode
-                      ? 'border-sky-500/30 bg-sky-500/15 text-sky-600 shadow-xs dark:text-sky-400'
-                      : 'text-muted-foreground hover:text-foreground border border-transparent hover:border-sky-500/20 hover:bg-sky-500/10'
+                    'motion-normal transition-colors',
+                    panMode ? TOGGLE_ACTIVE : TOGGLE_IDLE
                   )}
                   data-testid="pan-mode-button"
                 >
@@ -195,7 +200,7 @@ function PdfToolbar({
                   onClick={handleToggleMode}
                   aria-label={t('pdf_toolbar_show_ai_actions')}
                   aria-pressed={false}
-                  className="text-muted-foreground hover:text-foreground border border-transparent transition-colors hover:border-sky-500/20 hover:bg-sky-500/10"
+                  className={cn(TOGGLE_IDLE, 'motion-normal transition-colors')}
                   data-testid="pdf-toolbar-mode-toggle"
                 >
                   <Sparkles className="size-3.5" aria-hidden="true" />
@@ -237,7 +242,7 @@ function PdfToolbar({
             aria-label={`${currentPage} / ${totalPages}`}
           >
             <span className="text-ql-12 text-foreground font-medium tabular-nums">
-              {currentPage} <span className="text-muted-foreground/40 mx-0.5">/</span>{' '}
+              {currentPage} <span className="text-muted-foreground mx-0.5">/</span>{' '}
               <span className="text-muted-foreground">{totalPages}</span>
             </span>
           </ToolbarGroup>

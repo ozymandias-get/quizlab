@@ -1,7 +1,10 @@
+import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 import type { BackgroundMode } from '@shared/stores/appearanceStore'
+import { SettingsSection } from '@shared/ui/components/primitives'
 import { MagicWandIcon, PaletteIcon } from '@ui/components/Icons'
 
+import { motion } from 'motion/react'
 import { memo } from 'react'
 
 import ColorPicker from '../ColorPicker'
@@ -22,44 +25,47 @@ const MODES: { value: BackgroundMode; labelKey: string; icon: typeof MagicWandIc
 const BackgroundSettings = memo(
   ({ bgMode, setBgMode, bgSolidColor, setBgSolidColor, t }: BackgroundSettingsProps) => {
     return (
-      <div className="bg-card border-border space-y-5 rounded-xl border p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-muted text-muted-foreground/60 border-border rounded-lg border p-2">
-              <PaletteIcon className="h-4 w-4" />
-            </div>
-            <div className="space-y-0.5">
-              <h3 className="text-ql-13 text-foreground font-bold">{t('background_settings')}</h3>
-              <p className="text-ql-11 text-foreground/75 tracking-ql-tight">
-                {bgMode === 'solid' ? t('bg_solid_desc') : t('bg_desc')}
-              </p>
-            </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: DURATION.fast }}
+      >
+        <SettingsSection
+          icon={<PaletteIcon className="h-4 w-4" />}
+          title={t('background_settings')}
+          detail={bgMode === 'solid' ? t('bg_solid_desc') : t('bg_desc')}
+        >
+          <div className="border-border/60 bg-muted/40 flex gap-1.5 rounded-xl border p-1">
+            {MODES.map(({ value: mode, labelKey, icon: Icon }) => (
+              <button
+                type="button"
+                key={mode}
+                onClick={() => setBgMode(mode)}
+                className={cn(
+                  'focus-visible:ring-ring/40 flex flex-1 items-center justify-center rounded-lg border px-3 py-2 transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                  bgMode === mode
+                    ? 'border-ring/50 bg-accent/30'
+                    : 'border-border/60 bg-card hover:bg-muted/50'
+                )}
+              >
+                <span
+                  className={cn(
+                    'text-ql-12 flex items-center gap-2',
+                    bgMode === mode
+                      ? 'text-foreground font-semibold'
+                      : 'text-muted-foreground hover:text-foreground font-medium'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t(labelKey)}
+                </span>
+              </button>
+            ))}
           </div>
-        </div>
 
-        <div className="border-border bg-muted/60 flex gap-1.5 rounded-xl border p-1">
-          {MODES.map(({ value: mode, labelKey, icon: Icon }) => (
-            <button
-              type="button"
-              key={mode}
-              onClick={() => setBgMode(mode)}
-              className={cn(
-                'text-ql-12 focus-visible:ring-ring/40 flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
-                bgMode === mode
-                  ? 'bg-card text-foreground font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
-
-        <div className="bg-card border-border rounded-xl border p-4">
           <ColorPicker label={t('select_color')} color={bgSolidColor} onChange={setBgSolidColor} />
-        </div>
-      </div>
+        </SettingsSection>
+      </motion.div>
     )
   }
 )

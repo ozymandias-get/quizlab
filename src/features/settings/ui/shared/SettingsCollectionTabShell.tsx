@@ -1,7 +1,8 @@
+import { SettingsTabIntro } from '@shared/ui/components/primitives'
+
 import { memo, type ReactNode } from 'react'
 
 import SettingsAddToggleButton from './SettingsAddToggleButton'
-import SettingsTabIntro from './SettingsTabIntro'
 
 interface SettingsCollectionTabShellProps {
   icon: ReactNode
@@ -27,7 +28,7 @@ function SettingsCollectionTabShell({
   onToggleAddForm
 }: SettingsCollectionTabShellProps) {
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-4">
       <SettingsTabIntro
         icon={icon}
         description={description}

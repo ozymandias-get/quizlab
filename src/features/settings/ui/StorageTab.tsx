@@ -11,13 +11,26 @@ import { Button } from '@app/components/ui/button'
 import { Switch } from '@app/components/ui/switch'
 import { formatBytes } from '@shared/lib/formatUtils'
 import { cn } from '@shared/lib/uiUtils'
+import {
+  SettingsSection,
+  SettingsTabIcon,
+  SettingsTabIntro
+} from '@shared/ui/components/primitives'
 import { RefreshIcon } from '@ui/components/Icons'
 
-import { Check, Loader2, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
+import {
+  Check,
+  FolderTree,
+  HardDrive,
+  Layers,
+  Loader2,
+  RotateCcw,
+  Sparkles,
+  Trash2
+} from 'lucide-react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import SettingsTabIntro from './shared/SettingsTabIntro'
 import {
   PartitionRow,
   ProgressBar,
@@ -32,6 +45,34 @@ import {
 } from './storage/storageUtils'
 
 const MAX_TOTAL_CACHE_BYTES = 500 * 1024 * 1024
+
+/** Nested list surface: recessed inside a section card, so it never uses `bg-card`. */
+const INSET_LIST = 'border-border/60 bg-background/40 rounded-xl border'
+
+/** Pill surface for the pressure badge. Kept semantic: it encodes cache health. */
+function pressureBadgeTone(level: string): string {
+  switch (level) {
+    case 'critical':
+      return 'border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+    case 'high':
+      return 'border-orange-500/20 bg-orange-500/10 text-orange-600 dark:text-orange-400'
+    case 'warning':
+      return 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+    case 'moderate':
+      return 'border-yellow-500/20 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+    default:
+      return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+  }
+}
+
+/** Numeric readout beside the meter. Healthy = emerald, pressure = amber, over = destructive. */
+function pressureReadoutTone(level: string, isOverLimit: boolean): string {
+  if (isOverLimit) return 'text-destructive'
+  if (level === 'warning' || level === 'high' || level === 'critical') {
+    return 'text-amber-600 dark:text-amber-400'
+  }
+  return 'text-emerald-600 dark:text-emerald-400'
+}
 
 const StorageTab = memo(function StorageTab() {
   const { t, i18n } = useTranslation()
@@ -131,51 +172,41 @@ const StorageTab = memo(function StorageTab() {
     <div className="space-y-6 pb-4">
       <SettingsTabIntro
         icon={
-          <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+          <SettingsTabIcon>
             <RefreshIcon className="h-5 w-5" />
-          </div>
+          </SettingsTabIcon>
         }
         description={`${t('storage_description')} ${t('smart_cache_desc')}`}
       />
 
       {/* Overall Usage + Smart Health */}
-      <div className="border-border bg-card space-y-4 rounded-xl border p-5 shadow-xs">
-        <div className="flex items-center justify-between">
-          <h3 className="text-ql-13 text-foreground font-semibold">{t('total_cache')}</h3>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                'rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase',
-                pressureLevel === 'critical'
-                  ? 'border-rose-200 bg-rose-100 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-400'
-                  : pressureLevel === 'high'
-                    ? 'border-orange-200 bg-orange-100 text-orange-700 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-400'
-                    : pressureLevel === 'warning'
-                      ? 'border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400'
-                      : pressureLevel === 'moderate'
-                        ? 'border-yellow-200 bg-yellow-100 text-yellow-700 dark:border-yellow-900 dark:bg-yellow-950/40 dark:text-yellow-400'
-                        : 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400'
-              )}
-            >
-              {pressureLabel(pressureLevel, t)} · {pressurePct.toFixed(0)}%
-            </span>
-            <span
-              className={cn(
-                'text-ql-12 font-mono',
-                isOverLimit
-                  ? 'text-destructive'
-                  : pressureLevel === 'warning' ||
-                      pressureLevel === 'high' ||
-                      pressureLevel === 'critical'
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-emerald-600 dark:text-emerald-400'
-              )}
-            >
-              {formatBytes(totalCache)} / {formatBytes(MAX_TOTAL_CACHE_BYTES)}
-            </span>
+      <SettingsSection
+        icon={<HardDrive className="h-4 w-4" />}
+        title={t('total_cache')}
+        action={
+          <span
+            className={cn(
+              'text-ql-10 tracking-ql-label rounded-full border px-2.5 py-1 font-semibold uppercase',
+              pressureBadgeTone(pressureLevel)
+            )}
+          >
+            {pressureLabel(pressureLevel, t)} · {pressurePct.toFixed(0)}%
+          </span>
+        }
+      >
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <ProgressBar value={totalCache} max={MAX_TOTAL_CACHE_BYTES} color={barColor} />
           </div>
+          <span
+            className={cn(
+              'text-ql-11 shrink-0 font-mono tabular-nums',
+              pressureReadoutTone(pressureLevel, isOverLimit)
+            )}
+          >
+            {formatBytes(totalCache)} / {formatBytes(MAX_TOTAL_CACHE_BYTES)}
+          </span>
         </div>
-        <ProgressBar value={totalCache} max={MAX_TOTAL_CACHE_BYTES} color={barColor} />
         {isOverLimit && <p className="text-ql-11 text-destructive">{t('storage_exceeds_limit')}</p>}
         {pressureLevel === 'warning' && !isOverLimit && (
           <p className="text-ql-11 text-amber-600 dark:text-amber-400">
@@ -184,23 +215,29 @@ const StorageTab = memo(function StorageTab() {
         )}
 
         {/* Auto-clean toggle */}
-        <div className="border-border/60 flex items-center justify-between border-t pt-3">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="text-primary h-3.5 w-3.5" />
-              <span className="text-ql-12 text-foreground font-medium">
-                {t('cache_auto_clean')}
-              </span>
+        <div className="border-border/60 bg-background/40 flex items-center justify-between gap-3 rounded-xl border p-4">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <span
+              aria-hidden
+              className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+            >
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-ql-12 text-foreground font-medium">{t('cache_auto_clean')}</p>
+              <p className="text-ql-11 text-muted-foreground mt-0.5">
+                {t('cache_auto_clean_desc')}
+              </p>
             </div>
-            <p className="text-ql-11 text-muted-foreground">{t('cache_auto_clean_desc')}</p>
           </div>
           <Switch
             checked={autoCleanEnabled}
             onCheckedChange={handleToggleAutoClean}
             aria-label={t('cache_auto_clean')}
+            className="shrink-0"
           />
         </div>
-      </div>
+      </SettingsSection>
 
       {/* Smart Recommendation */}
       {smart?.recommendation && (
@@ -213,119 +250,125 @@ const StorageTab = memo(function StorageTab() {
         />
       )}
 
-      {/* Actions */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <Button
-          type="button"
-          onClick={handleClear}
-          disabled={isClearing}
-          variant={isClearSuccess ? 'default' : 'destructive'}
-          size="sm"
-          className="gap-1.5"
-        >
-          {isClearing ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>{t('clearing')}</span>
-            </>
-          ) : isClearSuccess ? (
-            <>
-              <Check className="h-3.5 w-3.5" />
-              <span>{t('cleared')}</span>
-            </>
-          ) : (
-            <>
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>{t('clear_cache')}</span>
-            </>
-          )}
-        </Button>
-
-        <Button
-          type="button"
-          onClick={handleDeepClean}
-          disabled={isDeepCleaning}
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-        >
-          {isDeepCleaning ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Trash2 className="h-3.5 w-3.5" />
-          )}
-          <span>{t('deep_clean')}</span>
-        </Button>
-
-        {smart?.recommendation && smart.recommendation.action !== 'none' && (
+      {/* Actions + Last Cleanup Info */}
+      <SettingsSection
+        icon={<Trash2 className="h-4 w-4" />}
+        title={t('clear_cache_title')}
+        detail={t('clear_cache_desc')}
+      >
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             type="button"
-            onClick={() => handleSmartClean(smart.recommendation.action)}
-            disabled={isSmartCleaning}
-            variant="secondary"
+            onClick={handleClear}
+            disabled={isClearing}
+            variant={isClearSuccess ? 'secondary' : 'destructive'}
             size="sm"
             className="gap-1.5"
           >
-            {isSmartCleaning ? (
+            {isClearing ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {/* `font: inherit` on <button> beats Tailwind text utilities, so the
+                    label size lives on an inner span instead of the control. */}
+                <span className="text-ql-12">{t('clearing')}</span>
+              </>
+            ) : isClearSuccess ? (
+              <>
+                <Check className="h-3.5 w-3.5" />
+                <span className="text-ql-12">{t('cleared')}</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="text-ql-12">{t('clear_cache')}</span>
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleDeepClean}
+            disabled={isDeepCleaning}
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+          >
+            {isDeepCleaning ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Sparkles className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" />
             )}
-            <span>
-              {smart.recommendation.action === 'clean_all_partitions' ||
-              smart.recommendation.action === 'deep_clean'
-                ? t('deep_clean')
-                : t('smart_clean_cold')}
-            </span>
+            <span className="text-ql-12">{t('deep_clean')}</span>
           </Button>
-        )}
 
-        <Button
-          type="button"
-          onClick={handleRefresh}
-          variant="outline"
-          size="sm"
-          className="ml-auto gap-1.5"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          <span>{t('refresh')}</span>
-        </Button>
-      </div>
+          {smart?.recommendation && smart.recommendation.action !== 'none' && (
+            <Button
+              type="button"
+              onClick={() => handleSmartClean(smart.recommendation.action)}
+              disabled={isSmartCleaning}
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+            >
+              {isSmartCleaning ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              <span className="text-ql-12">
+                {smart.recommendation.action === 'clean_all_partitions' ||
+                smart.recommendation.action === 'deep_clean'
+                  ? t('deep_clean')
+                  : t('smart_clean_cold')}
+              </span>
+            </Button>
+          )}
 
-      {/* Last Cleanup Info */}
-      {(cacheInfo?.lastCleanup || smart?.autoClean.lastAutoCleanAt) && (
-        <div className="space-y-1">
-          {cacheInfo?.lastCleanup && (
-            <p className="text-ql-11 text-muted-foreground">
-              {t('cache_last_cleanup', {
-                time: formatTimeAgo(cacheInfo.lastCleanup, i18n.language)
-              })}
-              {cacheInfo.lastCleanupResult &&
-                typeof cacheInfo.lastCleanupResult.filesDeleted === 'number' &&
-                typeof cacheInfo.lastCleanupResult.bytesFreed === 'number' &&
-                ` ${t('storage_cleanup_result', {
-                  files: cacheInfo.lastCleanupResult.filesDeleted,
-                  bytes: formatBytes(cacheInfo.lastCleanupResult.bytesFreed)
-                })}`}
-            </p>
-          )}
-          {smart?.autoClean.lastAutoCleanAt ? (
-            <p className="text-ql-11 text-muted-foreground">
-              {t('cache_last_auto_clean', {
-                time: formatTimeAgo(smart.autoClean.lastAutoCleanAt, i18n.language)
-              })}
-            </p>
-          ) : (
-            <p className="text-ql-11 text-muted-foreground">{t('cache_never_auto_cleaned')}</p>
-          )}
+          <Button
+            type="button"
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            className="ml-auto gap-1.5"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span className="text-ql-12">{t('refresh')}</span>
+          </Button>
         </div>
-      )}
+
+        {(cacheInfo?.lastCleanup || smart?.autoClean.lastAutoCleanAt) && (
+          <div className="space-y-1">
+            {cacheInfo?.lastCleanup && (
+              <p className="text-ql-11 text-muted-foreground">
+                {t('cache_last_cleanup', {
+                  time: formatTimeAgo(cacheInfo.lastCleanup, i18n.language)
+                })}
+                {cacheInfo.lastCleanupResult &&
+                  typeof cacheInfo.lastCleanupResult.filesDeleted === 'number' &&
+                  typeof cacheInfo.lastCleanupResult.bytesFreed === 'number' &&
+                  ` ${t('storage_cleanup_result', {
+                    files: cacheInfo.lastCleanupResult.filesDeleted,
+                    bytes: formatBytes(cacheInfo.lastCleanupResult.bytesFreed)
+                  })}`}
+              </p>
+            )}
+            {smart?.autoClean.lastAutoCleanAt ? (
+              <p className="text-ql-11 text-muted-foreground">
+                {t('cache_last_auto_clean', {
+                  time: formatTimeAgo(smart.autoClean.lastAutoCleanAt, i18n.language)
+                })}
+              </p>
+            ) : (
+              <p className="text-ql-11 text-muted-foreground">{t('cache_never_auto_cleaned')}</p>
+            )}
+          </div>
+        )}
+      </SettingsSection>
 
       {/* Root Caches */}
       {breakdown && (
-        <div className="space-y-3">
-          <h3 className="text-ql-13 text-foreground font-semibold">{t('root_caches')}</h3>
-          <div className="border-border bg-card space-y-3 overflow-hidden rounded-xl border p-5 shadow-xs">
+        <SettingsSection icon={<FolderTree className="h-4 w-4" />} title={t('root_caches')}>
+          <div className={cn(INSET_LIST, 'space-y-3 p-4')}>
             <RootCacheRow label={t('browser_cache')} size={breakdown.chromiumCache} />
             <RootCacheRow label={t('code_cache')} size={breakdown.codeCache} />
             <RootCacheRow label={t('gpu_cache')} size={breakdown.gpuCache} />
@@ -333,16 +376,16 @@ const StorageTab = memo(function StorageTab() {
               <RootCacheRow label={t('temp_files')} size={breakdown.tempFiles} />
             )}
           </div>
-        </div>
+        </SettingsSection>
       )}
 
       {/* Partition Caches – smart */}
       {partitionDetails.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-ql-13 text-foreground font-semibold">
-            {t('ai_partitions_count', { count: partitionDetails.length })}
-          </h3>
-          <div className="divide-border border-border bg-card divide-y overflow-hidden rounded-xl border shadow-xs">
+        <SettingsSection
+          icon={<Layers className="h-4 w-4" />}
+          title={t('ai_partitions_count', { count: partitionDetails.length })}
+        >
+          <div className={cn(INSET_LIST, 'divide-border/60 divide-y overflow-hidden')}>
             {partitionDetails.map(({ key, label, size, category, lastActive }) => (
               <PartitionRow
                 key={key}
@@ -356,7 +399,7 @@ const StorageTab = memo(function StorageTab() {
               />
             ))}
           </div>
-          <p className="text-ql-11 text-muted-foreground px-1">
+          <p className="text-ql-11 text-muted-foreground">
             {t('storage_partition_summary', {
               smart: t('smart_cache_desc'),
               cold: partitionDetails.filter((p) => p.category === 'cold').length,
@@ -364,7 +407,7 @@ const StorageTab = memo(function StorageTab() {
               active: partitionDetails.filter((p) => p.category === 'active').length
             })}
           </p>
-        </div>
+        </SettingsSection>
       )}
     </div>
   )

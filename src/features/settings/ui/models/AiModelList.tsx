@@ -5,8 +5,7 @@ import { WithTooltip } from '@app/components/ui/tooltip'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
-import { EmptyState } from '@shared/ui/components/primitives'
-import { InlineSpinner } from '@shared/ui/components/primitives'
+import { EmptyState, InlineSpinner, SettingsRowIcon } from '@shared/ui/components/primitives'
 import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { Description, Field, Label } from '@headlessui/react'
@@ -31,6 +30,14 @@ interface AiModelListProps {
   setDefaultAiModel?: (model: string) => void
   t: (key: string) => string
 }
+
+/**
+ * Row-level affordances repeat on every card, so they stay hidden at rest and
+ * fade in on hover/focus instead of forming a wall of identical icons. Busy
+ * rows keep their icon visible so the spinner stays readable.
+ */
+const HOVER_AFFORDANCE =
+  'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 group-focus-visible:opacity-100 motion-reduce:opacity-100'
 
 const AiModelList = memo(function AiModelList({
   modelsList,
@@ -78,6 +85,7 @@ const AiModelList = memo(function AiModelList({
   if (modelsList.length === 0) {
     return (
       <EmptyState
+        bare
         icon={Globe}
         title={t('ai_home.empty_sites_title')}
         description={t('ai_home.empty_sites_description')}
@@ -87,7 +95,7 @@ const AiModelList = memo(function AiModelList({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3">
+    <div className="flex flex-col gap-2">
       <AnimatePresence mode="popLayout">
         {modelsList.map((key, index) => {
           const isEnabled = enabledModels.includes(key)
@@ -106,24 +114,20 @@ const AiModelList = memo(function AiModelList({
               transition={{ delay: index * 0.03 }}
             >
               <Field
-                className={`group relative flex items-center justify-between overflow-hidden rounded-xl border p-4 transition-colors ${
+                className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border p-4 transition-colors ${
                   isEnabled
-                    ? 'border-border bg-muted/60 shadow-xs'
-                    : 'border-border bg-card hover:bg-muted/40'
-                } ${isLastModel ? 'opacity-80' : 'cursor-pointer'} `}
+                    ? 'border-ring/50 bg-accent/30'
+                    : 'border-border/60 bg-card hover:bg-muted/50'
+                } ${isLastModel ? 'opacity-80' : 'cursor-pointer'}`}
                 onClick={() => !isLastModel && toggleModel(key)}
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="relative">
-                    <div
-                      className={`rounded-xl border p-2.5 transition-colors ${
-                        isEnabled
-                          ? 'border-primary/20 bg-primary/10 text-primary'
-                          : 'border-border bg-muted/40 text-muted-foreground'
-                      } `}
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="relative shrink-0">
+                    <SettingsRowIcon
+                      className={isEnabled ? 'bg-primary/10 text-primary' : undefined}
                     >
                       {getAiPlatformIcon(site, key, <GridIcon className="h-5 w-5" />)}
-                    </div>
+                    </SettingsRowIcon>
                     {isEnabled && (
                       <motion.div
                         initial={{ scale: 0 }}
@@ -133,15 +137,15 @@ const AiModelList = memo(function AiModelList({
                     )}
                   </div>
 
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Label
-                        className={`text-ql-13 font-semibold transition-colors ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}
+                        className={`text-ql-13 truncate font-semibold transition-colors ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}
                       >
                         {getAiPlatformLabel(site, key, t)}
                       </Label>
                       {isCustom && (
-                        <span className="text-ql-10 border-primary/20 bg-primary/10 text-primary rounded border px-1.5 py-0.5 font-medium">
+                        <span className="text-primary border-primary/20 bg-primary/10 text-ql-10 shrink-0 rounded-lg border px-1.5 py-0.5 font-semibold uppercase">
                           {t('custom_badge')}
                         </span>
                       )}
@@ -154,7 +158,7 @@ const AiModelList = memo(function AiModelList({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex shrink-0 items-center gap-1.5">
                   {isEnabled && setDefaultAiModel && defaultAiModel !== undefined && (
                     <WithTooltip
                       label={defaultAiModel === key ? t('is_default_model') : t('set_as_default')}
@@ -171,7 +175,7 @@ const AiModelList = memo(function AiModelList({
                         className={`group/star ${
                           defaultAiModel === key
                             ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400'
-                            : 'text-muted-foreground/40'
+                            : `text-muted-foreground ${HOVER_AFFORDANCE}`
                         }`}
                         aria-label={
                           defaultAiModel === key ? t('is_default_model') : t('set_as_default')
@@ -199,7 +203,7 @@ const AiModelList = memo(function AiModelList({
                         variant="ghost"
                         onClick={(e) => handleClearDataClick(e, site.id, site.name)}
                         disabled={isClearingModelData || isCurrentlyClearing}
-                        className="opacity-60 transition-opacity group-hover:opacity-100"
+                        className={isCurrentlyClearing ? 'opacity-100' : HOVER_AFFORDANCE}
                         aria-label={t('clear_ai_model_data')}
                       >
                         {isCurrentlyClearing ? <InlineSpinner /> : <RefreshIcon />}
@@ -215,7 +219,9 @@ const AiModelList = memo(function AiModelList({
                         variant="ghost"
                         onClick={(e) => handleDeleteClick(e, site.id, site.name)}
                         disabled={isDeleting || isCurrentlyDeleting}
-                        className="hover:bg-destructive/10 hover:text-destructive opacity-60 transition-opacity group-hover:opacity-100"
+                        className={`hover:bg-destructive/10 hover:text-destructive ${
+                          isCurrentlyDeleting ? 'opacity-100' : HOVER_AFFORDANCE
+                        }`}
                         aria-label={t('delete_custom_ai')}
                       >
                         {isCurrentlyDeleting ? <InlineSpinner /> : <TrashIcon />}

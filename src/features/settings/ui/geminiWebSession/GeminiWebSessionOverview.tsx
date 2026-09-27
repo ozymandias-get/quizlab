@@ -1,7 +1,7 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 
 import { Button } from '@app/components/ui/button'
-import { SurfaceCard } from '@shared/ui/components/primitives'
+import { SettingsSection } from '@shared/ui/components/primitives'
 import { CheckIcon, GeminiIcon, LoaderIcon, RefreshIcon, XIcon } from '@ui/components/Icons'
 
 import i18next from 'i18next'
@@ -12,7 +12,7 @@ import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { ExtensionStatusCard, ExtensionWizardPanel } from './components'
 import GeminiWebRiskNotice from './GeminiWebRiskNotice'
 import GoogleAppList from './GoogleAppList'
-import { getCardClasses, getStatusIconContainerClass } from './statusHelpers'
+import { getStatusIconClass } from './statusHelpers'
 import type {
   GeminiWebSessionActionState,
   GeminiWebSessionHandlers,
@@ -71,120 +71,104 @@ function GeminiWebSessionOverview({
     return result ?? { success: false, error: t('error_unknown_error') }
   }, [removeExtensionMutation, t])
 
+  const formatTimestamp = (value: string) =>
+    new Date(value).toLocaleString(i18next.language === 'tr' ? 'tr-TR' : 'en-US')
+
+  const statusGlyph =
+    status.isRefreshing || status.checking ? (
+      <LoaderIcon className="h-4 w-4 animate-spin" />
+    ) : status.isAuthenticated ? (
+      <CheckIcon className="h-4 w-4" />
+    ) : status.needsReauth ? (
+      <XIcon className="h-4 w-4" />
+    ) : (
+      <RefreshIcon className="h-4 w-4" />
+    )
+
+  const statusIconClass = status.checking && !status.isRefreshing ? '' : getStatusIconClass(status)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`rounded-2xl border p-5 sm:p-6 ${getCardClasses(status)}`}
+      className="flex flex-col gap-4"
     >
-      <div className="flex flex-col gap-5">
-        <div className="flex items-start gap-3">
-          <div className={`rounded-xl p-2 ${getStatusIconContainerClass(status)}`}>
-            {status.isRefreshing ? (
-              <LoaderIcon className="text-primary h-5 w-5 animate-spin" />
-            ) : status.checking ? (
-              <LoaderIcon className="text-muted-foreground h-5 w-5 animate-spin" />
-            ) : status.isAuthenticated ? (
-              <CheckIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            ) : status.needsReauth ? (
-              <XIcon className="text-destructive h-5 w-5" />
-            ) : (
-              <RefreshIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <h4 className="text-ql-13 text-foreground font-bold">{t('gws_title')}</h4>
-                <p className="text-ql-12 text-muted-foreground mt-1 leading-relaxed">{stateText}</p>
-              </div>
-
-              <div className="text-ql-12 border-border bg-muted/40 text-muted-foreground rounded-xl border px-3 py-2 shadow-xs lg:min-w-[260px]">
-                <div>
-                  {t('gws_reason_prefix')}:{' '}
-                  <span className="text-foreground font-medium">{reasonText}</span>
-                </div>
-                {status.lastCheckAt && (
-                  <div className="text-muted-foreground mt-1">
-                    {t('gws_last_check')}:{' '}
-                    {new Date(status.lastCheckAt).toLocaleString(
-                      i18next.language === 'tr' ? 'tr-TR' : 'en-US'
-                    )}
-                  </div>
-                )}
-                {status.lastRefreshedAt && (
-                  <div className="text-muted-foreground mt-1">
-                    {t('gws_last_refreshed')}:{' '}
-                    {new Date(status.lastRefreshedAt).toLocaleString(
-                      i18next.language === 'tr' ? 'tr-TR' : 'en-US'
-                    )}
-                  </div>
-                )}
-                {refreshReasonText && (
-                  <div className="text-muted-foreground mt-1">
-                    {t('gws_last_refresh_reason')}: {refreshReasonText}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <SettingsSection
+        icon={<span className={statusIconClass}>{statusGlyph}</span>}
+        title={t('gws_title')}
+        detail={stateText}
+      >
         {status.isRefreshing && (
-          <div className="text-ql-12 border-primary/30 bg-primary/10 text-primary rounded-xl border px-3.5 py-3">
-            <div className="flex items-center gap-2 font-semibold">
-              <LoaderIcon className="h-4 w-4 animate-spin" />
-              <span>{t('gws_refreshing_inline')}</span>
+          <div className="border-primary/30 bg-primary/10 flex items-start gap-2.5 rounded-xl border p-3.5">
+            <LoaderIcon className="text-primary mt-0.5 h-4 w-4 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-ql-12 text-foreground font-semibold">
+                {t('gws_refreshing_inline')}
+              </p>
+              <p className="text-ql-12 text-muted-foreground mt-0.5 leading-relaxed">
+                {t('gws_refreshing_inline_desc')}
+              </p>
             </div>
-            <p className="text-ql-12 text-primary/80 mt-1 leading-relaxed">
-              {t('gws_refreshing_inline_desc')}
-            </p>
           </div>
         )}
 
         {status.needsReauth && !status.isRefreshing && (
-          <div className="text-ql-12 border-destructive/30 bg-destructive/10 text-destructive rounded-xl border px-3.5 py-3">
-            <div className="font-semibold">{t('gws_reauth_alert_title')}</div>
-            <p className="text-ql-12 text-destructive/80 mt-1 leading-relaxed">
+          <div className="border-destructive/30 bg-destructive/10 rounded-xl border p-3.5">
+            <p className="text-ql-12 text-destructive font-semibold">
+              {t('gws_reauth_alert_title')}
+            </p>
+            <p className="text-ql-12 text-muted-foreground mt-0.5 leading-relaxed">
               {t('gws_reauth_alert_body')}
             </p>
           </div>
         )}
 
-        <SurfaceCard className="rounded-xl p-3.5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <GeminiIcon className="text-foreground h-4 w-4" />
-                <span className="text-ql-12 text-foreground font-bold">
-                  {t('gws_toggle_label')}
-                </span>
-              </div>
-              <p className="text-ql-12 text-muted-foreground mt-1 leading-relaxed">
-                {t('gws_supported_apps_hint')}
-              </p>
+        <div className="border-border/60 bg-background/40 flex flex-col gap-1.5 rounded-xl border p-4">
+          <p className="text-ql-12 text-muted-foreground">
+            {t('gws_reason_prefix')}:{' '}
+            <span className="text-foreground font-medium">{reasonText}</span>
+          </p>
+          {status.lastCheckAt && (
+            <p className="text-ql-12 text-muted-foreground">
+              {t('gws_last_check')}: {formatTimestamp(status.lastCheckAt)}
+            </p>
+          )}
+          {status.lastRefreshedAt && (
+            <p className="text-ql-12 text-muted-foreground">
+              {t('gws_last_refreshed')}: {formatTimestamp(status.lastRefreshedAt)}
+            </p>
+          )}
+          {refreshReasonText && (
+            <p className="text-ql-12 text-muted-foreground">
+              {t('gws_last_refresh_reason')}: {refreshReasonText}
+            </p>
+          )}
+        </div>
+
+        <div className="border-border/60 bg-background/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <GeminiIcon className="text-foreground h-4 w-4 shrink-0" />
+              <span className="text-ql-13 text-foreground font-semibold">
+                {t('gws_toggle_label')}
+              </span>
             </div>
-            <SettingsToggleSwitch
-              checked={status.userEnabled}
-              onChange={handlers.onToggleWebEnabled}
-              disabled={!status.featureEnabled || disableSessionMutations}
-            />
+            <p className="text-ql-12 text-muted-foreground mt-1 leading-relaxed">
+              {t('gws_supported_apps_hint')}
+            </p>
           </div>
-        </SurfaceCard>
-
-        <ExtensionStatusCard
-          t={t}
-          onInstallExtension={handlers.onInstallExtension}
-          onRemoveExtension={handlers.onRemoveExtension}
-        />
-
-        <GeminiWebRiskNotice t={t} riskItems={riskItems} mitigationItems={mitigationItems} />
+          <SettingsToggleSwitch
+            checked={status.userEnabled}
+            onChange={handlers.onToggleWebEnabled}
+            disabled={!status.featureEnabled || disableSessionMutations}
+            className="shrink-0"
+          />
+        </div>
 
         <div className="flex justify-start">
           <Button
             type="button"
-            variant="destructive"
+            variant="destructive-outline"
             size="sm"
             onClick={handlers.onResetWebProfile}
             disabled={!status.webEnabled || disableSessionMutations}
@@ -195,17 +179,25 @@ function GeminiWebSessionOverview({
             ) : (
               <XIcon className="h-4 w-4" />
             )}
-            <span>{t('gws_reset_btn')}</span>
+            <span className="text-ql-12 font-semibold">{t('gws_reset_btn')}</span>
           </Button>
         </div>
+      </SettingsSection>
 
-        <GoogleAppList
-          enabledAppIds={enabledAppIds}
-          featureEnabled={status.featureEnabled}
-          disableSessionMutations={disableSessionMutations}
-          onToggleManagedApp={handlers.onToggleManagedApp}
-        />
-      </div>
+      <ExtensionStatusCard
+        t={t}
+        onInstallExtension={handlers.onInstallExtension}
+        onRemoveExtension={handlers.onRemoveExtension}
+      />
+
+      <GeminiWebRiskNotice t={t} riskItems={riskItems} mitigationItems={mitigationItems} />
+
+      <GoogleAppList
+        enabledAppIds={enabledAppIds}
+        featureEnabled={status.featureEnabled}
+        disableSessionMutations={disableSessionMutations}
+        onToggleManagedApp={handlers.onToggleManagedApp}
+      />
 
       {wizardOpen && wizardMode && (
         <ExtensionWizardPanel

@@ -4,7 +4,7 @@ import { useNativeMessagingStatusQuery } from '@platform/electron/api/useNativeM
 
 import { Button } from '@app/components/ui/button'
 import { getElectronApi } from '@shared/lib/electronApi'
-import { SurfaceCard } from '@shared/ui/components/primitives'
+import { SettingsSection } from '@shared/ui/components/primitives'
 import { LoaderIcon, SettingsIcon } from '@ui/components/Icons'
 
 import { memo, useState } from 'react'
@@ -71,20 +71,16 @@ function ExtensionStatusCard({
   }
 
   return (
-    <SurfaceCard className="rounded-xl p-4">
-      <div className="text-ql-12 text-foreground mb-3 font-semibold">
-        {t('gws_extension_title')}
-      </div>
-
-      <div className="border-border bg-muted/30 flex items-center justify-between rounded-lg border px-3.5 py-2.5">
-        <div className="flex items-center gap-2">
-          <div className={`h-2 w-2 rounded-full ${dotColor(extensionInfo ?? null)}`} />
-          <span className="text-ql-12 text-muted-foreground">
+    <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('gws_extension_title')}>
+      <div className="border-border/60 bg-background/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className={`size-2 shrink-0 rounded-full ${dotColor(extensionInfo ?? null)}`} />
+          <span className="text-ql-12 text-muted-foreground min-w-0">
             {t(statusKey(extensionInfo ?? null))}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {extensionInfo?.installed && extensionInfo?.status !== 'connected' && (
             <Button
               type="button"
@@ -93,7 +89,7 @@ function ExtensionStatusCard({
               onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
               className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
             >
-              {t('gws_extension_wake_btn')}
+              <span className="text-ql-11 font-semibold">{t('gws_extension_wake_btn')}</span>
             </Button>
           )}
           {extensionInfo?.installed ? (
@@ -102,9 +98,9 @@ function ExtensionStatusCard({
               variant="ghost"
               size="xs"
               onClick={onRemoveExtension}
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             >
-              {t('gws_extension_remove_btn')}
+              <span className="text-ql-11 font-semibold">{t('gws_extension_remove_btn')}</span>
             </Button>
           ) : (
             <Button
@@ -119,12 +115,12 @@ function ExtensionStatusCard({
               ) : (
                 <SettingsIcon className="h-3.5 w-3.5" />
               )}
-              <span>{t('gws_extension_install_btn')}</span>
+              <span className="text-ql-11 font-semibold">{t('gws_extension_install_btn')}</span>
             </Button>
           )}
         </div>
       </div>
-    </SurfaceCard>
+    </SettingsSection>
   )
 }
 

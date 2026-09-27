@@ -1,7 +1,7 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
 import { Button } from '@app/components/ui/button'
-import { EmptyState } from '@shared/ui/components/primitives'
+import { EmptyState, SettingsSection } from '@shared/ui/components/primitives'
 
 import { Plus, Server } from 'lucide-react'
 import { memo } from 'react'
@@ -13,7 +13,8 @@ import { DEFAULT_PROVIDER_TEMPLATES } from './constants'
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic',
-  google: 'Google Gemini'
+  google: 'Google Gemini',
+  nvidia: 'NVIDIA NIM'
 }
 
 interface ApiProviderListProps {
@@ -42,40 +43,43 @@ function ApiProviderList({
   const { t } = useTranslation()
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-foreground text-ql-14 font-semibold">
-          {t('api_chat_providers_title')}
-        </h3>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {Object.keys(DEFAULT_PROVIDER_TEMPLATES).map((key) => (
-            <Button
-              key={key}
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={() => onAddProvider(key)}
-              className="gap-1"
-            >
-              <Plus className="h-3 w-3" />
-              <span>{PROVIDER_DISPLAY_NAMES[key] || key}</span>
-            </Button>
-          ))}
+    <SettingsSection icon={<Server className="h-4 w-4" />} title={t('api_chat_providers_title')}>
+      {/* `font: inherit` in _base.css kills `text-*` on <button>, so the label
+          size is set on the span inside each control. */}
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
+        {Object.keys(DEFAULT_PROVIDER_TEMPLATES).map((key) => (
           <Button
+            key={key}
             type="button"
             variant="outline"
             size="xs"
-            onClick={() => onAddProvider()}
+            onClick={() => onAddProvider(key)}
             className="gap-1"
           >
             <Plus className="h-3 w-3" />
-            <span>{t('api_chat_custom_provider')}</span>
+            <span className="text-ql-11">{PROVIDER_DISPLAY_NAMES[key] || key}</span>
           </Button>
-        </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          onClick={() => onAddProvider()}
+          className="gap-1"
+        >
+          <Plus className="h-3 w-3" />
+          <span className="text-ql-11">{t('api_chat_custom_provider')}</span>
+        </Button>
       </div>
 
       {(!providers || providers.length === 0) && (
-        <EmptyState size="sm" icon={Server} title={t('api_chat_no_providers')} className="py-4" />
+        <EmptyState
+          bare
+          size="sm"
+          icon={Server}
+          title={t('api_chat_no_providers')}
+          className="py-4"
+        />
       )}
 
       {providers?.map((provider) => (
@@ -91,7 +95,7 @@ function ApiProviderList({
           onFetchModels={onFetchModels}
         />
       ))}
-    </div>
+    </SettingsSection>
   )
 }
 

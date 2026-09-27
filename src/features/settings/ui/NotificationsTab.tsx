@@ -1,20 +1,29 @@
 import { Button } from '@app/components/ui/button'
 import { useNotificationPrefs, useToastActions } from '@app/providers'
+import {
+  IconBadge,
+  SettingsRow,
+  SettingsRowDescription,
+  SettingsRowHeader,
+  SettingsRowTitle,
+  SettingsSection,
+  SettingsTabIcon,
+  SettingsTabIntro
+} from '@shared/ui/components/primitives'
 
 import { AlertTriangle, Bell, Check, Info, XCircle } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 
-import SettingsTabIntro from './shared/SettingsTabIntro'
 import SettingsToggleSwitch from './shared/SettingsToggleSwitch'
 
 type NotificationType = 'success' | 'error' | 'warning' | 'info'
+type NotificationBadgeVariant = 'success' | 'danger' | 'warning' | 'info'
 
 interface NotificationTypeConfig {
   type: NotificationType
-  color: string
-  bg: string
+  variant: NotificationBadgeVariant
   icon: typeof Check
   isEnabled: boolean
   setIsEnabled: (value: boolean) => void
@@ -23,9 +32,9 @@ interface NotificationTypeConfig {
 }
 
 const NOTIFICATIONS_ICON = (
-  <div className="border-primary/20 bg-primary/10 text-primary rounded-lg border p-2.5">
+  <SettingsTabIcon>
     <Bell className="h-5 w-5" />
-  </div>
+  </SettingsTabIcon>
 )
 
 const NotificationsTab = memo(() => {
@@ -77,8 +86,7 @@ const NotificationsTab = memo(() => {
   const notificationTypes: NotificationTypeConfig[] = [
     {
       type: 'success',
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bg: 'bg-emerald-500/10 border-emerald-500/30',
+      variant: 'success',
       icon: Check,
       isEnabled: successEnabled,
       setIsEnabled: setSuccessEnabled,
@@ -87,8 +95,7 @@ const NotificationsTab = memo(() => {
     },
     {
       type: 'error',
-      color: 'text-destructive',
-      bg: 'bg-destructive/10 border-destructive/30',
+      variant: 'danger',
       icon: XCircle,
       isEnabled: errorEnabled,
       setIsEnabled: setErrorEnabled,
@@ -97,8 +104,7 @@ const NotificationsTab = memo(() => {
     },
     {
       type: 'warning',
-      color: 'text-amber-600 dark:text-amber-400',
-      bg: 'bg-amber-500/10 border-amber-500/30',
+      variant: 'warning',
       icon: AlertTriangle,
       isEnabled: warningEnabled,
       setIsEnabled: setWarningEnabled,
@@ -107,8 +113,7 @@ const NotificationsTab = memo(() => {
     },
     {
       type: 'info',
-      color: 'text-primary',
-      bg: 'bg-primary/10 border-primary/30',
+      variant: 'info',
       icon: Info,
       isEnabled: infoEnabled,
       setIsEnabled: setInfoEnabled,
@@ -121,48 +126,57 @@ const NotificationsTab = memo(() => {
     <div className="space-y-6">
       <SettingsTabIntro icon={NOTIFICATIONS_ICON} description={t('notifications_description')} />
 
-      <div className="space-y-2">
-        {notificationTypes.map((config) => {
-          const Icon = config.icon
-          return (
-            <div
-              key={config.type}
-              className="border-border bg-card hover:bg-muted/40 flex items-center gap-4 rounded-xl border p-4 shadow-xs transition-colors"
-            >
-              <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${config.bg} ${config.color}`}
+      <SettingsSection icon={<Bell className="h-4 w-4" />} title={t('notification_settings')}>
+        <div className="flex flex-col gap-2">
+          {notificationTypes.map((config) => {
+            const enabled = config.isEnabled
+            return (
+              <SettingsRow
+                key={config.type}
+                className={`flex items-center gap-4 transition-colors ${
+                  enabled
+                    ? 'border-ring/50 bg-accent/30'
+                    : 'border-border/60 bg-card hover:bg-muted/50'
+                }`}
               >
-                <Icon className="h-4 w-4" />
-              </div>
+                <IconBadge icon={config.icon} variant={config.variant} />
 
-              <div className="min-w-0 grow">
-                <h4 className="text-foreground text-ql-12 leading-tight font-semibold">
-                  {t(config.testTitleKey)}
-                </h4>
-                <p className="text-muted-foreground text-ql-12 mt-0.5 leading-relaxed">
-                  {t(`notification_${config.type}_description`)}
-                </p>
-              </div>
+                <SettingsRowHeader>
+                  <SettingsRowTitle>{t(config.testTitleKey)}</SettingsRowTitle>
+                  <SettingsRowDescription>
+                    {t(`notification_${config.type}_description`)}
+                  </SettingsRowDescription>
+                </SettingsRowHeader>
 
-              <div className="flex shrink-0 items-center gap-2.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  onClick={() => sendTestToast(config.type)}
-                >
-                  {t(config.testKey)}
-                </Button>
-                <SettingsToggleSwitch
-                  checked={config.isEnabled}
-                  onChange={config.setIsEnabled}
-                  size="sm"
-                />
-              </div>
-            </div>
-          )
-        })}
-      </div>
+                <div className="flex shrink-0 items-center gap-2.5">
+                  {/*
+                    `button { font: inherit }` in _base.css is unlayered and beats
+                    Tailwind's `:where()`-wrapped font utilities, so the Button's own
+                    `text-xs`/`font-medium` are dead. Size and weight are set on this
+                    non-button wrapper and inherited by the control instead.
+                  */}
+                  <span className="text-ql-12 inline-flex font-medium">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => sendTestToast(config.type)}
+                    >
+                      {t(config.testKey)}
+                    </Button>
+                  </span>
+
+                  <SettingsToggleSwitch
+                    checked={enabled}
+                    onChange={config.setIsEnabled}
+                    size="sm"
+                  />
+                </div>
+              </SettingsRow>
+            )
+          })}
+        </div>
+      </SettingsSection>
     </div>
   )
 })

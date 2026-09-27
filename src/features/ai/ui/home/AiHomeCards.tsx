@@ -7,9 +7,14 @@ import { type DragEvent, memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { AiSiteMap, SectionTone } from '../../model/home'
+import { safeAiAccentColor } from '../../model/home'
 import GridCard from './aiHomeCards/GridCard'
 
 export { default as EmptySitesState } from './aiHomeCards/EmptySitesState'
+
+/** Mirrors the `api-chat` entry in the platform registry. Used when the model
+ *  is not present in `aiSites` so the card still renders with its brand color. */
+const API_CHAT_FALLBACK_ACCENT = '#f59e0b'
 
 interface AiHomeCardGridProps {
   activeModelIds: Set<string>
@@ -32,6 +37,11 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
 }: AiHomeCardGridProps) {
   const { t } = useTranslation()
   const gridStyle = useMemo(() => ({ gridTemplateColumns: cardColumns }), [cardColumns])
+  const apiChatAccent = useMemo(
+    () => safeAiAccentColor(aiSites['api-chat']?.color ?? API_CHAT_FALLBACK_ACCENT),
+    [aiSites]
+  )
+  const isApiChatActive = activeModelIds.has('api-chat')
 
   // The hook's `handleDragOver` is `(event, id) => void` (React DOM ordering),
   // but `GridCard`'s prop signature is `(id, event) => void` (curried). This
@@ -52,14 +62,17 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
             <button
               type="button"
               onClick={() => onOpenModel('api-chat')}
-              className={`group hover:shadow-ambient-sm motion-normal relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left shadow-2xs transition-all hover:-translate-y-0.5 motion-reduce:transform-none ${
-                activeModelIds.has('api-chat')
-                  ? 'border-ring/60 bg-accent/20'
-                  : 'border-border/80 bg-card hover:border-border hover:bg-muted/60'
+              className={`group hover:shadow-ambient-sm motion-normal relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left shadow-xs transition-colors ${
+                isApiChatActive
+                  ? 'border-ring/50 bg-accent/30'
+                  : 'border-border/60 bg-card hover:bg-muted/60'
               }`}
             >
               <div className="flex w-full items-center gap-3">
-                <div className="border-border/60 bg-muted/60 motion-normal flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-amber-500 transition-transform group-hover:scale-105 motion-reduce:scale-100">
+                <div
+                  className="border-border/60 bg-muted/60 motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105 motion-reduce:scale-100"
+                  style={{ color: apiChatAccent }}
+                >
                   {getAiIcon('api-chat')}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -70,10 +83,13 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
                     {t('api_chat_home_card_desc')}
                   </p>
                 </div>
-                {activeModelIds.has('api-chat') && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                {isApiChatActive && (
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: apiChatAccent }}
+                  />
                 )}
-                <div className="text-muted-foreground/60 group-hover:text-foreground transition-colors">
+                <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
                   <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
                 </div>
               </div>

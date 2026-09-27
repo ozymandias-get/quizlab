@@ -38,8 +38,8 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
       ref={pageRef}
       className="custom-scrollbar absolute inset-0 overflow-y-auto overscroll-contain"
     >
-      <div className="relative min-h-full px-4 py-8 sm:px-6 sm:py-10">
-        <div className="relative z-10 flex flex-col gap-7">
+      <div className="relative min-h-full px-4 py-5 sm:px-5 sm:py-6">
+        <div className="relative z-10 flex flex-col gap-4">
           <AiHomeHero
             activeTabId={activeTabId}
             aiSites={aiSites}
@@ -52,6 +52,7 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
             title={t('ai_home.models_title')}
             detail={t('ai_home.models_detail')}
             icon={MODELS_SECTION_ICON}
+            count={modelOrder.length}
             defaultOpen
           >
             <AiHomeCardGrid
@@ -69,6 +70,7 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
             title={t('ai_home.sites_title')}
             detail={t('ai_home.sites_detail')}
             icon={SITES_SECTION_ICON}
+            count={siteOrder.length}
             defaultOpen={false}
           >
             {siteOrder.length > 0 ? (

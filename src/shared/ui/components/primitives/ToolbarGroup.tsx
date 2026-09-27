@@ -12,5 +12,5 @@ export function ToolbarGroup({ className, ...props }: React.HTMLAttributes<HTMLD
 }
 
 export function ToolbarSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('bg-border/80 h-4 w-px shrink-0', className)} {...props} />
+  return <div className={cn('bg-border/60 h-4 w-px shrink-0', className)} {...props} />
 }

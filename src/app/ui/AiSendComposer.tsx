@@ -161,9 +161,13 @@ function AiSendComposer({
             data-panel
             className={cn(
               'motion-slow relative transition-[border-radius,background-color] ease-out',
+              /* The compact `h-13` must stay equal to `COMPACT_HEIGHT` and to the
+                 `h-13` on `CompactComposerBar`. When the inner bar grew to 52px
+                 and this pill stayed at `h-11`, `overflow-visible` let the chips
+                 spill out and the whole row sat off-centre. */
               isExpanded
                 ? 'bg-card text-foreground h-full overflow-hidden rounded-2xl'
-                : 'bg-card/95 h-11 w-max overflow-visible rounded-full text-white'
+                : 'bg-card/95 text-foreground h-13 w-max overflow-visible rounded-full'
             )}
             style={panelStyle}
           >

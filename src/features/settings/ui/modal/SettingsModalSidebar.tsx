@@ -23,16 +23,16 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
 
   return (
     <aside
-      className="border-border bg-muted/20 relative flex min-w-0 shrink-0 flex-col border-r"
+      className="border-border/60 bg-card/20 relative flex min-w-0 shrink-0 flex-col border-r"
       style={{ width: sidebarWidth }}
     >
       <div className="relative flex h-full min-h-0 flex-col p-3 sm:p-4">
         <div className="relative min-h-0 flex-1">
           <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
-            <nav aria-label={t('settings_title')} className="flex flex-col gap-4">
+            <nav aria-label={t('settings_title')} className="flex flex-col gap-5">
               {sidebarSections.map((section) => (
-                <div key={section.id} className="flex flex-col gap-1">
-                  <div className="text-muted-foreground/80 text-ql-10 tracking-ql-caps mb-1 px-2 font-bold uppercase select-none">
+                <div key={section.id} className="flex flex-col gap-1.5">
+                  <div className="text-muted-foreground text-ql-10 tracking-ql-label px-2 font-semibold uppercase select-none">
                     {section.label}
                   </div>
 
@@ -51,7 +51,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
               ))}
             </nav>
           </div>
-          <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t from-[var(--color-card)] to-transparent" />
+          <div className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t to-transparent" />
         </div>
       </div>
     </aside>

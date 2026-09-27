@@ -37,7 +37,11 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         ref={ref}
         type="button"
         size={size}
-        variant={isActive ? 'default' : 'toolbar'}
+        /* Always `toolbar`. The active surface comes from the unlayered
+           `.glass-control-active` rule below; `variant="default"` would paint
+           `bg-primary` underneath it, which is a near-white slab in dark mode
+           and only survived because the unlayered rule happens to win. */
+        variant="toolbar"
         onClick={onClick}
         disabled={disabled}
         aria-label={tooltip}

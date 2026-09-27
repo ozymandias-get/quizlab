@@ -110,6 +110,8 @@ function PdfRecentListItem({
   const openedMeta = item.lastOpenedAt
     ? formatRelativeTime(item.lastOpenedAt, language)
     : t('last_opened_unknown')
+  const showProgress = !isInvalid && item.totalPages > 0 && Number.isFinite(progress)
+  const isActive = !!activePdfPath && item.path === activePdfPath
 
   const interactionProps = isInvalid
     ? {}
@@ -124,47 +126,48 @@ function PdfRecentListItem({
   return (
     <ListItemCard
       {...interactionProps}
-      active={!!activePdfPath && item.path === activePdfPath}
-      className={`pdf-recent-item group ${isInvalid ? 'border-destructive/30 bg-destructive/5 text-foreground border' : ''}`}
+      active={isActive}
+      className={`pdf-recent-item group relative p-0 ${isActive ? 'ring-ring/20 ring-1' : ''} ${isInvalid ? 'border-destructive/30 bg-destructive/5 text-foreground' : ''}`}
       interactive={!isInvalid}
     >
-      <div className="relative z-10 flex w-full items-center gap-3">
+      {isActive && (
+        <span
+          aria-hidden
+          className="bg-ring motion-slow absolute inset-y-2 left-0 w-0.5 rounded-full"
+        />
+      )}
+
+      <div className="flex w-full items-center gap-3 p-3">
         <IconBadge
           icon={FileText}
-          variant={isInvalid ? 'danger' : 'warning'}
+          variant={isInvalid ? 'danger' : isActive ? 'primary' : 'ghost'}
           size="md"
           className="shrink-0"
         />
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-ql-13 text-foreground truncate font-semibold">{item.name}</span>
-          </div>
+          <div className="text-ql-13 text-foreground truncate font-semibold">{item.name}</div>
           <div
-            className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-1 ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
+            className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
           >
-            <span>
-              {t('resume_last_page')}: {pageMeta}
-            </span>
+            <span>{pageMeta}</span>
             <span aria-hidden>&middot;</span>
-            <span>
-              {t('last_opened')}: {openedMeta}
-            </span>
+            <span>{openedMeta}</span>
           </div>
-          <div className="bg-muted mt-2 h-1.5 overflow-hidden rounded-full">
-            <div
-              className={`h-full rounded-full ${isInvalid ? 'bg-destructive/50' : 'bg-primary/80'}`}
-              style={{
-                width: `${Number.isFinite(progress) ? Math.round(progress * 100) : 0}%`
-              }}
-            />
-          </div>
+          {showProgress && (
+            <div className="bg-muted mt-2 h-1 overflow-hidden rounded-full">
+              <div
+                className="bg-primary/70 h-full rounded-full"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+          )}
           {isInvalid && (
             <div className="text-ql-12 text-destructive mt-1.5">{t('recent_invalid_hint')}</div>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1">
           {isInvalid && onRelink ? (
             <Button
               type="button"
@@ -183,11 +186,11 @@ function PdfRecentListItem({
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={handleResumeButtonClick}
               onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
-              className="text-foreground hover:border-ring/50 hover:bg-accent opacity-100 transition-opacity md:opacity-70 md:group-hover:opacity-100"
+              className="text-muted-foreground hover:bg-accent hover:text-foreground"
               aria-label={t('continue_reading')}
             >
               <Play className="h-3.5 w-3.5" />

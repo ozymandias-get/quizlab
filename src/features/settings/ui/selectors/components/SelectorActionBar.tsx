@@ -38,7 +38,7 @@ const SelectorActionBar = memo(function SelectorActionBar({
           !hasSelectors || !canTestOnCurrentTab || isTesting || validation.status === 'loading'
         }
         onClick={onTestSelectors}
-        className="gap-2"
+        className="gap-2 rounded-lg"
       >
         {validation.status === 'loading' ? (
           <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
@@ -51,12 +51,12 @@ const SelectorActionBar = memo(function SelectorActionBar({
       {selectorEntry && (
         <Button
           type="button"
-          variant="destructive"
+          variant="destructive-outline"
           size="sm"
           onClick={() => onDeleteSelectors(selectorEntry.hostname)}
           disabled={isDeleting}
           aria-label={t('delete_selectors')}
-          className="gap-2"
+          className="gap-2 rounded-lg"
         >
           <TrashIcon className="h-3.5 w-3.5" />
           <span className="text-ql-11 font-semibold">{t('reset')}</span>

@@ -11,6 +11,7 @@ import {
   loadStoredLayout,
   MIN_BODY_HEIGHT,
   saveLayoutToStorage,
+  snapToDevicePixel,
   VIEWPORT_PADDING
 } from './layoutUtils'
 import type { DockLayout } from './types'
@@ -67,8 +68,8 @@ export function useAiSendComposerLayout(
   const applyPosition = useCallback((x: number, y: number) => {
     const el = asideRef.current
     if (!el) return
-    el.style.left = `${x}px`
-    el.style.top = `${y}px`
+    el.style.left = `${snapToDevicePixel(x)}px`
+    el.style.top = `${snapToDevicePixel(y)}px`
   }, [])
 
   const handleDragStart = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -147,9 +148,9 @@ export function useAiSendComposerLayout(
         typeof window !== 'undefined'
           ? Math.max(VIEWPORT_PADDING, window.innerWidth - effectiveWidth - VIEWPORT_PADDING)
           : targetX
-      return clamp(targetX, VIEWPORT_PADDING, maxX)
+      return snapToDevicePixel(clamp(targetX, VIEWPORT_PADDING, maxX))
     }
-    return layout.x
+    return snapToDevicePixel(layout.x)
   }, [anchorPosition, effectiveWidth, layout.x])
 
   const effectiveY = useMemo(() => {
@@ -159,9 +160,9 @@ export function useAiSendComposerLayout(
         typeof window !== 'undefined'
           ? Math.max(VIEWPORT_PADDING, window.innerHeight - effectiveHeight - VIEWPORT_PADDING)
           : targetY
-      return clamp(targetY, VIEWPORT_PADDING, maxY)
+      return snapToDevicePixel(clamp(targetY, VIEWPORT_PADDING, maxY))
     }
-    return layout.y
+    return snapToDevicePixel(layout.y)
   }, [anchorPosition, effectiveHeight, layout.y])
 
   const derivedLayout = useMemo(
