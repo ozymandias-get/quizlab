@@ -20,6 +20,16 @@ export function buildHumanTypingScript(): string {
             // such as emoji are typed whole instead of as lone surrogates.
             const chars = Array.from(value);
             for (let i = 0; i < chars.length; i++) {
+                // Cooperative cancellation. Typing is one character per
+                // delayMs, so a large prompt can run for many minutes; without
+                // this the injected promise never settles and every later send
+                // queued behind it on the same webview is blocked too. The rest
+                // of the runtime (selectorEngine, __eventDrivenWait) honours
+                // the same flag. isAborted comes from the baseHelpers preamble.
+                if (typeof isAborted === 'function' && isAborted()) {
+                    return;
+                }
+
                 const char = chars[i];
 
                 if (isContentEditable) {

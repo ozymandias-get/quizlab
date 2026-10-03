@@ -69,15 +69,21 @@ export class ProfileHealthChecker {
   private async getDirectorySize(dirPath: string): Promise<number> {
     let totalSize = 0
     try {
-      const entries = await fs.readdir(dirPath)
+      // withFileTypes tells us the entry kind without a syscall, so directories
+      // (the bulk of a Chromium profile) no longer need the per-entry stat that
+      // the previous readdir()+stat()-per-entry version performed. Symlinks and
+      // plain files still need one for their size / to keep following links.
+      const entries = await fs.readdir(dirPath, { withFileTypes: true })
       for (const entry of entries) {
-        const entryPath = path.join(dirPath, entry)
-        const stat = await fs.stat(entryPath)
-        if (stat.isDirectory()) {
+        const entryPath = path.join(dirPath, entry.name)
+
+        if (entry.isDirectory() && !entry.isSymbolicLink()) {
           totalSize += await this.getDirectorySize(entryPath)
-        } else {
-          totalSize += stat.size
+          continue
         }
+
+        const stat = await fs.stat(entryPath)
+        totalSize += stat.isDirectory() ? await this.getDirectorySize(entryPath) : stat.size
       }
     } catch {}
     return totalSize
@@ -86,11 +92,25 @@ export class ProfileHealthChecker {
   private async checkStaleLock(): Promise<boolean> {
     try {
       const content = await fs.readFile(this.lockPath, 'utf-8')
-      const lockData = JSON.parse(content)
-      if (typeof lockData.acquiredAt === 'string') {
-        const lockAge = Date.now() - new Date(lockData.acquiredAt).getTime()
-        return lockAge > STALE_LOCK_THRESHOLD_MS
+      const lockData = JSON.parse(content) as {
+        heartbeatAt?: string
+        createdAt?: string
       }
+      // profileLock writes `heartbeatAt` + `createdAt`. It never wrote
+      // `acquiredAt`, so reading that key made this check return false for every
+      // lock file the app produces and silently disabled the stale-lock
+      // recovery branch downstream.
+      const ageOf = (value: string | undefined): number | null => {
+        if (typeof value !== 'string' || value.length === 0) return null
+        const time = Date.parse(value)
+        return Number.isFinite(time) ? Date.now() - time : null
+      }
+
+      const heartbeatAge = ageOf(lockData.heartbeatAt)
+      if (heartbeatAge !== null) return heartbeatAge > STALE_LOCK_THRESHOLD_MS
+
+      const createdAtAge = ageOf(lockData.createdAt)
+      if (createdAtAge !== null) return createdAtAge > STALE_LOCK_THRESHOLD_MS
     } catch {}
     return false
   }

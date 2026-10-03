@@ -34,13 +34,20 @@ function broadcastStatus(status?: GeminiWebSessionStatus): void {
   // when the caller already has it).
   const promise = status ? Promise.resolve(status) : geminiWebSessionManager.getStatus()
 
-  void promise.then((s) => {
-    for (const win of allWindows) {
-      if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
-        win.webContents.send(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_STATUS_UPDATED, s)
+  void promise
+    .then((s) => {
+      for (const win of allWindows) {
+        if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+          win.webContents.send(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_STATUS_UPDATED, s)
+        }
       }
-    }
-  })
+    })
+    .catch((error) => {
+      // A background status broadcast must never escalate into the process-level
+      // unhandledRejection handler, which pops a modal error dialog and writes a
+      // crash report. A window can be torn down between isDestroyed() and send().
+      Logger.warn('[GeminiWebSession] Status broadcast failed:', error)
+    })
 }
 
 export function registerGeminiWebSessionHandlers(): void {

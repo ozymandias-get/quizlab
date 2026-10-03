@@ -9,36 +9,40 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
         for (let i = 0; i <= depth && i < strategies.length; i++) {
             const strategy = strategies[i];
             const stepStart = now();
+            let resolved = null;
 
             try {
                 const candidate = strategy.fn(kind, config);
-                if (!candidate || !candidate.element) continue;
+                if (candidate && candidate.element) {
+                    const confidence = computeConfidenceScore(candidate, kind, config);
+                    const rejected =
+                        confidence.level === 'low' ||
+                        (confidence.level === 'medium' && depth < 2);
 
-                const confidence = computeConfidenceScore(candidate, kind, config);
-
-                if (confidence.level === 'low') {
-                    continue;
+                    if (!rejected) {
+                        diagnostics.confidenceScore = confidence.score;
+                        diagnostics.confidenceLevel = confidence.level;
+                        resolved = {
+                            element: candidate.element,
+                            matchedSelector: candidate.matchedSelector || strategy.name + ':auto',
+                            strategy: strategy.name
+                        };
+                    }
                 }
-
-                if (confidence.level === 'medium' && depth < 2) {
-                    continue;
-                }
-
-                diagnostics.confidenceScore = confidence.score;
-                diagnostics.confidenceLevel = confidence.level;
-
-                return {
-                    element: candidate.element,
-                    matchedSelector: candidate.matchedSelector || strategy.name + ':auto',
-                    strategy: strategy.name
-                };
             } catch {
-                continue;
-            } finally {
-                const elapsed = now() - stepStart;
-                if (elapsed > __FALLBACK_STEP_TIMEOUT_MS) {
-                    break;
-                }
+                resolved = null;
+            }
+
+            // The per-step budget guards how long we keep *starting* new
+            // strategies. It must not discard an element this step already
+            // found: a break inside a finally block is an abrupt completion
+            // that overrides the step's pending return, so a strategy that
+            // resolved slowly (> __FALLBACK_STEP_TIMEOUT_MS) used to throw its
+            // result away and end the whole pipeline.
+            if (resolved) return resolved;
+
+            if (now() - stepStart > __FALLBACK_STEP_TIMEOUT_MS) {
+                break;
             }
         }
 

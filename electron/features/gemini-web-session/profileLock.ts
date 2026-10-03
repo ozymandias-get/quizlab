@@ -181,6 +181,11 @@ export class ProfileLock {
         logSuppressedError('failed to refresh profile lock heartbeat', error)
       })
     }, HEARTBEAT_INTERVAL_MS)
+    // unref'd like every other long-lived timer in the main process
+    // (cacheScheduler, diskLogger, pdfProtocol, sessionMonitor). Without it a
+    // lock that is acquired and never released keeps the event loop alive for
+    // the process lifetime.
+    this.heartbeatTimer.unref?.()
   }
 
   private stopHeartbeat(): void {

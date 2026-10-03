@@ -24,8 +24,19 @@ async function handleDisplayMediaRequest(
   callback: (streams: Streams) => void,
   getMainWindow: MainWindowResolver
 ): Promise<void> {
+  // Electron invokes the permission callback exactly once. Wrapping it in a
+  // try/catch would let the catch block call it a second time when the first
+  // call throws, so the "answer exactly once" decision is made up front and
+  // every later failure just falls through to the single pending answer.
+  let answered = false
+  const answerOnce = (streams: Streams): void => {
+    if (answered) return
+    answered = true
+    callback(streams)
+  }
+
   if (!request.videoRequested) {
-    callback({})
+    answerOnce({})
     return
   }
 
@@ -35,7 +46,7 @@ async function handleDisplayMediaRequest(
       thumbnailSize: { width: 150, height: 150 }
     })
     if (sources.length === 0) {
-      callback({})
+      answerOnce({})
       return
     }
 
@@ -46,18 +57,18 @@ async function handleDisplayMediaRequest(
     const parent = BrowserWindow.getFocusedWindow() ?? getMainWindow()
     const pickedIndex = await showDisplayMediaPicker(parent, sources)
     if (pickedIndex === null || pickedIndex < 0 || pickedIndex >= sources.length) {
-      callback({})
+      answerOnce({})
       return
     }
     picked = sources[pickedIndex]
 
-    callback({
+    answerOnce({
       video: { id: picked.id, name: picked.name }
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     Logger.error('[Sessions] Display media request handler error:', message)
-    callback({})
+    answerOnce({})
   }
 }
 

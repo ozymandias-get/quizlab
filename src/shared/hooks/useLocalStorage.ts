@@ -97,6 +97,24 @@ function useBaseStorage<T>({
   const storedValueRef = useRef(storedValue)
   const serializedValueRef = useRef<string | null>(serialize(storedValue))
 
+  // `serialize`/`deserialize`/`validate` are frequently inline arrows at the
+  // call site, so their identity changes on every render. Depending on them
+  // would tear down and re-register the two window listeners below on every
+  // render of every consumer (there are ~15 call sites, several of which are
+  // re-rendered on ordinary app state changes). Reading the latest values
+  // through refs keeps the listeners — and the returned setter — stable.
+  const initialValueRef = useRef(initialValue)
+  const deserializeRef = useRef(deserialize)
+  const validateRef = useRef(validate)
+  const serializeRef = useRef(serialize)
+
+  useEffect(() => {
+    initialValueRef.current = initialValue
+    deserializeRef.current = deserialize
+    validateRef.current = validate
+    serializeRef.current = serialize
+  })
+
   // QueryClient for single-source-of-truth invalidation — prefer contextual client
   // (tests create their own QueryClient) and fall back to the global singleton.
   // Uses QueryClientContext directly to avoid the "rules-of-hooks" violation that
@@ -112,27 +130,28 @@ function useBaseStorage<T>({
 
   useEffect(() => {
     storedValueRef.current = storedValue
-    serializedValueRef.current = serialize(storedValue)
-  }, [storedValue, serialize])
+    serializedValueRef.current = serializeRef.current(storedValue)
+  }, [storedValue])
 
   const syncState = useCallback(
     (rawValue: string | null) => {
       if (rawValue === null) {
-        setStoredValue(initialValue)
+        setStoredValue(initialValueRef.current)
         invalidateQueriesForStorageKey(effectiveQueryClient, key)
         return
       }
 
       if (rawValue === serializedValueRef.current) return
 
-      const parsed = deserialize(rawValue)
+      const parsed = deserializeRef.current(rawValue)
+      const validate = validateRef.current
       if (parsed === INVALID_STORED_VALUE || (validate && !validate(parsed))) {
         return
       }
       setStoredValue(parsed)
       invalidateQueriesForStorageKey(effectiveQueryClient, key)
     },
-    [initialValue, deserialize, validate, key, effectiveQueryClient]
+    [key, effectiveQueryClient]
   )
 
   useEffect(() => {
@@ -159,6 +178,8 @@ function useBaseStorage<T>({
   const setValue: SetValue<T> = useCallback(
     (val) => {
       try {
+        const serialize = serializeRef.current
+        const validate = validateRef.current
         const valueToStore =
           typeof val === 'function' ? (val as (prev: T) => T)(storedValueRef.current) : val
         const serialized = serialize(valueToStore)
@@ -178,10 +199,22 @@ function useBaseStorage<T>({
         Logger.warn(`useLocalStorage: Error saving key "${key}":`, error)
       }
     },
-    [key, serialize, validate]
+    [key]
   )
 
   return [storedValue, setValue]
+}
+
+function serializeBoolean(val: boolean): string {
+  return val.toString()
+}
+
+function deserializeBoolean(raw: string): boolean | typeof INVALID_STORED_VALUE {
+  return raw === 'true' ? true : raw === 'false' ? false : INVALID_STORED_VALUE
+}
+
+function validateBoolean(val: boolean): boolean {
+  return typeof val === 'boolean'
 }
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>] {
@@ -237,9 +270,11 @@ export function useLocalStorageBoolean(
   const [storedValue, setValue] = useBaseStorage<boolean>({
     key,
     initialValue,
-    serialize: (val) => val.toString(),
-    deserialize: (raw) => (raw === 'true' ? true : raw === 'false' ? false : INVALID_STORED_VALUE),
-    validate: (val) => typeof val === 'boolean'
+    // Module-level so the identity is stable: inline arrows here would make the
+    // storage listeners re-register on every render.
+    serialize: serializeBoolean,
+    deserialize: deserializeBoolean,
+    validate: validateBoolean
   })
 
   const toggle = useCallback(() => {

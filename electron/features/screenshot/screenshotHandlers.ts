@@ -33,9 +33,14 @@ interface ClipboardSnapshot {
 const MAX_CLIPBOARD_SNAPSHOTS = 8
 let clipboardSnapshots: ClipboardSnapshot[] = []
 
-function snapshotClipboard(): void {
+/**
+ * Pushes the current clipboard state onto the snapshot stack.
+ * Returns whether an entry was actually pushed, so a caller that fails to
+ * overwrite the clipboard knows it must not unwind the stack.
+ */
+function snapshotClipboard(): boolean {
   try {
-    if (clipboardSnapshots.length >= MAX_CLIPBOARD_SNAPSHOTS) return
+    if (clipboardSnapshots.length >= MAX_CLIPBOARD_SNAPSHOTS) return false
     let text: string | undefined
     let html: string | undefined
     let image: Electron.NativeImage | undefined
@@ -57,9 +62,20 @@ function snapshotClipboard(): void {
       html,
       image
     })
+    return true
   } catch (error) {
     Logger.warn('[Clipboard] Failed to snapshot clipboard:', error)
+    return false
   }
+}
+
+/**
+ * Undoes a snapshot that was pushed for a write which then failed. The entry
+ * being removed is always this caller's own: snapshots are pushed and popped
+ * in stack order, and only the entry we just pushed can sit on top.
+ */
+function discardClipboardSnapshot(): void {
+  clipboardSnapshots.pop()
 }
 
 function restoreClipboard(): boolean {
@@ -152,6 +168,11 @@ export function registerScreenshotHandlers() {
   registerIpcHandler(
     IPC_CHANNELS.COPY_IMAGE,
     async (_event, dataUrl: string) => {
+      // Declared outside the try so the finally below can unwind a snapshot that
+      // was taken for a write which never landed.
+      let snapshotPushed = false
+      let writeSucceeded = false
+
       try {
         if (!dataUrl?.startsWith('data:image/')) return success(false)
         if (dataUrl.length > MAX_DATA_URL_LENGTH) {
@@ -196,16 +217,15 @@ export function registerScreenshotHandlers() {
           Logger.info(`[Clipboard] Image ready for clipboard: ${imgSize.width}x${imgSize.height}`)
         }
 
-        snapshotClipboard()
+        snapshotPushed = snapshotClipboard()
 
         // Windows clipboard locks can be transiently held by other apps
         // (Clipboard history, Office, etc.). Retry with short backoff.
-        let writeSuccess = false
         let lastError: unknown = null
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             clipboard.writeImage(image)
-            writeSuccess = true
+            writeSucceeded = true
             break
           } catch (err) {
             lastError = err
@@ -215,7 +235,7 @@ export function registerScreenshotHandlers() {
           }
         }
 
-        if (!writeSuccess) {
+        if (!writeSucceeded) {
           Logger.error('[Clipboard] Copy failed after retries:', lastError)
           return success(false)
         }
@@ -229,6 +249,14 @@ export function registerScreenshotHandlers() {
       } catch (error) {
         Logger.error('[Clipboard] Copy failed:', error)
         return success(false)
+      } finally {
+        // A snapshot that is never restored pins a NativeImage of the user's
+        // real clipboard and desynchronises the stack: once the stack filled
+        // up, snapshotClipboard() stopped pushing and the clipboard was
+        // overwritten without any way back to the original content.
+        if (snapshotPushed && !writeSucceeded) {
+          discardClipboardSnapshot()
+        }
       }
     },
     requireTrustedIpcSender,

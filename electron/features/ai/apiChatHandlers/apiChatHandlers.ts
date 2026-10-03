@@ -182,8 +182,9 @@ export function registerApiChatHandlers() {
         }
 
         const bodyJson = JSON.stringify(body)
-        if (Buffer.byteLength(bodyJson, 'utf-8') > MAX_REQUEST_BODY_SIZE) {
-          const sizeMb = (Buffer.byteLength(bodyJson, 'utf-8') / (1024 * 1024)).toFixed(1)
+        const bodyByteLength = Buffer.byteLength(bodyJson, 'utf-8')
+        if (bodyByteLength > MAX_REQUEST_BODY_SIZE) {
+          const sizeMb = (bodyByteLength / (1024 * 1024)).toFixed(1)
           Logger.warn(`[apiChatHandlers] Request body too large: ${sizeMb} MB`)
           return failure(
             'invalid_input',
