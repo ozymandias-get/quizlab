@@ -43,8 +43,6 @@ vi.mock('../../app/constants', () => ({
 
 vi.mock('../../core/logger', () => ({
   Logger: {
-    trace: vi.fn(),
-    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()
@@ -167,63 +165,6 @@ describe('cacheMonitor', () => {
     expect(result).toHaveProperty('tempFiles')
     expect(result).toHaveProperty('total')
     expect(typeof result.total).toBe('number')
-  })
-
-  it('records scan telemetry so a stall can be correlated with a walk', async () => {
-    // The recursive walk is the only recurring main-process job expensive
-    // enough to show up as renderer input latency. Without duration and
-    // files-visited counters there is no way to tell a cache-scan stall apart
-    // from a GPU or automation stall in a bug report.
-    vi.doMock('fs', () => {
-      const fileEntry = (name: string) => ({
-        name,
-        isDirectory: () => false,
-        isFile: () => true,
-        isSymbolicLink: () => false
-      })
-      return {
-        default: {
-          promises: {
-            stat: vi.fn(async () => ({
-              isDirectory: () => true,
-              isFile: () => false,
-              isSymbolicLink: () => false,
-              size: 0,
-              mtimeMs: 0
-            })),
-            readdir: vi.fn(async (p: string) =>
-              p.endsWith('Cache') || p.endsWith('Cache_Data')
-                ? [fileEntry('f_000001'), fileEntry('f_000002')]
-                : []
-            ),
-            lstat: vi.fn(async () => ({
-              isDirectory: () => false,
-              isFile: () => true,
-              isSymbolicLink: () => false,
-              size: 1024,
-              mtimeMs: 0
-            }))
-          }
-        },
-        promises: {
-          stat: vi.fn(),
-          readdir: vi.fn(),
-          lstat: vi.fn()
-        }
-      }
-    })
-
-    const { measureCacheBreakdown, getLastCacheScanTelemetry } =
-      await import('../../core/cacheMonitor.js')
-    expect(getLastCacheScanTelemetry()).toBeNull()
-
-    await measureCacheBreakdown()
-    const telemetry = getLastCacheScanTelemetry()
-
-    expect(telemetry).not.toBeNull()
-    expect(telemetry!.filesVisited).toBeGreaterThan(0)
-    expect(typeof telemetry!.durationMs).toBe('number')
-    expect(telemetry!.directoriesVisited).toBeGreaterThan(0)
   })
 })
 

@@ -32,37 +32,35 @@ export function useWebviewEvents({
     const wv = webviewElement
     if (!wv) return
 
-    const subscriptions: Array<[string, EventListener]> = [
-      ['did-start-loading', onStartLoading],
-      ['did-stop-loading', onStopLoading],
-      ['did-fail-load', onFailLoad],
-      ['new-window', onNewWindow],
-      ['dom-ready', onDomReady],
-      ['render-process-gone', onCrashed],
-      ['did-navigate-in-page', onDidNavigateInPage]
-    ]
-    if (onDidNavigate) subscriptions.push(['did-navigate', onDidNavigate])
-
-    for (const [event, handler] of subscriptions) {
-      wv.addEventListener(event, handler)
+    wv.addEventListener('did-start-loading', onStartLoading)
+    wv.addEventListener('did-stop-loading', onStopLoading)
+    wv.addEventListener('did-fail-load', onFailLoad)
+    wv.addEventListener('new-window', onNewWindow)
+    wv.addEventListener('dom-ready', onDomReady)
+    wv.addEventListener('render-process-gone', onCrashed)
+    if (onDidNavigate) {
+      wv.addEventListener('did-navigate', onDidNavigate)
     }
+    wv.addEventListener('did-navigate-in-page', onDidNavigateInPage)
 
     return () => {
-      // SECURITY: Wrap each removal individually because calling methods on a
-      // destroyed <webview> element throws "Object has been destroyed" which
-      // crashes the entire renderer process. The webview may be destroyed
-      // before the React cleanup runs (e.g. rapid tab switching, crash
-      // recovery).
-      //
-      // One try/catch around the whole block would let the first throw skip
-      // every remaining removeEventListener, so a single destroy race could
-      // leave the other listeners registered on a still-live element.
-      for (const [event, handler] of subscriptions) {
-        try {
-          wv.removeEventListener(event, handler)
-        } catch {
-          // Webview was already destroyed — nothing to clean up for this event
+      // SECURITY: Wrap in try/catch because calling methods on a destroyed
+      // <webview> element throws "Object has been destroyed" which crashes
+      // the entire renderer process.  The webview may be destroyed before
+      // the React cleanup runs (e.g. rapid tab switching, crash recovery).
+      try {
+        wv.removeEventListener('did-start-loading', onStartLoading)
+        wv.removeEventListener('did-stop-loading', onStopLoading)
+        wv.removeEventListener('did-fail-load', onFailLoad)
+        wv.removeEventListener('new-window', onNewWindow)
+        wv.removeEventListener('dom-ready', onDomReady)
+        wv.removeEventListener('render-process-gone', onCrashed)
+        if (onDidNavigate) {
+          wv.removeEventListener('did-navigate', onDidNavigate)
         }
+        wv.removeEventListener('did-navigate-in-page', onDidNavigateInPage)
+      } catch {
+        // Webview was already destroyed — nothing to clean up
       }
     }
   }, [
