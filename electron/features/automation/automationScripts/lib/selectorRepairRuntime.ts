@@ -23,7 +23,7 @@ import {
   REPAIR_SCORE_BONUS_INTERACTIVE,
   REPAIR_SCORE_BONUS_MAX,
   REPAIR_SCORE_BONUS_STABLE_SELECTOR
-} from '../../../../../shared/selectorRepair.js'
+} from '../../../../../shared/selectorRepair/index.js'
 import { buildInjectedStableSelectorHelper } from '../../lib/injectedPickerDom.js'
 
 /** Mirrors `SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD` in shared/selectorRepair.ts. */
