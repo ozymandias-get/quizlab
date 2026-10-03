@@ -33,31 +33,6 @@ const TRANSIENT_ERROR_CODES = new Set([
   ERROR_CODE_CONNECTION_FAILED
 ])
 
-/**
- * Guest-side cancel script run on every navigation.
- *
- * 1. `__quizlabAbortController.abort()` stops in-flight automation waits: the
- *    50 ms `__eventDrivenWait` MutationObserver loop and the 250 ms
- *    `resolveWithFallback` poll. Without this they run to their full 8-15 s
- *    budget while the page they were inspecting is being replaced.
- *
- * 2. `_aiPickerCleanup()` tears the element picker down. The picker's
- *    `iframeObserver` watches `document.documentElement` with
- *    `{ subtree: true }` and, for every mutation batch it sees, runs a
- *    whole-document `querySelectorAll('iframe')`. An SPA route change keeps the
- *    JS realm alive, so without this the armed picker survived the navigation
- *    and kept that full-subtree observer, plus its per-iframe-document
- *    observers and seven capture-phase listeners, attached to a page that no
- *    longer had an overlay to pick from. Only a full document load destroys
- *    the realm implicitly.
- *
- * Re-injecting the picker is the job of `startPicker`, which runs the cleanup
- * block again at the top of the script.
- */
-const NAVIGATION_CANCEL_SCRIPT =
-  'try{window.__quizlabAbortController&&window.__quizlabAbortController.abort()}catch(e){}' +
-  'try{window._aiPickerCleanup&&window._aiPickerCleanup()}catch(e){}'
-
 const WEBVIEW_SCROLLBAR_CSS = `
   html, body {
     scrollbar-width: thin;
@@ -199,14 +174,16 @@ export function useWebviewEventHandlers({
 
   const cssInjectedRef = useRef(new WeakSet<object>())
 
-  // Best-effort teardown of everything the host injected into the guest page:
-  // in-flight automation runs (wait loops, MutationObservers) and the element
-  // picker overlay. Runs on SPA navigation / new-chat transitions instead of
-  // letting them continue on a page that is being replaced.
-  const teardownGuestState = useCallback((wv: WebviewElement | null) => {
+  // Best-effort abort of any in-flight automation run (wait loops,
+  // MutationObservers) on the guest page. SPA navigation / new-chat must
+  // cancel pending waits immediately instead of letting them run until their
+  // timeout budget; each subsequent script installs a fresh controller.
+  const abortPendingAutomation = useCallback((wv: WebviewElement | null) => {
     if (!wv) return
     try {
-      const promise = wv.executeJavaScript?.(NAVIGATION_CANCEL_SCRIPT)
+      const promise = wv.executeJavaScript?.(
+        'try{window.__quizlabAbortController&&window.__quizlabAbortController.abort()}catch(e){}'
+      )
       promise?.catch(() => {})
     } catch {
       // Navigation may already have destroyed the guest context — safe to skip
@@ -233,26 +210,26 @@ export function useWebviewEventHandlers({
     (event: Event) => {
       const url = extractEventUrl(event)
 
-      teardownGuestState(activeWebviewRef.current)
+      abortPendingAutomation(activeWebviewRef.current)
 
       if (!url) return
 
       const onUrlChangeCb = onUrlChangeRef.current
       if (onUrlChangeCb) onUrlChangeCb(url)
     },
-    [teardownGuestState, activeWebviewRef, onUrlChangeRef]
+    [abortPendingAutomation, activeWebviewRef, onUrlChangeRef]
   )
 
   const handleDidNavigate = useCallback(
     (event: Event) => {
       const url = extractEventUrl(event)
 
-      teardownGuestState(activeWebviewRef.current)
+      abortPendingAutomation(activeWebviewRef.current)
 
       const onUrlChangeCb = onUrlChangeRef.current
       if (url && onUrlChangeCb) onUrlChangeCb(url)
     },
-    [teardownGuestState, activeWebviewRef, onUrlChangeRef]
+    [abortPendingAutomation, activeWebviewRef, onUrlChangeRef]
   )
 
   return {

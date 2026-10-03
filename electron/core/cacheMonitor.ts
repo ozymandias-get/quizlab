@@ -2,8 +2,6 @@ import { app } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { Logger } from './logger.js'
-
 export interface DirectorySizeResult {
   totalBytes: number
   fileCount: number
@@ -43,29 +41,6 @@ export interface CacheFileEntry {
   relativePath: string
   size: number
   mtimeMs: number
-}
-
-/**
- * Telemetry for the last completed `measureCacheBreakdown()` walk.
- *
- * The walk is the single most expensive recurring filesystem job in the main
- * process: on the reference machine a 4.7k-file / 386 MB profile took ~405 ms
- * and issued ~6,000 sequential `fs` calls, each of which resumes as its own
- * event-loop turn while Chromium's browser-side IPC competes for the same loop.
- * Recording the cost lets a report correlate a user-visible stall with a scan
- * instead of guessing.
- */
-export interface CacheScanTelemetry {
-  durationMs: number
-  filesVisited: number
-  directoriesVisited: number
-  at: number
-}
-
-let lastScanTelemetry: CacheScanTelemetry | null = null
-
-export function getLastCacheScanTelemetry(): CacheScanTelemetry | null {
-  return lastScanTelemetry
 }
 
 /**
@@ -159,9 +134,7 @@ async function collectCacheFiles(dirPath: string, userDataPath: string): Promise
 }
 
 export async function measureCacheBreakdown(): Promise<CacheBreakdown> {
-  const startedAt = Date.now()
   const userDataPath = app.getPath('userData')
-  Logger.debug('[CacheMonitor] scan start')
 
   const [rootCache, rootCodeCache, rootGpuCache] = await Promise.all([
     getDirectorySize(path.join(userDataPath, 'Cache')),
@@ -171,7 +144,6 @@ export async function measureCacheBreakdown(): Promise<CacheBreakdown> {
 
   const partitionCaches: Record<string, number> = {}
   let tempFiles = 0
-  let filesVisited = rootCache.fileCount + rootCodeCache.fileCount + rootGpuCache.fileCount
 
   try {
     const partitionsDir = path.join(userDataPath, 'Partitions')
@@ -183,7 +155,6 @@ export async function measureCacheBreakdown(): Promise<CacheBreakdown> {
       for (const cacheDir of ['Cache', 'Code Cache', 'GPUCache']) {
         const dirSize = await getDirectorySize(path.join(partitionPath, cacheDir))
         partitionTotal += dirSize.totalBytes
-        filesVisited += dirSize.fileCount
       }
       partitionCaches[entry.name] = partitionTotal
     }
@@ -217,18 +188,6 @@ export async function measureCacheBreakdown(): Promise<CacheBreakdown> {
     rootGpuCache.totalBytes +
     Object.values(partitionCaches).reduce((a, b) => a + b, 0) +
     tempFiles
-
-  const durationMs = Date.now() - startedAt
-  lastScanTelemetry = {
-    durationMs,
-    filesVisited,
-    directoriesVisited: Object.keys(partitionCaches).length + 3,
-    at: Date.now()
-  }
-  Logger.debug(
-    `[CacheMonitor] scan finish duration=${durationMs}ms files=${filesVisited} ` +
-      `partitions=${Object.keys(partitionCaches).length} total=${(total / 1048576).toFixed(1)}MB`
-  )
 
   return {
     chromiumCache: rootCache.totalBytes,

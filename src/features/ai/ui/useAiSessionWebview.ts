@@ -11,12 +11,6 @@ export function useAiSessionSleep(
   modelId: string
 ) {
   const [isSleeping, setIsSleeping] = useState(false)
-  // Bumped on a manual wake-up so the sleep effect re-arms. Without it the
-  // effect only re-runs when isActive / sleepTimeoutMs / modelId change, so an
-  // inactive tab that the user woke from SleepPlaceholderView kept its
-  // <webview> mounted forever: maxAliveTabs only bounds *which* sessions stay
-  // alive, the sleep budget is what is supposed to release a non-active one.
-  const [wakeGeneration, setWakeGeneration] = useState(0)
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | undefined
@@ -32,11 +26,10 @@ export function useAiSessionSleep(
     return () => {
       if (timeout !== undefined) clearTimeout(timeout)
     }
-  }, [isActive, sleepTimeoutMs, modelId, isNeverSleepSite, wakeGeneration])
+  }, [isActive, sleepTimeoutMs, modelId, isNeverSleepSite])
 
   const handleWakeUp = useCallback(() => {
     setIsSleeping(false)
-    setWakeGeneration((generation) => generation + 1)
   }, [])
 
   return { isSleeping, setIsSleeping, handleWakeUp }

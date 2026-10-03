@@ -129,34 +129,3 @@
     animation: none !important;
   }
 }
-
-/**
- * Low-power mode.
- *
- * `AppEffects` adds `.low-perf` to <html> when the host is a reduced-motion
- * machine, has <= 4 logical cores or reports <= 4 GB of device memory. The class
- * used to have no rules at all, so low-end machines paid the full price of the
- * ambient layers even though the class claimed they did not.
- *
- * These are the only two continuously animating surfaces in the shell, and both
- * combine a 70px blur radius with `mix-blend-mode`, which forces the compositor
- * to read back the backdrop underneath them on every frame they are not idle.
- * On a software or heavily contended GPU that competes directly with the frame
- * budget the AI <webview> and the pdf.js canvas need, so we drop the animation,
- * the layer promotion and the blend, and shrink the blur. The static gradient
- * of the parent element is untouched, so the palette still reads the same.
- */
-
-.low-perf .app-ambient-background::before,
-.low-perf .app-ambient-background::after {
-  animation: none;
-  animation-play-state: paused;
-  filter: blur(18px);
-  mix-blend-mode: normal;
-  opacity: 0.45;
-  will-change: auto;
-}
-
-.low-perf .app-ambient-background .bg-noise {
-  display: none;
-}

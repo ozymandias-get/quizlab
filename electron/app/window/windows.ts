@@ -53,27 +53,7 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
       spellcheck: false,
       allowRunningInsecureContent: false,
       experimentalFeatures: false,
-      // `backgroundThrottling` is deliberately left at the Chromium/Electron
-      // default (`true`). It was previously hard-disabled here, which per the
-      // Electron docs defeated two things this app depends on:
-      //
-      //  1. "When at least one webContents displayed in a single browserWindow
-      //     has disabled backgroundThrottling then frames will be drawn and
-      //     swapped for the whole window and other webContents displayed by
-      //     it." — so every hidden/sleeping AI guest webview (which declares
-      //     `backgroundThrottling=yes` in AiSession.tsx) kept getting frames
-      //     produced and swapped while the window was in the background.
-      //  2. "This also affects the Page Visibility API." — `document.hidden`
-      //     never became true, so every `visibilitychange` consumer in the
-      //     renderer was dead: AppEffects' pauseAmbientAnimations(),
-      //     the bottom-bar particle canvas, AestheticLoader's interval, and
-      //     the reading-progress / zustand persistence flushes.
-      //
-      // Restoring the default stops the ambient blur animations, the particle
-      // canvas and the PDF/React shell from producing frames while the window
-      // is not in the foreground, which is what caused the cumulative
-      // CPU/GPU saturation users saw after extended use.
-      backgroundThrottling: true
+      backgroundThrottling: false
     }
   })
 }

@@ -13,41 +13,17 @@ import {
   startIdleDetection,
   stopIdleDetection
 } from './cacheCleanup/index.js'
-import { measureSmartCacheBreakdown, type SmartCacheBreakdown } from './cacheMonitor.js'
+import { measureSmartCacheBreakdown } from './cacheMonitor.js'
 import { Logger } from './logger.js'
 import { getCachePressure, shouldTriggerAutoClean, SMART_CACHE_CONFIG } from './smartCachePolicy.js'
 
 const IDLE_REPEAT_INTERVAL_MS = 30 * 60 * 1000 // 30 dakika
 const SMART_CHECK_INTERVAL_MS = 5 * 60 * 1000 // 5 dakika akıllı baskı kontrolü
 
-/**
- * Foreground full-tree scans are the expensive part of the tick, not the tick
- * itself: `measureSmartCacheBreakdown()` recursively stats every file under
- * Cache/Code Cache/GPUCache of the root profile and of all 14 AI partitions.
- * Measured on the reference machine that was ~405 ms and ~6,000 sequential
- * `fs` calls for a 4.7k-file profile, i.e. ~6,000 event-loop turns inside the
- * main process while Chromium's browser-side IPC has to share the same loop.
- * A heavily used profile (the v6.4 note quoted ~76.5k files) scales that to
- * several seconds.
- *
- * The 5-minute tick therefore stays, but it only re-walks the tree when the
- * cached measurement is older than this budget; otherwise it reuses the cached
- * breakdown. Nothing about cleanup correctness changes: every delete decision
- * still comes from a fresh measurement, because `enforceSizeLimits()` re-walks
- * the tree itself before it unlinks anything, and `runQuickCheck()` is handed
- * the known total only to decide *whether* to call it.
- */
-const FOREGROUND_FULL_SCAN_MIN_INTERVAL_MS = 30 * 60 * 1000 // 30 dakika
-
 // Otomatik temizlik durumu
 let lastAutoCleanAt: number | null = null
 let autoCleanEnabled: boolean = SMART_CACHE_CONFIG.AUTO_CLEAN_ENABLED_DEFAULT
 let isAutoCleaning = false
-
-// Son tam ölçümün sonucu ve zamanı (foreground tick'in yeniden kullanacağı cache)
-let cachedBreakdown: SmartCacheBreakdown | null = null
-let cachedBreakdownAt = 0
-let inFlightMeasurement: Promise<SmartCacheBreakdown> | null = null
 
 export function getAutoCleanConfig() {
   return {
@@ -67,55 +43,12 @@ function markAutoCleanExecuted(): void {
 }
 
 /**
- * Returns a pressure breakdown, reusing the last full walk while it is still
- * inside `FOREGROUND_FULL_SCAN_MIN_INTERVAL_MS`.
- *
- * A walk already in flight is awaited rather than started a second time, so a
- * slow tree can never queue overlapping scans back to back.
- */
-async function measurePressureWithCooldown(): Promise<{
-  breakdown: SmartCacheBreakdown
-  scanned: boolean
-}> {
-  if (inFlightMeasurement) {
-    // A walk is already in progress — join it instead of starting a second one,
-    // so a slow tree can never stack overlapping scans on the main-process loop.
-    return { breakdown: await inFlightMeasurement, scanned: false }
-  }
-
-  const now = Date.now()
-  if (cachedBreakdown && now - cachedBreakdownAt < FOREGROUND_FULL_SCAN_MIN_INTERVAL_MS) {
-    return { breakdown: cachedBreakdown, scanned: false }
-  }
-
-  const pending = measureSmartCacheBreakdown().then((breakdown) => {
-    cachedBreakdown = breakdown
-    cachedBreakdownAt = Date.now()
-    return breakdown
-  })
-  inFlightMeasurement = pending
-  try {
-    return { breakdown: await pending, scanned: true }
-  } finally {
-    inFlightMeasurement = null
-  }
-}
-
-/**
  * Akıllı foreground kontrol: boyut + TTL + baskı seviyesi
  * Baskı yüksekse otomatik temizlik tetikler (throttled)
  */
 async function runSmartForegroundCheck(): Promise<void> {
   try {
-    const { breakdown, scanned } = await measurePressureWithCooldown()
-    if (!scanned) {
-      Logger.debug(
-        `[CacheScheduler] Reusing cache measurement (age=${Math.round(
-          (Date.now() - cachedBreakdownAt) / 1000
-        )}s, budget=${FOREGROUND_FULL_SCAN_MIN_INTERVAL_MS / 1000}s)`
-      )
-    }
-
+    const breakdown = await measureSmartCacheBreakdown()
     const pressure = getCachePressure(breakdown.total)
 
     if (pressure.level !== 'normal') {
@@ -228,7 +161,6 @@ export function startCacheScheduler(): void {
 
   Logger.info(
     `[CacheScheduler] Started: smart=${SMART_CHECK_INTERVAL_MS / 1000}s, ` +
-      `fullScanMin=${FOREGROUND_FULL_SCAN_MIN_INTERVAL_MS / 1000}s, ` +
       `idleRepeat=${IDLE_REPEAT_INTERVAL_MS / 1000}s ` +
       `(autoClean=${autoCleanEnabled ? 'on' : 'off'})`
   )
@@ -238,11 +170,6 @@ export function stopCacheScheduler(): void {
   clearSmartTimer()
   clearIdleRepeatTimer()
   stopIdleDetection()
-
-  // Drop the cached measurement with the scheduler: a later restart must take a
-  // fresh reading rather than trust a breakdown from a previous run.
-  cachedBreakdown = null
-  cachedBreakdownAt = 0
 
   Logger.info('[CacheScheduler] Stopped')
 }
