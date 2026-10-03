@@ -136,6 +136,50 @@ describe('encryptValue', () => {
       cipherSpy.mockRestore()
     }
   })
+
+  it('derives the AES key once per scheme version, not once per call', () => {
+    // deriveAesKey() is a pure function of process.env values, which cannot
+    // change while the process runs. Re-deriving meant a 200k-iteration PBKDF2
+    // (~80 ms measured) ran synchronously on the main thread for every
+    // `aes:` value, and aesDecrypt() tries v3 then v2, so a legacy value paid
+    // it twice — per secret, per chat request.
+    const pbkdf2Spy = vi.spyOn(crypto, 'pbkdf2Sync')
+    try {
+      mockIsEncryptionAvailable.mockReturnValue(false)
+
+      const secrets = ['first-secret', 'second-secret', 'third-secret']
+      const roundTripped = secrets.map((secret) => {
+        const encrypted = encryptValue(secret)
+        expect(decryptValue(encrypted)).toBe(secret)
+        return secret
+      })
+
+      expect(roundTripped).toEqual(secrets)
+      // Derivation count must not scale with the number of secrets. It is 0 when
+      // an earlier test in this file already warmed the cache, 1 on a cold
+      // module — never 3, and never 6 (v3 + v2 fallback per secret).
+      expect(pbkdf2Spy.mock.calls.length).toBeLessThanOrEqual(1)
+    } finally {
+      pbkdf2Spy.mockRestore()
+    }
+  })
+
+  it('does not re-derive the key across many decryptions', () => {
+    const pbkdf2Spy = vi.spyOn(crypto, 'pbkdf2Sync')
+    try {
+      mockIsEncryptionAvailable.mockReturnValue(false)
+      const encrypted = encryptValue('repeat-me')
+      pbkdf2Spy.mockClear()
+
+      for (let i = 0; i < 25; i++) {
+        expect(decryptValue(encrypted)).toBe('repeat-me')
+      }
+
+      expect(pbkdf2Spy).not.toHaveBeenCalled()
+    } finally {
+      pbkdf2Spy.mockRestore()
+    }
+  })
 })
 
 describe('decryptValue', () => {

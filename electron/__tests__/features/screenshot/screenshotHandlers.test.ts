@@ -240,6 +240,51 @@ describe('screenshotHandlers', () => {
     expect(writeHTML).toHaveBeenCalledWith('<b>rich text</b>')
   })
 
+  it('does not leak a snapshot when the clipboard write fails', async () => {
+    // A snapshot that is pushed for a write that never lands used to stay on
+    // the stack forever. That pinned a NativeImage of the user's real clipboard
+    // and, once the stack filled, left later sends overwriting the clipboard
+    // with no way to restore it.
+    requireTrustedIpcSender.mockReturnValue(true)
+    readText.mockReturnValue('previous user text')
+    createFromDataURL.mockReturnValue({ isEmpty: () => false })
+    writeImage.mockImplementation(() => {
+      throw new Error('clipboard locked')
+    })
+
+    const { registerScreenshotHandlers } =
+      await import('../../../features/screenshot/screenshotHandlers.js')
+    registerScreenshotHandlers()
+
+    const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+    const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+    // Three retries are attempted and all fail.
+    for (let i = 0; i < 3; i++) {
+      await expect(copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')).resolves.toEqual({
+        ok: true,
+        data: false
+      })
+    }
+    // Each of the three calls exhausts its three write attempts.
+    expect(writeImage).toHaveBeenCalledTimes(9)
+
+    // The failed writes never replaced the clipboard, so there is nothing to
+    // restore and no orphaned snapshot left behind.
+    expect(await restoreHandler?.({ sender: {} })).toEqual({ ok: true, data: false })
+    expect(writeText).not.toHaveBeenCalled()
+
+    // A later successful copy must still capture and restore the user's text.
+    writeImage.mockImplementation(() => undefined)
+    readText.mockReturnValue('previous user text')
+    await expect(copyHandler?.({ sender: {} }, 'data:image/png;base64,abc')).resolves.toEqual({
+      ok: true,
+      data: true
+    })
+    expect(await restoreHandler?.({ sender: {} })).toEqual({ ok: true, data: true })
+    expect(writeText).toHaveBeenCalledWith('previous user text')
+  })
+
   it('captures the whole page when sender is trusted and window exists', async () => {
     requireTrustedIpcSender.mockReturnValue(true)
     const capturePage = vi.fn().mockResolvedValue({ toDataURL: () => 'data:image/png;base64,page' })

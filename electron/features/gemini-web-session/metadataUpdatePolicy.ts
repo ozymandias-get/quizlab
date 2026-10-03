@@ -36,13 +36,25 @@ export class MetadataUpdatePolicy {
   private async serializedWrite<T>(fn: () => Promise<T>): Promise<T> {
     const WRITE_TIMEOUT_MS = 30_000
 
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Serialized write timeout')), WRITE_TIMEOUT_MS)
-    )
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () => reject(new Error('Serialized write timeout')),
+        WRITE_TIMEOUT_MS
+      )
+      // A pending timer must not hold the event loop open once the lock is idle.
+      timeoutHandle.unref?.()
+    })
 
     const withTimeout = async (): Promise<T> => {
-      const result = await Promise.race([fn(), timeoutPromise])
-      return result
+      try {
+        return await Promise.race([fn(), timeoutPromise])
+      } finally {
+        // Without this the 30s timer stayed armed after every settled write,
+        // pinning its closure (and rejecting into an already-settled race) for
+        // the full timeout window on each setEnabled/setEnabledApps call.
+        clearTimeout(timeoutHandle)
+      }
     }
 
     const next = this.writeLock.then(withTimeout, withTimeout)

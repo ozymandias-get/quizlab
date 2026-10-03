@@ -72,6 +72,9 @@ vi.mock('@electron/core/logger', () => ({
 
 const { startCacheScheduler, stopCacheScheduler } = await import('@electron/core/cacheScheduler')
 
+/** Mirrors SMART_CHECK_INTERVAL_MS in cacheScheduler.ts. */
+const SMART_TICK_MS = 5 * 60 * 1000
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.useFakeTimers()
@@ -107,12 +110,87 @@ describe('cacheScheduler', () => {
       expect(mockStartIdleDetection).toHaveBeenCalledTimes(1)
     })
 
-    it('calls runQuickCheck every 15 min', async () => {
+    it('calls runQuickCheck on every scheduled tick', async () => {
       startCacheScheduler()
-      vi.advanceTimersByTime(60 * 60 * 1000) // 1 hour → at least 4 foreground + smart checks
+      vi.advanceTimersByTime(15 * 60 * 1000)
       await vi.advanceTimersByTimeAsync(0)
       await Promise.resolve()
-      expect(mockRunQuickCheck.mock.calls.length).toBeGreaterThanOrEqual(4)
+      expect(mockRunQuickCheck.mock.calls.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('hands the already-measured total to runQuickCheck instead of re-walking', async () => {
+      // runSmartForegroundCheck already measured the whole userData tree to
+      // derive the pressure level. Re-measuring it inside runQuickCheck doubled
+      // the recursive directory walks on every tick.
+      mockMeasureSmartBreakdown.mockResolvedValueOnce({
+        total: 12345,
+        chromiumCache: 0,
+        codeCache: 0,
+        gpuCache: 0,
+        partitionCaches: {},
+        tempFiles: 0,
+        pressureLevel: 'normal' as const,
+        pressurePercentage: 0,
+        recommendation: {
+          action: 'none',
+          reason: 'normal',
+          targetPartitions: [],
+          estimatedFreeBytes: 0
+        },
+        partitionDetails: []
+      })
+
+      startCacheScheduler()
+      vi.advanceTimersByTime(SMART_TICK_MS)
+      await vi.advanceTimersByTimeAsync(0)
+      await Promise.resolve()
+
+      expect(mockRunQuickCheck).toHaveBeenCalledWith(12345)
+    })
+
+    it('hands the already-measured total to runQuickCheck in the auto-clean branch too', async () => {
+      // Moderate pressure takes the runQuickCheck() auto-clean path, which had
+      // the same redundant re-walk as the normal path.
+      const { shouldTriggerAutoClean } = await import('@electron/core/smartCachePolicy')
+      vi.mocked(shouldTriggerAutoClean).mockReturnValueOnce(true)
+
+      mockMeasureSmartBreakdown.mockResolvedValueOnce({
+        total: 777,
+        chromiumCache: 0,
+        codeCache: 0,
+        gpuCache: 0,
+        partitionCaches: {},
+        tempFiles: 0,
+        pressureLevel: 'moderate' as const,
+        pressurePercentage: 60,
+        recommendation: {
+          action: 'none',
+          reason: 'moderate',
+          targetPartitions: [],
+          estimatedFreeBytes: 0
+        },
+        partitionDetails: []
+      })
+
+      startCacheScheduler()
+      vi.advanceTimersByTime(SMART_TICK_MS)
+      await vi.advanceTimersByTimeAsync(0)
+      await Promise.resolve()
+
+      expect(mockRunQuickCheck).toHaveBeenCalledWith(777)
+    })
+
+    it('drives the smart check from a single timer', async () => {
+      // A 15-minute foreground timer used to call the exact same function as
+      // the 5-minute smart timer, so every 15-minute boundary paid for a second
+      // full tree walk. One hour must now produce exactly 12 ticks, not 12 + 4.
+      startCacheScheduler()
+
+      vi.advanceTimersByTime(60 * 60 * 1000)
+      await vi.advanceTimersByTimeAsync(0)
+      await Promise.resolve()
+
+      expect(mockRunQuickCheck).toHaveBeenCalledTimes(12)
     })
 
     it('idle detection callback triggers runIdleCleanup', () => {

@@ -100,6 +100,26 @@ describe('window/sessions', () => {
     })
   })
 
+  it('answers the display media callback exactly once when the grant path throws', async () => {
+    // Electron invokes a permission callback exactly once. Previously the grant
+    // path was inside the try, so a throw there made the catch call the callback
+    // a second time.
+    getSources.mockResolvedValue([{ id: 'screen:1', name: 'Display 1' }])
+    showDisplayMediaPicker.mockResolvedValue(0)
+    const module = await import('../../../app/window/sessions.js')
+
+    module.setupAiSession('persist:ai_display_media_throw')
+
+    const displayHandler = lastHandler(setDisplayMediaRequestHandler)
+    const callback = vi.fn(() => {
+      throw new Error('renderer went away')
+    })
+    displayHandler({ videoRequested: true }, callback)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(callback).toHaveBeenCalledTimes(1)
+  })
+
   it('preserves the Chrome User-Agent override', async () => {
     const module = await import('../../../app/window/sessions.js')
     module.setupAiSession('persist:ai_chatgpt')

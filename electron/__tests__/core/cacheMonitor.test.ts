@@ -38,7 +38,6 @@ describe('getDirectorySize', () => {
     const result = await getDirectorySize(tempDir)
     expect(result.totalBytes).toBe(0)
     expect(result.fileCount).toBe(0)
-    expect(result.entrySizes.size).toBe(0)
   })
 
   it('counts a single file', async () => {
@@ -80,11 +79,21 @@ describe('getDirectorySize', () => {
     expect(result.fileCount).toBe(0)
   })
 
-  it('maps entry sizes correctly', async () => {
-    const filePath = path.join(tempDir, 'entry.txt')
-    writeFileSync(filePath, 'entry-data')
+  it('exposes only aggregate totals, with no per-file accumulation', async () => {
+    // The walk used to build an `entrySizes` Map with one entry per file, which
+    // nothing in production read and which cost ~8% of every cache scheduler
+    // tick on a realistic cache tree. The result shape is pinned here so the
+    // dead per-file state cannot quietly come back.
+    const subDir = path.join(tempDir, 'sub')
+    mkdirSync(subDir)
+    writeFileSync(path.join(tempDir, 'a.txt'), 'aaa')
+    writeFileSync(path.join(subDir, 'b.txt'), 'bbbb')
+
     const result = await getDirectorySize(tempDir)
-    expect(result.entrySizes.get(filePath)).toBe(10)
+
+    expect(Object.keys(result).sort()).toEqual(['fileCount', 'totalBytes'])
+    expect(result.fileCount).toBe(2)
+    expect(result.totalBytes).toBe(7)
   })
 })
 

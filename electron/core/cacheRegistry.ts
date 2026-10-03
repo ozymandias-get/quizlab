@@ -137,6 +137,22 @@ function buildProtectedDirs(): Set<string> {
 const protectedFiles = buildProtectedFiles()
 const protectedDirs = buildProtectedDirs()
 
+/**
+ * Partition storage sub-directories that hold session/credential state and must
+ * never be swept. Hoisted to module scope: `isProtectedPath` runs once per file
+ * inside the delete batch loop, and allocating this Set per call produced churn
+ * proportional to the number of files removed.
+ */
+const PROTECTED_PARTITION_STORAGE = new Set([
+  'cookies',
+  'localstorage',
+  'indexdb',
+  'databases',
+  'Session Storage',
+  'IndexedDB',
+  'Local Storage'
+])
+
 const BASE_RULES: CacheRule[] = SAFE_CACHE_DIRS.map((dir) => ({
   relativePath: dir,
   category: 'cache' as CacheCategory,
@@ -212,16 +228,7 @@ export function isProtectedPath(targetPath: string, userDataPath: string): boole
 
   if (segments[0] === 'Partitions' && segments.length >= 4) {
     const storageSubdir = segments[segments.length - 2]
-    const protectedStorage = new Set([
-      'cookies',
-      'localstorage',
-      'indexdb',
-      'databases',
-      'Session Storage',
-      'IndexedDB',
-      'Local Storage'
-    ])
-    if (protectedStorage.has(storageSubdir)) return true
+    if (PROTECTED_PARTITION_STORAGE.has(storageSubdir)) return true
   }
 
   return false

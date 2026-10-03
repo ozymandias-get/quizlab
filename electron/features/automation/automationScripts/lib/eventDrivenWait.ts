@@ -129,6 +129,15 @@ export const eventDrivenWaitRuntime = `    /**
                 }
 
                 // Observer'ı bekle — ama timeoutMs'i aşma.
+                //
+                // 50 ms tabanı kasıtlıdır ve kaldırılmamalıdır: check() →
+                // isReadyForInteraction → describeNotReady, getComputedStyle ve
+                // offsetWidth/offsetHeight okuyor. Bunlar DOM mutasyonu OLMADAN
+                // da değişebilir (pencere resize, CSS transition, font yüklenmesi),
+                // dolayısıyla gözlemci uyanmadan hazırlık durumu değişebilir.
+                // Sabit 50 ms'lik tur sayısı düşük etkilidir (tek bekleme
+                // çağrısı, settle + timeout ile sınırlı) ve bu güvenlik ağı
+                // kaldırılırsa submit-ready tespiti sessizce bozulur.
                 const remaining = Math.max(1, timeoutMs - (now() - start));
                 const wakePromise = new Promise((resolve) => {
                     wakeResolve = resolve;

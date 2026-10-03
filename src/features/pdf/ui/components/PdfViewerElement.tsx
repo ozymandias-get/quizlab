@@ -65,9 +65,12 @@ function PdfViewerElement({
   }, [])
 
   useEffect(() => {
-    // When pdfUrl changes, old document is no longer active until next load
+    // When the document identity changes — a new file, or a Reload that bumps
+    // viewerReloadKey — the previously registered proxy is no longer the active
+    // one until the next load. Without viewerReloadKey in the deps, a Reload
+    // left a destroyed proxy registered for the same URL.
     clearActivePdfDocument()
-  }, [pdfUrl])
+  }, [pdfUrl, viewerReloadKey])
 
   // Stable callbacks — prevent Viewer from re-subscribing on every render
   const safePageChange = useCallback((e: { currentPage: number }) => {

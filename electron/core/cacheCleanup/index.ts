@@ -31,8 +31,13 @@ function buildResult(
  * Hafif foreground kontrolü: sadece toplam boyut ölçülür,
  * limit aşıldıysa enforceSizeLimits çalıştırılır.
  * Tam TTL taraması yapılmaz — idle/manual cleanup'e bırakılır.
+ *
+ * `knownTotalBytes` verildiğinde ölçüm tekrarlanmaz: çağıran zaten aynı ağacı
+ * taradıysa (ör. akıllı baskı kontrolü) ikinci bir tam gezintiye gerek yoktur.
+ * Ölçüm, kullanıcıData ağacının tamamı üzerinde maliyetli bir işlem olduğu için
+ * her çağrıda tekrarlanması ciddi I/O ve allocation yükü demektir.
  */
-export async function runQuickCheck(): Promise<CleanupResult> {
+export async function runQuickCheck(knownTotalBytes?: number): Promise<CleanupResult> {
   const startTime = Date.now()
   let filesDeleted = 0
   let bytesFreed = 0
@@ -40,9 +45,9 @@ export async function runQuickCheck(): Promise<CleanupResult> {
 
   try {
     const userDataPath = app.getPath('userData')
-    const breakdown = await measureCacheBreakdown()
+    const totalBytes = knownTotalBytes ?? (await measureCacheBreakdown()).total
 
-    if (breakdown.total > MAX_TOTAL_CACHE_BYTES) {
+    if (totalBytes > MAX_TOTAL_CACHE_BYTES) {
       const sizeResult = await enforceSizeLimits(userDataPath)
       filesDeleted += sizeResult.deleted
       bytesFreed += sizeResult.freed

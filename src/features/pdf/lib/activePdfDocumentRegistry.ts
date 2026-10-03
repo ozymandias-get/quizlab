@@ -9,6 +9,8 @@
 
 export interface ActivePdfDocument {
   fingerprint: string
+  /** pdf.js marks a proxy unusable once its loading task is destroyed. */
+  destroyed?: boolean
   getPage: (n: number) => Promise<{
     getViewport: (o: { scale: number }) => { width: number; height: number }
     render: (o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => {
@@ -43,11 +45,24 @@ export function clearActivePdfDocument(): void {
 }
 
 /**
- * Returns the registered document when it belongs to `pdfUrl`, so render
- * paths can reuse it instead of reloading large PDFs. Returns `null` when no
- * document is registered or the URL differs (caller must load + destroy).
+ * Returns the registered document when it belongs to `pdfUrl` AND is still
+ * alive, so render paths can reuse it instead of reloading large PDFs. Returns
+ * `null` when no document is registered, the URL differs, or the proxy has been
+ * destroyed (caller must load + destroy its own).
+ *
+ * The liveness check matters because a viewer Reload bumps only
+ * `viewerReloadKey`, which remounts <Viewer> and makes pdf.js destroy the old
+ * loading task while the owning component stays mounted. A URL-only match
+ * handed the dead proxy to capture, whose getPage() then rejected and silently
+ * degraded the capture to a screen-resolution canvas clone.
  */
 export function getActivePdfDocument(pdfUrl: string): ActivePdfDocument | null {
-  if (activePdfDocument && activePdfUrl === pdfUrl) return activePdfDocument
-  return null
+  if (!activePdfDocument || activePdfUrl !== pdfUrl) return null
+
+  if (activePdfDocument.destroyed === true) {
+    clearActivePdfDocument()
+    return null
+  }
+
+  return activePdfDocument
 }

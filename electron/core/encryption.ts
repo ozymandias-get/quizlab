@@ -37,19 +37,39 @@ function getMachineFingerprintV2(): string {
   )
 }
 
+/**
+ * Derived keys are memoized per scheme version.
+ *
+ * deriveAesKey() is a pure function of process.env values, which cannot change
+ * for the lifetime of the process, so the PBKDF2 result is stable and safe to
+ * cache. Without this, every decryptValue() of an `aes:` value re-ran a 200k
+ * iteration PBKDF2 *synchronously* on the main thread — measured at ~80 ms per
+ * derivation on this machine — and aesDecrypt() tries v3 then v2, so a legacy
+ * value paid it twice (~160 ms), per secret, per request.
+ */
+const derivedKeyCache = new Map<2 | 3, Buffer>()
+
 function deriveAesKey(version: 2 | 3): Buffer {
+  const cached = derivedKeyCache.get(version)
+  if (cached) return cached
+
+  let key: Buffer
   if (version === 3) {
     const hmac = crypto
       .createHmac('sha256', 'quizlab-machine-id-v3')
       .update(getMachineFingerprintV3())
       .digest()
-    return crypto.pbkdf2Sync(hmac, 'quizlab-aes-2026-v3', 200000, 32, 'sha256')
+    key = crypto.pbkdf2Sync(hmac, 'quizlab-aes-2026-v3', 200000, 32, 'sha256')
+  } else {
+    const hmac = crypto
+      .createHmac('sha256', 'quizlab-machine-id-v2')
+      .update(getMachineFingerprintV2())
+      .digest()
+    key = crypto.pbkdf2Sync(hmac, 'quizlab-aes-2024-v2', 200000, 32, 'sha256')
   }
-  const hmac = crypto
-    .createHmac('sha256', 'quizlab-machine-id-v2')
-    .update(getMachineFingerprintV2())
-    .digest()
-  return crypto.pbkdf2Sync(hmac, 'quizlab-aes-2024-v2', 200000, 32, 'sha256')
+
+  derivedKeyCache.set(version, key)
+  return key
 }
 
 function aesEncrypt(plaintext: string): string {

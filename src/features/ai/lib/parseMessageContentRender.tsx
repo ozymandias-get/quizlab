@@ -106,7 +106,8 @@ function renderLine(line: string, lineIndex: number): ReactNode {
 
 function parseTableBlock(
   lines: string[],
-  startIdx: number
+  startIdx: number,
+  keyOffset: number
 ): { table: ReactNode; consumed: number } | null {
   if (startIdx + 2 >= lines.length) return null
   const headerLine = lines[startIdx].trim()
@@ -131,9 +132,45 @@ function parseTableBlock(
   }
 
   return {
-    table: <Table key={`tbl-${startIdx}`} headers={headers} rows={rows} />,
+    table: <Table key={`tbl-${startIdx + keyOffset}`} headers={headers} rows={rows} />,
     consumed: i - startIdx
   }
+}
+
+/**
+ * Renders one text segment (the prose between two code blocks, or the trailing
+ * prose after the last one) and appends it to `blocks`.
+ *
+ * `keyOffset` makes the emitted React keys unique across segments. Line indices
+ * restart at 0 for every segment, so without it a message containing two or more
+ * code blocks produced colliding keys (`l-0`, `l-1`, … repeated) and React could
+ * not reliably reconcile the blocks.
+ *
+ * Returns the next free key offset for the next segment.
+ */
+function pushTextSegment(blocks: ReactNode[], segment: string, keyOffset: number): number {
+  const lines = segment.split('\n')
+  let li = 0
+
+  while (li < lines.length) {
+    const trimmed = lines[li].trim()
+    if (
+      trimmed.includes('|') &&
+      li + 1 < lines.length &&
+      TABLE_SEPARATOR_REGEX.test(lines[li + 1].trim())
+    ) {
+      const result = parseTableBlock(lines, li, keyOffset)
+      if (result) {
+        blocks.push(result.table)
+        li += result.consumed
+        continue
+      }
+    }
+    blocks.push(renderLine(lines[li], li + keyOffset))
+    li++
+  }
+
+  return keyOffset + lines.length
 }
 
 export function renderContent(text: string): ReactNode[] {
@@ -141,29 +178,11 @@ export function renderContent(text: string): ReactNode[] {
   CODE_BLOCK_REGEX.lastIndex = 0
   let lastIndex = 0
   let match: RegExpExecArray | null
+  let keyOffset = 0
 
   while ((match = CODE_BLOCK_REGEX.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      const before = text.slice(lastIndex, match.index)
-      const lines = before.split('\n')
-      let li = 0
-      while (li < lines.length) {
-        const trimmed = lines[li].trim()
-        if (
-          trimmed.includes('|') &&
-          li + 1 < lines.length &&
-          TABLE_SEPARATOR_REGEX.test(lines[li + 1].trim())
-        ) {
-          const result = parseTableBlock(lines, li)
-          if (result) {
-            blocks.push(result.table)
-            li += result.consumed
-            continue
-          }
-        }
-        blocks.push(renderLine(lines[li], li))
-        li++
-      }
+      keyOffset = pushTextSegment(blocks, text.slice(lastIndex, match.index), keyOffset)
     }
     const lang = match[1] || 'text'
     const code = match[2].trimEnd()
@@ -172,26 +191,7 @@ export function renderContent(text: string): ReactNode[] {
   }
 
   if (lastIndex < text.length) {
-    const after = text.slice(lastIndex)
-    const lines = after.split('\n')
-    let li = 0
-    while (li < lines.length) {
-      const trimmed = lines[li].trim()
-      if (
-        trimmed.includes('|') &&
-        li + 1 < lines.length &&
-        TABLE_SEPARATOR_REGEX.test(lines[li + 1].trim())
-      ) {
-        const result = parseTableBlock(lines, li)
-        if (result) {
-          blocks.push(result.table)
-          li += result.consumed
-          continue
-        }
-      }
-      blocks.push(renderLine(lines[li], li + 1000))
-      li++
-    }
+    pushTextSegment(blocks, text.slice(lastIndex), keyOffset)
   }
 
   return blocks

@@ -168,7 +168,13 @@ export class RefreshTriggerPolicy {
       return
     }
 
-    const debounceKey = `${signal.reason}:${signal.statusCode ?? 0}:${signal.url ?? ''}`
+    // Debounced per reason+status, deliberately NOT per URL. Keying on the URL
+    // made every distinct request its own bucket, so a burst of 401/403 across
+    // N different URLs sailed straight through REACTIVE_REFRESH_DEBOUNCE_MS and
+    // each one also inserted a permanent entry into the map below (it was never
+    // pruned). The key space is now the handful of refresh reasons, which makes
+    // the map naturally bounded.
+    const debounceKey = `${signal.reason}:${signal.statusCode ?? 0}`
     const now = Date.now()
     const lastTriggeredAt = this.lastReactiveTriggerAtByKey.get(debounceKey) ?? 0
     if (now - lastTriggeredAt < REACTIVE_REFRESH_DEBOUNCE_MS) return

@@ -156,7 +156,6 @@ async function renderWithPdfJs(
   if (!pdf) return null
 
   let renderTask: { promise: Promise<void>; cancel?: () => void } | null = null
-  let pageForCleanup: { cleanup?: () => void } | null = null
   const onAbort = () => {
     try {
       renderTask?.cancel?.()
@@ -177,7 +176,6 @@ async function renderWithPdfJs(
       }
       cleanup?: () => void
     }
-    pageForCleanup = page
     const scale = options.scale
     const maxPixels = options.maxPixels
 
@@ -218,14 +216,13 @@ async function renderWithPdfJs(
     return { blob, blobUrl, width: canvas.width, height: canvas.height }
   } finally {
     if (signal) signal.removeEventListener('abort', onAbort)
-    // Release per-page resources even when the shared document proxy is
-    // reused across captures; otherwise each high-DPI capture accumulates
-    // page-level memory in the live document.
-    if (pageForCleanup) {
-      try {
-        pageForCleanup.cleanup?.()
-      } catch {}
-    }
+    // Only tear down the document this call loaded itself. When the proxy came
+    // from getActivePdfDocument() it belongs to the mounted <Viewer>, and
+    // PDFPageProxy.cleanup() drops that page's shared decoded-object cache
+    // (objs.clear()), forcing a re-decode of fonts and images on the viewer's
+    // next repaint. Captures do not leak page proxies: PDFDocumentProxy caches
+    // them per page number, so a repeat capture of the same page reuses the
+    // proxy the viewer already owns.
     if (shouldDestroy && pdf) {
       try {
         ;(pdf as { destroy: () => void }).destroy()

@@ -322,6 +322,50 @@ describe('RefreshTriggerPolicy', () => {
     expect(mocked.runSilentRefreshProbe).toHaveBeenCalledOnce()
   })
 
+  it('debounces a 401 burst across different URLs', async () => {
+    // A Google AI page load can emit 401s for many distinct URLs. Keying the
+    // debounce on the URL gave each one its own bucket, so the whole burst
+    // passed REACTIVE_REFRESH_DEBOUNCE_MS and started a refresh per URL.
+    mocked.runSilentRefreshProbe.mockResolvedValue({
+      outcome: { kind: 'authenticated', healthy: true },
+      accountHash: 'hash-after',
+      timedOut: false
+    })
+
+    const first = policy.triggerRefresh({
+      reason: 'http_401',
+      statusCode: 401,
+      url: 'https://gemini.google.com/app/one'
+    })
+    await first
+
+    await policy.triggerRefresh({
+      reason: 'http_401',
+      statusCode: 401,
+      url: 'https://gemini.google.com/app/two'
+    })
+    await policy.triggerRefresh({
+      reason: 'http_401',
+      statusCode: 401,
+      url: 'https://aistudio.google.com/prompts/three'
+    })
+
+    expect(mocked.runSilentRefreshProbe).toHaveBeenCalledOnce()
+  })
+
+  it('still refreshes for a different reason inside the debounce window', async () => {
+    mocked.runSilentRefreshProbe.mockResolvedValue({
+      outcome: { kind: 'authenticated', healthy: true },
+      accountHash: 'hash-after',
+      timedOut: false
+    })
+
+    await policy.triggerRefresh({ reason: 'http_401', statusCode: 401, url: 'https://a.test/1' })
+    await policy.triggerRefresh({ reason: 'http_403', statusCode: 403, url: 'https://a.test/2' })
+
+    expect(mocked.runSilentRefreshProbe).toHaveBeenCalledTimes(2)
+  })
+
   it('registers reactive listeners once and handles 401 and login redirects', async () => {
     policy.configureReactiveRefreshListeners()
     policy.configureReactiveRefreshListeners()

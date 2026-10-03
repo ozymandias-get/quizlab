@@ -70,7 +70,14 @@ export const selectorEngine =
 
     if (typeof window !== 'undefined') {
         __installSpaNavigationProbe();
-        window.addEventListener('__quizlabSpaNav', __softInvalidateAllOnNav);
+        // Guarded like the probe itself: every script injection re-evaluates
+        // this block, and an unguarded addEventListener with a fresh closure
+        // identity could never be removed. That left one listener per send,
+        // each fanning out a full cache reset on every pushState.
+        if (!window.__quizlabSpaNavListenerInstalled) {
+            window.__quizlabSpaNavListenerInstalled = true;
+            window.addEventListener('__quizlabSpaNav', __softInvalidateAllOnNav);
+        }
     }
 
     /**
@@ -223,10 +230,15 @@ export const selectorEngine =
             return fingerprintMatch;
         }
 
-        if (fallbackDepth >= __MAX_FALLBACK_ATTEMPTS) {
-            return { element: null, matchedSelector: null, strategy: 'none' };
-        }
-
+        // NOTE: no "give up on the fallback pipeline" guard here. The depth
+        // argument is a strategy cursor, not an attempt budget: it saturates at
+        // __MAX_FALLBACK_ATTEMPTS, which is the index that makes
+        // runFallbackPipeline walk the whole strategy list (it bounds itself
+        // with i <= depth && i < strategies.length). An earlier
+        // "fallbackDepth >= __MAX_FALLBACK_ATTEMPTS" bail-out both disabled
+        // recovery for the remaining ~9s of the 10s window and made the
+        // last-resort heuristic unreachable, because depth never exceeded the
+        // cap.
         const fallbackResult = runFallbackPipeline(kind, config, diagnostics, fallbackDepth);
         if (fallbackResult && fallbackResult.element) {
             diagnostics.strategy = fallbackResult.strategy;

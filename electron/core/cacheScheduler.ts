@@ -2,7 +2,7 @@
  * Akıllı Cache Zamanlayıcı (Smart Scheduler)
  *
  * Önbellek temizliğini periyodik ve baskı bazlı tetikler:
- * - Foreground: 15 dk hafif kontrol + baskı analizi
+ * - Periyodik akıllı kontrol: 5 dk'da bir boyut + baskı analizi
  * - Idle: 5 dk sonra tam temizlik + 30 dk tekrar
  * - Akıllı: %80+ dolulukta otomatik soğuk partition temizliği (throttled)
  * - Soğuk partition'lar (12s TTL) öncelikli eviction
@@ -17,7 +17,6 @@ import { measureSmartCacheBreakdown } from './cacheMonitor.js'
 import { Logger } from './logger.js'
 import { getCachePressure, shouldTriggerAutoClean, SMART_CACHE_CONFIG } from './smartCachePolicy.js'
 
-const FOREGROUND_CHECK_INTERVAL_MS = 15 * 60 * 1000 // 15 dakika
 const IDLE_REPEAT_INTERVAL_MS = 30 * 60 * 1000 // 30 dakika
 const SMART_CHECK_INTERVAL_MS = 5 * 60 * 1000 // 5 dakika akıllı baskı kontrolü
 
@@ -74,7 +73,9 @@ async function runSmartForegroundCheck(): Promise<void> {
         if (pressure.level === 'critical' || pressure.level === 'high') {
           await runIdleCleanup()
         } else {
-          await runQuickCheck()
+          // Deep cleanup ölçümü kendi içinde yapar; bu dalda zaten elimizde
+          // ölçülmüş toplam var, tekrar tarama gereksiz.
+          await runQuickCheck(breakdown.total)
         }
         markAutoCleanExecuted()
       } finally {
@@ -83,8 +84,9 @@ async function runSmartForegroundCheck(): Promise<void> {
       return
     }
 
-    // Normal akış: sadece hızlı boyut kontrolü (eski davranış)
-    await runQuickCheck()
+    // Normal akış: toplam boyut zaten yukarıda ölçüldü, aynı ağacı ikinci kez
+    // taramadan yalnızca limit kontrolü + gerekiyorsa temizlik yapılır.
+    await runQuickCheck(breakdown.total)
   } catch (error) {
     Logger.error('[CacheScheduler] Smart foreground check failed:', error)
     // Fallback to legacy quick check
@@ -94,7 +96,6 @@ async function runSmartForegroundCheck(): Promise<void> {
   }
 }
 
-let foregroundTimer: ReturnType<typeof setInterval> | null = null
 let idleRepeatTimer: ReturnType<typeof setInterval> | null = null
 let smartTimer: ReturnType<typeof setInterval> | null = null
 
@@ -143,18 +144,15 @@ function startSmartPressureWatcher(): void {
 }
 
 export function startCacheScheduler(): void {
-  if (foregroundTimer) return // zaten başlatılmış
+  if (smartTimer) return // zaten başlatılmış
 
-  // 1. Foreground periyodik kontrol (15 dk) – akıllı versiyon
-  foregroundTimer = setInterval(() => {
-    void runSmartForegroundCheck()
-  }, FOREGROUND_CHECK_INTERVAL_MS)
-  unrefTimer(foregroundTimer)
-
-  // 2. Ek akıllı baskı izleyici (5 dk) – %80+ dolulukta erken müdahale
+  // Periyodik akıllı kontrol (5 dk): boyut + baskı seviyesi + gerekirse
+  // otomatik temizlik. Ayrı bir 15 dk foreground timer'ı yok: 15, 5'in katı
+  // olduğu için aynı fonksiyon her 15 dakikada zaten çalışıyordu — ikinci
+  // timer yalnızca aynı tam ağacı taramayı tekrarlıyordu.
   startSmartPressureWatcher()
 
-  // 3. Idle detection — mevcut yapıyı kullan, tekrar eden cleanup ekle
+  // Idle detection — mevcut yapıyı kullan, tekrar eden cleanup ekle
   startIdleDetection(() => {
     runIdleCleanup().catch((error) => Logger.error('[CacheScheduler] Idle cleanup failed:', error))
     // Idle boyunca her 30 dk'da bir tekrar temizlik
@@ -162,20 +160,15 @@ export function startCacheScheduler(): void {
   })
 
   Logger.info(
-    `[CacheScheduler] Started: foreground=${FOREGROUND_CHECK_INTERVAL_MS / 1000}s, ` +
-      `smart=${SMART_CHECK_INTERVAL_MS / 1000}s, idleRepeat=${IDLE_REPEAT_INTERVAL_MS / 1000}s ` +
+    `[CacheScheduler] Started: smart=${SMART_CHECK_INTERVAL_MS / 1000}s, ` +
+      `idleRepeat=${IDLE_REPEAT_INTERVAL_MS / 1000}s ` +
       `(autoClean=${autoCleanEnabled ? 'on' : 'off'})`
   )
 }
 
 export function stopCacheScheduler(): void {
-  if (foregroundTimer) {
-    clearInterval(foregroundTimer)
-    foregroundTimer = null
-  }
-
-  clearIdleRepeatTimer()
   clearSmartTimer()
+  clearIdleRepeatTimer()
   stopIdleDetection()
 
   Logger.info('[CacheScheduler] Stopped')

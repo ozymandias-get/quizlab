@@ -167,3 +167,87 @@ describe('cacheMonitor', () => {
     expect(typeof result.total).toBe('number')
   })
 })
+
+describe('runQuickCheck reuse of an already-measured total', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+  })
+
+  function mockFs() {
+    vi.doMock('fs', () => ({
+      default: {
+        promises: {
+          stat: vi.fn().mockRejectedValue(new Error('ENOENT')),
+          readdir: vi.fn().mockRejectedValue(new Error('ENOENT')),
+          lstat: vi.fn().mockRejectedValue(new Error('ENOENT')),
+          unlink: vi.fn().mockResolvedValue(undefined),
+          rm: vi.fn().mockResolvedValue(undefined)
+        }
+      },
+      promises: {
+        stat: vi.fn().mockRejectedValue(new Error('ENOENT')),
+        readdir: vi.fn().mockRejectedValue(new Error('ENOENT')),
+        lstat: vi.fn().mockRejectedValue(new Error('ENOENT')),
+        unlink: vi.fn().mockResolvedValue(undefined),
+        rm: vi.fn().mockResolvedValue(undefined)
+      }
+    }))
+  }
+
+  it('does not re-walk the tree when the caller supplies the total', async () => {
+    const measureCacheBreakdown = vi.fn().mockResolvedValue({ total: 0 })
+    vi.doMock('../../core/cacheMonitor.js', () => ({
+      measureCacheBreakdown,
+      measureSmartCacheBreakdown: vi.fn(),
+      collectExpiredFiles: vi.fn()
+    }))
+
+    const { runQuickCheck } = await import('../../core/cacheCleanup/index.js')
+    await runQuickCheck(0)
+
+    expect(measureCacheBreakdown).not.toHaveBeenCalled()
+  })
+
+  it('still measures when no total is supplied', async () => {
+    mockFs()
+    const measureCacheBreakdown = vi.fn().mockResolvedValue({ total: 0 })
+    vi.doMock('../../core/cacheMonitor.js', () => ({
+      measureCacheBreakdown,
+      measureSmartCacheBreakdown: vi.fn(),
+      collectExpiredFiles: vi.fn()
+    }))
+
+    const { runQuickCheck } = await import('../../core/cacheCleanup/index.js')
+    await runQuickCheck()
+
+    expect(measureCacheBreakdown).toHaveBeenCalledTimes(1)
+  })
+
+  it('acts on a supplied total that exceeds the limit', async () => {
+    mockFs()
+    const measureCacheBreakdown = vi.fn().mockResolvedValue({ total: 0 })
+    const enforceSizeLimits = vi.fn().mockResolvedValue({ deleted: 3, freed: 30, errors: 0 })
+    vi.doMock('../../core/cacheMonitor.js', () => ({
+      measureCacheBreakdown,
+      measureSmartCacheBreakdown: vi.fn(),
+      collectExpiredFiles: vi.fn()
+    }))
+    vi.doMock('../../core/cacheCleanup/operations.js', () => ({
+      enforceSizeLimits,
+      cleanupExpiredCacheFiles: vi.fn()
+    }))
+    vi.doMock('../../core/cacheCleanup/cacheCleanupHelpers.js', () => ({
+      cleanupOrphanedTempFiles: vi.fn().mockResolvedValue({ deleted: 0, freed: 0, errors: 0 }),
+      formatBytes: String
+    }))
+
+    const { runQuickCheck } = await import('../../core/cacheCleanup/index.js')
+    const result = await runQuickCheck(501 * 1024 * 1024)
+
+    expect(measureCacheBreakdown).not.toHaveBeenCalled()
+    expect(enforceSizeLimits).toHaveBeenCalledTimes(1)
+    expect(result.filesDeleted).toBe(3)
+    expect(result.bytesFreed).toBe(30)
+  })
+})

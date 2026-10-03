@@ -44,11 +44,23 @@ async function waitForDevServer() {
   return false
 }
 
-export async function loadRenderer(window: BrowserWindow) {
-  const nonce = generateCspNonce()
-  const csp = isDev ? getDevCsp() : getStrictCsp(nonce)
+/**
+ * Sessions whose CSP header rewrite is already installed.
+ *
+ * `window.webContents.session` is `session.defaultSession`, shared by every
+ * window for the life of the process, and `webRequest.onHeadersReceived` keeps
+ * only the most recently registered listener — so a second registration would
+ * silently displace the first, and without a guard each window creation added
+ * another full header rewrite for every response. Keyed by session because the
+ * managed AI partitions are separate session objects.
+ */
+const cspSessionsInstalled = new WeakSet<Electron.Session>()
 
-  window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+function installCspHeaderRewrite(session: Electron.Session, csp: string): void {
+  if (cspSessionsInstalled.has(session)) return
+  cspSessionsInstalled.add(session)
+
+  session.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
@@ -56,6 +68,13 @@ export async function loadRenderer(window: BrowserWindow) {
       }
     })
   })
+}
+
+export async function loadRenderer(window: BrowserWindow) {
+  const nonce = generateCspNonce()
+  const csp = isDev ? getDevCsp() : getStrictCsp(nonce)
+
+  installCspHeaderRewrite(window.webContents.session, csp)
 
   if (!isDev) {
     window.setMenu(null)
