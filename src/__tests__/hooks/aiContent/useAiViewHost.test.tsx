@@ -150,6 +150,56 @@ describe('useAiViewHost - corner radius', () => {
 
     expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(0)
   })
+
+  it('re-publishes geometry when only the panel radius changes', async () => {
+    // Regression guard on both halves of the same bug: the renderer dropped the
+    // snapshot because it compared the rectangle only, and the manager therefore
+    // never heard about the new radius even though it does treat it as part of
+    // the bounds message. A theme / density change (or a different panel
+    // wrapping the same host) would leave the native view clipped to the
+    // previous corner radius while painting the new bounds.
+    const rect = { x: 4, y: 6, width: 500, height: 400 }
+    const { host, frame } = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+    expect(syncHost).toHaveBeenCalledTimes(1)
+    expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(15)
+
+    frame.style.borderTopLeftRadius = '13px'
+    act(() => {
+      result.current.flush()
+    })
+
+    expect(syncHost).toHaveBeenCalledTimes(2)
+    expect(syncHost.mock.calls[1][0].bounds).toEqual({
+      x: 4,
+      y: 6,
+      width: 500,
+      height: 400,
+      borderRadius: 12
+    })
+  })
+
+  it('still drops a genuinely unchanged snapshot', () => {
+    const rect = { x: 4, y: 6, width: 500, height: 400 }
+    const { host } = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+    syncHost.mockClear()
+
+    act(() => {
+      result.current.flush()
+      result.current.flush()
+    })
+
+    expect(syncHost).not.toHaveBeenCalled()
+  })
 })
 
 describe('useAiViewHost', () => {

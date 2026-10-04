@@ -16,8 +16,9 @@ import { getAiViewClient } from './aiViewClient'
  *    in front.
  * 2. Updates are coalesced into a single animation frame, so a resize drag
  *    cannot flood IPC.
- * 3. Identical rectangles are dropped, so React re-renders that do not move the
- *    host produce no traffic at all.
+ * 3. Identical messages are dropped, so React re-renders that do not change the
+ *    host produce no traffic at all. Everything the main process would act on —
+ *    rectangle, corner radius, visibility — is part of that identity.
  */
 
 export interface UseAiViewHostOptions {
@@ -90,6 +91,26 @@ function resolveClipRadius(element: HTMLElement): number {
   return 0
 }
 
+/**
+ * Two snapshots are the same message only if the main process would derive the
+ * same result from them.
+ *
+ * `borderRadius` is part of that: it travels with the rectangle and is applied in
+ * the same step as `setBounds`, so leaving it out made a radius-only change — a
+ * theme or density switch, a different panel wrapping the same host — compare
+ * equal and be dropped. The native view then kept the previous corner radius
+ * while painting the new bounds.
+ */
+/**
+ * Two snapshots are the same message only if the main process would derive the
+ * same result from them.
+ *
+ * `borderRadius` is part of that: it travels with the rectangle and is applied in
+ * the same step as `setBounds`, so leaving it out made a radius-only change — a
+ * theme or density switch, a different panel wrapping the same host — compare
+ * equal and be dropped. The native view then kept the previous corner radius
+ * while painting the new bounds.
+ */
 function snapshotEqual(a: HostSnapshot | null, b: HostSnapshot): boolean {
   return (
     a !== null &&
@@ -97,7 +118,8 @@ function snapshotEqual(a: HostSnapshot | null, b: HostSnapshot): boolean {
     a.bounds.x === b.bounds.x &&
     a.bounds.y === b.bounds.y &&
     a.bounds.width === b.bounds.width &&
-    a.bounds.height === b.bounds.height
+    a.bounds.height === b.bounds.height &&
+    (a.bounds.borderRadius ?? 0) === (b.bounds.borderRadius ?? 0)
   )
 }
 
