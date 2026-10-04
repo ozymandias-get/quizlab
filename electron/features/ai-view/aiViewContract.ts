@@ -3,7 +3,6 @@ import type {
   AiViewBounds,
   AiViewHostRequest,
   AiViewHostSyncRequest,
-  AiViewIgnoreMouseRequest,
   AiViewSource
 } from '../../../shared/types/aiView.js'
 
@@ -25,6 +24,7 @@ const MAX_KEY_CODE_LENGTH = 64
 const MAX_MODIFIERS = 8
 
 export const MAX_VIEW_RECT_EDGE = 32_768
+export const MAX_VIEW_BORDER_RADIUS = 512
 
 const INPUT_EVENT_TYPES = new Set<AiContentInputEvent['type']>(['keyDown', 'keyUp', 'char'])
 
@@ -66,13 +66,6 @@ export function parseHostSyncRequest(value: unknown): AiViewHostSyncRequest | nu
   return { ...host, bounds, visible }
 }
 
-export function parseIgnoreMouseRequest(value: unknown): AiViewIgnoreMouseRequest | null {
-  const host = parseHostRequest(value)
-  if (!host) return null
-  const ignore = isPlainRecord(value) ? value.ignore : null
-  return ignore === true || ignore === false ? { ...host, ignore } : null
-}
-
 function parseHostToken(value: unknown): string | null {
   return isValidHostToken(value) ? value : null
 }
@@ -82,11 +75,21 @@ function toFiniteInteger(value: unknown): number | null {
   return Math.round(value)
 }
 
+/** Like `toFiniteInteger` but keeps sub-pixel radii, which CSS can produce. */
+function toNonNegativeNumber(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return Math.max(0, value)
+}
+
 /**
  * Normalises a host rectangle into the integer, non-negative shape
  * `View.setBounds` expects. `null` means "not a rectangle at all"; a rectangle
  * whose width or height collapses to zero is legitimate (hidden host) and is
  * returned as-is so the caller can decide to hide the view.
+ *
+ * `borderRadius` travels with the rectangle on purpose: the corner radius has to
+ * be applied in the same step as the bounds, or a resized view would briefly be
+ * clipped to the previous panel's radius.
  */
 export function parseBounds(value: unknown): AiViewBounds | null {
   if (!isPlainRecord(value)) return null
@@ -100,7 +103,12 @@ export function parseBounds(value: unknown): AiViewBounds | null {
     x: clamp(x, 0, MAX_VIEW_RECT_EDGE),
     y: clamp(y, 0, MAX_VIEW_RECT_EDGE),
     width: clamp(width, 0, MAX_VIEW_RECT_EDGE),
-    height: clamp(height, 0, MAX_VIEW_RECT_EDGE)
+    height: clamp(height, 0, MAX_VIEW_RECT_EDGE),
+    borderRadius: clamp(
+      value.borderRadius === undefined ? 0 : toNonNegativeNumber(value.borderRadius),
+      0,
+      MAX_VIEW_BORDER_RADIUS
+    )
   }
 }
 
@@ -110,7 +118,13 @@ export function isUsableBounds(bounds: AiViewBounds | null): bounds is AiViewBou
 
 export function boundsEqual(a: AiViewBounds | null, b: AiViewBounds | null): boolean {
   if (a === null || b === null) return a === b
-  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+  return (
+    a.x === b.x &&
+    a.y === b.y &&
+    a.width === b.width &&
+    a.height === b.height &&
+    (a.borderRadius ?? 0) === (b.borderRadius ?? 0)
+  )
 }
 
 export function parseScript(value: unknown): string | null {

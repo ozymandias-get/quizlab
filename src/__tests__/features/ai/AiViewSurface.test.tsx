@@ -21,6 +21,12 @@ let mockAiState: MockAiState = {
   stopTutorial: vi.fn()
 }
 
+let mockIsAnyDialogOpen = false
+vi.mock('@shared/hooks', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@shared/hooks')>()),
+  useIsAnyDialogOpen: () => mockIsAnyDialogOpen
+}))
+
 vi.mock('@app/providers/ai-context', () => ({
   useAiTabsSliceState: () => ({
     tabs: mockAiState.tabs,
@@ -82,7 +88,6 @@ const renderSurface = (overrides: Partial<AiViewSurfaceState> = {}, isSurfaceAct
   render(
     <AiViewSurface
       isResizing={false}
-      isBarHovered={false}
       isSurfaceActive={isSurfaceActive}
       surfaceState={createSurfaceState(overrides)}
     />
@@ -90,6 +95,7 @@ const renderSurface = (overrides: Partial<AiViewSurfaceState> = {}, isSurfaceAct
 
 describe('AiViewSurface', () => {
   beforeEach(() => {
+    mockIsAnyDialogOpen = false
     mockAiState = {
       tabs: [
         { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
@@ -136,6 +142,15 @@ describe('AiViewSurface', () => {
     expect(await screen.findByTestId('tutorial-overlay', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
+  it('marks every session as an overlay while a dialog is open anywhere', () => {
+    // A native view composites above every DOM layer, so any dialog has to be
+    // able to hide it — otherwise the settings modal renders underneath the site
+    // and cannot be clicked.
+    mockIsAnyDialogOpen = true
+    renderSurface({ aliveTabIds: ['1'] })
+    expect(screen.getByText('GPT-4 - Active - Owner - Overlay')).toBeInTheDocument()
+  })
+
   it('renders a non-owning surface so a stale host cannot move the active view', () => {
     renderSurface({ aliveTabIds: ['1'] }, false)
     expect(screen.getByText('GPT-4 - Active - Passive')).toBeInTheDocument()
@@ -143,12 +158,7 @@ describe('AiViewSurface', () => {
 
   it('applies pointer-events-none when resizing', () => {
     const { container } = render(
-      <AiViewSurface
-        isResizing
-        isBarHovered={false}
-        isSurfaceActive
-        surfaceState={createSurfaceState()}
-      />
+      <AiViewSurface isResizing isSurfaceActive surfaceState={createSurfaceState()} />
     )
     const innerDiv = container.querySelector('.panel-3d-right') as HTMLElement
     expect(innerDiv).toHaveStyle({ pointerEvents: 'none' })
