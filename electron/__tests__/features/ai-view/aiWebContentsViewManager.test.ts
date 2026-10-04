@@ -112,6 +112,12 @@ function createFakeWebContents(viewId: string): FakeWebContents {
       listeners.get(event)?.delete(handler)
     },
     emit: (event: string, ...args: unknown[]) => {
+      // Electron commits the navigation before `did-navigate` fires, so `getURL()`
+      // already reports the new URL here. Modelling that is what makes the
+      // manager's URL snapshot assertion meaningful.
+      if (event === 'did-navigate' || event === 'did-navigate-in-page') {
+        currentUrl = String(args[1] ?? currentUrl)
+      }
       for (const handler of listeners.get(event) ?? []) handler(...args)
     },
     viewId
@@ -206,7 +212,7 @@ const GROK = { kind: 'ai-platform' as const, modelId: 'grok' }
 const CUSTOM = { kind: 'ai-platform' as const, modelId: 'custom_1' }
 
 async function reset() {
-  manager.destroyAllAiViews()
+  await manager.destroyAllAiViews()
   manager.setAiViewEventSink(null)
   WebContentsViewMock.mockClear()
   addChildView.mockClear()
@@ -365,6 +371,36 @@ describe('AiWebContentsViewManager - url restoration', () => {
       restoredUrl: 'http://chatgpt.com'
     })
     expect(response.currentUrl.startsWith('https://')).toBe(true)
+  })
+
+  it('hands the next host the conversation url, not the entry url', async () => {
+    // A focus-mode handoff attaches to a view the user has navigated inside.
+    // `currentUrl` used to be the entry URL forever, so the new controller was
+    // told the guest was sitting on the provider's home page.
+    await reset()
+    const first = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('did-navigate', {}, 'https://chatgpt.com/c/123', 200, 'OK')
+
+    manager.detachAiViewHost('tab-1', 'h1')
+    const second = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+    expect(second.created).toBe(false)
+    expect(second.currentUrl).toBe('https://chatgpt.com/c/123')
+    expect(second.generation).toBe(first.generation)
+    // A pure reposition: no reload, no second entry load.
+    expect(entry.webContents.reload).not.toHaveBeenCalled()
+    expect(entry.webContents.loadURL).toHaveBeenCalledTimes(1)
+  })
+
+  it('follows an in-page navigation too, since providers are single-page apps', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('did-navigate-in-page', {}, 'https://chatgpt.com/c/456', true, 1, 1)
+
+    const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(response.currentUrl).toBe('https://chatgpt.com/c/456')
   })
 })
 
@@ -625,7 +661,7 @@ describe('AiWebContentsViewManager - commands', () => {
     expect(manager.focusAiView('ghost')).toBe(false)
     expect(manager.loadAiViewUrl('ghost', 'https://chatgpt.com')).toBe(false)
     expect(manager.getAiViewUrl('ghost')).toBeNull()
-    expect(manager.destroyAiView('ghost')).toBe(false)
+    await expect(manager.destroyAiView('ghost')).resolves.toBe(false)
     expect(manager.syncAiViewHost('ghost', 'h', { x: 0, y: 0, width: 1, height: 1 }, true)).toBe(
       false
     )
@@ -644,7 +680,7 @@ describe('AiWebContentsViewManager - commands', () => {
     manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 100, height: 100 }, false)
     manager.syncAiViewHost('tab-2', 'h2', { x: 0, y: 0, width: 100, height: 100 }, true)
     manager.detachAiViewHost('tab-1', 'h1')
-    manager.destroyAiView('tab-2')
+    await manager.destroyAiView('tab-2')
     await manager.attachAiView({ viewId: 'tab-3', source: CHATGPT })
 
     expect(setIgnoreMouseEvents).not.toHaveBeenCalled()
@@ -690,7 +726,7 @@ describe('AiWebContentsViewManager - lifecycle', () => {
     await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
     const entry = manager.getManagedAiView('tab-1')!
 
-    expect(manager.destroyAiView('tab-1')).toBe(true)
+    await expect(manager.destroyAiView('tab-1')).resolves.toBe(true)
     expect(removeChildView).toHaveBeenCalledTimes(1)
     expect(entry.webContents.close).toHaveBeenCalledTimes(1)
     expect(manager.getManagedAiView('tab-1')).toBeNull()
@@ -704,7 +740,7 @@ describe('AiWebContentsViewManager - lifecycle', () => {
     const tab1 = manager.getManagedAiView('tab-1')!
     const tab2 = manager.getManagedAiView('tab-2')!
 
-    manager.destroyAllAiViews()
+    await manager.destroyAllAiViews()
 
     expect(tab1.webContents.close).toHaveBeenCalledTimes(1)
     expect(tab2.webContents.close).toHaveBeenCalledTimes(1)
@@ -778,9 +814,175 @@ describe('AiWebContentsViewManager - lifecycle', () => {
     await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
     const entry = manager.getManagedAiView('tab-1')!
 
-    manager.destroyAiView('tab-1')
+    await manager.destroyAiView('tab-1')
     entry.webContents.emit('dom-ready')
 
     expect(received).toHaveLength(0)
+  })
+})
+
+describe('AiWebContentsViewManager - state snapshot', () => {
+  /** Collects only the manager's authoritative snapshots, live. */
+  const captureState = (): Array<Record<string, unknown>> => {
+    const states: Array<Record<string, unknown>> = []
+    manager.setAiViewEventSink((event) => {
+      if (event.kind === 'state') states.push(event as unknown as Record<string, unknown>)
+    })
+    return states
+  }
+
+  it('reports a freshly created view as loading, not yet painted', async () => {
+    await reset()
+    const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+    expect(response.created).toBe(true)
+    expect(response.isLoading).toBe(true)
+    expect(response.hasLoadedOnce).toBe(false)
+    expect(response.loadState).toBe('loading')
+    expect(response.error).toBeNull()
+  })
+
+  it('reports an existing settled view as ready to be shown immediately', async () => {
+    // The focus-mode shape: `created: false` and no further load event is coming,
+    // so this snapshot is the only thing that can release the splash.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('did-stop-loading')
+
+    const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+    expect(response.created).toBe(false)
+    expect(response.isLoading).toBe(false)
+    expect(response.hasLoadedOnce).toBe(true)
+    expect(response.loadState).toBe('settled')
+  })
+
+  it('reports an existing still-loading view as loading', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+    const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+    expect(response.isLoading).toBe(true)
+    expect(response.hasLoadedOnce).toBe(false)
+    expect(response.loadState).toBe('loading')
+  })
+
+  it('carries a fatal load failure to the next host instead of a spinner', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', '', true)
+    entry.webContents.emit('did-stop-loading')
+
+    const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+    expect(response.isLoading).toBe(false)
+    expect(response.hasLoadedOnce).toBe(true)
+    expect(response.loadState).toBe('failed')
+    expect(response.error).toEqual({ code: -105, description: 'ERR_NAME_NOT_RESOLVED' })
+  })
+
+  it('does not settle a load that an aborted redirect hop reported as failed', async () => {
+    // Providers redirect constantly (consent pages, sign-in hops), and Chromium
+    // reports each abandoned hop as ERR_ABORTED. Treating that as "the attempt
+    // settled" would reveal the view on a blank page and skip the settled
+    // callback for the document that is still on its way.
+    await reset()
+    captureState()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('did-fail-load', {}, -3, 'ERR_ABORTED', '', true)
+
+    const midFlight = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(midFlight.isLoading).toBe(true)
+    expect(midFlight.hasLoadedOnce).toBe(false)
+    expect(midFlight.loadState).toBe('loading')
+
+    entry.webContents.emit('dom-ready')
+    entry.webContents.emit('did-stop-loading')
+
+    const settled = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(settled.loadState).toBe('settled')
+    expect(settled.hasLoadedOnce).toBe(true)
+    expect(settled.error).toBeNull()
+  })
+
+  it('stops reporting a crashed guest as loading, which would never settle', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    // Crashed during the first load: no `did-stop-loading` is coming, so the
+    // snapshot must not keep claiming it is still loading.
+    entry.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 9 })
+
+    const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(response.isLoading).toBe(false)
+    expect(response.hasLoadedOnce).toBe(false)
+  })
+
+  it('clears a recorded failure once a new attempt produces a document', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('did-fail-load', {}, -6, 'ERR_FILE_NOT_FOUND', '', true)
+    entry.webContents.emit('did-start-loading')
+    entry.webContents.emit('dom-ready')
+    entry.webContents.emit('did-stop-loading')
+
+    const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(response.loadState).toBe('settled')
+    expect(response.error).toBeNull()
+  })
+
+  it('pushes a state event when the load state changes, and not for URL churn', async () => {
+    await reset()
+    const states = captureState()
+
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(states).toHaveLength(0)
+
+    const entry = manager.getManagedAiView('tab-1')!
+    // A navigation on its own changes nothing a host depends on; the URL rides
+    // on the `did-navigate` event instead.
+    entry.webContents.emit('did-navigate', {}, 'https://chatgpt.com/c/1', 200, 'OK')
+    expect(states).toHaveLength(0)
+
+    entry.webContents.emit('did-stop-loading')
+    expect(states).toHaveLength(1)
+    expect(states[0]).toMatchObject({
+      viewId: 'tab-1',
+      generation: entry.generation,
+      isLoading: false,
+      hasLoadedOnce: true,
+      loadState: 'settled'
+    })
+
+    // A re-navigation flips back to loading and then settles again, so a host
+    // that missed the original event still converges on the truth.
+    entry.webContents.emit('did-start-loading')
+    expect(states.map((state) => state.loadState)).toEqual(['settled', 'loading'])
+    entry.webContents.emit('did-stop-loading')
+    expect(states.map((state) => state.loadState)).toEqual(['settled', 'loading', 'settled'])
+  })
+
+  it('stops publishing snapshots for a view that a newer generation replaced', async () => {
+    await reset()
+    const states = captureState()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const first = manager.getManagedAiView('tab-1')!
+
+    // The tab switched model, so the first view is closed and replaced.
+    await manager.attachAiView({ viewId: 'tab-1', source: GROK })
+    const second = manager.getManagedAiView('tab-1')!
+    expect(second.generation).not.toBe(first.generation)
+
+    first.webContents.emit('did-stop-loading')
+    expect(states).toHaveLength(0)
+
+    second.webContents.emit('did-stop-loading')
+    expect(states).toHaveLength(1)
+    expect(states[0].generation).toBe(second.generation)
   })
 })

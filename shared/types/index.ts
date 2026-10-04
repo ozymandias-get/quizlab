@@ -31,10 +31,12 @@ export type {
   AiViewHostSurface,
   AiViewHostSyncRequest,
   AiViewInputEventRequest,
+  AiViewLoadState,
   AiViewLoadUrlRequest,
   AiViewNavigateRequest,
   AiViewScriptRequest,
   AiViewSource,
+  AiViewStateSnapshot,
   AiViewTabRequest,
   AiViewTextRequest
 } from './aiView.js'

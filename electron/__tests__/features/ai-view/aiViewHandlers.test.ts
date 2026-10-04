@@ -64,11 +64,15 @@ vi.mock('../../../features/ai-view/aiWebContentsViewManager.js', async () => {
     attachAiView: vi.fn(async () => ({
       generation: 1,
       currentUrl: 'https://chatgpt.com/',
+      isLoading: true,
+      hasLoadedOnce: false,
+      loadState: 'loading',
+      error: null,
       created: true
     })),
     detachAiViewHost: vi.fn(() => true),
-    destroyAiView: vi.fn(() => true),
-    destroyAllAiViews: vi.fn(),
+    destroyAiView: vi.fn(async () => true),
+    destroyAllAiViews: vi.fn(async () => undefined),
     setAiViewEventSink: vi.fn(),
     executeAiViewScript: vi.fn(async () => 'ok'),
     pasteAiView: vi.fn(() => true),
@@ -140,6 +144,10 @@ beforeEach(() => {
   ;(manager.attachAiView as ReturnType<typeof vi.fn>).mockResolvedValue({
     generation: 1,
     currentUrl: 'https://chatgpt.com/',
+    isLoading: true,
+    hasLoadedOnce: false,
+    loadState: 'loading',
+    error: null,
     created: true
   })
   ;(manager.executeAiViewScript as ReturnType<typeof vi.fn>).mockResolvedValue('ok')
@@ -339,10 +347,10 @@ describe('ai view IPC - capability boundary', () => {
 })
 
 describe('ai view IPC - shutdown', () => {
-  it('detaches the event sink and closes every managed view', () => {
+  it('detaches the event sink and closes every managed view', async () => {
     vi.clearAllMocks()
     requireTrustedIpcSender.mockReturnValue(true)
-    disposeAiViewHandlers()
+    await disposeAiViewHandlers()
     expect(manager.setAiViewEventSink).toHaveBeenLastCalledWith(null)
     expect(manager.destroyAllAiViews).toHaveBeenCalledTimes(1)
   })

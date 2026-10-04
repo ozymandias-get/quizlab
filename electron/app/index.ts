@@ -132,7 +132,7 @@ async function initializeApp() {
     stopPdfCleanupInterval()
     stopCacheScheduler()
     clearAllPdfPaths()
-    disposeAiViewHandlers()
+    await disposeAiViewHandlers()
     await shutdownGeminiWebSessionHandlers()
     await shutdownNativeMessaging()
     await flushToDisk()
