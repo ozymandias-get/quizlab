@@ -382,3 +382,194 @@ describe('createAiContentController - host and crash lifecycle', () => {
     controller.dispose()
   })
 })
+
+describe('createAiContentController - destroy lifecycle', () => {
+  it('mirrors the destroy in its own readiness state', async () => {
+    // Regression guard. `destroy()` used to only ask main to tear the view down
+    // and left this handle reporting "ready", so the send and picker pipelines
+    // treated a destroyed (or slept) view as a live one and injected into a
+    // WebContents that no longer existed.
+    const controller = makeController('tab-1')
+
+    expect(controller.isDestroyed?.()).toBe(true)
+    expect(controller.isReady?.()).toBe(false)
+
+    await controller.attach()
+    expect(controller.isDestroyed?.()).toBe(false)
+    expect(controller.isReady?.()).toBe(true)
+
+    await controller.destroy()
+    expect(aiViewClient.destroy).toHaveBeenCalledWith({ viewId: 'tab-1' })
+    expect(controller.isDestroyed?.()).toBe(true)
+    expect(controller.isReady?.()).toBe(false)
+  })
+
+  it('drives readiness subscribers through attach then destroy', async () => {
+    const controller = makeController('tab-1')
+    const states: boolean[] = []
+    controller.subscribeReady?.((ready) => states.push(ready))
+
+    await controller.attach()
+    await controller.destroy()
+
+    expect(states).toEqual([false, true, false])
+  })
+
+  it('stops reporting the guest as loading after a destroy', async () => {
+    const controller = makeController('tab-1')
+    await controller.attach()
+    emit({
+      viewId: 'tab-1',
+      generation: 7,
+      kind: 'did-stop-loading',
+      currentUrl: 'https://x.test/'
+    })
+    expect(controller.isLoading?.()).toBe(false)
+
+    await controller.destroy()
+    expect(controller.isLoading?.()).toBe(false)
+  })
+
+  it('refuses every automation command once destroyed', async () => {
+    // A sleeping or retired view must not be addressed: main answers with a
+    // plain `false` / `null`, and the pipeline should see that without a
+    // round trip to a view that is gone.
+    const controller = makeController('tab-1')
+    await controller.attach()
+    await controller.destroy()
+
+    aiViewClient.executeScript.mockClear()
+    aiViewClient.insertText.mockClear()
+    aiViewClient.paste.mockClear()
+
+    expect(controller.isDestroyed?.()).toBe(true)
+    await expect(controller.executeJavaScript('1')).resolves.toBeUndefined()
+    await expect(controller.insertText?.('hi')).resolves.toBe(false)
+    await expect(controller.paste?.()).resolves.toBe(false)
+    expect(aiViewClient.executeScript).not.toHaveBeenCalled()
+    expect(aiViewClient.insertText).not.toHaveBeenCalled()
+    expect(aiViewClient.paste).not.toHaveBeenCalled()
+  })
+
+  it('ignores events from the generation that was just destroyed', async () => {
+    const controller = makeController('tab-1')
+    await controller.attach()
+
+    const seen: string[] = []
+    controller.subscribeEvent?.('did-navigate', (event) => seen.push(event.url))
+
+    await controller.destroy()
+
+    emit({
+      viewId: 'tab-1',
+      generation: 7,
+      kind: 'did-navigate',
+      url: 'https://chatgpt.com/late',
+      isMainFrame: true
+    })
+
+    expect(seen).toEqual([])
+    // The URL mirror is frozen too: a late event must not make a destroyed view
+    // look like it is sitting on a real conversation.
+    expect(controller.getURL?.()).toBe('https://x.test/')
+    expect(controller.isDestroyed?.()).toBe(true)
+  })
+
+  it('does not replay events buffered before a destroy into the next generation', async () => {
+    const controller = makeController('tab-1')
+    await controller.attach()
+    await controller.destroy()
+
+    emit({
+      viewId: 'tab-1',
+      generation: 7,
+      kind: 'did-navigate',
+      url: 'https://chatgpt.com/ghost',
+      isMainFrame: true
+    })
+
+    const seen: string[] = []
+    controller.subscribeEvent?.('did-navigate', (event) => seen.push(event.url))
+    aiViewClient.attach.mockResolvedValueOnce({
+      generation: 8,
+      currentUrl: 'https://chatgpt.com/c/keep',
+      created: true
+    })
+    await controller.attach('https://chatgpt.com/c/keep')
+
+    expect(seen).toEqual([])
+  })
+
+  it('re-attaches after a destroy and replays the restored url', async () => {
+    // Sleep/wake: the view is destroyed while the tab sleeps and a fresh one is
+    // created on wake, and the conversation has to come back. The URL comes from
+    // the caller (the panel's per-tab cache), which is the production path.
+    const controller = makeController('tab-1')
+    await controller.attach()
+
+    emit({
+      viewId: 'tab-1',
+      generation: 7,
+      kind: 'did-navigate',
+      url: 'https://chatgpt.com/c/keep',
+      isMainFrame: true
+    })
+
+    await controller.destroy()
+    expect(controller.isReady?.()).toBe(false)
+
+    aiViewClient.attach.mockResolvedValueOnce({
+      generation: 8,
+      currentUrl: 'https://chatgpt.com/c/keep',
+      created: true
+    })
+    await expect(controller.attach('https://chatgpt.com/c/keep')).resolves.toBe(true)
+
+    expect(aiViewClient.attach).toHaveBeenLastCalledWith(
+      expect.objectContaining({ viewId: 'tab-1', restoredUrl: 'https://chatgpt.com/c/keep' })
+    )
+    expect(controller.isReady?.()).toBe(true)
+    expect(controller.isDestroyed?.()).toBe(false)
+    // A freshly attached view is loading again, so nothing injects into it
+    // before its document arrives.
+    expect(controller.isLoading?.()).toBe(true)
+  })
+
+  it('keeps the last url across a destroy so a recreate can resume it', async () => {
+    const controller = makeController('tab-1')
+    await controller.attach()
+
+    emit({
+      viewId: 'tab-1',
+      generation: 7,
+      kind: 'did-navigate',
+      url: 'https://chatgpt.com/c/keep',
+      isMainFrame: true
+    })
+    await controller.destroy()
+    expect(controller.getURL?.()).toBe('https://chatgpt.com/c/keep')
+
+    aiViewClient.attach.mockResolvedValueOnce({
+      generation: 8,
+      currentUrl: 'https://chatgpt.com/c/keep',
+      created: true
+    })
+    await controller.recreate()
+
+    expect(aiViewClient.attach).toHaveBeenLastCalledWith(
+      expect.objectContaining({ viewId: 'tab-1', restoredUrl: 'https://chatgpt.com/c/keep' })
+    )
+    expect(controller.isReady?.()).toBe(true)
+  })
+
+  it('reports not-ready even when main never answers the destroy', async () => {
+    aiViewClient.destroy.mockReturnValueOnce(new Promise<boolean>(() => {}) as Promise<boolean>)
+
+    const controller = makeController('tab-1')
+    await controller.attach()
+    void controller.destroy()
+
+    expect(controller.isDestroyed?.()).toBe(true)
+    expect(controller.isReady?.()).toBe(false)
+  })
+})
