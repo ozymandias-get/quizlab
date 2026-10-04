@@ -2,6 +2,7 @@ import { registerSystemHandlers } from '../core/systemHandlers/systemHandlers.js
 import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers.js'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js'
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers/apiChatHandlers.js'
+import { registerAiViewHandlers } from '../features/ai-view/aiViewHandlers.js'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
 import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/geminiWebSessionHandlers.js'
 import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers.js'
@@ -30,6 +31,7 @@ export function registerGeneralHandlers() {
   registerGeminiWebSessionHandlers()
   registerAppSettingsHandlers()
   registerNativeMessagingHandlers()
+  registerAiViewHandlers()
 }
 
 export async function initializeNativeMessaging(): Promise<void> {
