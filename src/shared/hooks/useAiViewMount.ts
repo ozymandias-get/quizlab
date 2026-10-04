@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
-export function useWebviewMount() {
-  const [isWebviewMounted, setIsWebviewMounted] = useState<boolean>(false)
+export function useAiSurfaceMount() {
+  const [isAiSurfaceMounted, setIsAiSurfaceMounted] = useState<boolean>(false)
 
   useEffect(() => {
     let cancelled = false
@@ -10,24 +10,24 @@ export function useWebviewMount() {
       cancelIdleCallback?: (handle: number) => void
     }
 
-    const mountWebview = () => {
-      if (!cancelled) setIsWebviewMounted(true)
+    const mountSurface = () => {
+      if (!cancelled) setIsAiSurfaceMounted(true)
     }
 
     if (browserWindow.requestIdleCallback) {
-      const idleId = browserWindow.requestIdleCallback(mountWebview, { timeout: 300 })
+      const idleId = browserWindow.requestIdleCallback(mountSurface, { timeout: 300 })
       return () => {
         cancelled = true
         browserWindow.cancelIdleCallback?.(idleId)
       }
     }
 
-    const timeoutId = globalThis.setTimeout(mountWebview, 120)
+    const timeoutId = globalThis.setTimeout(mountSurface, 120)
     return () => {
       cancelled = true
       globalThis.clearTimeout(timeoutId)
     }
   }, [])
 
-  return isWebviewMounted
+  return isAiSurfaceMounted
 }

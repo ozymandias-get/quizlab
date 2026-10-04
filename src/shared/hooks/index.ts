@@ -1,6 +1,6 @@
+export { useAiSurfaceMount } from './useAiViewMount'
 export { useConfirmDialog } from './useConfirmDialog'
 export { useDebouncedValue } from './useDebouncedValue'
 export { useDialogBehavior } from './useDialogBehavior'
 export { useLocalStorage, useLocalStorageBoolean, useLocalStorageString } from './useLocalStorage'
 export { usePanelResize } from './usePanelResize'
-export { useWebviewMount } from './useWebviewMount'

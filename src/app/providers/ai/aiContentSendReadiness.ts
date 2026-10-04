@@ -1,13 +1,14 @@
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 const READY_STATES = new Set(['interactive', 'complete'])
 
 /**
  * A registered controller is not necessarily ready to receive automation.
- * Electron attaches the controller before the guest page has a URL or DOM.
+ * The main process confirms the managed view exists before the first navigation
+ * reports a URL, so both guards have to pass before a script is injected.
  */
-export async function isWebviewReadyForSend(
-  controller: WebviewController | null
+export async function isContentReadyForSend(
+  controller: AiContentController | null
 ): Promise<boolean> {
   if (!controller) return false
 
@@ -19,14 +20,14 @@ export async function isWebviewReadyForSend(
     const readyState = await controller.executeJavaScript('document.readyState')
     return typeof readyState === 'string' && READY_STATES.has(readyState)
   } catch {
-    // Navigation can temporarily reject executeJavaScript while the old guest
+    // Navigation can temporarily reject executeJavaScript while the old
     // document is being replaced. The polling caller will try again.
     return false
   }
 }
 
-export async function waitForWebviewReadyForSend(
-  getController: () => WebviewController | null,
+export async function waitForContentReadyForSend(
+  getController: () => AiContentController | null,
   timeoutMs = 10_000,
   pollIntervalMs = 100
 ): Promise<boolean> {
@@ -35,20 +36,19 @@ export async function waitForWebviewReadyForSend(
   // Fast-path: check cheap synchronous guards before any IPC. This avoids
   // calling executeJavaScript when the guest has no URL or is destroyed,
   // which would otherwise trigger a needless round-trip.
-  const isControllerCheapReady = (controller: WebviewController | null) => {
+  const isControllerCheapReady = (controller: AiContentController | null) => {
     if (!controller) return false
     if (controller.isDestroyed?.() === true) return false
     if (!controller.getURL?.()) return false
-    // If the guest is still loading, document.readyState is likely 'loading' — skip IPC.
-    const isLoading = (controller as unknown as { isLoading?: () => boolean }).isLoading
-    if (typeof isLoading === 'function' && isLoading()) return false
+    // While the document is still loading, document.readyState is 'loading'.
+    if (controller.isLoading?.() === true) return false
     return true
   }
 
   let attempt = 0
   while (Date.now() - startedAt < timeoutMs) {
     const controller = getController()
-    if (isControllerCheapReady(controller) && (await isWebviewReadyForSend(controller))) return true
+    if (isControllerCheapReady(controller) && (await isContentReadyForSend(controller))) return true
 
     const elapsed = Date.now() - startedAt
     const remaining = timeoutMs - elapsed
@@ -62,5 +62,5 @@ export async function waitForWebviewReadyForSend(
     await new Promise((resolve) => setTimeout(resolve, Math.min(backoff, remaining)))
   }
 
-  return isWebviewReadyForSend(getController())
+  return isContentReadyForSend(getController())
 }
