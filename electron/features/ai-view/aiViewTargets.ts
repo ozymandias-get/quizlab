@@ -92,6 +92,7 @@ export async function resolveAiViewTarget(source: AiViewSource): Promise<AiViewT
  */
 export function resolveEntryUrl(target: AiViewTarget, restoredUrl: string | null): string {
   if (!isUrlTrustedForTarget(target, restoredUrl)) return target.url
+  // Safe by construction: the trust check above already parsed this exact string.
   return new URL(restoredUrl as string).toString()
 }
 
