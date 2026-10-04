@@ -95,6 +95,31 @@ export interface RemoteContentSecurityOptions {
   partition: string
 }
 
+/**
+ * Schemes a remote surface is ever allowed to be *navigated* to.
+ *
+ * This is a scheme allowlist, not an origin check: provider sites legitimately
+ * move between origins while signing in (`auth.<provider>`, consent pages), and
+ * pinning main-frame navigation to the registered origin would break login. The
+ * origin side of the boundary is enforced elsewhere — renderer-initiated loads go
+ * through `isUrlTrustedForTarget`, and an untrusted origin inside the partition
+ * is denied every web permission by `permissionPolicy` — while the *scheme* side
+ * has no legitimate use at all. `file:`, `javascript:`, `data:`, `blob:`,
+ * `chrome:` and `devtools:` are all refused.
+ *
+ * Does not apply to `loadURL` from the main process: Chromium does not raise
+ * `will-navigate` for programmatic loads, and the initial entry URL plus every
+ * later renderer request are validated against the partition policy instead.
+ */
+export function isAllowedRemoteNavigationScheme(rawUrl: string): boolean {
+  try {
+    const { protocol } = new URL(rawUrl)
+    return protocol === 'https:' || protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
 export function applyRemoteContentSecurity({
   webContents,
   partition
@@ -132,8 +157,19 @@ export function applyRemoteContentSecurity({
     })
   }
 
-  webContents.on('will-navigate', guardAuthNavigation)
-  webContents.on('will-redirect', guardAuthNavigation)
+  const guardMainFrameNavigation = (event: Electron.Event, url: string): void => {
+    // Fail closed on any scheme that has no legitimate use in an embedded page,
+    // before the auth hand-off gets a chance to hand it to the system browser.
+    if (!isAllowedRemoteNavigationScheme(url)) {
+      event.preventDefault()
+      Logger.warn('[Security] Blocked remote content navigation scheme', { url })
+      return
+    }
+    guardAuthNavigation(event, url)
+  }
+
+  webContents.on('will-navigate', guardMainFrameNavigation)
+  webContents.on('will-redirect', guardMainFrameNavigation)
 
   // SECURITY: Fail closed on TLS errors. Chromium would otherwise show an
   // interstitial the embedded surface cannot render, leaving the user with no

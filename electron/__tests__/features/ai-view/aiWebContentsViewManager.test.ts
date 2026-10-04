@@ -138,9 +138,17 @@ vi.mock('../../../app/windowManager.js', () => ({
 vi.mock('../../../app/window/permissionPolicy.js', () => ({
   isAllowedManagedViewPartition: (partition: unknown) =>
     typeof partition === 'string' && partition.startsWith('persist:'),
-  isHostTrustedForPartition: (partition: string, hostname: string) =>
-    partition === 'persist:ai_chatgpt' &&
-    (hostname === 'chatgpt.com' || hostname.endsWith('.chatgpt.com'))
+  // Mirrors the real derivation: the registry origin per partition, exact host or
+  // a subdomain of it, and a registered origin for user-added platforms.
+  isHostTrustedForPartition: (partition: string, hostname: string) => {
+    const roots: Record<string, string[]> = {
+      'persist:ai_chatgpt': ['chatgpt.com'],
+      'persist:ai_custom_custom_1': ['local.test']
+    }
+    return (
+      roots[partition]?.some((root) => hostname === root || hostname.endsWith(`.${root}`)) === true
+    )
+  }
 }))
 
 vi.mock('../../../features/ai/aiManager.js', () => ({
@@ -195,6 +203,7 @@ const manager = await import('../../../features/ai-view/aiWebContentsViewManager
 
 const CHATGPT = { kind: 'ai-platform' as const, modelId: 'chatgpt' }
 const GROK = { kind: 'ai-platform' as const, modelId: 'grok' }
+const CUSTOM = { kind: 'ai-platform' as const, modelId: 'custom_1' }
 
 async function reset() {
   manager.destroyAllAiViews()
@@ -356,6 +365,112 @@ describe('AiWebContentsViewManager - url restoration', () => {
       restoredUrl: 'http://chatgpt.com'
     })
     expect(response.currentUrl.startsWith('https://')).toBe(true)
+  })
+})
+
+describe('AiWebContentsViewManager - navigation policy', () => {
+  it('loads a renderer-requested url on a trusted origin of the same partition', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    // The attach itself performs the entry load; only later calls matter here.
+    vi.mocked(entry.webContents.loadURL).mockClear()
+
+    expect(manager.loadAiViewUrl('tab-1', 'https://chatgpt.com/c/3')).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledWith('https://chatgpt.com/c/3')
+  })
+
+  it('accepts a subdomain of the registered host, so sign-in flows keep working', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    // The attach itself performs the entry load; only later calls matter here.
+    vi.mocked(entry.webContents.loadURL).mockClear()
+
+    expect(manager.loadAiViewUrl('tab-1', 'https://auth.chatgpt.com/login')).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledWith('https://auth.chatgpt.com/login')
+  })
+
+  it('refuses to walk a managed view onto a foreign https origin', async () => {
+    // Regression guard. `loadURL` used to be handed any https URL, so a
+    // compromised renderer could point a provider partition — session cookies
+    // and all — at an origin it controls.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    // The attach itself performs the entry load; only later calls matter here.
+    vi.mocked(entry.webContents.loadURL).mockClear()
+
+    expect(manager.loadAiViewUrl('tab-1', 'https://evil.test/steal')).toBe(false)
+    expect(manager.loadAiViewUrl('tab-1', 'https://chatgpt.com.evil.test/steal')).toBe(false)
+    expect(entry.webContents.loadURL).not.toHaveBeenCalled()
+  })
+
+  it('refuses every dangerous scheme', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    vi.mocked(entry.webContents.loadURL).mockClear()
+
+    for (const url of [
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'chrome://settings',
+      'devtools://devtools/bundled/inspector.html',
+      'about:blank',
+      'not a url'
+    ]) {
+      expect(manager.loadAiViewUrl('tab-1', url)).toBe(false)
+    }
+    expect(entry.webContents.loadURL).not.toHaveBeenCalled()
+  })
+
+  it('refuses a host that only another partition trusts', async () => {
+    // The trust check is per partition, not global: Grok's origin is not a ChatGPT
+    // origin even though both are registry providers.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    // The attach itself performs the entry load; only later calls matter here.
+    vi.mocked(entry.webContents.loadURL).mockClear()
+
+    expect(manager.loadAiViewUrl('tab-1', 'https://grok.com/c/1')).toBe(false)
+    expect(entry.webContents.loadURL).not.toHaveBeenCalled()
+  })
+
+  it('loads the url of a registered custom platform origin', async () => {
+    // Custom platforms are user-added arbitrary https origins; registering the
+    // origin is what keeps them working, so the policy must not break them.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-custom', source: CUSTOM })
+    const entry = manager.getManagedAiView('tab-custom')!
+
+    expect(manager.loadAiViewUrl('tab-custom', 'https://local.test/chat')).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledWith('https://local.test/chat')
+  })
+
+  it('refuses an empty or non-string url', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    // The attach itself performs the entry load; only later calls matter here.
+    vi.mocked(entry.webContents.loadURL).mockClear()
+
+    expect(manager.loadAiViewUrl('tab-1', '')).toBe(false)
+    expect(manager.loadAiViewUrl('tab-1', { url: 'https://chatgpt.com' })).toBe(false)
+    expect(entry.webContents.loadURL).not.toHaveBeenCalled()
+  })
+
+  it('keeps re-validating against the partition the view was created in', async () => {
+    // A later navigation cannot be re-pointed at a different partition either:
+    // the target travels with the view, not with the request.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+
+    expect(entry.target.partition).toBe('persist:ai_chatgpt')
+    expect(manager.loadAiViewUrl('tab-1', 'https://local.test/chat')).toBe(false)
   })
 })
 
