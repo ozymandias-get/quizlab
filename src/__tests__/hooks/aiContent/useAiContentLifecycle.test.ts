@@ -375,3 +375,193 @@ describe('useAiContentLifecycle - registry', () => {
     expect(() => render(null)).not.toThrow()
   })
 })
+
+describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
+  const snapshot = (overrides: Record<string, unknown> = {}) => ({
+    currentUrl: 'https://chatgpt.com/c/abc',
+    isLoading: false,
+    hasLoadedOnce: true,
+    loadState: 'settled',
+    error: null,
+    ...overrides
+  })
+
+  it('reveals an existing settled view without waiting for a load event', () => {
+    // The focus-mode shape. No `did-stop-loading` follows this, so if the
+    // snapshot were ignored the splash would never leave.
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', snapshot() as never)
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('keeps an existing still-loading view behind the splash', () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit(
+        'state',
+        snapshot({
+          currentUrl: 'https://chatgpt.com/',
+          isLoading: true,
+          hasLoadedOnce: false,
+          loadState: 'loading'
+        }) as never
+      )
+    })
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.hasLoadedOnce).toBe(false)
+  })
+
+  it('shows the last failure of an existing view instead of an endless splash', () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    // The failure was recorded while the previous host held the view; the load
+    // itself had already settled, so this host must not start the splash at all.
+    act(() => {
+      controller._emit(
+        'state',
+        snapshot({
+          loadState: 'failed',
+          error: { code: -105, description: 'ERR_NAME_NOT_RESOLVED' }
+        }) as never
+      )
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+    expect(result.current.error).toBe('ERR_NAME_NOT_RESOLVED')
+  })
+
+  it('keeps waiting when a failure is recorded mid-navigation', () => {
+    // An aborted redirect hop reports a failure while the real document is still
+    // on its way. Settling here would reveal the view on a blank page and skip
+    // the settled-callback for the page that actually arrives.
+    const controller = createController()
+    const onPageSettled = vi.fn()
+    const { result } = render(controller, { onPageSettled })
+
+    act(() => {
+      controller._emit(
+        'state',
+        snapshot({
+          isLoading: true,
+          hasLoadedOnce: false,
+          loadState: 'loading',
+          error: { code: -3, description: 'ERR_ABORTED' }
+        }) as never
+      )
+    })
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.hasLoadedOnce).toBe(false)
+    expect(result.current.error).toBeNull()
+    expect(onPageSettled).not.toHaveBeenCalled()
+
+    // The navigation completes, which is what finally settles it.
+    act(() => {
+      controller._emit('state', snapshot({ currentUrl: 'https://chatgpt.com/c/real' }) as never)
+    })
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+    expect(onPageSettled).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not run the settled-callback for a view that never produced a document', () => {
+    const controller = createController()
+    const onPageSettled = vi.fn()
+    const { result } = render(controller, { onPageSettled })
+
+    act(() => {
+      controller._emit(
+        'state',
+        snapshot({
+          loadState: 'failed',
+          error: { code: -6, description: 'ERR_FILE_NOT_FOUND' }
+        }) as never
+      )
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+    expect(result.current.error).toBe('ERR_FILE_NOT_FOUND')
+    expect(onPageSettled).not.toHaveBeenCalled()
+  })
+
+  it('settles a transient failure without surfacing an error', () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit(
+        'state',
+        snapshot({
+          loadState: 'failed',
+          error: { code: -3, description: 'ERR_ABORTED' }
+        }) as never
+      )
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('does not bring the splash back when the snapshot reports a re-navigation', () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', snapshot() as never)
+    })
+    expect(result.current.hasLoadedOnce).toBe(true)
+
+    act(() => {
+      controller._emit(
+        'state',
+        snapshot({
+          currentUrl: 'https://chatgpt.com/c/next',
+          isLoading: true,
+          hasLoadedOnce: true,
+          loadState: 'loading'
+        }) as never
+      )
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+  })
+
+  it('reports the conversation url from the snapshot', () => {
+    const controller = createController()
+    const onUrlChange = vi.fn()
+    render(controller, { onUrlChange })
+
+    act(() => {
+      controller._emit('state', snapshot() as never)
+    })
+
+    expect(onUrlChange).toHaveBeenCalledWith('https://chatgpt.com/c/abc')
+  })
+
+  it('treats a snapshot from an older preload as still loading', () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', { currentUrl: 'https://chatgpt.com/' } as never)
+    })
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.hasLoadedOnce).toBe(false)
+  })
+})

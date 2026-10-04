@@ -4,7 +4,8 @@ import type {
   AiViewEvent,
   AiViewEventKind,
   AiViewEventOf,
-  AiViewSource
+  AiViewSource,
+  AiViewStateSnapshot
 } from '@shared-core/types/aiView'
 
 import { reportSuppressedError } from '@shared/lib/logger'
@@ -55,6 +56,19 @@ export function createAiContentController(
 
   let generation: number | null = null
   /**
+   * Bumped by every lifecycle mutation, and stamped into the async operation
+   * that mutation started.
+   *
+   * Attach is a round trip, so it can still be in flight when the tab is closed,
+   * slept or evicted: `destroy()` clears the local mirror and answers, then the
+   * pending attach resolves and would write a generation and flip `ready` back
+   * to true — reporting a `WebContents` that main has already closed as usable,
+   * which is how the send pipeline ends up injecting into a dead view. Every
+   * completion therefore checks its own stamp and drops itself if a newer
+   * lifecycle operation has since started.
+   */
+  let lifecycleEpoch = 0
+  /**
    * True from an explicit `destroy()` until the next `attach()`.
    *
    * While retired the view this handle mirrors is gone, so incoming events are
@@ -96,6 +110,7 @@ export function createAiContentController(
     else if ('url' in event && event.url) currentUrl = event.url
     if (event.kind === 'did-start-loading') loading = true
     if (event.kind === 'did-stop-loading' || event.kind === 'dom-ready') loading = false
+    if (event.kind === 'state') applySnapshot(event)
 
     const listeners = eventListeners.get(event.kind)
     if (!listeners) return
@@ -106,6 +121,21 @@ export function createAiContentController(
         reportSuppressedError('aiContent.eventListener', { cause: error })
       }
     }
+  }
+
+  /**
+   * Adopts the manager's authoritative description of the view.
+   *
+   * Only the two fields the synchronous accessors answer with are mirrored here;
+   * whether the guest has settled and whether it failed are the host's business
+   * and reach it through the `state` event.
+   */
+  function applySnapshot(snapshot: AiViewStateSnapshot): void {
+    if (snapshot.currentUrl) currentUrl = snapshot.currentUrl
+    // A response from a preload that predates the snapshot contract carries no
+    // load state. Assume "still loading" rather than reporting an idle guest
+    // that has not painted, which would let the send pipeline inject into it.
+    loading = typeof snapshot.isLoading === 'boolean' ? snapshot.isLoading : true
   }
 
   const unsubscribeEvents = subscribeAiViewEvents((event) => {
@@ -121,6 +151,7 @@ export function createAiContentController(
 
   async function attach(restoredUrl?: string): Promise<boolean> {
     if (!client) return false
+    const epoch = ++lifecycleEpoch
     // Cleared up front: main may report the guest's first navigation before this
     // invoke resolves, and those events are buffered rather than dropped.
     retired = false
@@ -132,14 +163,31 @@ export function createAiContentController(
           ? { restoredUrl: restoredUrl ?? init.restoredUrl }
           : {})
       })
+      // A newer attach or a destroy started while this round trip was in the
+      // air. Its answer describes a view this handle no longer mirrors.
+      if (epoch !== lifecycleEpoch) return false
+
       generation = response.generation
-      currentUrl = response.currentUrl
-      // A view that was just created starts out loading; keeping the flag in
-      // step means `isLoading()` cannot report a stale `false` for a document
-      // that has not arrived yet (which would let the send pipeline inject into
-      // an empty guest right after a wake).
-      loading = true
+      applySnapshot(response)
       setReady(true)
+
+      // The snapshot is replayed locally as a `state` event rather than applied
+      // to the host's React state from here: a host that mounted onto an
+      // *existing* view never receives a `did-stop-loading`, so without this it
+      // would wait for one forever and keep the native view hidden behind its
+      // splash. Going through the same event type the manager pushes keeps a
+      // single bootstrap path, and the buffered events are replayed after it so
+      // a load that settled during the round trip wins over the older snapshot.
+      dispatch({
+        viewId,
+        kind: 'state',
+        generation: response.generation,
+        currentUrl: response.currentUrl,
+        isLoading: response.isLoading,
+        hasLoadedOnce: response.hasLoadedOnce,
+        loadState: response.loadState,
+        error: response.error
+      })
       const pending = buffered.splice(0, buffered.length)
       for (const event of pending) {
         if (event.generation === generation) dispatch(event)
@@ -147,12 +195,19 @@ export function createAiContentController(
       return true
     } catch (error) {
       reportSuppressedError('aiContent.attach', { cause: error })
+      // A rejection that lands after a destroy must not report the controller as
+      // merely "not ready": the destroy already moved it to retired.
+      if (epoch !== lifecycleEpoch) return false
       setReady(false)
       return false
     }
   }
 
   async function destroy(): Promise<boolean> {
+    // Invalidate every operation started before this point, before anything
+    // else: an in-flight attach that resolves later must not resurrect the
+    // mirror this call is about to clear.
+    lifecycleEpoch += 1
     // The local mirror is invalidated *before* the IPC round trip so a late
     // event from the dying view cannot write state in between, and so readiness
     // subscribers are released even if main never answers.
