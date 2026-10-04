@@ -15,7 +15,12 @@ import { Logger } from '../../core/logger.js'
 import { CHROME_USER_AGENT } from '../ai/aiManager.js'
 import { boundsEqual, isUsableBounds, parseBounds, parseViewId } from './aiViewContract.js'
 import { bridgeWebContentsEvents } from './aiViewEventBridge.js'
-import { resolveAiViewTarget, resolveEntryUrl } from './aiViewTargets.js'
+import {
+  type AiViewTarget,
+  isUrlTrustedForTarget,
+  resolveAiViewTarget,
+  resolveEntryUrl
+} from './aiViewTargets.js'
 
 /**
  * Owns every remote surface the app embeds.
@@ -33,6 +38,12 @@ export interface ManagedAiView {
   viewId: string
   /** Registry id / app id this view was resolved from; `null` once retired. */
   sourceKey: string
+  /**
+   * The main-process resolved target. Kept for the lifetime of the view so every
+   * later navigation request can be re-validated against the partition this view
+   * was actually created in — the renderer never names a partition itself.
+   */
+  target: AiViewTarget
   partition: string
   currentUrl: string
   generation: number
@@ -143,6 +154,7 @@ export async function attachAiView(request: AiViewAttachRequest): Promise<AiView
     webContents,
     viewId,
     sourceKey,
+    target,
     partition: target.partition,
     currentUrl: resolveEntryUrl(target, request.restoredUrl ?? null),
     generation,
@@ -332,11 +344,27 @@ export function reloadAiView(viewId: string): boolean {
   return true
 }
 
+/**
+ * Renderer-initiated navigation into an existing view.
+ *
+ * Validated against the same partition policy the entry URL went through, so a
+ * compromised renderer cannot use a managed `WebContents` (and its provider
+ * session cookies) as a browser for an arbitrary https origin. Falling back to
+ * the registry entry instead of loading would be worse than refusing: it would
+ * silently discard the caller's intent, so an untrusted request is rejected.
+ */
 export function loadAiViewUrl(viewId: string, rawUrl: unknown): boolean {
   const entry = getManagedAiView(viewId)
   if (!entry) return false
   const url = typeof rawUrl === 'string' ? rawUrl : ''
-  if (!url) return false
+  if (!isUrlTrustedForTarget(entry.target, url)) {
+    Logger.warn('[AiView] Refused navigation outside the partition trusted origins:', {
+      viewId,
+      partition: entry.partition,
+      url
+    })
+    return false
+  }
   void entry.webContents.loadURL(url).catch((error: unknown) => {
     Logger.warn('[AiView] loadURL failed:', { viewId, error })
   })

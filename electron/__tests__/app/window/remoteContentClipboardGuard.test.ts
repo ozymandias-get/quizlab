@@ -282,6 +282,51 @@ describe('applyRemoteContentSecurity', () => {
     expect(preventDefault).not.toHaveBeenCalled()
   })
 
+  it('lets a provider navigate across origins, so sign-in and consent still work', async () => {
+    // The scheme guard is deliberately not an origin lock: providers legitimately
+    // move to sibling hosts mid-flow, and pinning the entry host would break
+    // login while still not being the security boundary (see
+    // `isUrlTrustedForTarget` for the renderer-initiated path and
+    // `permissionPolicy` for what an untrusted origin may do inside the view).
+    const { applyRemoteContentSecurity: apply } =
+      await import('../../../app/window/remoteContentSecurity.js')
+    const { webContents, listeners } = createWebContents()
+    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
+
+    const preventDefault = vi.fn()
+    listeners.get('will-navigate')?.({ preventDefault }, 'https://auth.chatgpt.com/authorize')
+    listeners.get('will-navigate')?.({ preventDefault }, 'https://chat.openai.com/')
+    expect(preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('blocks main-frame navigation to any scheme that has no legitimate use', async () => {
+    const { applyRemoteContentSecurity: apply } =
+      await import('../../../app/window/remoteContentSecurity.js')
+    const { webContents, listeners } = createWebContents()
+    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
+
+    for (const url of [
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'blob:https://chatgpt.com/abc',
+      'chrome://settings',
+      'devtools://devtools/bundled/inspector.html',
+      'about:blank'
+    ]) {
+      const preventDefault = vi.fn()
+      listeners.get('will-navigate')?.({ preventDefault }, url)
+      expect(preventDefault).toHaveBeenCalledTimes(1)
+
+      const redirectPrevent = vi.fn()
+      listeners.get('will-redirect')?.({ preventDefault: redirectPrevent }, url)
+      expect(redirectPrevent).toHaveBeenCalledTimes(1)
+    }
+
+    // Nothing dangerous may reach the OS hand-off either.
+    expect(shellOpenExternal).not.toHaveBeenCalled()
+  })
+
   it('rejects certificate errors', async () => {
     const { applyRemoteContentSecurity: apply } =
       await import('../../../app/window/remoteContentSecurity.js')

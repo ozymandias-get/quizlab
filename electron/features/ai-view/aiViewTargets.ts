@@ -91,14 +91,33 @@ export async function resolveAiViewTarget(source: AiViewSource): Promise<AiViewT
  * view onto a foreign origin.
  */
 export function resolveEntryUrl(target: AiViewTarget, restoredUrl: string | null): string {
-  if (!restoredUrl) return target.url
+  if (!isUrlTrustedForTarget(target, restoredUrl)) return target.url
+  return new URL(restoredUrl as string).toString()
+}
+
+/**
+ * Whether `rawUrl` may be loaded into a view bound to `target`.
+ *
+ * This is the single trust check behind both entry URL resolution and any later
+ * renderer-initiated navigation, so it answers one question: is this an https URL
+ * on an origin registered for the partition the view actually runs in?
+ *
+ * Host matching deliberately allows subdomains (`auth.chatgpt.com` for a
+ * `chatgpt.com` target) instead of requiring an exact host, because provider
+ * sign-in and consent flows legitimately move onto sibling subdomains — pinning
+ * the exact entry host would break logging in while still not being the security
+ * boundary. The boundary is the partition's origin registry, which the renderer
+ * cannot extend: only main-process registry state (built-in providers, Google web
+ * apps and explicitly registered custom platforms) contributes to it.
+ */
+export function isUrlTrustedForTarget(target: AiViewTarget, rawUrl: string | null): boolean {
+  if (!rawUrl) return false
   let parsed: URL
   try {
-    parsed = new URL(restoredUrl)
+    parsed = new URL(rawUrl)
   } catch {
-    return target.url
+    return false
   }
-  if (parsed.protocol !== 'https:') return target.url
-  if (!isHostTrustedForPartition(target.partition, parsed.hostname)) return target.url
-  return parsed.toString()
+  if (parsed.protocol !== 'https:') return false
+  return isHostTrustedForPartition(target.partition, parsed.hostname)
 }
