@@ -38,6 +38,10 @@ export interface AiContentControllerHandle extends AiContentController {
   recreate: (restoredUrl?: string) => Promise<boolean>
   /** Releases this host's claim without destroying the view. */
   releaseHost: (hostToken: string) => Promise<boolean>
+  /**
+   * Retires the managed view: it is destroyed in main and this handle's mirror
+   * of it goes back to "no view" (not ready, not loading, generation dropped).
+   */
   destroy: () => Promise<boolean>
   /** Detaches the shared event subscription; does not touch the managed view. */
   dispose: () => void
@@ -50,17 +54,32 @@ export function createAiContentController(
   const client = getAiViewClient()
 
   let generation: number | null = null
+  /**
+   * True from an explicit `destroy()` until the next `attach()`.
+   *
+   * While retired the view this handle mirrors is gone, so incoming events are
+   * dropped rather than buffered: the only thing buffered events can do at that
+   * point is fill the buffer, and replaying one against a later attach would be
+   * filtered by generation anyway.
+   */
+  let retired = false
   let currentUrl: string | undefined
   let loading = true
-  let destroyed = true
+  /**
+   * Mirrors `AiContentController.isReady`: true once main confirmed the view
+   * exists, false before that and again after it was destroyed. `isDestroyed()`
+   * is its inverse — the pair is what lets the send and picker pipelines refuse a
+   * view that no longer exists without a round trip.
+   */
+  let ready = false
   const buffered: AiViewEvent[] = []
 
   const eventListeners = new Map<AiViewEventKind, Set<(event: never) => void>>()
   const readyListeners = new Set<(ready: boolean) => void>()
 
   function setReady(next: boolean): void {
-    if (destroyed === !next) return
-    destroyed = !next
+    if (ready === next) return
+    ready = next
     for (const listener of readyListeners) {
       try {
         listener(next)
@@ -92,6 +111,7 @@ export function createAiContentController(
   const unsubscribeEvents = subscribeAiViewEvents((event) => {
     if (event.viewId !== viewId) return
     if (generation === null) {
+      if (retired) return
       if (buffered.length < MAX_BUFFERED_EVENTS) buffered.push(event)
       return
     }
@@ -101,6 +121,9 @@ export function createAiContentController(
 
   async function attach(restoredUrl?: string): Promise<boolean> {
     if (!client) return false
+    // Cleared up front: main may report the guest's first navigation before this
+    // invoke resolves, and those events are buffered rather than dropped.
+    retired = false
     try {
       const response = await client.attach({
         viewId,
@@ -111,6 +134,11 @@ export function createAiContentController(
       })
       generation = response.generation
       currentUrl = response.currentUrl
+      // A view that was just created starts out loading; keeping the flag in
+      // step means `isLoading()` cannot report a stale `false` for a document
+      // that has not arrived yet (which would let the send pipeline inject into
+      // an empty guest right after a wake).
+      loading = true
       setReady(true)
       const pending = buffered.splice(0, buffered.length)
       for (const event of pending) {
@@ -124,14 +152,25 @@ export function createAiContentController(
     }
   }
 
-  async function recreate(restoredUrl?: string): Promise<boolean> {
-    if (client) {
-      await client.destroy({ viewId }).catch(() => false)
-    }
-    buffered.length = 0
+  async function destroy(): Promise<boolean> {
+    // The local mirror is invalidated *before* the IPC round trip so a late
+    // event from the dying view cannot write state in between, and so readiness
+    // subscribers are released even if main never answers.
     generation = null
+    retired = true
+    buffered.length = 0
+    loading = false
     setReady(false)
-    return attach(restoredUrl ?? currentUrl)
+    // `currentUrl` is deliberately kept: it is the only record of where the
+    // conversation was, and both `recreate()` and a later `attach()` replay it.
+    if (!client) return false
+    return client.destroy({ viewId }).catch(() => false)
+  }
+
+  async function recreate(restoredUrl?: string): Promise<boolean> {
+    const resumeUrl = restoredUrl ?? currentUrl
+    await destroy()
+    return attach(resumeUrl)
   }
 
   const controller: AiContentControllerHandle = {
@@ -143,59 +182,58 @@ export function createAiContentController(
     releaseHost: (hostToken) =>
       client ? client.detach({ viewId, hostToken }).catch(() => false) : Promise.resolve(false),
 
-    destroy: () =>
-      client ? client.destroy({ viewId }).catch(() => false) : Promise.resolve(false),
+    destroy,
 
     executeJavaScript: (script) => {
-      if (!client || destroyed) return Promise.resolve(undefined)
+      if (!client || !ready) return Promise.resolve(undefined)
       return client.executeScript({ viewId, script })
     },
 
     loadURL: (url) => {
-      if (!client || destroyed) return Promise.resolve(undefined)
+      if (!client || !ready) return Promise.resolve(undefined)
       return client.loadUrl({ viewId, url }).then(() => undefined)
     },
 
     insertText: (text) => {
-      if (!client || destroyed) return Promise.resolve(false)
+      if (!client || !ready) return Promise.resolve(false)
       return client.insertText({ viewId, text })
     },
 
     reload: () => {
-      if (!client || destroyed) return Promise.resolve(false)
+      if (!client || !ready) return Promise.resolve(false)
       return client.reload({ viewId })
     },
 
     goBack: () => {
-      if (!client || destroyed) return Promise.resolve(false)
+      if (!client || !ready) return Promise.resolve(false)
       return client.navigate({ viewId, delta: -1 })
     },
 
     goForward: () => {
-      if (!client || destroyed) return Promise.resolve(false)
+      if (!client || !ready) return Promise.resolve(false)
       return client.navigate({ viewId, delta: 1 })
     },
 
     getURL: () => currentUrl,
 
     sendInputEvent: (inputEvent: AiContentInputEvent) => {
-      if (!client || destroyed) return Promise.resolve(false)
+      if (!client || !ready) return Promise.resolve(false)
       return client.sendInputEvent({ viewId, inputEvent })
     },
 
     paste: () => {
-      if (!client || destroyed) return Promise.resolve(false)
+      if (!client || !ready) return Promise.resolve(false)
       return client.paste({ viewId })
     },
 
     focus: () => {
-      if (!client || destroyed) return Promise.resolve(false)
+      if (!client || !ready) return Promise.resolve(false)
       return client.focus({ viewId })
     },
 
-    isDestroyed: () => destroyed,
+    isDestroyed: () => !ready,
     isLoading: () => loading,
-    isReady: () => !destroyed,
+    isReady: () => ready,
 
     subscribeEvent: <K extends AiViewEventKind>(
       kind: K,
@@ -212,7 +250,7 @@ export function createAiContentController(
     subscribeReady: (listener) => {
       readyListeners.add(listener)
       try {
-        listener(!destroyed)
+        listener(ready)
       } catch (error) {
         reportSuppressedError('aiContent.subscribeReady', { cause: error })
       }
