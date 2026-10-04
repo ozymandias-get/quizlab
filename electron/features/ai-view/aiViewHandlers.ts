@@ -88,10 +88,12 @@ export function registerAiViewHandlers(): void {
 
   registerIpcHandler(
     IPC_CHANNELS.AI_VIEW_DESTROY,
-    (_event, request: unknown) => {
+    async (_event, request: unknown) => {
       const parsed = parseTabRequest(request)
       if (!parsed) return success(false)
-      return success(destroyAiView(parsed.viewId))
+      // Queued behind a pending attach for the same id, so it cannot race past a
+      // view that does not exist yet and orphan its WebContents.
+      return success(await destroyAiView(parsed.viewId))
     },
     requireTrustedIpcSender,
     DENIED
@@ -215,7 +217,7 @@ export function registerAiViewHandlers(): void {
 }
 
 /** Called from the app cleanup chain so no managed WebContents outlives the window. */
-export function disposeAiViewHandlers(): void {
+export async function disposeAiViewHandlers(): Promise<void> {
   setAiViewEventSink(null)
-  destroyAllAiViews()
+  await destroyAllAiViews()
 }

@@ -46,6 +46,49 @@ export type AiViewEventKind =
   | 'render-process-gone'
   | 'console-message'
 
+/**
+ * Where a managed view stands in its load lifecycle, as observed by the main
+ * process.
+ *
+ * Three values, deliberately: the only question a host has to answer is "may I
+ * stop waiting and take this view as-is?" — which is true for `settled` and for
+ * `failed`, and false for `loading`.
+ */
+export type AiViewLoadState = 'loading' | 'settled' | 'failed'
+
+/**
+ * The one description of a managed view's state.
+ *
+ * A `WebContentsView` outlives every React host that positions it, so a host
+ * mounting onto an existing view (a focus-mode handoff, a tab coming back from
+ * behind an overlay) has no way to learn what already happened to it: the events
+ * that reported it were delivered to whoever held the view at the time, and a
+ * load that finished long ago emits nothing at all. Without a snapshot such a
+ * host waits forever for a `did-stop-loading` that will never come again.
+ *
+ * The manager therefore recomputes this from the `WebContents` it owns and
+ * hands it to every new host — on the attach response and, for a host that is
+ * already mounted, as a `state` event. It is the same value either way, so the
+ * renderer has one bootstrap path instead of two.
+ */
+export interface AiViewStateSnapshot {
+  generation: number
+  /** Last known URL of the guest, refreshed on every navigation. */
+  currentUrl: string
+  isLoading: boolean
+  /**
+   * True once the first load *attempt* settled, successfully or not.
+   *
+   * Hosts that reveal the native view only after its first paint key off this,
+   * so a view whose load failed fatally still counts as settled: what should be
+   * displayed then is the error, not an endless splash.
+   */
+  hasLoadedOnce: boolean
+  loadState: AiViewLoadState
+  /** Last main-frame load failure, or `null` when the last attempt produced a document. */
+  error: { code: number; description: string } | null
+}
+
 interface AiViewEventBase {
   viewId: string
   /**
@@ -59,7 +102,7 @@ interface AiViewEventBase {
 
 export type AiViewEvent = AiViewEventBase &
   (
-    | { kind: 'state'; currentUrl: string; isLoading: boolean }
+    | ({ kind: 'state' } & AiViewStateSnapshot)
     | { kind: 'did-start-loading'; currentUrl: string }
     | { kind: 'did-stop-loading'; currentUrl: string }
     | { kind: 'dom-ready'; currentUrl: string }
@@ -103,9 +146,7 @@ export interface AiViewAttachRequest {
   restoredUrl?: string
 }
 
-export interface AiViewAttachResponse {
-  generation: number
-  currentUrl: string
+export interface AiViewAttachResponse extends AiViewStateSnapshot {
   /** False when an existing view for this id was reused (tab switch, focus mode). */
   created: boolean
 }

@@ -53,10 +53,28 @@ export interface AiViewEventBridgeContext {
   generation: number
   webContents: WebContents
   emit: (event: AiViewEvent) => void
+  /**
+   * Reports a change to the view's authoritative load state.
+   *
+   * The bridge is the only place that observes every lifecycle transition, so it
+   * is also the only place the manager's `currentUrl` / `isLoading` /
+   * `hasLoadedOnce` mirror can be kept truthful without duplicating the listener
+   * list. `loadState` is derived by the caller from the fields it already owns.
+   */
+  onLoadStateChange: (change: AiViewLoadStateChange) => void
+}
+
+export interface AiViewLoadStateChange {
+  isLoading?: boolean
+  hasLoadedOnce?: boolean
+  /** Last main-frame load failure; `null` clears a previously recorded one. */
+  error?: { code: number; description: string } | null
+  /** Current guest URL, when the transition revealed a newer one. */
+  currentUrl?: string
 }
 
 export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () => void {
-  const { viewId, generation, webContents, emit } = context
+  const { viewId, generation, webContents, emit, onLoadStateChange } = context
   const base = { viewId, generation }
   const currentUrl = (): string => {
     try {
@@ -66,16 +84,30 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
     }
   }
 
-  const onDidStartLoading = () =>
+  const onDidStartLoading = () => {
+    // A new attempt supersedes the previous outcome, so a stale failure must not
+    // survive into the next navigation's snapshot. `hasLoadedOnce` is
+    // deliberately untouched: it means "the first load attempt settled", and a
+    // re-navigation does not un-settle it.
+    onLoadStateChange({ isLoading: true, error: null })
     emit({ ...base, kind: 'did-start-loading', currentUrl: currentUrl() })
+  }
 
   const onDomReady = () => {
     applyPageChrome(webContents)
+    // A document arrived, so the load produced something real.
+    onLoadStateChange({ error: null, currentUrl: currentUrl() })
     emit({ ...base, kind: 'dom-ready', currentUrl: currentUrl() })
   }
 
-  const onDidStopLoading = () =>
+  const onDidStopLoading = () => {
+    onLoadStateChange({
+      isLoading: false,
+      hasLoadedOnce: true,
+      currentUrl: currentUrl()
+    })
     emit({ ...base, kind: 'did-stop-loading', currentUrl: currentUrl() })
+  }
 
   const onDidFailLoad = (
     _event: Electron.Event,
@@ -85,6 +117,13 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
     isMainFrame: boolean
   ) => {
     if (!isMainFrame) return
+    // Deliberately does not touch `isLoading` / `hasLoadedOnce`: `did-fail-load`
+    // also fires for an aborted redirect hop, where the navigation is still in
+    // flight. `did-stop-loading` is the authority on "the attempt settled".
+    onLoadStateChange({
+      error: { code: errorCode, description: errorDescription },
+      currentUrl: validatedURL || currentUrl()
+    })
     emit({
       ...base,
       kind: 'did-fail-load',
@@ -104,6 +143,10 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
     _httpResponseCode: number,
     _httpStatusText: string
   ) => {
+    // Without this the manager's `currentUrl` would stay on the entry URL
+    // forever, and the next host to attach to this view would be handed that
+    // entry URL instead of the conversation the user is actually looking at.
+    onLoadStateChange({ currentUrl: url })
     emit({ ...base, kind: 'did-navigate', url, isMainFrame: true })
   }
 
@@ -115,6 +158,7 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
     _frameRoutingId: number
   ) => {
     if (!isMainFrame) return
+    onLoadStateChange({ currentUrl: url })
     emit({ ...base, kind: 'did-navigate-in-page', url, isMainFrame })
   }
 
@@ -124,6 +168,11 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
   ) => {
     const reason = details?.reason ?? ''
     if (!isCrashReason(reason)) return
+    // No load is in flight any more, and none will report itself as finished. The
+    // crash-recovery path in the renderer owns the UX; this only keeps the
+    // snapshot honest, so a host that attaches during the retry window does not
+    // sit behind a splash for a guest that will never paint.
+    onLoadStateChange({ isLoading: false })
     emit({
       ...base,
       kind: 'render-process-gone',
