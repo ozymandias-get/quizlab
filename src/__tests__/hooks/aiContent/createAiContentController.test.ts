@@ -32,17 +32,27 @@ type Emitter = (event: AiViewEvent) => void
 
 let emit: Emitter = () => {}
 
+/**
+ * The attach response main sends for a view it has just created: the entry load
+ * is in flight and nothing has settled yet.
+ */
+const freshAttachResponse = (generation: number, currentUrl: string) => ({
+  generation,
+  currentUrl,
+  isLoading: true,
+  hasLoadedOnce: false,
+  loadState: 'loading' as const,
+  error: null,
+  created: true
+})
+
 beforeEach(() => {
   vi.clearAllMocks()
   aiViewClient.onEvent.mockImplementation((handler: Emitter) => {
     emit = handler
     return () => {}
   })
-  aiViewClient.attach.mockResolvedValue({
-    generation: 7,
-    currentUrl: 'https://x.test/',
-    created: true
-  })
+  aiViewClient.attach.mockResolvedValue(freshAttachResponse(7, 'https://x.test/'))
   aiViewClient.executeScript.mockResolvedValue('ok')
   aiViewClient.insertText.mockResolvedValue(true)
   aiViewClient.reload.mockResolvedValue(true)
@@ -178,7 +188,7 @@ describe('createAiContentController - event bridge', () => {
     })
     expect(seen).toEqual([])
 
-    captured.resolve?.({ generation: 7, currentUrl: 'https://x.test/', created: true })
+    captured.resolve?.(freshAttachResponse(7, 'https://x.test/'))
     await attached
 
     expect(seen).toEqual(['https://chatgpt.com/early'])
@@ -328,11 +338,7 @@ describe('createAiContentController - host and crash lifecycle', () => {
       isMainFrame: true
     })
 
-    aiViewClient.attach.mockResolvedValueOnce({
-      generation: 8,
-      currentUrl: 'https://chatgpt.com/c/keep',
-      created: true
-    })
+    aiViewClient.attach.mockResolvedValueOnce(freshAttachResponse(8, 'https://chatgpt.com/c/keep'))
     await controller.recreate()
 
     expect(aiViewClient.destroy).toHaveBeenCalledWith({ viewId: 'tab-1' })
@@ -345,11 +351,7 @@ describe('createAiContentController - host and crash lifecycle', () => {
   it('accepts events from the new generation after a recreate', async () => {
     const controller = makeController('tab-1')
     await controller.attach()
-    aiViewClient.attach.mockResolvedValueOnce({
-      generation: 8,
-      currentUrl: 'https://x.test/',
-      created: true
-    })
+    aiViewClient.attach.mockResolvedValueOnce(freshAttachResponse(8, 'https://x.test/'))
     await controller.recreate()
 
     const seen: string[] = []
@@ -490,11 +492,7 @@ describe('createAiContentController - destroy lifecycle', () => {
 
     const seen: string[] = []
     controller.subscribeEvent?.('did-navigate', (event) => seen.push(event.url))
-    aiViewClient.attach.mockResolvedValueOnce({
-      generation: 8,
-      currentUrl: 'https://chatgpt.com/c/keep',
-      created: true
-    })
+    aiViewClient.attach.mockResolvedValueOnce(freshAttachResponse(8, 'https://chatgpt.com/c/keep'))
     await controller.attach('https://chatgpt.com/c/keep')
 
     expect(seen).toEqual([])
@@ -518,11 +516,7 @@ describe('createAiContentController - destroy lifecycle', () => {
     await controller.destroy()
     expect(controller.isReady?.()).toBe(false)
 
-    aiViewClient.attach.mockResolvedValueOnce({
-      generation: 8,
-      currentUrl: 'https://chatgpt.com/c/keep',
-      created: true
-    })
+    aiViewClient.attach.mockResolvedValueOnce(freshAttachResponse(8, 'https://chatgpt.com/c/keep'))
     await expect(controller.attach('https://chatgpt.com/c/keep')).resolves.toBe(true)
 
     expect(aiViewClient.attach).toHaveBeenLastCalledWith(
@@ -549,11 +543,7 @@ describe('createAiContentController - destroy lifecycle', () => {
     await controller.destroy()
     expect(controller.getURL?.()).toBe('https://chatgpt.com/c/keep')
 
-    aiViewClient.attach.mockResolvedValueOnce({
-      generation: 8,
-      currentUrl: 'https://chatgpt.com/c/keep',
-      created: true
-    })
+    aiViewClient.attach.mockResolvedValueOnce(freshAttachResponse(8, 'https://chatgpt.com/c/keep'))
     await controller.recreate()
 
     expect(aiViewClient.attach).toHaveBeenLastCalledWith(

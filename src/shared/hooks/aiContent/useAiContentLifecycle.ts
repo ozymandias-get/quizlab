@@ -63,6 +63,15 @@ export interface UseAiContentLifecycleResult {
   handleRetry: () => void
 }
 
+/** Mirrors the transient codes the main process forwards but must not surface. */
+function isTransientErrorCode(code: number): boolean {
+  return TRANSIENT_ERROR_CODES.has(code)
+}
+
+function describeError(description: string, t: (key: string) => string): string {
+  return description && description.length > 0 ? description : t('page_load_failed')
+}
+
 export function useAiContentLifecycle({
   currentAI,
   controller,
@@ -105,6 +114,21 @@ export function useAiContentLifecycle({
     onUrlChangeRef.current?.(url)
   }, [])
 
+  /**
+   * Marks the first load attempt as settled.
+   *
+   * `hasLoadedOnce` gates the native view's reveal, so it has to mean "stop
+   * waiting", not "the load succeeded" — otherwise a view whose entry load failed
+   * fatally stays behind its splash with nothing on screen.
+   */
+  const settleFirstLoad = useCallback((content: AiContentController, notify: boolean) => {
+    setIsLoading(false)
+    if (hasInitiallyLoadedRef.current) return
+    hasInitiallyLoadedRef.current = true
+    setHasLoadedOnce(true)
+    if (notify) onPageSettledRef.current?.(content)
+  }, [])
+
   const abortPendingAutomation = useCallback(() => {
     const content = controllerRef.current
     if (!content) return
@@ -121,6 +145,45 @@ export function useAiContentLifecycle({
     if (!controller) return
 
     const unsubscribes = [
+      /**
+       * The manager's authoritative snapshot.
+       *
+       * This is how a host that mounted onto an *existing* `WebContentsView`
+       * learns where the guest stands. A focus-mode handoff, or a tab returning
+       * from behind AI Home, mounts a fresh controller for a view that finished
+       * loading long ago; it will never see another `did-stop-loading`, so
+       * without this it would hold the native view behind the splash forever.
+       * The same event also carries the last load failure, so a view that died
+       * fatally before the handoff shows its error instead of spinning.
+       */
+      controller.subscribeEvent?.('state', (event) => {
+        // A response from a preload that predates the snapshot contract carries
+        // no load state; assume the conservative answer rather than reporting an
+        // idle guest that has not painted.
+        const loading = typeof event.isLoading === 'boolean' ? event.isLoading : true
+        // Once the view has settled the splash must not come back for a later
+        // navigation — same rule as `did-start-loading`.
+        if (!(loading && hasInitiallyLoadedRef.current)) setIsLoading(loading)
+        reportUrl(event.currentUrl)
+
+        // The recorded failure is the *last attempt's*, so it survives until a new
+        // attempt or an actual document clears it. It is not, by itself, a reason
+        // to stop waiting: an aborted redirect hop reports one mid-navigation.
+        const failure = event.error ?? null
+        if (failure && !isTransientErrorCode(failure.code)) {
+          setError(describeError(failure.description, t))
+        } else if (!failure) {
+          setError(null)
+        }
+
+        if (event.hasLoadedOnce === true) {
+          // The attempt settled, so the splash goes down and the native view is
+          // revealed. The settled-callback is skipped when the attempt produced
+          // no document, because there is nothing to inspect for stale content.
+          settleFirstLoad(controller, failure === null)
+        }
+      }),
+
       controller.subscribeEvent?.('did-start-loading', () => {
         setError(null)
         if (hasInitiallyLoadedRef.current) return
@@ -128,12 +191,7 @@ export function useAiContentLifecycle({
       }),
 
       controller.subscribeEvent?.('did-stop-loading', () => {
-        setIsLoading(false)
-        if (!hasInitiallyLoadedRef.current) {
-          hasInitiallyLoadedRef.current = true
-          setHasLoadedOnce(true)
-        }
-        onPageSettledRef.current?.(controller)
+        settleFirstLoad(controller, true)
       }),
 
       controller.subscribeEvent?.('dom-ready', (event) => {
@@ -142,12 +200,8 @@ export function useAiContentLifecycle({
 
       controller.subscribeEvent?.('did-fail-load', (event) => {
         setIsLoading(false)
-        if (TRANSIENT_ERROR_CODES.has(event.errorCode)) return
-        setError(
-          event.errorDescription && event.errorDescription.length > 0
-            ? event.errorDescription
-            : t('page_load_failed')
-        )
+        if (isTransientErrorCode(event.errorCode)) return
+        setError(describeError(event.errorDescription, t))
       }),
 
       controller.subscribeEvent?.('did-navigate', (event) => {
@@ -189,7 +243,15 @@ export function useAiContentLifecycle({
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe?.()
     }
-  }, [abortPendingAutomation, clearCrashTimer, controller, reportUrl, showWarning, t])
+  }, [
+    abortPendingAutomation,
+    clearCrashTimer,
+    controller,
+    reportUrl,
+    settleFirstLoad,
+    showWarning,
+    t
+  ])
 
   useEffect(() => {
     crashRetryCountRef.current = 0

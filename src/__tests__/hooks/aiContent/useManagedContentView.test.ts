@@ -5,8 +5,33 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { useManagedContentView } = await import('@shared/hooks/aiContent/useManagedContentView')
 
+/** Attach response for a view main has just created: entry load still in flight. */
+const freshAttachResponse = (generation = 1, currentUrl = 'https://x.test/') => ({
+  generation,
+  currentUrl,
+  isLoading: true,
+  hasLoadedOnce: false,
+  loadState: 'loading' as const,
+  error: null,
+  created: true
+})
+
+/**
+ * Attach response for a view that already finished loading — the shape a
+ * focus-mode handoff and a tab returning from behind an overlay actually receive.
+ */
+const settledAttachResponse = (generation = 1, currentUrl = 'https://x.test/') => ({
+  generation,
+  currentUrl,
+  isLoading: false,
+  hasLoadedOnce: true,
+  loadState: 'settled' as const,
+  error: null,
+  created: false
+})
+
 const aiViewClient = vi.hoisted(() => ({
-  attach: vi.fn(async () => ({ generation: 1, currentUrl: 'https://x.test/', created: true })),
+  attach: vi.fn(),
   detach: vi.fn(async () => true),
   destroy: vi.fn(async () => true),
   reload: vi.fn(async () => true),
@@ -86,11 +111,7 @@ const lastSync = () => aiViewClient.syncHost.mock.calls.at(-1)?.[0]
 describe('useManagedContentView - view lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    aiViewClient.attach.mockResolvedValue({
-      generation: 1,
-      currentUrl: 'https://x.test/',
-      created: true
-    })
+    aiViewClient.attach.mockResolvedValue(freshAttachResponse())
     aiViewClient.onEvent.mockImplementation(() => () => {})
   })
 
@@ -150,12 +171,10 @@ describe('useManagedContentView - view lifecycle', () => {
     aiViewClient.attach.mockImplementation(async (...args: unknown[]) => {
       const viewId = (args[0] as { viewId: string }).viewId
       const existing = generations.get(viewId)
-      if (existing !== undefined) {
-        return { generation: existing, currentUrl: 'https://chatgpt.com/c/1', created: false }
-      }
+      if (existing !== undefined) return settledAttachResponse(existing, 'https://chatgpt.com/c/1')
       counter += 1
       generations.set(viewId, counter)
-      return { generation: counter, currentUrl: 'https://chatgpt.com/c/1', created: true }
+      return freshAttachResponse(counter, 'https://chatgpt.com/c/1')
     })
 
     const workspace = await mount()
@@ -203,11 +222,7 @@ describe('useManagedContentView - view lifecycle', () => {
 describe('useManagedContentView - native visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    aiViewClient.attach.mockResolvedValue({
-      generation: 1,
-      currentUrl: 'https://x.test/',
-      created: true
-    })
+    aiViewClient.attach.mockResolvedValue(freshAttachResponse())
     aiViewClient.onEvent.mockImplementation(() => () => {})
   })
 

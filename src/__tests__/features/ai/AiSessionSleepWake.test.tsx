@@ -14,23 +14,94 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * enough to pin the two invariants this scenario is about — a sleeping tab must
  * not look ready to the send / picker pipelines, and waking must bring the same
  * conversation back on a brand new view.
+ *
+ * Attach and destroy go through a per-view chain, because that is what the
+ * manager does: a destroy issued while an attach is still resolving its target has
+ * to run after it, or the tab it belongs to is left with an orphan WebContents.
  */
 
 const manager = vi.hoisted(() => {
-  const views = new Map<string, { generation: number }>()
+  const views = new Map<string, { generation: number; closed: boolean }>()
   const eventHandlers = new Set<(event: unknown) => void>()
   let counter = 0
+  let tail: Promise<unknown> = Promise.resolve()
+  let holdDestroy: (() => void) | null = null
+  let destroyHeld = false
+
+  function enqueue<T>(run: () => T | Promise<T>): Promise<T> {
+    const settled = tail.then(run, run)
+    tail = settled.then(
+      () => undefined,
+      () => undefined
+    )
+    return settled
+  }
+
+  const attach = (viewId: string) =>
+    enqueue(() => {
+      const existing = views.get(viewId)
+      if (existing && !existing.closed) {
+        // A focus-mode handoff shape: the view is already settled, so the new
+        // host is told so instead of waiting for another did-stop-loading.
+        return {
+          generation: existing.generation,
+          currentUrl: 'https://chatgpt.com/',
+          isLoading: false,
+          hasLoadedOnce: true,
+          loadState: 'settled',
+          error: null,
+          created: false
+        }
+      }
+      counter += 1
+      views.set(viewId, { generation: counter, closed: false })
+      return {
+        generation: counter,
+        currentUrl: 'https://chatgpt.com/',
+        isLoading: true,
+        hasLoadedOnce: false,
+        loadState: 'loading',
+        error: null,
+        created: true
+      }
+    })
+
+  const destroy = (viewId: string) =>
+    enqueue(async () => {
+      if (destroyHeld) {
+        await new Promise<void>((resolve) => {
+          holdDestroy = resolve
+        })
+      }
+      const view = views.get(viewId)
+      if (!view || view.closed) return false
+      view.closed = true
+      views.delete(viewId)
+      return true
+    })
+
   return {
     views,
-    liveCount: () => views.size,
-    attach: (viewId: string) => {
-      const existing = views.get(viewId)
-      if (existing) return { generation: existing.generation, created: false }
-      counter += 1
-      views.set(viewId, { generation: counter })
-      return { generation: counter, created: true }
+    liveCount: () => [...views.values()].filter((view) => !view.closed).length,
+    closedCount: () => [...views.values()].filter((view) => view.closed).length,
+    attach,
+    destroy,
+    /** Holds the next destroy so a wake can overtake it. */
+    holdNextDestroy: () => {
+      destroyHeld = true
+      holdDestroy = null
     },
-    destroy: (viewId: string) => views.delete(viewId),
+    releaseDestroy: () => {
+      destroyHeld = false
+      holdDestroy?.()
+      holdDestroy = null
+    },
+    reset: () => {
+      views.clear()
+      counter = 0
+      destroyHeld = false
+      holdDestroy = null
+    },
     emit: (event: AiViewEvent) => {
       for (const handler of eventHandlers) handler(event)
     }
@@ -116,17 +187,15 @@ describe('AiSession sleep / wake', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     subscribers.clear()
-    manager.views.clear()
+    manager.reset()
     lifecycleSettings.sleepTimeoutMs = 10
     lifecycleSettings.neverSleep = false
-    aiViewClient.attach.mockImplementation(async ({ viewId }: { viewId: string }) => ({
-      ...manager.attach(viewId),
-      currentUrl: 'https://chatgpt.com/'
-    }))
-    aiViewClient.destroy.mockImplementation(async ({ viewId }: { viewId: string }) => {
+    aiViewClient.attach.mockImplementation(async ({ viewId }: { viewId: string }) =>
+      manager.attach(viewId)
+    )
+    aiViewClient.destroy.mockImplementation(async ({ viewId }: { viewId: string }) =>
       manager.destroy(viewId)
-      return true
-    })
+    )
     aiViewClient.executeScript.mockResolvedValue('complete')
     aiViewClient.detach.mockResolvedValue(true)
     aiViewClient.syncHost.mockReturnValue(undefined)
@@ -228,5 +297,47 @@ describe('AiSession sleep / wake', () => {
     await new Promise((resolve) => setTimeout(resolve, 40))
     expect(manager.liveCount()).toBe(1)
     expect(aiViewClient.destroy).not.toHaveBeenCalled()
+  })
+
+  it('survives a sleep whose destroy is overtaken by an immediate wake', async () => {
+    // active -> inactive -> sleep (destroy issued) -> active again, with the
+    // destroy round trip still in the air when the wake's attach is sent.
+    const view = render(<AiSession tab={tab} isActive isSurfaceActive isOverlayActive={false} />)
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(1)
+    })
+    const firstGeneration = manager.views.get('tab-1')?.generation
+
+    manager.holdNextDestroy()
+    view.rerender(<AiSession tab={tab} isActive={false} isSurfaceActive isOverlayActive={false} />)
+    await waitFor(() => {
+      expect(screen.getByTestId('wake-up')).toBeInTheDocument()
+    })
+    await waitFor(() => {
+      expect(aiViewClient.destroy).toHaveBeenCalledWith({ viewId: 'tab-1' })
+    })
+
+    // The user comes straight back, so the wake's attach is queued behind the
+    // destroy that main has not finished yet.
+    view.rerender(<AiSession tab={tab} isActive isSurfaceActive isOverlayActive={false} />)
+    await act(async () => {
+      manager.releaseDestroy()
+    })
+
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(1)
+    })
+
+    // Exactly one live view, and it is the wake's, with the readiness the panel
+    // reports to the send pipeline. No second view, no half-closed orphan.
+    expect([...manager.views.keys()]).toEqual(['tab-1'])
+    const live = manager.views.get('tab-1')!
+    expect(live.closed).toBe(false)
+    expect(live.generation).not.toBe(firstGeneration)
+    await waitFor(() => {
+      expect(currentController()?.isReady?.()).toBe(true)
+    })
+    expect(currentController()?.isDestroyed?.()).toBe(false)
+    expect(currentController()?.isLoading?.()).toBe(true)
   })
 })
