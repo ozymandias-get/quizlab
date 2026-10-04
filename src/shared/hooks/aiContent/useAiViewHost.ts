@@ -101,16 +101,6 @@ function resolveClipRadius(element: HTMLElement): number {
  * equal and be dropped. The native view then kept the previous corner radius
  * while painting the new bounds.
  */
-/**
- * Two snapshots are the same message only if the main process would derive the
- * same result from them.
- *
- * `borderRadius` is part of that: it travels with the rectangle and is applied in
- * the same step as `setBounds`, so leaving it out made a radius-only change — a
- * theme or density switch, a different panel wrapping the same host — compare
- * equal and be dropped. The native view then kept the previous corner radius
- * while painting the new bounds.
- */
 function snapshotEqual(a: HostSnapshot | null, b: HostSnapshot): boolean {
   return (
     a !== null &&
