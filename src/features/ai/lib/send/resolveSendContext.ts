@@ -1,5 +1,5 @@
 import type { AiPlatform } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
@@ -9,7 +9,7 @@ import {
   type AiConfig,
   type ConfigCache,
   getCachedAiConfig,
-  isWebviewUsable
+  isContentUsable
 } from '../aiSenderSupport'
 
 export interface ResolvedSendContext {
@@ -18,9 +18,9 @@ export interface ResolvedSendContext {
 }
 
 interface ResolveSendContextParams {
-  webviewRef: RefObject<WebviewController | null>
-  webview: WebviewController
-  scheduledWebview: WebviewController
+  contentRef: RefObject<AiContentController | null>
+  content: AiContentController
+  scheduledContent: AiContentController
   aiRegistry: Record<string, AiPlatform> | null
   currentAI: string
   queryClient: QueryClient
@@ -34,9 +34,9 @@ export function isSendError(
 }
 
 export async function resolveSendContext({
-  webviewRef,
-  webview,
-  scheduledWebview,
+  contentRef,
+  content,
+  scheduledContent,
   aiRegistry,
   currentAI,
   queryClient,
@@ -46,7 +46,7 @@ export async function resolveSendContext({
     return { success: false, error: 'registry_not_loaded' }
   }
 
-  if (!isWebviewUsable(webviewRef, webview, scheduledWebview)) {
+  if (!isContentUsable(contentRef, content, scheduledContent)) {
     return { success: false, error: 'webview_destroyed' }
   }
 
@@ -55,7 +55,7 @@ export async function resolveSendContext({
     return { success: false, error: 'config_not_found' }
   }
 
-  if (typeof webview.getURL !== 'function') {
+  if (typeof content.getURL !== 'function') {
     return { success: false, error: 'webview_api_missing' }
   }
 
@@ -64,10 +64,10 @@ export async function resolveSendContext({
     configCache,
     currentAI,
     queryClient,
-    webview
+    content
   })
 
-  const currentUrl = webview.getURL()
+  const currentUrl = content.getURL()
   if (!currentUrl) {
     return { success: false, error: 'webview_url_missing' }
   }

@@ -24,7 +24,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
     validationState,
     tabs,
     currentAI,
-    hasWebview,
+    hasContent,
     isSaving,
     isDeleting,
     isTesting,
@@ -68,7 +68,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         validationState={validationState}
         tabs={tabs}
         currentAI={currentAI}
-        hasWebview={hasWebview}
+        hasContent={hasContent}
         isSaving={isSaving}
         isDeleting={isDeleting}
         isTesting={isTesting}

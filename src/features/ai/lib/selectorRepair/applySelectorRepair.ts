@@ -1,7 +1,7 @@
 /**
  * Self-healing persistence.
  *
- * The webview never touches the config file. The flow is always:
+ * The content never touches the config file. The flow is always:
  *
  *   injected script → serializable evidence → send pipeline →
  *   `saveAiConfig` IPC → `sanitizeConfig` → disk

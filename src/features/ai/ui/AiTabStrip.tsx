@@ -1,9 +1,9 @@
 import {
+  useAiContentHostActions,
+  useAiContentPresence,
   useAiSites,
   useAiTabActions,
-  useAiTabsSliceState,
-  useAiWebviewHostActions,
-  useAiWebviewPresence
+  useAiTabsSliceState
 } from '@app/providers/ai-context'
 import { TabStripHomeButton } from '@shared/ui/components/primitives'
 import {
@@ -30,9 +30,9 @@ interface AiTabStripProps {
 function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
   const aiSites = useAiSites()
-  const { hasActiveWebview } = useAiWebviewPresence()
+  const { hasActiveContent } = useAiContentPresence()
   const { setActiveTab, closeTab, renameTab, togglePinTab } = useAiTabActions()
-  const { reloadActiveWebview } = useAiWebviewHostActions()
+  const { reloadActiveContent } = useAiContentHostActions()
   const { t } = useTranslation()
   const { refs, state, helpers, actions } = useAiTabStripState({
     tabs,
@@ -77,9 +77,9 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
         <TabStripHomeButton isActive={showHome} tooltip={t('ai_home.home')} onClick={onShowHome} />
 
         <AiTabStripRefreshButton
-          disabled={Boolean(showHome) || tabs.length === 0 || !hasActiveWebview}
+          disabled={Boolean(showHome) || tabs.length === 0 || !hasActiveContent}
           title={t('ai_home.refresh_page')}
-          onRefresh={reloadActiveWebview}
+          onRefresh={reloadActiveContent}
         />
 
         <div className={TAB_STRIP_DIVIDER_CLASS} aria-hidden />

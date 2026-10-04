@@ -1,6 +1,6 @@
 import type { AiPlatform } from '@shared-core/types'
 import type { TextInputMode } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
@@ -16,9 +16,9 @@ import { cloneScriptDiagnostics } from './scriptExecution'
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
 
 interface TextSendPipelineParams {
-  webviewRef: RefObject<WebviewController | null>
-  webview: WebviewController
-  scheduledWebview: WebviewController
+  contentRef: RefObject<AiContentController | null>
+  content: AiContentController
+  scheduledContent: AiContentController
   aiRegistry: Record<string, AiPlatform> | null
   currentAI: string
   queryClient: QueryClient
@@ -31,7 +31,7 @@ interface TextSendPipelineParams {
   typingSpeed: number
   requestStartedAt: number
   diagnostics: AiSendDiagnostics
-  canUseWebview: (webview: WebviewController, expected?: WebviewController | null) => boolean
+  canUseContent: (content: AiContentController, expected?: AiContentController | null) => boolean
   generateAutoSendScript: (params: {
     config: ReturnType<typeof toAutomationConfig>
     text: string
@@ -46,9 +46,9 @@ export async function executeTextSendPipeline(
   params: TextSendPipelineParams
 ): Promise<SendTextResult> {
   const {
-    webviewRef,
-    webview,
-    scheduledWebview,
+    contentRef,
+    content,
+    scheduledContent,
     aiRegistry,
     currentAI,
     queryClient,
@@ -61,15 +61,15 @@ export async function executeTextSendPipeline(
     typingSpeed,
     requestStartedAt,
     diagnostics,
-    canUseWebview,
+    canUseContent,
     generateAutoSendScript
   } = params
 
   const resolveStartedAt = nowMs()
   const resolved = await resolveSendContext({
-    webviewRef,
-    webview,
-    scheduledWebview,
+    contentRef,
+    content,
+    scheduledContent,
     aiRegistry,
     currentAI,
     queryClient,
@@ -90,11 +90,11 @@ export async function executeTextSendPipeline(
 
   const sendStep = await executePipelineStep<SendTextResult>({
     name: 'Script',
-    webview,
-    scheduledWebview,
+    content,
+    scheduledContent,
     diagnostics,
     requestStartedAt,
-    canUseWebview,
+    canUseContent,
     generateScript: () =>
       generateAutoSendScript({
         config: toAutomationConfig(resolved.aiConfig),

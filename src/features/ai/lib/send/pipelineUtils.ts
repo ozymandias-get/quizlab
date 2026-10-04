@@ -1,25 +1,25 @@
 import type { AutomationExecutionResult } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 
 import type { AiErrorClassification, AiSendDiagnostics } from '../../model/types'
-import { classifyAiSendError, isWebviewCancelled, normalizeSendErrorCode } from '../aiSenderSupport'
-import { executeWebviewScript, normalizeExecutionResult } from './scriptExecution'
+import { classifyAiSendError, isContentCancelled, normalizeSendErrorCode } from '../aiSenderSupport'
+import { executeContentScript, normalizeExecutionResult } from './scriptExecution'
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
 
 /**
  * Common logic for executing a step in the AI send pipeline.
- * Handles timing, script generation checks, webview availability, and diagnostic logging.
+ * Handles timing, script generation checks, content availability, and diagnostic logging.
  */
 
 export interface PipelineStepParams {
   name: string
-  webview: WebviewController
-  scheduledWebview: WebviewController
+  content: AiContentController
+  scheduledContent: AiContentController
   diagnostics: AiSendDiagnostics
   requestStartedAt: number
-  canUseWebview: (webview: WebviewController, expected?: WebviewController | null) => boolean
+  canUseContent: (content: AiContentController, expected?: AiContentController | null) => boolean
   generateScript: () => Promise<string | null>
   onTiming: (ms: number) => void
   onExecuteTiming: (ms: number) => void
@@ -35,11 +35,11 @@ export async function executePipelineStep<TFail>(
 ): Promise<PipelineStepResult<TFail>> {
   const {
     name,
-    webview,
-    scheduledWebview,
+    content,
+    scheduledContent,
     diagnostics,
     requestStartedAt,
-    canUseWebview,
+    canUseContent,
     generateScript,
     onTiming,
     onExecuteTiming,
@@ -64,7 +64,7 @@ export async function executePipelineStep<TFail>(
     }
   }
 
-  if (!canUseWebview(webview, scheduledWebview)) {
+  if (!canUseContent(content, scheduledContent)) {
     const errorCode = 'webview_destroyed'
     diagnostics.classification = await classifyAiSendError(errorCode)
     return {
@@ -81,7 +81,7 @@ export async function executePipelineStep<TFail>(
   // İptal kontrolü: yeni bir istek geldiyse mevcut istek script
   // çağrısı yapmadan erken döner. Bu, hâlâ kuyrukta olan eski isteklerin
   // pahalı executeJavaScript çağrıları yapmasını engeller.
-  if (isWebviewCancelled(webview)) {
+  if (isContentCancelled(content)) {
     const errorCode = 'cancelled'
     diagnostics.classification = await classifyAiSendError(errorCode)
     return {
@@ -94,11 +94,11 @@ export async function executePipelineStep<TFail>(
     }
   }
 
-  // Sekme kapatma / sağlayıcı değiştirme sırasında guest webview yok edilirse
+  // Sekme kapatma / sağlayıcı değiştirme sırasında guest content yok edilirse
   // `executeJavaScript` "WebContents was destroyed" hatasıyla reject eder.
   // Bunu yakalanmamış bir rejection'a dönüştürmek yerine kontrollü bir
   // `webview_destroyed` hatası olarak sınıflandırıyoruz.
-  const execResult = await executeWebviewScript(webview, script)
+  const execResult = await executeContentScript(content, script)
   const execMs = roundMs(nowMs() - executeStartedAt)
   onExecuteTiming(execMs)
 

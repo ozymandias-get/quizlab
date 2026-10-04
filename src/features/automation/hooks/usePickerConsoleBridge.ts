@@ -1,186 +1,127 @@
-import type { WebviewController, WebviewElement } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
+import type { AiViewEventOf } from '@shared-core/types/aiView'
 
 import { Logger } from '@shared/lib/logger'
 
-import { type MutableRefObject, useCallback, useEffect, useRef } from 'react'
+import { type RefObject, useCallback, useEffect, useRef } from 'react'
 
-interface ConsoleMessageEvent {
-  message: string
-}
+/** Messages the injected picker script writes to the guest console. */
+const PICKER_PREFIX = '_aiPicker:'
+const PICKER_RESULT_PREFIX = '_aiPicker:result:'
+const PICKER_CANCELLED = '_aiPicker:cancelled'
 
-function isConsoleMessageEvent(e: unknown): e is ConsoleMessageEvent {
-  return (
-    typeof e === 'object' &&
-    e !== null &&
-    'message' in e &&
-    typeof (e as ConsoleMessageEvent).message === 'string'
-  )
-}
-
-interface UsePickerConsoleBridgeProps {
-  getWebviewInstance: () => WebviewController | null | undefined
-  onResult: (pickerResult: unknown) => void
+export interface UsePickerConsoleBridgeOptions {
+  getContentController: () => AiContentController | null | undefined
+  mountedRef: RefObject<boolean>
+  onResult: (data: unknown) => void | Promise<void>
   onCancelled: () => void
   onError: (error: unknown) => void
-  mountedRef: MutableRefObject<boolean>
+}
+
+export interface UsePickerConsoleBridgeResult {
+  startListening: (controller?: AiContentController | null) => void
+  stopListening: () => void
 }
 
 /**
  * Bridges console messages emitted by the injected picker script back to
- * renderer callbacks. The picker script (run in the webview) writes results
- * to its own globals and mirrors them to the host via `console-message` lines
- * prefixed with `_aiPicker:`. We subscribe to that event once and route each
- * message to the right consumer callback. This is **event-driven** — there is
- * no polling loop.
+ * renderer callbacks.
+ *
+ * The picker script (running inside the managed view) mirrors its result to the
+ * guest console with an `_aiPicker:` prefix. Those console messages now travel
+ * `WebContents.console-message → main process → typed IPC → this bridge`, and we
+ * subscribe straight to the controller's console channel. This stays fully
+ * event-driven: no polling, no `executeJavaScript` probe.
  */
 export function usePickerConsoleBridge({
-  getWebviewInstance,
+  getContentController,
+  mountedRef,
   onResult,
   onCancelled,
-  onError,
-  mountedRef
-}: UsePickerConsoleBridgeProps) {
-  const activeWebviewElementRef = useRef<WebviewElement | null>(null)
-  const targetControllerRef = useRef<WebviewController | null>(null)
-  const getWebviewRef = useRef(getWebviewInstance)
+  onError
+}: UsePickerConsoleBridgeOptions): UsePickerConsoleBridgeResult {
+  const targetControllerRef = useRef<AiContentController | null>(null)
+  const getControllerRef = useRef(getContentController)
   const isListeningRef = useRef(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
+  const handleConsoleRef = useRef<(event: AiViewEventOf<'console-message'>) => void>(() => {})
 
   const onResultRef = useRef(onResult)
   const onCancelledRef = useRef(onCancelled)
   const onErrorRef = useRef(onError)
-  // Intentionally no dependency array: this effect mirrors the latest
-  // callback identities into refs so the event-driven console handler
-  // (registered once on startListening) can call the most recent consumer
-  // callbacks without re-binding on every render. Adding a dep array here
-  // would either force a re-bind (defeating the purpose) or risk stale
-  // closures if a new prop slips past.
+
+  // Intentionally no dependency array: this effect mirrors the latest callback
+  // identities into refs so the event-driven handler registered once by
+  // startListening can call the most recent consumer callbacks without
+  // re-binding on every render.
   useEffect(() => {
-    getWebviewRef.current = getWebviewInstance
+    getControllerRef.current = getContentController
     onResultRef.current = onResult
     onCancelledRef.current = onCancelled
     onErrorRef.current = onError
   })
 
-  const stableConsoleHandlerRef = useRef<(e: Event) => void>(() => {})
-
-  const stableConsoleHandler = useCallback((e: Event) => {
-    stableConsoleHandlerRef.current(e)
-  }, [])
-
   const stopListening = useCallback(() => {
     isListeningRef.current = false
-
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current()
-      unsubscribeRef.current = null
-    }
-
-    const el = activeWebviewElementRef.current
-    if (el) {
-      try {
-        el.removeEventListener('console-message', stableConsoleHandler)
-      } catch (err) {
-        Logger.warn('[PickerConsoleBridge] Error removing console listener:', err)
-      }
-      activeWebviewElementRef.current = null
-    }
+    unsubscribeRef.current?.()
+    unsubscribeRef.current = null
     targetControllerRef.current = null
-  }, [stableConsoleHandler])
+  }, [])
 
   useEffect(() => {
-    stableConsoleHandlerRef.current = (e: Event) => {
+    handleConsoleRef.current = (event: AiViewEventOf<'console-message'>) => {
       if (!isListeningRef.current) return
-
-      if (!isConsoleMessageEvent(e)) return
-      const msg = e.message
-      if (!msg || !msg.startsWith('_aiPicker:')) return
+      const message = event?.message
+      if (!message || !message.startsWith(PICKER_PREFIX)) return
 
       if (!mountedRef.current) {
         stopListening()
         return
       }
 
-      if (getWebviewRef.current() !== targetControllerRef.current) {
+      // A tab switch mid-selection must not deliver a stale result.
+      if (getControllerRef.current() !== targetControllerRef.current) {
         stopListening()
         return
       }
 
-      if (msg === '_aiPicker:cancelled') {
+      if (message === PICKER_CANCELLED) {
         stopListening()
         onCancelledRef.current()
-      } else if (msg.startsWith('_aiPicker:result:')) {
-        const dataStr = msg.slice('_aiPicker:result:'.length)
-        try {
-          const data = JSON.parse(dataStr)
-          stopListening()
-          onResultRef.current(data)
-        } catch (err) {
-          Logger.warn('[PickerConsoleBridge] Failed to parse result:', err)
-          onErrorRef.current(err)
-        }
+        return
+      }
+
+      if (!message.startsWith(PICKER_RESULT_PREFIX)) return
+
+      const payload = message.slice(PICKER_RESULT_PREFIX.length)
+      try {
+        const data = JSON.parse(payload)
+        stopListening()
+        onResultRef.current(data)
+      } catch (error) {
+        Logger.warn('[PickerConsoleBridge] Failed to parse result:', error)
+        onErrorRef.current(error)
       }
     }
   }, [mountedRef, stopListening])
 
   const startListening = useCallback(
-    (targetController?: WebviewController | null) => {
+    (target?: AiContentController | null) => {
       stopListening()
-
-      const controller = targetController ?? getWebviewRef.current()
-      if (!controller) return
-
+      const controller = target ?? getControllerRef.current()
+      if (!controller?.subscribeEvent) return
       targetControllerRef.current = controller
       isListeningRef.current = true
-
-      const attachToElement = (el: WebviewElement | null) => {
-        if (getWebviewRef.current() !== controller) return
-        if (activeWebviewElementRef.current === el) return
-
-        // Clean up previous element if any
-        if (activeWebviewElementRef.current) {
-          try {
-            activeWebviewElementRef.current.removeEventListener(
-              'console-message',
-              stableConsoleHandler
-            )
-          } catch {
-            // ignore
-          }
-        }
-
-        activeWebviewElementRef.current = el
-
-        if (el && isListeningRef.current) {
-          try {
-            el.addEventListener('console-message', stableConsoleHandler)
-          } catch (err) {
-            Logger.warn('[PickerConsoleBridge] Error adding console listener:', err)
-          }
-        }
-      }
-
-      // Subscribe to element updates to handle dynamic mounting/unmounting
-      if (controller.subscribeWebviewElement) {
-        unsubscribeRef.current = controller.subscribeWebviewElement((el) => {
-          attachToElement(el)
-        })
-      } else {
-        const el = controller.getWebview?.() ?? null
-        attachToElement(el)
-      }
+      unsubscribeRef.current = controller.subscribeEvent('console-message', (event) =>
+        handleConsoleRef.current(event)
+      )
     },
-    [stableConsoleHandler, stopListening]
+    [stopListening]
   )
 
   useEffect(() => {
-    return () => {
-      stopListening()
-    }
+    return () => stopListening()
   }, [stopListening])
 
-  return {
-    startListening,
-    stopListening
-  }
+  return { startListening, stopListening }
 }
