@@ -103,9 +103,22 @@ export interface RemoteContentSecurityOptions {
  * pinning main-frame navigation to the registered origin would break login. The
  * origin side of the boundary is enforced elsewhere — renderer-initiated loads go
  * through `isUrlTrustedForTarget`, and an untrusted origin inside the partition
- * is denied every web permission by `permissionPolicy` — while the *scheme* side
- * has no legitimate use at all. `file:`, `javascript:`, `data:`, `blob:`,
- * `chrome:` and `devtools:` are all refused.
+ * is denied every web permission by `permissionPolicy`.
+ *
+ * `https:` is the only allowed scheme, and that is not an assumption about the
+ * provider registry: every URL the app can put into a managed view is already
+ * required to be https before it gets here. `AiViewTargets.toTarget` rejects a
+ * built-in or custom platform whose registry URL is not https, the Google web
+ * app table does the same, `isUrlTrustedForTarget` rejects a restored or
+ * renderer-requested URL that is not https, and `resolveExternalLink` — which
+ * decides what leaves for the user's browser — allows only `https:` and
+ * `mailto:`. There is therefore no flow that needs `http:`, and the one place a
+ * loopback origin does appear (`DEV_SERVER_URL`, the app's own document in the
+ * default session) is not a managed view and never reaches this guard.
+ *
+ * `file:`, `http:`, `javascript:`, `data:`, `blob:`, `chrome:` and `devtools:`
+ * are refused. `http:` in particular is a downgrade of a provider session's
+ * transport, which is the one thing a scheme allowlist exists to prevent.
  *
  * Does not apply to `loadURL` from the main process: Chromium does not raise
  * `will-navigate` for programmatic loads, and the initial entry URL plus every
@@ -114,7 +127,7 @@ export interface RemoteContentSecurityOptions {
 export function isAllowedRemoteNavigationScheme(rawUrl: string): boolean {
   try {
     const { protocol } = new URL(rawUrl)
-    return protocol === 'https:' || protocol === 'http:'
+    return protocol === 'https:'
   } catch {
     return false
   }

@@ -356,6 +356,128 @@ describe('applyRemoteContentSecurity', () => {
     expect(executeJavaScript).toHaveBeenCalledTimes(1)
     expect(executeJavaScript.mock.calls[0][0]).toContain('execCommand')
   })
+
+  it('blocks a main-frame downgrade to http, on both navigate and redirect', async () => {
+    const { applyRemoteContentSecurity: apply } =
+      await import('../../../app/window/remoteContentSecurity.js')
+    const { webContents, listeners } = createWebContents()
+    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
+
+    for (const url of [
+      'http://chatgpt.com/c/abc',
+      'http://localhost:5173/',
+      'http://169.254.169.254/latest/meta-data/'
+    ]) {
+      const preventDefault = vi.fn()
+      listeners.get('will-navigate')?.({ preventDefault }, url)
+      expect(preventDefault, url).toHaveBeenCalledTimes(1)
+
+      const redirectPrevent = vi.fn()
+      listeners.get('will-redirect')?.({ preventDefault: redirectPrevent }, url)
+      expect(redirectPrevent, url).toHaveBeenCalledTimes(1)
+    }
+
+    // Nothing may be handed to the OS hand-off either.
+    expect(shellOpenExternal).not.toHaveBeenCalled()
+  })
+
+  it('still lets every provider sign-in, consent and challenge flow through', async () => {
+    // The scheme guard is not an origin lock: pinning main-frame navigation to
+    // the entry host would break every login. These are the hosts providers
+    // actually move to, and all of them are https.
+    const { applyRemoteContentSecurity: apply } =
+      await import('../../../app/window/remoteContentSecurity.js')
+    const { webContents, listeners } = createWebContents()
+    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
+
+    for (const url of [
+      'https://auth.chatgpt.com/authorize',
+      'https://chat.openai.com/backend-api/conversation',
+      'https://chatgpt.com/api/auth/session',
+      'https://challenges.cloudflare.com/turnstile/v0/api.js',
+      'https://gemini.google.com/',
+      // A custom AI platform is an arbitrary https origin the user registered.
+      'https://my-self-hosted-llm.internal/chat'
+    ]) {
+      const preventDefault = vi.fn()
+      listeners.get('will-navigate')?.({ preventDefault }, url)
+      expect(preventDefault, url).not.toHaveBeenCalled()
+    }
+  })
+
+  it('still intercepts the IdP auth hosts for the OS hand-off, on https', async () => {
+    // These are blocked on purpose and handed to the user's browser — a
+    // separate concern from the scheme guard, and it must keep working.
+    const { applyRemoteContentSecurity: apply } =
+      await import('../../../app/window/remoteContentSecurity.js')
+    const { webContents, listeners } = createWebContents()
+    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
+
+    for (const url of [
+      'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+      'https://login.live.com/oauth20_authorize.srf',
+      'https://login.x.com/i/flow/login',
+      'https://accounts.google.com/o/oauth2/v2/auth'
+    ]) {
+      const preventDefault = vi.fn()
+      listeners.get('will-navigate')?.({ preventDefault }, url)
+      expect(preventDefault, url).toHaveBeenCalledTimes(1)
+    }
+
+    // A plain AI partition does not send them to the OS.
+    expect(shellOpenExternal).not.toHaveBeenCalled()
+  })
+
+  it('still hands Google auth to the OS for the shared Google session partition', async () => {
+    const { applyRemoteContentSecurity: apply } =
+      await import('../../../app/window/remoteContentSecurity.js')
+    const { webContents, listeners } = createWebContents()
+    apply({ webContents: webContents as never, partition: 'persist:gemini_web_profile' })
+
+    const preventDefault = vi.fn()
+    listeners.get('will-navigate')?.(
+      { preventDefault },
+      'https://accounts.google.com/o/oauth2/v2/auth'
+    )
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(shellOpenExternal).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth')
+  })
+})
+
+describe('isAllowedRemoteNavigationScheme - https only', () => {
+  it('admits exactly the https scheme', async () => {
+    const { isAllowedRemoteNavigationScheme: allowed } =
+      await import('../../../app/window/remoteContentSecurity.js')
+
+    expect(allowed('https://chatgpt.com/c/abc')).toBe(true)
+    expect(allowed('https://auth.chatgpt.com/authorize?x=1#y')).toBe(true)
+
+    // `http:` used to be admitted alongside `https:`. No flow in the app can put
+    // one into a managed view — built-in providers, Google web apps and custom
+    // platforms are all rejected at target resolution unless they are https,
+    // `parseUrl` drops a non-https restored or renderer-requested URL, and
+    // `resolveExternalLink` only ever hands `https:`/`mailto:` to the OS — so
+    // accepting it here was a transport downgrade with no legitimate user.
+    expect(allowed('http://chatgpt.com/')).toBe(false)
+    expect(allowed('http://localhost:5173/')).toBe(false)
+    expect(allowed('HTTP://chatgpt.com/')).toBe(false)
+    expect(allowed('HtTpS://chatgpt.com/')).toBe(true)
+
+    for (const url of [
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'blob:https://chatgpt.com/abc',
+      'chrome://settings',
+      'devtools://devtools/bundled/inspector.html',
+      'about:blank',
+      'ws://chatgpt.com/socket',
+      'not a url',
+      ''
+    ]) {
+      expect(allowed(url)).toBe(false)
+    }
+  })
 })
 
 describe('isAuthNavigationDomain', () => {
