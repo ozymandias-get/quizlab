@@ -1,5 +1,5 @@
 import type { AiSelectorConfig } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { Logger } from '@shared/lib/logger'
 
@@ -18,12 +18,12 @@ export interface UseElementPickerReturn {
   togglePicker: () => Promise<void>
 }
 
-export async function resetPickerArtifacts(webview: WebviewController | null): Promise<void> {
-  if (!webview || typeof webview.executeJavaScript !== 'function') {
+export async function resetPickerArtifacts(content: AiContentController | null): Promise<void> {
+  if (!content || typeof content.executeJavaScript !== 'function') {
     return
   }
   try {
-    await webview.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
+    await content.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
   } catch (error) {
     Logger.warn('[ElementPicker] cleanup script failed', error)
   }

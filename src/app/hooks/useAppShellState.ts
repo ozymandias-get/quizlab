@@ -2,7 +2,7 @@ import { useTutorialStore } from '@features/tutorial'
 
 import { useAppearance, useUpdate } from '@app/providers'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
-import { usePanelResize, useWebviewMount } from '@shared/hooks'
+import { useAiSurfaceMount, usePanelResize } from '@shared/hooks'
 
 import { useCallback, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -48,7 +48,7 @@ export function useAppShellState() {
   })
 
   const animations = useAppAnimations(isLayoutSwapped)
-  const isWebviewMounted = useWebviewMount()
+  const isAiSurfaceMounted = useAiSurfaceMount()
 
   const closeUpdateBanner = useCallback(() => setIsUpdateBannerVisible(false), [])
   const closeFocusMode = useCallback(() => setFocusMode(null), [setFocusMode])
@@ -92,7 +92,7 @@ export function useAppShellState() {
       updateInfo,
       isLayoutSwapped,
       animations,
-      isWebviewMounted,
+      isAiSurfaceMounted,
       panelResize,
       workspaceState,
       updateBanner,
@@ -104,7 +104,7 @@ export function useAppShellState() {
       updateInfo,
       isLayoutSwapped,
       animations,
-      isWebviewMounted,
+      isAiSurfaceMounted,
       panelResize,
       workspaceState,
       updateBanner,

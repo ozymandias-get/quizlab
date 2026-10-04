@@ -9,13 +9,13 @@ import { normalizeExecutionResult } from '@features/ai'
 
 import { useAppToolActions, useToastActions } from '@app/providers'
 import {
+  useAiContent,
+  useAiContentPresence,
   useAiSessionActions,
   useAiSites,
   useAiTabActions,
   useAiTabFocus,
-  useAiTabsList,
-  useAiWebview,
-  useAiWebviewPresence
+  useAiTabsList
 } from '@app/providers/ai-context'
 import { Logger } from '@shared/lib/logger'
 
@@ -33,8 +33,8 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
   const { tabs } = useAiTabsList()
   const { currentAI } = useAiTabFocus()
   const aiSites = useAiSites()
-  const { getWebviewInstance } = useAiWebview()
-  const { hasActiveWebview } = useAiWebviewPresence()
+  const { getContentController } = useAiContent()
+  const { hasActiveContent } = useAiContentPresence()
   const { openAiWorkspace } = useAiTabActions()
   const { startTutorial } = useAiSessionActions()
   const { startPickerWhenReady } = useAppToolActions()
@@ -128,11 +128,11 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
         return
       }
 
-      const webviewInstance = getWebviewInstance()
+      const contentController = getContentController()
       if (
-        !webviewInstance ||
+        !contentController ||
         currentAI !== aiKey ||
-        typeof webviewInstance.executeJavaScript !== 'function'
+        typeof contentController.executeJavaScript !== 'function'
       ) {
         const error = t('selectors_test_requires_active_tab')
         setCardValidation(cardId, { status: 'error', error })
@@ -150,7 +150,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
           throw new Error('validate_script_missing')
         }
 
-        const rawResult = await webviewInstance.executeJavaScript(script)
+        const rawResult = await contentController.executeJavaScript(script)
         const result = normalizeExecutionResult(rawResult)
         const diagnostics = result?.diagnostics || null
 
@@ -178,7 +178,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
       showSuccess,
       showWarning,
       t,
-      getWebviewInstance,
+      getContentController,
       setCardValidation
     ]
   )
@@ -187,7 +187,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     t,
     tabs,
     currentAI,
-    hasWebview: hasActiveWebview,
+    hasContent: hasActiveContent,
     selectors,
     aiEntries,
     expandedIds,

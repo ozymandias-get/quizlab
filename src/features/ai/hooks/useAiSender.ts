@@ -1,5 +1,5 @@
 import type { AiPlatform } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import {
   useGenerateAutoSendScript,
@@ -13,10 +13,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { type RefObject, useCallback, useRef } from 'react'
 
 import {
-  cancelWebviewSends,
+  cancelContentSends,
   type ConfigCache,
-  isWebviewUsable,
-  queueForWebview,
+  isContentUsable,
+  queueForContent,
   type UseAiSenderReturn
 } from '../lib/aiSenderSupport'
 import { handlePipelineError } from '../lib/handlePipelineError'
@@ -35,7 +35,7 @@ import { useTextInputMode } from './useTextInputMode'
 type SenderRegistry = Record<string, AiPlatform>
 
 export function useAiSender(
-  webviewRef: RefObject<WebviewController | null>,
+  contentRef: RefObject<AiContentController | null>,
   currentAI: string,
   autoSend: boolean,
   aiRegistry: SenderRegistry | null,
@@ -51,26 +51,26 @@ export function useAiSender(
   const { mutateAsync: copyImageToClipboard } = useCopyImageToClipboard()
   const configCache = useRef<ConfigCache>({ key: null, cache: null })
 
-  const canUseWebview = useCallback(
-    (webview: WebviewController, expected?: WebviewController | null) =>
-      isWebviewUsable(webviewRef, webview, expected),
-    [webviewRef]
+  const canUseContent = useCallback(
+    (content: AiContentController, expected?: AiContentController | null) =>
+      isContentUsable(contentRef, content, expected),
+    [contentRef]
   )
 
   /**
-   * Mevcut webview'e bağlı tüm bekleyen/işleyen gönderimleri iptal eder.
-   * Yeni bir istek tetiklendiğinde `queueForWebview` zaten otomatik
+   * Mevcut content'e bağlı tüm bekleyen/işleyen gönderimleri iptal eder.
+   * Yeni bir istek tetiklendiğinde `queueForContent` zaten otomatik
    * çağırıyor; bu metod kullanıcının "iptal" butonuna basması durumunda
    * manuel tetikleme içindir.
    */
   const cancelOngoing = useCallback(() => {
-    const webview = webviewRef.current
-    if (webview) cancelWebviewSends(webview)
-  }, [webviewRef])
+    const content = contentRef.current
+    if (content) cancelContentSends(content)
+  }, [contentRef])
 
   const sendTextToAI = useCallback(
     (text: string, options: AiSendOptions = {}): Promise<SendTextResult> => {
-      const scheduledWebview = webviewRef.current
+      const scheduledContent = contentRef.current
       const requestStartedAt = nowMs()
       const effectiveAutoSend = resolveAutoSend(autoSend, options)
       const diagnostics = createSendDiagnostics({
@@ -80,12 +80,12 @@ export function useAiSender(
         autoSend: effectiveAutoSend
       })
 
-      if (!scheduledWebview || !text.trim()) {
+      if (!scheduledContent || !text.trim()) {
         return Promise.resolve(
           attachDiagnostics(
             {
               success: false,
-              error: !scheduledWebview ? 'webview_not_ready' : 'empty_text'
+              error: !scheduledContent ? 'webview_not_ready' : 'empty_text'
             },
             diagnostics,
             requestStartedAt
@@ -93,15 +93,15 @@ export function useAiSender(
         )
       }
 
-      const execute = async (webview: WebviewController): Promise<SendTextResult> => {
+      const execute = async (content: AiContentController): Promise<SendTextResult> => {
         diagnostics.timings.queueWaitMs = roundMs(nowMs() - requestStartedAt)
 
         try {
           const { executeTextSendPipeline } = await import('../lib/send/textSendPipeline')
           return await executeTextSendPipeline({
-            webviewRef,
-            webview,
-            scheduledWebview,
+            contentRef,
+            content,
+            scheduledContent,
             aiRegistry,
             currentAI,
             queryClient,
@@ -114,7 +114,7 @@ export function useAiSender(
             typingSpeed,
             requestStartedAt,
             diagnostics,
-            canUseWebview,
+            canUseContent,
             generateAutoSendScript
           })
         } catch (error) {
@@ -122,9 +122,9 @@ export function useAiSender(
         }
       }
 
-      return queueForWebview(scheduledWebview, async () => {
+      return queueForContent(scheduledContent, async () => {
         try {
-          return await execute(scheduledWebview)
+          return await execute(scheduledContent)
         } catch (error) {
           return handlePipelineError(error, diagnostics, requestStartedAt, 'Text queue')
         }
@@ -135,19 +135,19 @@ export function useAiSender(
       activeTabId,
       aiRegistry,
       autoSend,
-      canUseWebview,
+      canUseContent,
       currentAI,
       generateAutoSendScript,
       queryClient,
       textInputMode,
       typingSpeed,
-      webviewRef
+      contentRef
     ]
   )
 
   const sendImageToAI = useCallback(
     (imageDataUrl: string, options: AiSendOptions = {}): Promise<SendImageResult> => {
-      const scheduledWebview = webviewRef.current
+      const scheduledContent = contentRef.current
       const requestStartedAt = nowMs()
       const effectiveAutoSend = resolveAutoSend(autoSend, options)
       const diagnostics = createSendDiagnostics({
@@ -157,7 +157,7 @@ export function useAiSender(
         autoSend: effectiveAutoSend
       })
 
-      if (!scheduledWebview || !imageDataUrl.trim()) {
+      if (!scheduledContent || !imageDataUrl.trim()) {
         return Promise.resolve(
           attachDiagnostics(
             { success: false, error: 'invalid_input' },
@@ -167,15 +167,15 @@ export function useAiSender(
         )
       }
 
-      const execute = async (webview: WebviewController): Promise<SendImageResult> => {
+      const execute = async (content: AiContentController): Promise<SendImageResult> => {
         diagnostics.timings.queueWaitMs = roundMs(nowMs() - requestStartedAt)
 
         try {
           const { executeImageSendPipeline } = await import('../lib/send/imageSendPipeline')
           return await executeImageSendPipeline({
-            webviewRef,
-            webview,
-            scheduledWebview,
+            contentRef,
+            content,
+            scheduledContent,
             aiRegistry,
             currentAI,
             queryClient,
@@ -189,7 +189,7 @@ export function useAiSender(
             typingSpeed,
             requestStartedAt,
             diagnostics,
-            canUseWebview,
+            canUseContent,
             copyImageToClipboard,
             generateAutoSendScript,
             generateFocusScript,
@@ -201,9 +201,9 @@ export function useAiSender(
         }
       }
 
-      return queueForWebview(scheduledWebview, async () => {
+      return queueForContent(scheduledContent, async () => {
         try {
-          return await execute(scheduledWebview)
+          return await execute(scheduledContent)
         } catch (error) {
           return handlePipelineError(error, diagnostics, requestStartedAt, 'Image queue')
         }
@@ -214,7 +214,7 @@ export function useAiSender(
       activeTabId,
       aiRegistry,
       autoSend,
-      canUseWebview,
+      canUseContent,
       copyImageToClipboard,
       currentAI,
       generateAutoSendScript,
@@ -224,7 +224,7 @@ export function useAiSender(
       queryClient,
       textInputMode,
       typingSpeed,
-      webviewRef
+      contentRef
     ]
   )
 

@@ -3,6 +3,9 @@ import type { AiPlatform } from '@shared-core/types'
 import { createContext } from 'react'
 
 import type {
+  AiContentHostActions,
+  AiContentPresenceState,
+  AiContentState,
   AiCoreWorkspaceActions,
   AiMessagingActions,
   AiModelActions,
@@ -13,10 +16,7 @@ import type {
   AiTabActions,
   AiTabFocusSliceState,
   AiTabsListSliceState,
-  AiViewRequestNonceState,
-  AiWebviewHostActions,
-  AiWebviewPresenceState,
-  AiWebviewState
+  AiViewRequestNonceState
 } from '../ai/types'
 
 export const AiSitesContext = createContext<Record<string, AiPlatform> | null>(null)
@@ -29,10 +29,10 @@ export const AiRegistryMetaSliceContext = createContext<AiRegistryMetaSliceState
 export const AiModelsCatalogSliceContext = createContext<AiModelsCatalogSliceState | null>(null)
 export const AiSessionUiPrefsSliceContext = createContext<AiSessionUiPrefsSliceState | null>(null)
 export const AiCoreWorkspaceActionsContext = createContext<AiCoreWorkspaceActions | null>(null)
-export const AiWebviewHostActionsContext = createContext<AiWebviewHostActions | null>(null)
+export const AiContentHostActionsContext = createContext<AiContentHostActions | null>(null)
 export const AiMessagingActionsContext = createContext<AiMessagingActions | null>(null)
-export const AiWebviewContext = createContext<AiWebviewState | null>(null)
-export const AiWebviewPresenceContext = createContext<AiWebviewPresenceState | null>(null)
+export const AiContentContext = createContext<AiContentState | null>(null)
+export const AiContentPresenceContext = createContext<AiContentPresenceState | null>(null)
 
 export const AiTabActionsContext = createContext<AiTabActions | null>(null)
 export const AiModelActionsContext = createContext<AiModelActions | null>(null)

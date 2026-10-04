@@ -1,8 +1,8 @@
 import type { AiPlatform, TextInputMode } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
+import { safeContentPaste } from '@shared/lib/aiContentUtils'
 import { Logger, reportSuppressedError } from '@shared/lib/logger'
-import { safeWebviewPaste } from '@shared/lib/webviewUtils'
 
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
@@ -27,9 +27,9 @@ import { cloneScriptDiagnostics } from './scriptExecution'
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
 
 interface ImageSendPipelineParams {
-  webviewRef: RefObject<WebviewController | null>
-  webview: WebviewController
-  scheduledWebview: WebviewController
+  contentRef: RefObject<AiContentController | null>
+  content: AiContentController
+  scheduledContent: AiContentController
   aiRegistry: Record<string, AiPlatform> | null
   currentAI: string
   queryClient: QueryClient
@@ -43,7 +43,7 @@ interface ImageSendPipelineParams {
   typingSpeed: number
   requestStartedAt: number
   diagnostics: AiSendDiagnostics
-  canUseWebview: (webview: WebviewController, expected?: WebviewController | null) => boolean
+  canUseContent: (content: AiContentController, expected?: AiContentController | null) => boolean
   copyImageToClipboard: (imageDataUrl: string) => Promise<boolean>
   generateAutoSendScript: (params: {
     config: ReturnType<typeof toAutomationConfig>
@@ -65,9 +65,9 @@ export async function executeImageSendPipeline(
   params: ImageSendPipelineParams
 ): Promise<SendImageResult> {
   const {
-    webviewRef,
-    webview,
-    scheduledWebview,
+    contentRef,
+    content,
+    scheduledContent,
     aiRegistry,
     currentAI,
     queryClient,
@@ -81,7 +81,7 @@ export async function executeImageSendPipeline(
     typingSpeed,
     requestStartedAt,
     diagnostics,
-    canUseWebview,
+    canUseContent,
     copyImageToClipboard,
     generateAutoSendScript,
     generateFocusScript,
@@ -100,9 +100,9 @@ export async function executeImageSendPipeline(
 
   const resolveStartedAt = nowMs()
   const resolved = await resolveSendContext({
-    webviewRef,
-    webview,
-    scheduledWebview,
+    contentRef,
+    content,
+    scheduledContent,
     aiRegistry,
     currentAI,
     queryClient,
@@ -159,21 +159,21 @@ export async function executeImageSendPipeline(
 
   try {
     try {
-      if (webview.isDestroyed?.() !== true && typeof webview.focus === 'function') {
-        webview.focus()
+      if (content.isDestroyed?.() !== true && typeof content.focus === 'function') {
+        await content.focus()
       }
     } catch (err) {
-      reportSuppressedError('imageSend.webviewFocus', { cause: err })
+      reportSuppressedError('imageSend.contentFocus', { cause: err })
     }
 
     // 1. Initial Focus
     const focusStep = await executePipelineStep<SendImageResult>({
       name: 'Focus',
-      webview,
-      scheduledWebview,
+      content,
+      scheduledContent,
       diagnostics,
       requestStartedAt,
-      canUseWebview,
+      canUseContent,
       generateScript: () => generateFocusScript(toAutomationConfig(resolved.aiConfig)),
       onTiming: (ms) => (diagnostics.timings.focusScriptGenerationMs = ms),
       onExecuteTiming: (ms) => (diagnostics.timings.focusExecuteJavaScriptMs = ms),
@@ -184,17 +184,9 @@ export async function executeImageSendPipeline(
     // 2. Paste Image
     let pasteSuccess = false
     const pasteStartedAt = nowMs()
-    if (
-      canUseWebview(webview, scheduledWebview) &&
-      typeof webview.pasteNative === 'function' &&
-      typeof webview.getWebContentsId === 'function'
-    ) {
+    if (canUseContent(content, scheduledContent) && typeof content.paste === 'function') {
       try {
-        const webContentsId = webview.getWebContentsId()
-        if (webContentsId) {
-          const result = webview.pasteNative(webContentsId)
-          pasteSuccess = await result
-        }
+        pasteSuccess = await content.paste()
       } catch (err) {
         reportSuppressedError('imageSend.nativePaste', { cause: err })
         pasteSuccess = false
@@ -202,14 +194,14 @@ export async function executeImageSendPipeline(
     }
 
     if (!pasteSuccess) {
-      if (!canUseWebview(webview, scheduledWebview)) {
+      if (!canUseContent(content, scheduledContent)) {
         return attachDiagnostics(
           { success: false, error: 'webview_destroyed' },
           diagnostics,
           requestStartedAt
         )
       }
-      pasteSuccess = safeWebviewPaste(webview)
+      pasteSuccess = await safeContentPaste(content)
     }
     diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
 
@@ -227,11 +219,11 @@ export async function executeImageSendPipeline(
     if (effectivePromptText) {
       const refocusStep = await executePipelineStep<SendImageResult>({
         name: 'Focus',
-        webview,
-        scheduledWebview,
+        content,
+        scheduledContent,
         diagnostics,
         requestStartedAt,
-        canUseWebview,
+        canUseContent,
         generateScript: () => generateFocusScript(toAutomationConfig(resolved.aiConfig)),
         onTiming: (ms) => (diagnostics.timings.refocusScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.refocusExecuteJavaScriptMs = ms),
@@ -247,11 +239,11 @@ export async function executeImageSendPipeline(
 
       const promptStep = await executePipelineStep<SendImageResult>({
         name: 'Script',
-        webview,
-        scheduledWebview,
+        content,
+        scheduledContent,
         diagnostics,
         requestStartedAt,
-        canUseWebview,
+        canUseContent,
         generateScript: () =>
           generateAutoSendScript({
             config: toAutomationConfig(resolved.aiConfig),
@@ -283,11 +275,11 @@ export async function executeImageSendPipeline(
     if (effectiveAutoSend) {
       const submitReadyStep = await executePipelineStep<SendImageResult>({
         name: 'Submit_ready',
-        webview,
-        scheduledWebview,
+        content,
+        scheduledContent,
         diagnostics,
         requestStartedAt,
-        canUseWebview,
+        canUseContent,
         generateScript: () =>
           generateWaitForSubmitReadyScript({
             config: toAutomationConfig(resolved.aiConfig),
@@ -337,11 +329,11 @@ export async function executeImageSendPipeline(
 
       const clickStep = await executePipelineStep<SendImageResult>({
         name: 'Click',
-        webview,
-        scheduledWebview,
+        content,
+        scheduledContent,
         diagnostics,
         requestStartedAt,
-        canUseWebview,
+        canUseContent,
         generateScript: () => generateClickSendScript(toAutomationConfig(resolved.aiConfig)),
         onTiming: (ms) => (diagnostics.timings.clickScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.clickExecuteJavaScriptMs = ms),

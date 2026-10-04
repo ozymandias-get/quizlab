@@ -6,10 +6,10 @@ import { createContext, type ReactNode, useContext, useMemo } from 'react'
 
 import type { AiDraftItem, AiSendResult, SelectionPosition } from './ai/types'
 import {
+  useAiContent,
   useAiMessagingActions,
   useAiSessionActions,
-  useAiSessionUiPrefsState,
-  useAiWebview
+  useAiSessionUiPrefsState
 } from './ai-context'
 import { type QueuedImageMeta, useAiDraftQueue } from './app-tool/useAiDraftQueue'
 import { useDraftSendOrchestration } from './app-tool/useDraftSendOrchestration'
@@ -58,7 +58,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   const { setAutoSend, toggleAutoSend } = useAiSessionActions()
   const { autoSend } = useAiSessionUiPrefsState()
   const { showError } = useToastActions()
-  const { getWebviewInstance } = useAiWebview()
+  const { getContentController } = useAiContent()
 
   const {
     pendingAiItems,
@@ -90,7 +90,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   })
 
   const { isPickerActive, startPicker, startPickerWhenReady, togglePicker } =
-    useElementPickerLifecycle(getWebviewInstance)
+    useElementPickerLifecycle(getContentController)
 
   const { isGeminiWebSessionRefreshing } = useGeminiSessionRefreshListeners({ showError })
 

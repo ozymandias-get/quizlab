@@ -7,11 +7,14 @@ import { useToastActions } from '@shared/stores/toastStore'
 
 import { type ReactNode, useCallback, useRef, useState } from 'react'
 
+import { useAiContentRegistry } from '../ai/useAiContentRegistry'
 import { useAiMessaging } from '../ai/useAiMessaging'
 import { useAiModelPreferences } from '../ai/useAiModelPreferences'
 import { useAiTabs } from '../ai/useAiTabs'
-import { useAiWebviewRegistry } from '../ai/useAiWebviewRegistry'
 import {
+  AiContentContext,
+  AiContentHostActionsContext,
+  AiContentPresenceContext,
   AiCoreWorkspaceActionsContext,
   AiMessagingActionsContext,
   AiModelActionsContext,
@@ -23,10 +26,7 @@ import {
   AiTabActionsContext,
   AiTabFocusContext,
   AiTabsListContext,
-  AiViewRequestNonceContext,
-  AiWebviewContext,
-  AiWebviewHostActionsContext,
-  AiWebviewPresenceContext
+  AiViewRequestNonceContext
 } from './contexts'
 import { useAiProviderContexts } from './useAiProviderContexts'
 
@@ -83,8 +83,8 @@ function AiProvider({ children }: { children: ReactNode }) {
     setPinnedTabs
   })
 
-  const { registerWebview, getWebviewInstance, hasActiveWebview } =
-    useAiWebviewRegistry(activeTabId)
+  const { registerContent, getContentController, hasActiveContent } =
+    useAiContentRegistry(activeTabId)
 
   const tabsRef = useRef(tabs)
   tabsRef.current = tabs
@@ -109,7 +109,7 @@ function AiProvider({ children }: { children: ReactNode }) {
   )
 
   const { sendTextToAI, sendImageToAI, cancelOngoing } = useAiMessaging({
-    getWebviewInstance,
+    getContentController,
     getActiveTab,
     currentAI,
     activeTabId,
@@ -123,18 +123,18 @@ function AiProvider({ children }: { children: ReactNode }) {
   const handleCloseTab = useCallback(
     (tabId: string) => {
       closeTab(tabId)
-      registerWebview(tabId, null)
+      registerContent(tabId, null)
       // Drop the closed tab's per-tab chat UI state (input, attachments,
       // streaming buffers...). Tab ids are never reused, so leaving entries
       // behind only leaks memory and risks stale-state reads.
       useChatUiStore.getState().resetTabState(tabId)
     },
-    [closeTab, registerWebview]
+    [closeTab, registerContent]
   )
 
-  const reloadActiveWebview = useCallback(() => {
-    getWebviewInstance()?.reload?.()
-  }, [getWebviewInstance])
+  const reloadActiveContent = useCallback(() => {
+    getContentController()?.reload?.()
+  }, [getContentController])
 
   const startTutorial = useCallback(() => {
     setIsTutorialActive(true)
@@ -156,8 +156,8 @@ function AiProvider({ children }: { children: ReactNode }) {
     defaultAiModel,
     autoSend,
     isTutorialActive,
-    getWebviewInstance,
-    hasActiveWebview,
+    getContentController,
+    hasActiveContent,
     addTab,
     handleCloseTab,
     setActiveTab,
@@ -171,8 +171,8 @@ function AiProvider({ children }: { children: ReactNode }) {
     toggleAutoSend,
     startTutorial,
     stopTutorial,
-    registerWebview,
-    reloadActiveWebview,
+    registerContent,
+    reloadActiveContent,
     sendTextToAI,
     sendImageToAI,
     cancelOngoing
@@ -188,8 +188,8 @@ function AiProvider({ children }: { children: ReactNode }) {
                 <AiSessionUiPrefsSliceContext.Provider
                   value={contextValues.sessionUiPrefsSliceValue}
                 >
-                  <AiWebviewContext.Provider value={contextValues.webviewValue}>
-                    <AiWebviewPresenceContext.Provider value={contextValues.webviewPresenceValue}>
+                  <AiContentContext.Provider value={contextValues.contentValue}>
+                    <AiContentPresenceContext.Provider value={contextValues.contentPresenceValue}>
                       <AiTabActionsContext.Provider value={contextValues.tabActionsValue}>
                         <AiModelActionsContext.Provider value={contextValues.modelActionsValue}>
                           <AiSessionActionsContext.Provider
@@ -198,21 +198,21 @@ function AiProvider({ children }: { children: ReactNode }) {
                             <AiCoreWorkspaceActionsContext.Provider
                               value={contextValues.coreWorkspaceActionsValue}
                             >
-                              <AiWebviewHostActionsContext.Provider
-                                value={contextValues.webviewHostActionsValue}
+                              <AiContentHostActionsContext.Provider
+                                value={contextValues.contentHostActionsValue}
                               >
                                 <AiMessagingActionsContext.Provider
                                   value={contextValues.messagingActionsValue}
                                 >
                                   {isRegistryLoaded && isTabsInitialized ? children : null}
                                 </AiMessagingActionsContext.Provider>
-                              </AiWebviewHostActionsContext.Provider>
+                              </AiContentHostActionsContext.Provider>
                             </AiCoreWorkspaceActionsContext.Provider>
                           </AiSessionActionsContext.Provider>
                         </AiModelActionsContext.Provider>
                       </AiTabActionsContext.Provider>
-                    </AiWebviewPresenceContext.Provider>
-                  </AiWebviewContext.Provider>
+                    </AiContentPresenceContext.Provider>
+                  </AiContentContext.Provider>
                 </AiSessionUiPrefsSliceContext.Provider>
               </AiModelsCatalogSliceContext.Provider>
             </AiRegistryMetaSliceContext.Provider>

@@ -15,7 +15,7 @@ interface SelectorsListProps {
   validationState: Record<string, ValidationState>
   tabs: Array<{ modelId: string }>
   currentAI: string | null
-  hasWebview: boolean
+  hasContent: boolean
   isSaving: boolean
   isDeleting: boolean
   isTesting: boolean
@@ -35,7 +35,7 @@ export default memo(function SelectorsList(props: SelectorsListProps) {
     selectors,
     tabs,
     currentAI,
-    hasWebview,
+    hasContent,
     isSaving,
     isDeleting,
     isTesting,
@@ -61,7 +61,7 @@ export default memo(function SelectorsList(props: SelectorsListProps) {
             selectors={selectors}
             tabs={tabs}
             currentAI={currentAI}
-            hasWebview={hasWebview}
+            hasContent={hasContent}
             isSaving={isSaving}
             isDeleting={isDeleting}
             isTesting={isTesting}
