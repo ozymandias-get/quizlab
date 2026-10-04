@@ -25,7 +25,7 @@ export function registerPdfHandlers() {
 
       // Capture the sender's WebContents at context-menu creation time so
       // the click handlers below send signals to the CORRECT frame.
-      // When a PDF is displayed inside a sub-frame / <webview> of the main
+      // When a PDF is displayed inside a sub-frame of the main
       // window:
       //   - event.sender points to the sub-frame's WebContents (correct)
       //   - win.webContents points to the main frame (WRONG target)

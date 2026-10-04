@@ -50,9 +50,9 @@ export function requireTrustedIpcSender(event: {
   }
 
   // SECURITY: Verify the IPC was sent from the main frame, not a subframe
-  // (<webview>, <iframe>, or embedded child frame).  A compromised <webview>
+  // (iframe or embedded child frame).  A compromised embedded page
   // could otherwise send IPC messages that pass the WebContents check because
-  // webview guest contents share the same host WebContents identity.
+  // guest contents share the same host WebContents identity.
   //
   // NOTE: senderFrame is always available on IpcMainInvokeEvent but may
   // be absent on mock objects in tests.

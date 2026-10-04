@@ -9,7 +9,7 @@ import {
   MAIN_WINDOW_REVEAL_TIMEOUT_MS
 } from './window/environment.js'
 import { loadRenderer } from './window/rendererLoader.js'
-import { hardenWindowWebContents, setupWebviewSecurity } from './window/security.js'
+import { hardenWindowWebContents } from './window/security.js'
 import { setupSessions } from './window/sessions.js'
 import { clampWindowStateToDisplay, loadWindowState, saveWindowState } from './window/state.js'
 import { createMainBrowserWindow } from './window/windows.js'
@@ -28,11 +28,6 @@ export async function createWindow() {
   clampWindowStateToDisplay(windowState)
 
   mainWindow = createMainBrowserWindow(windowState)
-
-  // Register the global web-contents-created handler once at startup.
-  // This enables clipboard protection and auth domain interception for
-  // all <webview> guest pages created throughout the app lifecycle.
-  setupWebviewSecurity()
 
   hardenWindowWebContents(mainWindow)
 

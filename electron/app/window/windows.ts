@@ -48,7 +48,9 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
-      webviewTag: true,
+      // Remote sites are main-process owned WebContentsViews; the renderer has
+      // no reason to instantiate an embedded browser of its own.
+      webviewTag: false,
       webSecurity: true,
       spellcheck: false,
       allowRunningInsecureContent: false,
