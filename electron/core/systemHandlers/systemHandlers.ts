@@ -1,12 +1,12 @@
 /**
  * The system IPC surface that is not cache, clipboard or logging: quitting the
- * app, opening an external URL and forcing a paste into a guest webview.
+ * app and opening an external URL.
  *
  * The heavier domains register from their own modules; this file owns the
  * ordering and the once-per-process guard that keeps a hot reload from
  * double-registering a channel.
  */
-import { app, ipcMain, shell, webContents } from 'electron'
+import { app, ipcMain, shell } from 'electron'
 
 import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
@@ -14,7 +14,6 @@ import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { runCleanup } from '../appCleanup.js'
 import { requireTrustedIpcSender } from '../ipcSecurity.js'
 import { Logger, pushToLoggerBuffer } from '../logger.js'
-import { isMainWindowGuestContents } from './cache.js'
 import { registerCacheHandlers } from './cacheHandlers.js'
 import { registerClipboardHandlers } from './clipboardHandlers.js'
 import { resolveExternalLink } from './externalLinkPolicy.js'
@@ -59,27 +58,6 @@ export function registerSystemHandlers() {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         Logger.error(`[IPC] External link error:`, message)
-        return success(false)
-      }
-    },
-    requireTrustedIpcSender,
-    success(false)
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.FORCE_PASTE,
-    async (_event, webContentsId: number) => {
-      try {
-        if (!webContentsId) return success(false)
-        const contents = webContents.fromId(webContentsId)
-
-        if (contents && isMainWindowGuestContents(contents)) {
-          contents.paste()
-          return success(true)
-        }
-        return success(false)
-      } catch (error) {
-        Logger.error('[IPC] Force paste failed:', error)
         return success(false)
       }
     },
