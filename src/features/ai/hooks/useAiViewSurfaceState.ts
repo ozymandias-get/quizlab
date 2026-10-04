@@ -20,7 +20,14 @@ export interface AiViewSurfaceState {
     show: () => void
     hide: () => void
   }
-  /** Tabs whose managed view should be torn down. */
+  /**
+   * Tabs with no live `AiSession` mounted, because they are not in the alive set.
+   *
+   * Presentation-only: it explains why a tab renders as a cold placeholder in the
+   * strip. Teardown is *not* driven from here — the eviction itself is already
+   * expressed by a tab leaving {@link aliveTabIds}, which is what
+   * `useManagedViewRetirement` reconciles against the main process.
+   */
   coldTabIds: Set<string>
   recordTabUrl: (tabId: string, modelId: string, url: string) => void
   getRestoredUrl: (tabId: string, modelId: string) => string | undefined
