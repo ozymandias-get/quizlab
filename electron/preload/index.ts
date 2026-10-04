@@ -190,7 +190,6 @@ const electronApi: ElectronApi = {
     // Geometry and visibility are fire-and-forget: a resize drag emits them at
     // animation-frame rate and must never queue behind an invoke round trip.
     syncHost: (request) => ipcRenderer.send(IPC_CHANNELS.AI_VIEW_SYNC_HOST, request),
-    setIgnoreMouse: (request) => ipcRenderer.send(IPC_CHANNELS.AI_VIEW_SET_IGNORE_MOUSE, request),
     onEvent: (callback) => onEvent(IPC_CHANNELS.AI_VIEW_EVENT, callback)
   },
 

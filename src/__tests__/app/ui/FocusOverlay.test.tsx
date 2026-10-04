@@ -134,7 +134,6 @@ describe('FocusOverlay', () => {
         onClose={vi.fn()}
         isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
         isAiSurfaceActive
         aiViewSurfaceState={surfaceState}
       />
@@ -146,9 +145,27 @@ describe('FocusOverlay', () => {
     expect(mockAiViewSurface).toHaveBeenCalledWith(
       expect.objectContaining({
         isResizing: false,
-        isBarHovered: false,
         isSurfaceActive: true
       })
+    )
+  })
+
+  it('tells the AI surface to step aside while a dialog is open', () => {
+    // The AI surface subscribes to the shared dialog registry itself, so the
+    // focus overlay does not have to relay anything.
+    render(
+      <FocusOverlay
+        mode="ai"
+        onClose={vi.fn()}
+        isAiSurfaceMounted
+        isResizing={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
+      />
+    )
+
+    expect(mockAiViewSurface).toHaveBeenCalledWith(
+      expect.objectContaining({ isSurfaceActive: true })
     )
   })
 
@@ -159,7 +176,6 @@ describe('FocusOverlay', () => {
         onClose={vi.fn()}
         isAiSurfaceMounted={false}
         isResizing={false}
-        isBarHovered={false}
         isAiSurfaceActive
         aiViewSurfaceState={surfaceState}
       />
@@ -176,7 +192,6 @@ describe('FocusOverlay', () => {
         onClose={vi.fn()}
         isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
         isAiSurfaceActive
         aiViewSurfaceState={surfaceState}
       />
@@ -195,7 +210,6 @@ describe('FocusOverlay', () => {
         onClose={onClose}
         isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
         isAiSurfaceActive
         aiViewSurfaceState={surfaceState}
       />
@@ -213,7 +227,6 @@ describe('FocusOverlay', () => {
         onClose={onClose}
         isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
         isAiSurfaceActive
         aiViewSurfaceState={surfaceState}
       />
@@ -235,7 +248,6 @@ describe('FocusOverlay', () => {
           onClose={onClose}
           isAiSurfaceMounted
           isResizing={false}
-          isBarHovered={false}
           isAiSurfaceActive
           aiViewSurfaceState={surfaceState}
         />

@@ -11,7 +11,6 @@ import {
   parseDelta,
   parseHostRequest,
   parseHostSyncRequest,
-  parseIgnoreMouseRequest,
   parseInputEvent,
   parseRestoredUrl,
   parseScript,
@@ -34,7 +33,6 @@ import {
   reloadAiView,
   sendAiViewInputEvent,
   setAiViewEventSink,
-  setAiViewIgnoreMouse,
   syncAiViewHost
 } from './aiWebContentsViewManager.js'
 
@@ -213,13 +211,6 @@ export function registerAiViewHandlers(): void {
     const parsed = parseHostSyncRequest(request)
     if (!parsed) return
     syncAiViewHost(parsed.viewId, parsed.hostToken, parsed.bounds, parsed.visible)
-  })
-
-  ipcMain.on(IPC_CHANNELS.AI_VIEW_SET_IGNORE_MOUSE, (event, request: unknown) => {
-    if (!requireTrustedIpcSender(event)) return
-    const parsed = parseIgnoreMouseRequest(request)
-    if (!parsed) return
-    setAiViewIgnoreMouse(parsed.viewId, parsed.hostToken, parsed.ignore)
   })
 }
 

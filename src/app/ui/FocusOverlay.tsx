@@ -39,7 +39,6 @@ interface FocusOverlayProps {
   // AI mode wiring
   isAiSurfaceMounted: boolean
   isResizing: boolean
-  isBarHovered: boolean
   isAiSurfaceActive: boolean
   aiViewSurfaceState: AiViewSurfaceState
 }
@@ -69,7 +68,6 @@ function FocusOverlay({
   onClose,
   isAiSurfaceMounted,
   isResizing,
-  isBarHovered,
   isAiSurfaceActive,
   aiViewSurfaceState
 }: FocusOverlayProps) {
@@ -180,7 +178,6 @@ function FocusOverlay({
               ) : isAiSurfaceMounted ? (
                 <AiViewSurface
                   isResizing={isResizing}
-                  isBarHovered={isBarHovered}
                   isSurfaceActive={isAiSurfaceActive}
                   surfaceState={aiViewSurfaceState}
                 />

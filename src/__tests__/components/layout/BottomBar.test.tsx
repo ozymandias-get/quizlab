@@ -143,6 +143,19 @@ describe('BottomBar', () => {
     expect(screen.getByTestId('settings-icon')).toBeInTheDocument()
   })
 
+  it('opens and closes the settings modal from the dock', () => {
+    // BottomBar keeps this state locally; the AI surface learns about it through
+    // the shared dialog registry, not through props.
+    render(<BottomBar />)
+    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('settings-icon'))
+    expect(screen.getByTestId('settings-modal')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close Modal' }))
+    expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument()
+  })
+
   it('fires onMouseDown when drag area is clicked', () => {
     const onMouseDown = vi.fn()
     const { container } = render(<BottomBar onMouseDown={onMouseDown} />)

@@ -79,8 +79,7 @@ vi.mock('../../../features/ai-view/aiWebContentsViewManager.js', async () => {
     navigateAiView: vi.fn(() => true),
     loadAiViewUrl: vi.fn(() => true),
     getAiViewUrl: vi.fn(() => 'https://chatgpt.com/'),
-    syncAiViewHost: vi.fn(() => true),
-    setAiViewIgnoreMouse: vi.fn(() => true)
+    syncAiViewHost: vi.fn(() => true)
   }
 })
 
@@ -101,7 +100,6 @@ const CHANNELS = {
   paste: 'ai-view-paste',
   focus: 'ai-view-focus',
   syncHost: 'ai-view-sync-host',
-  ignoreMouse: 'ai-view-set-ignore-mouse',
   event: 'ai-view-event'
 }
 
@@ -151,13 +149,18 @@ beforeEach(() => {
 describe('ai view IPC - registration', () => {
   it('registers every managed-view channel exactly once', () => {
     for (const channel of Object.values(CHANNELS)) {
-      if (channel === CHANNELS.syncHost || channel === CHANNELS.ignoreMouse) continue
+      if (channel === CHANNELS.syncHost) continue
       if (channel === CHANNELS.event) continue
       expect(HANDLERS.has(channel)).toBe(true)
     }
-    expect([...LISTENERS.keys()]).toEqual(
-      expect.arrayContaining([CHANNELS.syncHost, CHANNELS.ignoreMouse])
-    )
+    expect([...LISTENERS.keys()]).toEqual(expect.arrayContaining([CHANNELS.syncHost]))
+  })
+
+  it('no longer exposes a window-wide mouse-ignore channel', () => {
+    // The channel used to arm BrowserWindow.setIgnoreMouseEvents, whose
+    // `forward: true` forwards mouse move only and therefore killed every
+    // mousedown in the window -- the panel divider included.
+    expect([...LISTENERS.keys()]).not.toContain('ai-view-set-ignore-mouse')
   })
 })
 
@@ -204,7 +207,6 @@ describe('ai view IPC - trusted sender boundary', () => {
     requireTrustedIpcSender.mockReturnValue(false)
 
     const boundsHandler = onMessage(CHANNELS.syncHost)
-    const mouseHandler = onMessage(CHANNELS.ignoreMouse)
 
     boundsHandler(attackerEvent, {
       viewId: 'tab-1',
@@ -212,10 +214,8 @@ describe('ai view IPC - trusted sender boundary', () => {
       bounds: { x: 0, y: 0, width: 999, height: 999 },
       visible: true
     })
-    mouseHandler(attackerEvent, { viewId: 'tab-1', hostToken: 'h1', ignore: true })
 
     expect(manager.syncAiViewHost).not.toHaveBeenCalled()
-    expect(manager.setAiViewIgnoreMouse).not.toHaveBeenCalled()
   })
 })
 
@@ -303,7 +303,7 @@ describe('ai view IPC - input validation', () => {
     expect(manager.syncAiViewHost).toHaveBeenCalledWith(
       'tab-1',
       'h1',
-      { x: 0, y: 1, width: 11, height: 0 },
+      { x: 0, y: 1, width: 11, height: 0, borderRadius: 0 },
       true
     )
   })

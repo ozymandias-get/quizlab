@@ -42,15 +42,11 @@ export interface ManagedAiView {
   bounds: AiViewBounds | null
   /** Token of the host placeholder currently allowed to move this view. */
   hostToken: string | null
-  /** Whether mouse input is currently forwarded to the app instead of the page. */
-  ignoreMouse: boolean
   disposeBridge: () => void
 }
 
 const views = new Map<string, ManagedAiView>()
 let generationCounter = 0
-let mouseForwardingRequests = 0
-let windowMouseForwardingApplied = false
 
 type EventListener = (event: AiViewEvent) => void
 const listeners = new Set<EventListener>()
@@ -123,10 +119,6 @@ export async function attachAiView(request: AiViewAttachRequest): Promise<AiView
   const window = getMainWindow()
   if (!window || window.isDestroyed()) throw new Error('main_window_unavailable')
 
-  // A fresh view must not inherit a stale forward request from a destroyed one.
-  mouseForwardingRequests = 0
-  windowMouseForwardingApplied = false
-
   const view = new WebContentsView({
     webPreferences: {
       partition: target.partition,
@@ -158,7 +150,6 @@ export async function attachAiView(request: AiViewAttachRequest): Promise<AiView
     shown: false,
     bounds: null,
     hostToken: null,
-    ignoreMouse: false,
     disposeBridge: () => {}
   }
 
@@ -205,9 +196,7 @@ export function detachAiViewHost(viewId: string, hostToken: string): boolean {
   entry.hostToken = null
   entry.visible = false
   entry.bounds = null
-  entry.ignoreMouse = false
   applyVisibility(entry)
-  recomputeMouseForwardingRequests()
   return true
 }
 
@@ -215,7 +204,6 @@ export function destroyAiView(viewId: string): boolean {
   const entry = views.get(viewId)
   if (!entry) return false
   views.delete(viewId)
-  recomputeMouseForwardingRequests()
 
   try {
     entry.disposeBridge()
@@ -273,6 +261,7 @@ export function syncAiViewHost(
 
   if (!boundsEqual(entry.bounds, bounds)) {
     entry.bounds = bounds
+    applyBorderRadius(entry.view, bounds.borderRadius ?? 0)
     entry.view.setBounds(bounds)
   }
 
@@ -283,47 +272,41 @@ export function syncAiViewHost(
 }
 
 /**
- * Routes mouse input to the app while the bottom bar owns the pointer.
+ * Applies the panel's corner radius to a native view.
  *
- * A `WebContentsView` is composited above the whole DOM tree, so a transparent
- * overlay can no longer shield it from the resizer dock the way it shielded a
- * `<webview>`. `setIgnoreMouseEvents` only exists on the window in Electron 42,
- * so the request is applied there with `forward: true`: the dock keeps receiving
- * hover and drag events, and the embedded site stops stealing pointer input for
- * exactly as long as the app asks for it.
+ * The AI panel rounds its content with CSS, and the main-process window used to
+ * inherit that for free because a `<webview>` was a DOM element. A
+ * `WebContentsView` is composited above the DOM instead, so without this it
+ * paints square corners straight over the rounded frame.
+ *
+ * `View.setBorderRadius` is new in Electron 42 and is the only per-view
+ * rounding API; `BrowserWindow.setShape` would clip the whole window, including
+ * the title bar and the other panels. It is guarded because a platform that
+ * lacks it should degrade to square corners rather than take the view down.
  */
-export function setAiViewIgnoreMouse(viewId: string, hostToken: string, ignore: boolean): boolean {
-  const entry = getManagedAiView(viewId)
-  if (!entry) return false
-  if (entry.hostToken !== null && entry.hostToken !== hostToken) return false
-  if (entry.ignoreMouse === ignore) return true
-
-  entry.ignoreMouse = ignore
-  recomputeMouseForwardingRequests()
-  return true
-}
-
-function applyWindowMouseMode(): void {
-  const next = mouseForwardingRequests > 0
-  if (next === windowMouseForwardingApplied) return
-
-  const window = getMainWindow()
-  if (!window || window.isDestroyed()) return
-
-  windowMouseForwardingApplied = next
+function applyBorderRadius(view: WebContentsView, radius: number): void {
   try {
-    window.setIgnoreMouseEvents(next, { forward: true })
+    view.setBorderRadius(radius)
   } catch (error) {
-    Logger.warn('[AiView] setIgnoreMouseEvents failed:', error)
+    Logger.warn('[AiView] setBorderRadius failed:', error)
   }
 }
 
-function recomputeMouseForwardingRequests(): void {
-  const next = [...views.values()].filter((entry) => entry.ignoreMouse).length
-  if (next === mouseForwardingRequests) return
-  mouseForwardingRequests = next
-  applyWindowMouseMode()
-}
+/**
+ * Mouse input needs no special handling here.
+ *
+ * The old `<webview>` sat in the DOM, so a transparent sibling overlay could
+ * shield it from the bottom-bar dock. A `WebContentsView` is composited above
+ * the DOM instead — and that overlay would have been useless, because the dock
+ * is a `flex-shrink: 0` sibling column and the host placeholder sits inside the
+ * right panel, so the two never overlap in the first place.
+ *
+ * `setIgnoreMouseEvents` was tried here and removed: in Electron 42 it exists
+ * only on the `BrowserWindow`, and its `forward: true` option forwards mouse
+ * *move* messages alone. Arming it while the pointer merely hovered the dock
+ * swallowed every mousedown in the window, including the dock's own
+ * `pointerdown` — which made the panel unresizable.
+ */
 
 function applyVisibility(entry: ManagedAiView): void {
   const shouldShow = entry.visible && isUsableBounds(entry.bounds)

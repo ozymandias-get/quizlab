@@ -23,9 +23,6 @@ const ApiChatPage = lazy(() => import('./ApiChatPage'))
 interface AiSessionProps {
   tab: Tab
   isActive: boolean
-  isBarHovered: boolean
-  /** True while the app is dragging the panel divider. */
-  isResizing: boolean
   /**
    * True when this host lives on the surface the user is currently looking at.
    * Only the active surface may position the managed view, so a placeholder
@@ -52,8 +49,6 @@ const AiSession = memo(
   ({
     tab,
     isActive,
-    isBarHovered,
-    isResizing,
     isSurfaceActive,
     isOverlayActive,
     restoredUrl,
@@ -99,15 +94,16 @@ const AiSession = memo(
       restoredUrl: entryUrl,
       modelId: tab.modelId,
       isEnabled: canHostRemoteView,
-      isHostOwner: canHostRemoteView && isSurfaceActive && isActive,
+      // Ownership is deliberately NOT gated on `isActive`. Ownership answers
+      // "which placeholder may position this view", and losing it while the view
+      // is still on screen would leave nobody able to say `visible: false` — the
+      // last rectangle would stay painted over whatever is now on top. Keeping
+      // ownership lets an inactive tab hide itself, which is what makes AI Home,
+      // the tutorial and tab switching clear the view instead of stranding it.
+      isHostOwner: canHostRemoteView && isSurfaceActive,
       visible: canHostRemoteView && isActive && isSurfaceActive && !isOverlayActive,
       revealAfterFirstLoad: true,
       hideWhenError: true,
-      // A native view paints above every DOM layer, so the bottom bar can no
-      // longer shield it with an overlay. Forwarding the guest's mouse input to
-      // the app keeps the bar's hover and drag handling working while the page
-      // stays painted and interactive everywhere else.
-      ignoreMouse: isActive && isSurfaceActive && (isBarHovered || isResizing),
       onUrlChange: reportNavigationUrl,
       onPageSettled: handlePageSettled,
       registerContent: registerInstance
@@ -134,10 +130,6 @@ const AiSession = memo(
             <SleepPlaceholderView onWakeUp={handleWakeUp} t={t} />
           ) : (
             <div ref={setHostElement} className="h-full w-full flex-1" data-ai-view-host={tab.id} />
-          )}
-
-          {isBarHovered && isActive && isSurfaceActive && !isSleeping && !isApiChat && (
-            <div className="z-surface-4 pointer-events-auto absolute inset-0 bg-transparent" />
           )}
 
           {isLoading && isActive && !isSleeping && !isApiChat && <AestheticLoader />}

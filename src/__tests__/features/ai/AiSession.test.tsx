@@ -26,7 +26,7 @@ vi.mock('@shared/hooks/aiContent/useManagedContentView', () => ({
 }))
 
 vi.mock('@shared/hooks/aiContent/aiViewClient', () => ({
-  getAiViewClient: () => ({ setIgnoreMouse: vi.fn() })
+  getAiViewClient: () => ({})
 }))
 
 vi.mock('react-i18next', () => ({
@@ -66,7 +66,6 @@ vi.mock('@features/ai/ui/AiErrorView', () => ({
 const defaultTab = { id: '1', modelId: 'gpt-4', title: 'GPT-4' }
 
 const defaultProps = {
-  isResizing: false,
   isSurfaceActive: true,
   isOverlayActive: false
 }
@@ -96,9 +95,7 @@ describe('AiSession', () => {
   const lastOptions = () => useManagedContentView.mock.calls.at(-1)?.[0]
 
   it('renders a host placeholder for the managed native view', () => {
-    const { container } = render(
-      <AiSession tab={defaultTab} isActive isBarHovered={false} {...defaultProps} />
-    )
+    const { container } = render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
     const host = container.querySelector('[data-ai-view-host]')
     expect(host).toBeInTheDocument()
     expect(host).toHaveClass('h-full')
@@ -106,7 +103,7 @@ describe('AiSession', () => {
   })
 
   it('addresses the main-process view by tab id and model, never by partition', () => {
-    render(<AiSession tab={defaultTab} isActive isBarHovered={false} {...defaultProps} />)
+    render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
 
     const options = lastOptions() as {
       viewId: string
@@ -121,16 +118,13 @@ describe('AiSession', () => {
   })
 
   it('does not re-target the managed view when the cached navigation URL changes', () => {
-    const { rerender } = render(
-      <AiSession tab={defaultTab} isActive isBarHovered={false} {...defaultProps} />
-    )
+    const { rerender } = render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
     const firstOptions = lastOptions()
 
     rerender(
       <AiSession
         tab={defaultTab}
         isActive
-        isBarHovered={false}
         restoredUrl="https://chat.openai.com/c/existing-chat"
         {...defaultProps}
       />
@@ -142,91 +136,54 @@ describe('AiSession', () => {
   })
 
   it('hides when inactive', () => {
-    const { container } = render(
-      <AiSession tab={defaultTab} isActive={false} isBarHovered={false} {...defaultProps} />
-    )
+    const { container } = render(<AiSession tab={defaultTab} isActive={false} {...defaultProps} />)
     const wrapper = container.firstChild as HTMLElement
     expect(wrapper).toHaveStyle({ visibility: 'hidden' })
-    expect((lastOptions() as { isHostOwner: boolean }).isHostOwner).toBe(false)
+    expect((lastOptions() as { visible: boolean }).visible).toBe(false)
   })
 
   it('never owns the host while another surface is active', () => {
-    render(
-      <AiSession
-        tab={defaultTab}
-        isActive
-        isBarHovered={false}
-        {...defaultProps}
-        isSurfaceActive={false}
-      />
-    )
+    render(<AiSession tab={defaultTab} isActive {...defaultProps} isSurfaceActive={false} />)
     expect((lastOptions() as { isHostOwner: boolean }).isHostOwner).toBe(false)
   })
 
   it('treats an overlay (home / tutorial) as hidden', () => {
-    render(
-      <AiSession tab={defaultTab} isActive isBarHovered={false} {...defaultProps} isOverlayActive />
-    )
+    render(<AiSession tab={defaultTab} isActive {...defaultProps} isOverlayActive />)
     expect((lastOptions() as { visible: boolean }).visible).toBe(false)
   })
 
-  it('forwards mouse to the app while the bottom bar is hovered', () => {
-    render(<AiSession tab={defaultTab} isActive isBarHovered {...defaultProps} />)
-    expect((lastOptions() as { ignoreMouse: boolean }).ignoreMouse).toBe(true)
-  })
+  it('keeps host ownership while inactive so it can still hide its view', () => {
+    // Regression guard: ownership used to be gated on `isActive`, which meant
+    // that showing AI Home left nobody able to publish `visible: false`. The
+    // native view then kept its last rectangle and stayed painted over the home
+    // screen, offset from the panel it belonged to.
+    const { rerender } = render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
+    expect((lastOptions() as { isHostOwner: boolean }).isHostOwner).toBe(true)
 
-  it('forwards mouse to the app while the divider is being dragged', () => {
-    render(
-      <AiSession tab={defaultTab} isActive isBarHovered={false} {...defaultProps} isResizing />
-    )
-    expect((lastOptions() as { ignoreMouse: boolean }).ignoreMouse).toBe(true)
-  })
+    rerender(<AiSession tab={defaultTab} isActive={false} {...defaultProps} />)
 
-  it('keeps mouse with the page when neither hover nor resize is active', () => {
-    render(<AiSession tab={defaultTab} isActive isBarHovered={false} {...defaultProps} />)
-    expect((lastOptions() as { ignoreMouse: boolean }).ignoreMouse).toBe(false)
+    const options = lastOptions() as { isHostOwner: boolean; visible: boolean }
+    expect(options.isHostOwner).toBe(true)
+    expect(options.visible).toBe(false)
   })
 
   it('shows loader when loading', () => {
     render(
-      <AiSession
-        tab={{ ...defaultTab, modelId: 'loading-model' }}
-        isActive
-        isBarHovered={false}
-        {...defaultProps}
-      />
+      <AiSession tab={{ ...defaultTab, modelId: 'loading-model' }} isActive {...defaultProps} />
     )
     expect(screen.getByTestId('aesthetic-loader')).toBeInTheDocument()
   })
 
   it('shows error view when error occurs', async () => {
-    render(
-      <AiSession
-        tab={{ ...defaultTab, modelId: 'error-model' }}
-        isActive
-        isBarHovered={false}
-        {...defaultProps}
-      />
-    )
+    render(<AiSession tab={{ ...defaultTab, modelId: 'error-model' }} isActive {...defaultProps} />)
     await waitFor(() => {
       expect(screen.getByTestId('ai-error-view')).toBeInTheDocument()
     })
     expect(screen.getByText('Error: Failed to load')).toBeInTheDocument()
   })
 
-  it('renders mouse catcher when bar is hovered', () => {
-    const { container } = render(
-      <AiSession tab={defaultTab} isActive isBarHovered {...defaultProps} />
-    )
-    const catcher = container.querySelector('.pointer-events-auto')
-    expect(catcher).toBeInTheDocument()
-  })
-
-  it('does not render mouse catcher when not hovered', () => {
-    const { container } = render(
-      <AiSession tab={defaultTab} isActive isBarHovered={false} {...defaultProps} />
-    )
-    const catcher = container.querySelector('.pointer-events-auto')
-    expect(catcher).not.toBeInTheDocument()
+  it('renders no mouse shield, which cannot cover a native view anyway', () => {
+    const { container } = render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
+    expect(container.querySelector('.pointer-events-auto')).not.toBeInTheDocument()
   })
 })

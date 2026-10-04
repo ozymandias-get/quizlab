@@ -273,7 +273,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       paste: stubReturn(false),
       focus: stubReturn(false),
       syncHost: () => {},
-      setIgnoreMouse: () => {},
       onEvent: () => () => {}
     },
     getApiChatConfig: stubReturn({

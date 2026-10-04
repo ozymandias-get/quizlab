@@ -16,7 +16,6 @@ const aiViewClient = vi.hoisted(() => ({
   paste: vi.fn(),
   focus: vi.fn(),
   syncHost: vi.fn(),
-  setIgnoreMouse: vi.fn(),
   onEvent: vi.fn()
 }))
 

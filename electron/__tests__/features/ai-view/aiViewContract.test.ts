@@ -6,11 +6,11 @@ import {
   isValidHostToken,
   isValidViewId,
   MAX_VIEW_RECT_EDGE,
+  MAX_VIEW_BORDER_RADIUS,
   parseBounds,
   parseDelta,
   parseHostRequest,
   parseHostSyncRequest,
-  parseIgnoreMouseRequest,
   parseInputEvent,
   parseRestoredUrl,
   parseScript,
@@ -70,7 +70,7 @@ describe('parseHostSyncRequest', () => {
     ).toEqual({
       viewId: 'tab-1',
       hostToken: 'h1',
-      bounds,
+      bounds: { ...bounds, borderRadius: 0 },
       visible: true
     })
     expect(
@@ -87,7 +87,7 @@ describe('parseHostSyncRequest', () => {
       bounds: { x: -5, y: 2.4, width: 10.6, height: 20.2 },
       visible: false
     })
-    expect(parsed?.bounds).toEqual({ x: 0, y: 2, width: 11, height: 20 })
+    expect(parsed?.bounds).toEqual({ x: 0, y: 2, width: 11, height: 20, borderRadius: 0 })
   })
 
   it('clamps absurd coordinates instead of rejecting them', () => {
@@ -101,20 +101,9 @@ describe('parseHostSyncRequest', () => {
       x: MAX_VIEW_RECT_EDGE,
       y: 0,
       width: MAX_VIEW_RECT_EDGE,
-      height: MAX_VIEW_RECT_EDGE
+      height: MAX_VIEW_RECT_EDGE,
+      borderRadius: 0
     })
-  })
-})
-
-describe('parseIgnoreMouseRequest', () => {
-  it('requires a strict boolean', () => {
-    expect(parseIgnoreMouseRequest({ viewId: 't', hostToken: 'h', ignore: true })).toEqual({
-      viewId: 't',
-      hostToken: 'h',
-      ignore: true
-    })
-    expect(parseIgnoreMouseRequest({ viewId: 't', hostToken: 'h', ignore: 1 })).toBeNull()
-    expect(parseIgnoreMouseRequest({ viewId: 't', hostToken: 'h' })).toBeNull()
   })
 })
 
@@ -124,14 +113,32 @@ describe('parseBounds', () => {
       x: 0,
       y: 2,
       width: 2,
-      height: 4
+      height: 4,
+      borderRadius: 0
     })
   })
 
   it('accepts a collapsed rectangle but marks it unusable', () => {
     const zero = parseBounds({ x: 0, y: 0, width: 0, height: 0 })
-    expect(zero).toEqual({ x: 0, y: 0, width: 0, height: 0 })
+    expect(zero).toEqual({ x: 0, y: 0, width: 0, height: 0, borderRadius: 0 })
     expect(isUsableBounds(zero)).toBe(false)
+  })
+
+  it('keeps a sub-pixel radius and clamps a hostile one', () => {
+    expect(parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: 15.5 })?.borderRadius).toBe(
+      15.5
+    )
+    expect(parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: -8 })?.borderRadius).toBe(0)
+    expect(
+      parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: 99_999 })?.borderRadius
+    ).toBe(MAX_VIEW_BORDER_RADIUS)
+    // A renderer that sends junk must not be able to break the geometry.
+    expect(
+      parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: 'nope' })?.borderRadius
+    ).toBe(0)
+    expect(parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: NaN })?.borderRadius).toBe(
+      0
+    )
   })
 
   it('rejects non-finite and non-numeric values', () => {
@@ -141,12 +148,26 @@ describe('parseBounds', () => {
     expect(parseBounds(null)).toBeNull()
   })
 
-  it('compares rectangles structurally', () => {
+  it('compares rectangles structurally, radius included', () => {
     expect(
       boundsEqual({ x: 1, y: 2, width: 3, height: 4 }, { x: 1, y: 2, width: 3, height: 4 })
     ).toBe(true)
     expect(
       boundsEqual({ x: 1, y: 2, width: 3, height: 4 }, { x: 1, y: 2, width: 3, height: 5 })
+    ).toBe(false)
+    // An absent radius means square, so it must match an explicit zero.
+    expect(
+      boundsEqual(
+        { x: 1, y: 2, width: 3, height: 4 },
+        { x: 1, y: 2, width: 3, height: 4, borderRadius: 0 }
+      )
+    ).toBe(true)
+    // A radius change alone is a real change: the view must be re-clipped.
+    expect(
+      boundsEqual(
+        { x: 1, y: 2, width: 3, height: 4, borderRadius: 0 },
+        { x: 1, y: 2, width: 3, height: 4, borderRadius: 16 }
+      )
     ).toBe(false)
     expect(boundsEqual(null, null)).toBe(true)
     expect(boundsEqual(null, { x: 0, y: 0, width: 0, height: 0 })).toBe(false)

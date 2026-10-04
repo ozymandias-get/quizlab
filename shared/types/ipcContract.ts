@@ -26,7 +26,6 @@ import type {
   AiViewEvent,
   AiViewHostRequest,
   AiViewHostSyncRequest,
-  AiViewIgnoreMouseRequest,
   AiViewInputEventRequest,
   AiViewLoadUrlRequest,
   AiViewNavigateRequest,
@@ -405,9 +404,6 @@ export interface IpcEventMap {
   }
   [IPC_CHANNELS.AI_VIEW_SYNC_HOST]: {
     args: [request: AiViewHostSyncRequest]
-  }
-  [IPC_CHANNELS.AI_VIEW_SET_IGNORE_MOUSE]: {
-    args: [request: AiViewIgnoreMouseRequest]
   }
   [IPC_CHANNELS.AI_VIEW_EVENT]: {
     args: [event: AiViewEvent]

@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const syncHost = vi.hoisted(() => vi.fn())
 const electronApi = vi.hoisted(() => ({ aiView: { syncHost } }))
@@ -62,6 +62,96 @@ const defaultOptions = {
   visible: true
 }
 
+/**
+ * Builds a real DOM chain so `getComputedStyle` can resolve, mirroring the panel
+ * that rounds its content with `overflow: hidden` + `border-radius`.
+ *
+ * Longhand properties are set because jsdom does not expand the `overflow` and
+ * `border-radius` shorthands; a real Chromium does, which is what production
+ * relies on.
+ */
+function createRoundedHost(
+  rect: { x: number; y: number; width: number; height: number },
+  panel: { radius: string; borderWidth: string }
+) {
+  const frame = document.createElement('div')
+  frame.style.overflowX = 'hidden'
+  frame.style.overflowY = 'hidden'
+  frame.style.borderTopLeftRadius = panel.radius
+  frame.style.borderTopWidth = panel.borderWidth
+  frame.style.borderTopStyle = 'solid'
+
+  const host = document.createElement('div')
+  frame.appendChild(host)
+  document.body.appendChild(frame)
+  host.getBoundingClientRect = () =>
+    ({
+      left: rect.x,
+      top: rect.y,
+      width: rect.width,
+      height: rect.height,
+      right: rect.x + rect.width,
+      bottom: rect.y + rect.height,
+      x: rect.x,
+      y: rect.y,
+      toJSON: () => ({})
+    }) as DOMRect
+
+  return { host, frame }
+}
+
+describe('useAiViewHost - corner radius', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    syncHost.mockClear()
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('sends the panel radius less its border, so the native view corner lines up', () => {
+    const { host } = createRoundedHost(
+      { x: 0, y: 0, width: 500, height: 400 },
+      { radius: '16px', borderWidth: '1px' }
+    )
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+
+    expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(15)
+  })
+
+  it('falls back to square corners when no ancestor clips', () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+
+    expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(0)
+  })
+
+  it('ignores a clipping ancestor that is not rounded', () => {
+    const { host } = createRoundedHost(
+      { x: 0, y: 0, width: 500, height: 400 },
+      { radius: '0px', borderWidth: '0px' }
+    )
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+
+    expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(0)
+  })
+})
+
 describe('useAiViewHost', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -79,7 +169,7 @@ describe('useAiViewHost', () => {
     expect(syncHost).toHaveBeenCalledWith({
       viewId: 'tab-1',
       hostToken: 'h1',
-      bounds: { x: 10, y: 21, width: 300, height: 401 },
+      bounds: { x: 10, y: 21, width: 300, height: 401, borderRadius: 0 },
       visible: true
     })
   })
@@ -96,7 +186,8 @@ describe('useAiViewHost', () => {
       x: 0,
       y: 0,
       width: 100,
-      height: 100
+      height: 100,
+      borderRadius: 0
     })
   })
 
@@ -134,7 +225,8 @@ describe('useAiViewHost', () => {
       x: 5,
       y: 5,
       width: 105,
-      height: 105
+      height: 105,
+      borderRadius: 0
     })
   })
 
@@ -208,7 +300,13 @@ describe('useAiViewHost', () => {
     })
 
     expect(syncHost).toHaveBeenCalledTimes(1)
-    expect(syncHost.mock.calls[0][0].bounds).toEqual({ x: 7, y: 7, width: 70, height: 70 })
+    expect(syncHost.mock.calls[0][0].bounds).toEqual({
+      x: 7,
+      y: 7,
+      width: 70,
+      height: 70,
+      borderRadius: 0
+    })
   })
 
   it('stops observing on unmount', () => {
