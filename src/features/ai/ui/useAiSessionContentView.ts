@@ -1,6 +1,6 @@
-import type { WebviewElement } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
-import { STALE_CONTENT_DETECTION_SCRIPT } from '@features/ai/constants/aiWebviewLifecycle'
+import { STALE_CONTENT_DETECTION_SCRIPT } from '@features/ai/constants/aiContentLifecycle'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -52,7 +52,7 @@ export function useAiSessionStaleCheck(initialUrl: string | undefined, isActive:
   }, [])
 
   const handlePageSettled = useCallback(
-    (wv: WebviewElement) => {
+    (content: AiContentController) => {
       staleCheckHandle.current?.cancel()
       if (staleCheckTimerRef.current !== null) {
         clearTimeout(staleCheckTimerRef.current)
@@ -70,21 +70,21 @@ export function useAiSessionStaleCheck(initialUrl: string | undefined, isActive:
 
       const runCheck = async () => {
         staleCheckTimerRef.current = null
-        if (cancelled || !wv || !isActiveRef.current) return
+        if (cancelled || !content || !isActiveRef.current) return
 
         try {
-          const currentUrl = wv.getURL?.()
+          const currentUrl = content.getURL?.()
           if (!currentUrl) return
 
           const c = new URL(currentUrl)
           const b = new URL(initialUrl)
           if (c.origin === b.origin) return
 
-          const isStale = await wv.executeJavaScript(STALE_CONTENT_DETECTION_SCRIPT)
+          const isStale = await content.executeJavaScript(STALE_CONTENT_DETECTION_SCRIPT)
           if (cancelled) return
 
           if (isStale) {
-            wv.loadURL?.(initialUrl)
+            void content.loadURL?.(initialUrl)
           }
         } catch {
           // Stale check errors are non-fatal
@@ -99,15 +99,22 @@ export function useAiSessionStaleCheck(initialUrl: string | undefined, isActive:
   return { handlePageSettled, staleCheckHandle }
 }
 
-export function useAiSessionWebviewGeneration(
+/**
+ * Freezes the entry URL for the lifetime of a mounted host.
+ *
+ * The cached URL of a live tab changes on every in-page navigation; re-reading
+ * it here would make the attach effect thrash. The URL is therefore captured
+ * once and only re-read when the model changes or the tab goes to sleep, which
+ * is exactly when the managed view is rebuilt.
+ */
+export function useAiSessionEntryUrl(
   tabModelId: string,
   isSleeping: boolean,
-  webviewRecoveryKey: number,
   restoredUrl: string | undefined,
   initialUrl: string | undefined
 ) {
-  const generation = `${tabModelId}:${isSleeping ? 'sleeping' : 'awake'}:${webviewRecoveryKey}`
-  const webviewSourceRef = useRef<{
+  const generation = `${tabModelId}:${isSleeping ? 'sleeping' : 'awake'}`
+  const entryUrlRef = useRef<{
     generation: string
     url: string | undefined
   }>({
@@ -115,14 +122,14 @@ export function useAiSessionWebviewGeneration(
     url: restoredUrl ?? initialUrl
   })
 
-  if (webviewSourceRef.current.generation !== generation) {
-    webviewSourceRef.current = {
+  if (entryUrlRef.current.generation !== generation) {
+    entryUrlRef.current = {
       generation,
       url: restoredUrl ?? initialUrl
     }
   }
 
-  const webviewSrc = webviewSourceRef.current.url
+  const entryUrl = entryUrlRef.current.url
 
-  return { generation, webviewSrc }
+  return { generation, entryUrl }
 }
