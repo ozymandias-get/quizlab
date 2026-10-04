@@ -71,22 +71,21 @@ export function useAiViewSurfaceState({
     }
   }, [tabIds.length, activeTabId, aiViewRequestNonce])
 
+  // Reconciles the alive set against the tab list on every change, including
+  // when there is no active tab: a tab that was closed (or dropped by the LRU)
+  // has to *leave* the set, otherwise its managed view would have no owner left
+  // to retire it and would stay alive in the main process forever.
   useEffect(() => {
-    if (!activeTabId) return
     if (!isMountedRef.current) return
 
     const currentTabIds = new Set(tabIds)
 
     setAliveTabIds((prev) => {
-      let next: string[]
-      if (prev[0] === activeTabId) {
-        next = prev
-      } else {
-        const filtered = prev.filter((id) => id !== activeTabId)
-        next = [activeTabId, ...filtered]
-      }
-
-      next = next.filter((id) => currentTabIds.has(id))
+      const survivors = prev.filter((id) => currentTabIds.has(id))
+      const next: string[] =
+        activeTabId && currentTabIds.has(activeTabId)
+          ? [activeTabId, ...survivors.filter((id) => id !== activeTabId)]
+          : survivors
 
       const cache = urlCacheRef.current
       for (const id of Object.keys(cache)) {
