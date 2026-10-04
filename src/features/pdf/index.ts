@@ -42,6 +42,7 @@
  * re-verifying the ESM interop shim in `lib/renderPageToImage.ts`.
  */
 
+export { useDriveViewRetirement } from './hooks/useDriveViewRetirement'
 export { usePdfOpenActions } from './hooks/usePdfOpenActions'
 export { usePdfSelection } from './hooks/usePdfSelection'
 export { useReadingProgressPersistence } from './hooks/useReadingProgressPersistence'

@@ -56,14 +56,21 @@ export interface UseManagedContentViewResult {
 /**
  * Binds one React host placeholder to one main-process `WebContentsView`.
  *
- * Owns the whole handshake — create, position, reveal, release, destroy — so a
- * caller never has to reason about native view lifetime. Two rules make it safe
- * to call from several places at once:
+ * Owns the whole handshake — create, position, reveal, release — so a caller
+ * never has to reason about native view lifetime. Three rules make it safe to
+ * call from several places at once:
  *
  * - the view is keyed by `viewId`, so a surface swap (focus mode) attaches the
  *   same view again instead of building a second one;
  * - unmounting releases the host claim but does not destroy the view, so an
- *   inactive tab keeps its conversation until it is explicitly torn down.
+ *   inactive tab keeps its conversation and a focus-mode swap is a pure
+ *   reposition;
+ * - `isEnabled: false` *is* a destroy (sleep, api-chat, no site): the content
+ *   identity is being replaced, not moved.
+ *
+ * Because unmount is a host event, closing a tab or evicting it from the
+ * `maxAliveTabs` LRU cannot be expressed here — the component is already gone by
+ * then. That teardown is owned one level up by `useManagedViewRetirement`.
  */
 export function useManagedContentView({
   viewId,

@@ -302,4 +302,31 @@ describe('AiContext', () => {
 
     expect(result.current.getContentController(tabId)).toBe(replacement)
   })
+
+  it('retires the managed view when a tab is closed', async () => {
+    // Regression guard. Closing a tab used to only drop the registry entry, so
+    // the main-process `WebContentsView` — and the Chromium renderer process
+    // behind it — survived the tab that owned it.
+    const mockDestroyView = vi.fn(async () => true)
+    window.electronAPI = {
+      getAiRegistry: mockGetAiRegistry,
+      aiView: { destroy: mockDestroyView }
+    } as unknown as Window['electronAPI']
+
+    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+    act(() => {
+      result.current.openAiWorkspace('chatgpt')
+    })
+    const tabId = result.current.activeTabId
+
+    act(() => {
+      result.current.closeTab(tabId)
+    })
+
+    expect(mockDestroyView).toHaveBeenCalledWith({ viewId: tabId })
+    expect(result.current.getContentController(tabId)).toBeNull()
+    expect(result.current.tabs.find((tab) => tab.id === tabId)).toBeUndefined()
+  })
 })

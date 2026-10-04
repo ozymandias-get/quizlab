@@ -140,6 +140,53 @@ describe('useManagedContentView - view lifecycle', () => {
     expect(aiViewClient.attach).toHaveBeenCalledTimes(2)
   })
 
+  it('hands the same generation to the next surface after a focus-mode handoff', async () => {
+    // The focus overlay mounts its own host placeholder for a view the workspace
+    // already owns. That must be a reposition of the *same* WebContents: the
+    // manager answers the second attach with the existing generation, and the
+    // dead host only releases its claim.
+    const generations = new Map<string, number>()
+    let counter = 0
+    aiViewClient.attach.mockImplementation(async (...args: unknown[]) => {
+      const viewId = (args[0] as { viewId: string }).viewId
+      const existing = generations.get(viewId)
+      if (existing !== undefined) {
+        return { generation: existing, currentUrl: 'https://chatgpt.com/c/1', created: false }
+      }
+      counter += 1
+      generations.set(viewId, counter)
+      return { generation: counter, currentUrl: 'https://chatgpt.com/c/1', created: true }
+    })
+
+    const workspace = await mount()
+    const workspaceToken = (lastSync()?.hostToken ?? '') as string
+    workspace.unmount()
+
+    await mount()
+
+    expect(aiViewClient.destroy).not.toHaveBeenCalled()
+    expect(aiViewClient.reload).not.toHaveBeenCalled()
+    expect(aiViewClient.loadUrl).not.toHaveBeenCalled()
+    // The overlay's placeholder claims the view with a token of its own.
+    const focusToken = (lastSync()?.hostToken ?? '') as string
+    expect(focusToken).not.toBe('')
+    expect(focusToken === workspaceToken).toBe(false)
+    expect(generations.size).toBe(1)
+  })
+
+  it('destroys the view on a real content close, not on a host swap', async () => {
+    // `isEnabled: false` is the lifecycle owner's signal (sleep, api-chat, no
+    // site); unmount is only the host owner's, so the two must not be confused.
+    const { rerender, unmount } = await mount()
+    expect(aiViewClient.destroy).not.toHaveBeenCalled()
+
+    rerender({ ...baseOptions, isEnabled: false })
+    expect(aiViewClient.destroy).toHaveBeenCalledWith({ viewId: 'tab-1' })
+
+    unmount()
+    expect(aiViewClient.destroy).toHaveBeenCalledTimes(1)
+  })
+
   it('exposes a reload that goes through the managed view', async () => {
     const { result } = await mount()
     act(() => {

@@ -3,6 +3,7 @@ import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionAp
 
 import { useChatUiStore } from '@features/ai'
 
+import { retireManagedView } from '@shared/hooks/aiContent/managedViewLifecycle'
 import { useToastActions } from '@shared/stores/toastStore'
 
 import { type ReactNode, useCallback, useRef, useState } from 'react'
@@ -123,7 +124,13 @@ function AiProvider({ children }: { children: ReactNode }) {
   const handleCloseTab = useCallback(
     (tabId: string) => {
       closeTab(tabId)
+      // Two independent teardowns, deliberately not one: dropping the registry
+      // entry only stops the messaging / picker pipelines from addressing a tab
+      // that no longer exists, while retiring the managed view is what actually
+      // closes the main-process `WebContents`. Doing only the former left the
+      // renderer process for every closed tab running in the background.
       registerContent(tabId, null)
+      void retireManagedView(tabId)
       // Drop the closed tab's per-tab chat UI state (input, attachments,
       // streaming buffers...). Tab ids are never reused, so leaving entries
       // behind only leaks memory and risks stale-state reads.

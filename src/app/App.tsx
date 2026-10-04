@@ -23,7 +23,7 @@ const LanguageSelectionDialog = lazy(() =>
   }))
 )
 import { useAiViewSurfaceState } from '@features/ai/viewState'
-import { useShellOpenPdf } from '@features/pdf'
+import { useDriveViewRetirement, useShellOpenPdf } from '@features/pdf'
 import { usePdfShortcuts } from '@features/pdf'
 import { useTutorialStore } from '@features/tutorial'
 import { getTutorialEntry } from '@features/tutorial'
@@ -33,6 +33,7 @@ import { useCacheThresholdWarning } from '@app/hooks/useCacheThresholdWarning'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
 import { useAiTabsSliceState, useAiViewRequestNonce } from '@app/providers/ai-context'
+import { useManagedViewRetirement } from '@shared/hooks/aiContent/managedViewLifecycle'
 
 function App() {
   // Önbellek boyutunu izler ve %80 eşiği aşıldığında kullanıcıya uyarı toast'ı gösterir.
@@ -102,6 +103,14 @@ function App() {
     activeTabId: activeAiTabId,
     aiViewRequestNonce
   })
+  // Lifecycle ownership, deliberately above the two AI surfaces. A tab that
+  // leaves the `maxAliveTabs` alive set (LRU eviction, or a close) no longer has
+  // a mounted `AiSession` to react to it, so its native view is retired here —
+  // otherwise every evicted tab would keep a `WebContents` alive in main.
+  useManagedViewRetirement(aiViewSurfaceState.aliveTabIds)
+  // Same contract for the Google Drive panel, which is mounted twice (workspace
+  // and focus overlay) under one view id.
+  useDriveViewRetirement()
   const isAiFocusSurface = isFocusActive && focus.mode === 'ai'
 
   return (
