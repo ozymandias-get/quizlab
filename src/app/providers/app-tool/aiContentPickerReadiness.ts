@@ -1,4 +1,4 @@
-import type { WebviewController, WebviewElement, WebviewLike } from '@shared-core/types/webview'
+import type { AiContentController, AiContentRef } from '@shared-core/types/aiContent'
 
 export type PickerReadinessReason = 'dom-ready' | 'did-stop-loading' | 'catchup-ready-state'
 
@@ -7,22 +7,21 @@ function abortError(): Error {
 }
 
 /**
- * Resolves when `getWebview()` is non-null, using `subscribeWebviewElement` if needed.
+ * Resolves once the managed view exists in the main process.
+ *
+ * Replaces the old "the `<webview>` element is mounted" check: readiness is now
+ * reported by `AiContentController.subscribeReady`, so nothing has to observe a
+ * DOM node that no longer exists.
  */
-export function waitForWebviewElement(
-  controller: WebviewController,
+export function waitForContentReady(
+  controller: AiContentController,
   signal: AbortSignal
-): Promise<WebviewElement> {
-  const immediate = controller.getWebview?.() ?? null
-  if (immediate) {
-    return Promise.resolve(immediate)
-  }
+): Promise<void> {
+  if (controller.isReady?.() === true) return Promise.resolve()
 
-  const subscribe = controller.subscribeWebviewElement
+  const subscribe = controller.subscribeReady
   if (!subscribe) {
-    return Promise.reject(
-      new Error('WebviewController.subscribeWebviewElement is required when getWebview() is empty')
-    )
+    return Promise.reject(new Error('AiContentController.subscribeReady is required'))
   }
 
   return new Promise((resolve, reject) => {
@@ -41,23 +40,22 @@ export function waitForWebviewElement(
 
     signal.addEventListener('abort', handleAbort, { once: true })
 
-    unsubscribe = subscribe((el) => {
-      if (signal.aborted || !el) {
-        return
-      }
+    unsubscribe = subscribe((ready) => {
+      if (!ready) return
       unsubscribe?.()
       unsubscribe = null
       signal.removeEventListener('abort', handleAbort)
-      resolve(el)
+      resolve()
     })
   })
 }
 
 /**
- * One-shot picker injection readiness (dom-ready, did-stop-loading, or readyState catch-up).
+ * One-shot picker injection readiness (dom-ready, did-stop-loading, or a
+ * document.readyState catch-up for events that fired before we subscribed).
  */
 export function oncePickerReady(
-  controller: WebviewController,
+  controller: AiContentController,
   signal: AbortSignal
 ): Promise<PickerReadinessReason> {
   return new Promise((resolve, reject) => {
@@ -76,7 +74,7 @@ export function oncePickerReady(
 
     signal.addEventListener('abort', handleAbort, { once: true })
 
-    dispose = subscribeWebviewPickerReadiness(controller, {
+    dispose = subscribePickerReadiness(controller, {
       signal,
       onReady: (reason) => {
         signal.removeEventListener('abort', handleAbort)
@@ -86,26 +84,19 @@ export function oncePickerReady(
   })
 }
 
-interface SubscribeWebviewPickerReadinessOptions {
+interface SubscribePickerReadinessOptions {
   /** When aborted, readiness callbacks must not fire. */
   signal?: AbortSignal
   onReady: (reason: PickerReadinessReason) => void
 }
 
-/**
- * Subscribes to <webview> lifecycle for picker script injection readiness.
- * Uses dom-ready + did-stop-loading; one-shot document.readyState if events were missed.
- */
-function subscribeWebviewPickerReadiness(
-  controller: WebviewLike,
-  options: SubscribeWebviewPickerReadinessOptions
+function subscribePickerReadiness(
+  controller: AiContentRef,
+  options: SubscribePickerReadinessOptions
 ): () => void {
   const { signal, onReady } = options
 
   if (!controller) return () => {}
-
-  const el = controller.getWebview?.() ?? null
-  if (!el) return () => {}
 
   let disposed = false
   let fulfilled = false
@@ -130,22 +121,27 @@ function subscribeWebviewPickerReadiness(
   }
 
   const cleanupListeners = () => {
-    el?.removeEventListener('dom-ready', handleDomReady)
-    el?.removeEventListener('did-stop-loading', handleStopLoading)
+    for (const unsubscribe of unsubscribes) unsubscribe()
+    unsubscribes.length = 0
   }
 
-  el.addEventListener('dom-ready', handleDomReady)
-  el.addEventListener('did-stop-loading', handleStopLoading)
+  const unsubscribes: Array<() => void> = []
 
-  // ReadyState Catch-up logic (to handle cases where listeners were added after events fired)
+  if (typeof controller.subscribeEvent === 'function') {
+    unsubscribes.push(controller.subscribeEvent('dom-ready', handleDomReady))
+    unsubscribes.push(controller.subscribeEvent('did-stop-loading', handleStopLoading))
+  }
+
+  // ReadyState catch-up for events that already fired before we subscribed.
   const runCatchup = async () => {
     if (
       disposed ||
       fulfilled ||
       signal?.aborted ||
       typeof controller.executeJavaScript !== 'function'
-    )
+    ) {
       return
+    }
 
     try {
       const readyState = await controller.executeJavaScript('document.readyState')
