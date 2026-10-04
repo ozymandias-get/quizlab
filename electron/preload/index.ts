@@ -70,8 +70,6 @@ const electronApi: ElectronApi = {
   restoreClipboard: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.RESTORE_CLIPBOARD)),
   copyTextToClipboard: (text) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.COPY_TEXT, text)),
   openExternal: (url) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPEN_EXTERNAL, url)),
-  forcePaste: (webContentsId) =>
-    unwrapIpcResult(typedInvoke(IPC_CHANNELS.FORCE_PASTE, webContentsId)),
   showPdfContextMenu: (labels) => ipcRenderer.send(IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU, labels),
 
   onTriggerScreenshot: (callback) => {
@@ -171,6 +169,29 @@ const electronApi: ElectronApi = {
       onEvent(IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_CONNECTED, () => callback()),
     onExtensionDisconnected: (callback) =>
       onEvent(IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_DISCONNECTED, () => callback())
+  },
+
+  aiView: {
+    attach: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_ATTACH, request)),
+    detach: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_DETACH, request)),
+    destroy: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_DESTROY, request)),
+    reload: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_RELOAD, request)),
+    loadUrl: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_LOAD_URL, request)),
+    navigate: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_NAVIGATE, request)),
+    getUrl: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_GET_URL, request)),
+    executeScript: (request) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_EXECUTE_SCRIPT, request)),
+    insertText: (request) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_INSERT_TEXT, request)),
+    sendInputEvent: (request) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_SEND_INPUT_EVENT, request)),
+    paste: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_PASTE, request)),
+    focus: (request) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.AI_VIEW_FOCUS, request)),
+    // Geometry and visibility are fire-and-forget: a resize drag emits them at
+    // animation-frame rate and must never queue behind an invoke round trip.
+    syncHost: (request) => ipcRenderer.send(IPC_CHANNELS.AI_VIEW_SYNC_HOST, request),
+    setIgnoreMouse: (request) => ipcRenderer.send(IPC_CHANNELS.AI_VIEW_SET_IGNORE_MOUSE, request),
+    onEvent: (callback) => onEvent(IPC_CHANNELS.AI_VIEW_EVENT, callback)
   },
 
   log: (level, message, timestamp) => {

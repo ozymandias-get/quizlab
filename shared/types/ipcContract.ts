@@ -20,6 +20,20 @@ import type {
   UpdateCheckResult
 } from '@shared-core/types'
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
+import type {
+  AiViewAttachRequest,
+  AiViewAttachResponse,
+  AiViewEvent,
+  AiViewHostRequest,
+  AiViewHostSyncRequest,
+  AiViewIgnoreMouseRequest,
+  AiViewInputEventRequest,
+  AiViewLoadUrlRequest,
+  AiViewNavigateRequest,
+  AiViewScriptRequest,
+  AiViewTabRequest,
+  AiViewTextRequest
+} from '@shared-core/types/aiView'
 
 import type { IPC_CHANNELS } from '../constants/ipcChannels.js'
 import type { IpcResult } from '../lib/typedIpc.js'
@@ -178,11 +192,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<boolean>
   }
 
-  [IPC_CHANNELS.FORCE_PASTE]: {
-    args: [webContentsId: number]
-    result: IpcResult<boolean>
-  }
-
   [IPC_CHANNELS.CHECK_FOR_UPDATES]: {
     args: []
     result: IpcResult<UpdateCheckResult>
@@ -238,6 +247,67 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.GET_AUTOMATION_SCRIPTS]: {
     args: AutomationScriptInvokeArgs
     result: IpcResult<string>
+  }
+
+  // Remote site surface (main-process WebContentsView)
+  [IPC_CHANNELS.AI_VIEW_ATTACH]: {
+    args: [request: AiViewAttachRequest]
+    result: IpcResult<AiViewAttachResponse>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_DETACH]: {
+    args: [request: AiViewHostRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_DESTROY]: {
+    args: [request: AiViewTabRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_RELOAD]: {
+    args: [request: AiViewTabRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_LOAD_URL]: {
+    args: [request: AiViewLoadUrlRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_NAVIGATE]: {
+    args: [request: AiViewNavigateRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_GET_URL]: {
+    args: [request: AiViewTabRequest]
+    result: IpcResult<string | null>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_EXECUTE_SCRIPT]: {
+    args: [request: AiViewScriptRequest]
+    result: IpcResult<unknown>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_INSERT_TEXT]: {
+    args: [request: AiViewTextRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_SEND_INPUT_EVENT]: {
+    args: [request: AiViewInputEventRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_PASTE]: {
+    args: [request: AiViewTabRequest]
+    result: IpcResult<boolean>
+  }
+
+  [IPC_CHANNELS.AI_VIEW_FOCUS]: {
+    args: [request: AiViewTabRequest]
+    result: IpcResult<boolean>
   }
 
   // Gemini web session management
@@ -332,6 +402,15 @@ export interface IpcEventMap {
   }
   [IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_DISCONNECTED]: {
     args: []
+  }
+  [IPC_CHANNELS.AI_VIEW_SYNC_HOST]: {
+    args: [request: AiViewHostSyncRequest]
+  }
+  [IPC_CHANNELS.AI_VIEW_SET_IGNORE_MOUSE]: {
+    args: [request: AiViewIgnoreMouseRequest]
+  }
+  [IPC_CHANNELS.AI_VIEW_EVENT]: {
+    args: [event: AiViewEvent]
   }
   // Event-style channels (main → renderer) not using invoke
   [IPC_CHANNELS.OPEN_PDF_FROM_SHELL]: {
