@@ -6,37 +6,39 @@
  *   - pipelineClassification.test.ts
  *   - pipelineUtils.test.ts
  */
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { PipelineStepParams } from '@features/ai/lib/send/pipelineUtils'
 import type { AiSendDiagnostics } from '@features/ai/model/types'
 
 import { vi } from 'vitest'
 
-export function createSendWebviewMock(execResult: unknown = { success: true }): WebviewController {
+export function createSendWebviewMock(
+  execResult: unknown = { success: true }
+): AiContentController {
   return {
     executeJavaScript: vi.fn().mockResolvedValue(execResult),
     isDestroyed: () => false,
     getURL: () => 'https://chat.example.com',
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
-  } as unknown as WebviewController
+  } as unknown as AiContentController
 }
 
 export function makePipelineParams(
   overrides: Partial<PipelineStepParams> = {}
 ): PipelineStepParams {
-  const webview = createSendWebviewMock({ success: true })
+  const content = createSendWebviewMock({ success: true })
   return {
     name: 'Send',
-    webview,
-    scheduledWebview: webview,
+    content,
+    scheduledContent: content,
     diagnostics: {
       currentAI: 'claude',
       timings: {}
     } as AiSendDiagnostics,
     requestStartedAt: Date.now(),
-    canUseWebview: vi.fn().mockReturnValue(true),
+    canUseContent: vi.fn().mockReturnValue(true),
     generateScript: vi.fn().mockResolvedValue('return true;'),
     onTiming: vi.fn(),
     onExecuteTiming: vi.fn(),

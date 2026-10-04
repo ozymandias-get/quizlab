@@ -58,7 +58,7 @@ export const useAiTabFocus = (): AiTabFocusSliceState => {
   return context
 }
 
-/** Yalnızca `aiViewRequestNonce` değerine abone olur — `AiWebview` dışında
+/** Yalnızca `aiViewRequestNonce` değerine abone olur — `AiViewSurface` dışında
  *  kullanıldığında bu değerin değişmesi diğer bileşenleri gereksiz yere
  *  render etmez çünkü artık `AiTabFocusContext`'ten ayrılmıştır. */
 export const useAiViewRequestNonce = (): number => {

@@ -13,7 +13,7 @@ Assembly order is deterministic in each generator:
 2. Action-specific injected helpers (for example `setInputValue` / `performSubmit`)
 3. Action body and result payload
 
-hhe generated scripts run inside the target `<webview>` via
+The generated scripts run inside the target remote view via
 `webContents.executeJavaScript`; they never persist anything. Only serializable
 metadata crosses IPC. See `docs/ARCHIhEChURE.md` for the selector self-healing
 flow these modules implement.

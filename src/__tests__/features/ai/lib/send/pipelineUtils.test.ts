@@ -30,12 +30,12 @@ describe('executePipelineStep', () => {
     if (!result.success) {
       expect(result.error).toHaveProperty('error', 'send_script_failed')
     }
-    expect((params.webview as any).executeJavaScript).not.toHaveBeenCalled()
+    expect((params.content as any).executeJavaScript).not.toHaveBeenCalled()
   })
 
-  it('returns failure when webview is destroyed', async () => {
+  it('returns failure when content is destroyed', async () => {
     const params = makePipelineParams({
-      canUseWebview: vi.fn().mockReturnValue(false)
+      canUseContent: vi.fn().mockReturnValue(false)
     })
 
     const result = await executePipelineStep(params)
@@ -44,17 +44,17 @@ describe('executePipelineStep', () => {
     if (!result.success) {
       expect(result.error).toHaveProperty('error', 'webview_destroyed')
     }
-    expect((params.webview as any).executeJavaScript).not.toHaveBeenCalled()
+    expect((params.content as any).executeJavaScript).not.toHaveBeenCalled()
   })
 
   it('returns failure when script execution fails', async () => {
-    const webview = createSendWebviewMock()
-    ;(webview as any).executeJavaScript = vi.fn().mockResolvedValue({
+    const content = createSendWebviewMock()
+    ;(content as any).executeJavaScript = vi.fn().mockResolvedValue({
       success: false,
       error: 'exec error'
     })
 
-    const params = makePipelineParams({ webview, scheduledWebview: webview })
+    const params = makePipelineParams({ content, scheduledContent: content })
 
     const result = await executePipelineStep(params)
 
@@ -65,10 +65,10 @@ describe('executePipelineStep', () => {
   })
 
   it('returns failure when execution result is null', async () => {
-    const webview = createSendWebviewMock()
-    ;(webview as any).executeJavaScript = vi.fn().mockResolvedValue(null)
+    const content = createSendWebviewMock()
+    ;(content as any).executeJavaScript = vi.fn().mockResolvedValue(null)
 
-    const params = makePipelineParams({ webview, scheduledWebview: webview })
+    const params = makePipelineParams({ content, scheduledContent: content })
 
     const result = await executePipelineStep(params)
 
@@ -79,13 +79,13 @@ describe('executePipelineStep', () => {
   })
 
   it('calls onResult with normalized execution result', async () => {
-    const webview = createSendWebviewMock()
-    ;(webview as any).executeJavaScript = vi.fn().mockResolvedValue({
+    const content = createSendWebviewMock()
+    ;(content as any).executeJavaScript = vi.fn().mockResolvedValue({
       success: true,
       mode: 'enter'
     })
 
-    const params = makePipelineParams({ webview, scheduledWebview: webview })
+    const params = makePipelineParams({ content, scheduledContent: content })
     await executePipelineStep(params)
 
     expect(params.onResult).toHaveBeenCalledWith(
@@ -102,12 +102,12 @@ describe('executePipelineStep', () => {
   })
 
   it('returns webview_destroyed when executeJavaScript rejects with destroyed webcontents', async () => {
-    const webview = createSendWebviewMock()
-    ;(webview as any).executeJavaScript = vi
+    const content = createSendWebviewMock()
+    ;(content as any).executeJavaScript = vi
       .fn()
       .mockRejectedValue(new Error('Error: WebContents was destroyed'))
 
-    const params = makePipelineParams({ webview, scheduledWebview: webview })
+    const params = makePipelineParams({ content, scheduledContent: content })
 
     const result = await executePipelineStep(params)
 
@@ -118,13 +118,13 @@ describe('executePipelineStep', () => {
     expect(params.diagnostics.classification?.code).toBe('webview_destroyed')
   })
 
-  it('does not throw for destroyed-webview rejections (controlled failure instead)', async () => {
-    const webview = createSendWebviewMock()
-    ;(webview as any).executeJavaScript = vi
+  it('does not throw for destroyed-content rejections (controlled failure instead)', async () => {
+    const content = createSendWebviewMock()
+    ;(content as any).executeJavaScript = vi
       .fn()
       .mockRejectedValue(new Error('WebContents was destroyed'))
 
-    const params = makePipelineParams({ webview, scheduledWebview: webview })
+    const params = makePipelineParams({ content, scheduledContent: content })
 
     await expect(executePipelineStep(params)).resolves.toEqual(
       expect.objectContaining({ success: false })
@@ -132,10 +132,10 @@ describe('executePipelineStep', () => {
   })
 
   it('returns a controlled failure for generic executeJavaScript rejections', async () => {
-    const webview = createSendWebviewMock()
-    ;(webview as any).executeJavaScript = vi.fn().mockRejectedValue(new Error('boom'))
+    const content = createSendWebviewMock()
+    ;(content as any).executeJavaScript = vi.fn().mockRejectedValue(new Error('boom'))
 
-    const params = makePipelineParams({ webview, scheduledWebview: webview })
+    const params = makePipelineParams({ content, scheduledContent: content })
 
     const result = await executePipelineStep(params)
 

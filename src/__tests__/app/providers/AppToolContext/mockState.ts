@@ -12,7 +12,7 @@ export interface AppToolMockState {
   onRefreshEvent: any
 
   mutateAsync: any
-  webviewInstance: Element | null
+  contentController: Element | null
   autoSend: boolean
   geminiLoginPending: boolean
 
@@ -28,7 +28,7 @@ export const mockState: AppToolMockState = {
   startPicker: vi.fn(),
   onRefreshEvent: vi.fn(),
   mutateAsync: vi.fn(),
-  webviewInstance: null,
+  contentController: null,
   autoSend: false,
   geminiLoginPending: false,
   sendTextToAI: vi.fn(),

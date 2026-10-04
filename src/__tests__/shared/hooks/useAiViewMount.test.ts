@@ -1,13 +1,13 @@
 /**
- * Tests for useWebviewMount — defers mounting the (expensive) webview
+ * Tests for useAiSurfaceMount — defers mounting the (expensive) content
  * element until either requestIdleCallback fires or 120ms elapses.
  */
-import { useWebviewMount } from '@shared/hooks/useWebviewMount'
+import { useAiSurfaceMount } from '@shared/hooks/useAiViewMount'
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-describe('useWebviewMount', () => {
+describe('useAiSurfaceMount', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -16,8 +16,8 @@ describe('useWebviewMount', () => {
     vi.useRealTimers()
   })
 
-  it('starts with isWebviewMounted = false', () => {
-    const { result } = renderHook(() => useWebviewMount())
+  it('starts with isAiSurfaceMounted = false', () => {
+    const { result } = renderHook(() => useAiSurfaceMount())
     expect(result.current).toBe(false)
   })
 
@@ -26,7 +26,7 @@ describe('useWebviewMount', () => {
     ;(window as any).requestIdleCallback = undefined
 
     try {
-      const { result } = renderHook(() => useWebviewMount())
+      const { result } = renderHook(() => useAiSurfaceMount())
       expect(result.current).toBe(false)
 
       act(() => {
@@ -45,7 +45,7 @@ describe('useWebviewMount', () => {
     ;(window as any).requestIdleCallback = idleCallback
 
     try {
-      renderHook(() => useWebviewMount())
+      renderHook(() => useAiSurfaceMount())
       expect(idleCallback).toHaveBeenCalled()
     } finally {
       ;(window as any).requestIdleCallback = original
@@ -57,7 +57,7 @@ describe('useWebviewMount', () => {
     ;(window as any).requestIdleCallback = undefined
 
     try {
-      const { result, unmount } = renderHook(() => useWebviewMount())
+      const { result, unmount } = renderHook(() => useAiSurfaceMount())
 
       // Unmount before the timer fires
       unmount()
@@ -80,7 +80,7 @@ describe('useWebviewMount', () => {
     ;(window as any).requestIdleCallback = idleCallback
 
     try {
-      renderHook(() => useWebviewMount())
+      renderHook(() => useAiSurfaceMount())
       expect(idleCallback).toHaveBeenCalledWith(
         expect.any(Function),
         expect.objectContaining({ timeout: 300 })
@@ -100,7 +100,7 @@ describe('useWebviewMount', () => {
     ;(window as any).cancelIdleCallback = cancelIdleCallback
 
     try {
-      const { unmount } = renderHook(() => useWebviewMount())
+      const { unmount } = renderHook(() => useAiSurfaceMount())
       unmount()
       expect(cancelIdleCallback).toHaveBeenCalledWith(idleId)
     } finally {

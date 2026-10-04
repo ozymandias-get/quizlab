@@ -16,7 +16,7 @@ import {
 export type MainWindowResolver = () => BrowserWindow | null
 
 /**
- * Embedded webviews (AI Studio, etc.) need the main process to resolve getDisplayMedia via
+ * Embedded remote views (AI Studio, etc.) need the main process to resolve getDisplayMedia via
  * desktopCapturer; granting the session "display-capture" permission alone is not enough.
  */
 async function handleDisplayMediaRequest(

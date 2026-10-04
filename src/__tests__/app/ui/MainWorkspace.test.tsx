@@ -4,11 +4,11 @@ import { render, screen } from '@testing-library/react'
 import { createRef, type RefObject } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-// NOTE: AiWebview is mocked because it is lazy-loaded. Assertions below only
+// NOTE: AiViewSurface is mocked because it is lazy-loaded. Assertions below only
 // cover DOM rendered by MainWorkspace itself — never the mock's own markup,
 // otherwise the test would pass even if MainWorkspace broke (tautology).
-vi.mock('@features/ai/webview', () => ({
-  AiWebview: () => <div data-testid="ai-webview">AI Webview</div>
+vi.mock('@features/ai/aiViewSurface', () => ({
+  AiViewSurface: () => <div data-testid="ai-content">AI Content</div>
 }))
 
 vi.mock('@ui/layout/BottomBar', () => ({
@@ -42,12 +42,21 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
       handlePointerMove={vi.fn()}
       handlePointerUp={vi.fn()}
       handleLostPointerCapture={vi.fn()}
-      isWebviewMounted
+      isAiSurfaceMounted
       isResizing={false}
       isBarHovered={false}
       onBarHoverChange={vi.fn()}
       leftPanelProps={{} as never}
       bgMode="solid"
+      isAiSurfaceActive
+      aiViewSurfaceState={{
+        aliveTabIds: [],
+        showHome: true,
+        showHideHome: { show: vi.fn(), hide: vi.fn() },
+        coldTabIds: new Set<string>(),
+        recordTabUrl: vi.fn(),
+        getRestoredUrl: () => undefined
+      }}
       {...props}
     />
   )
@@ -74,10 +83,10 @@ describe('MainWorkspace', () => {
     expect(swapped.container.querySelector('main')?.className).toContain('flex-row-reverse')
   })
 
-  it('shows the loader instead of the webview when it is not mounted', () => {
-    renderWorkspace({ isWebviewMounted: false })
+  it('shows the loader instead of the content when it is not mounted', () => {
+    renderWorkspace({ isAiSurfaceMounted: false })
 
     expect(screen.getByTestId('aesthetic-loader')).toBeInTheDocument()
-    expect(screen.queryByTestId('ai-webview')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ai-content')).not.toBeInTheDocument()
   })
 })

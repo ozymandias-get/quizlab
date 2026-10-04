@@ -27,7 +27,7 @@ export function LanguageSelectionDialog() {
   // Standardized focus-trap via useDialogBehavior — single source of truth for
   // all modals (dialog.tsx, SettingsModal, HistoryModal). Previously this dialog
   // had a bespoke useLayoutEffect + globalScrollLockCount + Tab handler that
-  // diverged from the shared hook and allowed focus to escape to the webview
+  // diverged from the shared hook and allowed focus to escape to the embedded view
   // / PDF toolbar. Now it uses the same Escape-to-close, Tab trap, scroll lock
   // and focus-restore path as every other dialog.
   useDialogBehavior({

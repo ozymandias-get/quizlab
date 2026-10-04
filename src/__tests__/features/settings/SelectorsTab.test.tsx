@@ -18,7 +18,7 @@ const {
   mockShowWarning,
   mockStartPickerWhenReady,
   mockStartTutorial,
-  mockWebview,
+  mockContent,
   selectorsData
 } = vi.hoisted(() => ({
   aiSites: {
@@ -56,7 +56,7 @@ const {
   mockShowWarning: vi.fn(),
   mockStartPickerWhenReady: vi.fn(),
   mockStartTutorial: vi.fn(),
-  mockWebview: {
+  mockContent: {
     executeJavaScript: vi.fn()
   },
   selectorsData: {
@@ -102,11 +102,11 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiSessionActions: () => ({
     startTutorial: mockStartTutorial
   }),
-  useAiWebview: () => ({
-    getWebviewInstance: () => mockWebview
+  useAiContent: () => ({
+    getContentController: () => mockContent
   }),
-  useAiWebviewPresence: () => ({
-    hasActiveWebview: true
+  useAiContentPresence: () => ({
+    hasActiveContent: true
   })
 }))
 
@@ -179,7 +179,7 @@ describe('SelectorsTab', () => {
     mockDeleteConfig.mockResolvedValue(true)
     mockSaveAiConfig.mockResolvedValue(true)
     mockGenerateValidateSelectorsScript.mockResolvedValue('// validate')
-    mockWebview.executeJavaScript.mockResolvedValue({
+    mockContent.executeJavaScript.mockResolvedValue({
       success: true,
       diagnostics: {
         input: { strategy: 'direct', matchedSelector: '#prompt', requestedSelector: '#prompt' },
@@ -230,7 +230,7 @@ describe('SelectorsTab', () => {
       )
     })
 
-    expect(mockWebview.executeJavaScript).toHaveBeenCalledWith('// validate')
+    expect(mockContent.executeJavaScript).toHaveBeenCalledWith('// validate')
     expect(mockShowSuccess).toHaveBeenCalledWith('selectors_test_success', 'toast_automation_title')
     expect(screen.getAllByText('direct')).toHaveLength(2)
   })

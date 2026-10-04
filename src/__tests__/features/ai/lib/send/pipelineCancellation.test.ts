@@ -1,7 +1,7 @@
 import {
-  cancelWebviewSends,
+  cancelContentSends,
   getOrCreateCancelFlag,
-  isWebviewCancelled
+  isContentCancelled
 } from '@features/ai/lib/aiSenderSupport'
 import { executePipelineStep } from '@features/ai/lib/send/pipelineUtils'
 import type { SendTextResult } from '@features/ai/model/types'
@@ -10,29 +10,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createSendWebviewMock, makePipelineParams } from './sharedTestHelpers'
 
-describe('per-webview cancellation', () => {
+describe('per-content cancellation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   describe('cancel flag utilities', () => {
-    it('isWebviewCancelled returns false for fresh webview', () => {
+    it('isContentCancelled returns false for fresh content', () => {
       const wv = createSendWebviewMock({ success: true })
-      expect(isWebviewCancelled(wv)).toBe(false)
+      expect(isContentCancelled(wv)).toBe(false)
     })
 
-    it('cancelWebviewSends sets the flag for the given webview', () => {
+    it('cancelContentSends sets the flag for the given content', () => {
       const wv = createSendWebviewMock({ success: true })
-      cancelWebviewSends(wv)
-      expect(isWebviewCancelled(wv)).toBe(true)
+      cancelContentSends(wv)
+      expect(isContentCancelled(wv)).toBe(true)
     })
 
-    it('cancellation is per-webview (does not affect others)', () => {
+    it('cancellation is per-content (does not affect others)', () => {
       const wv1 = createSendWebviewMock({ success: true })
       const wv2 = createSendWebviewMock({ success: true })
-      cancelWebviewSends(wv1)
-      expect(isWebviewCancelled(wv1)).toBe(true)
-      expect(isWebviewCancelled(wv2)).toBe(false)
+      cancelContentSends(wv1)
+      expect(isContentCancelled(wv1)).toBe(true)
+      expect(isContentCancelled(wv2)).toBe(false)
     })
 
     it('getOrCreateCancelFlag reuses the same flag object across calls', () => {
@@ -47,10 +47,10 @@ describe('per-webview cancellation', () => {
 
   describe('executePipelineStep respects cancellation', () => {
     it('returns cancelled error before executing script when flag is set', async () => {
-      const webview = createSendWebviewMock({ success: true })
-      cancelWebviewSends(webview)
+      const content = createSendWebviewMock({ success: true })
+      cancelContentSends(content)
 
-      const params = makePipelineParams({ webview, scheduledWebview: webview })
+      const params = makePipelineParams({ content, scheduledContent: content })
       const result = await executePipelineStep<SendTextResult>(params)
 
       expect(result.success).toBe(false)
@@ -60,29 +60,29 @@ describe('per-webview cancellation', () => {
         expect(result.error.diagnostics?.classification?.retry).toBe('never')
       }
       // Script should never have been called
-      expect(webview.executeJavaScript).not.toHaveBeenCalled()
+      expect(content.executeJavaScript).not.toHaveBeenCalled()
     })
 
     it('runs script normally when no cancellation flag is set', async () => {
-      const webview = createSendWebviewMock({ success: true })
-      const params = makePipelineParams({ webview, scheduledWebview: webview })
+      const content = createSendWebviewMock({ success: true })
+      const params = makePipelineParams({ content, scheduledContent: content })
       const result = await executePipelineStep<SendTextResult>(params)
 
       expect(result.success).toBe(true)
-      expect(webview.executeJavaScript).toHaveBeenCalledTimes(1)
+      expect(content.executeJavaScript).toHaveBeenCalledTimes(1)
     })
 
     it('newest request wins - resetting flag allows execution', async () => {
-      const webview = createSendWebviewMock({ success: true })
-      const flag = getOrCreateCancelFlag(webview)
+      const content = createSendWebviewMock({ success: true })
+      const flag = getOrCreateCancelFlag(content)
       flag.cancelled = true
-      expect(isWebviewCancelled(webview)).toBe(true)
+      expect(isContentCancelled(content)).toBe(true)
 
       // Caller resets for their own request
       flag.cancelled = false
-      expect(isWebviewCancelled(webview)).toBe(false)
+      expect(isContentCancelled(content)).toBe(false)
 
-      const params = makePipelineParams({ webview, scheduledWebview: webview })
+      const params = makePipelineParams({ content, scheduledContent: content })
       const result = await executePipelineStep<SendTextResult>(params)
       expect(result.success).toBe(true)
     })

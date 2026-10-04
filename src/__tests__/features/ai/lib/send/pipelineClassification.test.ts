@@ -56,8 +56,8 @@ describe('pipeline error classification integration', () => {
 
   describe('executePipelineStep attaches classification to diagnostics', () => {
     it('attaches a classified error when script returns input_not_found', async () => {
-      const webview = createSendWebviewMock({ success: false, error: 'input_not_found' })
-      const params = makePipelineParams({ webview, scheduledWebview: webview })
+      const content = createSendWebviewMock({ success: false, error: 'input_not_found' })
+      const params = makePipelineParams({ content, scheduledContent: content })
 
       const result = await executePipelineStep<SendTextResult>(params)
       expect(result.success).toBe(false)
@@ -74,8 +74,8 @@ describe('pipeline error classification integration', () => {
     })
 
     it('attaches a classified error when script returns submit_not_ready', async () => {
-      const webview = createSendWebviewMock({ success: false, error: 'submit_not_ready' })
-      const params = makePipelineParams({ webview, scheduledWebview: webview })
+      const content = createSendWebviewMock({ success: false, error: 'submit_not_ready' })
+      const params = makePipelineParams({ content, scheduledContent: content })
 
       const result = await executePipelineStep<SendTextResult>(params)
       expect(result.success).toBe(false)
@@ -88,8 +88,8 @@ describe('pipeline error classification integration', () => {
     })
 
     it('uses the step-name fallback code when script returns no error field', async () => {
-      const webview = createSendWebviewMock({ success: false })
-      const params = makePipelineParams({ webview, scheduledWebview: webview })
+      const content = createSendWebviewMock({ success: false })
+      const params = makePipelineParams({ content, scheduledContent: content })
 
       const result = await executePipelineStep<SendTextResult>(params)
       expect(result.success).toBe(false)
@@ -114,7 +114,7 @@ describe('pipeline error classification integration', () => {
     })
 
     it('classifies webview_destroyed as webview / never', async () => {
-      const params = makePipelineParams({ canUseWebview: vi.fn().mockReturnValue(false) })
+      const params = makePipelineParams({ canUseContent: vi.fn().mockReturnValue(false) })
 
       const result = await executePipelineStep<SendTextResult>(params)
       expect(result.success).toBe(false)
