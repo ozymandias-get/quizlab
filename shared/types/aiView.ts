@@ -14,6 +14,16 @@ export interface AiViewBounds {
   y: number
   width: number
   height: number
+  /**
+   * Corner radius in device-independent pixels.
+   *
+   * A native view is composited above the DOM, so it cannot inherit the panel's
+   * `border-radius` the way a `<webview>` element did — without this it paints
+   * square corners straight over the rounded panel frame. Optional so that a
+   * caller that does not care gets square corners; the main process defaults it
+   * to 0 and the host hook always sends the measured value.
+   */
+  borderRadius?: number
 }
 
 export type AiContentInputEventType = 'keyDown' | 'keyUp' | 'char'
@@ -117,10 +127,6 @@ export interface AiViewHostRequest {
 export interface AiViewHostSyncRequest extends AiViewHostRequest {
   bounds: AiViewBounds
   visible: boolean
-}
-
-export interface AiViewIgnoreMouseRequest extends AiViewHostRequest {
-  ignore: boolean
 }
 
 export interface AiViewTabRequest {

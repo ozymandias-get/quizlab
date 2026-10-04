@@ -1,4 +1,5 @@
 import { Button } from '@app/components/ui/button'
+import { useIsAnyDialogOpen } from '@shared/hooks'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
@@ -31,6 +32,7 @@ function GoogleDrivePanel({
   isInteractionBlocked
 }: GoogleDrivePanelProps) {
   const viewId = `gdrive:${tabId}`
+  const isDialogOpen = useIsAnyDialogOpen()
   const { setHostElement, reload } = useManagedContentView({
     viewId,
     source: { kind: 'google-web-app', appId: 'gdrive' },
@@ -38,7 +40,11 @@ function GoogleDrivePanel({
     modelId: 'gdrive',
     isEnabled: true,
     isHostOwner: true,
-    visible: !isInteractionBlocked
+    // A dialog is the only thing that has to occlude the view, because a native
+    // view paints above the DOM. `isInteractionBlocked` deliberately does not
+    // drive this: it also covers "the dock is hovered", which used to blank the
+    // whole panel every time the pointer crossed the divider.
+    visible: !isDialogOpen
   })
 
   return (
@@ -60,7 +66,12 @@ function GoogleDrivePanel({
       </div>
 
       <div className="relative min-h-0 flex-1">
-        <div ref={setHostElement} className="h-full w-full" data-ai-view-host={viewId} />
+        <div
+          ref={setHostElement}
+          className="h-full w-full"
+          data-ai-view-host={viewId}
+          data-testid="drive-host"
+        />
         {isInteractionBlocked && (
           <div className="pointer-events-auto absolute inset-0 z-10 bg-transparent" />
         )}

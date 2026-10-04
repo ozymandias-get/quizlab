@@ -51,13 +51,43 @@ const cancelFrame = (handle: number): void => {
   else window.clearTimeout(handle)
 }
 
-function toBounds(rect: DOMRect): AiViewBounds {
+function toBounds(rect: DOMRect, borderRadius: number): AiViewBounds {
   return {
     x: Math.max(0, Math.round(rect.left)),
     y: Math.max(0, Math.round(rect.top)),
     width: Math.max(0, Math.round(rect.width)),
-    height: Math.max(0, Math.round(rect.height))
+    height: Math.max(0, Math.round(rect.height)),
+    borderRadius
   }
+}
+
+/**
+ * Finds the corner radius the panel clips its content to.
+ *
+ * The host placeholder is a plain flex child, so it has no radius of its own —
+ * the rounding belongs to the panel that wraps it (`overflow: hidden` plus a
+ * `border-radius`). A native view is composited above the DOM and cannot inherit
+ * that, so the value has to be measured and shipped across.
+ *
+ * The panel's border width is subtracted because the host sits inside the border
+ * box: a 16px radius around a 1px border leaves the content corner at 15px.
+ * Reading it from the DOM also means a theme or density change is picked up for
+ * free instead of being hard-coded here.
+ */
+function resolveClipRadius(element: HTMLElement): number {
+  if (typeof window.getComputedStyle !== 'function') return 0
+  let node: HTMLElement | null = element
+  while (node instanceof HTMLElement && node !== document.body) {
+    const style = window.getComputedStyle(node)
+    const clips = style.overflowX === 'hidden' || style.overflowY === 'hidden'
+    const radius = Number.parseFloat(style.borderTopLeftRadius)
+    if (clips && Number.isFinite(radius) && radius > 0) {
+      const border = Number.parseFloat(style.borderTopWidth)
+      return Math.max(0, radius - (Number.isFinite(border) ? border : 0))
+    }
+    node = node.parentElement
+  }
+  return 0
 }
 
 function snapshotEqual(a: HostSnapshot | null, b: HostSnapshot): boolean {
@@ -87,7 +117,7 @@ export function useAiViewHost({
 
   const measure = useCallback((): AiViewBounds | null => {
     if (!element) return null
-    return toBounds(element.getBoundingClientRect())
+    return toBounds(element.getBoundingClientRect(), resolveClipRadius(element))
   }, [element])
 
   const publish = useCallback(() => {

@@ -6,6 +6,7 @@ import {
   useAiTabActions,
   useAiTabsSliceState
 } from '@app/providers/ai-context'
+import { useIsAnyDialogOpen } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -26,7 +27,6 @@ const PANEL_STYLE = {
 
 interface AiViewSurfaceProps {
   isResizing: boolean
-  isBarHovered: boolean
   /**
    * Which React surface this instance is. Exactly one of the mounted surfaces
    * (workspace / focus overlay) is active at a time, and only the active one may
@@ -44,19 +44,17 @@ interface AiViewSurfaceProps {
  * The remote pages themselves live in the main process as `WebContentsView`s;
  * this component renders only the DOM shell that positions them.
  */
-function AiViewSurface({
-  isResizing,
-  isBarHovered,
-  isSurfaceActive,
-  surfaceState
-}: AiViewSurfaceProps) {
+function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurfaceProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
   const { isTutorialActive } = useAiSessionUiPrefsState()
   const { openAiWorkspace } = useAiTabActions()
   const { stopTutorial } = useAiSessionActions()
+  const isDialogOpen = useIsAnyDialogOpen()
 
   const { aliveTabIds, showHome, showHideHome, recordTabUrl, getRestoredUrl } = surfaceState
-  const isOverlayActive = showHome || isTutorialActive
+  // A native view is composited above every DOM layer, so any full-panel DOM
+  // overlay — or any dialog anywhere in the app — has to be able to hide it.
+  const isOverlayActive = showHome || isTutorialActive || isDialogOpen
 
   const aliveSet = useMemo(() => new Set(aliveTabIds), [aliveTabIds])
 
@@ -72,8 +70,6 @@ function AiViewSurface({
             key={tab.id}
             tab={tab}
             isActive={isActive}
-            isBarHovered={isActive && isBarHovered}
-            isResizing={isActive && isResizing}
             isSurfaceActive={isSurfaceActive}
             isOverlayActive={isOverlayActive}
             restoredUrl={getRestoredUrl(tab.id, tab.modelId)}
@@ -86,8 +82,6 @@ function AiViewSurface({
       aliveSet,
       activeTabId,
       showHome,
-      isBarHovered,
-      isResizing,
       isSurfaceActive,
       isOverlayActive,
       getRestoredUrl,
