@@ -2,7 +2,6 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import type { AiViewSource } from '@shared-core/types/aiView'
 
 import { useToastActions } from '@app/providers'
-import { getAiViewClient } from '@shared/hooks/aiContent/aiViewClient'
 import { createAiContentController } from '@shared/hooks/aiContent/createAiContentController'
 import { useAiContentLifecycle } from '@shared/hooks/aiContent/useAiContentLifecycle'
 import { useAiViewHost } from '@shared/hooks/aiContent/useAiViewHost'
@@ -37,12 +36,6 @@ export interface UseManagedContentViewOptions {
   revealAfterFirstLoad?: boolean
   /** Hide the view while a fatal load error is displayed over it. */
   hideWhenError?: boolean
-  /**
-   * Whether the guest should forward mouse input to the app instead of handling
-   * it. A native view is composited above the DOM, so the bottom bar's hover
-   * shield and the divider drag cannot be expressed as a DOM overlay.
-   */
-  ignoreMouse?: boolean
   modelId: string
   onUrlChange?: (url: string) => void
   onPageSettled?: (controller: AiContentController) => void
@@ -81,7 +74,6 @@ export function useManagedContentView({
   visible,
   revealAfterFirstLoad = false,
   hideWhenError = false,
-  ignoreMouse = false,
   modelId,
   onUrlChange,
   onPageSettled,
@@ -152,13 +144,6 @@ export function useManagedContentView({
     isHostOwner,
     visible: isNativeVisible
   })
-
-  const client = getAiViewClient()
-  const shouldIgnoreMouse = isHostOwner && ignoreMouse
-  useEffect(() => {
-    if (!client || !isEnabled) return
-    client.setIgnoreMouse({ viewId, hostToken, ignore: shouldIgnoreMouse })
-  }, [client, hostToken, isEnabled, shouldIgnoreMouse, viewId])
 
   const reload = useCallback(() => {
     void controller.reload?.()

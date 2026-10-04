@@ -19,7 +19,6 @@ const aiViewClient = vi.hoisted(() => ({
   paste: vi.fn(async () => true),
   focus: vi.fn(async () => true),
   syncHost: vi.fn(),
-  setIgnoreMouse: vi.fn(),
   onEvent: vi.fn((_handler: (event: unknown) => void) => () => {})
 }))
 
@@ -227,37 +226,6 @@ describe('useManagedContentView - native visibility', () => {
   it('never publishes geometry from a host that does not own the view', async () => {
     await mount({ isHostOwner: false })
     expect(aiViewClient.syncHost).not.toHaveBeenCalled()
-  })
-})
-
-describe('useManagedContentView - bottom bar pointer', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    aiViewClient.attach.mockResolvedValue({
-      generation: 1,
-      currentUrl: 'https://x.test/',
-      created: true
-    })
-    aiViewClient.onEvent.mockImplementation(() => () => {})
-  })
-
-  it('forwards mouse to the app while the owning host asks for it', async () => {
-    const { rerender } = await mount({ ignoreMouse: true })
-    expect(aiViewClient.setIgnoreMouse).toHaveBeenLastCalledWith(
-      expect.objectContaining({ viewId: 'tab-1', ignore: true })
-    )
-
-    rerender({ ...baseOptions, ignoreMouse: false } as never)
-    expect(aiViewClient.setIgnoreMouse).toHaveBeenLastCalledWith(
-      expect.objectContaining({ ignore: false })
-    )
-  })
-
-  it('never asks a passive host to ignore the mouse', async () => {
-    await mount({ ignoreMouse: true, isHostOwner: false } as never)
-    expect(aiViewClient.setIgnoreMouse).toHaveBeenLastCalledWith(
-      expect.objectContaining({ ignore: false })
-    )
   })
 })
 

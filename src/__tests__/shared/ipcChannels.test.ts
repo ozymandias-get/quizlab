@@ -76,7 +76,7 @@ describe('IPC_CHANNELS - required channels present', () => {
     'AI_VIEW_PASTE',
     'AI_VIEW_FOCUS',
     'AI_VIEW_SYNC_HOST',
-    'AI_VIEW_SET_IGNORE_MOUSE',
+
     'AI_VIEW_EVENT',
     'SAVE_AI_CONFIG',
     'GET_AI_CONFIG',

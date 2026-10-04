@@ -145,7 +145,6 @@ function App() {
               isResizeReversed={isLayoutSwapped}
               isAiSurfaceMounted={isAiSurfaceMounted}
               isResizing={isResizing}
-              isBarHovered={workspaceState.isBarHovered}
               onBarHoverChange={workspaceState.setIsBarHovered}
               leftPanelProps={combinedLeftPanelProps}
               isInteractionBlocked={isInteractionBlocked}
@@ -166,7 +165,6 @@ function App() {
                 onClose={focus.close}
                 isAiSurfaceMounted={isAiSurfaceMounted}
                 isResizing={false}
-                isBarHovered={false}
                 isAiSurfaceActive={isAiFocusSurface}
                 aiViewSurfaceState={aiViewSurfaceState}
               />

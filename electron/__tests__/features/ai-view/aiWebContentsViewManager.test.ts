@@ -9,6 +9,7 @@ let createdViews: Array<Record<string, unknown>> = []
 
 class FakeWebContentsView {
   static boundsHistory: Array<{ viewId: string; bounds: unknown }> = []
+  static radiusHistory: Array<{ viewId: string; radius: number }> = []
   static visibleHistory: Array<{ viewId: string; visible: boolean }> = []
   static closedViews: string[] = []
 
@@ -28,6 +29,10 @@ class FakeWebContentsView {
   setBounds(bounds: unknown) {
     this.bounds = bounds
     FakeWebContentsView.boundsHistory.push({ viewId: this.viewId, bounds })
+  }
+
+  setBorderRadius(radius: number) {
+    FakeWebContentsView.radiusHistory.push({ viewId: this.viewId, radius })
   }
 
   setVisible(visible: boolean) {
@@ -376,9 +381,37 @@ describe('AiWebContentsViewManager - host geometry', () => {
       x: 10,
       y: 20,
       width: 300,
-      height: 400
+      height: 400,
+      borderRadius: 0
     })
     expect(FakeWebContentsView.visibleHistory.at(-1)?.visible).toBe(true)
+  })
+
+  it('clips the view to the panel corner radius the host measured', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    FakeWebContentsView.radiusHistory = []
+
+    manager.syncAiViewHost(
+      'tab-1',
+      'h1',
+      { x: 0, y: 0, width: 300, height: 400, borderRadius: 15 },
+      true
+    )
+
+    expect(FakeWebContentsView.radiusHistory.at(-1)?.radius).toBe(15)
+  })
+
+  it('re-clips when only the radius changes', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const base = { x: 0, y: 0, width: 300, height: 400 }
+
+    manager.syncAiViewHost('tab-1', 'h1', { ...base, borderRadius: 0 }, true)
+    FakeWebContentsView.radiusHistory = []
+    manager.syncAiViewHost('tab-1', 'h1', { ...base, borderRadius: 16 }, true)
+
+    expect(FakeWebContentsView.radiusHistory.at(-1)?.radius).toBe(16)
   })
 
   it('hides the view when the host reports visible=false without moving it', async () => {
@@ -417,7 +450,6 @@ describe('AiWebContentsViewManager - host geometry', () => {
       manager.syncAiViewHost('tab-1', 'stale-host', { x: 999, y: 999, width: 1, height: 1 }, true)
     ).toBe(false)
     expect(FakeWebContentsView.boundsHistory.length).toBe(applied)
-    expect(manager.setAiViewIgnoreMouse('tab-1', 'stale-host', true)).toBe(false)
   })
 
   it('lets the surviving host take over after the previous one releases', async () => {
@@ -479,10 +511,28 @@ describe('AiWebContentsViewManager - commands', () => {
     expect(manager.loadAiViewUrl('ghost', 'https://chatgpt.com')).toBe(false)
     expect(manager.getAiViewUrl('ghost')).toBeNull()
     expect(manager.destroyAiView('ghost')).toBe(false)
-    expect(manager.setAiViewIgnoreMouse('ghost', 'h', true)).toBe(false)
     expect(manager.syncAiViewHost('ghost', 'h', { x: 0, y: 0, width: 1, height: 1 }, true)).toBe(
       false
     )
+  })
+
+  it('never asks the window to ignore mouse events', async () => {
+    // Regression guard. `setIgnoreMouseEvents` is BrowserWindow-scoped in
+    // Electron 42 and `forward: true` only forwards mouse *move*, so arming it
+    // swallowed every mousedown in the window -- including the panel divider's,
+    // which made the panel unresizable. Nothing may bring it back.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    await manager.attachAiView({ viewId: 'tab-2', source: GROK })
+
+    manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 100, height: 100 }, true)
+    manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 100, height: 100 }, false)
+    manager.syncAiViewHost('tab-2', 'h2', { x: 0, y: 0, width: 100, height: 100 }, true)
+    manager.detachAiViewHost('tab-1', 'h1')
+    manager.destroyAiView('tab-2')
+    await manager.attachAiView({ viewId: 'tab-3', source: CHATGPT })
+
+    expect(setIgnoreMouseEvents).not.toHaveBeenCalled()
   })
 
   it('executes a script through the managed WebContents', async () => {
@@ -492,37 +542,6 @@ describe('AiWebContentsViewManager - commands', () => {
       success: true
     })
     await expect(manager.executeAiViewScript('ghost', '1')).rejects.toThrow(/view_not_found/)
-  })
-
-  it('forwards mouse to the window while a host asks for it, and only then', async () => {
-    await reset()
-    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 100, height: 100 }, true)
-    expect(setIgnoreMouseEvents).not.toHaveBeenCalled()
-
-    manager.setAiViewIgnoreMouse('tab-1', 'h1', true)
-    expect(setIgnoreMouseEvents).toHaveBeenLastCalledWith(true, { forward: true })
-
-    manager.setAiViewIgnoreMouse('tab-1', 'h1', false)
-    expect(setIgnoreMouseEvents).toHaveBeenLastCalledWith(false, { forward: true })
-  })
-
-  it('keeps mouse forwarding on while any managed view still needs it', async () => {
-    await reset()
-    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    await manager.attachAiView({ viewId: 'tab-2', source: GROK })
-    manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 100, height: 100 }, true)
-    manager.syncAiViewHost('tab-2', 'h2', { x: 0, y: 0, width: 100, height: 100 }, true)
-
-    manager.setAiViewIgnoreMouse('tab-1', 'h1', true)
-    manager.setAiViewIgnoreMouse('tab-2', 'h2', true)
-    setIgnoreMouseEvents.mockClear()
-
-    manager.setAiViewIgnoreMouse('tab-1', 'h1', false)
-    expect(setIgnoreMouseEvents).not.toHaveBeenCalled()
-
-    manager.setAiViewIgnoreMouse('tab-2', 'h2', false)
-    expect(setIgnoreMouseEvents).toHaveBeenLastCalledWith(false, { forward: true })
   })
 
   it('normalises input events to Electron modifier names', async () => {

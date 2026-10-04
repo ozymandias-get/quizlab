@@ -43,8 +43,6 @@ export const IPC_CHANNELS = {
   AI_VIEW_FOCUS: 'ai-view-focus',
   /** Fire-and-forget: host geometry + visibility, emitted by the single active host. */
   AI_VIEW_SYNC_HOST: 'ai-view-sync-host',
-  /** Fire-and-forget: forward mouse to the app while the bottom bar owns the pointer. */
-  AI_VIEW_SET_IGNORE_MOUSE: 'ai-view-set-ignore-mouse',
   /** Main -> renderer: lifecycle + console bridge for a managed view. */
   AI_VIEW_EVENT: 'ai-view-event',
   ADD_CUSTOM_AI: 'add-custom-ai',

@@ -40,7 +40,6 @@ interface MainWorkspaceProps {
   isResizeReversed?: boolean
   isAiSurfaceMounted: boolean
   isResizing: boolean
-  isBarHovered: boolean
   onBarHoverChange: (isHovered: boolean) => void
   leftPanelProps: ComponentProps<typeof LeftPanel>
   isInteractionBlocked?: boolean
@@ -70,7 +69,6 @@ function MainWorkspace({
   isResizeReversed,
   isAiSurfaceMounted,
   isResizing,
-  isBarHovered,
   onBarHoverChange,
   leftPanelProps,
   isInteractionBlocked,
@@ -136,7 +134,6 @@ function MainWorkspace({
           {isAiSurfaceMounted ? (
             <AiViewSurface
               isResizing={isResizing}
-              isBarHovered={isBarHovered}
               isSurfaceActive={isAiSurfaceActive}
               surfaceState={aiViewSurfaceState}
             />

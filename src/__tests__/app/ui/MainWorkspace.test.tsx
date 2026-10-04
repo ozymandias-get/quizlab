@@ -44,7 +44,6 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
       handleLostPointerCapture={vi.fn()}
       isAiSurfaceMounted
       isResizing={false}
-      isBarHovered={false}
       onBarHoverChange={vi.fn()}
       leftPanelProps={{} as never}
       bgMode="solid"

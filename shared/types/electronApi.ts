@@ -26,7 +26,6 @@ import type {
   AiViewEvent,
   AiViewHostRequest,
   AiViewHostSyncRequest,
-  AiViewIgnoreMouseRequest,
   AiViewInputEventRequest,
   AiViewLoadUrlRequest,
   AiViewNavigateRequest,
@@ -226,12 +225,6 @@ export interface ElectronApi {
      * messages from a superseded host.
      */
     syncHost: (request: AiViewHostSyncRequest) => void
-    /**
-     * Mouse forwarding for the app while the bottom bar owns the pointer.
-     * A native view cannot be shielded by a DOM overlay, so the ignore flag is
-     * how the bar keeps working over the embedded site.
-     */
-    setIgnoreMouse: (request: AiViewIgnoreMouseRequest) => void
     onEvent: (callback: (event: AiViewEvent) => void) => () => void
   }
 
