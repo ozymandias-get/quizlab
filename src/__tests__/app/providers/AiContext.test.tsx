@@ -228,15 +228,15 @@ describe('AiContext', () => {
     const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
-    // Simulate normal user flow: open an AI workspace and register the webview.
-    // Without this, the auto-open path would wait for a webview that never mounts
-    // in the test environment (AiWebview is not rendered in this test).
+    // Simulate normal user flow: open an AI workspace and register the content.
+    // Without this, the auto-open path would wait for a content that never mounts
+    // in the test environment (AiViewSurface is not rendered in this test).
     act(() => {
       result.current.openAiWorkspace('chatgpt')
     })
     const tabId = result.current.activeTabId
     act(() => {
-      result.current.registerWebview(tabId, {
+      result.current.registerContent(tabId, {
         getURL: () => 'https://chatgpt.com',
         executeJavaScript: vi.fn().mockResolvedValue('complete'),
         isDestroyed: () => false
@@ -263,13 +263,13 @@ describe('AiContext', () => {
     const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
-    // Open an AI workspace and register a webview for the test environment
+    // Open an AI workspace and register a content for the test environment
     act(() => {
       result.current.openAiWorkspace('chatgpt')
     })
     const tabId = result.current.activeTabId
     act(() => {
-      result.current.registerWebview(tabId, {
+      result.current.registerContent(tabId, {
         getURL: () => 'https://chatgpt.com',
         executeJavaScript: vi.fn().mockResolvedValue('complete'),
         isDestroyed: () => false
@@ -283,7 +283,7 @@ describe('AiContext', () => {
     })
   })
 
-  it('does not let stale webview cleanup remove a replacement instance', async () => {
+  it('does not let stale content cleanup remove a replacement instance', async () => {
     const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
@@ -295,11 +295,11 @@ describe('AiContext', () => {
     const replacement = { getURL: () => 'https://chatgpt.com/replacement' }
 
     act(() => {
-      result.current.registerWebview(tabId, first as never)
-      result.current.registerWebview(tabId, replacement as never)
-      result.current.registerWebview(tabId, null, first as never)
+      result.current.registerContent(tabId, first as never)
+      result.current.registerContent(tabId, replacement as never)
+      result.current.registerContent(tabId, null, first as never)
     })
 
-    expect(result.current.getWebviewInstance(tabId)).toBe(replacement)
+    expect(result.current.getContentController(tabId)).toBe(replacement)
   })
 })

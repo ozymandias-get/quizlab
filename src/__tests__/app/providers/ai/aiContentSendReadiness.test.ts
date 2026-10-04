@@ -1,13 +1,13 @@
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import {
-  isWebviewReadyForSend,
-  waitForWebviewReadyForSend
-} from '@app/providers/ai/webviewSendReadiness'
+  isContentReadyForSend,
+  waitForContentReadyForSend
+} from '@app/providers/ai/aiContentSendReadiness'
 
 import { describe, expect, it, vi } from 'vitest'
 
-function controller(overrides: Partial<WebviewController> = {}): WebviewController {
+function controller(overrides: Partial<AiContentController> = {}): AiContentController {
   return {
     getURL: () => 'https://chatgpt.com',
     executeJavaScript: vi.fn().mockResolvedValue('complete'),
@@ -16,19 +16,19 @@ function controller(overrides: Partial<WebviewController> = {}): WebviewControll
   }
 }
 
-describe('webview send readiness', () => {
+describe('content send readiness', () => {
   it('rejects a registered controller until its guest DOM is ready', async () => {
     const loading = controller({
       executeJavaScript: vi.fn().mockResolvedValue('loading')
     })
 
-    expect(await isWebviewReadyForSend(loading)).toBe(false)
-    expect(await isWebviewReadyForSend(controller())).toBe(true)
+    expect(await isContentReadyForSend(loading)).toBe(false)
+    expect(await isContentReadyForSend(controller())).toBe(true)
   })
 
   it('rejects controllers without a URL or with a destroyed guest', async () => {
-    expect(await isWebviewReadyForSend(controller({ getURL: () => undefined }))).toBe(false)
-    expect(await isWebviewReadyForSend(controller({ isDestroyed: () => true }))).toBe(false)
+    expect(await isContentReadyForSend(controller({ getURL: () => undefined }))).toBe(false)
+    expect(await isContentReadyForSend(controller({ isDestroyed: () => true }))).toBe(false)
   })
 
   it('waits through a navigation race and succeeds when the new DOM is ready', async () => {
@@ -36,7 +36,7 @@ describe('webview send readiness', () => {
     const ready = controller()
     let attempts = 0
 
-    const result = await waitForWebviewReadyForSend(
+    const result = await waitForContentReadyForSend(
       () => (++attempts < 3 ? loading : ready),
       100,
       1

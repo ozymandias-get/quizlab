@@ -15,7 +15,7 @@ import {
   mockGetAiConfig,
   mockRestoreClipboard,
   mockScriptDiagnostics,
-  mockWebview
+  mockContent
 } from './mocks'
 import { mockState } from './mockState'
 
@@ -34,8 +34,8 @@ export function setupUseAiSenderMocks(): void {
     getAiConfig: mockGetAiConfig
   } as unknown as Window['electronAPI']
 
-  mockWebview.getURL.mockReturnValue('https://openai.com/chat')
-  mockWebview.executeJavaScript.mockResolvedValue({
+  mockContent.getURL.mockReturnValue('https://openai.com/chat')
+  mockContent.executeJavaScript.mockResolvedValue({
     success: true,
     mode: 'click',
     diagnostics: mockScriptDiagnostics

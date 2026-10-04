@@ -23,7 +23,7 @@ export const AiSitesContext = createContext<Record<string, AiPlatform> | null>(n
 
 export const AiTabsListContext = createContext<AiTabsListSliceState | null>(null)
 export const AiTabFocusContext = createContext<AiTabFocusSliceState | null>(null)
-/** Yalnızca `AiWebview` tarafından tüketilir — diğer bileşenlerin gereksiz render'ını önler. */
+/** Yalnızca `AiViewSurface` tarafından tüketilir — diğer bileşenlerin gereksiz render'ını önler. */
 export const AiViewRequestNonceContext = createContext<AiViewRequestNonceState | null>(null)
 export const AiRegistryMetaSliceContext = createContext<AiRegistryMetaSliceState | null>(null)
 export const AiModelsCatalogSliceContext = createContext<AiModelsCatalogSliceState | null>(null)

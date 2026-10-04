@@ -14,8 +14,8 @@ vi.mock('@app/providers/ai-context', () => ({
     autoSend: mockState.autoSend,
     isTutorialActive: false
   }),
-  useAiWebview: () => ({
-    getWebviewInstance: () => mockState.webviewInstance
+  useAiContent: () => ({
+    getContentController: () => mockState.contentController
   })
 }))
 
@@ -43,13 +43,9 @@ vi.mock('@features/automation', () => ({
   })
 }))
 
-vi.mock('@app/providers/app-tool/webviewPickerReadiness', () => ({
+vi.mock('@app/providers/app-tool/aiContentPickerReadiness', () => ({
   oncePickerReady: vi.fn().mockResolvedValue('dom-ready'),
-  waitForWebviewElement: vi.fn().mockResolvedValue({
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    isDestroyed: vi.fn(() => false)
-  })
+  waitForContentReady: vi.fn().mockResolvedValue(undefined)
 }))
 
 vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
@@ -108,7 +104,7 @@ describe('AppToolContext - queue behavior', () => {
     vi.clearAllMocks()
     vi.useFakeTimers()
     mockState.autoSend = false
-    mockState.webviewInstance = null
+    mockState.contentController = null
     mockState.showError.mockReset()
     mockState.showWarning.mockReset()
 

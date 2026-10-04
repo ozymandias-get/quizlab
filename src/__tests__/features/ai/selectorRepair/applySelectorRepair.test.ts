@@ -4,7 +4,7 @@
  * The whole point of promoting a repair is that it survives a reload, so these
  * tests assert the three things that could silently break that: the patch has to
  * reach the existing config domain, the React Query cache has to be invalidated,
- * and the memoized per-webview runtime config has to be dropped — otherwise the
+ * and the memoized per-content runtime config has to be dropped — otherwise the
  * next send keeps injecting the pre-repair selectors and the feature looks inert
  * until the app is restarted.
  */
