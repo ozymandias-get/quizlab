@@ -23,6 +23,8 @@
   "api_chat_custom_provider": "Özel",
   "api_chat_no_providers": "Henüz sağlayıcı yapılandırılmadı. Yukarıdan bir tane ekleyin.",
   "api_chat_base_url": "Temel URL",
+  "api_chat_allow_local_network": "Yerel/özel ağ uç noktalarına izin ver",
+  "api_chat_allow_local_network_desc": "Yerel ağınızdaki bir model sunucusuna (192.168.x.x, 10.x) veya IPv6 özel adresine ulaşmak için gereklidir. Bu makinede çalışan bir sunucu (localhost) için gerekmez.",
   "api_chat_api_key": "API Anahtarı",
   "api_chat_default_model": "Varsayılan Model",
   "api_chat_test_connection": "Bağlantıyı Test Et",

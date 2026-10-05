@@ -22,7 +22,12 @@ vi.mock('../../../../features/ai/apiChatHandlers/config.js', () => ({
   saveConfig: vi.fn(),
   sanitizeApiKey: (k: string) => k
 }))
-vi.mock('../../../../features/ai/apiChatHandlers/ssrf.js', () => ({
+// Partial mock: only the two network-touching entry points are stubbed.
+// Replacing the whole module meant every new export had to be added here by
+// hand, and forgetting one turned into an undefined-function error at runtime
+// rather than a type error.
+vi.mock('../../../../features/ai/apiChatHandlers/ssrf.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../../features/ai/apiChatHandlers/ssrf.js')>()),
   fetchWithSsrProtection,
   validateProviderUrl
 }))
