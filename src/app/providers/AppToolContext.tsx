@@ -17,7 +17,7 @@ import { useElementPickerLifecycle } from './app-tool/useElementPickerLifecycle'
 import { useGeminiSessionRefreshListeners } from './app-tool/useGeminiSessionRefreshListeners'
 import { useScreenshotPipeline } from './app-tool/useScreenshotPipeline'
 
-export interface AppToolQueueState {
+interface AppToolQueueState {
   pendingAiItems: AiDraftItem[]
   autoSend: boolean
 }
