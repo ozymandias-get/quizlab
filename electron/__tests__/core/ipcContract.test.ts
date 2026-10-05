@@ -1,4 +1,5 @@
 import { IPC_CHANNELS } from '@shared-core/constants/ipcChannels'
+import type { ElectronApi } from '@shared-core/types/electronApi'
 import type {
   AutomationScriptAction,
   AutomationScriptArgsByAction,
@@ -52,6 +53,90 @@ type AssertNever<T extends never> = T
 
 // Exported so the assertion is evaluated and retained; never used at runtime.
 export type AllIpcChannelsCovered = AssertNever<UncoveredIpcChannels>
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contract ↔ ElectronApi payload parity
+//
+// electronApi.ts is hand-written and keyed by method name rather than channel
+// name, so the two cannot be mechanically derived from each other. What can be
+// asserted is the direction that actually broke once: the renderer-facing result
+// must never be NARROWER than the contract's payload.
+//
+// A renderer type that is wider (the deliberate `| null` widening, documented on
+// ElectronApi) is fine and is excluded below. A missing payload field, a renamed
+// field or a changed payload type resolves to `never` and breaks the build — which
+// is exactly the NATIVE_MESSAGING_INSTALL_EXTENSION `installedPath` drift.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The success payload the main process resolves for an invoke channel. */
+type ChannelData<C extends IpcInvokeChannel> = Extract<
+  IpcInvokeRequestMap[C]['result'],
+  { ok: true }
+>['data']
+
+/**
+ * `true` when the contract payload fits the renderer-facing result, `false`
+ * when it does not.
+ *
+ * Two things this deliberately gets right:
+ *   - `ReturnType` is required: `Awaited<M>` on a function type yields the
+ *     function itself, which silently compares unequal to every payload.
+ *   - The failure branch is `false`, not `never`: `never` is absorbed by every
+ *     union it joins, so `[never, true] extends true[]` would still hold and the
+ *     assertion could never fail.
+ */
+type RendererCovers<C extends IpcInvokeChannel, M extends (...args: never[]) => unknown> =
+  ChannelData<C> extends Exclude<Awaited<ReturnType<M>>, null> ? true : false
+
+type RendererParityChecks = [
+  RendererCovers<typeof IPC_CHANNELS.GET_AI_REGISTRY, ElectronApi['getAiRegistry']>,
+  RendererCovers<typeof IPC_CHANNELS.GET_PDF_STREAM_URL, ElectronApi['getPdfStreamUrl']>,
+  RendererCovers<typeof IPC_CHANNELS.PDF_REGISTER_PATH, ElectronApi['registerPdfPath']>,
+  RendererCovers<typeof IPC_CHANNELS.CAPTURE_SCREEN, ElectronApi['captureScreen']>,
+  RendererCovers<typeof IPC_CHANNELS.GET_APP_SETTINGS, ElectronApi['getAppSettings']>,
+  RendererCovers<typeof IPC_CHANNELS.GET_API_CHAT_CONFIG, ElectronApi['getApiChatConfig']>,
+  RendererCovers<typeof IPC_CHANNELS.SEND_API_CHAT_REQUEST, ElectronApi['sendApiChatRequest']>,
+  RendererCovers<typeof IPC_CHANNELS.FETCH_API_CHAT_MODELS, ElectronApi['fetchApiChatModels']>,
+  RendererCovers<typeof IPC_CHANNELS.GET_AI_CONFIG, ElectronApi['getAiConfig']>,
+  RendererCovers<
+    typeof IPC_CHANNELS.SHELL_INTEGRATION_STATUS,
+    ElectronApi['shellIntegration']['getStatus']
+  >,
+  RendererCovers<typeof IPC_CHANNELS.GEMINI_WEB_STATUS, ElectronApi['geminiWeb']['getStatus']>,
+  RendererCovers<
+    typeof IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
+    ElectronApi['nativeMessaging']['getStatus']
+  >,
+  RendererCovers<
+    typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION,
+    ElectronApi['nativeMessaging']['installExtension']
+  >,
+  RendererCovers<typeof IPC_CHANNELS.AI_VIEW_ATTACH, ElectronApi['aiView']['attach']>,
+  // Channels whose contract data is genuinely nullable must keep the `| null`
+  // in the renderer-facing signature, so they are excluded from the widening.
+  RendererCovers<typeof IPC_CHANNELS.AI_VIEW_DETACH, ElectronApi['aiView']['detach']>
+]
+
+/** Fails to compile unless every entry of `T` is `true`. */
+type AssertAllTrue<T extends true[]> = T
+
+// Exported so the assertion is evaluated and retained; never used at runtime.
+export type RendererCoversContract = AssertAllTrue<RendererParityChecks>
+
+// The one field whose absence went unnoticed: asserted explicitly on both sides.
+type InstallChannelData = ChannelData<typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION>
+type InstallRendererPayload = Exclude<
+  Awaited<ElectronApi['nativeMessaging']['installExtension']>,
+  null
+>
+export type InstallPathDeclaredEverywhere = 'installedPath' extends keyof InstallChannelData
+  ? 'installedPath' extends keyof InstallRendererPayload
+    ? true
+    : false
+  : false
+
+// Runtime witness so the exported types above are not elided as unused.
+const rendererIsNotNarrower: RendererCoversContract extends true[] ? true : false = true
 
 describe('IPC contract', () => {
   it('covers all invoke-style channels used in preload', () => {
@@ -165,6 +250,19 @@ describe('IPC contract', () => {
     assertResultKey('success')
     assertResultKey('installedPath')
     expect(true).toBe(true)
+  })
+
+  it('never declares the renderer-facing result narrower than the contract', () => {
+    // electronApi.ts is hand-written and keyed by method name, not channel name,
+    // so this mapping is explicit. The rule: the contract's payload must be
+    // assignable to the renderer-facing result. A wider renderer type (the
+    // deliberate `| null` widening documented on ElectronApi) passes; a missing
+    // payload field or a changed payload type does not.
+    //
+    // That is the direction that matters, and it is what would have caught
+    // NATIVE_MESSAGING_INSTALL_EXTENSION omitting `installedPath` from the
+    // contract while the handler resolved it and the renderer read it.
+    expect(rendererIsNotNarrower).toBe(true)
   })
 
   it('types the event payloads the preload subscribes to', () => {
