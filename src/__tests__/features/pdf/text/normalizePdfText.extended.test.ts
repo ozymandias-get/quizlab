@@ -79,4 +79,72 @@ describe('normalizePdfText', () => {
       expect(normalizePdfText('Merhaba  dünya  🌍')).toBe('Merhaba dünya 🌍')
     })
   })
+
+  /**
+   * Losslessness guard.
+   *
+   * normalizePdfText output is fed into AI prompts, so it may only change
+   * whitespace, ligatures and Unicode composition. It must never substitute one
+   * printable character for another: the U+02C6/U+00B8/U+02DC -> ö/ü/ğ repair it
+   * used to perform had no fixture, no issue and no test behind it, fired on any
+   * page containing ö/ü/ç, and rewrote characters that are legitimate in French,
+   * Catalan, Sami and Turkic transliteration.
+   */
+  describe('character-level losslessness', () => {
+    it('leaves ordinary Turkish text untouched', () => {
+      const input = 'Öğrenciler için öğretim üç yıl sürdü; güğüm çözdü.'
+      expect(normalizePdfText(input)).toBe(input)
+      expect(normalizePdfText('İstanbul Üniversitesi Şubesi')).toBe('İstanbul Üniversitesi Şubesi')
+      expect(normalizePdfText('ışık ilıklı')).toBe('ışık ilıklı')
+    })
+
+    it('does not rewrite the cedilla, circumflex accent or small tilde', () => {
+      // Each is a real character elsewhere, so without corruption evidence they
+      // have to survive verbatim.
+      expect(normalizePdfText('François ¸ façon')).toBe('François ¸ façon')
+      expect(normalizePdfText('mañana ˆ佳能')).toBe('mañana ˆ佳能')
+      expect(normalizePdfText('Turkic ˜ ˜g')).toBe('Turkic ˜ ˜g')
+      expect(normalizePdfText('Prices: 5¸90 CHF')).toBe('Prices: 5¸90 CHF')
+    })
+
+    it('does not rewrite those characters even inside otherwise Turkish text', () => {
+      // The old guard matched ö/ü themselves, so a stray cedilla anywhere in a
+      // page containing an umlaut was rewritten. Every artifact must survive.
+      const input = 'Bir öğrenci ¸ okˆ du˘ var'
+      expect(normalizePdfText(input)).toBe(input)
+    })
+
+    it('keeps every other printable character as-is', () => {
+      const input = 'a¨b´c`d"e\'f–g—h…i€j£k¥l©m®n±o×p÷qµr¼s½t¾u¿v'
+      expect(normalizePdfText(input)).toBe(input)
+    })
+
+    it('expands typographic ligatures losslessly', () => {
+      expect(normalizePdfText('efﬁcient')).toBe('efficient')
+      expect(normalizePdfText('ﬁzyoloji')).toBe('fizyoloji')
+      expect(normalizePdfText('ﬂow')).toBe('flow')
+      expect(normalizePdfText('oﬃce')).toBe('office')
+      expect(normalizePdfText('buﬀet')).toBe('buffet')
+      // U+FB05 LATIN SMALL LIGATURE LONG S T (a real ligature, not U+017F long s).
+      expect(normalizePdfText('pa\uFB05')).toBe('past')
+      expect(normalizePdfText('pa\uFB06')).toBe('past')
+      // A bare long s is not a ligature and must survive untouched.
+      expect(normalizePdfText('pa\u017Ft')).toBe('paſt')
+    })
+
+    it('composes decomposed characters without altering them', () => {
+      // NFD "o" + combining diaeresis must compose to ö, and NFD "u" + combining
+      // diaeresis to ü — composition, not substitution.
+      expect(normalizePdfText('o\u0308')).toBe('ö')
+      expect(normalizePdfText('u\u0308')).toBe('ü')
+      expect(normalizePdfText('g\u0306')).toBe('ğ')
+      expect(normalizePdfText('i\u0307')).toBe('i̇')
+      // A decomposed sequence the old map could mangle is still composed.
+      expect(normalizePdfText('¸\u0308')).toBe('¸̈')
+    })
+
+    it('still normalizes whitespace around text it leaves unchanged', () => {
+      expect(normalizePdfText('  François ¸  façon  ')).toBe('François ¸ façon')
+    })
+  })
 })

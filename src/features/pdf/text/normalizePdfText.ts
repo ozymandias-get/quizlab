@@ -1,40 +1,46 @@
 /**
- * Characters that indicate pdfjs-dist CMap/encoding corruption in Turkish text.
- * These are artifact characters that should never appear in properly encoded
- * Turkish text. When detected alongside other suspicious patterns, we attempt
- * heuristic repair.
+ * Text normalization for PDF-extracted content.
  *
- * Not: flagsız versiyon (varlık testi), global-flagsız replace regex aşağıda.
- */
-const SUSPICIOUS_ARTIFACTS = /[\u00B8\u02C6\u02DC]/
-
-/**
- * Önceden derlenmiş global regex — .split().join() zinciri yerine tek
- * geçişte tüm bozuk karakterleri değiştirmek için. Her replace çağrısında
- * yeniden derlenmez, modül yüklendiğinde bir kere oluşturulur.
- */
-const TURKISH_REPLACE_REGEX = /[\u00B8\u02C6\u02DC]/g
-
-/**
- * Known pdfjs-dist Turkish character corruption mapping.
- * Maps artifact characters to their most likely Turkish replacements.
- * This covers the common case where pdfjs-dist's ToUnicode CMap produces
- * wrong Unicode codepoints for fonts with non-standard encoding tables.
+ * Everything in here must be **lossless**: it may only change whitespace, line
+ * endings, typographic ligatures and Unicode composition. Substituting one
+ * printable character for another is not normalization, it is a guess about the
+ * source document, and the text produced here is fed straight into an AI prompt
+ * (both the "add page text to AI" menu action and plain text selection), so a
+ * wrong guess is presented to the model as authoritative.
  *
- * IMPORTANT: These replacements are only applied when the text is detected
- * as likely Turkish (contains other Turkish-specific characters).
+ * ## Why there is no Turkish corruption repair here
+ *
+ * This module used to rewrite U+02C6 -> ö, U+00B8 -> ü and U+02DC -> ğ whenever
+ * the surrounding text looked Turkish, on the premise that pdf.js' ToUnicode
+ * CMap emits those codepoints when a font has a non-standard encoding table.
+ * That repair was removed because nothing in the repository supported it:
+ *
+ *   - No fixture, no captured sample, no issue and no test. The mapping arrived
+ *     fully formed in the root snapshot commit and the literal characters appear
+ *     in zero test files.
+ *   - The stated recovery mechanism does not exist. Both pdfjs-dist@3.11.174 and
+ *     @react-pdf-viewer/core@3.12.0 contain no ::before/beforeCSS text-layer
+ *     code, and the text layer's span content comes straight from
+ *     getTextContent()'s item.str, so no rendering-time fix-up was available.
+ *   - The guard could not contain the damage. `looksLikeTurkish` matched ö and ü
+ *     themselves, so a single stray cedilla in a French, Catalan, Spanish or
+ *     German document was enough to rewrite every artifact on the page.
+ *   - The three codepoints are legitimate elsewhere: U+00B8 is the Latin-1
+ *     cedilla used in French/Catalan and as a currency symbol, U+02C6 is used in
+ *     Sami orthographies and U+02DC in Turkic transliteration.
+ *
+ * Reintroducing character repair requires a real document that demonstrably
+ * exhibits the corruption, a sample of the extracted text it produces, and a
+ * test asserting the mapping only fires on that signature. Until then the text
+ * is passed through unchanged.
  */
-const TURKISH_CORRUPTION_MAP = {
-  '\u02C6': 'ö', // MODIFIER LETTER CIRCUMFLEX ACCENT → ö
-  '\u00B8': 'ü', // CEDILLA → ü (most common in Turkish context)
-  '\u02DC': 'ğ' // SMALL TILDE → ğ (less common but possible)
-} as const satisfies Record<string, string>
 
 /**
- * Typographic ligatures emitted by PDF fonts (pdfjs-dist passes them through
- * verbatim). NFC does NOT expand compatibility characters, so without this
- * map "efﬁcient" / "ﬁzyoloji" keep the single U+FB01 glyph and break both
- * in-app search and AI prompts.
+ * Typographic ligatures emitted by PDF fonts (pdf.js passes them through
+ * verbatim). NFC does NOT expand compatibility characters, so without this map
+ * "efﬁcient" / "ﬁzyoloji" keep the single U+FB01 glyph and break both in-app
+ * search and AI prompts. Each ligature expands to the letters it is composed of,
+ * so this is lossless.
  */
 const LIGATURE_MAP = {
   ﬀ: 'ff',
@@ -56,40 +62,9 @@ function expandLigatures(text: string): string {
 }
 
 /**
- * Checks whether a string likely contains Turkish text by looking for
- * common Turkish characters (ı, ş, ç, ğ, ü, ö, İ, Ş, Ç, Ğ, Ü, Ö).
- */
-function looksLikeTurkish(text: string): boolean {
-  const turkishChars = /[ÇÖÜçöüĞğİıŞş]/
-  return turkishChars.test(text)
-}
-
-/**
- * Attempts to repair known pdfjs-dist Turkish character corruption.
- * Only activates when the text looks like Turkish AND contains suspicious
- * artifact characters. This avoids false positives on other languages.
- *
- * Performans notu: Her karakter türü için ayrı split().join() zinciri
- * yerine önceden derlenmiş tek bir regex + callback kullanılır. Bu
- * yaklaşım string'i üç kez değil bir kez geçer ve ara string nesneleri
- * oluşturmaz — özellikle büyük metin bloklarında (sayfa seçimi)
- * belirgin fark yaratır.
- */
-function repairPdfjsTurkishCorruption(text: string): string {
-  if (!SUSPICIOUS_ARTIFACTS.test(text)) return text
-  if (!looksLikeTurkish(text)) return text
-
-  return text.replaceAll(
-    TURKISH_REPLACE_REGEX,
-    (match) => TURKISH_CORRUPTION_MAP[match as keyof typeof TURKISH_CORRUPTION_MAP] || match
-  )
-}
-
-/**
  * Normalizes raw PDF text output: collapses whitespace, fixes line breaks,
- * removes excessive blank lines, expands typographic ligatures (ﬁ→fi),
- * applies Unicode NFC normalization to combine decomposed characters, and
- * attempts to repair known pdfjs-dist Turkish character corruption patterns.
+ * removes excessive blank lines, expands typographic ligatures (ﬁ→fi), and
+ * applies Unicode NFC normalization to combine decomposed characters.
  * Shared across all text extraction paths.
  */
 export function normalizePdfText(raw: string): string {
@@ -105,11 +80,8 @@ export function normalizePdfText(raw: string): string {
   // without this "ﬁzyoloji" would keep the single U+FB01 glyph.
   const deligatured = expandLigatures(normalized)
 
-  // NFC normalization combines decomposed characters (e.g., o + combining
-  // diaeresis → ö). This fixes characters that pdfjs-dist may have output
-  // in NFD form.
-  const nfc = deligatured.normalize('NFC')
-
-  // Attempt to repair known pdfjs-dist Turkish font encoding corruption.
-  return repairPdfjsTurkishCorruption(nfc)
+  // NFC combines decomposed characters (e.g. o + combining diaeresis → ö),
+  // which fixes text pdf.js emitted in NFD form. This is a composition, so the
+  // characters are preserved.
+  return deligatured.normalize('NFC')
 }

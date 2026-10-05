@@ -49,11 +49,18 @@ function getPageLayer(pageNumber: number): HTMLElement | null {
 }
 
 /**
- * Characters that indicate pdfjs-dist CMap/encoding corruption.
- * Used as a signal to fall back to innerText (which includes
- * ::before pseudo-element content with correct characters).
+ * Characters that, when present in a text layer, mark the page as worth a second
+ * look: each is unusual in running prose but a real character in some orthography
+ * (U+00B8 is the Latin-1 cedilla used in French/Catalan and as a currency symbol,
+ * U+02C6 in Sami orthographies, U+02DC in Turkic transliteration).
+ *
+ * This is only a trigger for the innerText retry below, NOT a known pdf.js
+ * corruption detector. Neither pdfjs-dist@3.11.174 nor @react-pdf-viewer@3.12.0
+ * contains any ::before/beforeCSS text-layer mechanism -- the spans come straight
+ * from getTextContent()'s item.str -- so there is no rendering-time fix-up for
+ * this to recover, and nothing here attempts to rewrite the characters.
  */
-const CORRUPTION_INDICATORS = /[\u00B8\u02C6\u02DC]/
+const SUSPICIOUS_GLYPH_RUN = /[\u00B8\u02C6\u02DC]/
 
 interface TextItem {
   text: string
@@ -158,26 +165,22 @@ function orderTextItems(items: TextItem[]): string[] {
  * Collects text from a DOM element.
  *
  * Performance strategy:
- * 1. Fast path: use textContent (no style computation). If no corruption
- *    indicators found, return immediately — this covers the vast majority
- *    of well-encoded PDFs.
- * 2. Slow path: if corruption is detected, use innerText instead.
- *    innerText reads the rendered text tree (including ::before/::after
- *    pseudo-elements) in a single batched layout pass, which is orders
- *    of magnitude faster than calling getComputedStyle(span, '::before')
- *    individually on hundreds of spans (each call forces a synchronous
- *    style recalculation).
+ * 1. Fast path: textContent (no style computation, no layout). Returned
+ *    immediately unless the text is very short or contains a suspicious glyph
+ *    run — this covers the vast majority of PDFs.
+ * 2. Slow path: innerText, which reflects rendered text semantics. It costs one
+ *    batched layout pass instead of per-span getComputedStyle calls, so it stays
+ *    cheap even for pages with hundreds of spans.
  */
 function collectTextFromElement(el: HTMLElement): string {
   // Fast path — no style computation, no DOM traversal
   const fastText = el.textContent?.trim() || ''
-  if (fastText && fastText.length > 5 && !CORRUPTION_INDICATORS.test(fastText)) {
+  if (fastText && fastText.length > 5 && !SUSPICIOUS_GLYPH_RUN.test(fastText)) {
     return fastText
   }
 
-  // Slow path: innerText reads rendered text including pseudo-elements
-  // in a single batched layout pass (much cheaper than per-span
-  // getComputedStyle calls).
+  // Slow path: innerText reflects rendered text, in one batched layout pass
+  // (much cheaper than per-span getComputedStyle calls).
   const renderedText = el.innerText?.trim() || ''
   if (renderedText && renderedText.length > 5) {
     return renderedText

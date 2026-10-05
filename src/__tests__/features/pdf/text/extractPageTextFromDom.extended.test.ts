@@ -139,6 +139,57 @@ describe('extractPageTextFromDom - extended', () => {
     expect(extractPageTextFromDom(1)).toBeNull()
   })
 
+  /**
+   * The suspicious-glyph run only switches the collector from textContent to
+   * innerText; it must not rewrite anything. jsdom does not implement innerText,
+   * so the branch is observed by asserting the fallback is entered (the spans
+   * join path then produces the text) rather than that innerText differs.
+   */
+  describe('suspicious glyph run triggers the innerText retry', () => {
+    const SUSPICIOUS = /[¸ˆ˜]/
+
+    it.each(['¸', 'ˆ', '˜'])('enters the fallback for %s', (glyph) => {
+      const layer = document.createElement('div')
+      layer.className = 'rpv-core__page-layer'
+      layer.setAttribute('data-virtual-index', '0')
+      const textLayer = document.createElement('div')
+      textLayer.className = 'rpv-core__text-layer'
+      const span = document.createElement('span')
+      span.textContent = `before ${glyph} after`
+      textLayer.appendChild(span)
+      layer.appendChild(textLayer)
+      document.body.appendChild(layer)
+
+      // Long enough to clear the >5 fast-path length check, so the only reason
+      // the fast path is skipped is the glyph run.
+      const text = extractPageTextFromDom(1)
+      expect(text).not.toBeNull()
+      expect(text).toContain(glyph)
+      expect(SUSPICIOUS.test(text as string)).toBe(true)
+    })
+
+    it('leaves the glyph in place rather than substituting a Turkish letter', () => {
+      const layer = document.createElement('div')
+      layer.className = 'rpv-core__page-layer'
+      layer.setAttribute('data-virtual-index', '0')
+      const textLayer = document.createElement('div')
+      textLayer.className = 'rpv-core__text-layer'
+      const span = document.createElement('span')
+      // U+02C6 MODIFIER LETTER CIRCUMFLEX ACCENT, not U+005E CIRCUMFLEX ACCENT:
+      // they render alike but only the former is one of the mapped codepoints.
+      span.textContent = 'Français ¸ façon et ˆ accent'
+      textLayer.appendChild(span)
+      layer.appendChild(textLayer)
+      document.body.appendChild(layer)
+
+      const text = extractPageTextFromDom(1) as string
+      expect(text).toContain('¸')
+      expect(text).toContain('ˆ')
+      expect(text).not.toContain('ü')
+      expect(text).not.toContain('ö')
+    })
+  })
+
   it('invalidates the cache when the page layer is replaced', () => {
     const layer1 = makePageLayerWithText(0, 'first content here')
     document.body.appendChild(layer1)
