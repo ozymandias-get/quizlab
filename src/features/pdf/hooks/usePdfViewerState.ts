@@ -76,6 +76,10 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   // All programmatic zoom sources funnel through one rAF-coalesced channel.
   const coalescedZoom = useCoalescedZoom(zoomTo)
   zoomToRef.current = coalescedZoom
+  // Single owner of PDF canvas/GPU lifetime. containerRef wraps every pdf.js
+  // canvas, so this one MutationObserver sees all page swaps, zoom re-renders
+  // and Viewer remounts. Mounting a second observer on an ancestor container
+  // would only repeat the same releases.
   useCanvasGpuCleanup(containerRef)
   const {
     currentPage,
