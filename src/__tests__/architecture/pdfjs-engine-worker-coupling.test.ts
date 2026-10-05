@@ -1,24 +1,29 @@
 /**
- * pdfjs-dist is not independently upgradable.
+ * pdfjs-dist is pinned deliberately.
  *
- * The coupling is easy to miss and expensive to get wrong:
+ * The coupling is easy to misdiagnose, so state it precisely: there is one
+ * engine and one worker, both from the same package.
  *
- *   - `@react-pdf-viewer/core` webpack-bundles its own copy of PDF.js, so its
- *     engine is whatever 3.12.0 shipped with and is unaffected by the version
- *     npm installs.
- *   - `PdfWorkerHost` hands that bundled engine a worker URL built from the
- *     npm `pdfjs-dist` package, and `renderPageToImage` imports a second,
- *     separate pdfjs instance for the fallback image render.
+ *   - `@react-pdf-viewer/core` lists `pdfjs-dist` as a peerDependency and its
+ *     bundle does `require('pdfjs-dist')` — it runs the copy npm installed, it
+ *     does not bundle its own PDF.js.
+ *   - `PdfWorkerHost` hands that engine a worker URL built from the same npm
+ *     `pdfjs-dist` package.
+ *   - `renderPageToImage` imports the same package, and prefers the viewer's
+ *     already-loaded `PDFDocumentProxy` over loading its own document.
  *
- * The engine/worker handshake therefore crosses the library boundary. Today
- * both sides resolve to 3.11.174, so it works — by coincidence, not by
- * design. Bumping `pdfjs-dist` alone would leave a 6.x worker driving a 3.x
- * engine while `npm audit` reported the tree as clean.
+ * Because engine and worker come from one dependency, the invariant that matters
+ * is the *peer range*: the installed pdfjs-dist has to satisfy the range the
+ * viewer declares, and it must be an exact pin so a routine `npm install` cannot
+ * move the worker out from under the engine while `npm audit` reported the tree
+ * clean. That is what the tests below assert.
  *
- * Migrating means replacing the viewer and moving pdfjs in one change, which
- * additionally requires:
+ * Migrating means moving the viewer and pdfjs in one change, which additionally
+ * requires:
  *   - `enableScripting: false` (CVE-2026-16633); it does not replace
- *     `isEvalSupported: false` (CVE-2024-4367), both are needed
+ *     `isEvalSupported: false` (CVE-2024-4367), both are needed. Note 3.x
+ *     honours the flag at runtime but its bundled `.d.ts` does not declare it
+ *     on `GetDocumentParams`, so it cannot be set type-safely until the upgrade
  *   - packaging the `wasm/` assets (openjpeg/jbig2/qcms), absent in 3.x;
  *     the build only ships the dist directory
  *   - re-verifying the ESM interop shim in `renderPageToImage`
@@ -85,11 +90,17 @@ describe('pdfjs engine/worker coupling', () => {
     expect(viewer.peerDependencies?.['pdfjs-dist']).toBe(VIEWER_PEER_RANGE)
   })
 
-  it('still disables eval-based scripting on the app getDocument path', () => {
+  it('disables eval-based scripting on every getDocument path', () => {
     // CVE-2024-4367 mitigation. `enableScripting: false` is for a different
-    // CVE and does not cover this, so both are required.
-    const source = readSource('../../features/pdf/lib/renderPageToImage.ts')
-    expect(source).toContain('isEvalSupported: false')
+    // CVE and does not cover this, so both are required. There are exactly two
+    // sites that reach pdfjs: the viewer (through transformGetDocumentParams)
+    // and the direct page render. Both must carry the flag, so assert both —
+    // security/audit-exceptions.json names them as the mitigation.
+    const viewerSource = readSource('../../features/pdf/ui/components/PdfViewerElement.tsx')
+    expect(viewerSource).toContain('isEvalSupported: false')
+
+    const renderSource = readSource('../../features/pdf/lib/renderPageToImage.ts')
+    expect(renderSource).toContain('isEvalSupported: false')
   })
 
   it('serves the worker to the viewer from the npm pdfjs package', () => {
