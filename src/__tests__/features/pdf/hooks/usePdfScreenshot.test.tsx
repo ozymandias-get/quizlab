@@ -34,10 +34,10 @@ describe('usePdfCaptureActions', () => {
     document.body.innerHTML = ''
   })
 
-  it('captures the current page layer canvas using 1-based data-page-number', async () => {
+  it('captures the current page layer canvas using the viewer virtual index', async () => {
     const page12Layer = document.createElement('div')
     page12Layer.className = 'rpv-core__page-layer'
-    page12Layer.setAttribute('data-page-number', '12')
+    page12Layer.setAttribute('data-virtual-index', '11')
     const page12Canvas = document.createElement('canvas')
     Object.defineProperty(page12Canvas, 'width', { configurable: true, value: 400 })
     Object.defineProperty(page12Canvas, 'height', { configurable: true, value: 200 })
@@ -45,7 +45,7 @@ describe('usePdfCaptureActions', () => {
 
     const page13Layer = document.createElement('div')
     page13Layer.className = 'rpv-core__page-layer'
-    page13Layer.setAttribute('data-page-number', '13')
+    page13Layer.setAttribute('data-virtual-index', '12')
     const page13Canvas = document.createElement('canvas')
     Object.defineProperty(page13Canvas, 'width', { configurable: true, value: 420 })
     Object.defineProperty(page13Canvas, 'height', { configurable: true, value: 210 })
@@ -99,7 +99,7 @@ describe('usePdfCaptureActions', () => {
 
     const layer = document.createElement('div')
     layer.className = 'rpv-core__page-layer'
-    layer.setAttribute('data-page-number', '1')
+    layer.setAttribute('data-virtual-index', '0')
     layer.appendChild(document.createElement('canvas'))
     document.body.appendChild(layer)
 
@@ -131,7 +131,7 @@ describe('usePdfCaptureActions', () => {
 
     const layer = document.createElement('div')
     layer.className = 'rpv-core__page-layer'
-    layer.setAttribute('data-page-number', '1')
+    layer.setAttribute('data-virtual-index', '0')
     const canvas = document.createElement('canvas')
     Object.defineProperty(canvas, 'width', { configurable: true, value: 400 })
     Object.defineProperty(canvas, 'height', { configurable: true, value: 300 })
@@ -172,7 +172,7 @@ describe('usePdfCaptureActions', () => {
 
     const layer = document.createElement('div')
     layer.className = 'rpv-core__page-layer'
-    layer.setAttribute('data-page-number', '1')
+    layer.setAttribute('data-virtual-index', '0')
     layer.appendChild(document.createElement('canvas'))
     document.body.appendChild(layer)
 
@@ -214,26 +214,22 @@ describe('usePdfCaptureActions', () => {
     try {
       const layer = document.createElement('div')
       layer.className = 'rpv-core__page-layer'
-      layer.setAttribute('data-page-number', '5')
+      layer.setAttribute('data-virtual-index', '4')
       const canvas = document.createElement('canvas')
       Object.defineProperty(canvas, 'width', { configurable: true, value: 300 })
       Object.defineProperty(canvas, 'height', { configurable: true, value: 150 })
       layer.appendChild(canvas)
       document.body.appendChild(layer)
 
+      // Simulate the canvas not being rasterized yet: the first two lookup
+      // rounds miss, so the progressive retry loop has to run. Counting total
+      // calls keeps this independent of how many selectors the viewer adapter
+      // probes per round.
       const originalQuerySelector = document.querySelector.bind(document)
       let calls = 0
       const spy = vi.spyOn(document, 'querySelector').mockImplementation((selector: string) => {
         calls += 1
-        // First 4 lookups (initial + 1 retry with multiple selectors) return null
-        // to simulate canvas still rendering — covers both data-page-number
-        // and data-virtual-index paths
-        if (selector.includes('data-page-number="5"') && calls <= 4) {
-          return null
-        }
-        if (selector.includes('data-virtual-index="4"') && calls <= 4) {
-          return null
-        }
+        if (calls <= 4) return null
         return originalQuerySelector(selector)
       })
 

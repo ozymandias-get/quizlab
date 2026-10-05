@@ -1,48 +1,46 @@
 /**
  * Extracts text content from a specific PDF page's DOM layer.
- * Module-level cache for page layer lookups (cache invalidation is caller's responsibility).
+ *
+ * Selectors come from `../lib/pdfViewerDom`, the single owner of the viewer's
+ * private DOM; the lookup order and caching below are specific to text
+ * extraction.
+ *
+ * Cache ownership: `PAGE_LAYER_CACHE` is keyed by page number and every hit is
+ * re-checked with `isConnected`, so a page layer that pdf.js detached (page
+ * change, document switch, reload) is re-resolved instead of returned stale.
+ * Callers additionally drive `invalidatePageCache` on reload.
  */
+import { PAGE_LAYER_CLASS, pageLayerSelectors, TEXT_LAYER_SELECTOR } from '../lib/pdfViewerDom'
 import { normalizePdfText } from './normalizePdfText'
 
 const PAGE_LAYER_CACHE = new Map<number, HTMLElement>()
+
+function cacheAndReturn(pageNumber: number, element: HTMLElement): HTMLElement {
+  PAGE_LAYER_CACHE.set(pageNumber, element)
+  return element
+}
 
 function getPageLayer(pageNumber: number): HTMLElement | null {
   const cached = PAGE_LAYER_CACHE.get(pageNumber)
   if (cached && cached.isConnected) return cached
 
   const virtualIndex = pageNumber - 1
+  const [byVirtualIndex] = pageLayerSelectors(pageNumber)
 
-  const byVirtual = document.querySelector<HTMLElement>(
-    `.rpv-core__page-layer[data-virtual-index="${virtualIndex}"]`
-  )
+  const byVirtual = document.querySelector<HTMLElement>(byVirtualIndex)
+  if (byVirtual) return cacheAndReturn(pageNumber, byVirtual)
 
-  if (byVirtual) {
-    PAGE_LAYER_CACHE.set(pageNumber, byVirtual)
-    return byVirtual
-  }
-
-  const byAttr = document.querySelector<HTMLElement>(
-    `.rpv-core__page-layer[data-page-number="${pageNumber}"]`
-  )
-
-  if (byAttr) {
-    PAGE_LAYER_CACHE.set(pageNumber, byAttr)
-    return byAttr
-  }
-
-  const allPages = document.querySelectorAll<HTMLElement>('.rpv-core__page-layer')
+  const allPages = document.querySelectorAll<HTMLElement>(`.${PAGE_LAYER_CLASS}`)
   for (const el of allPages) {
     const vi = el.dataset.virtualIndex
     if (vi && Number(vi) === virtualIndex) {
-      PAGE_LAYER_CACHE.set(pageNumber, el)
-      return el
+      return cacheAndReturn(pageNumber, el)
     }
   }
 
+  // Single-page view: whatever page is on screen is the requested page.
   if (allPages.length === 1) {
-    const onlyPage = allPages[0]
-    PAGE_LAYER_CACHE.set(pageNumber, onlyPage)
-    return onlyPage
+    return cacheAndReturn(pageNumber, allPages[0])
   }
 
   return null
@@ -202,9 +200,7 @@ export function extractPageTextFromDom(pageNumber: number): string | null {
   const pageLayer = getPageLayer(pageNumber)
   if (!pageLayer) return null
 
-  const textLayer = pageLayer.querySelector<HTMLElement>(
-    '.rpv-core__text-layer, .rpv-core__text-layer-basic'
-  )
+  const textLayer = pageLayer.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
 
   if (textLayer) {
     // Coordinate-aware extraction first: preserves the reading order of

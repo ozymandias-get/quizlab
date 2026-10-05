@@ -2,6 +2,7 @@
  * Extracts selected text from the DOM and computes its screen position.
  * Replaces the inline selection logic in usePdfTextSelection.
  */
+import { TEXT_LAYER_SELECTOR } from '../lib/pdfViewerDom'
 import { collectTextItems, orderTextItems } from './extractPageTextFromDom'
 import { normalizePdfText } from './normalizePdfText'
 import type { SelectionPosition } from './types'
@@ -36,9 +37,7 @@ interface SelectionExtractResult {
  * (column cluster, Y) exactly like extractPageTextFromDom does for whole pages.
  */
 function extractOrderedSelectionText(range: Range, container: HTMLElement): string | null {
-  const textLayer = container.querySelector<HTMLElement>(
-    '.rpv-core__text-layer, .rpv-core__text-layer-basic'
-  )
+  const textLayer = container.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
   if (!textLayer) return null
 
   const allItems = collectTextItems(textLayer)

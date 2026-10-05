@@ -6,6 +6,15 @@ import { findPageCanvas } from '@features/pdf/capture/findPageCanvas'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+/**
+ * Builds a page layer the way @react-pdf-viewer/core@3.12.0 actually does.
+ *
+ * The viewer declares `VIRTUAL_INDEX_ATTR = 'data-virtual-index'` (0-based) and
+ * `'data-testid': 'core__page-layer-' + index`, and renders the
+ * `rpv-core__page-layer` class. It does NOT emit `data-page-number` and has no
+ * `.pdf-page-wrapper` class, so a fixture using those could only ever pass by
+ * accident.
+ */
 function makePageLayer(
   pageNumber: number,
   withCanvas = true,
@@ -14,7 +23,8 @@ function makePageLayer(
 ): HTMLElement {
   const layer = document.createElement('div')
   layer.className = 'rpv-core__page-layer'
-  layer.setAttribute('data-page-number', String(pageNumber))
+  layer.setAttribute('data-virtual-index', String(pageNumber - 1))
+  layer.setAttribute('data-testid', `core__page-layer-${pageNumber - 1}`)
   if (withCanvas) {
     const canvas = document.createElement('canvas')
     canvas.width = width
@@ -150,5 +160,31 @@ describe('findPageCanvas', () => {
     const layer2 = makePageLayer(2)
     container.appendChild(layer2)
     expect(findPageCanvas(2)).toBe(layer2.querySelector('canvas'))
+  })
+
+  it('resolves a page layer that only carries the viewer testid', () => {
+    // Both selectors in pageLayerSelectors() are emitted by the viewer, so
+    // either one alone must be enough to identify the page.
+    const layer = makePageLayer(3)
+    layer.removeAttribute('data-virtual-index')
+    container.appendChild(layer)
+
+    expect(findPageCanvas(3)).toBe(layer.querySelector('canvas'))
+  })
+
+  it('resolves a page layer that only carries data-virtual-index', () => {
+    const layer = makePageLayer(4)
+    layer.removeAttribute('data-testid')
+    container.appendChild(layer)
+
+    expect(findPageCanvas(4)).toBe(layer.querySelector('canvas'))
+  })
+
+  it('uses the 0-based virtual index the viewer emits, not a 1-based guess', () => {
+    const layer = makePageLayer(1)
+    container.appendChild(layer)
+
+    // Page 1 is virtual index 0; asking for "page 0" must not match it.
+    expect(findPageCanvas(0)).toBeNull()
   })
 })
