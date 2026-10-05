@@ -123,6 +123,64 @@ type AssertAllTrue<T extends true[]> = T
 // Exported so the assertion is evaluated and retained; never used at runtime.
 export type RendererCoversContract = AssertAllTrue<RendererParityChecks>
 
+/**
+ * Key-set equality, both directions.
+ *
+ * Assignability on its own has a blind spot: `{ a: string }` IS assignable to
+ * `{ a: string; b?: number }`, so deleting an optional field from either side is
+ * invisible. That is precisely how NATIVE_MESSAGING_INSTALL_EXTENSION dropped
+ * `installedPath` from the contract without any type failing.
+ *
+ * Only meaningful for plain object payloads: `keyof` a union yields the
+ * *intersection* of its members' keys, and `keyof` a type with an index
+ * signature is `string`, so neither has a well-defined exact key set. Those
+ * channels stay covered by the assignability table alone and are excluded below.
+ */
+type ExactKeys<A, B> =
+  Exclude<keyof A, keyof B> extends never
+    ? Exclude<keyof B, keyof A> extends never
+      ? true
+      : false
+    : false
+
+type RendererKeysMatch<
+  C extends IpcInvokeChannel,
+  M extends (...args: never[]) => unknown
+> = ExactKeys<ChannelData<C>, Exclude<Awaited<ReturnType<M>>, null>>
+
+type RendererKeyParityChecks = [
+  RendererKeysMatch<typeof IPC_CHANNELS.GET_AI_REGISTRY, ElectronApi['getAiRegistry']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.GET_PDF_STREAM_URL, ElectronApi['getPdfStreamUrl']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.PDF_REGISTER_PATH, ElectronApi['registerPdfPath']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.CAPTURE_SCREEN, ElectronApi['captureScreen']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.GET_APP_SETTINGS, ElectronApi['getAppSettings']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.GET_API_CHAT_CONFIG, ElectronApi['getApiChatConfig']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.SEND_API_CHAT_REQUEST, ElectronApi['sendApiChatRequest']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.FETCH_API_CHAT_MODELS, ElectronApi['fetchApiChatModels']>,
+  RendererKeysMatch<
+    typeof IPC_CHANNELS.SHELL_INTEGRATION_STATUS,
+    ElectronApi['shellIntegration']['getStatus']
+  >,
+  RendererKeysMatch<typeof IPC_CHANNELS.GEMINI_WEB_STATUS, ElectronApi['geminiWeb']['getStatus']>,
+  RendererKeysMatch<
+    typeof IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
+    ElectronApi['nativeMessaging']['getStatus']
+  >,
+  RendererKeysMatch<
+    typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION,
+    ElectronApi['nativeMessaging']['installExtension']
+  >,
+  RendererKeysMatch<typeof IPC_CHANNELS.AI_VIEW_ATTACH, ElectronApi['aiView']['attach']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.AI_VIEW_DETACH, ElectronApi['aiView']['detach']>,
+  // GET_AI_CONFIG is deliberately absent: its payload is
+  // `AiSelectorConfig | Record<string, AiSelectorConfig>`, a union that includes
+  // an index signature, so `keyof` has no exact answer for it. The assignability
+  // table still covers it.
+  RendererKeysMatch<typeof IPC_CHANNELS.AI_VIEW_LOAD_URL, ElectronApi['aiView']['loadUrl']>
+]
+
+export type RendererKeysMatchContract = AssertAllTrue<RendererKeyParityChecks>
+
 // The one field whose absence went unnoticed: asserted explicitly on both sides.
 type InstallChannelData = ChannelData<typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION>
 type InstallRendererPayload = Exclude<
@@ -137,6 +195,7 @@ export type InstallPathDeclaredEverywhere = 'installedPath' extends keyof Instal
 
 // Runtime witness so the exported types above are not elided as unused.
 const rendererIsNotNarrower: RendererCoversContract extends true[] ? true : false = true
+const rendererKeysMatch: RendererKeysMatchContract extends true[] ? true : false = true
 
 describe('IPC contract', () => {
   it('covers all invoke-style channels used in preload', () => {
@@ -263,6 +322,14 @@ describe('IPC contract', () => {
     // NATIVE_MESSAGING_INSTALL_EXTENSION omitting `installedPath` from the
     // contract while the handler resolved it and the renderer read it.
     expect(rendererIsNotNarrower).toBe(true)
+  })
+
+  it('gives the renderer-facing result exactly the contract payload keys', () => {
+    // The assignability check above cannot see a dropped *optional* field,
+    // because `{ a: string }` is assignable to `{ a: string; b?: number }`.
+    // That is exactly the shape of the installedPath drift, so key sets are
+    // compared in both directions as well.
+    expect(rendererKeysMatch).toBe(true)
   })
 
   it('types the event payloads the preload subscribes to', () => {
