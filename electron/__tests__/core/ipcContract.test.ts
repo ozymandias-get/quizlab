@@ -3,6 +3,7 @@ import type {
   AutomationScriptAction,
   AutomationScriptArgsByAction,
   IpcEventChannel,
+  IpcEventMap,
   IpcInvokeChannel,
   IpcInvokeRequestMap
 } from '@shared-core/types/ipcContract'
@@ -17,6 +18,15 @@ function assertInvokeChannel<_T extends IpcInvokeChannel>(_channel: _T) {
 function assertAutomationAction<_A extends AutomationScriptAction>(
   _action: _A,
   ..._args: AutomationScriptArgsByAction[_A]
+) {
+  // no-op – purely for type checking
+}
+
+// Helper to assert at compile time that an event channel's payload tuple accepts
+// the given arguments, i.e. that the preload callback for it is typed.
+function assertEventArgs<_C extends IpcEventChannel>(
+  _channel: _C,
+  ..._args: IpcEventMap[_C]['args']
 ) {
   // no-op – purely for type checking
 }
@@ -138,6 +148,31 @@ describe('IPC contract', () => {
     type Overlap = InvokeChannels & EventChannels
     const _check: Overlap = undefined as never
     void _check
+    expect(true).toBe(true)
+  })
+
+  it('keeps the contract result in step with what the handler actually returns', () => {
+    type InstallResult =
+      IpcInvokeRequestMap[typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION]['result']
+    type InstallData = Extract<InstallResult, { ok: true }>['data']
+    function assertResultKey<_K extends keyof InstallData>(_key: _K) {
+      // no-op – purely for type checking
+    }
+    // nativeMessagingManager.installExtension() resolves `installedPath` and the
+    // extension wizard reads it. The contract omitted the field while
+    // electronApi.ts declared it, so nothing failed to compile; this pins the
+    // contract to the real payload.
+    assertResultKey('success')
+    assertResultKey('installedPath')
+    expect(true).toBe(true)
+  })
+
+  it('types the event payloads the preload subscribes to', () => {
+    // onTriggerScreenshot and onPdfViewerZoom used to hand-roll ipcRenderer.on,
+    // which cost them Parameters<Parameters<...>> casts. Routed through
+    // onEvent() they are typed by the event map, so both payloads must resolve.
+    assertEventArgs(IPC_CHANNELS.TRIGGER_SCREENSHOT, 'full-page')
+    assertEventArgs(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
     expect(true).toBe(true)
   })
 })
