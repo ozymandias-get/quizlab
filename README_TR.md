@@ -26,8 +26,8 @@
 
 Quizlab Reader, bir PDF görüntüleyici ile bir dizi yapay zeka asistanını tek
 pencerede tutar. Sol panel çok sekmeli bir PDF çalışma alanıdır; sağ panel ise
-sekme sekme düzenlenmiş, her biri kendi kalıcı Chromium oturumuna sahip izole
-`<webview>`'lerden oluşan yapay zeka oturumlarıdır. Seçilen metin, sayfa
+sekme sekme düzenlenmiş, her biri ana sürecin yönettiği `WebContentsView` ve
+kalıcı Chromium oturum bölümüne sahip yapay zeka oturumlarıdır. Seçilen metin, sayfa
 görüntüleri ve kırpılmış ekran görüntüleri yüzen bir gönderme bileşeninde
 toplanır ve DOM otomasyonu ile aktif yapay zeka sekmesine iletilir; böylece
 okuduğunuz belgeden çıkmak zorunda kalmazsınız.
@@ -245,8 +245,9 @@ erişimi olan biri için anahtar deposunun yerine geçmez.
 
 ```
 Renderer (src/)
-  React çalışma alanı: PDF paneli, yapay zeka webview paneli,
+  React çalışma alanı: PDF paneli, AI host placeholder bileşenleri,
   gönderme bileşeni, ayarlar
+  AiContentController: uzak komutlar ve generation filtreli durum
   hook'lar + window.electronAPI üzerinde TanStack Query
         |  tipli invoke (kanal -> istek/sonuç tipleri)
         v
@@ -256,12 +257,15 @@ Preload (electron/preload/)
         v
 Main (electron/)
   ipcMain handler'ları, her çağrıda güvenilir gönderici kontrolü
-  özellik modülleri: ai, automation, gemini-web-session, native-messaging,
+  özellik modülleri: ai-view, ai, automation, gemini-web-session, native-messaging,
                      pdf, screenshot, settings, shell-open
   core: yapılandırma deposu, şifreleme, CSP, günlükleme, önbellek, güncelleyici
         |
         +--> local-pdf:// protokolü -> yerel PDF dosyaları (izin listesi, bayt aralıkları)
-        +--> Chromium bölümleri   -> her yapay zeka sitesi için çerez ve önbellek
+        +--> AiWebContentsViewManager -> WebContentsView / sağlayıcı bölümleri
+        |                            uzak komutlar ve olay köprüsü
+        +--> remoteContentSecurity -> gezinme, popup, TLS, pano
+        +--> permissionPolicy      -> bölüm + kayıtlı kaynak izinleri
         +--> model sağlayıcı HTTP -> doğrudan API sohbeti (SSRF doğrulamalı)
         +--> GitHub Releases API  -> güncelleme bildirimi
 ```
@@ -273,8 +277,15 @@ istek/sonuç haritası (`shared/types/ipcContract.ts`) ve paylaşılan alan tipl
 Değişiklik yapmadan önce bilinmesi gereken iki tasarım noktası: gezinme durumdur,
 yönlendirme değil — bir yönlendirici yoktur ve PDF sekmeleri (Zustand) ile
 yapay zeka sekmeleri (bölünmüş context'ler arkasında `useState`) birbirinden
-bağımsızdır; ve her yapay zeka etkileşimi, harici bir tarayıcıyı sürmek yerine
-ana süreçte JavaScript üretip bunu hedef `<webview>` içinde çalıştırarak gerçekleşir.
+bağımsızdır; web oturumu otomasyonu `AiContentController` ve tipli IPC üzerinden
+ana süreçte üretilen betikleri yönetilen uzak görünümde çalıştırır. API Sohbet
+sağlayıcı HTTP isteklerini kullanır.
+
+Host sahipliği ile içerik yaşam döngüsü bağımsızdır. Host placeholder kaldırılınca
+yalnızca geometri bağlantısı ayrılır; odak modu aynı generation, URL ve sayfa
+durumunu yeniden yüklemeden kullanır. Sekme kapatma, LRU çıkarma ve uyku yönetilen
+görünümü yok eder; uyandırma yeni generation oluşturup ilk yüklemeyi bekler.
+Host sınırları birleştirilerek gönderilir; dialog ve örtüler açılınca native görünüm gizlenir.
 
 Katman sınırları, dependency-cruiser'ın uyguladığı import kuralları ve seçici
 kendini onarma akışı için [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -400,13 +411,20 @@ bunu ve her iki README'deki sürüm rozetini de denetler.
 Bu derlemenin doğrulanmış özellikleri:
 
 - **İzole renderer** — `contextIsolation: true`, `nodeIntegration: false`,
-  `sandbox: true`, `webSecurity: true`; renderer tarafından verilen webview
-  preload'ları soyulur ve webview tercihleri `will-attach-webview` üzerinde
-  zorlanır.
+  `sandbox: true`, `webSecurity: true` ve `webviewTag: false`. Ana süreç uzak
+  `WebContentsView` örneklerini güvenli tercihlerle ve Node erişimi olmadan oluşturur.
+- **Ana sürecin yönettiği uzak görünümler** — `AiViewTarget`, kaynak ve bölümleri
+  ana süreç kayıtlarından çözer. Tipli IPC sınırlı görünüm kimliği, host token,
+  sınır ve komut kabul eder; renderer bölüm, preload, WebContents kimliği veya
+  güvenlik tercihi gönderemez.
+- **Uzak içerik politikası** — ana çerçeve gezinmesi HTTPS gerektirir; popup
+  reddedilir ve doğrulanmış adres harici tarayıcıya aktarılır. `permissionPolicy`
+  bölüm ile kayıtlı kaynağı denetler; TLS sertifika hataları reddedilir. Pano
+  koruması güvenilir kullanıcı/uygulama yapıştırmasını korurken programatik erişimi engeller.
 - **Dar preload köprüsü** — izin verilen her IPC kanalı için tek açık metot;
   renderer'ın doğrudan Node erişimi yoktur.
 - **Gönderici doğrulaması** — her IPC handler'ı ana pencerenin ana çerçevesini
-  zorunlu tutar; alt çerçeveler ve webview'ler bunları çağıramaz.
+  zorunlu tutar; alt çerçeveler ve uzak görünümler bunları çağıramaz.
 - **Analiz yok** — paketlenmiş telemetri veya çökme bildirimi SDK'sı yok ve
   hiçbir şey kendiliğinden bir yere gönderilmez. Çökme raporları ve günlükler
   kullanıcı verisi klasöründeki `logs/` altına yazılır, orada kalır. Giden

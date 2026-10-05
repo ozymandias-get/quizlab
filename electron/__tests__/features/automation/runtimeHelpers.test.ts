@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest'
  * Not: `window.eval` bir function body bekler; tüm harness'ler arrow
  * function içine sarılmıştır.
  */
-describe('runtime helpers (webview template strings)', () => {
+describe('runtime helpers (guest-page template strings)', () => {
   describe('errorClassifierRuntime', () => {
     const harness = `() => {
       ${errorClassifierRuntime}

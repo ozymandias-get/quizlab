@@ -1,7 +1,7 @@
 /**
  * Kullanıcı Tanımlı Element Seçici (Picker) Modülü
  *
- * Bu modül, webview içine enjekte edilecek ve kullanıcının
+ * Bu modül, yönetilen uzak görünüm içine enjekte edilecek ve kullanıcının
  * etkileşime girmek istediği elementleri (Input ve Button)
  * manuel olarak seçmesini sağlayacak mantığı içerir.
  */
@@ -17,7 +17,7 @@ import { buildPickerTargetingBlock } from './pickerScript/targeting.js'
 import { buildPickerUiBlock } from './pickerScript/ui.js'
 
 /**
- * Webview içine enjekte edilecek "Picker" scripti.
+ * Yönetilen uzak görünüm içine enjekte edilecek "Picker" scripti.
  * Bu script, sayfadaki elementleri vurgular ve tıklamaları yakalar.
  *
  * Electron executeJavaScript yalnızca ana çerçevede çalışır; ana sayfa içeriği

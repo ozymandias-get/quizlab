@@ -26,7 +26,7 @@ vi.mock('@shared/lib/logger', () => ({
   Logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() }
 }))
 
-const makeWebview = (
+const makeController = (
   url: string | null = 'https://chatgpt.com/?model=gpt-4'
 ): AiContentController =>
   ({
@@ -98,7 +98,7 @@ describe('getCachedAiConfig', () => {
       configCache: cache,
       currentAI: 'chatgpt',
       queryClient: makeQueryClient(null),
-      content: makeWebview(null)
+      content: makeController(null)
     })
     expect(result.config).toBe(base)
     expect(result.regex).toBeNull()
@@ -113,7 +113,7 @@ describe('getCachedAiConfig', () => {
       configCache: cache,
       currentAI: 'chatgpt',
       queryClient: makeQueryClient(remote),
-      content: makeWebview('https://chatgpt.com/c/abc')
+      content: makeController('https://chatgpt.com/c/abc')
     })
 
     // Override should win
@@ -127,7 +127,7 @@ describe('getCachedAiConfig', () => {
 
   it('returns cached entry on second call with the same key', async () => {
     const base: AiConfig = { input: 'i' }
-    const content = makeWebview('https://chatgpt.com/c/abc')
+    const content = makeController('https://chatgpt.com/c/abc')
     const queryClient = makeQueryClient({ input: 'remote' })
 
     const first = await getCachedAiConfig({
@@ -153,7 +153,7 @@ describe('getCachedAiConfig', () => {
 
   it('busts cache when AI key changes', async () => {
     const base: AiConfig = { input: 'i' }
-    const content = makeWebview('https://chatgpt.com/c/abc')
+    const content = makeController('https://chatgpt.com/c/abc')
     const queryClient = makeQueryClient({ input: 'remote' })
 
     await getCachedAiConfig({
@@ -176,7 +176,7 @@ describe('getCachedAiConfig', () => {
   })
 
   it('busts cache when base config changes', async () => {
-    const content = makeWebview('https://chatgpt.com/c/abc')
+    const content = makeController('https://chatgpt.com/c/abc')
     const queryClient = makeQueryClient({ input: 'remote' })
 
     await getCachedAiConfig({
@@ -212,7 +212,7 @@ describe('getCachedAiConfig', () => {
       configCache: cache,
       currentAI: 'chatgpt',
       queryClient,
-      content: makeWebview()
+      content: makeController()
     })
 
     expect(result.config).toBe(base)
@@ -227,7 +227,7 @@ describe('getCachedAiConfig', () => {
       configCache: cache,
       currentAI: 'chatgpt',
       queryClient: makeQueryClient(null),
-      content: makeWebview()
+      content: makeController()
     })
     // Base should win since override is null
     expect(result.config).toBe(base)
@@ -240,7 +240,7 @@ describe('getCachedAiConfig', () => {
       configCache: cache,
       currentAI: 'chatgpt',
       queryClient: makeQueryClient('not-an-object'),
-      content: makeWebview()
+      content: makeController()
     })
     // Should not crash; base wins
     expect(result.config.input).toBe('i')

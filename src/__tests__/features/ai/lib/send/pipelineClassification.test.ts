@@ -4,7 +4,7 @@ import type { SendImageResult, SendTextResult } from '@features/ai/model/types'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createSendWebviewMock, makePipelineParams } from './sharedTestHelpers'
+import { createSendContentMock, makePipelineParams } from './sharedTestHelpers'
 
 describe('pipeline error classification integration', () => {
   describe('classifyAiSendError', () => {
@@ -56,7 +56,7 @@ describe('pipeline error classification integration', () => {
 
   describe('executePipelineStep attaches classification to diagnostics', () => {
     it('attaches a classified error when script returns input_not_found', async () => {
-      const content = createSendWebviewMock({ success: false, error: 'input_not_found' })
+      const content = createSendContentMock({ success: false, error: 'input_not_found' })
       const params = makePipelineParams({ content, scheduledContent: content })
 
       const result = await executePipelineStep<SendTextResult>(params)
@@ -74,7 +74,7 @@ describe('pipeline error classification integration', () => {
     })
 
     it('attaches a classified error when script returns submit_not_ready', async () => {
-      const content = createSendWebviewMock({ success: false, error: 'submit_not_ready' })
+      const content = createSendContentMock({ success: false, error: 'submit_not_ready' })
       const params = makePipelineParams({ content, scheduledContent: content })
 
       const result = await executePipelineStep<SendTextResult>(params)
@@ -88,7 +88,7 @@ describe('pipeline error classification integration', () => {
     })
 
     it('uses the step-name fallback code when script returns no error field', async () => {
-      const content = createSendWebviewMock({ success: false })
+      const content = createSendContentMock({ success: false })
       const params = makePipelineParams({ content, scheduledContent: content })
 
       const result = await executePipelineStep<SendTextResult>(params)

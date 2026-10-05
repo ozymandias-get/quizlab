@@ -1,7 +1,7 @@
 /**
  * Shared test helpers for AI send pipeline tests.
  *
- * Extracts the duplicate createWebviewMock and makeParams from:
+ * Shares content controller mocks and pipeline parameters across:
  *   - pipelineCancellation.test.ts
  *   - pipelineClassification.test.ts
  *   - pipelineUtils.test.ts
@@ -13,22 +13,20 @@ import type { AiSendDiagnostics } from '@features/ai/model/types'
 
 import { vi } from 'vitest'
 
-export function createSendWebviewMock(
+export function createSendContentMock(
   execResult: unknown = { success: true }
 ): AiContentController {
   return {
     executeJavaScript: vi.fn().mockResolvedValue(execResult),
     isDestroyed: () => false,
-    getURL: () => 'https://chat.example.com',
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
-  } as unknown as AiContentController
+    getURL: () => 'https://chat.example.com'
+  }
 }
 
 export function makePipelineParams(
   overrides: Partial<PipelineStepParams> = {}
 ): PipelineStepParams {
-  const content = createSendWebviewMock({ success: true })
+  const content = createSendContentMock({ success: true })
   return {
     name: 'Send',
     content,

@@ -123,9 +123,9 @@ describe('useAiSender - error handling', () => {
       { wrapper: createWrapper() }
     )
 
-    const anotherWebview = { ...mockContent, executeJavaScript: vi.fn() }
+    const anotherContent = { ...mockContent, executeJavaScript: vi.fn() }
     mockGenerateAutoSendScript.mockImplementationOnce(async () => {
-      swappedRef.current = anotherWebview as any
+      swappedRef.current = anotherContent as any
       return 'send()'
     })
 

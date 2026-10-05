@@ -48,14 +48,27 @@ regressed:
 
 - **Window isolation** — `contextIsolation: true`, `nodeIntegration: false`,
   `sandbox: true`, `webSecurity: true` in
-  `electron/app/window/windows.ts`. On `will-attach-webview`,
-  `electron/app/window/security.ts` strips renderer-supplied preloads and
-  forces the same preferences on every `<webview>`.
+  `electron/app/window/windows.ts`, with `webviewTag: false`.
+- **Main-owned remote views** — `electron/features/ai-view/aiWebContentsViewManager.ts`
+  creates `WebContentsView` instances with Node integration disabled in all
+  frames, isolation, sandboxing and web security enabled, insecure content and
+  experimental features disabled, drag-drop navigation disabled, and background
+  throttling enabled. Renderer requests cannot choose a preload or preferences.
+- **Target and capability validation** — `AiViewTarget` resolves each source to a
+  main-owned registry entry and partition. AI-view IPC validates bounded ids,
+  tokens, bounds and commands; it never accepts a partition or WebContents id.
+  Restored and renderer-requested URLs require HTTPS and a trusted partition host.
+- **Remote content security** — `electron/app/window/remoteContentSecurity.ts`
+  rejects non-HTTPS main-frame navigation and TLS certificate errors, denies
+  popup windows and validates external handoff. Provider auth navigation follows
+  the Google session handoff policy. `permissionPolicy.ts` validates permissions
+  against both partition and registered origin, including custom HTTPS platforms.
+  Clipboard guards block programmatic access while allowing trusted user/app paste.
 - **Narrow preload bridge** — `electron/preload/index.ts` exposes one explicit
   method per allowed channel through `contextBridge`; nothing else crosses.
 - **IPC sender validation** — `electron/core/ipcSecurity.ts` requires both that
   the sender is the main window's web contents and that the frame is its main
-  frame, so subframes and webviews cannot invoke main-process handlers.
+  frame, so subframes and remote views cannot invoke main-process handlers.
 - **Content Security Policy** — a nonce-based policy is injected into the main
   frame (`electron/core/csp.ts`); the document also declares a `frame-src`
   allowlist.

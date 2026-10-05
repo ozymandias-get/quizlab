@@ -214,21 +214,21 @@ const ERROR_TABLE: ReadonlyArray<{
     category: 'webview',
     retry: 'never',
     toastKey: 'toast_webview_destroyed',
-    description: 'Webview was destroyed mid-operation.'
+    description: 'Managed view was destroyed mid-operation.'
   },
   {
     match: /^webview_not_ready$/,
     category: 'webview',
     retry: 'never',
     toastKey: 'toast_webview_not_ready',
-    description: 'Webview not attached or not ready.'
+    description: 'Managed view not attached or not ready.'
   },
   {
     match: /^webview_api_missing$/,
     category: 'webview',
     retry: 'never',
     toastKey: 'toast_webview_api_missing',
-    description: 'Webview is missing required APIs.'
+    description: 'Content controller is missing required APIs.'
   },
   // ── Site / config ───────────────────────────────────────────────────
   {

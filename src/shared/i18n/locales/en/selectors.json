@@ -5,7 +5,7 @@
   "element_picker": "Magic Picker",
   "element_selectors": "Element Selectors",
   "no_selectors": "No Selectors Yet",
-  "no_selectors_hint": "Use the Magic Picker in the AI webview to define custom selectors.",
+  "no_selectors_hint": "Use the Magic Picker in the AI panel to define custom selectors.",
   "selector_delete_failed": "Failed to delete selector",
   "selector_deleted": "Selector deleted",
   "selectors": "Selectors",
