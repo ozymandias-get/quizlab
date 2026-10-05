@@ -29,11 +29,19 @@ export const MAX_VIEW_BORDER_RADIUS = 512
 const INPUT_EVENT_TYPES = new Set<AiContentInputEvent['type']>(['keyDown', 'keyUp', 'char'])
 
 export function isValidViewId(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_LENGTH
+  return (
+    typeof value === 'string' &&
+    value.length <= MAX_ID_LENGTH &&
+    /^(?:gdrive:)?[a-zA-Z0-9_-]+$/.test(value)
+  )
 }
 
 export function isValidHostToken(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= MAX_HOST_TOKEN_LENGTH
+  return (
+    typeof value === 'string' &&
+    value.length <= MAX_HOST_TOKEN_LENGTH &&
+    /^[a-zA-Z0-9_-]+$/.test(value)
+  )
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -139,7 +147,7 @@ export function parseText(value: unknown): string | null {
   return value
 }
 
-export function parseUrl(value: unknown): string | null {
+function parseUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
   if (value.length === 0 || value.length > MAX_URL_LENGTH) return null
   try {

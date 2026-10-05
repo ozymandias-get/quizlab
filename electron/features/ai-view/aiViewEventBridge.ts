@@ -14,7 +14,7 @@ import type { AiViewEvent } from '../../../shared/types/aiView.js'
 
 const NON_CRASH_REASONS = new Set(['clean-exit', 'killed'])
 
-export function isCrashReason(reason: string): boolean {
+function isCrashReason(reason: string): boolean {
   return !NON_CRASH_REASONS.has(reason)
 }
 
@@ -31,7 +31,7 @@ interface ConsoleMessagePayload {
  * guest console message (which is how the Magic Selector reports its result)
  * is never dropped.
  */
-export function normalizeConsoleMessage(
+function normalizeConsoleMessage(
   event: unknown,
   legacy: { level?: unknown; message?: unknown; lineNumber?: unknown; sourceId?: unknown } = {}
 ): ConsoleMessagePayload {
@@ -59,7 +59,7 @@ export interface AiViewEventBridgeContext {
    * The bridge is the only place that observes every lifecycle transition, so it
    * is also the only place the manager's `currentUrl` / `isLoading` /
    * `hasLoadedOnce` mirror can be kept truthful without duplicating the listener
-   * list. `loadState` is derived by the caller from the fields it already owns.
+   * list. Snapshots use these same fields without a second derived load status.
    */
   onLoadStateChange: (change: AiViewLoadStateChange) => void
 }
@@ -259,11 +259,9 @@ const PAGE_CHROME_CSS = `
   }
 `
 
-const pageChromeApplied = new WeakSet<WebContents>()
-
 function applyPageChrome(webContents: WebContents): void {
-  if (pageChromeApplied.has(webContents)) return
-  pageChromeApplied.add(webContents)
+  // insertCSS belongs to the current document. dom-ready fires once for each
+  // new document, while in-page navigation keeps the existing stylesheet.
   void webContents.insertCSS(PAGE_CHROME_CSS).catch(() => {
     // Cosmetic only; a rejected injection is not worth surfacing.
   })

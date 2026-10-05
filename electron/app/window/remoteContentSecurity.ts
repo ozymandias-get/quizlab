@@ -150,7 +150,7 @@ export function applyRemoteContentSecurity({
         Logger.error('[Security] Failed to open external popup URL:', error)
       })
     } else {
-      Logger.warn('[Security] Blocked remote content popup', { url })
+      Logger.warn('[Security] Blocked remote content popup')
     }
     return { action: 'deny' }
   })
@@ -175,7 +175,7 @@ export function applyRemoteContentSecurity({
     // before the auth hand-off gets a chance to hand it to the system browser.
     if (!isAllowedRemoteNavigationScheme(url)) {
       event.preventDefault()
-      Logger.warn('[Security] Blocked remote content navigation scheme', { url })
+      Logger.warn('[Security] Blocked remote content navigation scheme')
       return
     }
     guardAuthNavigation(event, url)

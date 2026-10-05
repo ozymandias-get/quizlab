@@ -39,10 +39,10 @@ const manager = vi.hoisted(() => {
     },
     attach: (viewId: string) => {
       const existing = views.get(viewId)
-      if (existing) return { generation: existing.generation, created: false }
+      if (existing) return { generation: existing.generation }
       generationCounter += 1
       views.set(viewId, { generation: generationCounter, closed: false })
-      return { generation: generationCounter, created: true }
+      return { generation: generationCounter }
     }
   }
 })

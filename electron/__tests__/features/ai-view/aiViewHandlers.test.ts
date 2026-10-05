@@ -66,9 +66,7 @@ vi.mock('../../../features/ai-view/aiWebContentsViewManager.js', async () => {
       currentUrl: 'https://chatgpt.com/',
       isLoading: true,
       hasLoadedOnce: false,
-      loadState: 'loading',
-      error: null,
-      created: true
+      error: null
     })),
     detachAiViewHost: vi.fn(() => true),
     destroyAiView: vi.fn(async () => true),
@@ -146,9 +144,7 @@ beforeEach(() => {
     currentUrl: 'https://chatgpt.com/',
     isLoading: true,
     hasLoadedOnce: false,
-    loadState: 'loading',
-    error: null,
-    created: true
+    error: null
   })
   ;(manager.executeAiViewScript as ReturnType<typeof vi.fn>).mockResolvedValue('ok')
   ;(manager.getAiViewUrl as ReturnType<typeof vi.fn>).mockReturnValue('https://chatgpt.com/')

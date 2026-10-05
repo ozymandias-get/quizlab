@@ -11,9 +11,7 @@ const freshAttachResponse = (generation = 1, currentUrl = 'https://x.test/') => 
   currentUrl,
   isLoading: true,
   hasLoadedOnce: false,
-  loadState: 'loading' as const,
-  error: null,
-  created: true
+  error: null
 })
 
 /**
@@ -25,9 +23,7 @@ const settledAttachResponse = (generation = 1, currentUrl = 'https://x.test/') =
   currentUrl,
   isLoading: false,
   hasLoadedOnce: true,
-  loadState: 'settled' as const,
-  error: null,
-  created: false
+  error: null
 })
 
 const aiViewClient = vi.hoisted(() => ({

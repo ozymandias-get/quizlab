@@ -54,9 +54,7 @@ const manager = vi.hoisted(() => {
           currentUrl: 'https://chatgpt.com/',
           isLoading: false,
           hasLoadedOnce: true,
-          loadState: 'settled',
-          error: null,
-          created: false
+          error: null
         }
       }
       counter += 1
@@ -66,9 +64,7 @@ const manager = vi.hoisted(() => {
         currentUrl: 'https://chatgpt.com/',
         isLoading: true,
         hasLoadedOnce: false,
-        loadState: 'loading',
-        error: null,
-        created: true
+        error: null
       }
     })
 
@@ -211,7 +207,6 @@ const settle = (viewId: string, currentUrl = 'https://chatgpt.com/') => {
       currentUrl,
       isLoading: false,
       hasLoadedOnce: true,
-      loadState: 'settled',
       error: null
     })
     subscriber({ viewId, generation, kind: 'did-stop-loading', currentUrl })

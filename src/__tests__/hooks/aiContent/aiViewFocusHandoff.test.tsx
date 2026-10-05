@@ -10,7 +10,7 @@
  *
  * The fake below is a state machine in the shape of `AiWebContentsViewManager`:
  * it only reports what the manager actually knows (generation, current URL,
- * isLoading, hasLoadedOnce, loadState), and it emits no event for a load that
+ * isLoading, hasLoadedOnce, error), and it emits no event for a load that
  * already finished. A host therefore only reaches `visible: true` if the
  * snapshot on the attach response is really consumed.
  */
@@ -35,9 +35,7 @@ interface FakeAttachResponse {
   currentUrl: string
   isLoading: boolean
   hasLoadedOnce: boolean
-  loadState: 'loading' | 'settled'
   error: null
-  created: boolean
 }
 
 /**
@@ -55,7 +53,6 @@ const manager = vi.hoisted(() => {
     currentUrl: view.currentUrl,
     isLoading: view.isLoading,
     hasLoadedOnce: view.hasLoadedOnce,
-    loadState: view.isLoading ? ('loading' as const) : ('settled' as const),
     error: null
   })
 
@@ -74,7 +71,7 @@ const manager = vi.hoisted(() => {
     },
     attach: (viewId: string): FakeAttachResponse => {
       const existing = views.get(viewId)
-      if (existing && !existing.closed) return { ...snapshotOf(existing), created: false }
+      if (existing && !existing.closed) return { ...snapshotOf(existing) }
       generationCounter += 1
       const view: FakeView = {
         generation: generationCounter,
@@ -84,7 +81,7 @@ const manager = vi.hoisted(() => {
         closed: false
       }
       views.set(viewId, view)
-      return { ...snapshotOf(view), created: true }
+      return { ...snapshotOf(view) }
     },
     destroy: (viewId: string) => {
       const view = views.get(viewId)

@@ -41,9 +41,7 @@ const freshAttachResponse = (generation: number, currentUrl: string) => ({
   currentUrl,
   isLoading: true,
   hasLoadedOnce: false,
-  loadState: 'loading' as const,
-  error: null,
-  created: true
+  error: null
 })
 
 beforeEach(() => {

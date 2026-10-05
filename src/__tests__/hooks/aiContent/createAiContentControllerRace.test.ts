@@ -51,9 +51,7 @@ const freshResponse = (generation: number): AiViewAttachResponse => ({
   currentUrl: 'https://chatgpt.com/',
   isLoading: true,
   hasLoadedOnce: false,
-  loadState: 'loading',
-  error: null,
-  created: true
+  error: null
 })
 
 /** An attach whose answer the test decides when to deliver. */
@@ -82,6 +80,28 @@ beforeEach(() => {
 })
 
 describe('createAiContentController - state invariants', () => {
+  it.each(['retirement', 'host disposal'])(
+    'does not recreate after %s supersedes its pending destroy',
+    async (action) => {
+      const controller = makeController()
+      await controller.attach()
+      let finishDestroy: (value: boolean) => void = () => {}
+      aiViewClient.destroy.mockReturnValueOnce(
+        new Promise<boolean>((resolve) => {
+          finishDestroy = resolve
+        })
+      )
+      const recovering = controller.recreate()
+      if (action === 'retirement') await controller.destroy()
+      else controller.dispose()
+      finishDestroy(true)
+      await expect(recovering).resolves.toBe(false)
+      expect(aiViewClient.attach).toHaveBeenCalledTimes(1)
+      expect(controller.isReady?.()).toBe(false)
+      expect(controller.isDestroyed?.()).toBe(true)
+    }
+  )
+
   it('starts fresh: not ready, destroyed, no generation', () => {
     const controller = makeController()
     expect(controller.isReady?.()).toBe(false)
@@ -133,16 +153,14 @@ describe('createAiContentController - state invariants', () => {
   })
 
   it('bootstraps an existing settled view as ready, idle and already painted', async () => {
-    // Exactly what a focus-mode handoff receives: `created: false`, and no load
+    // Exactly what a focus-mode handoff receives: the same generation, and no load
     // event will ever arrive for this generation again.
     aiViewClient.attach.mockResolvedValueOnce({
       generation: 12,
       currentUrl: 'https://chatgpt.com/c/abc',
       isLoading: false,
       hasLoadedOnce: true,
-      loadState: 'settled',
-      error: null,
-      created: false
+      error: null
     })
 
     const controller = makeController()
@@ -165,9 +183,7 @@ describe('createAiContentController - state invariants', () => {
       currentUrl: 'https://chatgpt.com/',
       isLoading: true,
       hasLoadedOnce: false,
-      loadState: 'loading',
-      error: null,
-      created: false
+      error: null
     })
 
     const controller = makeController()
@@ -187,9 +203,7 @@ describe('createAiContentController - state invariants', () => {
       currentUrl: 'https://chatgpt.com/',
       isLoading: false,
       hasLoadedOnce: true,
-      loadState: 'failed',
-      error: { code: -105, description: 'ERR_NAME_NOT_RESOLVED' },
-      created: false
+      error: { code: -105, description: 'ERR_NAME_NOT_RESOLVED' }
     })
 
     const controller = makeController()

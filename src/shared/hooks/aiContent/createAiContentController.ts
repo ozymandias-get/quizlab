@@ -132,10 +132,7 @@ export function createAiContentController(
    */
   function applySnapshot(snapshot: AiViewStateSnapshot): void {
     if (snapshot.currentUrl) currentUrl = snapshot.currentUrl
-    // A response from a preload that predates the snapshot contract carries no
-    // load state. Assume "still loading" rather than reporting an idle guest
-    // that has not painted, which would let the send pipeline inject into it.
-    loading = typeof snapshot.isLoading === 'boolean' ? snapshot.isLoading : true
+    loading = snapshot.isLoading
   }
 
   const unsubscribeEvents = subscribeAiViewEvents((event) => {
@@ -185,7 +182,6 @@ export function createAiContentController(
         currentUrl: response.currentUrl,
         isLoading: response.isLoading,
         hasLoadedOnce: response.hasLoadedOnce,
-        loadState: response.loadState,
         error: response.error
       })
       const pending = buffered.splice(0, buffered.length)
@@ -219,12 +215,19 @@ export function createAiContentController(
     // `currentUrl` is deliberately kept: it is the only record of where the
     // conversation was, and both `recreate()` and a later `attach()` replay it.
     if (!client) return false
-    return client.destroy({ viewId }).catch(() => false)
+    return client.destroy({ viewId }).catch((error: unknown) => {
+      reportSuppressedError('aiContent.destroy', { cause: error })
+      return false
+    })
   }
 
   async function recreate(restoredUrl?: string): Promise<boolean> {
     const resumeUrl = restoredUrl ?? currentUrl
-    await destroy()
+    const destroying = destroy()
+    const epoch = lifecycleEpoch
+    await destroying
+    // Retirement or another recovery can supersede the destroy round trip.
+    if (epoch !== lifecycleEpoch) return false
     return attach(resumeUrl)
   }
 
@@ -315,6 +318,8 @@ export function createAiContentController(
     },
 
     dispose: () => {
+      lifecycleEpoch += 1
+      buffered.length = 0
       unsubscribeEvents()
       eventListeners.clear()
       readyListeners.clear()
