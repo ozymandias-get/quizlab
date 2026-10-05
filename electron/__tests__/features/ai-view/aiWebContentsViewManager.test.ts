@@ -784,6 +784,10 @@ describe('AiWebContentsViewManager - lifecycle', () => {
       lineNumber: 1,
       sourceId: 'x'
     })
+    entry.webContents.emit('console-message', {})
+    // The positional tuple is deprecated in favour of the event object and is no
+    // longer read: Electron is free to stop passing it, so a bridge that relied
+    // on it would silently lose every guest console message.
     entry.webContents.emit('console-message', undefined, 'warning', 'legacy message', 2, 'y')
 
     const kinds = received.map((event) => event.kind)
@@ -803,7 +807,37 @@ describe('AiWebContentsViewManager - lifecycle', () => {
     expect(received.every((event) => event.viewId === 'tab-1')).toBe(true)
 
     const consoleMessages = received.filter((e) => e.kind === 'console-message')
-    expect(consoleMessages.map((e) => e.message)).toEqual(['_aiPicker:result:{}', 'legacy message'])
+    // Every field is coerced off the event object, so a malformed payload arrives
+    // as empty values the picker bridge filters out rather than as a thrown error.
+    expect(consoleMessages).toEqual([
+      {
+        viewId: 'tab-1',
+        generation,
+        kind: 'console-message',
+        level: 'info',
+        message: '_aiPicker:result:{}',
+        lineNumber: 1,
+        sourceId: 'x'
+      },
+      {
+        viewId: 'tab-1',
+        generation,
+        kind: 'console-message',
+        level: '',
+        message: '',
+        lineNumber: 0,
+        sourceId: ''
+      },
+      {
+        viewId: 'tab-1',
+        generation,
+        kind: 'console-message',
+        level: '',
+        message: '',
+        lineNumber: 0,
+        sourceId: ''
+      }
+    ])
   })
 
   it('applies page chrome to each new document, without reinjecting on SPA navigation', async () => {

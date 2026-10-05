@@ -26,25 +26,27 @@ interface ConsoleMessagePayload {
 }
 
 /**
- * Electron exposes console output both on the event object and as positional
- * arguments. Read the object form first and fall back to the legacy tuple so a
- * guest console message (which is how the Magic Selector reports its result)
- * is never dropped.
+ * Reads the console payload off the event object Electron hands to a
+ * `console-message` listener.
+ *
+ * The positional tuple that used to follow the event is deprecated, and
+ * declaring it makes Electron log a removal warning on every message, so the
+ * object form is the only supported shape. Coercion is kept because this is the
+ * transport the Magic Selector reports its result over: a malformed payload
+ * must arrive as an empty string the picker bridge filters out, never as a
+ * dropped event that hangs the selection.
  */
-function normalizeConsoleMessage(
-  event: unknown,
-  legacy: { level?: unknown; message?: unknown; lineNumber?: unknown; sourceId?: unknown } = {}
-): ConsoleMessagePayload {
-  const source = (event ?? {}) as Record<string, unknown>
+function normalizeConsoleMessage(event: unknown): ConsoleMessagePayload {
+  const source = (event ?? {}) as Partial<Record<keyof ConsoleMessagePayload, unknown>>
   const readString = (value: unknown): string => (typeof value === 'string' ? value : '')
   const readNumber = (value: unknown): number =>
     typeof value === 'number' && Number.isFinite(value) ? value : 0
 
   return {
-    level: readString(source.level) || readString(legacy.level),
-    message: readString(source.message) || readString(legacy.message),
-    lineNumber: readNumber(source.lineNumber) || readNumber(legacy.lineNumber),
-    sourceId: readString(source.sourceId) || readString(legacy.sourceId)
+    level: readString(source.level),
+    message: readString(source.message),
+    lineNumber: readNumber(source.lineNumber),
+    sourceId: readString(source.sourceId)
   }
 }
 
@@ -182,16 +184,12 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
   }
 
   const onConsoleMessage = (
-    event: unknown,
-    level?: unknown,
-    message?: unknown,
-    lineNumber?: unknown,
-    sourceId?: unknown
+    event: Electron.Event<Electron.WebContentsConsoleMessageEventParams>
   ) => {
     emit({
       ...base,
       kind: 'console-message',
-      ...normalizeConsoleMessage(event, { level, message, lineNumber, sourceId })
+      ...normalizeConsoleMessage(event)
     })
   }
 
