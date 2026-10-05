@@ -117,6 +117,21 @@ const manager = vi.hoisted(() => {
         isMainFrame: true
       })
     },
+    /**
+     * A new load attempt inside the *same* WebContents.
+     *
+     * `did-start-loading` deliberately leaves `hasLoadedOnce` alone in the
+     * manager's mirror, so the republished snapshot reports a view that is both
+     * loading and already painted. A host that read `isLoading` as "take the
+     * splash back" would blank the panel on every SPA navigation.
+     */
+    renavigate: (viewId: string, url: string) => {
+      const view = views.get(viewId)
+      if (!view) return
+      view.currentUrl = url
+      view.isLoading = true
+      emit({ viewId, ...snapshotOf(view), kind: 'state' })
+    },
     reset: () => {
       views.clear()
       sinks.clear()
@@ -317,5 +332,30 @@ describe('focus mode - the settled view handoff', () => {
 
     expect(focus.result.current.isLoading).toBe(false)
     expect(lastSync()?.visible).toBe(true)
+  })
+
+  it('leaves the current page on screen while the same view starts another load', async () => {
+    // The distinction that makes a generation change safe: this snapshot also
+    // says `isLoading`, but it comes from the WebContents the user is already
+    // looking at, so the painted page stays and the splash does not return.
+    const workspace = await mount()
+    await act(async () => {
+      manager.settle('tab-1')
+    })
+    const generation = generationOf()
+    workspace.unmount()
+    await flush()
+
+    const focus = await mount()
+    expect(generationOf()).toBe(generation)
+
+    await act(async () => {
+      manager.renavigate('tab-1', 'https://chatgpt.com/c/next')
+    })
+
+    expect(focus.result.current.hasLoadedOnce).toBe(true)
+    expect(focus.result.current.isLoading).toBe(false)
+    expect(lastSync()?.visible).toBe(true)
+    expect(generationOf()).toBe(generation)
   })
 })

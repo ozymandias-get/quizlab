@@ -200,6 +200,43 @@ describe('useAiViewHost - corner radius', () => {
 
     expect(syncHost).not.toHaveBeenCalled()
   })
+
+  it('re-sends an unchanged snapshot on demand, once per call', async () => {
+    // The main process drops a sync naming a view it does not own yet and never
+    // acknowledges the ones it keeps, so the host cannot tell a delivered message
+    // from a lost one. `republish` is how it re-asserts a rectangle it already
+    // believes main has, without waiting for something to change.
+    const rect = { x: 4, y: 6, width: 500, height: 400 }
+    const { host } = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+    expect(syncHost).toHaveBeenCalledTimes(1)
+    syncHost.mockClear()
+
+    await act(async () => {
+      result.current.republish()
+      await new Promise((resolve) => setTimeout(resolve, 32))
+    })
+    expect(syncHost).toHaveBeenCalledTimes(1)
+    expect(syncHost.mock.calls[0][0].bounds).toEqual({
+      x: 4,
+      y: 6,
+      width: 500,
+      height: 400,
+      borderRadius: 15
+    })
+
+    // Two calls in the same frame coalesce into one send, exactly like a resize.
+    await act(async () => {
+      result.current.republish()
+      result.current.republish()
+      await new Promise((resolve) => setTimeout(resolve, 32))
+    })
+    expect(syncHost).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('useAiViewHost', () => {

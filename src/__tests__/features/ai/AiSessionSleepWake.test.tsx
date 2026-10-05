@@ -11,13 +11,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  *
  * The fake client below is a one-field model of `AiWebContentsViewManager`: a
  * view exists or it does not, and destroying it closes the `WebContents`. That is
- * enough to pin the two invariants this scenario is about — a sleeping tab must
- * not look ready to the send / picker pipelines, and waking must bring the same
- * conversation back on a brand new view.
+ * enough to pin the invariants this scenario is about — a sleeping tab must not
+ * look ready to the send / picker pipelines, waking must bring the same
+ * conversation back on a brand new view, and the brand new view must not inherit
+ * the revealed state of the one it replaced.
  *
  * Attach and destroy go through a per-view chain, because that is what the
  * manager does: a destroy issued while an attach is still resolving its target has
  * to run after it, or the tab it belongs to is left with an orphan WebContents.
+ *
+ * `settle` mirrors `aiViewEventBridge`: a load transition both updates the
+ * manager's mirror (which is republished as a `state` snapshot) and delivers the
+ * raw lifecycle event. A wake therefore arrives as a snapshot that says the
+ * replacement view has painted nothing yet, which is what the host has to obey.
  */
 
 const manager = vi.hoisted(() => {
@@ -183,6 +189,35 @@ const currentController = (): AiContentController | null => {
 
 const subscribers = new Set<(event: AiViewEvent) => void>()
 
+/** The last geometry + visibility message the host placeholder published. */
+const lastSync = () =>
+  aiViewClient.syncHost.mock.calls.at(-1)?.[0] as { visible: boolean } | undefined
+
+/**
+ * Chromium finishing the entry load of the live view for `viewId`.
+ *
+ * Mirrors `aiViewEventBridge`: the transition updates the manager's mirror — which
+ * it republishes as a `state` snapshot — and delivers the raw lifecycle event, so
+ * both reach the host exactly as they would in production.
+ */
+const settle = (viewId: string, currentUrl = 'https://chatgpt.com/') => {
+  const generation = manager.views.get(viewId)?.generation
+  if (generation === undefined) return
+  for (const subscriber of subscribers) {
+    subscriber({
+      viewId,
+      generation,
+      kind: 'state',
+      currentUrl,
+      isLoading: false,
+      hasLoadedOnce: true,
+      loadState: 'settled',
+      error: null
+    })
+    subscriber({ viewId, generation, kind: 'did-stop-loading', currentUrl })
+  }
+}
+
 describe('AiSession sleep / wake', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -308,6 +343,15 @@ describe('AiSession sleep / wake', () => {
     })
     const firstGeneration = manager.views.get('tab-1')?.generation
 
+    // Gen 1 reveals itself first, so the wake below starts from a host that
+    // genuinely believes its view is on screen.
+    act(() => {
+      settle('tab-1')
+    })
+    await waitFor(() => {
+      expect(lastSync()?.visible).toBe(true)
+    })
+
     manager.holdNextDestroy()
     view.rerender(<AiSession tab={tab} isActive={false} isSurfaceActive isOverlayActive={false} />)
     await waitFor(() => {
@@ -339,5 +383,72 @@ describe('AiSession sleep / wake', () => {
     })
     expect(currentController()?.isDestroyed?.()).toBe(false)
     expect(currentController()?.isLoading?.()).toBe(true)
+
+    // A live controller whose view has painted nothing must not be treated as
+    // revealed: the wake's snapshot has not settled yet, so the native view stays
+    // hidden and the splash is back. Asserting only `isLoading()` would pass even
+    // with the reveal already leaked into React state.
+    await waitFor(() => {
+      expect(lastSync()?.visible).toBe(false)
+    })
+    expect(screen.getByTestId('loader')).toBeInTheDocument()
+
+    act(() => {
+      settle('tab-1')
+    })
+    await waitFor(() => {
+      expect(lastSync()?.visible).toBe(true)
+    })
+    expect(screen.queryByTestId('loader')).toBeNull()
+  })
+
+  it('keeps the replacement view behind the splash until it has painted', async () => {
+    const view = render(<AiSession tab={tab} isActive isSurfaceActive isOverlayActive={false} />)
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(1)
+    })
+    const firstGeneration = manager.views.get('tab-1')?.generation
+
+    // The first generation paints a conversation, which is what the panel caches
+    // for the wake and what `revealAfterFirstLoad` revealed.
+    act(() => {
+      settle('tab-1', 'https://chatgpt.com/c/keep')
+    })
+    await waitFor(() => {
+      expect(lastSync()?.visible).toBe(true)
+    })
+    expect(screen.queryByTestId('loader')).toBeNull()
+
+    view.rerender(<AiSession tab={tab} isActive={false} isSurfaceActive isOverlayActive={false} />)
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(0)
+    })
+
+    act(() => {
+      screen.getByTestId('wake-up').click()
+    })
+    // The user is back on the tab, so the wake is not immediately undone by the
+    // sleep timer that an inactive tab re-arms.
+    view.rerender(<AiSession tab={tab} isActive isSurfaceActive isOverlayActive={false} />)
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(1)
+    })
+
+    // A brand new WebContents: the manager is right and says it is still loading
+    // with `hasLoadedOnce: false`.
+    const secondGeneration = manager.views.get('tab-1')?.generation
+    expect(secondGeneration).not.toBe(firstGeneration)
+    expect(lastSync()?.visible).toBe(false)
+    expect(screen.getByTestId('loader')).toBeInTheDocument()
+    expect(currentController()?.isLoading?.()).toBe(true)
+
+    // Only its own load may reveal it.
+    act(() => {
+      settle('tab-1', 'https://chatgpt.com/c/keep')
+    })
+    await waitFor(() => {
+      expect(lastSync()?.visible).toBe(true)
+    })
+    expect(screen.queryByTestId('loader')).toBeNull()
   })
 })

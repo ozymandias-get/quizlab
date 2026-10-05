@@ -86,6 +86,20 @@ export function useAiContentLifecycle({
   const [error, setError] = useState<string | null>(null)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const hasInitiallyLoadedRef = useRef(false)
+  /**
+   * Generation of the last snapshot this hook adopted.
+   *
+   * `hasInitiallyLoadedRef` / `hasLoadedOnce` describe the first load of *a*
+   * `WebContents`, and the manager replaces those rather than restarting them: a
+   * sleep, a wake and a crash recovery each build a brand new `WebContentsView`
+   * with a higher generation while this hook — and the host placeholder that
+   * positions it — stays mounted. `generation` is therefore part of the lifecycle
+   * identity of a snapshot: when it changes, the guest standing behind the id is a
+   * different object with its own history, so the previous one's first-load state
+   * must not be carried into it. Keeping it would reveal the replacement view
+   * before it painted anything, and the splash would never come back.
+   */
+  const generationRef = useRef<number | null>(null)
   const crashRetryCountRef = useRef(0)
   const crashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -157,6 +171,19 @@ export function useAiContentLifecycle({
        * fatally before the handoff shows its error instead of spinning.
        */
       controller.subscribeEvent?.('state', (event) => {
+        // A snapshot that names a different `WebContents` than the last one is the
+        // first word this hook has about that view, so it is adopted as a fresh
+        // bootstrap: nothing about the destroyed view's first load — not the
+        // splash decision, not the revealed state, not its recorded failure — may
+        // survive into its replacement. Within one generation nothing is reset,
+        // which is what keeps `hasLoadedOnce` monotonic and a focus-mode handoff
+        // or an in-page navigation from bringing the splash back.
+        const generation = typeof event.generation === 'number' ? event.generation : null
+        if (generation !== null && generation !== generationRef.current) {
+          generationRef.current = generation
+          hasInitiallyLoadedRef.current = false
+          setHasLoadedOnce(false)
+        }
         // A response from a preload that predates the snapshot contract carries
         // no load state; assume the conservative answer rather than reporting an
         // idle guest that has not painted.
@@ -256,6 +283,7 @@ export function useAiContentLifecycle({
   useEffect(() => {
     crashRetryCountRef.current = 0
     clearCrashTimer()
+    generationRef.current = null
     hasInitiallyLoadedRef.current = false
     setHasLoadedOnce(false)
     setIsLoading(true)

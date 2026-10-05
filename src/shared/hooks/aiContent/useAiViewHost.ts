@@ -35,6 +35,22 @@ export interface UseAiViewHostResult {
   setHostElement: (element: HTMLDivElement | null) => void
   /** Pushes the current rectangle immediately, bypassing frame coalescing. */
   flush: () => void
+  /**
+   * Pushes the current rectangle on the next animation frame even when it is
+   * identical to the last one that was sent.
+   *
+   * Geometry is fire-and-forget and the host dedupes its own sends, which is what
+   * keeps a re-render from producing traffic — but it also means the host cannot
+   * learn that the main process *dropped* a message: `syncAiViewHost` rejects one
+   * naming a view it does not own yet. Re-sending unconditionally is therefore the
+   * only way to guarantee the main process holds a rectangle from this host once it
+   * starts owning the view.
+   *
+   * Deferred by a frame so React has committed whatever state prompted the call,
+   * and it reads its inputs at send time, so it can only ever be newer than what
+   * was already sent.
+   */
+  republish: () => void
 }
 
 interface HostSnapshot {
@@ -160,6 +176,14 @@ export function useAiViewHost({
     publish()
   }, [publish])
 
+  const republish = useCallback(() => {
+    // Forget what was sent: the dedup memory is what would swallow this message,
+    // and its whole purpose is to spare traffic that would be identical — not a
+    // first rectangle the main process may never have received.
+    lastSentRef.current = null
+    schedule()
+  }, [schedule])
+
   const setHostElement = useCallback((node: HTMLDivElement | null) => {
     setElement(node)
   }, [])
@@ -194,5 +218,5 @@ export function useAiViewHost({
     flush()
   }, [element, flush, isHostOwner, visible])
 
-  return { setHostElement, flush }
+  return { setHostElement, flush, republish }
 }
