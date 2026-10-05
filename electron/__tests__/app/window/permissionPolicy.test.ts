@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   APP_SESSION_PARTITION,
   evaluateWebPermission,
-  isAllowedWebviewPartition,
+  isAllowedManagedViewPartition,
   isCustomPartition,
   recordConsentDecision,
   registerCustomPlatformOrigin,
@@ -396,7 +396,7 @@ describe('window/permissionPolicy', () => {
     })
   })
 
-  describe('webview partition allowlist', () => {
+  describe('managed view partition allowlist', () => {
     it('allows every built-in provider partition', () => {
       for (const partition of [
         'persist:ai_session',
@@ -414,18 +414,18 @@ describe('window/permissionPolicy', () => {
         'persist:ai_perplexity',
         'persist:gemini_web_profile'
       ]) {
-        expect(isAllowedWebviewPartition(partition)).toBe(true)
+        expect(isAllowedManagedViewPartition(partition)).toBe(true)
       }
     })
 
     it('allows custom partitions', () => {
-      expect(isAllowedWebviewPartition('persist:ai_custom_abc')).toBe(true)
+      expect(isAllowedManagedViewPartition('persist:ai_custom_abc')).toBe(true)
     })
 
     it.each([undefined, null, '', 42, {}, 'persist:pdf_viewer', 'ai_chatgpt', 'persist:'])(
       'rejects %s',
       (partition) => {
-        expect(isAllowedWebviewPartition(partition)).toBe(false)
+        expect(isAllowedManagedViewPartition(partition)).toBe(false)
       }
     )
   })

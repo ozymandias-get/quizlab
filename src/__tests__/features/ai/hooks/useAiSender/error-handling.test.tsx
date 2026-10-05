@@ -30,8 +30,8 @@ import {
   mockGenerateFocusScript,
   mockGenerateWaitForSubmitReadyScript,
   mockScriptDiagnostics,
-  mockWebview,
-  mockWebviewRef
+  mockContent,
+  mockContentRef
 } from './mocks'
 import { setupUseAiSenderMocks } from './sharedTestSetup'
 
@@ -50,7 +50,7 @@ describe('useAiSender - error handling', () => {
   it('handles clipboard failure', async () => {
     mockCopyImageToClipboard.mockResolvedValue(false)
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry, 'tab-1'),
+      () => useAiSender(mockContentRef, 'gpt-4', false, mockAiRegistry, 'tab-1'),
       {
         wrapper: createWrapper()
       }
@@ -68,13 +68,13 @@ describe('useAiSender - error handling', () => {
 
   it('restores the clipboard when image focus fails', async () => {
     mockCopyImageToClipboard.mockResolvedValue(true)
-    mockWebview.executeJavaScript.mockResolvedValueOnce({
+    mockContent.executeJavaScript.mockResolvedValueOnce({
       success: false,
       error: 'focus_failed',
       diagnostics: mockScriptDiagnostics
     })
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', false, mockAiRegistry, 'tab-1'),
+      () => useAiSender(mockContentRef, 'gpt-4', false, mockAiRegistry, 'tab-1'),
       { wrapper: createWrapper() }
     )
 
@@ -93,14 +93,14 @@ describe('useAiSender - error handling', () => {
     mockGenerateWaitForSubmitReadyScript.mockResolvedValue('waitReady()')
     mockGenerateClickSendScript.mockResolvedValue('click()')
     mockState.mockUsePrompts.mockReturnValue({ activePromptText: 'Describe this' })
-    mockWebview.executeJavaScript
+    mockContent.executeJavaScript
       .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
       .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
       .mockResolvedValueOnce({ success: true, diagnostics: mockScriptDiagnostics })
       .mockResolvedValueOnce({ success: false, error: 'autosend_failed_draft_saved' })
 
     const { result } = renderHook(
-      () => useAiSender(mockWebviewRef, 'gpt-4', true, mockAiRegistry, 'tab-1'),
+      () => useAiSender(mockContentRef, 'gpt-4', true, mockAiRegistry, 'tab-1'),
       { wrapper: createWrapper() }
     )
 
@@ -113,9 +113,9 @@ describe('useAiSender - error handling', () => {
     expect(res.error).toBe('autosend_failed_draft_saved')
   })
 
-  it('returns webview_destroyed when scheduled webview changes before execution', async () => {
+  it('returns webview_destroyed when scheduled content changes before execution', async () => {
     const swappedRef = {
-      current: mockWebview
+      current: mockContent
     } as unknown as Parameters<typeof useAiSender>[0]
 
     const { result } = renderHook(
@@ -123,9 +123,9 @@ describe('useAiSender - error handling', () => {
       { wrapper: createWrapper() }
     )
 
-    const anotherWebview = { ...mockWebview, executeJavaScript: vi.fn() }
+    const anotherContent = { ...mockContent, executeJavaScript: vi.fn() }
     mockGenerateAutoSendScript.mockImplementationOnce(async () => {
-      swappedRef.current = anotherWebview as any
+      swappedRef.current = anotherContent as any
       return 'send()'
     })
 
@@ -138,7 +138,7 @@ describe('useAiSender - error handling', () => {
     expect(res.error).toBe('webview_destroyed')
   })
 
-  it('returns diagnostics when no webview is available', async () => {
+  it('returns diagnostics when no content is available', async () => {
     const emptyRef = { current: null } as unknown as Parameters<typeof useAiSender>[0]
     const { result } = renderHook(
       () => useAiSender(emptyRef, 'gpt-4', false, mockAiRegistry, 'tab-stale'),

@@ -1,8 +1,8 @@
 /**
  * Application-level consent UI for ambient web permissions.
  *
- * The browser's own permission prompt is not available inside a `<webview>`
- * guest, so an unprompted grant would be invisible to the user. This module
+ * The browser's own permission prompt is not available inside an embedded remote view
+ * guest, so an unprompted grant would be invisible to the user. hhis module
  * renders a modal native dialog and records the answer in the central policy
  * so the decision is remembered for the rest of the app run.
  */
@@ -45,7 +45,7 @@ async function askForConsent(
         title: 'Permission request',
         message: `Allow ${capability}?`,
         detail:
-          `The embedded AI site ${host} is asking to use your ${capability}.\n\n` +
+          `hhe embedded AI site ${host} is asking to use your ${capability}.\n\n` +
           `Allow only if you trust this site.`,
         noLink: true
       }

@@ -144,13 +144,13 @@ const ELECTRON_NOISE_MARKERS = [
   // - our own pages use 'wasm-unsafe-eval' (required by pdf.js
   //   WebAssembly; the CSP is otherwise strict — see electron/core/csp.ts),
   //   which trips Electron's naive "unsafe-eval" substring check;
-  // - third-party AI webview guests (Google/Microsoft/OpenAI pages) send no
+  // - third-party AI remote views (Google/Microsoft/OpenAI pages) send no
   //   CSP of their own, and we must not inject ours (it would break them).
   'Electron Security Warning',
   'Insecure Content-Security-Policy',
   'electronjs.org/docs/tutorial/security',
   'once the app is packaged',
-  // Google Identity Services chatter from AI webview guest pages (Gemini /
+  // Google Identity Services chatter from AI guest pages (Gemini /
   // ChatGPT login flows). Third-party code — not app errors, not actionable.
   'GSI_LOGGER',
   'FedCM',

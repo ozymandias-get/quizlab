@@ -26,8 +26,8 @@
 
 Quizlab Reader keeps a PDF reader and a set of AI assistants in one window. The
 left panel is a multi-tab PDF workspace; the right panel holds tabbed AI
-sessions, each one an isolated `<webview>` with its own persistent Chromium
-session. Selected text, page images and cropped screenshots are collected in a
+sessions, each hosted in a main-owned `WebContentsView` with a persistent
+Chromium session partition. Selected text, page images and cropped screenshots are collected in a
 floating send composer and delivered into the active AI tab through DOM
 automation, so you never have to leave the document you are reading.
 
@@ -237,7 +237,8 @@ fallback obfuscates the value at rest; it is not a substitute for a keychain.
 
 ```
 Renderer (src/)
-  React workspace: PDF panel, AI webview panel, send composer, settings
+  React workspace: PDF panel, AI host placeholders, send composer, settings
+  AiContentController: remote commands and generation-filtered state
   hooks + TanStack Query over window.electronAPI
         |  typed invoke (channel -> request/result types)
         v
@@ -247,12 +248,15 @@ Preload (electron/preload/)
         v
 Main (electron/)
   ipcMain handlers, trusted-sender check on every call
-  feature modules: ai, automation, gemini-web-session, native-messaging,
+  feature modules: ai-view, ai, automation, gemini-web-session, native-messaging,
                    pdf, screenshot, settings, shell-open
   core: config store, encryption, CSP, logging, cache accounting, updater
         |
         +--> local-pdf:// protocol  -> local PDF files (allowlist, byte ranges)
-        +--> Chromium partitions   -> per-AI-site cookies and cache
+        +--> AiWebContentsViewManager -> WebContentsView / provider partitions
+        |                            remote commands and event bridge
+        +--> remoteContentSecurity -> navigation, popups, TLS, clipboard
+        +--> permissionPolicy      -> partition + registered origin permissions
         +--> model provider HTTP   -> direct API chat (SSRF-validated)
         +--> GitHub Releases API   -> update notifier
 ```
@@ -263,9 +267,15 @@ request/result map (`shared/types/ipcContract.ts`) and shared domain types.
 
 Two design points worth knowing before changing things: navigation is state,
 not routing — there is no router, and the PDF tabs (Zustand) and AI tabs
-(`useState` behind split contexts) are independent; and every AI interaction
-works by generating JavaScript in the main process and running it inside the
-target `<webview>`, not by driving an external browser.
+(`useState` behind split contexts) are independent; and web-session automation
+uses `AiContentController` and typed IPC to run main-generated scripts in the
+managed remote view. API Chat uses provider HTTP requests.
+
+Host ownership and content lifecycle are independent. Unmounting a host
+placeholder detaches geometry; focus mode reuses the same generation, URL and
+page state without reloading. Tab close, LRU eviction and sleep destroy the
+managed view; wake creates a new generation and waits for its first load.
+Host bounds are coalesced and native views hide while dialogs or overlays cover them.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for layer boundaries, the
 import rules enforced by dependency-cruiser, and the selector self-healing flow.
@@ -388,12 +398,20 @@ this and also guards the version badge in both READMEs.
 Verified properties of this build:
 
 - **Isolated renderer** — `contextIsolation: true`, `nodeIntegration: false`,
-  `sandbox: true`, `webSecurity: true`; renderer-supplied webview preloads are
-  stripped and webview preferences are forced on `will-attach-webview`.
+  `sandbox: true`, `webSecurity: true`, and `webviewTag: false`. Main creates
+  remote `WebContentsView` instances with secure preferences and no Node access.
+- **Main-owned remote views** — `AiViewTarget` resolves sources and partitions
+  from main-process registries. Typed IPC accepts bounded view ids, host tokens,
+  bounds and commands; renderer requests cannot supply partitions, preloads,
+  WebContents ids or security preferences.
+- **Remote content policy** — main-frame navigation requires HTTPS; popups are
+  denied with validated external handoff. `permissionPolicy` checks the partition
+  and registered origin, TLS certificate errors are rejected, and clipboard
+  guards preserve trusted user/app paste while blocking programmatic access.
 - **Narrow preload bridge** — one explicit method per allowed IPC channel; the
   renderer has no direct Node access.
 - **Sender validation** — every IPC handler requires the main frame of the main
-  window, so subframes and webviews cannot invoke them.
+  window, so subframes and remote views cannot invoke them.
 - **No analytics** — no telemetry or crash-reporting SDK is bundled, and nothing
   is sent anywhere automatically. Crash reports and logs are written to
   `logs/` inside the user-data folder and stay there. Outbound requests are

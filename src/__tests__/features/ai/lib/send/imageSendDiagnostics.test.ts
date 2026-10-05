@@ -13,23 +13,20 @@ import type { AiSendDiagnostics } from '@features/ai/model/types'
 
 import { Logger } from '@shared/lib/logger'
 
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
-function createWebview(): WebviewController {
+function createContent(): AiContentController {
   return {
     executeJavaScript: vi.fn().mockResolvedValue({ success: true }),
     isDestroyed: () => false,
     getURL: () => 'https://chat.example.com',
     focus: vi.fn(),
     paste: vi.fn().mockReturnValue(true),
-    sendInputEvent: vi.fn(),
-    getWebContentsId: () => 1,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
-  } as unknown as WebviewController
+    sendInputEvent: vi.fn()
+  } as unknown as AiContentController
 }
 
 /**
@@ -37,12 +34,12 @@ function createWebview(): WebviewController {
  * succeed and the submit_ready script fail with a diagnostic payload.
  */
 function baseParams(overrides: Record<string, unknown> = {}) {
-  const webview = createWebview()
+  const content = createContent()
   const diagnostics = { currentAI: 'claude', timings: {} } as AiSendDiagnostics
   return {
-    webviewRef: { current: webview } as never,
-    webview,
-    scheduledWebview: webview,
+    contentRef: { current: content } as never,
+    content,
+    scheduledContent: content,
     aiRegistry: {
       claude: {
         id: 'claude',
@@ -62,7 +59,7 @@ function baseParams(overrides: Record<string, unknown> = {}) {
     typingSpeed: 0,
     requestStartedAt: Date.now(),
     diagnostics,
-    canUseWebview: vi.fn().mockReturnValue(true),
+    canUseContent: vi.fn().mockReturnValue(true),
     copyImageToClipboard: vi.fn().mockResolvedValue(true),
     generateAutoSendScript: vi.fn().mockResolvedValue('return true;'),
     generateFocusScript: vi.fn().mockResolvedValue('return true;'),
@@ -78,17 +75,17 @@ describe('submit-ready failure logging', () => {
   })
 
   it('logs the blocker when the submit target is never interactive', async () => {
-    const webview = createWebview()
+    const content = createContent()
     const params = baseParams({
-      webview,
-      webviewRef: { current: webview },
-      scheduledWebview: webview,
+      content,
+      contentRef: { current: content },
+      scheduledContent: content,
       generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('return true;')
     })
     // The focus script succeeds, the submit-ready script reports the timeout.
     // A busy mutation count means an upload really was running, so the
     // generic submit_not_ready is the honest outcome.
-    webview.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
+    content.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
       success: false,
       action: 'submit_ready',
       error: 'submit_not_ready',
@@ -122,16 +119,16 @@ describe('submit-ready failure logging', () => {
   })
 
   it('logs nothing extra for a failed step with no diagnostic payload', async () => {
-    const webview = createWebview()
-    webview.executeJavaScript = vi
+    const content = createContent()
+    content.executeJavaScript = vi
       .fn()
       .mockResolvedValueOnce({ success: true })
       .mockResolvedValue({ success: false, action: 'submit_ready', error: 'submit_not_ready' })
 
     const params = baseParams({
-      webview,
-      webviewRef: { current: webview },
-      scheduledWebview: webview,
+      content,
+      contentRef: { current: content },
+      scheduledContent: content,
       generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('return true;')
     })
 
@@ -147,8 +144,8 @@ describe('submit-ready failure logging', () => {
   // The generic "still processing" message tells the user to wait, which can
   // never help when the page never received the paste in the first place.
   it('reports paste_not_applied when the page never changed after the paste', async () => {
-    const webview = createWebview()
-    webview.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
+    const content = createContent()
+    content.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
       success: false,
       action: 'submit_ready',
       error: 'submit_not_ready',
@@ -159,9 +156,9 @@ describe('submit-ready failure logging', () => {
     }) as never
 
     const params = baseParams({
-      webview,
-      webviewRef: { current: webview },
-      scheduledWebview: webview,
+      content,
+      contentRef: { current: content },
+      scheduledContent: content,
       generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('return true;')
     })
 
@@ -172,9 +169,9 @@ describe('submit-ready failure logging', () => {
   })
 
   it('keeps submit_not_ready when the page was actively changing', async () => {
-    const webview = createWebview()
+    const content = createContent()
     // Many mutations mean an upload really was in progress; waiting is right.
-    webview.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
+    content.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
       success: false,
       action: 'submit_ready',
       error: 'submit_not_ready',
@@ -183,9 +180,9 @@ describe('submit-ready failure logging', () => {
     }) as never
 
     const params = baseParams({
-      webview,
-      webviewRef: { current: webview },
-      scheduledWebview: webview,
+      content,
+      contentRef: { current: content },
+      scheduledContent: content,
       generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('return true;')
     })
 
@@ -195,10 +192,10 @@ describe('submit-ready failure logging', () => {
   })
 
   it('keeps submit_not_ready when the target was briefly enabled', async () => {
-    const webview = createWebview()
+    const content = createContent()
     // everReady means the site did react; the button then re-disabled, which is
     // a different problem from a paste that never landed.
-    webview.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
+    content.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
       success: false,
       action: 'submit_ready',
       error: 'submit_not_ready',
@@ -207,9 +204,9 @@ describe('submit-ready failure logging', () => {
     }) as never
 
     const params = baseParams({
-      webview,
-      webviewRef: { current: webview },
-      scheduledWebview: webview,
+      content,
+      contentRef: { current: content },
+      scheduledContent: content,
       generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('return true;')
     })
 

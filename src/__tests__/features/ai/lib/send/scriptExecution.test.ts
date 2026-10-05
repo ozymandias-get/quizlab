@@ -1,11 +1,11 @@
 import {
   cloneScriptDiagnostics,
-  executeWebviewScript,
-  isWebviewDestroyedError,
+  executeContentScript,
+  isContentDestroyedError,
   normalizeExecutionResult
 } from '@features/ai/lib/send/scriptExecution'
 
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { describe, expect, it } from 'vitest'
 
@@ -44,70 +44,70 @@ describe('scriptExecution', () => {
     expect(cloned?.input).not.toBe(input.input)
   })
 
-  describe('isWebviewDestroyedError', () => {
-    it('detects Electron destroyed-webview messages', () => {
-      expect(isWebviewDestroyedError(new Error('Error: WebContents was destroyed'))).toBe(true)
-      expect(isWebviewDestroyedError('Object has been destroyed')).toBe(true)
-      expect(isWebviewDestroyedError('Attempting to call a function in a destroyed renderer')).toBe(
+  describe('isContentDestroyedError', () => {
+    it('detects Electron destroyed-content messages', () => {
+      expect(isContentDestroyedError(new Error('Error: WebContents was destroyed'))).toBe(true)
+      expect(isContentDestroyedError('Object has been destroyed')).toBe(true)
+      expect(isContentDestroyedError('Attempting to call a function in a destroyed renderer')).toBe(
         true
       )
-      expect(isWebviewDestroyedError('webview frame has been disposed')).toBe(true)
+      expect(isContentDestroyedError('content frame has been disposed')).toBe(true)
     })
 
     it('does not match unrelated errors', () => {
-      expect(isWebviewDestroyedError(new Error('input_not_found'))).toBe(false)
-      expect(isWebviewDestroyedError('timed out')).toBe(false)
-      expect(isWebviewDestroyedError(null)).toBe(false)
-      expect(isWebviewDestroyedError(undefined)).toBe(false)
-      expect(isWebviewDestroyedError(42)).toBe(false)
+      expect(isContentDestroyedError(new Error('input_not_found'))).toBe(false)
+      expect(isContentDestroyedError('timed out')).toBe(false)
+      expect(isContentDestroyedError(null)).toBe(false)
+      expect(isContentDestroyedError(undefined)).toBe(false)
+      expect(isContentDestroyedError(42)).toBe(false)
     })
   })
 
-  describe('executeWebviewScript', () => {
-    const makeWebview = (executeJavaScript: () => Promise<unknown>): WebviewController =>
+  describe('executeContentScript', () => {
+    const makeController = (executeJavaScript: () => Promise<unknown>): AiContentController =>
       ({
         executeJavaScript,
         isDestroyed: () => false
-      }) as unknown as WebviewController
+      }) as unknown as AiContentController
 
     it('resolves with the script value on success', async () => {
-      const webview = makeWebview(() => Promise.resolve({ success: true }))
-      const result = await executeWebviewScript(webview, 'return 1;')
+      const content = makeController(() => Promise.resolve({ success: true }))
+      const result = await executeContentScript(content, 'return 1;')
       expect(result).toEqual({ ok: true, value: { success: true } })
     })
 
-    it('converts destroyed-webview rejection into a controlled destroyed result', async () => {
-      const webview = makeWebview(() =>
+    it('converts destroyed-content rejection into a controlled destroyed result', async () => {
+      const content = makeController(() =>
         Promise.reject(new Error('Error: WebContents was destroyed'))
       )
-      const result = await executeWebviewScript(webview, 'return 1;')
+      const result = await executeContentScript(content, 'return 1;')
       expect(result.ok).toBe(false)
       if (!result.ok) {
         expect(result.destroyed).toBe(true)
       }
     })
 
-    it('flags undefined results as destroyed when the webview is gone', async () => {
-      const webview = {
+    it('flags undefined results as destroyed when the content is gone', async () => {
+      const content = {
         executeJavaScript: () => Promise.resolve(undefined),
         isDestroyed: () => true
-      } as unknown as WebviewController
-      const result = await executeWebviewScript(webview, 'return 1;')
+      } as unknown as AiContentController
+      const result = await executeContentScript(content, 'return 1;')
       expect(result.ok).toBe(false)
       if (!result.ok) {
         expect(result.destroyed).toBe(true)
       }
     })
 
-    it('keeps undefined results when the webview is alive', async () => {
-      const webview = makeWebview(() => Promise.resolve(undefined))
-      const result = await executeWebviewScript(webview, 'return 1;')
+    it('keeps undefined results when the content is alive', async () => {
+      const content = makeController(() => Promise.resolve(undefined))
+      const result = await executeContentScript(content, 'return 1;')
       expect(result).toEqual({ ok: true, value: undefined })
     })
 
     it('converts generic rejections into a non-destroyed failure', async () => {
-      const webview = makeWebview(() => Promise.reject(new Error('some random failure')))
-      const result = await executeWebviewScript(webview, 'return 1;')
+      const content = makeController(() => Promise.reject(new Error('some random failure')))
+      const result = await executeContentScript(content, 'return 1;')
       expect(result.ok).toBe(false)
       if (!result.ok) {
         expect(result.destroyed).toBe(false)
@@ -116,10 +116,10 @@ describe('scriptExecution', () => {
     })
 
     it('never throws, even if the implementation throws synchronously', async () => {
-      const webview = makeWebview(() => {
+      const content = makeController(() => {
         throw new Error('sync boom')
       })
-      const result = await executeWebviewScript(webview, 'return 1;')
+      const result = await executeContentScript(content, 'return 1;')
       expect(result.ok).toBe(false)
       if (!result.ok) {
         expect(result.destroyed).toBe(false)

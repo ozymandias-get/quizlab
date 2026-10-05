@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 /**
  * Selector engine'in template literal içindeki davranışını doğrulayan testler.
- * Burada amaç: gerçek bir webview'in `eval()` çağrısında karşılaşacağı kodu
+ * Burada amaç: gerçek bir uzak sayfanın `eval()` çağrısında karşılaşacağı kodu
  * mümkün olduğunca birebir taklit etmek.
  */
 describe('selectorEngine template behavior', () => {

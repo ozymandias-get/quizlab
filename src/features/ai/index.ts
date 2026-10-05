@@ -2,7 +2,7 @@
  * AI Feature — Public API
  *
  * Everything outside `src/features/ai` must import from here (or from the
- * `./webview` lazy chunk). The app shell wires the AI provider graph, so the
+ * `./content` lazy chunk). The app shell wires the AI provider graph, so the
  * send pipeline types, the per-tab UI store and the auto-send resolver are
  * part of the public surface.
  */

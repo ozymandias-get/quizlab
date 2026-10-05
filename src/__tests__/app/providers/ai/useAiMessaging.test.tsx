@@ -1,4 +1,4 @@
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -35,8 +35,8 @@ vi.mock('@app/providers/ai/lib/apiChatSend', () => ({
   waitForApiChatTab: vi.fn(async (getActiveTabId: () => string) => getActiveTabId())
 }))
 
-vi.mock('@app/providers/ai/webviewSendReadiness', () => ({
-  waitForWebviewReadyForSend: vi.fn(async () => true)
+vi.mock('@app/providers/ai/aiContentSendReadiness', () => ({
+  waitForContentReadyForSend: vi.fn(async () => true)
 }))
 
 import { useAiMessaging } from '@app/providers/ai/useAiMessaging'
@@ -56,7 +56,7 @@ function renderMessaging(
   currentAI = 'api-chat',
   activeTab: ActiveTab = { id: 'tab-1', modelId: 'api-chat' }
 ) {
-  const getWebviewInstance = vi.fn(() => null as WebviewController | null)
+  const getContentController = vi.fn(() => null as AiContentController | null)
   const showSuccess = vi.fn()
   const showWarning = vi.fn()
   const openAiWorkspace = vi.fn()
@@ -65,7 +65,7 @@ function renderMessaging(
 
   const { result } = renderHook(() =>
     useAiMessaging({
-      getWebviewInstance,
+      getContentController,
       getActiveTab,
       currentAI,
       activeTabId: active.id,
@@ -81,7 +81,7 @@ function renderMessaging(
     showSuccess,
     showWarning,
     openAiWorkspace,
-    getWebviewInstance,
+    getContentController,
     getActiveTab
   }
 }
@@ -228,7 +228,7 @@ describe('useAiMessaging — api-chat image branch', () => {
     expect(mockScheduleApiChatSend).toHaveBeenCalled()
   })
 
-  it('does not touch the composer for webview targets', async () => {
+  it('does not touch the composer for content targets', async () => {
     mockSendImage.mockResolvedValue({ success: true, mode: 'auto_click' })
     const { result } = renderMessaging('chatgpt')
 
@@ -288,7 +288,7 @@ describe('useAiMessaging — delivery reporting', () => {
   })
 
   it.each(['auto_click', 'auto_click_with_prompt'])(
-    'claims delivery for the webview mode %s',
+    'claims delivery for the content mode %s',
     async (mode) => {
       mockSendImage.mockResolvedValue({ success: true, mode })
       const { result, showSuccess } = renderMessaging('chatgpt')
@@ -303,7 +303,7 @@ describe('useAiMessaging — delivery reporting', () => {
 
   // The image only landed in the site's input box; submitting is still pending.
   it.each(['paste_only', 'paste_and_prompt'])(
-    'reports staging rather than delivery for the webview mode %s',
+    'reports staging rather than delivery for the content mode %s',
     async (mode) => {
       mockSendImage.mockResolvedValue({ success: true, mode })
       const { result, showSuccess, showWarning } = renderMessaging('chatgpt')
@@ -320,7 +320,7 @@ describe('useAiMessaging — delivery reporting', () => {
     }
   )
 
-  it('does not claim delivery when the webview send failed', async () => {
+  it('does not claim delivery when the content send failed', async () => {
     mockSendImage.mockResolvedValue({ success: false, error: 'paste_failed' })
     const { result, showSuccess, showWarning } = renderMessaging('chatgpt')
 
@@ -390,7 +390,7 @@ describe('useAiMessaging — api-chat tab targeting', () => {
     expect(mockChatUiState.addAttachment).not.toHaveBeenCalledWith('pdf-tab', PNG)
   })
 
-  it('opens an api-chat tab when the active tab is a webview tab', async () => {
+  it('opens an api-chat tab when the active tab is a content tab', async () => {
     const { result, openAiWorkspace } = renderMessaging('api-chat', {
       id: 'gpt-tab',
       modelId: 'chatgpt'

@@ -68,8 +68,8 @@ vi.mock('@app/providers/ai-context', () => ({
   }),
   useAiTabActions: () => ({ openAiWorkspace: vi.fn() }),
   useAiSessionActions: () => ({ startTutorial: vi.fn() }),
-  useAiWebview: () => ({ getWebviewInstance: () => null }),
-  useAiWebviewPresence: () => ({ hasActiveWebview: false })
+  useAiContent: () => ({ getContentController: () => null }),
+  useAiContentPresence: () => ({ hasActiveContent: false })
 }))
 
 vi.mock('@platform/electron/api/useAiApi', () => ({

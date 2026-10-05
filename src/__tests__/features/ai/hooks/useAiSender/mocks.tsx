@@ -3,8 +3,8 @@ import type { AiPlatform } from '@shared-core/types'
 import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 
-vi.mock('@shared/lib/webviewUtils', () => ({
-  safeWebviewPaste: vi.fn(() => true)
+vi.mock('@shared/lib/aiContentUtils', () => ({
+  safeContentPaste: vi.fn(async () => true)
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({
@@ -65,16 +65,18 @@ export const mockScriptDiagnostics = {
   error: null
 } as const
 
-export const mockWebview = {
+// A native paste is now addressed by managed view id: the controller's own
+// paste() reaches webContents.paste() in the main process, so there is no
+// webContentsId to leak into the renderer any more.
+export const mockContent = {
   getURL: vi.fn(),
   executeJavaScript: vi.fn(),
   isDestroyed: vi.fn(() => false),
-  focus: vi.fn(),
-  getWebContentsId: vi.fn(() => 1),
-  pasteNative: vi.fn(() => true)
+  focus: vi.fn(async () => true),
+  paste: vi.fn(async () => true)
 }
 
-export const mockWebviewRef = { current: mockWebview } as unknown as Parameters<
+export const mockContentRef = { current: mockContent } as unknown as Parameters<
   typeof import('@features/ai/hooks/useAiSender').useAiSender
 >[0]
 

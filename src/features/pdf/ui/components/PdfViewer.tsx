@@ -13,11 +13,7 @@ import type {
   ResumePdfResult
 } from '@features/pdf/hooks/types'
 
-import {
-  useAiRegistryMeta,
-  useAiSessionActions,
-  useAiSessionUiPrefsState
-} from '@app/providers/ai-context'
+import { useAiSessionActions, useAiSessionUiPrefsState } from '@app/providers/ai-context'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 
 import { memo, useEffect, useRef, useState } from 'react'
@@ -61,7 +57,6 @@ function PdfViewer({
   isInteractionBlocked = false,
   isPanelResizing = false
 }: PdfViewerProps) {
-  const { chromeUserAgent } = useAiRegistryMeta()
   const { autoSend } = useAiSessionUiPrefsState()
   const { toggleAutoSend } = useAiSessionActions()
   const { startScreenshot, queueImageForAi } = useAppToolActions()
@@ -163,7 +158,6 @@ function PdfViewer({
         <GoogleDrivePanel
           tabId={activePdfTab.id}
           webviewUrl={activePdfTab.webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
-          chromeUserAgent={chromeUserAgent}
           title={GOOGLE_DRIVE_WEB_APP.name}
           description={t('gdrive_pdf_desc')}
           reloadLabel={t('ctx_reload')}

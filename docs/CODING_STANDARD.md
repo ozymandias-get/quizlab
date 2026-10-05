@@ -39,10 +39,9 @@ Yerel geliştirmede pre-commit hook (`.husky/pre-commit`) `format:check` + `lint
 - `tsconfig` `strict: true`, `noImplicitAny: true`, `noUnusedLocals: true`, `noUnusedParameters: true` ile gelir; bunlar bilinçli gevşetilmez.
 - `any` **yasak**:
   - Üretim kodunda (`src/`, `electron/features/`, `electron/app/`, `electron/core/`, `shared/`) `any`, `as any`, `: any` kullanılmaz.
-  - Tek bilinen istisna: Electron'un `<webview allowpopups=…>` JSX attribute'u. `string` değer geçerli, React'in `DetailedHTMLProps<HTMLAttributes>` tipi ise `boolean | undefined` üretir. Bu durumda `as any` cast'i **yanına açıklayıcı yorum** ile bırakılır (`src/features/ai/ui/AiSession.tsx`, `src/features/pdf/ui/components/GoogleDrivePanel.tsx`).
   - Üçüncü parti JSX augmentation yetersizse, augmentation'ı `src/shared/types/global.d.ts` içinde düzeltmek tercih edilir; cast ikinci tercihtir.
 - `@ts-ignore`, `@ts-nocheck`, `eslint-disable`, `// @ts-expect-error` **yasak**; bir istisna zaten varsa üzerinde gerekçe + link olmalıdır.
-- `any` tipi ESLint kuralı (`@typescript-eslint/no-explicit-any`) ile **error** seviyesinde engellenir. Bilinen istisnalar (Electron `<webview>`, logger shim) `eslint.config.mjs` içinde ayrıca tanımlanmıştır.
+- `any` tipi ESLint kuralı (`@typescript-eslint/no-explicit-any`) ile **error** seviyesinde engellenir. Bilinen istisnalar (logger ve mevcut dar kapsamlı tip adaptörleri) `eslint.config.mjs` içinde ayrıca tanımlanmıştır.
 - `console.*` üretim kodunda **yasaktır** (`no-console` ESLint kuralı). Yalnızca `console.warn` ve `console.error`'a izin verilir. Test dosyaları, `scripts/` ve logger shim'leri istisnadır.
 - Tip-only import'lar her zaman `import type { … }` ile yazılır; inline `import { type Foo }` yalnızca aynı modülden hem tip hem değer alınıyorsa kullanılır.
 - Tip import'u `import { ensureErrorMessage } from '@shared/lib/errorUtils'` gibi çalıştırma yan etkisi olmayan saf fonksiyonlar için `unknown` parametreyle imzalanır; tüketicide `catch (err) { ensureErrorMessage(err, 'fallback') }` kalıbı kullanılır.
@@ -137,7 +136,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 - Componentler **fonksiyonel** olur; default export tercih edilir, adlandırılmış export sadece barrel'a yönlendirme içindir.
 - `memo(...)` sadece:
   1. Aynı referansla alt component'e geçirilen prop paketleri (örn. `resizeHandlers`),
-  2. Kanıtlanmış re-render pahalılığı (büyük DOM ağacı, animasyon, webview ref'i) için kullanılır.
+  2. Kanıtlanmış re-render pahalılığı (büyük DOM ağacı, animasyon, native görünüm host ölçümü) için kullanılır.
   - "Her ihtimale karşı" `memo` yasak; PR review'da gerekçe yorumu aranır.
 - `useMemo`/`useCallback` benzer şekilde: ya gerçek bir referans stabilizasyonu (memo'lu alt component, dependency array'i olan effect) ya da gerçek bir hesap pahalılığı. Aksi halde yazılmaz.
 - `useEffect` kullanımı:
@@ -216,7 +215,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 ## 13. Stil ve UI Kuralları
 
 - **Tailwind utility class** her zaman önceliklidir. `style={{ ... }}` yalnızca:
-  1. Dinamik renk/konum (color picker, webview dock konumu, canvas animasyonu).
+  1. Dinamik renk/konum (color picker, panel dock konumu, canvas animasyonu).
   2. `data-*` attribute ile conditional style geçişi.
   3. Üçüncü parti bileşenin (örn. PDF viewer plugin) iç API'sinin zorunlu kıldığı durum.
   - Bu üçü dışında `style` attribute'u PR review'da geri çevrilir.
@@ -329,7 +328,7 @@ import { createAiConfig } from '../helpers/factories'
 Alan özelinde mock'lar testin kendi yanında tutulur; örnekler için
 `src/__tests__/app/providers/AppToolContext/mockState.ts`,
 `src/__tests__/features/ai/hooks/useAiSender/mocks.tsx` ve
-`src/__tests__/hooks/webview/useWebviewLifecycle/mocks.ts` dosyalarına bakın.
+`src/__tests__/hooks/aiContent/aiViewFocusHandoff.test.tsx` dosyalarına bakın.
 
 ## 15. Dosya / Modül Organizasyonu
 
@@ -341,7 +340,9 @@ Alan özelinde mock'lar testin kendi yanında tutulur; örnekler için
 
 ## 16. Güvenlik ve Sözleşme (Özet)
 
-- Renderer hiçbir zaman `nodeIntegration`, `contextIsolation=false`, `webSecurity=false` ile yüklenmez (`electron/app/window/security.ts`).
+- Renderer hiçbir zaman `nodeIntegration`, `contextIsolation=false`, `webSecurity=false` ile yüklenmez (`electron/app/window/windows.ts`).
+- Uzak içerik yalnızca ana süreçte oluşturulan güvenli `WebContentsView` içinde çalışır; `webviewTag: false` korunur. Renderer `AiContentController` ve tipli IPC kullanır, bölüm veya WebContents kimliği seçmez.
+- Host unmount yalnızca detach eder; sekme kapanması, LRU çıkarma ve uyku destroy eder. Yeni generation ilk yükleme durumunu sıfırlar.
 - Her IPC handler `requireTrustedIpcSender(event)` ile başlar.
 - Kullanıcıdan gelen HTML/metin render edilmeden önce `sanitize*` veya `DOMPurify` benzeri geçitten geçirilir (`tutorial` HTML ipuçları gibi).
 - API anahtarları kod içinde, logda, versiyon kontrolünde **olmaz**; IPC üzerinden main süreçte tutulur, renderer'a geri dönmez.
@@ -396,16 +397,14 @@ Proje kökünde `.vscode/settings.json` ve `.vscode/extensions.json` dosyaları 
 
 ## Bilinen ve Kalıcı İstisnalar
 
-| Konum                                                    | İstisna                                                                                              | Gerekçe                                                                                                                                                             |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/features/ai/ui/AiSession.tsx:128`                   | `allowpopups={… as any}` + açıklayıcı yorum                                                          | Electron `<webview>` JSX attribute tip uyumsuzluğu (React `boolean` vs Electron `string`). Augmentasyon denendi; yetersiz kaldı.                                    |
-| `src/features/pdf/ui/components/GoogleDrivePanel.tsx:71` | Aynı kalıp                                                                                           | Aynı.                                                                                                                                                               |
-| `src/features/pdf/ui/hooks/usePdfPlugins.ts:69`          | "Plugin factory'leri HER render'da koşulsuz çağrılmalıdır" kalıcı yorumu ve koşulsuz factory çağrısı | `@react-pdf-viewer` plugin'leri içeride React hook kullanır; koşullu çağrılırsa hook sırası render'lar arası değişir. Yorum silinirse plugin init sırası bozulur.   |
-| `electron/features/automation/automationScripts/lib/*`   | `try { … } catch (_) { }` veya boş catch                                                             | Tarayıcı otomasyonu sırasında `disconnect`, `removeEventListener`, selector sorgusu başarısızlıkları "expected" kabul edilir.                                       |
-| `src/shared/lib/logger.ts`                               | `console.*` ve `any` kullanımı                                                                       | Logger uygulamasının kendisi — `console` ve `any` zorunlu. `electron/core/logger.ts` yalnızca bunu yeniden export eden 19 satırlık bir shim'dir ve istisna taşımaz. |
-| `electron/app/index.ts:230`                              | `any` kullanımı                                                                                      | Electron IPC start-up tiplendirmesi için.                                                                                                                           |
-| `src/features/ai/lib/aiSenderSupport.ts:188`             | `any` kullanımı                                                                                      | Karmaşık send pipeline tip bağlayıcı.                                                                                                                               |
-| `scripts/**`                                             | `console.*` kullanımı                                                                                | Build/development script'leri — üretim kodu değil.                                                                                                                  |
+| Konum                                                  | İstisna                                                                                              | Gerekçe                                                                                                                                                             |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/features/pdf/ui/hooks/usePdfPlugins.ts:69`        | "Plugin factory'leri HER render'da koşulsuz çağrılmalıdır" kalıcı yorumu ve koşulsuz factory çağrısı | `@react-pdf-viewer` plugin'leri içeride React hook kullanır; koşullu çağrılırsa hook sırası render'lar arası değişir. Yorum silinirse plugin init sırası bozulur.   |
+| `electron/features/automation/automationScripts/lib/*` | `try { … } catch (_) { }` veya boş catch                                                             | Tarayıcı otomasyonu sırasında `disconnect`, `removeEventListener`, selector sorgusu başarısızlıkları "expected" kabul edilir.                                       |
+| `src/shared/lib/logger.ts`                             | `console.*` ve `any` kullanımı                                                                       | Logger uygulamasının kendisi — `console` ve `any` zorunlu. `electron/core/logger.ts` yalnızca bunu yeniden export eden 19 satırlık bir shim'dir ve istisna taşımaz. |
+| `electron/app/index.ts:230`                            | `any` kullanımı                                                                                      | Electron IPC start-up tiplendirmesi için.                                                                                                                           |
+| `src/features/ai/lib/aiSenderSupport.ts:188`           | `any` kullanımı                                                                                      | Karmaşık send pipeline tip bağlayıcı.                                                                                                                               |
+| `scripts/**`                                           | `console.*` kullanımı                                                                                | Build/development script'leri — üretim kodu değil.                                                                                                                  |
 
 > Bu tablo güncel tutulur. Bir istisna kaldırıldığında (dosya silinir, `any`
 > kalıbı düzeltilir, yorum taşınır) satır buradan da silinmelidir; aksi halde

@@ -39,7 +39,8 @@ const legacySrcAliasPattern = {
  * errors/, which is exactly how the deep imports below got in.
  */
 const PUBLIC_FEATURE_ENTRYPOINTS = [
-  'ai/webview', // lazy chunk: the <webview> host component
+  'ai/aiViewSurface', // lazy chunk: the AI panel chrome + host placeholders
+  'ai/viewState', // AI tab liveness state, shared by the workspace and focus surfaces
   'pdf/viewer', // lazy chunk: PdfViewer + tab strip + worker host
   'pdf/types', // type-only, no runtime cost
   'screenshot/tool' // lazy chunk: ScreenshotTool (depends on @app/providers)

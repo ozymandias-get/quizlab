@@ -12,31 +12,37 @@ vi.mock('@shared/lib/logger', () => ({
   }
 }))
 
-type ConsoleHandler = (e: { message: string }) => void
+type ConsoleHandler = (event: { message: string }) => void
 
-const buildMockController = (handlerSink: { current: ConsoleHandler | null }) => {
-  const el = {
-    addEventListener: vi.fn((event: string, handler: ConsoleHandler) => {
-      if (event === 'console-message') handlerSink.current = handler
-    }),
-    removeEventListener: vi.fn((event: string) => {
-      if (event === 'console-message') handlerSink.current = null
-    })
-  }
+interface MockController {
+  executeJavaScript: ReturnType<typeof vi.fn>
+  subscribeEvent: ReturnType<typeof vi.fn>
+  _unsubscribed: ReturnType<typeof vi.fn>
+}
+
+/**
+ * Stands in for an `AiContentController`: the picker result now arrives on the
+ * controller's typed console channel instead of a `<webview>` DOM event.
+ */
+function buildMockController(handlerSink: { current: ConsoleHandler | null }): MockController {
+  const unsubscribed = vi.fn()
   return {
-    getWebview: vi.fn(() => el),
     executeJavaScript: vi.fn(),
-    subscribeWebviewElement: vi.fn((cb: (e: typeof el) => void) => {
-      cb(el)
-      return () => {}
-    }),
-    _el: el
+    _unsubscribed: unsubscribed,
+    subscribeEvent: vi.fn((kind: string, handler: ConsoleHandler) => {
+      if (kind !== 'console-message') return () => {}
+      handlerSink.current = handler
+      return () => {
+        handlerSink.current = null
+        unsubscribed()
+      }
+    })
   }
 }
 
 describe('usePickerConsoleBridge', () => {
   let handlerSink: { current: ConsoleHandler | null }
-  let mockController: ReturnType<typeof buildMockController>
+  let mockController: MockController
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -48,7 +54,7 @@ describe('usePickerConsoleBridge', () => {
     vi.useRealTimers()
   })
 
-  const setup = () => {
+  const setup = (active: { current: unknown } = { current: mockController }) => {
     const onResult = vi.fn()
     const onCancelled = vi.fn()
     const onError = vi.fn()
@@ -58,7 +64,7 @@ describe('usePickerConsoleBridge', () => {
       const ref = useRef(mountedRef.current)
       ref.current = mountedRef.current
       return usePickerConsoleBridge({
-        getWebviewInstance: () => mockController as never,
+        getContentController: () => active.current as never,
         onResult,
         onCancelled,
         onError,
@@ -66,13 +72,13 @@ describe('usePickerConsoleBridge', () => {
       })
     })
 
-    return { ...utils, onResult, onCancelled, onError, mountedRef }
+    return { ...utils, onResult, onCancelled, onError, mountedRef, active }
   }
 
-  it('attaches a console-message listener on startListening', () => {
+  it('subscribes to the controller console channel on startListening', () => {
     const { result } = setup()
     result.current.startListening()
-    expect(mockController._el.addEventListener).toHaveBeenCalledWith(
+    expect(mockController.subscribeEvent).toHaveBeenCalledWith(
       'console-message',
       expect.any(Function)
     )
@@ -81,17 +87,14 @@ describe('usePickerConsoleBridge', () => {
   it('routes _aiPicker:result messages to onResult with parsed payload and stops listening', () => {
     const { result, onResult, onCancelled, onError } = setup()
     result.current.startListening()
+
     const payload = { inputFingerprint: { tag: 'textarea' } }
     handlerSink.current?.({ message: `_aiPicker:result:${JSON.stringify(payload)}` })
 
     expect(onResult).toHaveBeenCalledWith(payload)
     expect(onCancelled).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
-    // listener should be detached after a result
-    expect(mockController._el.removeEventListener).toHaveBeenCalledWith(
-      'console-message',
-      expect.any(Function)
-    )
+    expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
   })
 
   it('routes _aiPicker:cancelled messages to onCancelled and stops listening', () => {
@@ -102,13 +105,10 @@ describe('usePickerConsoleBridge', () => {
     expect(onCancelled).toHaveBeenCalledTimes(1)
     expect(onResult).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
-    expect(mockController._el.removeEventListener).toHaveBeenCalledWith(
-      'console-message',
-      expect.any(Function)
-    )
+    expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
   })
 
-  it('routes malformed result payloads to onError', async () => {
+  it('routes malformed result payloads to onError', () => {
     const { result, onResult, onCancelled, onError } = setup()
     result.current.startListening()
     handlerSink.current?.({ message: '_aiPicker:result:{not-json' })
@@ -128,13 +128,21 @@ describe('usePickerConsoleBridge', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
-  it('detaches the listener on stopListening', () => {
+  it('stops listening when the active tab changed under it', () => {
+    const { result, onCancelled, active } = setup()
+    result.current.startListening()
+
+    active.current = {}
+    handlerSink.current?.({ message: '_aiPicker:cancelled' })
+
+    expect(onCancelled).not.toHaveBeenCalled()
+    expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
+  })
+
+  it('unsubscribes on stopListening', () => {
     const { result } = setup()
     result.current.startListening()
     result.current.stopListening()
-    expect(mockController._el.removeEventListener).toHaveBeenCalledWith(
-      'console-message',
-      expect.any(Function)
-    )
+    expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
   })
 })

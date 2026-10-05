@@ -19,7 +19,7 @@ import {
 } from './dom/pickerDomRuntime.js'
 
 /**
- * Picker webview script runs in isolation; DOM helpers are emitted as named function sources
+ * Picker guest-page script runs in isolation; DOM helpers are emitted as named function sources
  * in dependency order. Implementations live in pickerDomRuntime.ts (single module, no cross-file
  * value imports) so Vitest does not rewrite callees to __vite_ssr_import_* inside .toString().
  *

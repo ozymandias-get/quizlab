@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocked = vi.hoisted(() => ({
   tabs: [{ key: 'gemini' }],
   currentAI: 'gemini',
-  webviewInstance: { executeJavaScript: vi.fn() as any },
+  contentController: { executeJavaScript: vi.fn() as any },
   aiSites: { gemini: { isSite: false, name: 'Gemini' } },
   startTutorial: vi.fn(),
   openAiWorkspace: vi.fn(),
@@ -42,8 +42,8 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiSites: () => mocked.aiSites,
   useAiTabsList: () => ({ tabs: mocked.tabs }),
   useAiTabFocus: () => ({ currentAI: mocked.currentAI }),
-  useAiWebview: () => ({ getWebviewInstance: () => mocked.webviewInstance }),
-  useAiWebviewPresence: () => ({ hasActiveWebview: true })
+  useAiContent: () => ({ getContentController: () => mocked.contentController }),
+  useAiContentPresence: () => ({ hasActiveContent: true })
 }))
 
 vi.mock('@platform/electron/api/useAiApi', () => ({
@@ -73,7 +73,7 @@ describe('useSelectorsTabController', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocked.currentAI = 'gemini'
-    mocked.webviewInstance = { executeJavaScript: vi.fn().mockResolvedValue({ success: true }) }
+    mocked.contentController = { executeJavaScript: vi.fn().mockResolvedValue({ success: true }) }
     mocked.generateValidateSelectorsScript.mockResolvedValue('window.__test = true')
   })
 
@@ -145,7 +145,7 @@ describe('useSelectorsTabController', () => {
     )
   })
 
-  it('shows warning when active tab or webview is invalid', async () => {
+  it('shows warning when active tab or content is invalid', async () => {
     mocked.currentAI = 'chatgpt'
     const { result } = renderHook(() => useSelectorsTabController({}))
 
@@ -167,7 +167,7 @@ describe('useSelectorsTabController', () => {
   })
 
   it('maps execution error key and preserves diagnostics', async () => {
-    mocked.webviewInstance.executeJavaScript.mockResolvedValueOnce({
+    mocked.contentController.executeJavaScript.mockResolvedValueOnce({
       success: false,
       error: 'selector_not_found',
       diagnostics: { matched: 0 }
@@ -217,7 +217,7 @@ describe('useSelectorsTabController', () => {
     )
 
     mocked.generateValidateSelectorsScript.mockResolvedValueOnce('window.__ok = true')
-    mocked.webviewInstance.executeJavaScript.mockRejectedValueOnce(new Error('exec-fail'))
+    mocked.contentController.executeJavaScript.mockRejectedValueOnce(new Error('exec-fail'))
     await act(async () => {
       await result.current.handleTestSelectors(
         'gemini',

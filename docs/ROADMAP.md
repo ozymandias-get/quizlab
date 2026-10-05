@@ -11,12 +11,12 @@ sessions, in-page automation, and clear privacy boundaries.
 
 ## Near-Term Focus
 
-| Area                                                                          | Priority |
-| ----------------------------------------------------------------------------- | -------- |
-| PDF reading quality — rendering, navigation, selection, text extraction       | High     |
-| AI workspace reliability — webview lifecycle, session health, selector repair | High     |
-| Settings and onboarding — clearer defaults, safer Google web-session flows    | Medium   |
-| Documentation and tests kept aligned with the shipped feature set             | Medium   |
+| Area                                                                               | Priority |
+| ---------------------------------------------------------------------------------- | -------- |
+| PDF reading quality — rendering, navigation, selection, text extraction            | High     |
+| AI workspace reliability — managed-view lifecycle, session health, selector repair | High     |
+| Settings and onboarding — clearer defaults, safer Google web-session flows         | Medium   |
+| Documentation and tests kept aligned with the shipped feature set                  | Medium   |
 
 ## Medium-Term Ideas
 

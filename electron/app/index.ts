@@ -7,6 +7,7 @@ import { runStartupCleanup } from '../core/cacheCleanup/index.js'
 import { startCacheScheduler, stopCacheScheduler } from '../core/cacheScheduler.js'
 import { createIssueLogReport, flushToDisk, initLogger, Logger } from '../core/logger.js'
 import { initUpdater } from '../core/updater.js'
+import { disposeAiViewHandlers } from '../features/ai-view/aiViewHandlers.js'
 import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/geminiWebSessionHandlers.js'
 import {
   clearAllPdfPaths,
@@ -131,6 +132,7 @@ async function initializeApp() {
     stopPdfCleanupInterval()
     stopCacheScheduler()
     clearAllPdfPaths()
+    await disposeAiViewHandlers()
     await shutdownGeminiWebSessionHandlers()
     await shutdownNativeMessaging()
     await flushToDisk()
@@ -264,7 +266,7 @@ async function saveCrashReport(type: string, error: unknown): Promise<void> {
   fs.writeFileSync(crashFile, crashReport, 'utf-8')
 }
 
-function isWebviewNavigationError(error: unknown): boolean {
+function isRemoteNavigationError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const code = 'code' in error ? (error as NodeJS.ErrnoException).code : undefined
   if (code === 'ERR_ABORTED') return true
@@ -283,16 +285,16 @@ process.on('uncaughtException', (err: unknown) => {
       ? (err as NodeJS.ErrnoException).code
       : undefined
   if (code === 'EPIPE') return
-  if (isWebviewNavigationError(err)) {
-    Logger.warn('[App] Suppressed webview navigation error:', err)
+  if (isRemoteNavigationError(err)) {
+    Logger.warn('[App] Suppressed remote view navigation error:', err)
     return
   }
   handleSeriousError('Uncaught Exception', err)
 })
 
 process.on('unhandledRejection', (reason: unknown) => {
-  if (isWebviewNavigationError(reason)) {
-    Logger.warn('[App] Suppressed webview navigation rejection:', reason)
+  if (isRemoteNavigationError(reason)) {
+    Logger.warn('[App] Suppressed remote view navigation rejection:', reason)
     return
   }
   handleSeriousError('Unhandled Rejection', reason)

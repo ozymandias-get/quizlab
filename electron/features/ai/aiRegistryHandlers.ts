@@ -13,8 +13,6 @@ import {
   unregisterCustomPlatformOrigin
 } from '../../app/window/permissionPolicy.js'
 import { setupAiSession } from '../../app/window/sessions.js'
-import { ConfigManager } from '../../core/ConfigManager.js'
-import { getCustomPlatformsPath } from '../../core/coreHelpers.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -26,8 +24,8 @@ import {
   INACTIVE_PLATFORMS,
   isAuthDomain
 } from './aiManager.js'
+import { getCustomPlatformStore } from './customPlatformStore.js'
 
-type CustomPlatformsMap = Record<string, AiPlatform>
 type AddCustomAiInput = { name: string; url: string; isSite?: boolean }
 const MAX_CUSTOM_AI_NAME = 80
 const MAX_CUSTOM_AI_URL = 2048
@@ -70,7 +68,7 @@ let handlersRegistered = false
 
 export function registerAiRegistryHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
-  const manager = new ConfigManager<CustomPlatformsMap>(getCustomPlatformsPath())
+  const manager = getCustomPlatformStore()
 
   // Guard: ipcMain will throw ERR_IPC_CHANNEL_ALREADY_REGISTERED if
   // registerGeneralHandlers() is ever called twice.

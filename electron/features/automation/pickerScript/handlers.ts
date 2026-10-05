@@ -232,7 +232,7 @@ export function buildPickerHandlersBlock(): string {
 
                         // Bridge wiring: the renderer-side \`usePickerConsoleBridge\`
                         // listens for \`console-message\` events from the
-                        // webview and routes messages that start with
+                        // managed view and routes messages that start with
                         // \`_aiPicker:\` to the picker callbacks. Without
                         // this emit, the bridge would never fire
                         // \`onResult\` and the picker would never auto-close

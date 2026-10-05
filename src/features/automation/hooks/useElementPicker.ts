@@ -1,6 +1,6 @@
 import { canonicalizeHostname, normalizeSubmitMode } from '@shared-core/selectorConfig'
 import type { AiSelectorConfig } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
@@ -21,7 +21,7 @@ import { usePickerConsoleBridge } from './usePickerConsoleBridge'
  * Hook to manage the Element Picker lifecycle and result processing.
  */
 export function useElementPicker(
-  getWebviewInstance: () => WebviewController | null | undefined
+  getContentController: () => AiContentController | null | undefined
 ): UseElementPickerReturn {
   const [isPickerActive, setIsPickerActive] = useState<boolean>(false)
   const { showError, showInfo } = useToastActions()
@@ -31,18 +31,18 @@ export function useElementPicker(
 
   // Re-entrance guard: a double-click on the trigger (or a second toggle
   // call before the first settled) used to inject two scripts into the same
-  // webview, which left the first script's listeners orphaned once the
+  // content, which left the first script's listeners orphaned once the
   // second one's cleanup ran. Block re-entry until the in-flight start
   // resolves.
   const startInFlightRef = useRef(false)
-  const activePickerWebviewRef = useRef<WebviewController | null>(null)
+  const activePickerContentRef = useRef<AiContentController | null>(null)
 
-  // Stabilize the webview getter so consumers passing an inline arrow
+  // Stabilize the content getter so consumers passing an inline arrow
   // function don't churn the mount effect's identity on every render.
-  const getWebviewRef = useRef(getWebviewInstance)
+  const getContentRef = useRef(getContentController)
   useEffect(() => {
-    getWebviewRef.current = getWebviewInstance
-  }, [getWebviewInstance])
+    getContentRef.current = getContentController
+  }, [getContentController])
 
   // Suppress the default `toast_ai_config_save_failed` toast — the picker
   // surfaces a domain-specific `picker_save_failed` (with the underlying
@@ -51,9 +51,9 @@ export function useElementPicker(
   const { mutateAsync: generatePickerScript } = useGeneratePickerScript()
 
   const savePickerResult = useCallback(
-    async (config: AiSelectorConfig, sourceWebview: WebviewController | null) => {
-      if (!sourceWebview || getWebviewRef.current() !== sourceWebview) {
-        Logger.info('[Picker] savePickerResult: source webview is no longer active')
+    async (config: AiSelectorConfig, sourceContent: AiContentController | null) => {
+      if (!sourceContent || getContentRef.current() !== sourceContent) {
+        Logger.info('[Picker] savePickerResult: source content is no longer active')
         return
       }
 
@@ -62,22 +62,22 @@ export function useElementPicker(
         buttonFingerprint: config.buttonFingerprint,
         submitMode: config.submitMode
       })
-      const webview = sourceWebview
-      if (getWebviewRef.current() !== webview) {
-        Logger.info('[Picker] savePickerResult: source webview changed, aborting')
+      const content = sourceContent
+      if (getContentRef.current() !== content) {
+        Logger.info('[Picker] savePickerResult: source content changed, aborting')
         return
       }
 
       try {
-        await resetPickerArtifacts(webview)
+        await resetPickerArtifacts(content)
 
-        if (typeof webview.getURL !== 'function') {
-          Logger.info('[Picker] savePickerResult: webview.getURL missing')
+        if (typeof content.getURL !== 'function') {
+          Logger.info('[Picker] savePickerResult: content.getURL missing')
           showError('picker_webview_not_found')
           return
         }
 
-        const url = webview.getURL()
+        const url = content.getURL()
         Logger.info(`[Picker] savePickerResult: url=${url}`)
         if (!url) {
           Logger.info('[Picker] savePickerResult: empty url')
@@ -108,7 +108,7 @@ export function useElementPicker(
         }
       } finally {
         if (isMountedRef.current) {
-          activePickerWebviewRef.current = null
+          activePickerContentRef.current = null
           setIsPickerActive(false)
         }
       }
@@ -117,23 +117,23 @@ export function useElementPicker(
   )
 
   const { startListening, stopListening } = usePickerConsoleBridge({
-    getWebviewInstance: () => getWebviewRef.current(),
+    getContentController: () => getContentRef.current(),
     mountedRef: isMountedRef,
     onResult: async (data) => {
       Logger.info('[Picker] bridge onResult:', data)
       if (isPickerConfig(data)) {
-        await savePickerResult(data, activePickerWebviewRef.current)
+        await savePickerResult(data, activePickerContentRef.current)
       } else if (isMountedRef.current) {
         Logger.info('[Picker] bridge onResult: !isPickerConfig, showing picker_selection_missing')
         showError('picker_selection_missing')
-        activePickerWebviewRef.current = null
+        activePickerContentRef.current = null
         setIsPickerActive(false)
       }
     },
     onCancelled: () => {
       Logger.info('[Picker] bridge onCancelled: user pressed ESC')
       if (isMountedRef.current) {
-        activePickerWebviewRef.current = null
+        activePickerContentRef.current = null
         setIsPickerActive(false)
         // User explicitly pressed Escape — confirm the dismissal with a
         // toast so the click that toggled the picker off feels acknowledged.
@@ -152,8 +152,8 @@ export function useElementPicker(
     return () => {
       isMountedRef.current = false
       stopListening()
-      void resetPickerArtifacts(activePickerWebviewRef.current ?? getWebviewRef.current() ?? null)
-      activePickerWebviewRef.current = null
+      void resetPickerArtifacts(activePickerContentRef.current ?? getContentRef.current() ?? null)
+      activePickerContentRef.current = null
     }
   }, [stopListening])
 
@@ -177,16 +177,16 @@ export function useElementPicker(
     Logger.info('[Picker] startPicker: entering')
 
     try {
-      const webview = getWebviewRef.current()
-      if (!webview) {
-        Logger.info('[Picker] startPicker: no webview')
+      const content = getContentRef.current()
+      if (!content) {
+        Logger.info('[Picker] startPicker: no content')
         showError('picker_webview_not_found')
         return
       }
 
       const script = await generatePickerScript(pickerTranslations)
-      if (getWebviewRef.current() !== webview || webview.isDestroyed?.() === true) {
-        Logger.info('[Picker] startPicker: source webview changed, aborting')
+      if (getContentRef.current() !== content || content.isDestroyed?.() === true) {
+        Logger.info('[Picker] startPicker: source content changed, aborting')
         return
       }
       Logger.info(`[Picker] startPicker: script generated, length=${script?.length ?? 0}`)
@@ -194,27 +194,27 @@ export function useElementPicker(
         throw new Error('Failed to generate picker script')
       }
 
-      if (typeof webview.executeJavaScript !== 'function') {
-        throw new Error('Webview executeJavaScript not available')
+      if (typeof content.executeJavaScript !== 'function') {
+        throw new Error('content executeJavaScript not available')
       }
 
-      await resetPickerArtifacts(webview)
-      await webview.executeJavaScript(PICKER_SCRIPTS.RESET)
-      await webview.executeJavaScript(script)
-      if (getWebviewRef.current() !== webview || webview.isDestroyed?.() === true) {
-        await resetPickerArtifacts(webview)
+      await resetPickerArtifacts(content)
+      await content.executeJavaScript(PICKER_SCRIPTS.RESET)
+      await content.executeJavaScript(script)
+      if (getContentRef.current() !== content || content.isDestroyed?.() === true) {
+        await resetPickerArtifacts(content)
         return
       }
-      activePickerWebviewRef.current = webview
-      Logger.info('[Picker] startPicker: script injected into webview, setting isPickerActive=true')
+      activePickerContentRef.current = content
+      Logger.info('[Picker] startPicker: script injected into content, setting isPickerActive=true')
 
       setIsPickerActive(true)
       showInfo('picker_started_hint')
-      startListening(webview)
+      startListening(content)
     } catch (err) {
       Logger.error('[Picker] startPicker: error', err)
       showError('picker_init_failed')
-      activePickerWebviewRef.current = null
+      activePickerContentRef.current = null
       setIsPickerActive(false)
       stopListening()
     } finally {
@@ -224,19 +224,19 @@ export function useElementPicker(
 
   const stopPicker = useCallback(async () => {
     stopListening()
-    const webview = activePickerWebviewRef.current ?? getWebviewRef.current()
-    activePickerWebviewRef.current = null
-    if (!webview) {
+    const content = activePickerContentRef.current ?? getContentRef.current()
+    activePickerContentRef.current = null
+    if (!content) {
       setIsPickerActive(false)
       return
     }
 
     try {
-      if (typeof webview.executeJavaScript !== 'function') {
-        throw new Error('Webview executeJavaScript not available')
+      if (typeof content.executeJavaScript !== 'function') {
+        throw new Error('content executeJavaScript not available')
       }
 
-      await webview.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
+      await content.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
       setIsPickerActive(false)
       showInfo('picker_cancelled')
     } catch (err) {

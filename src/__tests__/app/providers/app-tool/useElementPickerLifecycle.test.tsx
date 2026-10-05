@@ -1,4 +1,5 @@
-import type { WebviewController, WebviewElement } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
+import type { AiViewEventKind, AiViewEventOf } from '@shared-core/types/aiView'
 
 import { useElementPickerLifecycle } from '@app/providers/app-tool/useElementPickerLifecycle'
 
@@ -15,48 +16,57 @@ vi.mock('@features/automation', () => ({
   })
 }))
 
-function createMockWebviewElement() {
-  const listeners: Record<string, ((e?: Event) => void) | undefined> = {}
-  return {
-    addEventListener: vi.fn((event: string, handler: (e?: Event) => void) => {
-      listeners[event] = handler
-    }),
-    removeEventListener: vi.fn((event: string) => {
-      delete listeners[event]
-    }),
-    isDestroyed: vi.fn(() => false),
-    _trigger: (event: string) => {
-      listeners[event]?.()
-    }
-  }
+interface MockController extends AiContentController {
+  _trigger: <K extends AiViewEventKind>(kind: K, payload?: Partial<AiViewEventOf<K>>) => void
+  _unsubscribeCount: () => number
+  _setReady: (ready: boolean) => void
 }
 
-type MockWebviewElement = ReturnType<typeof createMockWebviewElement>
+function createController(overrides: Partial<AiContentController> = {}): MockController {
+  const listeners = new Map<string, Set<(event: unknown) => void>>()
+  const readyListeners = new Set<(ready: boolean) => void>()
+  // A view main has not confirmed yet reports itself as not ready.
+  let ready = !('isReady' in overrides)
 
-function getMockElement(controller: WebviewController): MockWebviewElement {
-  return controller.getWebview?.() as unknown as MockWebviewElement
-}
-
-function createController(overrides: Partial<WebviewController> = {}): WebviewController {
-  const el = createMockWebviewElement()
-  const state = {
-    element: el as unknown as WebviewElement,
-    subs: new Set<(e: WebviewElement | null) => void>()
-  }
-
-  const base: WebviewController = {
-    getWebview: () => state.element,
+  const controller: MockController = {
     executeJavaScript: vi.fn().mockResolvedValue('loading'),
-    subscribeWebviewElement: (listener) => {
-      state.subs.add(listener)
-      listener(state.element)
+    isDestroyed: () => !ready,
+    isReady: () => ready,
+    subscribeEvent: (<K extends AiViewEventKind>(
+      kind: K,
+      handler: (event: AiViewEventOf<K>) => void
+    ) => {
+      console.log('DBG subscribeEvent', kind)
+      const set = listeners.get(kind) ?? new Set()
+      set.add(handler as (event: unknown) => void)
+      listeners.set(kind, set)
       return () => {
-        state.subs.delete(listener)
+        set.delete(handler as (event: unknown) => void)
       }
+    }) as AiContentController['subscribeEvent'],
+    subscribeReady: (listener) => {
+      console.log('DBG subscribeReady ready=', ready)
+      readyListeners.add(listener)
+      listener(ready)
+      return () => {
+        readyListeners.delete(listener)
+      }
+    },
+    _trigger: (kind, payload) => {
+      const event = { viewId: 'tab-1', generation: 1, kind, ...(payload ?? {}) }
+      listeners.get(kind)?.forEach((handler) => handler(event))
+    },
+    _unsubscribeCount: () => [...listeners.values()].reduce((total, set) => total + set.size, 0),
+    _setReady: (next) => {
+      console.log('DBG setReady', next)
+      ready = next
+      readyListeners.forEach((listener) => listener(next))
     }
   }
 
-  return { ...base, ...overrides }
+  controller._setReady(true)
+
+  return { ...controller, ...overrides } as MockController
 }
 
 describe('useElementPickerLifecycle', () => {
@@ -69,7 +79,7 @@ describe('useElementPickerLifecycle', () => {
     vi.useRealTimers()
   })
 
-  it('starts picker immediately when catch-up sees interactive document (already ready)', async () => {
+  it('starts picker immediately when catch-up sees an interactive document', async () => {
     const controller = createController({
       executeJavaScript: vi.fn().mockResolvedValue('complete')
     })
@@ -89,7 +99,6 @@ describe('useElementPickerLifecycle', () => {
     const controller = createController({
       executeJavaScript: vi.fn().mockResolvedValue('loading')
     })
-    const el = getMockElement(controller)
 
     const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
@@ -104,7 +113,7 @@ describe('useElementPickerLifecycle', () => {
     expect(mockStartPicker).not.toHaveBeenCalled()
 
     await act(async () => {
-      el._trigger('did-stop-loading')
+      controller._trigger('did-stop-loading')
     })
 
     expect(mockStartPicker).toHaveBeenCalledTimes(1)
@@ -114,7 +123,6 @@ describe('useElementPickerLifecycle', () => {
     const controller = createController({
       executeJavaScript: vi.fn().mockResolvedValue('loading')
     })
-    const el = getMockElement(controller)
 
     const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
@@ -127,28 +135,24 @@ describe('useElementPickerLifecycle', () => {
     })
 
     await act(async () => {
-      el._trigger('dom-ready')
+      controller._trigger('dom-ready')
     })
 
     expect(mockStartPicker).toHaveBeenCalledTimes(1)
   })
 
-  it('does not start picker on a previous webview after active instance changes', async () => {
+  it('does not start picker on a previous content after the active instance changes', async () => {
     const controllerA = createController({
       executeJavaScript: vi.fn().mockResolvedValue('loading')
     })
-    const elA = getMockElement(controllerA)
-
     const controllerB = createController({
       executeJavaScript: vi.fn().mockResolvedValue('loading')
     })
-    const elB = getMockElement(controllerB)
 
     const { result, rerender } = renderHook(
-      ({ wv }: { wv: WebviewController | null }) => useElementPickerLifecycle(() => wv),
-      {
-        initialProps: { wv: controllerA as WebviewController | null }
-      }
+      ({ controller }: { controller: AiContentController | null }) =>
+        useElementPickerLifecycle(() => controller),
+      { initialProps: { controller: controllerA as AiContentController | null } }
     )
 
     await act(async () => {
@@ -160,7 +164,7 @@ describe('useElementPickerLifecycle', () => {
     })
 
     await act(async () => {
-      rerender({ wv: controllerB })
+      rerender({ controller: controllerB })
     })
 
     await act(async () => {
@@ -172,23 +176,22 @@ describe('useElementPickerLifecycle', () => {
     })
 
     await act(async () => {
-      elA._trigger('did-stop-loading')
+      controllerA._trigger('did-stop-loading')
     })
 
     expect(mockStartPicker).not.toHaveBeenCalled()
 
     await act(async () => {
-      elB._trigger('did-stop-loading')
+      controllerB._trigger('did-stop-loading')
     })
 
     expect(mockStartPicker).toHaveBeenCalledTimes(1)
   })
 
-  it('does not start picker after unmount (listeners disposed)', async () => {
+  it('does not start picker after unmount', async () => {
     const controller = createController({
       executeJavaScript: vi.fn().mockResolvedValue('loading')
     })
-    const el = getMockElement(controller)
 
     const { result, unmount } = renderHook(() => useElementPickerLifecycle(() => controller))
 
@@ -203,7 +206,7 @@ describe('useElementPickerLifecycle', () => {
     unmount()
 
     await act(async () => {
-      el._trigger('did-stop-loading')
+      controller._trigger('did-stop-loading')
     })
 
     expect(mockStartPicker).not.toHaveBeenCalled()
@@ -213,7 +216,6 @@ describe('useElementPickerLifecycle', () => {
     const controller = createController({
       executeJavaScript: vi.fn().mockResolvedValue('loading')
     })
-    const el = getMockElement(controller)
 
     const { result, unmount } = renderHook(() => useElementPickerLifecycle(() => controller))
 
@@ -222,13 +224,13 @@ describe('useElementPickerLifecycle', () => {
     })
 
     await vi.waitFor(() => {
-      expect(el.addEventListener).toHaveBeenCalled()
+      expect(controller._unsubscribeCount()).toBeGreaterThan(0)
     })
 
+    const before = controller._unsubscribeCount()
     unmount()
 
-    expect(el.removeEventListener).toHaveBeenCalledWith('dom-ready', expect.any(Function))
-    expect(el.removeEventListener).toHaveBeenCalledWith('did-stop-loading', expect.any(Function))
+    expect(controller._unsubscribeCount()).toBeLessThan(before)
   })
 
   it('calls startPicker at most once per successful readiness', async () => {
@@ -250,12 +252,11 @@ describe('useElementPickerLifecycle', () => {
     expect(mockStartPicker).toHaveBeenCalledTimes(1)
   })
 
-  it('cancels pending request when webview reports disposed', async () => {
+  it('cancels the pending request when the managed view reports it is gone', async () => {
     const controller = createController({
-      executeJavaScript: vi.fn().mockResolvedValue('loading')
+      executeJavaScript: vi.fn().mockResolvedValue('loading'),
+      isDestroyed: () => true
     })
-    const el = getMockElement(controller)
-    el.isDestroyed.mockReturnValue(true)
 
     const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
@@ -268,50 +269,5 @@ describe('useElementPickerLifecycle', () => {
     })
 
     expect(mockStartPicker).not.toHaveBeenCalled()
-  })
-
-  it('waits for subscribeWebviewElement when getWebview is initially null', async () => {
-    const el = createMockWebviewElement()
-    const state = {
-      element: null as WebviewElement | null,
-      subs: new Set<(e: WebviewElement | null) => void>()
-    }
-
-    const notify = () => {
-      state.subs.forEach((l) => l(state.element))
-    }
-
-    const controller: WebviewController = {
-      getWebview: () => state.element,
-      executeJavaScript: vi.fn().mockResolvedValue('complete'),
-      subscribeWebviewElement: (listener) => {
-        state.subs.add(listener)
-        listener(state.element)
-        return () => {
-          state.subs.delete(listener)
-        }
-      }
-    }
-
-    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
-
-    await act(async () => {
-      result.current.startPickerWhenReady()
-    })
-
-    await act(async () => {
-      await Promise.resolve()
-    })
-
-    expect(mockStartPicker).not.toHaveBeenCalled()
-
-    await act(async () => {
-      state.element = el as unknown as WebviewElement
-      notify()
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    expect(mockStartPicker).toHaveBeenCalledTimes(1)
   })
 })

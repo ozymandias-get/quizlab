@@ -3,7 +3,7 @@ import {
   toAutomationConfig as normalizeAutomationConfig
 } from '@shared-core/selectorConfig'
 import type { AiPlatform, AiSelectorConfig, SelectorHealth } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 
@@ -51,7 +51,7 @@ export interface UseAiSenderReturn {
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<SendTextResult>
   sendImageToAI: (imageDataUrl: string, options?: AiSendOptions) => Promise<SendImageResult>
   /**
-   * Bu hook'a bağlı webview için bekleyen/işleyen tüm gönderimleri iptal
+   * Bu hook'a bağlı content için bekleyen/işleyen tüm gönderimleri iptal
    * eder. Sıradaki `executePipelineStep` çağrısı `cancelled` hatasıyla
    * erken döner. Yeni bir istek tetiklendiğinde **otomatik** olarak da
    * çağrılır ("en yeni istek kazanır" semantiği).
@@ -64,16 +64,16 @@ export const IMAGE_UPLOAD_WAIT_DELAY = 1000
 export const IMAGE_SUBMIT_READY_SETTLE_DELAY = 1200
 export const IMAGE_SUBMIT_READY_TIMEOUT_BUFFER = 6000
 
-const webviewQueues = new WeakMap<WebviewController, Promise<unknown>>()
+const contentQueues = new WeakMap<AiContentController, Promise<unknown>>()
 
 /**
- * Per-webview iptal bayrağı. `cancelWebviewSends` ile set edildiğinde,
+ * Per-content iptal bayrağı. `cancelContentSends` ile set edildiğinde,
  * sıradaki `executePipelineStep` çağrısı `cancelled` hatasıyla erken döner.
  * Bu sayede yeni bir istek geldiğinde eski istek yarı yolda iptal edilir.
  */
-const webviewCancelFlags = new WeakMap<WebviewController, { cancelled: boolean }>()
-const webviewVersions = new WeakMap<WebviewController, number>()
-const webviewRunningVersions = new WeakMap<WebviewController, number>()
+const contentCancelFlags = new WeakMap<AiContentController, { cancelled: boolean }>()
+const contentVersions = new WeakMap<AiContentController, number>()
+const contentRunningVersions = new WeakMap<AiContentController, number>()
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -123,9 +123,9 @@ export async function classifyResultError(
 }
 
 /**
- * Per-webview iptal bayrağı kaynağı. `getOrCreateCancelFlag` ile aynı
- * webview için paylaşılan bir `{cancelled: boolean}` nesnesi döner; bu
- * nesne `cancelWebviewSends` ile set edilince sıradaki `executePipelineStep`
+ * Per-content iptal bayrağı kaynağı. `getOrCreateCancelFlag` ile aynı
+ * content için paylaşılan bir `{cancelled: boolean}` nesnesi döner; bu
+ * nesne `cancelContentSends` ile set edilince sıradaki `executePipelineStep`
  * çağrısı "cancelled" hatasıyla erken döner.
  *
  * Bu sayede kullanıcı yeni bir istek tetiklediğinde, daha önce başlamış
@@ -133,41 +133,41 @@ export async function classifyResultError(
  * yeni içerikle uğraşırken eski içerik için boşuna `executeJavaScript`
  * çağrısı yapılmaz.
  */
-export function getOrCreateCancelFlag(webview: WebviewController): { cancelled: boolean } {
-  let flag = webviewCancelFlags.get(webview)
+export function getOrCreateCancelFlag(content: AiContentController): { cancelled: boolean } {
+  let flag = contentCancelFlags.get(content)
   if (!flag) {
     flag = { cancelled: false }
-    webviewCancelFlags.set(webview, flag)
+    contentCancelFlags.set(content, flag)
   }
   return flag
 }
 
 /**
- * Belirli bir webview'e bağlı tüm bekleyen/işlem gören istekleri iptal eder.
+ * Belirli bir content'e bağlı tüm bekleyen/işlem gören istekleri iptal eder.
  * Sonraki `executePipelineStep` çağrısı `cancelled` hatasıyla erken döner.
  *
  * Bayrak yoksa `getOrCreateCancelFlag` ile oluşturur (cancelled=false) ve
- * hemen true yapar. Bu sayede hiç `queueForWebview` çağrısı yapılmamış
- * webview'ler için de çağrı işe yarar.
+ * hemen true yapar. Bu sayede hiç `queueForContent` çağrısı yapılmamış
+ * content'ler için de çağrı işe yarar.
  */
-export function cancelWebviewSends(webview: WebviewController): void {
-  const flag = getOrCreateCancelFlag(webview)
+export function cancelContentSends(content: AiContentController): void {
+  const flag = getOrCreateCancelFlag(content)
   flag.cancelled = true
-  const v = (webviewVersions.get(webview) ?? 0) + 1
-  webviewVersions.set(webview, v)
+  const v = (contentVersions.get(content) ?? 0) + 1
+  contentVersions.set(content, v)
 }
 
 /**
  * İptal bayrağını kontrol eder. Pipeline adımları `executeJavaScript`
  * çağrısı öncesinde bunu kontrol eder.
  */
-export function isWebviewCancelled(webview: WebviewController): boolean {
-  const running = webviewRunningVersions.get(webview)
+export function isContentCancelled(content: AiContentController): boolean {
+  const running = contentRunningVersions.get(content)
   if (running !== undefined) {
-    const current = webviewVersions.get(webview)
+    const current = contentVersions.get(content)
     if (current !== undefined && current !== running) return true
   }
-  return webviewCancelFlags.get(webview)?.cancelled === true
+  return contentCancelFlags.get(content)?.cancelled === true
 }
 
 /**
@@ -198,46 +198,49 @@ export function mergeAiConfigs(base: AiConfig, override: AiConfig | null | undef
 }
 
 /**
- * Belirli bir webview için kuyruğa bir görev ekler. Yeni görev başlamadan
- * önce `webviewCancelFlags` üzerinden iptal kontrolü yapılır; eğer önceki
+ * Belirli bir content için kuyruğa bir görev ekler. Yeni görev başlamadan
+ * önce `contentCancelFlags` üzerinden iptal kontrolü yapılır; eğer önceki
  * istek iptal edildiyse yenisi sıraya girmeden erken döner.
  *
  * Bu fonksiyonun bir başka sorumluluğu: yeni bir istek geldiğinde
- * `cancelWebviewSends` mantığını çağırarak **eski** kuyruktaki görevin
+ * `cancelContentSends` mantığını çağırarak **eski** kuyruktaki görevin
  * iptal bayrağını set eder. Yani "en yeni istek kazanır" semantiği.
  */
-export function queueForWebview<T>(webview: WebviewController, task: () => Promise<T>): Promise<T> {
+export function queueForContent<T>(
+  content: AiContentController,
+  task: () => Promise<T>
+): Promise<T> {
   // Version-based cancellation: each queue entry gets a monotonic version.
   // If a newer entry arrives while this one is queued or running, the older
   // one is discarded via version mismatch (covers both queue wait and
-  // mid-pipeline isWebviewCancelled checks via webviewRunningVersions).
-  const myVersion = (webviewVersions.get(webview) ?? 0) + 1
-  webviewVersions.set(webview, myVersion)
-  // Keep flag compatibility for external cancelWebviewSends callers
+  // mid-pipeline isContentCancelled checks via contentRunningVersions).
+  const myVersion = (contentVersions.get(content) ?? 0) + 1
+  contentVersions.set(content, myVersion)
+  // Keep flag compatibility for external cancelContentSends callers
   const flag: { cancelled: boolean } = { cancelled: false }
-  webviewCancelFlags.set(webview, flag)
+  contentCancelFlags.set(content, flag)
   // Mark any previous running task as cancelled via version bump
   // (the previous flag object remains reachable by its task's closure via
   // version mismatch, not via shared mutation).
 
-  const previous = webviewQueues.get(webview) ?? Promise.resolve()
+  const previous = contentQueues.get(content) ?? Promise.resolve()
   const next = previous
     .catch(() => undefined)
     .then(async () => {
-      if ((webviewVersions.get(webview) ?? 0) !== myVersion) {
+      if ((contentVersions.get(content) ?? 0) !== myVersion) {
         return { success: false, error: 'cancelled' } as unknown as T
       }
-      webviewRunningVersions.set(webview, myVersion)
+      contentRunningVersions.set(content, myVersion)
       try {
         return await task()
       } finally {
-        if (webviewRunningVersions.get(webview) === myVersion) {
-          webviewRunningVersions.delete(webview)
+        if (contentRunningVersions.get(content) === myVersion) {
+          contentRunningVersions.delete(content)
         }
       }
     })
-  webviewQueues.set(
-    webview,
+  contentQueues.set(
+    content,
     next.catch(() => undefined)
   )
   return next
@@ -246,7 +249,7 @@ export function queueForWebview<T>(webview: WebviewController, task: () => Promi
 export const toAutomationConfig = normalizeAutomationConfig
 
 /**
- * Drops the memoized per-webview AI config.
+ * Drops the memoized per-content AI config.
  *
  * The cache key embeds the URL, the current AI and the *base* registry config
  * — none of which change when a selector repair is promoted on disk. Without
@@ -277,18 +280,18 @@ export function mergePromptText(basePrompt?: string | null, extraPrompt?: string
   return normalizedExtra || normalizedBase || ''
 }
 
-export function isWebviewUsable(
-  webviewRef: RefObject<WebviewController | null>,
-  webview: WebviewController,
-  expected?: WebviewController | null
+export function isContentUsable(
+  contentRef: RefObject<AiContentController | null>,
+  content: AiContentController,
+  expected?: AiContentController | null
 ) {
-  if (expected && webview !== expected) {
+  if (expected && content !== expected) {
     return false
   }
-  if (webviewRef.current !== webview) {
+  if (contentRef.current !== content) {
     return false
   }
-  return webview.isDestroyed?.() !== true
+  return content.isDestroyed?.() !== true
 }
 
 export async function getCachedAiConfig(options: {
@@ -296,15 +299,15 @@ export async function getCachedAiConfig(options: {
   configCache: ConfigCache
   currentAI: string
   queryClient: QueryClient
-  webview: WebviewController
+  content: AiContentController
 }): Promise<CacheData> {
-  const { baseConfig, configCache, currentAI, queryClient, webview } = options
+  const { baseConfig, configCache, currentAI, queryClient, content } = options
 
-  if (typeof webview.getURL !== 'function') {
+  if (typeof content.getURL !== 'function') {
     return { config: baseConfig, regex: null }
   }
 
-  const currentUrl = webview.getURL()
+  const currentUrl = content.getURL()
   if (!currentUrl) {
     return { config: baseConfig, regex: null }
   }

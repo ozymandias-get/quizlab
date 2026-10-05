@@ -2,17 +2,17 @@ import { isSendError, resolveSendContext } from '@features/ai/lib/send/resolveSe
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockIsWebviewUsable = vi.fn()
+const mockIsContentUsable = vi.fn()
 const mockGetCachedAiConfig = vi.fn()
 
 vi.mock('@features/ai/lib/aiSenderSupport', () => ({
-  isWebviewUsable: (...args: unknown[]) => mockIsWebviewUsable(...args),
+  isContentUsable: (...args: unknown[]) => mockIsContentUsable(...args),
   getCachedAiConfig: (...args: unknown[]) => mockGetCachedAiConfig(...args)
 }))
 
 describe('resolveSendContext', () => {
-  const webviewRef = { current: null as any }
-  const webview = { getURL: vi.fn(() => 'https://openai.com/chat') } as any
+  const contentRef = { current: null as any }
+  const content = { getURL: vi.fn(() => 'https://openai.com/chat') } as any
   const queryClient = {} as any
   const configCache = { key: null, cache: null }
   const aiRegistry = {
@@ -21,9 +21,9 @@ describe('resolveSendContext', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    webviewRef.current = webview
-    webview.getURL.mockReturnValue('https://openai.com/chat')
-    mockIsWebviewUsable.mockReturnValue(true)
+    contentRef.current = content
+    content.getURL.mockReturnValue('https://openai.com/chat')
+    mockIsContentUsable.mockReturnValue(true)
     mockGetCachedAiConfig.mockResolvedValue({
       config: aiRegistry['gpt-4'],
       regex: /openai\.com/
@@ -32,9 +32,9 @@ describe('resolveSendContext', () => {
 
   it('returns registry_not_loaded when registry is missing', async () => {
     const result = await resolveSendContext({
-      webviewRef,
-      webview,
-      scheduledWebview: webview,
+      contentRef,
+      content,
+      scheduledContent: content,
       aiRegistry: null,
       currentAI: 'gpt-4',
       queryClient,
@@ -44,11 +44,11 @@ describe('resolveSendContext', () => {
   })
 
   it('returns wrong_url when domain regex does not match', async () => {
-    webview.getURL.mockReturnValue('https://example.com')
+    content.getURL.mockReturnValue('https://example.com')
     const result = await resolveSendContext({
-      webviewRef,
-      webview,
-      scheduledWebview: webview,
+      contentRef,
+      content,
+      scheduledContent: content,
       aiRegistry,
       currentAI: 'gpt-4',
       queryClient,
@@ -64,9 +64,9 @@ describe('resolveSendContext', () => {
 
   it('returns resolved context when inputs are valid', async () => {
     const result = await resolveSendContext({
-      webviewRef,
-      webview,
-      scheduledWebview: webview,
+      contentRef,
+      content,
+      scheduledContent: content,
       aiRegistry,
       currentAI: 'gpt-4',
       queryClient,
@@ -79,13 +79,13 @@ describe('resolveSendContext', () => {
     })
   })
 
-  it('returns webview_destroyed when webview is not usable', async () => {
-    mockIsWebviewUsable.mockReturnValue(false)
+  it('returns webview_destroyed when content is not usable', async () => {
+    mockIsContentUsable.mockReturnValue(false)
 
     const result = await resolveSendContext({
-      webviewRef,
-      webview,
-      scheduledWebview: webview,
+      contentRef,
+      content,
+      scheduledContent: content,
       aiRegistry,
       currentAI: 'gpt-4',
       queryClient,
@@ -98,9 +98,9 @@ describe('resolveSendContext', () => {
 
   it('returns config_not_found when currentAI is missing from registry', async () => {
     const result = await resolveSendContext({
-      webviewRef,
-      webview,
-      scheduledWebview: webview,
+      contentRef,
+      content,
+      scheduledContent: content,
       aiRegistry,
       currentAI: 'unknown-model',
       queryClient,
@@ -112,13 +112,13 @@ describe('resolveSendContext', () => {
   })
 
   it('returns webview_api_missing when getURL is not a function', async () => {
-    const badWebview = { getURL: 'not-a-function' } as any
-    webviewRef.current = badWebview
+    const badContent = { getURL: 'not-a-function' } as any
+    contentRef.current = badContent
 
     const result = await resolveSendContext({
-      webviewRef,
-      webview: badWebview,
-      scheduledWebview: badWebview,
+      contentRef,
+      content: badContent,
+      scheduledContent: badContent,
       aiRegistry,
       currentAI: 'gpt-4',
       queryClient,
@@ -129,12 +129,12 @@ describe('resolveSendContext', () => {
   })
 
   it('returns webview_url_missing when getURL returns empty string', async () => {
-    webview.getURL.mockReturnValue('')
+    content.getURL.mockReturnValue('')
 
     const result = await resolveSendContext({
-      webviewRef,
-      webview,
-      scheduledWebview: webview,
+      contentRef,
+      content,
+      scheduledContent: content,
       aiRegistry,
       currentAI: 'gpt-4',
       queryClient,

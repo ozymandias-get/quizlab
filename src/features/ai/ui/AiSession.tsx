@@ -1,23 +1,21 @@
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { useAiLifecycleSettings } from '@features/ai/hooks/useAiLifecycleSettings'
 
-import { useToastActions } from '@app/providers'
 import type { Tab } from '@app/providers/ai-context'
-import { useAiRegistryMeta, useAiSites, useAiWebviewHostActions } from '@app/providers/ai-context'
-import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
-import { useWebviewLifecycle } from '@shared/hooks/webview/useWebviewLifecycle'
+import { useAiContentHostActions, useAiSites } from '@app/providers/ai-context'
+import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
 import AestheticLoader from '@ui/components/AestheticLoader'
 
-import { type CSSProperties, lazy, memo, Suspense, useCallback, useMemo, useState } from 'react'
+import { type CSSProperties, lazy, memo, Suspense, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import SleepPlaceholderView from './SleepPlaceholderView'
 import {
+  useAiSessionEntryUrl,
   useAiSessionSleep,
-  useAiSessionStaleCheck,
-  useAiSessionWebviewGeneration
-} from './useAiSessionWebview'
+  useAiSessionStaleCheck
+} from './useAiSessionContentView'
 
 const AiErrorView = lazy(() => import('./AiErrorView'))
 const ApiChatPage = lazy(() => import('./ApiChatPage'))
@@ -25,25 +23,45 @@ const ApiChatPage = lazy(() => import('./ApiChatPage'))
 interface AiSessionProps {
   tab: Tab
   isActive: boolean
-  isBarHovered: boolean
+  /**
+   * True when this host lives on the surface the user is currently looking at.
+   * Only the active surface may position the managed view, so a placeholder
+   * that is still mounted behind a focus-mode animation cannot fight it.
+   */
+  isSurfaceActive: boolean
+  /** True while a full-panel overlay (AI Home, Magic Selector tutorial) is up. */
+  isOverlayActive: boolean
   /** Last URL before cold unmount; must match current model (parent validates). */
   restoredUrl?: string
   onTabUrlRecorded?: (tabId: string, modelId: string, url: string) => void
 }
 
 /**
- * Single AI Session (Webview)
+ * One AI tab.
+ *
+ * The remote site is a `WebContentsView` owned by the main process; this
+ * component contributes a sized placeholder and decides when that view may be on
+ * screen. It never touches the remote page's internals, which is what lets a tab
+ * switch, a sleep/wake cycle and a focus-mode handoff all be handled as geometry
+ * changes instead of teardowns.
  */
 const AiSession = memo(
-  ({ tab, isActive, isBarHovered, restoredUrl, onTabUrlRecorded }: AiSessionProps) => {
-    const { chromeUserAgent } = useAiRegistryMeta()
+  ({
+    tab,
+    isActive,
+    isSurfaceActive,
+    isOverlayActive,
+    restoredUrl,
+    onTabUrlRecorded
+  }: AiSessionProps) => {
     const aiSites = useAiSites()
-    const { registerWebview } = useAiWebviewHostActions()
-    const { showWarning } = useToastActions()
+    const { registerContent } = useAiContentHostActions()
     const { t } = useTranslation()
     const { sleepTimeoutMs, isNeverSleepSite } = useAiLifecycleSettings()
 
-    const [webviewRecoveryKey, setWebviewRecoveryKey] = useState(0)
+    const siteConfig = aiSites[tab.modelId]
+    const isApiChat = tab.modelId === 'api-chat'
+
     const { isSleeping, handleWakeUp } = useAiSessionSleep(
       isActive,
       sleepTimeoutMs,
@@ -51,9 +69,10 @@ const AiSession = memo(
       tab.modelId
     )
 
-    const handleCrashRecovery = useCallback(() => {
-      setWebviewRecoveryKey((current) => current + 1)
-    }, [])
+    const { entryUrl } = useAiSessionEntryUrl(tab.modelId, isSleeping, restoredUrl, siteConfig?.url)
+    const { handlePageSettled } = useAiSessionStaleCheck(siteConfig?.url, isActive)
+
+    const canHostRemoteView = Boolean(siteConfig) && !isApiChat && !isSleeping
 
     const reportNavigationUrl = useCallback(
       (url: string) => {
@@ -63,82 +82,34 @@ const AiSession = memo(
     )
 
     const registerInstance = useCallback(
-      (instance: WebviewController | null, expectedInstance?: WebviewController) => {
-        registerWebview(tab.id, instance, expectedInstance)
+      (instance: AiContentController | null, expected?: AiContentController) => {
+        registerContent(tab.id, instance, expected)
       },
-      [registerWebview, tab.id]
+      [registerContent, tab.id]
     )
 
-    const siteConfig = aiSites[tab.modelId]
-    const initialUrl = siteConfig?.url
-
-    const { webviewSrc } = useAiSessionWebviewGeneration(
-      tab.modelId,
-      isSleeping,
-      webviewRecoveryKey,
-      restoredUrl,
-      initialUrl
-    )
-    const { handlePageSettled } = useAiSessionStaleCheck(initialUrl, isActive)
-
-    const { isLoading, error, onWebviewRef, handleRetry } = useWebviewLifecycle({
-      currentAI: tab.modelId,
-      registerWebview: registerInstance,
-      t,
-      showWarning,
-      onUrlChange: onTabUrlRecorded ? reportNavigationUrl : undefined,
+    const managed = useManagedContentView({
+      viewId: tab.id,
+      source: { kind: 'ai-platform', modelId: tab.modelId },
+      restoredUrl: entryUrl,
+      modelId: tab.modelId,
+      isEnabled: canHostRemoteView,
+      // Ownership is deliberately NOT gated on `isActive`. Ownership answers
+      // "which placeholder may position this view", and losing it while the view
+      // is still on screen would leave nobody able to say `visible: false` — the
+      // last rectangle would stay painted over whatever is now on top. Keeping
+      // ownership lets an inactive tab hide itself, which is what makes AI Home,
+      // the tutorial and tab switching clear the view instead of stranding it.
+      isHostOwner: canHostRemoteView && isSurfaceActive,
+      visible: canHostRemoteView && isActive && isSurfaceActive && !isOverlayActive,
+      revealAfterFirstLoad: true,
+      hideWhenError: true,
+      onUrlChange: reportNavigationUrl,
       onPageSettled: handlePageSettled,
-      onCrashRecoveryRequested: handleCrashRecovery
+      registerContent: registerInstance
     })
-    const partition = useMemo(() => {
-      // Use the platform's explicit partition if defined (e.g. 'persist:ai_chatgpt')
-      if (siteConfig?.partition) return siteConfig.partition
 
-      // SECURITY: Every AI webview must have an isolated partition to prevent
-      // session/cookie leakage between services when multiple AI webviews are
-      // open simultaneously in split-screen mode. Without isolation, logging
-      // into one service could interfere with another's session.
-      //
-      // Custom and unrecognized platforms get a unique partition keyed by
-      // modelId. The 'persist:ai_custom_' prefix is dynamically allowed by the
-      // security layer's webview partition validation (see electron/app/window/security.ts).
-      return `persist:ai_custom_${tab.modelId}`
-    }, [siteConfig, tab.modelId])
-
-    const isApiChat = tab.modelId === 'api-chat'
-
-    const canRenderWebview = Boolean(siteConfig) && !isSleeping
-
-    const webview = useMemo(() => {
-      if (!canRenderWebview) return null
-
-      return (
-        <webview
-          key={`${tab.modelId}:${webviewRecoveryKey}`}
-          ref={onWebviewRef}
-          src={webviewSrc}
-          partition={partition}
-          className="h-full w-full flex-1"
-          // React's `DetailedHTMLProps<HTMLAttributes>` types `allowpopups` as
-          // `boolean | undefined`, but Electron's `<webview>` accepts a string
-          // token (`'true' | undefined`) which also suppresses React's
-          // "non-boolean attribute" runtime warning. The string cast is
-          // necessary because of this known JSX/React type mismatch; see
-          // `src/shared/types/global.d.ts` for the augmented type.
-          allowpopups={(WEBVIEW_ALLOW_POPUPS ? 'true' : undefined) as any}
-          webpreferences="contextIsolation=yes, sandbox=yes, backgroundThrottling=yes"
-          useragent={chromeUserAgent}
-        />
-      )
-    }, [
-      canRenderWebview,
-      chromeUserAgent,
-      webviewSrc,
-      onWebviewRef,
-      partition,
-      tab.modelId,
-      webviewRecoveryKey
-    ])
+    const { isLoading, error, handleRetry, setHostElement } = managed
 
     const visibilityStyle = useMemo<CSSProperties>(
       () => ({
@@ -158,12 +129,7 @@ const AiSession = memo(
           ) : isSleeping ? (
             <SleepPlaceholderView onWakeUp={handleWakeUp} t={t} />
           ) : (
-            webview
-          )}
-
-          {/* Mouse Catcher: Prevents webview from swallowing mouse events when bar is hovered */}
-          {isBarHovered && isActive && !isSleeping && !isApiChat && (
-            <div className="z-surface-4 pointer-events-auto absolute inset-0 bg-transparent" />
+            <div ref={setHostElement} className="h-full w-full flex-1" data-ai-view-host={tab.id} />
           )}
 
           {isLoading && isActive && !isSleeping && !isApiChat && <AestheticLoader />}

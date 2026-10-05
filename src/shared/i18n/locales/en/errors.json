@@ -33,7 +33,7 @@
   "error_unexpected_retry": "An unexpected error occurred. Please check file permissions and try again.",
   "error_send_failed": "Failed to send text. Make sure AI page is loaded.",
   "error_unknown_error": "An unknown error occurred",
-  "error_webview_api_missing": "Webview engine not ready",
+  "error_webview_api_missing": "AI view engine not ready",
   "error_wrong_url": "Wrong AI platform URL",
   "error_only_pdf_supported": "Only PDF files are supported",
   "error_not_valid_file": "Not a valid file",

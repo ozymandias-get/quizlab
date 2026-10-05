@@ -4,7 +4,13 @@
  * Everything else under a feature root is private. Keep in sync with
  * PUBLIC_FEATURE_ENTRYPOINTS in eslint.config.mjs.
  */
-const PUBLIC_FEATURE_ENTRYPOINTS = ['ai/webview', 'pdf/viewer', 'pdf/types', 'screenshot/tool']
+const PUBLIC_FEATURE_ENTRYPOINTS = [
+  'ai/aiViewSurface',
+  'ai/viewState',
+  'pdf/viewer',
+  'pdf/types',
+  'screenshot/tool'
+]
 
 const FEATURE_NAMES = [
   'ai',

@@ -23,7 +23,7 @@ export function buildHumanTypingScript(): string {
                 // Cooperative cancellation. Typing is one character per
                 // delayMs, so a large prompt can run for many minutes; without
                 // this the injected promise never settles and every later send
-                // queued behind it on the same webview is blocked too. The rest
+                // queued behind it on the same managed view is blocked too. The rest
                 // of the runtime (selectorEngine, __eventDrivenWait) honours
                 // the same flag. isAborted comes from the baseHelpers preamble.
                 if (typeof isAborted === 'function' && isAborted()) {

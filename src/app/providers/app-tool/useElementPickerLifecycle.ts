@@ -1,4 +1,4 @@
-import type { WebviewController, WebviewElement, WebviewLike } from '@shared-core/types/webview'
+import type { AiContentController, AiContentRef } from '@shared-core/types/aiContent'
 
 import { useElementPicker } from '@features/automation'
 
@@ -8,18 +8,18 @@ import { useToastActions } from '@shared/stores/toastStore'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { PickerReadinessReason } from './webviewPickerReadiness'
+import type { PickerReadinessReason } from './aiContentPickerReadiness'
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
 }
 
 /**
- * Hook to manage the automatic arming and injection of the element picker into a webview.
- * webviewPickerReadiness is dynamically imported on first use to keep it out of the main chunk.
+ * Hook to manage the automatic arming and injection of the element picker into a managed view.
+ * aiContentPickerReadiness is dynamically imported on first use to keep it out of the main chunk.
  */
 export function useElementPickerLifecycle(
-  getWebviewInstance: () => WebviewLike | null | undefined
+  getContentController: () => AiContentRef | null | undefined
 ) {
   const { showError } = useToastActions()
 
@@ -27,29 +27,26 @@ export function useElementPickerLifecycle(
     startPicker: pickerStartPicker,
     isPickerActive,
     togglePicker
-  } = useElementPicker(getWebviewInstance)
+  } = useElementPicker(getContentController)
 
   const [armVersion, setArmVersion] = useState(0)
   const pendingPickerStartRef = useRef(false)
   const requestSeqRef = useRef(0)
   const pickerModRef = useRef<{
     oncePickerReady: (
-      controller: WebviewController,
+      controller: AiContentController,
       signal: AbortSignal
     ) => Promise<PickerReadinessReason>
-    waitForWebviewElement: (
-      controller: WebviewController,
-      signal: AbortSignal
-    ) => Promise<WebviewElement>
+    waitForContentReady: (controller: AiContentController, signal: AbortSignal) => Promise<void>
   } | null>(null)
   const lifecycleAbortRef = useRef<AbortController | null>(null)
 
   const loadReadinessModule = useCallback(async () => {
     if (pickerModRef.current) return pickerModRef.current
-    const readinessMod = await import('./webviewPickerReadiness')
+    const readinessMod = await import('./aiContentPickerReadiness')
     pickerModRef.current = {
       oncePickerReady: readinessMod.oncePickerReady,
-      waitForWebviewElement: readinessMod.waitForWebviewElement
+      waitForContentReady: readinessMod.waitForContentReady
     }
     return pickerModRef.current
   }, [])
@@ -65,8 +62,8 @@ export function useElementPickerLifecycle(
   }, [])
 
   const startPickerWhenReady = useCallback(async () => {
-    if (!getWebviewInstance()) {
-      Logger.info('[PickerLifecycle] startPickerWhenReady: no webview instance')
+    if (!getContentController()) {
+      Logger.info('[PickerLifecycle] startPickerWhenReady: no managed view')
       pendingPickerStartRef.current = false
       return
     }
@@ -74,12 +71,12 @@ export function useElementPickerLifecycle(
     pendingPickerStartRef.current = true
     setArmVersion((v) => v + 1)
     Logger.info(`[PickerLifecycle] startPickerWhenReady: armed, requestId=${requestSeqRef.current}`)
-  }, [getWebviewInstance])
+  }, [getContentController])
 
   useEffect(() => {
     if (!pendingPickerStartRef.current) return
 
-    const currentInstance = getWebviewInstance()
+    const currentInstance = getContentController()
     if (!currentInstance) {
       return
     }
@@ -115,16 +112,13 @@ export function useElementPickerLifecycle(
     ) => {
       const controller = currentInstance!
       const requestId = requestSeqRef.current
-      const el = await mod.waitForWebviewElement(controller, signal)
+      await mod.waitForContentReady(controller, signal)
 
       if (cancelled || !isCurrentPendingRequest(requestId)) {
         return
       }
 
-      if (
-        typeof (el as { isDestroyed?: () => boolean }).isDestroyed === 'function' &&
-        (el as { isDestroyed: () => boolean }).isDestroyed()
-      ) {
+      if (controller.isDestroyed?.() === true) {
         clearPendingRequest(requestId)
         return
       }
@@ -160,7 +154,7 @@ export function useElementPickerLifecycle(
     armVersion,
     clearPendingRequest,
     isCurrentPendingRequest,
-    getWebviewInstance,
+    getContentController,
     loadReadinessModule,
     showError,
     pickerStartPicker

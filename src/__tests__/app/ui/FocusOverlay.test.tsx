@@ -51,11 +51,11 @@ vi.mock('@features/pdf/viewer', () => ({
   PdfViewer: () => <div data-testid="pdf-viewer">PDF Viewer</div>
 }))
 
-const mockAiWebview = vi.fn()
-vi.mock('@features/ai/webview', () => ({
-  AiWebview: (props: any) => {
-    mockAiWebview(props)
-    return <div data-testid="ai-webview">AI Webview</div>
+const mockAiViewSurface = vi.fn()
+vi.mock('@features/ai/aiViewSurface', () => ({
+  AiViewSurface: (props: unknown) => {
+    mockAiViewSurface(props)
+    return <div data-testid="ai-content">AI Content</div>
   }
 }))
 
@@ -88,6 +88,15 @@ vi.mock('react-i18next', () => ({
   })
 }))
 
+const surfaceState = {
+  aliveTabIds: [] as string[],
+  showHome: true,
+  showHideHome: { show: vi.fn(), hide: vi.fn() },
+  coldTabIds: new Set<string>(),
+  recordTabUrl: vi.fn(),
+  getRestoredUrl: () => undefined
+}
+
 describe('FocusOverlay', () => {
   const defaultPdfSelection = {
     pdfFile: null,
@@ -110,7 +119,7 @@ describe('FocusOverlay', () => {
   }
 
   beforeEach(() => {
-    mockAiWebview.mockClear()
+    mockAiViewSurface.mockClear()
     mockUsePdfSelection.mockReturnValue({ ...defaultPdfSelection })
   })
 
@@ -118,22 +127,45 @@ describe('FocusOverlay', () => {
     vi.useRealTimers()
   })
 
-  it('renders the AI webview when mode is "ai" and the webview is mounted', async () => {
+  it('renders the AI content when mode is "ai" and the content is mounted', async () => {
     render(
       <FocusOverlay
         mode="ai"
         onClose={vi.fn()}
-        isWebviewMounted
+        isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
       />
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('ai-webview')).toBeInTheDocument()
+      expect(screen.getByTestId('ai-content')).toBeInTheDocument()
     })
-    expect(mockAiWebview).toHaveBeenCalledWith(
-      expect.objectContaining({ isResizing: false, isBarHovered: false })
+    expect(mockAiViewSurface).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isResizing: false,
+        isSurfaceActive: true
+      })
+    )
+  })
+
+  it('tells the AI surface to step aside while a dialog is open', () => {
+    // The AI surface subscribes to the shared dialog registry itself, so the
+    // focus overlay does not have to relay anything.
+    render(
+      <FocusOverlay
+        mode="ai"
+        onClose={vi.fn()}
+        isAiSurfaceMounted
+        isResizing={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
+      />
+    )
+
+    expect(mockAiViewSurface).toHaveBeenCalledWith(
+      expect.objectContaining({ isSurfaceActive: true })
     )
   })
 
@@ -142,14 +174,15 @@ describe('FocusOverlay', () => {
       <FocusOverlay
         mode="ai"
         onClose={vi.fn()}
-        isWebviewMounted={false}
+        isAiSurfaceMounted={false}
         isResizing={false}
-        isBarHovered={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
       />
     )
 
     expect(screen.getByTestId('aesthetic-loader')).toBeInTheDocument()
-    expect(screen.queryByTestId('ai-webview')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ai-content')).not.toBeInTheDocument()
   })
 
   it('renders the PDF viewer when mode is "pdf"', async () => {
@@ -157,9 +190,10 @@ describe('FocusOverlay', () => {
       <FocusOverlay
         mode="pdf"
         onClose={vi.fn()}
-        isWebviewMounted
+        isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
       />
     )
 
@@ -174,9 +208,10 @@ describe('FocusOverlay', () => {
       <FocusOverlay
         mode="ai"
         onClose={onClose}
-        isWebviewMounted
+        isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
       />
     )
 
@@ -190,9 +225,10 @@ describe('FocusOverlay', () => {
       <FocusOverlay
         mode="ai"
         onClose={onClose}
-        isWebviewMounted
+        isAiSurfaceMounted
         isResizing={false}
-        isBarHovered={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
       />
     )
 
@@ -210,9 +246,10 @@ describe('FocusOverlay', () => {
         <FocusOverlay
           mode="ai"
           onClose={onClose}
-          isWebviewMounted
+          isAiSurfaceMounted
           isResizing={false}
-          isBarHovered={false}
+          isAiSurfaceActive
+          aiViewSurfaceState={surfaceState}
         />
       </div>
     )

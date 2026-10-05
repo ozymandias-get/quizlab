@@ -1,3 +1,5 @@
+import type { AiViewSurfaceState } from '@features/ai/viewState'
+
 import { OVERLAY_FOCUS_TRANSFER_MS } from '@shared/constants/timingConstants'
 import { InlineSpinner } from '@shared/ui/components/primitives'
 import AestheticLoader from '@ui/components/AestheticLoader'
@@ -14,7 +16,6 @@ import {
   type CSSProperties,
   lazy,
   memo,
-  type MutableRefObject,
   Suspense,
   useCallback,
   useEffect,
@@ -26,7 +27,9 @@ import { useTranslation } from 'react-i18next'
 import FocusCloseButton from './focus/FocusCloseButton'
 import FocusPdfBody from './focus/FocusPdfBody'
 
-const AiWebview = lazy(() => import('@features/ai/webview').then((m) => ({ default: m.AiWebview })))
+const AiViewSurface = lazy(() =>
+  import('@features/ai/aiViewSurface').then((m) => ({ default: m.AiViewSurface }))
+)
 
 type FocusMode = 'pdf' | 'ai'
 
@@ -34,10 +37,10 @@ interface FocusOverlayProps {
   mode: FocusMode
   onClose: () => void
   // AI mode wiring
-  isWebviewMounted: boolean
+  isAiSurfaceMounted: boolean
   isResizing: boolean
-  isBarHovered: boolean
-  aiTabUrlCacheRef?: MutableRefObject<Record<string, { url: string; modelId: string }>>
+  isAiSurfaceActive: boolean
+  aiViewSurfaceState: AiViewSurfaceState
 }
 
 const SHELL_STYLE: CSSProperties = {
@@ -63,10 +66,10 @@ const BACKDROP_STYLE: CSSProperties = {
 function FocusOverlay({
   mode,
   onClose,
-  isWebviewMounted,
+  isAiSurfaceMounted,
   isResizing,
-  isBarHovered,
-  aiTabUrlCacheRef
+  isAiSurfaceActive,
+  aiViewSurfaceState
 }: FocusOverlayProps) {
   const { t } = useTranslation()
   const reducedMotion = useReducedMotion()
@@ -172,11 +175,11 @@ function FocusOverlay({
             >
               {mode === 'pdf' ? (
                 <FocusPdfBody />
-              ) : isWebviewMounted ? (
-                <AiWebview
+              ) : isAiSurfaceMounted ? (
+                <AiViewSurface
                   isResizing={isResizing}
-                  isBarHovered={isBarHovered}
-                  sharedTabUrlCacheRef={aiTabUrlCacheRef}
+                  isSurfaceActive={isAiSurfaceActive}
+                  surfaceState={aiViewSurfaceState}
                 />
               ) : (
                 <AestheticLoader />

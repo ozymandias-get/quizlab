@@ -20,6 +20,19 @@ import type {
   UpdateCheckResult
 } from '@shared-core/types'
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
+import type {
+  AiViewAttachRequest,
+  AiViewAttachResponse,
+  AiViewEvent,
+  AiViewHostRequest,
+  AiViewHostSyncRequest,
+  AiViewInputEventRequest,
+  AiViewLoadUrlRequest,
+  AiViewNavigateRequest,
+  AiViewScriptRequest,
+  AiViewTabRequest,
+  AiViewTextRequest
+} from '@shared-core/types/aiView'
 
 export type CacheInfoResponse = {
   breakdown: {
@@ -118,7 +131,6 @@ export interface ElectronApi {
   restoreClipboard: () => Promise<boolean>
   copyTextToClipboard: (text: string) => Promise<boolean>
   openExternal: (url: string) => Promise<boolean>
-  forcePaste: (webContentsId: number) => Promise<boolean>
   showPdfContextMenu: (labels: Partial<Record<string, string>>) => void
   onTriggerScreenshot: (callback: (type: ScreenshotType) => void) => () => void
   onPdfViewerZoom: (callback: (action: PdfViewerZoomAction) => void) => () => void
@@ -185,6 +197,35 @@ export interface ElectronApi {
     } | null>
     onExtensionConnected: (callback: () => void) => () => void
     onExtensionDisconnected: (callback: () => void) => () => void
+  }
+
+  /**
+   * Remote site surfaces owned by the main process as `WebContentsView`s.
+   *
+   * Every entry point is keyed by a renderer-minted view id; the manager
+   * resolves the partition, entry URL and `WebContents` from its own registry,
+   * so the renderer can never address a `WebContents` it does not own.
+   */
+  aiView: {
+    attach: (request: AiViewAttachRequest) => Promise<AiViewAttachResponse>
+    detach: (request: AiViewHostRequest) => Promise<boolean>
+    destroy: (request: AiViewTabRequest) => Promise<boolean>
+    reload: (request: AiViewTabRequest) => Promise<boolean>
+    loadUrl: (request: AiViewLoadUrlRequest) => Promise<boolean>
+    navigate: (request: AiViewNavigateRequest) => Promise<boolean>
+    getUrl: (request: AiViewTabRequest) => Promise<string | null>
+    executeScript: (request: AiViewScriptRequest) => Promise<unknown>
+    insertText: (request: AiViewTextRequest) => Promise<boolean>
+    sendInputEvent: (request: AiViewInputEventRequest) => Promise<boolean>
+    paste: (request: AiViewTabRequest) => Promise<boolean>
+    focus: (request: AiViewTabRequest) => Promise<boolean>
+    /**
+     * Fire-and-forget geometry + visibility sync. Only the active host for a
+     * view sends it; the main process dedupes identical rectangles and rejects
+     * messages from a superseded host.
+     */
+    syncHost: (request: AiViewHostSyncRequest) => void
+    onEvent: (callback: (event: AiViewEvent) => void) => () => void
   }
 
   /** Forward a log entry from the renderer to the main process buffer. */

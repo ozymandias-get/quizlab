@@ -11,7 +11,7 @@
  *  - CSP_GLOBAL_CHECK is emitted nondeterministically. On some runs it is a
  *    complete LOW row; on others it is a malformed partial row carrying only
  *    a description and a URL. The finding is real either way, so the baseline
- *    is "1 LOW + 12 MEDIUM" and the LOW is conditional on the run.
+ *    is "1 LOW + 14 MEDIUM" and the LOW is conditional on the run.
  *  - A grade line ("A,") may or may not precede the header, so the header is
  *    located by content rather than by line number.
  *  - Descriptions contain words like "allow" and "flows", so a substring
@@ -23,19 +23,23 @@
  * failed by them. That keeps the gate from flaking on a tool that reports the
  * same finding two different ways.
  *
- * Reviewed baseline: 0 HIGH/CRITICAL, plus 12 MEDIUM and 1 LOW. The MEDIUMs
+ * Reviewed baseline: 0 HIGH/CRITICAL, plus 14 MEDIUM and 1 LOW. The MEDIUMs
  * are intentional behaviour, not gaps:
  *   OPEN_EXTERNAL_JS_CHECK        shell.openExternal for auth and file URLs
  *   PRELOAD_JS_CHECK / AUXCLICK   the display-media picker window
  *   CERTIFICATE_ERROR_EVENT_...   flagged for handling certificate errors at
- *                                 all; the app rejects every one of them
+ *                                 all; the app rejects every one of them. One is the
+ *                                 main window, one the remote-content policy in
+ *                                 app/window/remoteContentSecurity.ts
+ *   DANGEROUS_FUNCTIONS_JS_CHECK  webContents.insertCSS with a constant
+ *                                 stylesheet (cosmetic embedded scrollbars)
  *   CUSTOM_ARGUMENTS_JS_CHECK     additionalArguments for per-window IPC
  *   CSP_GLOBAL_CHECK              the LOW above; the policy is stricter than
  *                                 the tool's parser understands
  *
  * Gating on HIGH/CRITICAL keeps the signal useful. Failing on MEDIUM would
- * mean baselining 12 accepted findings, which is the shape of gate that gets
- * ignored.
+ * mean baselining a long list of accepted findings, which is the shape of
+ * gate that gets ignored.
  *
  * Usage: node scripts/check-electron-security.mjs
  */

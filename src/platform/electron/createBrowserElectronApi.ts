@@ -157,7 +157,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       return true
     },
 
-    forcePaste: stubReturn(false),
     showPdfContextMenu: () => {},
     onTriggerScreenshot: () => () => {},
     onPdfViewerZoom: () => () => {},
@@ -256,6 +255,25 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       getBridgeConfig: () => Promise.resolve(null),
       onExtensionConnected: () => () => {},
       onExtensionDisconnected: () => () => {}
+    },
+    // Remote provider sites need a main-process WebContentsView, which the
+    // browser dev server has no equivalent for. Every entry point fails closed
+    // so the AI panel degrades to a permanent load state instead of pretending.
+    aiView: {
+      attach: () => Promise.reject(new Error('web_dev_mode_only')),
+      detach: stubReturn(false),
+      destroy: stubReturn(false),
+      reload: stubReturn(false),
+      loadUrl: stubReturn(false),
+      navigate: stubReturn(false),
+      getUrl: stubReturn(null),
+      executeScript: () => Promise.reject(new Error('web_dev_mode_only')),
+      insertText: stubReturn(false),
+      sendInputEvent: stubReturn(false),
+      paste: stubReturn(false),
+      focus: stubReturn(false),
+      syncHost: () => {},
+      onEvent: () => () => {}
     },
     getApiChatConfig: stubReturn({
       providers: [],

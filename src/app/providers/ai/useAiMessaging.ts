@@ -1,5 +1,5 @@
 import type { AiPlatform } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type * as AiFeatureModule from '@features/ai'
 import type { AiSendOptions } from '@features/ai'
@@ -13,13 +13,13 @@ import { reportSuppressedError } from '@shared/lib/logger'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { waitForContentReadyForSend } from './aiContentSendReadiness'
 import { toErrorToastKey } from './errorToastKey'
 import {
   cancelScheduledApiChatSends,
   scheduleApiChatSend,
   waitForApiChatTab
 } from './lib/apiChatSend'
-import { waitForWebviewReadyForSend } from './webviewSendReadiness'
 
 let chatUiStoreModule: typeof AiFeatureModule | null = null
 
@@ -31,7 +31,7 @@ async function getChatUiStore() {
 }
 
 interface UseAiMessagingParams {
-  getWebviewInstance: (tabId?: string) => WebviewController | null
+  getContentController: (tabId?: string) => AiContentController | null
   /** Reads the active tab, or undefined when there is none. */
   getActiveTab: () => Tab | undefined
   currentAI: string
@@ -44,7 +44,7 @@ interface UseAiMessagingParams {
 }
 
 export function useAiMessaging({
-  getWebviewInstance,
+  getContentController,
   getActiveTab,
   currentAI,
   activeTabId,
@@ -67,28 +67,28 @@ export function useAiMessaging({
     }
   }, [])
 
-  const webviewRefProxy = useMemo(
+  const contentRefProxy = useMemo(
     () => ({
       get current() {
-        return getWebviewInstance()
+        return getContentController()
       }
     }),
-    [getWebviewInstance]
+    [getContentController]
   )
   const {
     sendTextToAI: rawSendText,
     sendImageToAI: rawSendImage,
     cancelOngoing
-  } = useAiSender(webviewRefProxy, currentAI, autoSend, aiRegistry, activeTabId)
+  } = useAiSender(contentRefProxy, currentAI, autoSend, aiRegistry, activeTabId)
 
-  const waitForWebviewReady = useCallback(
-    (timeoutMs = 10_000) => waitForWebviewReadyForSend(getWebviewInstance, timeoutMs),
-    [getWebviewInstance]
+  const waitForContentReady = useCallback(
+    (timeoutMs = 10_000) => waitForContentReadyForSend(getContentController, timeoutMs),
+    [getContentController]
   )
 
   const ensureApiChatTab = useCallback(async () => {
     // The active tab is not necessarily an api-chat tab. Attaching to a PDF or
-    // webview tab id writes the image into per-tab state that no composer
+    // content tab id writes the image into per-tab state that no composer
     // reads, so the send then reports success while nothing is ever delivered.
     if (getActiveTab()?.modelId === 'api-chat') return activeTabIdRef.current
     openAiWorkspace('api-chat')
@@ -112,7 +112,7 @@ export function useAiMessaging({
   const sendTextToAI = useCallback(
     async (text: string, options?: AiSendOptions) => {
       if (currentAI === 'api-chat') {
-        // api-chat uses a store-based tab, not a webview. If no tab exists,
+        // api-chat uses a store-based tab, not a content. If no tab exists,
         // auto-open one for api-chat and wait for it to become active.
         const currentTabId = await ensureApiChatTab()
         if (!currentTabId) {
@@ -136,16 +136,16 @@ export function useAiMessaging({
         }
       }
 
-      // For webview-based models, ensure a webview instance is available.
+      // For content-based models, ensure a content instance is available.
       // In normal split view, the user may not have an AI tab open yet.
-      const webview = getWebviewInstance()
-      if (!webview) {
+      const content = getContentController()
+      if (!content) {
         openAiWorkspace(currentAI)
       }
-      const isReady = await waitForWebviewReady()
+      const isReady = await waitForContentReady()
       if (!isReady) {
-        reportSuppressedError('useAiMessaging.waitForWebview', {
-          cause: new Error('Webview did not become ready in time')
+        reportSuppressedError('useAiMessaging.waitForContent', {
+          cause: new Error('Content did not become ready in time')
         })
         showWarning('error_webview_not_ready')
         return { success: false, error: 'webview_not_ready' }
@@ -161,12 +161,12 @@ export function useAiMessaging({
       currentAI,
       autoSend,
       ensureApiChatTab,
-      getWebviewInstance,
+      getContentController,
       handleApiChatSendResult,
       openAiWorkspace,
       rawSendText,
       showWarning,
-      waitForWebviewReady
+      waitForContentReady
     ]
   )
 
@@ -182,7 +182,7 @@ export function useAiMessaging({
           // The api-chat branch stores the string verbatim as an
           // `image_url.url`. A blob: or http(s): source cannot be resolved by
           // the provider, so reject it here instead of failing the whole
-          // request later. Mirrors the guard in the webview image pipeline.
+          // request later. Mirrors the guard in the content image pipeline.
           if (!imageData.startsWith('data:image/')) {
             reportSuppressedError('useAiMessaging.apiChatImage', {
               cause: new Error('unsupported image source')
@@ -225,15 +225,15 @@ export function useAiMessaging({
         }
       }
 
-      // For webview-based models, ensure a webview instance is available
-      const webview = getWebviewInstance()
-      if (!webview) {
+      // For content-based models, ensure a content instance is available
+      const content = getContentController()
+      if (!content) {
         openAiWorkspace(currentAI)
       }
-      const isReady = await waitForWebviewReady()
+      const isReady = await waitForContentReady()
       if (!isReady) {
-        reportSuppressedError('useAiMessaging.waitForWebview', {
-          cause: new Error('Webview did not become ready in time for image send')
+        reportSuppressedError('useAiMessaging.waitForContent', {
+          cause: new Error('Content did not become ready in time for image send')
         })
         showWarning('error_webview_not_ready')
         return { success: false, error: 'webview_not_ready' }
@@ -258,14 +258,14 @@ export function useAiMessaging({
       currentAI,
       autoSend,
       ensureApiChatTab,
-      getWebviewInstance,
+      getContentController,
       handleApiChatSendResult,
       openAiWorkspace,
       rawSendImage,
       showSuccess,
       showWarning,
       t,
-      waitForWebviewReady
+      waitForContentReady
     ]
   )
 

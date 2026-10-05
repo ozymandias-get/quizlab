@@ -1,7 +1,7 @@
 /**
  * Selector self-healing policy — canonical, cross-process source of truth.
  *
- * The runtime inside the AI webview already *finds* elements after the saved
+ * The runtime inside the managed AI view already *finds* elements after the saved
  * selector breaks (fingerprint → semantic → provider/site strategy →
  * heuristic). This package owns the part that was missing: the deterministic
  * policy that decides whether a recovery is allowed to become persistent.

@@ -4,7 +4,7 @@
  * humanType() emits one character per `typingSpeed` ms. The IPC layer accepts up
  * to 100 KB of prompt text, so without cooperative cancellation a single large
  * prompt kept the injected promise pending for tens of minutes — and because
- * queueForWebview chains later sends behind it, that webview's send pipeline was
+ * queueForContent chains later sends behind it, that view's send pipeline was
  * wedged for the rest of the session with no way to recover.
  */
 import { generateAutoSendScript } from '@electron/features/automation/automationScripts'
