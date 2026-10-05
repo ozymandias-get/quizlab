@@ -82,12 +82,18 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
 
-import AppToolProvider, { useAppTools } from '@app/providers/AppToolContext'
+import AppToolProvider, {
+  useAppToolActions,
+  useAppToolQueueState
+} from '@app/providers/AppToolContext'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
+/** These tests exercise the draft queue, so they compose the two slices they read. */
+const useQueueAndActions = () => ({ ...useAppToolQueueState(), ...useAppToolActions() })
 
 describe('AppToolContext - queue behavior', () => {
   const wrapper = ({ children }: { children: ReactNode }) => {
@@ -135,7 +141,7 @@ describe('AppToolContext - queue behavior', () => {
   })
 
   it('queues multiple text and image items', () => {
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('First excerpt')
@@ -160,7 +166,7 @@ describe('AppToolContext - queue behavior', () => {
     vi.useRealTimers()
     mockState.autoSend = true
     mockState.sendTextToAI.mockResolvedValue({ success: true })
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     await act(async () => {
       result.current.queueTextForAi('draft line')
@@ -177,7 +183,7 @@ describe('AppToolContext - queue behavior', () => {
 
   it('queues image to draft even when autoSend is on', () => {
     mockState.autoSend = true
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
       result.current.queueImageForAi('blob:mock-url', {
@@ -194,7 +200,7 @@ describe('AppToolContext - queue behavior', () => {
   })
 
   it('queues consecutive full-page captures even when data URLs match (e.g. PDF canvas reuse)', () => {
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
     const samePixels = 'blob:mock-url-identical'
 
     act(() => {
@@ -214,7 +220,7 @@ describe('AppToolContext - queue behavior', () => {
   it('sends multiple images in order with note on the first image and autoSend on each', async () => {
     vi.useRealTimers()
     mockState.sendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('First excerpt')
@@ -252,7 +258,7 @@ describe('AppToolContext - queue behavior', () => {
     vi.useRealTimers()
     mockState.sendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
     mockState.sendTextToAI.mockResolvedValue({ success: true, mode: 'mixed' })
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('Before shot')
@@ -279,7 +285,7 @@ describe('AppToolContext - queue behavior', () => {
   it('sends text-only drafts as a single message', async () => {
     vi.useRealTimers()
     mockState.sendTextToAI.mockResolvedValue({ success: true, mode: 'mixed' })
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('Only excerpt')
@@ -295,7 +301,7 @@ describe('AppToolContext - queue behavior', () => {
   })
 
   it('clears DOM text selection when pending items are dismissed', () => {
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('Dismiss me')
