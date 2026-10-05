@@ -141,6 +141,49 @@ describe('validateProviderUrl (SSRF Protection)', () => {
     expect(validateProviderUrl('https://[2002::1]')).toContain('SSRF blocked')
   })
 
+  describe('local network opt-in', () => {
+    // `allowLocalNetwork` is the canonical field. The deprecated persisted
+    // aliases are resolved to it by getSsrOptionsForProvider (and again on
+    // config load), so this guard only ever sees the one name — which is why
+    // these cases exist: nothing else in the suite exercised this branch.
+    const allow = { allowLocalNetwork: true }
+
+    it('permits private and LAN addresses over https', () => {
+      expect(validateProviderUrl('https://10.0.0.1', allow)).toBeNull()
+      expect(validateProviderUrl('https://192.168.1.1', allow)).toBeNull()
+      expect(validateProviderUrl('https://172.16.0.1', allow)).toBeNull()
+      expect(validateProviderUrl('https://[fd12:3456::1]', allow)).toBeNull()
+    })
+
+    it('permits plain http for private addresses, unlike the default', () => {
+      expect(validateProviderUrl('http://192.168.1.1:5000')).toContain('Non-HTTPS')
+      expect(validateProviderUrl('http://192.168.1.1:5000', allow)).toBeNull()
+      expect(validateProviderUrl('http://10.0.0.1:8080/v1', allow)).toBeNull()
+    })
+
+    it('permits loopback-private ranges the opt-in covers, link-local included', () => {
+      // Documented scope of the flag: everything isLoopbackOrPrivateHost()
+      // accepts, which includes 169.254.0.0/16. The base URL is the user's own
+      // provider config, never renderer- or document-supplied, so this widens
+      // what a user may point at rather than exposing an attacker-chosen host.
+      expect(validateProviderUrl('https://169.254.169.254', allow)).toBeNull()
+      expect(validateProviderUrl('https://100.64.0.1', allow)).toBeNull()
+    })
+
+    it('still rejects unsupported protocols and credentials under the opt-in', () => {
+      expect(validateProviderUrl('file:///etc/passwd', allow)).toContain('Unsupported protocol')
+      expect(validateProviderUrl('https://user:pass@10.0.0.1', allow)).toContain('Credentials')
+    })
+
+    it('does not treat a falsy or absent flag as consent', () => {
+      expect(validateProviderUrl('https://192.168.1.1', {})).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://192.168.1.1', { allowLocalNetwork: false })).toContain(
+        'SSRF blocked'
+      )
+      expect(validateProviderUrl('https://192.168.1.1')).toContain('SSRF blocked')
+    })
+  })
+
   it('rejects credentials (userinfo / @ tricks) in provider URLs', () => {
     expect(validateProviderUrl('https://user:pass@api.openai.com')).toContain('Credentials')
     expect(validateProviderUrl('https://127.0.0.1@evil.com')).toContain('Credentials')

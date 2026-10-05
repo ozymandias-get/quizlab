@@ -18,11 +18,24 @@ import {
   sanitizeChatMessage
 } from './validation.js'
 
+/**
+ * The single normalization boundary for local-network access.
+ *
+ * `ApiProviderConfig` still accepts two deprecated persisted aliases
+ * (`allowLocalEndpoints`, `isCustomProvider`) so a config file written by an
+ * older build - or hand-edited - keeps working. They are resolved here and
+ * nowhere else, so the SSRF layer only ever sees the canonical
+ * `allowLocalNetwork` flag.
+ *
+ * A provider added without a template is typed `custom`, which is why that
+ * branch exists: those are the local endpoints (Ollama, LM Studio, vLLM,
+ * LocalAI) the flag is for.
+ */
 function getSsrOptionsForProvider(provider: ApiProviderConfig): SsrProtectionOptions | undefined {
   const allow =
     provider.allowLocalNetwork === true ||
-    (provider as ApiProviderConfig).allowLocalEndpoints === true ||
-    (provider as ApiProviderConfig).isCustomProvider === true ||
+    provider.allowLocalEndpoints === true ||
+    provider.isCustomProvider === true ||
     provider.providerType === 'custom'
   return allow ? { allowLocalNetwork: true } : undefined
 }

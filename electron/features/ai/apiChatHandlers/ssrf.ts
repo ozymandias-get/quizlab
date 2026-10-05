@@ -7,18 +7,21 @@ import { setTimeout as sleep } from 'node:timers/promises'
 
 import { isLoopbackOrPrivateHost, normalizeHostname } from './ssrfIpUtils.js'
 
+/**
+ * Options accepted by the SSRF guard.
+ *
+ * Only the canonical field appears here. Deprecated persisted aliases
+ * (`allowLocalEndpoints`, `isCustomProvider`) are resolved by
+ * `getSsrOptionsForProvider` in apiChatHandlers.ts, which is the single
+ * normalization boundary; nothing downstream should re-derive the permission.
+ */
 export interface SsrProtectionOptions {
+  /** When true, allows loopback/private (Ollama, LM Studio, vLLM, LocalAI) endpoints. */
   allowLocalNetwork?: boolean
-  /** alias for allowLocalNetwork */
-  allowLocalEndpoints?: boolean
-  /** alias for allowLocalNetwork — custom providers often local */
-  isCustomProvider?: boolean
 }
 
 function isLocalAllowed(options?: SsrProtectionOptions): boolean {
-  return Boolean(
-    options?.allowLocalNetwork || options?.allowLocalEndpoints || options?.isCustomProvider
-  )
+  return options?.allowLocalNetwork === true
 }
 
 function validateProviderUrl(baseUrl: string, options?: SsrProtectionOptions): string | null {
