@@ -145,12 +145,32 @@ export function useManagedContentView({
   const isNativeVisible =
     visible && (!revealAfterFirstLoad || hasLoadedOnce) && (!hideWhenError || error === null)
 
-  const { setHostElement } = useAiViewHost({
+  const { setHostElement, republish } = useAiViewHost({
     viewId,
     hostToken,
     isHostOwner,
     visible: isNativeVisible
   })
+
+  const republishRef = useRef(republish)
+  republishRef.current = republish
+
+  /**
+   * Guarantees the geometry reaches a view the main process actually owns.
+   *
+   * `syncAiViewHost` drops a message naming a view it does not have yet, and the
+   * host drops its own repeats of an unchanged rectangle, so the very first sync
+   * is lost whenever it beats the attach — attach is a round trip that resolves
+   * the target first, and a custom platform reads its registry off disk while it
+   * does. Re-publishing the moment main confirms the view exists closes that
+   * window for every path that creates one: attach, wake, crash recovery.
+   */
+  useEffect(() => {
+    if (!isEnabled) return
+    return controller.subscribeReady?.((ready) => {
+      if (ready) republishRef.current()
+    })
+  }, [controller, isEnabled])
 
   const reload = useCallback(() => {
     void controller.reload?.()

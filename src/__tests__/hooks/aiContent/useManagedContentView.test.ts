@@ -1,7 +1,7 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 
-import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { useManagedContentView } = await import('@shared/hooks/aiContent/useManagedContentView')
 
@@ -306,6 +306,199 @@ describe('useManagedContentView - controller exposure', () => {
     expect(aiViewClient.executeScript).toHaveBeenCalledWith({
       viewId: 'tab-1',
       script: 'document.readyState'
+    })
+  })
+})
+
+/**
+ * The host placeholder outlives the `WebContentsView` it positions, so a sleep /
+ * wake and a crash recovery each hand it a *different* view under the same view
+ * id. Everything the panel knows about "has this guest painted" therefore belongs
+ * to a generation, and none of it may survive into the next one.
+ */
+describe('useManagedContentView - a replacement WebContents', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    aiViewClient.attach.mockResolvedValue(freshAttachResponse())
+    aiViewClient.onEvent.mockImplementation(() => () => {})
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  type ManagedOptions = Parameters<typeof useManagedContentView>[0]
+
+  interface Mounted {
+    result: { current: ReturnType<typeof useManagedContentView> }
+    rerender: (props: ManagedOptions) => void
+  }
+
+  const generations = (...values: number[]) => {
+    const queue = [...values]
+    aiViewClient.attach.mockImplementation(async () => freshAttachResponse(queue.shift() ?? 1))
+  }
+
+  const captureEvents = () => {
+    const sink: { emit: ((event: unknown) => void) | null } = { emit: null }
+    aiViewClient.onEvent.mockImplementation((handler: (event: unknown) => void) => {
+      sink.emit = handler
+      return () => {}
+    })
+    return sink
+  }
+
+  const mountWithEvents = async (options: Partial<ManagedOptions> = {}) => {
+    const sink = captureEvents()
+    const utils = renderHook((props: ManagedOptions) => useManagedContentView(props), {
+      initialProps: { ...baseOptions, revealAfterFirstLoad: true, ...options } as ManagedOptions
+    })
+    act(() => {
+      utils.result.current.setHostElement(createHostElement())
+    })
+    await act(async () => {
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
+    })
+    return { ...utils, sink } as Mounted & { sink: typeof sink }
+  }
+
+  const settle = async (
+    sink: { emit: ((event: unknown) => void) | null },
+    generation: number
+  ): Promise<void> => {
+    await act(async () => {
+      sink.emit?.({
+        viewId: 'tab-1',
+        generation,
+        kind: 'did-stop-loading',
+        currentUrl: 'https://x/'
+      })
+    })
+  }
+
+  it('starts the replacement view behind the splash after a crash', async () => {
+    vi.useFakeTimers()
+    generations(5, 6)
+    const host = await mountWithEvents({ restoredUrl: 'https://x.test/c/keep' })
+
+    expect(host.result.current.hasLoadedOnce).toBe(false)
+    expect(lastSync()?.visible).toBe(false)
+
+    // Generation 5 paints, so the panel reveals it and the crash has something to
+    // take away.
+    await settle(host.sink, 5)
+    expect(host.result.current.hasLoadedOnce).toBe(true)
+    expect(lastSync()?.visible).toBe(true)
+
+    await act(async () => {
+      host.sink.emit?.({
+        viewId: 'tab-1',
+        generation: 5,
+        kind: 'render-process-gone',
+        reason: 'crashed',
+        exitCode: 9
+      })
+      vi.advanceTimersByTime(1000)
+    })
+    await act(async () => {
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
+    })
+
+    // A replacement is a new WebContents with a new generation, and the
+    // conversation is replayed into it.
+    expect(aiViewClient.attach).toHaveBeenCalledTimes(2)
+    expect(aiViewClient.attach).toHaveBeenLastCalledWith(
+      expect.objectContaining({ viewId: 'tab-1', restoredUrl: 'https://x.test/c/keep' })
+    )
+    expect(host.result.current.hasLoadedOnce).toBe(false)
+    expect(host.result.current.isLoading).toBe(true)
+    expect(lastSync()?.visible).toBe(false)
+
+    // The crashed view is gone: its late events must not settle the replacement.
+    await settle(host.sink, 5)
+    expect(host.result.current.hasLoadedOnce).toBe(false)
+    expect(lastSync()?.visible).toBe(false)
+
+    await settle(host.sink, 6)
+    expect(host.result.current.hasLoadedOnce).toBe(true)
+    expect(lastSync()?.visible).toBe(true)
+  })
+
+  it('starts the replacement view behind the splash after a sleep / wake', async () => {
+    generations(1, 2)
+    const host = await mountWithEvents()
+
+    await settle(host.sink, 1)
+    expect(lastSync()?.visible).toBe(true)
+
+    // `isEnabled: false` is a destroy, and re-enabling it builds a new view.
+    host.rerender({ ...baseOptions, revealAfterFirstLoad: true, isEnabled: false })
+    await act(async () => {
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
+    })
+    expect(aiViewClient.destroy).toHaveBeenCalledWith({ viewId: 'tab-1' })
+
+    host.rerender({ ...baseOptions, revealAfterFirstLoad: true, isEnabled: true })
+    await act(async () => {
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(aiViewClient.attach).toHaveBeenCalledTimes(2)
+    })
+
+    expect(host.result.current.hasLoadedOnce).toBe(false)
+    expect(host.result.current.isLoading).toBe(true)
+    expect(lastSync()?.visible).toBe(false)
+
+    await settle(host.sink, 2)
+    expect(lastSync()?.visible).toBe(true)
+  })
+})
+
+describe('useManagedContentView - host geometry ordering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    aiViewClient.attach.mockResolvedValue(freshAttachResponse())
+    aiViewClient.onEvent.mockImplementation(() => () => {})
+  })
+
+  it('applies geometry published while the manager still had no view for the id', async () => {
+    // `syncAiViewHost` drops a message naming a view it does not own yet, and the
+    // host dedupes its own sends, so the first geometry can be lost to an attach
+    // that is still resolving its target (a custom platform reads its registry off
+    // disk). The rectangle has to be re-published once the attach succeeds.
+    let release: ((value: ReturnType<typeof freshAttachResponse>) => void) | null = null
+    aiViewClient.attach.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        })
+    )
+
+    const applied: Array<{ visible: boolean }> = []
+    let entryExists = false
+    aiViewClient.syncHost.mockImplementation((request: { visible: boolean }) => {
+      // Mirrors `syncAiViewHost`: a sync for a view main does not own is dropped.
+      if (entryExists) applied.push(request)
+    })
+
+    await mount({ revealAfterFirstLoad: false })
+
+    expect(aiViewClient.syncHost).toHaveBeenCalled()
+    expect(applied).toEqual([])
+
+    entryExists = true
+    await act(async () => {
+      release?.(freshAttachResponse(1))
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(applied.length).toBeGreaterThan(0)
+    })
+    expect(applied.at(-1)).toMatchObject({
+      bounds: { x: 12, y: 20, width: 300, height: 400 },
+      visible: true
     })
   })
 })

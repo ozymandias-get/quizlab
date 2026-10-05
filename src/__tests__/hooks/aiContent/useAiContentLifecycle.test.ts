@@ -564,4 +564,178 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
     expect(result.current.isLoading).toBe(true)
     expect(result.current.hasLoadedOnce).toBe(false)
   })
+
+  it('still bootstraps from a settled snapshot that carries no generation', () => {
+    // A preload that predates the generation field must not be mistaken for a
+    // view change: there is no identity to compare, so the existing bootstrap
+    // has to keep working.
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', {
+        currentUrl: 'https://chatgpt.com/',
+        isLoading: false,
+        hasLoadedOnce: true,
+        loadState: 'settled',
+        error: null
+      } as never)
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+  })
+})
+
+/**
+ * `generation` is the identity of the concrete `WebContentsView` a snapshot came
+ * from, and it is the only thing that changes when the manager *replaces* the
+ * view instead of continuing to drive it: a sleep, a wake and a crash recovery
+ * each build a new one. The host placeholder stays mounted across all of them, so
+ * without reading the generation the previous view's first-load state leaks into
+ * its replacement.
+ */
+describe('useAiContentLifecycle - WebContents generation changes', () => {
+  const settled = (generation: number, currentUrl = 'https://chatgpt.com/c/abc') => ({
+    generation,
+    currentUrl,
+    isLoading: false,
+    hasLoadedOnce: true,
+    loadState: 'settled',
+    error: null
+  })
+
+  const startingFresh = (generation: number, currentUrl = 'https://chatgpt.com/') => ({
+    generation,
+    currentUrl,
+    isLoading: true,
+    hasLoadedOnce: false,
+    loadState: 'loading',
+    error: null
+  })
+
+  it("drops the previous view's revealed state when a new WebContents appears", () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', settled(10) as never)
+    })
+    expect(result.current.hasLoadedOnce).toBe(true)
+    expect(result.current.isLoading).toBe(false)
+
+    // Generation 11 is a brand new WebContents: it has painted nothing yet, so
+    // the splash has to come back and the native view must not be revealed.
+    act(() => {
+      controller._emit('state', startingFresh(11) as never)
+    })
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.hasLoadedOnce).toBe(false)
+  })
+
+  it('reveals the replacement view once its own first load settles', () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', settled(10) as never)
+      controller._emit('state', startingFresh(11) as never)
+    })
+    expect(result.current.hasLoadedOnce).toBe(false)
+
+    act(() => {
+      controller._emit('did-stop-loading', {
+        generation: 11,
+        currentUrl: 'https://chatgpt.com/c/fresh'
+      })
+    })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.hasLoadedOnce).toBe(true)
+  })
+
+  it('keeps hasLoadedOnce monotonic while the generation does not change', () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', settled(10) as never)
+    })
+
+    // Same WebContents, second navigation: main mirrors this as isLoading with
+    // hasLoadedOnce still true, and the panel must not blank out for it.
+    act(() => {
+      controller._emit('state', {
+        generation: 10,
+        currentUrl: 'https://chatgpt.com/c/2',
+        isLoading: true,
+        hasLoadedOnce: true,
+        loadState: 'loading',
+        error: null
+      } as never)
+    })
+
+    expect(result.current.hasLoadedOnce).toBe(true)
+    expect(result.current.isLoading).toBe(false)
+  })
+
+  it('does not re-run the settled callback for a view that is still loading', () => {
+    const controller = createController()
+    const onPageSettled = vi.fn()
+    const { result } = render(controller, { onPageSettled })
+
+    act(() => {
+      controller._emit('did-stop-loading', { generation: 10, currentUrl: 'https://x.test/' })
+    })
+    expect(onPageSettled).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      controller._emit('state', startingFresh(11) as never)
+    })
+
+    // Nothing to inspect in a guest that has not painted yet, so the stale-check
+    // callback must not run against the wrong document.
+    expect(result.current.hasLoadedOnce).toBe(false)
+    expect(onPageSettled).toHaveBeenCalledTimes(1)
+  })
+
+  it("clears the previous view's error when its replacement reports in", () => {
+    const controller = createController()
+    const { result } = render(controller)
+
+    act(() => {
+      controller._emit('state', {
+        generation: 10,
+        currentUrl: 'https://chatgpt.com/',
+        isLoading: false,
+        hasLoadedOnce: true,
+        loadState: 'failed',
+        error: { code: -105, description: 'ERR_NAME_NOT_RESOLVED' }
+      } as never)
+    })
+    expect(result.current.error).toBe('ERR_NAME_NOT_RESOLVED')
+
+    act(() => {
+      controller._emit('state', startingFresh(11) as never)
+    })
+
+    // The failure belonged to the destroyed view; the new one is still loading.
+    expect(result.current.error).toBeNull()
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.hasLoadedOnce).toBe(false)
+  })
+
+  it("reports the replacement view's url rather than the destroyed one", () => {
+    const controller = createController()
+    const onUrlChange = vi.fn()
+    render(controller, { onUrlChange })
+
+    act(() => {
+      controller._emit('state', settled(10, 'https://chatgpt.com/c/gone') as never)
+      controller._emit('state', startingFresh(11, 'https://chatgpt.com/') as never)
+    })
+
+    expect(onUrlChange).toHaveBeenLastCalledWith('https://chatgpt.com/')
+  })
 })
