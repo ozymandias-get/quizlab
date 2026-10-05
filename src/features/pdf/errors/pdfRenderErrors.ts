@@ -1,35 +1,55 @@
 /**
  * Safety net for pdf.js render lifecycle races.
  *
- * pdf.js rejects cancelled render tasks with RenderingCancelledException and
- * throws "canvas context is locked"-style errors when render() is invoked on a
- * canvas whose previous task has not fully released the context (fast
- * scrolling / zooming in SinglePage mode). @react-pdf-viewer catches these in
- * the happy path, but during Viewer remounts (reload key changes) and
- * zoom+navigation races the rejection can escape as an unhandled rejection.
+ * pdf.js rejects a cancelled render task with `RenderingCancelledException`
+ * (a `BaseException` subclass, so `error.name === 'RenderingCancelledException'`)
+ * and throws when `render()` is called on a canvas whose previous task has not
+ * released it yet. @react-pdf-viewer catches both in the happy path, but across
+ * Viewer remounts (reload key changes) and zoom+navigation races the rejection
+ * can escape as an unhandled rejection and reach the browser's default console
+ * reporting.
  *
- * These errors are expected, benign side effects of the viewer's own
- * cancellation logic — they must never reach the console as uncaught errors.
+ * Both conditions are expected and benign, so this guard calls
+ * `preventDefault()` to keep them out of the console.
+ *
+ * Scope note: `preventDefault()` does **not** suppress the in-app toast. That is
+ * `shared/lib/globalErrorHandlers`, which honours `defaultPrevented` but is
+ * installed at boot (`app/main.tsx`) and therefore receives `unhandledrejection`
+ * before this lazily-mounted guard does. Swallowing the toast would need a
+ * shared benign-error registry; that is not worth the cross-module coupling for
+ * a message that is only noise.
+ *
+ * The markers below were checked against the pinned `pdfjs-dist@3.11.174` and
+ * `@react-pdf-viewer/core@3.12.0` bundles. `enableScripting`-era pdf.js messages
+ * that those versions do not contain were removed rather than left to match
+ * unrelated errors by accident.
  */
 
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 
-const IGNORED_RENDER_ERROR_MARKERS = [
-  'renderingcancelledexception',
-  'rendering cancelled',
-  'render() was canceled',
-  'canvas context is locked',
-  'multiple render() operations'
-]
+/** Error name pdf.js assigns to a cancelled render task. */
+const CANCELLED_RENDER_ERROR_NAME = 'RenderingCancelledException'
+
+/** Substrings of the two messages pdf.js actually throws for a render race. */
+const IGNORED_RENDER_ERROR_MARKERS = ['rendering cancelled', 'multiple render() operations']
 
 export function isIgnorablePdfRenderError(error: unknown): boolean {
-  const message = ensureErrorMessage(error, '')
-  const normalized = message.toLowerCase()
+  // Exact-name match first: it is the only signal that survives pdf.js
+  // replacing the human-readable message with its own error object.
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === CANCELLED_RENDER_ERROR_NAME
+  ) {
+    return true
+  }
+  const normalized = ensureErrorMessage(error, '').toLowerCase()
   return IGNORED_RENDER_ERROR_MARKERS.some((marker) => normalized.includes(marker))
 }
 
 /**
- * Installs a global unhandled-rejection filter that swallows pdf.js render
+ * Installs the global unhandled-rejection filter that swallows pdf.js render
  * cancellation races. Returns an uninstall function.
  */
 export function installPdfRenderErrorGuard(): () => void {
