@@ -1,7 +1,7 @@
 import { DURATION } from '@shared/lib/motion'
 
 import type { Easing } from 'motion/react'
-import { type CSSProperties, useMemo } from 'react'
+import { useMemo } from 'react'
 
 const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]
 
@@ -12,11 +12,6 @@ const DEFAULT_TRANSITION = {
 
 // Static variants defined once outside the component to avoid re-creating
 // them on every render. These never change, so useMemo is unnecessary.
-const GPU_ACCELERATED_STYLE: CSSProperties = {
-  willChange: 'transform, opacity',
-  transform: 'translateZ(0)'
-}
-
 const LEFT_PANEL_VARIANTS = {
   visible: {
     opacity: 1,
@@ -85,8 +80,7 @@ export const useAppAnimations = (isLayoutSwapped: boolean = false) => {
       leftPanelVariants: isLayoutSwapped ? RIGHT_PANEL_VARIANTS : LEFT_PANEL_VARIANTS,
       rightPanelVariants: isLayoutSwapped ? LEFT_PANEL_VARIANTS : RIGHT_PANEL_VARIANTS,
       resizerVariants: RESIZER_VARIANTS,
-      containerVariants: CONTAINER_VARIANTS,
-      gpuAcceleratedStyle: GPU_ACCELERATED_STYLE
+      containerVariants: CONTAINER_VARIANTS
     }),
     [isLayoutSwapped]
   )
