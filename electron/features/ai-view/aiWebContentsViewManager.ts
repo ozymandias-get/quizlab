@@ -379,7 +379,17 @@ function destroyEntry(viewId: string): boolean {
   if (!entry.webContents.isDestroyed()) {
     // `close()` is Electron's teardown for a WebContents we own: it drops the
     // renderer process instead of leaving an orphaned one behind.
-    entry.webContents.close()
+    //
+    // Guarded like every other teardown step above. It runs last, once the map
+    // entry is already deleted and the view is off the window, so a throw here
+    // could not be recovered from anyway — letting it escape would only reject
+    // destroyAiView() and make destroyAllAiViews()'s Promise.all bail out
+    // before it awaited its siblings.
+    try {
+      entry.webContents.close()
+    } catch (error) {
+      Logger.warn('[AiView] webContents.close() failed:', error)
+    }
   }
 
   return true
