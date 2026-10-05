@@ -23,6 +23,8 @@
   "api_chat_custom_provider": "Custom",
   "api_chat_no_providers": "No providers configured. Add one above.",
   "api_chat_base_url": "Base URL",
+  "api_chat_allow_local_network": "Allow local/private network endpoints",
+  "api_chat_allow_local_network_desc": "Required to reach a model server on your LAN (192.168.x.x, 10.x) or an IPv6 private address. A server running on this machine (localhost) does not need it.",
   "api_chat_api_key": "API Key",
   "api_chat_default_model": "Default Model",
   "api_chat_test_connection": "Test Connection",

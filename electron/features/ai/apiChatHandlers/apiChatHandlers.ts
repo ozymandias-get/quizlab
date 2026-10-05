@@ -1,16 +1,11 @@
 import { IPC_CHANNELS } from '../../../../shared/constants/ipcChannels.js'
 import { failure, success } from '../../../../shared/lib/typedIpc.js'
-import type {
-  ApiChatMessage,
-  ApiConfig,
-  ApiProviderConfig
-} from '../../../../shared/types/index.js'
+import type { ApiChatMessage, ApiConfig } from '../../../../shared/types/index.js'
 import { requireTrustedIpcSender } from '../../../core/ipcSecurity.js'
 import { Logger } from '../../../core/logger.js'
 import { registerIpcHandler } from '../../../core/typedIpcMain.js'
 import { loadConfig, sanitizeApiKey, saveConfig } from './config.js'
-import type { SsrProtectionOptions } from './ssrf.js'
-import { fetchWithSsrProtection, validateProviderUrl } from './ssrf.js'
+import { fetchWithSsrProtection, getSsrOptionsForProvider, validateProviderUrl } from './ssrf.js'
 import type { ChatCompletionBody, ModelListItem } from './validation.js'
 import {
   buildChatCompletionMessages,
@@ -19,26 +14,12 @@ import {
 } from './validation.js'
 
 /**
- * The single normalization boundary for local-network access.
+ * Local-network access requires explicit, per-provider consent.
  *
- * `ApiProviderConfig` still accepts two deprecated persisted aliases
- * (`allowLocalEndpoints`, `isCustomProvider`) so a config file written by an
- * older build - or hand-edited - keeps working. They are resolved here and
- * nowhere else, so the SSRF layer only ever sees the canonical
- * `allowLocalNetwork` flag.
- *
- * A provider added without a template is typed `custom`, which is why that
- * branch exists: those are the local endpoints (Ollama, LM Studio, vLLM,
- * LocalAI) the flag is for.
+ * The decision itself lives in `getSsrOptionsForProvider` (ssrf.ts) next to the
+ * guard that consumes it, so it can be asserted directly without standing up the
+ * whole IPC surface.
  */
-function getSsrOptionsForProvider(provider: ApiProviderConfig): SsrProtectionOptions | undefined {
-  const allow =
-    provider.allowLocalNetwork === true ||
-    provider.allowLocalEndpoints === true ||
-    provider.isCustomProvider === true ||
-    provider.providerType === 'custom'
-  return allow ? { allowLocalNetwork: true } : undefined
-}
 
 /** Hard cap for the renderer-composed system prompt forwarded per request. */
 const MAX_SYSTEM_PROMPT_LENGTH = 20_000

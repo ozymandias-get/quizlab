@@ -5,21 +5,21 @@ import https from 'node:https'
 import { isIP } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 
+import type { ApiProviderConfig } from '../../../../shared/types/apiChat.js'
 import { classifyHost, HOST_SCOPE, normalizeHostname } from './ssrfIpUtils.js'
 
 /**
  * Options accepted by the SSRF guard.
  *
- * Only the canonical field appears here. Deprecated persisted aliases
- * (`allowLocalEndpoints`, `isCustomProvider`) are resolved by
- * `getSsrOptionsForProvider` in apiChatHandlers.ts, which is the single
- * normalization boundary; nothing downstream should re-derive the permission.
+ * Only the canonical field appears here. The deprecated persisted aliases
+ * (`allowLocalEndpoints`, `isCustomProvider`) are resolved once, on load, by
+ * `normalizeProvider` in config.ts, so nothing downstream re-derives them.
  */
 export interface SsrProtectionOptions {
   /**
    * Allow a provider hosted on this machine or the user's LAN — loopback,
-   * RFC 1918 and IPv6 ULA. This is the consent switch for Ollama / LM Studio /
-   * vLLM / LocalAI.
+   * RFC 1918 and IPv6 ULA. This is the consent switch for reaching a model
+   * server on another machine.
    *
    * It deliberately does NOT unlock special-use addresses: link local (which
    * carries the cloud instance metadata endpoint), the unspecified block, CGNAT,
@@ -27,6 +27,30 @@ export interface SsrProtectionOptions {
    * blocked. See HOST_SCOPE in ssrfIpUtils.ts.
    */
   allowLocalNetwork?: boolean
+}
+
+/**
+ * Turns a persisted provider into the SSRF permission it was granted.
+ *
+ * Local-network access requires explicit, per-provider consent: only
+ * `allowLocalNetwork === true` grants it.
+ *
+ * `providerType` is deliberately NOT consulted. It describes the API *shape* a
+ * provider speaks, not where it lives — `custom` is what any provider added
+ * without a template gets, including a remote endpoint such as
+ * `https://my-company-api.example.com`. Treating "custom" as "a model server on
+ * my machine" handed every custom provider loopback and RFC 1918 reach the user
+ * never asked for.
+ *
+ * Loopback is unaffected: `validateProviderUrl` below already allows
+ * `localhost` and `127.0.0.1` over plain HTTP as the local-development
+ * exception, so a model server on this machine needs no consent either way. The
+ * flag is what unlocks LAN and IPv6 ULA addresses (192.168.x.x, 10.x, fd00::/8).
+ */
+export function getSsrOptionsForProvider(
+  provider: ApiProviderConfig
+): SsrProtectionOptions | undefined {
+  return provider.allowLocalNetwork === true ? { allowLocalNetwork: true } : undefined
 }
 
 function isLocalAllowed(options?: SsrProtectionOptions): boolean {

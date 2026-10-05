@@ -21,4 +21,22 @@ describe('SettingsToggleSwitch', () => {
 
     expect(onChange).not.toHaveBeenCalled()
   })
+
+  it('forwards id and aria-describedby so a <Label> can name the control', () => {
+    render(
+      <>
+        <label htmlFor="net-toggle">Allow local network</label>
+        <SettingsToggleSwitch
+          id="net-toggle"
+          aria-describedby="net-toggle-desc"
+          checked={false}
+          onChange={vi.fn()}
+        />
+        <p id="net-toggle-desc">Reaches a model server on your LAN.</p>
+      </>
+    )
+
+    const toggle = screen.getByRole('switch', { name: 'Allow local network' })
+    expect(toggle).toHaveAttribute('aria-describedby', 'net-toggle-desc')
+  })
 })
