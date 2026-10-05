@@ -15,8 +15,7 @@ function sanitizeApiKey(key: string): string {
 }
 
 /**
- * Collapses the deprecated persisted aliases onto the canonical
- * `allowLocalNetwork` flag.
+ * The only place the deprecated local-network aliases are ever read.
  *
  * `ApiProviderConfig.allowLocalEndpoints` / `.isCustomProvider` were introduced
  * as aliases and are never written by the app, but a config file could carry
@@ -27,9 +26,13 @@ function sanitizeApiKey(key: string): string {
  * in canonical form.
  *
  * The grant itself is unchanged: an alias of `true` becomes
- * `allowLocalNetwork: true`, exactly what the request-time normalizer computed
- * from it. An explicit `allowLocalNetwork: false` still wins over an alias set
- * to `false`, and neither alias overrides a canonical `true`.
+ * `allowLocalNetwork: true`, which is what the request path would have computed
+ * from it anyway. An explicit `allowLocalNetwork: false` still wins over an alias
+ * set to `false`, and neither alias overrides a canonical `true`.
+ *
+ * The request path (`getSsrOptionsForProvider` in ssrf.ts) reads
+ * `allowLocalNetwork` and nothing else, so a provider that predates the aliases
+ * keeps working without any of them surviving into a live request.
  */
 function normalizeProvider(p: ApiProviderConfig): ApiProviderConfig {
   const { allowLocalEndpoints, isCustomProvider, ...rest } = p
