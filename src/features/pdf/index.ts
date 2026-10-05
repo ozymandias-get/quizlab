@@ -17,29 +17,31 @@
  *
  * Use `import type { ... } from '@features/pdf/types'` for zero-runtime cost.
  *
- * ## pdfjs-dist is not independently upgradable
+ * ## pdfjs-dist version is pinned deliberately
  *
- * The renderer ends up with two PDF.js engines and one worker, and the
- * engine/worker handshake crosses the viewer boundary:
+ * There is exactly **one** PDF.js engine and **one** worker in the renderer:
  *
- *   - `@react-pdf-viewer/core` webpack-bundles its own PDF.js, so its engine
- *     is the one it shipped with, independent of what npm installs.
- *   - `ui/components/PdfWorkerHost.tsx` passes a worker URL built from the
- *     npm `pdfjs-dist` package into that bundled engine.
- *   - `lib/renderPageToImage.ts` imports a second, separate pdfjs instance
- *     for the fallback page-to-image render.
+ *   - `@react-pdf-viewer/core` declares `pdfjs-dist` as a *peer dependency* and
+ *     its bundle does `require('pdfjs-dist')`, so it runs the very copy npm
+ *     installs. It does not bundle a second PDF.js.
+ *   - `ui/components/PdfWorkerHost.tsx` feeds that engine a worker URL built from
+ *     the same npm `pdfjs-dist` package.
+ *   - `lib/renderPageToImage.ts` imports that same package, and normally does not
+ *     even load a document: it reuses the live `PDFDocumentProxy` the viewer
+ *     registers in `activePdfDocumentRegistry`.
  *
- * Both sides resolve to the same version today, so it works — by
- * coincidence, not by design. Bumping `pdfjs-dist` on its own would put a
- * newer worker in front of an older engine while `npm audit` called the tree
- * clean, so the version is pinned exactly and guarded by overrides plus
- * `src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts`.
+ * The pin exists because engine and worker are the *same* dependency, so an
+ * unpinned range could hand the engine a worker from a different major while
+ * `npm audit` still called the tree clean. The exact pin is backed by an
+ * `overrides` entry and guarded by
+ * `src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts`, which also
+ * asserts the installed version satisfies the viewer's declared peer range.
  *
- * To move off pdfjs 3.x, replace the viewer and upgrade pdfjs in the same
- * change. That additionally requires `enableScripting: false` alongside the
- * existing `isEvalSupported: false` (two different CVEs, neither replaces the
- * other), packaging the `wasm/` assets that 3.x does not have, and
- * re-verifying the ESM interop shim in `lib/renderPageToImage.ts`.
+ * To move off pdfjs 3.x, upgrade the viewer and pdfjs in the same change. That
+ * additionally requires packaging the `wasm/` assets that 3.x does not have,
+ * adding `enableScripting: false` (a later CVE whose knob does not replace the
+ * existing `isEvalSupported: false`), and re-verifying the ESM interop shim in
+ * `lib/renderPageToImage.ts`.
  */
 
 export { useDriveViewRetirement } from './hooks/useDriveViewRetirement'
