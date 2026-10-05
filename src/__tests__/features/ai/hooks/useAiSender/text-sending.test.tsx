@@ -24,8 +24,8 @@ import {
   mockAiRegistry,
   mockGenerateAutoSendScript,
   mockGetAiConfig,
-  mockWebview,
-  mockWebviewRef
+  mockContent,
+  mockContentRef
 } from './mocks'
 import { setupUseAiSenderMocks } from './sharedTestSetup'
 
@@ -45,7 +45,7 @@ describe('useAiSender - text sending', () => {
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
@@ -70,7 +70,7 @@ describe('useAiSender - text sending', () => {
       'auto',
       30
     )
-    expect(mockWebview.executeJavaScript).toHaveBeenCalled()
+    expect(mockContent.executeJavaScript).toHaveBeenCalled()
     expect(res.diagnostics?.tabId).toBe('tab-1')
     expect(res.diagnostics?.currentAI).toBe('gpt-4')
     expect(res.diagnostics?.currentUrl).toBe('https://openai.com/chat')
@@ -82,7 +82,7 @@ describe('useAiSender - text sending', () => {
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
@@ -112,7 +112,7 @@ describe('useAiSender - text sending', () => {
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
@@ -141,12 +141,12 @@ describe('useAiSender - text sending', () => {
   })
 
   it('handles cached config with regex validation', async () => {
-    mockWebview.getURL.mockReturnValue('https://other.com')
+    mockContent.getURL.mockReturnValue('https://other.com')
 
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
@@ -168,13 +168,13 @@ describe('useAiSender - text sending', () => {
   })
 
   it('fetches custom config from API', async () => {
-    mockWebview.getURL.mockReturnValue('https://openai.com')
+    mockContent.getURL.mockReturnValue('https://openai.com')
     mockGetAiConfig.mockResolvedValue({ input: '.custom-input', button: '.custom-btn' })
 
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],

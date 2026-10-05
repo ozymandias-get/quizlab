@@ -12,11 +12,6 @@ vi.mock('electron', () => ({
   }
 }))
 
-const mockGetMainWindow = vi.fn()
-vi.mock('../../../app/windowManager.js', () => ({
-  getMainWindow: (...args: any[]) => mockGetMainWindow(...args)
-}))
-
 vi.mock('../../../features/ai/aiManager.js', () => ({
   AI_REGISTRY: {},
   INACTIVE_PLATFORMS: {}
@@ -72,12 +67,5 @@ describe('systemHandlers/cache', () => {
   it('resolveAiModelPartition returns null for empty input', async () => {
     const { resolveAiModelPartition } = await import('../../../core/systemHandlers/cache.js')
     expect(resolveAiModelPartition({})).toBeNull()
-  })
-
-  it('isMainWindowGuestContents returns false when main window is null', async () => {
-    mockGetMainWindow.mockReturnValue(null)
-    const { isMainWindowGuestContents } = await import('../../../core/systemHandlers/cache.js')
-    const result = isMainWindowGuestContents({ isDestroyed: () => false } as any)
-    expect(result).toBe(false)
   })
 })

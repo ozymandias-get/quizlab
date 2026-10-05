@@ -1,10 +1,13 @@
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { AiSendOptions } from '@features/ai'
 
 import { useMemo } from 'react'
 
 import type {
+  AiContentHostActions,
+  AiContentPresenceState,
+  AiContentState,
   AiCoreWorkspaceActions,
   AiMessagingActions,
   AiModelActions,
@@ -17,9 +20,6 @@ import type {
   AiTabFocusSliceState,
   AiTabsListSliceState,
   AiViewRequestNonceState,
-  AiWebviewHostActions,
-  AiWebviewPresenceState,
-  AiWebviewState,
   Tab
 } from '../ai/types'
 
@@ -38,8 +38,8 @@ interface UseAiProviderContextsParams {
   defaultAiModel: string
   autoSend: boolean
   isTutorialActive: boolean
-  getWebviewInstance: (tabId?: string) => WebviewController | null
-  hasActiveWebview: boolean
+  getContentController: (tabId?: string) => AiContentController | null
+  hasActiveContent: boolean
   addTab: (modelId: string) => void
   handleCloseTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
@@ -53,8 +53,8 @@ interface UseAiProviderContextsParams {
   toggleAutoSend: () => void
   startTutorial: () => void
   stopTutorial: () => void
-  registerWebview: (id: string, instance: WebviewController | null) => void
-  reloadActiveWebview: () => void
+  registerContent: (id: string, instance: AiContentController | null) => void
+  reloadActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   cancelOngoing: () => void
@@ -73,8 +73,8 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     defaultAiModel,
     autoSend,
     isTutorialActive,
-    getWebviewInstance,
-    hasActiveWebview,
+    getContentController,
+    hasActiveContent,
     addTab,
     handleCloseTab,
     setActiveTab,
@@ -88,8 +88,8 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     toggleAutoSend,
     startTutorial,
     stopTutorial,
-    registerWebview,
-    reloadActiveWebview,
+    registerContent,
+    reloadActiveContent,
     sendTextToAI,
     sendImageToAI,
     cancelOngoing
@@ -124,11 +124,14 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     [autoSend, isTutorialActive]
   )
 
-  const webviewValue = useMemo<AiWebviewState>(() => ({ getWebviewInstance }), [getWebviewInstance])
+  const contentValue = useMemo<AiContentState>(
+    () => ({ getContentController }),
+    [getContentController]
+  )
 
-  const webviewPresenceValue = useMemo<AiWebviewPresenceState>(
-    () => ({ hasActiveWebview }),
-    [hasActiveWebview]
+  const contentPresenceValue = useMemo<AiContentPresenceState>(
+    () => ({ hasActiveContent }),
+    [hasActiveContent]
   )
 
   const coreWorkspaceActionsValue = useMemo<AiCoreWorkspaceActions>(
@@ -186,9 +189,9 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     [setAutoSend, toggleAutoSend, startTutorial, stopTutorial]
   )
 
-  const webviewHostActionsValue = useMemo<AiWebviewHostActions>(
-    () => ({ registerWebview, reloadActiveWebview }),
-    [registerWebview, reloadActiveWebview]
+  const contentHostActionsValue = useMemo<AiContentHostActions>(
+    () => ({ registerContent, reloadActiveContent }),
+    [registerContent, reloadActiveContent]
   )
 
   const messagingActionsValue = useMemo<AiMessagingActions>(
@@ -204,13 +207,13 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     aiSitesValue,
     modelsCatalogValue,
     sessionUiPrefsSliceValue,
-    webviewValue,
-    webviewPresenceValue,
+    contentValue,
+    contentPresenceValue,
     coreWorkspaceActionsValue,
     tabActionsValue,
     modelActionsValue,
     sessionActionsValue,
-    webviewHostActionsValue,
+    contentHostActionsValue,
     messagingActionsValue
   }
 }

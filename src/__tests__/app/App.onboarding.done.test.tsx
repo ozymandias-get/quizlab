@@ -42,6 +42,10 @@ vi.mock('@shared/stores/appearanceStore', () => ({
 }))
 
 vi.mock('@app/ui/FocusOverlay', () => ({ default: () => null }))
+vi.mock('@app/providers/ai-context', () => ({
+  useAiTabsSliceState: () => ({ tabs: [], activeTabId: null, currentAI: null }),
+  useAiViewRequestNonce: () => 0
+}))
 vi.mock('@features/screenshot/tool', () => ({ ScreenshotTool: () => null }))
 vi.mock('@features/tutorial', () => ({
   TutorialOverlay: () => null,
@@ -60,7 +64,7 @@ vi.mock('@app/hooks/useAppShellState', () => ({
     updateInfo: null,
     isLayoutSwapped: false,
     animations: {},
-    isWebviewMounted: false,
+    isAiSurfaceMounted: false,
     panelResize: {
       leftPanelWidth: 50,
       leftPanelRef: { current: null },

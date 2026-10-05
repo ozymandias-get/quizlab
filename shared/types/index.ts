@@ -17,6 +17,27 @@ export type {
   CustomAiResult,
   InactivePlatforms
 } from './ai.js'
+export type { AiContentController, AiContentRef } from './aiContent.js'
+export type {
+  AiContentInputEvent,
+  AiContentInputEventType,
+  AiViewAttachRequest,
+  AiViewAttachResponse,
+  AiViewBounds,
+  AiViewEvent,
+  AiViewEventKind,
+  AiViewEventOf,
+  AiViewHostRequest,
+  AiViewHostSyncRequest,
+  AiViewInputEventRequest,
+  AiViewLoadUrlRequest,
+  AiViewNavigateRequest,
+  AiViewScriptRequest,
+  AiViewSource,
+  AiViewStateSnapshot,
+  AiViewTabRequest,
+  AiViewTextRequest
+} from './aiView.js'
 export type { ApiChatMessage, ApiConfig, ApiProviderConfig } from './apiChat.js'
 export type {
   AiSelectorConfig,
@@ -52,6 +73,8 @@ export type {
 export type {
   CacheInfoResponse,
   ElectronApi,
+  IpcEventChannel,
+  IpcEventMap,
   IpcInvokeChannel,
   IpcInvokeRequestMap
 } from './ipcContract.js'

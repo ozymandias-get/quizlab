@@ -12,7 +12,7 @@ export const MAX_SEGMENT_LENGTH = 256
 
 /**
  * Self-healing repair metadata limits. The repair blob is attacker-reachable
- * (it arrives from the AI webview over the pipeline) and is persisted verbatim,
+ * (it arrives from the managed AI view over the pipeline) and is persisted verbatim,
  * so every scalar needs an explicit bound.
  */
 export const MAX_REPAIR_SELECTOR_LENGTH = 2000

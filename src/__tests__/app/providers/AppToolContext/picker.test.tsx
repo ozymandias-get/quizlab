@@ -14,8 +14,8 @@ vi.mock('@app/providers/ai-context', () => ({
     autoSend: mockState.autoSend,
     isTutorialActive: false
   }),
-  useAiWebview: () => ({
-    getWebviewInstance: () => mockState.webviewInstance
+  useAiContent: () => ({
+    getContentController: () => mockState.contentController
   })
 }))
 
@@ -43,13 +43,9 @@ vi.mock('@features/automation', () => ({
   })
 }))
 
-vi.mock('@app/providers/app-tool/webviewPickerReadiness', () => ({
+vi.mock('@app/providers/app-tool/aiContentPickerReadiness', () => ({
   oncePickerReady: vi.fn().mockResolvedValue('dom-ready'),
-  waitForWebviewElement: vi.fn().mockResolvedValue({
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    isDestroyed: vi.fn(() => false)
-  })
+  waitForContentReady: vi.fn().mockResolvedValue(undefined)
 }))
 
 vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
@@ -105,22 +101,19 @@ describe('AppToolContext - picker', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockState.webviewInstance = null
+    mockState.contentController = null
   })
 
-  it('starts the picker once the active webview becomes ready', async () => {
+  it('starts the picker once the active content becomes ready', async () => {
     vi.useRealTimers()
-    const mockWebviewEl = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      isDestroyed: () => false
-    }
-    mockState.webviewInstance = {
-      getWebview: () => mockWebviewEl,
+    mockState.contentController = {
+      isReady: () => true,
+      isDestroyed: () => false,
       getURL: vi.fn(() => 'https://chat.openai.com'),
       executeJavaScript: vi.fn().mockResolvedValue('complete')
     } as unknown as Element & {
-      getWebview: () => typeof mockWebviewEl
+      isReady: () => boolean
+      isDestroyed: () => boolean
       getURL: () => string
       executeJavaScript: (s: string) => Promise<unknown>
     }

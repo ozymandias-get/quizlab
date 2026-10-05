@@ -2,7 +2,7 @@
  * Tests for src/app/hooks/useAppShellState.ts
  *
  * Top-level shell state hook composing appearance, tutorial, panel resize,
- * focus mode, animations, and webview mount.  All deps are mocked.
+ * focus mode, animations, and content mount.  All deps are mocked.
  */
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -35,7 +35,7 @@ vi.mock('@shared/hooks', () => ({
     startResizing: vi.fn(),
     stopResizing: vi.fn()
   }),
-  useWebviewMount: () => true
+  useAiSurfaceMount: () => true
 }))
 
 vi.mock('@features/tutorial/store/tutorialStore', () => ({
@@ -72,7 +72,7 @@ describe('useAppShellState', () => {
     expect(result.current).toHaveProperty('updateInfo')
     expect(result.current).toHaveProperty('isLayoutSwapped')
     expect(result.current).toHaveProperty('animations')
-    expect(result.current).toHaveProperty('isWebviewMounted')
+    expect(result.current).toHaveProperty('isAiSurfaceMounted')
     expect(result.current).toHaveProperty('panelResize')
     expect(result.current).toHaveProperty('workspaceState')
     expect(result.current).toHaveProperty('updateBanner')
@@ -91,9 +91,9 @@ describe('useAppShellState', () => {
     expect(result.current.isLayoutSwapped).toBe(false)
   })
 
-  it('reports webview as mounted', () => {
+  it('reports content as mounted', () => {
     const { result } = renderHook(() => useAppShellState())
-    expect(result.current.isWebviewMounted).toBe(true)
+    expect(result.current.isAiSurfaceMounted).toBe(true)
   })
 
   describe('workspaceState', () => {

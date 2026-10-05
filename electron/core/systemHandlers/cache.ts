@@ -2,7 +2,6 @@ import { promises as fs } from 'fs'
 import path from 'path'
 
 import { APP_CONFIG } from '../../app/constants.js'
-import { getMainWindow } from '../../app/windowManager.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 import type { getCacheInfo } from '../cacheCleanup/index.js'
 import { getActivityCategory } from '../cacheRegistry.js'
@@ -45,24 +44,6 @@ export function setCachedCacheInfo(
 ): void {
   cachedCacheInfo = info
   cachedCacheInfoTime = time
-}
-
-export function isMainWindowGuestContents(contents: Electron.WebContents): boolean {
-  const mainWindow = getMainWindow()
-  if (
-    !mainWindow ||
-    mainWindow.isDestroyed() ||
-    mainWindow.webContents.isDestroyed() ||
-    contents.isDestroyed()
-  ) {
-    return false
-  }
-
-  const guestContents = contents as Electron.WebContents & {
-    hostWebContents?: Electron.WebContents
-  }
-
-  return guestContents.hostWebContents === mainWindow.webContents
 }
 
 function getPartitionCacheRoot(userDataPath: string, partition: string): string | null {

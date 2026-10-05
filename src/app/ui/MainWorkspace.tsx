@@ -1,3 +1,5 @@
+import type { AiViewSurfaceState } from '@features/ai/viewState'
+
 import AuroraBackground from '@app/components/ui/aurora-background'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import BottomBar from '@ui/layout/BottomBar'
@@ -9,13 +11,14 @@ import {
   type CSSProperties,
   lazy,
   memo,
-  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   Suspense
 } from 'react'
 
-const AiWebview = lazy(() => import('@features/ai/webview').then((m) => ({ default: m.AiWebview })))
+const AiViewSurface = lazy(() =>
+  import('@features/ai/aiViewSurface').then((m) => ({ default: m.AiViewSurface }))
+)
 
 interface MainWorkspaceProps {
   isLayoutSwapped: boolean
@@ -35,15 +38,16 @@ interface MainWorkspaceProps {
   handleResizerDoubleClick?: () => void
   onKeyboardResize?: (deltaPx: number) => void
   isResizeReversed?: boolean
-  isWebviewMounted: boolean
+  isAiSurfaceMounted: boolean
   isResizing: boolean
-  isBarHovered: boolean
   onBarHoverChange: (isHovered: boolean) => void
   leftPanelProps: ComponentProps<typeof LeftPanel>
   isInteractionBlocked?: boolean
   isPanelResizing?: boolean
   bgMode: 'ambient' | 'solid'
-  aiTabUrlCacheRef?: MutableRefObject<Record<string, { url: string; modelId: string }>>
+  /** Which AI surface this workspace represents; only the active one positions native views. */
+  isAiSurfaceActive: boolean
+  aiViewSurfaceState: AiViewSurfaceState
 }
 
 function MainWorkspace({
@@ -63,15 +67,15 @@ function MainWorkspace({
   handleResizerDoubleClick,
   onKeyboardResize,
   isResizeReversed,
-  isWebviewMounted,
+  isAiSurfaceMounted,
   isResizing,
-  isBarHovered,
   onBarHoverChange,
   leftPanelProps,
   isInteractionBlocked,
   isPanelResizing,
   bgMode,
-  aiTabUrlCacheRef
+  isAiSurfaceActive,
+  aiViewSurfaceState
 }: MainWorkspaceProps) {
   return (
     <motion.main
@@ -127,11 +131,11 @@ function MainWorkspace({
         style={{ transform: 'translateZ(0)' }}
       >
         <Suspense fallback={<AestheticLoader />}>
-          {isWebviewMounted ? (
-            <AiWebview
+          {isAiSurfaceMounted ? (
+            <AiViewSurface
               isResizing={isResizing}
-              isBarHovered={isBarHovered}
-              sharedTabUrlCacheRef={aiTabUrlCacheRef}
+              isSurfaceActive={isAiSurfaceActive}
+              surfaceState={aiViewSurfaceState}
             />
           ) : (
             <AestheticLoader />

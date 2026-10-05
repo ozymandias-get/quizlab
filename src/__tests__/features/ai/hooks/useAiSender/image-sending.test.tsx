@@ -28,8 +28,8 @@ import {
   mockGenerateFocusScript,
   mockGenerateWaitForSubmitReadyScript,
   mockScriptDiagnostics,
-  mockWebview,
-  mockWebviewRef
+  mockContent,
+  mockContentRef
 } from './mocks'
 import { setupUseAiSenderMocks } from './sharedTestSetup'
 
@@ -53,7 +53,7 @@ describe('useAiSender - image sending', () => {
     mockGenerateWaitForSubmitReadyScript.mockResolvedValue('waitReady()')
     mockGenerateClickSendScript.mockResolvedValue('click()')
     mockState.mockUsePrompts.mockReturnValue({ activePromptText: 'Describe this' })
-    mockWebview.executeJavaScript
+    mockContent.executeJavaScript
       .mockResolvedValueOnce({
         success: true,
         diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
@@ -81,7 +81,7 @@ describe('useAiSender - image sending', () => {
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           true,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
@@ -99,7 +99,7 @@ describe('useAiSender - image sending', () => {
 
     expect(res.success).toBe(true)
     expect(mockCopyImageToClipboard).toHaveBeenCalledWith(imageDataUrl)
-    expect(mockWebview.pasteNative).toHaveBeenCalled()
+    expect(mockContent.paste).toHaveBeenCalled()
     expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
       expect.anything(),
       'Describe this',
@@ -131,7 +131,7 @@ describe('useAiSender - image sending', () => {
     mockGenerateWaitForSubmitReadyScript.mockResolvedValue('waitReady()')
     mockGenerateClickSendScript.mockResolvedValue('click()')
     mockState.mockUsePrompts.mockReturnValue({ activePromptText: null })
-    mockWebview.executeJavaScript
+    mockContent.executeJavaScript
       .mockResolvedValueOnce({
         success: true,
         diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
@@ -159,7 +159,7 @@ describe('useAiSender - image sending', () => {
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
@@ -188,7 +188,7 @@ describe('useAiSender - image sending', () => {
     mockCopyImageToClipboard.mockResolvedValue(true)
     mockGenerateFocusScript.mockResolvedValue('focus()')
     mockGenerateAutoSendScript.mockResolvedValue('send()')
-    mockWebview.executeJavaScript
+    mockContent.executeJavaScript
       .mockResolvedValueOnce({
         success: true,
         diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
@@ -201,7 +201,7 @@ describe('useAiSender - image sending', () => {
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],
@@ -234,7 +234,7 @@ describe('useAiSender - image sending', () => {
     mockCopyImageToClipboard.mockResolvedValue(true)
     mockGenerateFocusScript.mockResolvedValue('focus()')
     mockGenerateAutoSendScript.mockResolvedValue('send()')
-    mockWebview.executeJavaScript
+    mockContent.executeJavaScript
       .mockResolvedValueOnce({
         success: true,
         diagnostics: { ...mockScriptDiagnostics, kind: 'focus', button: undefined, submitMs: 0 }
@@ -256,7 +256,7 @@ describe('useAiSender - image sending', () => {
     const { result } = renderHook(
       () =>
         useAiSender(
-          mockWebviewRef,
+          mockContentRef,
           'gpt-4',
           false,
           mockAiRegistry as unknown as Parameters<typeof useAiSender>[3],

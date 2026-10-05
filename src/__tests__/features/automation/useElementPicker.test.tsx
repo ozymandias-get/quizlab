@@ -40,54 +40,45 @@ vi.mock('@platform/electron/api/useAutomationApi', () => ({
 }))
 
 describe('useElementPicker', () => {
-  let mockWebview: any
-  // We hold the "current" webview in a holder so the stable getter below can
+  let mockContent: any
+  // We hold the "current" content in a holder so the stable getter below can
   // dereference it lazily on each call.
-  let currentWebview: { current: any }
+  let currentContent: { current: any }
   const mockConsoleListeners: Record<string, ((e: any) => void) | undefined> = {}
 
+  // The picker result now arrives on the controller's typed console channel,
+  // which is fed by WebContents.console-message in the main process.
   const installConsoleListenerSpy = (controller: any) => {
     for (const key of Object.keys(mockConsoleListeners)) {
       delete mockConsoleListeners[key]
     }
-    controller.subscribeWebviewElement = (cb: (el: any) => void) => {
-      const el = {
-        addEventListener: vi.fn((event: string, handler: any) => {
-          mockConsoleListeners[event] = handler
-        }),
-        removeEventListener: vi.fn((event: string) => {
-          mockConsoleListeners[event] = undefined
-        })
+    controller.subscribeEvent = (kind: string, handler: (event: any) => void) => {
+      if (kind !== 'console-message') return () => {}
+      mockConsoleListeners[kind] = handler
+      return () => {
+        mockConsoleListeners[kind] = undefined
       }
-      controller.getWebview = () => el
-      cb(el)
-      return () => {}
     }
   }
 
   const fireConsoleMessage = (message: string) => {
     const handler = mockConsoleListeners['console-message']
-    const el = (mockWebview?.getWebview?.() as any) ?? null
-    const addListener = el?.addEventListener as ReturnType<typeof vi.fn> | undefined
-    const lastCall = addListener?.mock.calls.find(([event]: any[]) => event === 'console-message')
-    const fallbackHandler = lastCall?.[1] as ((e: any) => void) | undefined
-    const resolved = handler ?? fallbackHandler
-    if (!resolved) {
+    if (!handler) {
       throw new Error('console-message listener was not attached')
     }
-    resolved({ message })
+    handler({ message })
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
 
-    mockWebview = {
+    mockContent = {
       executeJavaScript: vi.fn().mockResolvedValue(undefined),
       getURL: vi.fn().mockReturnValue('https://example.com/foo')
     }
-    currentWebview = { current: mockWebview }
-    installConsoleListenerSpy(mockWebview)
+    currentContent = { current: mockContent }
+    installConsoleListenerSpy(mockContent)
 
     mockGeneratePickerScriptMutate.mockResolvedValue('// script')
     mockSaveAiConfigMutate.mockResolvedValue(true)
@@ -98,13 +89,13 @@ describe('useElementPicker', () => {
   })
 
   // Stable getters — identity is preserved across renders so the
-  // `getWebviewInstance` dep in the mount effect does not churn.
-  const stableGetWebview = () => currentWebview.current
+  // `getContentController` dep in the mount effect does not churn.
+  const stableGetContent = () => currentContent.current
   const stableGetNull = () => null
 
   const renderPicker = (override?: { current: any }) => {
-    if (override) currentWebview.current = override.current
-    return renderHook(() => useElementPicker(stableGetWebview))
+    if (override) currentContent.current = override.current
+    return renderHook(() => useElementPicker(stableGetContent))
   }
 
   it('starts picker successfully', async () => {
@@ -115,13 +106,13 @@ describe('useElementPicker', () => {
     })
 
     expect(mockGeneratePickerScriptMutate).toHaveBeenCalled()
-    expect(mockWebview.executeJavaScript).toHaveBeenCalledWith('// script')
+    expect(mockContent.executeJavaScript).toHaveBeenCalledWith('// script')
     expect(result.current.isPickerActive).toBe(true)
     expect(mockToast.showInfo).toHaveBeenCalledWith('picker_started_hint')
   })
 
-  it('surfaces picker_webview_not_found when no webview is attached', async () => {
-    currentWebview.current = null
+  it('surfaces picker_webview_not_found when no content is attached', async () => {
+    currentContent.current = null
     const { result } = renderHook(() => useElementPicker(stableGetNull))
 
     await act(async () => {
@@ -275,13 +266,13 @@ describe('useElementPicker', () => {
       await Promise.resolve()
     })
 
-    const executeCalls = mockWebview.executeJavaScript.mock.calls.map((args: any[]) => args[0])
+    const executeCalls = mockContent.executeJavaScript.mock.calls.map((args: any[]) => args[0])
     expect(executeCalls).toContain(
       'if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;'
     )
   })
 
-  it('does not inject a picker after the active webview changes during setup', async () => {
+  it('does not inject a picker after the active content changes during setup', async () => {
     let resolveGenerate!: (value: string) => void
     mockGeneratePickerScriptMutate.mockReturnValueOnce(
       new Promise<string>((resolve) => {
@@ -294,7 +285,7 @@ describe('useElementPicker', () => {
     await act(async () => {
       startPromise = result.current.startPicker()
     })
-    currentWebview.current = {
+    currentContent.current = {
       executeJavaScript: vi.fn().mockResolvedValue(undefined),
       getURL: vi.fn().mockReturnValue('https://other.example/')
     }
@@ -303,12 +294,12 @@ describe('useElementPicker', () => {
       await startPromise
     })
 
-    expect(mockWebview.executeJavaScript).not.toHaveBeenCalled()
+    expect(mockContent.executeJavaScript).not.toHaveBeenCalled()
     expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
   })
 
   // S11: C1 re-entrance guard. Without the guard, the second startPicker
-  // would inject a duplicate picker script into the same webview,
+  // would inject a duplicate picker script into the same content,
   // orphaning the first script's listeners.
   it('ignores a second startPicker call while the first is in flight', async () => {
     // Make the script-generation promise resolve only after we assert, so
@@ -338,7 +329,7 @@ describe('useElementPicker', () => {
 
     // Exactly one script-generation request should have gone out.
     expect(mockGeneratePickerScriptMutate).toHaveBeenCalledTimes(1)
-    expect(mockWebview.executeJavaScript).toHaveBeenCalledTimes(3) // cleanup + reset + script
+    expect(mockContent.executeJavaScript).toHaveBeenCalledTimes(3) // cleanup + reset + script
   })
 
   // S11: C5 (real bug). Save failure should surface exactly one error
@@ -375,24 +366,24 @@ describe('useElementPicker', () => {
     )
   })
 
-  // S11: webview getter identity churn. The hook should not re-run its
+  // S11: content getter identity churn. The hook should not re-run its
   // mount effect when callers pass a fresh inline arrow on every render
   // because the getter is stabilized via a ref.
-  it('does not churn when callers pass an inline webview getter each render', async () => {
-    mockWebview = {
+  it('does not churn when callers pass an inline content getter each render', async () => {
+    mockContent = {
       executeJavaScript: vi.fn().mockResolvedValue(undefined),
       getURL: vi.fn().mockReturnValue('https://example.com/')
     }
-    currentWebview = { current: mockWebview }
-    installConsoleListenerSpy(mockWebview)
+    currentContent = { current: mockContent }
+    installConsoleListenerSpy(mockContent)
 
-    const { result, rerender } = renderHook(() => useElementPicker(() => currentWebview.current))
+    const { result, rerender } = renderHook(() => useElementPicker(() => currentContent.current))
 
     await act(async () => {
       await result.current.startPicker()
     })
 
-    const executeCallsAfterStart = mockWebview.executeJavaScript.mock.calls.length
+    const executeCallsAfterStart = mockContent.executeJavaScript.mock.calls.length
 
     // Rerender a few times with a brand-new inline getter each time. If
     // the hook depended on the getter identity, the mount effect would
@@ -401,7 +392,7 @@ describe('useElementPicker', () => {
       rerender()
     }
 
-    const executeCallsAfterRerenders = mockWebview.executeJavaScript.mock.calls.length
+    const executeCallsAfterRerenders = mockContent.executeJavaScript.mock.calls.length
     expect(executeCallsAfterRerenders).toBe(executeCallsAfterStart)
   })
 })

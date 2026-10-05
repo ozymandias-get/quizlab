@@ -33,12 +33,7 @@
     "comment-empty-line-before": null,
     "declaration-empty-line-before": null,
     "declaration-property-value-keyword-no-deprecated": null,
-    "selector-type-no-unknown": [
-      true,
-      {
-        "ignoreTypes": ["webview"]
-      }
-    ],
+    "selector-type-no-unknown": true,
     "custom-property-pattern": null,
     "media-feature-range-notation": null,
     "hue-degree-notation": "number",

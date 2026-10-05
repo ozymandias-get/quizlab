@@ -2,7 +2,7 @@
  * Numeric policy thresholds for selector self-healing.
  *
  * Kept in their own module because they are the values that must never drift
- * between the three consumers of the policy: the injected webview runtime
+ * between the three consumers of the policy: the injected view runtime
  * mirrors them into script constants, the renderer reads them before it writes
  * to disk, and the electron sanitizer re-checks them.
  */

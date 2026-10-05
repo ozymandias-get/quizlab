@@ -2,7 +2,7 @@
  * Sanitization, migration and hardening of the persisted repair metadata.
  *
  * The repair blob is the one part of the selector config that arrives from an
- * untrusted place (the AI webview) and lands on disk, so this file treats it as
+ * untrusted place (the managed AI view) and lands on disk, so this file treats it as
  * an input surface: bounded scalars, a closed key set, no arbitrary object
  * persistence, no prototype pollution, and no runtime marker smuggled in as a
  * CSS selector.

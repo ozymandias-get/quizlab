@@ -238,7 +238,7 @@ jobs:
             **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
 
             ### Core Features
-            - **Embedded AI webviews** (ChatGPT, Gemini, Claude, and more)
+            - **Embedded AI panels** (ChatGPT, Gemini, Claude, and more)
             - **Magic Selector** for Universal AI Chat
             - **Multi-language support (EN, TR)**
             - **Dual-Pane PDF Reader**

@@ -33,7 +33,24 @@ authoritative sources for the strings themselves are
 | Model                 | Model                 | A site or API model shortcut (untranslated)                  |
 | Provider              | Sağlayıcı             | An API Chat provider (OpenAI, Anthropic, …)                  |
 | API Chat              | API Sohbet            | The native renderer-drawn chat surface                       |
-| Web session           | Web oturumu           | A webview-hosted AI session                                  |
+| Web session           | Web oturumu           | An AI session hosted in a managed WebContentsView            |
+
+## Managed remote content
+
+- **WebContentsView**: Electron native view created and owned by main.
+- **Managed view / managed remote view**: that view plus its main-owned lifecycle,
+  target, generation and state snapshot; **AI view** when discussing AI tabs.
+- **AiContentController**: renderer handle for typed remote commands and events.
+- **Host placeholder / host owner**: React surface that positions the native view;
+  unmount releases its geometry claim without destroying content.
+- **Lifecycle owner**: the tab identity that retires content on close, LRU eviction
+  or sleep. Drive identities use `gdrive:<pdfTabId>`; AI tab ids are UUIDs.
+- **Generation**: identity of one concrete view, retained across host handoff and
+  replaced after destruction. State and events from older generations are ignored.
+
+Electron `WebContents` and guest page remain valid technical terms. Legacy
+automation error codes, stored `webviewUrl` fields and tutorial target ids are
+compatibility values; their spelling does not describe the active embedding API.
 
 ## Naming rules
 

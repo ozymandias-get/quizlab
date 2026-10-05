@@ -6,7 +6,7 @@ import AppBackground from '@ui/layout/AppBackground'
 
 import { AnimatePresence, LayoutGroup } from 'motion/react'
 import type { RefObject } from 'react'
-import { lazy, memo, Suspense, useCallback, useMemo, useRef } from 'react'
+import { lazy, memo, Suspense, useCallback, useMemo } from 'react'
 
 const FocusOverlay = lazy(() => import('@app/ui/FocusOverlay'))
 const ScreenshotTool = lazy(() =>
@@ -22,7 +22,8 @@ const LanguageSelectionDialog = lazy(() =>
     default: m.LanguageSelectionDialog
   }))
 )
-import { useShellOpenPdf } from '@features/pdf'
+import { useAiViewSurfaceState } from '@features/ai/viewState'
+import { useDriveViewRetirement, useShellOpenPdf } from '@features/pdf'
 import { usePdfShortcuts } from '@features/pdf'
 import { useTutorialStore } from '@features/tutorial'
 import { getTutorialEntry } from '@features/tutorial'
@@ -31,6 +32,8 @@ import { useAppShellState } from '@app/hooks/useAppShellState'
 import { useCacheThresholdWarning } from '@app/hooks/useCacheThresholdWarning'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
+import { useAiTabsSliceState, useAiViewRequestNonce } from '@app/providers/ai-context'
+import { useManagedViewRetirement } from '@shared/hooks/aiContent/managedViewLifecycle'
 
 function App() {
   // Önbellek boyutunu izler ve %80 eşiği aşıldığında kullanıcıya uyarı toast'ı gösterir.
@@ -41,7 +44,7 @@ function App() {
     updateInfo,
     isLayoutSwapped,
     animations,
-    isWebviewMounted,
+    isAiSurfaceMounted,
     panelResize,
     workspaceState,
     updateBanner,
@@ -89,8 +92,26 @@ function App() {
   }, [setLeftPanelWidth])
 
   const isFocusActive = focus.mode !== null
-  const aiTabUrlCacheRef = useRef<Record<string, { url: string; modelId: string }>>({})
   const isOnboardingDone = useLanguage((s) => s.isOnboardingDone)
+
+  // AI tab liveness lives here, above the workspace / focus-mode split, so a
+  // focus switch repositions the managed views instead of rebuilding them.
+  const { tabs: aiTabs, activeTabId: activeAiTabId } = useAiTabsSliceState()
+  const aiViewRequestNonce = useAiViewRequestNonce()
+  const aiViewSurfaceState = useAiViewSurfaceState({
+    tabIds: aiTabs.map((tab) => tab.id),
+    activeTabId: activeAiTabId,
+    aiViewRequestNonce
+  })
+  // Lifecycle ownership, deliberately above the two AI surfaces. A tab that
+  // leaves the `maxAliveTabs` alive set (LRU eviction, or a close) no longer has
+  // a mounted `AiSession` to react to it, so its native view is retired here —
+  // otherwise every evicted tab would keep a `WebContents` alive in main.
+  useManagedViewRetirement(aiViewSurfaceState.aliveTabIds)
+  // Same contract for the Google Drive panel, which is mounted twice (workspace
+  // and focus overlay) under one view id.
+  useDriveViewRetirement()
+  const isAiFocusSurface = isFocusActive && focus.mode === 'ai'
 
   return (
     <LayoutGroup>
@@ -131,15 +152,15 @@ function App() {
               handleResizerDoubleClick={handleResizerDoubleClick}
               onKeyboardResize={nudgeLeftPanelWidth}
               isResizeReversed={isLayoutSwapped}
-              isWebviewMounted={isWebviewMounted}
+              isAiSurfaceMounted={isAiSurfaceMounted}
               isResizing={isResizing}
-              isBarHovered={workspaceState.isBarHovered}
               onBarHoverChange={workspaceState.setIsBarHovered}
               leftPanelProps={combinedLeftPanelProps}
               isInteractionBlocked={isInteractionBlocked}
               isPanelResizing={isPanelResizing}
               bgMode={bgMode}
-              aiTabUrlCacheRef={aiTabUrlCacheRef}
+              isAiSurfaceActive={!isAiFocusSurface}
+              aiViewSurfaceState={aiViewSurfaceState}
             />
           </div>
         )}
@@ -151,10 +172,10 @@ function App() {
                 key="focus-overlay"
                 mode={focus.mode}
                 onClose={focus.close}
-                isWebviewMounted={isWebviewMounted}
+                isAiSurfaceMounted={isAiSurfaceMounted}
                 isResizing={false}
-                isBarHovered={false}
-                aiTabUrlCacheRef={aiTabUrlCacheRef}
+                isAiSurfaceActive={isAiFocusSurface}
+                aiViewSurfaceState={aiViewSurfaceState}
               />
             </Suspense>
           )}

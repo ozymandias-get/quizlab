@@ -37,6 +37,6 @@
   "picker_submit_title": "Step 3: Select Send Button",
   "picker_typing_text": "If the 'Send' button is hidden, type <b>a single letter</b> into the box to make it appear. If it's already there, you can proceed.",
   "picker_typing_title": "Step 2: Reveal Send Button",
-  "picker_webview_not_found": "Webview not found!",
+  "picker_webview_not_found": "AI view not found!",
   "picker_wrong": "Wrong"
 }

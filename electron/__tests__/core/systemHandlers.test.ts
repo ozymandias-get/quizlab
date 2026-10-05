@@ -83,9 +83,9 @@ describe('systemHandlers', () => {
     registerSystemHandlers()
 
     expect(ipcHandle).toHaveBeenCalledTimes(firstCallCount)
-    // Expect 10 handlers: 8 original + 2 smart cache handlers
-    // (GET_SMART_CACHE_INFO / GET_CACHE_AUTO_CLEAN were removed: no renderer caller)
-    expect(firstCallCount).toBe(10)
+    // FORCE_PASTE was removed with the <webview> migration: a native paste is
+    // now addressed by managed view id (AI_VIEW_PASTE), never by webContentsId.
+    expect(firstCallCount).toBe(9)
   })
 
   let trustedSender: {
@@ -95,10 +95,9 @@ describe('systemHandlers', () => {
   }
 
   beforeEach(() => {
-    // SECURITY: The trustedSender mock doubles as both the IPC event.sender
-    // (a WebContents-like object) and mainWindow.webContents.  It must have
-    // isDestroyed() because our isMainWindowGuestContents() now calls
-    // mainWindow.webContents.isDestroyed() and contents.isDestroyed().
+    // SECURITY: trustedSender doubles as both the IPC event.sender (a
+    // WebContents-like object) and mainWindow.webContents, so it must answer
+    // isDestroyed() for the trusted-sender check.
     trustedSender = {
       id: 'trusted',
       isDestroyed: vi.fn(() => false),
@@ -149,43 +148,16 @@ describe('systemHandlers', () => {
     expect(shellOpenExternal).toHaveBeenCalledWith('https://example.com/')
   })
 
-  it('allows force-paste only for guest contents owned by the main window', async () => {
+  it('never registers a webContentsId-addressed paste channel', async () => {
     const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
-    // Use the describe-level trustedSender so it is === to mainWindow.webContents
-    const paste = vi.fn()
     getMainWindow.mockReturnValue({
       isDestroyed: vi.fn(() => false),
       webContents: trustedSender
     })
-    fromId.mockReturnValue({
-      isDestroyed: vi.fn(() => false),
-      isDevToolsWebContents: vi.fn(() => false),
-      hostWebContents: trustedSender,
-      paste
-    })
 
     registerSystemHandlers()
-    const forcePasteHandler = ipcHandle.mock.calls.find(
-      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.FORCE_PASTE
-    )?.[1]
-
-    await expect(forcePasteHandler?.({ sender: trustedSender }, 42)).resolves.toEqual({
-      ok: true,
-      data: true
-    })
-
-    fromId.mockReturnValue({
-      isDestroyed: vi.fn(() => false),
-      isDevToolsWebContents: vi.fn(() => false),
-      hostWebContents: { id: 'other' },
-      paste
-    })
-
-    await expect(forcePasteHandler?.({ sender: trustedSender }, 42)).resolves.toEqual({
-      ok: true,
-      data: false
-    })
-    expect(paste).toHaveBeenCalledTimes(1)
+    const channels = ipcHandle.mock.calls.map(([channel]) => channel)
+    expect(channels).not.toContain('force-paste-in-webview')
   })
 
   it('clears storage for a registered AI model partition', async () => {

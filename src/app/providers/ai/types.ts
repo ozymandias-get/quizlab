@@ -1,5 +1,5 @@
 import type { AiPlatform } from '@shared-core/types'
-import type { WebviewController } from '@shared-core/types/webview'
+import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { AiSendOptions, AiSendResult } from '@features/ai'
 
@@ -66,7 +66,7 @@ export type AiTabsListSliceState = Pick<AiContextState, 'tabs'>
 /** Aktif sekme ve seçili model (liste uzunluğu değişmeden güncellenebilir). */
 export type AiTabFocusSliceState = Pick<AiContextState, 'activeTabId' | 'currentAI'>
 
-/** Sadece AiWebview'in abone olduğu nonce — bu değer değiştiğinde tüm sekme tüketicilerinin
+/** Sadece AiViewSurface'in abone olduğu nonce — bu değer değiştiğinde tüm sekme tüketicilerinin
  *  gereksiz yere yeniden render olmasını önler. openAiWorkspace her çağrıldığında artar. */
 export type AiViewRequestNonceState = Pick<AiContextState, 'aiViewRequestNonce'>
 
@@ -85,13 +85,13 @@ export type AiModelsCatalogSliceState = Pick<
 /** Gönderim / tutorial gibi hızlı UI tercihleri (katalogdan ayrı abonelik). */
 export type AiSessionUiPrefsSliceState = Pick<AiContextState, 'autoSend' | 'isTutorialActive'>
 
-export interface AiWebviewState {
-  getWebviewInstance: (tabId?: string) => WebviewController | null
+export interface AiContentState {
+  getContentController: (tabId?: string) => AiContentController | null
 }
 
-/** Aktif sekmede webview var mı (referans değişiminden bağımsız; şerit yenile butonu için). */
-export interface AiWebviewPresenceState {
-  hasActiveWebview: boolean
+/** Aktif sekmede content var mı (referans değişiminden bağımsız; şerit yenile butonu için). */
+export interface AiContentPresenceState {
+  hasActiveContent: boolean
 }
 
 interface AiContextActions {
@@ -106,13 +106,13 @@ interface AiContextActions {
   setDefaultAiModel: (model: string) => void
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
-  registerWebview: (
+  registerContent: (
     id: string,
-    instance: WebviewController | null,
-    expectedInstance?: WebviewController
+    instance: AiContentController | null,
+    expectedInstance?: AiContentController
   ) => void
-  /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron webview.reload). */
-  reloadActiveWebview: () => void
+  /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron content.reload). */
+  reloadActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   cancelOngoing: () => void
@@ -120,25 +120,25 @@ interface AiContextActions {
   stopTutorial: () => void
 }
 
-/** Webview tabanlı gönderim; aktif sekme değişince güncellenir (dar abonelik: useAiMessagingActions). */
+/** Content tabanlı gönderim; aktif sekme değişince güncellenir (dar abonelik: useAiMessagingActions). */
 export type AiMessagingActions = Pick<
   AiContextActions,
   'sendTextToAI' | 'sendImageToAI' | 'cancelOngoing'
 >
 
-/** Sekme, model ve webview kayıt aksiyonları (gönderimden bağımsız). */
+/** Sekme, model ve content kayıt aksiyonları (gönderimden bağımsız). */
 type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI'>
 
-/** Webview örneğine bağlı kayıt / yenileme (dar abonelik: useAiWebviewHostActions). */
-export type AiWebviewHostActions = Pick<
+/** Content örneğine bağlı kayıt / yenileme (dar abonelik: useAiContentHostActions). */
+export type AiContentHostActions = Pick<
   AiWorkspaceActions,
-  'registerWebview' | 'reloadActiveWebview'
+  'registerContent' | 'reloadActiveContent'
 >
 
-/** Sekme ve modeller; aktif webview değişince güncellenmez. */
+/** Sekme ve modeller; aktif content değişince güncellenmez. */
 export type AiCoreWorkspaceActions = Omit<
   AiWorkspaceActions,
-  'registerWebview' | 'reloadActiveWebview' | 'cancelOngoing'
+  'registerContent' | 'reloadActiveContent' | 'cancelOngoing'
 >
 
 export type AiTabActions = Pick<
@@ -156,5 +156,5 @@ export type AiSessionActions = Pick<
   'setAutoSend' | 'toggleAutoSend' | 'startTutorial' | 'stopTutorial'
 >
 
-export type AiContextType = AiContextState & AiWebviewState & AiContextActions
+export type AiContextType = AiContextState & AiContentState & AiContextActions
 export type SetStoredValue<T> = Dispatch<SetStateAction<T>>

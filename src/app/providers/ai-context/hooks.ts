@@ -3,6 +3,8 @@ import type { AiPlatform } from '@shared-core/types'
 import { useContext, useMemo } from 'react'
 
 import type {
+  AiContentHostActions,
+  AiContentPresenceState,
   AiContextType,
   AiMessagingActions,
   AiModelActions,
@@ -13,11 +15,12 @@ import type {
   AiTabActions,
   AiTabFocusSliceState,
   AiTabsListSliceState,
-  AiTabsSliceState,
-  AiWebviewHostActions,
-  AiWebviewPresenceState
+  AiTabsSliceState
 } from '../ai/types'
 import {
+  AiContentContext,
+  AiContentHostActionsContext,
+  AiContentPresenceContext,
   AiMessagingActionsContext,
   AiModelActionsContext,
   AiModelsCatalogSliceContext,
@@ -28,10 +31,7 @@ import {
   AiTabActionsContext,
   AiTabFocusContext,
   AiTabsListContext,
-  AiViewRequestNonceContext,
-  AiWebviewContext,
-  AiWebviewHostActionsContext,
-  AiWebviewPresenceContext
+  AiViewRequestNonceContext
 } from './contexts'
 
 export const useAiTabsList = (): AiTabsListSliceState => {
@@ -58,7 +58,7 @@ export const useAiTabFocus = (): AiTabFocusSliceState => {
   return context
 }
 
-/** Yalnızca `aiViewRequestNonce` değerine abone olur — `AiWebview` dışında
+/** Yalnızca `aiViewRequestNonce` değerine abone olur — `AiViewSurface` dışında
  *  kullanıldığında bu değerin değişmesi diğer bileşenleri gereksiz yere
  *  render etmez çünkü artık `AiTabFocusContext`'ten ayrılmıştır. */
 export const useAiViewRequestNonce = (): number => {
@@ -126,10 +126,10 @@ export const useAiSessionActions = (): AiSessionActions => {
   return context
 }
 
-export const useAiWebviewHostActions = (): AiWebviewHostActions => {
-  const context = useContext(AiWebviewHostActionsContext)
+export const useAiContentHostActions = (): AiContentHostActions => {
+  const context = useContext(AiContentHostActionsContext)
   if (!context) {
-    throw new Error('useAiWebviewHostActions must be used within AiProvider')
+    throw new Error('useAiContentHostActions must be used within AiProvider')
   }
   return context
 }
@@ -142,16 +142,16 @@ export const useAiMessagingActions = (): AiMessagingActions => {
   return context
 }
 
-export const useAiWebview = () => {
-  const context = useContext(AiWebviewContext)
-  if (!context) throw new Error('useAiWebview must be used within AiProvider')
+export const useAiContent = () => {
+  const context = useContext(AiContentContext)
+  if (!context) throw new Error('useAiContent must be used within AiProvider')
   return context
 }
 
-export const useAiWebviewPresence = (): AiWebviewPresenceState => {
-  const context = useContext(AiWebviewPresenceContext)
+export const useAiContentPresence = (): AiContentPresenceState => {
+  const context = useContext(AiContentPresenceContext)
   if (!context) {
-    throw new Error('useAiWebviewPresence must be used within AiProvider')
+    throw new Error('useAiContentPresence must be used within AiProvider')
   }
   return context
 }
@@ -163,11 +163,11 @@ export const useAi = (): AiContextType => {
   const registryMeta = useContext(AiRegistryMetaSliceContext)
   const modelsCatalog = useContext(AiModelsCatalogSliceContext)
   const sessionPrefsSlice = useContext(AiSessionUiPrefsSliceContext)
-  const webview = useContext(AiWebviewContext)
+  const content = useContext(AiContentContext)
   const tab = useContext(AiTabActionsContext)
   const model = useContext(AiModelActionsContext)
   const session = useContext(AiSessionActionsContext)
-  const host = useContext(AiWebviewHostActionsContext)
+  const host = useContext(AiContentHostActionsContext)
   const messaging = useContext(AiMessagingActionsContext)
   if (
     !tabsList ||
@@ -176,7 +176,7 @@ export const useAi = (): AiContextType => {
     !registryMeta ||
     !modelsCatalog ||
     !sessionPrefsSlice ||
-    !webview ||
+    !content ||
     !tab ||
     !model ||
     !session ||
@@ -193,7 +193,7 @@ export const useAi = (): AiContextType => {
       ...registryMeta,
       ...modelsCatalog,
       ...sessionPrefsSlice,
-      ...webview,
+      ...content,
       ...tab,
       ...model,
       ...session,
@@ -207,7 +207,7 @@ export const useAi = (): AiContextType => {
       registryMeta,
       modelsCatalog,
       sessionPrefsSlice,
-      webview,
+      content,
       tab,
       model,
       session,

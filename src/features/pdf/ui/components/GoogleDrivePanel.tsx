@@ -1,35 +1,51 @@
-import {
-  GOOGLE_AI_WEB_SESSION_PARTITION,
-  GOOGLE_DRIVE_WEB_APP
-} from '@shared-core/constants/googleAiWebApps'
-import type { WebviewElement } from '@shared-core/types/webview'
-
 import { Button } from '@app/components/ui/button'
-import { WEBVIEW_ALLOW_POPUPS } from '@shared/constants/electronWebview'
+import { useIsAnyDialogOpen } from '@shared/hooks'
+import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
-import { memo, useRef } from 'react'
+import { memo } from 'react'
 
 interface GoogleDrivePanelProps {
   tabId: string
+  /** Entry URL; the manager validates it against the Google session partition. */
   webviewUrl?: string
-  chromeUserAgent: string
   title: string
   description: string
   reloadLabel: string
   isInteractionBlocked: boolean
 }
 
+/**
+ * Embedded Google Drive picker inside the PDF panel.
+ *
+ * Runs as a main-process `WebContentsView` on the shared Gemini web-session
+ * partition, positioned by a plain host placeholder — the same mechanism the AI
+ * panel uses, so no `<webview>` element (and therefore no `webviewTag`) is needed
+ * anywhere in the app.
+ */
 function GoogleDrivePanel({
   tabId,
   webviewUrl,
-  chromeUserAgent,
   title,
   description,
   reloadLabel,
   isInteractionBlocked
 }: GoogleDrivePanelProps) {
-  const driveWebviewRef = useRef<WebviewElement | null>(null)
+  const viewId = `gdrive:${tabId}`
+  const isDialogOpen = useIsAnyDialogOpen()
+  const { setHostElement, reload } = useManagedContentView({
+    viewId,
+    source: { kind: 'google-web-app', appId: 'gdrive' },
+    restoredUrl: webviewUrl,
+    modelId: 'gdrive',
+    isEnabled: true,
+    isHostOwner: true,
+    // A dialog is the only thing that has to occlude the view, because a native
+    // view paints above the DOM. `isInteractionBlocked` deliberately does not
+    // drive this: it also covers "the dock is hovered", which used to blank the
+    // whole panel every time the pointer crossed the divider.
+    visible: !isDialogOpen
+  })
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -43,34 +59,18 @@ function GoogleDrivePanel({
             <div className="text-ql-12 text-muted-foreground truncate">{description}</div>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => driveWebviewRef.current?.reload?.()}
-          className="text-ql-12"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={reload} className="text-ql-12">
           <RefreshIcon className="h-3.5 w-3.5" />
           {reloadLabel}
         </Button>
       </div>
 
       <div className="relative min-h-0 flex-1">
-        <webview
-          ref={driveWebviewRef}
-          key={tabId}
-          src={webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
-          partition={GOOGLE_AI_WEB_SESSION_PARTITION}
-          className="h-full w-full flex-1"
-          // React's `DetailedHTMLProps<HTMLAttributes>` types `allowpopups` as
-          // `boolean | undefined`, but Electron's `<webview>` accepts a string
-          // token (`'true' | undefined`) which also suppresses React's
-          // "non-boolean attribute" runtime warning. The string cast is
-          // necessary because of this known JSX/React type mismatch; see
-          // `src/shared/types/global.d.ts` for the augmented type.
-          allowpopups={(WEBVIEW_ALLOW_POPUPS ? 'true' : undefined) as any}
-          webpreferences="contextIsolation=yes, sandbox=yes"
-          useragent={chromeUserAgent}
+        <div
+          ref={setHostElement}
+          className="h-full w-full"
+          data-ai-view-host={viewId}
+          data-testid="drive-host"
         />
         {isInteractionBlocked && (
           <div className="pointer-events-auto absolute inset-0 z-10 bg-transparent" />

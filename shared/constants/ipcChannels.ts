@@ -11,7 +11,7 @@ export const IPC_CHANNELS = {
 
   CAPTURE_SCREEN: 'capture-screen',
   COPY_IMAGE: 'copy-image-to-clipboard',
-  /** Restore the clipboard snapshot taken before COPY_IMAGE (after webview paste). */
+  /** Restore the clipboard snapshot taken before COPY_IMAGE (after managed-view paste). */
   RESTORE_CLIPBOARD: 'restore-clipboard',
   COPY_TEXT: 'copy-text-to-clipboard',
   OPEN_EXTERNAL: 'open-external',
@@ -22,12 +22,29 @@ export const IPC_CHANNELS = {
   CHECK_FOR_UPDATES: 'check-for-updates',
   OPEN_RELEASES: 'open-releases-page',
   GET_APP_VERSION: 'get-app-version',
-  FORCE_PASTE: 'force-paste-in-webview',
   SAVE_AI_CONFIG: 'save-ai-config',
   GET_AI_CONFIG: 'get-ai-config',
   DELETE_AI_CONFIG: 'delete-ai-config',
   GET_AI_REGISTRY: 'get-ai-registry',
   GET_AUTOMATION_SCRIPTS: 'get-automation-scripts',
+
+  // Remote site surface: main-process owned WebContentsView (AI tabs, Google Drive panel)
+  AI_VIEW_ATTACH: 'ai-view-attach',
+  AI_VIEW_DETACH: 'ai-view-detach',
+  AI_VIEW_DESTROY: 'ai-view-destroy',
+  AI_VIEW_RELOAD: 'ai-view-reload',
+  AI_VIEW_LOAD_URL: 'ai-view-load-url',
+  AI_VIEW_NAVIGATE: 'ai-view-navigate',
+  AI_VIEW_GET_URL: 'ai-view-get-url',
+  AI_VIEW_EXECUTE_SCRIPT: 'ai-view-execute-script',
+  AI_VIEW_INSERT_TEXT: 'ai-view-insert-text',
+  AI_VIEW_SEND_INPUT_EVENT: 'ai-view-send-input-event',
+  AI_VIEW_PASTE: 'ai-view-paste',
+  AI_VIEW_FOCUS: 'ai-view-focus',
+  /** Fire-and-forget: host geometry + visibility, emitted by the single active host. */
+  AI_VIEW_SYNC_HOST: 'ai-view-sync-host',
+  /** Main -> renderer: lifecycle + console bridge for a managed view. */
+  AI_VIEW_EVENT: 'ai-view-event',
   ADD_CUSTOM_AI: 'add-custom-ai',
   DELETE_CUSTOM_AI: 'delete-custom-ai',
   IS_AUTH_DOMAIN: 'is-auth-domain',

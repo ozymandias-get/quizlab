@@ -241,7 +241,7 @@ export function listApplicableStrategies(hostname: string): ReadonlyArray<SiteSt
 }
 
 /**
- * Webview runtime'ında strateji çağrısı. Bu fonksiyon string template'e
+ * Uzak sayfa runtime'ında strateji çağrısı. Bu fonksiyon string template'e
  * dönüştürülürken yalnızca iskelet kalır.
  */
 export const siteStrategyRuntime = `    const __SITE_STRATEGIES = [];

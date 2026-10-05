@@ -3,9 +3,9 @@ import { useClearAiModelData, useDeleteCustomAi } from '@platform/electron/api/u
 import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { useToastActions } from '@app/providers'
 import {
+  useAiContentHostActions,
   useAiModelActions,
-  useAiModelsCatalog,
-  useAiWebviewHostActions
+  useAiModelsCatalog
 } from '@app/providers/ai-context'
 import { useConfirmDialog } from '@shared/hooks'
 import { Logger } from '@shared/lib/logger'
@@ -29,7 +29,7 @@ const MODELS_ICON = (
 const ModelsTab = memo(() => {
   const { enabledModels, aiSites, defaultAiModel } = useAiModelsCatalog()
   const { setEnabledModels, setDefaultAiModel } = useAiModelActions()
-  const { reloadActiveWebview } = useAiWebviewHostActions()
+  const { reloadActiveContent } = useAiContentHostActions()
   const { t } = useTranslation()
   const { showError } = useToastActions()
   const { mutateAsync: deleteCustomAi, isPending: isDeleting } = useDeleteCustomAi()
@@ -129,13 +129,13 @@ const ModelsTab = memo(() => {
           id,
           partition: platform?.partition || (platform?.isSite ? undefined : 'persist:ai_session')
         })
-        reloadActiveWebview()
+        reloadActiveContent()
       } catch (error) {
         Logger.error('[ModelsTab] clearAiModelData failed', error)
         showError('toast_ai_model_data_clear_failed')
       }
     },
-    [t, aiSites, clearAiModelData, reloadActiveWebview, showError, confirm]
+    [t, aiSites, clearAiModelData, reloadActiveContent, showError, confirm]
   )
 
   return (

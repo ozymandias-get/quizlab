@@ -55,7 +55,7 @@ describe('IPC contract', () => {
     assertInvokeChannel(IPC_CHANNELS.RESTORE_CLIPBOARD)
     assertInvokeChannel(IPC_CHANNELS.COPY_TEXT)
     assertInvokeChannel(IPC_CHANNELS.OPEN_EXTERNAL)
-    assertInvokeChannel(IPC_CHANNELS.FORCE_PASTE)
+    assertInvokeChannel(IPC_CHANNELS.AI_VIEW_PASTE)
     assertInvokeChannel(IPC_CHANNELS.CLEAR_CACHE)
     assertInvokeChannel(IPC_CHANNELS.CLEAR_AI_MODEL_DATA)
     assertInvokeChannel(IPC_CHANNELS.CHECK_FOR_UPDATES)

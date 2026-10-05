@@ -4,9 +4,7 @@ import { pathToFileURL } from 'url'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const shellOpenExternal = vi.fn()
-const appOn = vi.fn()
 const appState = { isPackaged: false }
-const geminiSession = {}
 
 vi.mock('electron', () => ({
   app: {
@@ -14,12 +12,7 @@ vi.mock('electron', () => ({
       return appState.isPackaged
     },
     getAppPath: vi.fn(() => path.resolve('/mock-app')),
-    on: appOn
-  },
-  session: {
-    fromPartition: vi.fn((partition: string) =>
-      partition === 'persist:gemini_web_profile' ? geminiSession : {}
-    )
+    on: vi.fn()
   },
   shell: {
     openExternal: shellOpenExternal
@@ -30,7 +23,6 @@ describe('window/security', () => {
   beforeEach(() => {
     vi.resetModules()
     shellOpenExternal.mockReset()
-    appOn.mockReset()
     appState.isPackaged = false
   })
 
@@ -53,6 +45,15 @@ describe('window/security', () => {
     expect(module.isSafeExternalUrl('https://example.com')).toBe(true)
     expect(module.isSafeExternalUrl('http://localhost:5173')).toBe(true)
     expect(module.isSafeExternalUrl('javascript:alert(1)')).toBe(false)
+  })
+
+  it('refuses external urls that resolve to a local service', async () => {
+    const module = await import('../../../app/window/security.js')
+
+    expect(module.isSafeExternalUrl('https://127.0.0.1/admin')).toBe(false)
+    expect(module.isSafeExternalUrl('https://localhost/admin')).toBe(false)
+    expect(module.isSafeExternalUrl('https://intranet/admin')).toBe(false)
+    expect(module.isSafeExternalUrl('https://user:pass@example.com')).toBe(false)
   })
 
   it('opens external navigation and denies popup creation', async () => {
@@ -82,53 +83,33 @@ describe('window/security', () => {
     expect(shellOpenExternal).toHaveBeenCalledWith('https://example.com/docs')
   })
 
-  it('blocks a webview without an explicit allowed partition', async () => {
+  it('rejects certificate errors on the app window', async () => {
     const module = await import('../../../app/window/security.js')
-    const listeners = new Map<string, (event: unknown, ...args: unknown[]) => void>()
+    const listeners = new Map<string, (...args: unknown[]) => void>()
+
     module.hardenWindowWebContents({
       webContents: {
         setWindowOpenHandler: vi.fn(),
-        on: (event: string, handler: (event: unknown, ...args: unknown[]) => void) =>
-          listeners.set(event, handler)
+        on: (event: string, handler: (...args: unknown[]) => void) => listeners.set(event, handler)
       }
     } as never)
 
     const preventDefault = vi.fn()
-    listeners.get('will-attach-webview')?.(
+    const callback = vi.fn()
+    listeners.get('certificate-error')?.(
       { preventDefault },
-      { partition: undefined },
-      { src: 'https://example.com' }
+      'https://x.test',
+      'ERR_CERT',
+      {},
+      callback
     )
-
     expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(callback).toHaveBeenCalledWith(false)
   })
 
-  it('hardens webview guests from the webContents type and session identity', async () => {
+  it('no longer installs any webview gate, since webviewTag is disabled', async () => {
     const module = await import('../../../app/window/security.js')
-    module.setupWebviewSecurity()
-
-    const handlers = new Map<string, (event: unknown, ...args: unknown[]) => void>()
-    const setWindowOpenHandler = vi.fn()
-    const executeJavaScript = vi.fn().mockResolvedValue(undefined)
-    const guest = {
-      getType: vi.fn(() => 'webview'),
-      session: geminiSession,
-      isDestroyed: vi.fn(() => false),
-      setWindowOpenHandler,
-      on: (event: string, handler: (event: unknown, ...args: unknown[]) => void) =>
-        handlers.set(event, handler),
-      executeJavaScript
-    }
-
-    const onWebContentsCreated = appOn.mock.calls[0]?.[1] as (
-      event: unknown,
-      contents: typeof guest
-    ) => void
-    onWebContentsCreated({}, guest)
-
-    expect(setWindowOpenHandler).toHaveBeenCalledTimes(1)
-    expect(handlers.get('will-navigate')).toBeDefined()
-    handlers.get('did-finish-load')?.({})
-    expect(executeJavaScript).toHaveBeenCalledTimes(1)
+    expect(Object.keys(module)).not.toContain('setupWebviewSecurity')
+    expect(Object.keys(module)).not.toContain('WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT')
   })
 })

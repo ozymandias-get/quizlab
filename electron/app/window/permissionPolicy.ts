@@ -9,7 +9,7 @@
  *
  * Threat model
  * ------------
- * AI providers are rendered inside `<webview>` guests, each with its own
+ * AI providers render inside main-process owned WebContentsViews, each with its own
  * persistent session partition. A session-level grant is NOT scoped to an
  * origin: once `setPermissionRequestHandler` answers `true`, *every* document
  * loaded in that partition inherits the grant. So a provider page that
@@ -193,15 +193,30 @@ export function unregisterCustomPlatformOrigin(partition: string): void {
 }
 
 /**
- * Partitions a `<webview>` may attach to. Derived from the registry, so this
+ * Partitions a managed remote view may use. Derived from the registry, so this
  * stays in sync with AI_REGISTRY / INACTIVE_PLATFORMS / the Google session
  * partition instead of drifting from a hard-coded copy.
  */
-export function isAllowedWebviewPartition(partition: unknown): boolean {
+export function isAllowedManagedViewPartition(partition: unknown): boolean {
   if (typeof partition !== 'string' || partition.length === 0) return false
   if (partition === GENERIC_AI_PARTITION) return true
   if (builtinTrustedHosts.has(partition)) return true
   return isCustomPartition(partition)
+}
+
+/**
+ * Whether `hostname` is one of the origins bound to `partition`.
+ *
+ * Same derivation as the permission table above, exposed separately so the
+ * remote-site view manager can validate a restored navigation URL against the
+ * partition it is about to load it into — the renderer is never allowed to
+ * choose the origin itself.
+ */
+export function isHostTrustedForPartition(partition: string, hostname: string): boolean {
+  const trusted = trustedHostsFor(partition)
+  if (!trusted) return false
+  const host = hostname.toLowerCase()
+  return [...trusted].some((trustedHost) => hostMatches(host, trustedHost))
 }
 
 /**
@@ -228,7 +243,7 @@ function trustedHostsFor(partition: string): ReadonlySet<string> | null {
 /**
  * The app's own UI document. In production it is served from `file:`; in dev
  * from a loopback origin. Anything else reaching the default session (a
- * webview that failed to get its own partition, a popup) is untrusted.
+ * view that failed to get its own partition, a popup) is untrusted.
  */
 function isAppDocumentUrl(rawUrl: string | undefined): boolean {
   if (!rawUrl) return false
