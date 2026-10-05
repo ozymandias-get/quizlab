@@ -90,6 +90,14 @@ describe('useManagedViewRetirement', () => {
     expect(aiViewClient.destroy).not.toHaveBeenCalled()
   })
 
+  it('preserves identities across MRU reorder and retires only removed members', () => {
+    const { rerender } = mount(['a', 'b'])
+    rerender({ liveViewIds: ['b', 'a', 'b'] })
+    expect(aiViewClient.destroy).not.toHaveBeenCalled()
+    rerender({ liveViewIds: ['b'] })
+    expect(destroyedIds()).toEqual(['a'])
+  })
+
   it('does not fire for an empty live set that never held a view', async () => {
     const { rerender } = mount([])
     rerender({ liveViewIds: [] })

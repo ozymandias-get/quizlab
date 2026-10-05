@@ -7,7 +7,6 @@ import type {
   AiViewAttachResponse,
   AiViewBounds,
   AiViewEvent,
-  AiViewLoadState,
   AiViewSource,
   AiViewStateSnapshot
 } from '../../../shared/types/aiView.js'
@@ -38,7 +37,7 @@ export interface ManagedAiView {
   webContents: WebContents
   /** Stable key the renderer addresses this view by (an AI tab id or namespaced pdf id). */
   viewId: string
-  /** Registry id / app id this view was resolved from; `null` once retired. */
+  /** Registry identity this view was resolved from. */
   sourceKey: string
   /**
    * The main-process resolved target. Kept for the lifetime of the view so every
@@ -157,12 +156,6 @@ function liveUrlOf(entry: ManagedAiView): string {
   }
 }
 
-function loadStateOf(entry: ManagedAiView): AiViewLoadState {
-  if (entry.isLoading) return 'loading'
-  if (entry.loadError) return 'failed'
-  return 'settled'
-}
-
 /**
  * The single description of a view's state, handed to every host that attaches
  * to it. See `AiViewStateSnapshot` for why a host needs one at all.
@@ -173,7 +166,6 @@ function snapshotOf(entry: ManagedAiView): AiViewStateSnapshot {
     currentUrl: liveUrlOf(entry),
     isLoading: entry.isLoading,
     hasLoadedOnce: entry.hasLoadedOnce,
-    loadState: loadStateOf(entry),
     error: entry.loadError
   }
 }
@@ -241,7 +233,7 @@ function attachResolved(
   const sourceKey = sourceKeyOf(request.source)
   const existing = getManagedAiView(viewId)
   if (existing && existing.sourceKey === sourceKey) {
-    return { ...snapshotOf(existing), created: false }
+    return { ...snapshotOf(existing) }
   }
   if (existing) destroyEntry(viewId)
 
@@ -320,7 +312,7 @@ function attachResolved(
     Logger.warn('[AiView] Initial load failed:', { viewId, error })
   })
 
-  return { ...snapshotOf(entry), created: true }
+  return { ...snapshotOf(entry) }
 }
 
 export function attachAiView(request: AiViewAttachRequest): Promise<AiViewAttachResponse> {
@@ -466,21 +458,7 @@ function applyBorderRadius(view: WebContentsView, radius: number): void {
   }
 }
 
-/**
- * Mouse input needs no special handling here.
- *
- * The old `<webview>` sat in the DOM, so a transparent sibling overlay could
- * shield it from the bottom-bar dock. A `WebContentsView` is composited above
- * the DOM instead — and that overlay would have been useless, because the dock
- * is a `flex-shrink: 0` sibling column and the host placeholder sits inside the
- * right panel, so the two never overlap in the first place.
- *
- * `setIgnoreMouseEvents` was tried here and removed: in Electron 42 it exists
- * only on the `BrowserWindow`, and its `forward: true` option forwards mouse
- * *move* messages alone. Arming it while the pointer merely hovered the dock
- * swallowed every mousedown in the window, including the dock's own
- * `pointerdown` — which made the panel unresizable.
- */
+/** Shows a view only when its current host has a usable visible rectangle. */
 
 function applyVisibility(entry: ManagedAiView): void {
   const shouldShow = entry.visible && isUsableBounds(entry.bounds)
@@ -518,8 +496,7 @@ export function loadAiViewUrl(viewId: string, rawUrl: unknown): boolean {
   if (!isUrlTrustedForTarget(entry.target, url)) {
     Logger.warn('[AiView] Refused navigation outside the partition trusted origins:', {
       viewId,
-      partition: entry.partition,
-      url
+      partition: entry.partition
     })
     return false
   }

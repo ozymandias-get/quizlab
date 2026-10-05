@@ -229,11 +229,10 @@ describe('AiWebContentsViewManager - creation', () => {
   it('creates exactly one view per tab id', async () => {
     await reset()
     const first = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    expect(first.created).toBe(true)
+    expect(first.generation).toBeGreaterThan(0)
 
     WebContentsViewMock.mockClear()
     const second = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    expect(second.created).toBe(false)
     expect(second.generation).toBe(first.generation)
     expect(WebContentsViewMock).not.toHaveBeenCalled()
   })
@@ -329,7 +328,7 @@ describe('AiWebContentsViewManager - creation', () => {
     WebContentsViewMock.mockClear()
     const second = await manager.attachAiView({ viewId: 'tab-1', source: GROK })
 
-    expect(second.created).toBe(true)
+    expect(second.generation).toBeGreaterThan(0)
     expect(second.generation).not.toBe(first.generation)
     expect(removeChildView).toHaveBeenCalledTimes(1)
     expect(WebContentsViewMock).toHaveBeenCalledTimes(1)
@@ -385,7 +384,7 @@ describe('AiWebContentsViewManager - url restoration', () => {
     manager.detachAiViewHost('tab-1', 'h1')
     const second = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
 
-    expect(second.created).toBe(false)
+    expect(second.generation).toBe(first.generation)
     expect(second.currentUrl).toBe('https://chatgpt.com/c/123')
     expect(second.generation).toBe(first.generation)
     // A pure reposition: no reload, no second entry load.
@@ -807,6 +806,23 @@ describe('AiWebContentsViewManager - lifecycle', () => {
     expect(consoleMessages.map((e) => e.message)).toEqual(['_aiPicker:result:{}', 'legacy message'])
   })
 
+  it('applies page chrome to each new document, without reinjecting on SPA navigation', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('dom-ready')
+    expect(entry.webContents.insertCSS).toHaveBeenCalledTimes(1)
+    entry.webContents.emit('did-navigate-in-page', {}, 'https://chatgpt.com/c/1', true, 1, 1)
+    expect(entry.webContents.insertCSS).toHaveBeenCalledTimes(1)
+    entry.webContents.emit('did-start-loading')
+    entry.webContents.emit('did-navigate', {}, 'https://chatgpt.com/c/2', 200, 'OK')
+    entry.webContents.emit('dom-ready')
+    expect(entry.webContents.insertCSS).toHaveBeenCalledTimes(2)
+    await manager.destroyAiView('tab-1')
+    entry.webContents.emit('dom-ready')
+    expect(entry.webContents.insertCSS).toHaveBeenCalledTimes(2)
+  })
+
   it('stops bridging events once the view is destroyed', async () => {
     await reset()
     const received: unknown[] = []
@@ -835,15 +851,14 @@ describe('AiWebContentsViewManager - state snapshot', () => {
     await reset()
     const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
 
-    expect(response.created).toBe(true)
+    expect(response.generation).toBeGreaterThan(0)
     expect(response.isLoading).toBe(true)
     expect(response.hasLoadedOnce).toBe(false)
-    expect(response.loadState).toBe('loading')
     expect(response.error).toBeNull()
   })
 
   it('reports an existing settled view as ready to be shown immediately', async () => {
-    // The focus-mode shape: `created: false` and no further load event is coming,
+    // The focus-mode shape: the same generation and no further load event is coming,
     // so this snapshot is the only thing that can release the splash.
     await reset()
     await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
@@ -852,10 +867,10 @@ describe('AiWebContentsViewManager - state snapshot', () => {
 
     const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
 
-    expect(response.created).toBe(false)
+    expect(response.generation).toBe(entry.generation)
     expect(response.isLoading).toBe(false)
     expect(response.hasLoadedOnce).toBe(true)
-    expect(response.loadState).toBe('settled')
+    expect(response.error).toBeNull()
   })
 
   it('reports an existing still-loading view as loading', async () => {
@@ -866,7 +881,6 @@ describe('AiWebContentsViewManager - state snapshot', () => {
 
     expect(response.isLoading).toBe(true)
     expect(response.hasLoadedOnce).toBe(false)
-    expect(response.loadState).toBe('loading')
   })
 
   it('carries a fatal load failure to the next host instead of a spinner', async () => {
@@ -880,7 +894,6 @@ describe('AiWebContentsViewManager - state snapshot', () => {
 
     expect(response.isLoading).toBe(false)
     expect(response.hasLoadedOnce).toBe(true)
-    expect(response.loadState).toBe('failed')
     expect(response.error).toEqual({ code: -105, description: 'ERR_NAME_NOT_RESOLVED' })
   })
 
@@ -898,13 +911,13 @@ describe('AiWebContentsViewManager - state snapshot', () => {
     const midFlight = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
     expect(midFlight.isLoading).toBe(true)
     expect(midFlight.hasLoadedOnce).toBe(false)
-    expect(midFlight.loadState).toBe('loading')
+    expect(midFlight.error).toEqual({ code: -3, description: 'ERR_ABORTED' })
 
     entry.webContents.emit('dom-ready')
     entry.webContents.emit('did-stop-loading')
 
     const settled = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    expect(settled.loadState).toBe('settled')
+    expect(settled.isLoading).toBe(false)
     expect(settled.hasLoadedOnce).toBe(true)
     expect(settled.error).toBeNull()
   })
@@ -932,7 +945,7 @@ describe('AiWebContentsViewManager - state snapshot', () => {
     entry.webContents.emit('did-stop-loading')
 
     const response = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    expect(response.loadState).toBe('settled')
+    expect(response.isLoading).toBe(false)
     expect(response.error).toBeNull()
   })
 
@@ -955,16 +968,15 @@ describe('AiWebContentsViewManager - state snapshot', () => {
       viewId: 'tab-1',
       generation: entry.generation,
       isLoading: false,
-      hasLoadedOnce: true,
-      loadState: 'settled'
+      hasLoadedOnce: true
     })
 
     // A re-navigation flips back to loading and then settles again, so a host
     // that missed the original event still converges on the truth.
     entry.webContents.emit('did-start-loading')
-    expect(states.map((state) => state.loadState)).toEqual(['settled', 'loading'])
+    expect(states.map((state) => state.isLoading)).toEqual([false, true])
     entry.webContents.emit('did-stop-loading')
-    expect(states.map((state) => state.loadState)).toEqual(['settled', 'loading', 'settled'])
+    expect(states.map((state) => state.isLoading)).toEqual([false, true, false])
   })
 
   it('stops publishing snapshots for a view that a newer generation replaced', async () => {

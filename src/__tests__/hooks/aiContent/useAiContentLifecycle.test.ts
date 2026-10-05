@@ -231,7 +231,7 @@ describe('useAiContentLifecycle - crash recovery', () => {
     act(() => {
       controller._emit('render-process-gone', { reason: 'crashed', exitCode: 9 })
     })
-    expect(result.current.error).toBe('webview_crashed_max')
+    expect(result.current.error).toBe('ai_view_crashed_max')
     expect(onCrashRecoveryRequested).toHaveBeenCalledTimes(3)
   })
 
@@ -378,10 +378,10 @@ describe('useAiContentLifecycle - registry', () => {
 
 describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
   const snapshot = (overrides: Record<string, unknown> = {}) => ({
+    generation: 7,
     currentUrl: 'https://chatgpt.com/c/abc',
     isLoading: false,
     hasLoadedOnce: true,
-    loadState: 'settled',
     error: null,
     ...overrides
   })
@@ -411,8 +411,7 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
         snapshot({
           currentUrl: 'https://chatgpt.com/',
           isLoading: true,
-          hasLoadedOnce: false,
-          loadState: 'loading'
+          hasLoadedOnce: false
         }) as never
       )
     })
@@ -431,7 +430,6 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
       controller._emit(
         'state',
         snapshot({
-          loadState: 'failed',
           error: { code: -105, description: 'ERR_NAME_NOT_RESOLVED' }
         }) as never
       )
@@ -456,7 +454,6 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
         snapshot({
           isLoading: true,
           hasLoadedOnce: false,
-          loadState: 'loading',
           error: { code: -3, description: 'ERR_ABORTED' }
         }) as never
       )
@@ -485,7 +482,6 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
       controller._emit(
         'state',
         snapshot({
-          loadState: 'failed',
           error: { code: -6, description: 'ERR_FILE_NOT_FOUND' }
         }) as never
       )
@@ -505,7 +501,6 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
       controller._emit(
         'state',
         snapshot({
-          loadState: 'failed',
           error: { code: -3, description: 'ERR_ABORTED' }
         }) as never
       )
@@ -531,8 +526,7 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
         snapshot({
           currentUrl: 'https://chatgpt.com/c/next',
           isLoading: true,
-          hasLoadedOnce: true,
-          loadState: 'loading'
+          hasLoadedOnce: true
         }) as never
       )
     })
@@ -553,31 +547,28 @@ describe('useAiContentLifecycle - bootstrap from the manager snapshot', () => {
     expect(onUrlChange).toHaveBeenCalledWith('https://chatgpt.com/c/abc')
   })
 
-  it('treats a snapshot from an older preload as still loading', () => {
+  it('keeps the splash while a snapshot reports its first load in progress', () => {
     const controller = createController()
     const { result } = render(controller)
 
     act(() => {
-      controller._emit('state', { currentUrl: 'https://chatgpt.com/' } as never)
+      controller._emit('state', snapshot({ isLoading: true, hasLoadedOnce: false }) as never)
     })
 
     expect(result.current.isLoading).toBe(true)
     expect(result.current.hasLoadedOnce).toBe(false)
   })
 
-  it('still bootstraps from a settled snapshot that carries no generation', () => {
-    // A preload that predates the generation field must not be mistaken for a
-    // view change: there is no identity to compare, so the existing bootstrap
-    // has to keep working.
+  it('bootstraps a settled generation with no earlier lifecycle events', () => {
     const controller = createController()
     const { result } = render(controller)
 
     act(() => {
       controller._emit('state', {
+        generation: 7,
         currentUrl: 'https://chatgpt.com/',
         isLoading: false,
         hasLoadedOnce: true,
-        loadState: 'settled',
         error: null
       } as never)
     })
@@ -601,7 +592,6 @@ describe('useAiContentLifecycle - WebContents generation changes', () => {
     currentUrl,
     isLoading: false,
     hasLoadedOnce: true,
-    loadState: 'settled',
     error: null
   })
 
@@ -610,7 +600,6 @@ describe('useAiContentLifecycle - WebContents generation changes', () => {
     currentUrl,
     isLoading: true,
     hasLoadedOnce: false,
-    loadState: 'loading',
     error: null
   })
 
@@ -671,7 +660,6 @@ describe('useAiContentLifecycle - WebContents generation changes', () => {
         currentUrl: 'https://chatgpt.com/c/2',
         isLoading: true,
         hasLoadedOnce: true,
-        loadState: 'loading',
         error: null
       } as never)
     })
@@ -710,7 +698,6 @@ describe('useAiContentLifecycle - WebContents generation changes', () => {
         currentUrl: 'https://chatgpt.com/',
         isLoading: false,
         hasLoadedOnce: true,
-        loadState: 'failed',
         error: { code: -105, description: 'ERR_NAME_NOT_RESOLVED' }
       } as never)
     })

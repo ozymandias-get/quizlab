@@ -178,16 +178,13 @@ export function useAiContentLifecycle({
         // survive into its replacement. Within one generation nothing is reset,
         // which is what keeps `hasLoadedOnce` monotonic and a focus-mode handoff
         // or an in-page navigation from bringing the splash back.
-        const generation = typeof event.generation === 'number' ? event.generation : null
-        if (generation !== null && generation !== generationRef.current) {
+        const generation = event.generation
+        if (generation !== generationRef.current) {
           generationRef.current = generation
           hasInitiallyLoadedRef.current = false
           setHasLoadedOnce(false)
         }
-        // A response from a preload that predates the snapshot contract carries
-        // no load state; assume the conservative answer rather than reporting an
-        // idle guest that has not painted.
-        const loading = typeof event.isLoading === 'boolean' ? event.isLoading : true
+        const loading = event.isLoading
         // Once the view has settled the splash must not come back for a later
         // navigation — same rule as `did-start-loading`.
         if (!(loading && hasInitiallyLoadedRef.current)) setIsLoading(loading)
@@ -249,7 +246,7 @@ export function useAiContentLifecycle({
 
         if (crashRetryCountRef.current < MAX_CRASH_RETRIES) {
           crashRetryCountRef.current += 1
-          showWarning('webview_crashed_retrying')
+          showWarning('ai_view_crashed_retrying')
           clearCrashTimer()
           crashTimerRef.current = setTimeout(() => {
             crashTimerRef.current = null
@@ -263,7 +260,7 @@ export function useAiContentLifecycle({
           return
         }
 
-        setError(t('webview_crashed_max'))
+        setError(t('ai_view_crashed_max'))
       })
     ]
 

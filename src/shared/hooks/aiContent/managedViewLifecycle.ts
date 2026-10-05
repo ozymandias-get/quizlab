@@ -57,7 +57,7 @@ export function useManagedViewRetirement(liveViewIds: readonly string[]): void {
   // View ids are contract-validated and cannot contain a NUL, so this is an
   // unambiguous key: the effect only re-runs when the membership actually
   // changes, not on every re-render with an equivalent array.
-  const liveKey = liveViewIds.join('\u0000')
+  const liveKey = [...new Set(liveViewIds)].sort().join('\u0000')
   const retainedRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {

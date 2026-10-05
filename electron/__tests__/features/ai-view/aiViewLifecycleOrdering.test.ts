@@ -231,7 +231,7 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
     expect(addChildView).toHaveBeenCalledTimes(2)
     // Each attach created a fresh view, so each got its own generation.
     expect(attachTwo.generation).not.toBe(attachOne.generation)
-    expect(attachTwo.created).toBe(true)
+    expect(attachTwo.generation).toBeGreaterThan(0)
   })
 
   it('settles attach #3 when a destroy #2 is interleaved mid-flight', async () => {
@@ -253,7 +253,7 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
     // middle destroy must not swallow the attach behind it either.
     expect(manager.hasManagedAiView('tab-C')).toBe(true)
     expect(manager.listManagedAiViewIds()).toEqual(['tab-C'])
-    expect(firstResponse.created).toBe(true)
+    expect(firstResponse.generation).toBeGreaterThan(0)
   })
 
   it('does not let an unrelated view wait for this one', async () => {
@@ -265,7 +265,7 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
 
     // A different AI tab must not be queued behind `tab-D`'s store read.
     const other = await manager.attachAiView({ viewId: 'tab-E', source: CUSTOM })
-    expect(other.created).toBe(true)
+    expect(other.generation).toBeGreaterThan(0)
 
     storeGate.releaseAll()
     await blocked

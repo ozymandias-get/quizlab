@@ -22,6 +22,7 @@ import {
 describe('view id validation', () => {
   it('accepts a bounded non-empty string', () => {
     expect(isValidViewId('tab-1')).toBe(true)
+    expect(isValidViewId('gdrive:pdf_tab-1')).toBe(true)
     expect(isValidViewId('a'.repeat(128))).toBe(true)
   })
 
@@ -30,11 +31,16 @@ describe('view id validation', () => {
     expect(isValidViewId('a'.repeat(129))).toBe(false)
     expect(isValidViewId(42)).toBe(false)
     expect(isValidViewId(null)).toBe(false)
+    for (const id of ['a\u0000b', 'a b', '../tab', 'ai:tab', 'gdrive:', 'gdrive:a:b']) {
+      expect(isValidViewId(id)).toBe(false)
+      expect(parseTabRequest({ viewId: id })).toBeNull()
+    }
   })
 
   it('rejects path-like host tokens', () => {
     expect(isValidHostToken('host-1')).toBe(true)
-    expect(isValidHostToken('../../etc/passwd')).toBe(true)
+    expect(isValidHostToken('../../etc/passwd')).toBe(false)
+    expect(isValidHostToken('host\u0000other')).toBe(false)
     expect(isValidHostToken('')).toBe(false)
     expect(isValidHostToken('a'.repeat(129))).toBe(false)
   })

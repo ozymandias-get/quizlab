@@ -47,16 +47,6 @@ export type AiViewEventKind =
   | 'console-message'
 
 /**
- * Where a managed view stands in its load lifecycle, as observed by the main
- * process.
- *
- * Three values, deliberately: the only question a host has to answer is "may I
- * stop waiting and take this view as-is?" — which is true for `settled` and for
- * `failed`, and false for `loading`.
- */
-export type AiViewLoadState = 'loading' | 'settled' | 'failed'
-
-/**
  * The one description of a managed view's state.
  *
  * A `WebContentsView` outlives every React host that positions it, so a host
@@ -84,7 +74,6 @@ export interface AiViewStateSnapshot {
    * displayed then is the error, not an endless splash.
    */
   hasLoadedOnce: boolean
-  loadState: AiViewLoadState
   /** Last main-frame load failure, or `null` when the last attempt produced a document. */
   error: { code: number; description: string } | null
 }
@@ -146,10 +135,7 @@ export interface AiViewAttachRequest {
   restoredUrl?: string
 }
 
-export interface AiViewAttachResponse extends AiViewStateSnapshot {
-  /** False when an existing view for this id was reused (tab switch, focus mode). */
-  created: boolean
-}
+export type AiViewAttachResponse = AiViewStateSnapshot
 
 export interface AiViewHostRequest {
   viewId: string
@@ -193,5 +179,3 @@ export interface AiViewTextRequest extends AiViewTabRequest {
 export interface AiViewInputEventRequest extends AiViewTabRequest {
   inputEvent: AiContentInputEvent
 }
-
-export type AiViewHostSurface = 'workspace' | 'focus' | 'pdf'

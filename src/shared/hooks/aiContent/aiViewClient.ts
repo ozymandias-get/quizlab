@@ -29,7 +29,7 @@ function dispatch(event: AiViewEvent): void {
 
 /**
  * Returns the managed-view IPC surface, or `null` when the bridge is
- * unavailable (browser dev mode, or a preload that predates the ai-view API).
+ * unavailable in browser development mode.
  */
 export function getAiViewClient() {
   return getElectronApi()?.aiView ?? null
