@@ -5,7 +5,7 @@ import https from 'node:https'
 import { isIP } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 
-import { isLoopbackOrPrivateHost, normalizeHostname } from './ssrfIpUtils.js'
+import { classifyHost, HOST_SCOPE, normalizeHostname } from './ssrfIpUtils.js'
 
 /**
  * Options accepted by the SSRF guard.
@@ -16,7 +16,16 @@ import { isLoopbackOrPrivateHost, normalizeHostname } from './ssrfIpUtils.js'
  * normalization boundary; nothing downstream should re-derive the permission.
  */
 export interface SsrProtectionOptions {
-  /** When true, allows loopback/private (Ollama, LM Studio, vLLM, LocalAI) endpoints. */
+  /**
+   * Allow a provider hosted on this machine or the user's LAN — loopback,
+   * RFC 1918 and IPv6 ULA. This is the consent switch for Ollama / LM Studio /
+   * vLLM / LocalAI.
+   *
+   * It deliberately does NOT unlock special-use addresses: link local (which
+   * carries the cloud instance metadata endpoint), the unspecified block, CGNAT,
+   * benchmarking, documentation, multicast and IPv6 tunnelling ranges stay
+   * blocked. See HOST_SCOPE in ssrfIpUtils.ts.
+   */
   allowLocalNetwork?: boolean
 }
 
@@ -40,22 +49,27 @@ function validateProviderUrl(baseUrl: string, options?: SsrProtectionOptions): s
     }
 
     const host = normalizeHostname(parsed.hostname)
-    const isLocalDevHost = host === 'localhost' || host === '127.0.0.1'
+    const scope = classifyHost(host)
     const allowLocal = isLocalAllowed(options)
-    const isPrivate = isLoopbackOrPrivateHost(host)
-    const isAllowedHttpHost = isLocalDevHost || (allowLocal && isPrivate)
+
+    // Special-use targets are never reachable, with or without the opt-in.
+    if (scope === HOST_SCOPE.SPECIAL_USE) {
+      return `SSRF blocked: "${host}" is a special-use address`
+    }
+
+    const isLocalModel = scope === HOST_SCOPE.LOCAL_MODEL
+    // localhost / 127.0.0.1 keep their pre-existing plain-HTTP allowance so
+    // local development works without opting in; every other LAN address needs
+    // the explicit consent flag.
+    const isLocalDevHost = host === 'localhost' || host === '127.0.0.1'
+    const isAllowedHttpHost = isLocalDevHost || (allowLocal && isLocalModel)
 
     if (parsed.protocol !== 'https:' && !isAllowedHttpHost) {
       return 'Non-HTTPS provider URLs are only allowed for localhost'
     }
 
-    // Skip SSRF block for localhost/127.0.0.1 since they are already
-    // handled above — HTTP is explicitly allowed for local development.
-    // When allowLocalNetwork is true (Ollama / LM Studio / vLLM / LocalAI)
-    // private/reserved loopback & LAN addresses are permitted with explicit
-    // user consent.
-    if (!allowLocal && !isLocalDevHost && isPrivate) {
-      return `SSRF blocked: "${host}" is a private/reserved address`
+    if (isLocalModel && !isLocalDevHost && !allowLocal) {
+      return `SSRF blocked: "${host}" is a private address`
     }
 
     return null
@@ -76,10 +90,9 @@ async function resolvePinnedIp(
   options?: SsrProtectionOptions
 ): Promise<{ ip: string; family: number }> {
   const host = normalizeHostname(hostname)
-  const allowLocal = isLocalAllowed(options)
 
-  // IP literals need no resolution — the address is already checked by
-  // validateProviderUrl before we get here.
+  // IP literals need no resolution — validateProviderUrl already classified the
+  // address itself (including the special-use block) before we get here.
   if (isIP(host) === 4) return { ip: host, family: 4 }
   if (isIP(host) === 6) return { ip: host, family: 6 }
 
@@ -99,17 +112,23 @@ async function resolvePinnedIp(
     throw new Error(`DNS resolution failed for "${hostname}"`)
   }
 
-  // EVERY returned address must be public unless allowLocalNetwork is set.
-  // If any single A/AAAA record points into a private/reserved block the whole
-  // request is rejected — prevents DNS rebinding to 127.0.0.1 / 192.168.x.x /
-  // 169.254.169.254 after an initially public hostname.
-  if (!allowLocal) {
-    for (const address of addresses) {
-      if (isLoopbackOrPrivateHost(address.address)) {
-        throw new Error(
-          `SSRF blocked: "${hostname}" resolved to private/reserved address ${address.address}`
-        )
-      }
+  // EVERY returned address is classified with the same policy that
+  // validateProviderUrl applies to a literal URL, and the result is pinned into
+  // the socket below. The classification must not weaken when the user opted
+  // into local endpoints, otherwise a public hostname that resolves to
+  // 169.254.169.254 after validation would be reachable — the classic rebinding
+  // shape. If any single A/AAAA record is special-use, or is local without the
+  // opt-in, the whole request is rejected.
+  const allowLocal = isLocalAllowed(options)
+  for (const address of addresses) {
+    const scope = classifyHost(address.address)
+    if (scope === HOST_SCOPE.SPECIAL_USE) {
+      throw new Error(
+        `SSRF blocked: "${hostname}" resolved to special-use address ${address.address}`
+      )
+    }
+    if (scope === HOST_SCOPE.LOCAL_MODEL && !allowLocal) {
+      throw new Error(`SSRF blocked: "${hostname}" resolved to private address ${address.address}`)
     }
   }
 
@@ -142,7 +161,17 @@ function pinnedRequest(
     const options: https.RequestOptions = {
       method: init.method,
       headers: Object.fromEntries(init.headers.entries()),
-      lookup: (_hostname, _opts, callback) => {
+      lookup: (_hostname, lookupOptions, callback) => {
+        // Node enables autoSelectFamily by default, which makes it call the
+        // custom lookup with `{ all: true }` and expect an ARRAY back. Handing
+        // it a bare address instead makes every hostname-based provider fail
+        // with "Invalid IP address: undefined" — IP literals dodge this because
+        // net.connect skips DNS entirely when the host is already an address.
+        // Support both shapes so pinning holds regardless of that default.
+        if (lookupOptions?.all) {
+          callback(null, [{ address: pinnedIp, family: pinnedFamily }], undefined)
+          return
+        }
         callback(null, pinnedIp, pinnedFamily)
       },
       signal: signal ?? undefined
