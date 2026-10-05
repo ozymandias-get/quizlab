@@ -393,9 +393,6 @@ export interface IpcEventMap {
   [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED]: {
     args: [payload: GeminiWebSessionRefreshEvent]
   }
-  [IPC_CHANNELS.GEMINI_WEB_STATUS_UPDATED]: {
-    args: [payload: GeminiWebSessionStatus]
-  }
   [IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_CONNECTED]: {
     args: []
   }
