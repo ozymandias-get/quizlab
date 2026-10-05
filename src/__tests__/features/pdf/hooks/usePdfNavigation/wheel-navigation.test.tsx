@@ -21,7 +21,6 @@ describe('usePdfNavigation - wheel navigation', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2,
@@ -81,7 +80,6 @@ describe('usePdfNavigation - wheel navigation', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 3
@@ -175,7 +173,6 @@ describe('usePdfNavigation - wheel navigation', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 4
@@ -213,7 +210,6 @@ describe('usePdfNavigation - wheel navigation', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 4
@@ -252,7 +248,6 @@ describe('usePdfNavigation - wheel navigation', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -282,12 +277,10 @@ describe('usePdfNavigation - wheel navigation', () => {
   })
 
   it('serializes rapid page jumps until the rendered target has settled', () => {
-    const containerRef = { current: document.createElement('div') }
     const jumpToPageRef = { current: vi.fn() }
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -323,12 +316,10 @@ describe('usePdfNavigation - wheel navigation', () => {
   })
 
   it('ignores stale page-change callbacks after the jump target is rendered', () => {
-    const containerRef = { current: document.createElement('div') }
     const jumpToPageRef = { current: vi.fn() }
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
