@@ -33,7 +33,7 @@
 export const PAGE_LAYER_CLASS = 'rpv-core__page-layer'
 
 /** Class of the positioned text spans the viewer renders for a page. */
-export const TEXT_LAYER_CLASS = 'rpv-core__text-layer'
+const TEXT_LAYER_CLASS = 'rpv-core__text-layer'
 
 /** The scrollable viewport element. */
 export const INNER_CONTAINER_SELECTOR = '[data-testid="core__inner-container"]'
