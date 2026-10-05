@@ -14,12 +14,10 @@ describe('usePdfNavigation - basic navigation', () => {
 
   it('should initialize from the saved page and report reading progress updates', () => {
     const onReadingProgressChange = vi.fn()
-    const containerRef = { current: document.createElement('div') }
     const jumpToPageRef = { current: vi.fn() }
 
     const { result, rerender } = renderHook(
       (props: {
-        containerRef: typeof containerRef
         jumpToPageRef: typeof jumpToPageRef
         pdfPath: string | null
         initialPage?: number
@@ -27,7 +25,6 @@ describe('usePdfNavigation - basic navigation', () => {
       }) => usePdfNavigation(props),
       {
         initialProps: {
-          containerRef,
           jumpToPageRef,
           pdfPath: '/docs/first.pdf',
           initialPage: 6,
@@ -67,7 +64,6 @@ describe('usePdfNavigation - basic navigation', () => {
     })
 
     rerender({
-      containerRef,
       jumpToPageRef,
       pdfPath: '/docs/first.pdf',
       initialPage: 8,
@@ -78,7 +74,6 @@ describe('usePdfNavigation - basic navigation', () => {
     expect(result.current.totalPages).toBe(12)
 
     rerender({
-      containerRef,
       jumpToPageRef,
       pdfPath: '/docs/second.pdf',
       initialPage: 9,

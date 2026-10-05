@@ -91,7 +91,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     goToNextPage,
     jumpToPage: jumpToPageFromNav
   } = usePdfNavigation({
-    containerRef,
     jumpToPageRef,
     pdfPath: pdfFile?.path || null,
     initialPage,
