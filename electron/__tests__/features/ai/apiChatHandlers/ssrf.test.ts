@@ -148,26 +148,74 @@ describe('validateProviderUrl (SSRF Protection)', () => {
     // these cases exist: nothing else in the suite exercised this branch.
     const allow = { allowLocalNetwork: true }
 
-    it('permits private and LAN addresses over https', () => {
-      expect(validateProviderUrl('https://10.0.0.1', allow)).toBeNull()
-      expect(validateProviderUrl('https://192.168.1.1', allow)).toBeNull()
+    it('permits loopback and LAN addresses over https', () => {
+      expect(validateProviderUrl('https://127.0.0.1', allow)).toBeNull()
+      expect(validateProviderUrl('https://10.0.0.5', allow)).toBeNull()
+      expect(validateProviderUrl('https://10.255.255.254', allow)).toBeNull()
+      expect(validateProviderUrl('https://192.168.1.20', allow)).toBeNull()
       expect(validateProviderUrl('https://172.16.0.1', allow)).toBeNull()
+      expect(validateProviderUrl('https://172.31.255.254', allow)).toBeNull()
+      // IPv6 ULA is the LAN equivalent of RFC 1918.
       expect(validateProviderUrl('https://[fd12:3456::1]', allow)).toBeNull()
+      expect(validateProviderUrl('https://[fc00::1]', allow)).toBeNull()
+      expect(validateProviderUrl('https://[::1]', allow)).toBeNull()
+      // IPv4-mapped forms of an allowed LAN address stay allowed.
+      expect(validateProviderUrl('https://[::ffff:192.168.1.20]', allow)).toBeNull()
     })
 
-    it('permits plain http for private addresses, unlike the default', () => {
+    it('permits plain http for local model servers, unlike the default', () => {
+      // Ollama / LM Studio / LocalAI serve over plain HTTP on the LAN.
       expect(validateProviderUrl('http://192.168.1.1:5000')).toContain('Non-HTTPS')
       expect(validateProviderUrl('http://192.168.1.1:5000', allow)).toBeNull()
       expect(validateProviderUrl('http://10.0.0.1:8080/v1', allow)).toBeNull()
+      // The loopback local-dev exception is unchanged by the opt-in either way.
+      expect(validateProviderUrl('http://localhost:11434')).toBeNull()
+      expect(validateProviderUrl('http://127.0.0.1:11434')).toBeNull()
     })
 
-    it('permits loopback-private ranges the opt-in covers, link-local included', () => {
-      // Documented scope of the flag: everything isLoopbackOrPrivateHost()
-      // accepts, which includes 169.254.0.0/16. The base URL is the user's own
-      // provider config, never renderer- or document-supplied, so this widens
-      // what a user may point at rather than exposing an attacker-chosen host.
-      expect(validateProviderUrl('https://169.254.169.254', allow)).toBeNull()
-      expect(validateProviderUrl('https://100.64.0.1', allow)).toBeNull()
+    it('keeps the cloud metadata endpoint blocked under the opt-in', () => {
+      // The invariant that motivated splitting the classification: consent to
+      // reach a local model server is not consent to reach the instance
+      // metadata service.
+      expect(validateProviderUrl('https://169.254.169.254')).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://169.254.169.254', allow)).toContain('SSRF blocked')
+      // Common metadata hostnames and the port variant.
+      expect(validateProviderUrl('http://169.254.169.254:80/latest', allow)).toContain(
+        'SSRF blocked'
+      )
+      // Whole link-local block, not just the well-known address.
+      expect(validateProviderUrl('https://169.254.1.1', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://169.254.255.254', allow)).toContain('SSRF blocked')
+      // IPv6 link local, and an IPv4-mapped metadata address.
+      expect(validateProviderUrl('https://[fe80::1]', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://[::ffff:169.254.169.254]', allow)).toContain(
+        'SSRF blocked'
+      )
+      // 6to4 tunnels an arbitrary IPv4 destination, metadata included.
+      expect(validateProviderUrl('https://[2002:a9fe:a9fe::]', allow)).toContain('SSRF blocked')
+    })
+
+    it('keeps the remaining special-use ranges blocked under the opt-in', () => {
+      expect(validateProviderUrl('https://0.0.0.0', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://0.1.2.3', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://100.64.0.1', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://198.18.0.1', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://192.0.2.1', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://198.51.100.1', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://203.0.113.1', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://224.0.0.1', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://255.255.255.255', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://[::]', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://[ff02::1]', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://[2001:db8::1]', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://[2001::1]', allow)).toContain('SSRF blocked')
+      expect(validateProviderUrl('https://[2002::1]', allow)).toContain('SSRF blocked')
+    })
+
+    it('still allows genuinely public providers under the opt-in', () => {
+      expect(validateProviderUrl('https://api.openai.com', allow)).toBeNull()
+      expect(validateProviderUrl('https://generativelanguage.googleapis.com', allow)).toBeNull()
+      expect(validateProviderUrl('https://[::ffff:8.8.8.8]', allow)).toBeNull()
     })
 
     it('still rejects unsupported protocols and credentials under the opt-in', () => {
@@ -181,6 +229,11 @@ describe('validateProviderUrl (SSRF Protection)', () => {
         'SSRF blocked'
       )
       expect(validateProviderUrl('https://192.168.1.1')).toContain('SSRF blocked')
+    })
+
+    it('still blocks a plain-http LAN host without the opt-in', () => {
+      expect(validateProviderUrl('http://10.0.0.5:11434')).toContain('Non-HTTPS')
+      expect(validateProviderUrl('http://192.168.1.20:1234/v1')).toContain('Non-HTTPS')
     })
   })
 
