@@ -64,20 +64,20 @@ describe('scriptExecution', () => {
   })
 
   describe('executeContentScript', () => {
-    const makeWebview = (executeJavaScript: () => Promise<unknown>): AiContentController =>
+    const makeController = (executeJavaScript: () => Promise<unknown>): AiContentController =>
       ({
         executeJavaScript,
         isDestroyed: () => false
       }) as unknown as AiContentController
 
     it('resolves with the script value on success', async () => {
-      const content = makeWebview(() => Promise.resolve({ success: true }))
+      const content = makeController(() => Promise.resolve({ success: true }))
       const result = await executeContentScript(content, 'return 1;')
       expect(result).toEqual({ ok: true, value: { success: true } })
     })
 
     it('converts destroyed-content rejection into a controlled destroyed result', async () => {
-      const content = makeWebview(() =>
+      const content = makeController(() =>
         Promise.reject(new Error('Error: WebContents was destroyed'))
       )
       const result = await executeContentScript(content, 'return 1;')
@@ -100,13 +100,13 @@ describe('scriptExecution', () => {
     })
 
     it('keeps undefined results when the content is alive', async () => {
-      const content = makeWebview(() => Promise.resolve(undefined))
+      const content = makeController(() => Promise.resolve(undefined))
       const result = await executeContentScript(content, 'return 1;')
       expect(result).toEqual({ ok: true, value: undefined })
     })
 
     it('converts generic rejections into a non-destroyed failure', async () => {
-      const content = makeWebview(() => Promise.reject(new Error('some random failure')))
+      const content = makeController(() => Promise.reject(new Error('some random failure')))
       const result = await executeContentScript(content, 'return 1;')
       expect(result.ok).toBe(false)
       if (!result.ok) {
@@ -116,7 +116,7 @@ describe('scriptExecution', () => {
     })
 
     it('never throws, even if the implementation throws synchronously', async () => {
-      const content = makeWebview(() => {
+      const content = makeController(() => {
         throw new Error('sync boom')
       })
       const result = await executeContentScript(content, 'return 1;')

@@ -2,11 +2,11 @@ import { isSendError, resolveSendContext } from '@features/ai/lib/send/resolveSe
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockIsWebviewUsable = vi.fn()
+const mockIsContentUsable = vi.fn()
 const mockGetCachedAiConfig = vi.fn()
 
 vi.mock('@features/ai/lib/aiSenderSupport', () => ({
-  isContentUsable: (...args: unknown[]) => mockIsWebviewUsable(...args),
+  isContentUsable: (...args: unknown[]) => mockIsContentUsable(...args),
   getCachedAiConfig: (...args: unknown[]) => mockGetCachedAiConfig(...args)
 }))
 
@@ -23,7 +23,7 @@ describe('resolveSendContext', () => {
     vi.clearAllMocks()
     contentRef.current = content
     content.getURL.mockReturnValue('https://openai.com/chat')
-    mockIsWebviewUsable.mockReturnValue(true)
+    mockIsContentUsable.mockReturnValue(true)
     mockGetCachedAiConfig.mockResolvedValue({
       config: aiRegistry['gpt-4'],
       regex: /openai\.com/
@@ -80,7 +80,7 @@ describe('resolveSendContext', () => {
   })
 
   it('returns webview_destroyed when content is not usable', async () => {
-    mockIsWebviewUsable.mockReturnValue(false)
+    mockIsContentUsable.mockReturnValue(false)
 
     const result = await resolveSendContext({
       contentRef,
@@ -112,13 +112,13 @@ describe('resolveSendContext', () => {
   })
 
   it('returns webview_api_missing when getURL is not a function', async () => {
-    const badWebview = { getURL: 'not-a-function' } as any
-    contentRef.current = badWebview
+    const badContent = { getURL: 'not-a-function' } as any
+    contentRef.current = badContent
 
     const result = await resolveSendContext({
       contentRef,
-      content: badWebview,
-      scheduledContent: badWebview,
+      content: badContent,
+      scheduledContent: badContent,
       aiRegistry,
       currentAI: 'gpt-4',
       queryClient,

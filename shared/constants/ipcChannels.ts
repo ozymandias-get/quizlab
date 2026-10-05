@@ -11,7 +11,7 @@ export const IPC_CHANNELS = {
 
   CAPTURE_SCREEN: 'capture-screen',
   COPY_IMAGE: 'copy-image-to-clipboard',
-  /** Restore the clipboard snapshot taken before COPY_IMAGE (after webview paste). */
+  /** Restore the clipboard snapshot taken before COPY_IMAGE (after managed-view paste). */
   RESTORE_CLIPBOARD: 'restore-clipboard',
   COPY_TEXT: 'copy-text-to-clipboard',
   OPEN_EXTERNAL: 'open-external',

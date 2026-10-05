@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
-function createWebview(): AiContentController {
+function createContent(): AiContentController {
   return {
     executeJavaScript: vi.fn().mockResolvedValue({ success: true }),
     isDestroyed: () => false,
@@ -34,7 +34,7 @@ function createWebview(): AiContentController {
  * succeed and the submit_ready script fail with a diagnostic payload.
  */
 function baseParams(overrides: Record<string, unknown> = {}) {
-  const content = createWebview()
+  const content = createContent()
   const diagnostics = { currentAI: 'claude', timings: {} } as AiSendDiagnostics
   return {
     contentRef: { current: content } as never,
@@ -75,7 +75,7 @@ describe('submit-ready failure logging', () => {
   })
 
   it('logs the blocker when the submit target is never interactive', async () => {
-    const content = createWebview()
+    const content = createContent()
     const params = baseParams({
       content,
       contentRef: { current: content },
@@ -119,7 +119,7 @@ describe('submit-ready failure logging', () => {
   })
 
   it('logs nothing extra for a failed step with no diagnostic payload', async () => {
-    const content = createWebview()
+    const content = createContent()
     content.executeJavaScript = vi
       .fn()
       .mockResolvedValueOnce({ success: true })
@@ -144,7 +144,7 @@ describe('submit-ready failure logging', () => {
   // The generic "still processing" message tells the user to wait, which can
   // never help when the page never received the paste in the first place.
   it('reports paste_not_applied when the page never changed after the paste', async () => {
-    const content = createWebview()
+    const content = createContent()
     content.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
       success: false,
       action: 'submit_ready',
@@ -169,7 +169,7 @@ describe('submit-ready failure logging', () => {
   })
 
   it('keeps submit_not_ready when the page was actively changing', async () => {
-    const content = createWebview()
+    const content = createContent()
     // Many mutations mean an upload really was in progress; waiting is right.
     content.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({
       success: false,
@@ -192,7 +192,7 @@ describe('submit-ready failure logging', () => {
   })
 
   it('keeps submit_not_ready when the target was briefly enabled', async () => {
-    const content = createWebview()
+    const content = createContent()
     // everReady means the site did react; the button then re-disabled, which is
     // a different problem from a paste that never landed.
     content.executeJavaScript = vi.fn().mockResolvedValueOnce({ success: true }).mockResolvedValue({

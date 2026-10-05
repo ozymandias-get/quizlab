@@ -7,7 +7,7 @@ export const mockState = {
     warn: vi.fn()
   },
   mockUsePrompts: vi.fn((): { activePromptText: string | null } => ({ activePromptText: '' })),
-  mockSafeWebviewPaste: vi.fn(() => true),
+  mockSafeContentPaste: vi.fn(() => true),
   mockUseTextInputMode: vi.fn(
     (): {
       textInputMode: 'auto' | 'paste' | 'typing'

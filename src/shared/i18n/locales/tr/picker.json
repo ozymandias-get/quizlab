@@ -37,6 +37,6 @@
   "picker_submit_title": "3. Adım: Gönder Butonunu Seçin",
   "picker_typing_text": "Eğer 'Gönder' butonu ekranda görünmüyorsa, seçtiğiniz kutuya <b>bir harf yazarak</b> butonun ortaya çıkmasını sağlayın. Buton zaten oradaysa devam edin.",
   "picker_typing_title": "2. Adım: Gönder Butonunu Aktif Edin",
-  "picker_webview_not_found": "Webview bulunamadı!",
+  "picker_webview_not_found": "AI görünümü bulunamadı!",
   "picker_wrong": "Yanlış"
 }

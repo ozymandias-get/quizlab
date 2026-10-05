@@ -8,7 +8,7 @@ import type { SendTextResult } from '@features/ai/model/types'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createSendWebviewMock, makePipelineParams } from './sharedTestHelpers'
+import { createSendContentMock, makePipelineParams } from './sharedTestHelpers'
 
 describe('per-content cancellation', () => {
   beforeEach(() => {
@@ -17,26 +17,26 @@ describe('per-content cancellation', () => {
 
   describe('cancel flag utilities', () => {
     it('isContentCancelled returns false for fresh content', () => {
-      const wv = createSendWebviewMock({ success: true })
+      const wv = createSendContentMock({ success: true })
       expect(isContentCancelled(wv)).toBe(false)
     })
 
     it('cancelContentSends sets the flag for the given content', () => {
-      const wv = createSendWebviewMock({ success: true })
+      const wv = createSendContentMock({ success: true })
       cancelContentSends(wv)
       expect(isContentCancelled(wv)).toBe(true)
     })
 
     it('cancellation is per-content (does not affect others)', () => {
-      const wv1 = createSendWebviewMock({ success: true })
-      const wv2 = createSendWebviewMock({ success: true })
+      const wv1 = createSendContentMock({ success: true })
+      const wv2 = createSendContentMock({ success: true })
       cancelContentSends(wv1)
       expect(isContentCancelled(wv1)).toBe(true)
       expect(isContentCancelled(wv2)).toBe(false)
     })
 
     it('getOrCreateCancelFlag reuses the same flag object across calls', () => {
-      const wv = createSendWebviewMock({ success: true })
+      const wv = createSendContentMock({ success: true })
       const flag1 = getOrCreateCancelFlag(wv)
       const flag2 = getOrCreateCancelFlag(wv)
       expect(flag1).toBe(flag2)
@@ -47,7 +47,7 @@ describe('per-content cancellation', () => {
 
   describe('executePipelineStep respects cancellation', () => {
     it('returns cancelled error before executing script when flag is set', async () => {
-      const content = createSendWebviewMock({ success: true })
+      const content = createSendContentMock({ success: true })
       cancelContentSends(content)
 
       const params = makePipelineParams({ content, scheduledContent: content })
@@ -64,7 +64,7 @@ describe('per-content cancellation', () => {
     })
 
     it('runs script normally when no cancellation flag is set', async () => {
-      const content = createSendWebviewMock({ success: true })
+      const content = createSendContentMock({ success: true })
       const params = makePipelineParams({ content, scheduledContent: content })
       const result = await executePipelineStep<SendTextResult>(params)
 
@@ -73,7 +73,7 @@ describe('per-content cancellation', () => {
     })
 
     it('newest request wins - resetting flag allows execution', async () => {
-      const content = createSendWebviewMock({ success: true })
+      const content = createSendContentMock({ success: true })
       const flag = getOrCreateCancelFlag(content)
       flag.cancelled = true
       expect(isContentCancelled(content)).toBe(true)

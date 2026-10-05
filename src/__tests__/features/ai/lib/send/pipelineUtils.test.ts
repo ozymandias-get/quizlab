@@ -2,7 +2,7 @@ import { executePipelineStep } from '@features/ai/lib/send/pipelineUtils'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createSendWebviewMock, makePipelineParams } from './sharedTestHelpers'
+import { createSendContentMock, makePipelineParams } from './sharedTestHelpers'
 
 describe('executePipelineStep', () => {
   beforeEach(() => {
@@ -48,7 +48,7 @@ describe('executePipelineStep', () => {
   })
 
   it('returns failure when script execution fails', async () => {
-    const content = createSendWebviewMock()
+    const content = createSendContentMock()
     ;(content as any).executeJavaScript = vi.fn().mockResolvedValue({
       success: false,
       error: 'exec error'
@@ -65,7 +65,7 @@ describe('executePipelineStep', () => {
   })
 
   it('returns failure when execution result is null', async () => {
-    const content = createSendWebviewMock()
+    const content = createSendContentMock()
     ;(content as any).executeJavaScript = vi.fn().mockResolvedValue(null)
 
     const params = makePipelineParams({ content, scheduledContent: content })
@@ -79,7 +79,7 @@ describe('executePipelineStep', () => {
   })
 
   it('calls onResult with normalized execution result', async () => {
-    const content = createSendWebviewMock()
+    const content = createSendContentMock()
     ;(content as any).executeJavaScript = vi.fn().mockResolvedValue({
       success: true,
       mode: 'enter'
@@ -102,7 +102,7 @@ describe('executePipelineStep', () => {
   })
 
   it('returns webview_destroyed when executeJavaScript rejects with destroyed webcontents', async () => {
-    const content = createSendWebviewMock()
+    const content = createSendContentMock()
     ;(content as any).executeJavaScript = vi
       .fn()
       .mockRejectedValue(new Error('Error: WebContents was destroyed'))
@@ -119,7 +119,7 @@ describe('executePipelineStep', () => {
   })
 
   it('does not throw for destroyed-content rejections (controlled failure instead)', async () => {
-    const content = createSendWebviewMock()
+    const content = createSendContentMock()
     ;(content as any).executeJavaScript = vi
       .fn()
       .mockRejectedValue(new Error('WebContents was destroyed'))
@@ -132,7 +132,7 @@ describe('executePipelineStep', () => {
   })
 
   it('returns a controlled failure for generic executeJavaScript rejections', async () => {
-    const content = createSendWebviewMock()
+    const content = createSendContentMock()
     ;(content as any).executeJavaScript = vi.fn().mockRejectedValue(new Error('boom'))
 
     const params = makePipelineParams({ content, scheduledContent: content })

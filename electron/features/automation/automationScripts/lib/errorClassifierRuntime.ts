@@ -1,7 +1,7 @@
 /**
- * Webview runtime için hata sınıflandırıcı.
+ * Uzak sayfa runtime için hata sınıflandırıcı.
  *
- * `errorClassifier.ts` (TypeScript) tek kaynaktır; bu dosya onu webview'e
+ * `errorClassifier.ts` (TypeScript) tek kaynaktır; bu dosya onu uzak sayfaya
  * enjekte edilecek string template'e dönüştürür. Sadece minimal yardımcıları
  * içerir — her yere şişman bir tablo enjekte etmek yerine, generated script
  * yalnızca "ne yapacağını" bilir.
