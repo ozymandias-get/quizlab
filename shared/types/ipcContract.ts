@@ -365,7 +365,7 @@ export interface IpcInvokeRequestMap {
 
   [IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION]: {
     args: []
-    result: IpcResult<{ success: boolean; error?: string }>
+    result: IpcResult<{ success: boolean; error?: string; installedPath?: string }>
   }
 
   [IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION]: {
