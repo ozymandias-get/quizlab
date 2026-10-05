@@ -5,31 +5,46 @@ import {
 
 import { describe, expect, it, vi } from 'vitest'
 
+/**
+ * The markers are asserted against strings that actually exist in the pinned
+ * pdfjs-dist@3.11.174 bundle, so the guard cannot drift into matching unrelated
+ * errors after a viewer upgrade.
+ */
 describe('isIgnorablePdfRenderError', () => {
-  it('ignores RenderingCancelledException', () => {
-    expect(
-      isIgnorablePdfRenderError(new Error('RenderingCancelledException: Rendering cancelled'))
-    ).toBe(true)
+  it('ignores a cancelled render task by its pdf.js error name', () => {
+    // pdf.js constructs RenderingCancelledException with a page-specific
+    // message, so the name is the stable signal.
+    const cancelled = new Error('Rendering cancelled, page 3')
+    cancelled.name = 'RenderingCancelledException'
+    expect(isIgnorablePdfRenderError(cancelled)).toBe(true)
   })
 
-  it('ignores canvas context lock errors', () => {
+  it('ignores the canvas-reuse error pdf.js throws for a double render', () => {
     expect(
       isIgnorablePdfRenderError(
-        new Error('Cannot use the same canvas during multiple render() operations')
+        new Error(
+          'Cannot use the same canvas during multiple render() operations. Use different canvas or ensure previous operations were cancelled.'
+        )
       )
     ).toBe(true)
-    expect(isIgnorablePdfRenderError(new Error('canvas context is locked'))).toBe(true)
   })
 
-  it('ignores render cancellation messages', () => {
-    expect(isIgnorablePdfRenderError(new Error('render() was canceled'))).toBe(true)
-    expect(isIgnorablePdfRenderError(new Error('Rendering cancelled'))).toBe(true)
+  it('ignores the render cancellation message', () => {
+    expect(isIgnorablePdfRenderError(new Error('Rendering cancelled, page 1'))).toBe(true)
+  })
+
+  it('does not match the same-canvas message without pdf.js wording', () => {
+    // "canvas context is locked" is not a message any pinned pdfjs-dist or
+    // @react-pdf-viewer build produces, so it must not suppress real errors.
+    expect(isIgnorablePdfRenderError(new Error('canvas context is locked'))).toBe(false)
+    expect(isIgnorablePdfRenderError(new Error('render() was canceled'))).toBe(false)
   })
 
   it('does not ignore unrelated errors', () => {
     expect(isIgnorablePdfRenderError(new Error('ENOENT: no such file'))).toBe(false)
     expect(isIgnorablePdfRenderError('plain string')).toBe(false)
     expect(isIgnorablePdfRenderError(undefined)).toBe(false)
+    expect(isIgnorablePdfRenderError(null)).toBe(false)
   })
 })
 
@@ -46,9 +61,7 @@ describe('installPdfRenderErrorGuard', () => {
 
   it('swallows matching unhandled rejections', () => {
     const uninstall = installPdfRenderErrorGuard()
-    const preventDefault = dispatchRejection(
-      new Error('RenderingCancelledException: Rendering cancelled')
-    )
+    const preventDefault = dispatchRejection(new Error('Rendering cancelled, page 2'))
     expect(preventDefault).toHaveBeenCalled()
     uninstall()
   })
@@ -63,7 +76,7 @@ describe('installPdfRenderErrorGuard', () => {
   it('stops filtering after uninstall', () => {
     const uninstall = installPdfRenderErrorGuard()
     uninstall()
-    const preventDefault = dispatchRejection(new Error('RenderingCancelledException'))
+    const preventDefault = dispatchRejection(new Error('Rendering cancelled, page 2'))
     expect(preventDefault).not.toHaveBeenCalled()
   })
 })
