@@ -153,4 +153,36 @@ describe('usePdfResizeRefit', () => {
     expect(zoomTo).toHaveBeenCalledTimes(1)
     expect(zoomTo).toHaveBeenCalledWith('PageWidth')
   })
+
+  it('refits to a numeric scale when the caller supplies one instead of a keyword', () => {
+    // The native canvas viewer reuses these rules but has no `SpecialZoomLevel`,
+    // so it passes its own numeric fallback. Same debounce, same debounced
+    // window — only the refit target differs.
+    const zoomTo = vi.fn<(scale: unknown) => void>()
+    const containerRef = { current: document.createElement('div') }
+
+    renderHook(() => usePdfResizeRefit(containerRef, zoomTo, true, false, null, undefined, 1))
+
+    act(() => {
+      resizeObserverCallback?.()
+      vi.advanceTimersByTime(150)
+    })
+
+    expect(zoomTo).toHaveBeenCalledTimes(1)
+    expect(zoomTo).toHaveBeenCalledWith(1)
+  })
+
+  it('prefers the fit scale over the fallback when one is known', () => {
+    const zoomTo = vi.fn<(scale: unknown) => void>()
+    const containerRef = { current: document.createElement('div') }
+
+    renderHook(() => usePdfResizeRefit(containerRef, zoomTo, true, false, 1.67, undefined, 1))
+
+    act(() => {
+      resizeObserverCallback?.()
+      vi.advanceTimersByTime(150)
+    })
+
+    expect(zoomTo).toHaveBeenCalledWith(1.67)
+  })
 })
