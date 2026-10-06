@@ -1,5 +1,9 @@
 /**
- * pdfjs-dist is pinned deliberately.
+ * The **legacy** PDF.js engine/worker coupling.
+ *
+ * Scope note: this file guards the `@react-pdf-viewer` half of the migration
+ * only. The native engine's runtime and asset wiring are guarded by
+ * `pdfjs-dual-runtime.test.ts`.
  *
  * The coupling is easy to misdiagnose, so state it precisely: there is one
  * engine and one worker, both from the same package.
@@ -18,17 +22,17 @@
  * move the worker out from under the engine while `npm audit` reported the tree
  * clean. That is what the tests below assert.
  *
- * Migrating means moving the viewer and pdfjs in one change, which additionally
- * requires:
- *   - `enableScripting: false` (CVE-2026-16633); it does not replace
- *     `isEvalSupported: false` (CVE-2024-4367), both are needed. Note 3.x
- *     honours the flag at runtime but its bundled `.d.ts` does not declare it
- *     on `GetDocumentParams`, so it cannot be set type-safely until the upgrade
- *   - packaging the `wasm/` assets (openjpeg/jbig2/qcms), absent in 3.x;
- *     the build only ships the dist directory
- *   - re-verifying the ESM interop shim in `renderPageToImage`
+ * ## Why the legacy pin is still 3.x while the native engine is on 6.x
  *
- * These tests assert the invariant so the upgrade cannot happen by accident.
+ * `@react-pdf-viewer@3.12.0` calls `renderTextLayer()` and `new SVGGraphics()`,
+ * both removed in pdf.js 4.x. It cannot run on 6.x at all, so the legacy half of
+ * the tree stays on 3.11.174 — with its `isEvalSupported: false` mitigation for
+ * CVE-2024-4367 — until the viewer is deleted. Only then does the pin move.
+ *
+ * ## When this file should be deleted
+ *
+ * With the viewer: the peer-range rows become meaningless (there is no peer any
+ * more), and `vendor-pdf-legacy` and `pdfjs-dist@3.11.174` disappear with it.
  */
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -52,7 +56,7 @@ const readSource = (relativePath: string): string =>
 const declaredPdfjs = (packageJson.dependencies as Record<string, string>)['pdfjs-dist']
 const overrides = (packageJson.overrides ?? {}) as Record<string, unknown>
 
-describe('pdfjs engine/worker coupling', () => {
+describe('legacy pdfjs engine/worker coupling', () => {
   it('keeps pdfjs-dist on an exact version, not a range', () => {
     // A caret here would let a routine `npm install` move the worker out from
     // under the viewer's bundled engine.
@@ -90,11 +94,10 @@ describe('pdfjs engine/worker coupling', () => {
     expect(viewer.peerDependencies?.['pdfjs-dist']).toBe(VIEWER_PEER_RANGE)
   })
 
-  it('disables eval-based scripting on every getDocument path', () => {
-    // CVE-2024-4367 mitigation. `enableScripting: false` is for a different
-    // CVE and does not cover this, so both are required. There are exactly two
-    // sites that reach pdfjs: the viewer (through transformGetDocumentParams)
-    // and the direct page render. Both must carry the flag, so assert both —
+  it('disables eval-based scripting on every legacy getDocument path', () => {
+    // CVE-2024-4367 mitigation, and it is still load-bearing: the legacy runtime
+    // really is 3.x, where the eval path exists and `enableScripting` does not
+    // cover it. Both 3.x call sites must carry the flag —
     // security/audit-exceptions.json names them as the mitigation.
     const viewerSource = readSource('../../features/pdf/ui/components/PdfViewerElement.tsx')
     expect(viewerSource).toContain('isEvalSupported: false')
