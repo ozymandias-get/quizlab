@@ -230,6 +230,100 @@ describe('native viewer boundary', () => {
     expect(offenders).toEqual([])
   })
 
+  it('resolves the text layer through pdfjs-6 and never the removed renderTextLayer', () => {
+    // Phase 5 mounted PDF.js's `TextLayer` class. `renderTextLayer()` is the
+    // pre-4.x function `@react-pdf-viewer` still calls and the reason Phase 3 was
+    // blocked; if it ever reappears in the native path the same breakage returns.
+    const source = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/useNativePdfTextLayer.ts'),
+      'utf-8'
+    )
+    expect(source).toMatch(/from 'pdfjs-6'/)
+    // Only the code counts; the module note legitimately names the removed API.
+    const code = source
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('//'))
+      .join('\n')
+    expect(code).not.toContain('renderTextLayer')
+    expect(code).not.toMatch(/from ['"]pdfjs-dist['"]/)
+  })
+
+  it('keeps the engine DOM-free now that a TextLayer exists in the boundary', () => {
+    // `TextLayer` needs an `HTMLElement`, which is precisely why it lives in the
+    // viewer boundary rather than in the engine. This is the assertion that keeps
+    // that decision from quietly eroding: the engine must not grow the DOM
+    // concern to make the text layer "fit" architecturally.
+    //
+    // The patterns name DOM *APIs*, not the word "document" — the engine has a
+    // local parameter called `document` in `pageCache.ts`, which is the PDF
+    // document proxy, not `globalThis.document`.
+    const domApis = [
+      /\bHTMLElement\b/,
+      /\bdocument\.createElement\b/,
+      /\bdocument\.querySelector/,
+      /\bdocument\.addEventListener\b/,
+      /\bglobalThis\.document\b/,
+      /\bwindow\./,
+      /\bTextLayer\b/,
+      /\bgetSelection\b/
+    ]
+    for (const file of engineSourceFiles()) {
+      const code = readFileSync(file, 'utf-8')
+        .split('\n')
+        .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('//'))
+        .join('\n')
+      for (const api of domApis) {
+        expect(code, path.relative(repoRoot, file)).not.toMatch(api)
+      }
+    }
+  })
+
+  it('keeps the native markup contract out of the legacy DOM adapter', () => {
+    // Two runtimes, two DOM vocabularies. If the native attributes leaked into
+    // `pdfViewerDom.ts` the legacy adapter would start matching markup it knows
+    // nothing about, and the rule for "which page is this" would stop being
+    // separable from the rendering one.
+    const legacy = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/lib/pdfViewerDom.ts'),
+      'utf-8'
+    )
+    expect(legacy).not.toContain('data-native-pdf')
+    expect(legacy).not.toContain('@features/pdf/native')
+    expect(legacy).not.toContain('@features/pdf/text')
+  })
+
+  it('does not fake an RPV class name anywhere in the native text path', () => {
+    // The native layer has its own semantic attributes. Reusing
+    // `rpv-core__text-layer` would let the legacy stylesheet silently restyle it
+    // and would make the two markups indistinguishable in the extractors.
+    //
+    // Only quoted forms count, as elsewhere in this file: the boundary's comments
+    // legitimately name the legacy class they are deliberately not emitting, and
+    // a class name only becomes a selector when it is quoted.
+    const files = [
+      ...pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR),
+      NATIVE_VIEWER_COMPONENT,
+      path.join(repoRoot, 'src/features/pdf/text/pdfTextLayerSource.ts'),
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfTextLayer.css')
+    ]
+    for (const file of files) {
+      const source = readFileSync(file, 'utf-8')
+      const relative = path.relative(repoRoot, file)
+      expect(source, relative).not.toContain("'rpv-")
+      expect(source, relative).not.toContain('"rpv-')
+    }
+
+    // And the positive half: the native contract names its own attributes.
+    const nativeDom = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfDom.ts'),
+      'utf-8'
+    )
+    expect(nativeDom).toContain("'[data-native-pdf-canvas]'")
+    expect(nativeDom).toContain('data-native-pdf-page')
+    expect(nativeDom).toContain('data-native-pdf-text-layer')
+    expect(nativeDom).toContain('data-native-pdf-text-page')
+  })
+
   it('emits no rpv- class name from the native viewer', () => {
     // The legacy viewer CSS is namespaced under `rpv-*`. Reusing those names would
     // make the stylesheet silently restyle the native canvas.

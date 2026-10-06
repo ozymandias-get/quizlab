@@ -1,0 +1,689 @@
+/**
+ * Text selection on the native viewer's PDF.js text layer.
+ *
+ * Everything under test here is production code: the real `usePdfTextActions`, the
+ * real `extractSelectedText` and the real `collectTextItems` / `orderTextItems`,
+ * driven against the markup the native viewer actually produces. Only PDF.js is
+ * faked, so "the spans PDF.js writes are the spans QuizLab reads" is the claim
+ * under test rather than an assumption.
+ *
+ * The behaviours pinned here are the ones a renderer swap silently breaks:
+ *
+ *  - a selection on the text layer is accepted; one outside it is not
+ *  - the out-of-container bail-out, the detached-anchor guard and the collapsed
+ *    case behave exactly as the legacy path does
+ *  - `selectionchange` still coalesces into one rAF update per frame
+ *  - the 150 ms scroll freeze still suppresses selection work
+ *  - `pdf-selection-active` is added only when there is both text and a position
+ *  - pan mode / blocked interaction suppress the whole listener set
+ *  - reading order for two columns comes from geometry, not DOM order
+ */
+import {
+  type FakeDocument,
+  NativeViewerHarness,
+  createFakeDocument,
+  createLoadingTask
+} from './nativeViewerHarness'
+
+import { extractSelectedText } from '@features/pdf/text/extractSelectedText'
+import { usePdfTextActions } from '@features/pdf/text/usePdfTextActions'
+
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
+import type { RefObject } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  getDocument: vi.fn(),
+  initializeNativePdfWorker: vi.fn()
+}))
+
+vi.mock('pdfjs-6', async () => {
+  const { FakeTextLayer } = await import('./nativeTextLayerDouble')
+  return {
+    getDocument: mocks.getDocument,
+    TextLayer: FakeTextLayer,
+    RenderingCancelledException: class RenderingCancelledException extends Error {
+      constructor(message = 'Rendering cancelled') {
+        super(message)
+        this.name = 'RenderingCancelledException'
+      }
+    }
+  }
+})
+
+vi.mock('@features/pdf/engine/pdfWorker', () => ({
+  initializeNativePdfWorker: mocks.initializeNativePdfWorker,
+  nativeWorkerUrl: 'pdf.worker.min.test.mjs',
+  resetNativePdfWorkerForTests: vi.fn()
+}))
+
+const SELECTION_ACTIVE_CLASS = 'pdf-selection-active'
+
+/* ------------------------------------------------------------ rAF plumbing */
+
+let pendingFrames: Map<number, FrameRequestCallback>
+let nextFrameId: number
+let cancelRaf: ReturnType<typeof vi.fn>
+
+function flushFrames(): void {
+  const frames = [...pendingFrames.entries()]
+  pendingFrames.clear()
+  act(() => {
+    for (const [, cb] of frames) cb(0)
+  })
+}
+
+async function settle(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
+async function waitForFrames(check: () => void, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  let lastError: unknown
+  for (;;) {
+    await settle()
+    if (pendingFrames.size > 0) {
+      flushFrames()
+      continue
+    }
+    try {
+      check()
+      return
+    } catch (error) {
+      lastError = error
+    }
+    if (Date.now() > deadline) throw lastError
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+  }
+}
+
+/* ------------------------------------------------------- selection doubles */
+
+function makeRect(partial: Partial<DOMRect>): DOMRect {
+  const rect = {
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 0,
+    height: 0,
+    x: 0,
+    y: 0,
+    toJSON: () => ({})
+  }
+  Object.assign(rect, partial)
+  return rect as DOMRect
+}
+
+interface FakeSelectionInit {
+  text?: string
+  isCollapsed?: boolean
+  rangeCount?: number
+  anchorNode?: Node | null
+  focusNode?: Node | null
+  commonAncestor?: Node | null
+  rect?: DOMRect
+  clientRects?: DOMRect[]
+}
+
+function makeSelection(init: FakeSelectionInit): Selection {
+  const anchor = init.anchorNode ?? null
+  const focus = init.focusNode ?? anchor
+  const commonAncestor = init.commonAncestor ?? anchor
+  const rect = init.rect ?? makeRect({})
+  const clientRects = init.clientRects ?? []
+  const range = {
+    commonAncestorContainer: commonAncestor,
+    startContainer: anchor,
+    endContainer: focus,
+    getBoundingClientRect: () => rect,
+    getClientRects: () => clientRects
+  } as unknown as Range
+
+  const text = init.text ?? ''
+  return {
+    toString: () => text,
+    isCollapsed: init.isCollapsed ?? text.length === 0,
+    rangeCount: init.rangeCount ?? 1,
+    anchorNode: anchor,
+    focusNode: focus,
+    getRangeAt: () => range
+  } as unknown as Selection
+}
+
+/** Give a rendered text run a real box, so geometry-based extraction can run. */
+function stampSpanGeometry(
+  container: HTMLElement,
+  boxes: { left: number; top: number; width: number; height: number }[]
+): void {
+  const spans = container.querySelectorAll<HTMLElement>('span[role="presentation"]')
+  spans.forEach((span, index) => {
+    const box = boxes[index] ?? boxes.at(-1) ?? { left: 0, top: 0, width: 10, height: 10 }
+    Object.defineProperty(span, 'getBoundingClientRect', {
+      configurable: true,
+      value: () =>
+        makeRect({
+          left: box.left,
+          top: box.top,
+          right: box.left + box.width,
+          bottom: box.top + box.height,
+          width: box.width,
+          height: box.height
+        })
+    })
+  })
+}
+
+/** The panel wrapper, so the "released inside the panel" boundary is testable. */
+function panelOf(): HTMLElement {
+  return screen.getByTestId('native-container')
+}
+
+function textRunOf(container: HTMLElement, index = 0): Node {
+  return container.querySelectorAll('span[role="presentation"]')[index].firstChild as Node
+}
+
+/** Drive a full press-drag-release over the viewer, as the browser would. */
+function selectInside(container: HTMLElement, selection: Selection): void {
+  vi.spyOn(window, 'getSelection').mockReturnValue(selection)
+  act(() => {
+    container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+  })
+  act(flushFrames)
+}
+
+function serveDocument(document: FakeDocument): void {
+  mocks.getDocument.mockImplementation(() => {
+    const task = createLoadingTask()
+    task.resolve(document)
+    return task
+  })
+}
+
+interface SelectionHarnessOptions {
+  textItems?: Record<number, string[]>
+  textSelectionEnabled?: boolean
+  isPanMode?: boolean
+  enabled?: boolean
+  onTextSelection?: (text: string, position: unknown) => void
+}
+
+async function mountSelection(options: SelectionHarnessOptions = {}) {
+  const onTextSelection = vi.fn()
+  const document = createFakeDocument({
+    numPages: 12,
+    textItems: options.textItems ?? { 1: ['the', 'quick', 'brown', 'fox'] }
+  })
+  serveDocument(document)
+
+  const view = render(
+    <NativeViewerHarness
+      enabled={options.enabled ?? true}
+      isPanMode={options.isPanMode ?? false}
+      textActions={{
+        enabled: options.textSelectionEnabled ?? true,
+        onTextSelection: options.onTextSelection ?? onTextSelection
+      }}
+    />
+  )
+
+  const container = panelOf()
+  if (options.enabled !== false) {
+    await waitForFrames(() =>
+      expect(container.querySelectorAll('span[role="presentation"]').length).toBeGreaterThan(0)
+    )
+  }
+  return { ...view, container, onTextSelection, document }
+}
+
+/* ------------------------------------------------------------------ tests */
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  pendingFrames = new Map()
+  nextFrameId = 1
+  cancelRaf = vi.fn((id: number) => {
+    pendingFrames.delete(id)
+  })
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    const id = nextFrameId++
+    pendingFrames.set(id, cb)
+    return id
+  })
+  vi.stubGlobal('cancelAnimationFrame', cancelRaf)
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 })
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  document.body.innerHTML = ''
+})
+
+describe('native text layer — selection scope', () => {
+  it('accepts a selection that lands on the text layer', async () => {
+    const { container, onTextSelection } = await mountSelection()
+    const node = textRunOf(container, 1)
+
+    selectInside(
+      container,
+      makeSelection({
+        text: 'quick',
+        anchorNode: node,
+        focusNode: node,
+        commonAncestor: node,
+        rect: makeRect({ left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20 })
+      })
+    )
+
+    expect(onTextSelection).toHaveBeenCalledTimes(1)
+    expect(onTextSelection.mock.calls[0][0]).toBe('quick')
+    expect(onTextSelection.mock.calls[0][1]).not.toBeNull()
+    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(true)
+  })
+
+  it('ignores a selection made elsewhere in the app', async () => {
+    const { container, onTextSelection } = await mountSelection()
+    const elsewhere = document.createElement('div')
+    elsewhere.textContent = 'unrelated AI panel text'
+    document.body.appendChild(elsewhere)
+
+    selectInside(
+      container,
+      makeSelection({
+        text: 'unrelated AI panel text',
+        anchorNode: elsewhere.firstChild,
+        focusNode: elsewhere.firstChild,
+        commonAncestor: elsewhere.firstChild,
+        rect: makeRect({ left: 900, top: 500, right: 1000, bottom: 520, width: 100, height: 20 })
+      })
+    )
+
+    expect(onTextSelection).toHaveBeenCalledWith('', null)
+    expect(onTextSelection).not.toHaveBeenCalledWith('unrelated AI panel text', expect.anything())
+    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
+  })
+
+  it('ignores a selection inside the viewer that is not the text layer', async () => {
+    // The canvas is inside the panel, so the container-level guard cannot reject
+    // it. On the native path the text layer is addressable, so the selection has
+    // to touch *that* — otherwise "select the page chrome" would be reported as
+    // PDF text.
+    const { container, onTextSelection } = await mountSelection()
+    const pageBox = container.querySelector('[data-native-pdf-page]') as HTMLElement
+
+    selectInside(
+      container,
+      makeSelection({
+        text: 'canvas chrome',
+        anchorNode: pageBox,
+        focusNode: pageBox,
+        commonAncestor: pageBox,
+        rect: makeRect({ left: 40, top: 40, right: 90, bottom: 60, width: 50, height: 20 })
+      })
+    )
+
+    expect(onTextSelection).toHaveBeenCalledWith('', null)
+    expect(onTextSelection).not.toHaveBeenCalledWith('canvas chrome', expect.anything())
+    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
+  })
+
+  it('skips a detached anchor without clearing the live pill', async () => {
+    // The Phase 2 guard: `container.contains(anchor)` is still true inside a
+    // detached subtree, so this is *not* the out-of-container bail-out — it is a
+    // page transition that tore the layer down while the browser kept the
+    // selection. It must be skipped silently, leaving the live pill alone.
+    //
+    // Built by hand rather than through the harness, because the scenario needs
+    // the container itself to be disconnected from the document.
+    const container = document.createElement('div')
+    const pageBox = document.createElement('div')
+    pageBox.setAttribute('data-native-pdf-page', '1')
+    const textLayer = document.createElement('div')
+    textLayer.setAttribute('data-native-pdf-text-layer', '')
+    textLayer.setAttribute('data-native-pdf-text-page', '1')
+    const span = document.createElement('span')
+    span.setAttribute('role', 'presentation')
+    span.textContent = 'quick'
+    textLayer.appendChild(span)
+    pageBox.appendChild(textLayer)
+    container.appendChild(pageBox)
+    document.body.appendChild(container)
+
+    const onTextSelection = vi.fn()
+    const containerRef = { current: container } as RefObject<HTMLElement | null>
+    const rendered = renderHook(() =>
+      usePdfTextActions({
+        containerRef,
+        currentPage: 1,
+        onTextSelection,
+        textSelectionEnabled: true
+      })
+    )
+
+    const node = span.firstChild as Node
+    vi.spyOn(window, 'getSelection').mockReturnValue(
+      makeSelection({
+        text: '',
+        isCollapsed: false,
+        anchorNode: node,
+        focusNode: node,
+        commonAncestor: node
+      })
+    )
+
+    container.remove()
+
+    expect(() => {
+      act(() => {
+        document.dispatchEvent(new Event('selectionchange'))
+      })
+    }).not.toThrow()
+
+    expect(onTextSelection).not.toHaveBeenCalled()
+    expect(pendingFrames.size).toBe(0)
+    rendered.unmount()
+  })
+
+  it('clears the pill on a collapsed selection', async () => {
+    const { container, onTextSelection } = await mountSelection()
+    const node = textRunOf(container, 1)
+
+    selectInside(
+      container,
+      makeSelection({
+        text: 'quick',
+        anchorNode: node,
+        focusNode: node,
+        commonAncestor: node,
+        rect: makeRect({ left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20 })
+      })
+    )
+    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(true)
+
+    vi.spyOn(window, 'getSelection').mockReturnValue(
+      makeSelection({ text: '', isCollapsed: true, anchorNode: null, rangeCount: 0 })
+    )
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'))
+    })
+
+    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
+    expect(onTextSelection).toHaveBeenLastCalledWith('', null)
+  })
+})
+
+/* --------------------------------------------------- selection lifecycle */
+
+describe('native text layer — selection lifecycle', () => {
+  it('coalesces several same-frame events into one update', async () => {
+    const { container, onTextSelection } = await mountSelection()
+    const node = textRunOf(container, 1)
+    vi.spyOn(window, 'getSelection').mockReturnValue(
+      makeSelection({
+        text: 'quick brown',
+        anchorNode: node,
+        focusNode: node,
+        commonAncestor: node,
+        rect: makeRect({ left: 100, top: 100, right: 300, bottom: 120, width: 200, height: 20 })
+      })
+    )
+
+    act(() => {
+      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+    })
+    expect(pendingFrames.size).toBe(1)
+
+    act(flushFrames)
+    expect(onTextSelection).toHaveBeenCalledTimes(1)
+    expect(onTextSelection).toHaveBeenCalledWith('quick brown', expect.anything())
+  })
+
+  it('suppresses selection work during the 150 ms scroll freeze and resumes after', async () => {
+    const { container, onTextSelection } = await mountSelection()
+    const node = textRunOf(container, 1)
+    const selection = makeSelection({
+      text: 'quick',
+      anchorNode: node,
+      focusNode: node,
+      commonAncestor: node,
+      rect: makeRect({ left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20 })
+    })
+    vi.spyOn(window, 'getSelection').mockReturnValue(selection)
+
+    act(() => {
+      container.dispatchEvent(new Event('scroll'))
+      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new Event('selectionchange'))
+    })
+
+    expect(pendingFrames.size).toBe(0)
+    expect(onTextSelection).not.toHaveBeenCalled()
+
+    // The freeze is time-based, not frame-based: advance past 150 ms and the next
+    // press resolves normally.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 160))
+    })
+    selectInside(container, selection)
+    expect(onTextSelection).toHaveBeenCalledWith('quick', expect.anything())
+  })
+
+  it('adds pdf-selection-active only when text and a position were produced', async () => {
+    const { container, onTextSelection } = await mountSelection()
+    const node = textRunOf(container, 1)
+    // A zero-area range yields no pill position, so the class must stay off.
+    selectInside(
+      container,
+      makeSelection({
+        text: 'quick',
+        anchorNode: node,
+        focusNode: node,
+        commonAncestor: node,
+        rect: makeRect({ width: 0, height: 0 })
+      })
+    )
+
+    expect(onTextSelection).toHaveBeenCalledWith('', null)
+    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
+  })
+
+  it('removes every document listener on unmount', async () => {
+    const { unmount } = await mountSelection()
+    const removeSpy = vi.spyOn(document, 'removeEventListener')
+
+    unmount()
+
+    const removed = removeSpy.mock.calls.map(([type]) => type)
+    expect(removed).toContain('pointerdown')
+    expect(removed).toContain('pointerup')
+    expect(removed).toContain('selectionchange')
+  })
+})
+
+/* ------------------------------------------------------ enablement guards */
+
+describe('native text layer — selection enablement', () => {
+  it('registers no listeners at all when selection is disabled', async () => {
+    const addSpy = vi.spyOn(document, 'addEventListener')
+    const { container } = await mountSelection({ textSelectionEnabled: false })
+    addSpy.mockClear()
+
+    act(() => {
+      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new Event('selectionchange'))
+    })
+    act(flushFrames)
+
+    const types = addSpy.mock.calls.map(([type]) => type)
+    expect(types).not.toContain('selectionchange')
+    expect(pendingFrames.size).toBe(0)
+  })
+
+  it('suppresses selection while pan mode holds the viewer', async () => {
+    // `usePdfTextActions` is mounted by the shared state with the same
+    // `!isPanMode` condition the legacy path uses, so the listener set must be
+    // gone while the drag tool owns the panel.
+    const { container } = await mountSelection({
+      isPanMode: true,
+      textSelectionEnabled: false
+    })
+    const addSpy = vi.spyOn(document, 'addEventListener')
+
+    fireEvent.pointerDown(container, { button: 0 })
+    fireEvent.pointerUp(document, { button: 0 })
+    act(flushFrames)
+
+    expect(addSpy.mock.calls.map(([type]) => type)).not.toContain('selectionchange')
+  })
+})
+
+/* ------------------------------------------------------------ reading order */
+
+describe('native text layer — reading order', () => {
+  it('rebuilds two-column text in column order from the run geometry', async () => {
+    // PDF.js emits runs in content-stream order, so on a two-column page the DOM
+    // order is top-left block, top-right block. Reading order has to come from
+    // the geometry, exactly as it does on the legacy path.
+    const { container } = await mountSelection({
+      textItems: { 1: ['left one', 'right one', 'left two', 'right two'] }
+    })
+
+    stampSpanGeometry(container, [
+      { left: 20, top: 100, width: 60, height: 12 },
+      { left: 300, top: 100, width: 60, height: 12 },
+      { left: 20, top: 116, width: 60, height: 12 },
+      { left: 300, top: 116, width: 60, height: 12 }
+    ])
+
+    const layer = container.querySelector('[data-native-pdf-text-layer]') as HTMLElement
+    const runs = layer.querySelectorAll('span[role="presentation"]')
+    const anchor = runs[0].firstChild as Node
+    const focus = runs[3].firstChild as Node
+
+    const text = extractSelectedText(
+      {
+        toString: () => 'left one right one left two right two',
+        isCollapsed: false,
+        rangeCount: 1,
+        anchorNode: anchor,
+        focusNode: focus,
+        getRangeAt: () => ({
+          commonAncestorContainer: layer,
+          startContainer: anchor,
+          endContainer: focus,
+          getBoundingClientRect: () =>
+            makeRect({ left: 20, top: 100, right: 360, bottom: 128, width: 340, height: 28 }),
+          getClientRects: () => [
+            makeRect({ left: 20, top: 100, right: 80, bottom: 112, width: 60, height: 12 }),
+            makeRect({ left: 300, top: 100, right: 360, bottom: 112, width: 60, height: 12 }),
+            makeRect({ left: 20, top: 116, right: 80, bottom: 128, width: 60, height: 12 }),
+            makeRect({ left: 300, top: 116, right: 360, bottom: 128, width: 60, height: 12 })
+          ]
+        })
+      } as unknown as Selection,
+      container
+    )
+
+    // Column order, not DOM order: the left column top-to-bottom, then the right.
+    expect(text?.text).toBe('left one\nleft two\nright one\nright two')
+  })
+})
+
+/* ---------------------------------------------------------------- legacy */
+
+describe('legacy markup — unchanged by the native additions', () => {
+  it('still extracts a selection from RPV text-layer markup with no native layer', () => {
+    // The native half of the scope check must not fire when there is no native
+    // layer mounted, or the shipped viewer would start rejecting selections.
+    const legacyContainer = document.createElement('div')
+    document.body.appendChild(legacyContainer)
+    const pageLayer = document.createElement('div')
+    pageLayer.className = 'rpv-core__page-layer'
+    const textLayer = document.createElement('div')
+    textLayer.className = 'rpv-core__text-layer'
+    const span = document.createElement('span')
+    span.textContent = 'legacy words here'
+    textLayer.appendChild(span)
+    pageLayer.appendChild(textLayer)
+    legacyContainer.appendChild(pageLayer)
+    Object.defineProperty(legacyContainer, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => makeRect({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 })
+    })
+
+    const node = span.firstChild as Node
+    const result = extractSelectedText(
+      {
+        toString: () => 'legacy words here',
+        isCollapsed: false,
+        rangeCount: 1,
+        anchorNode: node,
+        focusNode: node,
+        getRangeAt: () => ({
+          commonAncestorContainer: node,
+          startContainer: node,
+          endContainer: node,
+          getBoundingClientRect: () =>
+            makeRect({ left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 }),
+          getClientRects: () => [
+            makeRect({ left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 })
+          ]
+        })
+      } as unknown as Selection,
+      legacyContainer as HTMLElement
+    )
+
+    expect(result?.text).toBe('legacy words here')
+    expect(result?.position).not.toBeNull()
+  })
+
+  it('mounts no native text layer at all while the flag is off', async () => {
+    const { container } = await mountSelection({ enabled: false, textSelectionEnabled: false })
+
+    expect(container.querySelector('[data-native-pdf-text-layer]')).toBe(null)
+    expect(container.querySelector('canvas')).toBe(null)
+    expect(mocks.getDocument).not.toHaveBeenCalled()
+  })
+
+  it('does not let the native text code touch a selection when the flag is off', async () => {
+    const { container, onTextSelection } = await mountSelection({
+      enabled: false,
+      textSelectionEnabled: true
+    })
+    // The shared hook is still mounted — it is the same hook the legacy path uses
+    // — and it must behave exactly as it does under RPV with nothing native in the
+    // DOM.
+    const legacyLayer = document.createElement('div')
+    legacyLayer.className = 'rpv-core__text-layer'
+    const span = document.createElement('span')
+    span.textContent = 'the quick brown fox'
+    legacyLayer.appendChild(span)
+    container.appendChild(legacyLayer)
+
+    selectInside(
+      container,
+      makeSelection({
+        text: 'the quick brown fox',
+        anchorNode: span.firstChild,
+        focusNode: span.firstChild,
+        commonAncestor: span.firstChild,
+        rect: makeRect({ left: 10, top: 10, right: 210, bottom: 30, width: 200, height: 20 })
+      })
+    )
+
+    expect(onTextSelection).toHaveBeenCalledWith('the quick brown fox', expect.anything())
+    expect(container.querySelector('[data-native-pdf-text-layer]')).toBe(null)
+  })
+})
