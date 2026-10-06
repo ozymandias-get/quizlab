@@ -1,4 +1,4 @@
-﻿# Moving off pdfjs-dist 3.x
+# Moving off pdfjs-dist 3.x
 
 Planning document. No upgrade has been performed; this records what a move would
 require and what currently blocks it, so the decision can be made deliberately
@@ -26,7 +26,7 @@ repository. Anything that could not be checked offline is called out as such.
 is no `peerDependenciesMeta` escape hatch. The plugin packages do not declare
 `pdfjs-dist` at all; they depend on `@react-pdf-viewer/core@3.12.0`.
 
-The viewer also consumes the peer as CommonJS with no alternative path â€”
+The viewer also consumes the peer as CommonJS with no alternative path —
 `@react-pdf-viewer/core/lib/cjs/core.js` contains exactly one reference,
 `var PdfJsApi = require('pdfjs-dist')`, and the package publishes only `lib/cjs/`
 with no `module` field.
@@ -35,7 +35,7 @@ with no `module` field.
 requires a viewer major bump in the same change. _Verified._
 
 Whether a viewer release supporting pdfjs 4.x/5.x exists, and at what version,
-**could not be verified** â€” this environment has no registry access.
+**could not be verified** — this environment has no registry access.
 
 ### 2. `legacy-peer-deps=true` disables the peer guard
 
@@ -80,7 +80,7 @@ not a decision. _Verified for 3.x; 4.x defaults are unverified._
 ### 4. `enableScripting: false` cannot be set type-safely on 3.x
 
 The flag exists in the 3.11.174 bundle (12 occurrences) but **only in the
-annotation layer** â€” `_setDefaultPropertiesFromJS` and friends return early when
+annotation layer** — `_setDefaultPropertiesFromJS` and friends return early when
 it is unset. `getDocument` never reads it and `pdf.worker.js` contains zero
 occurrences, so on 3.x it is a runtime no-op.
 
@@ -91,10 +91,10 @@ It is also **absent from `DocumentInitParameters`**
 
 So at the two call sites:
 
-- `src/features/pdf/lib/renderPageToImage.ts` â€” `getDocument({...})` passes an
+- `src/features/pdf/lib/renderPageToImage.ts` — `getDocument({...})` passes an
   object literal directly, so excess-property checking applies and
   `enableScripting` would need a cast.
-- `src/features/pdf/ui/components/PdfViewerElement.tsx` â€” `transformDocParams`
+- `src/features/pdf/ui/components/PdfViewerElement.tsx` — `transformDocParams`
   types against `PdfJs.GetDocumentParams` imported from **`@react-pdf-viewer/core`**,
   whose own declaration omits `isEvalSupported` too. It compiles today only
   because the return type is inferred, which drops object-literal freshness.
@@ -108,14 +108,14 @@ becomes meaningful and type-checks.
 `src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts` hard-fails in
 several places at once:
 
-| Line     | Assertion                                                        |
-| -------- | ---------------------------------------------------------------- |
-| 43, 90   | `VIEWER_PEER_RANGE` must equal the viewer's declared range       |
-| 51â€“55  | `pdfjs-dist` must be an exact version, not a range               |
-| 57â€“61  | `overrides['pdfjs-dist']` must equal the dependency              |
-| 63â€“78  | the installed version must satisfy the peer range                |
-| 88â€“104 | `isEvalSupported: false` on both `getDocument` sites             |
-| 95â€“102 | the worker must come from `pdfjs-dist` via the literal specifier |
+| Line    | Assertion                                                        |
+| ------- | ---------------------------------------------------------------- |
+| 43, 90  | `VIEWER_PEER_RANGE` must equal the viewer's declared range       |
+| 52–60   | `pdfjs-dist` must be an exact version, not a range               |
+| 62–66   | `overrides['pdfjs-dist']` must equal the dependency              |
+| 68–83   | the installed version must satisfy the peer range                |
+| 93–104  | `isEvalSupported: false` on both `getDocument` sites             |
+| 106–113 | the worker must come from `pdfjs-dist` via the literal specifier |
 
 This is intentional anti-accident drift protection and must be rewritten
 deliberately during the migration, not deleted.
@@ -139,32 +139,32 @@ deliberately during the migration, not deleted.
 
 Blocking:
 
-- `package.json` â€” the two exact pins, the four viewer versions, `build.files`
-- `package-lock.json` â€” regenerated
-- `.npmrc` â€” blocker 2
-- `src/features/pdf/ui/components/PdfWorkerHost.tsx` â€” worker specifier
-- `src/features/pdf/lib/renderPageToImage.ts` â€” worker specifier, CJS/ESM shim,
+- `package.json` — the two exact pins, the four viewer versions, `build.files`
+- `package-lock.json` — regenerated
+- `.npmrc` — blocker 2
+- `src/features/pdf/ui/components/PdfWorkerHost.tsx` — worker specifier
+- `src/features/pdf/lib/renderPageToImage.ts` — worker specifier, CJS/ESM shim,
   `getDocument` params
-- `src/features/pdf/ui/components/PdfViewerElement.tsx` â€” `transformGetDocumentParams`,
+- `src/features/pdf/ui/components/PdfViewerElement.tsx` — `transformGetDocumentParams`,
   `enableScripting`
-- `src/types/assets.d.ts` â€” the literal worker declaration becomes dead
-- `src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts` â€” blocker 5
-- `security/audit-exceptions.json` â€” `installed` version, advisory ids, expiry
-- `vite.config.mts` â€” `vendor-pdf` chunking and the `EVAL` warning filter
-- `src/__tests__/architecture/security-gate-wiring.test.ts` â€” pins
+- `src/types/assets.d.ts` — the literal worker declaration becomes dead
+- `src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts` — blocker 5
+- `security/audit-exceptions.json` — `installed` version, advisory ids, expiry
+- `vite.config.mts` — `vendor-pdf` chunking and the `EVAL` warning filter
+- `src/__tests__/architecture/security-gate-wiring.test.ts` — pins
   `installed: '3.11.174'` and the advisory id
 
 Re-verification required, not necessarily edits:
 
-- `src/features/pdf/lib/pdfViewerDom.ts` â€” five selectors were read out of
+- `src/features/pdf/lib/pdfViewerDom.ts` — five selectors were read out of
   `core@3.12.0`'s own bundle; a viewer major bump invalidates all of them and
   silently breaks text extraction, selection, pan and capture
-- `src/features/pdf/lib/activePdfDocumentRegistry.ts` â€” hand-written structural
+- `src/features/pdf/lib/activePdfDocumentRegistry.ts` — hand-written structural
   mirror of `PDFDocumentProxy`, reached through `as never` /
   `as unknown as` casts that defeat compiler checking
-- `src/features/pdf/errors/pdfRenderErrors.ts` â€” its markers were deliberately
+- `src/features/pdf/errors/pdfRenderErrors.ts` — its markers were deliberately
   scoped to what 3.11.174 and core@3.12.0 actually emit
-- Tests that `vi.mock('@react-pdf-viewer/core', â€¦)` against 3.12.0's exports
+- Tests that `vi.mock('@react-pdf-viewer/core', …)` against 3.12.0's exports
 
 ## Recommendation
 
@@ -176,7 +176,7 @@ Re-verification required, not necessarily edits:
    further; if none exists, replacing the viewer is a prerequisite, not a
    follow-up.
 3. **Size it as a viewer migration, not a dependency bump.** The work is
-   dominated by the DOM adapter, the document-proxy mirror and packaging â€” not by
+   dominated by the DOM adapter, the document-proxy mirror and packaging — not by
    the version number.
 4. **Keep `isEvalSupported: false` throughout**, and add `enableScripting: false`
    in the same change that makes it meaningful.
