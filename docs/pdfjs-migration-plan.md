@@ -967,13 +967,195 @@ tree with one commit.
 
 ### Consequence for the phase table
 
-| Phase                            | Status                                                                                                                                                        |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 — baseline                     | done                                                                                                                                                          |
-| 2 — regression baseline          | done                                                                                                                                                          |
-| **3 — native engine foundation** | **BLOCKED.** Requires the Option A/B decision first. Blockers 1 and 2 are two-line renames; Blocker 3 needs a viewer that speaks 6.x, or a second pdfjs copy. |
-| 4–8 — viewer migration           | gated on Phase 3                                                                                                                                              |
-| 9 — cleanup                      | unchanged                                                                                                                                                     |
+| Phase                        | Status                                                   |
+| ---------------------------- | -------------------------------------------------------- |
+| 1 — baseline                 | done                                                     |
+| 2 — regression baseline      | done                                                     |
+| 3 — native engine foundation | **BLOCKED** by the RPV/pdfjs 6 runtime incompatibility   |
+| 3B — dual-runtime foundation | done — **Option B approved and implemented** (see below) |
+| 4–8 — viewer migration       | unblocked                                                |
+| 9 — cleanup                  | unchanged                                                |
+
+## Phase 3B — dual-runtime native engine foundation
+
+**Decision: Option B approved.** Two PDF.js runtimes are now installed on
+purpose so the native engine can be built while `@react-pdf-viewer` keeps
+shipping unchanged. This is a deliberate, temporary architecture — see
+[Exit plan](#phase-3b-exit-plan) for how it is removed.
+
+### Dependency graph
+
+```
+quizlab-reader@6.6.0
+├── pdfjs-dist@3.11.174          exact pin + overrides → legacy runtime
+│   └── @react-pdf-viewer/core@3.12.0  (require('pdfjs-dist'), peer ^2.16.105 || ^3.0.279 ✓)
+│       ├── page-navigation@3.12.0   ├── search@3.12.0   └── zoom@3.12.0
+├── pdfjs-6 → npm:pdfjs-dist@6.4.299 → native runtime
+│   └── consumed only by src/features/pdf/engine/**
+└── (transitive: @napi-rs/canvas + 10 platform binaries — pdfjs 6's optional dep)
+```
+
+Verified: `overrides["pdfjs-dist"]` did **not** hijack the alias. Npm keys
+overrides by dependency name, and the alias resolves as `name: "pdfjs-dist",
+version: "6.4.299"` under a separate tree entry. Lockfile churn was **+279 /
+−0** — purely additive (`node_modules/pdfjs-6`, `@napi-rs/canvas` and its
+platform binaries), no unrelated upgrades. Local Node is v24.13.0, which
+satisfies pdfjs 6's `engines: >=22.13.0 || >=24`.
+
+### Native engine
+
+`src/features/pdf/engine/` — six files, **zero** React/DOM/UI/zustand/RPV
+imports. Dependency direction `UI → engine → pdfjs-6`, asserted by
+`src/__tests__/architecture/pdfjs-dual-runtime.test.ts`.
+
+| File                    | Responsibility                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------- |
+| `pdfWorker.ts`          | publishes `pdfjs-6.GlobalWorkerOptions.workerSrc` once; exports the resolved `.mjs` URL |
+| `pdfDocumentOptions.ts` | the single `getDocument` parameter builder: scripting + asset policy                    |
+| `documentManager.ts`    | owns the `PDFLoadingTask`, with load / reload / getDocument / destroy                   |
+| `pageCache.ts`          | page number → `PDFPageProxy`, clearable, rejections not cached                          |
+| `pageRenderer.ts`       | `PDFPageProxy` → viewport → canvas → `RenderTask`, with cancellation                    |
+| `index.ts`              | barrel                                                                                  |
+
+Two pdf.js 6 API changes shaped this:
+
+- **`PDFDocumentProxy.destroy()` no longer exists** in 6.x — the proxy has only
+  `cleanup()`. `PDFDocumentLoadingTask.destroy()` is now the teardown call that
+  "aborts all network requests and destroys the worker". The manager therefore
+  tears down through the _loading task_, never through a document. The legacy
+  `renderPageToImage.ts:178` still calls `destroy()` on the document, which is
+  correct for 3.11.174 and must keep doing so until the viewer is gone.
+- **`DocumentInitParameters.url` is typed `string | URL` only** in 6.x; the
+  `TypedArray | ArrayBuffer` variants the 3.x declaration accepted are gone. The
+  engine's `PdfDocumentSource` derives from `getDocument`'s own signature rather
+  than deep-importing the type, because the package's root type entry does not
+  re-export it and there is no `exports` map to make a deep path safe.
+
+### Worker strategy: `workerSrc`, not `workerPort`
+
+`workerPort` would make the `Worker` instance explicit but moves its whole
+lifetime into our code, and pdf.js would then no longer own the global worker.
+The "one worker per runtime" invariant is a property of `workerSrc` already:
+pdf.js lazily creates one `PDFWorker` bound to the module instance it was
+configured on. That is the mechanism the legacy path already relies on, so the
+native path inherits a proven pattern instead of inventing one.
+
+Verified in a real build: `pdfjs-6/build/pdf.worker.min.mjs?url` resolves and
+emits `pdf.worker.min-<hash>.mjs` at 1 264 kB.
+
+### Worker and runtime isolation
+
+Both runtimes are asserted separate at test time:
+
+- `pdfjs-dist.GlobalWorkerOptions` and `pdfjs-6.GlobalWorkerOptions` are
+  **different objects**; the installed versions differ (`3.11.174` vs `6.4.299`)
+- initializing the native worker leaves the legacy `workerSrc` untouched
+  (asserted with a sentinel value)
+- no `workerPort` is ever set on either namespace, so a port cannot be shared
+
+Chunking was split accordingly: `vendor-pdf-legacy` (3.x + RPV) and
+`vendor-pdf-native` (6.x). Folding them into one chunk would make it impossible
+to delete either runtime later without re-deriving what the other contains.
+
+### Asset packaging
+
+Staged from `node_modules/pdfjs-6` into `dist/pdfjs/` — 200 files, 3.36 MB:
+`cmaps/` 169 files 1.11 MB · `standard_fonts/` 16 files 0.76 MB · `wasm/`
+13 files 1.47 MB · `iccs/` 2 files ~10 kB.
+
+No new dependency. A small inline Vite plugin in `vite.config.mts` serves the
+files from `node_modules` in dev (`configureServer`) and copies them in the build
+(`closeBundle`). Two alternatives were rejected: committing 3.4 MB of binaries to
+`public/`, and adding a copy plugin for one directory. `closeBundle` runs after
+Vite has written output _and_ after `emptyOutDir` wiped it, so `dist/pdfjs`
+cannot accumulate stale files — and the hook only ever adds files under its own
+directory; nothing generic is deleted.
+
+### `useWorkerFetch`: deliberately unset
+
+Read out of 6.4.299 rather than guessed. PDF.js computes it as
+
+```js
+useWorkerFetch = … && isValidFetchUrl(cMapUrl, document.baseURI) && …
+```
+
+and `isValidFetchUrl` requires an `https?:` protocol. So the default is correct
+for both environments this app runs in:
+
+- dev, base `http://localhost:5173/` → `true`, worker-side `fetch`
+- packaged Electron, base `file://` → `false`, main-thread factories
+
+and `fetchData` itself falls back to `XMLHttpRequest` for non-http(s) URLs,
+accepting `status === 0`, which is what a `file://` read reports. Pinning
+`useWorkerFetch` in our options would override a scheme-aware decision and break
+one of the two environments.
+
+Asset URLs are built from `import.meta.env.BASE_URL` (`'./'` in a production
+build), so the same options work in dev, in a production build and in the
+packaged app. No absolute or machine-specific path is embedded — asserted by test.
+
+### Security status, per runtime
+
+**Legacy runtime — `pdfjs-dist@3.11.174`** (shipped, via `@react-pdf-viewer`)
+
+- `isEvalSupported: false` retained on both 3.x `getDocument` call sites
+- advisory **still reported**: `GHSA-wgrm-67xf-hhpq` (CVE-2024-4367), severity
+  high, range `<=4.1.392`, against `node_modules/pdfjs-dist`
+- exception in `security/audit-exceptions.json`: **KEPT UNCHANGED** — same
+  advisory ids, same `installed: 3.11.174`, same expiry 2026-12-31. Not extended,
+  not duplicated, not rewritten.
+
+**Native runtime — `pdfjs-6` / `pdfjs-dist@6.4.299`**
+
+- `enableScripting: false` on every native `getDocument` path, via a narrow local
+  intersection (`DocumentInitParameters & { enableScripting?: boolean }`) because
+  PDF.js reads the flag but does not declare it. No `as any`.
+- `isEvalSupported` **not passed** — removed in 4.x
+- advisory: **none**. `npm audit` does not report the alias; the range
+  `<=4.1.392` does not cover 6.4.299. No exception needed, none added.
+
+This is why the Phase 3 disposition could not simply be applied: in the earlier
+single-version experiment the exception went stale because 3.11.174 was gone
+from the tree. Here 3.11.174 is still shipped, so the exception remains correct.
+`npm run check:audit` passes with 1 accepted exception across 153 reachable
+packages (up from 140 — pdfjs 6's tree).
+
+### Test results
+
+| Suite                                                                       | Tests                                                      |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `features/pdf/engine/*` (options, worker, manager, page cache, renderer)    | 59                                                         |
+| `architecture/pdfjs-dual-runtime.test.ts`                                   | 20                                                         |
+| `architecture/pdfjs-engine-worker-coupling.test.ts` (legacy half, rescoped) | 6                                                          |
+| **Full suite**                                                              | **346 files, 3728 passed, 2 pre-existing skips, 0 failed** |
+
+`npm run build:renderer:electron` passes and emits both the legacy
+`pdf.worker.min-<hash>.js` (1 087 kB) and the staged `dist/pdfjs/` tree. All 502
+Phase 2 PDF regression tests still pass, which is the real evidence that the
+shipped viewer is untouched.
+
+### Phase 3B exit plan
+
+The dual runtime is scaffolding. When native viewer feature parity is complete
+(Phase 8), remove it in this order:
+
+1. delete `@react-pdf-viewer/{core,page-navigation,search,zoom}`
+2. delete `PdfWorkerHost` and the legacy `pdf.worker.min.js?url` import
+3. delete `vendor-pdf-legacy` from `vite.config.mts` and rename
+   `vendor-pdf-native` back to `vendor-pdf`
+4. delete `pdfjs-dist@3.11.174` and its `overrides` entry
+5. delete the `pdfjs-6` alias; make `pdfjs-dist` the direct `6.4.299` pin
+6. rewrite the engine's imports from `pdfjs-6` → `pdfjs-dist`
+7. delete `pdfjs-dual-runtime.test.ts` and rescope or delete
+   `pdfjs-engine-worker-coupling.test.ts` (its peer-range rows become meaningless)
+8. delete the `CVE-2024-4367` exception from `security/audit-exceptions.json`
+   (it goes stale the moment 3.11.174 leaves the tree) and drop the
+   `isEvalSupported: false` call sites, which stop type-checking on 6.x
+9. revisit the `wasm`/`icc`/`cmap`/font asset staging — after step 5 the package
+   is read from `node_modules/pdfjs-dist` instead of `node_modules/pdfjs-6`
+
+Steps 5 and 6 are the only ones that touch engine source; everything else is
+deletion.
 
 ---
 
