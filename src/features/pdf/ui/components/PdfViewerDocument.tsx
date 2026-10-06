@@ -51,9 +51,11 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
 
   // The native controller is always mounted so the hook order is stable, but it
   // is inert while the flag is off: no engine, no load, no wheel or resize
-  // listeners. Its `canvasRef` must live here, because the canvas only exists
-  // while the native viewer is the one rendering.
+  // listeners. Its `canvasRef` and `textLayerRef` must live here, because the
+  // canvas and the PDF.js text layer only exist while the native viewer is the
+  // one rendering.
   const nativeCanvasRef = useRef<HTMLCanvasElement>(null)
+  const nativeTextLayerRef = useRef<HTMLDivElement>(null)
   const nativeViewer = useNativePdfController({
     enabled: isNativeViewer,
     pdfUrl,
@@ -65,7 +67,8 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     isPanelResizing: props.isPanelResizing ?? false,
     pdfPath: pdfFile?.path ?? null,
     onReadingProgressChange: props.onReadingProgressChange,
-    canvasRef: nativeCanvasRef
+    canvasRef: nativeCanvasRef,
+    textLayerRef: nativeTextLayerRef
   })
 
   const legacyViewerElement = useMemo(
@@ -119,6 +122,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
           <NativePdfViewer
             controller={nativeViewer}
             canvasRef={nativeCanvasRef}
+            textLayerRef={nativeTextLayerRef}
             t={props.t}
             tt={tt}
           />

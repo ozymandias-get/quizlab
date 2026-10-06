@@ -1,17 +1,23 @@
 /**
  * Extracts text content from a specific PDF page's DOM layer.
  *
- * Selectors come from `../lib/pdfViewerDom`, the single owner of the viewer's
- * private DOM; the lookup order and caching below are specific to text
- * extraction.
+ * Selectors are resolved by `./pdfTextLayerSource`, which knows the native
+ * viewer's `data-native-pdf-*` markup and the legacy viewer's `rpv-core__*`
+ * markup and reports which span selector matches that renderer's text runs. The
+ * ordering, the normalization and the fast/slow path below are shared by both and
+ * are unchanged behaviour.
  *
  * Cache ownership: `PAGE_LAYER_CACHE` is keyed by page number and every hit is
  * re-checked with `isConnected`, so a page layer that pdf.js detached (page
  * change, document switch, reload) is re-resolved instead of returned stale.
  * Callers additionally drive `invalidatePageCache` on reload.
  */
-import { PAGE_LAYER_CLASS, pageLayerSelectors, TEXT_LAYER_SELECTOR } from '../lib/pdfViewerDom'
 import { normalizePdfText } from './normalizePdfText'
+import {
+  findPageElementForPage,
+  findTextLayerSourceForPage,
+  type TextLayerSource
+} from './pdfTextLayerSource'
 
 const PAGE_LAYER_CACHE = new Map<number, HTMLElement>()
 
@@ -20,30 +26,19 @@ function cacheAndReturn(pageNumber: number, element: HTMLElement): HTMLElement {
   return element
 }
 
+/**
+ * The page element for `pageNumber`, cached by page number.
+ *
+ * The cache holds only the page box, not the text layer inside it: the text
+ * layer is replaced on every zoom and on every re-render, so caching it would
+ * hand back a layer that belongs to a previous scale.
+ */
 function getPageLayer(pageNumber: number): HTMLElement | null {
   const cached = PAGE_LAYER_CACHE.get(pageNumber)
   if (cached && cached.isConnected) return cached
 
-  const virtualIndex = pageNumber - 1
-  const [byVirtualIndex] = pageLayerSelectors(pageNumber)
-
-  const byVirtual = document.querySelector<HTMLElement>(byVirtualIndex)
-  if (byVirtual) return cacheAndReturn(pageNumber, byVirtual)
-
-  const allPages = document.querySelectorAll<HTMLElement>(`.${PAGE_LAYER_CLASS}`)
-  for (const el of allPages) {
-    const vi = el.dataset.virtualIndex
-    if (vi && Number(vi) === virtualIndex) {
-      return cacheAndReturn(pageNumber, el)
-    }
-  }
-
-  // Single-page view: whatever page is on screen is the requested page.
-  if (allPages.length === 1) {
-    return cacheAndReturn(pageNumber, allPages[0])
-  }
-
-  return null
+  const resolved = findPageElementForPage(document, pageNumber)
+  return resolved ? cacheAndReturn(pageNumber, resolved) : null
 }
 
 /**
@@ -58,7 +53,7 @@ function getPageLayer(pageNumber: number): HTMLElement | null {
  * from getTextContent()'s item.str -- so there is no rendering-time fix-up for
  * this to recover, and nothing here attempts to rewrite the characters.
  */
-const SUSPICIOUS_GLYPH_RUN = /[\u00B8\u02C6\u02DC]/
+const SUSPICIOUS_GLYPH_RUN = /[¸ˆ˜]/
 
 interface TextItem {
   text: string
@@ -76,10 +71,13 @@ interface TextItem {
  * top-right block), so a naive vertical sort interleaves the two columns
  * sentence-by-sentence. We cluster the items by X position first (column
  * detection) and sort by Y within each column to reconstruct the reading order.
+ *
+ * `spanSelector` is the renderer's own marker for one text run — see
+ * `./pdfTextLayerSource` for why it is not simply `span` everywhere.
  */
-function collectTextItems(layer: HTMLElement): TextItem[] {
+function collectTextItems(layer: HTMLElement, spanSelector = 'span'): TextItem[] {
   const items: TextItem[] = []
-  const spans = layer.querySelectorAll<HTMLElement>('span')
+  const spans = layer.querySelectorAll<HTMLElement>(spanSelector)
   for (const span of spans) {
     const text = (span.textContent || '').trim()
     if (!text) continue
@@ -200,12 +198,12 @@ export function extractPageTextFromDom(pageNumber: number): string | null {
   const pageLayer = getPageLayer(pageNumber)
   if (!pageLayer) return null
 
-  const textLayer = pageLayer.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
+  const source: TextLayerSource | null = findTextLayerSourceForPage(document, pageNumber)
 
-  if (textLayer) {
+  if (source) {
     // Coordinate-aware extraction first: preserves the reading order of
     // multi-column pages instead of the (mangled) content-stream order.
-    const items = collectTextItems(textLayer)
+    const items = collectTextItems(source.layer, source.spanSelector)
     if (items.length > 0) {
       const orderedLines = orderTextItems(items)
       const orderedText = orderedLines.join('\n')
@@ -214,7 +212,7 @@ export function extractPageTextFromDom(pageNumber: number): string | null {
       }
     }
 
-    const text = collectTextFromElement(textLayer)
+    const text = collectTextFromElement(source.layer)
     if (text && text.length > 5) return normalizePdfText(text)
   }
 

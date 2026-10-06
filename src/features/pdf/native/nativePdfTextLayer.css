@@ -1,0 +1,130 @@
+/**
+ * Layout CSS for the native PDF.js text layer.
+ *
+ * ## Why this file exists at all
+ *
+ * PDF.js's `TextLayer` writes geometry onto the DOM as CSS custom properties —
+ * `--font-height` per span, `--scale-x` for horizontal stretching, `--rotate` for
+ * rotated runs — and expects a stylesheet to turn those into a font size and a
+ * transform. Without it the spans render at their inherited size, pile up at the
+ * top-left, and a browser selection highlights the wrong box. The layer is
+ * therefore *only* functional with this contract in place; it is not decoration.
+ *
+ * These rules are transcribed from PDF.js 6's own `web/pdf_viewer.css`
+ * (`.textLayer`), reduced to the parts a read-only text layer needs. Search
+ * highlights, `role="img"` spans, selection rendering mode and
+ * `--text-scale-factor`-driven annotation outlines are omitted because those
+ * features are not migrated in this phase.
+ *
+ * ## Scope
+ *
+ * Every selector is keyed on `data-native-pdf-text-layer` / `data-native-pdf-page`,
+ * attributes only the native viewer emits. Nothing here can match the legacy
+ * `@react-pdf-viewer` markup, nothing here redefines a class the legacy stylesheet
+ * owns, and no `rpv-*` name is reused. There is no global leakage: a rule only
+ * applies inside a native page.
+ *
+ * `src/shared/styles/**` is deliberately untouched — the native text layer is a
+ * separate rendering surface, not a restyle of the legacy one.
+ */
+
+/* The page box the layer is positioned against. `relative` is what makes the
+   absolutely-positioned layer overlay the canvas instead of escaping the page. */
+
+[data-native-pdf-page] {
+  position: relative;
+}
+
+[data-native-pdf-text-layer] {
+  /* PDF.js sets `--min-font-size` inline on this element in its constructor;
+     `--total-scale-factor` is set inline on the page container, because it is
+     the viewport scale the canvas renderer used. */
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+  /* PDF.js writes the layer's box as `round(down, var(--total-scale-factor) *
+     <pageWidth>px, var(--scale-round-x))`; both rounding steps have to exist. */
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: initial;
+  /* The glyphs are already painted on the canvas. Reflowing or re-scaling this
+     layer's text would desynchronise selection from what the user sees. */
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  /* In forced-colours mode the browser would paint the transparent run text,
+     duplicating the canvas glyphs on top of them. */
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+}
+
+/* One positioned run per PDF.js text item. Transparent, selectable, and above
+   the canvas: the layer is the selection surface, the canvas is the pixels. */
+
+[data-native-pdf-text-layer] :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Marked-content wrappers carry no geometry of their own; `display: contents`
+   makes their children position against the layer, which is what PDF.js
+   assumes when it switches its insertion target on `beginMarkedContent`. */
+
+[data-native-pdf-text-layer] .markedContent {
+  display: contents;
+}
+
+[data-native-pdf-text-layer] > :not(.markedContent),
+[data-native-pdf-text-layer] .markedContent span:not(.markedContent) {
+  z-index: 1;
+
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+/* Same selection tokens as the legacy text layer, so a highlight looks identical
+   on both renderers. The run text stays transparent so the canvas glyphs remain
+   the only visible copy. */
+
+[data-native-pdf-text-layer] ::selection {
+  background: var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
+  color: transparent;
+}
+
+/* Pan mode is a drag surface, not a text surface. The legacy path does the same
+   thing by dropping `user-select` on its text layer; the DOM stays mounted so a
+   pan → text switch needs no reload. */
+
+.pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer],
+.pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer] :is(span, br) {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: inherit;
+}
+
+/* `pdf-selection-active` is toggled on the viewer container by the shared
+   `usePdfTextActions`, on both renderers. This is its native counterpart.
+   Deliberately no `transition`: transitioning `filter` re-rasterizes the whole
+   layer on every text-layer update, which is the same cost the legacy stylesheet
+   documents removing for the same reason. */
+
+.pdf-viewer-container.pdf-selection-active [data-native-pdf-text-layer] {
+  filter: drop-shadow(0 0 0.4rem var(--selection-color-glow, rgba(234, 179, 8, 0.25)));
+}
