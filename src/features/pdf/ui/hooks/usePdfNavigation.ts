@@ -1,19 +1,24 @@
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
 
-import {
-  type MutableRefObject,
-  type RefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState
-} from 'react'
+import { type MutableRefObject, useCallback, useEffect, useRef, useState } from 'react'
 
 type PageChangeEvent = { currentPage: number }
 type DocumentLoadEvent = { doc: { numPages: number } }
 
+/**
+ * Navigation state machine.
+ *
+ * The viewer reports the page it is *currently* on, and a programmatic jump can
+ * emit a late callback for the page being torn down. So a jump installs a target
+ * that becomes authoritative: while one is pending, only its exact target is
+ * accepted (late source-page callbacks are dropped, which is what stops rapid
+ * wheel input from oscillating), it is acknowledged by the matching callback,
+ * and the target is released after a short settle window. If the acknowledgement
+ * never arrives the target is released by a timeout so navigation cannot lock up.
+ * `performJumpToPage` refuses to start a second jump while one is in flight, so
+ * there is never more than one outstanding transition per hook instance.
+ */
 interface UsePdfNavigationOptions {
-  containerRef: RefObject<HTMLDivElement | null>
   jumpToPageRef: MutableRefObject<(pageIndex: number) => void>
   pdfPath?: string | null
   initialPage?: number
@@ -25,7 +30,6 @@ const NAVIGATION_ACK_TIMEOUT_MS = 1200
 const NAVIGATION_SETTLE_MS = 450
 
 export function usePdfNavigation({
-  containerRef: _containerRef,
   jumpToPageRef,
   pdfPath,
   initialPage,

@@ -349,7 +349,7 @@ Alan özelinde mock'lar testin kendi yanında tutulur; örnekler için
 - Dependency audit: `npm run check:audit` her PR'da temizdir. Kargo ağacı `npm ls --omit=dev` ile belirlenir; dev araçları (eslint, stryker, electron-builder) gate'e girmez.
 - Kabul edilmiş tek production advisory `pdfjs-dist` içindir ve `security/audit-exceptions.json`da zaman sınırlı olarak durur. Checker; advisory id, kurulu sürüm, son kullanma tarihi ve "artık raporlanmıyor" durumlarında ayrı ayrı başarısız olur, böylece istisna gerekçesiz yaşayamaz.
 - Semgrep: `npm run analyze:semgrep` yalnız production kaynakları tarar ve `--error` kullanır; test dosyalarındaki `eval` kullanımları gate dışıdır.
-- Electronegativity: `npm run check:electron-security` HIGH/CRITICAL bulguda durur. Reviewed baseline 12 MEDIUM + 1 LOW'dur.
+- Electronegativity: `npm run check:electron-security` HIGH/CRITICAL bulguda durur. Reviewed baseline 14 MEDIUM'dur.
 
 ## 17. Performans Kuralları
 

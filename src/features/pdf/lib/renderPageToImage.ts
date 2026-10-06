@@ -1,11 +1,21 @@
 import { Logger } from '@shared/lib/logger'
 
+import type * as PdfJs from 'pdfjs-dist'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
-import { getActivePdfDocument } from './activePdfDocumentRegistry'
+import { findPageCanvas } from '../capture/findPageCanvas'
+import { type ActivePdfDocument, getActivePdfDocument } from './activePdfDocumentRegistry'
 
 const PDF_RENDER_DEFAULT_SCALE = 2.0
 const PDF_RENDER_MAX_PIXELS = 16_000_000
+
+/** Shape `renderPageToImageFallback` resolves to. The caller must revoke `blobUrl`. */
+export interface RenderedPageImage {
+  blob: Blob
+  blobUrl: string
+  width: number
+  height: number
+}
 
 export interface RenderOptions {
   scale?: number
@@ -13,35 +23,38 @@ export interface RenderOptions {
 }
 
 /**
- * Render a PDF page to an ImageData/Blob for high-DPI screenshot capture.
- * Tries pdf.js direct render first, falls back to cloning the mounted page
- * canvas. Returns a Blob (png) and an object URL — caller must revoke.
+ * Render a PDF page to a PNG Blob for high-DPI screenshot capture.
+ *
+ * Prefers the viewer's live `PDFDocumentProxy` (via `getActivePdfDocument`) so a
+ * capture reuses the already-decoded document instead of re-fetching a large
+ * file, and falls back to cloning the mounted page canvas at the same scale.
+ *
+ * There is deliberately no cancellation argument: capture supersession is
+ * decided by the caller (`usePdfCaptureActions` stamps every request and drops
+ * results from stale ones), and the previous `AbortSignal` parameter was never
+ * passed by any caller, so its abort listener and render-task cancel were dead.
  */
 export async function renderPageToImageFallback(
   pdfUrl: string,
   pageNumber: number,
-  options: RenderOptions = {},
-  signal?: AbortSignal
-): Promise<{ blob: Blob; blobUrl: string; width: number; height: number } | null> {
-  if (signal?.aborted) return null
-
+  options: RenderOptions = {}
+): Promise<RenderedPageImage | null> {
   const scale = options.scale ?? PDF_RENDER_DEFAULT_SCALE
   const maxPixels = options.maxPixels ?? PDF_RENDER_MAX_PIXELS
 
   // Direct PDF.js render gives true high-DPI detail — try it first.
   try {
-    const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels }, signal)
+    const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels })
     if (offscreen) return offscreen
   } catch (e) {
     Logger.warn('[RenderPage] pdfjs direct render failed, trying canvas clone fallback', e)
   }
 
-  // Fast path: try exact page canvas clone (no arbitrary fallback)
+  // Fast path: clone the exact page canvas (no arbitrary fallback)
   try {
-    const canvas = findCurrentPageCanvas(pageNumber)
+    const canvas = findPageCanvas(pageNumber)
     if (canvas) {
-      if (signal?.aborted) return null
-      const result = await cloneCanvasAtScale(canvas, scale, maxPixels, signal)
+      const result = await cloneCanvasAtScale(canvas, scale, maxPixels)
       if (result) return result
     }
   } catch (e) {
@@ -51,36 +64,11 @@ export async function renderPageToImageFallback(
   return null
 }
 
-/**
- * Find canvas for the *exact* requested page only.
- * Never returns an arbitrary canvas — that would capture the wrong page.
- */
-function findCurrentPageCanvas(pageNumber: number): HTMLCanvasElement | null {
-  const virtualIndex = pageNumber - 1
-  const selectors = [
-    `.rpv-core__page-layer[data-page-number="${pageNumber}"]`,
-    `.rpv-core__page-layer[data-virtual-index="${virtualIndex}"]`,
-    `[data-testid="core__page-layer-${virtualIndex}"]`,
-    `.pdf-page-wrapper[data-page-number="${pageNumber}"]`,
-    `.pdf-page-wrapper[data-virtual-index="${virtualIndex}"]`
-  ]
-  for (const sel of selectors) {
-    const layer = document.querySelector(sel)
-    if (layer) {
-      const c = layer.querySelector('canvas') as HTMLCanvasElement | null
-      if (c && c.width > 0 && c.height > 0) return c
-    }
-  }
-  return null
-}
-
 async function cloneCanvasAtScale(
   source: HTMLCanvasElement,
   scale: number,
-  maxPixels: number,
-  signal?: AbortSignal
-): Promise<{ blob: Blob; blobUrl: string; width: number; height: number } | null> {
-  if (signal?.aborted) return null
+  maxPixels: number
+): Promise<RenderedPageImage | null> {
   const srcW = source.width
   const srcH = source.height
   if (srcW === 0 || srcH === 0) return null
@@ -106,9 +94,7 @@ async function cloneCanvasAtScale(
   ctx.fillRect(0, 0, targetW, targetH)
   ctx.drawImage(source, 0, 0, targetW, targetH)
 
-  if (signal?.aborted) return null
-
-  const blob = await canvasToBlob(offscreen, 'image/png')
+  const blob = await canvasToBlob(offscreen)
   if (!blob) return null
 
   const blobUrl = URL.createObjectURL(blob)
@@ -118,64 +104,33 @@ async function cloneCanvasAtScale(
 async function renderWithPdfJs(
   pdfUrl: string,
   pageNumber: number,
-  options: { scale: number; maxPixels: number },
-  signal?: AbortSignal
-): Promise<{ blob: Blob; blobUrl: string; width: number; height: number } | null> {
-  if (signal?.aborted) return null
-
-  // Try to reuse active PdfDocumentProxy to avoid reloading large PDFs
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pdf.js types vary by version
-  let pdf: any = null
+  options: { scale: number; maxPixels: number }
+): Promise<RenderedPageImage | null> {
+  let pdf: ActivePdfDocument | null = null
   let shouldDestroy = false
 
   const reusedDocument = getActivePdfDocument(pdfUrl)
   if (reusedDocument) {
-    pdf = reusedDocument as unknown as never
+    pdf = reusedDocument
   } else {
-    try {
-      const pdfjs = await import('pdfjs-dist')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pdfjsLib: any = (pdfjs as any).default ?? pdfjs
-      if (pdfjsLib?.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
-      }
-      const getDocument = pdfjsLib.getDocument
-      if (!getDocument) return null
-
-      const loadingTask = getDocument({ url: pdfUrl, isEvalSupported: false })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const loaded = (await (loadingTask as { promise: Promise<any> }).promise) as any
-      pdf = loaded
-      shouldDestroy = true
-    } catch (loadError) {
-      Logger.warn('[RenderPage] Direct PDF.js document load failed:', loadError)
-      return null
+    // pdfjs-dist 3.x ships a UMD bundle, so Vite's CJS interop can expose the
+    // API under `default` instead of as named exports. Keep the interop shim.
+    const pdfjsModule = (await import('pdfjs-dist')) as typeof PdfJs & { default?: typeof PdfJs }
+    const pdfjsLib = pdfjsModule.default ?? pdfjsModule
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
     }
+
+    const loadingTask = pdfjsLib.getDocument({ url: pdfUrl, isEvalSupported: false })
+    // ActivePdfDocument mirrors the subset of PDFDocumentProxy this path uses.
+    pdf = (await loadingTask.promise) as unknown as ActivePdfDocument
+    shouldDestroy = true
   }
 
   if (!pdf) return null
 
-  let renderTask: { promise: Promise<void>; cancel?: () => void } | null = null
-  const onAbort = () => {
-    try {
-      renderTask?.cancel?.()
-    } catch {}
-  }
-  if (signal?.aborted) return null
-  if (signal) {
-    signal.addEventListener('abort', onAbort, { once: true })
-  }
-
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const page = (await (pdf as any).getPage(pageNumber)) as {
-      getViewport: (o: { scale: number }) => { width: number; height: number }
-      render: (o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => {
-        promise: Promise<void>
-        cancel?: () => void
-      }
-      cleanup?: () => void
-    }
+    const page = await pdf.getPage(pageNumber)
     const scale = options.scale
     const maxPixels = options.maxPixels
 
@@ -185,8 +140,7 @@ async function renderWithPdfJs(
     const area = w * h
     if (area > maxPixels) {
       const ratio = Math.sqrt(maxPixels / area)
-      const adjScale = scale * ratio
-      renderViewport = page.getViewport({ scale: adjScale })
+      renderViewport = page.getViewport({ scale: scale * ratio })
       w = Math.round(renderViewport.width)
       h = Math.round(renderViewport.height)
     }
@@ -196,7 +150,6 @@ async function renderWithPdfJs(
     canvas.height = Math.max(1, h)
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
-    if (signal?.aborted) return null
     ctx.imageSmoothingEnabled = true
     ctx.imageSmoothingQuality = 'high'
     ctx.fillStyle = '#ffffff'
@@ -204,10 +157,8 @@ async function renderWithPdfJs(
     Logger.info(
       `[RenderPage] Rendering PDF page ${pageNumber} via PDF.js: ${w}x${h} at scale ${scale}`
     )
-    renderTask = page.render({ canvasContext: ctx, viewport: renderViewport })
-    await renderTask!.promise
-    if (signal?.aborted) return null
-    const blob = await canvasToBlob(canvas, 'image/png')
+    await page.render({ canvasContext: ctx, viewport: renderViewport }).promise
+    const blob = await canvasToBlob(canvas)
     if (!blob) return null
     Logger.info(
       `[RenderPage] Rendered page ${pageNumber} PNG: ${w}x${h}, size: ${(blob.size / 1024).toFixed(1)} KB`
@@ -215,7 +166,6 @@ async function renderWithPdfJs(
     const blobUrl = URL.createObjectURL(blob)
     return { blob, blobUrl, width: canvas.width, height: canvas.height }
   } finally {
-    if (signal) signal.removeEventListener('abort', onAbort)
     // Only tear down the document this call loaded itself. When the proxy came
     // from getActivePdfDocument() it belongs to the mounted <Viewer>, and
     // PDFPageProxy.cleanup() drops that page's shared decoded-object cache
@@ -225,14 +175,14 @@ async function renderWithPdfJs(
     // proxy the viewer already owns.
     if (shouldDestroy && pdf) {
       try {
-        ;(pdf as { destroy: () => void }).destroy()
+        void pdf.destroy()
       } catch {}
     }
   }
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob | null> {
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => {
-    canvas.toBlob((b) => resolve(b), type)
+    canvas.toBlob((b) => resolve(b), 'image/png')
   })
 }

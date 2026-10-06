@@ -1,16 +1,11 @@
 import { IPC_CHANNELS } from '../../../../shared/constants/ipcChannels.js'
 import { failure, success } from '../../../../shared/lib/typedIpc.js'
-import type {
-  ApiChatMessage,
-  ApiConfig,
-  ApiProviderConfig
-} from '../../../../shared/types/index.js'
+import type { ApiChatMessage, ApiConfig } from '../../../../shared/types/index.js'
 import { requireTrustedIpcSender } from '../../../core/ipcSecurity.js'
 import { Logger } from '../../../core/logger.js'
 import { registerIpcHandler } from '../../../core/typedIpcMain.js'
 import { loadConfig, sanitizeApiKey, saveConfig } from './config.js'
-import type { SsrProtectionOptions } from './ssrf.js'
-import { fetchWithSsrProtection, validateProviderUrl } from './ssrf.js'
+import { fetchWithSsrProtection, getSsrOptionsForProvider, validateProviderUrl } from './ssrf.js'
 import type { ChatCompletionBody, ModelListItem } from './validation.js'
 import {
   buildChatCompletionMessages,
@@ -18,14 +13,13 @@ import {
   sanitizeChatMessage
 } from './validation.js'
 
-function getSsrOptionsForProvider(provider: ApiProviderConfig): SsrProtectionOptions | undefined {
-  const allow =
-    provider.allowLocalNetwork === true ||
-    (provider as ApiProviderConfig).allowLocalEndpoints === true ||
-    (provider as ApiProviderConfig).isCustomProvider === true ||
-    provider.providerType === 'custom'
-  return allow ? { allowLocalNetwork: true } : undefined
-}
+/**
+ * Local-network access requires explicit, per-provider consent.
+ *
+ * The decision itself lives in `getSsrOptionsForProvider` (ssrf.ts) next to the
+ * guard that consumes it, so it can be asserted directly without standing up the
+ * whole IPC surface.
+ */
 
 /** Hard cap for the renderer-composed system prompt forwarded per request. */
 const MAX_SYSTEM_PROMPT_LENGTH = 20_000

@@ -7,18 +7,8 @@ describe('useAppAnimations', () => {
   it('should return default layout animation config when isLayoutSwapped is false or not provided', () => {
     const { result } = renderHook(() => useAppAnimations())
 
-    const {
-      leftPanelVariants,
-      rightPanelVariants,
-      resizerVariants,
-      containerVariants,
-      gpuAcceleratedStyle
-    } = result.current
-
-    expect(gpuAcceleratedStyle).toEqual({
-      willChange: 'transform, opacity',
-      transform: 'translateZ(0)'
-    })
+    const { leftPanelVariants, rightPanelVariants, resizerVariants, containerVariants } =
+      result.current
 
     expect(resizerVariants).toHaveProperty('visible')
     expect(resizerVariants).toHaveProperty('hidden')

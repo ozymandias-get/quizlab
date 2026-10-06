@@ -63,8 +63,6 @@ export const IPC_CHANNELS = {
   GEMINI_WEB_SESSION_REFRESH_FAILED: 'gemini-web-session-refresh-failed',
   GEMINI_WEB_EXPORT_SESSION: 'gemini-web-export-session',
   GEMINI_WEB_IMPORT_SESSION: 'gemini-web-import-session',
-  /** Broadcast to all windows when Gemini Web Session state changes. */
-  GEMINI_WEB_STATUS_UPDATED: 'gemini-web-status-updated',
   APP_QUIT: 'app-quit',
   GET_API_CHAT_CONFIG: 'get-api-chat-config',
   SAVE_API_CHAT_CONFIG: 'save-api-chat-config',

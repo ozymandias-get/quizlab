@@ -1,59 +1,64 @@
 /**
  * Extracts text content from a specific PDF page's DOM layer.
- * Module-level cache for page layer lookups (cache invalidation is caller's responsibility).
+ *
+ * Selectors come from `../lib/pdfViewerDom`, the single owner of the viewer's
+ * private DOM; the lookup order and caching below are specific to text
+ * extraction.
+ *
+ * Cache ownership: `PAGE_LAYER_CACHE` is keyed by page number and every hit is
+ * re-checked with `isConnected`, so a page layer that pdf.js detached (page
+ * change, document switch, reload) is re-resolved instead of returned stale.
+ * Callers additionally drive `invalidatePageCache` on reload.
  */
+import { PAGE_LAYER_CLASS, pageLayerSelectors, TEXT_LAYER_SELECTOR } from '../lib/pdfViewerDom'
 import { normalizePdfText } from './normalizePdfText'
 
 const PAGE_LAYER_CACHE = new Map<number, HTMLElement>()
+
+function cacheAndReturn(pageNumber: number, element: HTMLElement): HTMLElement {
+  PAGE_LAYER_CACHE.set(pageNumber, element)
+  return element
+}
 
 function getPageLayer(pageNumber: number): HTMLElement | null {
   const cached = PAGE_LAYER_CACHE.get(pageNumber)
   if (cached && cached.isConnected) return cached
 
   const virtualIndex = pageNumber - 1
+  const [byVirtualIndex] = pageLayerSelectors(pageNumber)
 
-  const byVirtual = document.querySelector<HTMLElement>(
-    `.rpv-core__page-layer[data-virtual-index="${virtualIndex}"]`
-  )
+  const byVirtual = document.querySelector<HTMLElement>(byVirtualIndex)
+  if (byVirtual) return cacheAndReturn(pageNumber, byVirtual)
 
-  if (byVirtual) {
-    PAGE_LAYER_CACHE.set(pageNumber, byVirtual)
-    return byVirtual
-  }
-
-  const byAttr = document.querySelector<HTMLElement>(
-    `.rpv-core__page-layer[data-page-number="${pageNumber}"]`
-  )
-
-  if (byAttr) {
-    PAGE_LAYER_CACHE.set(pageNumber, byAttr)
-    return byAttr
-  }
-
-  const allPages = document.querySelectorAll<HTMLElement>('.rpv-core__page-layer')
+  const allPages = document.querySelectorAll<HTMLElement>(`.${PAGE_LAYER_CLASS}`)
   for (const el of allPages) {
     const vi = el.dataset.virtualIndex
     if (vi && Number(vi) === virtualIndex) {
-      PAGE_LAYER_CACHE.set(pageNumber, el)
-      return el
+      return cacheAndReturn(pageNumber, el)
     }
   }
 
+  // Single-page view: whatever page is on screen is the requested page.
   if (allPages.length === 1) {
-    const onlyPage = allPages[0]
-    PAGE_LAYER_CACHE.set(pageNumber, onlyPage)
-    return onlyPage
+    return cacheAndReturn(pageNumber, allPages[0])
   }
 
   return null
 }
 
 /**
- * Characters that indicate pdfjs-dist CMap/encoding corruption.
- * Used as a signal to fall back to innerText (which includes
- * ::before pseudo-element content with correct characters).
+ * Characters that, when present in a text layer, mark the page as worth a second
+ * look: each is unusual in running prose but a real character in some orthography
+ * (U+00B8 is the Latin-1 cedilla used in French/Catalan and as a currency symbol,
+ * U+02C6 in Sami orthographies, U+02DC in Turkic transliteration).
+ *
+ * This is only a trigger for the innerText retry below, NOT a known pdf.js
+ * corruption detector. Neither pdfjs-dist@3.11.174 nor @react-pdf-viewer@3.12.0
+ * contains any ::before/beforeCSS text-layer mechanism -- the spans come straight
+ * from getTextContent()'s item.str -- so there is no rendering-time fix-up for
+ * this to recover, and nothing here attempts to rewrite the characters.
  */
-const CORRUPTION_INDICATORS = /[\u00B8\u02C6\u02DC]/
+const SUSPICIOUS_GLYPH_RUN = /[\u00B8\u02C6\u02DC]/
 
 interface TextItem {
   text: string
@@ -158,26 +163,22 @@ function orderTextItems(items: TextItem[]): string[] {
  * Collects text from a DOM element.
  *
  * Performance strategy:
- * 1. Fast path: use textContent (no style computation). If no corruption
- *    indicators found, return immediately — this covers the vast majority
- *    of well-encoded PDFs.
- * 2. Slow path: if corruption is detected, use innerText instead.
- *    innerText reads the rendered text tree (including ::before/::after
- *    pseudo-elements) in a single batched layout pass, which is orders
- *    of magnitude faster than calling getComputedStyle(span, '::before')
- *    individually on hundreds of spans (each call forces a synchronous
- *    style recalculation).
+ * 1. Fast path: textContent (no style computation, no layout). Returned
+ *    immediately unless the text is very short or contains a suspicious glyph
+ *    run — this covers the vast majority of PDFs.
+ * 2. Slow path: innerText, which reflects rendered text semantics. It costs one
+ *    batched layout pass instead of per-span getComputedStyle calls, so it stays
+ *    cheap even for pages with hundreds of spans.
  */
 function collectTextFromElement(el: HTMLElement): string {
   // Fast path — no style computation, no DOM traversal
   const fastText = el.textContent?.trim() || ''
-  if (fastText && fastText.length > 5 && !CORRUPTION_INDICATORS.test(fastText)) {
+  if (fastText && fastText.length > 5 && !SUSPICIOUS_GLYPH_RUN.test(fastText)) {
     return fastText
   }
 
-  // Slow path: innerText reads rendered text including pseudo-elements
-  // in a single batched layout pass (much cheaper than per-span
-  // getComputedStyle calls).
+  // Slow path: innerText reflects rendered text, in one batched layout pass
+  // (much cheaper than per-span getComputedStyle calls).
   const renderedText = el.innerText?.trim() || ''
   if (renderedText && renderedText.length > 5) {
     return renderedText
@@ -199,9 +200,7 @@ export function extractPageTextFromDom(pageNumber: number): string | null {
   const pageLayer = getPageLayer(pageNumber)
   if (!pageLayer) return null
 
-  const textLayer = pageLayer.querySelector<HTMLElement>(
-    '.rpv-core__text-layer, .rpv-core__text-layer-basic'
-  )
+  const textLayer = pageLayer.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
 
   if (textLayer) {
     // Coordinate-aware extraction first: preserves the reading order of

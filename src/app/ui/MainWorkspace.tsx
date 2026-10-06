@@ -8,7 +8,6 @@ import LeftPanel from '@ui/layout/LeftPanel'
 import { motion, type Variants } from 'motion/react'
 import {
   type ComponentProps,
-  type CSSProperties,
   lazy,
   memo,
   type PointerEvent as ReactPointerEvent,
@@ -29,8 +28,6 @@ interface MainWorkspaceProps {
   leftPanelVariants: Variants
   rightPanelVariants: Variants
   resizerVariants: Variants
-  /** @deprecated Kept for compat — will-change is now handled internally per-panel */
-  gpuAcceleratedStyle?: CSSProperties
   handlePointerDown: (e: ReactPointerEvent) => void
   handlePointerMove: (e: ReactPointerEvent) => void
   handlePointerUp: (e: ReactPointerEvent) => void
@@ -59,7 +56,6 @@ function MainWorkspace({
   leftPanelVariants,
   rightPanelVariants,
   resizerVariants,
-  gpuAcceleratedStyle: _gpuAcceleratedStyle,
   handlePointerDown,
   handlePointerMove,
   handlePointerUp,

@@ -1,6 +1,6 @@
 import type { ElectronApi } from '@shared-core/types/ipcContract'
 
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
 import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 import { onEvent, typedInvoke, unwrapIpcResult } from './typedIpcPreload.js'
@@ -72,18 +72,8 @@ const electronApi: ElectronApi = {
   openExternal: (url) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPEN_EXTERNAL, url)),
   showPdfContextMenu: (labels) => ipcRenderer.send(IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU, labels),
 
-  onTriggerScreenshot: (callback) => {
-    const handleIpcMessage = (_event: IpcRendererEvent, type: unknown) =>
-      callback(type as Parameters<Parameters<ElectronApi['onTriggerScreenshot']>[0]>[0])
-    ipcRenderer.on(IPC_CHANNELS.TRIGGER_SCREENSHOT, handleIpcMessage)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_SCREENSHOT, handleIpcMessage)
-  },
-  onPdfViewerZoom: (callback) => {
-    const handleIpcAction = (_event: IpcRendererEvent, action: unknown) =>
-      callback(action as Parameters<Parameters<ElectronApi['onPdfViewerZoom']>[0]>[0])
-    ipcRenderer.on(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handleIpcAction)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, handleIpcAction)
-  },
+  onTriggerScreenshot: (callback) => onEvent(IPC_CHANNELS.TRIGGER_SCREENSHOT, callback),
+  onPdfViewerZoom: (callback) => onEvent(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, callback),
 
   get platform() {
     return process.platform

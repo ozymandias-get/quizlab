@@ -82,12 +82,15 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
 
-import AppToolProvider, { useAppTools } from '@app/providers/AppToolContext'
+import AppToolProvider, { useAppToolActions } from '@app/providers/AppToolContext'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it } from 'vitest'
+
+/** This suite drives the picker lifecycle, which lives in the actions slice. */
+const usePickerActions = () => useAppToolActions()
 
 describe('AppToolContext - picker', () => {
   const wrapper = ({ children }: { children: ReactNode }) => {
@@ -117,7 +120,7 @@ describe('AppToolContext - picker', () => {
       getURL: () => string
       executeJavaScript: (s: string) => Promise<unknown>
     }
-    const { result } = renderHook(() => useAppTools(), { wrapper })
+    const { result } = renderHook(() => usePickerActions(), { wrapper })
 
     act(() => {
       result.current.startPickerWhenReady()
