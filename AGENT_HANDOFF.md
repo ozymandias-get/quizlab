@@ -13,21 +13,21 @@ migration plan.
 
 ## Current State
 
-| Field                | Value                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------------------- |
-| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                             |
-| Current phase        | Phase 7 complete — **Phase 8 not started**                                                  |
-| Last completed phase | Phase 7 — native search + highlight overlay                                                 |
-| Current HEAD         | run `git rev-parse HEAD`                                                                    |
-| Working tree         | clean at last commit                                                                        |
-| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                                  |
-| Readiness            | **ready for Phase 8** — the native viewer renders, selects text, follows links and searches |
+| Field                | Value                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                         |
+| Current phase        | Phase 8A complete — **Phase 8B (RPV removal) not started**                              |
+| Last completed phase | Phase 8A — native capture + active document registry + context-menu parity              |
+| Current HEAD         | run `git rev-parse HEAD`                                                                |
+| Working tree         | clean at last commit                                                                    |
+| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                              |
+| Readiness            | **native feature parity reached — ready for Phase 8B, subject to the smoke debt below** |
 
 Phase 4's manual smoke was recorded as outstanding because the Phase 4 agent had no
 interactive environment. The user has since **manually exercised the Phase 4 native viewer
 in the real application and reported no visible issue**. That closes the only open Phase 4
-item; nothing wider is claimed from it — interactive native verification restarts at Phase
-5's own smoke list below, which is still open.
+item; nothing wider is claimed from it — interactive native verification is still open
+for Phases 5, 6, 7 **and now 8A**, see _Interactive Smoke State_.
 
 The shipped PDF experience is still `@react-pdf-viewer`. The native pdfjs-6 path is
 implemented, wired into the viewer shell and in the build, and switched on only by an
@@ -38,10 +38,12 @@ explicit opt-in environment variable.
 Replace `@react-pdf-viewer` with a native `pdfjs-dist` 6.x viewer **without ever leaving
 the shipped app without a working PDF reader**. Phases 1–4 established the baseline, the
 regression safety net, the dual runtime and the first working native renderer. Phases 5–7
-added the text layer, the annotation layer and now search, so the native path renders a
-page, lets you select its text, send it to the AI, follow its links and search it. What is
-left on the legacy path is the capture pipeline, `activePdfDocumentRegistry` and the
-context menu — Phase 8's job.
+added the text layer, the annotation layer and search; Phase 8A added the last three
+legacy-only capabilities — the capture pipeline, `activePdfDocumentRegistry` and the
+context menu that depends on them. The native path now renders a page, selects its text,
+sends it to the AI, follows links, searches it, captures it at high DPI and serves the
+same right-click menu. What is left is **deletion**, not implementation: Phase 8B removes
+`@react-pdf-viewer` and collapses the dual runtime.
 
 ## Completed Migration Phases
 
@@ -103,6 +105,27 @@ run, so `usePdfPlugins.ts` is at **zero diff** and the Phase 2 search-highlight 
 **byte-identical**. Scope is the rendered page, matching the legacy viewer's
 `ViewMode.SinglePage`; no whole-document index, no next/prev match, no match count.
 
+### Phase 8A — Native Capture + Registry + Context Menu
+
+The last three legacy-only capabilities, and the phase that makes "native feature parity"
+true. `activePdfDocumentRegistry` now stores a **runtime-agnostic handle** rather than a
+pdfjs-3 proxy, the native viewer publishes its mounted document through it, and
+`renderPageToImage` resolves **no PDF.js runtime at all**: it borrows when it can and loads
+one isolated pdfjs-6 document when it cannot. `findPageCanvas` became renderer-agnostic and
+validates the page against `[data-native-pdf-page]`. `PdfViewerDocument` supplies the live
+page number to capture through a ref, because the legacy navigation state is inert on the
+native path. The context menu needed **no change at all** — one hook, one component, one
+item list, and three of its four items now reach a real capability. `PdfToolbar`'s
+`nativeCanvasMode` and `PdfAiQuickBar`'s `captureActionsDisabled` were deleted, so no
+capture control is bounded any more.
+
+**The only Phase 2 test file that changed is `renderPageToImage.test.ts`**, and only
+because the contract it pinned — a 3.x `getDocument` call site and a `destroy()` on the
+document — is precisely what Phase 8A removed. Every behavioural expectation survived:
+borrow-don't-destroy, the pixel budget and its rounding epsilon, the clone fallback, the
+white fill, the PNG/blob/URL shape, and "return null rather than throw". The three Phase 2
+selection files and `usePdfPluginsHighlights.test.tsx` are **byte-identical**.
+
 ## Current PDF Architecture
 
 ```
@@ -111,6 +134,8 @@ PdfViewer → PdfViewerDocument → usePdfViewerState
    ├─ flag OFF (default) → PdfViewerElement → @react-pdf-viewer <Viewer>
    │                        → require('pdfjs-dist') → pdfjs-dist@3.11.174
    │                        LEGACY, SHIPPED. Worker fed by PdfWorkerHost.
+   │                        registers its PDFDocumentProxy in the registry
+   │                        (adapted by lib/legacyPdfCaptureDocument.ts)
    │                        → capture / search / pan / zoom / context menu
    │                        → text: RPV TextLayer read by text/**
    │
@@ -120,20 +145,23 @@ PdfViewer → PdfViewerDocument → usePdfViewerState
                                canvas + PDF.js TextLayer + PDF.js AnnotationLayer
                                + native search overlay;
                                text: native TextLayer; links: nativePdfLinkService;
-                               search: nativePdfSearch
+                               search: nativePdfSearch;
+                               capture: publishes its document to the registry
+                               (useNativePdfCaptureDocument)
 ```
 
 One `ResizeObserver`, one `containerRef`, one toolbar. Page nav, zoom, the
-current-scale readout and `highlight`/`clearHighlights` bind to whichever renderer is live.
-When the flag is off the legacy zoom/page/resize hooks are inert (`totalPages` stays 0), so
-exactly one implementation of each is ever active.
+current-scale readout, `highlight`/`clearHighlights` **and the capture page number** bind
+to whichever renderer is live. When the flag is off the legacy zoom/page/resize hooks are
+inert (`totalPages` stays 0), so exactly one implementation of each is ever active.
 
-**Text is the one capability both paths share.** `usePdfTextActions` is mounted
-once by `usePdfViewerState` against the shared container and is markup-agnostic;
-`text/pdfTextLayerSource.ts` resolves whichever text layer is mounted. There is no
-native-specific selection hook, and that is deliberate — a second implementation
-would be free to drift away from the Phase 2 tests that guard the first. Phase 7's
-search reads that same native text layer rather than a second copy of its text.
+**Text and capture are the two capabilities both paths share.** `usePdfTextActions` is
+mounted once by `usePdfViewerState` against the shared container and is markup-agnostic;
+`text/pdfTextLayerSource.ts` resolves whichever text layer is mounted. Capture is the same
+shape: `usePdfCaptureActions`, `renderPageToImageFallback` and `findPageCanvas` are
+renderer-agnostic and were not forked — only the _backend capability_ behind them is chosen
+at the single switch in `PdfViewerDocument`. There is no native-specific selection system
+and no native-specific capture system, and both absences are deliberate.
 
 ## Dependency State
 
@@ -144,8 +172,9 @@ search reads that same native text layer rather than a second copy of its text.
 | `pdfjs-6`                 | `npm:pdfjs-dist@6.4.299`                        | **native migration runtime** (alias, exact) |
 | `@react-pdf-viewer/*`     | `^3.12.0` (core, page-navigation, search, zoom) | legacy viewer                               |
 
-Unchanged since Phase 3B. `.npmrc` `legacy-peer-deps=true` still suppresses the
-RPV peer `ERESOLVE` and must not be removed before the viewer is deleted.
+Unchanged since Phase 3B — **Phase 8A touched none of them**. `.npmrc`
+`legacy-peer-deps=true` still suppresses the RPV peer `ERESOLVE` and must not be removed
+before the viewer is deleted.
 
 ## Temporary Migration Architecture
 
@@ -163,26 +192,45 @@ pdfjs-dist@3.11.174                 pdfjs-6 alias → pdfjs-dist@6.4.299
 pdf.worker.min.js (PdfWorkerHost)   pdf.worker.min.mjs (engine/pdfWorker)
 ```
 
-Separate `GlobalWorkerOptions` module instances; never mix them.
+Separate `GlobalWorkerOptions` module instances; never mix them. `lib/renderPageToImage.ts`
+now sits on **neither** side: it imports no PDF.js runtime at all.
+
+### Temporary bridge introduced by Phase 8A
+
+Two pieces of scaffolding exist only because `ui/components/PdfViewerElement.tsx` is frozen
+at zero diff for the duration of the migration:
+
+1. **`lib/renderPageToImage.ts` imports `features/pdf/native/nativePdfCaptureDocument`**
+   for its temporary-document load. That is the legacy capture module reaching into the
+   native boundary — the only direction-inverted edge in the feature.
+2. **`setActivePdfDocument` still accepts a raw pdfjs-3 proxy**, normalized through
+   `lib/legacyPdfCaptureDocument.ts`, because `PdfViewerElement` hands over
+   `DocumentLoadEvent#doc` verbatim.
+
+\_Removal condition: **Phase 8B**, in this order — delete `PdfViewerElement.tsx`, then
+`legacyPdfCaptureDocument.ts`, then make `setActivePdfDocument` take handles only, then
+inline the native adapter into the capture path once `pdfjs-6` is renamed to `pdfjs-dist`.
 
 ### Temporary Exit Plan
 
-After native viewer feature parity (end of Phase 8): delete the four
+After native feature parity (reached at the end of Phase 8A): delete the four
 `@react-pdf-viewer` packages, `PdfWorkerHost` and its worker import, the
 `vendor-pdf-legacy` chunk, `pdfjs-dist@3.11.174` + its override, the `pdfjs-6`
-alias, the `CVE-2024-4367` exception, the `isEvalSupported: false` call sites,
-`pdfjs-dual-runtime.test.ts`, and `features/pdf/native/**` +
-`NativePdfViewer.tsx` + the flag; rename `vendor-pdf-native` back to
-`vendor-pdf`; rewrite engine imports `pdfjs-6` → `pdfjs-dist` and repoint asset
-staging at `node_modules/pdfjs-dist`; rescope the legacy half of
-`pdfjs-engine-worker-coupling.test.ts`. The full ordered list with rationale is
-the Phase 3B exit plan in `docs/pdfjs-migration-plan.md`.
+alias, the `CVE-2024-4367` exception, the `isEvalSupported: false` call site
+that remains on the viewer, `pdfjs-dual-runtime.test.ts`, and
+`features/pdf/native/**` + `NativePdfViewer.tsx` + the flag; rename
+`vendor-pdf-native` back to `vendor-pdf`; rewrite engine imports `pdfjs-6` →
+`pdfjs-dist` and repoint asset staging at `node_modules/pdfjs-dist`; rescope the
+legacy half of `pdfjs-engine-worker-coupling.test.ts`. The full ordered list with
+rationale is the Phase 3B exit plan in `docs/pdfjs-migration-plan.md`.
 
 ## Native PDF Engine
 
 `src/features/pdf/engine/` — 6 files, no React / DOM / UI / zustand / RPV
-imports (asserted by test). Direction is `UI → engine → pdfjs-6`, now with a real
-consumer.
+imports (asserted by test). Direction is `UI → engine → pdfjs-6`. Since Phase 8A
+it also owns the **capture** document load, not just the viewer's: that is why a
+temporary capture document gets the same options, worker and security posture for
+free.
 
 | File                    | Responsibility                                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -193,144 +241,172 @@ consumer.
 | `pageRenderer.ts`       | `PDFPageProxy` → viewport → canvas → `RenderTask`, supersede-cancel, typed cancellation                            |
 | `index.ts`              | barrel; the only entry point consumers should use                                                                  |
 
-Still absent: form editing. Search was Phase 7's and lives in the viewer
-boundary, not here — `PDFFindController` needs the `web/pdf_viewer` event bus,
-`PDFViewer` and `PDFPageView`, and the native search reads the text layer the
-viewer already renders.
+Still absent: form editing. Search lives in the viewer boundary, not here;
+capture now reaches the engine only through `features/pdf/native/`, because only
+that directory may import the engine.
 
-## Native Viewer (Phases 4–7)
+## Capture Architecture
+
+```
+usePdfCaptureActions (renderer-agnostic)
+  │  currentPage ← capturePageRef.current, written by PdfViewerDocument from the
+  │                live renderer's page state (1-based)
+  ├── handleFullPageScreenshot: the 5-rung ladder
+  │     1. renderPageToImageFallback(pdfUrl, page, { scale: 4.0, maxPixels: 20 MP })
+  │          a. getActivePdfDocument(pdfUrl)          ← borrow, no teardown
+  │          b. else loadTemporaryCaptureDocument()    ← own it, release() in `finally`
+  │          c. page.getViewport({ scale }) → clamp → canvas → white fill
+  │             → page.render() → canvas.toBlob('image/png') → URL.createObjectURL
+  │          d. on any failure → findPageCanvas(page) → clone at the same scale
+  │          e. null
+  │     2. the live canvas as a synchronous data URL
+  │     3. the same canvas after a progressive retry ladder (30→210 ms, ~900 ms)
+  │     4. renderPageToImageFallback at scale 2
+  │     5. toast_capture_failed
+  │     → queueImageForAi(dataUrl | blobUrl, { page, captureKind: 'full-page' })
+  └── handleAreaScreenshot → startScreenshot({ page, captureKind: 'selection' })
+        → Electron main process, webContents.capturePage(rect) — never PDF.js
+```
+
+Four separate capture paths exist and each is the pre-existing one, unchanged:
+
+| Path                    | Where it lives                    | Native support                          |
+| ----------------------- | --------------------------------- | --------------------------------------- |
+| page → image (high-DPI) | `lib/renderPageToImage.ts`        | direct pdfjs-6 render + canvas fallback |
+| area / crop screenshot  | `startScreenshot` → main process  | identical — no `.rpv-*` geometry        |
+| selection screenshot    | same as above (`captureKind` tag) | identical                               |
+| current rendered canvas | `capture/findPageCanvas.ts`       | native first, then legacy               |
+
+`renderPageToImageFallback` still has **no cancellation parameter**, deliberately. Capture
+supersession is decided by the caller's request stamp, and the previous `AbortSignal`
+argument was dead code.
+
+## Active Document Registry
+
+`lib/activePdfDocumentRegistry.ts` — one slot, runtime-agnostic, zero PDF.js knowledge.
+
+```ts
+interface ActivePdfDocumentHandle {
+  getPage(pageNumber: number): Promise<CaptureDocumentPage>
+  isAlive(): boolean
+}
+```
+
+- **Owns:** lookup, identity (`pdfUrl` + the registrant's own identity string), liveness,
+  eviction of a dead entry.
+- **Does not own:** the document, its loading task, or its teardown. There is no
+  `destroy()` anywhere in the module's surface.
+- **Never branches on a PDF.js version.** Every version-specific fact lives in an adapter.
+
+| Adapter                                          | Producer             | `isAlive()`                                                |
+| ------------------------------------------------ | -------------------- | ---------------------------------------------------------- |
+| `lib/legacyPdfCaptureDocument.ts`                | `PdfViewerElement`   | `destroyed !== true` (3.x's flag)                          |
+| `native/nativePdfCaptureDocument.ts`             | `PdfDocumentManager` | `!manager.destroyed && manager.getDocument() === document` |
+| `native/nativePdfCaptureDocument.ts` (temp load) | a throwaway manager  | `!manager.destroyed && manager.getDocument() !== null`     |
+
+Registration returns an opaque token; `clearActivePdfDocument(token)` withdraws **only that
+entry**, which is what keeps an unmounting `LeftPanel` from evicting a live `FocusOverlay`
+on the same file. `clearActivePdfDocument()` with no token stays the legacy `<Viewer>`
+contract and empties the slot outright. Semantics are otherwise unchanged from before: a
+single slot, **most recent registration wins**.
+
+Native registration is `useNativePdfCaptureDocument`, declared immediately after
+`useNativePdfDocument` in the controller so it only ever publishes a document that exists.
+It registers when `status === 'ready'` and withdraws on identity change, reload and
+unmount. Every early return happens _before_ any withdrawal, so the inert flag-off path can
+never erase the legacy viewer's registration.
+
+## Context Menu
+
+`usePdfContextMenu` + `ContextMenu` + `usePdfViewerMenuItems`. **Phase 8A changed none of
+them, deliberately.** The hook listens on the shared viewer container, the component is one
+piece of markup, and the list is four items:
+
+| Item                        | Backend                                                  |
+| --------------------------- | -------------------------------------------------------- |
+| add current page text to AI | `usePdfTextActions` → shared on both paths since Phase 5 |
+| send page as image          | `usePdfCaptureActions` → native since Phase 8A           |
+| crop screenshot             | `startScreenshot` → main process, never PDF.js           |
+| reload                      | `viewerReloadKey`, which is the native reload signal too |
+
+The renderer branch stays at the single switch in `PdfViewerDocument`, at backend-capability
+level only. There is no second menu and no native-only menu variant;
+`nativeCaptureActions.test.tsx` drives the real menu on the real native canvas to keep it
+that way.
+
+## Native Viewer (Phases 4–8A)
 
 Everything that imports `@features/pdf/engine` lives in `features/pdf/native/`
 plus `features/pdf/ui/components/NativePdfViewer.tsx`. Asserted by
 `pdfjs-dual-runtime.test.ts`, together with the inverse: no
 `@react-pdf-viewer` import specifier and no `rpv-*` string in that boundary.
 
-| File                             | Responsibility                                                                                                        |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `nativePdfViewerFlag.ts`         | `VITE_NATIVE_PDF_VIEWER`; only the exact string `true` opts in                                                        |
-| `nativePdfBounds.ts`             | `clampPdfPage` (1-based) and `clampPdfScale` on the shared `PDF_ZOOM_*`                                               |
-| `nativePdfDom.ts`                | the native markup contract — page / canvas / text layer / annotation layer / search layer / text-run / link selectors |
-| `nativePdfTextLayer.css`         | PDF.js's text-layer layout contract, scoped to `data-native-pdf-*`                                                    |
-| `nativePdfAnnotationLayer.css`   | PDF.js's `.annotationLayer` layout rules, scoped to `data-native-pdf-*`                                               |
-| `nativePdfSearchLayer.css`       | QuizLab's search overlay + highlight layout, scoped to `data-native-pdf-search-*`                                     |
-| `nativePdfLinkService.ts`        | PDF.js's link-service surface over the native page state + `openExternal`                                             |
-| `nativePdfSearch.ts`             | the search engine: page text, literal matching, `Range` geometry, highlight rendering                                 |
-| `useNativeCoalescedScale.ts`     | numeric rAF-coalesced zoom channel, latest wins                                                                       |
-| `useNativePdfEngine.ts`          | 1 × `createPdfDocumentManager()` + 1 × `createPageRenderer()` per mount                                               |
-| `useNativePdfDocument.ts`        | `(pdfUrl, reloadKey)` → status, `numPages`, first-page size                                                           |
-| `useNativePdfPageState.ts`       | 1-based clamped `currentPage`, previous/next/jump                                                                     |
-| `useNativePdfScaleState.ts`      | numeric clamped `scale`, fit once per document identity                                                               |
-| `useNativePdfRender.ts`          | one page → one canvas, supersede-cancel                                                                               |
-| `useNativePdfTextLayer.ts`       | one page → one PDF.js `TextLayer`, supersede-cancel, page-level cache, `textLayerReady`                               |
-| `useNativePdfAnnotationLayer.ts` | one page → one PDF.js `AnnotationLayer` + its link service, supersede-destroy                                         |
-| `useNativePdfSearch.ts`          | keyword → highlight rectangles: the lifecycle, plus `highlight` / `clearHighlights`                                   |
-| `useNativePdfController.ts`      | composition + the toolbar contract                                                                                    |
-| `nativeZoomControls.tsx`         | render-prop zoom components for the shared toolbar                                                                    |
+| File                             | Responsibility                                                                                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nativePdfViewerFlag.ts`         | `VITE_NATIVE_PDF_VIEWER`; only the exact string `true` opts in                                                                                     |
+| `nativePdfBounds.ts`             | `clampPdfPage` (1-based) and `clampPdfScale` on the shared `PDF_ZOOM_*`                                                                            |
+| `nativePdfDom.ts`                | the native markup contract — page / canvas / text layer / annotation layer / search layer / text-run / link selectors, plus `findNativePageCanvas` |
+| `nativePdfTextLayer.css`         | PDF.js's text-layer layout contract, scoped to `data-native-pdf-*`                                                                                 |
+| `nativePdfAnnotationLayer.css`   | PDF.js's `.annotationLayer` layout rules, scoped to `data-native-pdf-*`                                                                            |
+| `nativePdfSearchLayer.css`       | QuizLab's search overlay + highlight layout, scoped to `data-native-pdf-search-*`                                                                  |
+| `nativePdfLinkService.ts`        | PDF.js's link-service surface over the native page state + `openExternal`                                                                          |
+| `nativePdfSearch.ts`             | the search engine: page text, literal matching, `Range` geometry, highlight rendering                                                              |
+| `nativePdfCaptureDocument.ts`    | the capture handle adapter + `loadTemporaryCaptureDocument` (a throwaway `PdfDocumentManager`)                                                     |
+| `useNativeCoalescedScale.ts`     | numeric rAF-coalesced zoom channel, latest wins                                                                                                    |
+| `useNativePdfEngine.ts`          | 1 × `createPdfDocumentManager()` + 1 × `createPageRenderer()` per mount                                                                            |
+| `useNativePdfDocument.ts`        | `(pdfUrl, reloadKey)` → status, `numPages`, first-page size                                                                                        |
+| `useNativePdfCaptureDocument.ts` | publishes the mounted document to the capture registry, token-scoped                                                                               |
+| `useNativePdfPageState.ts`       | 1-based clamped `currentPage`, previous/next/jump                                                                                                  |
+| `useNativePdfScaleState.ts`      | numeric clamped `scale`, fit once per document identity                                                                                            |
+| `useNativePdfRender.ts`          | one page → one canvas, supersede-cancel                                                                                                            |
+| `useNativePdfTextLayer.ts`       | one page → one PDF.js `TextLayer`, supersede-cancel, page-level cache, `textLayerReady`                                                            |
+| `useNativePdfAnnotationLayer.ts` | one page → one PDF.js `AnnotationLayer` + its link service, supersede-destroy                                                                      |
+| `useNativePdfSearch.ts`          | keyword → highlight rectangles: the lifecycle, plus `highlight` / `clearHighlights`                                                                |
+| `useNativePdfController.ts`      | composition + the toolbar contract                                                                                                                 |
+| `nativeZoomControls.tsx`         | render-prop zoom components for the shared toolbar                                                                                                 |
 
 Invariants worth knowing before changing it:
 
-- **Effect order matters once.** The engine-creating effect is declared before the
-  document-loading effect; the engine must exist when the document hook runs.
-  The text-layer effect is declared before the annotation-layer effect so the DOM
-  is torn down and rebuilt in the order it is painted.
-- **Page indexing is 1-based.** Only RPV's `onPageChange` is 0-based, and the
-  native path has no such callback. `clampPdfPage` upper-bounds only once
-  `totalPages` is known, because the resume flow restores a page first. A PDF
-  destination index is 0-based and is converted **once**, in
-  `nativePdfLinkService.ts`; do not add a second `+ 1`.
-- **`PageWidth` becomes a number.** Fit scale comes from the shared `useFitScale`
-  with the shared `adjustedContainerSize` returned by `usePdfViewerState`. The
-  fit is keyed on document identity so `fit → render → resize → fit` cannot loop.
+- **Effect order matters three times, and all three are load-bearing.** The
+  engine-creating effect is declared before the document-loading effect; the
+  capture-registration effect immediately after it, because it may only publish a
+  document that exists; the text-layer, annotation-layer and search effects after
+  both render effects, so the DOM is torn down and rebuilt in paint order and the
+  text layer's synchronous cleanup empties the runs search is about to measure.
+- **Page indexing is 1-based.** Only RPV's `onPageChange` is 0-based. A PDF
+  destination index is 0-based and is converted **once**, in `nativePdfLinkService.ts`.
+  Capture passes `pageNumber` straight to `getPage`, which is also 1-based.
+- **`PageWidth` becomes a number.** Fit scale comes from the shared `useFitScale`,
+  keyed on document identity so `fit → render → resize → fit` cannot loop.
 - **Zoom is one change per frame** through `useNativeCoalescedScale`; every source
   is clamped by `clampPdfScale`.
 - **Cancellation is not an error.** `RenderingCancelledException` (canvas) and
   `AbortException` (text layer) are both dropped; genuine failures become
   `renderError` / `textLayerError` / `annotationLayerError`.
-- **Canvas, text layer and annotation layer share one viewport.** All three are
-  built from `page.getViewport({ scale })` with the same scale `pageRenderer`
-  used, inside the same `[data-native-pdf-page]` box, and `--total-scale-factor`
-  on that box is that same number. Recomputing it would misalign every selection
-  highlight _and_ every link hitbox.
-- **The three PDF.js layers are in PDF.js's order** — `LAYERS_ORDER` in
-  `web/pdf_viewer.mjs` is `canvasWrapper` 0, `textLayer` 1, `annotationLayer` 2.
-  The annotation layer is above the text layer, and it is `pointer-events: none`
-  with `section { pointer-events: auto }`, so selection still works everywhere the
-  layer has no annotation. Asserted as DOM child order.
+- **Canvas, text layer and annotation layer share one viewport**, and
+  `--total-scale-factor` on the page box is that same number.
 - **The search overlay is the fourth layer and is declared last in the DOM on
-  purpose.** It is not a PDF.js layer (PDF.js's find highlights need the web
-  viewer's page views), so it is painted by `z-index` rather than by document
-  order: `z-index: 1` sits above the canvas and the text layer (`0`) and below the
-  annotation layer (`2`). That single number is what keeps a match tint over the
-  glyphs _and_ leaves links the topmost thing under the cursor. Asserted as an
-  explicit child-order contract.
-- **`pointer-events: none` on the overlay and on every highlight** is what makes
-  search free: selection, `Ctrl+C`, the AI selection action, pan and `Ctrl`+wheel
-  all behave exactly as with no search running.
-- **The overlay is a sibling of the text layer, never a child.** Inside it, the
-  page-text extractor and `Ctrl+C` would read the keyword back out of the highlight
-  elements.
-- **Search is synchronous, so its dependency list is its invalidation.** There is
-  no in-flight request to cancel and no generation counter. `documentKey`,
-  `currentPage`, `scale`, `textLayerReady`, `keyword` and `enabled` between them
-  name everything that can make a rectangle wrong.
-- **`useNativePdfSearch` is declared last in the controller, after the text layer,
-  and that ordering is load-bearing.** On a page change or a zoom React runs the
-  text layer's cleanup first, and that cleanup empties its container
-  synchronously — so the search effect sees no runs, empties the overlay, and
-  re-measures when `textLayerReady` flips back to true. Stale geometry is removed
-  before the replacement exists.
-- **`textLayerReady` is a generation signal, not a "there was a layer" flag.** It
-  is `false` from the moment a rebuild starts and `true` only after the new
-  `TextLayer` has drained its stream. Only search reads it; the extractors resolve
-  the layer when they are called, so the selection path gains no coupling.
-- **Search offsets are never taken from a case-folded copy of the page.**
-  `String#toLowerCase()` is not length-preserving for every character (`'İ'` →
-  `i` + a combining dot), which would shift every offset after it onto the wrong
-  glyph. Matching folds one code unit at a time, so every offset stays an index
-  into the original string — which is also what `Range#setStart` takes.
-- **Search geometry is measured with a `Range` against the page box**, never
-  estimated from character widths and never scaled: the runs are already rendered
-  at the current scale and rotation. `Range#getClientRects()` is the only geometry
-  source, and it is the only thing that can report a match occupying more than one
-  box without over-highlighting.
-- **Reduced motion is read per search run**, not cached in a second module-level
-  variable. `usePdfPlugins.ts` keeps its own cache at zero diff, and the native
-  path measures `matchMedia` a handful of times per query, so a cache would buy
-  nothing and could only go stale.
-- **`searchError` is exposed but not rendered**, for the same reason as the other
-  two layer errors: a search that cannot measure costs the reader their results,
-  not their page.
-- **`TextLayer#cancel()` is required, not just the `cancelled` flag.** The flag
-  stops _us_; `cancel()` stops PDF.js appending the rest of the stream into a
-  container that is about to be reused for another page.
-- **`AnnotationLayer` has no `cancel()`** — `destroy()` plus the `cancelled` flag.
-  Its `render()` builds every element synchronously and awaits only an empty aria
-  pass, so the guards are checked **before** every DOM-touching call and never
-  after: a post-await clear from a stale run would erase the page on screen,
-  because the layer `div` outlives the effect.
-- **The link service's lifetime is the layer's.** It is created inside the
-  annotation-layer effect and disposed in its cleanup, which is what makes an
-  in-flight named destination inert after a page change, zoom, reload, document
-  switch or unmount.
-- **`role="presentation"` identifies a text run**, not `span`. PDF.js nests its
-  runs in `span.markedContent` on a tagged PDF, and a blanket `span` query would
-  count every word twice.
-- **`textLayerError` and `annotationLayerError` are on the controller but not
-  rendered.** Both mean "the page is readable but less capable than it should
-  be"; hiding a working page to report a degraded one is the wrong trade. Phase 7
-  added `searchError` on exactly the same reasoning.
-- **First render of a document is at scale 1** and superseded one frame later by
-  the fit. Deliberate — see the plan; not a bug.
-- **DPR is not applied.** `canvas.width/height` = viewport size, 1:1 with CSS px.
-- **Links stay clickable in pan mode.** The legacy `_pdf-viewer.css` drops
-  `user-select` in pan mode on the _text layer only_ and says nothing about the
-  annotation layer, so under RPV a link was live during a pan. Parity says keep it
-  live; there is deliberately no pan rule in `nativePdfAnnotationLayer.css`.
+  purpose**, painted by `z-index: 1` between the text layer and the annotation layer.
+- **Capture borrows; it never destroys.** No `page.cleanup()` on a borrowed proxy,
+  because that clears the shared decoded-object cache and forces a re-decode.
+- **Liveness is the manager's question, not the proxy's.** PDF.js 6 removed
+  `PDFDocumentProxy#destroyed`, so the native adapter asks
+  `manager.getDocument() === document`. A throwing probe counts as dead.
+- **`capturePageRef` is written during render, not in an effect**, so a capture
+  triggered in the same tick as a page change reads the new page. The ref is
+  created _before_ `usePdfViewerState` runs, because that hook needs it.
+- **Reduced motion is read per search run**, `usePdfPlugins.ts` stays at zero diff.
+- **Search offsets are never taken from a case-folded copy of the page**, and
+  search geometry is always measured with a `Range`.
+- **First render of a document is at scale 1**, superseded one frame later by the fit.
+- **DPR is not applied** to the native canvas — capture at scale 4 is independent
+  of it, which is exactly why the capture path does not need it.
 
 Reused unchanged from the legacy path: `useFitScale`, `useContainerSize`,
 `useLastNavigationTime`, `usePdfWheelNavigation`, `usePdfCtrlWheelZoom`,
-`usePdfResizeRefit`, **`usePdfTextActions`**, `PdfToolbar`, `PdfZoomControls`,
-`PdfPageNav`, `InlineSpinner`, `onReadingProgressChange`.
+`usePdfResizeRefit`, **`usePdfTextActions`**, **`usePdfCaptureActions`**,
+`usePdfContextMenu`, `useCanvasGpuCleanup`, `PdfToolbar`, `PdfZoomControls`,
+`PdfPageNav`, `ContextMenu`, `InlineSpinner`, `onReadingProgressChange`.
 
 ## Worker Architecture
 
@@ -341,46 +417,38 @@ Reused unchanged from the legacy path: `useFitScale`, `useContainerSize`,
 | Strategy  | `<Worker workerUrl>` (RPV)               | `GlobalWorkerOptions.workerSrc`        |
 | Emitted   | `pdf.worker.min-<hash>.js`, ~1 062 kB    | `pdf.worker.min-<hash>.mjs`, ~1 235 kB |
 
-Both are emitted by the normal `npm run build:renderer:electron` build — the check
-Phase 3B could not make. Each chunk carries only its own version string
-(`3.11.174` / `6.4.299`) and references only its own worker asset.
-
-## Asset Packaging
-
-Staged from `node_modules/pdfjs-6` into `dist/pdfjs/` by an inline Vite plugin
-(`pdfjsAssets()` in `vite.config.mts`) using only Node built-ins — **no new
-dependency**. `cmaps/` 169 · `standard_fonts/` 16 · `wasm/` 13 · `iccs/` 2 = 200
-files, 3.36 MB.
-
-Chunks: `vendor-pdf-legacy` (3.x + RPV, 458.83 kB) and `vendor-pdf-native` (6.x,
-436.85 kB), plus `viewer-<hash>.css` (3.19 kB) carrying all three native layer
-stylesheets (text layer, annotation layer, search overlay).
-
-`useWorkerFetch` is deliberately **not** set: PDF.js 6 derives it via
-`isValidFetchUrl` (true over http, false over `file://`), and `fetchData` falls
-back to `XMLHttpRequest` accepting `status === 0` for `file://`.
+Both are emitted by the normal `npm run build:renderer:electron` build, and both
+are still emitted **on both flag settings**. Since Phase 8A the native worker is
+also the one capture's temporary document load uses — there is no third worker and
+no second way to bootstrap one.
 
 ## Security State
 
-Reported per runtime — they are **not** one package. Phase 6 added a second
-`enableScripting: false` (the annotation layer) and Phase 7 changed no posture at all.
-Search adds no `getDocument` parameter, no link pathway, no exception and no script
-surface: it reads DOM that PDF.js has already rendered and writes only
-`data-native-pdf-search-*` elements into a `pointer-events: none` overlay.
+Reported per runtime — they are **not** one package.
 
 **Legacy runtime — `pdfjs-dist@3.11.174` (shipped via RPV)**
 
-- `isEvalSupported: false` on both 3.x `getDocument` call sites
-  (`ui/components/PdfViewerElement.tsx`, `lib/renderPageToImage.ts`)
+- `isEvalSupported: false` on **the one remaining 3.x `getDocument` call site**,
+  `ui/components/PdfViewerElement.tsx`. Phase 8A removed the second one
+  (`lib/renderPageToImage.ts`) by moving capture's fallback load onto pdfjs 6.
 - advisory **still reported**: `GHSA-wgrm-67xf-hhpq` / `CVE-2024-4367`, high,
   range `<=4.1.392`
 - `security/audit-exceptions.json` exception **still required and unchanged** —
   same advisory ids, `installed: 3.11.174`, `expires: 2026-12-31`
+- **Known prose drift:** the exception's `reason` still names
+  `pdf/lib/renderPageToImage.ts` as a mitigated call site. That file no longer
+  resolves 3.x. The exception remains _correct_ — the viewer is still the shipped
+  3.x consumer — but the sentence describing the mitigation is one call site out
+  of date. Phase 8A did not touch the file by instruction; Phase 8B deletes the
+  entry outright.
 
 **Native runtime — `pdfjs-6` / `pdfjs-dist@6.4.299`**
 
 - `enableScripting: false` on every native `getDocument` path, via a narrow local
-  intersection (no `as any`), **and** on the annotation layer's `render()`
+  intersection (no `as any`), **and** on the annotation layer's `render()`. This
+  now includes the temporary capture document, because it goes through the same
+  `createPdfDocumentOptions` builder rather than a second one written next to
+  capture.
 - `hasJSActions: false` on the annotation layer, which together with the above is
   what keeps `LinkAnnotationElement#_bindJSAction` unreachable
 - a `javascript:` annotation target is not merely unfollowed: it is given **no
@@ -389,12 +457,19 @@ surface: it reads DOM that PDF.js has already rendered and writes only
   `window.open` / `location.href`; the renderer checks the protocol against the
   main process's own list (`https:`, `mailto:`) and refuses embedded credentials
 - the main process re-validates the URL (`resolveExternalLink`) before
-  `shell.openExternal`, so the renderer check is defence in depth, not the gate
-- file attachments and `Launch` actions are inert (`getAttachmentContent`
-  resolves `null`, no `downloadManager` is passed)
+  `shell.openExternal`
+- file attachments and `Launch` actions are inert (`getAttachmentContent` resolves
+  `null`, no `downloadManager` is passed)
 - `renderForms: false` — AcroForm widgets stay display-only, not editable
 - `isEvalSupported` **not passed** — removed in 4.x
 - advisory: **none**; no exception needed, none added
+
+**Capture specifically.** A temporary capture document is loaded through a
+throwaway `PdfDocumentManager`, so it inherits the engine's options verbatim and
+is destroyed through `PDFDocumentLoadingTask#destroy()` (which aborts its network
+requests and worker). A _borrowed_ document is never torn down at all. There is no
+`isEvalSupported` in the capture path and no way to add one: it no longer reaches
+3.x.
 
 ## Critical Invariants
 
@@ -411,12 +486,14 @@ surface: it reads DOM that PDF.js has already rendered and writes only
    `@features/pdf/engine`; none of them import `@react-pdf-viewer`.
 10. `VITE_NATIVE_PDF_VIEWER` defaults to off, and only the exact string `true`
     enables it.
-11. `isEvalSupported: false` stays on the legacy call sites while 3.x is shipped.
-12. Do **not** remove the CVE exception while vulnerable 3.x remains shipped — it
-    goes stale only when 3.11.174 leaves the tree.
+11. `isEvalSupported: false` stays on the legacy **viewer** call site while 3.x is
+    shipped. It is no longer anywhere else.
+12. Do **not** remove the CVE exception while vulnerable 3.x remains shipped.
 13. Phase 2 regression suites stay green — they are the safety net for every
-    later phase. **They still pass byte-identical after Phase 6**; do not edit a
-    Phase 2 expectation to make migrated code pass.
+    later phase. The three selection files and the search-highlight file are
+    **byte-identical**; `renderPageToImage.test.ts` changed only because the
+    contract it pinned (a 3.x `getDocument` + document `destroy()`) is what Phase
+    8A removed.
 14. The two runtimes stay in separate bundle chunks.
 15. The native viewer never reaches into `lib/pdfViewerDom.ts`, and the legacy
     adapter never reaches into `nativePdfDom.ts`. Two DOM vocabularies, two files.
@@ -424,83 +501,101 @@ surface: it reads DOM that PDF.js has already rendered and writes only
     native stylesheets match `data-native-pdf-*` only.
 17. `usePdfTextActions` stays renderer-agnostic. One selection system, reached
     through the shared container, resolving whichever text layer is mounted.
-18. The native boundary never imports `pdfjs-6/web/**`. `PDFLinkService` (Phase 6) and
-    `PDFFindController` (Phase 7) are both in that one module and both are inoperable
-    without the full viewer — the first dereferences a `PDFViewer`, the second needs an
-    `EventBus` plus `PDFPageView`. Neither is reachable from `pdfjs-6`'s entry point, and
-    the surface each would have supplied is QuizLab's own adapter.
+18. The native boundary never imports `pdfjs-6/web/**`.
 19. An internal destination converts a 0-based PDF index to a 1-based QuizLab
-    page **exactly once**, in `nativePdfLinkService.ts`. No second `+ 1`.
-20. A PDF link never navigates the renderer: internal destinations are cancelled
-    by PDF.js's own `onclick → return false`, external ones by an explicit
-    `preventDefault()`, and unsafe ones have nothing actionable left in the DOM.
+    page **exactly once**, in `nativePdfLinkService.ts`.
+20. A PDF link never navigates the renderer.
 21. `PdfSearchBar`, `usePdfSearchStore` and `PdfToolbar`'s search logic stay
-    renderer-agnostic. The switch is at the top of `PdfViewerDocument`, where
-    `highlight` / `clearHighlights` are chosen; both renderers expose exactly those
-    two calls with the same meaning, and neither UI file may grow a native branch.
-22. The native search emits no `rpv-*` class — not even `rpv-search__highlight`, whose
-    visual semantics it reproduces under `[data-native-pdf-search-highlight]`.
-    `@react-pdf-viewer/search` stays in the tree for the legacy path.
+    renderer-agnostic. The switch is at the top of `PdfViewerDocument`.
+22. The native search emits no `rpv-*` class.
+23. **Capture borrows; it never destroys.** A borrowed handle exposes no teardown,
+    the registry has no `destroy()`, and no page `cleanup()` is ever called on a
+    borrowed proxy.
+24. **The capture registry is runtime-agnostic.** `isAlive()` is adapter-provided;
+    a version check or a `destroyed`-flag read in the store is a bug.
+25. **One `getDocument` options builder, one worker source.** Capture gets both by
+    going through `createPdfDocumentManager`, never by building its own.
+26. **The page a capture is labelled with is the live renderer's page.** The
+    legacy navigation state is inert on the native path; `capturePageRef` is what
+    keeps a capture on page 40 from being sent as page 1.
+27. **A native canvas is only ever captured for the page it is showing.**
+    `findNativePageCanvas` validates `[data-native-pdf-page]` rather than falling
+    back to "the one canvas there is".
+28. No capture control is renderer-bounded any more. A re-introduced
+    `nativeCanvasMode` / `captureActionsDisabled` could only disable something
+    that works, and would be a second thing to forget in Phase 8B.
 
 ## Regression Baseline
 
-Last verified in Phase 7, after all code changes. Run `npm test` to reproduce.
+Last verified in Phase 8A, after all code changes.
 
 ```
-Full suite:  361 test files · 3996 passed · 2 skipped · 0 failed
+Targeted area run:  src/__tests__/architecture/** + src/__tests__/features/pdf/**
+                    72 files · 912 passed · 0 failed
 ```
 
-The 2 skips are pre-existing (Electron `ConfigManager`). By area:
-`src/__tests__/features/pdf/**` = 64 files (incl. 15 native files);
-`src/__tests__/architecture/**` = 5 files.
+> **The full `npm test` run was skipped on request for this phase**, so the
+> repository-wide count below is still the Phase 7 baseline rather than a Phase 8A
+> measurement. Phase 8B should run it.
 
-**The three Phase 2 selection files are unchanged since Phase 2** —
-`usePdfTextActions.test.tsx`, `extractSelectedText.test.ts`,
-`extractPageTextFromDom.extended.test.ts`. That is the Phase 5, Phase 6 and Phase 7 exit
-criterion, and it still holds.
+```
+Phase 7 baseline:   361 test files · 3996 passed · 2 skipped · 0 failed
+```
 
-**The Phase 2 search-highlight file is unchanged since Phase 2 as well** —
-`features/pdf/ui/usePdfPluginsHighlights.test.tsx`, 14 tests, still driving
-`safeRenderHighlights` through the plugin's own `renderHighlights` prop. It was the exit
-criterion for this phase and was not edited to accommodate the native implementation.
+The 2 skips are pre-existing (Electron `ConfigManager`).
 
-Phase 7 added 68 tests across 3 new files plus extensions to 4 existing ones
-(`nativePdfSearch.test.ts` 34, `useNativePdfSearch.test.tsx` 20,
-`nativeSearchIntegration.test.tsx` 6, and the native viewer / flag-boundary / toolbar /
-architecture suites).
+**Byte-identical since Phase 2** — `usePdfTextActions.test.tsx`,
+`extractSelectedText.test.ts`, `extractPageTextFromDom.extended.test.ts`, and
+`usePdfPluginsHighlights.test.tsx` (14 tests). Untouched throughout Phase 8A.
 
-Static gates green at Phase 7: `typecheck`, `lint`, `format:check`,
+Phase 8A added 92 tests across 3 new files plus extensions to 6 existing ones:
+`nativePdfCaptureDocument.test.ts` (11, the real engine against a faked `pdfjs-6`:
+options, worker, `loadingTask.destroy()`, handle liveness across reload/teardown),
+`nativeCaptureRegistry.test.tsx` (11, `useNativePdfCaptureDocument` through the real
+controller: publish, borrow, reload generations, the in-flight window, document switch,
+unmount, sibling viewers, inert path), `nativeCaptureActions.test.tsx` (16, end-to-end
+through the real `PdfViewerDocument`, toolbar, context menu and capture ladder on both flag
+settings), plus the rewritten registry (21) and `renderPageToImage` (33) suites and 6
+native cases in `findPageCanvas`.
+
+Static gates green at Phase 8A: `typecheck`, `lint`, `format:check`,
 `analyze:architecture`, `analyze:file-sizes`, `analyze:css`, `ci:check-hygiene`,
 `check:audit`, `check:electron-security`, `git diff --check`.
 
 Build: `npm run build:renderer:electron` succeeds, emitting **both** workers,
-`vendor-pdf-legacy` (458.83 kB), `vendor-pdf-native` (436.85 kB), the native
+`vendor-pdf-legacy` (458.81 kB), `vendor-pdf-native` (436.85 kB), the native
 layer-stylesheet chunk (text + annotation + search, 3.19 kB) and the full `dist/pdfjs/`
 tree (200 files). `VITE_NATIVE_PDF_VIEWER=true` produces the same artifact set.
 
 ## Interactive Smoke State
 
+**This is the branch's largest outstanding debt, and Phase 8B deletes the code it
+would exercise. Whoever runs Phase 8B should run these first.**
+
 - **Phase 4**: resolved — the user manually exercised the native viewer in the
   real application and reported no visible issue.
-- **Phase 5**: **still outstanding.** This environment has no interactive
-  session, so the native text layer has never been looked at in a real browser.
-- **Phase 6**: **still outstanding**, for the same reason plus one more: an
-  annotation layer's whole point is geometry, and jsdom has none, so the automated
-  coverage proves the viewport argument, the layer order and the lifecycle but
-  _cannot_ prove that a link's hitbox sits over the words it belongs to.
-- **Phase 7**: **still outstanding**, for the same reason once more: a search
-  highlight's whole point is that a rectangle covers the glyphs it claims to. The
-  automated coverage proves offsets, page-relative arithmetic, ordering,
-  invalidation and the DOM contract; `nativeSearchGeometry.ts` is a _declared fake
-  layout_, so no automated check here can answer the alignment question.
+- **Phase 5**: **outstanding.** No interactive session in this environment, so the
+  native text layer has never been looked at in a real browser.
+- **Phase 6**: **outstanding**, for the same reason plus one more: an annotation
+  layer's whole point is geometry, and jsdom has none, so the automated coverage
+  proves the viewport argument, the layer order and the lifecycle but _cannot_
+  prove that a link's hitbox sits over the words it belongs to.
+- **Phase 7**: **outstanding**, for the same reason once more: a search
+  highlight's whole point is that a rectangle covers the glyphs it claims to.
+- **Phase 8A**: **outstanding**, and its own list is in the migration plan's
+  Phase 8A "Interactive smoke" section. The first item is the one that matters
+  most: _does a native page capture come out sharp, of the right page, uncropped,
+  with a white background — and provably without a second document load?_ Then
+  the pixel clamp on an A0 page, the crop overlay over the native page box at fit
+  and at 150 %, and all four context-menu items doing what they say.
 
-All three checklists are in the migration plan (the Phase 5, Phase 6 and Phase 7
-"Interactive smoke" sections) and should be run in one session. The highest-value items
-overall: selection alignment against the canvas at 100 % / 150 % / fit, `Ctrl+C` out of
-the native layer, pan ⇄ text switching, link hitbox alignment after a zoom, an external
-link opening in the system browser with **no** renderer navigation, a `javascript:`
-annotation doing nothing, a highlight sitting **on** its word after a zoom, and a
-text-dense page watched for UI lock.
+The Phase 5, Phase 6 and Phase 7 checklists are in the migration plan and should be
+run in one session. The highest-value items overall: selection alignment against
+the canvas at 100 % / 150 % / fit, `Ctrl+C` out of the native layer, pan ⇄ text
+switching, link hitbox alignment after a zoom, an external link opening in the
+system browser with **no** renderer navigation, a `javascript:` annotation doing
+nothing, a highlight sitting **on** its word after a zoom, and a captured page image
+that looks like the page.
 
 ## Known Issues and Technical Debt
 
@@ -508,69 +603,52 @@ text-dense page watched for UI lock.
    derives the ratio from the rounded viewport, then rounds again without
    re-checking: A0 at scale 4 / 20 MP yields 20 001 639 px (0.008 % over). Phase 2
    tests allow a 0.1 % tolerance; a rewrite that re-checks is not strictly
-   behaviour-preserving.
+   behaviour-preserving. **Unchanged by Phase 8A.**
 2. **The `anchorNode.isConnected` guard in `usePdfTextActions.ts` is nearly dead
    code** — observable only for a non-collapsed range with empty text.
-3. **PDF.js 6 removed `PDFDocumentProxy.destroy()`**; the proxy exposes only
-   `cleanup()`, so teardown must go through `PDFDocumentLoadingTask.destroy()`. The
-   engine and the native viewer already do. `renderPageToImage.ts` still calls
-   `destroy()` on the document — correct for 3.11.174, keep until the viewer is
-   gone.
+3. **PDF.js 6 removed `PDFDocumentProxy.destroy()`**; teardown goes through
+   `PDFDocumentLoadingTask.destroy()`. The engine and the native viewer already
+   did; **Phase 8A finished the job** — `renderPageToImage.ts` no longer calls
+   `destroy()` on any document.
 4. **PDF.js 6 types `DocumentInitParameters.url` as `string | URL` only.**
 5. **`scrollbar-gutter-stable`** is applied in `PdfViewerDocument.tsx` but has no
    definition anywhere. Dead class.
-6. **Native canvas is not DPR-aware** — 1:1 with CSS pixels on HiDPI. Deferred
-   with the capture high-DPI work.
+6. **Native canvas is not DPR-aware** — 1:1 with CSS pixels on HiDPI. Still
+   deferred. Note that capture is _unaffected_: it renders at scale 4 into its own
+   canvas, which is why this is cosmetic rather than a capture bug.
 7. **Native path renders once at scale 1 before the fit commits** (one frame,
-   cancelled mid-flight). Documented, not fixed; fixing it would add a fragile
-   cross-hook ordering dependency.
-8. **`TextLayer#update()` is unused.** Every zoom rebuilds the whole layer
-   (thousands of spans) instead of relaying out the existing ones. Correct and
-   supersede-safe, but it is the obvious next optimisation once the native path
-   has been measured.
-9. **Component-local CSS is a new build pattern.** The three native layer
-   stylesheets are imported for their side effect; they needed `declare module
-'*.css'` in `src/types/assets.d.ts`. They ship as one chunk
-   (`viewer-<hash>.css`), so they load with the viewer rather than in the global
-   sheet.
+   cancelled mid-flight). Documented, not fixed.
+8. **`TextLayer#update()` is unused.** Every zoom rebuilds the whole layer.
+9. **Component-local CSS is a new build pattern** (`viewer-<hash>.css`).
 10. **PDF.js's `AnnotationLayer` type declarations are stricter than its
-    implementation.** The constructor types every destructured key as required,
-    including six managers a headless viewer has no use for, and `render()` is
-    declared against the whole constructor payload while its implementation reads
-    `annotations` plus a few options. Worked around without `as any`: the unused
-    managers are passed as `null` (which is what the class defaults them to) and
-    `render()` goes through one documented, single-purpose assertion helper.
-11. **Named link actions are inert on the native path.** `NextPage`, `PrevPage`,
-    `FirstPage`, `LastPage`, `GoBack`, `GoForward` are recognised by PDF.js and
-    bound to an anchor, and our adapter deliberately does nothing with them. They
-    are not destinations, the legacy viewer drives its own navigation plugins, and
-    half-implementing them would have been a guess.
-12. **`executeSetOCGState` is a no-op.** Optional-content visibility needs the
-    optional-content configuration, which this viewer does not carry. The call
-    resolves, so the annotation stays inert rather than broken.
+    implementation.** Worked around without `as any`.
+11. **Named link actions are inert on the native path** (`NextPage`, `PrevPage`, …).
+12. **`executeSetOCGState` is a no-op.**
 13. **Embedded-file attachments cannot be opened from the native path.**
-    `getAttachmentContent` resolves `null` and no `downloadManager` is passed, so
-    the anchor is clickable and inert. Phase 6 is not a local-file launcher.
-14. **A destination's implied zoom is ignored**, matching the legacy path. RPV's
-    link handling sets the page and the named destination, not the zoom.
+14. **A destination's implied zoom is ignored**, matching the legacy path.
 15. **Native search has no match count, no next/previous match and no page jump.**
-    All three are absent from the product on both paths — Phase 1 recorded it and
-    `src` contains no such code — so adding them would be a new feature. The
-    legacy plugin _has_ them; this app does not use them.
-16. **Native search scope is the rendered page.** The legacy viewer runs
-    `ViewMode.SinglePage`, so its plugin only ever highlights the current page, and
-    the stored keyword makes it recompute on the next page's text layer. There is
-    no whole-document index: it would extract every page's text in the background
-    to produce nothing a single-page viewer can show.
+16. **Native search scope is the rendered page** (`ViewMode.SinglePage` parity).
 17. **`nativeSearchGeometry.ts` is a declared fake layout**, and the honest limit
-    of the Phase 7 test suite. jsdom implements neither `Range#getClientRects()` nor
-    `Range#getBoundingClientRect()`, so the geometry tests install a stand-in that
-    lays runs out on a grid. It proves the arithmetic and the lifecycle; it cannot
-    prove a highlight covers the right glyphs.
-18. **A padded keyword matches literally and finds nothing.** `PdfToolbar` passes
-    the raw input, so `" lupus "` is searched as typed — exactly as the legacy
-    plugin's escaped regexp does. The highlight's `title` is trimmed separately.
-    This is parity, not a native quirk, and it is pinned.
+    of the Phase 7 test suite.
+18. **A padded keyword matches literally and finds nothing.** Parity with the
+    legacy plugin, and pinned.
+19. **`security/audit-exceptions.json`'s prose names a retired call site.** The
+    entry is still correct (the viewer is still 3.x) but its `reason` paragraph
+    describes `renderPageToImage.ts` as mitigated, and that file no longer touches
+    3.x. Left alone by instruction; the entry is deleted in Phase 8B.
+20. **`setActivePdfDocument` accepts two shapes.** A real handle, or a raw pdfjs-3
+    proxy normalized through `legacyPdfCaptureDocument`. The one structural test
+    that distinguishes them (`typeof candidate.isAlive === 'function'`) is the
+    price of keeping `PdfViewerElement.tsx` at zero diff. Delete both in Phase 8B.
+21. **`lib/renderPageToImage.ts` imports from `features/pdf/native/`.** The only
+    edge in the feature that points from a legacy module at the native boundary.
+    Exists so capture's fallback load can go through the engine, which is the only
+    thing allowed to import `pdfjs-6`. Removed in Phase 8B.
+22. **The area/crop screenshot carries no capture metadata of its own.** It hands
+    the main process a screen rectangle; if the window is partially occluded the
+    captured region is whatever is visible at that position. This is pre-existing
+    behaviour on both paths and Phase 8A did not change it, but it is the one
+    capture path with no renderer-independent correctness story.
 
 ## Temporary Migration Components
 
@@ -579,20 +657,19 @@ text-dense page watched for UI lock.
 - the `pdfjsAssets()` plugin that stages `dist/pdfjs/` from `node_modules/pdfjs-6`
 - `pdfjs-dual-runtime.test.ts` and the legacy half of
   `pdfjs-engine-worker-coupling.test.ts`
-- `isEvalSupported: false` on the 3.x call sites
+- `isEvalSupported: false` on the 3.x viewer call site
 - `VITE_NATIVE_PDF_VIEWER` and `features/pdf/native/**` + `NativePdfViewer.tsx`
-- `nativeCanvasMode` / `captureActionsDisabled` on `PdfToolbar` /
-  `PdfAiQuickBar` (the native-mode bounding; after Phase 5 it covers only capture,
-  and after Phase 7 it covers nothing but capture. It goes with the native path)
-- the `*.css` module declaration in `src/types/assets.d.ts` (only users:
-  `nativePdfTextLayer.css`, `nativePdfAnnotationLayer.css`, `nativePdfSearchLayer.css`)
+- **the two Phase 8A bridges**: `lib/legacyPdfCaptureDocument.ts`, and
+  `renderPageToImage.ts` importing `features/pdf/native/nativePdfCaptureDocument.ts`
+- the `*.css` module declaration in `src/types/assets.d.ts`
 
 ## Important Decisions
 
 **Dual PDF.js runtime (Option B).** _Reason:_ `@react-pdf-viewer@3.12.0` cannot
 render against PDF.js 6; a single-version upgrade would leave the app with no
-working PDF viewer until Phase 8. _Removal condition:_ native feature parity
-(Phase 8). _Cost:_ two runtimes in the bundle.
+working PDF viewer until the native path was complete. _Removal condition:_ native
+feature parity — **reached at the end of Phase 8A**, so this is now overdue.
+_Cost:_ two runtimes in the bundle.
 
 **Build-time flag, read at call time.** _Reason:_ the shipped renderer must not
 change by accident, and `import.meta.env` read inside a function keeps one code
@@ -605,258 +682,125 @@ _Reason:_ keeps `PdfViewerElement.tsx` at zero diff and leaves both paths whole.
 be conditional; passing `enabled` keeps hook order stable while guaranteeing no
 engine, no load and no listeners on the legacy path.
 
-**Separate `useNativeCoalescedScale`.** _Reason:_ `useCoalescedZoom` is typed to
-RPV's `zoomTo`. Widening it would put an RPV type in the native path and change a
-Phase 2-pinned file for no gain. _Removal:_ delete it with the rest.
+**A handle, not a document proxy, in the capture registry.** _Reason:_ the old
+interface was shaped around 3.x's `destroyed`/`destroy()`, which 6.x removed.
+Casting a native proxy into it would have read a field 6.x never sets, so a
+reloaded document would have looked alive forever. `isAlive()` as an
+adapter-provided method is the only shape that is honest on both runtimes, and it
+keeps the store free of version knowledge. _Alternative rejected:_ a `version`
+field on the handle and a branch in the store — a second place to update when one
+runtime is deleted.
 
-**Narrowed `usePdfCtrlWheelZoom.ZoomTo`, additive `usePdfResizeRefit` parameter.**
-_Reason:_ both hooks needed a numeric channel to be reachable from a numeric-only
-caller; contravariance keeps the legacy call sites assignable and the default
-fallback keeps them behaviour-identical. _Alternative rejected:_ a numeric clone
-of the resize refit, which would have duplicated the 150 ms debounce and the
-navigation lock.
+**The native adapter owns the temporary document load, and it goes through
+`createPdfDocumentManager()`.** _Reason:_ one `getDocument` options builder, one
+worker bootstrap and one teardown call, all inherited rather than re-derived — which
+is what makes "capture cannot introduce a security-posture divergence" a structural
+property instead of a review item. _Alternatives rejected:_ a bare `getDocument` in
+the capture path (a second parameter object, a second answer to "is scripting
+disabled?"); keeping a 3.x temp load for the legacy path (two runtimes in one
+feature, and the CVE exception's second call site would have to stay).
 
-**Toolbar adapter instead of a toolbar rewrite.** _Reason:_ the render-prop
-contract is small and already abstracted; supplying it reuses the existing
-buttons, readout and tooltips instead of duplicating markup inside the toolbar.
+**Capture borrows and the registry cannot destroy.** _Reason:_ a mounted viewer's
+document belongs to the viewer; tearing it down from a capture would drop its
+shared decoded-object cache and force a font/image re-decode on the next repaint.
+Making the store structurally unable to do it is stronger than a comment.
+_Removed from the old code:_ the `destroyed` flag read and the
+`finally`-scoped `destroy()`; both are now in adapters, and only the _temporary_
+document has any teardown at all.
 
-**Native zoom components rebuilt on scale change.** _Reason:_ `PdfToolbar` and
-`PdfZoomControls` are memoised; without it the percentage readout would not
-re-render on zoom.
+**Liveness is `manager.getDocument() === document`, not a flag.** _Reason:_ 6.x has
+no flag to read. The manager already knows the answer in all three windows that
+matter — reload, document switch, teardown — because `load()` disposes the
+previous task before starting the next one. _Bonus:_ the same predicate makes the
+capture registry's reload test a single assertion rather than a race.
 
-**Bound unsupported controls instead of hiding or faking them.** _Reason:_ search
-and capture had no native implementation. Reload stays live because it maps onto a
-real native lifecycle. _Phase 5 narrowing:_ the bounding used to cover the AI text
-actions too; it then covered **only** capture, because the text layer exists.
-_Phase 7 narrowing:_ it now covers **only** capture and no longer hides anything,
-because search has a native implementation — the flag no longer bounds search at all.
+**Token-scoped deregistration.** \_Reason:\* `LeftPanel` and `FocusOverlay` can both
+be mounted on the same file. The pre-existing semantics (one slot, last writer
+wins) are preserved exactly; the token only stops an unmounting viewer from
+emptying a slot that is no longer its own. "Currently visible wins" was
+considered and **rejected**: it would need a visibility signal the store has no
+business reading, and it would have been a new semantic invented in a migration
+phase.
 
-**DPR left alone.** _Reason:_ it needs its own proof and belongs with the capture
-high-DPI work; changing the renderer quietly would widen the phase.
+**`findNativePageCanvas` validates the page instead of falling back.** \_Reason:\*
+the native viewer keeps exactly one canvas, so "the canvas" and "the canvas for
+page N" are the same object — a permissive lookup would hand page 5's screenshot
+back labelled page 4. Returning `null` lets the direct render path handle it, which
+is strictly better than a wrong image. Mirrors the legacy adapter's existing
+"never an arbitrary canvas" rule.
 
-**PDF.js renders the text layer; QuizLab renders the behaviour around it.**
-_Reason:_ a text layer is glyph geometry — per-run font transforms, `--scale-x`
-stretching against measured advance, rotation, bidi, ascent compensation,
-`markedContent` nesting — and browser selection plus `Ctrl+C` are only correct if
-that geometry is real. _Alternative rejected:_ placing the words approximately and
-relying on the `selection.toString()` fallback; that is a rewrite, not a
-migration, and it would have broken exactly the multi-column reading order the
-Phase 2 tests pin.
+**`capturePageRef` rather than a renderer branch inside the capture hook.**
+\_Reason:* the legacy `currentPage` is *inert* on the native path, so this was a
+correctness bug, not a cosmetic one. `PdfViewerDocument` already owns the switch,
+so it is the only place that can name the live page — and a ref is what
+`usePdfCaptureActions` already used to read the page exactly once, at capture time,
+which is the contract the AI item's `page` metadata depends on.
+\_Alternatives rejected:* branching in the hook (a second renderer check, in a file
+the architecture deliberately keeps agnostic); moving `usePdfCaptureActions` up into
+`PdfViewerDocument` (circular — `usePdfViewerState` needs its handlers for the
+Electron screenshot IPC and the menu items, and needs the native controller's page,
+which only exists after it runs).
 
-**`TextLayer` in the viewer boundary, not in `engine/`.** _Reason:_ its constructor
-demands an `HTMLElement`. _Consequence:_ `engine/` stays React- and DOM-free, which
-is what keeps `renderPageToImage` usable outside React; asserted by
-`pdfjs-dual-runtime.test.ts`.
+**No change to the context menu, and that is the finding.** _Reason:\*
+`usePdfContextMenu` listens on the shared container and `usePdfViewerMenuItems`
+builds one item list; three of its four items were reaching into a legacy-only
+capability rather than needing a native implementation. Writing a second menu, or a
+native branch in the shared one, would have manufactured a difference that does not
+exist. \_Consequence:_ a test drives the real menu on the real native canvas, because
+"we changed nothing" is not a property that survives on its own.
 
-**A page box wrapping canvas + layer.** _Reason:_ the canvas is sized from the
-viewport and the layer from `--total-scale-factor × <page size>`; siblings in one
-`position: relative` box is what makes them agree at every scale and rotation.
-_Consequence:_ page identity moved from the canvas to `[data-native-pdf-page]`, so
-"the page element" is never ambiguous to a `querySelector`.
+**The crop screenshot needed no migration at all.** \_Reason:_ it is a
+`webContents.capturePage(rect)` in the main process; nothing in it reads the
+viewer's DOM, so there were no `.rpv-_`geometry assumptions to re-derive. Only the
+page label came from the renderer, which`capturePageRef` fixed.
 
-**A new resolution point, `text/pdfTextLayerSource.ts`.** _Reason:_ two renderers,
-one extraction contract. It returns the layer _plus that renderer's span selector_,
-so neither extractor grows a branch and the reading order / normalization /
-fast-path logic stays shared verbatim. _Alternative rejected:_ branching inside
-each extractor — the same decision would have been written twice and could drift.
+**Delete the bounding flags rather than leave them false.** \_Reason:\*
+`nativeCanvasMode` / `captureActionsDisabled` existed only because capture was
+legacy-only. Left in place they could only ever disable a capability that now
+works, and would be a second thing to remember in Phase 8B. `pdf_capture_unavailable`
+has no remaining reader.
 
-**The native selection scope check is native-only.** _Reason:_ on the native path
-the layer is addressable, so "is this PDF text?" has a real answer; on the legacy
-path it has none, and inventing one would have risked selections that work today.
-That is precisely why the Phase 2 suite passes without edits.
-
-**Native markup keyed on `data-native-pdf-*`, never on `rpv-*`.** _Reason:_ reusing
-the legacy class names would let the legacy stylesheet restyle the native layer and
-would make the two markups indistinguishable in the extractors. Asserted by test.
-
-**Component-local CSS instead of extending `src/shared/styles/**`.** _Reason:_ the
-layer layout contracts are genuinely required — PDF.js writes geometry as custom
-properties and expects a stylesheet to turn them into positions, font sizes and
-transforms — but they belong to rendering surfaces that own their own markup. Every
-rule is scoped to `data-native-pdf-\*`, so there is no global leakage, and importing
-PDF.js's whole `pdf*viewer.css`was rejected because its global`.linkAnnotation`/`section`/`input` rules would restyle the legacy viewer's markup in the same
-document. \_Cost:* one additive `declare module '_.css'`.
-
-**No `TextLayer#update()` yet.** _Reason:_ it is a second code path across the same
-three races and needs its own proof; parity first, throughput later.
-
-**`textLayerError` and `annotationLayerError` are exposed but not rendered.**
-_Reason:_ each means "readable but less capable than it should be". Hiding a working
-page to report a degraded one is the wrong trade, and silently swallowing it would
-be worse.
-
-**PDF.js renders the annotation layer; QuizLab renders the behaviour around it.**
-_Reason:_ an annotation is glyph geometry plus widget markup — PDF-space rectangles
-resolved into the viewport, rotation, `noRotate`, border styles, hidden and
-optional-content entries, a real `<textarea>` for a multiline field — and a link is
-only clickable if the box is where PDF.js put it. _Alternative rejected:_ placing
-the boxes approximately, which would be a rewrite and would have made every link
-hitbox a guess.
-
-**A QuizLab link-service adapter, not PDF.js's `PDFLinkService`.** _Reason:_ three
-properties of the installed implementation, not preference — `PDFLinkService` is not
-exported from `pdfjs-6`'s entry point, its `goToDestination` requires a
-`PDFViewer` (and its `pagesCount` getter dereferences one), and its external-link
-handling leaves the outcome to Electron's navigation interception, which
-allow-lists `https:` only and so cannot open the `mailto:` links the app's own
-policy supports. The adapter implements exactly the surface `AnnotationLayer` calls,
-read off `build/pdf.mjs`. _Alternative rejected:_ importing
-`pdfjs-6/web/pdf_viewer.mjs`, which is the entire web viewer in one chunk.
-_Asserted by:_ `pdfjs-dual-runtime.test.ts` forbids `pdfjs-6/web/` anywhere in the
-native boundary.
-
-**The link service's lifetime is the layer's.** _Reason:_ a click can only come from
-an anchor a live layer rendered, so creating it inside the annotation-layer effect
-and disposing it in that effect's cleanup is what makes a named destination that
-resolves late inert. _Alternative rejected:_ holding it in a ref for the viewer's
-life, which would have let a resolution that started under one document navigate
-another.
-
-**One `+ 1` for page indices, in one file.** _Reason:_ a PDF destination is 0-based
-and QuizLab's page state is 1-based; both ways of naming a page (an indirect ref via
-`getPageIndex`, and a literal index) are converted in `resolveDestinationPage` and
-nowhere else. _Alternative rejected:_ clamping inside `jumpToPage`, which already
-clamps and would have hidden a bad conversion instead of failing a test.
-
-**Renderer checks protocol + credentials; the main process keeps the full policy.**
-_Reason:_ both renderer checks answer "may this become an actionable `href`?", which
-is why they belong at the boundary. The loopback / IPv4-literal / TLD-less host
-rules stay in `resolveExternalLink` — duplicating them would create a second policy
-free to drift from the first. `http:` is deliberately **not** allowed, matching the
-shipped main process; `mailto:` is, matching the app's own external-link policy.
-
-**A refused URL gets no `href` at all.** _Reason:_ `preventDefault` alone leaves a
-`javascript:` target sitting in the DOM for some other activation path. Leaving
-nothing actionable, plus `aria-disabled`, plus a cancelled click, is what makes it
-non-executable rather than merely unfollowed.
-
-**`renderForms: false`.** _Reason:_ Phase 6 is display, not form editing. A widget
-with a baked-in appearance keeps the canvas's painting and cannot be edited, which
-is what the legacy viewer shows too. Form state, persistence and saving are out of
-scope and nothing here pretends otherwise.
-
-**Links stay clickable in pan mode.** _Reason:_ parity, decided from the legacy CSS
-rather than guessed — `_pdf-viewer.css` drops `user-select` in pan mode on the text
-layer only and says nothing about the annotation layer, so under RPV a link was live
-during a pan. The native stylesheet therefore has no pan rule.
-
-**Phase 7 — the search engine is QuizLab's, not `PDFFindController`.** _Reason:_ the
-installed `PDFFindController` lives in `pdfjs-6/web/pdf_viewer.mjs`, calls
-`eventBus.on(...)` four times in its constructor, dereferences a `PDFViewer` for its
-page count and publishes matches by dispatching `updatetextlayermatches` to a
-`PDFPageView`. Same verdict, same module, as Phase 6's `PDFLinkService`.
-_Alternative rejected:_ importing the web bundle for it — 320 kB of unused viewer.
-
-**The parity target is the legacy plugin's DOM walk, not PDF.js.** _Reason:_
-`@react-pdf-viewer/search` never uses `PDFFindController` either: its `Highlights`
-component concatenates the text layer's runs, scans them with one escaped `gi` regexp
-and measures each match with `document.createRange()`. So that DOM walk is the
-behaviour the shipped app actually has, and it is what `nativePdfSearch.ts` ports.
-_Consequence:_ "parity" is a claim about measured behaviour, not about a PDF.js
-internal this app never used.
-
-**Literal matching with per-unit case folding, not a regexp.** _Reason:_ an escaped
-regexp would have been literal too, but per-unit folding keeps every offset an index
-into the original string. `String#toLowerCase()` on a whole string is **not**
-length-preserving — `'İ'` folds to two code units — so a lowercased page copy would
-shift every subsequent offset onto the wrong glyph. Deliberately not reproduced: the
-`gi` regexp's Unicode canonicalization (`/s/i` also matching `ſ`), in favour of the
-more predictable, locale-independent comparison. A locale-aware fold was rejected
-outright: the same document must not match differently per user locale.
-
-**No whole-document search index.** _Reason:_ the legacy viewer runs
-`ViewMode.SinglePage`, so its plugin only ever highlights the rendered page. A native
-index would extract every page's text in the background to produce nothing a
-single-page viewer can show, and would grow memory with page count. The query is kept
-across page changes exactly as the plugin's store keeps it, and the new page's runs are
-highlighted when they render.
-
-**No next/previous match, no match count, no page jump.** _Reason:_ absent from the
-product on both paths (Phase 1 recorded it; `src` has no such code). Adding them would
-be a new feature inside a migration phase.
-
-**The overlay is declared last in the DOM and painted by `z-index`.** _Reason:_ it is
-not a PDF.js layer, so `LAYERS_ORDER` does not apply to it. `z-index: 1` between the
-text layer's `0` and the annotation layer's `2` is what puts a match tint over the
-glyphs _and_ leaves a link the topmost thing under the cursor, in one number. The
-document order is therefore deliberately not the paint order, which is why it is an
-asserted contract rather than an accident of render order.
-_Alternative rejected:_ inserting it between the canvas and the text layer, which would
-have broken the "the first three children are PDF.js's `LAYERS_ORDER`" invariant for no
-visual gain.
-
-**`pointer-events: none` on the overlay and every highlight.** _Reason:_ the pointer
-must fall through to the text layer, so selection, `Ctrl+C`, the AI selection action,
-pan and `Ctrl`+wheel behave exactly as with no search running, and a link under a
-highlight stays clickable.
-
-**The overlay is a sibling of the text layer, never a child.** _Reason:_ inside it,
-`collectTextItems` and `Ctrl+C` would read the keyword back out of the highlight
-elements, and the page-text AI action would get a duplicated string.
-
-**Search is synchronous, so the dependency list is the invalidation.** _Reason:_ both
-matching and measuring read DOM that already exists, in one pass — as the legacy plugin's
-`highlightAll` does inside a render effect. There is no in-flight request, so a
-generation counter would be machinery with nothing to guard. `documentKey`, `currentPage`,
-`scale`, `textLayerReady`, `keyword` and `enabled` name everything that can make a
-rectangle wrong. _Consequence:_ rapid queries are supersession by construction, and
-there is nothing to cancel on unmount.
-
-**`useNativePdfSearch` is declared after `useNativePdfTextLayer` in the controller.**
-_Reason:_ on a page change or a zoom, React runs the text layer's cleanup first and that
-cleanup empties its container synchronously — so the search effect sees no runs, empties
-the overlay, and re-measures when `textLayerReady` flips back. Stale geometry is removed
-before its replacement exists, not after. _Alternative rejected:_ any explicit ordering
-handshake between the two hooks; React's declaration order already is the mechanism the
-other two layers rely on.
-
-**`textLayerReady` is a generation signal on the text-layer handle.** _Reason:_ search has
-to distinguish "the runs I am about to measure" from "a layer existed at some point",
-which a boolean "has ever rendered" flag cannot express. Nothing else reads it, so the
-selection path gains no coupling.
-
-**Reduced motion is read per search run, not cached.** _Reason:_ the legacy renderer
-caches it because it runs once per highlight area, and that module-level cache is a
-stale-read hazard this phase must not duplicate. A search run measures it a handful of
-times per query, so a cache would buy nothing. _Consequence:_ `usePdfPlugins.ts` stays at
-**zero diff** and its Phase 2 suite stays byte-identical.
-
-**No `rpv-search__highlight` in native markup.** _Reason:_ that class belongs to the
-plugin's stylesheet; emitting it would let that stylesheet style a layer it knows nothing
-about and would make the two markups indistinguishable. The two visual properties it
-provided (the translucent yellow, the corner radius) are re-declared under
-`[data-native-pdf-search-highlight]`, and `pdf-highlight-fadein` is referenced by name
-from the global stylesheet, never redeclared.
+**Leave `security/audit-exceptions.json` alone.** \_Reason:\* the viewer is still the
+shipped 3.x consumer, so the exception is still justified and still required; the
+instruction for this phase was explicit. The prose drift it now has is recorded as
+Known Issue 19 and disappears when Phase 8B deletes the entry.
 
 ## Files and Areas That Must Not Be Changed Yet
 
 Zero diff is the expected state for all of these in any phase that is not the one
 explicitly requested.
 
+- `package.json`, `package-lock.json`, `.npmrc`
+- `vite.config.mts`, `security/audit-exceptions.json`
 - `src/features/pdf/ui/components/{PdfViewerElement,PdfWorkerHost}.tsx`
 - `src/features/pdf/ui/hooks/usePdfPlugins.ts`
-- `src/features/pdf/lib/{renderPageToImage,activePdfDocumentRegistry,pdfViewerDom}.ts`
-- `src/features/pdf/{capture,interaction}/**` and `text/normalizePdfText.ts`,
+- `src/features/pdf/lib/pdfViewerDom.ts`
+- `src/features/pdf/interaction/**` and `text/normalizePdfText.ts`,
   `text/usePdfTextActions.ts`, `text/types.ts`
-- `src/features/pdf/store/**` and `hooks/{readingHistoryRepository,useReadingProgressPersistence,usePdfNavigation,usePdfViewerZoomOrchestrator,usePdfViewerEffects}.ts`
+- `src/features/pdf/store/**` and
+  `hooks/{readingHistoryRepository,useReadingProgressPersistence,usePdfNavigation,usePdfViewerZoomOrchestrator,usePdfViewerEffects}.ts`
 - `src/features/pdf/viewport/useCoalescedZoom.ts`, `usePdfWheelNavigation.ts`
 - `src/shared/styles/**` (all PDF viewer CSS — the native layers have their own)
-- `security/audit-exceptions.json`
 - any `@react-pdf-viewer/*` usage
-- `src/features/pdf/ui/components/PdfSearchBar.tsx`, `src/features/pdf/ui/hooks/usePdfSearchStore.ts`
-  and `usePdfPlugins.ts` — **all three are zero-diff after Phase 7**, which is the point:
-  the shared search UI must never grow a renderer branch, and the legacy renderer must
-  never be re-implemented for the native path
-- `src/shared/styles/modules/_pdf-viewer.css`, including its `pdf-highlight-fadein`
-  keyframes — the native overlay references that animation, so redefining it would be a
-  second definition of a shared effect
+- `src/features/pdf/ui/components/PdfSearchBar.tsx`, `ui/hooks/usePdfSearchStore.ts`
+  and `usePdfPlugins.ts` — **all three remain zero-diff after Phase 8A**
+- `src/shared/styles/modules/_pdf-viewer.css`, including its
+  `pdf-highlight-fadein` keyframes
+- `src/features/screenshot/**` and `electron/features/screenshot/**` — the crop
+  path is renderer-independent and must stay that way
+- **changed in Phase 8A, now frozen again:** `lib/renderPageToImage.ts`,
+  `lib/activePdfDocumentRegistry.ts`, `capture/findPageCanvas.ts`,
+  `capture/usePdfCaptureActions.ts`, `native/nativePdfDom.ts`,
+  `native/useNativePdfController.ts`, `ui/components/PdfViewerDocument.tsx`,
+  `ui/components/PdfToolbar.tsx`, `ui/components/PdfAiQuickBar.tsx`,
+  `hooks/usePdfViewerState.ts`, `hooks/pdfViewerStateTypes.ts`
 
 ## Git State
 
 ```
 Branch: refactor/native-pdfjs-viewer  (tracks origin, fast-forward only)
 Base:   master — 5a47228b3d784951ce63e1da30746ce20cadffd0
-Ahead of master: 0 behind
+Ahead of master: 20 behind 0
 ```
 
 Phase commits, oldest first:
@@ -866,12 +810,12 @@ b4bd443 docs(pdf): baseline native pdfjs viewer migration
 d277420 test(pdf): lock selection, pan, zoom and search highlight behavior
 d0564f7 docs(pdf): record phase 3 blocker in the pdfjs 6 upgrade
 aef4bb8 chore(pdf): add isolated pdfjs 6 migration runtime
-f3d68c8 feat(pdf): add native pdfjs engine foundation
+f3d68c6 feat(pdf): add native pdfjs engine foundation
 d04e8a3 test(pdf): enforce dual-runtime isolation
 fd886b4 docs(agent): add repository handoff context
 + Phase 4 (canvas viewer), Phase 5 (text layer + selection), Phase 6 (annotation
-  layer + links) and Phase 7 (search + highlights) — see
-  `git log --oneline master..HEAD`
+  layer + links), Phase 7 (search + highlights) and Phase 8A (capture + registry
+  + context menu) — see `git log --oneline master..HEAD`
 ```
 
 `master` remains a working RPV + pdfjs 3.x build throughout, so rollback is
@@ -880,68 +824,79 @@ master, tag, release or bump the version until the migration completes.
 
 ## Next Phase
 
-**Phase 8 — the remaining legacy-only capabilities, then RPV removal.** The plan's
-phase table splits this in two: its row is "drop RPV", but the native-mode bounding that
-still exists is exactly two things — the capture pipeline and `activePdfDocumentRegistry`
-— plus the context menu that depends on them. The authoritative scope is
-`docs/pdfjs-migration-plan.md`; read its Part VIII risk table and the Phase 3B exit plan
-before planning anything, because the removal half is a **one-way** step and its rollback
-is `git revert` + `npm ci` from the pre-Phase-8 lockfile.
+**Phase 8B — drop RPV, collapse the dual runtime.** Native feature parity was
+reached at the end of Phase 8A, so this phase is **deletion**, and its rollback is
+`git revert` + `npm ci` from the pre-Phase-8 lockfile — keep the Phase 8 commit
+revertable.
 
-What Phase 7 settled that Phase 8 depends on or must respect:
+Two things to do **first**, in this order:
 
-- **The capture pipeline is the last thing that reads the legacy viewer's DOM.**
-  `renderPageToImage` (`getDocument` on pdfjs 3.x, `isEvalSupported: false`), the crop
-  screenshot, `activePdfDocumentRegistry` and `usePdfContextMenu` all do. Migrating them
-  means a native equivalent of the registry — the native viewer's single page proxy is
-  not reachable from a context-menu handler the way the legacy registry made it
-  reachable.
-- **The 12 MP threshold and the 50 MP canvas budget are capture/serialization
-  concerns** and were deliberately left where they were. Phase 8 inherits them as-is.
-- **`TextLayer#update()` is still unused** and native canvas is still not DPR-aware; both
-  are the obvious performance follow-ups and both should be measured, not guessed, before
-  being taken.
-- **Removing RPV deletes `usePdfPlugins`,** which is also the home of
-  `safeRenderHighlights`, `pageNavigationPlugin`, `zoomPlugin` and `searchPlugin`, and
-  the 4 CSS imports and ~26 `rpv-*` rule blocks. Search is the last of those four to have
-  a native equivalent; the other three (page nav, zoom, text layer) already do.
-- **The dual-runtime isolation test goes with it**, along with the `pdfjs-6` alias, the
-  `vendor-pdf-*` chunk split, the `CVE-2024-4367` exception and the two
-  `isEvalSupported: false` call sites — in that order, and not before.
-- **Interactive smoke for Phases 5, 6 and 7 is still open.** Whoever takes Phase 8 should
-  run those three checklists first: they are the only outstanding evidence about the code
-  Phase 8 would delete.
+1. **Run the Phase 5, 6, 7 and 8A interactive smoke lists.** No interactive session
+   existed for any of those phases, and Phase 8B deletes the code they would
+   exercise. Whatever is unverified when 8B lands is unverified forever.
+2. **Run the full `npm test`.** It was skipped for Phase 8A; the repository-wide
+   count is still the Phase 7 baseline.
 
-Still out of scope for Phase 8: nothing in this list should be assumed — re-derive the
-scope from the plan and the repository, and treat the handoff as a pointer rather than an
-instruction.
+Then the Phase 3B exit plan, in its documented order:
+
+1. delete `@react-pdf-viewer/{core,page-navigation,search,zoom}`
+2. delete `PdfWorkerHost` and the legacy `pdf.worker.min.js?url` import
+3. delete `vendor-pdf-legacy`, rename `vendor-pdf-native` → `vendor-pdf`
+4. delete `pdfjs-dist@3.11.174` and its `overrides` entry
+5. delete the `pdfjs-6` alias; make `pdfjs-dist` the direct `6.4.299` pin
+6. rewrite the engine's imports `pdfjs-6` → `pdfjs-dist`
+7. delete `pdfjs-dual-runtime.test.ts`, rescope or delete
+   `pdfjs-engine-worker-coupling.test.ts`
+8. delete the `CVE-2024-4367` exception and the remaining
+   `isEvalSupported: false` call site
+9. revisit the `wasm`/`icc`/`cmap`/font asset staging (it reads from
+   `node_modules/pdfjs-6` today)
+
+Two Phase 8A bridges are on that list and must not be missed:
+
+- delete `lib/legacyPdfCaptureDocument.ts` and make `setActivePdfDocument` take
+  handles only
+- inline `native/nativePdfCaptureDocument.ts` into the capture path once the alias
+  is gone, so `renderPageToImage.ts` no longer reaches sideways into the native
+  boundary for a pdfjs-6 load
+
+Also on the list, from earlier phases: `usePdfPlugins` (with `safeRenderHighlights`,
+`pageNavigationPlugin`, `zoomPlugin`, `searchPlugin`, the 4 CSS imports and ~26
+`rpv-*` rule blocks), `PdfViewerElement`, `pdfViewerDom.ts`'s RPV selectors,
+`PdfTabStrip`'s internal tests, and the 4 tests that mock `@react-pdf-viewer/core`.
+
+Still deliberately un-migrated, and **not** a Phase 8B blocker because both paths
+already have them: form editing (`renderForms: false`), match count / next-prev
+match, whole-document search, named link actions, attachment opening.
 
 ## Do Not Do Yet
 
 - Do not remove `@react-pdf-viewer`, `pdfjs-dist` 3.x, or the legacy override.
 - Do not collapse the dual runtime, remove the `pdfjs-6` alias, or rename
   `vendor-pdf-native`.
-- Do not migrate capture, `activePdfDocumentRegistry`, or the context menu.
+- Do not re-introduce a renderer branch into `usePdfCaptureActions`,
+  `findPageCanvas`, `usePdfContextMenu`, `usePdfViewerMenuItems` or `ContextMenu`.
+- Do not read `PdfDocumentProxy.destroyed`, or add a version check, anywhere in the
+  capture registry or `renderPageToImage.ts`.
+- Do not add a `destroy()` / `cleanup()` to a borrowed capture handle, or call
+  `page.cleanup()` on a borrowed page proxy.
 - Do not touch the reading-progress architecture.
-- Do not remove the CVE-2024-4367 exception, extend its expiry, or drop
-  `isEvalSupported: false` from the legacy call sites.
-- Do not delete `usePdfPlugins`, `PdfViewerElement` or `PdfWorkerHost`.
+- Do not extend `security/audit-exceptions.json`, or drop
+  `isEvalSupported: false` from the viewer call site.
 - Do not extend `src/shared/styles/**` for native work, or remove `.npmrc` /
   `legacy-peer-deps`.
-- Do not modify Phase 2 regression expectations to make new code pass.
+- Do not modify the Phase 2 regression expectations to make new code pass.
 - Do not enable the native viewer by default.
-- Do not add `TextLayer#update()` / canvas DPR work opportunistically — each is a
-  separate, provable change.
-- Do not import `pdfjs-6/web/**` into the native boundary, for `PDFLinkService`,
-  `PDFFindController` or anything else.
-- Do not add a second page-index conversion, a second navigation state machine, or a
-  second external-URL pathway.
-- Do not touch the shared search UI now that search works natively: `PdfSearchBar`,
-  `usePdfSearchStore`, `usePdfPlugins`'s `safeRenderHighlights` and the
-  `pdf-highlight-fadein` keyframes are all zero-diff and load-bearing as such.
-- Do not give the native search a whole-document index, a match counter or next/previous
-  match. None of them exist on the legacy path; adding them is a product decision, not a
-  migration step.
+- Do not add `TextLayer#update()` / canvas DPR work opportunistically.
+- Do not import `pdfjs-6/web/**` into the native boundary.
+- Do not add a second page-index conversion, a second navigation state machine, or
+  a second external-URL pathway.
+- Do not touch the shared search UI.
+- Do not give the native search a whole-document index, a match counter or
+  next/previous match.
+- Do not write a second context menu.
+- Do not fix the pixel-budget rounding epsilon "while you are in there" — it is
+  pinned by tests with a deliberate tolerance.
 
 ## Resume Checklist
 
@@ -953,14 +908,16 @@ instruction.
 3. Compare repository state against this file; where they conflict the repository
    wins.
 4. Read `docs/pdfjs-migration-plan.md` for the detail the current phase needs —
-   especially the phase table and the Phase 3B / 4 / 5 / 6 / 7 sections.
+   especially the phase table, the Phase 3B exit plan and the Phase 8A section.
 5. Read the implementation files relevant to the requested phase:
-   `src/features/pdf/native/*`, `src/features/pdf/engine/*`, `text/*`, plus the
-   legacy viewer files it must not disturb.
-6. If the phase adds a viewer capability, run the **Phase 5, Phase 6 and Phase 7
-   interactive smoke** first — jsdom cannot see layout, so anything about geometry,
-   real selection, link hitboxes or highlight alignment is unproven until a human
-   looks at it. Do not mark any list resolved without that.
+   `src/features/pdf/native/*`, `src/features/pdf/engine/*`,
+   `src/features/pdf/lib/{activePdfDocumentRegistry,renderPageToImage,legacyPdfCaptureDocument}.ts`,
+   `src/features/pdf/capture/*`, `text/*`, plus the legacy viewer files it must
+   not disturb.
+6. If the phase adds or deletes a viewer capability, run the **Phase 5, 6, 7 and
+   8A interactive smoke** first — jsdom cannot see layout, so anything about
+   geometry, real selection, link hitboxes, highlight alignment or capture
+   fidelity is unproven until a human looks at it.
 7. Execute **only** the explicitly requested phase.
 8. Run `npm test` plus the static gates; update this file before finishing.
 
