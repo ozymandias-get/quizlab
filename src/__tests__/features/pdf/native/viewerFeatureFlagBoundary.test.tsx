@@ -26,7 +26,11 @@ import type { PdfViewerDocumentProps } from '@features/pdf/hooks/usePdfViewerSta
 const mocks = vi.hoisted(() => ({
   nativeFlag: { current: false },
   legacyState: { current: null as Record<string, unknown> | null },
-  nativeState: { current: null as Record<string, unknown> | null }
+  nativeState: { current: null as Record<string, unknown> | null },
+  // Stable identities, so "the toolbar is bound to the plugin's search, not the
+  // controller's" is an identity assertion rather than a hope.
+  legacyHighlight: vi.fn(),
+  legacyClearHighlights: vi.fn()
 }))
 
 vi.mock('react-i18next', () => ({
@@ -58,8 +62,8 @@ vi.mock('@features/pdf/ui/hooks', () => ({
     ZoomOut: () => <span>legacy-zoom-out</span>,
     CurrentScale: () => <span>legacy-scale</span>,
     zoomTo: vi.fn(),
-    highlight: vi.fn(),
-    clearHighlights: vi.fn()
+    highlight: mocks.legacyHighlight,
+    clearHighlights: mocks.legacyClearHighlights
   }),
   usePdfNavigation: () => ({
     currentPage: 1,
@@ -213,6 +217,31 @@ describe('PdfViewerDocument feature-flag boundary', () => {
     expect(toolbar.nativeCanvasMode).toBe(false)
   })
 
+  it('binds the toolbar to the legacy search plugin on the default path', () => {
+    mocks.nativeFlag.current = false
+
+    renderDocument()
+
+    // The search bar is one component for both renderers and only ever calls
+    // `highlight` / `clearHighlights`; which pair it gets is the whole of the switch.
+    const toolbar = toolbarProps()
+    expect(toolbar.highlight).toBe(mocks.legacyHighlight)
+    expect(toolbar.clearHighlights).toBe(mocks.legacyClearHighlights)
+  })
+
+  it("binds the toolbar to the native controller's search when the flag is on", () => {
+    mocks.nativeFlag.current = true
+
+    renderDocument()
+
+    // If the toolbar were still bound to the plugin instances, search would render a
+    // working-looking bar over a viewer with no RPV page layers to highlight in.
+    const toolbar = toolbarProps()
+    expect(toolbar.highlight).toBeTypeOf('function')
+    expect(toolbar.highlight).not.toBe(mocks.legacyHighlight)
+    expect(toolbar.clearHighlights).not.toBe(mocks.legacyClearHighlights)
+  })
+
   it('marks the toolbar as native-mode so unsupported controls are bounded', () => {
     mocks.nativeFlag.current = true
 
@@ -235,20 +264,22 @@ describe('PdfViewerDocument feature-flag boundary', () => {
     expect(toolbarProps().ZoomIn).not.toBe(legacyZoomIn)
   })
 
-  it('hands the native viewer a distinct ref for each surface PDF.js mounts into', () => {
+  it('hands the native viewer a distinct ref for each surface the viewer mounts into', () => {
     mocks.nativeFlag.current = true
 
     renderDocument()
 
-    // The canvas, the text layer and the annotation layer are three separate mount
-    // points owned by the shell, because they only exist while the native viewer is
-    // the one rendering. They must be three *different* refs: handing the same one to
-    // two of them would make the annotation layer render into the text layer.
+    // The canvas, the text layer, the annotation layer and the search overlay are four
+    // separate mount points owned by the shell, because they only exist while the native
+    // viewer is the one rendering. They must be four *different* refs: handing the same
+    // one to two of them would make the search measure against the text layer.
     const props = nativeViewerProps()
-    const refs = (['canvasRef', 'textLayerRef', 'annotationLayerRef'] as const).map((name) => {
+    const refs = (
+      ['canvasRef', 'textLayerRef', 'annotationLayerRef', 'searchLayerRef'] as const
+    ).map((name) => {
       expect(props[name], name).toMatchObject({ current: null })
       return props[name]
     })
-    expect(new Set(refs).size).toBe(3)
+    expect(new Set(refs).size).toBe(4)
   })
 })

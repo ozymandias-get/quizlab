@@ -13,13 +13,16 @@
  * | render       | `useNativePdfRender` — one page, one canvas, supersede-cancel                    |
  * | text layer   | `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`                       |
  * | annotations  | `useNativePdfAnnotationLayer` — one page, one PDF.js `AnnotationLayer` + links   |
+ * | search       | `useNativePdfSearch` — keyword → match rectangles in the highlight overlay      |
  *
- * The order of these calls matters exactly once, and it is load-bearing: the
+ * The order of these calls matters twice, and both times it is load-bearing: the
  * engine-creating effect in `useNativePdfEngine` is declared before the
  * document-loading effect in `useNativePdfDocument`, so the engine exists by the
- * time the document hook runs its body. The text-layer and annotation-layer effects
- * are declared after both render effects so that, within a single commit, the canvas
- * and the two layers are torn down and rebuilt in the order they are painted.
+ * time the document hook runs its body. The text-layer, annotation-layer and search
+ * effects are declared after both render effects so that, within a single commit, the
+ * canvas and the three overlays are torn down and rebuilt in the order they are
+ * painted — and, for search, so the text layer's synchronous cleanup empties the runs
+ * the search is about to measure.
  *
  * ## What is reused from the legacy path, unchanged
  *
@@ -47,6 +50,10 @@
  * native-viewer work that replaces the legacy context menu. `usePdfContextMenu`
  * and the capture actions reach into the legacy viewer's DOM and its
  * `activePdfDocumentRegistry`, so they stay on the legacy path.
+ *
+ * `PdfSearchBar` and `usePdfSearchStore` are not native code and do not appear here:
+ * the search bar is one component for both renderers, and it only ever calls
+ * `highlight` / `clearHighlights`, which this controller now implements.
  */
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import { clampPdfPage } from '@features/pdf/native/nativePdfBounds'
@@ -62,6 +69,10 @@ import {
 import { useNativePdfPageState } from '@features/pdf/native/useNativePdfPageState'
 import { useNativePdfRender } from '@features/pdf/native/useNativePdfRender'
 import { useNativePdfScaleState } from '@features/pdf/native/useNativePdfScaleState'
+import {
+  type NativePdfSearchHandle,
+  useNativePdfSearch
+} from '@features/pdf/native/useNativePdfSearch'
 import { useNativePdfTextLayer } from '@features/pdf/native/useNativePdfTextLayer'
 import {
   type CurrentScaleComponent,
@@ -109,6 +120,8 @@ interface UseNativePdfControllerOptions {
   textLayerRef: RefObject<HTMLElement | null>
   /** Created by the component; the annotation-layer effect mounts PDF.js into it. */
   annotationLayerRef: RefObject<HTMLElement | null>
+  /** Created by the component; the search effect measures and fills it. */
+  searchLayerRef: RefObject<HTMLElement | null>
 }
 
 export interface NativePdfController {
@@ -124,6 +137,22 @@ export interface NativePdfController {
   textLayerError: string | null
   /** A genuine annotation-layer failure. `null` while rendering and on teardown. */
   annotationLayerError: string | null
+  /**
+   * Highlight every match of `keyword` on the rendered page.
+   *
+   * The same two calls the legacy search plugin exposes, so `PdfToolbar` binds whichever
+   * renderer is live without a branch in its search UI.
+   */
+  highlight: NativePdfSearchHandle['highlight']
+  /** Drop the search query and empty the overlay. */
+  clearHighlights: NativePdfSearchHandle['clearHighlights']
+  /**
+   * A genuine search failure. `null` while searching and on teardown.
+   *
+   * Deliberately not rendered: a search that cannot measure costs the reader their
+   * results, not their page.
+   */
+  searchError: string | null
   goToPreviousPage: () => void
   goToNextPage: () => void
   jumpToPage: (page: number) => void
@@ -152,7 +181,8 @@ export function useNativePdfController({
   onReadingProgressChange,
   canvasRef,
   textLayerRef,
-  annotationLayerRef
+  annotationLayerRef,
+  searchLayerRef
 }: UseNativePdfControllerOptions): NativePdfController {
   const engine: NativePdfEngineHandle = useNativePdfEngine(enabled)
 
@@ -229,7 +259,7 @@ export function useNativePdfController({
   // off it has to agree.
   const documentKey = `${pdfUrl}::${reloadKey}`
 
-  const { textLayerError } = useNativePdfTextLayer({
+  const { textLayerError, textLayerReady } = useNativePdfTextLayer({
     enabled,
     engine,
     status,
@@ -253,6 +283,18 @@ export function useNativePdfController({
     jumpToPage
   })
 
+  // Declared last, and that is load-bearing: the search measures the text layer's runs,
+  // so on a page change or a zoom the text layer's cleanup — which empties its container
+  // synchronously — has to run before this effect decides what to draw.
+  const { highlight, clearHighlights, searchError } = useNativePdfSearch({
+    enabled,
+    searchLayerRef,
+    documentKey,
+    currentPage,
+    scale,
+    textLayerReady
+  })
+
   const zoomControls = useNativeZoomControls({ scale, zoomIn, zoomOut })
 
   return useMemo(
@@ -265,6 +307,9 @@ export function useNativePdfController({
       renderError,
       textLayerError,
       annotationLayerError,
+      highlight,
+      clearHighlights,
+      searchError,
       goToPreviousPage,
       goToNextPage,
       jumpToPage,
@@ -283,6 +328,9 @@ export function useNativePdfController({
       renderError,
       textLayerError,
       annotationLayerError,
+      highlight,
+      clearHighlights,
+      searchError,
       goToPreviousPage,
       goToNextPage,
       jumpToPage,

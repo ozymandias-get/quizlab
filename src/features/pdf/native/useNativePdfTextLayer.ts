@@ -56,6 +56,14 @@
  * state either. That is the whole of the document-switch, page-switch and zoom
  * protection; it is the mechanism `useNativePdfRender` already uses for the canvas.
  *
+ * ## A generation signal for anything that reads the runs
+ *
+ * `textLayerReady` is `false` from the moment a rebuild starts and `true` only after the
+ * new layer has drained its stream. Phase 7's search needs exactly that: it measures the
+ * runs in the DOM, so it has to be able to tell "these are the runs on screen" from "a
+ * layer existed at some point". No other capability reads it — the extractors resolve the
+ * layer when they are called — so publishing it adds no coupling to the selection path.
+ *
  * ## One `getTextContent()` per page, per document
  *
  * A zoom changes the scale, not the text, so the resolved `TextContent` is cached
@@ -101,6 +109,16 @@ export interface NativePdfTextLayerHandle {
    * the layer is torn down; cancellation is never an error.
    */
   textLayerError: string | null
+  /**
+   * True once the current page's runs exist in the DOM.
+   *
+   * A generation signal rather than a boolean flag with a different name: it goes false
+   * the moment a rebuild starts and true again only after the new `TextLayer` has
+   * finished `render()`. Phase 7's search depends on it, and a boolean "there was a
+   * layer at some point" could not tell it that the runs it is about to measure are the
+   * runs on screen.
+   */
+  textLayerReady: boolean
 }
 
 /** Keep a text-layer failure to one safe line, as the canvas path does. */
@@ -129,6 +147,7 @@ export function useNativePdfTextLayer({
   scale
 }: UseNativePdfTextLayerOptions): NativePdfTextLayerHandle {
   const [textLayerError, setTextLayerError] = useState<string | null>(null)
+  const [textLayerReady, setTextLayerReady] = useState(false)
   const textContentRef = useRef<CachedTextContent | null>(null)
 
   // The text content belongs to the document, so it goes when the identity does.
@@ -155,6 +174,10 @@ export function useNativePdfTextLayer({
     // where it would be visible is empty rather than "until the new render".
     container.replaceChildren()
     setTextLayerError(null)
+    // Down before the first await: from here until `render()` resolves there are no runs
+    // in the DOM, and anything that measures them — Phase 7's search — has to see that
+    // rather than the previous page's geometry.
+    setTextLayerReady(false)
 
     void (async () => {
       try {
@@ -186,6 +209,9 @@ export function useNativePdfTextLayer({
 
         layer = new TextLayer({ textContentSource: textContent, container, viewport })
         await layer.render()
+        // The runs are in the DOM now, so a dependent capability may measure them.
+        if (cancelled) return
+        setTextLayerReady(true)
       } catch (error) {
         // Teardown rejects the in-flight render; that is the expected way a
         // superseded layer stops, not something to show the user.
@@ -203,8 +229,9 @@ export function useNativePdfTextLayer({
       layer = null
       // And the DOM goes regardless — the canvas underneath is about to resize.
       container.replaceChildren()
+      setTextLayerReady(false)
     }
   }, [enabled, engine, status, textLayerRef, documentKey, currentPage, scale])
 
-  return { textLayerError }
+  return { textLayerError, textLayerReady }
 }

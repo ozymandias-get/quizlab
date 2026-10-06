@@ -51,12 +51,13 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
 
   // The native controller is always mounted so the hook order is stable, but it
   // is inert while the flag is off: no engine, no load, no wheel or resize
-  // listeners. Its `canvasRef`, `textLayerRef` and `annotationLayerRef` must live
-  // here, because the canvas and the two PDF.js layers only exist while the native
-  // viewer is the one rendering.
+  // listeners. Its `canvasRef`, `textLayerRef`, `annotationLayerRef` and
+  // `searchLayerRef` must live here, because the canvas, the two PDF.js layers and
+  // the search overlay only exist while the native viewer is the one rendering.
   const nativeCanvasRef = useRef<HTMLCanvasElement>(null)
   const nativeTextLayerRef = useRef<HTMLDivElement>(null)
   const nativeAnnotationLayerRef = useRef<HTMLDivElement>(null)
+  const nativeSearchLayerRef = useRef<HTMLDivElement>(null)
   const nativeViewer = useNativePdfController({
     enabled: isNativeViewer,
     pdfUrl,
@@ -70,7 +71,8 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     onReadingProgressChange: props.onReadingProgressChange,
     canvasRef: nativeCanvasRef,
     textLayerRef: nativeTextLayerRef,
-    annotationLayerRef: nativeAnnotationLayerRef
+    annotationLayerRef: nativeAnnotationLayerRef,
+    searchLayerRef: nativeSearchLayerRef
   })
 
   const legacyViewerElement = useMemo(
@@ -110,6 +112,11 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   const toolbarZoomIn = isNativeViewer ? nativeViewer.zoomControls.ZoomIn : PluginZoomIn
   const toolbarZoomOut = isNativeViewer ? nativeViewer.zoomControls.ZoomOut : PluginZoomOut
   const toolbarCurrentScale = isNativeViewer ? nativeViewer.zoomControls.CurrentScale : CurrentScale
+  // Search follows the same switch, and needs no further wiring: both renderers expose
+  // exactly the plugin's `highlight` / `clearHighlights`, so `PdfSearchBar` and the
+  // shared store stay renderer-agnostic and no renderer check reaches the search UI.
+  const toolbarHighlight = isNativeViewer ? nativeViewer.highlight : highlight
+  const toolbarClearHighlights = isNativeViewer ? nativeViewer.clearHighlights : clearHighlights
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -126,6 +133,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
             canvasRef={nativeCanvasRef}
             textLayerRef={nativeTextLayerRef}
             annotationLayerRef={nativeAnnotationLayerRef}
+            searchLayerRef={nativeSearchLayerRef}
             t={props.t}
             tt={tt}
           />
@@ -156,8 +164,8 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         onPreviousPage={toolbarPreviousPage}
         onNextPage={toolbarNextPage}
         onJumpToPage={toolbarJumpToPage}
-        highlight={highlight}
-        clearHighlights={clearHighlights}
+        highlight={toolbarHighlight}
+        clearHighlights={toolbarClearHighlights}
         ZoomIn={toolbarZoomIn}
         ZoomOut={toolbarZoomOut}
         CurrentScale={toolbarCurrentScale}

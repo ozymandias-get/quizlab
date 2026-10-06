@@ -46,15 +46,18 @@ interface PdfToolbarProps {
   /**
    * The native canvas viewer is rendering instead of `@react-pdf-viewer`.
    *
-   * Search and the capture-backed image actions read the legacy viewer's DOM and
-   * its active-document registry, so they have no meaning on a native canvas yet.
-   * Rather than leave controls that render and silently do nothing, this flag
-   * hides the search bar and disables the capture actions. Two things are
+   * The capture-backed image actions read the legacy viewer's DOM and its active-document
+   * registry, so they have no meaning on a native canvas yet. Rather than leave controls
+   * that render and silently do nothing, this flag disables them. Three things are
    * deliberately left live, because the native viewer genuinely owns them:
    *
    *  - **Add current page text to AI** — reads the page text layer, and the native
    *    viewer renders a real PDF.js `TextLayer` from Phase 5
+   *  - **Search** — drives `highlight` / `clearHighlights`, and the native viewer
+   *    implements the same two calls over its own text layer from Phase 7
    *  - **Reload** — drives a real native document lifecycle
+   *
+   * The flag therefore no longer hides anything: it only bounds capture.
    */
   nativeCanvasMode?: boolean
 }
@@ -235,7 +238,7 @@ function PdfToolbar({
             onReload={onReload}
             captureActionsDisabled={nativeCanvasMode}
           />
-        ) : nativeCanvasMode ? null : (
+        ) : (
           <PdfSearchBar
             isOpen={isSearchOpen}
             onToggle={handleOpenSearch}

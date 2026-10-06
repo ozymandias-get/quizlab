@@ -1,8 +1,15 @@
 import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
+import { usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 
 import { TooltipProvider } from '@app/components/ui/tooltip'
-import { fireEvent, render } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// The bar is closed until something opens it � Ctrl+F through usePdfShortcuts, or the
+// toggle in the collapsed state. Every case below wants it open.
+beforeEach(() => {
+  usePdfSearchStore.setState({ isOpen: true })
+})
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
@@ -215,10 +222,10 @@ describe('PdfToolbar', () => {
 
   // The native canvas viewer has no capture pipeline and no active document in
   // the legacy registry, so the controls that rasterise the page must not be left
-  // looking live. Search is hidden outright and the capture actions are disabled
-  // with a reason. Two things stay live, because the native viewer owns them for
-  // real: the page-text AI action reads the PDF.js text layer Phase 5 added, and
-  // reload drives a document lifecycle.
+  // looking live. The capture actions are disabled with a reason; everything the
+  // native viewer owns for real stays live — the page-text AI action reads the PDF.js
+  // text layer Phase 5 added, Phase 7 gave search its own implementation over that same
+  // text layer, and reload drives a document lifecycle.
   describe('nativeCanvasMode', () => {
     function renderNativeToolbar() {
       return render(
@@ -247,12 +254,29 @@ describe('PdfToolbar', () => {
       )
     }
 
-    it('hides the search bar instead of offering a search that cannot run', () => {
-      const { getByTestId, queryByPlaceholderText } = renderNativeToolbar()
+    it('keeps the search bar, because the native path implements search too', () => {
+      const { getByTestId } = renderNativeToolbar()
 
-      expect(queryByPlaceholderText('search_placeholder')).not.toBeInTheDocument()
+      // Phase 7 gave the native viewer `highlight` / `clearHighlights` over its own text
+      // layer, so there is nothing left to hide: the bar is the same component, driven by
+      // the same shared store, on both renderers. `Ctrl+F` opens it through the store.
+      act(() => usePdfSearchStore.getState().open())
+
+      expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
       // Page navigation and zoom stay: they are backed by native state.
       expect(getByTestId('pdf-toolbar-mode-toggle')).toBeInTheDocument()
+    })
+
+    it('opens the same search bar from the shared store on the native path', async () => {
+      const { getByTestId } = renderNativeToolbar()
+
+      fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
+      fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
+
+      // `Ctrl+F` reaches this bar through `usePdfSearchStore`, with no renderer branch.
+      act(() => usePdfSearchStore.getState().open())
+
+      expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
     })
 
     it('disables the capture actions but keeps the text action and reload live', () => {

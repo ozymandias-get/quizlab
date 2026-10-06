@@ -215,7 +215,7 @@ describe('NativePdfViewer — document lifecycle', () => {
     expect(container.querySelector('[class*="rpv-"]')).toBe(null)
   })
 
-  it('stacks canvas, text layer and annotation layer in PDF.js order', async () => {
+  it('stacks canvas, text layer, annotation layer and search overlay in a stated order', async () => {
     serveDocument(createFakeDocument({ numPages: 12 }))
 
     const { container } = render(<NativeViewerHarness />)
@@ -226,8 +226,14 @@ describe('NativePdfViewer — document lifecycle', () => {
 
     // PDF.js 6's `LAYERS_ORDER` numbers a page's layers `canvasWrapper` 0,
     // `textLayer` 1, `annotationLayer` 2 and `PDFPageView#addLayer` inserts them in
-    // that sequence. The annotation layer has to be last: it is the one that takes
-    // pointer events, and a link under the text layer would not be clickable.
+    // that sequence. The annotation layer has to be after the text layer: it is the one
+    // that takes pointer events, and a link under the text layer would not be clickable.
+    //
+    // The search overlay is the fourth and is *not* a PDF.js layer — PDF.js's own find
+    // highlights need the web viewer's page views. It is declared last in the DOM and
+    // painted by `z-index: 1`, between the canvas and the annotation layer, so the
+    // document order is deliberately not the paint order and is asserted here rather
+    // than left to React's render order.
     const page = container.querySelector('[data-native-pdf-page]') as HTMLElement
     const layerAttributes = [...page.children].map((child) =>
       child.getAttributeNames().find((name) => name.startsWith('data-native-pdf'))
@@ -235,7 +241,8 @@ describe('NativePdfViewer — document lifecycle', () => {
     expect(layerAttributes).toEqual([
       'data-native-pdf-canvas',
       'data-native-pdf-text-layer',
-      'data-native-pdf-annotation-layer'
+      'data-native-pdf-annotation-layer',
+      'data-native-pdf-search-layer'
     ])
   })
 
@@ -250,12 +257,13 @@ describe('NativePdfViewer — document lifecycle', () => {
 
     // PDF.js sizes both layers as `--total-scale-factor × <page size>`, so this one
     // inline custom property on the shared box is what keeps a link's hitbox, a text
-    // run's box and the canvas on the same geometry at every scale.
+    // run's box, a search highlight and the canvas on the same geometry at every scale.
     const page = container.querySelector<HTMLElement>('[data-native-pdf-page]')
     const scaleFactor = Number(page?.style.getPropertyValue('--total-scale-factor'))
     expect(scaleFactor).toBeGreaterThan(0)
     expect(page?.querySelector('[data-native-pdf-text-layer]')).not.toBe(null)
     expect(page?.querySelector('[data-native-pdf-annotation-layer]')).not.toBe(null)
+    expect(page?.querySelector('[data-native-pdf-search-layer]')).not.toBe(null)
   })
 
   it('does not treat a degraded annotation layer as a failed page', async () => {
