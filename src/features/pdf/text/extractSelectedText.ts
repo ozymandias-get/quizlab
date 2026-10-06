@@ -1,10 +1,20 @@
 /**
  * Extracts selected text from the DOM and computes its screen position.
  * Replaces the inline selection logic in usePdfTextSelection.
+ *
+ * ## Two renderers, one selection contract
+ *
+ * The geometry, the reading order, the fallback to `selection.toString()`, the
+ * pill placement and the out-of-container bail-out below are unchanged and are
+ * pinned by the Phase 2 suite. What Phase 5 adds is that the *lookup* works on
+ * both markups (`./pdfTextLayerSource`), and that a selection is only accepted as
+ * PDF text when it actually lands on the live text layer — see
+ * `selectionBelongsToTextLayer`.
  */
-import { TEXT_LAYER_SELECTOR } from '../lib/pdfViewerDom'
+import { findNativeTextLayer } from '../native/nativePdfDom'
 import { collectTextItems, orderTextItems } from './extractPageTextFromDom'
 import { normalizePdfText } from './normalizePdfText'
+import { findTextLayerSource } from './pdfTextLayerSource'
 import type { SelectionPosition } from './types'
 
 function isNodeInsideContainer(node: Node | null, container: HTMLElement): boolean {
@@ -29,6 +39,39 @@ interface SelectionExtractResult {
 }
 
 /**
+ * Is this selection PDF text rather than UI text?
+ *
+ * The container-level check below already rejects the toolbar, the AI panel and
+ * everything else outside the viewer. What it cannot reject on its own is a
+ * selection *inside* the viewer that did not come from the page text — the
+ * canvas, the page box, or (once the native viewer mounts one) anything that
+ * shares the panel with it.
+ *
+ * On the native path the text layer is a real, addressable element, so the
+ * selection has to touch it: one of the range's endpoints or its common
+ * ancestor inside the layer. On the legacy path the layer is whatever RPV
+ * rendered and no equivalent check exists, so the legacy branch is skipped
+ * entirely — no behaviour change, and no new way to fail a selection that used
+ * to work.
+ */
+function selectionBelongsToTextLayer(
+  range: Range,
+  selection: Selection,
+  container: HTMLElement
+): boolean {
+  const nativeLayer = findNativeTextLayer(container)
+  // No native layer mounted: this is the legacy viewer, whose markup is the text
+  // layer by construction. Keep the existing behaviour untouched.
+  if (!nativeLayer) return true
+
+  return (
+    nativeLayer.contains(range.commonAncestorContainer) ||
+    nativeLayer.contains(selection.anchorNode) ||
+    nativeLayer.contains(selection.focusNode)
+  )
+}
+
+/**
  * Rebuilds selected text in visual reading order.
  *
  * `selection.toString()` returns the text in DOM (content-stream) order, which
@@ -37,10 +80,10 @@ interface SelectionExtractResult {
  * (column cluster, Y) exactly like extractPageTextFromDom does for whole pages.
  */
 function extractOrderedSelectionText(range: Range, container: HTMLElement): string | null {
-  const textLayer = container.querySelector<HTMLElement>(TEXT_LAYER_SELECTOR)
-  if (!textLayer) return null
+  const source = findTextLayerSource(container)
+  if (!source) return null
 
-  const allItems = collectTextItems(textLayer)
+  const allItems = collectTextItems(source.layer, source.spanSelector)
   if (allItems.length === 0) return null
 
   const rangeRects = [...range.getClientRects()]
@@ -90,6 +133,10 @@ export function extractSelectedText(
     !(anchorInside && focusInside) &&
     !(overlapsContainer && (anchorInside || focusInside))
   ) {
+    return null
+  }
+
+  if (!selectionBelongsToTextLayer(range, selection, container)) {
     return null
   }
 

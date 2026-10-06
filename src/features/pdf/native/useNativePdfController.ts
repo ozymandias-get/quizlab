@@ -11,32 +11,41 @@
  * | page         | `useNativePdfPageState` — 1-based, clamped                    |
  * | scale        | `useNativePdfScaleState` — numeric, clamped, fit on identity   |
  * | render       | `useNativePdfRender` — one page, one canvas, supersede-cancel  |
+ * | text layer   | `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`     |
  *
  * The order of these calls matters exactly once, and it is load-bearing: the
  * engine-creating effect in `useNativePdfEngine` is declared before the
  * document-loading effect in `useNativePdfDocument`, so the engine exists by the
- * time the document hook runs its body.
+ * time the document hook runs its body. The text-layer effect is declared after
+ * both render effects so that, within a single commit, the canvas and the text
+ * layer are torn down and rebuilt in the same order they are painted.
  *
  * ## What is reused from the legacy path, unchanged
  *
  * `useFitScale`, `useLastNavigationTime`, `usePdfCtrlWheelZoom`,
- * `usePdfWheelNavigation` and `usePdfResizeRefit` are the same functions the
- * legacy viewer uses. Reuse rather than re-implementation is deliberate: the
- * zoom clamps, the 40 ms Ctrl+wheel throttle, the 150 ms resize debounce and the
- * 1 %-granularity fit quantization are Phase 2-pinned behaviour, and a second
- * copy of any of them would be free to drift away from the tests that guard it.
- * Two of them needed one type-level change to be reachable from a numeric-only
- * caller (`usePdfCtrlWheelZoom`), plus one additive optional argument
+ * `usePdfWheelNavigation`, `usePdfResizeRefit` and `usePdfTextActions` are the
+ * same functions the legacy viewer uses. Reuse rather than re-implementation is
+ * deliberate: the zoom clamps, the 40 ms Ctrl+wheel throttle, the 150 ms resize
+ * debounce, the 1 %-granularity fit quantization and the whole selection
+ * lifecycle — capture-phase listeners, the 150 ms scroll freeze, rAF coalescing,
+ * `pdf-selection-active`, `requestIdleCallback` with its 500 ms fallback — are
+ * Phase 2-pinned behaviour, and a second copy of any of them would be free to
+ * drift away from the tests that guard it. Two of the shared hooks needed one
+ * type-level change to be reachable from a numeric-only caller
+ * (`usePdfCtrlWheelZoom`), plus one additive optional argument
  * (`usePdfResizeRefit`'s numeric fallback); no behaviour changed.
+ *
+ * `usePdfTextActions` needs nothing native at all: it talks to the shared viewer
+ * container and to the extractors, and both now resolve whichever text layer is
+ * mounted. That is why there is no second selection system here.
  *
  * ## What is deliberately not here
  *
  * `usePdfViewerZoomIpc` (Electron context-menu zoom) is not wired: it hard-codes
  * `SpecialZoomLevel.PageWidth` as its reset target and belongs with the
- * native-viewer work that replaces the legacy context menu. `usePdfPanTool`,
- * `usePdfTextActions`, `usePdfContextMenu` and the capture actions all reach into
- * the legacy viewer's DOM and its `activePdfDocumentRegistry`, so they are left on
- * the legacy path.
+ * native-viewer work that replaces the legacy context menu. `usePdfContextMenu`
+ * and the capture actions reach into the legacy viewer's DOM and its
+ * `activePdfDocumentRegistry`, so they stay on the legacy path.
  */
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import { clampPdfPage } from '@features/pdf/native/nativePdfBounds'
@@ -51,6 +60,7 @@ import {
 import { useNativePdfPageState } from '@features/pdf/native/useNativePdfPageState'
 import { useNativePdfRender } from '@features/pdf/native/useNativePdfRender'
 import { useNativePdfScaleState } from '@features/pdf/native/useNativePdfScaleState'
+import { useNativePdfTextLayer } from '@features/pdf/native/useNativePdfTextLayer'
 import {
   type CurrentScaleComponent,
   type ZoomComponent
@@ -93,6 +103,8 @@ interface UseNativePdfControllerOptions {
   onReadingProgressChange?: (update: ReadingProgressUpdate) => void
   /** Created by the component; the render effect writes into it. */
   canvasRef: RefObject<HTMLCanvasElement | null>
+  /** Created by the component; the text-layer effect mounts PDF.js into it. */
+  textLayerRef: RefObject<HTMLElement | null>
 }
 
 export interface NativePdfController {
@@ -104,6 +116,8 @@ export interface NativePdfController {
   scale: number
   loadError: string | null
   renderError: string | null
+  /** A genuine text-layer failure. `null` while rendering and on teardown. */
+  textLayerError: string | null
   goToPreviousPage: () => void
   goToNextPage: () => void
   jumpToPage: (page: number) => void
@@ -130,7 +144,8 @@ export function useNativePdfController({
   isPanelResizing,
   pdfPath,
   onReadingProgressChange,
-  canvasRef
+  canvasRef,
+  textLayerRef
 }: UseNativePdfControllerOptions): NativePdfController {
   const engine: NativePdfEngineHandle = useNativePdfEngine(enabled)
 
@@ -202,6 +217,21 @@ export function useNativePdfController({
     scale
   })
 
+  // The same viewport identity the canvas and the document hooks use: a reload of
+  // the same file is a different document, and the text-content cache that hangs
+  // off it has to agree.
+  const documentKey = `${pdfUrl}::${reloadKey}`
+
+  const { textLayerError } = useNativePdfTextLayer({
+    enabled,
+    engine,
+    status,
+    textLayerRef,
+    documentKey,
+    currentPage,
+    scale
+  })
+
   const zoomControls = useNativeZoomControls({ scale, zoomIn, zoomOut })
 
   return useMemo(
@@ -212,6 +242,7 @@ export function useNativePdfController({
       scale,
       loadError,
       renderError,
+      textLayerError,
       goToPreviousPage,
       goToNextPage,
       jumpToPage,
@@ -228,6 +259,7 @@ export function useNativePdfController({
       scale,
       loadError,
       renderError,
+      textLayerError,
       goToPreviousPage,
       goToNextPage,
       jumpToPage,

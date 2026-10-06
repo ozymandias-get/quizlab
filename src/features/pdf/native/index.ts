@@ -15,20 +15,38 @@
  * The dependency direction is `UI → engine → pdfjs-6`; the reverse is forbidden
  * and is asserted by `src/__tests__/architecture/pdfjs-dual-runtime.test.ts`.
  *
+ * `nativePdfDom.ts` is the one exception to "pure hooks": it is the native
+ * markup's contract, kept here so the boundary owns what it emits and the text
+ * extractors only have to ask. It imports nothing.
+ *
  * ## What is inside
  *
  *  - `nativePdfViewerFlag` — the build-time opt-in, default off
  *  - `nativePdfBounds` — the 1-based page clamp and the numeric zoom clamp
+ *  - `nativePdfDom` — the native markup contract, for the text extractors
  *  - `useNativeCoalescedScale` — the one-zoom-per-frame channel
  *  - `useNativePdfEngine` — one document manager + one page renderer per mount
  *  - `useNativePdfDocument` — `(pdfUrl, reloadKey)` → ready document
  *  - `useNativePdfPageState` — 1-based page state, clamped
  *  - `useNativePdfScaleState` — numeric scale state, fit on document identity
  *  - `useNativePdfRender` — one page, one canvas, supersede-cancel
+ *  - `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`, supersede-cancel
  *  - `useNativePdfController` — the composition and the toolbar contract
  *  - `nativeZoomControls` — render-prop zoom components for the shared toolbar
  */
 export { clampPdfPage, clampPdfScale } from './nativePdfBounds'
+export {
+  findNativePageElement,
+  findNativeTextLayer,
+  findNativeTextLayerForPage,
+  isInsideNativeTextLayer,
+  NATIVE_CANVAS_SELECTOR,
+  NATIVE_PAGE_SELECTOR,
+  NATIVE_TEXT_LAYER_SELECTOR,
+  NATIVE_TEXT_SPAN_SELECTOR,
+  nativePageSelector,
+  nativeTextLayerSelectorForPage
+} from './nativePdfDom'
 export {
   isNativePdfViewerEnabled,
   NATIVE_PDF_VIEWER_ENV_KEY,
@@ -54,3 +72,4 @@ export {
 export { type NativePdfPageHandle, useNativePdfPageState } from './useNativePdfPageState'
 export { type NativePdfRenderHandle, useNativePdfRender } from './useNativePdfRender'
 export { type NativePdfScaleHandle, useNativePdfScaleState } from './useNativePdfScaleState'
+export { type NativePdfTextLayerHandle, useNativePdfTextLayer } from './useNativePdfTextLayer'
