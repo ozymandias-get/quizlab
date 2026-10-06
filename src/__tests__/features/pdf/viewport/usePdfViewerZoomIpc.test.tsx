@@ -16,18 +16,14 @@ vi.mock('@shared/lib/electronApi', () => ({
   getElectronApi: mocks.getElectronApi
 }))
 
-vi.mock('@react-pdf-viewer/core', () => ({
-  SpecialZoomLevel: { PageWidth: 'PageWidth' }
-}))
-
 describe('usePdfViewerZoomIpc', () => {
   const zoomTo = vi.fn()
 
-  const setup = (scaleFactor = 1, enabled = true) => {
+  const setup = (scaleFactor = 1, enabled = true, fitScale: number | null = 1) => {
     mocks.getElectronApi.mockReturnValue({ onPdfViewerZoom: mocks.onPdfViewerZoom })
     mocks.onPdfViewerZoom.mockReturnValue(mocks.removeListener)
-    return renderHook(({ scale, on }) => usePdfViewerZoomIpc(zoomTo, scale, on), {
-      initialProps: { scale: scaleFactor, on: enabled }
+    return renderHook(({ scale, fit, on }) => usePdfViewerZoomIpc(zoomTo, scale, fit, on), {
+      initialProps: { scale: scaleFactor, fit: fitScale, on: enabled }
     })
   }
 
@@ -57,12 +53,23 @@ describe('usePdfViewerZoomIpc', () => {
     expect(zoomTo).toHaveBeenCalledWith(PDF_ZOOM_MIN_SCALE)
   })
 
-  it('resets to page width', () => {
-    setup(2, true)
+  // Phase 8B: reset is the viewer's numeric fit scale, not RPV's
+  // `SpecialZoomLevel.PageWidth` keyword. The keyword could only be interpreted by
+  // RPV's own `zoomTo`, so the native viewer needs the number it stands for.
+  it('resets to the numeric fit scale', () => {
+    setup(2, true, 1.37)
 
     lastActionHandler()('reset')
 
-    expect(zoomTo).toHaveBeenCalledWith('PageWidth')
+    expect(zoomTo).toHaveBeenCalledWith(1.37)
+  })
+
+  it('does nothing on reset while the fit scale is unknown', () => {
+    setup(2, true, null)
+
+    lastActionHandler()('reset')
+
+    expect(zoomTo).not.toHaveBeenCalled()
   })
 
   it('ignores actions while disabled and follows the latest scale', () => {
@@ -71,9 +78,24 @@ describe('usePdfViewerZoomIpc', () => {
     lastActionHandler()('in')
     expect(zoomTo).not.toHaveBeenCalled()
 
-    rerender({ scale: 2, on: true })
+    rerender({ scale: 2, fit: 1, on: true })
     lastActionHandler()('in')
     expect(zoomTo).toHaveBeenCalledWith(2 + PDF_ZOOM_STEP)
+  })
+
+  // A single subscription must hold whatever the scale and fit scale do, so the
+  // effect cannot depend on them. Phase 8B wires this hook on both the legacy and
+  // the native path, and exactly one of the two may be active.
+  it('subscribes once and follows the latest fit scale across re-renders', () => {
+    const { rerender } = setup(1, true, 1)
+
+    rerender({ scale: 1, fit: 2, on: true })
+    rerender({ scale: 1, fit: 3, on: true })
+
+    expect(mocks.onPdfViewerZoom).toHaveBeenCalledTimes(1)
+
+    lastActionHandler()('reset')
+    expect(zoomTo).toHaveBeenCalledWith(3)
   })
 
   it('removes the listener on unmount', () => {
@@ -87,7 +109,7 @@ describe('usePdfViewerZoomIpc', () => {
   it('does nothing without the Electron API', () => {
     mocks.hasElectronApi.mockReturnValue(false)
 
-    const { unmount } = renderHook(() => usePdfViewerZoomIpc(zoomTo, 1, true))
+    const { unmount } = renderHook(() => usePdfViewerZoomIpc(zoomTo, 1, 1, true))
 
     expect(mocks.onPdfViewerZoom).not.toHaveBeenCalled()
     unmount()

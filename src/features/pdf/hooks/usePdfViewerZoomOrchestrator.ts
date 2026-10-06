@@ -50,7 +50,10 @@ export function usePdfViewerZoomOrchestrator({
     lastNavigationTimeRef
   )
 
-  usePdfViewerZoomIpc(coalescedZoom, scaleFactor, isDocumentReadyWithUrl)
+  // Reset goes to the shared numeric `fitScale`, not a viewer keyword — the same
+  // number this orchestrator already refits to below and that the native path's
+  // `fit()` applies.
+  usePdfViewerZoomIpc(coalescedZoom, scaleFactor, fitScale, isDocumentReadyWithUrl)
 
   usePdfCtrlWheelZoom(containerRef, coalescedZoom, scaleFactor, isDocumentReadyWithUrl, isPanMode)
 
