@@ -373,17 +373,30 @@ only while a PDF panel existed.
     The native search layer references it rather than redeclaring it; deleting it with the
     RPV rules would silently break the highlight animation.
 22. No capture control is renderer-bounded any more.
+23. **Native page placement.** When the rendered page is shorter than the available PDF
+    viewport, the entire native page stack is vertically centered. When the rendered page
+    exceeds the viewport, normal scrolling is preserved and the page top remains
+    reachable. This is carried by `m-auto` on the `[data-native-pdf-page]` wrapper, never
+    by `align-items: center` / `justify-content: center` on `[data-native-pdf-scroll]`:
+    `center` overflows _equally in both directions_ when free space is negative, so the
+    start-side overflow lands before the scroll origin and the top of a tall page becomes
+    unreachable. An auto margin is resolved before alignment and is zeroed for an
+    overflowing item, so one declaration satisfies both halves. The centering viewport is
+    the page scroll container, which fills the viewer area; the toolbar is a `shrink-0`
+    flow sibling, not an overlay, so it is excluded from that height. Do **not** move the
+    margin onto the canvas: canvas, `TextLayer`, `AnnotationLayer` and `SearchLayer` all
+    share the page wrapper precisely so the whole stack moves as one unit.
 
 ## Regression Baseline
 
-Last verified at Phase 8B, after all code changes.
+Last re-verified after the vertical-centering fix, on top of the Phase 8B baseline.
 
 ```
 Targeted:      src/__tests__/features/pdf + src/__tests__/architecture
-               67 files · 872 passed · 0 failed
+               68 files · 880 passed · 0 failed
 
 Blast radius:  + app, components/layout, platform
-               117 files · 1227 passed · 0 failed
+               118 files · 1235 passed · 0 failed
 ```
 
 > **The full `npm test` run was not executed** — it is intentionally skipped unless a
@@ -391,16 +404,17 @@ Blast radius:  + app, components/layout, platform
 > therefore still the **Phase 7 baseline**: 361 files · 3996 passed · 2 skipped · 0 failed.
 > The 2 skips are pre-existing (Electron `ConfigManager`).
 
-Static gates green at Phase 8B: `typecheck`, `lint`, `format:check`,
+Static gates green after the centering fix: `typecheck`, `lint`, `format:check`,
 `analyze:architecture`, `analyze:file-sizes`, `analyze:css`, `ci:check-hygiene`,
-`check:audit`, `check:electron-security`, `git diff --check`.
+`git diff --check`. `check:audit` / `check:electron-security` were last green at Phase 8B
+and are unaffected by a renderer-only CSS change.
 
 Build: `npm run build:renderer:electron` emits **one** PDF chunk (`vendor-pdf`, 426.62 kB),
 **one** worker (`pdf.worker.min-<hash>.mjs`) and the full `dist/pdfjs/` tree
 (200 files: cmaps 169, standard_fonts 16, wasm 13, iccs 2). Zero RPV traces in `dist/assets`.
 
-`electron/__tests__` were not run at Phase 8B; they do not import PDF.js and Phase 8B did
-not touch `electron/` or `shared/` behaviour.
+`electron/__tests__` were not run; they do not import PDF.js and the centering fix touches
+neither `electron/` nor `shared/` behaviour.
 
 ## Interactive Smoke State
 
@@ -420,6 +434,11 @@ not touch `electron/` or `shared/` behaviour.
   `-` / `=` / `0` zoom actually work**, and did it work under RPV? The audit could not
   settle whether RPV's focus-containment check made those bindings unreachable in
   QuizLab's own markup.
+- **Phase 8B follow-up (vertical centering)**: outstanding. jsdom has no box model, so
+  `nativePageLayout.test.tsx` pins the _structural_ contract (which element scrolls, which
+  element carries `m-auto`, which subtree moves together) and nothing more. Nobody has
+  looked at a centered page in a real window, so treat "the page is vertically centered"
+  as unverified until the user runs the list below.
 
 The highest-value items overall: selection alignment against the canvas at 100 % / 150 % /
 fit, `Ctrl+C` out of the native layer, pan ⇄ text switching, link hitbox alignment after a
@@ -468,6 +487,12 @@ has.
     if the two ever drift.
 18. **`.npmrc` still sets `legacy-peer-deps=true`** although RPV is gone. It still governs
     an eslint peer conflict; removing it is Phase 9's business, not this phase's.
+19. **`nativePageLayout.test.tsx` cannot measure layout.** jsdom performs no box model —
+    every rect is `0×0`, `scrollHeight === clientHeight`, and no margin is ever resolved —
+    so the file asserts the structural layout contract instead and says so in its header.
+    A future agent must not "upgrade" it by fabricating pixel geometry: that would assert
+    the helper's arithmetic rather than the browser's. The vertical-centering invariant is
+    confirmed by the interactive smoke list, not by that suite.
 
 ## Temporary Migration Components
 
@@ -620,6 +645,11 @@ highlight alignment, capture fidelity and keyboard zoom are all unproven.
   second external-URL pathway.
 - Do not give the native search a whole-document index, a match counter or next/previous
   match.
+- Do not recentre the native page with `items-center` / `justify-content: center` on
+  `[data-native-pdf-scroll]`, and do not move `m-auto` from the page wrapper onto the
+  canvas. Both undo invariant 23: the first strands the top of a tall page above the
+  scroll origin, the second desynchronises the canvas from the text, annotation and
+  search layers.
 - Do not write a second context menu.
 - Do not fix the pixel-budget rounding epsilon "while you are in there" — it is pinned by
   tests with a deliberate tolerance.
