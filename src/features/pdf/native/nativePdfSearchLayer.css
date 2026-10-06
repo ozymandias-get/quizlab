@@ -1,0 +1,65 @@
+/**
+ * Layout and paint CSS for the native PDF.js search highlight layer.
+ *
+ * ## Why this file exists at all
+ *
+ * The overlay is absolutely positioned inside the page box and its children are
+ * positioned from geometry the browser measured, so without `position: absolute` on both
+ * the layer and its highlights every match would stack in the top-left corner of the
+ * page. The fade-in itself is *not* here: `pdf-highlight-fadein` stays defined once, in
+ * the global stylesheet, and is only referenced from the inline style — the same split
+ * the legacy highlight uses.
+ *
+ * ## Why the legacy class is not reused
+ *
+ * `@react-pdf-viewer/search` ships `.rpv-search__highlight` for its own markup. Emitting
+ * that class from the native viewer would let the plugin's stylesheet style a layer it
+ * knows nothing about, and would make the two markups indistinguishable to a reader. So
+ * the native overlay is keyed on `data-native-pdf-search-*` attributes only and
+ * re-declares the two visual properties it inherits from that plugin stylesheet: the
+ * translucent yellow and the corner radius. `src/shared/styles/**` stays untouched.
+ *
+ * ## Layer order and pointer behaviour
+ *
+ * The overlay is `z-index: 1`: above the canvas and the text layer (`z-index: 0`) and
+ * below the annotation layer (`z-index: 2`). That is where a highlight belongs visually —
+ * it tints the glyphs the canvas painted — and it is what keeps the annotation layer's
+ * link anchors, which take pointer events, the topmost thing under the cursor.
+ *
+ * `pointer-events: none` on the layer *and* on the highlights is what makes the overlay
+ * free: the pointer passes straight through to the text layer beneath, so text selection,
+ * `Ctrl+C`, the AI selection action, panning and `Ctrl`+wheel zoom all behave exactly as
+ * they do with no search running.
+ */
+
+[data-native-pdf-search-layer] {
+  position: absolute;
+  inset: 0;
+  /* Same clipping the text layer uses: a match whose run sits partly outside the page
+     must not bleed onto the surrounding viewer background. */
+  overflow: clip;
+  pointer-events: none;
+  /* Above the canvas and the text layer (0), below the annotation layer (2). */
+  z-index: 1;
+}
+
+[data-native-pdf-search-highlight] {
+  position: absolute;
+  /* The colour and radius `@react-pdf-viewer/search` gives `.rpv-search__highlight`,
+     re-declared under a native attribute: a search result has to look the same on both
+     renderers. */
+  background-color: rgb(255 255 0 / 0.4);
+  border-radius: 0.25rem;
+  pointer-events: none;
+}
+
+/* Forced-colours mode: a background colour is not honoured there, so the highlight needs
+   a shape it can paint. PDF.js's own stylesheet makes the same substitution for its
+   links. */
+
+@media screen and (forced-colors: active) {
+  [data-native-pdf-search-highlight] {
+    background-color: Highlight;
+    outline: 1px solid HighlightText;
+  }
+}

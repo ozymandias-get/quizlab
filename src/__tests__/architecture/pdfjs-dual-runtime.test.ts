@@ -457,9 +457,142 @@ describe('native viewer boundary', () => {
     expect(source).toContain('isNativePdfViewerEnabled')
     expect(source).toContain('<NativePdfViewer')
     expect(source).toContain('<PdfViewerElement')
-    // The switch must be a branch at the top level, not something buried inside
-    // the legacy element where both paths would share state.
+    // The switch must be a branch at the top level, not something buried inside the
+    // legacy element where both paths would share state.
     expect(source).toMatch(/isNativeViewer \? \(/)
+  })
+})
+
+describe('native search boundary', () => {
+  it('keeps the native search off the web viewer bundle, like the link service', () => {
+    // The trap Phase 7 walks into is `PDFFindController`: it *is* exported from
+    // `pdfjs-6/web/pdf_viewer.mjs`, and it is the obvious answer for "native search". Its
+    // constructor calls `eventBus.on(...)` four times before it does anything else and it
+    // publishes matches by dispatching `updatetextlayermatches` for a `PDFPageView` to
+    // route back into — so it needs the whole web viewer, which this single-page viewer
+    // does not have. The legacy path does not use it either: `@react-pdf-viewer/search`
+    // walks the text layer's DOM itself. So the native search is QuizLab's own, built on
+    // the same text layer the text extractors already read, and the web bundle stays out.
+    for (const file of pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR)) {
+      expect(codeOf(file), path.relative(repoRoot, file)).not.toContain('pdfjs-6/web/')
+      expect(codeOf(file), path.relative(repoRoot, file)).not.toContain('PDFFindController')
+      expect(codeOf(file), path.relative(repoRoot, file)).not.toContain('EventBus')
+      expect(codeOf(file), path.relative(repoRoot, file)).not.toContain('PDFViewer')
+    }
+
+    // It resolves no pdfjs module at all: it needs text runs, and the text layer already
+    // produced them. One less way for a second runtime to be dragged in.
+    const search = codeOf(path.join(repoRoot, 'src/features/pdf/native/nativePdfSearch.ts'))
+    expect(search).not.toMatch(/from ['"]pdfjs/)
+    expect(search).toContain('document.createRange()')
+  })
+
+  it("emits its own highlight vocabulary, never the search plugin's class", () => {
+    // `@react-pdf-viewer/search` ships `.rpv-search__highlight` and positions it with its
+    // own stylesheet. Reusing that class would let the plugin's CSS style the native layer
+    // and would make the two markups indistinguishable. So the native overlay is keyed on
+    // `data-native-pdf-search-*` and the two visual properties it inherits from that
+    // stylesheet are re-declared in the native one.
+    for (const file of [...pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR), NATIVE_VIEWER_COMPONENT]) {
+      expect(codeOf(file), path.relative(repoRoot, file)).not.toContain('rpv-search__highlight')
+    }
+
+    const css = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfSearchLayer.css'),
+      'utf-8'
+    )
+    expect(css).toContain('[data-native-pdf-search-layer]')
+    expect(css).toContain('[data-native-pdf-search-highlight]')
+    // The legacy plugin's own stylesheet must not be able to match the native overlay.
+    expect(css).not.toContain("'rpv-")
+    expect(css).not.toContain('"rpv-')
+
+    const dom = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfDom.ts'),
+      'utf-8'
+    )
+    expect(dom).toContain("'[data-native-pdf-search-layer]'")
+    expect(dom).toContain('data-native-pdf-search-highlight')
+    expect(dom).toContain('data-native-pdf-search-page')
+  })
+
+  it('keeps the overlay inert to the pointer, above the canvas and below the links', () => {
+    // Three separate requirements, and one stylesheet is the only place any of them can be
+    // met: the overlay must not eat a selection or a `Ctrl+C`, it must not sit above the
+    // annotation layer's link anchors, and it must paint above the canvas. `z-index: 1`
+    // between the text layer's `0` and the annotation layer's `2` is what satisfies all
+    // three at once.
+    const css = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfSearchLayer.css'),
+      'utf-8'
+    )
+    const layerRule = css.slice(css.indexOf('[data-native-pdf-search-layer] {'))
+    expect(layerRule).toContain('pointer-events: none')
+    expect(layerRule).toContain('z-index: 1')
+    const highlightRule = css.slice(css.indexOf('[data-native-pdf-search-highlight] {'))
+    expect(highlightRule).toContain('pointer-events: none')
+    expect(highlightRule).toContain('position: absolute')
+
+    // The fade-in itself stays defined once, in the global stylesheet: the native overlay
+    // only references the animation by name.
+    const global = readFileSync(
+      path.join(repoRoot, 'src/shared/styles/modules/_pdf-viewer.css'),
+      'utf-8'
+    )
+    expect(global).toContain('@keyframes pdf-highlight-fadein')
+    expect(css).not.toContain('@keyframes')
+    expect(codeOf(path.join(repoRoot, 'src/features/pdf/native/nativePdfSearch.ts'))).toContain(
+      'pdf-highlight-fadein var(--duration-normal) ease var(--duration-deliberate) forwards'
+    )
+    // Reduced motion is read per search run rather than cached in a second module-level
+    // variable: the legacy cache stays where it is, at zero diff, and the native path has
+    // nothing to invalidate because it measures once per query.
+    const hook = codeOf(path.join(repoRoot, 'src/features/pdf/native/useNativePdfSearch.ts'))
+    expect(hook).toContain('(prefers-reduced-motion: reduce)')
+    // The legacy renderer is untouched: it keeps its own renderer, its own class and its
+    // own reduced-motion cache.
+    expect(
+      readFileSync(path.join(repoRoot, 'src/features/pdf/ui/hooks/usePdfPlugins.ts'), 'utf-8')
+    ).toContain('safeRenderHighlights')
+  })
+
+  it('searches the page it renders, and does not build a whole-document index', () => {
+    // The legacy viewer runs `ViewMode.SinglePage`, so its plugin only ever highlights the
+    // rendered page. A native whole-document index would extract every page's text in the
+    // background to produce nothing a single-page viewer can show, and would grow the
+    // memory footprint with page count. So nothing here walks pages: the search reads the
+    // text layer that is mounted.
+    const hook = codeOf(path.join(repoRoot, 'src/features/pdf/native/useNativePdfSearch.ts'))
+    expect(hook).not.toContain('getTextContent')
+    expect(hook).not.toContain('getPage')
+    expect(hook).toContain('findNativeSearchTextLayer')
+
+    const search = codeOf(path.join(repoRoot, 'src/features/pdf/native/nativePdfSearch.ts'))
+    expect(search).not.toContain('getTextContent')
+    // Literal matching: the keyword is compared, never compiled.
+    expect(search).not.toMatch(/new RegExp/)
+  })
+
+  it('leaves the shared search UI renderer-agnostic', () => {
+    // One `PdfSearchBar`, one `usePdfSearchStore`, one toolbar. The switch happens where
+    // the renderer is chosen, so neither the bar nor the store can grow a native branch —
+    // and neither is duplicated for the native path.
+    for (const file of [
+      'src/features/pdf/ui/components/PdfSearchBar.tsx',
+      'src/features/pdf/ui/hooks/usePdfSearchStore.ts'
+    ]) {
+      const source = codeOf(path.join(repoRoot, file))
+      expect(source, file).not.toContain('data-native-pdf')
+      expect(source, file).not.toContain('VITE_NATIVE_PDF_VIEWER')
+      expect(source, file).not.toContain('@features/pdf/native')
+    }
+
+    // And the native viewer keeps the flag off by default.
+    const flag = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfViewerFlag.ts'),
+      'utf-8'
+    )
+    expect(flag).toMatch(/=== OPT_IN_VALUE/)
   })
 })
 

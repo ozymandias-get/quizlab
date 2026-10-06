@@ -21,14 +21,24 @@
  * native page container
  * ├── canvas                              (data-native-pdf-canvas)
  * ├── text layer                          (data-native-pdf-text-layer)
- * └── annotation layer                    (data-native-pdf-annotation-layer)
+ * ├── annotation layer                    (data-native-pdf-annotation-layer)
+ * └── search highlight layer              (data-native-pdf-search-layer)
  * ```
  *
- * That order is PDF.js 6's own: `LAYERS_ORDER` in `web/pdf_viewer.mjs` numbers the
+ * The first three are PDF.js 6's own: `LAYERS_ORDER` in `web/pdf_viewer.mjs` numbers the
  * page's layers `canvasWrapper` 0, `textLayer` 1, `annotationLayer` 2, and
  * `PDFPageView#addLayer` inserts them in exactly that order. The annotation layer is
  * therefore above the text layer, which is what makes a link clickable while the
  * text underneath stays the selection surface.
+ *
+ * The search highlight layer is **not** a PDF.js layer — PDF.js's own find highlights are
+ * built by `PDFFindController` and handed to a page view, and this viewer declines that
+ * whole stack (see `nativePdfSearch.ts`). It is QuizLab's own fourth layer, so it is
+ * declared last in the DOM and given `z-index: 1` instead: it paints above the canvas and
+ * the text layer and below the annotation layer, which is where a match tint belongs and
+ * what keeps a link the topmost thing under the cursor. The DOM order is therefore *not*
+ * the paint order here, and it is asserted as an explicit contract rather than left to
+ * React's render order.
  *
  * `data-native-pdf-page` is the page's identity and lives on the page container
  * only — the canvas and the text layer are addressed by their own attributes, so
@@ -106,6 +116,19 @@ export const NATIVE_ANNOTATION_LINK_SELECTOR = `${NATIVE_ANNOTATION_LAYER_SELECT
  */
 export const NATIVE_INTERNAL_LINK_SELECTOR = `${NATIVE_ANNOTATION_LAYER_SELECTOR} [data-internal-link] a`
 
+/**
+ * QuizLab's own search highlight overlay, inside the page box.
+ *
+ * Always present while the native viewer renders — one overlay, emptied and refilled —
+ * so the DOM contract does not change shape between "no search" and "no matches" and
+ * "many matches". The legacy plugin renders a parallel `rpv-search__highlights` element
+ * per page; the name is not reused.
+ */
+export const NATIVE_SEARCH_LAYER_SELECTOR = '[data-native-pdf-search-layer]'
+
+/** One measured match rectangle inside the overlay. */
+export const NATIVE_SEARCH_HIGHLIGHT_SELECTOR = `${NATIVE_SEARCH_LAYER_SELECTOR} [data-native-pdf-search-highlight]`
+
 /** The page selector narrowed to one page (1-based). */
 export function nativePageSelector(pageNumber: number): string {
   return `[data-native-pdf-page="${pageNumber}"]`
@@ -119,6 +142,11 @@ export function nativeTextLayerSelectorForPage(pageNumber: number): string {
 /** The annotation-layer selector narrowed to one page (1-based). */
 export function nativeAnnotationLayerSelectorForPage(pageNumber: number): string {
   return `${NATIVE_ANNOTATION_LAYER_SELECTOR}[data-native-pdf-annotation-page="${pageNumber}"]`
+}
+
+/** The search-layer selector narrowed to one page (1-based). */
+export function nativeSearchLayerSelectorForPage(pageNumber: number): string {
+  return `${NATIVE_SEARCH_LAYER_SELECTOR}[data-native-pdf-search-page="${pageNumber}"]`
 }
 
 /** The page element for `pageNumber` (1-based), or `null`. */
@@ -150,6 +178,19 @@ export function findNativeAnnotationLayerForPage(
   pageNumber: number
 ): HTMLElement | null {
   return root.querySelector<HTMLElement>(nativeAnnotationLayerSelectorForPage(pageNumber))
+}
+
+/** The search overlay under `root`, whatever page it belongs to. `null` on the legacy path. */
+export function findNativeSearchLayer(root: ParentNode): HTMLElement | null {
+  return root.querySelector<HTMLElement>(NATIVE_SEARCH_LAYER_SELECTOR)
+}
+
+/** The search overlay for `pageNumber` (1-based), or `null`. */
+export function findNativeSearchLayerForPage(
+  root: ParentNode,
+  pageNumber: number
+): HTMLElement | null {
+  return root.querySelector<HTMLElement>(nativeSearchLayerSelectorForPage(pageNumber))
 }
 
 /**

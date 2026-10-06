@@ -147,6 +147,13 @@ export interface FakePage {
    * test wants all of them to land late, not just the last.
    */
   settleAllAnnotations: () => void
+  /**
+   * Settle every outstanding `getTextContent()` call on this page.
+   *
+   * Same reason as `settleAllAnnotations`: a rebuild usually leaves more than one lookup
+   * pending and only the newest belongs to a live effect.
+   */
+  settleAllTextContent: () => void
 }
 
 /* ---------------------------------------------------------------- document */
@@ -285,6 +292,11 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
       settleAllAnnotations: () => {
         for (const deferred of annotationDeferreds) {
           deferred.resolve(annotationsFor(pageNumber))
+        }
+      },
+      settleAllTextContent: () => {
+        for (const deferred of textContentDeferreds) {
+          deferred.resolve(textContentFor(pageNumber))
         }
       }
     }
@@ -433,6 +445,7 @@ export function NativeViewerHarness({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const textLayerRef = useRef<HTMLDivElement>(null)
   const annotationLayerRef = useRef<HTMLDivElement>(null)
+  const searchLayerRef = useRef<HTMLDivElement>(null)
 
   const controller = useNativePdfController({
     enabled,
@@ -446,7 +459,8 @@ export function NativeViewerHarness({
     pdfPath: null,
     canvasRef,
     textLayerRef,
-    annotationLayerRef
+    annotationLayerRef,
+    searchLayerRef
   })
 
   // The real shared hook, on the real shared container. This is the whole point
@@ -472,6 +486,7 @@ export function NativeViewerHarness({
         canvasRef={canvasRef}
         textLayerRef={textLayerRef}
         annotationLayerRef={annotationLayerRef}
+        searchLayerRef={searchLayerRef}
         t={t}
         tt={t}
       />

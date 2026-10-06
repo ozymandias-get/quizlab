@@ -33,6 +33,8 @@
  *  - `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`, supersede-cancel
  *  - `nativePdfLinkService` — PDF.js's link-service surface over the native page state
  *  - `useNativePdfAnnotationLayer` — one page, one PDF.js `AnnotationLayer`
+ *  - `nativePdfSearch` — literal matching over the page's runs, and match geometry
+ *  - `useNativePdfSearch` — keyword → highlight rectangles in the overlay
  *  - `useNativePdfController` — the composition and the toolbar contract
  *  - `nativeZoomControls` — render-prop zoom components for the shared toolbar
  */
@@ -41,6 +43,8 @@ export {
   findNativeAnnotationLayer,
   findNativeAnnotationLayerForPage,
   findNativePageElement,
+  findNativeSearchLayer,
+  findNativeSearchLayerForPage,
   findNativeTextLayer,
   findNativeTextLayerForPage,
   isInsideNativeTextLayer,
@@ -49,10 +53,13 @@ export {
   NATIVE_CANVAS_SELECTOR,
   NATIVE_INTERNAL_LINK_SELECTOR,
   NATIVE_PAGE_SELECTOR,
+  NATIVE_SEARCH_HIGHLIGHT_SELECTOR,
+  NATIVE_SEARCH_LAYER_SELECTOR,
   NATIVE_TEXT_LAYER_SELECTOR,
   NATIVE_TEXT_SPAN_SELECTOR,
   nativeAnnotationLayerSelectorForPage,
   nativePageSelector,
+  nativeSearchLayerSelectorForPage,
   nativeTextLayerSelectorForPage
 } from './nativePdfDom'
 export {
@@ -84,4 +91,5 @@ export {
 export { type NativePdfPageHandle, useNativePdfPageState } from './useNativePdfPageState'
 export { type NativePdfRenderHandle, useNativePdfRender } from './useNativePdfRender'
 export { type NativePdfScaleHandle, useNativePdfScaleState } from './useNativePdfScaleState'
+export { type NativePdfSearchHandle, useNativePdfSearch } from './useNativePdfSearch'
 export { type NativePdfTextLayerHandle, useNativePdfTextLayer } from './useNativePdfTextLayer'
