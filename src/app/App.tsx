@@ -144,7 +144,6 @@ function App() {
               leftPanelVariants={animations.leftPanelVariants}
               rightPanelVariants={animations.rightPanelVariants}
               resizerVariants={animations.resizerVariants}
-              gpuAcceleratedStyle={animations.gpuAcceleratedStyle}
               handlePointerDown={handlePointerDown}
               handlePointerMove={handlePointerMove}
               handlePointerUp={handlePointerUp}

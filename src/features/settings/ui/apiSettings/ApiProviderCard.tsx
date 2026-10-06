@@ -12,6 +12,7 @@ import { Eye, EyeOff, KeyRound, Search, Sparkles, Trash2 } from 'lucide-react'
 import { memo, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { DEFAULT_PLACEHOLDERS, PROVIDER_PLACEHOLDERS } from './constants'
 import {
   validateProviderBaseUrl as validateBaseUrl,
@@ -48,6 +49,8 @@ function ApiProviderCard({
   const baseUrlId = useId()
   const apiKeyId = useId()
   const defaultModelId = useId()
+  const localNetworkId = useId()
+  const localNetworkDescId = useId()
 
   const filteredModels = (provider.models || []).filter((m) =>
     search ? m.toLowerCase().includes(search.toLowerCase()) : true
@@ -173,6 +176,25 @@ function ApiProviderCard({
               placeholder={placeholders.model}
             />
           </InputGroup>
+        </div>
+      </div>
+
+      <div className="border-border/60 bg-muted/20 flex items-start gap-3 rounded-lg border p-3">
+        <SettingsToggleSwitch
+          id={localNetworkId}
+          aria-describedby={localNetworkDescId}
+          checked={provider.allowLocalNetwork === true}
+          onChange={(checked) => onUpdate(provider.id, { allowLocalNetwork: checked })}
+          size="sm"
+          className="mt-0.5 shrink-0"
+        />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <Label htmlFor={localNetworkId} className="text-ql-11 font-medium">
+            {t('api_chat_allow_local_network')}
+          </Label>
+          <p id={localNetworkDescId} className="text-ql-11 text-muted-foreground">
+            {t('api_chat_allow_local_network_desc')}
+          </p>
         </div>
       </div>
 

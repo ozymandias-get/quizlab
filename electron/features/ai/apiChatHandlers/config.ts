@@ -14,6 +14,35 @@ function sanitizeApiKey(key: string): string {
   return cleaned
 }
 
+/**
+ * The only place the deprecated local-network aliases are ever read.
+ *
+ * `ApiProviderConfig.allowLocalEndpoints` / `.isCustomProvider` were introduced
+ * as aliases and are never written by the app, but a config file could carry
+ * them. Because load and save both spread each provider verbatim, they would
+ * otherwise survive forever and the rest of the app would have to keep
+ * re-deriving the permission from three names. Resolving them once here means
+ * only the canonical flag exists at runtime, and the next save rewrites the file
+ * in canonical form.
+ *
+ * The grant itself is unchanged: an alias of `true` becomes
+ * `allowLocalNetwork: true`, which is what the request path would have computed
+ * from it anyway. An explicit `allowLocalNetwork: false` still wins over an alias
+ * set to `false`, and neither alias overrides a canonical `true`.
+ *
+ * The request path (`getSsrOptionsForProvider` in ssrf.ts) reads
+ * `allowLocalNetwork` and nothing else, so a provider that predates the aliases
+ * keeps working without any of them surviving into a live request.
+ */
+function normalizeProvider(p: ApiProviderConfig): ApiProviderConfig {
+  const { allowLocalEndpoints, isCustomProvider, ...rest } = p
+  const aliasAllowsLocal = allowLocalEndpoints === true || isCustomProvider === true
+  return {
+    ...rest,
+    ...(aliasAllowsLocal || rest.allowLocalNetwork === true ? { allowLocalNetwork: true } : {})
+  }
+}
+
 async function loadConfig(): Promise<ApiConfig> {
   let configPath: string | undefined
   try {
@@ -22,7 +51,7 @@ async function loadConfig(): Promise<ApiConfig> {
     const raw = JSON.parse(content)
 
     const providers: ApiProviderConfig[] = (raw.providers || []).map((p: ApiProviderConfig) => ({
-      ...p,
+      ...normalizeProvider(p),
       apiKey: decryptValue(p.apiKey || '')
     }))
 
@@ -81,4 +110,4 @@ async function saveConfig(config: ApiConfig): Promise<boolean> {
   }
 }
 
-export { loadConfig, sanitizeApiKey, saveConfig }
+export { loadConfig, normalizeProvider, sanitizeApiKey, saveConfig }

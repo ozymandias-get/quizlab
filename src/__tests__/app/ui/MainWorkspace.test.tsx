@@ -37,7 +37,6 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
       leftPanelVariants={{}}
       rightPanelVariants={{}}
       resizerVariants={{}}
-      gpuAcceleratedStyle={{}}
       handlePointerDown={vi.fn()}
       handlePointerMove={vi.fn()}
       handlePointerUp={vi.fn()}

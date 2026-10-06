@@ -17,19 +17,18 @@ import { useElementPickerLifecycle } from './app-tool/useElementPickerLifecycle'
 import { useGeminiSessionRefreshListeners } from './app-tool/useGeminiSessionRefreshListeners'
 import { useScreenshotPipeline } from './app-tool/useScreenshotPipeline'
 
-export interface AppToolQueueState {
+interface AppToolQueueState {
   pendingAiItems: AiDraftItem[]
   autoSend: boolean
 }
 
-export interface AppToolFlagsState {
+interface AppToolScreenshotState {
   isScreenshotMode: boolean
-  isPickerActive: boolean
-  isGeminiWebSessionRefreshing: boolean
 }
 
-type AppToolScreenshotState = Pick<AppToolFlagsState, 'isScreenshotMode'>
-type AppToolPickerState = Pick<AppToolFlagsState, 'isPickerActive'>
+interface AppToolPickerState {
+  isPickerActive: boolean
+}
 
 interface AppToolActionsType {
   startScreenshot: (imageMeta?: QueuedImageMeta) => void
@@ -47,8 +46,13 @@ interface AppToolActionsType {
   togglePicker: () => void
 }
 
+/**
+ * One context per concern, so a consumer only re-renders for the slice it reads.
+ * There is deliberately no combined "give me everything" hook: it produced a new
+ * object on every flag change, which re-rendered consumers for state they never
+ * used. Compose the hooks you need instead.
+ */
 const AppToolQueueContext = createContext<AppToolQueueState | null>(null)
-const AppToolFlagsContext = createContext<AppToolFlagsState | null>(null)
 const AppToolScreenshotContext = createContext<AppToolScreenshotState | null>(null)
 const AppToolPickerContext = createContext<AppToolPickerState | null>(null)
 const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
@@ -92,20 +96,11 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   const { isPickerActive, startPicker, startPickerWhenReady, togglePicker } =
     useElementPickerLifecycle(getContentController)
 
-  const { isGeminiWebSessionRefreshing } = useGeminiSessionRefreshListeners({ showError })
+  useGeminiSessionRefreshListeners({ showError })
 
   const queueValue = useMemo<AppToolQueueState>(
     () => ({ pendingAiItems, autoSend }),
     [pendingAiItems, autoSend]
-  )
-
-  const flagsValue = useMemo<AppToolFlagsState>(
-    () => ({
-      isScreenshotMode,
-      isPickerActive,
-      isGeminiWebSessionRefreshing
-    }),
-    [isScreenshotMode, isPickerActive, isGeminiWebSessionRefreshing]
   )
 
   const screenshotValue = useMemo<AppToolScreenshotState>(
@@ -150,15 +145,13 @@ function AppToolProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppToolQueueContext.Provider value={queueValue}>
-      <AppToolFlagsContext.Provider value={flagsValue}>
-        <AppToolScreenshotContext.Provider value={screenshotValue}>
-          <AppToolPickerContext.Provider value={pickerValue}>
-            <AppToolActionsContext.Provider value={actionsValue}>
-              {children}
-            </AppToolActionsContext.Provider>
-          </AppToolPickerContext.Provider>
-        </AppToolScreenshotContext.Provider>
-      </AppToolFlagsContext.Provider>
+      <AppToolScreenshotContext.Provider value={screenshotValue}>
+        <AppToolPickerContext.Provider value={pickerValue}>
+          <AppToolActionsContext.Provider value={actionsValue}>
+            {children}
+          </AppToolActionsContext.Provider>
+        </AppToolPickerContext.Provider>
+      </AppToolScreenshotContext.Provider>
     </AppToolQueueContext.Provider>
   )
 }
@@ -168,12 +161,6 @@ export default AppToolProvider
 export const useAppToolQueueState = () => {
   const context = useContext(AppToolQueueContext)
   if (!context) throw new Error('useAppToolQueueState must be used within AppToolProvider')
-  return context
-}
-
-const useAppToolFlagsState = () => {
-  const context = useContext(AppToolFlagsContext)
-  if (!context) throw new Error('useAppToolFlagsState must be used within AppToolProvider')
   return context
 }
 
@@ -193,37 +180,4 @@ export const useAppToolActions = () => {
   const context = useContext(AppToolActionsContext)
   if (!context) throw new Error('useAppToolActions must be used within AppToolProvider')
   return context
-}
-
-/**
- * @deprecated Prefer granular hooks (`useAppToolQueueState`, `useAppToolFlagsState`,
- * `useAppToolScreenshotState`, `useAppToolPickerState`, `useAppToolActions`) to avoid
- * global re-renders. This helper spreads queue+flags+actions into a new object on
- * every flag change, so any consumer re-renders when *any* slice changes.
- * A selector overload is provided to isolate renders when migration is not trivial.
- */
-export function useAppTools(): AppToolQueueState & AppToolFlagsState & AppToolActionsType
-export function useAppTools<T>(
-  selector: (state: AppToolQueueState & AppToolFlagsState & AppToolActionsType) => T
-): T
-export function useAppTools<T>(
-  selector?: (state: AppToolQueueState & AppToolFlagsState & AppToolActionsType) => T
-) {
-  const queue = useAppToolQueueState()
-  const flags = useAppToolFlagsState()
-  const actions = useAppToolActions()
-
-  const combined = useMemo(
-    () => ({
-      ...queue,
-      ...flags,
-      ...actions
-    }),
-    [queue, flags, actions]
-  )
-
-  if (typeof selector === 'function') {
-    return selector(combined)
-  }
-  return combined
 }

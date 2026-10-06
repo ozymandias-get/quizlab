@@ -1,6 +1,10 @@
 /**
  * DOM helpers for PDF pan (hand) tool — find scrollable region inside react-pdf-viewer.
+ *
+ * The viewer selector comes from `../lib/pdfViewerDom`, the single owner of the
+ * viewer's private DOM.
  */
+import { INNER_CONTAINER_SELECTOR } from '../lib/pdfViewerDom'
 
 export function isScrollableElement(el: HTMLElement): boolean {
   const style = window.getComputedStyle(el)
@@ -28,5 +32,5 @@ export function getScrollableAncestor(
 }
 
 export function getInnerContainerFallback(root: HTMLElement): HTMLElement | null {
-  return root.querySelector<HTMLElement>('[data-testid="core__inner-container"]')
+  return root.querySelector<HTMLElement>(INNER_CONTAINER_SELECTOR)
 }

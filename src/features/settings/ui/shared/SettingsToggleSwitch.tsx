@@ -11,6 +11,9 @@ interface SettingsToggleSwitchProps {
   disabled?: boolean
   size?: SettingsToggleSwitchSize
   className?: string
+  /** Lets a <Label htmlFor> name the control, which is what a role="switch" needs. */
+  id?: string
+  'aria-describedby'?: string
 }
 
 function SettingsToggleSwitch({
@@ -18,10 +21,14 @@ function SettingsToggleSwitch({
   onChange,
   disabled = false,
   size = 'md',
-  className
+  className,
+  id,
+  'aria-describedby': ariaDescribedBy
 }: SettingsToggleSwitchProps) {
   return (
     <Switch
+      id={id}
+      aria-describedby={ariaDescribedBy}
       checked={checked}
       onCheckedChange={onChange}
       disabled={disabled}

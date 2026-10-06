@@ -5,14 +5,15 @@ import { memo, type ReactNode, useEffect } from 'react'
 import { installPdfRenderErrorGuard } from '../../errors/pdfRenderErrors'
 
 /**
- * Wraps children with the pdfjs `<Worker>` context provider.
+ * Owns the pdfjs worker for the whole renderer.
  *
- * By mounting this at a stable point in the React tree (e.g. LeftPanel), the
- * pdfjs web worker is created once at app startup and stays alive for the
- * entire session — even when the user closes all PDFs or switches tabs.
+ * Mounted at a stable point in the tree (LeftPanel) so the worker outlives
+ * individual PDF open/close cycles and tab switches instead of being torn down
+ * and rebuilt with each document.
  *
- * This eliminates the ~100–300ms Worker creation/destruction overhead on every
- * PDF open/close cycle and on tab switches.
+ * The worker URL comes from the npm `pdfjs-dist` package, which is the same
+ * package `@react-pdf-viewer/core` peer-depends on — see the note in
+ * `features/pdf/index.ts`.
  */
 function PdfWorkerHost({ children }: { children: ReactNode }) {
   useEffect(() => installPdfRenderErrorGuard(), [])

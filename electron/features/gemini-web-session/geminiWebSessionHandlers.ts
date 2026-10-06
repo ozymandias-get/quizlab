@@ -1,5 +1,3 @@
-import type { GeminiWebSessionStatus } from '@shared-core/types'
-
 import { BrowserWindow, dialog } from 'electron'
 
 import {
@@ -20,35 +18,6 @@ import {
 import { geminiWebSessionManager } from './sessionManager.js'
 
 let handlersRegistered = false
-
-/**
- * Broadcast the current Gemini Web Session status to ALL open BrowserWindows.
- * This keeps multi-window and split-screen UIs synchronised when state changes
- * (enabled/disabled, enabled apps, etc.) from one window.
- */
-function broadcastStatus(status?: GeminiWebSessionStatus): void {
-  const allWindows = BrowserWindow.getAllWindows()
-  if (allWindows.length === 0) return
-
-  // Fetch fresh status if not provided (avoids a second IPC round-trip
-  // when the caller already has it).
-  const promise = status ? Promise.resolve(status) : geminiWebSessionManager.getStatus()
-
-  void promise
-    .then((s) => {
-      for (const win of allWindows) {
-        if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
-          win.webContents.send(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_STATUS_UPDATED, s)
-        }
-      }
-    })
-    .catch((error) => {
-      // A background status broadcast must never escalate into the process-level
-      // unhandledRejection handler, which pops a modal error dialog and writes a
-      // crash report. A window can be torn down between isDestroyed() and send().
-      Logger.warn('[GeminiWebSession] Status broadcast failed:', error)
-    })
-}
 
 export function registerGeminiWebSessionHandlers(): void {
   if (handlersRegistered) return
@@ -79,7 +48,6 @@ export function registerGeminiWebSessionHandlers(): void {
     IPC_CHANNELS.GEMINI_WEB_SET_ENABLED,
     async (_event, enabled: unknown) => {
       const result = await geminiWebSessionManager.setEnabled(toStrictBoolean(enabled))
-      broadcastStatus(result.status)
       return success(result)
     },
     requireTrustedIpcSender,
@@ -99,7 +67,6 @@ export function registerGeminiWebSessionHandlers(): void {
       }
 
       const result = await geminiWebSessionManager.setEnabledApps(valid)
-      broadcastStatus(result.status)
       return success(result)
     },
     requireTrustedIpcSender,

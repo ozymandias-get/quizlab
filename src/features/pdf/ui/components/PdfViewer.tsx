@@ -19,7 +19,6 @@ import { useAppToolActions } from '@app/providers/AppToolContext'
 import { memo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { releaseCanvasGpuMemory, useCanvasGpuCleanup } from '../../capture/useCanvasGpuCleanup'
 import GoogleDrivePanel from './GoogleDrivePanel'
 import PdfPlaceholder from './PdfPlaceholder'
 import PdfViewerDocument from './PdfViewerDocument'
@@ -68,38 +67,11 @@ function PdfViewer({
   const [persistentInitialPage, setPersistentInitialPage] = useState<number | undefined>(undefined)
   const [hasEverLoaded, setHasEverLoaded] = useState(false)
   const lastAppliedFileKeyRef = useRef<string | null>(null)
-  const gpuContainerRef = useRef<HTMLDivElement>(null)
-  const gpuAbortRef = useRef<AbortController | null>(null)
 
-  // High-DPI GPU cleanup: rapid Ctrl+Wheel zoom creates high-res canvases that
-  // must be synchronously released when the old page layer is detached, otherwise
-  // the GPU backing store leaks and the renderer OOMs. The AbortSignal lets
-  // useCanvasGpuCleanup cancel an in-flight rasterization before the next one
-  // starts.
-  useCanvasGpuCleanup(gpuContainerRef, gpuAbortRef.current?.signal ?? undefined)
-
-  useEffect(() => {
-    // Each new document (or reload) gets a fresh abort token; the previous
-    // token is aborted synchronously so its canvases are zeroed before the
-    // next document's canvases are allocated.
-    gpuAbortRef.current?.abort()
-    gpuAbortRef.current = new AbortController()
-    const container = gpuContainerRef.current
-    return () => {
-      gpuAbortRef.current?.abort()
-      // Synchronous fallback: if MutationObserver hasn't fired yet, zero
-      // any remaining canvases immediately to free WebGL/2D buffers.
-      // Copy ref to variable to avoid exhaustive-deps warning.
-      if (container) {
-        for (const canvas of container.querySelectorAll('canvas')) {
-          releaseCanvasGpuMemory(canvas)
-          // Extra synchronous guard — width/height zeroing must not be async
-          canvas.width = 0
-          canvas.height = 0
-        }
-      }
-    }
-  }, [pdfFile])
+  // Canvas/GPU lifetime is owned by a single useCanvasGpuCleanup instance in
+  // usePdfViewerState, which observes the viewer container that actually wraps
+  // pdf.js' canvases. A second observer here covered a strictly larger subtree
+  // and duplicated every release and pixel-budget pass on the same canvases.
 
   useEffect(() => {
     if (pdfFile) {
@@ -130,7 +102,7 @@ function PdfViewer({
   const isViewerVisible = !!pdfFile && activePdfTab?.kind !== 'drive'
 
   return (
-    <div ref={gpuContainerRef} className="relative h-full w-full">
+    <div className="relative h-full w-full">
       {hasEverLoaded && persistentFile && persistentUrl && (
         <div
           className="absolute inset-0 h-full w-full"

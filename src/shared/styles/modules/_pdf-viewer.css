@@ -31,17 +31,7 @@ body.panel-resizing .pdf-viewer-container .rpv-core__inner-pages,
 body.panel-resizing .pdf-viewer-container .rpv-core__inner-page,
 body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer,
 body.panel-resizing .pdf-viewer-container .rpv-core__page-layer,
-body.panel-resizing .pdf-viewer-container .rpv-core__doc,
-body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__inner-pages,
-body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__inner-page,
-body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer,
-body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__page-layer,
-body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__doc {
-  background-color: oklch(var(--background)) !important;
-}
-
-body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer canvas,
-body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer canvas {
+body.panel-resizing .pdf-viewer-container .rpv-core__canvas-layer canvas {
   background-color: oklch(var(--card)) !important;
 }
 
@@ -64,10 +54,6 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer
 }
 
 .pdf-viewer-container .rpv-core__page-layer {
-  background-color: oklch(var(--background)) !important;
-}
-
-.pdf-viewer-container .rpv-core__doc {
   background-color: oklch(var(--background)) !important;
 }
 
@@ -119,23 +105,17 @@ body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__canvas-layer
   backface-visibility: visible;
 }
 
-body.panel-resizing .pdf-viewer-container [data-pdf-page-loader],
-body.panel-resizing .pdf-viewer-container .rpv-core__loader {
+body.panel-resizing .pdf-viewer-container [data-pdf-page-loader] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }
 
-body.panel-resizing .pdf-viewer-container .rpv-core__spinner,
-body.pdf-refit-spinners-suppressed .pdf-viewer-container .rpv-core__spinner {
+body.panel-resizing .pdf-viewer-container .rpv-core__spinner {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
   animation: none !important;
-}
-
-.pdf-viewer-container .rpv-core__loader {
-  background: transparent !important;
 }
 
 .pdf-viewer-container .rpv-core__text-layer {

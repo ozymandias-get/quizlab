@@ -21,9 +21,17 @@ export interface ApiProviderConfig {
   requestTimeout?: number
   /** When true, allows loopback/private (Ollama, LM Studio, vLLM, LocalAI) endpoints. */
   allowLocalNetwork?: boolean
-  /** @deprecated alias for allowLocalNetwork */
+  /**
+   * @deprecated Read only for backward compatibility with persisted config
+   * files. Resolved to `allowLocalNetwork` at the normalization boundary in
+   * `electron/features/ai/apiChatHandlers/apiChatHandlers.ts`; never write it.
+   */
   allowLocalEndpoints?: boolean
-  /** @deprecated alias for allowLocalNetwork — custom providers are often local */
+  /**
+   * @deprecated Read only for backward compatibility with persisted config
+   * files. Resolved to `allowLocalNetwork` at the normalization boundary in
+   * `electron/features/ai/apiChatHandlers/apiChatHandlers.ts`; never write it.
+   */
   isCustomProvider?: boolean
 }
 

@@ -20,7 +20,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -61,7 +60,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -99,7 +97,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -135,7 +132,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -173,7 +169,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -208,7 +203,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result } = renderHook(() =>
       usePdfNavigation({
-        containerRef,
         jumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 2
@@ -276,7 +270,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result: firstPageResult } = renderHook(() =>
       usePdfNavigation({
-        containerRef: firstPageRef,
         jumpToPageRef: firstPageJumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 1
@@ -313,7 +306,6 @@ describe('usePdfNavigation - edge cases', () => {
 
     const { result: lastPageResult } = renderHook(() =>
       usePdfNavigation({
-        containerRef: lastPageRef,
         jumpToPageRef: lastPageJumpToPageRef,
         pdfPath: '/docs/first.pdf',
         initialPage: 10
