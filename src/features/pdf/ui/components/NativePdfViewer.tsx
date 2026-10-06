@@ -11,8 +11,8 @@
  * ## The page box
  *
  * ```
- * pdf-canvas-container          scroll + GPU containment (QuizLab's own class)
- * └── data-native-pdf-page     position: relative — the layers' positioning box
+ * data-native-pdf-scroll       flex items-start + overflow-auto — the real scroll container
+ * └── data-native-pdf-page     position: relative + m-auto — the centering box
  *     ├── data-native-pdf-canvas
  *     ├── data-native-pdf-text-layer
  *     ├── data-native-pdf-annotation-layer
@@ -34,6 +34,51 @@
  * in `NativePdfViewer.test.tsx` rather than left to render order. See
  * `nativePdfTextLayer.css`, `nativePdfAnnotationLayer.css` and
  * `nativePdfSearchLayer.css`.
+ *
+ * ## Vertical centering, and why it is an auto margin
+ *
+ * `[data-native-pdf-scroll]` is the real scroll container: a row flex box with
+ * `overflow: auto` that fills `.pdf-canvas-container` and therefore already excludes
+ * the bottom toolbar, which is a `shrink-0` flow sibling in `PdfViewerDocument`'s
+ * column — not an overlay. Centering inside this box therefore centers against the
+ * *available* PDF viewport, not against the window.
+ *
+ * It used to say `items-start justify-center`, which is horizontal centering only:
+ * `align-items: flex-start` pins the page box to the cross-start edge, so a page
+ * shorter than the viewport sat flush against the top with all the free space below it.
+ *
+ * The fix is `m-auto` on the **page box**, and it is deliberately not
+ * `items-center` / `justify-center` on the scroll container:
+ *
+ *  - `align-items` / `justify-content: center` overflow **equally in both directions**
+ *    when free space is negative (CSS Flexbox §8.2 `center`, §8.3 `center`). The
+ *    start-side overflow then sits *before* the scroll container's scroll origin, so
+ *    the top of a tall page — or the left edge of a wide one — cannot be scrolled to.
+ *    That is the classic flex + overflow failure, and it is exactly what this viewer
+ *    must not do.
+ *  - An auto margin is resolved by the layout algorithm *before* alignment: positive
+ *    free space is distributed into the margin (§9.5 main axis, §9.6 cross axis), and an
+ *    **overflowing** item has its start auto margin set to zero and overflows in the end
+ *    direction instead (§9.5 "Otherwise, set all auto margins to zero"; §8.1
+ *    "Overflowing boxes ignore their auto margins and overflow in the end direction").
+ *    So one declaration centers a short page on both axes and leaves a tall page's top
+ *    edge — and a wide page's left edge — flush and scrollable.
+ *
+ * That is also why `justify-center` came off the scroll container: horizontal centering
+ * is now the page box's `margin-inline: auto`, which produces the identical result while
+ * the page fits and is the one that keeps the page's left edge reachable once it does
+ * not. Centering the page in one place keeps the two axes from drifting apart.
+ *
+ * `align-items` stays `flex-start` for a second reason: `stretch` would make the page
+ * box as tall as the container, which would leave the auto margins no free space to
+ * absorb and would grow the box the text and search layers are `inset: 0` against.
+ *
+ * The margin is on the page wrapper, never on the canvas: canvas + `TextLayer` +
+ * `AnnotationLayer` + `SearchLayer` are all children of that one box, so the whole
+ * stack moves as a unit and their coordinates cannot drift apart. Nothing here is
+ * measured in JavaScript, so zoom and resize are handled by the same layout pass that
+ * always ran — a re-render or a refit changes the canvas size and the centering follows
+ * it, with no jump and no separate state to fall out of sync.
  *
  * ## A failed layer is not a failed page
  *
@@ -152,11 +197,20 @@ function NativePdfViewer({
   }
 
   return (
-    <div
-      data-native-pdf-scroll
-      className="pdf-canvas-container flex items-start justify-center overflow-auto"
-    >
-      <div data-native-pdf-page={currentPage} style={totalScaleFactorStyle(scale)}>
+    <div data-native-pdf-scroll className="pdf-canvas-container flex items-start overflow-auto">
+      {/*
+        `m-auto` is the whole centering contract, and it lives on the page wrapper
+        rather than on the canvas: an auto margin absorbs the free space only when there
+        *is* free space and collapses to zero when the page overflows, so a short page
+        centers and a tall page keeps its top edge scrollable. Centering the scroll
+        container itself would overflow in both directions and strand the page's start
+        edge above the scroll origin. See the module note.
+      */}
+      <div
+        data-native-pdf-page={currentPage}
+        className="m-auto"
+        style={totalScaleFactorStyle(scale)}
+      >
         <canvas ref={canvasRef} data-native-pdf-canvas className="block shadow-lg" />
         <div
           ref={textLayerRef}
