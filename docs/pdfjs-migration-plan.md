@@ -420,6 +420,13 @@ file change → useEffect → clearHighlights() + closeSearch()   [PdfToolbar.ts
   plugin.
 - **Navigation:** none beyond highlighting. No auto page jump on match.
 
+> **As shipped.** This is the legacy path's pipeline and it is unchanged. Phase 7 ported
+> the _algorithm_ behind it — the DOM walk, the per-run `Range` measurement, the
+> single-space skip, the `top`/`left` ordering, the fade-in and the reduced-motion branch
+> — onto the native text layer; see the Phase 7 section. Note what that algorithm is: the
+> plugin never uses `PDFFindController`, so the migration's parity target was always this
+> DOM walk and never a PDF.js internals.
+
 ## 12. Navigation and zoom — viewer-specific vs product requirement
 
 ### Viewer-specific (goes away or must be re-derived)
@@ -1894,6 +1901,332 @@ should make, on the same PDFs plus one that has links:
 - the Phase 5 list itself, which is still open: selection alignment at 100 % / 150 % /
   fit, `Ctrl+C`, pan ⇄ text, multi-PDF, and a text-dense page for a UI-lock check
 
+## Phase 7 — native search + highlight overlay
+
+**Search works on the native viewer, and the search UI did not change.** One
+`PdfSearchBar`, one `usePdfSearchStore`, one `PdfToolbar`, and the two functions
+`@react-pdf-viewer/search` exposes — `highlight(keyword)` and `clearHighlights()` — which
+the native controller now also implements. The toolbar switch happens where the renderer
+is chosen, so neither the bar nor the store grew a branch, `Ctrl+F` still routes through
+the same store, and nothing about the search experience differs between the two paths.
+
+### Why the search engine is ours, not `PDFFindController`
+
+Verified against `node_modules/pdfjs-6` (`pdfjs-dist@6.4.299`),
+`types/web/*` and the implementation in `web/pdf_viewer.mjs` (319 973 bytes on disk):
+
+```js
+new PDFFindController({ linkService, eventBus, delay = 250, updateMatchesCountOnProgress = true })
+```
+
+Three properties of the installed implementation, read off the source rather than the
+documentation:
+
+1. **It is only reachable through the web viewer.** `pdfjs-6/web/pdf_viewer.mjs` exports
+   it; the package entry point exports `AnnotationLayer`, `AnnotationMode`,
+   `AnnotationType` and nothing find-related.
+2. **It demands an `EventBus` and dereferences a viewer.** The constructor calls
+   `eventBus.on("find" | "findbarclose" | "pagesedited", …)` four times before doing
+   anything, and `get pagesCount()` is `this.pdfViewer.pagesCount` — so it is inoperable
+   without a `PDFViewer`, exactly as `PDFLinkService` was in Phase 6.
+3. **It renders through `PDFPageView`.** Matches are published by dispatching
+   `updatetextlayermatches`, which `PDFPageView` receives and turns into highlight
+   elements. This viewer has page views of its own making, none of that plumbing.
+
+So the web bundle stays out, and the same reasoning as Phase 6 applies. Asserted by
+`pdfjs-dual-runtime.test.ts`: no `pdfjs-6/web/`, no `PDFFindController`, no `EventBus`, no
+`PDFViewer` anywhere in `features/pdf/native/**`.
+
+### The legacy path does not use it either — that is the parity target
+
+This is the part that decides the _shape_ of the implementation rather than just ruling
+out an import. `@react-pdf-viewer@3.12.0`'s search plugin never reaches for
+`PDFFindController`; its `Highlights` component walks the page's text-layer DOM:
+
+1. concatenate every run's `textContent` into one string, with a parallel array of
+   `{ char, charIndexInSpan, spanIndex }`;
+2. scan it with one **escaped, case-insensitive, global** regexp built from the keyword
+   (`new RegExp(escapeRegExp(keyword), 'gi')` — no whole-words mode, no match-case
+   toggle, both plugin checkboxes unused by this app);
+3. group each match's characters by run and, per group, set a `document.createRange()`
+   on that run's first text node, wrap it, read `getBoundingClientRect()`, un-wrap it,
+   and express the box as **percentages of the text layer's own rect**;
+4. skip a group that is a single whitespace character (the gap between two words);
+5. sort by `top`, then `left`, and render one `div` per group through
+   `safeRenderHighlights`.
+
+Phase 7 ports _that_ algorithm, so "parity" is a statement about real measured
+behaviour rather than about a PDF.js internals this app never used.
+
+### What was carried over, and what was not
+
+| Behaviour                                    | Legacy (RPV plugin)                                | Native (Phase 7)                                         |
+| -------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------- |
+| scope                                        | rendered page                                      | rendered page                                            |
+| matching                                     | literal, case-insensitive                          | literal, case-insensitive, scanned without a regexp      |
+| across runs / line breaks                    | yes                                                | yes — runs are concatenated with no separator            |
+| rectangles                                   | one per run a match touches                        | one per run a match touches; one per client rect per run |
+| single-space run                             | skipped                                            | skipped                                                  |
+| overlay ordering                             | top, then left                                     | top, then left                                           |
+| empty keyword                                | no search                                          | no search                                                |
+| fade-in                                      | `pdf-highlight-fadein`, 400 ms delay, `opacity: 0` | same, referenced not redeclared                          |
+| reduced motion                               | static `opacity: 0.3`                              | static `opacity: 0.3`                                    |
+| `title`                                      | `keywordStr.trim()`                                | `keyword.trim()`                                         |
+| next/prev match, match count, auto page jump | absent                                             | absent (deliberately; see below)                         |
+
+**Not reproduced deliberately:** the `gi` regexp's Unicode canonicalization, where
+`/s/i` also matches `ſ` (U+017F). Matching folds one UTF-16 code unit at a time with
+locale-independent `toLowerCase()` instead. Two reasons, and the second is the load-
+bearing one:
+
+- a locale-aware fold (`toLocaleLowerCase`) would make the same document match differently
+  depending on the user's locale — the opposite of parity;
+- `String#toLowerCase()` on a whole string is **not length-preserving** for every
+  character (`'İ'` U+0130 folds to `i` + a combining dot), so a lowercased copy of the page
+  would shift every offset after such a character onto the wrong glyph. Per-unit
+  comparison keeps every offset an index into the original string, which is also what
+  `Range#setStart` takes.
+
+**Scope is the rendered page, deliberately.** The legacy viewer runs
+`ViewMode.SinglePage`, so the plugin only ever highlights the current page — and because
+it keeps the keyword in its store, the next page's text layer is highlighted as soon as it
+renders. The native path reproduces that exactly: one page at a time, query kept across
+page changes, rectangles redrawn from the new page's runs. There is **no whole-document
+index**: it would extract every page's text in the background to produce nothing a
+single-page viewer can show, and it would grow memory with page count. Asserted by
+`pdfjs-dual-runtime.test.ts` (neither search file mentions `getTextContent` or `getPage`).
+
+No next/previous match, no `3/27` counter, no page jump. Phase 1 recorded all three as
+absent from the product, `src` has no such code on either path, and adding them would be a
+new feature rather than a migration.
+
+### Geometry: measured, page-relative, and never scaled
+
+```
+range = Range(run.firstChild, matchStartInRun, matchEndInRun + 1)
+for each rect in range.getClientRects():
+    left   = rect.left - pageBox.getBoundingClientRect().left
+    top    = rect.top  - pageBox.getBoundingClientRect().top
+    width  = rect.width
+    height = rect.height
+```
+
+- **A `Range`, never an estimated character width.** A match can occupy more than one box
+  (a rotated or wrapped run) and the union rect would highlight text the keyword did not
+  match, so each client rect becomes its own highlight element while keeping the index of
+  the logical match it belongs to.
+- **The page box, not the text layer,** is the reference rect: it _is_ the canvas's box, so
+  a page-relative pixel is in the coordinate space the canvas painted in. RPV normalizes
+  against the text layer, whose box PDF.js sizes independently and rounds; one pixel of
+  disagreement there is one pixel of disagreement with the glyphs.
+- **No transform, no scroll offset.** Nothing is multiplied by the scale — the runs are
+  already rendered at the current scale — and the overlay is positioned against the page
+  box, so a window or container scroll cannot drift it.
+- **Rotation needs no case.** The rotation is already folded into both the rendered runs
+  and the page box, so a 90° page is the same subtraction with different client
+  coordinates.
+- `NaN`, `Infinity` and zero-area rects are refused before they reach a style.
+
+### Ownership
+
+| File                                  | Responsibility                                                             |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| `native/nativePdfSearch.ts`           | the engine: page text, matching, `Range` geometry, highlight rendering     |
+| `native/nativePdfSearchLayer.css`     | overlay + highlight layout, scoped to `data-native-pdf-search-*`           |
+| `native/useNativePdfSearch.ts`        | keyword → rectangles: the lifecycle and the two toolbar callbacks          |
+| `native/nativePdfDom.ts`              | the search-layer / search-highlight selectors, alongside the other layers  |
+| `native/useNativePdfTextLayer.ts`     | `textLayerReady` — the signal search waits for                             |
+| `native/useNativePdfController.ts`    | the search handle on the controller, next to the other layer handles       |
+| `ui/components/NativePdfViewer.tsx`   | the fourth layer element                                                   |
+| `ui/components/PdfViewerDocument.tsx` | the fifth ref, and the renderer switch for `highlight` / `clearHighlights` |
+| `ui/components/PdfToolbar.tsx`        | nothing but the removal of the native-mode search hiding                   |
+
+`nativePdfSearch.ts` and `useNativePdfSearch.ts` are split by responsibility — engine and
+React — rather than gathered into one file, so the engine stays testable without a
+renderer and the lifecycle stays readable without the geometry arithmetic.
+
+### Lifecycle: synchronous, so the dependency list _is_ the invalidation
+
+Both matching and measuring read DOM that already exists, in one pass, exactly as the
+plugin's `highlightAll` does inside a render effect. There is no in-flight search, so
+there is nothing to cancel and no generation counter to maintain — and the effect's
+dependency list names everything that can make a previous rectangle wrong:
+
+| dependency       | what it invalidates                                                       |
+| ---------------- | ------------------------------------------------------------------------- |
+| `documentKey`    | a reload or a different file: different text, same page number            |
+| `currentPage`    | a different page's runs                                                   |
+| `scale`          | every run is rebuilt, so every rectangle is stale                         |
+| `textLayerReady` | a new generation of runs exists (first render, page change, zoom, reload) |
+| `keyword`        | a new query                                                               |
+| `enabled`        | the flag was switched off                                                 |
+
+Two details that could have gone wrong and did not:
+
+- **Effect order inside the controller.** `useNativePdfTextLayer` is declared before
+  `useNativePdfSearch`, so on a page change or a zoom React runs its cleanup first — and
+  that cleanup empties the text-layer container _synchronously_. By the time the search
+  effect runs there are no runs to match, the overlay is emptied, and the rectangles are
+  re-measured when `textLayerReady` flips back to true against the new scale. Stale
+  geometry is removed **before** the replacement exists, never after.
+- **`textLayerReady` is a generation signal, not a "there was a layer" flag.** It goes
+  `false` the moment a rebuild starts and `true` only after the new `TextLayer` has drained
+  its stream. A boolean could not distinguish "the runs I am about to measure" from "a
+  layer existed at some point", which is the whole question search asks.
+
+Rapid queries are therefore supersession by construction: `"r"` → `"ra"` → `"rheumatoid"`
+runs three searches in order and the last one is what is on screen. It is pinned with the
+counts falling 5 → 0 → 2, so a stale rectangle would show up as a leftover rather than as
+a plausible total.
+
+`searchError` exists for the same reason `textLayerError` does and is **not** rendered as
+the error shell: a search that cannot measure costs the reader their results, not their
+page. The overlay is emptied and the error is published; the canvas, the text layer and the
+annotation layer are untouched.
+
+### DOM structure and layer order
+
+```
+.pdf-canvas-container                      scroll + GPU containment (QuizLab's own class)
+└── [data-native-pdf-page="4"]             position: relative; --total-scale-factor
+    ├── canvas[data-native-pdf-canvas]     the glyphs
+    ├── [data-native-pdf-text-layer]       PDF.js's TextLayer container
+    │   └── span[role="presentation"] × N  one run per PDF.js text item
+    ├── [data-native-pdf-annotation-layer] PDF.js's AnnotationLayer container
+    │   └── section[data-annotation-id] → a   the link anchor
+    └── [data-native-pdf-search-layer]     QuizLab's highlight overlay
+        └── div[data-native-pdf-search-highlight] × M
+            data-native-pdf-search-index   this rectangle
+            data-native-pdf-search-match   the logical match it belongs to
+```
+
+The first three are PDF.js's `LAYERS_ORDER` and are untouched. The fourth is QuizLab's
+own, declared **last in the DOM** and painted by `z-index` instead:
+
+```
+canvas              (no z-index)
+search overlay      z-index: 1   ← tint over the glyphs
+text layer          z-index: 0
+annotation layer    z-index: 2   ← links stay the topmost thing under the cursor
+```
+
+So the document order is deliberately _not_ the paint order here, which is why it is an
+asserted contract in `NativePdfViewer.test.tsx` rather than something left to React's
+render order. `pointer-events: none` on the overlay and on each highlight is what makes it
+free: the pointer passes through to the text layer, so text selection, `Ctrl+C`, the AI
+selection action, panning and `Ctrl`+wheel zoom behave exactly as with no search running,
+and a link under a highlight stays clickable.
+
+The overlay is a **sibling** of the text layer, never a child: had it been inside, the
+page-text extractor and `Ctrl+C` would read the keyword back out of the highlight elements.
+Pinned in `useNativePdfSearch.test.tsx`.
+
+### Highlight visual semantics
+
+The legacy plugin's own stylesheet owns `.rpv-search__highlight` (position, `z-index: 1`,
+the translucent yellow `rgba(255, 255, 0, 0.4)`, `border-radius: 0.25rem`). The native
+overlay **does not emit that class** — reusing it would let the plugin's CSS style a layer
+it knows nothing about and would make the two markups indistinguishable to a reader. So
+the two visual properties it inherited are re-declared under
+`[data-native-pdf-search-highlight]`, and the geometry plus the motion state stay inline
+exactly as `safeRenderHighlights` sets them:
+
+```
+normal motion    opacity: 0
+                 animation: pdf-highlight-fadein var(--duration-normal) ease
+                              var(--duration-deliberate) forwards
+reduced motion   opacity: 0.3, no animation at all
+title            keyword.trim()
+```
+
+`pdf-highlight-fadein` is **referenced, not redeclared** — the keyframes stay in
+`src/shared/styles/modules/_pdf-viewer.css`, which is untouched, and the delay is the
+same deliberate product behaviour: dozens of highlight divs must not compete with page
+rasterization. `prefers-reduced-motion` is read from `window.matchMedia` **once per search
+run**, not cached in a second module-level variable; the legacy cache stays in
+`usePdfPlugins.ts`, which is at **zero diff**, and the native path has nothing to
+invalidate because it measures a handful of times per query.
+
+### Search UI: unchanged, and provably so
+
+| Interaction                  | Behaviour                                  | Where it is implemented                             |
+| ---------------------------- | ------------------------------------------ | --------------------------------------------------- |
+| `Ctrl/Cmd+F`                 | opens the shared bar                       | `usePdfShortcuts` → `usePdfSearchStore` (untouched) |
+| typing                       | 300 ms debounce, then `highlight(keyword)` | `PdfToolbar` (untouched)                            |
+| `Enter`                      | `highlight(keyword)` immediately           | `PdfSearchBar` (untouched)                          |
+| `Escape`                     | `clearHighlights()` + close the bar        | `PdfSearchBar` (untouched)                          |
+| a different file             | close the bar, empty the keyword, clear    | `PdfToolbar`'s existing effect                      |
+| empty / whitespace keyword   | no search                                  | `PdfToolbar`, and the engine guards too             |
+| next / previous match, count | **not a feature on either path**           | —                                                   |
+
+The native controller reproduces the legacy surface and nothing more: two functions with
+the same names, the same meaning and the same identity stability (`useCallback`, so
+`PdfToolbar`'s memoisation still holds).
+
+### Deliberately still not migrated
+
+The capture pipeline, `activePdfDocumentRegistry`, the context menu, selection
+screenshots, `usePdfViewerZoomIpc`, RPV itself, pdfjs 3.x and the `pdfjs-6` alias are all
+still in the tree. `@react-pdf-viewer/search` is **not** deleted: with the flag off the
+legacy path is still shipped and still needs it.
+
+### Verification
+
+| Suite                                                                                | Tests                                                      |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `nativePdfSearch.test.ts` (page text, matching, geometry, highlight DOM)             | 34                                                         |
+| `useNativePdfSearch.test.tsx` (overlay, invalidation, degradation, non-interference) | 20                                                         |
+| `nativeSearchIntegration.test.tsx` (real `PdfSearchBar` + toolbar, both renderers)   | 6                                                          |
+| `NativePdfViewer.test.tsx` (layer order, scale factor)                               | extended                                                   |
+| `viewerFeatureFlagBoundary.test.tsx` (search wiring, four distinct refs)             | +2 / extended                                              |
+| `PdfToolbar.test.tsx` (the native search bar is live again)                          | 1 rewritten, 1 added                                       |
+| `architecture/pdfjs-dual-runtime.test.ts` (search boundary)                          | +5                                                         |
+| **Full suite**                                                                       | **361 files, 3996 passed, 2 pre-existing skips, 0 failed** |
+
+Phase 6's baseline was 358 files / 3928 passed / 2 skipped, so Phase 7 adds 3 files and
+68 tests. **The Phase 2 search-highlight suite
+(`features/pdf/ui/usePdfPluginsHighlights.test.tsx`, 14 tests) is byte-identical** — it
+still pins `safeRenderHighlights` against the plugin's own `renderHighlights` prop, and it
+was not edited to accommodate anything here. So are the three Phase 2 selection files, for
+the fourth phase running.
+
+Static gates green: `typecheck`, `lint`, `format:check`, `analyze:architecture`,
+`analyze:file-sizes`, `analyze:css`, `ci:check-hygiene`, `check:audit`,
+`check:electron-security`, `git diff --check`. `check:audit` still reports exactly one
+documented exception (the unchanged `CVE-2024-4367`); `security/audit-exceptions.json` is
+untouched and no exception was added for search.
+
+Build: `npm run build:renderer:electron` emits both workers
+(`pdf.worker.min-<hash>.js` 1 062 kB legacy, `pdf.worker.min-<hash>.mjs` 1 235 kB),
+`vendor-pdf-legacy` 458.83 kB, `vendor-pdf-native` 436.85 kB, the full 200-file
+`dist/pdfjs/` tree, and the `viewer-<hash>.css` chunk (3.19 kB) now carrying all three
+native layer stylesheets. `VITE_NATIVE_PDF_VIEWER=true` produces the same artifact set.
+
+### Interactive smoke — outstanding
+
+This environment still has no interactive session, so the Phase 5 and Phase 6 lists are
+**not** resolved and the Phase 7 list could not be run either. Phase 7's addition to the
+checklist is the one thing jsdom structurally cannot answer: **does a rectangle cover the
+glyphs it claims to?** The automated geometry tests prove offsets, page-relative
+arithmetic, ordering, invalidation and the DOM contract; `nativeSearchGeometry.ts` is a
+declared fake layout, so it cannot prove a highlight lands on the right word. What a human
+should look at:
+
+- a highlight sitting **on** the word, not near it — at 100 %, ~150 % and fit
+- a keyword that spans two text runs, and one broken across a line break: both parts
+  tinted, no rectangle over the gap between them
+- the same highlight after a zoom landing on the same word, not on the old geometry
+- a link annotation drawn over or next to a highlight: still hoverable, still clickable,
+  and the click still navigates
+- a text selection started and ended around highlights, then `Ctrl+C`, then "send
+  selection to AI" — the copied text must not contain the overlay's own contents
+- `Escape` clearing everything and closing the bar; the bar reopening with `Ctrl+F`
+- a reload, then a page change, then switching to a second PDF: no results from the
+  previous document
+- a text-dense page searched repeatedly for a UI lock or a memory climb
+
+The Phase 5 and Phase 6 lists above are still open and should be run in the same session.
+
 ---
 
 # Part IV — Performance baseline (must survive)
@@ -2031,7 +2364,7 @@ Verified 6.x deltas that change the plan (blocker 4 above, summarised):
 | **4 — canvas + page/scale state**                | `PdfViewerElement` renders pages itself; keep `viewMode` single-page, `defaultScale` PageWidth, dark theme, `onPageChange`/`onDocumentLoad`/`onZoom` equivalents                                         | open/close, tab switch, page nav, zoom, fit, reload all behave identically; screenshot + selection still pass ✔ (feature-flagged: the legacy viewer stays the default, and the normal build now emits **both** workers)                                                                                                                                                                       |
 | **5 — text layer + selection**                   | `PdfTextLayer`, `extractPageTextFromDom`, `extractSelectedText` retargeted at our markup                                                                                                                 | the Phase-2 selection tests pass unchanged ✔ (PDF.js 6 `TextLayer` mounted by the native viewer; both AI text actions live; selection suite green **without edits**)                                                                                                                                                                                                                          |
 | **6 — annotation layer + links**                 | `PdfAnnotationLayer`, `PdfTextLayer`, `LinkService`                                                                                                                                                      | links and form widgets behave as they do under RPV ✔ (PDF.js 6 `AnnotationLayer` mounted by the native viewer; internal destinations drive the native `currentPage` through `jumpToPage`; external links go through the app's existing `openExternal` IPC under `https:`/`mailto:`; unsafe protocols leave no actionable `href`; AcroForm widgets stay display-only via `renderForms: false`) |
-| **7 — search**                                   | `PdfSearchController` + `PdfSearchOverlay`, reusing `pdf-highlight-fadein` and `rpv-search__highlight` geometry                                                                                          | highlight execution passes the Phase-2 tests                                                                                                                                                                                                                                                                                                                                                  |
+| **7 — search**                                   | a native search controller + highlight overlay, reusing `pdf-highlight-fadein` and the legacy highlight's visual semantics under native attributes                                                       | the Phase-2 search-highlight suite passes **unchanged** ✔ (native `highlight` / `clearHighlights` over the PDF.js text layer's own runs, `Range`-measured page-relative rectangles in a fourth `data-native-pdf-search-layer`; `PDFFindController` declined with `pdfjs-6/web/**`; the Phase-2 suite and `usePdfPlugins.ts` are byte-identical)                                               |
 | **8 — drop RPV**                                 | delete the four packages, `usePdfPlugins`, the 4 CSS imports, all 26 `rpv-*` rule blocks, `lib/pdfViewerDom.ts`'s RPV selectors; rewrite the 4 tests that mock `@react-pdf-viewer/core`                  | `rg "@react-pdf-viewer\|rpv-"` returns nothing; no `?url` worker import from the viewer                                                                                                                                                                                                                                                                                                       |
 | **9 — cleanup**                                  | `.npmrc` (after the eslint peers), `vite.config.mts` `vendor-pdf`/`EVAL` filter, `security/audit-exceptions.json`, `knip`/`ts-prune` pass, delete `patches`-adjacent stubs                               | `npm run analyze:all` clean, `npm audit` clean without an exception                                                                                                                                                                                                                                                                                                                           |
 
@@ -2039,19 +2372,19 @@ Verified 6.x deltas that change the plan (blocker 4 above, summarised):
 
 # Part VIII — Risks
 
-| Risk                                                                    | Severity | Mitigation                                                                                                                                                         |
-| ----------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Text-selection regression (column ordering, pill placement, multi-page) | **High** | Phase-2 tests first; `collectTextItems`/`orderTextItems` are pure and already reused by both extractors                                                            |
-| High-DPI page render regression (the AI image feature)                  | **High** | Phase-2 tests first; keep the 20 MP budget and the 4-stage fallback ladder                                                                                         |
-| Lazy rasterization loss → slow / memory-heavy large PDFs                | **High** | rebuild visibility-driven page mounting deliberately; keep the 50 MP canvas budget                                                                                 |
-| Search highlight geometry loss                                          | **High** | `safeRenderHighlights` becomes `PdfSearchOverlay`; keep `pdf-highlight-fadein` and the geometry contract                                                           |
-| `CVE-2024-4367` acceptance becomes stale/wrong on 6.x                   | **High** | re-audit the advisory in Phase 3; the knob is gone, so the exception entry cannot simply be re-dated                                                               |
-| Packaged asset growth (wasm + iccs + cmaps + fonts + a 2× worker)       | Medium   | decide `wasmUrl`/`iccUrl`/`standardFontDataUrl` explicitly; consider `useWasm:false` if JBIG2/OpenJPEG are not needed; skip the sandbox if `enableScripting:false` |
-| `RenderingCancelledException` noise changes shape                       | Medium   | re-derive the markers in `pdfRenderErrors.ts` against 6.x                                                                                                          |
-| DOM/CSS rewrite churn                                                   | Medium   | every `rpv-*` rule is already namespaced under `.pdf-viewer-container`; migrate rule-by-rule against the parity matrix                                             |
-| `.npmrc` removal fails on eslint peers and looks like a PDF regression  | Medium   | Phase 9 only, after the eslint peers are resolved                                                                                                                  |
-| Installed-version drift (6.4.299 is 3 days old)                         | Medium   | exact pin; re-verify before Phase 3                                                                                                                                |
-| `knip`/`ts-prune` flag newly-unused exports during the rewrite          | Low      | run `analyze:deadcode` in every phase                                                                                                                              |
+| Risk                                                                    | Severity | Mitigation                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text-selection regression (column ordering, pill placement, multi-page) | **High** | Phase-2 tests first; `collectTextItems`/`orderTextItems` are pure and already reused by both extractors                                                                                                                                                                                     |
+| High-DPI page render regression (the AI image feature)                  | **High** | Phase-2 tests first; keep the 20 MP budget and the 4-stage fallback ladder                                                                                                                                                                                                                  |
+| Lazy rasterization loss → slow / memory-heavy large PDFs                | **High** | rebuild visibility-driven page mounting deliberately; keep the 50 MP canvas budget                                                                                                                                                                                                          |
+| Search highlight geometry loss                                          | **High** | **Resolved in Phase 7**: `nativePdfSearch` re-derives the legacy geometry contract under `data-native-pdf-search-*`, keeps `pdf-highlight-fadein` by reference, and the Phase-2 highlight suite is unchanged. jsdom still cannot prove alignment — the interactive smoke list is still open |
+| `CVE-2024-4367` acceptance becomes stale/wrong on 6.x                   | **High** | re-audit the advisory in Phase 3; the knob is gone, so the exception entry cannot simply be re-dated                                                                                                                                                                                        |
+| Packaged asset growth (wasm + iccs + cmaps + fonts + a 2× worker)       | Medium   | decide `wasmUrl`/`iccUrl`/`standardFontDataUrl` explicitly; consider `useWasm:false` if JBIG2/OpenJPEG are not needed; skip the sandbox if `enableScripting:false`                                                                                                                          |
+| `RenderingCancelledException` noise changes shape                       | Medium   | re-derive the markers in `pdfRenderErrors.ts` against 6.x                                                                                                                                                                                                                                   |
+| DOM/CSS rewrite churn                                                   | Medium   | every `rpv-*` rule is already namespaced under `.pdf-viewer-container`; migrate rule-by-rule against the parity matrix                                                                                                                                                                      |
+| `.npmrc` removal fails on eslint peers and looks like a PDF regression  | Medium   | Phase 9 only, after the eslint peers are resolved                                                                                                                                                                                                                                           |
+| Installed-version drift (6.4.299 is 3 days old)                         | Medium   | exact pin; re-verify before Phase 3                                                                                                                                                                                                                                                         |
+| `knip`/`ts-prune` flag newly-unused exports during the rewrite          | Low      | run `analyze:deadcode` in every phase                                                                                                                                                                                                                                                       |
 
 ---
 
