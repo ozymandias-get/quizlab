@@ -1,16 +1,12 @@
 /**
- * The AI text actions on the native viewer, end to end.
+ * The AI text actions, end to end.
  *
- * This is the Phase 5 promise in one file: with `VITE_NATIVE_PDF_VIEWER=true` the
- * two text actions do real work, and with the flag off they keep doing exactly
- * what they always did.
- *
- * Nothing in the chain between the button and the AI queue is mocked. The real
+ * Both text actions do real work on the mounted viewer: the real
  * `PdfViewerDocument` → `usePdfViewerState` → `usePdfTextActions` →
  * `extractPageTextFromDom` → `normalizePdfText` path runs, on the real PDF.js
- * text-layer markup the native viewer mounts. Only the leaves are faked:
- * `pdfjs-dist`, the Electron-facing toolbar actions, and the AI queue itself — which
- * is the thing under assertion.
+ * text-layer markup the viewer mounts. Only the leaves are faked:
+ * `pdfjs-dist`, the Electron-facing toolbar actions, and the AI queue itself —
+ * which is the thing under assertion.
  *
  * The selected-text flow is wired through the app's real `useTextSelection`
  * bridge, because that is the production wiring: `onTextSelection` →
@@ -90,26 +86,6 @@ vi.mock('@features/pdf/ui/hooks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@features/pdf/ui/hooks')>()
   return {
     ...actual,
-    usePdfPlugins: () => ({
-      plugins: [],
-      jumpToPageRef: { current: vi.fn() },
-      ZoomIn: ({ children }: any) => children({ onClick: vi.fn() }),
-      ZoomOut: ({ children }: any) => children({ onClick: vi.fn() }),
-      CurrentScale: ({ children }: any) => children({ scale: 1 }),
-      zoomTo: vi.fn(),
-      highlight: vi.fn(),
-      clearHighlights: vi.fn()
-    }),
-    usePdfNavigation: () => ({
-      currentPage: 1,
-      totalPages: 12,
-      currentPageRef: { current: 1 },
-      handlePageChange: vi.fn(),
-      handleDocumentLoad: vi.fn(),
-      goToPreviousPage: vi.fn(),
-      goToNextPage: vi.fn(),
-      jumpToPage: vi.fn()
-    }),
     usePdfContextMenu: () => ({ contextMenu: null, setContextMenu: vi.fn() }),
     usePdfPanTool: () => ({ isDragging: false }),
     useCanvasGpuCleanup: () => {},
@@ -123,21 +99,6 @@ vi.mock('@features/pdf/ui/hooks', async (importOriginal) => {
     })
   }
 })
-
-vi.mock('@features/pdf/ui/components/PdfViewerElement', () => ({
-  default: () => (
-    <div data-testid="legacy-viewer">
-      {/* Enough legacy markup for the shipped text pipeline to work on. */}
-      <div className="rpv-core__page-layer" data-virtual-index="0">
-        <div className="rpv-core__text-layer">
-          <span>legacy page text for the ai queue</span>
-        </div>
-      </div>
-    </div>
-  )
-}))
-
-vi.mock('@features/pdf/ui/components/ContextMenu', () => ({ default: () => null }))
 
 /* ------------------------------------------------------------- pdf doubles */
 
@@ -310,13 +271,10 @@ afterEach(() => {
 })
 
 describe('native viewer — AI text actions', () => {
-  it('mounts the native viewer, not the legacy one, and renders a text layer', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
-
+  it('renders a text layer for the mounted page', async () => {
     renderDocument()
 
     await waitFor(() => {
-      expect(screen.queryByTestId('legacy-viewer')).not.toBeInTheDocument()
       expect(
         document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
       ).toBeGreaterThan(0)
@@ -324,7 +282,6 @@ describe('native viewer — AI text actions', () => {
   })
 
   it('sends the current native page text to the AI queue exactly once', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     serveDocument()
     renderDocument()
 
@@ -343,7 +300,6 @@ describe('native viewer — AI text actions', () => {
   })
 
   it('sends a native text-layer selection to the AI queue exactly once', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
 
     await waitFor(() => {
@@ -403,7 +359,6 @@ describe('native viewer — AI text actions', () => {
   it('leaves every quick-bar action enabled, because nothing is unsupported', async () => {
     // Text from Phase 5, capture from Phase 8A, reload from Phase 4 — the whole
     // bar is live on the native path, which is why the bounding flag is gone.
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await settle()
 
@@ -419,7 +374,6 @@ describe('native viewer — AI text actions', () => {
     // The AI-text suite's own concern: capture is faked here, so what is asserted
     // is that the real toolbar wires both rasterising buttons to the shared
     // capture actions rather than disabling or dropping them.
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await settle()
 
