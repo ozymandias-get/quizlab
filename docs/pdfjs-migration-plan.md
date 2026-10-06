@@ -51,10 +51,35 @@ makes blocker 1 non-negotiable is not enforced at install time. The only
 remaining guard is `src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts`,
 which fails _after_ a successful install and a successful build.
 
-Removing the flag is not done here: a clean install cannot be run offline to
-confirm no other transitive package currently relies on it being suppressed. It
-should be removed, or the coupling test widened, as part of the migration commit
-itself.
+Removing the flag is not done here. It was added by a single commit with no
+rationale in the message (`2617810`, "chore: add legacy-peer-deps to .npmrc"),
+and the flag should be removed, or the coupling test widened, as part of the
+migration commit itself.
+
+#### What the flag is actually suppressing
+
+Answered offline by walking all 1287 installed packages and checking every one of
+their 226 non-optional `peerDependencies` against the version npm actually
+resolved. Two are unsatisfied, and **neither is the PDF viewer**:
+
+| Package                         | Declares peer      | Installed |
+| ------------------------------- | ------------------ | --------- |
+| `eslint-plugin-jsx-a11y@6.10.2` | `eslint@^3 … ^9`   | `10.5.0`  |
+| `eslint-plugin-react@7.37.5`    | `eslint@^3 … ^9.7` | `10.5.0`  |
+
+So the real cause is the eslint 10 pin — `overrides` already forces both plugins
+to resolve `eslint` to `10.5.0`, but their _declared_ ranges still stop at 9.x,
+and only this flag suppresses the resulting `ERESOLVE`. One further peer is
+absent rather than unsatisfied: `app-builder-lib@26.15.3` peers
+`electron-builder-squirrel-windows@26.15.3`.
+
+`pdfjs-dist@3.11.174` satisfies the viewer's `^3.0.279` exactly, so the PDF
+stack contributes nothing here.
+
+**Consequence for the migration:** deleting `.npmrc` as step 1 below will fail
+with an `ERESOLVE` naming eslint plugins, not PDF. That is expected and not a
+pdf problem — resolve the eslint peers first (or keep the flag and add the CI
+assertion the plan recommends instead), then change one variable at a time.
 
 ### 3. No wasm anywhere, and nowhere to put it
 
@@ -168,9 +193,12 @@ Re-verification required, not necessarily edits:
 
 ## Recommendation
 
-1. **Before starting:** remove `legacy-peer-deps=true` (or add a CI step that
-   asserts the installed pdfjs version satisfies the viewer's peer range), so the
-   invariant is enforced rather than merely tested after the fact.
+1. **Before starting:** make the invariant enforced rather than merely tested
+   after the fact. The cheapest option is a CI step asserting the installed
+   pdfjs version satisfies the viewer's peer range, which needs no install-semantics
+   change and cannot be broken by the eslint peers. Deleting `.npmrc` is the
+   stronger option, but resolve the two eslint plugin peers first — otherwise the
+   install fails on eslint and looks like a PDF regression.
 2. **Then:** treat viewer + pdfjs as one atomic change. Check the registry for a
    viewer release whose `pdfjs-dist` peer range covers 4.x before planning
    further; if none exists, replacing the viewer is a prerequisite, not a
