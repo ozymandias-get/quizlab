@@ -805,6 +805,176 @@ injected one at a time and 19/19 were caught by the intended tests, then reverte
    timeout would clear the pill from an already-torn-down page. It is pinned
    for that case only.
 
+## Phase 3 attempt — BLOCKED before any implementation
+
+Phase 3's premise is that a native engine can be built **in parallel** while the
+existing `@react-pdf-viewer` viewer keeps rendering unchanged. That premise is
+false. Single `pdfjs-dist@6.4.299` cannot coexist with the pinned viewer.
+
+Everything below was measured on this branch by installing 6.4.299, running the
+gates, and then **reverting to `master`'s dependency state**. The branch carries
+no production, dependency or configuration change from this phase; only this
+section was added.
+
+### Blocker 1 — the build fails: the worker asset was renamed
+
+pdfjs 6 ships `build/` as ESM only. Measured `node_modules/pdfjs-dist@6.4.299/build`:
+
+```
+pdf.mjs  pdf.min.mjs  pdf.sandbox.mjs  pdf.sandbox.min.mjs  pdf.worker.mjs  pdf.worker.min.mjs
+```
+
+There is no `pdf.worker.min.js`. Two call sites still request it:
+
+- `src/features/pdf/ui/components/PdfWorkerHost.tsx:2` — the viewer's worker
+- `src/features/pdf/lib/renderPageToImage.ts:4` — the capture path
+
+```
+$ npm run build:renderer:electron
+✗ Build failed
+Error: [vite]: Rolldown failed to resolve import
+"pdfjs-dist/build/pdf.worker.min.js?url" from
+".../src/features/pdf/ui/components/PdfWorkerHost.tsx".
+```
+
+**The `.mjs` specifier itself is fine.** An isolated Vite build whose only import
+was `pdfjs-dist/build/pdf.worker.min.mjs?url` succeeded in 28 ms and emitted
+`assets/pdf.worker.min-<hash>.mjs` (1 264 kB). So the fix is a two-line rename —
+but both files are explicitly out of scope for a phase that must leave the
+existing viewer untouched.
+
+### Blocker 2 — typecheck fails: `isEvalSupported` no longer exists
+
+```
+$ npm run typecheck
+src/features/pdf/lib/renderPageToImage.ts(124,61): error TS2353:
+  Object literal may only specify known properties,
+  and 'isEvalSupported' does not exist in type 'DocumentInitParameters'.
+```
+
+Expected — the knob was removed in 4.x, which is why Phase 1 flagged it. But
+`renderPageToImage.ts` is the capture path the phase also forbids touching.
+
+### Blocker 3 — the viewer cannot run at all: two pdfjs APIs RPV calls are gone
+
+`@react-pdf-viewer/core@3.12.0` does `require('pdfjs-dist')` and dereferences six
+symbols off that namespace. Measured against the installed 6.4.299:
+
+```
+{ "version": "6.4.299", "missing": ["renderTextLayer", "SVGGraphics"] }
+```
+
+`SVGGraphics` was removed in 4.x. So was `renderTextLayer`, the function RPV
+calls on its **per-page text-layer hot path**:
+
+```js
+// node_modules/@react-pdf-viewer/core/lib/cjs/core.js:2150
+renderTask.current = PdfJsApi__namespace.renderTextLayer({
+  container: containerEle,
+  textContent,
+  textContentSource,
+  viewport
+})
+```
+
+With that symbol `undefined`, **every page render** throws
+`TypeError: PdfJsApi__namespace.renderTextLayer is not a function`, and the
+`.then(...)` that would call `onRenderTextCompleted()` never runs — so RPV's page
+render lifecycle never completes either. The consequences are exactly the two
+highest-risk features in the parity matrix:
+
+- no text layer ⇒ `extractPageTextFromDom` returns nothing ⇒ **"send page text to
+  AI" dead**
+- no text layer ⇒ `extractSelectedText` finds no spans ⇒ **"send selection to AI"
+  dead**, plus `pdf-selection-active` and the pill never appear
+
+The remaining four symbols (`getDocument`, `GlobalWorkerOptions`,
+`PasswordResponses`, `PDFWorker`) do still exist, so this is not a total
+import failure — it fails at first paint, which is worse for diagnosis.
+
+Repairing Blocker 3 means patching or forking the viewer, which the phase
+explicitly forbids. That is the hard stop.
+
+### What was verified and still holds
+
+These facts survive the decision, because they are properties of pdfjs 6 itself:
+
+| Check                 | Result                                                                                                                                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Installed content     | `build/pdf.mjs` 841 kB, `build/pdf.worker.min.mjs` 1 235 kB, `web/pdf_viewer.mjs` 312 kB — **all present**                                                                                            |
+| `wasm/`               | **present** — 13 files, 1.47 MB: `jbig2.wasm`, `openjpeg.wasm`, `qcms_bg.wasm`, `quickjs-eval.wasm` + 3 `*_nowasm_fallback.js`                                                                        |
+| `iccs/`               | **present** — 2 files, ~10 kB (`CGATS001Compat-v2-micro.icc`)                                                                                                                                         |
+| `cmaps/`              | **present** — 169 files, 1.11 MB                                                                                                                                                                      |
+| `standard_fonts/`     | **present** — 16 files, 0.76 MB                                                                                                                                                                       |
+| `main` / `types`      | `build/pdf.mjs` / `types/src/pdf.d.ts`; **no `exports` field**                                                                                                                                        |
+| Engine-level API      | `TextLayer`, `TextLayerImages`, `AnnotationLayer`, `LinkService`, `RenderingCancelledException`, `PasswordException`, `AbortException` all exported                                                   |
+| `GlobalWorkerOptions` | has both `workerSrc` and `workerPort`                                                                                                                                                                 |
+| Worker specifier      | `.mjs?url` resolves and emits correctly under Vite                                                                                                                                                    |
+| Lockfile churn        | `+326 / −150`, entirely pdfjs-related: dropped 3.x optional deps (`canvas`, `nan`, `path2d-polyfill`, `simple-get`, `simple-concat`) for 6.x's optional `@napi-rs/canvas`. **No unrelated upgrades.** |
+| `npm ls`              | root `pdfjs-dist@6.4.299`, RPV `3.12.0` deduped onto it, `overridden`. Install succeeds only because `legacy-peer-deps=true` suppresses `ERESOLVE`.                                                   |
+
+### Audit disposition — CVE-2024-4367 is genuinely resolved by 6.4.299
+
+```
+$ npm audit --omit=dev          # no pdfjs advisory at all
+$ npm run check:audit
+[audit] FAILED
+  pdfjs-dist is no longer reported — remove the exception
+```
+
+The repo's own gate produced the disposition this plan called for. The
+vulnerable eval-based font path no longer exists in 6.x at all — `isEvalSupported`
+has **zero** occurrences in `build/pdf.mjs`, `build/pdf.worker.mjs` and `types/` —
+so the advisory is resolved by the version, not by a workaround. When 6.4.299
+becomes installable, the entry in `security/audit-exceptions.json` must be
+**deleted**, not re-dated, and no replacement exception should be invented.
+It was deliberately left in place here, because reverting to 3.11.174 brings the
+advisory back and `npm run check:audit` correctly fails without it.
+
+### Decision required — single version vs temporary dual version
+
+This is a call for the maintainer, not for the implementation phase. Both options
+were scoped; neither was started.
+
+**Option A — single pdfjs 6, upgrade the viewer in the same change.**
+Requires resolving Blocker 3, i.e. a viewer release that uses `TextLayer` and
+`SVGFactory` instead of `renderTextLayer` and `SVGGraphics`. `npm view
+@react-pdf-viewer/core version` still returns **3.12.0**, so this means replacing
+the viewer (the Phase 4–8 plan) with **no working viewer in the interim** — the
+app cannot ship PDF between now and Phase 8. It is the end state, but it is a
+large-bang cut, not an incremental migration.
+
+**Option B — temporary dual version: RPV on pdfjs 3, native engine on pdfjs 6.**
+Npm cannot express this for a single root dependency, so it needs one of:
+
+- an npm alias, e.g. `"pdfjs-6": "npm:pdfjs-dist@6.4.299"`, with the native
+  engine importing `pdfjs-6` and `@react-pdf-viewer` keeping its `pdfjs-dist@3.11.174`.
+  Both trees coexist; the RPV `require('pdfjs-dist')` stays on 3.x.
+- keeping `pdfjs-dist@3.11.174` as the root pin and resolving 6.4.299 under a
+  second path via a Vite alias (weaker: it breaks `require()` interop for RPV).
+
+Option B unblocks the whole plan: Phase 3 (engine + worker + assets + security)
+becomes possible with zero viewer risk, and the RPV removal in Phase 8 also
+deletes the second copy. Cost: two pdf.js runtimes in the bundle, so
+`vendor-pdf` chunking and bundle size need measuring, and the engine must never
+share a `PDFWorker` or a `GlobalWorkerOptions` with the viewer — the "one worker"
+invariant becomes one worker _per engine_.
+
+**Recommendation: Option B via the npm alias.** It is the only path that keeps
+the shipped viewer working while the native engine is built, and it is
+reversible: dropping the alias and the alias import restores a single-version
+tree with one commit.
+
+### Consequence for the phase table
+
+| Phase                            | Status                                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — baseline                     | done                                                                                                                                                          |
+| 2 — regression baseline          | done                                                                                                                                                          |
+| **3 — native engine foundation** | **BLOCKED.** Requires the Option A/B decision first. Blockers 1 and 2 are two-line renames; Blocker 3 needs a viewer that speaks 6.x, or a second pdfjs copy. |
+| 4–8 — viewer migration           | gated on Phase 3                                                                                                                                              |
+| 9 — cleanup                      | unchanged                                                                                                                                                     |
+
 ---
 
 # Part IV — Performance baseline (must survive)
