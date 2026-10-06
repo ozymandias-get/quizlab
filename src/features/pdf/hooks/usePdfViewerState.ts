@@ -136,6 +136,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
 
   const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({
     currentPage,
+    capturePageRef: props.capturePageRef,
     queueImageForAi,
     startScreenshot,
     pdfUrl

@@ -14,15 +14,18 @@
  * | text layer   | `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`                       |
  * | annotations  | `useNativePdfAnnotationLayer` — one page, one PDF.js `AnnotationLayer` + links   |
  * | search       | `useNativePdfSearch` — keyword → match rectangles in the highlight overlay      |
+ * | capture      | `useNativePdfCaptureDocument` — publishes the document to the capture pipeline  |
  *
- * The order of these calls matters twice, and both times it is load-bearing: the
- * engine-creating effect in `useNativePdfEngine` is declared before the
+ * The order of these calls matters three times, and all three are load-bearing:
+ * the engine-creating effect in `useNativePdfEngine` is declared before the
  * document-loading effect in `useNativePdfDocument`, so the engine exists by the
- * time the document hook runs its body. The text-layer, annotation-layer and search
- * effects are declared after both render effects so that, within a single commit, the
- * canvas and the three overlays are torn down and rebuilt in the order they are
- * painted — and, for search, so the text layer's synchronous cleanup empties the runs
- * the search is about to measure.
+ * time the document hook runs its body; the capture-registration effect follows
+ * the document hook, so it only ever publishes a document that exists; and the
+ * text-layer, annotation-layer and search effects are declared after both render
+ * effects so that, within a single commit, the canvas and the three overlays are
+ * torn down and rebuilt in the order they are painted — and, for search, so the
+ * text layer's synchronous cleanup empties the runs the search is about to
+ * measure.
  *
  * ## What is reused from the legacy path, unchanged
  *
@@ -47,9 +50,11 @@
  *
  * `usePdfViewerZoomIpc` (Electron context-menu zoom) is not wired: it hard-codes
  * `SpecialZoomLevel.PageWidth` as its reset target and belongs with the
- * native-viewer work that replaces the legacy context menu. `usePdfContextMenu`
- * and the capture actions reach into the legacy viewer's DOM and its
- * `activePdfDocumentRegistry`, so they stay on the legacy path.
+ * native-viewer work that replaces the legacy context menu.
+ * `usePdfContextMenu` itself is renderer-agnostic — it listens on the shared
+ * container and renders one `ContextMenu` for both paths — and its capture items
+ * reach the real backend now that the document is published to the registry, so
+ * neither the hook nor the menu needed a native branch.
  *
  * `PdfSearchBar` and `usePdfSearchStore` are not native code and do not appear here:
  * the search bar is one component for both renderers, and it only ever calls
@@ -58,6 +63,7 @@
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import { clampPdfPage } from '@features/pdf/native/nativePdfBounds'
 import { useNativePdfAnnotationLayer } from '@features/pdf/native/useNativePdfAnnotationLayer'
+import { useNativePdfCaptureDocument } from '@features/pdf/native/useNativePdfCaptureDocument'
 import {
   type NativePdfDocumentStatus,
   useNativePdfDocument
@@ -192,6 +198,14 @@ export function useNativePdfController({
     pdfUrl,
     reloadKey
   })
+
+  // Declared right after the document hook because it publishes that document:
+  // capture borrows the mounted document through the registry instead of
+  // re-decoding the file, so this is the native equivalent of the one
+  // `onDocumentLoad` call the legacy viewer makes. Withdrawing is token-scoped,
+  // so of two mounted viewers (LeftPanel + FocusOverlay) only the one unmounting
+  // clears the slot.
+  useNativePdfCaptureDocument({ enabled, engine, status, pdfUrl, reloadKey })
 
   const isReady = enabled && status === 'ready'
 

@@ -35,10 +35,18 @@
  *  - `useNativePdfAnnotationLayer` — one page, one PDF.js `AnnotationLayer`
  *  - `nativePdfSearch` — literal matching over the page's runs, and match geometry
  *  - `useNativePdfSearch` — keyword → highlight rectangles in the overlay
+ *  - `nativePdfCaptureDocument` — the capture handle adapter + the temporary
+ *    pdfjs-6 load capture falls back to when nothing is mounted
+ *  - `useNativePdfCaptureDocument` — publishes the mounted document to capture
  *  - `useNativePdfController` — the composition and the toolbar contract
  *  - `nativeZoomControls` — render-prop zoom components for the shared toolbar
  */
 export { clampPdfPage, clampPdfScale } from './nativePdfBounds'
+export {
+  createNativeCaptureHandle,
+  loadTemporaryCaptureDocument,
+  type TemporaryCaptureDocument
+} from './nativePdfCaptureDocument'
 export {
   findNativeAnnotationLayer,
   findNativeAnnotationLayerForPage,
@@ -77,6 +85,7 @@ export {
   type NativePdfAnnotationLayerHandle,
   useNativePdfAnnotationLayer
 } from './useNativePdfAnnotationLayer'
+export { useNativePdfCaptureDocument } from './useNativePdfCaptureDocument'
 export { type NativePdfController, useNativePdfController } from './useNativePdfController'
 export {
   type NativePdfDocumentStatus,

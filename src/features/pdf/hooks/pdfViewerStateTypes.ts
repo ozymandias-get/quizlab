@@ -25,6 +25,15 @@ export interface PdfViewerDocumentProps {
   startScreenshot: (imageMeta?: ScreenshotMeta) => void
   queueImageForAi: (dataUrl: string, imageMeta?: ScreenshotMeta) => void
   isPanelResizing?: boolean
+  /**
+   * The live page number capture must read, written by `PdfViewerDocument`.
+   *
+   * Not part of what a caller supplies: it is created one level up, next to the
+   * renderer switch, and passed in so capture can honour whichever renderer's page
+   * state is current. Optional, and falling back to this hook's own `currentPage`,
+   * so the legacy path and every direct test of this hook keep working unchanged.
+   */
+  capturePageRef?: React.RefObject<number>
 }
 
 export interface UsePdfViewerStateReturn {
