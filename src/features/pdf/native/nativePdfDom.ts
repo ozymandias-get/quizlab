@@ -84,6 +84,19 @@
 /** The element wrapping one rendered page: canvas plus text layer. */
 export const NATIVE_PAGE_SELECTOR = '[data-native-pdf-page]'
 
+/**
+ * The scrollable viewport the page box lives in.
+ *
+ * `usePdfPanTool` needs this as a fallback: it first walks up from the pointer
+ * looking for a scrollable ancestor, and only asks for this when the page does not
+ * currently overflow — in which case nothing on the page is a scrollable element
+ * and the walk comes back empty. On the legacy path that fallback named the
+ * viewer's own inner container; this is the native equivalent, and it is the same
+ * element `usePdfCtrlWheelZoom` and `usePdfWheelNavigation` attach to via the
+ * shared container's capture phase.
+ */
+export const NATIVE_SCROLL_SELECTOR = '[data-native-pdf-scroll]'
+
 /** The single page canvas. */
 export const NATIVE_CANVAS_SELECTOR = '[data-native-pdf-canvas]'
 

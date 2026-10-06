@@ -150,10 +150,10 @@ describe('panHelpers', () => {
       document.body.innerHTML = ''
     })
 
-    it('returns the element with data-testid=core__inner-container', () => {
+    it('returns the native page viewport', () => {
       const root = document.createElement('div')
       const inner = document.createElement('div')
-      inner.setAttribute('data-testid', 'core__inner-container')
+      inner.setAttribute('data-native-pdf-scroll', '')
       root.appendChild(inner)
       document.body.appendChild(root)
 
