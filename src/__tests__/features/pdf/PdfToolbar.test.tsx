@@ -213,11 +213,12 @@ describe('PdfToolbar', () => {
     expect(onReload).toHaveBeenCalledTimes(1)
   })
 
-  // The native canvas viewer renders neither a text layer nor an active document
-  // in the capture registry yet, so the controls that need them must not be left
-  // looking live. Search is hidden outright; the AI/capture actions are disabled
-  // with a reason. Reload stays enabled because it drives a document lifecycle the
-  // native viewer does own.
+  // The native canvas viewer has no capture pipeline and no active document in
+  // the legacy registry, so the controls that rasterise the page must not be left
+  // looking live. Search is hidden outright and the capture actions are disabled
+  // with a reason. Two things stay live, because the native viewer owns them for
+  // real: the page-text AI action reads the PDF.js text layer Phase 5 added, and
+  // reload drives a document lifecycle.
   describe('nativeCanvasMode', () => {
     function renderNativeToolbar() {
       return render(
@@ -254,12 +255,14 @@ describe('PdfToolbar', () => {
       expect(getByTestId('pdf-toolbar-mode-toggle')).toBeInTheDocument()
     })
 
-    it('disables the text-layer and capture actions but keeps reload live', () => {
+    it('disables the capture actions but keeps the text action and reload live', () => {
       const { getByTestId } = renderNativeToolbar()
 
       fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
 
-      expect(getByTestId('pdf-quick-text-ai')).toBeDisabled()
+      // Supported natively from Phase 5: the page text layer exists.
+      expect(getByTestId('pdf-quick-text-ai')).toBeEnabled()
+      // Still legacy-only: page rasterisation and the crop screenshot.
       expect(getByTestId('pdf-quick-image-ai')).toBeDisabled()
       expect(getByTestId('pdf-quick-area-ai')).toBeDisabled()
       expect(getByTestId('pdf-quick-reload')).toBeEnabled()
