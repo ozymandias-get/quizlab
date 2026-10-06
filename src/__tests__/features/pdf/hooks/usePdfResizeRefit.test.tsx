@@ -3,17 +3,6 @@ import { usePdfResizeRefit } from '@features/pdf/viewport/usePdfResizeRefit'
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@react-pdf-viewer/core', () => ({
-  SpecialZoomLevel: {
-    PageWidth: 'PageWidth'
-  },
-  ScrollMode: {
-    Page: 0,
-    Vertical: 1,
-    Horizontal: 2
-  }
-}))
-
 describe('usePdfResizeRefit', () => {
   let resizeObserverCallback: (() => void) | null = null
   let originalResizeObserver: typeof ResizeObserver
@@ -48,7 +37,7 @@ describe('usePdfResizeRefit', () => {
     vi.unstubAllGlobals()
   })
 
-  it('debounces repeated ResizeObserver notifications into a single PageWidth refit', () => {
+  it('debounces repeated ResizeObserver notifications into a single refit', () => {
     const zoomTo = vi.fn()
     const containerRef = { current: document.createElement('div') }
     const bodyAddSpy = vi.spyOn(document.body.classList, 'add')
@@ -73,7 +62,7 @@ describe('usePdfResizeRefit', () => {
     })
 
     expect(zoomTo).toHaveBeenCalledTimes(1)
-    expect(zoomTo).toHaveBeenCalledWith('PageWidth')
+    expect(zoomTo).toHaveBeenCalledWith(1)
     expect(bodyAddSpy).not.toHaveBeenCalled()
     expect(bodyRemoveSpy).not.toHaveBeenCalled()
     expect(bodyContainsSpy).not.toHaveBeenCalled()
@@ -116,7 +105,7 @@ describe('usePdfResizeRefit', () => {
     })
 
     expect(zoomTo).toHaveBeenCalledTimes(1)
-    expect(zoomTo).toHaveBeenCalledWith('PageWidth')
+    expect(zoomTo).toHaveBeenCalledWith(1)
   })
 
   it('refits when the document first becomes ready, even without a resize event', () => {
@@ -151,12 +140,12 @@ describe('usePdfResizeRefit', () => {
     })
 
     expect(zoomTo).toHaveBeenCalledTimes(1)
-    expect(zoomTo).toHaveBeenCalledWith('PageWidth')
+    expect(zoomTo).toHaveBeenCalledWith(1)
   })
 
-  it('refits to a numeric scale when the caller supplies one instead of a keyword', () => {
-    // The native canvas viewer reuses these rules but has no `SpecialZoomLevel`,
-    // so it passes its own numeric fallback. Same debounce, same debounced
+  it('refits to the caller numeric fallback', () => {
+    // The viewer passes its own fallback because its fit scale is a computed
+    // number rather than a viewer keyword. Same debounce, same debounced
     // window — only the refit target differs.
     const zoomTo = vi.fn<(scale: unknown) => void>()
     const containerRef = { current: document.createElement('div') }

@@ -85,6 +85,31 @@ function flushFrames(): void {
   for (const [, cb] of frames) cb(0)
 }
 
+/**
+ * A mounted native page: the page box, its text layer, and one run per word.
+ *
+ * This is the markup `NativePdfViewer` produces and PDF.js's `TextLayer` fills.
+ * The fixtures used to build `rpv-core__page-layer` / `rpv-core__text-layer`
+ * markup; every expectation below is about the hook's behaviour — the rAF
+ * coalescing, the 150 ms scroll freeze, the `pdf-selection-active` toggle, the
+ * enablement gates — none of which ever depended on the viewer's class names.
+ */
+function makePageBox(pageNumber: number, words: string[]): HTMLElement {
+  const box = document.createElement('div')
+  box.setAttribute('data-native-pdf-page', String(pageNumber))
+  const textLayer = document.createElement('div')
+  textLayer.setAttribute('data-native-pdf-text-layer', '')
+  textLayer.setAttribute('data-native-pdf-text-page', String(pageNumber))
+  for (const word of words) {
+    const span = document.createElement('span')
+    span.setAttribute('role', 'presentation')
+    span.textContent = word
+    textLayer.appendChild(span)
+  }
+  box.appendChild(textLayer)
+  return box
+}
+
 function buildContainer(withTextLayer = true): {
   panel: HTMLDivElement
   container: HTMLDivElement
@@ -103,17 +128,7 @@ function buildContainer(withTextLayer = true): {
   })
   panel.appendChild(container)
   if (withTextLayer) {
-    const pageLayer = document.createElement('div')
-    pageLayer.className = 'rpv-core__page-layer'
-    const textLayer = document.createElement('div')
-    textLayer.className = 'rpv-core__text-layer'
-    for (const word of ['the', 'quick', 'brown', 'fox']) {
-      const span = document.createElement('span')
-      span.textContent = word
-      textLayer.appendChild(span)
-    }
-    pageLayer.appendChild(textLayer)
-    container.appendChild(pageLayer)
+    container.appendChild(makePageBox(1, ['the', 'quick', 'brown', 'fox']))
   }
   return { panel, container }
 }
@@ -129,8 +144,8 @@ function mountHook(
   const { panel, container } = buildContainer(options.withTextLayer ?? true)
   if (page > 0) {
     container
-      .querySelector('.rpv-core__page-layer')
-      ?.setAttribute('data-virtual-index', String(page - 1))
+      .querySelector('[data-native-pdf-page]')
+      ?.setAttribute('data-native-pdf-page', String(page))
   }
   const containerRef = { current: container } as RefObject<HTMLElement | null>
   const onTextSelection = vi.fn()
@@ -684,8 +699,8 @@ describe('usePdfTextActions', () => {
       const page = nextPage++
       const { container } = buildContainer(true)
       container
-        .querySelector('.rpv-core__page-layer')
-        ?.setAttribute('data-virtual-index', String(page - 1))
+        .querySelector('[data-native-pdf-page]')
+        ?.setAttribute('data-native-pdf-page', String(page))
       const containerRef = { current: container } as RefObject<HTMLElement | null>
       const onTextExtracted = vi.fn()
       const onNoTextFound = vi.fn()
@@ -832,8 +847,8 @@ describe('usePdfTextActions', () => {
         const page = nextPage++
         const { container } = buildContainer(true)
         container
-          .querySelector('.rpv-core__page-layer')
-          ?.setAttribute('data-virtual-index', String(page - 1))
+          .querySelector('[data-native-pdf-page]')
+          ?.setAttribute('data-native-pdf-page', String(page))
         const containerRef = { current: container } as RefObject<HTMLElement | null>
         const { result } = renderHook(() =>
           usePdfTextActions({ containerRef, currentPage: page, onTextSelection: vi.fn() })

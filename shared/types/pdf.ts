@@ -13,5 +13,5 @@ export type PdfFile = {
   size?: number | null
 }
 
-/** Native PDF menu → renderer (@react-pdf-viewer zoom). */
+/** Electron PDF window context menu (Zoom In / Zoom Out / Reset Zoom) → renderer PDF zoom. */
 export type PdfViewerZoomAction = 'in' | 'out' | 'reset'

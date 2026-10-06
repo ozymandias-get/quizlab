@@ -4,7 +4,7 @@
  *
  * ## Why this is not `PDFFindController`
  *
- * `PDFFindController` exists in `pdfjs-6` — in `web/pdf_viewer.mjs`, and not in the
+ * `PDFFindController` exists in `pdfjs-dist` — in `web/pdf_viewer.mjs`, and not in the
  * package's entry point. Its constructor demands an `EventBus` (`eventBus.on(...)` is
  * called immediately, four times), a `linkService` and a whole-document search over
  * pages it discovers through `PDFPageView`; it publishes matches by dispatching

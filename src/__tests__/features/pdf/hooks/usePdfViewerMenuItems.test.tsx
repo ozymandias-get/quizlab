@@ -1,4 +1,3 @@
-import { PDF_ZOOM_MAX_SCALE } from '@features/pdf/constants/pdfZoom'
 import { usePdfViewerMenuItems } from '@features/pdf/hooks/usePdfViewerMenuItems'
 
 import { renderHook } from '@testing-library/react'
@@ -11,9 +10,7 @@ describe('usePdfViewerMenuItems', () => {
   const handleAreaScreenshot = vi.fn()
   const extractCurrentPageText = vi.fn(() => 'page text')
   const handleFullPageScreenshot = vi.fn(async () => {})
-  const jumpToPageFromNav = vi.fn()
   const setContextMenu = vi.fn()
-  const setScaleFactor = vi.fn()
 
   let reloadKey = 0
   const setViewerReloadKey = vi.fn((action: SetStateAction<number>) => {
@@ -29,9 +26,7 @@ describe('usePdfViewerMenuItems', () => {
         handleAreaScreenshot,
         extractCurrentPageTextRef: { current: extractCurrentPageText },
         handleFullPageScreenshotRef: { current: handleFullPageScreenshot },
-        jumpToPageFromNav,
         setContextMenu,
-        setScaleFactor,
         setViewerReloadKey,
         startTransition
       })
@@ -52,20 +47,23 @@ describe('usePdfViewerMenuItems', () => {
     expect(handleFullPageScreenshot).toHaveBeenCalledTimes(1)
   })
 
-  it('clamps zoom to the max scale and forwards page jumps', () => {
+  it('closes the context menu', () => {
     const { result } = setup()
 
-    result.current.handleZoom({ scale: PDF_ZOOM_MAX_SCALE + 10 })
-    expect(setScaleFactor).toHaveBeenCalledWith(PDF_ZOOM_MAX_SCALE)
-
-    result.current.handleZoom({ scale: 1.25 })
-    expect(setScaleFactor).toHaveBeenCalledWith(1.25)
-
-    result.current.handleJumpToPage(7)
-    expect(jumpToPageFromNav).toHaveBeenCalledWith(7)
-
     result.current.handleCloseContextMenu()
+
     expect(setContextMenu).toHaveBeenCalledWith(null)
+  })
+
+  // Zoom clamping and page jumps used to be `@react-pdf-viewer` adapters here.
+  // The native controller owns its scale outright and exposes `jumpToPage`, so
+  // the toolbar binds them directly and this hook no longer has a surface for
+  // them — asserting the absence is what keeps a second clamp from reappearing.
+  it('exposes no zoom or jump handler', () => {
+    const { result } = setup()
+
+    expect(result.current).not.toHaveProperty('handleZoom')
+    expect(result.current).not.toHaveProperty('handleJumpToPage')
   })
 
   it('reloads the viewer by bumping the reload key inside a transition', () => {

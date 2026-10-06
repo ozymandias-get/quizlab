@@ -2,6 +2,34 @@ import { extractSelectedText } from '@features/pdf/text/extractSelectedText'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+/**
+ * A native text layer, which is the only PDF text markup there is now.
+ *
+ * The scope check is unconditional: a selection is PDF text only if it lands
+ * inside the layer, so a bare text node under the viewer container is correctly
+ * rejected. The fixtures below therefore put their text where the viewer puts it.
+ */
+function mountTextLayer(container: HTMLElement): HTMLElement {
+  const page = document.createElement('div')
+  page.setAttribute('data-native-pdf-page', '1')
+  const layer = document.createElement('div')
+  layer.setAttribute('data-native-pdf-text-layer', '')
+  layer.setAttribute('data-native-pdf-text-page', '1')
+  page.appendChild(layer)
+  container.appendChild(page)
+  return layer
+}
+
+/** A text node inside the native text layer, as a rendered PDF.js run. */
+function textRunIn(layer: HTMLElement, text: string): Text {
+  const span = document.createElement('span')
+  span.setAttribute('role', 'presentation')
+  const node = document.createTextNode(text)
+  span.appendChild(node)
+  layer.appendChild(span)
+  return node
+}
+
 function createSelection(initial: { text: string; range: Range }) {
   return {
     toString: () => initial.text,
@@ -25,6 +53,7 @@ function createMockRange(opts: { startContainer: Node; endContainer: Node; rect:
 
 describe('extractSelectedText', () => {
   let container: HTMLDivElement
+  let layer: HTMLElement
 
   beforeEach(() => {
     container = document.createElement('div')
@@ -46,6 +75,7 @@ describe('extractSelectedText', () => {
       })
     })
     document.body.appendChild(container)
+    layer = mountTextLayer(container)
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 })
   })
@@ -61,8 +91,7 @@ describe('extractSelectedText', () => {
   })
 
   it('returns empty result when selection is collapsed', () => {
-    const text = document.createTextNode('hello')
-    container.appendChild(text)
+    const text = textRunIn(layer, 'hello')
     const range = createMockRange({
       startContainer: text,
       endContainer: text,
@@ -87,9 +116,24 @@ describe('extractSelectedText', () => {
     outside.remove()
   })
 
+  it('returns null for a selection inside the viewer that is not the text layer', () => {
+    // The canvas and the page chrome are inside the viewer container too. Only the
+    // text layer is PDF text.
+    const chrome = document.createElement('div')
+    chrome.textContent = 'page chrome'
+    container.appendChild(chrome)
+    const range = createMockRange({
+      startContainer: chrome.firstChild as Node,
+      endContainer: chrome.firstChild as Node,
+      rect: { width: 100, height: 20, left: 200, top: 150, right: 300, bottom: 170 } as DOMRect
+    })
+    const selection = createSelection({ text: 'page chrome', range })
+
+    expect(extractSelectedText(selection, container)).toBeNull()
+  })
+
   it('returns text and position when selection is inside container', () => {
-    const text = document.createTextNode('hello world')
-    container.appendChild(text)
+    const text = textRunIn(layer, 'hello world')
     const rect = {
       width: 100,
       height: 20,
@@ -107,8 +151,7 @@ describe('extractSelectedText', () => {
   })
 
   it('flips position below the selection when there is no room above', () => {
-    const text = document.createTextNode('top of page')
-    container.appendChild(text)
+    const text = textRunIn(layer, 'top of page')
     const rect = {
       width: 100,
       height: 20,
@@ -126,8 +169,7 @@ describe('extractSelectedText', () => {
   })
 
   it('keeps position in bounds horizontally', () => {
-    const text = document.createTextNode('edge text')
-    container.appendChild(text)
+    const text = textRunIn(layer, 'edge text')
     const rect = {
       width: 100,
       height: 20,

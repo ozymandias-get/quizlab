@@ -1,16 +1,22 @@
 /**
- * The `pdfjs-6` adapter for the capture-document registry, plus the isolated
- * temporary load capture falls back to when nothing is mounted.
+ * The capture-document adapter: the engine's public surface for "give me a
+ * document to render a page from, and tell me whether it is still usable".
  *
- * ## Two producers, one contract
+ * ## Why this is the engine's, not the native viewer's
  *
- * | Producer             | Handle lives as long as                       | `isAlive()` answers                          |
- * | -------------------- | --------------------------------------------- | ------------------------------------------- |
- * | mounted viewer       | the viewer's `PdfDocumentManager`            | `!manager.destroyed && manager.getDocument() === document` |
- * | temporary capture    | a throwaway `PdfDocumentManager` this call owns | `!manager.destroyed && manager.getDocument() !== null` |
+ * Capture has two clients. The viewer *publishes* its document to the capture
+ * registry so a high-DPI render can borrow it; `lib/renderPageToImage.ts`
+ * *borrows* it, and when nothing is mounted it needs a document of its own.
  *
- * Both are the same object shape, and both are reached through the engine, so
- * `renderPageToImage.ts` needs no idea which one it borrowed.
+ * Both need the same thing — a `PDFPageProxy` narrowed to `getViewport` +
+ * `render`, plus an honest liveness answer — and both need it from the engine,
+ * because the engine is the only place allowed to import PDF.js. Leaving that
+ * capability in `native/` meant `lib/` had to reach sideways into the native
+ * viewer boundary to reach the engine, which was the one direction-inverted edge
+ * in the feature. It is the engine's job, so it lives here.
+ *
+ * Nothing in this file is viewer-specific: no React, no DOM, no viewer package,
+ * no UI.
  *
  * ## Why liveness is the manager's, not the proxy's
  *
@@ -23,45 +29,28 @@
  *  - **reload** — `load()` disposes the previous task before starting the new one,
  *    so the old proxy is unreachable from the moment the reload begins
  *  - **document switch** — same mechanism, same instant
- *  - **unmount / disable** — `manager.destroy()` clears the active document and
- *    marks the manager destroyed
+ *  - **unmount** — `manager.destroy()` clears the active document and marks the
+ *    manager destroyed
  *
  * ## Ownership
  *
  * A temporary document is loaded through a **fresh** `PdfDocumentManager`, and
- * `release()` calls `manager.destroy()` — the same single teardown call the
- * native viewer uses, which reaches `PDFDocumentLoadingTask#destroy()`, aborts
- * the worker-side work with it, and is preceded by the worker's own
- * `initializeNativePdfWorker()` bootstrap inside `load()`. Nothing else is
- * needed: no page `cleanup()`, no document `destroy()`, because the loading task
- * owns all of it.
+ * `release()` calls `manager.destroy()` — the same single teardown call the viewer
+ * uses, which reaches `PDFDocumentLoadingTask#destroy()` and aborts the worker-side
+ * work with it. Nothing else is needed: no page `cleanup()`, no document
+ * `destroy()`, because the loading task owns all of it.
  *
  * A borrowed handle from a mounted viewer has no `release()` at all. Capture
  * cannot end that document's life even by accident, which is the invariant the
  * whole registry contract exists to protect.
- *
- * ## Why this lives in the native boundary rather than in `lib/`
- *
- * Only `features/pdf/native/**` (and `NativePdfViewer.tsx`) may import
- * `@features/pdf/engine`, and the engine is the only place that may import
- * `pdfjs-6`. `lib/renderPageToImage.ts` needs a pdfjs-6 document load, so the
- * capability is published here and borrowed from there.
- *
- * > **TEMPORARY BRIDGE.** That import direction — the legacy capture module
- * > reaching into the native boundary for its fallback load — exists only while
- * > both runtimes ship. Phase 8B deletes `pdfjs-dist@3`, `renderPageToImage`'s
- * > legacy branch and this indirection together.
  */
-import type { PdfDocumentManager } from '@features/pdf/engine'
-import { createPdfDocumentManager } from '@features/pdf/engine'
-import type {
-  ActivePdfDocumentHandle,
-  CaptureDocumentPage
-} from '@features/pdf/lib/activePdfDocumentRegistry'
+import type { PageViewport, PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
 
-import type { PageViewport, PDFDocumentProxy, PDFPageProxy } from 'pdfjs-6'
+import type { ActivePdfDocumentHandle, CaptureDocumentPage } from '../lib/activePdfDocumentRegistry'
+import type { PdfDocumentManager } from './documentManager'
+import { createPdfDocumentManager } from './documentManager'
 
-/** Narrow a pdfjs-6 page proxy to the capture page surface. */
+/** Narrow a PDF.js page proxy to the capture page surface. */
 function toCapturePage(page: PDFPageProxy): CaptureDocumentPage {
   return {
     getViewport: ({ scale }) => page.getViewport({ scale }),
@@ -69,7 +58,7 @@ function toCapturePage(page: PDFPageProxy): CaptureDocumentPage {
       // Capture measures a page with `getViewport` and renders that same
       // measurement straight back, so the value really is this page's own
       // `PageViewport`; the assertion only recovers the identity that the
-      // runtime-agnostic boundary erases. Same shape as the legacy adapter's.
+      // runtime-agnostic boundary erases.
       //
       // `canvas` is passed alongside `canvasContext` because 6.x deprecates the
       // context in favour of the element, and deriving it explicitly keeps the
@@ -105,9 +94,9 @@ function createHandle(
 }
 
 /**
- * The mounted native viewer's document, as a capture handle.
+ * The mounted viewer's document, as a capture handle.
  *
- * Registered by `useNativePdfCaptureDocument` once the document is ready.
+ * Published to the capture registry once the document is ready.
  */
 export function createNativeCaptureHandle(
   manager: PdfDocumentManager,

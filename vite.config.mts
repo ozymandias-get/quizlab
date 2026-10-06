@@ -10,18 +10,18 @@ import { viteAliases } from './vite.aliases.mts'
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * Directories copied out of `node_modules/pdfjs-6` and served from
+ * Directories copied out of `node_modules/pdfjs-dist` and served from
  * `<base>pdfjs/`. Kept in sync with `PDFJS_ASSET_SUBDIRS` in
  * `src/features/pdf/engine/pdfDocumentOptions.ts`, which builds the URLs the
  * native engine hands to `getDocument`.
  */
 const PDFJS_ASSET_SUBDIRS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'] as const
 
-/** Where the aliased PDF.js 6 package lives on disk. */
-const PDFJS_6_PACKAGE = 'node_modules/pdfjs-6'
+/** Where the PDF.js package lives on disk. */
+const PDFJS_PACKAGE = 'node_modules/pdfjs-dist'
 
 /**
- * Stages the native PDF.js 6 runtime assets without adding a dependency.
+ * Stages the PDF.js runtime assets without adding a dependency.
  *
  * PDF.js needs CMaps, standard font data, the wasm decoders (JBIG2, OpenJPEG,
  * qcms) and an ICC profile at runtime; ~200 files / ~3.4 MB that must reach both
@@ -38,12 +38,9 @@ const PDFJS_6_PACKAGE = 'node_modules/pdfjs-6'
  * `emptyOutDir` has wiped it, so `dist/pdfjs` cannot accumulate stale files from
  * a previous run. Nothing is deleted here: this hook only ever adds files under
  * its own directory.
- *
- * Only the `pdfjs-6` tree is read. The legacy `pdfjs-dist@3.11.174` assets used
- * by `@react-pdf-viewer` are untouched — see `docs/pdfjs-migration-plan.md`.
  */
 function pdfjsAssets(): Plugin {
-  const assetRoot = `${PDFJS_6_PACKAGE}`
+  const assetRoot = `${PDFJS_PACKAGE}`
   const urlPrefix = '/pdfjs/'
 
   return {
@@ -99,11 +96,7 @@ function createManualChunks(id: string) {
   if (id.includes('@headlessui/react')) return 'vendor-headless'
   if (id.includes('lucide-react')) return 'vendor-lucide'
   if (id.includes('react-colorful')) return 'vendor-colorful'
-  if (id.includes('pdfjs-dist') || id.includes('@react-pdf-viewer')) return 'vendor-pdf-legacy'
-  // The native migration runtime must not be folded into the legacy chunk: two
-  // PDF.js versions are installed on purpose and bundling them together would
-  // make it impossible to delete either one later.
-  if (id.includes('pdfjs-6')) return 'vendor-pdf-native'
+  if (id.includes('pdfjs-dist')) return 'vendor-pdf'
   if (id.includes('@radix-ui')) return 'vendor-radix'
   if (id.includes('zustand')) return 'vendor-state'
   if (id.includes('@tsparticles')) return 'vendor-particles'
@@ -116,20 +109,6 @@ function createManualChunks(id: string) {
   // Keep React core in main chunk for faster initial paint — splitting it
   // would add an extra request without caching benefit (changes with app code).
   return undefined
-}
-
-function handleRollupWarn(
-  warning: { code?: string; id?: string; message: string },
-  warn: (w: typeof warning) => void
-) {
-  if (
-    warning.code === 'EVAL' &&
-    typeof warning.id === 'string' &&
-    warning.id.includes('pdfjs-dist/build/pdf.js')
-  ) {
-    return
-  }
-  warn(warning)
 }
 
 export default defineConfig({
@@ -148,7 +127,6 @@ export default defineConfig({
     assetsInlineLimit: 4096,
     reportCompressedSize: false,
     rollupOptions: {
-      onwarn: handleRollupWarn,
       output: {
         manualChunks: createManualChunks,
         chunkFileNames: 'assets/[name]-[hash].js',
@@ -158,7 +136,6 @@ export default defineConfig({
     },
     // Rolldown (Vite 7+ experimental) — keep in sync with rollupOptions above.
     rolldownOptions: {
-      onwarn: handleRollupWarn,
       output: {
         codeSplitting: {
           groups: [
@@ -168,14 +145,7 @@ export default defineConfig({
             { test: /@headlessui\/react/, name: 'vendor-headless' },
             { test: /lucide-react/, name: 'vendor-lucide' },
             { test: /react-colorful/, name: 'vendor-colorful' },
-            {
-              test: /(?:pdfjs-dist|@react-pdf-viewer)/,
-              name: 'vendor-pdf-legacy'
-            },
-            {
-              test: /pdfjs-6/,
-              name: 'vendor-pdf-native'
-            },
+            { test: /pdfjs-dist/, name: 'vendor-pdf' },
             {
               test: /@radix-ui\/react-(?:slider|slot|tooltip|switch|separator|select|scroll-area|label|avatar)/,
               name: 'vendor-radix'

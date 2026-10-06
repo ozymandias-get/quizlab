@@ -11,7 +11,7 @@
  *     binding Ctrl/Cmd + `-` / `=` / `0`.
  *
  * Deleting RPV deletes both. These tests drive the **real** native controller
- * against a faked `pdfjs-6` (so only the PDF.js boundary is fake) and assert the
+ * against a faked `pdfjs-dist` (so only the PDF.js boundary is fake) and assert the
  * observable consequence: the controller's own `scale` moves. A wiring-only
  * assertion would pass just as happily if the zoom went to a dead channel, so
  * every case ends on a number the viewer actually renders at.
@@ -42,7 +42,7 @@ const mocks = vi.hoisted(() => ({
   removeListener: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer } = await import('./nativeTextLayerDouble')
   return {

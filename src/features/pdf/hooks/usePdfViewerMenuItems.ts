@@ -1,5 +1,3 @@
-import { PDF_ZOOM_MAX_SCALE } from '@features/pdf/constants/pdfZoom'
-
 import { Crop, Image as ImageIcon, RefreshCw, Type } from 'lucide-react'
 import type { Dispatch, SetStateAction } from 'react'
 import { useCallback, useMemo } from 'react'
@@ -12,9 +10,7 @@ interface MenuItemsInput {
   handleAreaScreenshot: () => void
   extractCurrentPageTextRef: React.MutableRefObject<() => string | null>
   handleFullPageScreenshotRef: React.MutableRefObject<() => Promise<void>>
-  jumpToPageFromNav: (page: number) => void
   setContextMenu: (menu: { x: number; y: number } | null) => void
-  setScaleFactor: Dispatch<SetStateAction<number>>
   setViewerReloadKey: Dispatch<SetStateAction<number>>
   startTransition: (fn: () => void) => void
 }
@@ -23,12 +19,19 @@ interface MenuItemsOutput {
   handleAddCurrentPageTextToAi: () => void
   handleSendPageAsImageToAi: () => void
   handleReload: () => void
-  handleZoom: (e: { scale: number }) => void
-  handleJumpToPage: (page: number) => void
   handleCloseContextMenu: () => void
   menuItems: MenuItem[]
 }
 
+/**
+ * The context-menu items and the two handlers the toolbar also uses.
+ *
+ * `handleZoom` and `handleJumpToPage` used to live here as the `@react-pdf-viewer`
+ * adapters — the first clamped whatever scale the viewer's `onZoom` reported, the
+ * second forwarded to the navigation hook's jump. Both were removed with the
+ * viewer: the native controller owns its scale outright and owns `jumpToPage`, so
+ * the toolbar binds them directly and there is nothing left to clamp.
+ */
 export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
   const {
     t,
@@ -36,9 +39,7 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
     handleAreaScreenshot,
     extractCurrentPageTextRef,
     handleFullPageScreenshotRef,
-    jumpToPageFromNav,
     setContextMenu,
-    setScaleFactor,
     setViewerReloadKey,
     startTransition
   } = input
@@ -50,20 +51,6 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
   const handleSendPageAsImageToAi = useCallback(
     () => handleFullPageScreenshotRef.current(),
     [handleFullPageScreenshotRef]
-  )
-
-  const handleZoom = useCallback(
-    (e: { scale: number }) => {
-      setScaleFactor(Math.min(e.scale, PDF_ZOOM_MAX_SCALE))
-    },
-    [setScaleFactor]
-  )
-
-  const handleJumpToPage = useCallback(
-    (page: number) => {
-      jumpToPageFromNav(page)
-    },
-    [jumpToPageFromNav]
   )
 
   const handleCloseContextMenu = useCallback(() => setContextMenu(null), [setContextMenu])
@@ -106,8 +93,6 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
     handleAddCurrentPageTextToAi,
     handleSendPageAsImageToAi,
     handleReload,
-    handleZoom,
-    handleJumpToPage,
     handleCloseContextMenu,
     menuItems
   }

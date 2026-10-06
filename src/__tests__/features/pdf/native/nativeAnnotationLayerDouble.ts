@@ -1,5 +1,5 @@
 /**
- * The `pdfjs-6` `AnnotationLayer` test double.
+ * The `pdfjs-dist` `AnnotationLayer` test double.
  *
  * It lives in its own dependency-free module for the same reason as
  * `nativeTextLayerDouble`: a `vi.mock` factory is hoisted above the test file's
@@ -27,14 +27,14 @@
  * No geometry. jsdom has no layout, so a percentage-positioned `<section>` proves
  * nothing; what a test can honestly observe is the lifecycle, the DOM contract and the
  * arguments. `AnnotationType.LINK` is inlined as `2` because the module may not import
- * `pdfjs-6` — that is the value in `build/pdf.mjs`.
+ * `pdfjs-dist` — that is the value in `build/pdf.mjs`.
  *
  * `render()` appends synchronously and resolves on a microtask, which is what
  * `build/pdf.mjs` does: the element loop and `#addElementsToDOM`'s fragment append
  * both run before the first `await` inside `render()`.
  */
 
-/** `AnnotationType.LINK` from `build/pdf.mjs` — the double may not import pdfjs-6. */
+/** `AnnotationType.LINK` from `build/pdf.mjs` — the double may not import pdfjs-dist. */
 const LINK = 2
 
 /** What `page.getAnnotations({ intent: 'display' })` reports, as the double reads it. */

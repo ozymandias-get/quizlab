@@ -6,7 +6,7 @@
  * `PdfDocumentManager`, so nothing about it was reachable from a context-menu
  * handler until `useNativePdfCaptureDocument` started publishing it. These tests
  * drive the **real** controller and the **real** engine against a faked
- * `pdfjs-6`, so the liveness answers are production behaviour — including the
+ * `pdfjs-dist`, so the liveness answers are production behaviour — including the
  * generation guard in `documentManager.ts`, which is what makes a reload safe.
  *
  * What is pinned here is the lifecycle, because that is what silently breaks:
@@ -21,9 +21,7 @@
 import {
   clearActivePdfDocument,
   getActivePdfDocument,
-  getActivePdfDocumentIdentity,
-  setActivePdfDocument,
-  type ActivePdfDocumentHandle
+  getActivePdfDocumentIdentity
 } from '@features/pdf/lib/activePdfDocumentRegistry'
 
 import {
@@ -44,7 +42,7 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   // Lazily imported: a `vi.mock` factory is hoisted above this file's static
   // imports, so the doubles live in dependency-free modules of their own.
   const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
@@ -325,39 +323,6 @@ describe('useNativePdfCaptureDocument', () => {
 
       surviving.unmount()
       expect(getActivePdfDocument('local-pdf://book')).toBeNull()
-    })
-  })
-
-  describe('the inert path', () => {
-    it('registers nothing while the flag is off', async () => {
-      serveDocuments([createFakeDocument({ numPages: 12 })])
-
-      render(<NativeViewerHarness enabled={false} pdfUrl="local-pdf://book" />)
-      await settle()
-
-      expect(getActivePdfDocument('local-pdf://book')).toBeNull()
-      expect(mocks.getDocument).not.toHaveBeenCalled()
-    })
-
-    it('never clears a registration made by the legacy viewer', async () => {
-      // The legacy `<Viewer>` registers its own proxy on document load. An inert
-      // native hook that withdrew on mount would erase it, and capture would fall
-      // back to re-loading a file the legacy viewer already has decoded.
-      const legacy = setActivePdfDocument(
-        {
-          getPage: vi.fn(),
-          isAlive: () => true
-        } as unknown as ActivePdfDocumentHandle,
-        'local-pdf://book',
-        'legacy-fingerprint'
-      )
-      expect(legacy).not.toBeNull()
-
-      render(<NativeViewerHarness enabled={false} pdfUrl="local-pdf://book" />)
-      await settle()
-
-      expect(getActivePdfDocument('local-pdf://book')).not.toBeNull()
-      expect(getActivePdfDocumentIdentity()).toBe('legacy-fingerprint')
     })
   })
 })

@@ -15,7 +15,7 @@
  *
  * ## The API that actually exists in 6.x
  *
- * Verified against `node_modules/pdfjs-6` (`pdfjs-dist@6.4.299`):
+ * Verified against `node_modules/pdfjs-dist` (`pdfjs-dist@6.4.299`):
  *
  * ```js
  * new TextLayer({ textContentSource, container, viewport })
@@ -76,11 +76,11 @@
 import type { NativePdfDocumentStatus } from '@features/pdf/native/useNativePdfDocument'
 import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEngine'
 
-import { type PDFPageProxy, TextLayer } from 'pdfjs-6'
+import { type PDFPageProxy, TextLayer } from 'pdfjs-dist'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 
 /**
- * `pdfjs-6` exports `TextLayer` but not the `TextContent` shape, so the type is
+ * `pdfjs-dist` exports `TextLayer` but not the `TextContent` shape, so the type is
  * derived from the only method that produces it. That also keeps the cache typed
  * by the real API instead of a hand-written mirror of it.
  */

@@ -1,16 +1,16 @@
 /**
  * The native link service: PDF.js's `PDFLinkService` contract, sized to this viewer.
  *
- * ## Why this is an adapter and not `pdfjs-6/web/pdf_viewer.mjs`
+ * ## Why this is an adapter and not `pdfjs-dist/web/pdf_viewer.mjs`
  *
  * PDF.js 6 has a real `PDFLinkService`, and the first instinct is to use it. It does
  * not survive contact with a single-page controller, for three reasons that all show
  * up in the installed source:
  *
- *  1. **It is not exported from `pdfjs-6`'s entry point.** `types/src/pdf.d.ts` exports
+ *  1. **It is not exported from `pdfjs-dist`'s entry point.** `types/src/pdf.d.ts` exports
  *     `AnnotationLayer`, `AnnotationMode` and `AnnotationType` — `PDFLinkService`
  *     lives in `types/web/pdf_link_service.d.ts`, so the only way in is
- *     `pdfjs-6/web/pdf_viewer.mjs`, which is the *entire* web viewer (page views,
+ *     `pdfjs-dist/web/pdf_viewer.mjs`, which is the *entire* web viewer (page views,
  *     history, find controller, scripting manager, sidebar, thumbnails, l10n).
  *     Importing it would pull a large amount of infrastructure this viewer has no
  *     use for into the native chunk.
@@ -80,7 +80,7 @@ import { getElectronApi } from '@shared/lib/electronApi'
 import { reportSuppressedError } from '@shared/lib/logger'
 import { parseUrlWithAllowedProtocols } from '@shared/lib/urlUtils'
 
-import type { PDFDocumentProxy } from 'pdfjs-6'
+import type { PDFDocumentProxy } from 'pdfjs-dist'
 
 /**
  * The protocols the native viewer will hand to the OS.
@@ -156,7 +156,7 @@ export interface NativePdfLinkServiceOptions {
 
 /**
  * The structural type PDF.js's `AnnotationLayer` expects. Declared rather than
- * imported because `pdfjs-6` does not export the class, and `any` would hide the very
+ * imported because `pdfjs-dist` does not export the class, and `any` would hide the very
  * contract this file exists to implement.
  */
 export interface NativePdfLinkService {

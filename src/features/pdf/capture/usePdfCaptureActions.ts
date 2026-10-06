@@ -41,17 +41,13 @@ import { findPageCanvas } from './findPageCanvas'
 interface UsePdfCaptureActionsOptions {
   currentPage: number
   /**
-   * The page capture should actually read, when the renderer's live page differs
-   * from `currentPage`.
+   * The page capture should actually read.
    *
-   * `currentPage` is the legacy navigation state, and on the native path it is
-   * inert — `@react-pdf-viewer` is not mounted, so its `onPageChange` never fires
-   * and the page stays at its initial value while the reader moves through the
-   * document. Capturing that would send page 1 to the AI on page 40.
-   *
-   * `PdfViewerDocument` owns the renderer switch, so it is the only place that can
-   * say which page is live; it writes the answer here, through a ref, once the
-   * native controller exists. A ref rather than a value because this hook already
+   * The viewer writes the live page here, so a capture triggered in the same tick
+   * as a page change names the page the reader is now looking at rather than the
+   * page the hook last rendered. `PdfViewerDocument` owns the renderer, so it is
+   * the only place that can say which page is live; it writes the answer here,
+   * through a ref. A ref rather than a value because this hook already
    * reads the page exactly once — at capture time, into `pageAtCaptureTime`, so
    * the AI item is labelled with the page the reader was looking at when they
    * pressed the button and not with whatever is current when the render lands.

@@ -47,12 +47,14 @@ interface SelectionExtractResult {
  * canvas, the page box, or (once the native viewer mounts one) anything that
  * shares the panel with it.
  *
- * On the native path the text layer is a real, addressable element, so the
- * selection has to touch it: one of the range's endpoints or its common
- * ancestor inside the layer. On the legacy path the layer is whatever RPV
- * rendered and no equivalent check exists, so the legacy branch is skipped
- * entirely — no behaviour change, and no new way to fail a selection that used
- * to work.
+ * The text layer is a real, addressable element, so the selection has to touch
+ * it: one of the range's endpoints or its common ancestor inside the layer. A
+ * selection that lands anywhere else — the toolbar, the AI panel, any other UI
+ * sharing the document — is not PDF text.
+ *
+ * While the legacy viewer was still shipped this had a bypass for the case where
+ * no native layer was mounted, because the legacy markup *was* the text layer by
+ * construction. There is one renderer now, so the check is unconditional.
  */
 function selectionBelongsToTextLayer(
   range: Range,
@@ -60,9 +62,7 @@ function selectionBelongsToTextLayer(
   container: HTMLElement
 ): boolean {
   const nativeLayer = findNativeTextLayer(container)
-  // No native layer mounted: this is the legacy viewer, whose markup is the text
-  // layer by construction. Keep the existing behaviour untouched.
-  if (!nativeLayer) return true
+  if (!nativeLayer) return false
 
   return (
     nativeLayer.contains(range.commonAncestorContainer) ||

@@ -35,12 +35,12 @@
  *
  * ## Scope
  *
- * No React, no DOM, no viewer concerns. The legacy `activePdfDocumentRegistry`
- * stays untouched and keeps serving the `@react-pdf-viewer` path; the two
- * lifecycles are deliberately independent during the migration.
+ * No React, no DOM, no viewer concerns. `activePdfDocumentRegistry` borrows the
+ * document this manager owns and nothing here knows the registry exists, so the
+ * capture path cannot introduce a second document lifecycle.
  */
-import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from 'pdfjs-6'
-import { getDocument } from 'pdfjs-6'
+import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
+import { getDocument } from 'pdfjs-dist'
 
 import { createPageCache, type PdfPageCache } from './pageCache'
 import { createPdfDocumentOptions, type PdfDocumentSource } from './pdfDocumentOptions'

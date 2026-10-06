@@ -9,7 +9,7 @@
  * `PdfViewerDocument` → `usePdfViewerState` → `usePdfTextActions` →
  * `extractPageTextFromDom` → `normalizePdfText` path runs, on the real PDF.js
  * text-layer markup the native viewer mounts. Only the leaves are faked:
- * `pdfjs-6`, the Electron-facing toolbar actions, and the AI queue itself — which
+ * `pdfjs-dist`, the Electron-facing toolbar actions, and the AI queue itself — which
  * is the thing under assertion.
  *
  * The selected-text flow is wired through the app's real `useTextSelection`
@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => ({
   handleAreaScreenshot: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer } = await import('./nativeTextLayerDouble')
   return {
@@ -429,43 +429,5 @@ describe('native viewer — AI text actions', () => {
 
     expect(mocks.handleFullPageScreenshot).toHaveBeenCalledTimes(1)
     expect(mocks.handleAreaScreenshot).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('legacy viewer — AI text actions unchanged', () => {
-  it('still sends the legacy page text to the AI queue', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'false')
-    renderDocument()
-
-    expect(screen.getByTestId('legacy-viewer')).toBeInTheDocument()
-    expect(document.querySelector('[data-native-pdf-text-layer]')).toBe(null)
-
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-text-ai'))
-
-    await waitFor(() => expect(mocks.queueTextForAi).toHaveBeenCalledTimes(1))
-    expect(mocks.queueTextForAi.mock.calls[0][0]).toBe('legacy page text for the ai queue')
-  })
-
-  it('leaves every quick-bar action enabled, because nothing is unsupported', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'false')
-    renderDocument()
-
-    openAiActions()
-
-    expect(screen.getByTestId('pdf-quick-text-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-image-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-area-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-reload')).toBeEnabled()
-  })
-
-  it('never starts the native engine while the flag is off', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'false')
-    renderDocument()
-    await settle()
-
-    expect(mocks.getDocument).not.toHaveBeenCalled()
-    expect(mocks.initializeNativePdfWorker).not.toHaveBeenCalled()
-    expect(document.querySelector('canvas')).toBe(null)
   })
 })

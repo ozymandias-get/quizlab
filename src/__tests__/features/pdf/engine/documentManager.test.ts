@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', () => ({
+vi.mock('pdfjs-dist', () => ({
   getDocument: mocks.getDocument
 }))
 

@@ -37,7 +37,7 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer } = await import('./nativeTextLayerDouble')
   return {
@@ -600,92 +600,5 @@ describe('native text layer — reading order', () => {
 
     // Column order, not DOM order: the left column top-to-bottom, then the right.
     expect(text?.text).toBe('left one\nleft two\nright one\nright two')
-  })
-})
-
-/* ---------------------------------------------------------------- legacy */
-
-describe('legacy markup — unchanged by the native additions', () => {
-  it('still extracts a selection from RPV text-layer markup with no native layer', () => {
-    // The native half of the scope check must not fire when there is no native
-    // layer mounted, or the shipped viewer would start rejecting selections.
-    const legacyContainer = document.createElement('div')
-    document.body.appendChild(legacyContainer)
-    const pageLayer = document.createElement('div')
-    pageLayer.className = 'rpv-core__page-layer'
-    const textLayer = document.createElement('div')
-    textLayer.className = 'rpv-core__text-layer'
-    const span = document.createElement('span')
-    span.textContent = 'legacy words here'
-    textLayer.appendChild(span)
-    pageLayer.appendChild(textLayer)
-    legacyContainer.appendChild(pageLayer)
-    Object.defineProperty(legacyContainer, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => makeRect({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 })
-    })
-
-    const node = span.firstChild as Node
-    const result = extractSelectedText(
-      {
-        toString: () => 'legacy words here',
-        isCollapsed: false,
-        rangeCount: 1,
-        anchorNode: node,
-        focusNode: node,
-        getRangeAt: () => ({
-          commonAncestorContainer: node,
-          startContainer: node,
-          endContainer: node,
-          getBoundingClientRect: () =>
-            makeRect({ left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 }),
-          getClientRects: () => [
-            makeRect({ left: 10, top: 10, right: 110, bottom: 30, width: 100, height: 20 })
-          ]
-        })
-      } as unknown as Selection,
-      legacyContainer as HTMLElement
-    )
-
-    expect(result?.text).toBe('legacy words here')
-    expect(result?.position).not.toBeNull()
-  })
-
-  it('mounts no native text layer at all while the flag is off', async () => {
-    const { container } = await mountSelection({ enabled: false, textSelectionEnabled: false })
-
-    expect(container.querySelector('[data-native-pdf-text-layer]')).toBe(null)
-    expect(container.querySelector('canvas')).toBe(null)
-    expect(mocks.getDocument).not.toHaveBeenCalled()
-  })
-
-  it('does not let the native text code touch a selection when the flag is off', async () => {
-    const { container, onTextSelection } = await mountSelection({
-      enabled: false,
-      textSelectionEnabled: true
-    })
-    // The shared hook is still mounted — it is the same hook the legacy path uses
-    // — and it must behave exactly as it does under RPV with nothing native in the
-    // DOM.
-    const legacyLayer = document.createElement('div')
-    legacyLayer.className = 'rpv-core__text-layer'
-    const span = document.createElement('span')
-    span.textContent = 'the quick brown fox'
-    legacyLayer.appendChild(span)
-    container.appendChild(legacyLayer)
-
-    selectInside(
-      container,
-      makeSelection({
-        text: 'the quick brown fox',
-        anchorNode: span.firstChild,
-        focusNode: span.firstChild,
-        commonAncestor: span.firstChild,
-        rect: makeRect({ left: 10, top: 10, right: 210, bottom: 30, width: 200, height: 20 })
-      })
-    )
-
-    expect(onTextSelection).toHaveBeenCalledWith('the quick brown fox', expect.anything())
-    expect(container.querySelector('[data-native-pdf-text-layer]')).toBe(null)
   })
 })

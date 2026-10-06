@@ -20,9 +20,6 @@ const PdfViewer = lazy(() => import('@features/pdf/viewer').then((m) => ({ defau
 const PdfTabStrip = lazy(() =>
   import('@features/pdf/viewer').then((m) => ({ default: m.PdfTabStrip }))
 )
-const PdfWorkerHost = lazy(() =>
-  import('@features/pdf/viewer').then((m) => ({ default: m.PdfWorkerHost }))
-)
 
 const GPU_STYLE = {
   border: '1px solid oklch(var(--border))',
@@ -134,24 +131,22 @@ function LeftPanel({
               >
                 <div className="animate-in fade-in motion-slower absolute inset-0 h-full w-full">
                   <ErrorBoundary title={t('error_pdf_viewer')}>
-                    <PdfWorkerHost>
-                      <PdfViewer
-                        pdfFile={pdfFile}
-                        activePdfTab={activePdfTab}
-                        onSelectPdf={onSelectPdf}
-                        onTextSelection={onTextSelection}
-                        t={t}
-                        initialPage={initialPage}
-                        onResumePdf={onResumePdf}
-                        onClearResumePdf={onClearResumePdf}
-                        onRestoreResumePdf={onRestoreResumePdf}
-                        onRelinkPdf={onRelinkPdf}
-                        onReadingProgressChange={onReadingProgressChange}
-                        lastReadingInfo={recentReadingInfo}
-                        isInteractionBlocked={isInteractionBlocked}
-                        isPanelResizing={isPanelResizing}
-                      />
-                    </PdfWorkerHost>
+                    <PdfViewer
+                      pdfFile={pdfFile}
+                      activePdfTab={activePdfTab}
+                      onSelectPdf={onSelectPdf}
+                      onTextSelection={onTextSelection}
+                      t={t}
+                      initialPage={initialPage}
+                      onResumePdf={onResumePdf}
+                      onClearResumePdf={onClearResumePdf}
+                      onRestoreResumePdf={onRestoreResumePdf}
+                      onRelinkPdf={onRelinkPdf}
+                      onReadingProgressChange={onReadingProgressChange}
+                      lastReadingInfo={recentReadingInfo}
+                      isInteractionBlocked={isInteractionBlocked}
+                      isPanelResizing={isPanelResizing}
+                    />
                   </ErrorBoundary>
                 </div>
               </Suspense>

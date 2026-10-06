@@ -1,8 +1,3 @@
-import '@react-pdf-viewer/core/lib/styles/index.css'
-import '@react-pdf-viewer/page-navigation/lib/styles/index.css'
-import '@react-pdf-viewer/zoom/lib/styles/index.css'
-import '@react-pdf-viewer/search/lib/styles/index.css'
-
 import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/googleAiWebApps'
 import type { PdfFile } from '@shared-core/types'
 

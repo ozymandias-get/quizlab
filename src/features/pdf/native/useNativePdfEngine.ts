@@ -24,7 +24,7 @@
  * through a stable accessor rather than carried as render values.
  *
  * Nothing here imports React into the engine: the dependency direction stays
- * `UI → engine → pdfjs-6`.
+ * `UI → engine → pdfjs-dist`.
  */
 import {
   createPageRenderer,

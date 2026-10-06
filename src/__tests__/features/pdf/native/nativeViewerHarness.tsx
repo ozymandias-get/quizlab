@@ -6,7 +6,7 @@
  * The **real** engine is under test: `createPdfDocumentManager`,
  * `createPageCache` and `createPageRenderer` run as production code, so the
  * generation guard, the page cache and — most importantly — the supersede-cancel
- * behaviour in `pageRenderer.ts` are the real thing. Only the `pdfjs-6`
+ * behaviour in `pageRenderer.ts` are the real thing. Only the `pdfjs-dist`
  * boundary is faked: `getDocument`, the typed `RenderingCancelledException`,
  * `TextLayer`, `AnnotationLayer`, and the worker bootstrap that would otherwise pull a
  * real worker URL.

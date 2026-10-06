@@ -8,13 +8,13 @@
  *
  * ## What it owns — and what it does not
  *
- * | Concern        | Owner                                                   |
- * | -------------- | ------------------------------------------------------- |
- * | lookup         | this module                                              |
- * | identity       | this module (`pdfUrl` + the registrant's identity token) |
- * | liveness       | this module, **asking the handle**                       |
- * | document load  | the viewer (`PdfDocumentManager` / `@react-pdf-viewer`)   |
- * | teardown       | the viewer                                               |
+ * | Concern        | Owner                                       |
+ * | -------------- | ------------------------------------------- |
+ * | lookup         | this module                                  |
+ * | identity       | this module (`pdfUrl` + the registrant's id) |
+ * | liveness       | this module, **asking the handle**           |
+ * | document load  | the viewer (`PdfDocumentManager`)            |
+ * | teardown       | the viewer                                   |
  *
  * Capture **borrows**; it never destroys. A borrowed document belongs to a
  * mounted viewer, and tearing it down drops that viewer's shared decoded-object
@@ -24,7 +24,7 @@
  *
  * ## Why the stored value is a handle, not a document proxy
  *
- * The pre-Phase-8 contract was shaped around `pdfjs-dist@3.11.174`'s
+ * The original contract was shaped around `pdfjs-dist@3.11.174`'s
  * `PDFDocumentProxy`: it declared `destroyed?: boolean` and `destroy()`, and the
  * registry read `destroyed` directly to decide liveness. PDF.js 6 has neither —
  * `PDFDocumentProxy` exposes only `cleanup()`, and teardown goes through
@@ -35,15 +35,11 @@
  *
  * So the stored value is `ActivePdfDocumentHandle`: the smallest surface capture
  * uses (`getPage`) plus an **adapter-provided** `isAlive()`. Nothing in this file
- * knows what a `PDFDocumentProxy` is, which version produced it, or how its
- * lifetime is managed — that is what each runtime's adapter owns:
- *
- *  - `lib/legacyPdfCaptureDocument.ts` — `@react-pdf-viewer`'s 3.x proxy
- *  - `native/nativePdfCaptureDocument.ts` — the native `PdfDocumentManager`
- *
- * There is no `if (pdfjsVersion === …)` here, and there must not be one: the two
- * runtimes coexist until Phase 8B, and a version check in the store would be a
- * second place to update when one of them is deleted.
+ * knows what a `PDFDocumentProxy` is or how its lifetime is managed — that is
+ * `native/nativePdfCaptureDocument.ts`'s job, and it is now the only producer.
+ * There is deliberately no version branch here and there must never be one: a
+ * runtime check in the store would be a second place to update whenever the
+ * runtime changes.
  *
  * ## Why the liveness check exists at all
  *
@@ -58,19 +54,12 @@
  *
  * QuizLab can have two `PdfViewer` trees mounted at once (`LeftPanel` and the
  * `FocusOverlay`), and both may be showing the same file. The store is a single
- * slot, so **the most recent registration wins** — the pre-existing legacy
- * semantics, deliberately not "the visible one wins", which would need a
- * visibility signal this registry has no business reading. Deregistration is
- * token-scoped: an unmounting viewer only clears the slot when the entry is still
- * its own, so a viewer going away cannot evict a live sibling's document.
- *
- * ## Remove with the dual runtime (Phase 8B)
- *
- * The legacy adapter goes away with `PdfViewerElement.tsx`, and the shim in
- * `setActivePdfDocument` (see the note there) goes with it. What survives is the
- * handle contract above, which by then has exactly one producer.
+ * slot, so **the most recent registration wins** — the pre-existing semantics,
+ * deliberately not "the visible one wins", which would need a visibility signal
+ * this registry has no business reading. Deregistration is token-scoped: an
+ * unmounting viewer only clears the slot when the entry is still its own, so a
+ * viewer going away cannot evict a live sibling's document.
  */
-import { toCaptureHandle } from './legacyPdfCaptureDocument'
 
 /** The part of a page's viewport the pixel budget needs. */
 export interface CapturePageViewport {
@@ -78,7 +67,7 @@ export interface CapturePageViewport {
   height: number
 }
 
-/** PDF.js's render handle. `cancel` is present on both runtimes; it is never called. */
+/** PDF.js's render handle. `cancel` is never called on a borrowed page. */
 export interface CaptureRenderTask {
   promise: Promise<void>
   cancel?: () => void
@@ -87,10 +76,8 @@ export interface CaptureRenderTask {
 /**
  * One page, narrowed to what a direct capture render touches.
  *
- * Deliberately structural: the two runtimes disagree on the *type* of a viewport
- * (3.x `PageViewport` vs 6.x `PageViewport`, both from different packages) but
- * agree on `getViewport` / `render`, and capture only ever passes a viewport it
- * just received back to the same page.
+ * Deliberately structural: capture only ever passes a viewport it just received
+ * back to the same page, so `getViewport` / `render` is the whole contract.
  */
 export interface CaptureDocumentPage {
   getViewport(options: { scale: number }): CapturePageViewport
@@ -103,7 +90,7 @@ export interface CaptureDocumentPage {
 /**
  * A borrowed document, as capture sees it.
  *
- * Produced by a runtime adapter. `isAlive()` must answer "can `getPage()` still
+ * Produced by the runtime adapter. `isAlive()` must answer "can `getPage()` still
  * work?", and must keep answering `false` once it cannot — it is the only thing
  * standing between a reload and a silently degraded screenshot.
  */
@@ -124,7 +111,7 @@ export type ActivePdfDocumentToken = symbol
 
 interface ActivePdfDocumentEntry {
   pdfUrl: string
-  /** Runtime-specific identity: pdfjs-6's `(pdfUrl, reloadKey)` generation, or 3.x's fingerprint. */
+  /** The registrant's own name for the document; the registry infers nothing. */
   identity: string | null
   handle: ActivePdfDocumentHandle
   token: ActivePdfDocumentToken
@@ -136,21 +123,15 @@ let activeEntry: ActivePdfDocumentEntry | null = null
 /**
  * Register the mounted document capture should borrow.
  *
- * `document` is normally an `ActivePdfDocumentHandle`. A raw `pdfjs-dist@3`
- * proxy is also accepted, and adapted through `legacyPdfCaptureDocument`, purely
- * because `ui/components/PdfViewerElement.tsx` — which hands over
- * `DocumentLoadEvent#doc` verbatim — is frozen at zero diff for the whole of
- * Phase 8A. That shim, and the module it calls, are deleted together in Phase 8B.
- *
  * A `null` document clears the slot, which is what a viewer does while its
  * document identity is changing.
  */
 export function setActivePdfDocument(
-  document: ActivePdfDocumentHandle | null,
+  handle: ActivePdfDocumentHandle | null,
   pdfUrl: string | null,
   identity?: string | null
 ): ActivePdfDocumentToken | null {
-  if (!document || !pdfUrl) {
+  if (!handle || !pdfUrl) {
     activeEntry = null
     return null
   }
@@ -158,7 +139,7 @@ export function setActivePdfDocument(
   activeEntry = {
     pdfUrl,
     identity: identity ?? null,
-    handle: toCaptureHandle(document),
+    handle,
     token: Symbol('active-pdf-document')
   }
   return activeEntry.token
@@ -169,8 +150,7 @@ export function setActivePdfDocument(
  *
  * With a `token`, only the entry that produced it is dropped — the unmount path
  * for one of two mounted viewers. Without one, the slot is emptied
- * unconditionally, which is the legacy `<Viewer>` teardown contract and is
- * unchanged.
+ * unconditionally.
  */
 export function clearActivePdfDocument(token?: ActivePdfDocumentToken | null): void {
   if (token === undefined || token === null) {

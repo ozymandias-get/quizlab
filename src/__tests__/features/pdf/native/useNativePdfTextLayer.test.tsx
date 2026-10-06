@@ -2,7 +2,7 @@
  * The native text layer's lifecycle.
  *
  * The real engine (`documentManager`, `pageCache`, `pageRenderer`) and the real
- * `useNativePdfTextLayer` run here; only the `pdfjs-6` boundary is faked, and the
+ * `useNativePdfTextLayer` run here; only the `pdfjs-dist` boundary is faked, and the
  * `TextLayer` double is faithful where it matters — it appends PDF.js's own
  * `span[role="presentation"]` markup to the container it was handed, and
  * `cancel()` rejects the in-flight `render()` with an `AbortException`.
@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   // Lazy: a `vi.mock` factory is hoisted above this file's static imports, and
   // the double has to be a dependency-free module so awaiting it cannot re-enter
   // the mocked module.

@@ -7,7 +7,7 @@
  */
 import { createPageCache } from '@features/pdf/engine/pageCache'
 
-import type { PDFPageProxy } from 'pdfjs-6'
+import type { PDFPageProxy } from 'pdfjs-dist'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

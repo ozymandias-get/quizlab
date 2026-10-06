@@ -14,8 +14,8 @@
  */
 import { createPageRenderer, isRenderCancelled } from '@features/pdf/engine/pageRenderer'
 
-import { RenderingCancelledException } from 'pdfjs-6'
-import type { PDFPageProxy, RenderTask } from 'pdfjs-6'
+import { RenderingCancelledException } from 'pdfjs-dist'
+import type { PDFPageProxy, RenderTask } from 'pdfjs-dist'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

@@ -1,24 +1,24 @@
 /**
- * Native PDF.js engine — public surface.
+ * PDF.js engine — public surface.
  *
  * Everything exported here is React-free, DOM-free and viewer-free: it depends
- * on `pdfjs-6` and plain TypeScript only. The dependency direction is
+ * on `pdfjs-dist` and plain TypeScript only. The dependency direction is
  *
- *   UI  →  engine  →  pdfjs-6
+ *   UI  →  engine  →  pdfjs-dist
  *
  * and must stay that way; the reverse is forbidden and is asserted by
- * `src/__tests__/architecture/pdfjs-dual-runtime.test.ts`.
+ * `src/__tests__/architecture/pdfjs-single-runtime.test.ts`.
  *
- * ## Migration state
- *
- * This engine is not wired to any UI yet. The shipped viewer is still
- * `@react-pdf-viewer` on `pdfjs-dist@3.11.174`. The viewer phases consume this
- * surface once the dual runtime is torn down.
+ * ## What is deliberately not here
  *
  * Search is intentionally absent: PDF.js's `PDFFindController` requires the
  * `web/pdf_viewer` event bus and DOM scaffolding, which would drag viewer
- * concerns into the engine. Text extraction and search belong to the text-layer
- * phase, not here.
+ * concerns into the engine. The search engine lives in `features/pdf/native/`
+ * alongside the rest of the viewer.
+ *
+ * `captureDocument.ts` is the one deliberate addition to a pure engine: it is the
+ * engine's public capture/document adapter, because capture needs a PDF.js
+ * document and the engine is the only place allowed to import one.
  */
 export { createPdfDocumentManager, type PdfDocumentManager } from './documentManager'
 export { createPageCache, type PageSource, type PdfPageCache } from './pageCache'

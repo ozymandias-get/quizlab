@@ -4,10 +4,10 @@
  * pdf.js rejects a cancelled render task with `RenderingCancelledException`
  * (a `BaseException` subclass, so `error.name === 'RenderingCancelledException'`)
  * and throws when `render()` is called on a canvas whose previous task has not
- * released it yet. @react-pdf-viewer catches both in the happy path, but across
- * Viewer remounts (reload key changes) and zoom+navigation races the rejection
- * can escape as an unhandled rejection and reach the browser's default console
- * reporting.
+ * released it yet. Both are expected in normal operation — a superseded render and
+ * a re-rendered page are routine — but across reloads and zoom+navigation races the
+ * rejection can escape as an unhandled rejection and reach the browser's default
+ * console reporting.
  *
  * Both conditions are expected and benign, so this guard calls
  * `preventDefault()` to keep them out of the console.

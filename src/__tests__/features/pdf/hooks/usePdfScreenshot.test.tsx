@@ -1,3 +1,16 @@
+/**
+ * `usePdfCaptureActions` — the 5-rung capture ladder, driven through its hook.
+ *
+ * The DOM fixtures below are the native viewer's markup: a `[data-native-pdf-page]`
+ * page box wrapping a `[data-native-pdf-canvas]` canvas. They used to build
+ * `rpv-core__page-layer` / `data-virtual-index` markup, which asserted the ladder's
+ * *encoder* behaviour (dataUrl preferred, blob fallback, toast on double failure)
+ * rather than the viewer's private class names. The ladder is unchanged; only the
+ * fixtures moved.
+ *
+ * The direct high-DPI render and the two AI/crop handlers are covered end-to-end in
+ * `native/nativeCaptureActions.test.tsx`, which drives the real controller.
+ */
 import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,6 +21,19 @@ vi.mock('@app/providers', () => ({
 
 // Import after mock is registered
 const { usePdfCaptureActions } = await import('@features/pdf/capture/usePdfCaptureActions')
+
+/** A mounted native page, as `NativePdfViewer` renders it. */
+function mountNativePage(pageNumber: number, width = 400, height = 200): HTMLCanvasElement {
+  const box = document.createElement('div')
+  box.setAttribute('data-native-pdf-page', String(pageNumber))
+  const canvas = document.createElement('canvas')
+  canvas.setAttribute('data-native-pdf-canvas', '')
+  Object.defineProperty(canvas, 'width', { configurable: true, value: width })
+  Object.defineProperty(canvas, 'height', { configurable: true, value: height })
+  box.appendChild(canvas)
+  document.body.appendChild(box)
+  return canvas
+}
 
 describe('usePdfCaptureActions', () => {
   const queueImageForAi = vi.fn()
@@ -34,25 +60,11 @@ describe('usePdfCaptureActions', () => {
     document.body.innerHTML = ''
   })
 
-  it('captures the current page layer canvas using the viewer virtual index', async () => {
-    const page12Layer = document.createElement('div')
-    page12Layer.className = 'rpv-core__page-layer'
-    page12Layer.setAttribute('data-virtual-index', '11')
-    const page12Canvas = document.createElement('canvas')
-    Object.defineProperty(page12Canvas, 'width', { configurable: true, value: 400 })
-    Object.defineProperty(page12Canvas, 'height', { configurable: true, value: 200 })
-    page12Layer.appendChild(page12Canvas)
-
-    const page13Layer = document.createElement('div')
-    page13Layer.className = 'rpv-core__page-layer'
-    page13Layer.setAttribute('data-virtual-index', '12')
-    const page13Canvas = document.createElement('canvas')
-    Object.defineProperty(page13Canvas, 'width', { configurable: true, value: 420 })
-    Object.defineProperty(page13Canvas, 'height', { configurable: true, value: 210 })
-    page13Layer.appendChild(page13Canvas)
-
-    document.body.appendChild(page12Layer)
-    document.body.appendChild(page13Layer)
+  it('captures the canvas for the page it is told about', async () => {
+    // The single-canvas viewer mounts exactly one page box, so the page number in
+    // the call has to be the one the box carries; a mismatch is exactly the bug
+    // that would send page 1 to the AI while the reader is on page 40.
+    mountNativePage(13, 420, 210)
 
     const { result } = renderHook(() =>
       usePdfCaptureActions({
@@ -73,7 +85,6 @@ describe('usePdfCaptureActions', () => {
   })
 
   it('does not queue an image but shows the toast when no canvas is found after retries', async () => {
-    // No rpv-core__page-layer in the DOM at all
     const { result } = renderHook(() =>
       usePdfCaptureActions({
         currentPage: 1,
@@ -97,11 +108,7 @@ describe('usePdfCaptureActions', () => {
       }
     })
 
-    const layer = document.createElement('div')
-    layer.className = 'rpv-core__page-layer'
-    layer.setAttribute('data-virtual-index', '0')
-    layer.appendChild(document.createElement('canvas'))
-    document.body.appendChild(layer)
+    mountNativePage(1)
 
     const { result } = renderHook(() =>
       usePdfCaptureActions({
@@ -129,14 +136,7 @@ describe('usePdfCaptureActions', () => {
       }
     })
 
-    const layer = document.createElement('div')
-    layer.className = 'rpv-core__page-layer'
-    layer.setAttribute('data-virtual-index', '0')
-    const canvas = document.createElement('canvas')
-    Object.defineProperty(canvas, 'width', { configurable: true, value: 400 })
-    Object.defineProperty(canvas, 'height', { configurable: true, value: 300 })
-    layer.appendChild(canvas)
-    document.body.appendChild(layer)
+    mountNativePage(1, 400, 300)
 
     const { result } = renderHook(() =>
       usePdfCaptureActions({
@@ -170,11 +170,7 @@ describe('usePdfCaptureActions', () => {
       }
     })
 
-    const layer = document.createElement('div')
-    layer.className = 'rpv-core__page-layer'
-    layer.setAttribute('data-virtual-index', '0')
-    layer.appendChild(document.createElement('canvas'))
-    document.body.appendChild(layer)
+    mountNativePage(1)
 
     const { result } = renderHook(() =>
       usePdfCaptureActions({
@@ -212,24 +208,15 @@ describe('usePdfCaptureActions', () => {
   it('retries to find a page canvas when it is not immediately available', async () => {
     vi.useFakeTimers()
     try {
-      const layer = document.createElement('div')
-      layer.className = 'rpv-core__page-layer'
-      layer.setAttribute('data-virtual-index', '4')
-      const canvas = document.createElement('canvas')
-      Object.defineProperty(canvas, 'width', { configurable: true, value: 300 })
-      Object.defineProperty(canvas, 'height', { configurable: true, value: 150 })
-      layer.appendChild(canvas)
-      document.body.appendChild(layer)
+      mountNativePage(5, 300, 150)
 
-      // Simulate the canvas not being rasterized yet: the first two lookup
-      // rounds miss, so the progressive retry loop has to run. Counting total
-      // calls keeps this independent of how many selectors the viewer adapter
-      // probes per round.
+      // Simulate the canvas not being rasterized yet: the first lookup misses, so
+      // the progressive retry loop has to run and find it.
       const originalQuerySelector = document.querySelector.bind(document)
       let calls = 0
       const spy = vi.spyOn(document, 'querySelector').mockImplementation((selector: string) => {
         calls += 1
-        if (calls <= 4) return null
+        if (calls <= 2) return null
         return originalQuerySelector(selector)
       })
 

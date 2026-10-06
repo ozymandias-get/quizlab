@@ -39,7 +39,7 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer } = await import('./nativeTextLayerDouble')
   return {

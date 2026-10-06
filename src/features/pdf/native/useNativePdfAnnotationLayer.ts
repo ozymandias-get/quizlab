@@ -15,7 +15,7 @@
  *
  * ## The API that actually exists in 6.x
  *
- * Verified against `node_modules/pdfjs-6` (`pdfjs-dist@6.4.299`) —
+ * Verified against `node_modules/pdfjs-dist` (`pdfjs-dist@6.4.299`) —
  * `types/src/display/annotation_layer.d.ts` and `build/pdf.mjs`:
  *
  * ```js
@@ -74,7 +74,7 @@
 import type { NativePdfDocumentStatus } from '@features/pdf/native/useNativePdfDocument'
 import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEngine'
 
-import { AnnotationLayer } from 'pdfjs-6'
+import { AnnotationLayer } from 'pdfjs-dist'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 
 import {

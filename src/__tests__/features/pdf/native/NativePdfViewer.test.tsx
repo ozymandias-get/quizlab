@@ -2,7 +2,7 @@
  * The native canvas viewer: document lifecycle, page state, scale state and
  * render cancellation.
  *
- * These tests drive the **real** native engine against a faked `pdfjs-6`, so what
+ * These tests drive the **real** native engine against a faked `pdfjs-dist`, so what
  * is asserted is production behaviour — the generation guard in
  * `documentManager.ts` and the supersede-cancel in `pageRenderer.ts` are the real
  * code, not doubles. Only the PDF.js boundary is faked.
@@ -33,7 +33,7 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   // Imported lazily because a `vi.mock` factory is hoisted above this file's
   // static imports; the double lives in its own dependency-free module so that
   // awaiting it cannot re-enter the mocked module.

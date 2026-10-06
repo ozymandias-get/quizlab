@@ -1,16 +1,14 @@
 /**
- * Native viewer's rAF-coalesced zoom channel.
+ * The PDF viewer's rAF-coalesced zoom channel.
  *
- * ## Why this is not `useCoalescedZoom`
+ * ## Why this channel is numeric
  *
- * `features/pdf/viewport/useCoalescedZoom.ts` types its channel as
- * `(scale: number | SpecialZoomLevel) => void` because it feeds
- * `@react-pdf-viewer`'s `zoomTo`. The native path has no such value domain — it
- * is numeric-only by construction (§15: `SpecialZoomLevel.PageWidth` is
- * normalised to a real numeric fit scale). Widening the shared hook would put an
- * `@react-pdf-viewer` type into the native path and change a Phase 2-pinned
- * legacy file for no gain, so the native channel is a separate numeric hook.
- * Its shape and rationale mirror the legacy one deliberately.
+ * It is `(scale: number) => void`, because that is the whole domain of a scale:
+ * "fit to page width" is the number `useFitScale` computed, not a keyword. Routing
+ * every programmatic zoom source through one coalesced channel is what keeps the
+ * single-channel invariant reviewable — the toolbar buttons, Ctrl+wheel, the
+ * resize refit, the initial fit, the keyboard shortcuts and the Electron context
+ * menu all land on the same `zoomTo`.
  *
  * ## One effective zoom change per animation frame
  *
