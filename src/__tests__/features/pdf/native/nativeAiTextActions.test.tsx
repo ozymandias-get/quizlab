@@ -400,21 +400,25 @@ describe('native viewer — AI text actions', () => {
     )
   })
 
-  it('leaves the capture actions disabled and honest', async () => {
+  it('leaves every quick-bar action enabled, because nothing is unsupported', async () => {
+    // Text from Phase 5, capture from Phase 8A, reload from Phase 4 — the whole
+    // bar is live on the native path, which is why the bounding flag is gone.
     vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await settle()
 
     openAiActions()
 
-    // Text is supported; rasterising the page is not, and says so.
     expect(screen.getByTestId('pdf-quick-text-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-image-ai')).toBeDisabled()
-    expect(screen.getByTestId('pdf-quick-area-ai')).toBeDisabled()
+    expect(screen.getByTestId('pdf-quick-image-ai')).toBeEnabled()
+    expect(screen.getByTestId('pdf-quick-area-ai')).toBeEnabled()
     expect(screen.getByTestId('pdf-quick-reload')).toBeEnabled()
   })
 
-  it('never calls the capture pipeline from the native path', async () => {
+  it('hands the capture buttons to the one capture pipeline, not to a dead end', async () => {
+    // The AI-text suite's own concern: capture is faked here, so what is asserted
+    // is that the real toolbar wires both rasterising buttons to the shared
+    // capture actions rather than disabling or dropping them.
     vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await settle()
@@ -423,8 +427,8 @@ describe('native viewer — AI text actions', () => {
     fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
     fireEvent.click(screen.getByTestId('pdf-quick-area-ai'))
 
-    expect(mocks.handleFullPageScreenshot).not.toHaveBeenCalled()
-    expect(mocks.handleAreaScreenshot).not.toHaveBeenCalled()
+    expect(mocks.handleFullPageScreenshot).toHaveBeenCalledTimes(1)
+    expect(mocks.handleAreaScreenshot).toHaveBeenCalledTimes(1)
   })
 })
 

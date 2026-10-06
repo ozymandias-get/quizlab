@@ -13,8 +13,11 @@
  *     does not bundle its own PDF.js.
  *   - `PdfWorkerHost` hands that engine a worker URL built from the same npm
  *     `pdfjs-dist` package.
- *   - `renderPageToImage` imports the same package, and prefers the viewer's
- *     already-loaded `PDFDocumentProxy` over loading its own document.
+ *
+ * Phase 8A removed `renderPageToImage` from that set: capture's fallback document
+ * load moved onto the native 6.x engine, so the capture module no longer resolves
+ * `pdfjs-dist` at all. The coupling this file guards is now a single edge, and
+ * that is progress rather than a loss — one runtime reaches capture instead of two.
  *
  * Because engine and worker come from one dependency, the invariant that matters
  * is the *peer range*: the installed pdfjs-dist has to satisfy the range the
@@ -52,6 +55,18 @@ const readJson = (relativePath: string): Record<string, unknown> =>
 /** Reads a source file relative to this test, resolving its real extension. */
 const readSource = (relativePath: string): string =>
   readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf-8')
+
+/**
+ * A source file's code with its comment lines removed.
+ *
+ * The capture module's own note explains at length why the 3.x knob is gone, and
+ * that prose legitimately names it — only the code is under assertion here.
+ */
+const codeOf = (relativePath: string): string =>
+  readSource(relativePath)
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('//'))
+    .join('\n')
 
 const declaredPdfjs = (packageJson.dependencies as Record<string, string>)['pdfjs-dist']
 const overrides = (packageJson.overrides ?? {}) as Record<string, unknown>
@@ -97,13 +112,23 @@ describe('legacy pdfjs engine/worker coupling', () => {
   it('disables eval-based scripting on every legacy getDocument path', () => {
     // CVE-2024-4367 mitigation, and it is still load-bearing: the legacy runtime
     // really is 3.x, where the eval path exists and `enableScripting` does not
-    // cover it. Both 3.x call sites must carry the flag —
-    // security/audit-exceptions.json names them as the mitigation.
+    // cover it. The 3.x call site must carry the flag —
+    // security/audit-exceptions.json names it as the mitigation.
+    //
+    // Phase 8A removed the *second* call site rather than migrating it. Capture
+    // used to `import('pdfjs-dist')` to temp-load a document when the registry had
+    // nothing to lend; that load now goes through the native engine's
+    // `PdfDocumentManager`, so `renderPageToImage.ts` no longer touches 3.x at all
+    // and carries no `getDocument` of its own. The viewer is therefore the only
+    // remaining 3.x `getDocument`, and the only one the exception needs to cover —
+    // the exception entry itself stays until 3.11.174 leaves the tree.
     const viewerSource = readSource('../../features/pdf/ui/components/PdfViewerElement.tsx')
     expect(viewerSource).toContain('isEvalSupported: false')
 
-    const renderSource = readSource('../../features/pdf/lib/renderPageToImage.ts')
-    expect(renderSource).toContain('isEvalSupported: false')
+    const renderCode = codeOf('../../features/pdf/lib/renderPageToImage.ts')
+    expect(renderCode).not.toContain('isEvalSupported')
+    expect(renderCode).not.toMatch(/from ['"]pdfjs-dist['"]/)
+    expect(renderCode).not.toMatch(/import\(['"]pdfjs-dist['"]\)/)
   })
 
   it('serves the worker to the viewer from the npm pdfjs package', () => {

@@ -220,13 +220,12 @@ describe('PdfToolbar', () => {
     expect(onReload).toHaveBeenCalledTimes(1)
   })
 
-  // The native canvas viewer has no capture pipeline and no active document in
-  // the legacy registry, so the controls that rasterise the page must not be left
-  // looking live. The capture actions are disabled with a reason; everything the
-  // native viewer owns for real stays live — the page-text AI action reads the PDF.js
-  // text layer Phase 5 added, Phase 7 gave search its own implementation over that same
-  // text layer, and reload drives a document lifecycle.
-  describe('nativeCanvasMode', () => {
+  // Phase 8A gave the native path the same capture pipeline the legacy viewer has,
+  // so the `nativeCanvasMode` bounding this block used to assert is gone: there is
+  // nothing left for it to disable. The search bar and the page navigation are
+  // still asserted here because they are the two things that must stay reachable
+  // on a viewer that owns its own state.
+  describe('native-mode toolbar', () => {
     function renderNativeToolbar() {
       return render(
         <TooltipProvider>
@@ -248,7 +247,6 @@ describe('PdfToolbar', () => {
             ZoomOut={ZoomOut}
             CurrentScale={CurrentScale}
             onJumpToPage={vi.fn()}
-            nativeCanvasMode
           />
         </TooltipProvider>
       )
@@ -257,9 +255,8 @@ describe('PdfToolbar', () => {
     it('keeps the search bar, because the native path implements search too', () => {
       const { getByTestId } = renderNativeToolbar()
 
-      // Phase 7 gave the native viewer `highlight` / `clearHighlights` over its own text
-      // layer, so there is nothing left to hide: the bar is the same component, driven by
-      // the same shared store, on both renderers. `Ctrl+F` opens it through the store.
+      // The bar is the same component, driven by the same shared store, on both
+      // renderers. `Ctrl+F` opens it through the store.
       act(() => usePdfSearchStore.getState().open())
 
       expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
@@ -279,16 +276,14 @@ describe('PdfToolbar', () => {
       expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
     })
 
-    it('disables the capture actions but keeps the text action and reload live', () => {
+    it('keeps the capture actions live, because the native path can capture', () => {
       const { getByTestId } = renderNativeToolbar()
 
       fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
 
-      // Supported natively from Phase 5: the page text layer exists.
       expect(getByTestId('pdf-quick-text-ai')).toBeEnabled()
-      // Still legacy-only: page rasterisation and the crop screenshot.
-      expect(getByTestId('pdf-quick-image-ai')).toBeDisabled()
-      expect(getByTestId('pdf-quick-area-ai')).toBeDisabled()
+      expect(getByTestId('pdf-quick-image-ai')).toBeEnabled()
+      expect(getByTestId('pdf-quick-area-ai')).toBeEnabled()
       expect(getByTestId('pdf-quick-reload')).toBeEnabled()
     })
   })

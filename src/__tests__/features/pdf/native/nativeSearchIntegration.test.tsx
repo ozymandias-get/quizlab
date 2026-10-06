@@ -153,7 +153,6 @@ function SearchShell({
         ZoomIn={ZoomIn as never}
         ZoomOut={ZoomOut as never}
         CurrentScale={CurrentScale as never}
-        nativeCanvasMode={!legacy}
       />
     </TooltipProvider>
   )
