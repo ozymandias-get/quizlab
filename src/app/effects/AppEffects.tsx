@@ -20,6 +20,14 @@ function applySelectionColorTheme(color: string) {
   root.style.setProperty('--selection-color-glow', hexToRgba(color, 0.48))
   root.style.setProperty('--selection-color-edge', hexToRgba('#ffffff', 0.2))
   root.style.setProperty('--selection-color-ink', 'rgba(24, 24, 27, 0.96)')
+  /* The user's hue with no alpha baked in, so a surface that wants a translucent
+     selection derives its own alpha from it instead of inheriting whichever of the
+     opaque tokens above happens to suit its background. The PDF text layer is the
+     first such consumer: it paints the tint over the canvas's own glyphs, so its
+     alpha has to be chosen for legibility over arbitrary page content rather than
+     for a themed UI surface. Nothing here is a new preference — the value is the
+     same `selectionColor` the rest of this function already reads. */
+  root.style.setProperty('--selection-color-source', color)
   root.style.setProperty('--accent-color', color)
 }
 

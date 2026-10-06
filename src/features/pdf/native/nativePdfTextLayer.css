@@ -26,6 +26,17 @@
  *
  * `src/shared/styles/**` is deliberately untouched — the native text layer is a
  * separate rendering surface, not a restyle of the legacy one.
+ *
+ * ## Selection presentation
+ *
+ * The `::selection` block below is the one place where this file is *not* a
+ * transcription: PDF.js's own default is a fixed 25% blue, which cannot honour a
+ * user preference QuizLab actually has. So the colour is the user's
+ * (`--selection-color-source`, from the `selectionColor` setting) and the alpha is
+ * this surface's, derived in CSS rather than hard-coded. Everything else about
+ * selection stays exactly as it was — browser-painted geometry, transparent run
+ * text, the same state class — because a selection that looks right but stops
+ * behaving like a selection is not a polish.
  */
 
 /* The page box the layer is positioned against. `relative` is what makes the
@@ -99,13 +110,86 @@
   transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
 }
 
-/* Same selection tokens as the legacy text layer, so a highlight looks identical
-   on both renderers. The run text stays transparent so the canvas glyphs remain
-   the only visible copy. */
+/* ── Selection presentation ───────────────────────────────────────────
+ *
+ * The selection is painted by the browser over a canvas that already carries
+ * the real glyphs, so this is a *tint over ink*, not a fill under text. Two
+ * consequences drive everything below:
+ *
+ *  - **Alpha is the whole design.** `--selection-color-vivid` is 0.84, which is
+ *    tuned for a themed UI surface where the text behind it is a known colour. Over
+ *    arbitrary PDF content that reads as a highlighter slab: it hides the glyph
+ *    contrast the canvas painted and makes the selection look like a bug rather
+ *    than a highlight. A translucent tint keeps the user's colour recognisable
+ *    while the glyphs underneath stay readable — which is what every native PDF
+ *    reader does, and what makes a selection feel like selection instead of paint.
+ *  - **The colour is still the user's.** `--selection-color-source` is the raw
+ *    `selectionColor` preference from `AppEffects`, so `color-mix` derives the
+ *    alpha from the same hex the user picked. Purple stays purple, blue stays
+ *    blue; only the opacity is ours. `color-mix` is used rather than another
+ *    pre-baked rgba token because the alpha has to be *this surface's* decision,
+ *    and `color-mix(in srgb, <colour>, transparent N%)` is the only form that
+ *    takes an arbitrary user colour and applies one alpha to it. Electron 42
+ *    ships Chromium 142, so it is long-supported; the plain `rgb()` fallback
+ *    covers any engine that ever lacks it.
+ *
+ * `color: transparent` is unchanged and load-bearing: the run text is invisible
+ * by design (the canvas owns the visible glyphs), so forcing a selection foreground
+ * colour would paint a second, mismatched copy of the text on top of the first.
+ *
+ * Deliberately absent: `padding`, `margin`, `border`, `transform`, `box-shadow`,
+ * `filter`, `border-radius`. `::selection` geometry is the browser's — it paints
+ * one rect per line fragment — and none of those properties reliably influence it
+ * across engines anyway. Padding or a shadow here would be an attempt to draw a
+ * *different* highlight rather than to polish this one. */
+
+[data-native-pdf-text-layer] {
+  /* One alpha for the whole layer, derived once from the user's colour. */
+  --native-pdf-selection-tint: color-mix(
+    in srgb,
+    var(--selection-color-source, #eab308) 32%,
+    transparent
+  );
+}
 
 [data-native-pdf-text-layer] ::selection {
-  background: var(--selection-color-vivid, rgba(234, 179, 8, 0.82));
+  background: var(--native-pdf-selection-tint, rgb(234 179 8 / 32%));
   color: transparent;
+}
+
+/* PDF.js appends a `<br role="presentation">` after every run that ends a line,
+   and it is a sibling of the runs inside the layer — so it inherits
+ * `::selection` and paints a selection rectangle of its own. Those line breaks
+   are structure, not text: they carry no glyph and no box on the canvas, so
+   every one of them that falls inside a selection adds a small dense block of
+   colour with nothing behind it. PDF.js's own stylesheet neutralises exactly this
+   (`br::selection { background: transparent }`, `web/pdf_viewer.css`), and the
+   same rule here is what stops the little blocks at the start of bullet and list
+   lines. Removing the paint does not remove the break: `<br>` is still in the
+   range, so reading order, `Ctrl+C` and extraction are unaffected. */
+
+[data-native-pdf-text-layer] br::selection {
+  background: transparent;
+}
+
+/* Firefox needs the prefixed form; without it a `<br>` there keeps painting the
+   dense block this rule exists to remove. */
+
+[data-native-pdf-text-layer] br::-moz-selection {
+  background: transparent;
+}
+
+/* `span[role="img"]` is PDF.js's marker for a run that stands in for an image or
+   a drawing rather than text. It has no glyph on the canvas to tint and no text
+   to read, so selecting it would paint a colour block over artwork. PDF.js
+   already makes these unselectable; this transcription does the same so the
+   highlight only ever covers something the reader can read. It is presentation
+   only — the attribute and its DOM are PDF.js's, untouched. */
+
+[data-native-pdf-text-layer] span[role='img'] {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
 }
 
 /* Pan mode is a drag surface, not a text surface. The legacy path does the same
@@ -120,11 +204,21 @@
 }
 
 /* `pdf-selection-active` is toggled on the viewer container by the shared
-   `usePdfTextActions`, on both renderers. This is its native counterpart.
+   `usePdfTextActions`, and is not touched by this change — it is the state
+   signal, and its timing is part of the selection behaviour.
    Deliberately no `transition`: transitioning `filter` re-rasterizes the whole
-   layer on every text-layer update, which is the same cost the legacy stylesheet
-   documents removing for the same reason. */
+   layer on every text-layer update.
+
+   The glow itself is now a whisper rather than a halo. It used to be
+   `--selection-color-glow` at 0.48 alpha and a 0.4 rem blur, which is the second
+   half of the "highlighter pen" look: a saturated fill *plus* a coloured bloom
+   around it. At the new translucent tint that bloom is redundant — the tint is
+   already visible on any page — and a glow wide enough to see competes with the
+   glyph contrast it is supposed to be sitting behind. Same derivation as the
+   fill, so the colour is still the user's. */
 
 .pdf-viewer-container.pdf-selection-active [data-native-pdf-text-layer] {
-  filter: drop-shadow(0 0 0.4rem var(--selection-color-glow, rgba(234, 179, 8, 0.25)));
+  filter: drop-shadow(
+    0 0 0.15rem color-mix(in srgb, var(--selection-color-source, #eab308) 18%, transparent)
+  );
 }
