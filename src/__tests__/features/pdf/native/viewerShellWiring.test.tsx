@@ -236,4 +236,21 @@ describe('PdfViewerDocument renderer wiring', () => {
     expect(screen.getAllByTestId('native-viewer')).toHaveLength(1)
     expect(document.querySelectorAll('.pdf-viewer-container')).toHaveLength(1)
   })
+
+  it('keeps the toolbar out of the viewer area the page is centered inside', () => {
+    renderDocument()
+
+    const viewerArea = document.querySelector('[data-tour-id="tour-target-pdf-viewer"]')
+    const toolbar = screen.getByTestId('pdf-toolbar')
+
+    // Vertical centering happens inside the page viewport, which fills this container.
+    // The toolbar therefore has to sit *beside* it in the same column — a sibling that
+    // takes its own layout row — and not inside it and not floating over it. If it were
+    // inside, the page would center against a height the toolbar no longer occupies; if
+    // it were an overlay, the page would center too low and the toolbar would cover the
+    // bottom of a short, centered page.
+    expect(viewerArea).not.toBe(null)
+    expect(viewerArea?.contains(toolbar)).toBe(false)
+    expect(toolbar.parentElement).toBe(viewerArea?.parentElement)
+  })
 })
