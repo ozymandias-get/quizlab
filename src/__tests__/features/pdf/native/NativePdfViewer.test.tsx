@@ -22,6 +22,7 @@ import {
   createFakeDocument,
   createLoadingTask
 } from './nativeViewerHarness'
+import { FakeAnnotationLayer } from './nativeAnnotationLayerDouble'
 import { FakeTextLayer } from './nativeTextLayerDouble'
 
 import { act, render, screen } from '@testing-library/react'
@@ -36,10 +37,12 @@ vi.mock('pdfjs-6', async () => {
   // Imported lazily because a `vi.mock` factory is hoisted above this file's
   // static imports; the double lives in its own dependency-free module so that
   // awaiting it cannot re-enter the mocked module.
+  const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer } = await import('./nativeTextLayerDouble')
   return {
     getDocument: mocks.getDocument,
     TextLayer: FakeTextLayer,
+    AnnotationLayer: FakeAnnotationLayer,
     RenderingCancelledException: class RenderingCancelledException extends Error {
       constructor(message = 'Rendering cancelled') {
         super(message)
@@ -68,6 +71,7 @@ let cancelRaf: ReturnType<typeof vi.fn>
 beforeEach(() => {
   vi.clearAllMocks()
   FakeTextLayer.reset()
+  FakeAnnotationLayer.reset()
   frameCallbacks = []
   cancelRaf = vi.fn()
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -211,6 +215,77 @@ describe('NativePdfViewer — document lifecycle', () => {
     expect(container.querySelector('[class*="rpv-"]')).toBe(null)
   })
 
+  it('stacks canvas, text layer and annotation layer in PDF.js order', async () => {
+    serveDocument(createFakeDocument({ numPages: 12 }))
+
+    const { container } = render(<NativeViewerHarness />)
+
+    await waitForFrames(() =>
+      expect(container.querySelector('[data-native-pdf-annotation-layer]')).not.toBe(null)
+    )
+
+    // PDF.js 6's `LAYERS_ORDER` numbers a page's layers `canvasWrapper` 0,
+    // `textLayer` 1, `annotationLayer` 2 and `PDFPageView#addLayer` inserts them in
+    // that sequence. The annotation layer has to be last: it is the one that takes
+    // pointer events, and a link under the text layer would not be clickable.
+    const page = container.querySelector('[data-native-pdf-page]') as HTMLElement
+    const layerAttributes = [...page.children].map((child) =>
+      child.getAttributeNames().find((name) => name.startsWith('data-native-pdf'))
+    )
+    expect(layerAttributes).toEqual([
+      'data-native-pdf-canvas',
+      'data-native-pdf-text-layer',
+      'data-native-pdf-annotation-layer'
+    ])
+  })
+
+  it('puts the total scale factor on the page box every layer shares', async () => {
+    serveDocument(createFakeDocument({ numPages: 4 }))
+
+    const { container } = render(<NativeViewerHarness />)
+
+    await waitForFrames(() =>
+      expect(container.querySelector('[data-native-pdf-annotation-layer]')).not.toBe(null)
+    )
+
+    // PDF.js sizes both layers as `--total-scale-factor × <page size>`, so this one
+    // inline custom property on the shared box is what keeps a link's hitbox, a text
+    // run's box and the canvas on the same geometry at every scale.
+    const page = container.querySelector<HTMLElement>('[data-native-pdf-page]')
+    const scaleFactor = Number(page?.style.getPropertyValue('--total-scale-factor'))
+    expect(scaleFactor).toBeGreaterThan(0)
+    expect(page?.querySelector('[data-native-pdf-text-layer]')).not.toBe(null)
+    expect(page?.querySelector('[data-native-pdf-annotation-layer]')).not.toBe(null)
+  })
+
+  it('does not treat a degraded annotation layer as a failed page', async () => {
+    const document = createFakeDocument({ numPages: 8, settleAnnotations: false })
+    serveDocument(document)
+    let annotationLayerError: string | null = null
+
+    const { container } = render(
+      <NativeViewerHarness
+        onController={(c) => {
+          annotationLayerError = c.annotationLayerError
+        }}
+      />
+    )
+    await waitForFrames(() =>
+      expect(document.page(1).getAnnotationsCalls.length).toBeGreaterThan(0)
+    )
+
+    await act(async () => {
+      document.page(1).failLastAnnotations('annotation lookup failed')
+      await settle()
+    })
+
+    // Readable is not linked. Showing the error shell would hide a working canvas.
+    expect(annotationLayerError).toBe('annotation lookup failed')
+    expect(container.querySelector('[data-native-pdf-error]')).toBe(null)
+    expect(container.querySelector('canvas')).not.toBe(null)
+    expect(container.querySelector('[data-native-pdf-text-layer]')).not.toBe(null)
+  })
+
   it('reports the page count of the loaded document', async () => {
     serveDocument(createFakeDocument({ numPages: 37 }))
     let totalPages = 0
@@ -291,6 +366,13 @@ describe('NativePdfViewer — document lifecycle', () => {
     expect(mocks.getDocument).not.toHaveBeenCalled()
     expect(mocks.initializeNativePdfWorker).not.toHaveBeenCalled()
     expect(container.querySelector('canvas')).toBe(null)
+    // No page box means no canvas, no text layer and no annotation layer: with the flag
+    // off the whole native surface is absent, so the annotation code cannot mount and
+    // the legacy viewer's links are the only ones in play.
+    expect(container.querySelector('[data-native-pdf-page]')).toBe(null)
+    expect(container.querySelector('[data-native-pdf-text-layer]')).toBe(null)
+    expect(container.querySelector('[data-native-pdf-annotation-layer]')).toBe(null)
+    expect(FakeAnnotationLayer.calls).toHaveLength(0)
   })
 
   it('creates one engine for the mount, not one per render', async () => {

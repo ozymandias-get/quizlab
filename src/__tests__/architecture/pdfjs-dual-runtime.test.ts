@@ -82,6 +82,20 @@ const NATIVE_VIEWER_COMPONENT = path.join(
   'src/features/pdf/ui/components/NativePdfViewer.tsx'
 )
 
+/**
+ * A file's code with its comment lines removed.
+ *
+ * Several checks below are about things a module note legitimately *mentions* — the
+ * removed `renderTextLayer`, the web bundle the annotation layer deliberately does not
+ * import, the unsafe URL schemes the link service refuses. Only the code may be held
+ * to those, exactly as elsewhere in this file.
+ */
+function codeOf(absolutePath: string): string {
+  return readFileSync(absolutePath, 'utf-8')
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('//'))
+    .join('\n')
+}
 function pdfSourceFiles(dir: string): string[] {
   const files: string[] = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -248,6 +262,75 @@ describe('native viewer boundary', () => {
     expect(code).not.toMatch(/from ['"]pdfjs-dist['"]/)
   })
 
+  it('resolves the annotation layer through pdfjs-6, not the web viewer bundle', () => {
+    // Phase 6 mounts PDF.js's `AnnotationLayer`, which *is* exported from `pdfjs-6`'s
+    // entry point. The trap it invites is reaching for `pdfjs-6/web/pdf_viewer.mjs` to
+    // get `PDFLinkService` alongside it: that module is the entire web viewer (page
+    // views, history, find controller, scripting manager, sidebar, thumbnails), none
+    // of which this single-page viewer can use — `PDFLinkService.goToDestination`
+    // calls `PDFViewer#scrollPageIntoView`, so it is inoperable without one.
+    //
+    // So the annotation layer resolves `AnnotationLayer` from the bare alias and the
+    // link surface is QuizLab's own adapter, and neither may import the web bundle.
+    for (const file of pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR)) {
+      expect(codeOf(file), path.relative(repoRoot, file)).not.toContain('pdfjs-6/web/')
+    }
+
+    const layer = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/useNativePdfAnnotationLayer.ts'),
+      'utf-8'
+    )
+    expect(layer).toMatch(/import \{ AnnotationLayer \} from 'pdfjs-6'/)
+
+    const linkService = codeOf(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfLinkService.ts')
+    )
+    // The adapter may name `PDFDocumentProxy` — as a *type*, which is erased at build
+    // time and so cannot drag a second runtime in — and nothing else from `pdfjs-6`.
+    const pdfjsSpecifiers = [...linkService.matchAll(/from ['"](pdfjs[^'"]*)['"]/g)].map(
+      (match) => match[1]
+    )
+    expect(pdfjsSpecifiers).toEqual(['pdfjs-6'])
+    expect(linkService).toMatch(/import type \{[^}]*PDFDocumentProxy[^}]*\} from 'pdfjs-6'/)
+    // And it must never construct the class it declines to use.
+    expect(linkService).not.toContain('new PDFLinkService')
+  })
+
+  it('keeps scripting disabled on the annotation layer as well as the document', () => {
+    // `enableScripting: false` in `pdfDocumentOptions` stops document-level actions.
+    // This is the second half: it is also what keeps `LinkAnnotationElement` from
+    // binding a JavaScript annotation action, which needs *both* `enableScripting` and
+    // `hasJSActions`.
+    const source = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/useNativePdfAnnotationLayer.ts'),
+      'utf-8'
+    )
+    expect(source).toContain('enableScripting: false')
+    expect(source).toContain('hasJSActions: false')
+    // Forms are display-only for now, so a widget keeps the appearance the canvas
+    // already painted instead of becoming an editable input.
+    expect(source).toContain('renderForms: false')
+  })
+
+  it('routes external link targets through the app openExternal pathway', () => {
+    // A PDF link must not be able to navigate the renderer. The annotation layer hands
+    // the target to the same IPC the app's own "about" / "release notes" links use,
+    // which re-validates the URL in the main process before `shell.openExternal` — and
+    // it must not have grown a `window.open` or a `location.href` of its own.
+    const source = codeOf(path.join(repoRoot, 'src/features/pdf/native/nativePdfLinkService.ts'))
+    expect(source).toContain('openExternal')
+    expect(source).not.toContain('window.open')
+    expect(source).not.toContain('location.href')
+    // The protocol allow-list mirrors the main process's, and is declared once rather
+    // than inlined at the call site.
+    expect(source).toContain('NATIVE_EXTERNAL_LINK_PROTOCOLS')
+    expect(source).toContain("'https:'")
+    expect(source).toContain("'mailto:'")
+    // The unsafe schemes must not appear as an allow-list entry.
+    for (const forbidden of ["'javascript:'", "'data:'", "'file:'", "'vbscript:'"]) {
+      expect(source).not.toContain(forbidden)
+    }
+  })
   it('keeps the engine DOM-free now that a TextLayer exists in the boundary', () => {
     // `TextLayer` needs an `HTMLElement`, which is precisely why it lives in the
     // viewer boundary rather than in the engine. This is the assertion that keeps
@@ -304,7 +387,8 @@ describe('native viewer boundary', () => {
       ...pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR),
       NATIVE_VIEWER_COMPONENT,
       path.join(repoRoot, 'src/features/pdf/text/pdfTextLayerSource.ts'),
-      path.join(repoRoot, 'src/features/pdf/native/nativePdfTextLayer.css')
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfTextLayer.css'),
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfAnnotationLayer.css')
     ]
     for (const file of files) {
       const source = readFileSync(file, 'utf-8')
@@ -322,6 +406,25 @@ describe('native viewer boundary', () => {
     expect(nativeDom).toContain('data-native-pdf-page')
     expect(nativeDom).toContain('data-native-pdf-text-layer')
     expect(nativeDom).toContain('data-native-pdf-text-page')
+    expect(nativeDom).toContain('data-native-pdf-annotation-layer')
+    expect(nativeDom).toContain('data-native-pdf-annotation-page')
+  })
+
+  it('scopes the native annotation stylesheet to its own attributes', () => {
+    // Phase 6's CSS is a new surface: PDF.js's `.annotationLayer` rules transcribed
+    // under `data-native-pdf-*`. Every rule must hang off the native layer attribute,
+    // because an unscoped `.linkAnnotation` or `section` selector would restyle the
+    // legacy `@react-pdf-viewer` markup in the same document.
+    const css = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfAnnotationLayer.css'),
+      'utf-8'
+    )
+    expect(css).toContain('[data-native-pdf-annotation-layer]')
+    // PDF.js's own class names are fine *under* the native attribute; the legacy
+    // stylesheet's are not, and neither is `rpv-`. Only the quoted forms count, as
+    // elsewhere in this file — the module note names the vocabulary it avoids.
+    expect(css).not.toContain("'rpv-")
+    expect(css).not.toContain('"rpv-')
   })
 
   it('emits no rpv- class name from the native viewer', () => {

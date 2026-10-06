@@ -8,15 +8,20 @@
  * generation guard, the page cache and — most importantly — the supersede-cancel
  * behaviour in `pageRenderer.ts` are the real thing. Only the `pdfjs-6`
  * boundary is faked: `getDocument`, the typed `RenderingCancelledException`,
- * `TextLayer`, and the worker bootstrap that would otherwise pull a real worker
- * URL.
+ * `TextLayer`, `AnnotationLayer`, and the worker bootstrap that would otherwise pull a
+ * real worker URL.
  *
  * That split is deliberate. A viewer test that mocked the engine would prove only
  * that the viewer calls its collaborators; faking PDF.js instead means the viewer
  * is tested against a faithful `PDFLoadingTask` / `PDFPageProxy` / `RenderTask` /
- * `TextLayer` shape, including a `RenderTask.cancel()` that actually rejects its
- * promise with `RenderingCancelledException` and a `TextLayer.cancel()` that
- * actually rejects `render()` with an `AbortException`.
+ * `TextLayer` / `AnnotationLayer` shape, including a `RenderTask.cancel()` that
+ * actually rejects its promise with `RenderingCancelledException` and a
+ * `TextLayer.cancel()` that actually rejects `render()` with an `AbortException`.
+ *
+ * The document double also carries what a link needs to be resolvable: `getAnnotations`,
+ * plus the document-level `getDestination` / `getPageIndex` / `cachedPageNumber` the
+ * link service reads. The link service itself is never faked — a test clicks the anchor
+ * PDF.js's markup would have produced and the real adapter handles it.
  */
 import { useNativePdfController } from '@features/pdf/native/useNativePdfController'
 import { usePdfTextActions } from '@features/pdf/text/usePdfTextActions'
@@ -26,6 +31,7 @@ import NativePdfViewer from '@features/pdf/ui/components/NativePdfViewer'
 import { useRef } from 'react'
 import { vi } from 'vitest'
 
+import type { FakeAnnotation } from './nativeAnnotationLayerDouble'
 import type { FakeTextContent } from './nativeTextLayerDouble'
 
 export class CancelledRenderError extends Error {
@@ -98,6 +104,11 @@ export interface FakeGetTextContentCall {
   pageNumber: number
 }
 
+export interface FakeGetAnnotationsCall {
+  pageNumber: number
+  intent: string | undefined
+}
+
 export interface FakePage {
   pageNumber: number
   getViewport: (options: { scale: number; rotation?: number }) => {
@@ -111,9 +122,11 @@ export interface FakePage {
     viewport: { width: number; height: number; scale: number }
   }) => FakeRenderTask
   getTextContent: () => Promise<FakeTextContent>
+  getAnnotations: (params?: { intent?: string }) => Promise<FakeAnnotation[]>
   renderCalls: FakeRenderCall[]
   tasks: FakeRenderTask[]
   getTextContentCalls: FakeGetTextContentCall[]
+  getAnnotationsCalls: FakeGetAnnotationsCall[]
   /** Settle the most recent render's promise. */
   settleLastRender: () => void
   /** Fail the most recent render's promise with a real error. */
@@ -122,6 +135,18 @@ export interface FakePage {
   settleLastTextContent: () => void
   /** Fail the most recent `getTextContent()` call. */
   failLastTextContent: (message: string) => void
+  /** Settle the most recent `getAnnotations()` call. */
+  settleLastAnnotations: () => void
+  /** Fail the most recent `getAnnotations()` call. */
+  failLastAnnotations: (message: string) => void
+  /**
+   * Settle every outstanding `getAnnotations()` call on this page.
+   *
+   * The fit scale lands a frame after the first render, so one page usually has more
+   * than one pending lookup and only the newest one belongs to a live effect; a race
+   * test wants all of them to land late, not just the last.
+   */
+  settleAllAnnotations: () => void
 }
 
 /* ---------------------------------------------------------------- document */
@@ -134,6 +159,12 @@ export interface FakeDocument {
   page: (pageNumber: number) => FakePage
   /** Every render call made against any page of this document. */
   renderCallsForAllPages: FakeRenderCall[]
+  /** `PDFDocumentProxy.getDestination` — the named-destination lookup. */
+  getDestination: (id: string) => Promise<unknown[] | null>
+  /** `PDFDocumentProxy.getPageIndex` — resolves an indirect ref to a 0-based index. */
+  getPageIndex: (ref: unknown) => Promise<number>
+  /** `PDFDocumentProxy.cachedPageNumber` — the fast path, or `null`. */
+  cachedPageNumber: (ref: unknown) => number | null
 }
 
 export interface CreateDocumentOptions {
@@ -146,8 +177,23 @@ export interface CreateDocumentOptions {
   settleRenders?: boolean
   /** Settle `getTextContent()` on a microtask (default) or leave it to the test. */
   settleTextContent?: boolean
+  /** Settle `getAnnotations()` on a microtask (default) or leave it to the test. */
+  settleAnnotations?: boolean
   /** Text items each page reports, as one text run per string. */
   textItems?: Record<number, string[]>
+  /** Annotations each page reports, keyed by 1-based page number. */
+  annotations?: Record<number, FakeAnnotation[]>
+  /**
+   * Named destinations, by name. `null` models a name the document does not have,
+   * which is the "broken destination" case a link click has to survive.
+   */
+  destinations?: Record<string, unknown[] | null>
+  /**
+   * Indirect page references and the 0-based page index each resolves to — the
+   * `[ref, { name: 'XYZ' }, …]` destination shape. `null` models a ref that cannot
+   * be resolved at all. Keyed by identity, the way PDF.js keys a page ref.
+   */
+  pageRefs?: Map<unknown, number | null>
   /** Replace page lookup, e.g. to make one page slow or to fail it. */
   getPage?: (pageNumber: number) => Promise<FakePage>
 }
@@ -158,6 +204,9 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
   const rotation = options.rotation ?? 0
   const settleRenders = options.settleRenders ?? true
   const settleTextContent = options.settleTextContent ?? true
+  const settleAnnotations = options.settleAnnotations ?? true
+  const destinations = options.destinations ?? {}
+  const pageRefs = options.pageRefs ?? new Map()
   const pages = new Map<number, FakePage>()
   const getPageCalls: number[] = []
 
@@ -169,11 +218,17 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
     }
   }
 
+  function annotationsFor(pageNumber: number): FakeAnnotation[] {
+    return options.annotations?.[pageNumber] ?? []
+  }
+
   function makePage(pageNumber: number): FakePage {
     const renderCalls: FakeRenderCall[] = []
     const tasks: FakeRenderTask[] = []
     const getTextContentCalls: FakeGetTextContentCall[] = []
     const textContentDeferreds: Deferred<FakeTextContent>[] = []
+    const getAnnotationsCalls: FakeGetAnnotationsCall[] = []
+    const annotationDeferreds: Deferred<FakeAnnotation[]>[] = []
     return {
       pageNumber,
       getViewport: ({ scale }) => {
@@ -204,15 +259,34 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
         if (settleTextContent) queueMicrotask(() => deferred.resolve(textContentFor(pageNumber)))
         return deferred.promise
       },
+      getAnnotations: (params) => {
+        getAnnotationsCalls.push({ pageNumber, intent: params?.intent })
+        const deferred = createDeferred<FakeAnnotation[]>()
+        annotationDeferreds.push(deferred)
+        if (settleAnnotations) {
+          queueMicrotask(() => deferred.resolve(annotationsFor(pageNumber)))
+        }
+        return deferred.promise
+      },
       renderCalls,
       tasks,
       getTextContentCalls,
+      getAnnotationsCalls,
       settleLastRender: () => tasks[tasks.length - 1]?.resolve(),
       failLastRender: (message: string) => tasks[tasks.length - 1]?.reject(new Error(message)),
       settleLastTextContent: () =>
         textContentDeferreds[textContentDeferreds.length - 1]?.resolve(textContentFor(pageNumber)),
       failLastTextContent: (message: string) =>
-        textContentDeferreds[textContentDeferreds.length - 1]?.reject(new Error(message))
+        textContentDeferreds[textContentDeferreds.length - 1]?.reject(new Error(message)),
+      settleLastAnnotations: () =>
+        annotationDeferreds[annotationDeferreds.length - 1]?.resolve(annotationsFor(pageNumber)),
+      failLastAnnotations: (message: string) =>
+        annotationDeferreds[annotationDeferreds.length - 1]?.reject(new Error(message)),
+      settleAllAnnotations: () => {
+        for (const deferred of annotationDeferreds) {
+          deferred.resolve(annotationsFor(pageNumber))
+        }
+      }
     }
   }
 
@@ -236,6 +310,24 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
     },
     get renderCallsForAllPages(): FakeRenderCall[] {
       return [...pages.values()].flatMap((p) => p.renderCalls)
+    },
+    async getDestination(id: string) {
+      return Object.hasOwn(destinations, id) ? destinations[id] : null
+    },
+    async getPageIndex(ref: unknown) {
+      const index = pageRefs.get(ref)
+      if (index === undefined || index === null) {
+        throw new Error('fake document has no such page ref')
+      }
+      return index
+    },
+    cachedPageNumber: (ref: unknown) => {
+      // Mirrors `PDFDocumentProxy.cachedPageNumber`: 1-based, or `null` when the ref
+      // is not in the page cache.
+      const index = pageRefs.get(ref)
+      if (index === undefined || index === null) return null
+      const pageNumber = index + 1
+      return pages.has(pageNumber) ? pageNumber : null
     }
   }
 }
@@ -340,6 +432,7 @@ export function NativeViewerHarness({
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const textLayerRef = useRef<HTMLDivElement>(null)
+  const annotationLayerRef = useRef<HTMLDivElement>(null)
 
   const controller = useNativePdfController({
     enabled,
@@ -352,7 +445,8 @@ export function NativeViewerHarness({
     isPanelResizing,
     pdfPath: null,
     canvasRef,
-    textLayerRef
+    textLayerRef,
+    annotationLayerRef
   })
 
   // The real shared hook, on the real shared container. This is the whole point
@@ -377,6 +471,7 @@ export function NativeViewerHarness({
         controller={controller}
         canvasRef={canvasRef}
         textLayerRef={textLayerRef}
+        annotationLayerRef={annotationLayerRef}
         t={t}
         tt={t}
       />
