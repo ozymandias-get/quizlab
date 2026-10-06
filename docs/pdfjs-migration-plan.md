@@ -1159,6 +1159,245 @@ deletion.
 
 ---
 
+## Phase 4 — native canvas viewer + page/scale state
+
+**The first UI consumer of the native engine, behind a build-time flag.** The
+legacy `@react-pdf-viewer` path is unchanged and remains the default; the native
+path is opt-in and deliberately incomplete.
+
+### The flag
+
+`VITE_NATIVE_PDF_VIEWER`, read in `features/pdf/native/nativePdfViewerFlag.ts`.
+Only the exact string `true` opts in — `false`, `0`, `1`, `yes`, `TRUE` (with or
+without whitespace) and an absent variable all resolve to the legacy viewer.
+`import.meta.env` is read _inside_ the function, not captured at module load, so
+the same code path serves dev, a production build and the packaged app and the
+switch stays testable without a build.
+
+The read happens exactly once, in `PdfViewerDocument`, at the highest level that
+owns both renderers. Nothing below re-reads it, so the two paths cannot disagree
+about which one is live.
+
+### The native boundary
+
+```
+PdfViewerDocument
+   ├─ flag off (default) ──► PdfViewerElement ──► @react-pdf-viewer <Viewer> ──► pdfjs-dist@3.11.174
+   └─ flag on            ──► NativePdfViewer  ──► @features/pdf/engine        ──► pdfjs-6 (6.4.299)
+```
+
+Every production file that imports `@features/pdf/engine` lives in
+`features/pdf/native/` plus one presentational component,
+`features/pdf/ui/components/NativePdfViewer.tsx`. That is asserted by
+`src/__tests__/architecture/pdfjs-dual-runtime.test.ts`, which also asserts the
+inverse — no `@react-pdf-viewer` **import specifier** and no `rpv-*` string in
+that boundary. (Comments in the boundary legitimately name the package they are
+deliberately not using, so the check matches imports, not prose.)
+
+| File                         | Responsibility                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------------- |
+| `nativePdfViewerFlag.ts`     | the opt-in, and its parsing rule                                                       |
+| `nativePdfBounds.ts`         | `clampPdfPage` (1-based) and `clampPdfScale`, on the shared `PDF_ZOOM_*` constants     |
+| `useNativeCoalescedScale.ts` | the one-zoom-per-frame channel, numeric only                                           |
+| `useNativePdfEngine.ts`      | **ownership**: one `createPdfDocumentManager()` + one `createPageRenderer()` per mount |
+| `useNativePdfDocument.ts`    | `(pdfUrl, reloadKey)` → `ready` + `numPages` + first-page size                         |
+| `useNativePdfPageState.ts`   | 1-based `currentPage`, clamped; progress emitted through the existing callback         |
+| `useNativePdfScaleState.ts`  | numeric `scale`, clamped, fit applied once per document identity                       |
+| `useNativePdfRender.ts`      | one page → one canvas, supersede-cancel, cancellation is not an error                  |
+| `useNativePdfController.ts`  | the composition, and the toolbar contract                                              |
+| `nativeZoomControls.tsx`     | render-prop zoom components for the shared toolbar                                     |
+
+### Ownership
+
+The engine instances are created in an **effect**, not during render, and
+destroyed in that effect's cleanup: `renderer.cancel()` first (so an in-flight
+render stops while its page proxy is still usable), then `manager.destroy()`,
+which is the single owner of `PDFLoadingTask` teardown in PDF.js 6. Creating them
+per render would abandon a loading task or a canvas-locked `RenderTask` without
+cancelling it — the leak that produces "multiple render() operations".
+
+The instances are read through a stable `NativePdfEngineHandle` accessor rather
+than carried as render values: they only exist after the enabling effect has run,
+and a possibly-`null` object in render position would restart every downstream
+effect on each `null → instance` transition.
+
+Effect order inside the controller is load-bearing exactly once and is commented
+where it matters: the engine-creating effect is declared before the document
+loading effect, so the engine exists by the time the document hook runs its body.
+
+### Document identity and stale work
+
+Document identity is `(pdfUrl, reloadKey)` — the same pair the legacy `<Viewer
+key={...}>` uses to decide it must remount. Reload of the same file is a new
+identity: the URL is unchanged but the user asked for a fresh document.
+
+Two independent guards cover two different windows:
+
+1. the engine's generation counter makes a superseded `load()` resolve to `null`
+   and destroys the abandoned task
+2. the UI's per-effect `cancelled` flag drops anything that settles after the
+   identity changed or the viewer went away — including the `getPage(1)` that
+   measures the page, which is a separate await
+
+Both are tested against the _real_ engine with only `pdfjs-6` faked
+(`getDocument` plus a `RenderTask.cancel()` that really rejects with the typed
+`RenderingCancelledException`). A test that mocked the engine would have proved
+only that the viewer calls its collaborators.
+
+### Page and scale state
+
+Page indexing is **1-based** throughout, matching PDF.js `getPage`. The only
+0-based value in the system is RPV's `onPageChange`, which the legacy navigation
+hook converts; the native path has no such callback and therefore never has a
+0-based number to reconcile.
+
+`clampPdfPage(page, totalPages)` lower-bounds to `1` always, and upper-bounds
+only once `totalPages` is known. Forcing `1` while the count is unknown would
+fight the resume flow, which legitimately restores a saved page before the new
+document's `numPages` arrives. `initialPage` is consumed once per document
+identity, not per prop change — it mirrors persisted reading progress and
+therefore changes on every page turn.
+
+`SpecialZoomLevel.PageWidth` is **normalised to a real number** on the native
+path: there is no numeric scale that means "fit the page" to PDF.js, so the fit is
+computed from the shared `useFitScale` (1 %-granularity quantization included)
+and applied as an ordinary scale. `SpecialZoomLevel` never enters the native
+engine or its hooks.
+
+The initial fit is keyed on document identity in a ref, not as a plain effect
+dependency. That is what prevents `fit → render → resize → new fitScale → fit`:
+the container size is an _input_ to `fitScale`, and applying the fit changes the
+canvas size, which the container observer reports. Container resizes are a
+separate lifecycle (`usePdfResizeRefit`), which is the path that is meant to
+refit. `PDF_RESIZE_REFIT_DEBOUNCE_MS` (150 ms) is reused unchanged.
+
+Every native zoom source — toolbar buttons, Ctrl+wheel, resize refit, the initial
+fit — goes through one rAF-coalesced channel with latest-wins semantics, and every
+value is clamped by `clampPdfScale` against the shared `PDF_ZOOM_MIN_SCALE` /
+`PDF_ZOOM_MAX_SCALE`. Because the clamped result feeds `setState` directly, a
+saturated zoom step returns the current value and React bails out of the render.
+
+### Why `useCoalescedZoom` was not reused
+
+`features/pdf/viewport/useCoalescedZoom.ts` types its channel as
+`(scale: number | SpecialZoomLevel) => void` because it feeds RPV's `zoomTo`. The
+native path has no such value domain, and widening the shared hook would put an
+`@react-pdf-viewer` type into the native path and change a Phase 2-pinned file for
+no gain. `useNativeCoalescedScale` is a separate numeric hook with the same shape
+and rationale. Phase 2's `useCoalescedZoom` tests are untouched.
+
+### Two small changes to shared zoom hooks
+
+Both are type-level; no behaviour changed, and both Phase 2 suites pass unchanged
+apart from the added cases.
+
+| Hook                  | Change                                                                                      | Why                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `usePdfCtrlWheelZoom` | `ZoomTo` narrowed to `(scale: number) => void`                                              | the hook only ever computes numbers; the legacy caller is still assignable by contravariance               |
+| `usePdfResizeRefit`   | additive optional 7th parameter `fallbackScale`, defaulting to `SpecialZoomLevel.PageWidth` | lets the numeric-only native caller supply its own fallback while every legacy call site keeps its keyword |
+
+The native controller passes `refitZoomTo = (value: unknown) => typeof value === 'number' ? zoomTo(value) : undefined`
+to `usePdfResizeRefit`. Taking the parameter as `unknown` rather than importing
+`SpecialZoomLevel` keeps `@react-pdf-viewer` out of the native boundary while the
+shared debounce / cooldown / navigation-lock rules run verbatim; the guard is
+defensive rather than lossy, because the native caller always passes a number.
+
+`useFitScale`, `useContainerSize`, `useLastNavigationTime`,
+`usePdfWheelNavigation` and `usePdfCtrlWheelZoom` are used as-is. The fit inset
+is not re-derived: `usePdfViewerState` now also returns `adjustedContainerSize`,
+so the native path feeds the _same_ number into the _same_ `useFitScale`. A
+single ResizeObserver still watches the single shared container.
+
+### Rendering and cancellation
+
+One `<canvas>` in the DOM at a time, holding the current page, inside the same
+`containerRef` the legacy viewer uses. `ViewMode.SinglePage` parity means no page
+stack, no prefetch, no second canvas. Canvas sizing is left entirely to
+`createPageRenderer`, which derives width/height from the page's own viewport at
+the effective scale (rotation included).
+
+The render effect depends on `(document, page, scale)`; any change — or unmount —
+runs its cleanup, `renderer.cancel()`. The engine renderer also cancels before it
+starts, covering a re-entry the effect cannot see. A cancelled render rejects
+with `RenderingCancelledException`, recognised by identity through the engine's
+`isRenderCancelled`, and is dropped without touching state: no user-facing error
+and no console noise. A genuine failure is _not_ swallowed; it becomes
+`renderError` and the viewer shows the fallback.
+
+One deliberate cost: because the fit commits on the next animation frame, the
+first render of a document happens at the placeholder scale `1` and is superseded
+a frame later. In practice it is cancelled mid-flight, so the user never sees it.
+Avoiding it entirely would require the render effect to read a mutable
+"fit pending" flag set by an earlier hook in the same commit — a fragile
+cross-hook ordering dependency for a few ms of work.
+
+**DPR is unchanged.** The engine sets `canvas.width/height` from the viewport, so
+the canvas is 1 CSS pixel per device pixel on a HiDPI display. That is a
+deliberate Phase 4 decision: DPR support belongs with the capture pipeline's
+high-DPI work and needs its own proof, not a quiet change to the renderer.
+
+### Toolbar
+
+No toolbar rewrite. `PdfToolbar` already takes its zoom controls as render-prop
+components (`ZoomComponent` / `CurrentScaleComponent`); native state has no
+plugin but the shape is the same, so `nativeZoomControls.tsx` supplies it and the
+toolbar's three buttons, percentage readout and tooltips are reused untouched.
+`PdfViewerDocument` binds the native controller's `currentPage`, `totalPages`,
+previous/next/jump and the three zoom components when the flag is on.
+
+`useNativeZoomControls` rebuilds the three components when the scale changes.
+`PdfToolbar` and `PdfZoomControls` are both memoised, and their props are
+otherwise referentially stable, so without that rebuild the percentage readout
+would keep showing the pre-zoom value while the canvas was already at the new
+scale. The zoom _handlers_ are stable, so a scale change recreates nothing inside
+the buttons.
+
+**Bounded, not silently broken.** `PdfToolbar` gained one optional
+`nativeCanvasMode` prop. When it is set:
+
+- the search bar is not rendered (search has no native implementation)
+- the AI quick-bar actions that need the page text layer or the capture registry
+  are `disabled` with a tooltip saying why
+- **reload stays enabled** — it drives a real native document lifecycle
+
+### Deliberately not migrated
+
+TextLayer, AnnotationLayer, links, `PDFFindController`, search highlights, text
+selection and extraction, the capture pipeline, `activePdfDocumentRegistry`, the
+context menu, `usePdfViewerZoomIpc` (its reset target hard-codes
+`SpecialZoomLevel.PageWidth`), the reading-progress persistence architecture, and
+all CSS. The native path emits progress through the _existing_
+`onReadingProgressChange` callback with the legacy shape, so the persistence
+pipeline keeps working without being touched.
+
+### Verification
+
+| Suite                                                              | Tests                                                      |
+| ------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `features/pdf/native/*` (flag, bounds, coalescing, zoom controls)  | 28                                                         |
+| `NativePdfViewer.test.tsx` (lifecycle, page, scale, render, races) | 29                                                         |
+| `viewerFeatureFlagBoundary.test.tsx`                               | 5                                                          |
+| `PdfToolbar.test.tsx` + `usePdfResizeRefit.test.tsx` (new cases)   | 6                                                          |
+| `architecture/pdfjs-dual-runtime.test.ts` (new boundary block)     | 6                                                          |
+| **Full suite**                                                     | **352 files, 3799 passed, 2 pre-existing skips, 0 failed** |
+
+Build: `npm run build:renderer:electron` now emits **both** workers in the normal
+app build — the check that could not be made in Phase 3B:
+
+| Artifact                             | Size     |
+| ------------------------------------ | -------- |
+| `pdf.worker.min-<hash>.js` (legacy)  | 1 062 kB |
+| `pdf.worker.min-<hash>.mjs` (native) | 1 235 kB |
+| `vendor-pdf-legacy-<hash>.js`        | 459 kB   |
+| `vendor-pdf-native-<hash>.js`        | 437 kB   |
+
+Each chunk contains only its own runtime's version string (`3.11.174` /
+`6.4.299`) and references only its own worker asset, so the native import did not
+silently resolve to the legacy PDF.js. The `dist/pdfjs/` tree is unchanged: 200
+files (cmaps 169, standard_fonts 16, wasm 13, iccs 2).
+
+---
+
 # Part IV — Performance baseline (must survive)
 
 | Mechanism                                       | Where                                                                                    | Notes                                                                                                                         |
@@ -1286,17 +1525,17 @@ Verified 6.x deltas that change the plan (blocker 4 above, summarised):
 
 # Part VII — Migration phases
 
-| Phase                                            | Scope                                                                                                                                                                                                    | Exit criteria                                                                                                                                                        |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1 — baseline (this document)**                 | discovery + verified deltas only                                                                                                                                                                         | branch pushed, no source change ✔                                                                                                                                    |
-| **2 — close the test gaps**                      | add regression tests for `renderPageToImage` (high-DPI + fallback), `usePdfTextActions` selection wiring, `usePdfPanTool` drag, `usePdfCtrlWheelZoom`, search highlight execution, `PdfTabStrip`         | the behaviours a rewrite would silently break are pinned **before** any renderer change ✔ (125 tests added; `PdfTabStrip` and the two viewer-state hooks still open) |
-| **3 — native engine skeleton, viewer untouched** | `engine/` (worker, documentManager, pageRenderer), packaged assets (`wasm/`, `iccs/`, `cmaps/`, `standard_fonts/`) + `build.files`, security policy flip, rewrite `pdfjs-engine-worker-coupling.test.ts` | RPV still renders; the new engine passes its own tests; `pdfjs-dist@6.4.299` installed; `npm run analyze:*` clean                                                    |
-| **4 — canvas + page/scale state**                | `PdfViewerElement` renders pages itself; keep `viewMode` single-page, `defaultScale` PageWidth, dark theme, `onPageChange`/`onDocumentLoad`/`onZoom` equivalents                                         | open/close, tab switch, page nav, zoom, fit, reload all behave identically; screenshot + selection still pass                                                        |
-| **5 — text layer + selection**                   | `PdfTextLayer`, `extractPageTextFromDom`, `extractSelectedText` retargeted at our markup                                                                                                                 | the Phase-2 selection tests pass unchanged                                                                                                                           |
-| **6 — annotation layer + links**                 | `PdfAnnotationLayer`, `PdfTextLayer`, `LinkService`                                                                                                                                                      | links and form widgets behave as they do under RPV                                                                                                                   |
-| **7 — search**                                   | `PdfSearchController` + `PdfSearchOverlay`, reusing `pdf-highlight-fadein` and `rpv-search__highlight` geometry                                                                                          | highlight execution passes the Phase-2 tests                                                                                                                         |
-| **8 — drop RPV**                                 | delete the four packages, `usePdfPlugins`, the 4 CSS imports, all 26 `rpv-*` rule blocks, `lib/pdfViewerDom.ts`'s RPV selectors; rewrite the 4 tests that mock `@react-pdf-viewer/core`                  | `rg "@react-pdf-viewer\|rpv-"` returns nothing; no `?url` worker import from the viewer                                                                              |
-| **9 — cleanup**                                  | `.npmrc` (after the eslint peers), `vite.config.mts` `vendor-pdf`/`EVAL` filter, `security/audit-exceptions.json`, `knip`/`ts-prune` pass, delete `patches`-adjacent stubs                               | `npm run analyze:all` clean, `npm audit` clean without an exception                                                                                                  |
+| Phase                                            | Scope                                                                                                                                                                                                    | Exit criteria                                                                                                                                                                                                           |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1 — baseline (this document)**                 | discovery + verified deltas only                                                                                                                                                                         | branch pushed, no source change ✔                                                                                                                                                                                       |
+| **2 — close the test gaps**                      | add regression tests for `renderPageToImage` (high-DPI + fallback), `usePdfTextActions` selection wiring, `usePdfPanTool` drag, `usePdfCtrlWheelZoom`, search highlight execution, `PdfTabStrip`         | the behaviours a rewrite would silently break are pinned **before** any renderer change ✔ (125 tests added; `PdfTabStrip` and the two viewer-state hooks still open)                                                    |
+| **3 — native engine skeleton, viewer untouched** | `engine/` (worker, documentManager, pageRenderer), packaged assets (`wasm/`, `iccs/`, `cmaps/`, `standard_fonts/`) + `build.files`, security policy flip, rewrite `pdfjs-engine-worker-coupling.test.ts` | RPV still renders; the new engine passes its own tests; `pdfjs-dist@6.4.299` installed; `npm run analyze:*` clean                                                                                                       |
+| **4 — canvas + page/scale state**                | `PdfViewerElement` renders pages itself; keep `viewMode` single-page, `defaultScale` PageWidth, dark theme, `onPageChange`/`onDocumentLoad`/`onZoom` equivalents                                         | open/close, tab switch, page nav, zoom, fit, reload all behave identically; screenshot + selection still pass ✔ (feature-flagged: the legacy viewer stays the default, and the normal build now emits **both** workers) |
+| **5 — text layer + selection**                   | `PdfTextLayer`, `extractPageTextFromDom`, `extractSelectedText` retargeted at our markup                                                                                                                 | the Phase-2 selection tests pass unchanged                                                                                                                                                                              |
+| **6 — annotation layer + links**                 | `PdfAnnotationLayer`, `PdfTextLayer`, `LinkService`                                                                                                                                                      | links and form widgets behave as they do under RPV                                                                                                                                                                      |
+| **7 — search**                                   | `PdfSearchController` + `PdfSearchOverlay`, reusing `pdf-highlight-fadein` and `rpv-search__highlight` geometry                                                                                          | highlight execution passes the Phase-2 tests                                                                                                                                                                            |
+| **8 — drop RPV**                                 | delete the four packages, `usePdfPlugins`, the 4 CSS imports, all 26 `rpv-*` rule blocks, `lib/pdfViewerDom.ts`'s RPV selectors; rewrite the 4 tests that mock `@react-pdf-viewer/core`                  | `rg "@react-pdf-viewer\|rpv-"` returns nothing; no `?url` worker import from the viewer                                                                                                                                 |
+| **9 — cleanup**                                  | `.npmrc` (after the eslint peers), `vite.config.mts` `vendor-pdf`/`EVAL` filter, `security/audit-exceptions.json`, `knip`/`ts-prune` pass, delete `patches`-adjacent stubs                               | `npm run analyze:all` clean, `npm audit` clean without an exception                                                                                                                                                     |
 
 ---
 
