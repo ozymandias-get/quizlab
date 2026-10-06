@@ -767,6 +767,44 @@ Largest concrete gaps to close **before** touching the renderer:
 `usePdfPanTool` drag, `usePdfCtrlWheelZoom`, `PdfTabStrip` internals, search
 highlight execution, `captureCanvasAsBlob`'s JPEG threshold.
 
+## Phase 2 result — regression baseline closed
+
+Six of those seven gaps are now covered on `refactor/native-pdfjs-viewer`. No
+production code changed; 125 tests were added across 7 files (44 PDF test files /
+442 tests, up from 40 / 317).
+
+| New file                                                       | Tests | What it now pins                                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `features/pdf/lib/renderPageToImage.test.ts`                   | 27    | borrowed-proxy reuse and that the borrowed proxy is **never** destroyed (success _and_ failure path), destroyed-proxy eviction, self-load `getDocument` params, `finally` destroy on all three exits, the pixel budget for both callers, the clone fallback, `toBlob` → null fall-through |
+| `features/pdf/capture/captureCanvasAsBlob.test.ts`             | 11    | the strict `>` JPEG threshold at 11.997 MP / exactly 12 MP / 12.001 MP, option overrides, rejection on a null blob                                                                                                                                                                        |
+| `features/pdf/capture/usePdfCaptureActions.test.ts` (extended) | +19   | all five rungs of the capture ladder, the 12 MP `toDataURL` guard, request-id staleness across a re-render, GPU-released canvas re-validation                                                                                                                                             |
+| `features/pdf/text/usePdfTextActions.test.tsx`                 | 23    | capture-phase listener registration, out-of-container and detached-anchor selectionchange, the 150 ms scroll lock, rAF coalescing and unmount cancellation, the `pdf-selection-active` class, `requestIdleCallback` vs the 500 ms timeout fallback                                        |
+| `features/pdf/interaction/usePdfPanTool.test.tsx`              | 19    | primary-button-only drag, pointer capture/release lifecycle, scrollable-ancestor resolution, the `INNER_CONTAINER_SELECTOR` fallback, pan-mode toggling, unmount cleanup                                                                                                                  |
+| `features/pdf/viewport/usePdfCtrlWheelZoom.test.tsx`           | 16    | `{ passive: false, capture: true }` registration, modifier handling, clamps from `constants/pdfZoom`, pan-mode suppression, the 40 ms throttle                                                                                                                                            |
+| `features/pdf/ui/usePdfPluginsHighlights.test.tsx`             | 14    | `safeRenderHighlights` output geometry, guards, `pdf-highlight-fadein` and the `prefers-reduced-motion` branch                                                                                                                                                                            |
+
+Still open: `PdfTabStrip` internals, `usePdfViewerState` /
+`usePdfViewerZoomOrchestrator`, `PdfZoomControls`, `PdfPageNav`.
+
+Each new suite was mutation-validated: 19 deliberate production mutations were
+injected one at a time and 19/19 were caught by the intended tests, then reverted.
+
+### Two behaviours pinned as-is, worth knowing before rewriting them
+
+1. **The pixel budget is enforced to within a rounding epsilon, not exactly.**
+   `renderWithPdfJs` derives the downscale ratio from the _rounded_ viewport
+   dimensions, then rounds the rescaled dimensions again without re-checking
+   them (`renderPageToImage.ts:139-146`). An A0 page rendered at the capture call
+   site's scale 4 / 20 MP comes out at 20 001 639 px — 0.008 % over. Harmless,
+   but a rewrite that re-checks the budget will not be behaviour-preserving in
+   the strict sense, and the tests deliberately allow a 0.1 % tolerance.
+2. **The `anchorNode.isConnected` guard in `handleSelectionChange` is almost
+   dead code.** For a detached anchor with real selected text, both the guarded
+   and unguarded paths end up silent. The guard is observable in exactly one
+   case: a non-collapsed range whose text is empty, where without it a 50 ms
+   timeout would clear the pill from an already-torn-down page. It is pinned
+   for that case only.
+
 ---
 
 # Part IV — Performance baseline (must survive)
@@ -896,17 +934,17 @@ Verified 6.x deltas that change the plan (blocker 4 above, summarised):
 
 # Part VII — Migration phases
 
-| Phase                                            | Scope                                                                                                                                                                                                    | Exit criteria                                                                                                     |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **1 — baseline (this document)**                 | discovery + verified deltas only                                                                                                                                                                         | branch pushed, no source change ✔                                                                                 |
-| **2 — close the test gaps**                      | add regression tests for `renderPageToImage` (high-DPI + fallback), `usePdfTextActions` selection wiring, `usePdfPanTool` drag, `usePdfCtrlWheelZoom`, search highlight execution, `PdfTabStrip`         | the behaviours a rewrite would silently break are pinned **before** any renderer change                           |
-| **3 — native engine skeleton, viewer untouched** | `engine/` (worker, documentManager, pageRenderer), packaged assets (`wasm/`, `iccs/`, `cmaps/`, `standard_fonts/`) + `build.files`, security policy flip, rewrite `pdfjs-engine-worker-coupling.test.ts` | RPV still renders; the new engine passes its own tests; `pdfjs-dist@6.4.299` installed; `npm run analyze:*` clean |
-| **4 — canvas + page/scale state**                | `PdfViewerElement` renders pages itself; keep `viewMode` single-page, `defaultScale` PageWidth, dark theme, `onPageChange`/`onDocumentLoad`/`onZoom` equivalents                                         | open/close, tab switch, page nav, zoom, fit, reload all behave identically; screenshot + selection still pass     |
-| **5 — text layer + selection**                   | `PdfTextLayer`, `extractPageTextFromDom`, `extractSelectedText` retargeted at our markup                                                                                                                 | the Phase-2 selection tests pass unchanged                                                                        |
-| **6 — annotation layer + links**                 | `PdfAnnotationLayer`, `PdfTextLayer`, `LinkService`                                                                                                                                                      | links and form widgets behave as they do under RPV                                                                |
-| **7 — search**                                   | `PdfSearchController` + `PdfSearchOverlay`, reusing `pdf-highlight-fadein` and `rpv-search__highlight` geometry                                                                                          | highlight execution passes the Phase-2 tests                                                                      |
-| **8 — drop RPV**                                 | delete the four packages, `usePdfPlugins`, the 4 CSS imports, all 26 `rpv-*` rule blocks, `lib/pdfViewerDom.ts`'s RPV selectors; rewrite the 4 tests that mock `@react-pdf-viewer/core`                  | `rg "@react-pdf-viewer\|rpv-"` returns nothing; no `?url` worker import from the viewer                           |
-| **9 — cleanup**                                  | `.npmrc` (after the eslint peers), `vite.config.mts` `vendor-pdf`/`EVAL` filter, `security/audit-exceptions.json`, `knip`/`ts-prune` pass, delete `patches`-adjacent stubs                               | `npm run analyze:all` clean, `npm audit` clean without an exception                                               |
+| Phase                                            | Scope                                                                                                                                                                                                    | Exit criteria                                                                                                                                                        |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1 — baseline (this document)**                 | discovery + verified deltas only                                                                                                                                                                         | branch pushed, no source change ✔                                                                                                                                    |
+| **2 — close the test gaps**                      | add regression tests for `renderPageToImage` (high-DPI + fallback), `usePdfTextActions` selection wiring, `usePdfPanTool` drag, `usePdfCtrlWheelZoom`, search highlight execution, `PdfTabStrip`         | the behaviours a rewrite would silently break are pinned **before** any renderer change ✔ (125 tests added; `PdfTabStrip` and the two viewer-state hooks still open) |
+| **3 — native engine skeleton, viewer untouched** | `engine/` (worker, documentManager, pageRenderer), packaged assets (`wasm/`, `iccs/`, `cmaps/`, `standard_fonts/`) + `build.files`, security policy flip, rewrite `pdfjs-engine-worker-coupling.test.ts` | RPV still renders; the new engine passes its own tests; `pdfjs-dist@6.4.299` installed; `npm run analyze:*` clean                                                    |
+| **4 — canvas + page/scale state**                | `PdfViewerElement` renders pages itself; keep `viewMode` single-page, `defaultScale` PageWidth, dark theme, `onPageChange`/`onDocumentLoad`/`onZoom` equivalents                                         | open/close, tab switch, page nav, zoom, fit, reload all behave identically; screenshot + selection still pass                                                        |
+| **5 — text layer + selection**                   | `PdfTextLayer`, `extractPageTextFromDom`, `extractSelectedText` retargeted at our markup                                                                                                                 | the Phase-2 selection tests pass unchanged                                                                                                                           |
+| **6 — annotation layer + links**                 | `PdfAnnotationLayer`, `PdfTextLayer`, `LinkService`                                                                                                                                                      | links and form widgets behave as they do under RPV                                                                                                                   |
+| **7 — search**                                   | `PdfSearchController` + `PdfSearchOverlay`, reusing `pdf-highlight-fadein` and `rpv-search__highlight` geometry                                                                                          | highlight execution passes the Phase-2 tests                                                                                                                         |
+| **8 — drop RPV**                                 | delete the four packages, `usePdfPlugins`, the 4 CSS imports, all 26 `rpv-*` rule blocks, `lib/pdfViewerDom.ts`'s RPV selectors; rewrite the 4 tests that mock `@react-pdf-viewer/core`                  | `rg "@react-pdf-viewer\|rpv-"` returns nothing; no `?url` worker import from the viewer                                                                              |
+| **9 — cleanup**                                  | `.npmrc` (after the eslint peers), `vite.config.mts` `vendor-pdf`/`EVAL` filter, `security/audit-exceptions.json`, `knip`/`ts-prune` pass, delete `patches`-adjacent stubs                               | `npm run analyze:all` clean, `npm audit` clean without an exception                                                                                                  |
 
 ---
 
