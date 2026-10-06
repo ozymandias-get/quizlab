@@ -7,20 +7,26 @@
  * `createPageCache` and `createPageRenderer` run as production code, so the
  * generation guard, the page cache and — most importantly — the supersede-cancel
  * behaviour in `pageRenderer.ts` are the real thing. Only the `pdfjs-6`
- * boundary is faked: `getDocument` and the typed `RenderingCancelledException`,
- * plus the worker bootstrap that would otherwise pull a real worker URL.
+ * boundary is faked: `getDocument`, the typed `RenderingCancelledException`,
+ * `TextLayer`, and the worker bootstrap that would otherwise pull a real worker
+ * URL.
  *
  * That split is deliberate. A viewer test that mocked the engine would prove only
  * that the viewer calls its collaborators; faking PDF.js instead means the viewer
- * is tested against a faithful `PDFLoadingTask` / `PDFPageProxy` / `RenderTask`
- * shape, including a `RenderTask.cancel()` that actually rejects its promise with
- * `RenderingCancelledException`.
+ * is tested against a faithful `PDFLoadingTask` / `PDFPageProxy` / `RenderTask` /
+ * `TextLayer` shape, including a `RenderTask.cancel()` that actually rejects its
+ * promise with `RenderingCancelledException` and a `TextLayer.cancel()` that
+ * actually rejects `render()` with an `AbortException`.
  */
 import { useNativePdfController } from '@features/pdf/native/useNativePdfController'
+import { usePdfTextActions } from '@features/pdf/text/usePdfTextActions'
+import type { SelectionPosition } from '@features/pdf/text/types'
 import NativePdfViewer from '@features/pdf/ui/components/NativePdfViewer'
 
 import { useRef } from 'react'
 import { vi } from 'vitest'
+
+import type { FakeTextContent } from './nativeTextLayerDouble'
 
 export class CancelledRenderError extends Error {
   constructor(message = 'Rendering cancelled, page 1') {
@@ -88,6 +94,10 @@ export interface FakeRenderCall {
   height: number
 }
 
+export interface FakeGetTextContentCall {
+  pageNumber: number
+}
+
 export interface FakePage {
   pageNumber: number
   getViewport: (options: { scale: number; rotation?: number }) => {
@@ -100,12 +110,18 @@ export interface FakePage {
     canvas: HTMLCanvasElement
     viewport: { width: number; height: number; scale: number }
   }) => FakeRenderTask
+  getTextContent: () => Promise<FakeTextContent>
   renderCalls: FakeRenderCall[]
   tasks: FakeRenderTask[]
+  getTextContentCalls: FakeGetTextContentCall[]
   /** Settle the most recent render's promise. */
   settleLastRender: () => void
   /** Fail the most recent render's promise with a real error. */
   failLastRender: (message: string) => void
+  /** Settle the most recent `getTextContent()` call. */
+  settleLastTextContent: () => void
+  /** Fail the most recent `getTextContent()` call. */
+  failLastTextContent: (message: string) => void
 }
 
 /* ---------------------------------------------------------------- document */
@@ -124,8 +140,14 @@ export interface CreateDocumentOptions {
   numPages: number
   width?: number
   height?: number
+  /** Page rotation in degrees, so the viewport's rotation can be asserted. */
+  rotation?: number
   /** Settle renders on a microtask (default) or leave them to the test. */
   settleRenders?: boolean
+  /** Settle `getTextContent()` on a microtask (default) or leave it to the test. */
+  settleTextContent?: boolean
+  /** Text items each page reports, as one text run per string. */
+  textItems?: Record<number, string[]>
   /** Replace page lookup, e.g. to make one page slow or to fail it. */
   getPage?: (pageNumber: number) => Promise<FakePage>
 }
@@ -133,21 +155,33 @@ export interface CreateDocumentOptions {
 export function createFakeDocument(options: CreateDocumentOptions): FakeDocument {
   const width = options.width ?? 400
   const height = options.height ?? 600
+  const rotation = options.rotation ?? 0
   const settleRenders = options.settleRenders ?? true
+  const settleTextContent = options.settleTextContent ?? true
   const pages = new Map<number, FakePage>()
   const getPageCalls: number[] = []
+
+  function textContentFor(pageNumber: number): FakeTextContent {
+    return {
+      items: (options.textItems?.[pageNumber] ?? []).map((str) => ({ str })),
+      styles: {},
+      lang: null
+    }
+  }
 
   function makePage(pageNumber: number): FakePage {
     const renderCalls: FakeRenderCall[] = []
     const tasks: FakeRenderTask[] = []
+    const getTextContentCalls: FakeGetTextContentCall[] = []
+    const textContentDeferreds: Deferred<FakeTextContent>[] = []
     return {
       pageNumber,
-      getViewport: ({ scale, rotation }) => {
-        const swap = rotation !== undefined && Math.abs(rotation % 180) === 90
+      getViewport: ({ scale }) => {
+        const swap = Math.abs(rotation % 180) === 90
         return {
           width: (swap ? height : width) * scale,
           height: (swap ? width : height) * scale,
-          rotation: rotation ?? 0,
+          rotation,
           scale
         }
       },
@@ -163,10 +197,22 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
         })
         return task
       },
+      getTextContent: () => {
+        getTextContentCalls.push({ pageNumber })
+        const deferred = createDeferred<FakeTextContent>()
+        textContentDeferreds.push(deferred)
+        if (settleTextContent) queueMicrotask(() => deferred.resolve(textContentFor(pageNumber)))
+        return deferred.promise
+      },
       renderCalls,
       tasks,
+      getTextContentCalls,
       settleLastRender: () => tasks[tasks.length - 1]?.resolve(),
-      failLastRender: (message: string) => tasks[tasks.length - 1]?.reject(new Error(message))
+      failLastRender: (message: string) => tasks[tasks.length - 1]?.reject(new Error(message)),
+      settleLastTextContent: () =>
+        textContentDeferreds[textContentDeferreds.length - 1]?.resolve(textContentFor(pageNumber)),
+      failLastTextContent: (message: string) =>
+        textContentDeferreds[textContentDeferreds.length - 1]?.reject(new Error(message))
     }
   }
 
@@ -251,7 +297,7 @@ export class DeferredDocument {
   }
 }
 
-/* ---------------------------------------------------------------- harness */
+/* ------------------------------------------------------------------ harness */
 
 export interface HarnessProps {
   enabled?: boolean
@@ -262,12 +308,23 @@ export interface HarnessProps {
   isPanelResizing?: boolean
   containerSize?: { w: number; h: number }
   onController?: (controller: ReturnType<typeof useNativePdfController>) => void
+  /**
+   * Mount the real, shared `usePdfTextActions` against the same container, the
+   * way `PdfViewerDocument` does. Left out by default so the canvas tests are not
+   * paying for document-level listeners they never touch.
+   */
+  textActions?: {
+    onTextSelection?: (text: string, position: SelectionPosition | null) => void
+    onTextExtracted?: (text: string) => void
+    onNoTextFound?: () => void
+    enabled?: boolean
+  }
 }
 
 /**
  * Mounts the native viewer the way `PdfViewerDocument` does: a shared container
- * that owns the wheel and resize listeners, plus the presentational component
- * that owns the canvas.
+ * that owns the wheel, resize and selection listeners, plus the presentational
+ * component that owns the canvas and the text layer.
  */
 export function NativeViewerHarness({
   enabled = true,
@@ -277,10 +334,12 @@ export function NativeViewerHarness({
   isPanMode = false,
   isPanelResizing = false,
   containerSize = { w: 800, h: 1000 },
-  onController
+  onController,
+  textActions
 }: HarnessProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const textLayerRef = useRef<HTMLDivElement>(null)
 
   const controller = useNativePdfController({
     enabled,
@@ -292,7 +351,20 @@ export function NativeViewerHarness({
     isPanMode,
     isPanelResizing,
     pdfPath: null,
-    canvasRef
+    canvasRef,
+    textLayerRef
+  })
+
+  // The real shared hook, on the real shared container. This is the whole point
+  // of Phase 5: there is no second selection system, only one hook that resolves
+  // whichever text layer is mounted.
+  const { extractCurrentPageText } = usePdfTextActions({
+    containerRef,
+    currentPage: controller.currentPage,
+    onTextSelection: textActions?.onTextSelection,
+    onTextExtracted: textActions?.onTextExtracted,
+    onNoTextFound: textActions?.onNoTextFound,
+    textSelectionEnabled: textActions?.enabled ?? false
   })
 
   onController?.(controller)
@@ -301,7 +373,16 @@ export function NativeViewerHarness({
 
   return (
     <div ref={containerRef} data-testid="native-container">
-      <NativePdfViewer controller={controller} canvasRef={canvasRef} t={t} tt={t} />
+      <NativePdfViewer
+        controller={controller}
+        canvasRef={canvasRef}
+        textLayerRef={textLayerRef}
+        t={t}
+        tt={t}
+      />
+      {textActions ? (
+        <span data-testid="native-extract-trigger" onClick={() => extractCurrentPageText()} />
+      ) : null}
     </div>
   )
 }

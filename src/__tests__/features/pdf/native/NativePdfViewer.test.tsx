@@ -22,6 +22,7 @@ import {
   createFakeDocument,
   createLoadingTask
 } from './nativeViewerHarness'
+import { FakeTextLayer } from './nativeTextLayerDouble'
 
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -31,15 +32,22 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', () => ({
-  getDocument: mocks.getDocument,
-  RenderingCancelledException: class RenderingCancelledException extends Error {
-    constructor(message = 'Rendering cancelled') {
-      super(message)
-      this.name = 'RenderingCancelledException'
+vi.mock('pdfjs-6', async () => {
+  // Imported lazily because a `vi.mock` factory is hoisted above this file's
+  // static imports; the double lives in its own dependency-free module so that
+  // awaiting it cannot re-enter the mocked module.
+  const { FakeTextLayer } = await import('./nativeTextLayerDouble')
+  return {
+    getDocument: mocks.getDocument,
+    TextLayer: FakeTextLayer,
+    RenderingCancelledException: class RenderingCancelledException extends Error {
+      constructor(message = 'Rendering cancelled') {
+        super(message)
+        this.name = 'RenderingCancelledException'
+      }
     }
   }
-}))
+})
 
 vi.mock('@features/pdf/engine/pdfWorker', () => ({
   initializeNativePdfWorker: mocks.initializeNativePdfWorker,
@@ -59,6 +67,7 @@ let cancelRaf: ReturnType<typeof vi.fn>
  */
 beforeEach(() => {
   vi.clearAllMocks()
+  FakeTextLayer.reset()
   frameCallbacks = []
   cancelRaf = vi.fn()
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -146,6 +155,17 @@ function stageDocument(options: { abortOnDestroy?: boolean } = {}): Served {
 
 function canvasOf(container: HTMLElement): HTMLCanvasElement | null {
   return container.querySelector<HTMLCanvasElement>('[data-native-pdf-canvas]')
+}
+
+/**
+ * The page box.
+ *
+ * Page identity moved from the canvas to this element in Phase 5, because the
+ * page box is what now owns both the canvas and the text layer and "the page
+ * element" must be unambiguous to a `querySelector`.
+ */
+function pageOf(container: HTMLElement): HTMLElement | null {
+  return container.querySelector<HTMLElement>('[data-native-pdf-page]')
 }
 
 /* ------------------------------------------------------- document lifecycle */
@@ -369,7 +389,7 @@ describe('NativePdfViewer — page state', () => {
 
     await waitForFrames(() => expect(observed.currentPage).toBe(1))
     await waitForFrames(() =>
-      expect(canvasOf(container)).toHaveAttribute('data-native-pdf-page', '1')
+      expect(pageOf(container)).toHaveAttribute('data-native-pdf-page', '1')
     )
     expect(document.getPageCalls).toContain(1)
   })
@@ -452,7 +472,7 @@ describe('NativePdfViewer — page state', () => {
     act(() => control.current?.goToNextPage())
 
     await waitForFrames(() => expect(document.page(2).renderCalls.length).toBeGreaterThan(0))
-    expect(canvasOf(container)).toHaveAttribute('data-native-pdf-page', '2')
+    expect(pageOf(container)).toHaveAttribute('data-native-pdf-page', '2')
   })
 })
 
@@ -652,7 +672,7 @@ describe('NativePdfViewer — render lifecycle', () => {
     })
 
     expect(control.current?.currentPage).toBe(2)
-    expect(canvasOf(container)).toHaveAttribute('data-native-pdf-page', '2')
+    expect(pageOf(container)).toHaveAttribute('data-native-pdf-page', '2')
     expect(container.querySelector('[data-native-pdf-error]')).toBe(null)
   })
 
@@ -679,7 +699,7 @@ describe('NativePdfViewer — render lifecycle', () => {
     // The cancelled task rejects with the typed cancellation error; a page the
     // viewer abandoned must not produce a failure for the user.
     expect(container.querySelector('[data-native-pdf-error]')).toBe(null)
-    expect(canvasOf(container)).toHaveAttribute('data-native-pdf-page', '2')
+    expect(pageOf(container)).toHaveAttribute('data-native-pdf-page', '2')
   })
 
   it('surfaces a genuine render failure as a visible fallback', async () => {
