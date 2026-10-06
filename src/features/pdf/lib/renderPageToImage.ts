@@ -1,12 +1,18 @@
 import { Logger } from '@shared/lib/logger'
 
-import type * as PdfJs from 'pdfjs-dist'
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
-
 import { findPageCanvas } from '../capture/findPageCanvas'
-import { type ActivePdfDocument, getActivePdfDocument } from './activePdfDocumentRegistry'
+import {
+  loadTemporaryCaptureDocument,
+  type TemporaryCaptureDocument
+} from '../native/nativePdfCaptureDocument'
+import { type ActivePdfDocumentHandle, getActivePdfDocument } from './activePdfDocumentRegistry'
 
+/**
+ * Capture scale. The toolbar asks for 4.0 (~288 DPI) so text and photomicrograph
+ * detail survive the trip to the AI; the default is what the last-resort rung uses.
+ */
 const PDF_RENDER_DEFAULT_SCALE = 2.0
+/** Hard ceiling on the direct render's rasterized area. */
 const PDF_RENDER_MAX_PIXELS = 16_000_000
 
 /** Shape `renderPageToImageFallback` resolves to. The caller must revoke `blobUrl`. */
@@ -25,14 +31,53 @@ export interface RenderOptions {
 /**
  * Render a PDF page to a PNG Blob for high-DPI screenshot capture.
  *
- * Prefers the viewer's live `PDFDocumentProxy` (via `getActivePdfDocument`) so a
- * capture reuses the already-decoded document instead of re-fetching a large
- * file, and falls back to cloning the mounted page canvas at the same scale.
+ * ## The ladder
  *
- * There is deliberately no cancellation argument: capture supersession is
- * decided by the caller (`usePdfCaptureActions` stamps every request and drops
- * results from stale ones), and the previous `AbortSignal` parameter was never
- * passed by any caller, so its abort listener and render-task cancel were dead.
+ *  1. **direct high-DPI render** — real PDF.js detail, independent of the zoom
+ *     and DPR the page happens to be displayed at
+ *  2. **the mounted page canvas**, cloned at the same scale
+ *  3. `null`, and the caller shows the capture-failed toast
+ *
+ * ## The document the direct render borrows
+ *
+ * `getActivePdfDocument(pdfUrl)` returns the mounted viewer's document when there
+ * is one — the `@react-pdf-viewer` proxy on the legacy path, the native
+ * `PdfDocumentManager`'s document when the native flag is on — so a capture reuses
+ * an already-decoded file instead of re-fetching a large one. **Borrowed means
+ * borrowed:** a handle has no teardown, so nothing below can end the viewer's
+ * document life, and no page `cleanup()` is called on a borrowed proxy because
+ * that drops the viewer's shared decoded-object cache (`objs.clear()`) and forces
+ * a font/image re-decode on its next repaint.
+ *
+ * With nothing to borrow — no viewer mounted, still loading, showing a different
+ * file, or just reloaded — one isolated document is loaded for this capture alone
+ * and destroyed through its **loading task** afterwards. PDF.js 6 removed
+ * `PDFDocumentProxy#destroy()`, so `renderPageToImage.ts` no longer holds a
+ * `destroy()` of its own: `nativePdfCaptureDocument` hands back a
+ * `PdfDocumentManager`, whose `destroy()` is the PDF.js 6 teardown call
+ * (`PDFDocumentLoadingTask#destroy()`) and whose `load()` is the single
+ * authoritative `getDocument` options + worker + `enableScripting: false` path.
+ *
+ * ## Why capture's own document load is on pdfjs 6
+ *
+ * The legacy capture module used to `import('pdfjs-dist')` and pass
+ * `isEvalSupported: false` — a second `getDocument` call site on the 3.x runtime,
+ * and the reason `renderPageToImage.ts` is named in the CVE-2024-4367 exception
+ * alongside the viewer. It no longer needs it: the borrowed case does not load
+ * anything at all, and the temporary case goes through the native engine, which
+ * already owns the security and asset policy. One runtime reaches capture now.
+ * (`security/audit-exceptions.json` still stands for the *viewer*, which is the
+ * remaining 3.x `getDocument`.)
+ *
+ * There is deliberately no cancellation argument: capture supersession is decided
+ * by the caller (`usePdfCaptureActions` stamps every request and drops results
+ * from stale ones), and the previous `AbortSignal` parameter was never passed by
+ * any caller, so its abort listener and render-task cancel were dead.
+ *
+ * ## 1-based pages
+ *
+ * `pageNumber` is passed straight to `getPage`, which is 1-based on both
+ * runtimes. Nothing here converts it.
  */
 export async function renderPageToImageFallback(
   pdfUrl: string,
@@ -101,36 +146,32 @@ async function cloneCanvasAtScale(
   return { blob, blobUrl, width: targetW, height: targetH }
 }
 
+/**
+ * Render one page straight from PDF.js at `scale`, inside the pixel budget.
+ *
+ * The budget arithmetic is deliberately the pre-existing one, epsilon and all:
+ * the ratio is derived from the **rounded** viewport, then the rescaled
+ * dimensions are rounded again *without* re-checking. An A0 page at scale 4
+ * therefore lands at 20 001 639 px against a 20 MP cap — 0.008 % over. Re-checking
+ * would be a behaviour change, not a fix, and this path is pinned by regression
+ * tests with an explicit tolerance.
+ */
 async function renderWithPdfJs(
   pdfUrl: string,
   pageNumber: number,
   options: { scale: number; maxPixels: number }
 ): Promise<RenderedPageImage | null> {
-  let pdf: ActivePdfDocument | null = null
-  let shouldDestroy = false
+  const borrowed = getActivePdfDocument(pdfUrl)
+  let temporary: TemporaryCaptureDocument | null = null
+  let handle: ActivePdfDocumentHandle | null = borrowed
 
-  const reusedDocument = getActivePdfDocument(pdfUrl)
-  if (reusedDocument) {
-    pdf = reusedDocument
-  } else {
-    // pdfjs-dist 3.x ships a UMD bundle, so Vite's CJS interop can expose the
-    // API under `default` instead of as named exports. Keep the interop shim.
-    const pdfjsModule = (await import('pdfjs-dist')) as typeof PdfJs & { default?: typeof PdfJs }
-    const pdfjsLib = pdfjsModule.default ?? pdfjsModule
-    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
-    }
-
-    const loadingTask = pdfjsLib.getDocument({ url: pdfUrl, isEvalSupported: false })
-    // ActivePdfDocument mirrors the subset of PDFDocumentProxy this path uses.
-    pdf = (await loadingTask.promise) as unknown as ActivePdfDocument
-    shouldDestroy = true
+  if (!handle) {
+    temporary = await loadTemporaryCaptureDocument(pdfUrl)
+    handle = temporary.handle
   }
 
-  if (!pdf) return null
-
   try {
-    const page = await pdf.getPage(pageNumber)
+    const page = await handle.getPage(pageNumber)
     const scale = options.scale
     const maxPixels = options.maxPixels
 
@@ -166,18 +207,10 @@ async function renderWithPdfJs(
     const blobUrl = URL.createObjectURL(blob)
     return { blob, blobUrl, width: canvas.width, height: canvas.height }
   } finally {
-    // Only tear down the document this call loaded itself. When the proxy came
-    // from getActivePdfDocument() it belongs to the mounted <Viewer>, and
-    // PDFPageProxy.cleanup() drops that page's shared decoded-object cache
-    // (objs.clear()), forcing a re-decode of fonts and images on the viewer's
-    // next repaint. Captures do not leak page proxies: PDFDocumentProxy caches
-    // them per page number, so a repeat capture of the same page reuses the
-    // proxy the viewer already owns.
-    if (shouldDestroy && pdf) {
-      try {
-        void pdf.destroy()
-      } catch {}
-    }
+    // Only tear down a document this call loaded itself, and only through its
+    // loading task. A borrowed handle exposes no teardown at all, so this cannot
+    // reach the viewer's document even by mistake.
+    temporary?.release()
   }
 }
 

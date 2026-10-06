@@ -10,6 +10,17 @@ import PdfToolbar from './PdfToolbar'
 import PdfViewerElement from './PdfViewerElement'
 
 function PdfViewerDocument(props: PdfViewerDocumentProps) {
+  // Capture reads the page through a ref rather than a value, and the ref has to
+  // exist before `usePdfViewerState` runs — so it is created here, next to the
+  // renderer switch that decides what it should say, and the answer is written
+  // once the native controller is available below.
+  //
+  // On the legacy path the navigation hook's `currentPage` is authoritative and
+  // this ref simply mirrors it; on the native path the legacy page state is inert
+  // (`@react-pdf-viewer` is not mounted, so nothing reports page changes) and
+  // without this a capture on page 40 would send page 1 to the AI.
+  const capturePageRef = useRef(1)
+
   const {
     containerRef,
     viewerReloadKey,
@@ -39,7 +50,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     handleAddCurrentPageTextToAi,
     handleReload,
     adjustedContainerSize
-  } = usePdfViewerState(props)
+  } = usePdfViewerState({ ...props, capturePageRef })
 
   const { pdfFile, autoSend, onToggleAutoSend, pdfUrl } = props
 
@@ -112,6 +123,12 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   const toolbarZoomIn = isNativeViewer ? nativeViewer.zoomControls.ZoomIn : PluginZoomIn
   const toolbarZoomOut = isNativeViewer ? nativeViewer.zoomControls.ZoomOut : PluginZoomOut
   const toolbarCurrentScale = isNativeViewer ? nativeViewer.zoomControls.CurrentScale : CurrentScale
+  // Capture follows the same switch, and for the same reason: the AI page image, the
+  // crop screenshot and the context menu's two capture items must all name the page
+  // the reader is actually looking at. Written every render rather than through an
+  // effect, so a capture triggered in the same tick as a page change reads the new
+  // page.
+  capturePageRef.current = toolbarCurrentPage
   // Search follows the same switch, and needs no further wiring: both renderers expose
   // exactly the plugin's `highlight` / `clearHighlights`, so `PdfSearchBar` and the
   // shared store stay renderer-agnostic and no renderer check reaches the search UI.
@@ -171,7 +188,6 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         CurrentScale={toolbarCurrentScale}
         onAddCurrentPageTextToAi={handleAddCurrentPageTextToAi}
         onReload={handleReload}
-        nativeCanvasMode={isNativeViewer}
       />
     </div>
   )

@@ -1,3 +1,34 @@
+/**
+ * The two capture actions, and the ladder that keeps a screenshot request from
+ * dead-ending.
+ *
+ * | Rung | What it does                                                              |
+ * | ---- | ------------------------------------------------------------------------- |
+ * | 1    | direct high-DPI render from PDF.js (scale 4.0, 20 MP)                      |
+ * | 2    | the mounted page canvas as a synchronous data URL                         |
+ * | 3    | the same canvas after a progressive retry ladder (~900 ms)                 |
+ * | 4    | a low-resolution direct render (scale 2)                                  |
+ * | 5    | the capture-failed toast                                                  |
+ *
+ * Every rung below the first has to stay reachable, or a busy document silently
+ * loses its screenshot. The crop screenshot is a different path entirely: it never
+ * touches PDF.js, because the main process crops the window.
+ *
+ * ## One page source, two renderers
+ *
+ * Both actions label their result with a page number, and both must read it from
+ * whichever renderer is live — see `capturePageRef`. The rest of this hook is
+ * renderer-agnostic on purpose: `renderPageToImageFallback` borrows the mounted
+ * document and `findPageCanvas` resolves whichever canvas is on screen, so this
+ * file needed no native branch and its supersession contract is shared.
+ *
+ * ## Supersession
+ *
+ * Every request is stamped, and a result from a superseded one is dropped **and
+ * its object URL revoked**, at each `await`. The stamp covers a document switch
+ * (the URL must still match), a newer capture request, and unmount — so a render
+ * that lands after the reader moved on cannot overwrite the current action state.
+ */
 import { useToastActions } from '@app/providers'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import { Logger } from '@shared/lib/logger'
@@ -9,6 +40,23 @@ import { findPageCanvas } from './findPageCanvas'
 
 interface UsePdfCaptureActionsOptions {
   currentPage: number
+  /**
+   * The page capture should actually read, when the renderer's live page differs
+   * from `currentPage`.
+   *
+   * `currentPage` is the legacy navigation state, and on the native path it is
+   * inert — `@react-pdf-viewer` is not mounted, so its `onPageChange` never fires
+   * and the page stays at its initial value while the reader moves through the
+   * document. Capturing that would send page 1 to the AI on page 40.
+   *
+   * `PdfViewerDocument` owns the renderer switch, so it is the only place that can
+   * say which page is live; it writes the answer here, through a ref, once the
+   * native controller exists. A ref rather than a value because this hook already
+   * reads the page exactly once — at capture time, into `pageAtCaptureTime`, so
+   * the AI item is labelled with the page the reader was looking at when they
+   * pressed the button and not with whatever is current when the render lands.
+   */
+  capturePageRef?: React.RefObject<number>
   queueImageForAi: (
     dataUrl: string,
     imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>
@@ -19,13 +67,14 @@ interface UsePdfCaptureActionsOptions {
 
 export function usePdfCaptureActions({
   currentPage,
+  capturePageRef,
   queueImageForAi,
   startScreenshot,
   pdfUrl
 }: UsePdfCaptureActionsOptions) {
   const { showError } = useToastActions()
   const currentPageRef = useRef(currentPage)
-  currentPageRef.current = currentPage
+  currentPageRef.current = capturePageRef?.current ?? currentPage
   const pdfUrlRef = useRef(pdfUrl)
   pdfUrlRef.current = pdfUrl
   const mountedRef = useRef(true)

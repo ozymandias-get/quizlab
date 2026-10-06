@@ -44,6 +44,9 @@
  * only — the canvas and the text layer are addressed by their own attributes, so
  * "the page element" is never ambiguous.
  *
+ * It is also what makes a capture safe: `findNativePageCanvas` reads it to confirm
+ * the single mounted canvas really holds the page being asked for.
+ *
  * `data-native-pdf-text-page` on the text layer and
  * `data-native-pdf-annotation-page` on the annotation layer carry the same identity,
  * which is what makes "the text of page N" or "the links of page N" a single
@@ -152,6 +155,30 @@ export function nativeSearchLayerSelectorForPage(pageNumber: number): string {
 /** The page element for `pageNumber` (1-based), or `null`. */
 export function findNativePageElement(root: ParentNode, pageNumber: number): HTMLElement | null {
   return root.querySelector<HTMLElement>(nativePageSelector(pageNumber))
+}
+
+/**
+ * The mounted page canvas for `pageNumber` (1-based), or `null`.
+ *
+ * This is the native half of "which on-screen canvas belongs to page N", and it is
+ * the reason the capture fallback can work on this path at all: the native viewer
+ * keeps exactly **one** canvas, so the page identity on the wrapping
+ * `[data-native-pdf-page]` is the only thing that can tell a valid lookup from a
+ * wrong-page match. Asking for a page that is not on screen answers `null` rather
+ * than handing back the current page's pixels under the wrong label.
+ *
+ * The zero-size check mirrors the legacy adapter: `useCanvasGpuCleanup` releases a
+ * canvas by zeroing it, and a released canvas is not capturable.
+ */
+export function findNativePageCanvas(
+  root: ParentNode,
+  pageNumber: number
+): HTMLCanvasElement | null {
+  const page = findNativePageElement(root, pageNumber)
+  if (!page) return null
+  const canvas = page.querySelector<HTMLCanvasElement>(NATIVE_CANVAS_SELECTOR)
+  if (!canvas || canvas.width <= 0 || canvas.height <= 0) return null
+  return canvas
 }
 
 /** The text layer for `pageNumber` (1-based), or `null`. */
