@@ -43,6 +43,17 @@ interface PdfToolbarProps {
   CurrentScale: CurrentScaleComponent
   onAddCurrentPageTextToAi?: () => void
   onReload?: () => void
+  /**
+   * The native canvas viewer is rendering instead of `@react-pdf-viewer`.
+   *
+   * Search, text extraction and the capture actions all read the legacy viewer's
+   * DOM and its active-document registry, so they have no meaning on a native
+   * canvas yet. Rather than leave controls that render and silently do nothing,
+   * this flag hides the search bar and disables the actions that depend on the
+   * text layer. Reload stays enabled: it drives a real native document
+   * lifecycle.
+   */
+  nativeCanvasMode?: boolean
 }
 
 function PdfToolbar({
@@ -62,7 +73,8 @@ function PdfToolbar({
   ZoomOut,
   CurrentScale,
   onAddCurrentPageTextToAi,
-  onReload
+  onReload,
+  nativeCanvasMode = false
 }: PdfToolbarProps) {
   const { t } = useTranslation()
   // Shared store: the app-level Ctrl/Cmd+F shortcut opens the search bar
@@ -218,8 +230,9 @@ function PdfToolbar({
             onSendPageAsImageToAi={onFullPageScreenshot}
             onAreaScreenshot={onStartScreenshot}
             onReload={onReload}
+            textLayerActionsDisabled={nativeCanvasMode}
           />
-        ) : (
+        ) : nativeCanvasMode ? null : (
           <PdfSearchBar
             isOpen={isSearchOpen}
             onToggle={handleOpenSearch}

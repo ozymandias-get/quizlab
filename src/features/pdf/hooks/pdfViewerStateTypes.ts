@@ -37,6 +37,13 @@ export interface UsePdfViewerStateReturn {
   currentPage: number
   totalPages: number
   containerSize: { w: number; h: number }
+  /**
+   * Container size minus the viewer inset. Exposed because the native canvas
+   * viewer measures fit scale from its own page size through the *same*
+   * `useFitScale`, and re-deriving the inset here would be a second copy of the
+   * same number.
+   */
+  adjustedContainerSize: { w: number; h: number }
   fitScale: number | null
   plugins: ReturnType<typeof usePdfPlugins>['plugins']
   zoomTo: (scale: number | SpecialZoomLevel) => void

@@ -13,13 +13,22 @@ type ZoomTo = (scale: number | SpecialZoomLevel) => void
 const RESIZE_OBSERVER_COOLDOWN_MS = 300
 const NAVIGATION_REFIT_LOCK_MS = 500
 
+/**
+ * Scale to refit to when the container has settled but no fit scale is known.
+ *
+ * The default is the legacy viewer's `SpecialZoomLevel.PageWidth`, so every
+ * existing call site behaves exactly as before. The native canvas viewer passes
+ * a numeric fallback instead: it has no `SpecialZoomLevel` to fall back to,
+ * because its fit scale is a computed number rather than a viewer keyword.
+ */
 export function usePdfResizeRefit(
   containerRef: RefObject<HTMLElement | null>,
   zoomTo: ZoomTo,
   enabled: boolean,
   isPanelResizing: boolean,
   fitScale?: number | null,
-  lastNavigationTimeRef?: { readonly current: number }
+  lastNavigationTimeRef?: { readonly current: number },
+  fallbackScale: number | SpecialZoomLevel = SpecialZoomLevel.PageWidth
 ) {
   const zoomToRef = useRef(zoomTo)
   const enabledRef = useRef(enabled)
@@ -30,11 +39,16 @@ export function usePdfResizeRefit(
   const resizeObserverCooldownRef = useRef(false)
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fitScaleRef = useRef(fitScale ?? null)
+  const fallbackScaleRef = useRef(fallbackScale)
 
   zoomToRef.current = zoomTo
   enabledRef.current = enabled
   isPanelResizingRef.current = isPanelResizing
   fitScaleRef.current = fitScale ?? null
+  fallbackScaleRef.current = fallbackScale
+
+  /** The scale a settled refit lands on: the fit scale when known, else the fallback. */
+  const resolveRefitScale = useCallback(() => fitScaleRef.current ?? fallbackScaleRef.current, [])
 
   const clearPendingRefit = useCallback(() => {
     if (debounceTimerRef.current !== null) {
@@ -74,13 +88,13 @@ export function usePdfResizeRefit(
           if (!enabledRef.current || isPanelResizingRef.current || !containerRef.current) {
             return
           }
-          zoomToRef.current(fitScaleRef.current ?? SpecialZoomLevel.PageWidth)
+          zoomToRef.current(resolveRefitScale())
         })
       } else {
-        zoomToRef.current(fitScaleRef.current ?? SpecialZoomLevel.PageWidth)
+        zoomToRef.current(resolveRefitScale())
       }
     }, PDF_RESIZE_REFIT_DEBOUNCE_MS)
-  }, [clearPendingRefit, containerRef, lastNavigationTimeRef])
+  }, [clearPendingRefit, containerRef, lastNavigationTimeRef, resolveRefitScale])
 
   useEffect(() => {
     if (!enabled) {

@@ -1,6 +1,15 @@
 /**
  * Ctrl/Meta + wheel zoom on the PDF container (capture phase so browser page zoom is suppressed).
  * Page-turn wheel without modifiers stays handled by usePdfWheelNavigation.
+ *
+ * The channel is typed numerically: this hook only ever computes numbers from
+ * `constants/pdfZoom` and passes them on, so it does not need to know that the
+ * legacy caller's `zoomTo` also accepts `@react-pdf-viewer`'s
+ * `SpecialZoomLevel`. A `(scale: number | SpecialZoomLevel) => void` is still
+ * assignable to this parameter, so the legacy contract and its tests are
+ * untouched — while the native viewer, which is numeric-only, can reuse the hook
+ * without importing a `@react-pdf-viewer` type. See
+ * `features/pdf/native/useNativePdfController.ts`.
  */
 import {
   PDF_ZOOM_MAX_SCALE,
@@ -8,10 +17,9 @@ import {
   PDF_ZOOM_STEP
 } from '@features/pdf/constants/pdfZoom'
 
-import type { SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { type RefObject, useEffect, useRef } from 'react'
 
-type ZoomTo = (scale: number | SpecialZoomLevel) => void
+type ZoomTo = (scale: number) => void
 
 const WHEEL_ZOOM_THROTTLE_MS = 40
 
