@@ -1551,14 +1551,47 @@ beside the element it styles (which needed one additive declaration,
 PDF.js 6's own `web/pdf_viewer.css` reduced to what a read-only text layer needs,
 and every rule is keyed on `data-native-pdf-page` / `data-native-pdf-text-layer` /
 `.pdf-viewer-container.pdf-*` — attributes only the native viewer emits. No global
-leakage, no `rpv-*` reuse, no visual redesign. Three rules are QuizLab's own
-rather than PDF.js's, and each preserves existing product behaviour:
-`::selection` uses the existing `--selection-color-vivid` token so a highlight
-looks identical on both renderers; the pan-mode rule drops `user-select` exactly
-as `_pdf-viewer.css` does for the legacy layer; and `pdf-selection-active` gets the
-same drop-shadow the legacy rule has, _without_ the `transition` on `filter` — the
-legacy stylesheet documents removing that transition for the same reason (it
-re-rasterizes the whole layer on every text-layer update).
+leakage, no `rpv-*` reuse. Three rules are QuizLab's own
+rather than PDF.js's, and each preserves existing product behaviour: the pan-mode
+rule drops `user-select` exactly as `_pdf-viewer.css` does for the legacy layer;
+`pdf-selection-active` gets a drop-shadow _without_ the `transition` on `filter` —
+the legacy stylesheet documents removing that transition for the same reason (it
+re-rasterizes the whole layer on every text-layer update); and `::selection` is
+presentation rather than transcription, described next.
+
+### Selection presentation — the one deliberate visual change
+
+`::selection` was first transcribed with `--selection-color-vivid` (alpha 0.84) so a
+highlight "looked identical on both renderers". On the native layer that was wrong for
+a structural reason the legacy one did not have: the legacy layer's text was invisible
+but its selection sat under QuizLab's own UI chrome, whereas here the canvas carries
+the visible glyphs and the tint paints **over** them. At 0.84 the selection hid the
+glyph contrast it was meant to indicate and read as a highlighter slab.
+
+The fix changes presentation only, and only for this layer:
+
+- **Colour is still the user's.** `--selection-color-source` publishes the raw
+  `selectionColor` preference, and `color-mix(in srgb, …, transparent 32%)` derives
+  the alpha from it in CSS. Purple stays purple; only the opacity is ours. Chromium
+  142 (Electron 42) has supported `color-mix` for many releases, and a literal
+  `rgb()` fallback covers anything older.
+- **`br::selection` is transparent.** PDF.js appends a `<br role="presentation">`
+  after every run that ends a line. Those breaks are siblings of the runs, so they
+  inherited `::selection` and each one inside a selection painted a small dense
+  colour block with no glyph behind it — the artefacts at the start of bullet and
+  list lines. PDF.js's own sheet neutralises this; the transcription had dropped it.
+  The `<br>` stays in the Range, so reading order, `Ctrl+C` and extraction are
+  unchanged.
+- **`span[role="img"]` is unselectable**, again matching PDF.js, so a highlight never
+  paints over artwork that has no glyph behind it.
+- **The `pdf-selection-active` glow is a whisper** (0.15 rem, 18% of the user
+  colour). At 0.4 rem / 48% it was the other half of the highlighter look.
+
+Not changed: the `::selection` geometry, the transparent run text, the state class and
+its timing, `Ctrl+C`, the AI quick bar, and every line of the TextLayer geometry
+contract (`--font-height`, `--scale-x`, `--rotate`, the `transform`). No overlay
+element, no `Range` rectangles, no per-frame measurement. `nativePdfSearchLayer.css`
+is untouched — search highlight and text selection stay independent surfaces.
 
 ### AI text actions
 
