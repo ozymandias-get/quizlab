@@ -605,18 +605,77 @@ describe('native security posture', () => {
     expect(source).toContain('enableScripting: false')
   })
 
-  it('keeps the legacy CVE-2024-4367 mitigation on the 3.x call sites', () => {
+  it('keeps the legacy CVE-2024-4367 mitigation on the 3.x call site', () => {
     // The legacy runtime is still shipped, so `isEvalSupported: false` must stay
-    // on both 3.x getDocument paths until the viewer is gone.
+    // on the viewer's 3.x `getDocument` until the viewer is gone.
+    //
+    // Phase 8A removed the second call site instead of migrating it: capture's
+    // fallback load now goes through the native engine, so `renderPageToImage.ts`
+    // no longer resolves 3.x and cannot pass the flag at all. The exception entry
+    // stands, because the viewer is still the shipped 3.x consumer.
     expect(
       readFileSync(
         path.join(repoRoot, 'src/features/pdf/ui/components/PdfViewerElement.tsx'),
         'utf-8'
       )
     ).toContain('isEvalSupported: false')
-    expect(
-      readFileSync(path.join(repoRoot, 'src/features/pdf/lib/renderPageToImage.ts'), 'utf-8')
-    ).toContain('isEvalSupported: false')
+  })
+
+  it('routes the capture document load through the native engine, not pdfjs-dist', () => {
+    // The capture module used to be a second 3.x `getDocument` call site. It must
+    // stay off 3.x: one runtime reaches capture, the temporary load carries the
+    // engine's `enableScripting: false` and asset policy, and deleting the legacy
+    // runtime in Phase 8B removes a dependency rather than creating one.
+    const capture = codeOf(path.join(repoRoot, 'src/features/pdf/lib/renderPageToImage.ts'))
+    expect(capture).not.toMatch(/from ['"]pdfjs-dist['"]/)
+    expect(capture).not.toMatch(/import\(['"]pdfjs-dist['"]\)/)
+    expect(capture).toContain("from '../native/nativePdfCaptureDocument'")
+
+    // And the adapter it borrows resolves the runtime through the engine's single
+    // options builder, so there is no second `getDocument` parameter object.
+    const adapter = codeOf(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfCaptureDocument.ts')
+    )
+    expect(adapter).toContain('createPdfDocumentManager')
+    // No direct `getDocument` import: the only one is the manager's own accessor,
+    // used as the liveness probe, which is what keeps the store version-agnostic.
+    expect(adapter).not.toMatch(/import \{[^}]*\bgetDocument\b[^}]*\} from 'pdfjs-6'/)
+    expect(adapter).toContain('manager.getDocument()')
+    // PDF.js 6 removed `PDFDocumentProxy#destroy()`; teardown is the loading task's,
+    // which the manager owns, so the adapter's only teardown call is `destroy()`
+    // on the manager it created.
+    expect(adapter).toContain('manager.destroy()')
+  })
+
+  it('leaves no renderer flag behind on the toolbar or the AI quick bar', () => {
+    // Phase 4 bounded the capture controls while the native viewer had no capture
+    // pipeline. Phase 8A gave it one, so the flag is gone: a lingering
+    // `nativeCanvasMode` could only ever disable a capability that now exists, and
+    // would be a second thing to forget when the native path is deleted.
+    for (const relative of [
+      'src/features/pdf/ui/components/PdfToolbar.tsx',
+      'src/features/pdf/ui/components/PdfAiQuickBar.tsx'
+    ]) {
+      const source = codeOf(path.join(repoRoot, relative))
+      expect(source, relative).not.toContain('nativeCanvasMode')
+      expect(source, relative).not.toContain('captureActionsDisabled')
+    }
+  })
+
+  it('keeps the capture-document registry runtime-agnostic', () => {
+    // The registry stores a handle with an adapter-provided `isAlive()`, so it can
+    // serve both runtimes without knowing either. A version check or a
+    // `destroyed`-flag read in the store would be a second place to update when one
+    // of the two runtimes is deleted in Phase 8B.
+    const registry = codeOf(
+      path.join(repoRoot, 'src/features/pdf/lib/activePdfDocumentRegistry.ts')
+    )
+    expect(registry).toContain('isAlive()')
+    expect(registry).not.toContain('destroyed')
+    expect(registry).not.toMatch(/from ['"]pdfjs/)
+    // The 3.x `destroyed` flag has exactly one owner now.
+    const legacy = codeOf(path.join(repoRoot, 'src/features/pdf/lib/legacyPdfCaptureDocument.ts'))
+    expect(legacy).toContain('destroyed')
   })
 
   it('does not carry the removed isEvalSupported knob into the native path', () => {

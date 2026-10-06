@@ -188,3 +188,104 @@ describe('findPageCanvas', () => {
     expect(findPageCanvas(0)).toBeNull()
   })
 })
+
+/**
+ * The native viewer's half.
+ *
+ * The native viewer mounts exactly **one** canvas, so the page attribute on the
+ * page box is the only thing that can confirm the pixels on it belong to the page
+ * being asked for. These are the cases that keep a capture from silently
+ * returning the wrong page.
+ */
+function makeNativePage(pageNumber: number, withCanvas = true, width = 120, height = 180) {
+  const box = document.createElement('div')
+  box.setAttribute('data-native-pdf-page', String(pageNumber))
+  if (withCanvas) {
+    const canvas = document.createElement('canvas')
+    canvas.setAttribute('data-native-pdf-canvas', '')
+    canvas.width = width
+    canvas.height = height
+    box.appendChild(canvas)
+  }
+  return box
+}
+
+describe('findPageCanvas — native renderer', () => {
+  let container: HTMLElement
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    container.className = 'pdf-viewer-container'
+    document.body.appendChild(container)
+  })
+
+  afterEach(() => {
+    document.body.removeChild(container)
+  })
+
+  it('returns the mounted canvas for the page on screen', () => {
+    const box = makeNativePage(4)
+    container.appendChild(box)
+
+    expect(findPageCanvas(4)).toBe(box.querySelector('canvas'))
+  })
+
+  it('does not return the current page canvas for a different page', () => {
+    // The single-canvas viewer means there is exactly one candidate; the page
+    // attribute is what makes answering `null` possible instead of capturing the
+    // wrong page under the right label.
+    container.appendChild(makeNativePage(4))
+
+    expect(findPageCanvas(5)).toBeNull()
+  })
+
+  it('returns null when the native page has no canvas yet', () => {
+    container.appendChild(makeNativePage(1, false))
+
+    expect(findPageCanvas(1)).toBeNull()
+  })
+
+  it('returns null for a native canvas the GPU cleanup already released', () => {
+    container.appendChild(makeNativePage(1, true, 0, 0))
+
+    expect(findPageCanvas(1)).toBeNull()
+  })
+
+  it('prefers the native canvas, and still falls back to a legacy page layer', () => {
+    // Both markups can exist in one document only in tests, but the resolver has
+    // to tolerate it: a capture must never come back empty-handed when a page
+    // layer is present.
+    const legacy = makePageLayer(7)
+    const native = makeNativePage(7)
+    container.appendChild(legacy)
+    container.appendChild(native)
+
+    expect(findPageCanvas(7)).toBe(native.querySelector('canvas'))
+
+    container.removeChild(native)
+    expect(findPageCanvas(7)).toBe(legacy.querySelector('canvas'))
+  })
+
+  it('re-discovers a native canvas after the page box was replaced', () => {
+    const first = makeNativePage(2, true, 100, 100)
+    container.appendChild(first)
+    expect(findPageCanvas(2)).toBe(first.querySelector('canvas'))
+
+    // A page turn replaces the page box; the cached canvas is detached, so the
+    // next lookup has to find the new one rather than serve the old element.
+    container.removeChild(first)
+    const second = makeNativePage(2, true, 140, 210)
+    container.appendChild(second)
+
+    expect(findPageCanvas(2)).toBe(second.querySelector('canvas'))
+  })
+
+  it('does not serve a cached native canvas once the page number moved on', () => {
+    const box = makeNativePage(3)
+    container.appendChild(box)
+    expect(findPageCanvas(3)).toBe(box.querySelector('canvas'))
+
+    // Same canvas, asked for as a different page: the page attribute says no.
+    expect(findPageCanvas(4)).toBeNull()
+  })
+})

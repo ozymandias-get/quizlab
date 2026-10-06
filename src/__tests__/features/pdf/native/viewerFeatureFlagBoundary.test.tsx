@@ -213,8 +213,6 @@ describe('PdfViewerDocument feature-flag boundary', () => {
     expect(toolbar.totalPages).toBe(99)
     expect(toolbar.ZoomIn).toBeTypeOf('function')
     expect(toolbar.CurrentScale).toBeTypeOf('function')
-    // No native-mode bounding while the legacy viewer owns the pipeline.
-    expect(toolbar.nativeCanvasMode).toBe(false)
   })
 
   it('binds the toolbar to the legacy search plugin on the default path', () => {
@@ -242,12 +240,27 @@ describe('PdfViewerDocument feature-flag boundary', () => {
     expect(toolbar.clearHighlights).not.toBe(mocks.legacyClearHighlights)
   })
 
-  it('marks the toolbar as native-mode so unsupported controls are bounded', () => {
+  it('binds the toolbar to native navigation and zoom when the flag is on', () => {
     mocks.nativeFlag.current = true
 
     renderDocument()
 
-    expect(toolbarProps().nativeCanvasMode).toBe(true)
+    const toolbar = toolbarProps()
+    expect(toolbar.currentPage).toBe(1)
+    expect(toolbar.totalPages).toBeTypeOf('number')
+  })
+
+  it('needs no native-mode bounding: capture works on both renderers', () => {
+    // Phase 4 bounded the capture controls while the native viewer had no capture
+    // pipeline. Phase 8A gave it one, so the flag is gone from the toolbar
+    // entirely: leaving it would be a second thing to forget to remove, and it
+    // could only ever disable a capability that now exists.
+    mocks.nativeFlag.current = true
+
+    renderDocument()
+
+    const toolbar = toolbarProps()
+    expect(toolbar).not.toHaveProperty('nativeCanvasMode')
   })
 
   it('supplies native zoom components that are not the legacy plugin ones', () => {

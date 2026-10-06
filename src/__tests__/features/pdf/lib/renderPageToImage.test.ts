@@ -2,15 +2,20 @@
  * Regression tests for the high-DPI page render path.
  *
  * `renderPageToImageFallback` is the primary rung of the capture ladder. Its two
- * load modes are load-bearing and were previously untested:
+ * document modes are load-bearing:
  *
- *  - borrowed mode — the viewer already owns a `PDFDocumentProxy`, registered in
- *    `activePdfDocumentRegistry`; the render reuses it and must NOT destroy it,
- *    because tearing down the viewer's loading task drops the shared decoded
- *    object cache and forces a full font/image re-decode on the next repaint.
- *  - self-loaded mode — no usable proxy in the registry, so this module calls
- *    `getDocument` itself and owns the result. That one MUST be destroyed, in a
+ *  - **borrowed** — the viewer already owns a document, published through
+ *    `activePdfDocumentRegistry`. The render reuses it and must NOT tear it down:
+ *    destroying a mounted viewer's document drops its shared decoded-object cache
+ *    (`objs.clear()`) and forces a full font/image re-decode on the next repaint.
+ *  - **self-loaded** — nothing to borrow, so this call loads an isolated document
+ *    through the native engine and owns it. That one MUST be released, in a
  *    `finally`, on the success path and on every failure path.
+ *
+ * Phase 8A moved the self-load onto pdfjs-6 and made the registry runtime-agnostic,
+ * so the temporary load is mocked here and tested for real in
+ * `nativePdfCaptureDocument.test.ts` — including that it carries
+ * `enableScripting: false` and is destroyed through its loading task.
  *
  * The pixel budget is the other pinned contract: capture asks for a very high
  * scale (4.0 = ~288 DPI), and without a downscale a single A0 page would exceed
@@ -18,36 +23,22 @@
  */
 import {
   clearActivePdfDocument,
-  getActivePdfDocument,
-  setActivePdfDocument
+  setActivePdfDocument,
+  type ActivePdfDocumentHandle
 } from '@features/pdf/lib/activePdfDocumentRegistry'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  getDocument: vi.fn(),
   findPageCanvas: vi.fn(),
+  loadTemporaryCaptureDocument: vi.fn(),
   loggerInfo: vi.fn(),
-  loggerWarn: vi.fn(),
-  globalWorkerOptions: { workerSrc: '' as string },
-  workerUrl: 'blob:mock-pdf-worker'
+  loggerWarn: vi.fn()
 }))
 
-/**
- * pdfjs-dist 3.x ships a UMD bundle, so Vite's interop exposes the API on
- * `default`; the production shim reads `default ?? module`. The mock mirrors
- * that shape so the borrowed/self-loaded paths run the same way they do in the
- * built app.
- */
-vi.mock('pdfjs-dist', () => {
-  const api = {
-    getDocument: mocks.getDocument,
-    GlobalWorkerOptions: mocks.globalWorkerOptions
-  }
-  return { ...api, default: api }
-})
-
-vi.mock('pdfjs-dist/build/pdf.worker.min.js?url', () => ({ default: mocks.workerUrl }))
+vi.mock('@features/pdf/native/nativePdfCaptureDocument', () => ({
+  loadTemporaryCaptureDocument: mocks.loadTemporaryCaptureDocument
+}))
 
 vi.mock('@features/pdf/capture/findPageCanvas', () => ({
   findPageCanvas: mocks.findPageCanvas
@@ -80,16 +71,31 @@ function makePage(pointWidth: number, pointHeight: number) {
   return { getViewport, render, renderTask }
 }
 
-function makeDoc(pages: Record<number, FakePage>) {
-  return {
-    destroyed: false,
-    getPage: vi.fn(async (pageNumber: number) => {
-      const page = pages[pageNumber]
-      if (!page) throw new Error(`no page ${pageNumber}`)
-      return page
-    }),
-    destroy: vi.fn()
+/** A borrowed handle over a document, i.e. what the registry hands back. */
+function makeHandle(pages: Record<number, FakePage>) {
+  const getPage = vi.fn(async (pageNumber: number) => {
+    const page = pages[pageNumber]
+    if (!page) throw new Error(`no page ${pageNumber}`)
+    return page
+  })
+  const isAlive = vi.fn(() => true)
+  return { getPage, isAlive } as ActivePdfDocumentHandle & {
+    getPage: ReturnType<typeof vi.fn>
+    isAlive: ReturnType<typeof vi.fn>
   }
+}
+
+/**
+ * What `loadTemporaryCaptureDocument` hands back: a handle plus the one teardown
+ * call capture owns. `release` is a spy so the ladder's ownership contract — never
+ * release a borrowed handle, always release a temporary one — is directly
+ * observable.
+ */
+function serveTemporaryDocument(pages: Record<number, FakePage>) {
+  const handle = makeHandle(pages)
+  const temporary = { handle, release: vi.fn() }
+  mocks.loadTemporaryCaptureDocument.mockResolvedValue(temporary)
+  return temporary
 }
 
 /** A canvas already painted by the viewer, used as the clone fallback source. */
@@ -155,8 +161,8 @@ describe('renderPageToImageFallback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     clearActivePdfDocument()
-    mocks.globalWorkerOptions.workerSrc = ''
     mocks.findPageCanvas.mockReturnValue(null)
+    mocks.loadTemporaryCaptureDocument.mockReset()
     stubCanvasBackend()
     stubToBlob('blob')
     restoreObjectUrls = stubObjectUrls()
@@ -168,113 +174,102 @@ describe('renderPageToImageFallback', () => {
   })
 
   describe('borrowed document from the active registry', () => {
-    it('reuses the registered proxy without loading a second document', async () => {
+    it('reuses the registered document without loading a second one', async () => {
       const page = makePage(595, 842)
-      const doc = makeDoc({ 3: page })
-      setActivePdfDocument(doc as never, 'local-pdf://pdf_a', 'fp')
+      const handle = makeHandle({ 3: page })
+      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 3, { scale: 2 })
 
-      expect(mocks.getDocument).not.toHaveBeenCalled()
-      expect(doc.getPage).toHaveBeenCalledWith(3)
+      expect(mocks.loadTemporaryCaptureDocument).not.toHaveBeenCalled()
+      expect(handle.getPage).toHaveBeenCalledWith(3)
       expect(result).toMatchObject({ width: 1190, height: 1684 })
     })
 
-    it('never destroys the borrowed proxy, because the viewer owns it', async () => {
-      const doc = makeDoc({ 1: makePage(595, 842) })
-      setActivePdfDocument(doc as never, 'local-pdf://pdf_a', 'fp')
+    it('never releases the borrowed document, because the viewer owns it', async () => {
+      const handle = makeHandle({ 1: makePage(595, 842) })
+      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
 
       await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
 
-      expect(doc.destroy).not.toHaveBeenCalled()
+      // Nothing was loaded, so nothing could be released — and a borrowed handle
+      // exposes no teardown for capture to reach for in the first place.
+      expect(mocks.loadTemporaryCaptureDocument).not.toHaveBeenCalled()
     })
 
-    it('never destroys the borrowed proxy when the render itself fails', async () => {
+    it('never releases the borrowed document when the render itself fails', async () => {
       // Page 99 is absent, so getPage() rejects. The failure path still must not
       // tear down a document this call did not create.
-      const doc = makeDoc({ 1: makePage(595, 842) })
-      setActivePdfDocument(doc as never, 'local-pdf://pdf_a', 'fp')
+      const handle = makeHandle({ 1: makePage(595, 842) })
+      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
 
       await expect(renderPageToImageFallback('local-pdf://pdf_a', 99, { scale: 2 })).resolves.toBe(
         null
       )
 
-      expect(doc.destroy).not.toHaveBeenCalled()
+      expect(mocks.loadTemporaryCaptureDocument).not.toHaveBeenCalled()
     })
 
-    it('leaves the viewer worker configuration untouched on the borrowed path', async () => {
-      mocks.globalWorkerOptions.workerSrc = 'blob:already-configured'
-      setActivePdfDocument(makeDoc({ 1: makePage(595, 842) }) as never, 'local-pdf://pdf_a', 'fp')
-
-      await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
-
-      expect(mocks.globalWorkerOptions.workerSrc).toBe('blob:already-configured')
-    })
-  })
-
-  describe('stale / unusable registry entry', () => {
-    it('does not reuse a proxy pdf.js already destroyed, and self-loads instead', async () => {
-      const stale = makeDoc({ 1: makePage(595, 842) })
-      setActivePdfDocument(stale as never, 'local-pdf://pdf_a', 'fp')
-      // pdf.js sets `destroyed` on the proxy when the viewer's loading task is
-      // torn down while the owning component stays mounted.
-      stale.destroyed = true
-
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(595, 842) }))
-      })
+    it('serves the superseded generation of a reload only while it is still alive', async () => {
+      // A reload replaces the registry entry. The stale handle must not be handed
+      // to capture, or `getPage()` would reject and the screenshot would silently
+      // degrade to a screen-resolution clone.
+      const stale = makeHandle({ 1: makePage(595, 842) })
+      stale.isAlive.mockReturnValue(false)
+      setActivePdfDocument(stale, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      const temporary = serveTemporaryDocument({ 1: makePage(595, 842) })
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
 
       expect(stale.getPage).not.toHaveBeenCalled()
-      expect(mocks.getDocument).toHaveBeenCalledTimes(1)
+      expect(mocks.loadTemporaryCaptureDocument).toHaveBeenCalledTimes(1)
       expect(result).not.toBeNull()
+      expect(temporary.release).toHaveBeenCalledTimes(1)
     })
+  })
 
-    it('evicts the destroyed entry so a later capture does not retry it', async () => {
-      const stale = makeDoc({ 1: makePage(595, 842) })
-      setActivePdfDocument(stale as never, 'local-pdf://pdf_a', 'fp')
-      stale.destroyed = true
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(595, 842) }))
-      })
-
-      await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
-
-      expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
-    })
-
-    it('does not reuse a registry entry registered for a different url', async () => {
-      const other = makeDoc({ 1: makePage(595, 842) })
-      setActivePdfDocument(other as never, 'local-pdf://pdf_b', 'fp')
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(595, 842) }))
-      })
+  describe('stale / unusable registry entry', () => {
+    it('self-loads instead of reusing a document registered for a different url', async () => {
+      const other = makeHandle({ 1: makePage(595, 842) })
+      setActivePdfDocument(other, 'local-pdf://pdf_b', 'local-pdf://pdf_b::0')
+      serveTemporaryDocument({ 1: makePage(595, 842) })
 
       await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
 
       expect(other.getPage).not.toHaveBeenCalled()
-      expect(mocks.getDocument).toHaveBeenCalledTimes(1)
+      expect(mocks.loadTemporaryCaptureDocument).toHaveBeenCalledWith('local-pdf://pdf_a')
     })
-  })
 
-  describe('self-loaded document', () => {
-    it('loads through getDocument with the eval-based scripting flag disabled', async () => {
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(595, 842) }))
-      })
+    it('evicts the dead entry so a later capture does not retry it', async () => {
+      const stale = makeHandle({ 1: makePage(595, 842) })
+      stale.isAlive.mockReturnValue(false)
+      setActivePdfDocument(stale, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      serveTemporaryDocument({ 1: makePage(595, 842) })
 
       await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
 
-      expect(mocks.getDocument).toHaveBeenCalledWith({
-        url: 'local-pdf://pdf_a',
-        isEvalSupported: false
-      })
+      // The registry did the eviction; a second capture must now see an empty slot
+      // rather than probing a dead handle again.
+      mocks.loadTemporaryCaptureDocument.mockClear()
+      await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
+      expect(stale.isAlive).toHaveBeenCalledTimes(1)
+      expect(mocks.loadTemporaryCaptureDocument).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('temporary self-loaded document', () => {
+    it('loads an isolated document when nothing is registered', async () => {
+      const temporary = serveTemporaryDocument({ 1: makePage(595, 842) })
+
+      await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
+
+      expect(mocks.loadTemporaryCaptureDocument).toHaveBeenCalledTimes(1)
+      expect(temporary.handle.getPage).toHaveBeenCalledWith(1)
     })
 
     it('renders the page and returns the blob, its object url and the pixel size', async () => {
       const page = makePage(595, 842)
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({ 1: page })) })
+      serveTemporaryDocument({ 1: page })
       const toBlobCalls = stubToBlob('blob')
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
@@ -288,80 +283,43 @@ describe('renderPageToImageFallback', () => {
       expect(result?.height).toBe(1684)
     })
 
-    it('destroys the document it loaded itself on the success path', async () => {
-      const doc = makeDoc({ 1: makePage(595, 842) })
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(doc) })
+    it('releases the document it loaded itself on the success path', async () => {
+      const temporary = serveTemporaryDocument({ 1: makePage(595, 842) })
 
       await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
 
-      expect(doc.destroy).toHaveBeenCalledTimes(1)
+      expect(temporary.release).toHaveBeenCalledTimes(1)
     })
 
-    it('destroys the document it loaded itself when getPage rejects', async () => {
-      const doc = makeDoc({}) // page 1 absent, so getPage rejects
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(doc) })
+    it('releases the document it loaded itself when getPage rejects', async () => {
+      const temporary = serveTemporaryDocument({}) // page 1 absent, so getPage rejects
 
       await expect(
         renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
       ).resolves.toBeNull()
-      expect(doc.destroy).toHaveBeenCalledTimes(1)
+      expect(temporary.release).toHaveBeenCalledTimes(1)
     })
 
-    it('destroys the document it loaded itself when toBlob yields no blob', async () => {
-      const doc = makeDoc({ 1: makePage(595, 842) })
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(doc) })
+    it('releases the document it loaded itself when toBlob yields no blob', async () => {
+      const temporary = serveTemporaryDocument({ 1: makePage(595, 842) })
       stubToBlob('null')
 
       await expect(
         renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
       ).resolves.toBeNull()
-      expect(doc.destroy).toHaveBeenCalledTimes(1)
+      expect(temporary.release).toHaveBeenCalledTimes(1)
     })
 
-    it('publishes the worker url on the self-load path only when it is unset', async () => {
-      mocks.globalWorkerOptions.workerSrc = ''
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(10, 10) }))
-      })
+    it('releases the document it loaded itself when the temporary load itself fails', async () => {
+      // The load failed, so there is nothing to release — and the caller must not
+      // see an exception escape from the direct rung.
+      mocks.loadTemporaryCaptureDocument.mockRejectedValue(new Error('network down'))
+      mocks.findPageCanvas.mockReturnValue(null)
 
-      await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 1 })
-
-      expect(mocks.globalWorkerOptions.workerSrc).toBe(mocks.workerUrl)
-    })
-
-    it('keeps an already-configured worker url instead of overwriting it', async () => {
-      mocks.globalWorkerOptions.workerSrc = 'blob:already-configured'
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(10, 10) }))
-      })
-
-      await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 1 })
-
-      expect(mocks.globalWorkerOptions.workerSrc).toBe('blob:already-configured')
-    })
-
-    it('also resolves the engine when the module exposes only named exports', async () => {
-      // The other half of the production `default ?? module` shim: if the engine
-      // ever ships real ESM (as pdfjs 6 does), the named exports must be used.
-      // Toggling `default` on the already-mocked module keeps the module
-      // registry untouched, so the remaining tests are unaffected.
-      const engine = (await import('pdfjs-dist')) as unknown as Record<string, unknown>
-      const original = Object.getOwnPropertyDescriptor(engine, 'default')
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(100, 100) }))
-      })
-      Object.defineProperty(engine, 'default', { value: undefined, configurable: true })
-      try {
-        const result = await renderPageToImageFallback('local-pdf://named', 1, { scale: 1 })
-
-        expect(mocks.getDocument).toHaveBeenCalledWith({
-          url: 'local-pdf://named',
-          isEvalSupported: false
-        })
-        expect(result).toMatchObject({ width: 100, height: 100 })
-      } finally {
-        if (original) Object.defineProperty(engine, 'default', original)
-      }
+      await expect(
+        renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
+      ).resolves.toBeNull()
+      expect(mocks.findPageCanvas).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -384,7 +342,7 @@ describe('renderPageToImageFallback', () => {
     it('keeps the requested scale when the rendered page is inside the budget', async () => {
       // 200x200pt at scale 2 = 400x400 = 160k px, far below any budget.
       const page = makePage(200, 200)
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({ 1: page })) })
+      serveTemporaryDocument({ 1: page })
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, {
         scale: 2,
@@ -401,7 +359,7 @@ describe('renderPageToImageFallback', () => {
       // A0 at scale 2 overshoots the 16 MP budget, so the second measurement
       // must be asked for at the reduced scale.
       const page = makePage(1684, 2384)
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({ 1: page })) })
+      serveTemporaryDocument({ 1: page })
 
       const maxPixels = 16_000_000
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, {
@@ -419,7 +377,7 @@ describe('renderPageToImageFallback', () => {
 
     it('scales the canvas and the render viewport by the same reduced factor', async () => {
       const page = makePage(1684, 2384)
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({ 1: page })) })
+      serveTemporaryDocument({ 1: page })
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, {
         scale: 2,
@@ -439,7 +397,7 @@ describe('renderPageToImageFallback', () => {
       // is pinned against its real caller rather than an invented one. An A0 page
       // at scale 4 would be ~64 MP without the downscale.
       const page = makePage(1684, 2384) // A0
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({ 7: page })) })
+      serveTemporaryDocument({ 7: page })
 
       const maxPixels = 20_000_000
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 7, {
@@ -454,9 +412,7 @@ describe('renderPageToImageFallback', () => {
     })
 
     it('never produces a zero-sized canvas', async () => {
-      mocks.getDocument.mockReturnValue({
-        promise: Promise.resolve(makeDoc({ 1: makePage(1684, 2384) }))
-      })
+      serveTemporaryDocument({ 1: makePage(1684, 2384) })
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, {
         scale: 2,
@@ -469,7 +425,7 @@ describe('renderPageToImageFallback', () => {
 
   describe('fallback from the pdfjs render to the live viewer canvas', () => {
     it('clones the viewer canvas when the page render cannot run', async () => {
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({})) })
+      serveTemporaryDocument({})
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(300, 150))
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
@@ -480,7 +436,7 @@ describe('renderPageToImageFallback', () => {
     })
 
     it('warns that the direct render failed before falling back', async () => {
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({})) })
+      serveTemporaryDocument({})
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(100, 100))
 
       await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 1 })
@@ -492,7 +448,7 @@ describe('renderPageToImageFallback', () => {
     })
 
     it('paints the clone white before drawing so transparent pages stay legible', async () => {
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({})) })
+      serveTemporaryDocument({})
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(100, 100))
       const { fillRect } = stubCanvasBackend()
 
@@ -502,7 +458,7 @@ describe('renderPageToImageFallback', () => {
     })
 
     it('applies the pixel budget to the clone as well', async () => {
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({})) })
+      serveTemporaryDocument({})
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(4000, 4000))
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, {
@@ -514,7 +470,7 @@ describe('renderPageToImageFallback', () => {
     })
 
     it('refuses to clone a zero-sized canvas', async () => {
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(makeDoc({})) })
+      serveTemporaryDocument({})
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(0, 0))
 
       await expect(
@@ -523,8 +479,7 @@ describe('renderPageToImageFallback', () => {
     })
 
     it('falls through to the clone when the pdfjs canvas yields no blob', async () => {
-      const doc = makeDoc({ 1: makePage(100, 100) })
-      mocks.getDocument.mockReturnValue({ promise: Promise.resolve(doc) })
+      const temporary = serveTemporaryDocument({ 1: makePage(100, 100) })
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(80, 40))
 
       // First canvas (the pdf.js render) yields no blob; the clone's does.
@@ -541,18 +496,18 @@ describe('renderPageToImageFallback', () => {
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 1 })
 
       expect(result).toMatchObject({ width: 80, height: 40 })
-      // The self-loaded document was still torn down after the toBlob failure.
-      expect(doc.destroy).toHaveBeenCalledTimes(1)
+      // The self-loaded document was still released after the toBlob failure.
+      expect(temporary.release).toHaveBeenCalledTimes(1)
     })
 
     it('returns null rather than throwing when every rung fails', async () => {
-      mocks.getDocument.mockReturnValue({ promise: Promise.reject(new Error('network down')) })
+      mocks.loadTemporaryCaptureDocument.mockRejectedValue(new Error('network down'))
       mocks.findPageCanvas.mockReturnValue(null)
 
       await expect(
         renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
       ).resolves.toBeNull()
-      expect(mocks.getDocument).toHaveBeenCalledTimes(1)
+      expect(mocks.loadTemporaryCaptureDocument).toHaveBeenCalledTimes(1)
       expect(mocks.findPageCanvas).toHaveBeenCalledTimes(1)
     })
   })

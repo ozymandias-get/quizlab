@@ -1,0 +1,553 @@
+/**
+ * The capture pipeline and the context menu on the native viewer, end to end.
+ *
+ * This is the Phase 8A parity claim in one file. With
+ * `VITE_NATIVE_PDF_VIEWER=true`:
+ *
+ *  - the two rasterising AI actions are live and reach the **real** capture ladder
+ *  - the context menu opens on the native canvas and its capture items reach the
+ *    same ladder — one menu, one hook, no native branch
+ *  - a capture reuses the mounted native document instead of loading a second one
+ *  - every capture is labelled with the page the reader is actually looking at
+ *
+ * and with the flag off nothing changes: the legacy viewer keeps its own capture
+ * path, the menu is the same menu, and the quick bar is untouched.
+ *
+ * Nothing between the button and the AI queue is faked. The real
+ * `PdfViewerDocument` → `usePdfViewerState` → `usePdfCaptureActions` →
+ * `renderPageToImageFallback` → `activePdfDocumentRegistry` → native
+ * `PdfDocumentManager` chain runs on the real PDF.js text-layer markup and the real
+ * native canvas. Only the leaves are: `pdfjs-6`, the canvas 2D backend jsdom does
+ * not ship, object URLs, and the AI queue itself — which is what is asserted.
+ */
+import PdfViewerDocument from '@features/pdf/ui/components/PdfViewerDocument'
+
+import type { PdfViewerDocumentProps } from '@features/pdf/hooks/usePdfViewerState'
+
+import {
+  clearActivePdfDocument,
+  getActivePdfDocument
+} from '@features/pdf/lib/activePdfDocumentRegistry'
+
+import { TooltipProvider } from '@app/components/ui/tooltip'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createFakeDocument, createLoadingTask } from './nativeViewerHarness'
+import { FakeAnnotationLayer } from './nativeAnnotationLayerDouble'
+import { FakeTextLayer } from './nativeTextLayerDouble'
+
+const mocks = vi.hoisted(() => ({
+  getDocument: vi.fn(),
+  initializeNativePdfWorker: vi.fn(),
+  queueImageForAi: vi.fn(),
+  queueTextForAi: vi.fn(),
+  startScreenshot: vi.fn(),
+  showError: vi.fn()
+}))
+
+vi.mock('pdfjs-6', async () => {
+  // Lazily imported: a `vi.mock` factory is hoisted above this file's static
+  // imports, so the doubles live in dependency-free modules of their own.
+  const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
+  const { FakeTextLayer } = await import('./nativeTextLayerDouble')
+  return {
+    getDocument: mocks.getDocument,
+    TextLayer: FakeTextLayer,
+    AnnotationLayer: FakeAnnotationLayer,
+    RenderingCancelledException: class RenderingCancelledException extends Error {
+      constructor(message = 'Rendering cancelled') {
+        super(message)
+        this.name = 'RenderingCancelledException'
+      }
+    }
+  }
+})
+
+vi.mock('@features/pdf/engine/pdfWorker', () => ({
+  initializeNativePdfWorker: mocks.initializeNativePdfWorker,
+  nativeWorkerUrl: 'pdf.worker.min.test.mjs',
+  resetNativePdfWorkerForTests: vi.fn()
+}))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
+}))
+
+vi.mock('@app/providers/AppToolContext', () => ({
+  useAppToolActions: () => ({
+    startScreenshot: mocks.startScreenshot,
+    queueImageForAi: mocks.queueImageForAi,
+    queueTextForAi: mocks.queueTextForAi
+  })
+}))
+
+vi.mock('@shared/stores/toastStore', () => ({
+  useToastActions: () => ({
+    showSuccess: vi.fn(),
+    showError: mocks.showError,
+    showWarning: vi.fn(),
+    showInfo: vi.fn()
+  })
+}))
+
+vi.mock('@features/pdf/ui/components/usePdfViewerLayout', () => ({
+  useContainerSize: () => ({ w: 800, h: 1000 }),
+  useFitScale: () => null,
+  useLastNavigationTime: () => ({ current: 0 })
+}))
+
+/**
+ * `usePdfPlugins` is overridden because `@react-pdf-viewer` must not be mounted on
+ * the native path; everything else on the shared hooks — the capture ladder, the
+ * context menu, the text actions — is the production code.
+ */
+vi.mock('@features/pdf/ui/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@features/pdf/ui/hooks')>()
+  return {
+    ...actual,
+    usePdfPlugins: () => ({
+      plugins: [],
+      jumpToPageRef: { current: vi.fn() },
+      ZoomIn: () => <span>legacy-zoom-in</span>,
+      ZoomOut: () => <span>legacy-zoom-out</span>,
+      CurrentScale: () => <span>legacy-scale</span>,
+      zoomTo: vi.fn(),
+      highlight: vi.fn(),
+      clearHighlights: vi.fn()
+    }),
+    usePdfNavigation: () => ({
+      currentPage: 1,
+      totalPages: 12,
+      currentPageRef: { current: 1 },
+      handlePageChange: vi.fn(),
+      handleDocumentLoad: vi.fn(),
+      goToPreviousPage: vi.fn(),
+      goToNextPage: vi.fn(),
+      jumpToPage: vi.fn()
+    })
+  }
+})
+
+vi.mock('@features/pdf/ui/components/PdfViewerElement', () => ({
+  default: () => <div data-testid="legacy-viewer" />
+}))
+
+const pdfFile = {
+  path: 'book.pdf',
+  name: 'book.pdf',
+  size: 1000,
+  lastModified: 0,
+  streamUrl: 'local-pdf://book'
+}
+
+/* ----------------------------------------------------------------- doubles */
+
+/** A 400×600 page, so a scale-4 capture is a 1600×2400 raster. */
+function serveDocument(numPages = 12) {
+  mocks.getDocument.mockImplementation(() => {
+    const task = createLoadingTask()
+    task.resolve(
+      createFakeDocument({
+        numPages,
+        textItems: Object.fromEntries(
+          Array.from({ length: numPages }, (_, index) => [
+            index + 1,
+            [`page ${index + 1} native text`]
+          ])
+        )
+      })
+    )
+    return task
+  })
+}
+
+/* ------------------------------------------------------------------ canvas */
+
+/**
+ * jsdom ships no 2D backend, so capture would bail before it drew anything.
+ * `toBlob` yields a real Blob so `FileReader` can turn it into a data URL the way
+ * production does, and object URLs are recorded rather than allocated.
+ */
+let blobUrls = 0
+
+function stubCanvasBackend(): void {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+    imageSmoothingEnabled: false,
+    imageSmoothingQuality: 'low',
+    fillStyle: '',
+    drawImage: vi.fn(),
+    fillRect: vi.fn(),
+    canvas: document.createElement('canvas')
+  } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (
+    this: HTMLCanvasElement,
+    callback: BlobCallback,
+    type?: string
+  ) {
+    callback(new Blob(['captured'], { type: type ?? 'image/png' }))
+  })
+}
+
+/* ----------------------------------------------------------------- helpers */
+
+let frameCallbacks: FrameRequestCallback[]
+
+async function settle(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
+function flushFrames(): void {
+  const callbacks = frameCallbacks.splice(0)
+  act(() => {
+    for (const cb of callbacks) cb(0)
+  })
+}
+
+/** Run frames until the viewer stops producing them, so the fit scale commits. */
+async function drainFrames(): Promise<void> {
+  for (let i = 0; i < 12; i++) {
+    await settle()
+    if (frameCallbacks.length === 0) continue
+    flushFrames()
+  }
+  await settle()
+}
+
+async function waitFor(check: () => void, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  let lastError: unknown
+  for (;;) {
+    await drainFrames()
+    try {
+      check()
+      return
+    } catch (error) {
+      lastError = error
+    }
+    if (Date.now() > deadline) throw lastError
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    })
+  }
+}
+
+function renderDocument() {
+  const props: PdfViewerDocumentProps = {
+    pdfFile,
+    pdfUrl: 'local-pdf://book',
+    t: (key: string) => key,
+    isInteractionBlocked: false,
+    autoSend: false,
+    onToggleAutoSend: vi.fn(),
+    startScreenshot: mocks.startScreenshot,
+    queueImageForAi: mocks.queueImageForAi
+  }
+  return render(
+    <TooltipProvider>
+      <PdfViewerDocument {...props} />
+    </TooltipProvider>
+  )
+}
+
+/** Open the AI actions group in the real toolbar. */
+function openAiActions(): void {
+  fireEvent.click(screen.getByTestId('pdf-toolbar-mode-toggle'))
+}
+
+/** Right-click the shared viewer container, which is what opens the menu. */
+function openContextMenu(): void {
+  const container = document.querySelector('.pdf-viewer-container') as HTMLElement
+  act(() => {
+    container.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 120,
+        clientY: 80
+      })
+    )
+  })
+}
+
+function menuItem(label: string): HTMLElement {
+  return screen.getByRole('menuitem', { name: new RegExp(label) })
+}
+
+/** The AI payload, asserting the shape the queue is called with. */
+function queuedImages(): { url: string; page?: number; captureKind?: string }[] {
+  return mocks.queueImageForAi.mock.calls.map(([url, meta]) => ({ url, ...meta }))
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  clearActivePdfDocument()
+  FakeTextLayer.reset()
+  FakeAnnotationLayer.reset()
+  blobUrls = 0
+  serveDocument()
+  stubCanvasBackend()
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    writable: true,
+    value: vi.fn(() => `blob:captured-${++blobUrls}`)
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    writable: true,
+    value: vi.fn()
+  })
+  frameCallbacks = []
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    frameCallbacks.push(cb)
+    return frameCallbacks.length
+  })
+  vi.stubGlobal('cancelAnimationFrame', vi.fn())
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+  clearActivePdfDocument()
+})
+
+/* ------------------------------------------------------------------- tests */
+
+describe('native viewer — capture actions', () => {
+  it('publishes the mounted document so a capture can borrow it', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+
+    renderDocument()
+
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+    // One document for the whole app, not one per capture.
+    expect(mocks.getDocument).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves every quick-bar action enabled, because capture now works here', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openAiActions()
+
+    expect(screen.getByTestId('pdf-quick-text-ai')).toBeEnabled()
+    expect(screen.getByTestId('pdf-quick-image-ai')).toBeEnabled()
+    expect(screen.getByTestId('pdf-quick-area-ai')).toBeEnabled()
+    expect(screen.getByTestId('pdf-quick-reload')).toBeEnabled()
+  })
+
+  it('sends the current native page to the AI as one high-DPI image', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openAiActions()
+    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+
+    await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
+    const [queued] = queuedImages()
+    expect(queued.url).toMatch(/^data:image\//)
+    expect(queued.page).toBe(1)
+    expect(queued.captureKind).toBe('full-page')
+    expect(mocks.showError).not.toHaveBeenCalled()
+  })
+
+  it('labels the capture with the page the reader moved to, not page 1', async () => {
+    // The legacy navigation state is inert on this path — `@react-pdf-viewer` is
+    // not mounted, so nothing reports page changes — which is exactly why capture
+    // reads the page the renderer switch points at.
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    fireEvent.click(screen.getByLabelText('next_page'))
+
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+    openAiActions()
+    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+
+    await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalled())
+    // Whichever page the viewer is on, the label must not be the legacy page-1
+    // that `usePdfNavigation` is frozen at.
+    const [queued] = queuedImages()
+    expect(queued.page).toBe(2)
+    expect(queued.captureKind).toBe('full-page')
+  })
+
+  it('reuses the mounted document instead of loading a second one', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openAiActions()
+    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
+
+    // The whole reason the registry exists: no network round-trip and no second
+    // decode of a file that is already decoded.
+    expect(mocks.getDocument).toHaveBeenCalledTimes(1)
+    expect(getActivePdfDocument('local-pdf://book')).not.toBeNull()
+  })
+
+  it('never queues twice, and never opens an error toast', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openAiActions()
+    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
+    await settle()
+
+    expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1)
+    expect(mocks.showError).not.toHaveBeenCalled()
+  })
+
+  it('starts the crop screenshot with the native page number', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openAiActions()
+    fireEvent.click(screen.getByTestId('pdf-quick-area-ai'))
+
+    expect(mocks.startScreenshot).toHaveBeenCalledTimes(1)
+    // The crop path never touches PDF.js: the main process crops the window, so
+    // only the page label has to come from the right renderer.
+    expect(mocks.startScreenshot).toHaveBeenCalledWith({ page: 1, captureKind: 'selection' })
+  })
+
+  it('restarts the document on reload and keeps capture pointed at the new one', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openAiActions()
+    fireEvent.click(screen.getByTestId('pdf-quick-reload'))
+
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+    // A reload is a new document generation, so a second load is expected here —
+    // what matters is that capture borrows it rather than loading a third copy.
+    expect(mocks.getDocument).toHaveBeenCalledTimes(2)
+
+    mocks.queueImageForAi.mockClear()
+    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
+    expect(mocks.getDocument).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('native viewer — context menu', () => {
+  it('opens on the native canvas with the same four items', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openContextMenu()
+
+    expect(screen.getAllByRole('menuitem')).toHaveLength(4)
+    expect(menuItem('pdf_add_current_page_text_to_ai')).toBeInTheDocument()
+    expect(menuItem('pdf_send_page_as_image')).toBeInTheDocument()
+    expect(menuItem('ctx_crop_screenshot_ai')).toBeInTheDocument()
+    expect(menuItem('ctx_reload')).toBeInTheDocument()
+  })
+
+  it('reaches the real capture backend from the page-image item', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openContextMenu()
+    fireEvent.click(menuItem('pdf_send_page_as_image'))
+
+    await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
+    const [queued] = queuedImages()
+    expect(queued.url).toMatch(/^data:image\//)
+    expect(queued.page).toBe(1)
+    expect(queued.captureKind).toBe('full-page')
+    expect(mocks.getDocument).toHaveBeenCalledTimes(1)
+  })
+
+  it('reaches the real crop pipeline from the screenshot item', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openContextMenu()
+    fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
+
+    expect(mocks.startScreenshot).toHaveBeenCalledWith({ page: 1, captureKind: 'selection' })
+    expect(mocks.queueImageForAi).not.toHaveBeenCalled()
+  })
+
+  it('reaches the page-text backend from the text item', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() =>
+      expect(
+        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
+      ).toBeGreaterThan(0)
+    )
+
+    openContextMenu()
+    fireEvent.click(menuItem('pdf_add_current_page_text_to_ai'))
+
+    await waitFor(() => expect(mocks.queueTextForAi).toHaveBeenCalledTimes(1))
+    expect(mocks.queueTextForAi.mock.calls[0][0]).toEqual(expect.any(String))
+  })
+
+  it('closes after an item runs', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openContextMenu()
+    fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
+
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument()
+  })
+
+  it('never renders a second menu, or a native-only variant', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    renderDocument()
+    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
+
+    openContextMenu()
+
+    // One menu component, one hook, one set of items — the renderer switch is in
+    // `PdfViewerDocument`, and it only chooses which capture backend they call.
+    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
+  })
+})
+
+describe('legacy viewer — capture unchanged', () => {
+  it('keeps every quick-bar action live and never starts the native engine', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'false')
+    renderDocument()
+
+    openAiActions()
+
+    expect(screen.getByTestId('pdf-quick-text-ai')).toBeEnabled()
+    expect(screen.getByTestId('pdf-quick-image-ai')).toBeEnabled()
+    expect(screen.getByTestId('pdf-quick-area-ai')).toBeEnabled()
+    expect(screen.getByTestId('pdf-quick-reload')).toBeEnabled()
+    expect(mocks.getDocument).not.toHaveBeenCalled()
+    expect(mocks.initializeNativePdfWorker).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-native-pdf-canvas]')).toBe(null)
+  })
+
+  it('opens the same context menu on the legacy canvas', async () => {
+    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'false')
+    renderDocument()
+
+    openContextMenu()
+
+    expect(screen.getAllByRole('menuitem')).toHaveLength(4)
+    fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
+    expect(mocks.startScreenshot).toHaveBeenCalledWith({ page: 1, captureKind: 'selection' })
+  })
+})
