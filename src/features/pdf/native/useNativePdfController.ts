@@ -4,21 +4,22 @@
  *
  * ## What this owns
  *
- * | Concern      | Owner                                                        |
- * | ------------ | ------------------------------------------------------------ |
- * | instances    | `useNativePdfEngine` — one manager + one renderer per mount    |
- * | document     | `useNativePdfDocument` — `(pdfUrl, reloadKey)` → ready document |
- * | page         | `useNativePdfPageState` — 1-based, clamped                    |
- * | scale        | `useNativePdfScaleState` — numeric, clamped, fit on identity   |
- * | render       | `useNativePdfRender` — one page, one canvas, supersede-cancel  |
- * | text layer   | `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`     |
+ * | Concern      | Owner                                                                          |
+ * | ------------ | ------------------------------------------------------------------------------ |
+ * | instances    | `useNativePdfEngine` — one manager + one renderer per mount                      |
+ * | document     | `useNativePdfDocument` — `(pdfUrl, reloadKey)` → ready document                   |
+ * | page         | `useNativePdfPageState` — 1-based, clamped                                      |
+ * | scale        | `useNativePdfScaleState` — numeric, clamped, fit on identity                     |
+ * | render       | `useNativePdfRender` — one page, one canvas, supersede-cancel                    |
+ * | text layer   | `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`                       |
+ * | annotations  | `useNativePdfAnnotationLayer` — one page, one PDF.js `AnnotationLayer` + links   |
  *
  * The order of these calls matters exactly once, and it is load-bearing: the
  * engine-creating effect in `useNativePdfEngine` is declared before the
  * document-loading effect in `useNativePdfDocument`, so the engine exists by the
- * time the document hook runs its body. The text-layer effect is declared after
- * both render effects so that, within a single commit, the canvas and the text
- * layer are torn down and rebuilt in the same order they are painted.
+ * time the document hook runs its body. The text-layer and annotation-layer effects
+ * are declared after both render effects so that, within a single commit, the canvas
+ * and the two layers are torn down and rebuilt in the order they are painted.
  *
  * ## What is reused from the legacy path, unchanged
  *
@@ -49,6 +50,7 @@
  */
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import { clampPdfPage } from '@features/pdf/native/nativePdfBounds'
+import { useNativePdfAnnotationLayer } from '@features/pdf/native/useNativePdfAnnotationLayer'
 import {
   type NativePdfDocumentStatus,
   useNativePdfDocument
@@ -105,6 +107,8 @@ interface UseNativePdfControllerOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>
   /** Created by the component; the text-layer effect mounts PDF.js into it. */
   textLayerRef: RefObject<HTMLElement | null>
+  /** Created by the component; the annotation-layer effect mounts PDF.js into it. */
+  annotationLayerRef: RefObject<HTMLElement | null>
 }
 
 export interface NativePdfController {
@@ -118,6 +122,8 @@ export interface NativePdfController {
   renderError: string | null
   /** A genuine text-layer failure. `null` while rendering and on teardown. */
   textLayerError: string | null
+  /** A genuine annotation-layer failure. `null` while rendering and on teardown. */
+  annotationLayerError: string | null
   goToPreviousPage: () => void
   goToNextPage: () => void
   jumpToPage: (page: number) => void
@@ -145,7 +151,8 @@ export function useNativePdfController({
   pdfPath,
   onReadingProgressChange,
   canvasRef,
-  textLayerRef
+  textLayerRef,
+  annotationLayerRef
 }: UseNativePdfControllerOptions): NativePdfController {
   const engine: NativePdfEngineHandle = useNativePdfEngine(enabled)
 
@@ -232,6 +239,20 @@ export function useNativePdfController({
     scale
   })
 
+  // Declared after the text layer so the DOM is torn down and rebuilt in the order it
+  // is painted: canvas, text layer, annotation layer. An internal destination resolves
+  // through `jumpToPage`, so a link is the same navigation the toolbar performs.
+  const { annotationLayerError } = useNativePdfAnnotationLayer({
+    enabled,
+    engine,
+    status,
+    annotationLayerRef,
+    documentKey,
+    currentPage,
+    scale,
+    jumpToPage
+  })
+
   const zoomControls = useNativeZoomControls({ scale, zoomIn, zoomOut })
 
   return useMemo(
@@ -243,6 +264,7 @@ export function useNativePdfController({
       loadError,
       renderError,
       textLayerError,
+      annotationLayerError,
       goToPreviousPage,
       goToNextPage,
       jumpToPage,
@@ -260,6 +282,7 @@ export function useNativePdfController({
       loadError,
       renderError,
       textLayerError,
+      annotationLayerError,
       goToPreviousPage,
       goToNextPage,
       jumpToPage,

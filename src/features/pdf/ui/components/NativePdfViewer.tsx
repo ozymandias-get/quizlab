@@ -1,61 +1,68 @@
 /**
  * Native canvas PDF viewer — the first UI consumer of `features/pdf/engine`.
  *
- * ## Scope (Phase 5)
+ * ## Scope (Phase 6)
  *
- * Document load, one page, one canvas, the PDF.js text layer over it, page state,
- * scale state, fit scale, reload, cancellation and cleanup. Still absent, and
- * deliberately so: annotation layer, links, search, capture, progress
- * architecture, context menu — all of which stay on the legacy path.
+ * Document load, one page, one canvas, the PDF.js text layer and annotation layer over
+ * it, internal and external links, page state, scale state, fit scale, reload,
+ * cancellation and cleanup. Still absent, and deliberately so: search, capture,
+ * progress architecture, context menu — all of which stay on the legacy path.
  *
  * ## The page box
  *
  * ```
  * pdf-canvas-container          scroll + GPU containment (QuizLab's own class)
- * └── data-native-pdf-page     position: relative — the layer's positioning box
+ * └── data-native-pdf-page     position: relative — the layers' positioning box
  *     ├── data-native-pdf-canvas
- *     └── data-native-pdf-text-layer
+ *     ├── data-native-pdf-text-layer
+ *     └── data-native-pdf-annotation-layer
  * ```
  *
- * The canvas and the text layer are siblings inside one page box because PDF.js
- * positions text runs as percentages of the layer and the layer as
- * `var(--total-scale-factor) * <page size>` — both of which only line up with the
- * canvas when they share a box sized by the same viewport. See
- * `nativePdfTextLayer.css`.
+ * The three are siblings inside one page box, in that order, because PDF.js sizes text
+ * runs as percentages of the text layer and the layers as
+ * `var(--total-scale-factor) * <page size>` — all of which only line up with the canvas
+ * when they share a box sized by the same viewport. The order is PDF.js's own:
+ * `LAYERS_ORDER` in `web/pdf_viewer.mjs` numbers a page's layers `canvasWrapper` 0,
+ * `textLayer` 1, `annotationLayer` 2, and `PDFPageView#addLayer` inserts them in
+ * exactly that sequence. See `nativePdfTextLayer.css` and
+ * `nativePdfAnnotationLayer.css`.
  *
- * ## A failed text layer is not a failed page
+ * ## A failed layer is not a failed page
  *
- * The controller also carries `textLayerError`, and it is deliberately **not**
- * folded into the error shell below. A text-layer failure means the page is
- * readable but not selectable and not extractable — the canvas is already painted
- * and hiding it behind an error would take away a working reader to report a
- * degraded one. The value stays on the controller so the condition is observable
- * (and asserted) instead of silent; when annotation-level capability reporting
- * arrives, that is where it surfaces.
+ * The controller also carries `textLayerError` and `annotationLayerError`, and both are
+ * deliberately **not** folded into the error shell below. A text-layer failure means
+ * the page is readable but not selectable; an annotation-layer failure means it is
+ * readable and selectable but has no links. In both cases the canvas is already painted
+ * and hiding it behind an error would take away a working reader to report a degraded
+ * one. The values stay on the controller so the conditions are observable (and
+ * asserted) instead of silent.
  *
  * ## Stable hooks for the tests
  *
  * `data-native-pdf-canvas`, `data-native-pdf-page`, `data-native-pdf-text-layer`,
- * `data-native-pdf-text-page`, `data-native-pdf-loading` and
+ * `data-native-pdf-text-page`, `data-native-pdf-annotation-layer`,
+ * `data-native-pdf-annotation-page`, `data-native-pdf-loading` and
  * `data-native-pdf-error` are the test surface. They exist so tests can assert the
- * single canvas, the single text layer, which page each of them holds, the
- * loading state and the error fallback without depending on layout or on any RPV
- * class name.
+ * single canvas, the single text layer, the single annotation layer, which page each of
+ * them holds, the loading state and the error fallback without depending on layout or
+ * on any RPV class name.
  *
- * Page identity lives on the page container only. The canvas and the text layer
- * are addressed by their own attributes, so "the page element" is never ambiguous
- * to a `querySelector`.
+ * Page identity lives on the page container only. The canvas and the two layers are
+ * addressed by their own attributes, so "the page element" is never ambiguous to a
+ * `querySelector`.
  *
  * ## CSS
  *
  * No shared stylesheet is touched. The wrapper reuses `pdf-canvas-container` —
  * QuizLab's own container class, not an RPV one — because it is the
  * GPU-containment mechanism the performance baseline depends on, and the rest is
- * Tailwind utilities. The text layer's layout contract ships next to the layer's
- * owner, as `features/pdf/native/nativePdfTextLayer.css`, and is imported here
- * beside the element it styles; it is scoped to `data-native-pdf-*` attributes,
- * so it cannot match the legacy viewer's markup.
+ * Tailwind utilities. The two layers' layout contracts ship next to their owners, as
+ * `features/pdf/native/nativePdfTextLayer.css` and
+ * `features/pdf/native/nativePdfAnnotationLayer.css`, and are imported here beside the
+ * elements they style; both are scoped to `data-native-pdf-*` attributes, so neither can
+ * match the legacy viewer's markup.
  */
+import '@features/pdf/native/nativePdfAnnotationLayer.css'
 import '@features/pdf/native/nativePdfTextLayer.css'
 
 import type { NativePdfController } from '@features/pdf/native/useNativePdfController'
@@ -68,21 +75,30 @@ interface NativePdfViewerProps {
   controller: NativePdfController
   canvasRef: RefObject<HTMLCanvasElement | null>
   textLayerRef: RefObject<HTMLDivElement | null>
+  annotationLayerRef: RefObject<HTMLDivElement | null>
   t: (key: string) => string
   tt: (key: string) => string
 }
 
 /**
- * PDF.js sizes the text layer as `--total-scale-factor × <page size in points>`,
- * so this custom property has to carry the *viewport* scale — the same number
- * `pageRenderer` hands to `page.render()`. That is what keeps a selected span's
- * box on the glyph the canvas painted, at every zoom level.
+ * PDF.js sizes the text layer and the annotation layer as
+ * `--total-scale-factor × <page size in points>`, so this custom property has to carry
+ * the *viewport* scale — the same number `pageRenderer` hands to `page.render()`. That
+ * is what keeps a selected span's box, and a link's hitbox, on what the canvas painted,
+ * at every zoom level and every rotation.
  */
 function totalScaleFactorStyle(scale: number): CSSProperties {
   return { '--total-scale-factor': String(scale) } as CSSProperties
 }
 
-function NativePdfViewer({ controller, canvasRef, textLayerRef, t, tt }: NativePdfViewerProps) {
+function NativePdfViewer({
+  controller,
+  canvasRef,
+  textLayerRef,
+  annotationLayerRef,
+  t,
+  tt
+}: NativePdfViewerProps) {
   const { status, currentPage, scale, loadError, renderError } = controller
 
   // Null-checked rather than truthiness-checked: a failure with an empty message
@@ -129,6 +145,11 @@ function NativePdfViewer({ controller, canvasRef, textLayerRef, t, tt }: NativeP
           ref={textLayerRef}
           data-native-pdf-text-layer
           data-native-pdf-text-page={currentPage}
+        />
+        <div
+          ref={annotationLayerRef}
+          data-native-pdf-annotation-layer
+          data-native-pdf-annotation-page={currentPage}
         />
       </div>
     </div>
