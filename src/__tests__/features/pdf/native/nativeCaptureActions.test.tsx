@@ -1,23 +1,20 @@
 /**
- * The capture pipeline and the context menu on the native viewer, end to end.
+ * The capture pipeline and the context menu, end to end.
  *
- * This is the Phase 8A parity claim in one file. With
- * `VITE_NATIVE_PDF_VIEWER=true`:
+ * The Phase 8A parity claim, now unconditional — the native viewer is the only
+ * viewer, so there is no other path to compare against:
  *
  *  - the two rasterising AI actions are live and reach the **real** capture ladder
- *  - the context menu opens on the native canvas and its capture items reach the
- *    same ladder — one menu, one hook, no native branch
- *  - a capture reuses the mounted native document instead of loading a second one
+ *  - the context menu opens on the canvas and its capture items reach the same
+ *    ladder — one menu, one hook, no renderer branch
+ *  - a capture reuses the mounted document instead of loading a second one
  *  - every capture is labelled with the page the reader is actually looking at
- *
- * and with the flag off nothing changes: the legacy viewer keeps its own capture
- * path, the menu is the same menu, and the quick bar is untouched.
  *
  * Nothing between the button and the AI queue is faked. The real
  * `PdfViewerDocument` → `usePdfViewerState` → `usePdfCaptureActions` →
  * `renderPageToImageFallback` → `activePdfDocumentRegistry` → native
  * `PdfDocumentManager` chain runs on the real PDF.js text-layer markup and the real
- * native canvas. Only the leaves are: `pdfjs-dist`, the canvas 2D backend jsdom does
+ * canvas. Only the leaves are: `pdfjs-dist`, the canvas 2D backend jsdom does
  * not ship, object URLs, and the AI queue itself — which is what is asserted.
  */
 import PdfViewerDocument from '@features/pdf/ui/components/PdfViewerDocument'
@@ -98,52 +95,17 @@ vi.mock('@features/pdf/ui/components/usePdfViewerLayout', () => ({
 }))
 
 /**
- * `usePdfPlugins` is overridden because `@react-pdf-viewer` must not be mounted on
- * the native path; everything else on the shared hooks — the capture ladder, the
- * context menu, the text actions — is the production code.
+ * The viewport measurements are stubbed so fit scale is deterministic. Everything
+ * else on the shared hooks — the capture ladder, the context menu, the text
+ * actions — is the production code.
  */
 vi.mock('@features/pdf/ui/hooks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@features/pdf/ui/hooks')>()
   return {
-    ...actual,
-    usePdfPlugins: () => ({
-      plugins: [],
-      jumpToPageRef: { current: vi.fn() },
-      ZoomIn: () => <span>legacy-zoom-in</span>,
-      ZoomOut: () => <span>legacy-zoom-out</span>,
-      CurrentScale: () => <span>legacy-scale</span>,
-      zoomTo: vi.fn(),
-      highlight: vi.fn(),
-      clearHighlights: vi.fn()
-    }),
-    usePdfNavigation: () => ({
-      currentPage: 1,
-      totalPages: 12,
-      currentPageRef: { current: 1 },
-      handlePageChange: vi.fn(),
-      handleDocumentLoad: vi.fn(),
-      goToPreviousPage: vi.fn(),
-      goToNextPage: vi.fn(),
-      jumpToPage: vi.fn()
-    })
+    ...actual
   }
 })
 
-vi.mock('@features/pdf/ui/components/PdfViewerElement', () => ({
-  default: () => <div data-testid="legacy-viewer" />
-}))
-
-const pdfFile = {
-  path: 'book.pdf',
-  name: 'book.pdf',
-  size: 1000,
-  lastModified: 0,
-  streamUrl: 'local-pdf://book'
-}
-
-/* ----------------------------------------------------------------- doubles */
-
-/** A 400×600 page, so a scale-4 capture is a 1600×2400 raster. */
 function serveDocument(numPages = 12) {
   mocks.getDocument.mockImplementation(() => {
     const task = createLoadingTask()
@@ -160,6 +122,14 @@ function serveDocument(numPages = 12) {
     )
     return task
   })
+}
+
+const pdfFile = {
+  path: 'book.pdf',
+  name: 'book.pdf',
+  size: 1000,
+  lastModified: 0,
+  streamUrl: 'local-pdf://book'
 }
 
 /* ------------------------------------------------------------------ canvas */
@@ -318,8 +288,6 @@ afterEach(() => {
 
 describe('native viewer — capture actions', () => {
   it('publishes the mounted document so a capture can borrow it', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
-
     renderDocument()
 
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
@@ -328,7 +296,6 @@ describe('native viewer — capture actions', () => {
   })
 
   it('leaves every quick-bar action enabled, because capture now works here', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -341,7 +308,6 @@ describe('native viewer — capture actions', () => {
   })
 
   it('sends the current native page to the AI as one high-DPI image', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -357,10 +323,9 @@ describe('native viewer — capture actions', () => {
   })
 
   it('labels the capture with the page the reader moved to, not page 1', async () => {
-    // The legacy navigation state is inert on this path — `@react-pdf-viewer` is
-    // not mounted, so nothing reports page changes — which is exactly why capture
-    // reads the page the renderer switch points at.
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
+    // Capture reads the page the viewer writes into `capturePageRef`, which is the
+    // controller's own live page. A capture triggered after a page turn must name
+    // the new page, or a capture of page 40 is sent to the AI as page 1.
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -371,15 +336,12 @@ describe('native viewer — capture actions', () => {
     fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
 
     await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalled())
-    // Whichever page the viewer is on, the label must not be the legacy page-1
-    // that `usePdfNavigation` is frozen at.
     const [queued] = queuedImages()
     expect(queued.page).toBe(2)
     expect(queued.captureKind).toBe('full-page')
   })
 
   it('reuses the mounted document instead of loading a second one', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -394,7 +356,6 @@ describe('native viewer — capture actions', () => {
   })
 
   it('never queues twice, and never opens an error toast', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -408,7 +369,6 @@ describe('native viewer — capture actions', () => {
   })
 
   it('starts the crop screenshot with the native page number', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -422,7 +382,6 @@ describe('native viewer — capture actions', () => {
   })
 
   it('restarts the document on reload and keeps capture pointed at the new one', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -443,7 +402,6 @@ describe('native viewer — capture actions', () => {
 
 describe('native viewer — context menu', () => {
   it('opens on the native canvas with the same four items', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -457,7 +415,6 @@ describe('native viewer — context menu', () => {
   })
 
   it('reaches the real capture backend from the page-image item', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -473,7 +430,6 @@ describe('native viewer — context menu', () => {
   })
 
   it('reaches the real crop pipeline from the screenshot item', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -485,7 +441,6 @@ describe('native viewer — context menu', () => {
   })
 
   it('reaches the page-text backend from the text item', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() =>
       expect(
@@ -501,7 +456,6 @@ describe('native viewer — context menu', () => {
   })
 
   it('closes after an item runs', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -512,7 +466,6 @@ describe('native viewer — context menu', () => {
   })
 
   it('never renders a second menu, or a native-only variant', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'true')
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
