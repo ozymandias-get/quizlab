@@ -223,6 +223,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     currentPage,
     totalPages,
     containerSize,
+    adjustedContainerSize,
     fitScale,
     plugins,
     zoomTo,

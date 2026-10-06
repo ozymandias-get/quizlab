@@ -1,7 +1,11 @@
-import { memo, useMemo } from 'react'
+import { isNativePdfViewerEnabled } from '@features/pdf/native'
+import { useNativePdfController } from '@features/pdf/native/useNativePdfController'
+
+import { memo, useMemo, useRef } from 'react'
 
 import { type PdfViewerDocumentProps, usePdfViewerState } from '../../hooks/usePdfViewerState'
 import ContextMenu from './ContextMenu'
+import NativePdfViewer from './NativePdfViewer'
 import PdfToolbar from './PdfToolbar'
 import PdfViewerElement from './PdfViewerElement'
 
@@ -33,12 +37,38 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     PluginZoomOut,
     CurrentScale,
     handleAddCurrentPageTextToAi,
-    handleReload
+    handleReload,
+    adjustedContainerSize
   } = usePdfViewerState(props)
 
   const { pdfFile, autoSend, onToggleAutoSend, pdfUrl } = props
 
-  const viewerElement = useMemo(
+  // One read of the build-time flag, at the highest level that owns both
+  // renderers. Everything below either takes the legacy branch or the native
+  // branch; nothing re-reads the flag, so there is no way for the two paths to
+  // disagree about which one is live.
+  const isNativeViewer = isNativePdfViewerEnabled()
+
+  // The native controller is always mounted so the hook order is stable, but it
+  // is inert while the flag is off: no engine, no load, no wheel or resize
+  // listeners. Its `canvasRef` must live here, because the canvas only exists
+  // while the native viewer is the one rendering.
+  const nativeCanvasRef = useRef<HTMLCanvasElement>(null)
+  const nativeViewer = useNativePdfController({
+    enabled: isNativeViewer,
+    pdfUrl,
+    reloadKey: viewerReloadKey,
+    initialPage: props.initialPage,
+    containerRef,
+    adjustedContainerSize,
+    isPanMode,
+    isPanelResizing: props.isPanelResizing ?? false,
+    pdfPath: pdfFile?.path ?? null,
+    onReadingProgressChange: props.onReadingProgressChange,
+    canvasRef: nativeCanvasRef
+  })
+
+  const legacyViewerElement = useMemo(
     () => (
       <PdfViewerElement
         pdfUrl={pdfUrl}
@@ -63,6 +93,19 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     ]
   )
 
+  // Toolbar wiring follows the same switch as the viewer. Page navigation, zoom
+  // and the current-scale readout all read the native controller's own state, so
+  // a toolbar button genuinely drives the native canvas rather than the inert
+  // legacy plugin instances.
+  const toolbarCurrentPage = isNativeViewer ? nativeViewer.currentPage : currentPage
+  const toolbarTotalPages = isNativeViewer ? nativeViewer.totalPages : totalPages
+  const toolbarPreviousPage = isNativeViewer ? nativeViewer.goToPreviousPage : goToPreviousPage
+  const toolbarNextPage = isNativeViewer ? nativeViewer.goToNextPage : goToNextPage
+  const toolbarJumpToPage = isNativeViewer ? nativeViewer.jumpToPage : handleJumpToPage
+  const toolbarZoomIn = isNativeViewer ? nativeViewer.zoomControls.ZoomIn : PluginZoomIn
+  const toolbarZoomOut = isNativeViewer ? nativeViewer.zoomControls.ZoomOut : PluginZoomOut
+  const toolbarCurrentScale = isNativeViewer ? nativeViewer.zoomControls.CurrentScale : CurrentScale
+
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div
@@ -72,7 +115,16 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
           isPanMode ? 'pdf-pan-mode-active' : ''
         }${isPanDragging ? 'pdf-pan-mode-dragging' : ''}`}
       >
-        {viewerElement}
+        {isNativeViewer ? (
+          <NativePdfViewer
+            controller={nativeViewer}
+            canvasRef={nativeCanvasRef}
+            t={props.t}
+            tt={tt}
+          />
+        ) : (
+          legacyViewerElement
+        )}
 
         {contextMenu && (
           <ContextMenu
@@ -92,18 +144,19 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         onToggleAutoSend={onToggleAutoSend}
         panMode={isPanMode}
         onTogglePanMode={handleTogglePanMode}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPreviousPage={goToPreviousPage}
-        onNextPage={goToNextPage}
-        onJumpToPage={handleJumpToPage}
+        currentPage={toolbarCurrentPage}
+        totalPages={toolbarTotalPages}
+        onPreviousPage={toolbarPreviousPage}
+        onNextPage={toolbarNextPage}
+        onJumpToPage={toolbarJumpToPage}
         highlight={highlight}
         clearHighlights={clearHighlights}
-        ZoomIn={PluginZoomIn}
-        ZoomOut={PluginZoomOut}
-        CurrentScale={CurrentScale}
+        ZoomIn={toolbarZoomIn}
+        ZoomOut={toolbarZoomOut}
+        CurrentScale={toolbarCurrentScale}
         onAddCurrentPageTextToAi={handleAddCurrentPageTextToAi}
         onReload={handleReload}
+        nativeCanvasMode={isNativeViewer}
       />
     </div>
   )
