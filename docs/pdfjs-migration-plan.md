@@ -1396,6 +1396,225 @@ Each chunk contains only its own runtime's version string (`3.11.174` /
 silently resolve to the legacy PDF.js. The `dist/pdfjs/` tree is unchanged: 200
 files (cmaps 169, standard_fonts 16, wasm 13, iccs 2).
 
+**Manual smoke: resolved by user manual validation.** The Phase 4 agent had no
+interactive environment, so this item was carried as outstanding. The user has
+since manually exercised the Phase 4 native viewer in the real application and
+reported **no visible issue**. That is the whole of the claim — it is not
+evidence about anything Phase 4 could not exercise itself.
+
+## Phase 5 — native text layer + selection
+
+**QuizLab's selection behaviour moved onto PDF.js's renderer.** Nothing in the
+selection system was rewritten: `usePdfTextActions` is untouched, and what changed
+is that the DOM it reads is now ours. The exit criterion was the Phase 2 selection
+suite passing **unchanged**, and it does — `usePdfTextActions.test.tsx`,
+`extractSelectedText.test.ts` and `extractPageTextFromDom.extended.test.ts` are
+byte-identical to their Phase 2 form.
+
+### The API that actually exists in 6.x
+
+Verified against `node_modules/pdfjs-6` (`pdfjs-dist@6.4.299`) — `types/src/display/text_layer.d.ts`
+plus the implementation in `build/pdf.mjs`:
+
+```js
+new TextLayer({ textContentSource, container, viewport })
+TextLayer#render(): Promise<void>   // resolves when the stream is drained
+TextLayer#cancel(): void            // rejects render() with AbortException
+TextLayer#update({ viewport, onBefore? }): void
+TextLayer#textDivs / #textContentItemsStr   // output, initially []
+```
+
+`renderTextLayer(...)` — the pre-4.x function RPV still calls, and the reason
+Phase 3 was blocked — **does not exist**. `pdfjs-6` does not export the
+`TextContent` type either, only the class, so the hook derives the type from
+`Awaited<ReturnType<PDFPageProxy['getTextContent']>>` rather than hand-writing a
+mirror of it. `container` must be an `HTMLElement`, which is the whole reason the
+layer lives in the viewer boundary and not in `engine/`.
+
+`update()` exists and is deliberately **unused**. It relayouts the existing runs
+for a new scale instead of rebuilding them, which is the cheaper zoom — but it is
+a second code path whose correctness across the same three races would need its
+own proof, and this phase is about parity. Recorded here as the obvious next
+optimisation, not as an omission.
+
+### Ownership
+
+| File                                | Responsibility                                                              |
+| ----------------------------------- | --------------------------------------------------------------------------- |
+| `native/nativePdfDom.ts`            | the native markup contract: page / canvas / text-layer / text-run selectors |
+| `native/nativePdfTextLayer.css`     | PDF.js's text-layer layout contract, scoped to `data-native-pdf-*`          |
+| `native/useNativePdfTextLayer.ts`   | one page → one `TextLayer`, supersede-cancel, page-level text cache         |
+| `text/pdfTextLayerSource.ts`        | resolves _either_ renderer's text layer, and how to read its runs           |
+| `ui/components/NativePdfViewer.tsx` | the page box that gives canvas and layer a shared viewport                  |
+
+`usePdfTextActions` is deliberately **not** wired into the native controller at
+all. It is already mounted by `usePdfViewerState` against the shared viewer
+container, it is markup-agnostic, and both extractors now resolve whichever layer
+is mounted. That is the structural reason there is no second selection system.
+
+### DOM structure
+
+```
+.pdf-canvas-container                      scroll + GPU containment (QuizLab class)
+└── [data-native-pdf-page="4"]             position: relative; --total-scale-factor
+    ├── canvas[data-native-pdf-canvas]     the glyphs
+    └── [data-native-pdf-text-layer]       PDF.js's TextLayer container
+        └── span[role="presentation"] × N  one run per PDF.js text item
+```
+
+The page box exists because both sides of the pair are sized from the same
+viewport: the canvas by `pageRenderer`, the layer by `--total-scale-factor × <page
+size in points>` plus PDF.js's own `setLayerDimensions`. Siblings inside one box
+is what makes the two agree at every scale and every rotation. Page identity
+moved from the canvas to the page box in this phase, so "the page element" is
+never ambiguous to a `querySelector`; the canvas and the layer are addressed by
+their own attributes, and the layer additionally carries
+`data-native-pdf-text-page` so "the text of page N" is one attribute selector and
+so a race has a testable outcome.
+
+**No RPV class is faked.** Every selector is `data-native-pdf-*`. The legacy
+`rpv-core__*` vocabulary stays in `lib/pdfViewerDom.ts` and nothing crosses.
+
+### `role="presentation"` is the text-run selector
+
+PDF.js 6 emits one `<span role="presentation">` per text item, but for a tagged PDF
+it also nests those inside `span.markedContent` wrappers while walking the
+structure tree. `collectTextItems` reads each match's own `textContent` and
+`getBoundingClientRect()`, so a blanket `span` query would count every word twice —
+once on its run, once on the union rect of a wrapper. `role="presentation"` is set
+on the runs and the `<br>`s and **not** on the wrappers, so it selects exactly the
+leaves. That is what makes the native layer readable by the same
+geometry-based collector the legacy path uses. (With the default
+`includeMarkedContent: false` the wrappers do not appear at all today; the
+selector is correct for both settings rather than correct for one.)
+
+### The extractors
+
+`text/pdfTextLayerSource.ts` is the new resolution point. It tries the native
+markup first, then the legacy markup, and returns the layer **plus the span
+selector that renderer's runs use**. Both extractors go through it, so neither
+grows a branch, and the reading order, normalization, `textContent`/`innerText`
+fast path and the `>5` length thresholds are shared unchanged.
+
+Selection scope gained one native-only rule. The container-level containment
+check already rejected the toolbar and the AI panel; what it could not reject is a
+selection _inside_ the panel that did not come from the page text — the canvas, or
+the page box. On the native path the layer is addressable, so a selection is only
+PDF text when its common ancestor or an endpoint is inside it. **On the legacy
+path the check is skipped entirely** (no native layer mounted ⇒ no new way to fail
+a selection that used to work), which is what keeps the Phase 2 suite green
+without editing it.
+
+The page-layer cache still caches only the page box, never the layer: the layer is
+replaced on every zoom and every re-render, so caching it would hand back a layer
+belonging to a previous scale.
+
+### Lifecycle, races, caching
+
+One effect, depending on `(enabled, engine, status, container, documentKey,
+currentPage, scale)`. Any change or unmount empties the container **before the
+first await** and calls `TextLayer#cancel()` on the live instance — the flag alone
+would not stop PDF.js appending the rest of the stream into a container that is
+about to be reused. Every await is followed by a `cancelled` check, so a late
+`getTextContent()` cannot construct a layer over the new page's container and
+cannot publish state either. A cancelled layer rejects with `AbortException`,
+recognised by name and dropped; a genuine failure becomes `textLayerError`.
+
+`textLayerError` is on the controller but deliberately **not** rendered as the
+error shell: a text-layer failure means the page is readable but not selectable,
+and hiding a working reader to report a degraded one would be the wrong trade.
+
+One `getTextContent()` per page, per document. The resolved promise is cached for
+the current page and cleared when the document identity — `(pdfUrl, reloadKey)`,
+the same pair the document hook uses — changes. It caches the _promise_ and writes
+only when a lookup starts, so a slow page cannot overwrite a newer entry by
+resolving late, and a rejected lookup is dropped rather than cached. Nothing is
+cached globally and nothing survives a document change.
+
+### CSS — the one place shared styles were not used
+
+`src/shared/styles/**` is **untouched**. PDF.js writes geometry as CSS custom
+properties and expects a stylesheet to turn them into a font size and a transform;
+without it the spans render at inherited size, pile up at the top-left, and a
+selection highlights the wrong box. So the contract is real, not decorative.
+
+It ships as `native/nativePdfTextLayer.css`, a component-local stylesheet imported
+beside the element it styles (which needed one additive declaration,
+`declare module '*.css'` in `src/types/assets.d.ts`). It is transcribed from
+PDF.js 6's own `web/pdf_viewer.css` reduced to what a read-only text layer needs,
+and every rule is keyed on `data-native-pdf-page` / `data-native-pdf-text-layer` /
+`.pdf-viewer-container.pdf-*` — attributes only the native viewer emits. No global
+leakage, no `rpv-*` reuse, no visual redesign. Three rules are QuizLab's own
+rather than PDF.js's, and each preserves existing product behaviour:
+`::selection` uses the existing `--selection-color-vivid` token so a highlight
+looks identical on both renderers; the pan-mode rule drops `user-select` exactly
+as `_pdf-viewer.css` does for the legacy layer; and `pdf-selection-active` gets the
+same drop-shadow the legacy rule has, _without_ the `transition` on `filter` — the
+legacy stylesheet documents removing that transition for the same reason (it
+re-rasterizes the whole layer on every text-layer update).
+
+### AI text actions
+
+"Add current page text to AI" is enabled on the native path and the explanatory
+tooltip is gone from it: it reads the page text layer, which now exists. The
+`textLayerActionsDisabled` prop became `captureActionsDisabled` and now covers
+only the two actions that genuinely have no native implementation — page-as-image
+and the crop screenshot, both of which need `renderPageToImage` and
+`activePdfDocumentRegistry`. Search stays hidden. Reload was already live and
+stays live. The tooltip key changed from `pdf_text_layer_unavailable` (which is
+now false) to `pdf_capture_unavailable`; it has no locale entry in either
+directory and never did, so nothing was translated away.
+
+The selection flow needs no UI change at all: `onTextSelection` →
+`useTextSelection` → `queueTextForAi(text, position)` is the existing app wiring,
+and it starts receiving native text as soon as the layer is selectable.
+
+### Deliberately still not migrated
+
+AnnotationLayer, `LinkService`, form widgets, `PDFFindController`, search
+highlights, the capture pipeline, `activePdfDocumentRegistry`, the context menu,
+selection screenshots, and `usePdfViewerZoomIpc` (its reset target hard-codes
+`SpecialZoomLevel.PageWidth`). The `>12 MP` threshold is a capture/serialization
+concern and was left exactly where it was.
+
+### Verification
+
+| Suite                                                                        | Tests                                                      |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `useNativePdfTextLayer.test.tsx` (mount, shape, viewport, supersede, races)  | 14                                                         |
+| `nativeTextSelection.test.tsx` (scope, lifecycle, enablement, order, legacy) | 15                                                         |
+| `nativePageText.test.tsx` (content, normalization, scheduling)               | 11                                                         |
+| `nativeAiTextActions.test.tsx` (`queueTextForAi` on both paths, legacy)      | 8                                                          |
+| `NativePdfViewer.test.tsx` (extended: `getTextContent`, page-box identity)   | 29                                                         |
+| `PdfToolbar.test.tsx` (native capability split)                              | 1 updated                                                  |
+| `architecture/pdfjs-dual-runtime.test.ts` (text-layer boundary blocks)       | +5                                                         |
+| **Full suite**                                                               | **356 files, 3851 passed, 2 pre-existing skips, 0 failed** |
+
+Static gates green: `typecheck`, `lint`, `format:check`, `analyze:architecture`,
+`analyze:file-sizes`, `analyze:css`, `ci:check-hygiene`, `check:audit`,
+`check:electron-security`, `git diff --check`. `check:audit` still reports exactly
+one documented exception (the unchanged `CVE-2024-4367`); `enableScripting: false`
+and `isEvalSupported: false` are untouched on their respective runtimes.
+
+Build: `npm run build:renderer:electron` emits **both** workers
+(`pdf.worker.min-<hash>.js` 1 062 kB legacy, `pdf.worker.min-<hash>.mjs` 1 235 kB
+native), `vendor-pdf-legacy` 459 kB, `vendor-pdf-native` 437 kB, the full
+200-file `dist/pdfjs/` tree, and now a third stylesheet chunk
+`viewer-<hash>.css` (1 kB) carrying only the native text-layer rules.
+`VITE_NATIVE_PDF_VIEWER=true npm run build:renderer:electron` produces the same
+artifact set.
+
+### Interactive smoke — outstanding
+
+This environment has no interactive session, so the Phase 5 smoke list could not
+be run here: native selection alignment against the painted canvas at several
+scales, `Ctrl+C` copy out of the native layer, pan ⇄ text switching, a
+multi-document switch, and a large text-dense page for a UI-lock regression. The
+automated coverage above is a _proxy_ for that, not a substitute: jsdom has no
+layout, so the geometry assertions there are about contract and lifecycle, never
+about whether a highlight lands on the right glyph. Those checks are the first
+thing a human should run.
+
 ---
 
 # Part IV — Performance baseline (must survive)
@@ -1531,7 +1750,7 @@ Verified 6.x deltas that change the plan (blocker 4 above, summarised):
 | **2 — close the test gaps**                      | add regression tests for `renderPageToImage` (high-DPI + fallback), `usePdfTextActions` selection wiring, `usePdfPanTool` drag, `usePdfCtrlWheelZoom`, search highlight execution, `PdfTabStrip`         | the behaviours a rewrite would silently break are pinned **before** any renderer change ✔ (125 tests added; `PdfTabStrip` and the two viewer-state hooks still open)                                                    |
 | **3 — native engine skeleton, viewer untouched** | `engine/` (worker, documentManager, pageRenderer), packaged assets (`wasm/`, `iccs/`, `cmaps/`, `standard_fonts/`) + `build.files`, security policy flip, rewrite `pdfjs-engine-worker-coupling.test.ts` | RPV still renders; the new engine passes its own tests; `pdfjs-dist@6.4.299` installed; `npm run analyze:*` clean                                                                                                       |
 | **4 — canvas + page/scale state**                | `PdfViewerElement` renders pages itself; keep `viewMode` single-page, `defaultScale` PageWidth, dark theme, `onPageChange`/`onDocumentLoad`/`onZoom` equivalents                                         | open/close, tab switch, page nav, zoom, fit, reload all behave identically; screenshot + selection still pass ✔ (feature-flagged: the legacy viewer stays the default, and the normal build now emits **both** workers) |
-| **5 — text layer + selection**                   | `PdfTextLayer`, `extractPageTextFromDom`, `extractSelectedText` retargeted at our markup                                                                                                                 | the Phase-2 selection tests pass unchanged                                                                                                                                                                              |
+| **5 — text layer + selection**                   | `PdfTextLayer`, `extractPageTextFromDom`, `extractSelectedText` retargeted at our markup                                                                                                                 | the Phase-2 selection tests pass unchanged ✔ (PDF.js 6 `TextLayer` mounted by the native viewer; both AI text actions live; selection suite green **without edits**)                                                    |
 | **6 — annotation layer + links**                 | `PdfAnnotationLayer`, `PdfTextLayer`, `LinkService`                                                                                                                                                      | links and form widgets behave as they do under RPV                                                                                                                                                                      |
 | **7 — search**                                   | `PdfSearchController` + `PdfSearchOverlay`, reusing `pdf-highlight-fadein` and `rpv-search__highlight` geometry                                                                                          | highlight execution passes the Phase-2 tests                                                                                                                                                                            |
 | **8 — drop RPV**                                 | delete the four packages, `usePdfPlugins`, the 4 CSS imports, all 26 `rpv-*` rule blocks, `lib/pdfViewerDom.ts`'s RPV selectors; rewrite the 4 tests that mock `@react-pdf-viewer/core`                  | `rg "@react-pdf-viewer\|rpv-"` returns nothing; no `?url` worker import from the viewer                                                                                                                                 |
