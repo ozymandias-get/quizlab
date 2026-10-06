@@ -3,13 +3,9 @@
  * Page-turn wheel without modifiers stays handled by usePdfWheelNavigation.
  *
  * The channel is typed numerically: this hook only ever computes numbers from
- * `constants/pdfZoom` and passes them on, so it does not need to know that the
- * legacy caller's `zoomTo` also accepts `@react-pdf-viewer`'s
- * `SpecialZoomLevel`. A `(scale: number | SpecialZoomLevel) => void` is still
- * assignable to this parameter, so the legacy contract and its tests are
- * untouched — while the native viewer, which is numeric-only, can reuse the hook
- * without importing a `@react-pdf-viewer` type. See
- * `features/pdf/native/useNativePdfController.ts`.
+ * `constants/pdfZoom` and passes them on, so it never has to know which caller is
+ * consuming the number. Every programmatic zoom source lands on one coalesced
+ * channel, so a single clamp policy governs all of them.
  */
 import {
   PDF_ZOOM_MAX_SCALE,

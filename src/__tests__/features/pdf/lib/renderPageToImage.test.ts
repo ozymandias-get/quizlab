@@ -12,7 +12,7 @@
  *    through the native engine and owns it. That one MUST be released, in a
  *    `finally`, on the success path and on every failure path.
  *
- * Phase 8A moved the self-load onto pdfjs-6 and made the registry runtime-agnostic,
+ * Phase 8A moved the self-load onto pdfjs-dist and made the registry runtime-agnostic,
  * so the temporary load is mocked here and tested for real in
  * `nativePdfCaptureDocument.test.ts` — including that it carries
  * `enableScripting: false` and is destroyed through its loading task.
@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => ({
   loggerWarn: vi.fn()
 }))
 
-vi.mock('@features/pdf/native/nativePdfCaptureDocument', () => ({
+vi.mock('@features/pdf/engine/captureDocument', () => ({
   loadTemporaryCaptureDocument: mocks.loadTemporaryCaptureDocument
 }))
 

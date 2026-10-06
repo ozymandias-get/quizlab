@@ -13,14 +13,14 @@
  *     PDF.js 6 teardown call — is what actually gets asserted, and `getDocument`
  *     is checked for the security and asset policy the engine owns.
  *
- * `pdfjs-6` is the only thing faked: `getDocument` and the `GlobalWorkerOptions`
+ * `pdfjs-dist` is the only thing faked: `getDocument` and the `GlobalWorkerOptions`
  * object the worker bootstrap writes to.
  */
 import { createPdfDocumentManager } from '@features/pdf/engine/documentManager'
 import {
   createNativeCaptureHandle,
   loadTemporaryCaptureDocument
-} from '@features/pdf/native/nativePdfCaptureDocument'
+} from '@features/pdf/engine/captureDocument'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => ({
   initializeNativePdfWorker: vi.fn()
 }))
 
-vi.mock('pdfjs-6', () => ({
+vi.mock('pdfjs-dist', () => ({
   getDocument: mocks.getDocument,
   RenderingCancelledException: class RenderingCancelledException extends Error {
     constructor(message = 'Rendering cancelled') {
@@ -103,7 +103,7 @@ describe('loadTemporaryCaptureDocument', () => {
     const options = mocks.getDocument.mock.calls[0][0] as Record<string, unknown>
     expect(options.url).toBe('local-pdf://book')
     // PDF JavaScript actions stay disabled, and the four asset directories are
-    // the packaged pdfjs-6 ones. Both come from `createPdfDocumentOptions`, which
+    // the packaged pdfjs-dist ones. Both come from `createPdfDocumentOptions`, which
     // is why this module never builds a parameter object of its own.
     expect(options.enableScripting).toBe(false)
     expect(options.cMapUrl).toContain('pdfjs/cmaps/')

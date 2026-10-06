@@ -17,14 +17,13 @@ import {
 } from '@features/pdf/constants/pdfZoom'
 import { usePdfCtrlWheelZoom } from '@features/pdf/viewport/usePdfCtrlWheelZoom'
 
-import type { SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { act, renderHook } from '@testing-library/react'
 import type { RefObject } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const THROTTLE_MS = 40
 
-type ZoomTo = (scale: number | SpecialZoomLevel) => void
+type ZoomTo = (scale: number) => void
 
 function makeContainer(): { el: HTMLDivElement; ref: RefObject<HTMLElement | null> } {
   const el = document.createElement('div')

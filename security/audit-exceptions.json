@@ -14,32 +14,13 @@
     "audit reported brace-expansion as a production high while it was reachable",
     "only through eslint, stryker and electron-builder. Gating on dev tooling",
     "would have required 12 accepted entries that buried the one finding that",
-    "actually mattered."
+    "actually mattered.",
+    "",
+    "`exceptions` is currently empty: the PDF.js migration removed the last",
+    "accepted advisory (CVE-2024-4367 / GHSA-wgrm-67xf-hhpq, which needed",
+    "pdfjs-dist@3.11.174). `pdfjs-dist@6.4.299` is outside the affected range",
+    "(`<=4.1.392`), so the finding is genuinely fixed rather than mitigated, and",
+    "an entry left behind would itself fail the gate as stale."
   ],
-  "exceptions": [
-    {
-      "package": "pdfjs-dist",
-      "installed": "3.11.174",
-      "advisories": ["GHSA-wgrm-67xf-hhpq", "CVE-2024-4367"],
-      "severity": "high",
-      "reason": [
-        "Mitigated, not fixed: the advisory's own documented workaround is",
-        "isEvalSupported: false, set on both getDocument call sites",
-        "(pdf/ui/components/PdfViewerElement.tsx and pdf/lib/renderPageToImage.ts)",
-        "and asserted by src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts.",
-        "pdfjs-dist cannot be upgraded on its own: @react-pdf-viewer/core declares",
-        "it as a peerDependency and require()s it, so the engine that runs is the",
-        "version this package installs and the worker is built from it. The exact",
-        "pin plus an npm overrides entry keep engine and worker on one version.",
-        "See src/features/pdf/index.ts and",
-        "src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts.",
-        "A migration must upgrade the viewer and pdfjs in one change, and",
-        "must add enableScripting: false for CVE-2026-16633 (a separate CVE that",
-        "does not affect 3.x and whose knob does not replace isEvalSupported)."
-      ],
-      "owner": "maintainer",
-      "expires": "2026-12-31",
-      "reviewNote": "Re-check pdfjs 3.x advisories on each release. If a new one lands there is no 3.x fix, so the migration becomes mandatory rather than optional."
-    }
-  ]
+  "exceptions": []
 }

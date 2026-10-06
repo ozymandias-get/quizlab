@@ -1,10 +1,11 @@
-import { Logger } from '@shared/lib/logger'
-
-import { findPageCanvas } from '../capture/findPageCanvas'
 import {
   loadTemporaryCaptureDocument,
   type TemporaryCaptureDocument
-} from '../native/nativePdfCaptureDocument'
+} from '@features/pdf/engine/captureDocument'
+
+import { Logger } from '@shared/lib/logger'
+
+import { findPageCanvas } from '../capture/findPageCanvas'
 import { type ActivePdfDocumentHandle, getActivePdfDocument } from './activePdfDocumentRegistry'
 
 /**

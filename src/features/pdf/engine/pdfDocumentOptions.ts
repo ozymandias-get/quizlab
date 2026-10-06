@@ -39,7 +39,7 @@
  * `useWorkerFetch` here would override a scheme-aware decision that is already
  * correct and would break one of the two environments.
  */
-import { type getDocument } from 'pdfjs-6'
+import { type getDocument } from 'pdfjs-dist'
 
 /**
  * `DocumentInitParameters` as shipped by 6.4.299.
@@ -68,9 +68,9 @@ export type PdfDocumentSource = NonNullable<PdfDocumentInitParameters['url']>
 export const PDFJS_ASSET_DIR = 'pdfjs'
 
 /**
- * The asset sub-directories staged from `pdfjs-6` at build time, in the order
+ * The asset sub-directories staged from `pdfjs-dist` at build time, in the order
  * they are declared here. `scripts`-free by design: `vite.config.mts` copies
- * these directly out of `node_modules/pdfjs-6`.
+ * these directly out of `node_modules/pdfjs-dist`.
  */
 export const PDFJS_ASSET_SUBDIRS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'] as const
 

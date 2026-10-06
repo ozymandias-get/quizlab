@@ -1,20 +1,19 @@
 /**
  * Regression tests for the capture-document registry.
  *
- * A viewer "Reload" bumps only `viewerReloadKey`, which remounts `<Viewer>` and
- * makes pdf.js destroy the previous loading task while the owning component stays
- * mounted. With a URL-only match the registry kept handing out that dead proxy, so
- * a high-DPI capture failed on `getPage()` and silently degraded to a
+ * A viewer "Reload" bumps only `viewerReloadKey`, which remounts the document and
+ * makes PDF.js destroy the previous loading task while the owning component stays
+ * mounted. With a URL-only match the registry kept handing out that dead document,
+ * so a high-DPI capture failed on `getPage()` and silently degraded to a
  * screen-resolution canvas clone.
  *
- * Phase 8A generalised the stored value from a `pdfjs-dist@3` proxy to a
- * runtime-agnostic handle, so the cases below cover both producers:
+ * The registry used to store one of two shapes: a real handle, or a
+ * `pdfjs-dist@3` proxy normalized through `legacyPdfCaptureDocument` because the
+ * legacy viewer handed over `DocumentLoadEvent#doc` verbatim. There is one
+ * producer now, so one shape — and the structural assertion that it is one shape
+ * lives in `architecture/pdfjs-single-runtime.test.ts`.
  *
- *  - the **legacy** proxy, adapted through `lib/legacyPdfCaptureDocument` because
- *    `PdfViewerElement.tsx` is frozen at zero diff this phase
- *  - a **native** handle, which brings its own liveness probe
- *
- * and the invariant that matters more than either: the registry never ends a
+ * The invariant that matters more than any of that: the registry never ends a
  * document's life. It borrows.
  */
 import {
@@ -27,19 +26,8 @@ import {
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-/** A `pdfjs-dist@3.11.174` proxy, as `PdfViewerElement` hands it over. */
-function makeLegacyDoc(overrides: Record<string, unknown> = {}) {
-  return {
-    fingerprint: 'fp',
-    destroyed: false,
-    getPage: vi.fn(),
-    destroy: vi.fn(),
-    ...overrides
-  }
-}
-
-/** A native-side handle, which answers its own liveness question. */
-function makeNativeHandle(overrides: Partial<ActivePdfDocumentHandle> = {}) {
+/** A capture handle, which answers its own liveness question. */
+function makeHandle(overrides: Partial<ActivePdfDocumentHandle> = {}) {
   return {
     getPage: vi.fn(),
     isAlive: vi.fn(() => true),
@@ -53,206 +41,174 @@ describe('activePdfDocumentRegistry', () => {
   })
 
   it('returns a handle for a matching url', () => {
-    setActivePdfDocument(makeLegacyDoc() as never, 'local-pdf://pdf_a', 'fp')
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
 
     expect(getActivePdfDocument('local-pdf://pdf_a')).not.toBeNull()
   })
 
   it('returns null for a different url', () => {
-    setActivePdfDocument(makeLegacyDoc() as never, 'local-pdf://pdf_a', 'fp')
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
 
     expect(getActivePdfDocument('local-pdf://pdf_b')).toBeNull()
   })
 
-  it('returns a native handle unchanged, so its own liveness probe is the one used', () => {
-    const handle = makeNativeHandle()
-    setActivePdfDocument(handle, 'local-pdf://pdf_a', 'local-pdf://pdf_a::3')
-
-    expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(handle)
-  })
-
-  it('delegates getPage to the legacy proxy it adapted', async () => {
+  it('delegates getPage to the handle', async () => {
     const page = { getViewport: vi.fn(), render: vi.fn() }
-    const doc = makeLegacyDoc({ getPage: vi.fn(async () => page) })
-    setActivePdfDocument(doc as never, 'local-pdf://pdf_a', 'fp')
+    const getPage = vi.fn(async () => page)
+    setActivePdfDocument(makeHandle({ getPage }), 'local-pdf://pdf_a', 'fp')
 
     const handle = getActivePdfDocument('local-pdf://pdf_a')
-    // A narrow wrapper, not the proxy: capture gets `getViewport` / `render` and
-    // nothing else, so the viewer's own surface stays unreachable from it.
-    const captured = await handle!.getPage(4)
-    expect(doc.getPage).toHaveBeenCalledWith(4)
-    expect(Object.keys(captured).sort()).toEqual(['getViewport', 'render'])
-    captured.getViewport({ scale: 2 })
-    expect(page.getViewport).toHaveBeenCalledWith({ scale: 2 })
+
+    expect(await handle?.getPage(3)).toBe(page)
+    expect(getPage).toHaveBeenCalledWith(3)
   })
 
-  it('returns null and evicts a destroyed legacy proxy', () => {
-    const doc = makeLegacyDoc()
-    setActivePdfDocument(doc as never, 'local-pdf://pdf_a', 'fp')
-    // pdf.js marks the proxy destroyed when the loading task is torn down.
-    doc.destroyed = true
+  it('returns null and evicts a handle that reports itself dead', () => {
+    // The reload case: the URL is unchanged but the document behind it is not the
+    // one the viewer is rendering any more.
+    const handle = makeHandle({ isAlive: vi.fn(() => false) })
+    setActivePdfDocument(handle, 'local-pdf://pdf_a', 'fp')
 
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
-    // Second call must also report "no document", i.e. the stale entry is gone.
+    // Evicted on sight, so no later capture retries a dead document.
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
   })
 
-  it('evicts a native handle whose probe reports dead', () => {
-    const isAlive = vi.fn(() => false)
-    setActivePdfDocument(makeNativeHandle({ isAlive }), 'local-pdf://pdf_a', 'gen-1')
+  it('treats a throwing liveness probe as dead', () => {
+    // Indistinguishable from a dead document, and treating it as alive would hand
+    // capture a proxy it cannot use.
+    setActivePdfDocument(
+      makeHandle({
+        isAlive: vi.fn(() => {
+          throw new Error('worker gone')
+        })
+      }),
+      'local-pdf://pdf_a',
+      'fp'
+    )
 
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
+  })
+
+  it('keeps serving a live handle across repeated lookups', () => {
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
+
+    expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(
+      getActivePdfDocument('local-pdf://pdf_a')
+    )
+  })
+
+  it('reports the identity the registrant supplied', () => {
+    expect(getActivePdfDocumentIdentity()).toBeNull()
+
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+
+    expect(getActivePdfDocumentIdentity()).toBe('local-pdf://pdf_a::0')
+  })
+
+  it('records no identity when the registrant supplies none', () => {
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
+
     expect(getActivePdfDocumentIdentity()).toBeNull()
   })
 
-  it('treats a throwing liveness probe as dead rather than as alive', () => {
-    // A probe that throws is indistinguishable from a document that cannot be
-    // used, and "assume alive" would hand capture a proxy whose getPage() rejects.
-    const isAlive = vi.fn(() => {
-      throw new Error('teardown in progress')
+  describe('ownership', () => {
+    it('never destroys the document it lends', async () => {
+      const handle = makeHandle({
+        getPage: vi.fn(async () => ({ getViewport: vi.fn(), render: vi.fn() }))
+      })
+      // The handle has no teardown at all — that is the structural guarantee, so
+      // this asserts the surface as well as the behaviour.
+      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'fp')
+
+      const borrowed = getActivePdfDocument('local-pdf://pdf_a')
+      await borrowed?.getPage(1)
+
+      expect(Object.keys(borrowed ?? {}).sort()).toEqual(['getPage', 'isAlive'])
+      expect(handle).not.toHaveProperty('destroy')
+      expect(handle).not.toHaveProperty('release')
     })
-    setActivePdfDocument(makeNativeHandle({ isAlive }), 'local-pdf://pdf_a', 'gen-1')
-
-    expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
   })
 
-  it('keeps serving a live proxy', () => {
-    const doc = makeLegacyDoc({ destroyed: false })
-    setActivePdfDocument(doc as never, 'local-pdf://pdf_a', 'fp')
+  describe('registration', () => {
+    it('clears the slot when the document is null', () => {
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
 
-    expect(getActivePdfDocument('local-pdf://pdf_a')).not.toBeNull()
-    expect(getActivePdfDocument('local-pdf://pdf_a')).not.toBeNull()
-  })
+      setActivePdfDocument(null, 'local-pdf://pdf_a', 'fp')
 
-  it('returns null after clearing', () => {
-    setActivePdfDocument(makeLegacyDoc() as never, 'local-pdf://pdf_a', 'fp')
-    clearActivePdfDocument()
+      expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
+    })
 
-    expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
-  })
+    it('clears the slot when the url is null', () => {
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
 
-  it('records the identity the registrant supplied', () => {
-    setActivePdfDocument(makeLegacyDoc() as never, 'local-pdf://pdf_a', 'fingerprint-abc')
-    expect(getActivePdfDocumentIdentity()).toBe('fingerprint-abc')
+      setActivePdfDocument(makeHandle(), null, 'fp')
 
-    setActivePdfDocument(makeNativeHandle(), 'local-pdf://pdf_a')
-    expect(getActivePdfDocumentIdentity()).toBeNull()
-  })
+      expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
+    })
 
-  describe('reload: same url, new document generation', () => {
-    it('serves the newest handle, never the superseded one', () => {
-      const first = makeNativeHandle()
-      const second = makeNativeHandle()
-      setActivePdfDocument(first, 'local-pdf://pdf_a', 'local-pdf://pdf_a::1')
-
-      setActivePdfDocument(second, 'local-pdf://pdf_a', 'local-pdf://pdf_a::2')
+    it('most recent registration wins', () => {
+      const first = makeHandle()
+      const second = makeHandle()
+      setActivePdfDocument(first, 'local-pdf://pdf_a', 'first')
+      setActivePdfDocument(second, 'local-pdf://pdf_a', 'second')
 
       expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(second)
-      expect(getActivePdfDocumentIdentity()).toBe('local-pdf://pdf_a::2')
-    })
-
-    it('does not hand out a handle the manager has already let go of', () => {
-      // The native adapter's own probe is what makes this safe; here it is
-      // exercised through the registry's contract — a dead handle is never
-      // returned, whatever the URL says.
-      const stale = makeNativeHandle({ isAlive: vi.fn(() => false) })
-      setActivePdfDocument(stale, 'local-pdf://pdf_a', 'local-pdf://pdf_a::1')
-
-      expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
-    })
-
-    it('replacing an entry with null clears it', () => {
-      setActivePdfDocument(makeNativeHandle(), 'local-pdf://pdf_a', 'gen-1')
-
-      setActivePdfDocument(null, null)
-
-      expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
     })
   })
 
-  describe('token-scoped deregistration', () => {
-    it('withdraws only its own entry', () => {
-      const token = setActivePdfDocument(makeNativeHandle(), 'local-pdf://pdf_a', 'gen-1')
+  describe('deregistration', () => {
+    it('a token only withdraws the entry that produced it', () => {
+      // Two viewers can be mounted on the same file (`LeftPanel` and the
+      // `FocusOverlay`). An unmounting one must not evict the other's document.
+      const first = makeHandle()
+      setActivePdfDocument(first, 'local-pdf://pdf_a', 'first')
+      const firstToken = setActivePdfDocument(first, 'local-pdf://pdf_a', 'first')
+
+      const second = makeHandle()
+      setActivePdfDocument(second, 'local-pdf://pdf_a', 'second')
+
+      clearActivePdfDocument(firstToken)
+
+      expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(second)
+    })
+
+    it('the matching token does withdraw its own entry', () => {
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      const token = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
 
       clearActivePdfDocument(token)
 
       expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
     })
 
-    it('leaves a sibling viewer registration alone', () => {
-      // LeftPanel and the FocusOverlay can both be mounted on the same file. The
-      // store is a single slot, so the *later* registrant owns it; when the
-      // earlier viewer unmounts it must not empty the slot, or the next capture
-      // would re-download a file that is already decoded.
-      const leavingToken = setActivePdfDocument(
-        makeNativeHandle(),
-        'local-pdf://pdf_a',
-        'gen-leaving'
-      )
-      const sibling = makeNativeHandle()
-      const siblingToken = setActivePdfDocument(sibling, 'local-pdf://pdf_a', 'gen-sibling')
-
-      clearActivePdfDocument(leavingToken)
-
-      expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(sibling)
-
-      // And the surviving viewer can withdraw in turn.
-      clearActivePdfDocument(siblingToken)
-      expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
-    })
-
-    it('a token from an older registration cannot clear a newer one', () => {
-      const oldToken = setActivePdfDocument(makeNativeHandle(), 'local-pdf://pdf_a', 'gen-1')
-      const current = makeNativeHandle()
-      setActivePdfDocument(current, 'local-pdf://pdf_a', 'gen-2')
-
-      clearActivePdfDocument(oldToken)
-
-      expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(current)
-    })
-
-    it('clears unconditionally when no token is given', () => {
-      // The legacy `<Viewer>` teardown contract: it holds no token and must keep
-      // emptying the slot outright.
-      setActivePdfDocument(makeNativeHandle(), 'local-pdf://pdf_a', 'gen-1')
+    it('no token empties the slot', () => {
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
 
       clearActivePdfDocument()
 
       expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
     })
 
-    it('returns null for a token when nothing was registered', () => {
-      expect(setActivePdfDocument(null, null)).toBeNull()
-    })
-  })
+    it('tokens are never equal across re-registration', () => {
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      const a = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      const b = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
 
-  describe('ownership', () => {
-    it('never destroys the document it lends', async () => {
-      const doc = makeLegacyDoc()
-      setActivePdfDocument(doc as never, 'local-pdf://pdf_a', 'fp')
-
-      const handle = getActivePdfDocument('local-pdf://pdf_a')
-      await handle!.getPage(1)
-
-      expect(doc.destroy).not.toHaveBeenCalled()
+      expect(a).not.toBe(b)
+      expect(typeof a).toBe('symbol')
     })
 
-    it('exposes no teardown on a handle at all', () => {
-      // The structural guarantee: there is nothing for a capture path to reach
-      // for. The engine destroys through its loading task; the viewer destroys its
-      // own proxy; the store does neither.
-      setActivePdfDocument(makeNativeHandle(), 'local-pdf://pdf_a', 'gen-1')
+    it('a stale token cannot withdraw a re-registered entry', () => {
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      const stale = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
 
-      const handle = getActivePdfDocument('local-pdf://pdf_a') as unknown as Record<string, unknown>
-      expect(Object.keys(handle).sort()).toEqual(['getPage', 'isAlive'])
-      expect(handle.destroy).toBeUndefined()
-      expect(handle.cleanup).toBeUndefined()
-    })
+      const live = makeHandle()
+      setActivePdfDocument(live, 'local-pdf://pdf_a', 'second')
 
-    it('ignores a null url rather than registering an unmatchable entry', () => {
-      setActivePdfDocument(makeNativeHandle(), null, 'gen-1')
+      clearActivePdfDocument(stale)
 
-      expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
+      expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(live)
     })
   })
 })

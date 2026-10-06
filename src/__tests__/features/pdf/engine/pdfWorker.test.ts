@@ -1,11 +1,13 @@
 /**
- * Unit tests for the native worker configuration and the dual-runtime boundary.
+ * Unit tests for the PDF worker configuration.
  *
- * The `pdfjs-dist` namespace assertions are the point of this file. Two PDF.js
- * versions are installed on purpose during the migration, and each has its own
- * `GlobalWorkerOptions` module instance. If the native engine ever mutated the
- * legacy one, `@react-pdf-viewer` would start loading a 6.x worker against a
- * 3.x engine — a failure that would only show up as a blank page at runtime.
+ * One runtime, one worker. During the migration this file also asserted that the
+ * native engine never mutated the legacy `GlobalWorkerOptions`, which was the
+ * right thing to pin while `@react-pdf-viewer` was still shipping. That
+ * relationship cannot exist any more: there is a single `pdfjs-dist`, a single
+ * `GlobalWorkerOptions`, and the interesting question is whether *anything else*
+ * can re-point it — which is what the idempotency and re-apply cases below cover
+ * against the real module instance.
  */
 import {
   initializeNativePdfWorker,
@@ -13,12 +15,11 @@ import {
   resetNativePdfWorkerForTests
 } from '@features/pdf/engine/pdfWorker'
 
-import { GlobalWorkerOptions as legacyGlobalWorkerOptions } from 'pdfjs-dist'
-import { GlobalWorkerOptions as nativeGlobalWorkerOptions } from 'pdfjs-6'
+import { GlobalWorkerOptions } from 'pdfjs-dist'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-describe('native pdfjs worker', () => {
+describe('pdf worker', () => {
   beforeEach(() => {
     resetNativePdfWorkerForTests()
   })
@@ -29,79 +30,46 @@ describe('native pdfjs worker', () => {
 
   it('resolves the worker URL to the 6.x ESM build', () => {
     expect(nativeWorkerUrl).toBeTruthy()
-    // The legacy path still imports pdf.worker.min.js; the native path must not
-    // be pointing at that file, which no longer exists in 6.x.
     expect(nativeWorkerUrl).toContain('pdf.worker.min')
+    // PDF.js 6 ships `pdf.worker.min.mjs`. The 3.x `.js` file the legacy viewer
+    // imported does not exist in this package any more, so a `.js` URL here would
+    // be a 404 that only shows up as a blank page at runtime.
     expect(nativeWorkerUrl.endsWith('.mjs')).toBe(true)
+    expect(nativeWorkerUrl.endsWith('.js')).toBe(false)
   })
 
-  it('publishes the worker URL to the native runtime on first init', () => {
+  it('publishes the worker URL to the runtime on first init', () => {
     initializeNativePdfWorker()
 
-    expect(nativeGlobalWorkerOptions.workerSrc).toBe(nativeWorkerUrl)
+    expect(GlobalWorkerOptions.workerSrc).toBe(nativeWorkerUrl)
   })
 
   it('is idempotent', () => {
     initializeNativePdfWorker()
-    const afterFirst = nativeGlobalWorkerOptions.workerSrc
+    const afterFirst = GlobalWorkerOptions.workerSrc
 
     initializeNativePdfWorker()
     initializeNativePdfWorker()
 
-    expect(nativeGlobalWorkerOptions.workerSrc).toBe(afterFirst)
+    expect(GlobalWorkerOptions.workerSrc).toBe(afterFirst)
   })
 
   it('re-applies the URL after a reset, proving the guard is the only gate', () => {
     initializeNativePdfWorker()
     resetNativePdfWorkerForTests()
-    nativeGlobalWorkerOptions.workerSrc = 'blob:tampered'
+    GlobalWorkerOptions.workerSrc = 'blob:tampered'
 
     initializeNativePdfWorker()
 
-    expect(nativeGlobalWorkerOptions.workerSrc).toBe(nativeWorkerUrl)
-  })
-})
-
-describe('dual-runtime isolation', () => {
-  const LEGACY_SENTINEL = 'blob:legacy-viewer-worker'
-
-  beforeEach(() => {
-    resetNativePdfWorkerForTests()
+    expect(GlobalWorkerOptions.workerSrc).toBe(nativeWorkerUrl)
   })
 
-  afterEach(() => {
-    resetNativePdfWorkerForTests()
-  })
-
-  it('resolves the two runtimes to different GlobalWorkerOptions instances', () => {
-    expect(nativeGlobalWorkerOptions).not.toBe(legacyGlobalWorkerOptions)
-  })
-
-  it('resolves the two runtimes to different pdfjs versions', async () => {
-    const legacy = (await import('pdfjs-dist')) as unknown as { version: string }
-    const native = (await import('pdfjs-6')) as unknown as { version: string }
-
-    expect(legacy.version).not.toBe(native.version)
-    expect(native.version).toBe('6.4.299')
-  })
-
-  it('leaves the legacy worker configuration untouched', () => {
-    legacyGlobalWorkerOptions.workerSrc = LEGACY_SENTINEL
-
+  it('never uses workerPort, so the worker stays lazily created by PDF.js', () => {
     initializeNativePdfWorker()
 
-    expect(legacyGlobalWorkerOptions.workerSrc).toBe(LEGACY_SENTINEL)
-    expect(nativeGlobalWorkerOptions.workerSrc).toBe(nativeWorkerUrl)
-  })
-
-  it('never shares a worker port between the runtimes', () => {
-    legacyGlobalWorkerOptions.workerSrc = LEGACY_SENTINEL
-
-    initializeNativePdfWorker()
-
-    // workerPort belongs to whichever runtime owns it; the engine must leave the
-    // legacy one alone so a shared port can never be handed across versions.
-    expect(legacyGlobalWorkerOptions.workerPort ?? null).toBeNull()
-    expect(nativeGlobalWorkerOptions.workerPort ?? null).toBeNull()
+    // `workerPort` would move the worker's whole lifetime into our code and stop
+    // PDF.js reusing its global worker. `workerSrc` is what makes "one worker per
+    // app" a property of PDF.js rather than something we have to maintain.
+    expect(GlobalWorkerOptions.workerPort ?? null).toBeNull()
   })
 })

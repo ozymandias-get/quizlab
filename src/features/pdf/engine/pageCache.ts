@@ -14,7 +14,7 @@
  * keeps exactly one entry alive in practice, and adding eviction policy before
  * the native viewer exists would be speculation.
  */
-import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-6'
+import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
 
 /** The document operations this cache needs. Narrow on purpose. */
 export type PageSource = Pick<PDFDocumentProxy, 'getPage'>

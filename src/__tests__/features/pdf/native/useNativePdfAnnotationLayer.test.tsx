@@ -2,7 +2,7 @@
  * The native annotation layer's lifecycle, and the links PDF.js generates inside it.
  *
  * The real engine, the real `useNativePdfAnnotationLayer` and the real
- * `nativePdfLinkService` run here; only the `pdfjs-6` boundary is faked. The
+ * `nativePdfLinkService` run here; only the `pdfjs-dist` boundary is faked. The
  * `AnnotationLayer` double reproduces `LinkAnnotationElement.render()` from
  * `build/pdf.mjs` closely enough that a test clicks the anchor PDF.js would have
  * produced — the link service does its own navigation, and the page moves because the
@@ -39,7 +39,7 @@ const mocks = vi.hoisted(() => ({
   openExternal: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   const { FakeAnnotationLayer: AnnotationDouble } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer: TextDouble } = await import('./nativeTextLayerDouble')
   return {

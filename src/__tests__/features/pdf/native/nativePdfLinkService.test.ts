@@ -25,7 +25,7 @@ import {
   NATIVE_EXTERNAL_LINK_PROTOCOLS
 } from '@features/pdf/native/nativePdfLinkService'
 
-import type { PDFDocumentProxy } from 'pdfjs-6'
+import type { PDFDocumentProxy } from 'pdfjs-dist'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

@@ -1,5 +1,5 @@
 /**
- * The `pdfjs-6` `TextLayer` test double.
+ * The `pdfjs-dist` `TextLayer` test double.
  *
  * It lives in its own module — importing nothing — because a `vi.mock` factory is
  * hoisted above the test file's imports, so it cannot close over a binding that

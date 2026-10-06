@@ -5,10 +5,9 @@
  */
 import { PDF_RESIZE_REFIT_DEBOUNCE_MS } from '@features/pdf/constants/pdfZoom'
 
-import { SpecialZoomLevel } from '@react-pdf-viewer/core'
 import { type RefObject, useCallback, useEffect, useRef } from 'react'
 
-type ZoomTo = (scale: number | SpecialZoomLevel) => void
+type ZoomTo = (scale: number) => void
 
 const RESIZE_OBSERVER_COOLDOWN_MS = 300
 const NAVIGATION_REFIT_LOCK_MS = 500
@@ -16,11 +15,15 @@ const NAVIGATION_REFIT_LOCK_MS = 500
 /**
  * Scale to refit to when the container has settled but no fit scale is known.
  *
- * The default is the legacy viewer's `SpecialZoomLevel.PageWidth`, so every
- * existing call site behaves exactly as before. The native canvas viewer passes
- * a numeric fallback instead: it has no `SpecialZoomLevel` to fall back to,
- * because its fit scale is a computed number rather than a viewer keyword.
+ * Only reachable if the container resizes before the first page has been measured
+ * — behind the loading state in practice. It used to be `@react-pdf-viewer`'s
+ * `SpecialZoomLevel.PageWidth` keyword, which is a viewer API rather than a scale:
+ * only RPV's own `zoomTo` could interpret it. With one numeric runtime there is
+ * exactly one number this can mean, and the caller passes its own so the value is
+ * never a guess.
  */
+const DEFAULT_FALLBACK_SCALE = 1
+
 export function usePdfResizeRefit(
   containerRef: RefObject<HTMLElement | null>,
   zoomTo: ZoomTo,
@@ -28,7 +31,7 @@ export function usePdfResizeRefit(
   isPanelResizing: boolean,
   fitScale?: number | null,
   lastNavigationTimeRef?: { readonly current: number },
-  fallbackScale: number | SpecialZoomLevel = SpecialZoomLevel.PageWidth
+  fallbackScale: number = DEFAULT_FALLBACK_SCALE
 ) {
   const zoomToRef = useRef(zoomTo)
   const enabledRef = useRef(enabled)

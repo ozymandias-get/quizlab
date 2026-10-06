@@ -19,8 +19,8 @@
  * nor touches React, so the viewer phase decides whether a page is a real
  * `<canvas>` in the document or an offscreen buffer.
  */
-import type { PDFPageProxy, RenderTask } from 'pdfjs-6'
-import { RenderingCancelledException } from 'pdfjs-6'
+import type { PDFPageProxy, RenderTask } from 'pdfjs-dist'
+import { RenderingCancelledException } from 'pdfjs-dist'
 
 export interface RenderPageOptions {
   scale: number

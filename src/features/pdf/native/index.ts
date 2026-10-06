@@ -1,27 +1,24 @@
 /**
- * Native PDF viewer — public surface of the native boundary.
+ * PDF viewer — public surface of the viewer boundary.
  *
  * ## Where this boundary is
  *
  * Everything that imports `@features/pdf/engine` lives under
- * `features/pdf/native/` plus the single presentational component
- * `features/pdf/ui/components/NativePdfViewer.tsx`. That is deliberate: the
- * engine is the first thing the migration replaces, and keeping its consumers
- * in one directory makes "who depends on pdfjs 6" answerable by reading one
- * folder. The legacy viewer sources (`PdfViewerElement`, `PdfViewerDocument`'s
- * legacy branch, `PdfWorkerHost`, `usePdfPlugins`, the capture and text
- * pipelines) stay untouched and keep resolving `pdfjs-dist@3.11.174`.
+ * `features/pdf/native/`, plus `features/pdf/lib/renderPageToImage.ts` (which
+ * borrows a capture document from the engine's capture adapter) and
+ * `features/pdf/ui/components/NativePdfViewer.tsx`. That is deliberate: the engine
+ * is the only place allowed to import PDF.js, and keeping its consumers in one
+ * directory makes "who depends on pdfjs" answerable by reading one folder.
  *
- * The dependency direction is `UI → engine → pdfjs-6`; the reverse is forbidden
- * and is asserted by `src/__tests__/architecture/pdfjs-dual-runtime.test.ts`.
+ * The dependency direction is `UI → engine → pdfjs-dist`; the reverse is forbidden
+ * and is asserted by `src/__tests__/architecture/pdfjs-single-runtime.test.ts`.
  *
- * `nativePdfDom.ts` is the one exception to "pure hooks": it is the native
- * markup's contract, kept here so the boundary owns what it emits and the text
+ * `nativePdfDom.ts` is the one exception to "pure hooks": it is the viewer's
+ * markup contract, kept here so the boundary owns what it emits and the text
  * extractors only have to ask. It imports nothing.
  *
  * ## What is inside
  *
- *  - `nativePdfViewerFlag` — the build-time opt-in, default off
  *  - `nativePdfBounds` — the 1-based page clamp and the numeric zoom clamp
  *  - `nativePdfDom` — the native markup contract, for the text extractors
  *  - `useNativeCoalescedScale` — the one-zoom-per-frame channel
@@ -35,18 +32,15 @@
  *  - `useNativePdfAnnotationLayer` — one page, one PDF.js `AnnotationLayer`
  *  - `nativePdfSearch` — literal matching over the page's runs, and match geometry
  *  - `useNativePdfSearch` — keyword → highlight rectangles in the overlay
- *  - `nativePdfCaptureDocument` — the capture handle adapter + the temporary
- *    pdfjs-6 load capture falls back to when nothing is mounted
  *  - `useNativePdfCaptureDocument` — publishes the mounted document to capture
  *  - `useNativePdfController` — the composition and the toolbar contract
  *  - `nativeZoomControls` — render-prop zoom components for the shared toolbar
+ *
+ * The capture *adapter* is not here: it is `engine/captureDocument`, because
+ * `lib/renderPageToImage.ts` needs it too and only the engine may import PDF.js.
+ * It is re-exported below for the viewer's own use.
  */
 export { clampPdfPage, clampPdfScale } from './nativePdfBounds'
-export {
-  createNativeCaptureHandle,
-  loadTemporaryCaptureDocument,
-  type TemporaryCaptureDocument
-} from './nativePdfCaptureDocument'
 export {
   findNativeAnnotationLayer,
   findNativeAnnotationLayerForPage,
@@ -70,11 +64,6 @@ export {
   nativeSearchLayerSelectorForPage,
   nativeTextLayerSelectorForPage
 } from './nativePdfDom'
-export {
-  isNativePdfViewerEnabled,
-  NATIVE_PDF_VIEWER_ENV_KEY,
-  readNativePdfViewerFlag
-} from './nativePdfViewerFlag'
 export {
   createNativeZoomControls,
   type NativeZoomControls,
@@ -102,3 +91,8 @@ export { type NativePdfRenderHandle, useNativePdfRender } from './useNativePdfRe
 export { type NativePdfScaleHandle, useNativePdfScaleState } from './useNativePdfScaleState'
 export { type NativePdfSearchHandle, useNativePdfSearch } from './useNativePdfSearch'
 export { type NativePdfTextLayerHandle, useNativePdfTextLayer } from './useNativePdfTextLayer'
+export {
+  createNativeCaptureHandle,
+  loadTemporaryCaptureDocument,
+  type TemporaryCaptureDocument
+} from '@features/pdf/engine/captureDocument'

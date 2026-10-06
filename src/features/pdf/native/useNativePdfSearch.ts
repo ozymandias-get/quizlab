@@ -3,27 +3,25 @@
  *
  * ## The contract it satisfies
  *
- * The legacy viewer is driven through `@react-pdf-viewer/search`, and the toolbar
- * calls the same two functions on both renderers:
+ * The toolbar calls exactly two functions:
  *
  * ```
  * highlight(keyword)   → highlight every match on the rendered page
  * clearHighlights()    → drop the query and empty the overlay
  * ```
  *
- * Nothing else exists on either path. There is no match count, no next/previous match,
- * no current-match marker and no auto page jump — those are not part of the product, and
- * `PdfSearchBar` does not render them. This hook reproduces exactly that surface, so the
- * search bar itself, `usePdfSearchStore`, `Ctrl+F` and `Escape` need no branch and the
- * UI cannot tell the two renderers apart.
+ * Nothing else exists. There is no match count, no next/previous match, no
+ * current-match marker and no auto page jump — those are not part of the product,
+ * and `PdfSearchBar` does not render them. This hook implements exactly that
+ * surface, so the search bar itself, `usePdfSearchStore`, `Ctrl+F` and `Escape`
+ * need no renderer branch.
  *
  * ## Scope: the rendered page
  *
- * The legacy viewer runs `ViewMode.SinglePage`, so the plugin only ever highlights the
- * current page — and it keeps the keyword, so the next page's text layer is highlighted
- * as soon as it renders. Same here: one page at a time, the query kept across page
- * changes, the rectangles redrawn from the new page's runs. There is deliberately no
- * whole-document index: it would need every page's text extracted in the background to
+ * One page at a time — `ViewMode.SinglePage` parity with what the viewer did —
+ * and the keyword is kept, so the next page's text layer is highlighted as soon as
+ * it renders. There is deliberately no whole-document index: it would need every
+ * page's text extracted in the background to
  * produce nothing the single-page viewer can show.
  *
  * ## Synchronous, and that is the point
@@ -63,10 +61,10 @@
  * ## Reduced motion
  *
  * `window.matchMedia('(prefers-reduced-motion: reduce)')` is read once per search run
- * rather than cached in a module-level variable. The legacy renderer caches it because it
- * runs once per highlight area and a module-level cache there is a stale-read hazard this
- * phase must not duplicate; a search run measures it a handful of times per query, so a
- * cache would buy nothing and `usePdfPlugins.ts` stays at zero diff.
+ * rather than cached in a module-level variable. A search run measures it a handful
+ * of times per query, so a module-level cache would buy nothing and would be a
+ * stale-read hazard: the user can change the setting between two queries, and a
+ * cached answer would silently keep the old one.
  */
 import { type RefObject, useCallback, useEffect, useState } from 'react'
 

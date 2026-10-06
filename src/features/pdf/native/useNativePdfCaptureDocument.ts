@@ -36,12 +36,14 @@
  * `FocusOverlay` both mounted on the same file, a viewer unmounting cannot evict
  * its live sibling's document.
  *
- * ## Inert while the flag is off
+ * ## Withdrawal is always token-scoped
  *
- * Every early return happens **before** any withdrawal. The legacy viewer
- * registers its own proxy through the frozen `PdfViewerElement`, and an inert
- * native hook that cleared the slot on mount would erase it.
+ * Every early return happens **before** any withdrawal, so a hook that has nothing
+ * to publish can never clear the slot. With `LeftPanel` and the `FocusOverlay` both
+ * mounted on the same file, a viewer unmounting cannot evict its live sibling's
+ * document.
  */
+import { createNativeCaptureHandle } from '@features/pdf/engine/captureDocument'
 import {
   type ActivePdfDocumentToken,
   clearActivePdfDocument,
@@ -51,8 +53,6 @@ import type { NativePdfDocumentStatus } from '@features/pdf/native/useNativePdfD
 import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEngine'
 
 import { useEffect, useRef } from 'react'
-
-import { createNativeCaptureHandle } from './nativePdfCaptureDocument'
 
 interface UseNativePdfCaptureDocumentOptions {
   enabled: boolean

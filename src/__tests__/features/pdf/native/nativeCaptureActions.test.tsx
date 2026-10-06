@@ -17,7 +17,7 @@
  * `PdfViewerDocument` → `usePdfViewerState` → `usePdfCaptureActions` →
  * `renderPageToImageFallback` → `activePdfDocumentRegistry` → native
  * `PdfDocumentManager` chain runs on the real PDF.js text-layer markup and the real
- * native canvas. Only the leaves are: `pdfjs-6`, the canvas 2D backend jsdom does
+ * native canvas. Only the leaves are: `pdfjs-dist`, the canvas 2D backend jsdom does
  * not ship, object URLs, and the AI queue itself — which is what is asserted.
  */
 import PdfViewerDocument from '@features/pdf/ui/components/PdfViewerDocument'
@@ -46,7 +46,7 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn()
 }))
 
-vi.mock('pdfjs-6', async () => {
+vi.mock('pdfjs-dist', async () => {
   // Lazily imported: a `vi.mock` factory is hoisted above this file's static
   // imports, so the doubles live in dependency-free modules of their own.
   const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
@@ -521,33 +521,5 @@ describe('native viewer — context menu', () => {
     // One menu component, one hook, one set of items — the renderer switch is in
     // `PdfViewerDocument`, and it only chooses which capture backend they call.
     expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
-  })
-})
-
-describe('legacy viewer — capture unchanged', () => {
-  it('keeps every quick-bar action live and never starts the native engine', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'false')
-    renderDocument()
-
-    openAiActions()
-
-    expect(screen.getByTestId('pdf-quick-text-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-image-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-area-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-reload')).toBeEnabled()
-    expect(mocks.getDocument).not.toHaveBeenCalled()
-    expect(mocks.initializeNativePdfWorker).not.toHaveBeenCalled()
-    expect(document.querySelector('[data-native-pdf-canvas]')).toBe(null)
-  })
-
-  it('opens the same context menu on the legacy canvas', async () => {
-    vi.stubEnv('VITE_NATIVE_PDF_VIEWER', 'false')
-    renderDocument()
-
-    openContextMenu()
-
-    expect(screen.getAllByRole('menuitem')).toHaveLength(4)
-    fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
-    expect(mocks.startScreenshot).toHaveBeenCalledWith({ page: 1, captureKind: 'selection' })
   })
 })
