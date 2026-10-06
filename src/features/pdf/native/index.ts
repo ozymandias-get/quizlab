@@ -31,19 +31,27 @@
  *  - `useNativePdfScaleState` — numeric scale state, fit on document identity
  *  - `useNativePdfRender` — one page, one canvas, supersede-cancel
  *  - `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`, supersede-cancel
+ *  - `nativePdfLinkService` — PDF.js's link-service surface over the native page state
+ *  - `useNativePdfAnnotationLayer` — one page, one PDF.js `AnnotationLayer`
  *  - `useNativePdfController` — the composition and the toolbar contract
  *  - `nativeZoomControls` — render-prop zoom components for the shared toolbar
  */
 export { clampPdfPage, clampPdfScale } from './nativePdfBounds'
 export {
+  findNativeAnnotationLayer,
+  findNativeAnnotationLayerForPage,
   findNativePageElement,
   findNativeTextLayer,
   findNativeTextLayerForPage,
   isInsideNativeTextLayer,
+  NATIVE_ANNOTATION_LAYER_SELECTOR,
+  NATIVE_ANNOTATION_LINK_SELECTOR,
   NATIVE_CANVAS_SELECTOR,
+  NATIVE_INTERNAL_LINK_SELECTOR,
   NATIVE_PAGE_SELECTOR,
   NATIVE_TEXT_LAYER_SELECTOR,
   NATIVE_TEXT_SPAN_SELECTOR,
+  nativeAnnotationLayerSelectorForPage,
   nativePageSelector,
   nativeTextLayerSelectorForPage
 } from './nativePdfDom'
@@ -58,6 +66,10 @@ export {
   useNativeZoomControls
 } from './nativeZoomControls'
 export { type NumericZoomTo, useNativeCoalescedScale } from './useNativeCoalescedScale'
+export {
+  type NativePdfAnnotationLayerHandle,
+  useNativePdfAnnotationLayer
+} from './useNativePdfAnnotationLayer'
 export { type NativePdfController, useNativePdfController } from './useNativePdfController'
 export {
   type NativePdfDocumentStatus,

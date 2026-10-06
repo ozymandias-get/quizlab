@@ -1,0 +1,147 @@
+/**
+ * Layout CSS for the native PDF.js annotation layer.
+ *
+ * ## Why this file exists at all
+ *
+ * PDF.js's `AnnotationLayer` creates one `<section>` per annotation and positions it
+ * with inline percentages derived from the viewport, and it builds the widget and link
+ * markup that goes inside. Nothing about that geometry works without a stylesheet: with
+ * no `position: absolute` on the section the annotations stack in the top-left corner,
+ * and with `pointer-events: none` on the layer but no `auto` on the section no link is
+ * clickable at all. So the contract is real, not decorative.
+ *
+ * These rules are transcribed from PDF.js 6's own `web/pdf_viewer.css`
+ * (`.annotationLayer`), reduced to what a display-only annotation layer needs. The
+ * AcroForm widget chrome, the comment-button rules, the annotation *editor* layer and
+ * the free-text/highlight editor styles are omitted because those features are not
+ * migrated in this phase.
+ *
+ * ## Scope
+ *
+ * Every selector is keyed on `data-native-pdf-annotation-layer` (or on the page box
+ * that owns `--total-scale-factor`), attributes only the native viewer emits. Nothing
+ * here can match the legacy `@react-pdf-viewer` markup, no `rpv-*` name is reused, and
+ * the whole stylesheet is imported by the native viewer component for its side effect,
+ * so it ships in the viewer chunk rather than the global sheet.
+ *
+ * `src/shared/styles/**` is deliberately untouched — this is a separate rendering
+ * surface, not a restyle of the legacy one.
+ *
+ * ## Layer order
+ *
+ * PDF.js 6's `LAYERS_ORDER` (`web/pdf_viewer.mjs`) numbers a page's layers
+ * `canvasWrapper` 0, `textLayer` 1, `annotationLayer` 2. The native page box lists its
+ * children in the same order and this file gives the annotation layer the matching
+ * `z-index`, so the annotation layer sits above the text layer: a link is clickable
+ * where it is, and everywhere the layer has no section it is transparent to the pointer
+ * and the text layer underneath remains the selection surface.
+ */
+
+/* `--total-scale-factor` is set inline on the page container by the native viewer, and
+   `--scale-round-x/y` are what PDF.js's `setLayerDimensions` rounds the layer's box
+   against. Both custom properties have to resolve on the element whose width/height
+   PDF.js writes. */
+
+[data-native-pdf-annotation-layer] {
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Width and height are NOT set here: `setLayerDimensions` writes them inline from the
+     viewport, so declaring them here would either lose or fight that. */
+  transform-origin: 0 0;
+  /* The layer itself is inert. Only its annotations take the pointer, which is what
+     keeps text selection working on the canvas and the text layer beneath it. */
+  pointer-events: none;
+  /* Above the text layer (z-index 0), matching PDF.js's layer order. */
+  z-index: 2;
+}
+
+/* A `noRotate` annotation on a rotated page: PDF.js marks the container, and the
+   rotation is undone so the annotation stays upright, exactly as in its own stylesheet. */
+
+[data-native-pdf-annotation-layer][data-main-rotation='90'] .norotate {
+  transform: rotate(270deg) translateX(-100%);
+}
+
+[data-native-pdf-annotation-layer][data-main-rotation='180'] .norotate {
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+
+[data-native-pdf-annotation-layer][data-main-rotation='270'] .norotate {
+  transform: rotate(90deg) translateY(-100%);
+}
+
+/* One positioned box per annotation. `pointer-events: auto` is what makes a link
+   clickable; `user-select: none` is what keeps the section from swallowing a selection
+   the user started on the text beside it. */
+
+[data-native-pdf-annotation-layer] section {
+  position: absolute;
+  text-align: initial;
+  pointer-events: auto;
+  box-sizing: border-box;
+  transform-origin: 0 0;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow-wrap: break-word;
+}
+
+/* An annotation whose text is only available as PDF text: PDF.js positions a zero-sized
+   inline box here so it can be positioned but never drawn. */
+
+[data-native-pdf-annotation-layer] .overlaidText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  display: inline-block;
+  overflow: hidden;
+}
+
+/* Link annotations. The anchor fills its annotation box, and the hover tint is
+   PDF.js's own affordance — it is the only cue that a rectangle is a link, since a PDF
+   link has no painted pixels of its own. */
+
+[data-native-pdf-annotation-layer] :is(.linkAnnotation, .buttonWidgetAnnotation.pushButton) > a {
+  position: absolute;
+  font-size: 1em;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* QuizLab's own addition, not PDF.js's: an anchor with an `href` is not reliably given
+     a pointer cursor by every engine, and a link is otherwise indistinguishable from a
+     selection box until it is hovered. */
+  cursor: pointer;
+}
+
+[data-native-pdf-annotation-layer]
+  :is(.linkAnnotation, .buttonWidgetAnnotation.pushButton):not(.hasBorder)
+  > a:hover {
+  opacity: 0.2;
+  background-color: rgb(255 255 0);
+}
+
+[data-native-pdf-annotation-layer] .linkAnnotation.hasBorder:hover {
+  background-color: rgb(255 255 0 / 0.2);
+}
+
+/* An annotation PDF.js marked as inert (an unsafe external target) still renders its
+   box, so it is stated rather than left to inheritance. */
+
+[data-native-pdf-annotation-layer] [aria-disabled='true'] {
+  cursor: default;
+}
+
+/* Forced-colours mode: the hover tint above is a colour, and so is the only link
+   affordance. PDF.js's own rule, reduced to the link case. */
+
+@media screen and (forced-colors: active) {
+  [data-native-pdf-annotation-layer] .linkAnnotation {
+    outline: 1.5px solid LinkText;
+  }
+}

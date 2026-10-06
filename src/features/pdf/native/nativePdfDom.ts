@@ -20,17 +20,35 @@
  * ```
  * native page container
  * ├── canvas                              (data-native-pdf-canvas)
- * └── text layer                          (data-native-pdf-text-layer)
+ * ├── text layer                          (data-native-pdf-text-layer)
+ * └── annotation layer                    (data-native-pdf-annotation-layer)
  * ```
+ *
+ * That order is PDF.js 6's own: `LAYERS_ORDER` in `web/pdf_viewer.mjs` numbers the
+ * page's layers `canvasWrapper` 0, `textLayer` 1, `annotationLayer` 2, and
+ * `PDFPageView#addLayer` inserts them in exactly that order. The annotation layer is
+ * therefore above the text layer, which is what makes a link clickable while the
+ * text underneath stays the selection surface.
  *
  * `data-native-pdf-page` is the page's identity and lives on the page container
  * only — the canvas and the text layer are addressed by their own attributes, so
  * "the page element" is never ambiguous.
  *
- * `data-native-pdf-text-page` on the text layer carries the same identity, which
- * is what makes "the text of page N" a single attribute selector instead of a
- * structural walk. It also gives the races a testable outcome: when a superseded
- * layer is late, the DOM still names the page that is actually on screen.
+ * `data-native-pdf-text-page` on the text layer and
+ * `data-native-pdf-annotation-page` on the annotation layer carry the same identity,
+ * which is what makes "the text of page N" or "the links of page N" a single
+ * attribute selector instead of a structural walk. It also gives the races a
+ * testable outcome: when a superseded layer is late, the DOM still names the page
+ * that is actually on screen.
+ *
+ * ## The annotation layer's own vocabulary
+ *
+ * Inside the layer the markup is PDF.js's, not QuizLab's: `section[data-annotation-id]`
+ * per annotation, `.linkAnnotation` for links, and `data-internal-link` on the
+ * container of a link whose target is *inside* the document. Those three are the
+ * installed library's contract rather than a structural detail of our CSS, so the
+ * link selectors below are written against them — while the layer itself stays
+ * reachable through our own attribute.
  *
  * ## The span selector, and why it is not just `span`
  *
@@ -67,6 +85,27 @@ export const NATIVE_TEXT_LAYER_SELECTOR = '[data-native-pdf-text-layer]'
  */
 export const NATIVE_TEXT_SPAN_SELECTOR = `${NATIVE_TEXT_LAYER_SELECTOR} span[role="presentation"]`
 
+/** The PDF.js annotation layer mounted over the canvas and the text layer. */
+export const NATIVE_ANNOTATION_LAYER_SELECTOR = '[data-native-pdf-annotation-layer]'
+
+/**
+ * Every anchor PDF.js generated inside the annotation layer.
+ *
+ * PDF.js builds one `<section data-annotation-id>` per annotation and puts a single
+ * `<a>` inside the link ones, so this is "the links on this page" without depending
+ * on the class names our own stylesheet happens to use.
+ */
+export const NATIVE_ANNOTATION_LINK_SELECTOR = `${NATIVE_ANNOTATION_LAYER_SELECTOR} a`
+
+/**
+ * Only the anchors PDF.js marked as pointing *inside* the document.
+ *
+ * `LinkAnnotationElement#_bindLink` sets `data-internal-link` on the container only
+ * when the destination resolves to something the viewer must handle itself, which is
+ * exactly the internal-vs-external distinction a test needs.
+ */
+export const NATIVE_INTERNAL_LINK_SELECTOR = `${NATIVE_ANNOTATION_LAYER_SELECTOR} [data-internal-link] a`
+
 /** The page selector narrowed to one page (1-based). */
 export function nativePageSelector(pageNumber: number): string {
   return `[data-native-pdf-page="${pageNumber}"]`
@@ -75,6 +114,11 @@ export function nativePageSelector(pageNumber: number): string {
 /** The text-layer selector narrowed to one page (1-based). */
 export function nativeTextLayerSelectorForPage(pageNumber: number): string {
   return `${NATIVE_TEXT_LAYER_SELECTOR}[data-native-pdf-text-page="${pageNumber}"]`
+}
+
+/** The annotation-layer selector narrowed to one page (1-based). */
+export function nativeAnnotationLayerSelectorForPage(pageNumber: number): string {
+  return `${NATIVE_ANNOTATION_LAYER_SELECTOR}[data-native-pdf-annotation-page="${pageNumber}"]`
 }
 
 /** The page element for `pageNumber` (1-based), or `null`. */
@@ -93,6 +137,19 @@ export function findNativeTextLayerForPage(
 /** The text layer under `root`, whatever page it holds. `null` on the legacy path. */
 export function findNativeTextLayer(root: ParentNode): HTMLElement | null {
   return root.querySelector<HTMLElement>(NATIVE_TEXT_LAYER_SELECTOR)
+}
+
+/** The annotation layer under `root`, whatever page it holds. `null` on the legacy path. */
+export function findNativeAnnotationLayer(root: ParentNode): HTMLElement | null {
+  return root.querySelector<HTMLElement>(NATIVE_ANNOTATION_LAYER_SELECTOR)
+}
+
+/** The annotation layer for `pageNumber` (1-based), or `null`. */
+export function findNativeAnnotationLayerForPage(
+  root: ParentNode,
+  pageNumber: number
+): HTMLElement | null {
+  return root.querySelector<HTMLElement>(nativeAnnotationLayerSelectorForPage(pageNumber))
 }
 
 /**
