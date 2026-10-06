@@ -48,9 +48,6 @@
  *
  * ## What is deliberately not here
  *
- * `usePdfViewerZoomIpc` (Electron context-menu zoom) is not wired: it hard-codes
- * `SpecialZoomLevel.PageWidth` as its reset target and belongs with the
- * native-viewer work that replaces the legacy context menu.
  * `usePdfContextMenu` itself is renderer-agnostic — it listens on the shared
  * container and renders one `ContextMenu` for both paths — and its capture items
  * reach the real backend now that the document is published to the registry, so
@@ -88,8 +85,10 @@ import { useFitScale, useLastNavigationTime } from '@features/pdf/ui/components/
 import {
   usePdfCtrlWheelZoom,
   usePdfResizeRefit,
+  usePdfViewerZoomIpc,
   usePdfWheelNavigation
 } from '@features/pdf/ui/hooks'
+import { usePdfZoomShortcuts } from '@features/pdf/viewport/usePdfZoomShortcuts'
 
 import { type RefObject, useCallback, useMemo } from 'react'
 
@@ -235,6 +234,21 @@ export function useNativePdfController({
 
   usePdfCtrlWheelZoom(containerRef, zoomTo, scale, isReady, isPanMode)
   usePdfWheelNavigation(containerRef, goToNextPage, goToPreviousPage, isReady && !isPanMode)
+
+  // The Electron PDF context menu's Zoom In / Zoom Out / Reset Zoom items. The
+  // hook is numeric and imports no viewer package, so the same three actions
+  // reach this controller's own rAF-coalesced channel, and `reset` lands on the
+  // same numeric fit scale `useNativePdfScaleState#fit` applies. Declared here
+  // rather than in the shared state hook so the subscription lives and dies with
+  // the native viewer: while `enabled` is false it is inert, and once the native
+  // viewer is the only renderer it is the only such subscription in the app.
+  usePdfViewerZoomIpc(zoomTo, scale, fitScale, isReady)
+
+  // RPV's `zoomPlugin({ enableShortcuts: true })` owned Ctrl/Cmd + `-` / `=` / `0`
+  // inside the viewer slot; deleting the plugin deletes the binding, so the native
+  // viewer owns it. All three actions go through the same coalesced channel as
+  // every other zoom source.
+  usePdfZoomShortcuts({ zoomIn, zoomOut, fit, enabled: isReady })
 
   // `usePdfResizeRefit` is shared with the legacy viewer, whose scale domain
   // includes `@react-pdf-viewer`'s `SpecialZoomLevel` keywords — which the native

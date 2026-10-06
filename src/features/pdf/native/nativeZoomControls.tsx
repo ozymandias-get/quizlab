@@ -28,6 +28,8 @@ import type {
   ZoomComponent
 } from '@features/pdf/ui/components/PdfZoomControls'
 
+import { isMacPlatform } from '@shared/lib/shortcutUtils'
+
 import { useMemo } from 'react'
 
 interface NativeZoomControlsSource {
@@ -47,8 +49,17 @@ export function createNativeZoomControls({
   zoomIn,
   zoomOut
 }: NativeZoomControlsSource): NativeZoomControls {
-  const ZoomIn: ZoomComponent = ({ children }) => children({ onClick: zoomIn, scale })
-  const ZoomOut: ZoomComponent = ({ children }) => children({ onClick: zoomOut, scale })
+  // RPV stamped `aria-keyshortcuts` on its ZoomIn/ZoomOut buttons
+  // (`Meta+=` on macOS, `Control+=` elsewhere); the native path keeps the same
+  // representation so assistive technology advertises the same shortcut the
+  // viewer actually handles in `usePdfZoomShortcuts`.
+  const isMac = isMacPlatform()
+  const modifier = isMac ? 'Meta' : 'Control'
+
+  const ZoomIn: ZoomComponent = ({ children }) =>
+    children({ onClick: zoomIn, scale, ariaKeyShortcuts: `${modifier}+=` })
+  const ZoomOut: ZoomComponent = ({ children }) =>
+    children({ onClick: zoomOut, scale, ariaKeyShortcuts: `${modifier}+-` })
   const CurrentScale: CurrentScaleComponent = ({ children }) => children({ scale })
 
   return { ZoomIn, ZoomOut, CurrentScale }

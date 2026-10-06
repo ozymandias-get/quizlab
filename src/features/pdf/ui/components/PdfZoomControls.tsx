@@ -9,6 +9,12 @@ import { useTranslation } from 'react-i18next'
 interface RenderChildProps {
   onClick: () => void
   scale?: number
+  /**
+   * `aria-keyshortcuts` value for this control, when the renderer owns a keyboard
+   * shortcut for it. Optional so a control that has none simply omits the
+   * attribute rather than declaring an empty shortcut.
+   */
+  ariaKeyShortcuts?: string
 }
 
 export type ZoomComponent = ComponentType<{
@@ -40,6 +46,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                 onClick={props.onClick}
                 className="text-muted-foreground"
                 aria-label={t('zoom_out')}
+                aria-keyshortcuts={props.ariaKeyShortcuts}
               >
                 <ZoomOutIcon className="size-3.5" />
               </IconButton>
@@ -92,6 +99,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                 onClick={props.onClick}
                 className="text-muted-foreground"
                 aria-label={t('zoom_in')}
+                aria-keyshortcuts={props.ariaKeyShortcuts}
               >
                 <ZoomInIcon className="size-3.5" />
               </IconButton>
