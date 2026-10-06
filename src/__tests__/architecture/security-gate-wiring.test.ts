@@ -155,24 +155,78 @@ describe('security gate: audit uses a checker, not a bare npm audit', () => {
 })
 
 describe('security gate: audit exceptions stay reviewable', () => {
+  type ExceptionEntry = (typeof EXCEPTIONS.exceptions)[number]
+
   it('is a list', () => {
     expect(Array.isArray(EXCEPTIONS.exceptions)).toBe(true)
   })
 
-  it.each(EXCEPTIONS.exceptions.map((entry, index) => [index, entry] as const))(
-    'entry %i documents why, what it accepts, and when it expires',
-    (_index, entry) => {
-      expect(entry.package).toBeTruthy()
-      expect(entry.advisories?.length ?? 0).toBeGreaterThan(0)
-      // The checker matches the installed version against the reviewed one.
-      expect(entry.installed).toMatch(/^\d+\.\d+\.\d+/)
-      // A time-boxed exception is only reviewable if the date is a real date.
-      expect(entry.expires).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  /**
+   * The reviewability contract, as a function so it can be asserted in both
+   * directions.
+   *
+   * This used to be an `it.each(EXCEPTIONS.exceptions…)`, which is exactly the
+   * shape that goes quietly vacuous: when the last exception is removed the
+   * generator yields zero cases, the file stays green, and the rule it was
+   * guarding stops being checked at all. Splitting the rule out means the real
+   * entries are still validated one by one, and — via the negative cases below —
+   * the rule is proven to reject a bad entry whether or not any exist.
+   */
+  const expectReviewable = (entry: ExceptionEntry) => {
+    expect(entry.package).toBeTruthy()
+    expect(entry.advisories?.length ?? 0).toBeGreaterThan(0)
+    // The checker matches the installed version against the reviewed one.
+    expect(entry.installed).toMatch(/^\d+\.\d+\.\d+/)
+    // A time-boxed exception is only reviewable if the date is a real date.
+    expect(entry.expires).toMatch(/^\d{4}-\d{2}-\d{2}$/)
 
-      const reason = Array.isArray(entry.reason) ? entry.reason.join(' ') : (entry.reason ?? '')
-      expect(reason.length).toBeGreaterThan(80)
+    const reason = Array.isArray(entry.reason) ? entry.reason.join(' ') : (entry.reason ?? '')
+    expect(reason.length).toBeGreaterThan(80)
+  }
+
+  it.each(
+    EXCEPTIONS.exceptions.length > 0
+      ? EXCEPTIONS.exceptions.map((entry, index) => [index, entry] as const)
+      : ([['none recorded', EXCEPTIONS.exceptions[0]] as const] as never)
+  )('entry %s documents why, what it accepts, and when it expires', (_label, entry) => {
+    // With no exceptions recorded there is nothing to review, and that is the
+    // correct state for a dependency set with no accepted advisories — the gate
+    // fails on any unaccepted high/critical finding, so an empty list is the
+    // strong position, not a missing test.
+    if (EXCEPTIONS.exceptions.length === 0) return
+    expectReviewable(entry as ExceptionEntry)
+  })
+
+  it('the reviewability contract rejects an entry that is not reviewable', () => {
+    // Proves the rule above actually bites. Without this, the loop over real
+    // entries could be an assertion that accepts anything.
+    const cases: Array<[string, Partial<ExceptionEntry>]> = [
+      ['no package', { advisories: ['CVE-2024-0001'], installed: '1.2.3', expires: '2026-01-01' }],
+      ['no advisory', { package: 'x', installed: '1.2.3', expires: '2026-01-01' }],
+      [
+        'non-semver installed version',
+        { package: 'x', advisories: ['CVE-2024-0001'], installed: 'latest', expires: '2026-01-01' }
+      ],
+      [
+        'unparseable expiry',
+        { package: 'x', advisories: ['CVE-2024-0001'], installed: '1.2.3', expires: 'soon' }
+      ],
+      [
+        'a reason too short to justify anything',
+        {
+          package: 'x',
+          advisories: ['CVE-2024-0001'],
+          installed: '1.2.3',
+          expires: '2026-01-01',
+          reason: 'because'
+        }
+      ]
+    ]
+
+    for (const [label, entry] of cases) {
+      expect(() => expectReviewable(entry as ExceptionEntry), label).toThrow()
     }
-  )
+  })
 
   it('every recorded advisory id is one the checker can find in a real report', () => {
     // The checker extracts ids from advisory urls, so an id that is not in

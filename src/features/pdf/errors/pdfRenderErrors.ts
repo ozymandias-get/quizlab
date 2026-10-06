@@ -19,10 +19,13 @@
  * shared benign-error registry; that is not worth the cross-module coupling for
  * a message that is only noise.
  *
- * The markers below were checked against the pinned `pdfjs-dist@3.11.174` and
- * `@react-pdf-viewer/core@3.12.0` bundles. `enableScripting`-era pdf.js messages
- * that those versions do not contain were removed rather than left to match
- * unrelated errors by accident.
+ * The markers below are PDF.js **engine** signals, not viewer ones, and were
+ * verified against the installed `pdfjs-dist@6.4.299` bundle: it declares
+ * `RenderingCancelledException` and throws both
+ * `Rendering cancelled, page N` and `Cannot use the same canvas during multiple
+ * render() operations`. `enableScripting`-era pdf.js messages that these
+ * versions do not contain were removed rather than left to match unrelated
+ * errors by accident.
  */
 
 import { ensureErrorMessage } from '@shared/lib/errorUtils'

@@ -57,7 +57,12 @@ export function usePdfViewerZoomIpc(
     }
 
     const api = getElectronApi()
-    if (!api) return
+    // The browser/dev fallback ships this as a no-op, and the packaged preload
+    // always provides it. Anything else — a partial API object, a test double, an
+    // older preload paired with a newer renderer — must degrade to "no context-menu
+    // zoom" rather than throw inside a passive effect, which would take the whole
+    // PDF viewer down over a convenience menu item.
+    if (!api || typeof api.onPdfViewerZoom !== 'function') return
     const remove = api.onPdfViewerZoom((action: PdfViewerZoomAction) => {
       if (!enabledRef.current) return
       if (action === 'reset') {

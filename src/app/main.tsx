@@ -7,6 +7,8 @@ if (import.meta.env.DEV) {
 
 import { createBrowserElectronApi } from '@platform/electron/createBrowserElectronApi'
 
+import { installPdfRenderErrorGuard } from '@features/pdf'
+
 import App from '@app/App'
 import { AppProviders } from '@app/providers'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
@@ -50,6 +52,15 @@ async function bootstrap() {
 
   // Surface async/effect errors that React's ErrorBoundary cannot see.
   installGlobalErrorHandlers()
+
+  // Keep PDF.js render-cancellation races out of the console. Registered *after*
+  // `installGlobalErrorHandlers`, which honours `defaultPrevented`, so marking the
+  // event here also suppresses the in-app toast. It is a window listener with no
+  // React or viewer dependency, so it belongs at boot rather than inside a
+  // renderer component: it used to hang off `PdfWorkerHost`, which meant it was
+  // installed lazily, once per mounted viewer, and only for as long as a PDF
+  // panel existed.
+  installPdfRenderErrorGuard()
 
   const savedLang = getStorageItem(STORAGE_KEYS.APP_LANGUAGE)
 

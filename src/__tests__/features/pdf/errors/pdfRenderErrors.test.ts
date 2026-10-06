@@ -6,9 +6,9 @@ import {
 import { describe, expect, it, vi } from 'vitest'
 
 /**
- * The markers are asserted against strings that actually exist in the pinned
- * pdfjs-dist@3.11.174 bundle, so the guard cannot drift into matching unrelated
- * errors after a viewer upgrade.
+ * The markers are asserted against strings the installed PDF.js engine actually
+ * produces, so the guard cannot drift into matching unrelated errors after a
+ * runtime upgrade.
  */
 describe('isIgnorablePdfRenderError', () => {
   it('ignores a cancelled render task by its pdf.js error name', () => {
@@ -34,8 +34,8 @@ describe('isIgnorablePdfRenderError', () => {
   })
 
   it('does not match the same-canvas message without pdf.js wording', () => {
-    // "canvas context is locked" is not a message any pinned pdfjs-dist or
-    // @react-pdf-viewer build produces, so it must not suppress real errors.
+    // "canvas context is locked" is not a message any installed PDF.js build
+    // produces, so it must not suppress real errors.
     expect(isIgnorablePdfRenderError(new Error('canvas context is locked'))).toBe(false)
     expect(isIgnorablePdfRenderError(new Error('render() was canceled'))).toBe(false)
   })

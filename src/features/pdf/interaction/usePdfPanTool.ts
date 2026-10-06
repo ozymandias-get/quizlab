@@ -1,8 +1,7 @@
 /**
  * Pointer-drag panning when `isPanMode` is on: scrolls the nearest scrollable
- * ancestor (e.g. react-pdf-viewer's inner container) or falls back to the
- * viewer's inner container element, whose selector lives in
- * `../lib/pdfViewerDom`.
+ * ancestor (the native viewer's page viewport) or falls back to the viewer's
+ * viewport element, whose selector lives in `../native/nativePdfDom`.
  */
 import { reportSuppressedError } from '@shared/lib/logger'
 

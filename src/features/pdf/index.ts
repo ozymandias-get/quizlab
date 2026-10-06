@@ -49,6 +49,15 @@
  * re-verifying the ESM interop shim on the legacy path.
  */
 
+/**
+ * App-boot renderer guards.
+ *
+ * Exported through the barrel because `app/main.tsx` owns the bootstrap: this is
+ * a window listener with no React or viewer dependency, so installing it per
+ * mounted viewer was the wrong owner — it used to hang off `PdfWorkerHost`, which
+ * meant lazily installed, once per viewer, and only while a PDF panel existed.
+ */
+export { installPdfRenderErrorGuard } from './errors/pdfRenderErrors'
 export { useDriveViewRetirement } from './hooks/useDriveViewRetirement'
 export { usePdfOpenActions } from './hooks/usePdfOpenActions'
 export { usePdfSelection } from './hooks/usePdfSelection'

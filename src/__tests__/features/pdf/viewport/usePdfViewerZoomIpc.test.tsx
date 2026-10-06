@@ -114,4 +114,16 @@ describe('usePdfViewerZoomIpc', () => {
     expect(mocks.onPdfViewerZoom).not.toHaveBeenCalled()
     unmount()
   })
+
+  it('does nothing when the API object has no zoom subscription', () => {
+    // A partial API object must degrade to "no context-menu zoom" rather than
+    // throw inside a passive effect, which would take the viewer down over a
+    // convenience menu item.
+    mocks.getElectronApi.mockReturnValue({})
+
+    const { unmount } = renderHook(() => usePdfViewerZoomIpc(zoomTo, 1, 1, true))
+
+    expect(mocks.onPdfViewerZoom).not.toHaveBeenCalled()
+    unmount()
+  })
 })

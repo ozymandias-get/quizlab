@@ -11,7 +11,7 @@
  * contract: which button starts a drag, that the pointer is captured and
  * released, and that nothing is left behind on unmount.
  */
-import { INNER_CONTAINER_SELECTOR } from '@features/pdf/lib/pdfViewerDom'
+import { NATIVE_SCROLL_SELECTOR } from '@features/pdf/native/nativePdfDom'
 import { usePdfPanTool } from '@features/pdf/interaction/usePdfPanTool'
 
 import { act, renderHook } from '@testing-library/react'
@@ -72,16 +72,17 @@ interface Built {
 }
 
 /**
- * Build an element that the production adapter selector will match, deriving the
- * attribute from `INNER_CONTAINER_SELECTOR` instead of repeating the literal.
+ * Build an element that the production viewport selector will match, deriving the
+ * attribute from `NATIVE_SCROLL_SELECTOR` instead of repeating the literal, so a
+ * rename of the selector cannot leave this test building markup nothing matches.
  */
 function makeInnerContainer(): HTMLElement {
   const el = document.createElement('div')
-  const match = /\[data-testid="([^"]+)"\]/.exec(INNER_CONTAINER_SELECTOR)
-  if (!match) throw new Error(`unexpected adapter selector: ${INNER_CONTAINER_SELECTOR}`)
-  el.setAttribute('data-testid', match[1])
-  if (!el.matches(INNER_CONTAINER_SELECTOR)) {
-    throw new Error(`built element does not match ${INNER_CONTAINER_SELECTOR}`)
+  const match = /^\[([\w-]+)\]$/.exec(NATIVE_SCROLL_SELECTOR)
+  if (!match) throw new Error(`unexpected viewport selector: ${NATIVE_SCROLL_SELECTOR}`)
+  el.setAttribute(match[1], '')
+  if (!el.matches(NATIVE_SCROLL_SELECTOR)) {
+    throw new Error(`built element does not match ${NATIVE_SCROLL_SELECTOR}`)
   }
   return el
 }
@@ -329,7 +330,7 @@ describe('usePdfPanTool', () => {
         pointerDown(leaf)
       })
 
-      expect(root.querySelector(INNER_CONTAINER_SELECTOR)).toBe(inner)
+      expect(root.querySelector(NATIVE_SCROLL_SELECTOR)).toBe(inner)
       expect(host.capture).toHaveBeenCalledTimes(1)
     })
 

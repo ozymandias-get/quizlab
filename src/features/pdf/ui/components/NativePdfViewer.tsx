@@ -152,7 +152,10 @@ function NativePdfViewer({
   }
 
   return (
-    <div className="pdf-canvas-container flex items-start justify-center overflow-auto">
+    <div
+      data-native-pdf-scroll
+      className="pdf-canvas-container flex items-start justify-center overflow-auto"
+    >
       <div data-native-pdf-page={currentPage} style={totalScaleFactorStyle(scale)}>
         <canvas ref={canvasRef} data-native-pdf-canvas className="block shadow-lg" />
         <div

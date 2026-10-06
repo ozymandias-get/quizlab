@@ -49,7 +49,7 @@ describe('pdfPanToolHelpers', () => {
 
   it('getInnerContainerFallback finds data-testid', () => {
     const inner = document.createElement('div')
-    inner.setAttribute('data-testid', 'core__inner-container')
+    inner.setAttribute('data-native-pdf-scroll', '')
     root.appendChild(inner)
     expect(getInnerContainerFallback(root)).toBe(inner)
   })
