@@ -59,11 +59,38 @@ function engineSourceFiles(dir = path.join(repoRoot, 'src/features/pdf/engine'))
 /** Production sources outside the engine that must not reach for the alias. */
 const LEGACY_VIEWER_SOURCES = [
   'src/features/pdf/ui/components/PdfViewerElement.tsx',
+  'src/features/pdf/ui/components/PdfViewerDocument.tsx',
   'src/features/pdf/ui/components/PdfWorkerHost.tsx',
   'src/features/pdf/ui/hooks/usePdfPlugins.ts',
   'src/features/pdf/lib/renderPageToImage.ts',
   'src/features/pdf/lib/activePdfDocumentRegistry.ts'
 ]
+
+/**
+ * The native viewer's boundary: the only production files allowed to import
+ * `@features/pdf/engine`.
+ *
+ * Phase 3B asserted the engine's own purity (no React, no UI, no DOM). Phase 4
+ * adds the other half of the direction — UI *may* import the engine, and only
+ * from here. Keeping the consumer list explicit means "who pulls pdfjs 6 into the
+ * bundle" is answerable without a graph walk, and it fails loudly if a future
+ * viewer feature reaches for the engine from somewhere unexpected.
+ */
+const NATIVE_VIEWER_BOUNDARY_DIR = path.join(repoRoot, 'src/features/pdf/native')
+const NATIVE_VIEWER_COMPONENT = path.join(
+  repoRoot,
+  'src/features/pdf/ui/components/NativePdfViewer.tsx'
+)
+
+function pdfSourceFiles(dir: string): string[] {
+  const files: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) files.push(...pdfSourceFiles(full))
+    else if (/\.tsx?$/.test(entry.name)) files.push(full)
+  }
+  return files
+}
 
 describe('dual-runtime dependency graph', () => {
   it('keeps the legacy pdfjs-dist on an exact pin for the viewer', () => {
@@ -155,6 +182,87 @@ describe('import boundary', () => {
       'utf-8'
     )
     expect(source).toMatch(/from 'pdfjs-6\/build\/pdf\.worker\.min\.mjs\?url'/)
+  })
+})
+
+describe('native viewer boundary', () => {
+  it('confines engine imports to the native viewer boundary', () => {
+    // Everything that reaches pdfjs 6 has to live in one directory plus one
+    // presentational component, so deleting the migration is a directory delete.
+    const allowed = new Set([
+      ...pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR),
+      NATIVE_VIEWER_COMPONENT
+    ])
+    const offenders: string[] = []
+    for (const file of pdfSourceFiles(path.join(repoRoot, 'src/features/pdf'))) {
+      if (allowed.has(file)) continue
+      const source = readFileSync(file, 'utf-8')
+      if (/from\s+['"]@features\/pdf\/engine/.test(source)) {
+        offenders.push(path.relative(repoRoot, file))
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('actually consumes the engine, so the dependency is not merely permitted', () => {
+    // The other direction of the same invariant: a boundary that nobody enters
+    // would pass the check above while the native worker stayed out of the build.
+    const consumers = pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR).filter((file) =>
+      /from\s+['"]@features\/pdf\/engine/.test(readFileSync(file, 'utf-8'))
+    )
+    expect(consumers.length).toBeGreaterThan(0)
+  })
+
+  it('keeps react-pdf-viewer types out of the native viewer boundary', () => {
+    // The native path must not depend on the package it replaces — not even for
+    // a type. `SpecialZoomLevel` in particular has no numeric counterpart there,
+    // which is why the native path computes a fit scale instead.
+    //
+    // Only real import specifiers count: the boundary's comments legitimately
+    // name the package they are deliberately not using.
+    const importPattern = /(?:from\s+|import\()\s*['"]@react-pdf-viewer/
+    const offenders: string[] = []
+    for (const file of [...pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR), NATIVE_VIEWER_COMPONENT]) {
+      if (importPattern.test(readFileSync(file, 'utf-8'))) {
+        offenders.push(path.relative(repoRoot, file))
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('emits no rpv- class name from the native viewer', () => {
+    // The legacy viewer CSS is namespaced under `rpv-*`. Reusing those names would
+    // make the stylesheet silently restyle the native canvas.
+    for (const file of [...pdfSourceFiles(NATIVE_VIEWER_BOUNDARY_DIR), NATIVE_VIEWER_COMPONENT]) {
+      expect(readFileSync(file, 'utf-8'), path.relative(repoRoot, file)).not.toContain("'rpv-")
+      expect(readFileSync(file, 'utf-8'), path.relative(repoRoot, file)).not.toContain('"rpv-')
+    }
+  })
+
+  it('keeps the feature flag off unless the exact opt-in value is present', () => {
+    // The flag is the only thing standing between a stray deployment variable
+    // and swapping the shipped PDF renderer.
+    const source = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/native/nativePdfViewerFlag.ts'),
+      'utf-8'
+    )
+    expect(source).toContain('VITE_NATIVE_PDF_VIEWER')
+    expect(source).toMatch(/=== OPT_IN_VALUE/)
+    // No loose truthiness: a non-string or an unset value must resolve to false.
+    expect(source).toMatch(/typeof raw !== 'string'\) return false/)
+  })
+
+  it('switches the renderer at one place in the viewer shell', () => {
+    const source = readFileSync(
+      path.join(repoRoot, 'src/features/pdf/ui/components/PdfViewerDocument.tsx'),
+      'utf-8'
+    )
+    expect(source).toContain('isNativePdfViewerEnabled')
+    expect(source).toContain('<NativePdfViewer')
+    expect(source).toContain('<PdfViewerElement')
+    // The switch must be a branch at the top level, not something buried inside
+    // the legacy element where both paths would share state.
+    expect(source).toMatch(/isNativeViewer \? \(/)
   })
 })
 

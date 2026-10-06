@@ -212,4 +212,57 @@ describe('PdfToolbar', () => {
     expect(onStartScreenshot).toHaveBeenCalledTimes(1)
     expect(onReload).toHaveBeenCalledTimes(1)
   })
+
+  // The native canvas viewer renders neither a text layer nor an active document
+  // in the capture registry yet, so the controls that need them must not be left
+  // looking live. Search is hidden outright; the AI/capture actions are disabled
+  // with a reason. Reload stays enabled because it drives a document lifecycle the
+  // native viewer does own.
+  describe('nativeCanvasMode', () => {
+    function renderNativeToolbar() {
+      return render(
+        <TooltipProvider>
+          <PdfToolbar
+            pdfFile={null}
+            onStartScreenshot={vi.fn()}
+            onFullPageScreenshot={vi.fn()}
+            onAddCurrentPageTextToAi={vi.fn()}
+            onReload={vi.fn()}
+            panMode={false}
+            onTogglePanMode={vi.fn()}
+            currentPage={2}
+            totalPages={61}
+            onPreviousPage={vi.fn()}
+            onNextPage={vi.fn()}
+            highlight={vi.fn()}
+            clearHighlights={vi.fn()}
+            ZoomIn={ZoomIn}
+            ZoomOut={ZoomOut}
+            CurrentScale={CurrentScale}
+            onJumpToPage={vi.fn()}
+            nativeCanvasMode
+          />
+        </TooltipProvider>
+      )
+    }
+
+    it('hides the search bar instead of offering a search that cannot run', () => {
+      const { getByTestId, queryByPlaceholderText } = renderNativeToolbar()
+
+      expect(queryByPlaceholderText('search_placeholder')).not.toBeInTheDocument()
+      // Page navigation and zoom stay: they are backed by native state.
+      expect(getByTestId('pdf-toolbar-mode-toggle')).toBeInTheDocument()
+    })
+
+    it('disables the text-layer and capture actions but keeps reload live', () => {
+      const { getByTestId } = renderNativeToolbar()
+
+      fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
+
+      expect(getByTestId('pdf-quick-text-ai')).toBeDisabled()
+      expect(getByTestId('pdf-quick-image-ai')).toBeDisabled()
+      expect(getByTestId('pdf-quick-area-ai')).toBeDisabled()
+      expect(getByTestId('pdf-quick-reload')).toBeEnabled()
+    })
+  })
 })
