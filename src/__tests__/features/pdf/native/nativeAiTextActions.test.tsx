@@ -36,10 +36,12 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('pdfjs-6', async () => {
+  const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer } = await import('./nativeTextLayerDouble')
   return {
     getDocument: mocks.getDocument,
     TextLayer: FakeTextLayer,
+    AnnotationLayer: FakeAnnotationLayer,
     RenderingCancelledException: class RenderingCancelledException extends Error {
       constructor(message = 'Rendering cancelled') {
         super(message)

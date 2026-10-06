@@ -25,7 +25,8 @@ import type { PdfViewerDocumentProps } from '@features/pdf/hooks/usePdfViewerSta
 
 const mocks = vi.hoisted(() => ({
   nativeFlag: { current: false },
-  legacyState: { current: null as Record<string, unknown> | null }
+  legacyState: { current: null as Record<string, unknown> | null },
+  nativeState: { current: null as Record<string, unknown> | null }
 }))
 
 vi.mock('react-i18next', () => ({
@@ -117,7 +118,10 @@ vi.mock('@features/pdf/ui/components/PdfViewerElement', () => ({
 }))
 
 vi.mock('@features/pdf/ui/components/NativePdfViewer', () => ({
-  default: () => <div data-testid="native-viewer" />
+  default: (props: Record<string, unknown>) => {
+    mocks.nativeState.current = props
+    return <div data-testid="native-viewer" />
+  }
 }))
 
 vi.mock('@features/pdf/ui/components/ContextMenu', () => ({ default: () => null }))
@@ -163,9 +167,17 @@ function toolbarProps(): Record<string, unknown> {
   return captured
 }
 
+/** The props the native-viewer mock last received. */
+function nativeViewerProps(): Record<string, unknown> {
+  const captured = mocks.nativeState.current
+  if (!captured) throw new Error('NativePdfViewer was never rendered')
+  return captured
+}
+
 afterEach(() => {
   mocks.nativeFlag.current = false
   mocks.legacyState.current = null
+  mocks.nativeState.current = null
 })
 
 describe('PdfViewerDocument feature-flag boundary', () => {
@@ -221,5 +233,22 @@ describe('PdfViewerDocument feature-flag boundary', () => {
     // The legacy plugin render-prop component would keep reading the (absent)
     // RPV zoom plugin state; the native one reads the native scale state.
     expect(toolbarProps().ZoomIn).not.toBe(legacyZoomIn)
+  })
+
+  it('hands the native viewer a distinct ref for each surface PDF.js mounts into', () => {
+    mocks.nativeFlag.current = true
+
+    renderDocument()
+
+    // The canvas, the text layer and the annotation layer are three separate mount
+    // points owned by the shell, because they only exist while the native viewer is
+    // the one rendering. They must be three *different* refs: handing the same one to
+    // two of them would make the annotation layer render into the text layer.
+    const props = nativeViewerProps()
+    const refs = (['canvasRef', 'textLayerRef', 'annotationLayerRef'] as const).map((name) => {
+      expect(props[name], name).toMatchObject({ current: null })
+      return props[name]
+    })
+    expect(new Set(refs).size).toBe(3)
   })
 })

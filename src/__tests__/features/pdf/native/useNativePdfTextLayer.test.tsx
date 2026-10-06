@@ -24,6 +24,7 @@ import {
   createFakeDocument,
   createLoadingTask
 } from './nativeViewerHarness'
+import { FakeAnnotationLayer } from './nativeAnnotationLayerDouble'
 import { FakeTextLayer } from './nativeTextLayerDouble'
 
 import { act, render } from '@testing-library/react'
@@ -38,10 +39,12 @@ vi.mock('pdfjs-6', async () => {
   // Lazy: a `vi.mock` factory is hoisted above this file's static imports, and
   // the double has to be a dependency-free module so awaiting it cannot re-enter
   // the mocked module.
+  const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
   const { FakeTextLayer: Double } = await import('./nativeTextLayerDouble')
   return {
     getDocument: mocks.getDocument,
     TextLayer: Double,
+    AnnotationLayer: FakeAnnotationLayer,
     RenderingCancelledException: class RenderingCancelledException extends Error {
       constructor(message = 'Rendering cancelled') {
         super(message)
@@ -62,6 +65,7 @@ let frameCallbacks: FrameRequestCallback[]
 beforeEach(() => {
   vi.clearAllMocks()
   FakeTextLayer.reset()
+  FakeAnnotationLayer.reset()
   frameCallbacks = []
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     frameCallbacks.push(cb)
