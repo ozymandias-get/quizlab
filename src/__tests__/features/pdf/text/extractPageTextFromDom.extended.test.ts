@@ -35,21 +35,41 @@ describe('extractPageTextFromDom - extended', () => {
     document.body.innerHTML = ''
   })
 
-  it('finds page by data-page-number attribute (alt selector)', () => {
-    const layer = document.createElement('div')
-    layer.className = 'rpv-core__page-layer'
-    layer.setAttribute('data-page-number', '5')
+  it('does not locate a page by data-page-number, which the viewer never emits', () => {
+    // `@react-pdf-viewer/core@3.12.0` declares no `data-page-number` attribute
+    // (0 occurrences in lib/cjs/core.js), and the selector was dropped from
+    // lib/pdfViewerDom.ts for that reason. This used to be a positive test for
+    // that selector, but it passed only because the fixture held a single page
+    // layer and the lone-page fallback claimed it — deleting the attribute did
+    // not change the result.
+    //
+    // Two layers are present now, which disables that fallback. If the dead
+    // selector were honored, layer A would be returned for page 1 and these
+    // expectations would fail.
+    const layerA = document.createElement('div')
+    layerA.className = 'rpv-core__page-layer'
+    layerA.setAttribute('data-page-number', '1')
 
-    const textLayer = document.createElement('div')
-    textLayer.className = 'rpv-core__text-layer'
-    const span = document.createElement('span')
-    span.textContent = 'page 5 content'
-    textLayer.appendChild(span)
-    layer.appendChild(textLayer)
-    document.body.appendChild(layer)
+    const layerB = document.createElement('div')
+    layerB.className = 'rpv-core__page-layer'
+    layerB.setAttribute('data-page-number', '2')
 
-    const result = extractPageTextFromDom(5)
-    expect(result).toBe('page 5 content')
+    for (const [layer, text] of [
+      [layerA, 'first page content'],
+      [layerB, 'second page content']
+    ] as const) {
+      const textLayer = document.createElement('div')
+      textLayer.className = 'rpv-core__text-layer'
+      const span = document.createElement('span')
+      span.textContent = text
+      textLayer.appendChild(span)
+      layer.appendChild(textLayer)
+      document.body.appendChild(layer)
+    }
+
+    // Neither layer has a data-virtual-index, so neither is addressable.
+    expect(extractPageTextFromDom(1)).toBeNull()
+    expect(extractPageTextFromDom(2)).toBeNull()
   })
 
   it('finds page via virtual-index when no specific match (search by index)', () => {
@@ -95,19 +115,37 @@ describe('extractPageTextFromDom - extended', () => {
     expect(extractPageTextFromDom(50)).toBeNull()
   })
 
-  it('extracts text from the basic text-layer class', () => {
+  it('does not treat the v2 text-layer-basic class as a text layer', () => {
+    // `.rpv-core__text-layer-basic` has 0 occurrences in the pinned viewer:
+    // v3 renders pages to canvas and emits only `.rpv-core__text-layer`. The
+    // class was dropped from lib/pdfViewerDom.ts for that reason. This used to be
+    // a positive test for it, but it passed through the page-layer textContent
+    // fallback, so renaming the class did not change the result.
+    //
+    // The decoy text sits OUTSIDE the basic-classed child, so if that class were
+    // honored as a text layer the child would be extracted on its own and the
+    // decoy would never appear.
     const layer = document.createElement('div')
     layer.className = 'rpv-core__page-layer'
     layer.setAttribute('data-virtual-index', '0')
-    const textLayer = document.createElement('div')
-    textLayer.className = 'rpv-core__text-layer-basic'
+    layer.appendChild(document.createTextNode('decoy outside any text layer'))
+
+    const basicLayer = document.createElement('div')
+    basicLayer.className = 'rpv-core__text-layer-basic'
     const span = document.createElement('span')
     span.textContent = 'basic layer text'
-    textLayer.appendChild(span)
-    layer.appendChild(textLayer)
+    basicLayer.appendChild(span)
+    layer.appendChild(basicLayer)
     document.body.appendChild(layer)
 
-    expect(extractPageTextFromDom(1)).toBe('basic layer text')
+    // The decoy is present, which is the point: extraction fell back to the
+    // PAGE LAYER's textContent rather than scoping to the basic-classed child.
+    // If `text-layer-basic` were honored as a text layer, extraction would be
+    // scoped to that child and the decoy would be absent — so this fails if the
+    // dead class is ever re-added to lib/pdfViewerDom.ts.
+    const text = extractPageTextFromDom(1)
+    expect(text).toContain('basic layer text')
+    expect(text).toContain('decoy outside any text layer')
   })
 
   it('falls back to textContent of the page layer when no text-layer exists', () => {
