@@ -21,12 +21,25 @@
  *
  * A *real* render failure is not swallowed: it is surfaced as `renderError` so
  * the viewer can show a fallback instead of a blank page.
+ *
+ * ## The one thing presentation is allowed to know
+ *
+ * `onRenderCommitted` fires after a live render has painted, with the page it painted.
+ * It exists because the page transition has to wait for that moment: this viewer keeps
+ * the previous page's pixels in the same canvas until the new ones land, so "the new
+ * page is on screen" is only true once a render commits. Nothing about the render is
+ * gated on it — the callback is called last, after the cancellation guard, so a
+ * superseded render reports nothing and a turn that was already abandoned is never
+ * presented.
+ *
+ * It is read through a ref so a new callback identity can never re-run the effect: a
+ * presentation concern must not be able to cost an extra `getPage` or an extra render.
  */
 import { isRenderCancelled } from '@features/pdf/engine'
 import type { NativePdfDocumentStatus } from '@features/pdf/native/useNativePdfDocument'
 import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEngine'
 
-import { type RefObject, useEffect, useState } from 'react'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 
 interface UseNativePdfRenderOptions {
   enabled: boolean
@@ -36,6 +49,12 @@ interface UseNativePdfRenderOptions {
   /** 1-based. Passed straight to `getPage`, which is also 1-based. */
   currentPage: number
   scale: number
+  /**
+   * Called after a live render has committed `pageNumber`'s pixels to the canvas.
+   *
+   * Never called for a superseded render, and never called for a failure.
+   */
+  onRenderCommitted?: (pageNumber: number) => void
 }
 
 export interface NativePdfRenderHandle {
@@ -55,9 +74,13 @@ export function useNativePdfRender({
   status,
   canvasRef,
   currentPage,
-  scale
+  scale,
+  onRenderCommitted
 }: UseNativePdfRenderOptions): NativePdfRenderHandle {
   const [renderError, setRenderError] = useState<string | null>(null)
+
+  const onRenderCommittedRef = useRef(onRenderCommitted)
+  onRenderCommittedRef.current = onRenderCommitted
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -80,6 +103,9 @@ export function useNativePdfRender({
         // page's own viewport at this scale, rotation included.
         await engineInstance.renderer.renderPage(page, canvas, { scale })
         if (cancelled) return
+        // Last, and after the guard: the pixels are in the canvas, and a render nobody
+        // is waiting for any more has already said so.
+        onRenderCommittedRef.current?.(currentPage)
       } catch (error) {
         if (cancelled || isRenderCancelled(error)) return
         setRenderError(toRenderErrorMessage(error))
