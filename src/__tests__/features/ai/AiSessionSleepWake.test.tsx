@@ -430,10 +430,16 @@ describe('AiSession sleep / wake', () => {
     })
 
     // A brand new WebContents: the manager is right and says it is still loading
-    // with `hasLoadedOnce: false`.
+    // with `hasLoadedOnce: false`. The reveal decision is a pure function of
+    // (visible, hasLoadedOnce), so waiting for the host to publish the
+    // replacement at all — rather than reading whatever the previous generation
+    // happened to publish — is what makes this a statement about gen 2 and not a
+    // race with gen 1's last sync.
     const secondGeneration = manager.views.get('tab-1')?.generation
     expect(secondGeneration).not.toBe(firstGeneration)
-    expect(lastSync()?.visible).toBe(false)
+    await waitFor(() => {
+      expect(lastSync()?.visible).toBe(false)
+    })
     expect(screen.getByTestId('loader')).toBeInTheDocument()
     expect(currentController()?.isLoading?.()).toBe(true)
 
