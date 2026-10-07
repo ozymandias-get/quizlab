@@ -638,7 +638,32 @@ has.
     for context-menu zoom **cannot pass** until a human decides whether that menu should
     exist. Phase 10 kept the channel for exactly this reason; see _Deferred-Debt
     Decisions_ §2.
-21. **`useNativePdfController`'s `enabled` parameter is dead weight** — always `true` in
+21. **The page transition's ramp is 5 % opacity, not a fade.** `NATIVE_PAGE_TRANSITION_START_OPACITY`
+    is `0.95`, and the reason is structural rather than aesthetic, so a future agent must not
+    "improve" it upward. The four layers do not finish together: the canvas commits first and
+    fires `onRenderCommitted`, while the text layer is still on its own `getPage` /
+    `getTextContent()` / stream render and the annotation layer on its own `getPage` /
+    `getAnnotations()` / build. For that interval the page box holds a canvas with no words on
+    it. A 0.55 floor turned the interval into a visible blink — the ramp was dimming the only
+    layer that had arrived — so the fix is to make the interim state _invisible_ rather than to
+    avoid it. Waiting for the layers instead would delay the presentation by however long a text
+    layer takes to drain, which is the "navigation, blank wait, then animation" shape that feels
+    sluggish, and a document whose text layer fails outright would never present a turn at all.
+    **Do not deepen this ramp, and do not gate the transition on layer readiness.**
+22. **`pageRenderer` never clears the canvas.** It sizes the canvas only when the size actually
+    changes, because assigning `canvas.width`/`canvas.height` resets the backing store
+    _unconditionally_ — the assignment is the reset. An unguarded assignment blanked the canvas
+    at navigation time on every same-size page turn, before PDF.js had painted an operator, and
+    the gap was **white** rather than merely empty because PDF.js's `beginDrawing` fills the page
+    background `#ffffff` before it draws. That was the white flash, and it was not render
+    latency. It was also a layout win to skip: the canvas's intrinsic size is its layout size, so
+    a redundant assignment is a redundant resize of the page box and of the `m-auto` margins that
+    centre it. Nothing else clears the canvas and nothing needs to — PDF.js fills the whole canvas
+    at the start of every render, so a genuine size change overwrites the old page by itself.
+    **This also makes `onRenderCommitted` a meaningful signal rather than a race**, which is what
+    `useNativePdfRender` and the whole transition timing rest on. Do not reintroduce the
+    unconditional assignment "to be safe", and do not add a `clearRect` in its place.
+23. **`useNativePdfController`'s `enabled` parameter is dead weight** — always `true` in
     production, genuine feature-flag residue, threaded into 9 sub-hooks. Kept in Phase 10
     because removal is a 16-file change across the whole native boundary for no
     architectural gain. Do not re-audit it; read _Deferred-Debt Decisions_ §1 instead.
@@ -820,6 +845,10 @@ Open candidates, none of which is cleanup:
 - Do not write a second context menu.
 - Do not fix the pixel-budget rounding epsilon "while you are in there" — it is pinned by
   tests with a deliberate tolerance.
+- Do not deepen `NATIVE_PAGE_TRANSITION_START_OPACITY` above `0.95`, gate the page transition on
+  layer readiness, or move the ramp earlier than the render commit. See _Known Issues_ 21.
+- Do not assign `canvas.width` / `canvas.height` unconditionally in `pageRenderer`, and do not
+  add a `clearRect` there. See _Known Issues_ 22.
 - Do not rename the native viewer or the `native/` boundary. That is a separate phase.
 
 ## Resume Checklist
