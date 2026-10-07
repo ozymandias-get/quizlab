@@ -42,33 +42,23 @@ export interface RenderOptions {
  * ## The document the direct render borrows
  *
  * `getActivePdfDocument(pdfUrl)` returns the mounted viewer's document when there
- * is one — the `@react-pdf-viewer` proxy on the legacy path, the native
- * `PdfDocumentManager`'s document when the native flag is on — so a capture reuses
- * an already-decoded file instead of re-fetching a large one. **Borrowed means
- * borrowed:** a handle has no teardown, so nothing below can end the viewer's
- * document life, and no page `cleanup()` is called on a borrowed proxy because
- * that drops the viewer's shared decoded-object cache (`objs.clear()`) and forces
- * a font/image re-decode on its next repaint.
+ * is one — a handle over the native `PdfDocumentManager`'s document — so a capture
+ * reuses an already-decoded file instead of re-fetching a large one. **Borrowed
+ * means borrowed:** a handle has no teardown, so nothing below can end the
+ * viewer's document life, and no page `cleanup()` is called on a borrowed proxy
+ * because that drops the viewer's shared decoded-object cache (`objs.clear()`) and
+ * forces a font/image re-decode on its next repaint.
  *
  * With nothing to borrow — no viewer mounted, still loading, showing a different
  * file, or just reloaded — one isolated document is loaded for this capture alone
  * and destroyed through its **loading task** afterwards. PDF.js 6 removed
- * `PDFDocumentProxy#destroy()`, so `renderPageToImage.ts` no longer holds a
- * `destroy()` of its own: `nativePdfCaptureDocument` hands back a
- * `PdfDocumentManager`, whose `destroy()` is the PDF.js 6 teardown call
- * (`PDFDocumentLoadingTask#destroy()`) and whose `load()` is the single
- * authoritative `getDocument` options + worker + `enableScripting: false` path.
- *
- * ## Why capture's own document load is on pdfjs 6
- *
- * The legacy capture module used to `import('pdfjs-dist')` and pass
- * `isEvalSupported: false` — a second `getDocument` call site on the 3.x runtime,
- * and the reason `renderPageToImage.ts` is named in the CVE-2024-4367 exception
- * alongside the viewer. It no longer needs it: the borrowed case does not load
- * anything at all, and the temporary case goes through the native engine, which
- * already owns the security and asset policy. One runtime reaches capture now.
- * (`security/audit-exceptions.json` still stands for the *viewer*, which is the
- * remaining 3.x `getDocument`.)
+ * `PDFDocumentProxy#destroy()`, so `renderPageToImage.ts` holds no `destroy()` of
+ * its own: `engine/captureDocument.ts` wraps a `PdfDocumentManager`, whose
+ * `destroy()` is the PDF.js 6 teardown call (`PDFDocumentLoadingTask#destroy()`)
+ * and whose `load()` is the single authoritative `getDocument` options + worker +
+ * `enableScripting: false` path. That is also why capture reaches no PDF.js
+ * runtime directly — the borrowed case loads nothing at all, and the temporary
+ * case goes through the engine that already owns the security and asset policy.
  *
  * There is deliberately no cancellation argument: capture supersession is decided
  * by the caller (`usePdfCaptureActions` stamps every request and drops results
@@ -77,8 +67,8 @@ export interface RenderOptions {
  *
  * ## 1-based pages
  *
- * `pageNumber` is passed straight to `getPage`, which is 1-based on both
- * runtimes. Nothing here converts it.
+ * `pageNumber` is passed straight to `getPage`, which is 1-based. Nothing here
+ * converts it.
  */
 export async function renderPageToImageFallback(
   pdfUrl: string,

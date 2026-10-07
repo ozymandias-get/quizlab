@@ -24,21 +24,20 @@
  *
  * ## Why the stored value is a handle, not a document proxy
  *
- * The original contract was shaped around `pdfjs-dist@3.11.174`'s
- * `PDFDocumentProxy`: it declared `destroyed?: boolean` and `destroy()`, and the
- * registry read `destroyed` directly to decide liveness. PDF.js 6 has neither —
- * `PDFDocumentProxy` exposes only `cleanup()`, and teardown goes through
- * `PDFDocumentLoadingTask.destroy()`. Casting a native proxy into the old
- * interface would have been a lie with a runtime cost: the liveness check would
- * have read a field 6.x never sets, so a reloaded document would have looked
- * alive forever.
+ * A PDF.js `PDFDocumentProxy` declares `destroyed?: boolean` and `destroy()`, which
+ * would have let the registry read liveness straight off the proxy. The pinned
+ * 6.4.299 has neither — `PDFDocumentProxy` exposes only `cleanup()`, and
+ * teardown goes through `PDFDocumentLoadingTask.destroy()`. Reading `destroyed`
+ * anyway would be a lie with a runtime cost: a field 6.x never sets reads
+ * `undefined`, so a reloaded document would look alive forever.
  *
  * So the stored value is `ActivePdfDocumentHandle`: the smallest surface capture
  * uses (`getPage`) plus an **adapter-provided** `isAlive()`. Nothing in this file
  * knows what a `PDFDocumentProxy` is or how its lifetime is managed — that is
- * `native/nativePdfCaptureDocument.ts`'s job, and it is now the only producer.
- * There is deliberately no version branch here and there must never be one: a
- * runtime check in the store would be a second place to update whenever the
+ * `engine/captureDocument.ts`'s job, reached from
+ * `native/useNativePdfCaptureDocument.ts`, the only producer.
+ * There is deliberately no runtime branch here and there must never be one: a
+ * version check in the store would be a second place to update whenever the
  * runtime changes.
  *
  * ## Why the liveness check exists at all

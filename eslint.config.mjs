@@ -41,7 +41,7 @@ const legacySrcAliasPattern = {
 const PUBLIC_FEATURE_ENTRYPOINTS = [
   'ai/aiViewSurface', // lazy chunk: the AI panel chrome + host placeholders
   'ai/viewState', // AI tab liveness state, shared by the workspace and focus surfaces
-  'pdf/viewer', // lazy chunk: PdfViewer + tab strip + worker host
+  'pdf/viewer', // lazy chunk: PdfViewer + tab strip
   'pdf/types', // type-only, no runtime cost
   'screenshot/tool' // lazy chunk: ScreenshotTool (depends on @app/providers)
 ]
