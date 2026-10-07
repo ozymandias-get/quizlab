@@ -79,7 +79,6 @@ const pdfProductionFiles = productionFiles(pdfFeatureDir)
 
 /** The only files permitted to import the engine. */
 const ENGINE_IMPORTERS = [
-  'src/features/pdf/native/index.ts',
   'src/features/pdf/native/useNativePdfEngine.ts',
   'src/features/pdf/native/useNativePdfRender.ts',
   'src/features/pdf/native/useNativePdfCaptureDocument.ts',
