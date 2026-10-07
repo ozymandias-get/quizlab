@@ -98,14 +98,6 @@ describe('usePdfWorkspaceState', () => {
       expect(result.current.isPanelResizing).toBe(true)
     })
 
-    it('onSelectPdf calls handleSelectPdf', () => {
-      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      act(() => {
-        result.current.leftPanelProps.onSelectPdf()
-      })
-      expect(mockHandleSelectPdf).toHaveBeenCalled()
-    })
-
     it('onSetActivePdfTab calls setActivePdfTab', () => {
       const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
       act(() => {
@@ -120,14 +112,6 @@ describe('usePdfWorkspaceState', () => {
       const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
       expect(result.current.readingProps).toHaveProperty('onReadingProgressChange')
       expect(result.current.readingProps).not.toHaveProperty('lastReadingInfo')
-    })
-
-    it('onResumePdf calls resumeLastPdf', async () => {
-      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      await act(async () => {
-        await result.current.readingProps.onResumePdf()
-      })
-      expect(mockResumeLastPdf).toHaveBeenCalled()
     })
 
     it('onClearResumePdf calls clearLastReading', () => {

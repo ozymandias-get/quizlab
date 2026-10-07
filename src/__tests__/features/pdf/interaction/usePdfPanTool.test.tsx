@@ -4,8 +4,8 @@
  * Pan mode turns a pointer drag into a scroll of whatever region the viewer put
  * under the cursor. Resolving that region is the fragile part: the hook first
  * walks up looking for a scrollable ancestor and only then falls back to the
- * viewer's inner container, whose selector lives in `pdfViewerDom`. A native
- * viewer has to reproduce both, so the resolution order is pinned here.
+ * viewer's scroll container, whose selector lives in `nativePdfDom`. The
+ * resolution order is pinned here.
  *
  * `panHelpers` itself has its own suite; this file covers the hook's own
  * contract: which button starts a drag, that the pointer is captured and

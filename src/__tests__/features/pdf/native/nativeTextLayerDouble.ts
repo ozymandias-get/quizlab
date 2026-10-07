@@ -117,18 +117,13 @@ export class FakeTextLayer {
     return this.deferred.promise
   }
 
-  /** Settle a held-open `render()`, for tests that turned `autoResolve` off. */
-  settleRender(): void {
-    this.deferred.resolve()
-  }
-
   cancel(): void {
     if (this.cancelled) return
     this.cancelled = true
     this.deferred.reject(new CancelledTextLayerError())
   }
 
-  /** Present so the shape matches; the viewer does not use it in this phase. */
+  /** Present so the shape matches TextLayer; the viewer never calls update(). */
   update(): void {}
 
   isCancelled(): boolean {

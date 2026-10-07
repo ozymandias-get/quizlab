@@ -10,12 +10,7 @@ vi.mock('@shared/hooks/useSharedDragDrop', () => ({
 
 vi.mock('@features/pdf/viewer', () => ({
   PdfViewer: () => <div data-testid="pdf-viewer">PdfViewer Mock</div>,
-  PdfTabStrip: () => <div data-testid="pdf-tab-strip">PdfTabStrip Mock</div>,
-  PdfWorkerHost: ({ children }: any) => <>{children}</>
-}))
-
-vi.mock('@react-pdf-viewer/core', () => ({
-  Worker: ({ children }: any) => <div data-testid="pdf-worker">{children}</div>
+  PdfTabStrip: () => <div data-testid="pdf-tab-strip">PdfTabStrip Mock</div>
 }))
 
 vi.mock('@ui/components/ErrorBoundary', () => ({

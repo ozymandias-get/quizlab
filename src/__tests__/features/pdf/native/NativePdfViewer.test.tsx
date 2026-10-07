@@ -164,9 +164,9 @@ function canvasOf(container: HTMLElement): HTMLCanvasElement | null {
 /**
  * The page box.
  *
- * Page identity moved from the canvas to this element in Phase 5, because the
- * page box is what now owns both the canvas and the text layer and "the page
- * element" must be unambiguous to a `querySelector`.
+ * Page identity lives on the page box rather than the canvas, because that
+ * element owns the canvas, the text layer, the annotation layer and the search
+ * overlay, so "the page element" has to be unambiguous to a `querySelector`.
  */
 function pageOf(container: HTMLElement): HTMLElement | null {
   return container.querySelector<HTMLElement>('[data-native-pdf-page]')

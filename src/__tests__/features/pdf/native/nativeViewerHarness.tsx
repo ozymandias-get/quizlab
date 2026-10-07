@@ -375,32 +375,6 @@ export function createLoadingTask(options: { abortOnDestroy?: boolean } = {}): F
   }
 }
 
-/* -------------------------------------------------------------- test double */
-
-/** A PDF.js stand-in whose loading task settles only when the test says so. */
-export class DeferredDocument {
-  readonly task: FakeLoadingTask
-  private document: FakeDocument
-
-  constructor(document: FakeDocument, options: { abortOnDestroy?: boolean } = {}) {
-    this.document = document
-    this.task = createLoadingTask(options)
-  }
-
-  /** Hand the document to the engine, as a completed `getDocument().promise`. */
-  settle(): void {
-    this.task.resolve(this.document)
-  }
-
-  fail(message: string): void {
-    this.task.reject(new Error(message))
-  }
-
-  get pdfDocument(): FakeDocument {
-    return this.document
-  }
-}
-
 /* ------------------------------------------------------------------ harness */
 
 export interface HarnessProps {

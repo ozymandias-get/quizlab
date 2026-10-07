@@ -84,8 +84,8 @@ describe('usePdfViewerZoomIpc', () => {
   })
 
   // A single subscription must hold whatever the scale and fit scale do, so the
-  // effect cannot depend on them. Phase 8B wires this hook on both the legacy and
-  // the native path, and exactly one of the two may be active.
+  // effect cannot depend on them: a re-subscribe on every scale change would drop
+  // the listener between two toolbar clicks.
   it('subscribes once and follows the latest fit scale across re-renders', () => {
     const { rerender } = setup(1, true, 1)
 

@@ -449,7 +449,7 @@ describe('native link service — external URLs', () => {
 
 /* --------------------------------------------------- unsupported branches */
 
-describe('native link service — annotation kinds Phase 6 does not run', () => {
+describe('native link service — annotation kinds it deliberately does not act on', () => {
   it('resolves an attachment request to null rather than rejecting', async () => {
     const { service } = createHarness({ numPages: 12 })
 

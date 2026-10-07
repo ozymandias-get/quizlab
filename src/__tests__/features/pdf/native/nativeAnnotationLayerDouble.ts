@@ -204,11 +204,6 @@ export class FakeAnnotationLayer {
     return container
   }
 
-  /** Settle a held-open `render()`, for tests that turned `autoResolve` off. */
-  settleRender(): void {
-    this.deferred.resolve()
-  }
-
   destroy(): void {
     if (this.destroyed) return
     this.destroyed = true

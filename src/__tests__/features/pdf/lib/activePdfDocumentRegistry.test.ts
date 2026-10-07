@@ -7,11 +7,8 @@
  * so a high-DPI capture failed on `getPage()` and silently degraded to a
  * screen-resolution canvas clone.
  *
- * The registry used to store one of two shapes: a real handle, or a
- * `pdfjs-dist@3` proxy normalized through `legacyPdfCaptureDocument` because the
- * legacy viewer handed over `DocumentLoadEvent#doc` verbatim. There is one
- * producer now, so one shape — and the structural assertion that it is one shape
- * lives in `architecture/pdfjs-single-runtime.test.ts`.
+ * The registry has exactly one producer and one shape, so a structural assertion
+ * about that belongs in `architecture/pdfjs-single-runtime.test.ts`.
  *
  * The invariant that matters more than any of that: the registry never ends a
  * document's life. It borrows.

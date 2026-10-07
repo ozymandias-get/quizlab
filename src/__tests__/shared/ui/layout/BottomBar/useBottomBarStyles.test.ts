@@ -39,10 +39,12 @@ describe('useBottomBarStyles', () => {
     expect(result.current.shellStyle.maxWidth).toBe(48)
   })
 
-  it('scales base size with scale factor', () => {
+  it('keeps the bar width fixed while the scale is applied to the transform', () => {
     const { result } = renderHook(() => useBottomBarStyles(0.7, 1.2))
-    // Width is always BASE_SIZE (48). The scale is applied to transform.
+    // Width is always BASE_SIZE (48). Scaling it instead of the transform is
+    // what makes a scaled bar reflow the workspace around it.
     expect(result.current.shellStyle.width).toBe(48)
+    expect(result.current.stackStyle.transform).toBe('scale(1.2)')
   })
 
   it('returns shellStyle with CSS custom properties', () => {

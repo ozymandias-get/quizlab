@@ -61,9 +61,13 @@ describe('UpdateBanner', () => {
     expect(defaultProps.onClose).toHaveBeenCalled()
   })
 
-  it('handles download action', async () => {
+  it('opens the releases page, never the renderer, on download', async () => {
     render(<UpdateBanner {...defaultProps} />)
     fireEvent.click(screen.getByText('download_from_github'))
-    expect(mockOpenExternal).toHaveBeenCalled()
+    // A download link that navigated the renderer would leave the app entirely;
+    // the OS has to be asked.
+    expect(mockOpenExternal).toHaveBeenCalledWith(
+      'https://github.com/ozymandias-get/quizlab/releases/latest'
+    )
   })
 })

@@ -12,9 +12,8 @@
  *    through the native engine and owns it. That one MUST be released, in a
  *    `finally`, on the success path and on every failure path.
  *
- * Phase 8A moved the self-load onto pdfjs-dist and made the registry runtime-agnostic,
- * so the temporary load is mocked here and tested for real in
- * `nativePdfCaptureDocument.test.ts` — including that it carries
+ * The self-load is mocked here and tested for real in
+ * `engine/captureDocument.test.ts` — including that it carries
  * `enableScripting: false` and is destroyed through its loading task.
  *
  * The pixel budget is the other pinned contract: capture asks for a very high
