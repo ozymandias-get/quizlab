@@ -1587,6 +1587,42 @@ The fix changes presentation only, and only for this layer:
 - **The `pdf-selection-active` glow is a whisper** (0.15 rem, 18% of the user
   colour). At 0.4 rem / 48% it was the other half of the highlighter look.
 
+### Selection double paint — two painters on one pixel
+
+The tint above still came out uneven: some selection regions read darker than their
+neighbours on the same line, with small dense blocks at the start of bullet lines,
+indented lines and run boundaries. Not an alpha problem — a **compositing** one.
+
+PDF.js emits one `<span role="presentation">` per text item and positions each with
+its own `left`/`top` and `--scale-x`. Measured in Chromium 142 against the real
+6.4.299 `TextLayer`, on a bullet/list page:
+
+- A run selected **alone** paints exactly its own box — overhang measured 0.00px at
+  `--scale-x` 1.0, 1.1, 1.188, 1.4, 1.6196 and 2.0.
+- The same run selected **together with the next run on the line** paints ~3-4px past
+  its own right edge, and the overhang does not change with `--scale-x`. It tracks the
+  _line_, not the run.
+
+Consecutive run boxes abut — PDF.js places run N+1 at the PDF's own advance — so the
+first run's overhang lands inside the next run's box and both runs paint the same
+pixels. Measured on the production tint (32% of the user colour over white =
+`248,230,176`), the boundary band reads `243,213,122`: the same tint composited
+twice. This is a _separate_ artefact from the `<br>` blocks above, which clipping the
+runs does not address.
+
+The fix is `overflow-x: clip` on each run: a run's box _is_ its share of the line, so
+clipping paint to it guarantees exactly one painter per pixel. After the change the
+band collapses to one uniform tint with a single antialiased seam pixel at the
+boundary — the same seam a native selection has between any two text fragments.
+
+`overflow-x` clips paint, not layout: `getClientRects()` returns identical boxes
+before and after, so `extractSelectedText`'s geometry-based column ordering, the
+search layer's measurements and `Ctrl+C` are untouched. It is horizontal-only because
+`overflow: clip` on both axes would also clip the highlight's vertical extent to the
+run's line box, and `clip` rather than `hidden` because `hidden` computes the other
+axis to `auto` and makes the run a scroll container. The bullet glyph stays a normal
+selectable run, so `Ctrl+C` still copies `• Vazoaktif ilaç`.
+
 Not changed: the `::selection` geometry, the transparent run text, the state class and
 its timing, `Ctrl+C`, the AI quick bar, and every line of the TextLayer geometry
 contract (`--font-height`, `--scale-x`, `--rotate`, the `transform`). No overlay

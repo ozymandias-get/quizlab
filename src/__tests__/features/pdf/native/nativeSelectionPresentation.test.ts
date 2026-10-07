@@ -186,6 +186,124 @@ describe('native selection presentation — it does not fake a highlight', () =>
   })
 })
 
+/**
+ * The double-paint contract.
+ *
+ * ## What the bug was
+ *
+ * PDF.js emits **one `<span role="presentation">` per text item** and positions
+ * each with its own `left`/`top` and `--scale-x`. Measured in Chromium 142 against
+ * PDF.js 6.4.299's real `TextLayer`, on a bullet/list page:
+ *
+ *  - A run selected **on its own** paints exactly its own box. Overhang measured at
+ *    0.00px for `--scale-x` 1.0, 1.1, 1.188, 1.4, 1.6196 and 2.0.
+ *  - The same run selected **together with the next run on the line** then paints
+ *    ~3-4px past its own right edge, and the overhang does not change with
+ *    `--scale-x`. It tracks the *line*, not the run.
+ *
+ * Consecutive run boxes *abut* (PDF.js places run N+1 at the PDF's own advance), so
+ * the first run's overhang lands inside the next run's box and **both runs paint the
+ * same pixels**. Two translucent tints over one pixel is a darker pixel — measured
+ * on the production 32% tint as `248,230,176` for a single paint against
+ * `243,213,122` for the boundary band. That band is the dark block at the start of
+ * bullet lines, indented lines and any run boundary.
+ *
+ * ## The fix, and why this test can pin it
+ *
+ * `overflow-x: clip` on each run removes the second painter rather than hiding the
+ * symptom: a run's box *is* its share of the line, so clipping paint to it
+ * guarantees one painter per pixel.
+ *
+ * jsdom resolves no cascade and has no box model, so this cannot assert a computed
+ * value — the measurements above came from a real browser. What *is* assertable, and
+ * is the part that would silently regress, is that the fix stays in place and stays
+ * shaped correctly.
+ */
+describe('native selection presentation — no double paint at run boundaries', () => {
+  /** The rule PDF.js's text runs are styled by: `> :not(.markedContent)`. */
+  const runGeometryBlock = (() => {
+    const rules = selectionRules(textLayerCss)
+    const start = rules.indexOf(
+      '[data-native-pdf-text-layer] > :not(.markedContent),\n[data-native-pdf-text-layer] .markedContent span:not(.markedContent) {'
+    )
+    expect(start, 'the text runs must still be styled by the PDF.js geometry rule').toBeGreaterThan(
+      -1
+    )
+    const end = rules.indexOf('\n}', start)
+    return rules.slice(start, end)
+  })()
+
+  it('clips each run selection paint to that run own box', () => {
+    // The fix. Without it, every run boundary on every line composites the tint
+    // twice and the band reads as a darker block.
+    expect(runGeometryBlock).toContain('overflow-x: clip')
+  })
+
+  it('clips horizontally only', () => {
+    // `overflow: clip` on both axes also clips the highlight's vertical extent to
+    // the run's line box, which visibly shortens the highlight at the top and
+    // bottom of every line. The x axis is the whole fix; y must stay unclipped.
+    expect(runGeometryBlock).not.toMatch(/(^|[;{\s])overflow\s*:/)
+  })
+
+  it('does not use hidden/auto, which would scroll instead of clip', () => {
+    // `overflow-x: hidden` computes the other axis to `auto` and makes the run a
+    // scroll container. `clip` is the value that keeps the untouched axis visible.
+    expect(runGeometryBlock).not.toMatch(/overflow-x\s*:\s*(hidden|auto|scroll|visible)/)
+  })
+
+  it('clips the runs, not the layer, so nothing is clipped at page edges', () => {
+    // The layer already has `overflow: clip` from PDF.js's own stylesheet. If the
+    // run rule ever stopped carrying its own clip, the boundary double paint would
+    // come back while this file still *looks* like it has a clip.
+    expect(runGeometryBlock).toMatch(/overflow-x\s*:\s*clip/)
+    const layerBlock = selectionRules(textLayerCss).slice(
+      0,
+      selectionRules(textLayerCss).indexOf(
+        '\n}',
+        selectionRules(textLayerCss).indexOf('[data-native-pdf-text-layer] {')
+      )
+    )
+    expect(layerBlock).not.toMatch(/overflow-x\s*:/)
+  })
+
+  it('keeps the line-break rule, which is a separate artefact', () => {
+    // A `<br>` is a zero-width line break that paints its own rect at the layer's
+    // origin. Clipping runs does not cover that, so the br rule has to stay.
+    expect(textLayerCss).toContain('[data-native-pdf-text-layer] br::selection')
+    expect(textLayerCss).toContain('[data-native-pdf-text-layer] br::-moz-selection')
+  })
+
+  it('does not clip the bullet glyph out of being selectable', () => {
+    // The bullet is a real text run — `•` is a separate PDF text item, and it has to
+    // stay selectable so `Ctrl+C` copies `• Vazoaktif ilaç`. `overflow-x` clips
+    // paint only; it must never have become `user-select: none` on runs.
+    expect(runGeometryBlock).not.toMatch(/user-select\s*:\s*none/)
+    // And the only two rules in the file that make anything unselectable are the two
+    // that already were: PDF.js's image placeholder (no glyph behind it) and the
+    // pan-mode rule (a drag surface, not a text surface). A third would mean some
+    // real run had been silenced to make the double paint less visible.
+    const unselectable = (
+      selectionRules(textLayerCss).match(/[^{}]*\{[^}]*user-select:\s*none[^}]*\}/g) ?? []
+    ).map((rule) => rule.split('{')[0].trim())
+    expect(unselectable).toHaveLength(2)
+    expect(unselectable[0]).toContain("span[role='img']")
+    expect(unselectable[1]).toContain('pdf-pan-mode-active')
+  })
+
+  it('leaves the selection API and extraction reading the same boxes', () => {
+    // `overflow-x` clips paint, not layout: `getClientRects()` returns identical
+    // boxes with and without it. `extractSelectedText` orders by those rects, and
+    // the search layer measures the same runs, so a clip that *did* move geometry
+    // would break column reading order and Ctrl+F positioning. Pin the call sites
+    // that consume them.
+    const extract = sourceOf('src/features/pdf/text/extractSelectedText.ts')
+    expect(extract).toContain('getClientRects')
+    const search = sourceOf('src/features/pdf/native/nativePdfSearch.ts')
+    expect(search).toContain('getClientRects')
+  })
+})
+
 describe('native selection presentation — behaviour is untouched', () => {
   it('leaves the active-selection state class and its rule in place', () => {
     // `usePdfTextActions` toggles this and the AI quick bar reads the same state.
