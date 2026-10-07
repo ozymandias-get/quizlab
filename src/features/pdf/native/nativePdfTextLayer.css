@@ -108,6 +108,13 @@
   --scale-x: 1;
   --rotate: 0deg;
   transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+
+  /* Each run clips its own selection paint to its own box — see the note below.
+     Horizontal only: `overflow: clip` on both axes also clips the highlight's
+     vertical extent to the run's line box, which visibly shortens it. `clip`
+     (not `hidden`) is required so the un-clipped axis stays `visible` instead
+     of computing to `auto` and scrolling. */
+  overflow-x: clip;
 }
 
 /* ── Selection presentation ───────────────────────────────────────────
@@ -136,6 +143,75 @@
  * `color: transparent` is unchanged and load-bearing: the run text is invisible
  * by design (the canvas owns the visible glyphs), so forcing a selection foreground
  * colour would paint a second, mismatched copy of the text on top of the first.
+ *
+ * ── Why the runs clip their own paint (`overflow-x: clip`) ─────────────
+ *
+ * This is the double-paint fix, and it is not a guess. Measured in Chromium 142
+ * (the engine Electron 42 ships) against PDF.js 6.4.299's own `TextLayer`, with
+ * the real DOM it emits for a bullet list:
+ *
+ * ```
+ * <span role="presentation">•</span>          <- bullet glyph, own run
+ * <span role="presentation">Vazoaktif ilaç</span>
+ * <br role="presentation">
+ * <span role="presentation">  </span>          <- indent, whitespace-only run
+ * <span role="presentation">Terlipressin</span>
+ * ```
+ *
+ * PDF.js emits **one span per text item** and positions each with its own
+ * `left` / `top`, and it sets `--scale-x` per run so the transparent glyphs line
+ * up with the canvas. Two facts fall out, and both were measured rather than
+ * assumed:
+ *
+ *  1. **A run's selection rect is wider than the run's own box.** Selected on its
+ *     own, a run paints exactly its box at every `--scale-x` from 1.0 to 2.0
+ *     (measured overhang: 0.00px at all of them). Select it *together with the
+ *     next run on the line* and the first run's highlight then extends ~3-4px
+ *     past its own right edge — past `--scale-x` 1.6196, which is the value PDF.js
+ *     computes for a two-space indent run, and it does not change when the scale
+ *     changes. The overhang tracks the *line*, not the run.
+ *  2. **Consecutive runs' boxes abut.** PDF.js places run N+1 at the PDF's own
+ *     advance, so on a bullet line the bullet box ends at x=63.5 and the label box
+ *     starts at x=66; on an indented line the indent box ends at 69.01 and the
+ *     label starts at 69. So the first run's overhang lands *inside the next run's
+ *     box*, and both runs paint the same pixels there.
+ *
+ * Two translucent tints over one pixel is a darker pixel. Measured on the
+ * production tint (32% of the user colour over white = `248,230,176`):
+ *
+ * ```
+ * x ......... 60    68 69  70  71 72  73 ................... 135
+ * current ... tint  tint tint tint tint tint tint ........ tint
+ *                     └──── 243,213,122 ────┘
+ *                        the same tint composited TWICE
+ * ```
+ *
+ * That band is the dark block at the start of a bullet line, an indented line,
+ * and any run boundary. It is not a colour problem and it is not an alpha problem:
+ * it is two paint passes on the same pixels.
+ *
+ * `overflow-x: clip` on each run is the fix because it removes the *second*
+ * painter rather than hiding the symptom. The run's own box is exactly the run's
+ * share of the line, so clipping to it guarantees every pixel of a line is
+ * painted by exactly one run. Measured after the change: the whole band collapses
+ * to one uniform tint, with a single antialiased seam pixel at the boundary
+ * (`245,218,137`) where the browser blends the two abutting edges — the same
+ * seam a native text selection has between any two text fragments.
+ *
+ * What this is **not**:
+ *
+ *  - Not geometry. `overflow-x` clips paint; it does not move, size, reflow or
+ *    transform anything. `getClientRects()` on the runs returns the same boxes
+ *    before and after, so `extractSelectedText`'s column ordering, the reading
+ *    order the search layer measures, and `Ctrl+C` are untouched.
+ *  - Not a fake highlight. No `Range.getClientRects()`, no extra element, no
+ *    per-frame measurement — the browser still paints its own selection, we only
+ *    stop it painting outside its own run.
+ *  - Not a fix for the bullet glyph. `•` stays a normal selectable run.
+ *
+ * The earlier `br::selection { background: transparent }` rule is still needed and
+ * still correct: a `<br>` is a zero-width line break that paints its own rect at
+ * the layer's origin, which is a separate artefact from this one.
  *
  * Deliberately absent: `padding`, `margin`, `border`, `transform`, `box-shadow`,
  * `filter`, `border-radius`. `::selection` geometry is the browser's — it paints
