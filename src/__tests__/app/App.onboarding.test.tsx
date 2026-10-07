@@ -1,42 +1,26 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import App from '@app/App'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockSetLanguage, mockCompleteOnboarding } = vi.hoisted(() => ({
-  mockSetLanguage: vi.fn().mockResolvedValue(undefined),
-  mockCompleteOnboarding: vi.fn()
-}))
-
-vi.mock('@shared/stores/languageStore', () => {
-  const state = {
+const { languageState } = vi.hoisted(() => ({
+  languageState: {
     language: 'en',
     isOnboardingDone: false,
     languages: {
-      en: {
-        code: 'en',
-        name: 'English',
-        nativeName: 'English',
-        flag: 'ğŸ‡¬ğŸ‡§',
-        dir: 'ltr' as const
-      },
-      tr: {
-        code: 'tr',
-        name: 'Turkish',
-        nativeName: 'Türkçe',
-        flag: 'ğŸ‡¹ğŸ‡·',
-        dir: 'ltr' as const
-      }
+      en: { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr' as const },
+      tr: { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', dir: 'ltr' as const }
     },
-    setLanguage: mockSetLanguage,
-    completeOnboarding: mockCompleteOnboarding
+    setLanguage: vi.fn(),
+    completeOnboarding: vi.fn()
   }
-  return {
-    useLanguage: Object.assign(
-      (selector?: (s: typeof state) => any) => (selector ? selector(state) : state),
-      { getState: () => state }
-    )
-  }
-})
+}))
+
+vi.mock('@shared/stores/languageStore', () => ({
+  useLanguage: Object.assign(
+    (selector?: (s: typeof languageState) => unknown) =>
+      selector ? selector(languageState) : languageState,
+    { getState: () => languageState }
+  )
+}))
 
 vi.mock('@shared/stores/appearanceStore', () => ({
   useAppearance: () => ({ bgMode: 'light', bottomBarOpacity: 1, bottomBarScale: 1 })
@@ -97,9 +81,22 @@ vi.mock('@ui/components/Toast/ToastContainer', () => ({ default: () => null }))
 vi.mock('@ui/layout/AppBackground', () => ({ default: () => null }))
 vi.mock('@ui/layout/BottomBar', () => ({ default: () => null }))
 
-describe('App onboarding', () => {
-  it('renders LanguageSelectionDialog when onboarding not done', async () => {
+// Imported after the mocks, as `vi.mock` is hoisted above every import anyway.
+import App from '@app/App'
+
+describe('App onboarding gate', () => {
+  beforeEach(() => {
+    languageState.isOnboardingDone = false
+  })
+
+  it('blocks the app behind the language dialog until onboarding is done', async () => {
     render(<App />)
     expect(await screen.findByText('Select Your Language')).toBeInTheDocument()
+  })
+
+  it('goes straight to the workspace once onboarding is done', () => {
+    languageState.isOnboardingDone = true
+    render(<App />)
+    expect(screen.queryByText('Select Your Language')).not.toBeInTheDocument()
   })
 })

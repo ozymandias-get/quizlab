@@ -148,6 +148,50 @@ describe('toastStore', () => {
       const matching = list.current.toasts.filter((t) => t.message === msg)
       expect(matching).toHaveLength(2)
     })
+
+    // A toast whose text never changes and never goes away is worse than one
+    // that is repeated: the dedup window is the only thing that lets a genuinely
+    // new failure surface after the first one.
+    it('allows the same message again once the dedup window has passed', () => {
+      vi.useFakeTimers()
+      try {
+        const msg = uniqueMessage('after-window')
+        const { result: actions } = renderHook(() => useToastActions())
+        const { result: list } = renderHook(() => useToastList())
+
+        act(() => {
+          actions.current.addToast({ message: msg, type: 'warning' })
+        })
+        act(() => {
+          vi.advanceTimersByTime(1100)
+        })
+        act(() => {
+          actions.current.addToast({ message: msg, type: 'warning' })
+        })
+
+        expect(list.current.toasts.filter((t) => t.message === msg)).toHaveLength(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  describe('toast payload passthrough', () => {
+    it.each([
+      ['title', { title: 'Title' }, 'title', 'Title'],
+      ['params', { params: { name: 'ChatGPT' } }, 'params', { name: 'ChatGPT' }]
+    ])('carries %s through to the stored toast', (_case, payload, key, expected) => {
+      const msg = uniqueMessage('payload')
+      const { result: actions } = renderHook(() => useToastActions())
+      const { result: list } = renderHook(() => useToastList())
+
+      act(() => {
+        actions.current.addToast({ message: msg, type: 'info', ...payload })
+      })
+
+      const stored = list.current.toasts.find((t) => t.message === msg)
+      expect(stored?.[key as 'title' | 'params']).toEqual(expected)
+    })
   })
 
   describe('max toasts limit', () => {

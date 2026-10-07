@@ -11,7 +11,7 @@ import {
   PDF_ZOOM_MIN_SCALE,
   PDF_ZOOM_STEP
 } from '@features/pdf/constants/pdfZoom'
-import { clampPdfPage, clampPdfScale } from '@features/pdf/native'
+import { clampPdfPage, clampPdfScale } from '@features/pdf/native/nativePdfBounds'
 
 import { describe, expect, it } from 'vitest'
 

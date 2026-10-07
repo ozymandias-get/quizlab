@@ -314,4 +314,44 @@ describe('AppToolContext - queue behavior', () => {
     expect(mockRemoveAllRanges).toHaveBeenCalledTimes(1)
     expect(result.current.pendingAiItems).toHaveLength(0)
   })
+
+  // The picker must not be started for content that is gone or not ready yet,
+  // and starting it twice for the same tab would leave the host site's overlay
+  // and ours both listening for a selection.
+  describe('picker readiness', () => {
+    it('starts the picker once the active content is ready', async () => {
+      mockState.contentController = {
+        isReady: () => true,
+        isDestroyed: () => false,
+        getURL: vi.fn(() => 'https://chat.openai.com'),
+        executeJavaScript: vi.fn().mockResolvedValue('complete')
+      } as unknown as Element
+      const { result } = renderHook(() => useAppToolActions(), { wrapper })
+
+      act(() => {
+        result.current.startPickerWhenReady()
+      })
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(mockState.startPicker).toHaveBeenCalledTimes(1)
+    })
+
+    it('starts nothing while there is no content controller', async () => {
+      mockState.contentController = null
+      const { result } = renderHook(() => useAppToolActions(), { wrapper })
+
+      act(() => {
+        result.current.startPickerWhenReady()
+      })
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(mockState.startPicker).not.toHaveBeenCalled()
+    })
+  })
 })

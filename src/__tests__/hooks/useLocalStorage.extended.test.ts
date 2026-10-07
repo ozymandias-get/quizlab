@@ -7,7 +7,15 @@ import {
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { fireLocalStorageSyncEvent, fireStorageEvent } from '../helpers/test-utils'
+/** Simulate a StorageEvent for cross-tab sync testing. */
+function fireStorageEvent(key: string, value: string | null): void {
+  window.dispatchEvent(new StorageEvent('storage', { key, newValue: value }))
+}
+
+/** Simulate the custom localStorage sync event used by useLocalStorage. */
+function fireLocalStorageSyncEvent(key: string, value: string): void {
+  window.dispatchEvent(new CustomEvent('local-storage', { detail: { key, value } }))
+}
 
 describe('useLocalStorage - Extended Tests', () => {
   beforeEach(() => {

@@ -3,28 +3,27 @@ import { describe, expect, it, vi } from 'vitest'
 
 const mockSetLanguage = vi.fn().mockResolvedValue(undefined)
 const mockCompleteOnboarding = vi.fn()
+const languageState = {
+  language: 'en',
+  isOnboardingDone: false,
+  languages: {
+    en: {
+      code: 'en',
+      name: 'English',
+      nativeName: 'English',
+      flag: '🇬🇧',
+      dir: 'ltr' as const
+    },
+    tr: { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷', dir: 'ltr' as const }
+  },
+  setLanguage: mockSetLanguage,
+  completeOnboarding: mockCompleteOnboarding
+}
 
 vi.mock('@shared/stores/languageStore', () => ({
   useLanguage: Object.assign(
-    (selector?: (state: any) => any) => {
-      const state = {
-        language: 'en',
-        isOnboardingDone: false,
-        languages: {
-          en: {
-            code: 'en',
-            name: 'English',
-            nativeName: 'English',
-            flag: '🇬🇧',
-            dir: 'ltr' as const
-          },
-          tr: { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷', dir: 'ltr' as const }
-        },
-        setLanguage: mockSetLanguage,
-        completeOnboarding: mockCompleteOnboarding
-      }
-      return selector ? selector(state) : state
-    },
+    (selector?: (state: typeof languageState) => unknown) =>
+      selector ? selector(languageState) : languageState,
     {
       getState: () => ({ completeOnboarding: mockCompleteOnboarding, setLanguage: mockSetLanguage })
     }
@@ -65,5 +64,14 @@ describe('LanguageSelectionDialog', () => {
       expect(mockSetLanguage).toHaveBeenCalledWith('tr')
       expect(mockCompleteOnboarding).toHaveBeenCalled()
     })
+  })
+
+  // The dialog is the app's only entry gate, so it has to be unmountable: a
+  // user who has already onboarded must not see it flash on every cold start.
+  it('renders nothing once onboarding is done', () => {
+    languageState.isOnboardingDone = true
+    const { container } = render(<LanguageSelectionDialog />)
+    expect(container.innerHTML).toBe('')
+    languageState.isOnboardingDone = false
   })
 })

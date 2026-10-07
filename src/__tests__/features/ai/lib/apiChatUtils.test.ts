@@ -186,5 +186,12 @@ describe('isVisionCapable', () => {
       expect(isVisionCapable(undefined as unknown as string)).toBe(false)
       expect(isVisionCapable(null as unknown as string)).toBe(false)
     })
+
+    it.each(['', 'unknown-model', 'text-davinci-003', 'gemini-pro', 'claude-2'])(
+      'should return false for the non-vision id %j',
+      (id) => {
+        expect(isVisionCapable(id)).toBe(false)
+      }
+    )
   })
 })

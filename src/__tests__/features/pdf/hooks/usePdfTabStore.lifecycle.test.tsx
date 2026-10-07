@@ -143,6 +143,50 @@ describe('usePdfTabStore - opening PDFs', () => {
     expect(result.current.pdfTabs[0]?.file?.name).toBe('a-renamed.pdf')
     expect(result.current.pdfTabs[0]?.file?.size).toBe(999)
   })
+
+  // The viewer session key is what makes the PDF viewer remount when the reader
+  // picks up a genuinely different document. Refreshing the file metadata must
+  // not churn it, or every "open recent" would reset the reader's zoom and page.
+  describe('viewerSessionKey', () => {
+    beforeEach(() => {
+      vi.stubGlobal('crypto', {
+        randomUUID: vi
+          .fn()
+          .mockReturnValueOnce('new-tab-id')
+          .mockReturnValueOnce('session-a')
+          .mockReturnValueOnce('session-b')
+      } as unknown as Crypto)
+      resetStore()
+    })
+
+    it('is preserved when the same path is reopened with new metadata', () => {
+      const { result } = renderHook(() => usePdfTabStore())
+      act(() => {
+        result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:one'))
+      })
+      expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-a')
+
+      act(() => {
+        result.current.openPdfInTab(makeFile('a-renamed.pdf', '/docs/a.pdf', 'blob:one'))
+      })
+
+      expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-a')
+    })
+
+    it('is reissued when the same path is reopened with a different stream url', () => {
+      const { result } = renderHook(() => usePdfTabStore())
+      act(() => {
+        result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:one'))
+      })
+      expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-a')
+
+      act(() => {
+        result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:two'))
+      })
+
+      expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-b')
+    })
+  })
 })
 
 describe('usePdfTabStore - closing tabs', () => {
