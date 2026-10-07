@@ -1031,4 +1031,32 @@ describe('AiWebContentsViewManager - state snapshot', () => {
     expect(states).toHaveLength(1)
     expect(states[0].generation).toBe(second.generation)
   })
+
+  it('resets hostToken on re-attach so new host can sync after reload', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const sync1 = manager.syncAiViewHost(
+      'tab-1',
+      'host-token-old',
+      { x: 0, y: 0, width: 200, height: 200 },
+      true
+    )
+    expect(sync1).toBe(true)
+    const entry = manager.getManagedAiView('tab-1')!
+    expect(entry.hostToken).toBe('host-token-old')
+
+    // Re-attach with same source (e.g. renderer reload or remount)
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(entry.hostToken).toBeNull()
+
+    // New host with new token can successfully sync
+    const sync2 = manager.syncAiViewHost(
+      'tab-1',
+      'host-token-new',
+      { x: 10, y: 10, width: 300, height: 300 },
+      true
+    )
+    expect(sync2).toBe(true)
+    expect(entry.hostToken).toBe('host-token-new')
+  })
 })

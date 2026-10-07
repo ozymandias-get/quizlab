@@ -233,6 +233,14 @@ function attachResolved(
   const sourceKey = sourceKeyOf(request.source)
   const existing = getManagedAiView(viewId)
   if (existing && existing.sourceKey === sourceKey) {
+    const window = getMainWindow()
+    if (window && !window.isDestroyed()) {
+      const children = (window.contentView as unknown as { children?: unknown[] })?.children
+      if (Array.isArray(children) && !children.includes(existing.view)) {
+        window.contentView.addChildView(existing.view)
+      }
+    }
+    existing.hostToken = null
     return { ...snapshotOf(existing) }
   }
   if (existing) destroyEntry(viewId)
