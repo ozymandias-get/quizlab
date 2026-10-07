@@ -41,6 +41,7 @@ describe('useScreenshotPipeline', () => {
     act(() => {
       result.current.startScreenshot({ page: 4, captureKind: 'selection' })
     })
+    expect(overlay.startScreenshot).toHaveBeenCalledTimes(1)
     await act(async () => {
       await result.current.handleCapture('data:image/png;base64,xyz')
     })
@@ -86,7 +87,7 @@ describe('useScreenshotPipeline', () => {
     expect(queueImageForAi.mock.calls[1]).toEqual(['second', undefined])
   })
 
-  it('drops the metadata when the user cancels instead of capturing', () => {
+  it('tears the overlay down when the user cancels instead of capturing', () => {
     const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
 
     act(() => {
@@ -95,10 +96,11 @@ describe('useScreenshotPipeline', () => {
     act(() => {
       result.current.closeScreenshot()
     })
-    act(() => {
-      result.current.startScreenshot()
-    })
-    expect(() => result.current.clearScreenshotMeta()).not.toThrow()
+
+    // Cancelling has to reach the overlay, or the drag region stays live over
+    // the whole workspace.
+    expect(overlay.closeScreenshot).toHaveBeenCalledTimes(1)
+    expect(queueImageForAi).not.toHaveBeenCalled()
   })
 
   it('clears the metadata without leaving screenshot mode', () => {

@@ -261,34 +261,26 @@ describe('toastStore', () => {
   })
 
   describe('convenience methods', () => {
-    it('showSuccess returns a toast id', () => {
+    // Each convenience method is addToast with the type pre-filled and a fixed
+    // default message, so the contract is that both survive the shorthand.
+    it.each([
+      ['showSuccess', 'success'],
+      ['showError', 'error'],
+      ['showWarning', 'warning'],
+      ['showInfo', 'info']
+    ])('%s adds a %s toast', (method, type) => {
+      const message = uniqueMessage(type)
       const { result: actions } = renderHook(() => useToastActions())
+      const { result: list } = renderHook(() => useToastList())
+
       let id = ''
       act(() => {
-        id = actions.current.showSuccess(uniqueMessage('success'))
+        id = actions.current[method as 'showError'](message)
       })
+
+      const stored = list.current.toasts.find((t) => t.id === id)
       expect(id).toBeTruthy()
-    })
-
-    it('showError adds an error toast', () => {
-      const { result: actions } = renderHook(() => useToastActions())
-      act(() => {
-        actions.current.showError(uniqueMessage('error'))
-      })
-    })
-
-    it('showWarning adds a warning toast', () => {
-      const { result: actions } = renderHook(() => useToastActions())
-      act(() => {
-        actions.current.showWarning(uniqueMessage('warning'))
-      })
-    })
-
-    it('showInfo adds an info toast', () => {
-      const { result: actions } = renderHook(() => useToastActions())
-      act(() => {
-        actions.current.showInfo(uniqueMessage('info'))
-      })
+      expect(stored).toMatchObject({ message, type })
     })
   })
 

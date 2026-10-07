@@ -186,6 +186,26 @@ describe('usePdfTabStore - opening PDFs', () => {
 
       expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-b')
     })
+
+    // `openPdfInTab` has an early return for "identical file, already the active
+    // tab". Rebuilding the array instead would be invisible to every assertion
+    // above — same length, same tab, same key — but it re-renders every tab and
+    // every subscriber in the panel. Only referential identity can see it.
+    it('returns the same tab array when the identical file is reopened on the active tab', () => {
+      const { result } = renderHook(() => usePdfTabStore())
+      const file = makeFile('a.pdf', '/docs/a.pdf', 'blob:one')
+
+      act(() => {
+        result.current.openPdfInTab(file)
+      })
+      const afterFirstOpen = result.current.pdfTabs
+
+      act(() => {
+        result.current.openPdfInTab(file)
+      })
+
+      expect(result.current.pdfTabs).toBe(afterFirstOpen)
+    })
   })
 })
 

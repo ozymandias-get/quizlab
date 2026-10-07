@@ -439,9 +439,9 @@ describe('AiSession sleep / wake', () => {
     expect(secondGeneration).not.toBe(firstGeneration)
     await waitFor(() => {
       expect(lastSync()?.visible).toBe(false)
+      expect(screen.getByTestId('loader')).toBeInTheDocument()
+      expect(currentController()?.isLoading?.()).toBe(true)
     })
-    expect(screen.getByTestId('loader')).toBeInTheDocument()
-    expect(currentController()?.isLoading?.()).toBe(true)
 
     // Only its own load may reveal it.
     act(() => {

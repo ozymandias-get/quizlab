@@ -196,6 +196,41 @@ describe('decryptValue', () => {
 })
 
 describe('AES-256-GCM encryption fallback', () => {
+  // GCM authenticates. A tampered payload must fail the auth-tag check and be
+  // refused, never accepted as the wrong plaintext — a store that silently
+  // decrypted to garbage would hand the AI a provider config nobody wrote.
+  it('refuses a tampered aes: value rather than returning a wrong plaintext', () => {
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    const encrypted = encryptValue('sk-real-key')
+    const tampered = encrypted.slice(0, -6) + 'AAAAAA'
+
+    expect(decryptValue(tampered)).toBe('')
+  })
+
+  it('refuses an aes: value whose auth tag has been replaced', () => {
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    const encrypted = encryptValue('sk-real-key')
+    const parts = encrypted.split(':')
+
+    expect(decryptValue(`${parts[0]}:${parts[1]}:${'0'.repeat(32)}:${parts[3]}`)).toBe('')
+  })
+
+  it('refuses an aes: value with a malformed envelope', () => {
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    expect(decryptValue('aes:not-an-envelope')).toBe('')
+  })
+
+  it('round-trips through the fallback for a unicode secret', () => {
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    const secret = 'api-key-with-$pecial-ch@rs!🚀'
+    expect(decryptValue(encryptValue(secret))).toBe(secret)
+  })
+
+  it('produces a different ciphertext for the same secret every time', () => {
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    expect(encryptValue('same-input')).not.toBe(encryptValue('same-input'))
+  })
+
   it('decrypts values written by the legacy v2 machine-derived key', async () => {
     // Replicates the exact pre-v3 production derivation (v2) to prove that
     // values stored by older builds remain readable after the upgrade.
