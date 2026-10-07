@@ -12,26 +12,27 @@ migration plan.
 
 ## Current State
 
-| Field                | Value                                                                            |
-| -------------------- | -------------------------------------------------------------------------------- |
-| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                  |
-| Current phase        | **Phase 9 — general cleanup, in progress**                                       |
-| Last completed phase | Phase 8B — legacy RPV removal + collapse to a single PDF.js 6 runtime            |
-| Current HEAD         | run `git rev-parse HEAD`                                                         |
-| Working tree         | **dirty** — Phase 9 is in flight and several agents hold it                      |
-| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                       |
-| Readiness            | single runtime, sole renderer, no feature flag; Phase 9 gates **not yet re-run** |
+| Field                | Value                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                     |
+| Current phase        | **Phase 10 — final stabilization, complete**                                        |
+| Last completed phase | Phase 10 — deferred-debt closure + baseline refresh (see _Deferred-Debt Decisions_) |
+| Current HEAD         | run `git rev-parse HEAD`                                                            |
+| Working tree         | **clean**                                                                           |
+| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                          |
+| Readiness            | single runtime, sole renderer, no feature flag; all gates re-run green in Phase 10  |
 
-**The PDF viewer migration is complete and Phase 9 is not migration work.** There is
+**The PDF viewer migration is complete and the cleanup phases are complete.** There is
 one PDF.js in the tree, one worker, one viewer, and no feature flag.
-`@react-pdf-viewer` is gone. Phase 9 is post-migration cleanup — comment and
-terminology accuracy, dead code, stale documentation — and it must not change what the
-app does. The migration's own exit criterion (Phase 8B) was met before it began.
+`@react-pdf-viewer` is gone. Phases 9 and 10 were post-migration cleanup — dead code,
+stale comments and documentation, unused dependencies, a refreshed baseline — and
+neither changed what the app does. The migration's own exit criterion (Phase 8B) was
+met before either began.
 
 Phase 4's manual smoke was resolved by user validation in the real application.
 The Phase 5, 6, 7, 8A and 8B interactive lists are **still outstanding** — see
 _Interactive Smoke State_. They are the only thing Phase 8B could not verify, and
-Phase 9 does not touch them.
+neither Phase 9 nor Phase 10 touched them.
 
 ## Current Goal
 
@@ -87,6 +88,14 @@ that existed only inside it:
    takes the same fit scale `usePdfResizeRefit` and `useNativePdfScaleState#fit`
    already use — and is declared in `useNativePdfController`, so the subscription
    lives and dies with the viewer and exactly one responds.
+   **Phase 10 corrected the premise of this item.** The half that was closed is the
+   renderer half, and it is closed and live. The _producer_ half never existed:
+   `electronAPI.showPdfContextMenu` has **zero callers in `src/`**, so
+   `pdfHandlers.ts` has never been able to build that menu and nothing has ever sent
+   `TRIGGER_PDF_VIEWER_ZOOM` or `TRIGGER_SCREENSHOT`. Both events' renderer consumers
+   are mounted and correct, but they are consumers of an event nobody emits. See
+   _Deferred-Debt Decisions_ §2 — this is a product decision, not cleanup, and it
+   means "context-menu zoom" on the interactive smoke list cannot currently pass.
 2. _Keyboard zoom._ `zoomPlugin({ enableShortcuts: true })` bound Ctrl/Cmd +
    `-` / `=` / `0`. `usePdfZoomShortcuts` restores the key set, modifier rule,
    `document`-level listener and conditional `preventDefault`. It deliberately does
@@ -146,7 +155,8 @@ replaces `lib/` → `native/`.
 
 `.npmrc` still has `legacy-peer-deps=true`. It was needed to suppress RPV's peer
 `ERESOLVE`; that is gone, but the setting also governs an eslint peer conflict that is
-still live, so **it was deliberately left alone** and is Phase 9's business.
+still live, so **it was deliberately left alone** through Phase 10 as well. Removing it
+needs the eslint conflict resolved first, and that is not cleanup.
 
 ## Native PDF Engine
 
@@ -401,38 +411,123 @@ only while a PDF panel existed.
 
 ## Regression Baseline
 
-Last re-verified after the vertical-centering fix, on top of the Phase 8B baseline.
+**This is a measurement, not an invariant.** It is the only full `npm test` run
+recorded for Phase 10, taken on the tree below. Phase 9 removed vacuous and duplicate
+test files, so the old Phase-7/8B figures were hundreds of tests too high and were
+replaced rather than adjusted. Whoever changes the suite should re-measure instead of
+editing the numbers to taste.
 
 ```
-Targeted:      src/__tests__/features/pdf + src/__tests__/architecture
-               68 files · 880 passed · 0 failed
-
-Blast radius:  + app, components/layout, platform
-               118 files · 1235 passed · 0 failed
+Measured at:   50bd7ea (code) on 2026-10-07
+Command:       npm test  (vitest run)
+Test files:    330 passed / 330
+Tests:         3828 passed | 2 skipped | 0 failed | 0 todo   (3830 total)
+Duration:      255.32s
 ```
 
-> **These counts predate Phase 9 and are stale as file counts.** Phase 9 removed
-> vacuous and duplicate test files and deleted `src/features/pdf/native/index.ts`, so
-> the file counts above are known to be too high. The pass/fail figures are the last
-> measured truth; nobody has re-run the suite for Phase 9 yet. Whoever closes Phase 9
-> must re-measure and replace both blocks rather than leave a plausible-looking number.
+`vitest.config.mts` includes exactly `src/__tests__/**` and `electron/__tests__/**`,
+which is 237 + 93 = **330** files on disk — the reported file count matches the tree,
+so nothing was silently excluded. The **2 skips** are pre-existing and host-specific:
+`electron/__tests__/core/ConfigManager.extended.test.ts` guards two POSIX `chmod`
+tests with `skip: os.platform() === 'win32'`, so the number is 2 on Windows and 0
+elsewhere.
 
-> **The full `npm test` run was not executed** — it is intentionally skipped unless a
-> targeted failure indicates broader validation is necessary. The repository-wide count is
-> therefore still the **Phase 7 baseline**: 361 files · 3996 passed · 2 skipped · 0 failed.
-> The 2 skips are pre-existing (Electron `ConfigManager`).
+### Targeted sets re-run during Phase 10
 
-Static gates green after the centering fix: `typecheck`, `lint`, `format:check`,
-`analyze:architecture`, `analyze:file-sizes`, `analyze:css`, `ci:check-hygiene`,
-`git diff --check`. `check:audit` / `check:electron-security` were last green at Phase 8B
-and are unaffected by a renderer-only CSS change.
+```
+src/__tests__/features/pdf + src/__tests__/architecture
+  + src/__tests__/shared/ipcChannels.test.ts + electron/__tests__
+                162 files · 2200 passed · 2 skipped · 0 failed
+```
 
-Build: `npm run build:renderer:electron` emits **one** PDF chunk (`vendor-pdf`, 426.62 kB),
-**one** worker (`pdf.worker.min-<hash>.mjs`) and the full `dist/pdfjs/` tree
-(200 files: cmaps 169, standard_fonts 16, wasm 13, iccs 2). Zero RPV traces in `dist/assets`.
+### Static gates (all green at 50bd7ea)
 
-`electron/__tests__` were not run; they do not import PDF.js and the centering fix touches
-neither `electron/` nor `shared/` behaviour.
+`typecheck`, `lint`, `format:check`, `analyze:css`, `analyze:architecture`,
+`analyze:file-sizes`, `ci:check-hygiene`, `ci:check-version`, `check:audit`,
+`check:electron-security`, `git diff --check`. `check:audit` reports a clean shipped
+tree with 0 exceptions. `check:electron-security` reports no HIGH/CRITICAL.
+
+### Build (at 50bd7ea)
+
+`npm run build` (`tsc -b` + renderer + backend) succeeds. `npm run build:renderer:electron`
+emits **one** PDF chunk (`vendor-pdf-DSIvYwED.js`, 436.85 kB), **one** worker
+(`pdf.worker.min-CjEcRF4W.mjs`) and the full `dist/pdfjs/` tree (200 files). Zero RPV
+and zero PDF.js 3 traces in `dist/`. `npm ls pdfjs-dist` → `pdfjs-dist@6.4.299`,
+one resolved runtime.
+
+## Deferred-Debt Decisions (Phase 10)
+
+Eight items were explicitly deferred by Phase 9. All eight are now **settled**.
+Recorded here so no future agent re-audits them.
+
+| #   | Item                                    | Verdict                                |
+| --- | --------------------------------------- | -------------------------------------- |
+| 1   | `useNativePdfController` `enabled` knob | **KEPT** — settled, do not re-audit    |
+| 2   | `SHOW_PDF_CONTEXT_MENU`                 | **KEPT / DEFERRED** — product decision |
+| 3   | `SELECT_FOLDER`                         | **REMOVED** (commit `09c2037`)         |
+| 4   | `data-native-pdf-annotation-page`       | **REMOVED** (commit `ee43fa2`)         |
+| 5   | `data-native-pdf-search-page`           | **REMOVED** (commit `ee43fa2`)         |
+| 6   | `semver` dev dependency                 | **REMOVED** (commit `8e80064`)         |
+| 7   | `@types/semver` dev dependency          | **REMOVED** (commit `8e80064`)         |
+| 8   | stale regression-baseline counts        | **REPLACED** with a measured run       |
+
+**1 — `enabled`: KEEP.** It is genuine `VITE_NATIVE_PDF_VIEWER` residue — its own doc
+comment says "The feature flag.", and it was introduced in `53c253b` behind that flag,
+which `19ac492` deleted, leaving the literal `true` in `usePdfViewerState.ts:89`. It
+is threaded into **9** sub-hooks, so removal is a 16-file / ~57-line change across the
+entire native rendering + lifecycle boundary, and it would delete 5 tests whose subject
+("the viewer is off") has no production referent. **Rejected on cost, not on merit**:
+zero architectural benefit, maximum blast radius, in a phase whose mandate is no
+architectural churn. It also has no half-measure — dropping it from the controller
+while keeping the sub-hook parameters would leave 9 permanently-`true` dead
+parameters. The sub-hook `enabled` guards are **not** dead: the real lifecycle
+vocabulary in that file is `status === 'ready'`, `isReady`, `documentKey` and
+`engine() !== null`, and the shared viewport hooks keep their own independent
+`enabled` either way. If a future phase does want this gone, it needs its own phase.
+
+**2 — `SHOW_PDF_CONTEXT_MENU`: KEPT, deferred to a product decision.** Proven
+caller-less: `electronAPI.showPdfContextMenu` (`electron/preload/index.ts:72`) has zero
+callers in `src/`, no dynamic dispatch exists anywhere (`ipcRenderer[...]`,
+`Record<channel, …>`, `Object.keys(IPC_CHANNELS)` all absent), and this has been true
+since the repository's first commit. **But it is not deleted**, because it is the sole
+producer of `TRIGGER_SCREENSHOT` and `TRIGGER_PDF_VIEWER_ZOOM`, whose renderer
+consumers (`usePdfViewerEffects`, `usePdfViewerZoomIpc`) are mounted and correct.
+Deleting it would orphan two more chains, so the cascade — not the channel — is the
+decision. The real question is whether the native Electron PDF menu should exist at
+all; the renderer already has its own React `ContextMenu`, and `usePdfViewerMenuItems`
+omits zoom on purpose because the toolbar owns it. **This needs a human.**
+
+**3 — `SELECT_FOLDER`: REMOVED.** Six sites, zero test changes. Zero `ipcRenderer.invoke`
+reaches it, `usePdfApi` exposes no wrapper, and no button, menu item, accelerator,
+drag-drop handler or i18n key drives it. Caller-less at every historical state checked
+(`ea9f623`, `90d4b0c`, `a2b43e4`). `openDirectory` is now at zero occurrences repo-wide.
+Removing it is pure attack-surface reduction; `contextIsolation`, `sandbox`,
+`requireTrustedIpcSender`, the external-URL checks and the permission handlers are
+untouched.
+
+**4 & 5 — the two `-page` layer attributes: REMOVED.** Their only consumers were 7
+test assertions that re-checked React state the code already holds. No CSS rule, no
+`querySelector`, no `dataset`, no `getAttribute` in production, no doc, and the
+repository has no e2e harness at all. Contrast the siblings that _are_ load-bearing:
+`data-native-pdf-text-page` backs `findNativeTextLayerForPage`, and
+`data-native-pdf-page` is what makes `findNativePageCanvas` refuse a wrong-page canvas.
+Neither removed attribute had a selector constant or a lookup function. Both layers are
+ref-addressed, so their page comes from React state and from
+`searchLayer.closest(NATIVE_PAGE_SELECTOR)`. Two `waitForFrames` conditions were
+**rebuilt, not deleted**, and both are stricter than what they replaced — the old
+page-change wait was satisfied by a re-render from `currentPage` alone, so it would
+have passed with no new `AnnotationLayer` ever constructed.
+
+**6 & 7 — `semver` / `@types/semver`: REMOVED.** No `import`, `require()` or dynamic
+`import()` of `semver` anywhere in `src/`, `electron/`, `shared/`, `scripts/` or config,
+and no file imports a semver type. The two places that look like they need it both
+hand-roll it: `scripts/check-version-consistency.mjs:11` uses a local regex plus exact
+string equality against `` `v${version}` ``, and `electron/core/updater.ts#isNewer`
+`parseInt`s dot-split segments. `@types/semver` is not ambient either — both leaf
+tsconfigs set `"types": ["node"]`, so `@types/*` is opted-in and narrowed.
+`semver` survives as a transitive dep of cspell, patch-package, eslint-plugin-unicorn,
+`@typescript-eslint/*`, electron, electron-builder and the commitlint chain, so no tool
+loses access to it; only the root declaration is gone.
 
 ## Interactive Smoke State
 
@@ -457,6 +552,13 @@ neither `electron/` nor `shared/` behaviour.
   element carries `m-auto`, which subtree moves together) and nothing more. Nobody has
   looked at a centered page in a real window, so treat "the page is vertically centered"
   as unverified until the user runs the list below.
+- **Phase 10 finding that changes the list**: the "Electron context-menu zoom" smoke item
+  **cannot pass as written**. The native Electron menu is unreachable — nothing calls
+  `electronAPI.showPdfContextMenu` — so a right-click shows only the renderer's own React
+  menu (add page text to AI, send page as image, crop screenshot, reload). If the user
+  expects a native menu with Zoom In / Zoom Out / Reset, that is **missing capability,
+  not a regression**; report it rather than filing it against this branch's parity work.
+  The keyboard-zoom item is unaffected and still testable from the toolbar.
 
 The highest-value items overall: selection alignment against the canvas at 100 % / 150 % /
 fit, `Ctrl+C` out of the native layer, pan ⇄ text switching, link hitbox alignment after a
@@ -516,13 +618,30 @@ has.
     keep its own arithmetic tests and stay renderer-agnostic. Deliberate; worth revisiting
     if the two ever drift.
 18. **`.npmrc` still sets `legacy-peer-deps=true`** although RPV is gone. It still governs
-    an eslint peer conflict; removing it is Phase 9's business, not this phase's.
+    an eslint peer conflict; removing it needs that conflict resolved first and was left
+    alone through Phase 10.
 19. **`nativePageLayout.test.tsx` cannot measure layout.** jsdom performs no box model —
     every rect is `0×0`, `scrollHeight === clientHeight`, and no margin is ever resolved —
     so the file asserts the structural layout contract instead and says so in its header.
     A future agent must not "upgrade" it by fabricating pixel geometry: that would assert
     the helper's arithmetic rather than the browser's. The vertical-centering invariant is
     confirmed by the interactive smoke list, not by that suite.
+20. **The native Electron PDF context menu is unreachable, and has been since the first
+    commit.** `pdfHandlers.ts` builds a real `Menu` with full-page screenshot, area
+    screenshot, Zoom In / Zoom Out / Reset Zoom and Reload, and forwards the zoom items
+    over `TRIGGER_PDF_VIEWER_ZOOM` — but `electronAPI.showPdfContextMenu` has **zero
+    callers in `src/`**, so the menu is never built and neither `TRIGGER_SCREENSHOT` nor
+    `TRIGGER_PDF_VIEWER_ZOOM` is ever emitted. The renderer has its own React
+    `ContextMenu` instead, and `usePdfViewerMenuItems` omits zoom on purpose because the
+    native controller owns its scale outright. So the "Electron context-menu zoom"
+    parity item above is closed only on the renderer half, and the interactive-smoke line
+    for context-menu zoom **cannot pass** until a human decides whether that menu should
+    exist. Phase 10 kept the channel for exactly this reason; see _Deferred-Debt
+    Decisions_ §2.
+21. **`useNativePdfController`'s `enabled` parameter is dead weight** — always `true` in
+    production, genuine feature-flag residue, threaded into 9 sub-hooks. Kept in Phase 10
+    because removal is a 16-file change across the whole native boundary for no
+    architectural gain. Do not re-audit it; read _Deferred-Debt Decisions_ §1 instead.
 
 ## Temporary Migration Components
 
@@ -600,15 +719,18 @@ churn on top of a deletion phase. It is a naming-cleanup phase, not this one.
 Zero diff is the expected state for all of these in any phase that is not the one
 explicitly requested.
 
-- `package.json`, `package-lock.json`, `.npmrc` (the `legacy-peer-deps` line is Phase 9's)
 - `src/features/pdf/ui/hooks/**`, `src/features/pdf/viewport/**`,
   `src/features/pdf/interaction/**`
 - `src/features/pdf/text/normalizePdfText.ts`, `text/usePdfTextActions.ts`, `text/types.ts`
 - `src/features/pdf/store/**` and
   `hooks/{readingHistoryRepository,useReadingProgressPersistence,usePdfViewerEffects}.ts`
   (`usePdfNavigation.ts` was deleted in Phase 8B; only these three remain)
-- `src/features/pdf/native/**` and `features/pdf/engine/**` — the migration's output; the
-  naming is settled, the behaviour is not
+- `src/features/pdf/native/**` + `engine/**` — the migration's output; the
+  naming is settled, the behaviour is not. `enabled` is settled too: see
+  _Deferred-Debt Decisions_ §1 before touching it
+- `electron/features/pdf/pdfHandlers.ts` — kept only under _Deferred-Debt Decisions_ §2
+- `package.json`, `package-lock.json`, `.npmrc` (`legacy-peer-deps` needs the eslint
+  peer conflict resolved first; the two `semver` entries are already gone)
 - `src/shared/styles/**` (the native layers have their own stylesheets)
 - `src/features/screenshot/**` and `electron/features/screenshot/**` — the crop path is
   renderer-independent and must stay that way
@@ -642,29 +764,36 @@ branch". Do not merge to master, tag, release or bump the version.
 
 ## Next Phase
 
-**Phase 9 — general cleanup: in progress.** The merge decision still needs its own
-authorisation and is not part of Phase 9.
+**None pending from cleanup.** Phases 9 and 10 are both closed: dead code removed,
+deferred-debt decisions recorded, and the regression baseline freshly measured. The
+branch is prepared for user smoke and then a merge decision.
 
-Phase 9 is cleanup of the finished migration: dead code, stale comments and
-documentation, vacuous tests. It must not change what the app does, and it does not
-retire the interactive smoke list — see below for the items that are still open.
+The merge decision still needs its **own authorisation** and is not part of any cleanup
+phase.
 
-Open candidates:
+Open candidates, none of which is cleanup:
 
-1. `npm run analyze:deadcode` / `analyze:knip` / `analyze:prune` — several modules were
-   left deliberately reachable during the migration and may now be orphans.
-2. Remove `.npmrc`'s `legacy-peer-deps=true` once the eslint peer conflict that still needs
-   it is resolved. Deliberately untouched so far; the flag is real, not stale.
-3. Re-measure and replace the Regression Baseline counts, which predate this phase.
-4. Nothing else in the PDF feature. It is done.
-
-**The interactive smoke list is still outstanding** and is not a Phase 9 deliverable:
-jsdom cannot see layout, so geometry, real selection, link hitboxes, highlight alignment,
-capture fidelity and keyboard zoom are all unproven. A later phase — or the merge
-decision — has to own it.
+1. **The interactive smoke list.** This is the real next step. jsdom cannot see layout, so
+   geometry, real selection, link hitboxes, highlight alignment, capture fidelity and
+   keyboard zoom are all still unproven, and only a human in a real window can settle
+   them. Read the Phase 10 note in _Interactive Smoke State_ before running the
+   context-menu line.
+2. **Decide the native Electron PDF context menu** — build the sender for
+   `SHOW_PDF_CONTEXT_MENU`, or delete the handler and the two `TRIGGER_*` chains it
+   feeds. That is a product decision with a dependency-cascade consequence, deliberately
+   not taken in Phase 10. See _Deferred-Debt Decisions_ §2.
+3. Remove `.npmrc`'s `legacy-peer-deps=true` once the eslint peer conflict that still
+   needs it is resolved. Deliberately untouched; the flag is real, not stale.
+4. `npm run analyze:deadcode` may still name migration scaffolding that was left
+   deliberately reachable. Read the finding against _Deferred-Debt Decisions_ before
+   acting on it.
+5. If `useNativePdfController`'s `enabled` really is to go, that is its own phase sized
+   for a 16-file change — not a cleanup appendage.
 
 ## Do Not Do Yet
 
+- Do not re-audit the eight items in _Deferred-Debt Decisions_. They are settled with
+  evidence; re-deriving them is how this repository grew a 700-line handoff.
 - Do not reintroduce a second PDF renderer, a feature flag, or an `@react-pdf-viewer`
   dependency. Phase 8B exists so they cannot come back.
 - Do not re-introduce a renderer branch into `usePdfCaptureActions`, `findPageCanvas`,
