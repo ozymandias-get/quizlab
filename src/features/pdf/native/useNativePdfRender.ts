@@ -32,6 +32,11 @@
  * superseded render reports nothing and a turn that was already abandoned is never
  * presented.
  *
+ * "Until the new ones land" is exact, not approximate: `pageRenderer` sizes the canvas
+ * only when the size actually changes, so a same-size page turn does not reset the
+ * backing store and the outgoing page stays painted for the whole interval. That is
+ * what makes the commit a meaningful signal rather than a race.
+ *
  * It is read through a ref so a new callback identity can never re-run the effect: a
  * presentation concern must not be able to cost an extra `getPage` or an extra render.
  */

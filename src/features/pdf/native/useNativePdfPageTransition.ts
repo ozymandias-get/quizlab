@@ -50,6 +50,26 @@
  * earlier one is still moving cancels it, so a presentation is never more than 140 ms
  * behind the reader.
  *
+ * ## Layer timing: why the ramp is shallow, not long
+ *
+ * The four layers do not finish together. `useNativePdfRender` resolves first and reports
+ * the commit; the text layer is then still awaiting its own `getPage`, `getTextContent()`
+ * and stream render, and the annotation layer its own `getPage`, `getAnnotations()` and
+ * build. All three are children of the one page box this hook animates, so they cannot
+ * drift apart geometrically — but for the length of that interval the page box holds a
+ * canvas with no words and no links on it.
+ *
+ * Waiting for the layers is the wrong answer: it would delay the presentation by however
+ * long a text layer takes to drain its stream, which is exactly the "navigation, blank
+ * wait, then animation" shape that feels sluggish, and a document whose text layer fails
+ * outright would never present a turn at all.
+ *
+ * So the interim state is made *invisible* instead of avoided, which is a one-constant
+ * answer: a 5 % opacity floor means a page missing its text for a few milliseconds is not
+ * a perceptible event, and the 8 px of travel carries the direction on its own. A 0.55
+ * floor did the opposite — it turned the interval into a visible blink, because the ramp
+ * was dimming the only layer that had arrived.
+ *
  * ## Interaction and geometry during the 140 ms
  *
  * Nothing is locked and nothing is measured:

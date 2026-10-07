@@ -29,6 +29,7 @@ import {
   NATIVE_PAGE_TRANSITION_DURATION_MS,
   NATIVE_PAGE_TRANSITION_EASING,
   NATIVE_PAGE_TRANSITION_OFFSET_PX,
+  NATIVE_PAGE_TRANSITION_START_OPACITY,
   deriveNativePdfPageTransitionDirection,
   nativePdfPageTransitionKeyframes,
   playNativePdfPageTransition
@@ -123,12 +124,18 @@ describe('page transition keyframes', () => {
     expect(last).toEqual({ opacity: 1, transform: 'translateY(0px)' })
   })
 
-  it('starts from an opacity floor rather than from nothing', () => {
+  it('starts from a shallow opacity floor rather than from nothing', () => {
     const [first] = nativePdfPageTransitionKeyframes('forward')
 
-    // Zero would put a black rectangle in the first composited frame of every turn — the
-    // blank-frame flash the single-canvas architecture otherwise never produces.
-    expect(first.opacity).toBeGreaterThan(0)
+    // Two failures are being excluded, and they fail in opposite directions.
+    //
+    // Zero would put a black rectangle in the first composited frame of every turn, and any
+    // deep ramp is worse than that here: the canvas commits first and the text layer and
+    // annotation layer land one to three async steps later, so the page box is transiently
+    // a canvas with no words on it. A 0.55 floor made that interim state plainly visible as
+    // a blink. The ramp has to be shallow enough that the interim state is imperceptible.
+    expect(first.opacity).toBe(NATIVE_PAGE_TRANSITION_START_OPACITY)
+    expect(first.opacity).toBeGreaterThan(0.9)
     expect(first.opacity).toBeLessThan(1)
   })
 
