@@ -2,7 +2,7 @@ import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
 import { usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 
 import { TooltipProvider } from '@app/components/ui/tooltip'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The bar is closed until something opens it � Ctrl+F through usePdfShortcuts, or the
@@ -220,12 +220,9 @@ describe('PdfToolbar', () => {
     expect(onReload).toHaveBeenCalledTimes(1)
   })
 
-  // Phase 8A gave the native path the same capture pipeline the legacy viewer has,
-  // so the `nativeCanvasMode` bounding this block used to assert is gone: there is
-  // nothing left for it to disable. The search bar and the page navigation are
-  // still asserted here because they are the two things that must stay reachable
-  // on a viewer that owns its own state.
-  describe('native-mode toolbar', () => {
+  // The search bar and the page navigation are asserted here because they are the
+  // two things that must stay reachable on a viewer that owns its own state.
+  describe('viewer with no legacy renderer branch', () => {
     function renderNativeToolbar() {
       return render(
         <TooltipProvider>
@@ -252,31 +249,23 @@ describe('PdfToolbar', () => {
       )
     }
 
-    it('keeps the search bar, because the native path implements search too', () => {
+    it('reveals the search bar when the shared store opens it', async () => {
       const { getByTestId } = renderNativeToolbar()
 
-      // The bar is the same component, driven by the same shared store, on both
-      // renderers. `Ctrl+F` opens it through the store.
+      // `Ctrl+F` reaches this bar through `usePdfSearchStore`, with no renderer
+      // branch: closed is closed, and one open() reveals exactly one input.
+      act(() => usePdfSearchStore.setState({ isOpen: false }))
+      await waitFor(() =>
+        expect(screen.queryByPlaceholderText('search_placeholder')).not.toBeInTheDocument()
+      )
       act(() => usePdfSearchStore.getState().open())
 
-      expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
-      // Page navigation and zoom stay: they are backed by native state.
+      expect(await screen.findByPlaceholderText('search_placeholder')).toBeInTheDocument()
+      // Page navigation and zoom stay: they are backed by the viewer's own state.
       expect(getByTestId('pdf-toolbar-mode-toggle')).toBeInTheDocument()
     })
 
-    it('opens the same search bar from the shared store on the native path', async () => {
-      const { getByTestId } = renderNativeToolbar()
-
-      fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
-      fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))
-
-      // `Ctrl+F` reaches this bar through `usePdfSearchStore`, with no renderer branch.
-      act(() => usePdfSearchStore.getState().open())
-
-      expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
-    })
-
-    it('keeps the capture actions live, because the native path can capture', () => {
+    it('keeps the capture actions live', () => {
       const { getByTestId } = renderNativeToolbar()
 
       fireEvent.click(getByTestId('pdf-toolbar-mode-toggle'))

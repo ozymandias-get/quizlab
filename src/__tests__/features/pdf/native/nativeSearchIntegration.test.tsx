@@ -127,14 +127,9 @@ const CurrentScale = ({ children }: { children: (props: { scale: number }) => Re
  *
  * `NativeViewerHarness` already owns the controller and the page box; this adds the toolbar
  * and hands it the controller's own search functions, which is the whole of the native
- * search wiring under test. Passing `legacy` swaps in the plugin functions instead, which
- * is what `PdfViewerDocument` does when the flag is off.
+ * search wiring under test.
  */
-function SearchShell({
-  legacy
-}: {
-  legacy?: { highlight: (k: string) => void; clear: () => void }
-}) {
+function SearchShell() {
   const [controller, setController] = useState<NativePdfController | null>(null)
   return (
     <TooltipProvider>
@@ -148,8 +143,8 @@ function SearchShell({
         onPreviousPage={vi.fn()}
         onNextPage={vi.fn()}
         onJumpToPage={vi.fn()}
-        highlight={legacy ? legacy.highlight : (controller?.highlight ?? noop)}
-        clearHighlights={legacy ? legacy.clear : (controller?.clearHighlights ?? noop)}
+        highlight={controller?.highlight ?? noop}
+        clearHighlights={controller?.clearHighlights ?? noop}
         ZoomIn={ZoomIn as never}
         ZoomOut={ZoomOut as never}
         CurrentScale={CurrentScale as never}
@@ -258,6 +253,10 @@ describe('search UI on the native viewer', () => {
 
     // `usePdfShortcuts` calls this on Ctrl/Cmd+F. No new global keydown listener was added
     // for the native path, so this is still the one route into the bar.
+    act(() => usePdfSearchStore.setState({ isOpen: false }))
+    await waitForFrames(() =>
+      expect(screen.queryByPlaceholderText('search_placeholder')).toBeNull()
+    )
     act(() => usePdfSearchStore.getState().open())
     await waitForFrames(() =>
       expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
@@ -294,36 +293,5 @@ describe('search UI on the native viewer', () => {
       vi.useRealTimers()
     }
     geometry.restore()
-  })
-})
-
-describe('search UI on the legacy viewer', () => {
-  it('drives the plugin functions and mounts no native overlay', () => {
-    const highlight = vi.fn()
-    const clear = vi.fn()
-    const { container } = render(<SearchShell legacy={{ highlight, clear }} />)
-
-    const input = screen.getByPlaceholderText('search_placeholder')
-    fireEvent.change(input, { target: { value: 'lupus' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(highlight).toHaveBeenCalledWith('lupus')
-
-    fireEvent.keyDown(input, { key: 'Escape' })
-    expect(clear).toHaveBeenCalled()
-
-    // The flag is off here, so no native page box and therefore no overlay exists at all.
-    expect(container.querySelectorAll('[data-native-pdf-search-layer]')).toHaveLength(0)
-    expect(document.querySelectorAll('[data-native-pdf-search-highlight]')).toHaveLength(0)
-  })
-
-  it('does not search for an empty keyword, on either path', () => {
-    const highlight = vi.fn()
-    render(<SearchShell legacy={{ highlight, clear: vi.fn() }} />)
-
-    const input = screen.getByPlaceholderText('search_placeholder')
-    fireEvent.change(input, { target: { value: '   ' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-
-    expect(highlight).not.toHaveBeenCalled()
   })
 })

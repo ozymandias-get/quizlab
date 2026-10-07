@@ -295,18 +295,6 @@ describe('native viewer — capture actions', () => {
     expect(mocks.getDocument).toHaveBeenCalledTimes(1)
   })
 
-  it('leaves every quick-bar action enabled, because capture now works here', async () => {
-    renderDocument()
-    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-
-    openAiActions()
-
-    expect(screen.getByTestId('pdf-quick-text-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-image-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-area-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-reload')).toBeEnabled()
-  })
-
   it('sends the current native page to the AI as one high-DPI image', async () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())

@@ -850,19 +850,22 @@ describe('usePdfTextActions', () => {
           .querySelector('[data-native-pdf-page]')
           ?.setAttribute('data-native-pdf-page', String(page))
         const containerRef = { current: container } as RefObject<HTMLElement | null>
+        const onTextSelection = vi.fn()
         const { result } = renderHook(() =>
-          usePdfTextActions({ containerRef, currentPage: page, onTextSelection: vi.fn() })
+          usePdfTextActions({ containerRef, currentPage: page, onTextSelection })
         )
 
         act(() => {
           result.current.extractCurrentPageText()
         })
         vi.advanceTimersByTime(1000)
+
+        // Inert: no idle work is scheduled, nothing is reported, nothing throws.
+        expect(result.current.extractCurrentPageText).toBeTypeOf('function')
+        expect(onTextSelection).not.toHaveBeenCalled()
       } finally {
         vi.useRealTimers()
       }
-      // No throw and no listener work: the hook is inert without consumers.
-      expect(true).toBe(true)
     })
 
     it('cancels a pending extraction on unmount', () => {

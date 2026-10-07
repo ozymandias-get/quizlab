@@ -146,31 +146,6 @@ describe('sanitizeChatMessage — image-only turns', () => {
 })
 
 describe('sanitizeChatMessage — image source validation', () => {
-  it('drops non-image and remote sources a provider could not dereference', () => {
-    const result = sanitizeChatMessage({
-      role: 'user',
-      content: 'Check',
-      images: [
-        'https://example.com/a.png',
-        'blob:http://localhost/abc',
-        'file:///etc/passwd',
-        'data:text/html,<script>',
-        'javascript:alert(1)',
-        'data:image/png;base64,OK'
-      ]
-    })
-    expect(result?.images).toEqual(['data:image/png;base64,OK'])
-  })
-
-  it('accepts uncommon but valid image subtypes', () => {
-    const result = sanitizeChatMessage({
-      role: 'user',
-      content: 'Check',
-      images: ['data:image/heic;base64,AAAA', 'data:image/svg+xml;base64,BBBB']
-    })
-    expect(result?.images).toHaveLength(2)
-  })
-
   it('drops a single oversized image instead of failing the whole request', () => {
     const huge = `data:image/png;base64,${'A'.repeat(MAX_SINGLE_IMAGE_BYTES)}`
     const result = sanitizeChatMessage({

@@ -14,15 +14,10 @@ vi.mock('../../app/window/security.js', () => ({
 describe('ipcSecurity', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    isAllowedMainFrameUrl.mockImplementation((url: string) => {
-      if (url === 'file:///app/index.html') return true
-      try {
-        const parsed = new URL(url)
-        return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
-      } catch {
-        return false
-      }
-    })
+    // The URL policy itself is production code and is exercised for real in
+    // electron/__tests__/app/window/security.test.ts. Here it stands in for
+    // "the app document is still the loaded document".
+    isAllowedMainFrameUrl.mockImplementation((url: string) => url.startsWith('file:///app/'))
   })
 
   it('accepts trusted sender from main window with local origin', async () => {
@@ -59,29 +54,5 @@ describe('ipcSecurity', () => {
     } as never)
 
     expect(result).toBe(false)
-  })
-
-  it('rejects crafted localhost subdomain (prefix-matching regression)', async () => {
-    const evilSender = { id: 1, getURL: () => 'http://localhost.evil.com/steal' }
-    getMainWindow.mockReturnValue({ webContents: evilSender })
-
-    const { requireTrustedIpcSender } = await import('../../core/ipcSecurity.js')
-    expect(requireTrustedIpcSender({ sender: evilSender } as never)).toBe(false)
-  })
-
-  it('accepts http://localhost with any port (dev server)', async () => {
-    const devSender = { id: 1, getURL: () => 'http://localhost:5173/' }
-    getMainWindow.mockReturnValue({ webContents: devSender })
-
-    const { requireTrustedIpcSender } = await import('../../core/ipcSecurity.js')
-    expect(requireTrustedIpcSender({ sender: devSender } as never)).toBe(true)
-  })
-
-  it('accepts http://127.0.0.1 with any port', async () => {
-    const loopbackSender = { id: 1, getURL: () => 'http://127.0.0.1:5173/app' }
-    getMainWindow.mockReturnValue({ webContents: loopbackSender })
-
-    const { requireTrustedIpcSender } = await import('../../core/ipcSecurity.js')
-    expect(requireTrustedIpcSender({ sender: loopbackSender } as never)).toBe(true)
   })
 })

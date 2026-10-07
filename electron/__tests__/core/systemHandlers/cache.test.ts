@@ -13,8 +13,8 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('../../../features/ai/aiManager.js', () => ({
-  AI_REGISTRY: {},
-  INACTIVE_PLATFORMS: {}
+  AI_REGISTRY: { chatgpt: { partition: 'persist:ai_chatgpt' } },
+  INACTIVE_PLATFORMS: { legacy: { partition: 'persist:legacy' } }
 }))
 
 describe('systemHandlers/cache', () => {
@@ -49,10 +49,15 @@ describe('systemHandlers/cache', () => {
     expect(result).toEqual(info)
   })
 
-  it('getAllPartitions returns partitions from config', async () => {
+  it('getAllPartitions collects the registry and inactive-platform partitions', async () => {
     const { getAllPartitions } = await import('../../../core/systemHandlers/cache.js')
+    // One live platform, one retired one: both must reach the cleanup set, and
+    // the shared AI partition is always present.
     const partitions = getAllPartitions()
-    expect(partitions instanceof Set).toBe(true)
+    expect(partitions.has('persist:ai_chatgpt')).toBe(true)
+    expect(partitions.has('persist:legacy')).toBe(true)
+    expect(partitions.has('persist:ai_session')).toBe(true)
+    expect(partitions.size).toBe(3)
   })
 
   it('protects recently active partitions from cleanup', async () => {

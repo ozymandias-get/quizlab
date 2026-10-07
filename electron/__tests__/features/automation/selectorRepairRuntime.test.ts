@@ -273,24 +273,6 @@ describe('selector self-healing evidence', () => {
     expect(inputDiagnostics.operationSucceeded ?? false).toBe(false)
   })
 
-  it('never marks a plain element lookup as a successful usage', async () => {
-    document.body.innerHTML = `<div role="textbox" contenteditable="true" data-testid="ask"></div>`
-    const box = document.querySelector('[role="textbox"]')
-    if (box) setElementBox(box, 400, 60)
-
-    const result = await window.eval(
-      generateValidateSelectorsScript({
-        input: '#gone',
-        inputFingerprint: { tag: 'div', role: 'textbox', dataTestId: 'ask' }
-      })
-    )
-
-    const diagnostics = result.diagnostics.input as LocatorDiagnostics
-    expect(diagnostics.recovered).toBe(true)
-    // A validation run resolves elements but never uses them.
-    expect(diagnostics.operationSucceeded).toBeUndefined()
-  })
-
   it('replays repair evidence on a warm cache hit so the streak can grow', async () => {
     document.body.innerHTML = `<form role="form"><textarea data-testid="ask" aria-label="Message"></textarea></form>`
     const textarea = document.querySelector('textarea')

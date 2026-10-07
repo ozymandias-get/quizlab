@@ -1,44 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import crypto from 'crypto'
 
-// Note: safeStorage is not available in test environment (Electron-only API).
-// We test the AES fallback functions indirectly via the exported API.
-
-// Replicate the AES logic from encryption.ts to verify algorithm correctness
-const AES_PREFIX = 'aes:'
-
-function getMachineDerivedKey(): Buffer {
-  const machineId = 'test-machine-id'
-  const salt = 'quizlab-aes-2024-v1'
-  return crypto.pbkdf2Sync(machineId, salt, 100000, 32, 'sha256')
-}
-
-function aesEncrypt(plaintext: string): string {
-  const key = getMachineDerivedKey()
-  const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
-  let encrypted = cipher.update(plaintext, 'utf8', 'hex')
-  encrypted += cipher.final('hex')
-  const authTag = cipher.getAuthTag().toString('hex')
-  return `${AES_PREFIX}${iv.toString('base64')}:${authTag}:${encrypted}`
-}
-
-function aesDecrypt(stored: string): string {
-  const withoutPrefix = stored.slice(AES_PREFIX.length)
-  const colon1 = withoutPrefix.indexOf(':')
-  const colon2 = withoutPrefix.indexOf(':', colon1 + 1)
-  if (colon1 === -1 || colon2 === -1) throw new Error('Invalid AES format')
-
-  const iv = Buffer.from(withoutPrefix.slice(0, colon1), 'base64')
-  const authTag = Buffer.from(withoutPrefix.slice(colon1 + 1, colon2), 'hex')
-  const encrypted = withoutPrefix.slice(colon2 + 1)
-  const key = getMachineDerivedKey()
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
-  decipher.setAuthTag(authTag)
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-  decrypted += decipher.final('utf8')
-  return decrypted
-}
+// safeStorage is not available in the test environment (Electron-only API), so
+// the AES-256-GCM fallback is exercised through the exported encryptValue /
+// decryptValue surface with `isEncryptionAvailable` forced false. Asserting a
+// re-implementation of the cipher here would only prove that copy correct.
 
 // --- Mocks ---
 const mockEncryptString = vi.fn()
@@ -230,41 +196,6 @@ describe('decryptValue', () => {
 })
 
 describe('AES-256-GCM encryption fallback', () => {
-  it('should encrypt and decrypt a value', () => {
-    const key = 'sk-test-api-key-12345'
-    const encrypted = aesEncrypt(key)
-    expect(encrypted).toMatch(/^aes:.+:.+:.+$/)
-    const decrypted = aesDecrypt(encrypted)
-    expect(decrypted).toBe(key)
-  })
-
-  it('should produce different ciphertext each time for the same input', () => {
-    const key = 'same-input'
-    const result1 = aesEncrypt(key)
-    const result2 = aesEncrypt(key)
-    expect(result1).not.toBe(result2)
-  })
-
-  it('should handle empty string input', () => {
-    const result = aesEncrypt('')
-    const decrypted = aesDecrypt(result)
-    expect(decrypted).toBe('')
-  })
-
-  it('should handle special characters', () => {
-    const key = 'api-key-with-$pecial-ch@rs!🚀'
-    const encrypted = aesEncrypt(key)
-    const decrypted = aesDecrypt(encrypted)
-    expect(decrypted).toBe(key)
-  })
-
-  it('should throw on corrupted ciphertext', () => {
-    const key = 'test-key'
-    const encrypted = aesEncrypt(key)
-    const corrupted = encrypted.slice(0, -5) + 'XXXXX'
-    expect(() => aesDecrypt(corrupted)).toThrow()
-  })
-
   it('decrypts values written by the legacy v2 machine-derived key', async () => {
     // Replicates the exact pre-v3 production derivation (v2) to prove that
     // values stored by older builds remain readable after the upgrade.

@@ -172,12 +172,6 @@ describe('usePdfCtrlWheelZoom', () => {
 
       expect(zoomTo).toHaveBeenCalledWith(PDF_ZOOM_MIN_SCALE)
     })
-
-    it('uses the production step and clamp constants', () => {
-      expect(PDF_ZOOM_STEP).toBe(0.1)
-      expect(PDF_ZOOM_MIN_SCALE).toBe(0.1)
-      expect(PDF_ZOOM_MAX_SCALE).toBe(5)
-    })
   })
 
   describe('no zoom without a modifier', () => {

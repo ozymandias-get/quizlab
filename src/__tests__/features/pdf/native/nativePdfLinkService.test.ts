@@ -29,9 +29,6 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-/** `AnnotationType.LINK` from `build/pdf.mjs`. */
-const LINK = 2
-
 interface FakeDocumentOptions {
   numPages: number
   destinations?: Record<string, unknown[] | null>
@@ -488,10 +485,5 @@ describe('native link service — annotation kinds Phase 6 does not run', () => 
     const { service } = createHarness({ numPages: 12 })
 
     expect((service as { eventBus?: unknown }).eventBus).toBeUndefined()
-  })
-
-  it('keeps the link annotation type constant the double uses honest', () => {
-    // Guards the assumption baked into `nativeAnnotationLayerDouble.ts`.
-    expect(LINK).toBe(2)
   })
 })

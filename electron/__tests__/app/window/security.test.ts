@@ -39,6 +39,20 @@ describe('window/security', () => {
     expect(module.isAllowedMainFrameUrl(fileUrl('dist/../secret.html'))).toBe(false)
   })
 
+  it('matches the dev server by exact origin, never by prefix', async () => {
+    // Regression: the dev check used to be `url.startsWith('http://localhost')`,
+    // which trusted `http://localhost.evil.com/steal`. Production compares the
+    // parsed origin instead, so only the configured dev origin is allowed.
+    const module = await import('../../../app/window/security.js')
+
+    expect(module.isAllowedMainFrameUrl('http://localhost:5173/')).toBe(true)
+    expect(module.isAllowedMainFrameUrl('http://localhost:5173/app/main.tsx')).toBe(true)
+    expect(module.isAllowedMainFrameUrl('http://localhost.evil.com/steal')).toBe(false)
+    expect(module.isAllowedMainFrameUrl('http://127.0.0.1:5173/')).toBe(false)
+    expect(module.isAllowedMainFrameUrl('http://localhost:9999/')).toBe(false)
+    expect(module.isAllowedMainFrameUrl('file:///app/dist/index.html')).toBe(false)
+  })
+
   it('accepts only safe external urls', async () => {
     const module = await import('../../../app/window/security.js')
 
