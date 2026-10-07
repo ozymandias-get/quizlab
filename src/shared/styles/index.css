@@ -111,8 +111,6 @@
   --z-surface-0: 0;
   --z-surface-2: 2;
   --z-surface-4: 4;
-  --z-pdf-overlay: 10;
-  --z-pdf-overlay-top: 11;
   --z-resizer-hub: 40;
   --z-dropdown: 100;
   --z-overlay: 200;
@@ -215,14 +213,6 @@
 
 @utility z-negative-1 {
   z-index: -1;
-}
-
-@utility z-pdf-overlay {
-  z-index: 10;
-}
-
-@utility z-pdf-overlay-top {
-  z-index: 11;
 }
 
 @utility z-resizer-hub {
