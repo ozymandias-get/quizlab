@@ -1,8 +1,7 @@
 /**
  * The capture pipeline and the context menu, end to end.
  *
- * The Phase 8A parity claim, now unconditional — the native viewer is the only
- * viewer, so there is no other path to compare against:
+ * The viewer is the only viewer, so there is no other path to compare against:
  *
  *  - the two rasterising AI actions are live and reach the **real** capture ladder
  *  - the context menu opens on the canvas and its capture items reach the same

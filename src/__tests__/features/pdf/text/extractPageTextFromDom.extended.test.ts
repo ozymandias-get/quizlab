@@ -6,20 +6,9 @@
  * box wrapping a `[data-native-pdf-text-layer]` layer whose runs are
  * `span[role="presentation"]`.
  *
- * Four cases that used to live here were deleted with the viewer rather than
- * converted, because they asserted facts about `@react-pdf-viewer`'s *selectors*
- * and not about extraction:
- *
- *  - locating a page by `data-virtual-index`, and the "one page layer on screen is
- *    the requested page" single-page fallback — both were the legacy viewer's page
- *    addressing. The native viewer addresses a page by its own attribute and needs
- *    neither rule.
- *  - not honouring `data-page-number`, and not honouring `.rpv-core__text-layer-basic`
- *    — these were *negative* tests about selectors that had already been deleted
- *    from `lib/pdfViewerDom.ts`. Nothing to assert once the DOM vocabulary itself is
- *    gone.
- *
- * What remains is extraction behaviour, which is unchanged and renderer-agnostic.
+ * What this covers is extraction behaviour, which is renderer-agnostic: a page
+ * box is located by its own attribute, so there is no separate page-addressing
+ * rule to assert.
  */
 import {
   extractPageTextFromDom,

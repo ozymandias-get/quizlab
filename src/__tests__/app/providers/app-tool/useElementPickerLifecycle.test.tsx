@@ -36,7 +36,6 @@ function createController(overrides: Partial<AiContentController> = {}): MockCon
       kind: K,
       handler: (event: AiViewEventOf<K>) => void
     ) => {
-      console.log('DBG subscribeEvent', kind)
       const set = listeners.get(kind) ?? new Set()
       set.add(handler as (event: unknown) => void)
       listeners.set(kind, set)
@@ -45,7 +44,6 @@ function createController(overrides: Partial<AiContentController> = {}): MockCon
       }
     }) as AiContentController['subscribeEvent'],
     subscribeReady: (listener) => {
-      console.log('DBG subscribeReady ready=', ready)
       readyListeners.add(listener)
       listener(ready)
       return () => {
@@ -58,7 +56,6 @@ function createController(overrides: Partial<AiContentController> = {}): MockCon
     },
     _unsubscribeCount: () => [...listeners.values()].reduce((total, set) => total + set.size, 0),
     _setReady: (next) => {
-      console.log('DBG setReady', next)
       ready = next
       readyListeners.forEach((listener) => listener(next))
     }

@@ -124,8 +124,15 @@ describe('SettingsModal', () => {
     expect(screen.getByRole('button', { name: 'Prompts' })).toBeInTheDocument()
   })
 
-  it('has proper accessibility attributes', async () => {
+  // The modal is a dialog, so a screen reader has to be told it is modal and
+  // told what it is; without those it reads as an unlabelled region.
+  it('exposes a labelled modal dialog', () => {
     render(<SettingsModal isOpen onClose={vi.fn()} />)
-    expect(screen.getByRole('tabpanel')).toBeInTheDocument()
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    const titleId = dialog.getAttribute('aria-labelledby')
+    expect(titleId).toBeTruthy()
+    expect(document.getElementById(titleId!)).toBeInTheDocument()
   })
 })

@@ -31,8 +31,11 @@ describe('AiSendComposerHeader', () => {
     onDragLostCapture: vi.fn()
   }
 
-  it('renders without crashing in expanded mode', () => {
+  it('summarises the panel in expanded mode', () => {
     renderWithTooltip(<AiSendComposerHeader {...baseProps} />)
+    // The expanded header is the only place the panel states what it is about,
+    // so an empty or key-only header is a silently dead control.
+    expect(screen.getByText('ai_send_panel_title')).toBeInTheDocument()
   })
 
   it('renders quick action buttons in compact mode and triggers onSendWithPreset', () => {

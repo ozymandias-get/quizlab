@@ -204,10 +204,10 @@ describe('PdfViewerDocument renderer wiring', () => {
   it('needs no capture bounding: capture works on the renderer', () => {
     renderDocument()
 
-    // Phase 4 bounded the capture controls while the native viewer had no capture
-    // pipeline. Phase 8A gave it one, so the flag is gone from the toolbar
+    // The toolbar used to take a bounding flag while the native viewer had no
+    // capture pipeline. It has one now, so the flag is gone from the toolbar
     // entirely: leaving it would be a second thing to forget to remove, and it
-    // could only ever disable a capability that now exists.
+    // could only ever disable a capability that exists.
     expect(toolbarProps()).not.toHaveProperty('nativeCanvasMode')
     expect(toolbarProps()).not.toHaveProperty('captureActionsDisabled')
   })

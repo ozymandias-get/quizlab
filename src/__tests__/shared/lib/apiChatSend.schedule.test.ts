@@ -2,31 +2,13 @@
  * Regression tests for scheduleApiChatSend dangling-promise bug (P1).
  *
  * Two rapid calls within the debounce window used to clear the first timer
- * without settling its promise, leaving the caller hanging forever.
+ * without settling its promise, leaving the caller hanging forever. The seam is
+ * the send layer underneath, so the debounce itself stays real.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFlush = vi.fn()
 
-vi.mock('@app/providers/ai/lib/apiChatSend', async () => {
-  // Import real module then override flushApiChatSend with our mock so the
-  // debounce logic itself is exercised.
-  const real = await vi.importActual<typeof import('@app/providers/ai/lib/apiChatSend')>(
-    '@app/providers/ai/lib/apiChatSend'
-  )
-  // Keep schedule/cancel from real; flush is the mockable boundary.
-  return {
-    ...real
-    // We patch flushApiChatSend at the call site by re-exporting a wrapper
-    // the test can observe. Simpler: spy on the imported flush via mock
-    // indirection — reuse the real schedule implementation which calls the
-    // real flush; we instead test schedule's promise-settling behaviour by
-    // mocking the underlying sendApiChatMessage layer.
-  }
-})
-
-// Instead of mocking inside the module, test the observable fix: no promise
-// hangs when two callers race inside the 50ms window.
 import { cancelScheduledApiChatSends, scheduleApiChatSend } from '@app/providers/ai/lib/apiChatSend'
 
 vi.mock('@features/ai/queries/useSendMessageMutation', () => ({

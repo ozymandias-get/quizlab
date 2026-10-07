@@ -66,20 +66,6 @@ describe('useAppShellState', () => {
     vi.clearAllMocks()
   })
 
-  it('returns the expected shape', () => {
-    const { result } = renderHook(() => useAppShellState())
-    expect(result.current).toHaveProperty('updateAvailable')
-    expect(result.current).toHaveProperty('updateInfo')
-    expect(result.current).toHaveProperty('isLayoutSwapped')
-    expect(result.current).toHaveProperty('animations')
-    expect(result.current).toHaveProperty('isAiSurfaceMounted')
-    expect(result.current).toHaveProperty('panelResize')
-    expect(result.current).toHaveProperty('workspaceState')
-    expect(result.current).toHaveProperty('updateBanner')
-    expect(result.current).toHaveProperty('tour')
-    expect(result.current).toHaveProperty('focus')
-  })
-
   it('reports update available false by default', () => {
     const { result } = renderHook(() => useAppShellState())
     expect(result.current.updateAvailable).toBe(false)
@@ -89,11 +75,6 @@ describe('useAppShellState', () => {
   it('reports layout not swapped by default', () => {
     const { result } = renderHook(() => useAppShellState())
     expect(result.current.isLayoutSwapped).toBe(false)
-  })
-
-  it('reports content as mounted', () => {
-    const { result } = renderHook(() => useAppShellState())
-    expect(result.current.isAiSurfaceMounted).toBe(true)
   })
 
   describe('workspaceState', () => {

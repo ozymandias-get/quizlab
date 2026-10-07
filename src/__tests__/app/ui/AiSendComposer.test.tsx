@@ -133,7 +133,7 @@ describe('AiSendComposer', () => {
     vi.useRealTimers()
   })
 
-  it('does not clear queue on outside click', () => {
+  it('clears the queue when the reader clicks outside the composer', () => {
     const onClearAll = vi.fn()
     const onSend = vi.fn().mockResolvedValue({ success: true })
 
@@ -145,8 +145,34 @@ describe('AiSendComposer', () => {
       />
     )
 
-    expect(screen.getByText('Composer Header')).toBeInTheDocument()
     expect(onClearAll).not.toHaveBeenCalled()
+
+    // Deliberate: a queued capture the reader no longer wants is dismissed by
+    // clicking away, and the queue is not a place to leave stale text.
+    fireEvent.mouseDown(document.body)
+
+    expect(onClearAll).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not clear the queue when the click lands inside the composer', () => {
+    const onClearAll = vi.fn()
+    const onSend = vi.fn().mockResolvedValue({ success: true })
+
+    render(
+      <AiSendComposer
+        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
+        onClearAll={onClearAll}
+        onSend={onSend}
+      />
+    )
+
+    expect(onClearAll).not.toHaveBeenCalled()
+
+    fireEvent.mouseDown(screen.getByText('Composer Header'))
+
+    // The queued item is still there, which is the whole point of the guard.
+    expect(onClearAll).not.toHaveBeenCalled()
+    expect(screen.getByText('Composer Header')).toBeInTheDocument()
   })
 
   it('keeps the sending state when a new item is queued mid-send', async () => {

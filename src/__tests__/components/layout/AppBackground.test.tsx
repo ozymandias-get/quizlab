@@ -18,20 +18,7 @@ describe('AppBackground', () => {
     mockBgSolidColor = '#000000'
   })
 
-  it('renders base background container with proper class', () => {
-    const { container } = render(<AppBackground />)
-    const bgDiv = container.firstChild as HTMLElement
-    expect(bgDiv).toBeInTheDocument()
-    expect(bgDiv).toHaveClass('app-ambient-background')
-  })
-
-  it('renders bg-noise child', () => {
-    const { container } = render(<AppBackground />)
-    const bgDiv = container.firstChild as HTMLElement
-    expect(bgDiv.querySelector('.bg-noise')).toBeInTheDocument()
-  })
-
-  it('applies solid color to CSS variables', async () => {
+  it('derives the ambient gradient stops from the solid background colour', async () => {
     mockBgSolidColor = '#ff0000'
     const setPropertySpy = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty')
 

@@ -1,11 +1,10 @@
 /**
- * Search through the real UI, on both renderers.
+ * Search through the real UI.
  *
- * The point of Phase 7 is that the search *UI* did not change: one `PdfSearchBar`, one
- * `usePdfSearchStore`, one toolbar, and the two functions the legacy search plugin
- * exposes. So this file drives the actual toolbar and the actual bar — typing, `Enter`,
- * `Escape`, the `Ctrl+F` pathway — against the native controller, and then against the
- * legacy plugin functions, and asserts that neither renderer leaks into the other.
+ * There is one `PdfSearchBar`, one `usePdfSearchStore`, one toolbar and one set
+ * of search functions, so this file drives the actual toolbar and the actual bar
+ * — typing, `Enter`, `Escape`, the `Ctrl+F` pathway — against the real
+ * controller rather than against the search module in isolation.
  *
  * Only PDF.js and layout are faked; `PdfToolbar`, `PdfSearchBar`, `usePdfSearchStore`,
  * `useNativePdfController` and `useNativePdfSearch` are all the real thing.

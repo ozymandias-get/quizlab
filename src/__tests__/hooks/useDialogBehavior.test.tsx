@@ -1,7 +1,7 @@
 import { useIsAnyDialogOpen } from '@shared/hooks'
 import { useDialogBehavior } from '@shared/hooks/useDialogBehavior'
 
-import { fireEvent, render, renderHook, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { useRef, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -109,8 +109,18 @@ describe('useIsAnyDialogOpen', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent('false')
   })
 
+  // One dialog open must be visible to every subscriber, not just the one that
+  // happened to mount last: two panels on opposite sides of the workspace each
+  // close themselves when any dialog is open.
   it('reports the same value to every subscriber', () => {
-    const { result } = renderHook(() => useIsAnyDialogOpen())
-    expect(result.current).toBe(false)
+    render(
+      <>
+        <Dialog isOpen onClose={vi.fn()} label="test" />
+        <RegistryProbe />
+        <RegistryProbe />
+      </>
+    )
+
+    expect(screen.getAllByTestId('probe').map((node) => node.textContent)).toEqual(['true', 'true'])
   })
 })
