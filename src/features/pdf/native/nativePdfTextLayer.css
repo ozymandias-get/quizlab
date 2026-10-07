@@ -97,6 +97,81 @@
   user-select: text;
 }
 
+/* ── The layer itself is a frame, not a selection surface ──────────────
+ *
+ * PDF.js emits one *absolutely positioned* span per text item, so every run is a
+ * block-level box and the layer has no inline formatting context: there is no line
+ * box that spans the runs of a line, and no run whose box covers the empty space
+ * to the right of the last glyph on a line.
+ *
+ * Chromium resolves a caret position from a mouse coordinate against the boxes it
+ * can find. Measured in Chromium 142 (the engine Electron 42 ships) against
+ * PDF.js 6.4.299's own `TextLayer`, with `document.caretPositionFromPoint` over the
+ * first line of a real paragraph (line box `left 76 → right 357.7`,
+ * `top 89.45 → bottom 98.25`):
+ *
+ * ```
+ *   x = 355.7 (inside the run)        -> run#1@1     a position inside the text
+ *   x = 357.7 (the run's right edge)  -> run#1@0     the end of the run
+ *   x = 359.7 (1px past it)           -> LAYER@9     a position between children
+ *   x = 381.7 (24px past it)          -> LAYER@9     the same
+ *   y =  97.3 (inside the line)       -> run#1@37
+ *   y =  98.3 (the line's bottom)     -> run#1@37
+ *   y =  99.3 (1px below it)          -> LAYER@9
+ *   y = 100.3 (2px below it)          -> run#2@38    the next line, correctly
+ * ```
+ *
+ * `LAYER@n` is the giveaway: that is a caret position *between the layer's block
+ * children* — this page has 48 of them, 32 runs and 16 `<br>`s — rather than a
+ * position inside any text. A selection whose far end sits on such a boundary
+ * covers **every block between the anchor and it**, so a drag that ended one pixel
+ * past a line selected the rest of the paragraph, and a drag that ended in the
+ * inter-line gap of a two-column page swallowed the right-hand column.
+ *
+ * Measured on that page, dragging 1px past the right edge of the first line of a
+ * four-line paragraph: **289 characters across 4 runs and 10 painted rects** before
+ * this rule, **51 characters across 1 run and 1 rect** after. One pixel of
+ * movement, one line instead of four. The same drag 1px *below* the line box went
+ * from 289 characters to 7.
+ *
+ * `user-select: none` on the frame removes that position from the set of positions
+ * Chromium will produce, so the nearest *valid* text position is used instead: the
+ * end of the nearest run, or the nearest glyph. It is a one-declaration boundary
+ * rather than a gesture handler, and it is the only thing in this file that changes
+ * what the browser is willing to select.
+ *
+ * Why it cannot cost a real selection:
+ *
+ *  - Every run keeps `user-select: text` (above), and the run rule is more specific
+ *    than this one, so no text run is affected. The frame holds no text of its own:
+ *    PDF.js puts *only* the runs and the `<br>`s in it.
+ *  - Deliberate multi-run, multi-line and multi-column selections are unchanged.
+ *    Measured against this page, byte-identical before and after: a 60px drag
+ *    (15 chars), every 1–4px diagonal that stays inside its line (10 chars), a
+ *    backward drag (7 chars), the bullet-glyph and indent boundaries, a
+ *    two-column selection of two lines in the left column (17 chars), and a
+ *    deliberate drag across into the right column (69 chars).
+ *  - `Ctrl+C` is unaffected: the clipboard is serialized from the range the browser
+ *    holds, and it matched `selection.toString()` in every case measured, before
+ *    and after.
+ *  - The browser's own glyph hit-testing is untouched, because this declares no
+ *    geometry. Every run's `getBoundingClientRect()` is byte-identical before and
+ *    after — measured, not asserted — which is what keeps the canvas ↔ text-layer
+ *    alignment, the reading order `orderTextItems` derives from those boxes, and
+ *    the search layer's measurements exactly as they were.
+ *
+ * What it deliberately does *not* try to do: shrink the dead zone's reach, or
+ * intercept the pointer. The pointer still reports the coordinate the reader
+ * moved it to; only the set of positions the browser will resolve that coordinate
+ * to has changed. A drag that leaves the layer entirely still reaches the browser's
+*    own fallback, which is upstream behaviour in every PDF.js viewer.
+  */
+
+[data-native-pdf-text-layer] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Marked-content wrappers carry no geometry of their own; `display: contents`
    makes their children position against the layer, which is what PDF.js
    assumes when it switches its insertion target on `beginMarkedContent`. */

@@ -9,7 +9,7 @@
  * `selectionBelongsToTextLayer`.
  */
 import { findNativeTextLayer } from '../native/nativePdfDom'
-import { collectTextItems, orderTextItems } from './extractPageTextFromDom'
+import { orderTextItems } from './extractPageTextFromDom'
 import { normalizePdfText } from './normalizePdfText'
 import { findTextLayerSource } from './pdfTextLayerSource'
 import type { SelectionPosition } from './types'
@@ -65,32 +65,123 @@ function selectionBelongsToTextLayer(
 }
 
 /**
+ * The part of `node` that `range` actually covers, or `null` when they are disjoint.
+ *
+ * This is the only place the *extent* of a selection is decided, and it is decided
+ * by the browser's own `Range` rather than by geometry. The distinction matters:
+ * a run's box says where the run is, not how much of it the reader dragged over,
+ * and PDF.js emits one run per PDF text item — frequently a whole line, sometimes
+ * a whole numbered clause. `orderTextItems` still needs the box to work out reading
+ * order; nothing about the box can say what was selected.
+ *
+ * ## The boundary-point constants do not read the way they are named
+ *
+ * `Range#compareBoundaryPoints(how, thatRange)` compares one boundary of `this`
+ * against one boundary of `thatRange`, but which boundary is which is the opposite
+ * of what the constant names suggest. Measured, for a range sitting *inside* the
+ * node's contents:
+ *
+ * ```
+ *   START_TO_START  ->  this.start  vs that.start
+ *   START_TO_END    ->  this.end    vs that.start      (not this.start vs that.end)
+ *   END_TO_END      ->  this.end    vs that.end
+ *   END_TO_START    ->  this.start  vs that.end        (not this.end vs that.start)
+ * ```
+ *
+ * So the two comparisons that decide disjointness are `END_TO_END`-adjacent
+ * in intent but are spelled `START_TO_END` and `END_TO_START`, and getting them
+ * backwards makes every run inside the selection look disjoint — which is a silent
+ * failure, not a crash: extraction quietly falls back to `selection.toString()`.
+ * Hence the explicit names below.
+ */
+function selectedContentsOf(range: Range, node: Node): Range | null {
+  const whole = document.createRange()
+  whole.selectNodeContents(node)
+
+  // This range ends before the node's contents begin.
+  const rangeEndsBeforeNodeStarts = range.compareBoundaryPoints(Range.START_TO_END, whole) < 0
+  // The node's contents end before this range begins.
+  const nodeEndsBeforeRangeStarts = range.compareBoundaryPoints(Range.END_TO_START, whole) > 0
+  if (rangeEndsBeforeNodeStarts || nodeEndsBeforeRangeStarts) return null
+
+  // The intersection starts at whichever start is later and ends at whichever end
+  // is earlier, so each boundary is taken from one range or from the other.
+  const rangeStartsLater = range.compareBoundaryPoints(Range.START_TO_START, whole) > 0
+  const rangeEndsEarlier = range.compareBoundaryPoints(Range.END_TO_END, whole) < 0
+
+  const covered = document.createRange()
+  covered.setStart(
+    rangeStartsLater ? range.startContainer : whole.startContainer,
+    rangeStartsLater ? range.startOffset : whole.startOffset
+  )
+  covered.setEnd(
+    rangeEndsEarlier ? range.endContainer : whole.endContainer,
+    rangeEndsEarlier ? range.endOffset : whole.endOffset
+  )
+  return covered
+}
+
+interface SelectedTextItem {
+  text: string
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+/**
+ * The runs the selection touches, each carrying only the characters it covers.
+ *
+ * The layer's whole box is walked every time — PDF.js owns this DOM and its runs
+ * come and go on every zoom, so there is nothing stable to cache — but the cost is
+ * one `Range` comparison per run and **no layout read at all**: `getBoundingClientRect`
+ * is here because `orderTextItems` needs it to order columns, not to decide what is
+ * selected. That is also cheaper than the rectangle-overlap test this replaced,
+ * which called `getClientRects()` once and then intersected every run with every
+ * selection rect.
+ *
+ * The box is measured *before* the run is handed to the range, which keeps a
+ * text layer that has not been laid out (no boxes at all) on the `selection.toString()`
+ * fallback path without asking the range about anything.
+ */
+function collectSelectedTextItems(
+  range: Range,
+  layer: HTMLElement,
+  spanSelector: string
+): SelectedTextItem[] {
+  const items: SelectedTextItem[] = []
+  for (const span of layer.querySelectorAll<HTMLElement>(spanSelector)) {
+    const rect = span.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) continue
+
+    const covered = selectedContentsOf(range, span)
+    if (!covered) continue
+
+    const text = covered.toString().trim()
+    if (!text) continue
+
+    items.push({ text, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+  }
+  return items
+}
+
+/**
  * Rebuilds selected text in visual reading order.
  *
  * `selection.toString()` returns the text in DOM (content-stream) order, which
- * interleaves left/right column lines on two-column PDF pages. Instead we
- * gather the text-layer spans the range actually covers and re-order them by
- * (column cluster, Y) exactly like extractPageTextFromDom does for whole pages.
+ * interleaves left/right column lines on two-column PDF pages. Instead we take the
+ * text-layer spans the range covers and re-order them by (column cluster, Y)
+ * exactly like extractPageTextFromDom does for whole pages.
+ *
+ * What each span contributes is the range's own intersection with it, so a drag
+ * that covers three words of one run yields those three words rather than the run.
+ * Only the *order* is geometric; the *extent* is the browser's.
  */
 function extractOrderedSelectionText(range: Range, container: HTMLElement): string | null {
   const source = findTextLayerSource(container)
   if (!source) return null
 
-  const allItems = collectTextItems(source.layer, source.spanSelector)
-  if (allItems.length === 0) return null
-
-  const rangeRects = [...range.getClientRects()]
-  if (rangeRects.length === 0) return null
-
-  const intersectsRange = (item: { left: number; top: number; width: number; height: number }) => {
-    const itemRight = item.left + item.width
-    const itemBottom = item.top + item.height
-    return rangeRects.some(
-      (r) => item.left < r.right && itemRight > r.left && item.top < r.bottom && itemBottom > r.top
-    )
-  }
-
-  const items = allItems.filter(intersectsRange)
+  const items = collectSelectedTextItems(range, source.layer, source.spanSelector)
   if (items.length === 0) return null
 
   const lines = orderTextItems(items)

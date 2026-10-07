@@ -571,8 +571,32 @@ describe('native text layer — reading order', () => {
 
     const layer = container.querySelector('[data-native-pdf-text-layer]') as HTMLElement
     const runs = layer.querySelectorAll('span[role="presentation"]')
-    const anchor = runs[0].firstChild as Node
-    const focus = runs[3].firstChild as Node
+    const anchor = runs[0].firstChild as Text
+    const focus = runs[3].firstChild as Text
+
+    // A *real* `Range` spanning all four runs, with only the geometry stubbed.
+    //
+    // This has to be a real Range rather than an object literal: extraction asks the
+    // range which part of each run it covers, because a run's box says where the run
+    // is and not how much of it was dragged over. A hand-rolled double cannot answer
+    // that, and one that quietly answered "all of it" would assert the very bug the
+    // real Range rules out.
+    const range = document.createRange()
+    range.setStart(anchor, 0)
+    range.setEnd(focus, focus.data.length)
+    Object.defineProperty(range, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => makeRect({ left: 20, top: 100, right: 360, bottom: 128, width: 340, height: 28 })
+    })
+    Object.defineProperty(range, 'getClientRects', {
+      configurable: true,
+      value: () => [
+        makeRect({ left: 20, top: 100, right: 80, bottom: 112, width: 60, height: 12 }),
+        makeRect({ left: 300, top: 100, right: 360, bottom: 112, width: 60, height: 12 }),
+        makeRect({ left: 20, top: 116, right: 80, bottom: 128, width: 60, height: 12 }),
+        makeRect({ left: 300, top: 116, right: 360, bottom: 128, width: 60, height: 12 })
+      ]
+    })
 
     const text = extractSelectedText(
       {
@@ -581,24 +605,204 @@ describe('native text layer — reading order', () => {
         rangeCount: 1,
         anchorNode: anchor,
         focusNode: focus,
-        getRangeAt: () => ({
-          commonAncestorContainer: layer,
-          startContainer: anchor,
-          endContainer: focus,
-          getBoundingClientRect: () =>
-            makeRect({ left: 20, top: 100, right: 360, bottom: 128, width: 340, height: 28 }),
-          getClientRects: () => [
-            makeRect({ left: 20, top: 100, right: 80, bottom: 112, width: 60, height: 12 }),
-            makeRect({ left: 300, top: 100, right: 360, bottom: 112, width: 60, height: 12 }),
-            makeRect({ left: 20, top: 116, right: 80, bottom: 128, width: 60, height: 12 }),
-            makeRect({ left: 300, top: 116, right: 360, bottom: 128, width: 60, height: 12 })
-          ]
-        })
+        getRangeAt: () => range
       } as unknown as Selection,
       container
     )
 
     // Column order, not DOM order: the left column top-to-bottom, then the right.
     expect(text?.text).toBe('left one\nleft two\nright one\nright two')
+  })
+})
+
+/* ------------------------------------------------------- selection extent */
+
+/**
+ * A selection reports what was selected, not the runs it touched.
+ *
+ * Extraction used to keep every run whose *box* intersected any of the range's
+ * client rects and then emit that run's whole text. A run's box says where the run
+ * is, not how much of it the reader dragged over — and PDF.js emits one run per PDF
+ * text item, which is very often a whole line. So a drag that selected one
+ * character reported the whole line, and that over-reported text is what reached
+ * `onTextSelection`, the quick action and the AI queue.
+ *
+ * Measured in Chromium 142 over PDF.js 6.4.299's real text layer, on a drag that
+ * moved 6px: the browser held 1 character and `extractSelectedText` returned 72.
+ * Across a 35-scenario sweep, extraction reported more text than the browser in 32.
+ *
+ * jsdom has no layout, so each run is stamped with a box and the range is a real
+ * `Range` — the geometry is then genuinely only used for reading order.
+ */
+describe('native text layer — selection extent', () => {
+  /** A real `Range` between two text positions, with only geometry stubbed. */
+  function rangeBetween(
+    startNode: Text,
+    startOffset: number,
+    endNode: Text,
+    endOffset: number,
+    rects: DOMRect[]
+  ): Range {
+    const range = document.createRange()
+    range.setStart(startNode, startOffset)
+    range.setEnd(endNode, endOffset)
+    const union = makeRect({
+      left: Math.min(...rects.map((r) => r.left)),
+      top: Math.min(...rects.map((r) => r.top)),
+      right: Math.max(...rects.map((r) => r.right)),
+      bottom: Math.max(...rects.map((r) => r.bottom)),
+      width: Math.max(...rects.map((r) => r.right)) - Math.min(...rects.map((r) => r.left)),
+      height: Math.max(...rects.map((r) => r.bottom)) - Math.min(...rects.map((r) => r.top))
+    })
+    Object.defineProperty(range, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => union
+    })
+    Object.defineProperty(range, 'getClientRects', { configurable: true, value: () => rects })
+    return range
+  }
+
+  function selectionOver(range: Range, anchorNode: Node, focusNode: Node): Selection {
+    return {
+      toString: () => range.toString(),
+      isCollapsed: false,
+      rangeCount: 1,
+      anchorNode,
+      focusNode,
+      getRangeAt: () => range
+    } as unknown as Selection
+  }
+
+  it('reports only the characters covered inside a single run', async () => {
+    const { container } = await mountSelection({
+      textItems: { 1: ['Antihypertensive agents are the drugs used'] }
+    })
+
+    const layer = container.querySelector('[data-native-pdf-text-layer]') as HTMLElement
+    stampSpanGeometry(container, [{ left: 20, top: 100, width: 280, height: 12 }])
+
+    const node = layer.querySelector('span[role="presentation"]')!.firstChild as Text
+    const range = rangeBetween(node, 0, node, 'Antihypertensive agents'.length, [
+      makeRect({ left: 20, top: 100, right: 180, bottom: 112, width: 160, height: 12 })
+    ])
+
+    // The 25 characters past the selection must not be reported.
+    expect(extractSelectedText(selectionOver(range, node, node), container)?.text).toBe(
+      'Antihypertensive agents'
+    )
+  })
+
+  it('reports only the covered tail of the first run and head of the second', async () => {
+    const { container } = await mountSelection({
+      textItems: {
+        1: ['Antihypertensive agents are the drugs used', 'to treat high blood pressure']
+      }
+    })
+
+    const layer = container.querySelector('[data-native-pdf-text-layer]') as HTMLElement
+    stampSpanGeometry(container, [
+      { left: 20, top: 100, width: 280, height: 12 },
+      { left: 20, top: 114, width: 280, height: 12 }
+    ])
+
+    const runs = layer.querySelectorAll('span[role="presentation"]')
+    const first = runs[0].firstChild as Text
+    const second = runs[1].firstChild as Text
+    // From "agents" on the first line into "to treat" on the second.
+    const range = rangeBetween(first, first.data.indexOf('agents'), second, 'to treat'.length, [
+      makeRect({ left: 120, top: 100, right: 300, bottom: 112, width: 180, height: 12 }),
+      makeRect({ left: 20, top: 114, right: 160, bottom: 126, width: 140, height: 12 })
+    ])
+
+    expect(extractSelectedText(selectionOver(range, first, second), container)?.text).toBe(
+      'agents are the drugs used\nto treat'
+    )
+  })
+
+  it('ignores a run the selection only passes beside', async () => {
+    // The old box-intersection test pulled in any run sharing a pixel with the
+    // selection's rects. The range has to decide that, not the geometry.
+    const { container } = await mountSelection({
+      textItems: { 1: ['left column line', 'right column line'] }
+    })
+
+    const layer = container.querySelector('[data-native-pdf-text-layer]') as HTMLElement
+    stampSpanGeometry(container, [
+      { left: 20, top: 100, width: 200, height: 12 },
+      { left: 260, top: 100, width: 200, height: 12 }
+    ])
+
+    const node = layer.querySelector('span[role="presentation"]')!.firstChild as Text
+    const range = rangeBetween(node, 0, node, 'left column'.length, [
+      makeRect({ left: 20, top: 100, right: 220, bottom: 112, width: 200, height: 12 })
+    ])
+
+    expect(extractSelectedText(selectionOver(range, node, node), container)?.text).toBe(
+      'left column'
+    )
+  })
+
+  it('still reports a whole page when the whole page was selected', async () => {
+    // The change is proportionality, not a cap: a reader who really does drag down
+    // the page must still get the page.
+    const longPage = Array.from({ length: 8 }, (_, i) => `line number ${i} of the page`)
+    const { container } = await mountSelection({ textItems: { 1: longPage } })
+
+    const layer = container.querySelector('[data-native-pdf-text-layer]') as HTMLElement
+    const runs = [...layer.querySelectorAll('span[role="presentation"]')]
+    stampSpanGeometry(
+      container,
+      longPage.map((_, i) => ({ left: 20, top: 100 + i * 14, width: 200, height: 12 }))
+    )
+
+    const first = runs[0].firstChild as Text
+    const last = runs.at(-1)!.firstChild as Text
+    const range = rangeBetween(
+      first,
+      0,
+      last,
+      (last as Text).data.length,
+      longPage.map((_, i) =>
+        makeRect({
+          left: 20,
+          top: 100 + i * 14,
+          right: 220,
+          bottom: 112 + i * 14,
+          width: 200,
+          height: 12
+        })
+      )
+    )
+
+    expect(extractSelectedText(selectionOver(range, first, last), container)?.text).toBe(
+      longPage.join('\n')
+    )
+  })
+
+  it('falls back to the browser string when the layer has no geometry', async () => {
+    // No boxes at all — the layer is present but not laid out. Nothing can be
+    // measured, so extraction must hand back exactly what the browser holds rather
+    // than nothing, which is what a hard dependency on geometry would produce.
+    const { container } = await mountSelection({ textItems: { 1: ['plain fallback text'] } })
+    const layer = container.querySelector('[data-native-pdf-text-layer]') as HTMLElement
+    const node = layer.querySelector('span[role="presentation"]')!.firstChild as Text
+
+    const range = document.createRange()
+    range.setStart(node, 0)
+    range.setEnd(node, 'plain'.length)
+    const selection = {
+      toString: () => 'plain',
+      isCollapsed: false,
+      rangeCount: 1,
+      anchorNode: node,
+      focusNode: node,
+      getRangeAt: () => range
+    } as unknown as Selection
+    Object.defineProperty(range, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => makeRect({ left: 20, top: 100, right: 90, bottom: 112, width: 70, height: 12 })
+    })
+
+    expect(extractSelectedText(selection, container)?.text).toBe('plain')
   })
 })

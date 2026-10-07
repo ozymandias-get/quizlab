@@ -155,6 +155,26 @@ export function usePdfTextActions({
         event.target instanceof Node && container.contains(event.target)
     }
 
+    /**
+     * A press that never gets its `pointerup`.
+     *
+     * `pointercancel` is what a touch or pen gesture sends when the browser or the
+     * OS takes the pointer away — a pan, a system gesture, a focus change — and a
+     * window `blur` is what a mouse leaving the Electron window looks like. Neither
+     * is followed by a `pointerup`, so without this the latch set in `handlePointerDown`
+     * would survive: every `selectionchange` would then bail out at
+     * `handleSelectionChange` for as long as the stale flag stood, which means a
+     * selection made anywhere else in the app — or on a page that is still mounted —
+     * could not update or clear the PDF pill.
+     *
+     * The flag is the only piece of selection state a pointer lifecycle owns, so
+     * releasing it here is the whole of the teardown: nothing is cancelled, no range
+     * is touched, and the browser's selection is left exactly as it is.
+     */
+    const releasePointerLatch = () => {
+      pointerStartedInsideContainer = false
+    }
+
     const handlePointerUp = (event: PointerEvent) => {
       if (isScrolling) return
 
@@ -231,6 +251,10 @@ export function usePdfTextActions({
 
     document.addEventListener('pointerdown', handlePointerDown, true)
     document.addEventListener('pointerup', handlePointerUp, true)
+    document.addEventListener('pointercancel', releasePointerLatch, true)
+    // The pointer can also leave the window without an event ever arriving, so the
+    // release is bound to the window's focus loss rather than to a last coordinate.
+    window.addEventListener('blur', releasePointerLatch)
     document.addEventListener('selectionchange', handleSelectionChange)
     // Capture scroll only inside the PDF container
     container.addEventListener('scroll', handleScroll, { passive: true })
@@ -238,6 +262,8 @@ export function usePdfTextActions({
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown, true)
       document.removeEventListener('pointerup', handlePointerUp, true)
+      document.removeEventListener('pointercancel', releasePointerLatch, true)
+      window.removeEventListener('blur', releasePointerLatch)
       document.removeEventListener('selectionchange', handleSelectionChange)
       container.removeEventListener('scroll', handleScroll)
       if (timeoutId) clearTimeout(timeoutId)
