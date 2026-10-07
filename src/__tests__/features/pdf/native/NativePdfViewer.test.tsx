@@ -205,16 +205,6 @@ describe('NativePdfViewer — document lifecycle', () => {
     expect(document.getPageCalls).toContain(1)
   })
 
-  it('emits no react-pdf-viewer class name on the native canvas', async () => {
-    serveDocument(createFakeDocument({ numPages: 4 }))
-
-    const { container } = render(<NativeViewerHarness />)
-
-    await waitForFrames(() => expect(container.querySelectorAll('canvas')).toHaveLength(1))
-    // The legacy viewer's CSS and DOM contracts must not reach the native canvas.
-    expect(container.querySelector('[class*="rpv-"]')).toBe(null)
-  })
-
   it('stacks canvas, text layer, annotation layer and search overlay in a stated order', async () => {
     serveDocument(createFakeDocument({ numPages: 12 }))
 

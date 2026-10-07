@@ -56,6 +56,15 @@ vi.mock('../../app/windowManager', () => ({
 }))
 
 describe('systemHandlers', () => {
+  // trustedSender doubles as both the IPC event.sender (a WebContents-like
+  // object) and mainWindow.webContents, so it must answer isDestroyed() for
+  // the trusted-sender check.
+  let trustedSender: {
+    id: string
+    isDestroyed?: () => boolean
+    getURL?: () => string
+  }
+
   beforeEach(() => {
     vi.resetModules()
     ipcHandle.mockReset()
@@ -83,26 +92,20 @@ describe('systemHandlers', () => {
     registerSystemHandlers()
 
     expect(ipcHandle).toHaveBeenCalledTimes(firstCallCount)
-    // FORCE_PASTE was removed with the <webview> migration: a native paste is
-    // now addressed by managed view id (AI_VIEW_PASTE), never by webContentsId.
-    expect(firstCallCount).toBe(9)
-  })
-
-  let trustedSender: {
-    id: string
-    isDestroyed?: () => boolean
-    getURL?: () => string
-  }
-
-  beforeEach(() => {
-    // SECURITY: trustedSender doubles as both the IPC event.sender (a
-    // WebContents-like object) and mainWindow.webContents, so it must answer
-    // isDestroyed() for the trusted-sender check.
-    trustedSender = {
-      id: 'trusted',
-      isDestroyed: vi.fn(() => false),
-      getURL: vi.fn(() => 'http://localhost:5173')
-    }
+    // The exact channel set is the gate. Asserting the *absence* of one
+    // migration-era channel name could not fail if a different webview-id
+    // addressed paste channel were added; asserting the whole list can.
+    expect(ipcHandle.mock.calls.map(([channel]) => channel).sort()).toEqual([
+      APP_CONFIG.IPC_CHANNELS.APP_QUIT,
+      APP_CONFIG.IPC_CHANNELS.CACHE_INFO,
+      APP_CONFIG.IPC_CHANNELS.CLEAR_AI_MODEL_DATA,
+      APP_CONFIG.IPC_CHANNELS.CLEAR_CACHE,
+      APP_CONFIG.IPC_CHANNELS.COPY_TEXT,
+      APP_CONFIG.IPC_CHANNELS.DEEP_CLEAN_CACHE,
+      APP_CONFIG.IPC_CHANNELS.OPEN_EXTERNAL,
+      APP_CONFIG.IPC_CHANNELS.SET_CACHE_AUTO_CLEAN,
+      APP_CONFIG.IPC_CHANNELS.SMART_CACHE_ACTION
+    ])
   })
 
   it('blocks quit requests from non-main-window senders', async () => {
@@ -146,18 +149,6 @@ describe('systemHandlers', () => {
 
     expect(shellOpenExternal).toHaveBeenCalledTimes(1)
     expect(shellOpenExternal).toHaveBeenCalledWith('https://example.com/')
-  })
-
-  it('never registers a webContentsId-addressed paste channel', async () => {
-    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
-    getMainWindow.mockReturnValue({
-      isDestroyed: vi.fn(() => false),
-      webContents: trustedSender
-    })
-
-    registerSystemHandlers()
-    const channels = ipcHandle.mock.calls.map(([channel]) => channel)
-    expect(channels).not.toContain('force-paste-in-webview')
   })
 
   it('clears storage for a registered AI model partition', async () => {

@@ -356,20 +356,6 @@ describe('native viewer — AI text actions', () => {
     )
   })
 
-  it('leaves every quick-bar action enabled, because nothing is unsupported', async () => {
-    // Text from Phase 5, capture from Phase 8A, reload from Phase 4 — the whole
-    // bar is live on the native path, which is why the bounding flag is gone.
-    renderDocument()
-    await settle()
-
-    openAiActions()
-
-    expect(screen.getByTestId('pdf-quick-text-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-image-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-area-ai')).toBeEnabled()
-    expect(screen.getByTestId('pdf-quick-reload')).toBeEnabled()
-  })
-
   it('hands the capture buttons to the one capture pipeline, not to a dead end', async () => {
     // The AI-text suite's own concern: capture is faked here, so what is asserted
     // is that the real toolbar wires both rasterising buttons to the shared

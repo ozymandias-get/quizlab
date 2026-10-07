@@ -287,10 +287,13 @@ describe('IPC contract', () => {
   it('no channel in IPC_CHANNELS is both invoke and event', () => {
     type InvokeChannels = IpcInvokeChannel
     type EventChannels = import('@shared-core/types/ipcContract').IpcEventChannel
-    // This will fail to compile if a channel appears in both maps.
-    // If Overlap is not never, the next line will error as expected.
     type Overlap = InvokeChannels & EventChannels
-    const _check: Overlap = undefined as never
+    // `[Overlap] extends [never]` rather than `Overlap`, because `never` is
+    // assignable to every type: `const x: Overlap = undefined as never` compiles
+    // whether or not Overlap is `never`, which is the trap this file already
+    // guards against twice above. The conditional type only resolves to `true`
+    // when the intersection is genuinely empty.
+    const _check: [Overlap] extends [never] ? true : false = true
     void _check
     expect(true).toBe(true)
   })

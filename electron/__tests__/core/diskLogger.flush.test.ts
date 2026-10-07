@@ -60,6 +60,18 @@ describe('diskLogger flushToDisk bookkeeping', () => {
     mkdirMock.mockReset().mockResolvedValue(undefined)
   })
 
+  it('is a no-op before initLogger, and after initLogger without a userDataPath', async () => {
+    const { initLogger, flushToDisk } = await import('../../core/diskLogger.js')
+
+    // Teardown can flush before logging was ever configured; it must not throw.
+    await expect(flushToDisk()).resolves.toBeUndefined()
+
+    // And a missing userDataPath leaves the logger inert rather than half-armed.
+    initLogger({})
+    await expect(flushToDisk()).resolves.toBeUndefined()
+    expect(mkdirMock).not.toHaveBeenCalled()
+  })
+
   it('continues flushing after the buffer has saturated (regression)', async () => {
     const { initLogger, flushToDisk } = await import('../../core/diskLogger.js')
     initLogger({ userDataPath: '/ud' })

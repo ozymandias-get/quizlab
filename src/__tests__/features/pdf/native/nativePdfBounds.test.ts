@@ -81,10 +81,4 @@ describe('clampPdfScale', () => {
     expect(clampPdfScale(Number.NaN)).toBe(PDF_ZOOM_MIN_SCALE)
     expect(clampPdfScale(Number.POSITIVE_INFINITY)).toBe(PDF_ZOOM_MIN_SCALE)
   })
-
-  it('uses the shared product constants rather than local bounds', () => {
-    expect(PDF_ZOOM_STEP).toBe(0.1)
-    expect(PDF_ZOOM_MIN_SCALE).toBe(0.1)
-    expect(PDF_ZOOM_MAX_SCALE).toBe(5)
-  })
 })

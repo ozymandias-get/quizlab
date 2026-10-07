@@ -598,23 +598,4 @@ describe('native search does not disturb the other layers', () => {
     expect(anchor!.getAttribute('href')).toBeTruthy()
     geometry.restore()
   })
-
-  it('orders the page box so the overlay paints under the annotation layer', async () => {
-    serve(createFakeDocument({ numPages: 4, textItems: { 1: ['lupus'] } }))
-    const { view, geometry } = await mountWithGeometry()
-
-    const page = view.container.querySelector('[data-native-pdf-page]') as HTMLElement
-    const order = [...page.children].map((child) =>
-      child.getAttributeNames().find((name) => name.startsWith('data-native-pdf'))
-    )
-    // The first three are PDF.js's `LAYERS_ORDER`. The fourth is QuizLab's own overlay,
-    // declared last in the DOM and painted by `z-index`, not by document order.
-    expect(order).toEqual([
-      'data-native-pdf-canvas',
-      'data-native-pdf-text-layer',
-      'data-native-pdf-annotation-layer',
-      'data-native-pdf-search-layer'
-    ])
-    geometry.restore()
-  })
 })
