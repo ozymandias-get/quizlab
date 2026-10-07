@@ -1,28 +1,14 @@
-import { normalizeTitle } from './tabUtils'
-import type { PinnedTabStorage, SetStoredValue, Tab } from './types'
+import type { PinnedTabStorage, Tab } from './types'
 
-export function setCurrentAIImpl(
-  id: string,
-  activeTabIdRef: React.MutableRefObject<string>,
-  setPinnedTabs: SetStoredValue<PinnedTabStorage[]>
-) {
-  return (prev: Tab[]) => {
-    const currentTabId = activeTabIdRef.current
-    const activeTab = prev.find((tab) => tab.id === currentTabId)
-    if (!activeTab) return prev
+export function updateTabsWithModel(tabs: Tab[], currentTabId: string, modelId: string): Tab[] {
+  return tabs.map((tab) => (tab.id === currentTabId ? { ...tab, modelId } : tab))
+}
 
-    const nextTabs = prev.map((tab) => (tab.id === currentTabId ? { ...tab, modelId: id } : tab))
-
-    if (activeTab.pinned) {
-      setPinnedTabs((prevPinnedTabs) =>
-        prevPinnedTabs.map((tab) =>
-          tab.id === currentTabId
-            ? { ...tab, modelId: id, title: normalizeTitle(activeTab.title) }
-            : tab
-        )
-      )
-    }
-
-    return nextTabs
-  }
+export function updatePinnedTabsWithModel(
+  pinnedTabs: PinnedTabStorage[],
+  currentTabId: string,
+  modelId: string
+): PinnedTabStorage[] {
+  if (!pinnedTabs.some((tab) => tab.id === currentTabId)) return pinnedTabs
+  return pinnedTabs.map((tab) => (tab.id === currentTabId ? { ...tab, modelId } : tab))
 }

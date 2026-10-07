@@ -72,6 +72,11 @@ export const selectPdfInBrowser = (): Promise<PdfSelection | null> => {
     input.accept = '.pdf,application/pdf'
     const cleanup = () => {
       input.onchange = null
+      input.oncancel = null
+    }
+    input.oncancel = () => {
+      cleanup()
+      resolve(null)
     }
     input.onchange = () => {
       const file = input.files?.[0]

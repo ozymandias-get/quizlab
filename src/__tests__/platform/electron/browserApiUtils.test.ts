@@ -9,6 +9,7 @@ import {
   getPlatform,
   registerBeforeUnloadCleanup,
   revokeObjectUrl,
+  selectPdfInBrowser,
   toMapRecord
 } from '@platform/electron/browserApiUtils'
 
@@ -121,5 +122,25 @@ describe('revokeObjectUrl', () => {
     const revokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
     revokeObjectUrl('blob:untracked')
     expect(revokeSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('selectPdfInBrowser', () => {
+  it('resolves null when the file picker is cancelled', async () => {
+    let createdInput!: HTMLInputElement
+    const origCreate = document.createElement.bind(document)
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = origCreate(tagName)
+      if (tagName === 'input') {
+        createdInput = el as HTMLInputElement
+      }
+      return el
+    })
+
+    const promise = selectPdfInBrowser()
+    expect(createdInput).toBeDefined()
+    createdInput.dispatchEvent(new Event('cancel'))
+    const result = await promise
+    expect(result).toBeNull()
   })
 })
