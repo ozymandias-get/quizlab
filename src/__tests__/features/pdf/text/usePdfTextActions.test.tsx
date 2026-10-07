@@ -301,6 +301,128 @@ describe('usePdfTextActions', () => {
     })
   })
 
+  /**
+   * A press that never gets its `pointerup`.
+   *
+   * `handlePointerDown` latches `pointerStartedInsideContainer` so the drag's own
+   * `selectionchange`s do not fight the pointerup that will resolve the pill, and
+   * `handleSelectionChange` bails out entirely while that latch stands. Nothing in
+   * the old listener set ever cleared it except the `pointerup` that a cancelled
+   * gesture never sends — so a `pointercancel`, or a mouse released outside the
+   * Electron window, left the latch stuck and every later `selectionchange` was
+   * ignored: the pill could neither update nor clear until the next press.
+   */
+  describe('a pointer lifecycle that never completes', () => {
+    /**
+     * Establish a live pill, then leave the latch set the way a gesture that is
+     * cancelled — or a mouse released outside the window — leaves it.
+     */
+    function stallTheLatch(
+      harness: ReturnType<typeof mountHook>,
+      onTextNode: Node
+    ): ReturnType<typeof vi.spyOn> {
+      const getSelection = vi.spyOn(window, 'getSelection')
+      getSelection.mockReturnValue(
+        makeSelection({
+          text: 'quick',
+          anchorNode: onTextNode,
+          focusNode: onTextNode,
+          commonAncestor: onTextNode,
+          rect: makeRect({ left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20 })
+        })
+      )
+      act(() => {
+        harness.container.dispatchEvent(
+          new PointerEvent('pointerdown', { bubbles: true, button: 0 })
+        )
+        document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+      })
+      act(flushFrames)
+      expect(harness.container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(true)
+
+      // The next press inside the PDF panel, and then no `pointerup` — ever.
+      act(() => {
+        harness.container.dispatchEvent(
+          new PointerEvent('pointerdown', { bubbles: true, button: 0 })
+        )
+      })
+      return getSelection
+    }
+
+    /** The reader then selects something elsewhere in the app. */
+    function selectElsewhere(getSelection: ReturnType<typeof vi.spyOn>): void {
+      const other = document.createElement('div')
+      other.textContent = 'unrelated AI panel text'
+      document.body.appendChild(other)
+      getSelection.mockReturnValue(
+        makeSelection({
+          text: 'unrelated AI panel text',
+          anchorNode: other.firstChild,
+          focusNode: other.firstChild,
+          commonAncestor: other.firstChild,
+          rect: makeRect({ left: 900, top: 500, right: 1000, bottom: 520, width: 100, height: 20 })
+        })
+      )
+      act(() => {
+        document.dispatchEvent(new Event('selectionchange'))
+      })
+      act(flushFrames)
+    }
+
+    it('clears a stale pill after a pointercancel', () => {
+      const harness = mountHook()
+      const textNode = harness.container.querySelector('span')!.firstChild!
+      const getSelection = stallTheLatch(harness, textNode)
+
+      // The gesture is cancelled: a touch or pen taken over by the browser, a system
+      // gesture, a focus change. No `pointerup` is ever delivered.
+      act(() => {
+        document.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, button: 0 }))
+      })
+      selectElsewhere(getSelection)
+
+      // The latch no longer swallows the change, so the pill is cleared and no
+      // unrelated text is ever reported as PDF text.
+      expect(harness.onTextSelection).toHaveBeenLastCalledWith('', null)
+      expect(harness.container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
+      expect(harness.onTextSelection).not.toHaveBeenCalledWith(
+        'unrelated AI panel text',
+        expect.anything()
+      )
+    })
+
+    it('clears a stale pill when the window loses focus', () => {
+      // A mouse released outside the Electron window produces a `blur` rather than
+      // an event we can wait for, and that is the one case `pointercancel` misses.
+      const harness = mountHook()
+      const textNode = harness.container.querySelector('span')!.firstChild!
+      const getSelection = stallTheLatch(harness, textNode)
+
+      act(() => {
+        window.dispatchEvent(new Event('blur'))
+      })
+      selectElsewhere(getSelection)
+
+      expect(harness.onTextSelection).toHaveBeenLastCalledWith('', null)
+      expect(harness.container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
+    })
+
+    it('removes both release listeners on unmount', () => {
+      const removeSpy = vi.spyOn(document, 'removeEventListener')
+      const windowSpy = vi.spyOn(window, 'removeEventListener')
+
+      const harness = mountHook()
+      harness.unmount()
+
+      const cancelled = removeSpy.mock.calls.filter(([type]) => type === 'pointercancel')
+      expect(cancelled.length).toBe(1)
+      // Same capture phase it was added with, or the listener outlives the hook.
+      expect(cancelled[0][2]).toBe(true)
+
+      expect(windowSpy.mock.calls.map(([type]) => type)).toContain('blur')
+    })
+  })
+
   describe('selection outside the PDF container', () => {
     it('clears the pill and never extracts text for a selection anchored elsewhere', () => {
       const harness = mountHook()

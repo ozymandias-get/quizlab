@@ -77,6 +77,33 @@ const tintDeclaration = (() => {
   return declaration as string
 })()
 
+/** The rule PDF.js's text runs are styled by — the selectable leaves themselves. */
+const runSelectionBlock = (() => {
+  const rules = selectionRules(textLayerCss)
+  const start = rules.indexOf('[data-native-pdf-text-layer] :is(span, br) {')
+  expect(start, 'the text runs must still declare their own selection rule').toBeGreaterThan(-1)
+  return rules.slice(start, rules.indexOf('\n}', start))
+})()
+
+/**
+ * The frame's own block, located *after* the runs rule.
+ *
+ * `[data-native-pdf-text-layer] {` appears twice — once for the layer's geometry
+ * contract and once for the selection containment — so it is found by offset rather
+ * than by first match. Anchoring on the runs rule's own end is what keeps this from
+ * silently re-pointing at the geometry block if the file is ever reordered.
+ */
+const layerContainmentBlock = (() => {
+  const rules = selectionRules(textLayerCss)
+  const start = rules.indexOf('\n}', rules.indexOf('[data-native-pdf-text-layer] :is(span, br) {'))
+  const blockStart = rules.indexOf('[data-native-pdf-text-layer] {', start)
+  expect(blockStart, 'the text layer must still declare its own containment rule').toBeGreaterThan(
+    -1
+  )
+  expect(blockStart).toBeLessThan(rules.indexOf('[data-native-pdf-text-layer] .markedContent'))
+  return rules.slice(blockStart, rules.indexOf('\n}', blockStart))
+})()
+
 describe("native selection presentation — the colour is the user's", () => {
   it('derives the tint from the selectionColor preference rather than a fixed colour', () => {
     // `color-mix` over the raw preference is the mechanism; what matters is that the
@@ -279,16 +306,17 @@ describe('native selection presentation — no double paint at run boundaries', 
     // stay selectable so `Ctrl+C` copies `• Vazoaktif ilaç`. `overflow-x` clips
     // paint only; it must never have become `user-select: none` on runs.
     expect(runGeometryBlock).not.toMatch(/user-select\s*:\s*none/)
-    // And the only two rules in the file that make anything unselectable are the two
-    // that already were: PDF.js's image placeholder (no glyph behind it) and the
-    // pan-mode rule (a drag surface, not a text surface). A third would mean some
-    // real run had been silenced to make the double paint less visible.
+    // And the only three rules in the file that make anything unselectable are: the
+    // layer frame itself (see the containment contract below), the image
+    // placeholder (no glyph behind it), and pan mode (a drag surface, not a text
+    // surface). A fourth would mean some real run had been silenced.
     const unselectable = (
       selectionRules(textLayerCss).match(/[^{}]*\{[^}]*user-select:\s*none[^}]*\}/g) ?? []
     ).map((rule) => rule.split('{')[0].trim())
-    expect(unselectable).toHaveLength(2)
-    expect(unselectable[0]).toContain("span[role='img']")
-    expect(unselectable[1]).toContain('pdf-pan-mode-active')
+    expect(unselectable).toHaveLength(3)
+    expect(unselectable[0]).toBe('[data-native-pdf-text-layer]')
+    expect(unselectable[1]).toContain("span[role='img']")
+    expect(unselectable[2]).toContain('pdf-pan-mode-active')
   })
 
   it('leaves the selection API and extraction reading the same boxes', () => {
@@ -305,6 +333,66 @@ describe('native selection presentation — no double paint at run boundaries', 
 })
 
 describe('native selection presentation — behaviour is untouched', () => {
+  /**
+   * The text layer is a *frame*, and the frame must not be a selection surface.
+   *
+   * ## Why this is here
+   *
+   * PDF.js emits one absolutely positioned span per text item, so every run is a
+   * block-level box: there is no line box spanning a line's runs, and no run whose
+   * box covers the empty space to the right of the last glyph. Measured in
+   * Chromium 142 with `document.caretPositionFromPoint`, every point in that empty
+   * space — and every point in the ~1px inter-line gap — resolves to a caret
+   * position *between the layer's children* rather than to a text position:
+   *
+   * ```
+   *   x = the run's right edge   -> run#1@0    the end of the run
+   *   x = 1px past it            -> LAYER@9    a position between children
+   *   y = the line's bottom      -> run#1@37
+   *   y = 1px below it           -> LAYER@9
+   *   y = 2px below it           -> run#2@38   the next line, correctly
+   * ```
+   *
+   * A selection ending on such a boundary covers every block between the anchor and
+   * it, so 1px of movement selected a whole paragraph. `user-select: none` on the
+   * frame removes that position from the set Chromium will produce and the nearest
+   * valid text position is used instead — 289 characters over 10 painted rects
+   * became 51 characters over 1 rect on the same 1px drag.
+   *
+   * jsdom resolves no cascade and `caretPositionFromPoint` does not exist there, so
+   * like the rest of this file the contract is asserted on the stylesheet's own
+   * text. What matters structurally is that the rule lands on the *frame* and that
+   * the runs above it are untouched — a `user-select: none` that reached the runs
+   * would be the exact regression the previous test counts rules for.
+   */
+  it('makes the layer frame itself unselectable without touching the runs', () => {
+    // The frame carries no text of its own — PDF.js puts only runs and `<br>`s in it.
+    expect(layerContainmentBlock).toContain('user-select: none')
+    expect(layerContainmentBlock).toContain('-webkit-user-select: none')
+
+    // The runs keep `user-select: text`, and they are the more specific rule, so a
+    // reader can still drag over every PDF text item.
+    expect(runSelectionBlock).toContain('user-select: text')
+    expect(runSelectionBlock).not.toMatch(/user-select\s*:\s*none/)
+
+    // And it costs no geometry: the whole point is a boundary, not a repaint.
+    for (const property of [
+      'font-size',
+      'transform',
+      'left',
+      'top',
+      'width',
+      'height',
+      'padding',
+      'margin'
+    ]) {
+      expect(
+        layerContainmentBlock,
+        `the containment rule must not declare ${property}`
+      ).not.toMatch(new RegExp(`(^|[;{\\s])${property}\\s*:`))
+    }
+  })
+
   it('leaves the active-selection state class and its rule in place', () => {
     // `usePdfTextActions` toggles this and the AI quick bar reads the same state.
     // Presentation polish does not get to change when a selection is considered
