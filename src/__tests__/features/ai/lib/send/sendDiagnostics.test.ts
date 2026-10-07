@@ -16,6 +16,18 @@ describe('nowMs', () => {
     const result = nowMs()
     expect(result).toBeGreaterThan(0)
   })
+
+  it('falls back to Date.now when performance.now is unavailable', () => {
+    // The renderer always has performance.now, but the fallback is what keeps a
+    // timing number out of being NaN if the global is ever missing.
+    const original = (globalThis as { performance?: unknown }).performance
+    ;(globalThis as { performance?: unknown }).performance = {}
+    try {
+      expect(nowMs()).toBeGreaterThan(0)
+    } finally {
+      ;(globalThis as { performance?: unknown }).performance = original
+    }
+  })
 })
 
 describe('roundMs', () => {

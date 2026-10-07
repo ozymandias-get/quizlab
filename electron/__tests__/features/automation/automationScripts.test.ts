@@ -67,36 +67,91 @@ describe('automationScripts', () => {
     expect(secondResult.diagnostics.input.strategy).toBe('direct')
   })
 
-  it('falls back to fingerprint resolution inside shadow DOM', async () => {
-    const host = document.createElement('rich-textarea')
-    host.id = 'composer-host'
-    const shadowRoot = host.attachShadow({ mode: 'open' })
-    const input = document.createElement('div')
-    input.setAttribute('role', 'textbox')
-    input.setAttribute('contenteditable', 'true')
-    shadowRoot.appendChild(input)
+  it.each([null, '#nonexistent-selector'])(
+    'falls back to fingerprint resolution inside shadow DOM (primary: %s)',
+    async (primaryInput) => {
+      const host = document.createElement('rich-textarea')
+      host.id = 'composer-host'
+      const shadowRoot = host.attachShadow({ mode: 'open' })
+      const input = document.createElement('div')
+      input.setAttribute('role', 'textbox')
+      input.setAttribute('contenteditable', 'true')
+      shadowRoot.appendChild(input)
 
-    const sendButton = document.createElement('button')
-    sendButton.setAttribute('aria-label', 'Send message')
-    shadowRoot.appendChild(sendButton)
+      const sendButton = document.createElement('button')
+      sendButton.setAttribute('aria-label', 'Send message')
+      shadowRoot.appendChild(sendButton)
 
-    document.body.appendChild(host)
+      document.body.appendChild(host)
 
-    const focusScript = generateFocusScript({
-      input: null,
-      inputFingerprint: {
-        tag: 'div',
-        role: 'textbox',
-        contentEditable: true,
-        hostChain: [{ selector: '#composer-host', tag: 'rich-textarea', safeId: 'composer-host' }],
-        localPath: ['div[role="textbox"]']
-      }
-    })
+      const focusScript = generateFocusScript({
+        input: primaryInput,
+        inputFingerprint: {
+          tag: 'div',
+          role: 'textbox',
+          contentEditable: true,
+          hostChain: [
+            { selector: '#composer-host', tag: 'rich-textarea', safeId: 'composer-host' }
+          ],
+          localPath: ['div[role="textbox"]']
+        }
+      })
 
-    const result = await window.eval(focusScript)
+      const result = await window.eval(focusScript)
+
+      expect(result.success).toBe(true)
+      expect(result.diagnostics.input.strategy).toBe('fingerprint')
+    }
+  )
+
+  it('falls back to a candidate selector when the primary does not match', async () => {
+    document.body.innerHTML = `
+      <div role="textbox" contenteditable="true" id="editor"></div>
+      <button aria-label="Send message" id="send">Send</button>
+    `
+
+    const script = generateAutoSendScript(
+      {
+        input: '#nonexistent',
+        inputCandidates: ['div[role="textbox"]', 'textarea'],
+        button: '#send',
+        submitMode: 'click'
+      },
+      'hello',
+      false
+    )
+
+    const result = await window.eval(script)
 
     expect(result.success).toBe(true)
-    expect(result.diagnostics.input.strategy).toBe('fingerprint')
+    expect(result.diagnostics.input.strategy).not.toBe('none')
+  })
+
+  it('accumulates a success count on the cache entry it reuses', async () => {
+    document.body.innerHTML = `
+            <textarea id="input"></textarea>
+            <button id="send" type="button">Send</button>
+        `
+
+    const script = generateAutoSendScript(
+      { input: '#input', button: '#send', submitMode: 'click' },
+      'hello',
+      false
+    )
+
+    await window.eval(script)
+    await window.eval(script)
+    await window.eval(script)
+
+    const cache = (
+      window as typeof window & {
+        __quizlabReaderAutomationCache?: { elements: Record<string, { successCount: number }> }
+      }
+    ).__quizlabReaderAutomationCache
+    const entries = cache ? Object.values(cache.elements) : []
+    // The count is what a self-healing streak is built from: an entry that
+    // stopped accumulating would silently cap how far a repair can promote.
+    expect(entries.find((e) => e.successCount > 0)?.successCount).toBeGreaterThanOrEqual(2)
   })
 
   it('skips an invalid selector and continues with valid candidates', async () => {
@@ -260,6 +315,67 @@ describe('automationScripts', () => {
     expect(result.success).toBe(false)
     expect(result.error).toBe('submit_not_ready')
   }, 10000)
+
+  it('disambiguates multiple buttons using fingerprint when selector matches several', async () => {
+    // Several buttons answer `[role="button"]`; only one matches the saved
+    // fingerprint. `shouldSubmit=false` keeps the run off the settle checks,
+    // which need box geometry jsdom does not have.
+    document.body.innerHTML = `
+            <div role="textbox" contenteditable="true" id="composer"></div>
+            <button role="button" aria-label="New Chat">New</button>
+            <button role="button" aria-label="Send message">Send</button>
+            <button role="button" aria-label="Settings">Settings</button>
+        `
+
+    const script = generateAutoSendScript(
+      {
+        input: '#composer',
+        button: '[role="button"]',
+        buttonCandidates: ['[role="button"]', 'button[aria-label="Send message"]'],
+        submitMode: 'click',
+        buttonFingerprint: {
+          tag: 'button',
+          role: 'button',
+          ariaLabel: 'Send message',
+          text: 'Send message'
+        }
+      },
+      'hello world',
+      false
+    )
+
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(true)
+    expect(result.action).toBe('input_only')
+    expect(result.diagnostics.input.strategy).not.toBe('none')
+  })
+
+  it('types into the input when several threads share one send-button label', async () => {
+    document.body.innerHTML = `
+            <textarea id="input"></textarea>
+            <button aria-label="Send">Send to Thread A</button>
+            <button aria-label="Send">Send to Thread B</button>
+            <button aria-label="Send">Send to Thread C</button>
+        `
+
+    const script = generateAutoSendScript(
+      {
+        input: '#input',
+        button: 'button[aria-label="Send"]',
+        submitMode: 'click',
+        buttonFingerprint: { tag: 'button', ariaLabel: 'Send', text: 'Send to Thread B' }
+      },
+      'test',
+      false
+    )
+
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(true)
+    expect(result.action).toBe('input_only')
+    expect((document.getElementById('input') as HTMLTextAreaElement).value).toBe('test')
+  })
 
   // A generic "still processing" error gives no way to tell a genuinely slow
   // upload from a stale selector or a paste that attached nothing. These

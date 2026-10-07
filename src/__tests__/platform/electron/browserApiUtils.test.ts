@@ -11,7 +11,6 @@ import {
   revokeObjectUrl,
   toMapRecord
 } from '@platform/electron/browserApiUtils'
-import { parseUrlWithAllowedProtocols } from '@shared/lib/urlUtils'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -98,42 +97,6 @@ describe('toMapRecord', () => {
 
   it('returns an empty object for an empty map', () => {
     expect(toMapRecord(new Map())).toEqual({})
-  })
-})
-
-describe('parseUrlWithAllowedProtocols', () => {
-  const HTTP_HTTPS = ['http:', 'https:'] as const
-
-  it('parses valid https URL', () => {
-    const result = parseUrlWithAllowedProtocols('https://example.com/path', HTTP_HTTPS)
-    expect(result).toBeInstanceOf(URL)
-    expect(result!.hostname).toBe('example.com')
-  })
-
-  it('parses valid http URL', () => {
-    const result = parseUrlWithAllowedProtocols('http://example.com', HTTP_HTTPS)
-    expect(result).toBeInstanceOf(URL)
-  })
-
-  it('returns null for ftp protocol', () => {
-    expect(parseUrlWithAllowedProtocols('ftp://example.com', HTTP_HTTPS)).toBeNull()
-  })
-
-  it('returns null for javascript protocol', () => {
-    expect(parseUrlWithAllowedProtocols('javascript:alert(1)', HTTP_HTTPS)).toBeNull()
-  })
-
-  it('returns null for invalid URLs', () => {
-    expect(parseUrlWithAllowedProtocols('not a url', HTTP_HTTPS)).toBeNull()
-  })
-
-  it('trims whitespace before parsing', () => {
-    const result = parseUrlWithAllowedProtocols('  https://example.com  ', HTTP_HTTPS)
-    expect(result).toBeInstanceOf(URL)
-  })
-
-  it('returns null for empty string', () => {
-    expect(parseUrlWithAllowedProtocols('', HTTP_HTTPS)).toBeNull()
   })
 })
 

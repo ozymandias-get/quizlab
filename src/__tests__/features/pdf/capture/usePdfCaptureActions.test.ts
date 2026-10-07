@@ -521,4 +521,23 @@ describe('usePdfCaptureActions fallback ladder', () => {
       expect(mocks.showError).toHaveBeenCalledWith('toast_capture_failed')
     })
   })
+
+  // The area path never touches PDF.js: it hands the main process a screen
+  // rectangle. It still has to carry the page the reader is on, or the crop is
+  // filed against the wrong page.
+  describe('handleAreaScreenshot', () => {
+    it('forwards the live page to the main process and queues nothing itself', () => {
+      const { result } = renderHook(() =>
+        usePdfCaptureActions({ currentPage: 7, queueImageForAi, startScreenshot, pdfUrl: PDF_URL })
+      )
+
+      act(() => {
+        result.current.handleAreaScreenshot()
+      })
+
+      expect(startScreenshot).toHaveBeenCalledTimes(1)
+      expect(startScreenshot).toHaveBeenCalledWith({ page: 7, captureKind: 'selection' })
+      expect(queueImageForAi).not.toHaveBeenCalled()
+    })
+  })
 })
