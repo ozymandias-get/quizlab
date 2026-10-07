@@ -277,7 +277,10 @@ describe('native annotation layer — mount and shape', () => {
     await waitForFrames(() => expect(FakeAnnotationLayer.calls.length).toBeGreaterThan(0))
     await settle()
 
-    // An empty layer, no error, and the two other surfaces still working.
+    // An empty layer, no error, and the two other surfaces still working. The layer is
+    // asserted present explicitly: it carries no page number any more, and every other
+    // assertion here passes vacuously if the element were never mounted.
+    expect(annotationLayerOf(container)).not.toBe(null)
     expect(linkAnchorsOf(container)).toHaveLength(0)
     expect(control.current?.annotationLayerError).toBe(null)
     expect(container.querySelector('[data-native-pdf-error]')).toBe(null)

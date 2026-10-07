@@ -38,8 +38,8 @@
  * React's render order.
  *
  * `data-native-pdf-page` is the page's identity and lives on the page container
- * only — the canvas and the text layer are addressed by their own attributes, so
- * "the page element" is never ambiguous.
+ * — the canvas, the annotation layer and the search overlay are addressed by
+ * their own attributes, so "the page element" is never ambiguous.
  *
  * It is also what makes a capture safe: `findNativePageCanvas` reads it to confirm
  * the single mounted canvas really holds the page being asked for.
