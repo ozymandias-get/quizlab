@@ -18,24 +18,32 @@ import {
 
 export type MainWindowResolver = () => BrowserWindow | null
 
-let promptInFlight: Promise<boolean> | null = null
+const promptsInFlight = new Map<string, Promise<boolean>>()
+
+export function resetConsentPromptsForTesting(): void {
+  promptsInFlight.clear()
+}
 
 /**
  * Shows the consent prompt and returns the user's answer.
  *
- * Concurrent requests for the same capability are coalesced onto one dialog:
- * a page calling getUserMedia twice must not stack two modals.
+ * Concurrent requests for the same capability on the same host and partition
+ * are coalesced onto one dialog: a page calling getUserMedia twice must not
+ * stack two modals, while distinct origins receive isolated prompts.
  */
 async function askForConsent(
+  partition: string,
   host: string,
   capability: string,
   getMainWindow: MainWindowResolver
 ): Promise<boolean> {
-  if (promptInFlight) return promptInFlight
+  const promptKey = `${partition}\0${host}\0${capability}`
+  const existingPrompt = promptsInFlight.get(promptKey)
+  if (existingPrompt) return existingPrompt
 
   const parent = getMainWindow()
 
-  promptInFlight = (async () => {
+  const promptPromise = (async () => {
     try {
       const options: Electron.MessageBoxOptions = {
         type: 'warning',
@@ -45,7 +53,7 @@ async function askForConsent(
         title: 'Permission request',
         message: `Allow ${capability}?`,
         detail:
-          `hhe embedded AI site ${host} is asking to use your ${capability}.\n\n` +
+          `The embedded AI site ${host} is asking to use your ${capability}.\n\n` +
           `Allow only if you trust this site.`,
         noLink: true
       }
@@ -59,11 +67,12 @@ async function askForConsent(
       Logger.error('[Permissions] Consent dialog failed:', message)
       return false
     } finally {
-      promptInFlight = null
+      promptsInFlight.delete(promptKey)
     }
   })()
 
-  return promptInFlight
+  promptsInFlight.set(promptKey, promptPromise)
+  return promptPromise
 }
 
 /**
@@ -88,7 +97,12 @@ export async function resolveWebPermission(
     // only a display concern.
   }
 
-  const granted = await askForConsent(host, describePermission(request.permission), getMainWindow)
+  const granted = await askForConsent(
+    request.partition,
+    host,
+    describePermission(request.permission),
+    getMainWindow
+  )
   recordConsentDecision(request.partition, host, request.permission, granted)
   if (!granted) {
     Logger.warn(
