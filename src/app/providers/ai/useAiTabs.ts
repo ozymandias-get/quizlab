@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { arePinnedTabsEqual, normalizeTitle, sanitizePinnedTabs } from './tabUtils'
 import type { PinnedTabStorage, SetStoredValue, Tab } from './types'
-import { setCurrentAIImpl } from './useAiTabsActions'
+import { updatePinnedTabsWithModel, updateTabsWithModel } from './useAiTabsActions'
 
 interface UseAiTabsParams {
   isRegistryLoaded: boolean
@@ -151,26 +151,24 @@ export function useAiTabs({
 
   const togglePinTab = useCallback(
     (tabId: string) => {
-      setTabs((prev) => {
-        const targetTab = prev.find((tab) => tab.id === tabId)
-        if (!targetTab) return prev
+      const targetTab = tabsRef.current.find((tab) => tab.id === tabId)
+      if (!targetTab) return
 
-        const shouldPin = !targetTab.pinned
-        const normalizedTitle = normalizeTitle(targetTab.title)
+      const shouldPin = !targetTab.pinned
+      const normalizedTitle = normalizeTitle(targetTab.title)
 
-        setPinnedTabs((prevPinnedTabs) => {
-          if (!shouldPin) {
-            return prevPinnedTabs.filter((tab) => tab.id !== tabId)
-          }
+      setTabs((prev) => prev.map((tab) => (tab.id === tabId ? { ...tab, pinned: shouldPin } : tab)))
 
-          const filteredTabs = prevPinnedTabs.filter((tab) => tab.id !== tabId)
-          return [
-            ...filteredTabs,
-            { id: targetTab.id, modelId: targetTab.modelId, title: normalizedTitle }
-          ]
-        })
+      setPinnedTabs((prevPinnedTabs) => {
+        if (!shouldPin) {
+          return prevPinnedTabs.filter((tab) => tab.id !== tabId)
+        }
 
-        return prev.map((tab) => (tab.id === tabId ? { ...tab, pinned: shouldPin } : tab))
+        const filteredTabs = prevPinnedTabs.filter((tab) => tab.id !== tabId)
+        return [
+          ...filteredTabs,
+          { id: targetTab.id, modelId: targetTab.modelId, title: normalizedTitle }
+        ]
       })
     },
     [setPinnedTabs]
@@ -221,7 +219,9 @@ export function useAiTabs({
 
   const setCurrentAI = useCallback(
     (id: string) => {
-      setTabs(setCurrentAIImpl(id, activeTabIdRef, setPinnedTabs))
+      const currentTabId = activeTabIdRef.current
+      setTabs((prev) => updateTabsWithModel(prev, currentTabId, id))
+      setPinnedTabs((prev) => updatePinnedTabsWithModel(prev, currentTabId, id))
       setLastSelectedAI(id)
     },
     [setLastSelectedAI, setPinnedTabs]
