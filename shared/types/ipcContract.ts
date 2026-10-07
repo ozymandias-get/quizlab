@@ -63,11 +63,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<PdfSelection | null>
   }
 
-  [IPC_CHANNELS.SELECT_FOLDER]: {
-    args: [options?: { title?: string; defaultPath?: string }]
-    result: IpcResult<{ path: string } | null>
-  }
-
   [IPC_CHANNELS.GET_PDF_STREAM_URL]: {
     args: [filePath: string]
     result: IpcResult<PdfStreamResult>

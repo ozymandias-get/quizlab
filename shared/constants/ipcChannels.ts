@@ -1,6 +1,5 @@
 export const IPC_CHANNELS = {
   SELECT_PDF: 'select-pdf',
-  SELECT_FOLDER: 'select-folder',
   GET_PDF_STREAM_URL: 'get-pdf-stream-url',
   PDF_REGISTER_PATH: 'pdf:register-path',
   /** Main → renderer: Explorer sağ-tık ile açılan PDF yolu. */
