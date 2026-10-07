@@ -70,19 +70,6 @@ export function findSelectorEntry(ai: AiPlatform, selectors: Record<string, AiSe
       const [hostname, config] = sourceMatch
       return { hostname, config }
     }
-
-    const canonicalMatches = Object.entries(selectors).filter(([, config]) => {
-      const sourceCanonical =
-        typeof config.canonicalHostname === 'string' ? config.canonicalHostname.toLowerCase() : null
-      return sourceCanonical === canonicalHostname
-    })
-
-    if (canonicalMatches.length === 1) {
-      const [hostname, config] = canonicalMatches[0] || []
-      if (hostname && config) {
-        return { hostname, config }
-      }
-    }
   } catch {
     return null
   }

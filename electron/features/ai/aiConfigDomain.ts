@@ -227,12 +227,5 @@ export function resolveConfigForHostname(
     return canonicalExact
   }
 
-  const matches = Object.values(configMap).filter(
-    (config) => config.canonicalHostname === canonicalHostname
-  )
-  if (matches.length === 1) {
-    return matches[0] || null
-  }
-
   return null
 }
