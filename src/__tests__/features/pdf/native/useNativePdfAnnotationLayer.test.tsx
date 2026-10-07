@@ -187,7 +187,6 @@ describe('native annotation layer — mount and shape', () => {
     // Sibling of the canvas and the text layer inside one page box: the three share a
     // positioning box and a viewport.
     expect(pageOf(container)).toContainElement(layer as HTMLElement)
-    expect(layer).toHaveAttribute('data-native-pdf-annotation-page', '1')
     expect(pageOf(container)).toHaveAttribute('data-native-pdf-page', '1')
   })
 
@@ -280,7 +279,6 @@ describe('native annotation layer — mount and shape', () => {
 
     // An empty layer, no error, and the two other surfaces still working.
     expect(linkAnchorsOf(container)).toHaveLength(0)
-    expect(annotationLayerOf(container)).toHaveAttribute('data-native-pdf-annotation-page', '1')
     expect(control.current?.annotationLayerError).toBe(null)
     expect(container.querySelector('[data-native-pdf-error]')).toBe(null)
     expect(container.querySelector('[data-native-pdf-text-layer]')).not.toBe(null)
@@ -323,9 +321,11 @@ describe('native annotation layer — supersede and cleanup', () => {
 
     act(() => control.current?.goToNextPage())
 
-    await waitForFrames(() =>
-      expect(annotationLayerOf(container)).toHaveAttribute('data-native-pdf-annotation-page', '2')
-    )
+    // The new page's layer is the signal that the page turn has been taken up. It is the
+    // rebuilt layer that matters, not a page number restated on the element: the layer is
+    // ref-addressed, so its page comes from React state and only its contents can say
+    // which page it is holding.
+    await waitForFrames(() => expect(FakeAnnotationLayer.instances.at(-1)).not.toBe(firstLayer))
     expect(firstLayer?.isDestroyed()).toBe(true)
     expect(FakeAnnotationLayer.instances.at(-1)).not.toBe(firstLayer)
     // The superseded page's link is gone, not merely hidden: an invisible clickable
@@ -577,7 +577,6 @@ describe('native annotation layer — races', () => {
 
     second.page(1).settleLastAnnotations()
     await waitForFrames(() => expect(linkAnchorsOf(container)).toHaveLength(1))
-    expect(annotationLayerOf(container)).toHaveAttribute('data-native-pdf-annotation-page', '1')
     expect(annotationLayerOf(container)?.querySelector('[data-annotation-id="old"]')).toBeNull()
   })
 
@@ -620,11 +619,10 @@ describe('native annotation layer — races', () => {
     document.page(2).settleLastAnnotations()
 
     await waitForFrames(() =>
-      expect(annotationLayerOf(container)).toHaveAttribute('data-native-pdf-annotation-page', '2')
+      expect(
+        annotationLayerOf(container)?.querySelector('[data-annotation-id="pageTwo"]')
+      ).not.toBeNull()
     )
-    expect(
-      annotationLayerOf(container)?.querySelector('[data-annotation-id="pageTwo"]')
-    ).not.toBeNull()
     expect(annotationLayerOf(container)?.querySelector('[data-annotation-id="pageOne"]')).toBeNull()
   })
 })

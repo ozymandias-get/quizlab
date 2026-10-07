@@ -95,16 +95,16 @@
  *
  * `data-native-pdf-canvas`, `data-native-pdf-page`, `data-native-pdf-text-layer`,
  * `data-native-pdf-text-page`, `data-native-pdf-annotation-layer`,
- * `data-native-pdf-annotation-page`, `data-native-pdf-search-layer`,
- * `data-native-pdf-search-page`, `data-native-pdf-loading` and `data-native-pdf-error`
+ * `data-native-pdf-search-layer`, `data-native-pdf-loading` and `data-native-pdf-error`
  * are the test surface. They exist so tests can assert the single canvas, the single text
- * layer, the single annotation layer, the single search overlay, which page each of them
- * holds, the loading state and the error fallback without depending on layout or on any
- * RPV class name.
+ * layer, the single annotation layer, the single search overlay, which page the text
+ * layer holds, the loading state and the error fallback without depending on layout or
+ * on any RPV class name.
  *
- * Page identity lives on the page container only. The canvas and the three overlays are
- * addressed by their own attributes, so "the page element" is never ambiguous to a
- * `querySelector`.
+ * Page identity lives on the page container, and on the text layer alone. The canvas, the
+ * annotation layer and the search overlay are addressed by their own attributes and take
+ * their page from React state — the search overlay resolves it structurally by walking up
+ * to the page box — so "the page element" is never ambiguous to a `querySelector`.
  *
  * ## CSS
  *
@@ -217,18 +217,10 @@ function NativePdfViewer({
           data-native-pdf-text-layer
           data-native-pdf-text-page={currentPage}
         />
-        <div
-          ref={annotationLayerRef}
-          data-native-pdf-annotation-layer
-          data-native-pdf-annotation-page={currentPage}
-        />
+        <div ref={annotationLayerRef} data-native-pdf-annotation-layer />
         {/* Always present, even with no query: one overlay whose children come and go,
             so the DOM contract does not change shape with the search state. */}
-        <div
-          ref={searchLayerRef}
-          data-native-pdf-search-layer
-          data-native-pdf-search-page={currentPage}
-        />
+        <div ref={searchLayerRef} data-native-pdf-search-layer />
       </div>
     </div>
   )
