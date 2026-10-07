@@ -219,7 +219,6 @@ describe('native search overlay', () => {
 
     expect(view.container.querySelectorAll('[data-native-pdf-search-layer]')).toHaveLength(1)
     const layer = searchLayerOf(view.container)
-    expect(layer.getAttribute('data-native-pdf-search-page')).toBe('1')
     // Present with no query: the overlay's identity does not change with the search state.
     expect(highlightsIn(layer)).toHaveLength(0)
     geometry.restore()
@@ -398,7 +397,6 @@ describe('native search invalidation', () => {
     act(() => controller.jumpToPage(2))
     await waitForFrames(() => {
       const layer = searchLayerOf(view.container)
-      expect(layer.getAttribute('data-native-pdf-search-page')).toBe('2')
       expect(highlightsIn(layer)).toHaveLength(1)
     })
 

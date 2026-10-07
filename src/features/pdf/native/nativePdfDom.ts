@@ -44,12 +44,11 @@
  * It is also what makes a capture safe: `findNativePageCanvas` reads it to confirm
  * the single mounted canvas really holds the page being asked for.
  *
- * `data-native-pdf-text-page` on the text layer and
- * `data-native-pdf-annotation-page` on the annotation layer carry the same identity,
- * which is what makes "the text of page N" a single attribute selector instead of a
- * structural walk. It also gives the races a
- * testable outcome: when a superseded layer is late, the DOM still names the page
- * that is actually on screen.
+ * `data-native-pdf-text-page` on the text layer carries the same identity, which is what
+ * makes "the text of page N" a single attribute selector instead of a structural walk.
+ * It is deliberately the only layer that carries it: the annotation layer takes its page
+ * from React state and the search overlay from the page box it is nested in, so neither
+ * needs to restate it, and a superseded layer's contents are what make a race testable.
  *
  * ## The annotation layer's own vocabulary
  *
