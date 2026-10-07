@@ -165,9 +165,12 @@ export function applyRemoteContentSecurity({
     if (!isAuthNavigationDomain(url)) return
     event.preventDefault()
     if (!isGoogleWebSessionPartition) return
-    void shell.openExternal(url).catch(() => {
-      // Navigation is already prevented; a missing default browser is not fatal.
-    })
+    const decision = resolveExternalLink(url)
+    if (decision.allowed) {
+      void shell.openExternal(decision.url).catch(() => {
+        // Navigation is already prevented; a missing default browser is not fatal.
+      })
+    }
   }
 
   const guardMainFrameNavigation = (event: Electron.Event, url: string): void => {

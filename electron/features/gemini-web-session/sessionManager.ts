@@ -32,7 +32,10 @@ class GeminiWebSessionManager {
         const mainWindow = getMainWindow()
         if (
           !mainWindow ||
-          (typeof mainWindow.isDestroyed === 'function' && mainWindow.isDestroyed())
+          (typeof mainWindow.isDestroyed === 'function' && mainWindow.isDestroyed()) ||
+          !mainWindow.webContents ||
+          (typeof mainWindow.webContents.isDestroyed === 'function' &&
+            mainWindow.webContents.isDestroyed())
         )
           return
 
