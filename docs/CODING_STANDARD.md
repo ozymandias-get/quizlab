@@ -143,7 +143,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
   - Bağımlılık dizisi **her zaman açıkça** yazılır; boş `[]` yalnızca mount/unmount effect'leri içindir.
   - Effect içinden `setState` zinciri yalnızca event→state→effect akışını zorunlu kıldığında kullanılır; doğrudan olay işleyicisinde çağrılabilir mi diye önce düşünülür.
   - Cleanup fonksiyonu: listener, interval, observer, AbortController, timeout, Promise iptali — her biri için yazılır.
-  - "`@react-pdf-viewer` plugin factory'leri HER render'da koşulsuz çağrılmalıdır" kuralı, mimari bir zorunluluk olduğu için kalıcı yorum olarak bırakılmıştır (`src/features/pdf/ui/hooks/usePdfPlugins.ts:69`).
+  - Bir kontrol yalnızca mimari bir zorunluluk nedeniyle koşulsuz kalmak zorundaysa koşullulaştırılmaz; gerekçesini taşıyan kalıcı bir yorumla bırakılır (`src/features/pdf/text/extractSelectedText.ts:49` — "The check is unconditional: with no text layer mounted there is no PDF text to select").
 - Render sırasında yan etki yasak: `fetch`, `localStorage.setItem`, `Date.now()`-kritik zaman damgası gibi şeyler effect veya olay işleyicisine taşınır.
 
 ## 7. Hook Kuralları
@@ -217,7 +217,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 - **Tailwind utility class** her zaman önceliklidir. `style={{ ... }}` yalnızca:
   1. Dinamik renk/konum (color picker, panel dock konumu, canvas animasyonu).
   2. `data-*` attribute ile conditional style geçişi.
-  3. Üçüncü parti bileşenin (örn. PDF viewer plugin) iç API'sinin zorunlu kıldığı durum.
+  3. Üçüncü parti kütüphanenin iç API'sinin zorunlu kıldığı durum (örn. PDF.js metin/annotation katmanlarının beklediği `--total-scale-factor` custom property, `NativePdfViewer.tsx:149`).
   - Bu üçü dışında `style` attribute'u PR review'da geri çevrilir.
 - Renk paleti: Tailwind v4 `@theme` bloğu `src/shared/styles/index.css` içinde tanımlıdır; repo'da `tailwind.config.js` **yoktur** (Tailwind `@tailwindcss/vite` plugin'i ile yüklenir). Yeni renk eklenirse `@theme` bloğuna eklenir, hex literal JSX/CSS içinde yazılmaz.
 - `cn(...)` her zaman `@shared/lib/uiUtils`'tan alınır; `clsx`/`classnames` doğrudan kullanılmaz.
@@ -235,11 +235,10 @@ Proje, Tailwind v4 `@theme` ile tanımlanmış merkezi bir token sistemine sahip
 |-------|-------|----------|
 | `--z-negative-10` | -10 | Ambient arkaplan katmanı |
 | `--z-negative-2` / `--z-negative-1` | -2 / -1 | Glow / panel gölge katmanları |
-| `--z-pdf-overlay` / `--z-pdf-overlay-top` | 10 / 11 | PDF görüntüleyici overlay'leri |
 | `--z-resizer-hub` | 40 | Panel resizer hub |
 | `--z-dropdown` → `--z-max` | 100 → 2147483647 | Standart z-index skalası |
 
-`@utility` sınıfları: `z-negative-10`, `z-negative-2`, `z-negative-1`, `z-pdf-overlay`, `z-pdf-overlay-top`, `z-resizer-hub`, `z-dropdown`, `z-overlay`, `z-modal`, `z-toast`, `z-tooltip`, `z-top`, `z-max`
+`@utility` sınıfları: `z-negative-10`, `z-negative-2`, `z-negative-1`, `z-resizer-hub`, `z-dropdown`, `z-overlay`, `z-modal`, `z-toast`, `z-tooltip`, `z-top`, `z-max`
 
 **Transition süre tokenları:**
 | Token | Süre | Kullanım |
@@ -347,7 +346,7 @@ Alan özelinde mock'lar testin kendi yanında tutulur; örnekler için
 - Kullanıcıdan gelen HTML/metin render edilmeden önce `sanitize*` veya `DOMPurify` benzeri geçitten geçirilir (`tutorial` HTML ipuçları gibi).
 - API anahtarları kod içinde, logda, versiyon kontrolünde **olmaz**; IPC üzerinden main süreçte tutulur, renderer'a geri dönmez.
 - Dependency audit: `npm run check:audit` her PR'da temizdir. Kargo ağacı `npm ls --omit=dev` ile belirlenir; dev araçları (eslint, stryker, electron-builder) gate'e girmez.
-- Kabul edilmiş tek production advisory `pdfjs-dist` içindir ve `security/audit-exceptions.json`da zaman sınırlı olarak durur. Checker; advisory id, kurulu sürüm, son kullanma tarihi ve "artık raporlanmıyor" durumlarında ayrı ayrı başarısız olur, böylece istisna gerekçesiz yaşayamaz.
+- Kabul edilmiş **production advisory istisnası yoktur**; `security/audit-exceptions.json` boştur. Geçmişte tek istisna `pdfjs-dist` içindeki CVE-2024-4367 / GHSA-wgrm-67xf-hhpq idi ve PDF.js göçünde, kurulu sürüm etkilenen aralığın (`<=4.1.392`) dışına çıktığı için **silindi** (yeniden tarihlenmedi — istisnanın advisory'si artık raporlanmadığı için kendisi de gate'i kırar). Checker; advisory id, kurulu sürüm, son kullanma tarihi ve "artık raporlanmıyor" durumlarında ayrı ayrı başarısız olur, böylece istisna gerekçesiz yaşayamaz.
 - Semgrep: `npm run analyze:semgrep` yalnız production kaynakları tarar ve `--error` kullanır; test dosyalarındaki `eval` kullanımları gate dışıdır.
 - Electronegativity: `npm run check:electron-security` HIGH/CRITICAL bulguda durur. Reviewed baseline 14 MEDIUM'dur.
 
@@ -397,17 +396,24 @@ Proje kökünde `.vscode/settings.json` ve `.vscode/extensions.json` dosyaları 
 
 ## Bilinen ve Kalıcı İstisnalar
 
-| Konum                                                  | İstisna                                                                                              | Gerekçe                                                                                                                                                             |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/features/pdf/ui/hooks/usePdfPlugins.ts:69`        | "Plugin factory'leri HER render'da koşulsuz çağrılmalıdır" kalıcı yorumu ve koşulsuz factory çağrısı | `@react-pdf-viewer` plugin'leri içeride React hook kullanır; koşullu çağrılırsa hook sırası render'lar arası değişir. Yorum silinirse plugin init sırası bozulur.   |
-| `electron/features/automation/automationScripts/lib/*` | `try { … } catch (_) { }` veya boş catch                                                             | Tarayıcı otomasyonu sırasında `disconnect`, `removeEventListener`, selector sorgusu başarısızlıkları "expected" kabul edilir.                                       |
-| `src/shared/lib/logger.ts`                             | `console.*` ve `any` kullanımı                                                                       | Logger uygulamasının kendisi — `console` ve `any` zorunlu. `electron/core/logger.ts` yalnızca bunu yeniden export eden 19 satırlık bir shim'dir ve istisna taşımaz. |
-| `electron/app/index.ts:230`                            | `any` kullanımı                                                                                      | Electron IPC start-up tiplendirmesi için.                                                                                                                           |
-| `src/features/ai/lib/aiSenderSupport.ts:188`           | `any` kullanımı                                                                                      | Karmaşık send pipeline tip bağlayıcı.                                                                                                                               |
-| `scripts/**`                                           | `console.*` kullanımı                                                                                | Build/development script'leri — üretim kodu değil.                                                                                                                  |
+| Konum                                                  | İstisna                                                                | Gerekçe                                                                                                                                                                                                                                           |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/features/pdf/ui/components/PdfSearchBar.tsx:76`   | `jsx-a11y/no-autofocus` bastırması ve gerekçesini taşıyan kalıcı yorum | Arama çubuğu açılışta odaklanır; `Ctrl/Cmd+F` yalnızca çubuğu açar (`PdfSearchBar.tsx:40` ayrıca gecikmeli `focus()` çağırır). `autoFocus` kaldırılırsa odak kaybolur. Aynı kalıp `ui/components/ContextMenu.tsx:100` ve `:108` içinde de vardır. |
+| `electron/features/automation/automationScripts/lib/*` | `try { … } catch (_) { }` veya boş catch                               | Tarayıcı otomasyonu sırasında `disconnect`, `removeEventListener`, selector sorgusu başarısızlıkları "expected" kabul edilir.                                                                                                                     |
+| `src/shared/lib/logger.ts`                             | `console.*` ve `any` kullanımı                                         | Logger uygulamasının kendisi — `console` ve `any` zorunlu. `electron/core/logger.ts` yalnızca bunu yeniden export eden 19 satırlık bir shim'dir ve istisna taşımaz.                                                                               |
+| `electron/app/index.ts:230`                            | `any` kullanımı                                                        | Electron IPC start-up tiplendirmesi için.                                                                                                                                                                                                         |
+| `src/features/ai/lib/aiSenderSupport.ts:188`           | `any` kullanımı                                                        | Karmaşık send pipeline tip bağlayıcı.                                                                                                                                                                                                             |
+| `scripts/**`                                           | `console.*` kullanımı                                                  | Build/development script'leri — üretim kodu değil.                                                                                                                                                                                                |
 
 > Bu tablo güncel tutulur. Bir istisna kaldırıldığında (dosya silinir, `any`
 > kalıbı düzeltilir, yorum taşınır) satır buradan da silinmelidir; aksi halde
 > "izin verilen" ama artık var olmayan bir muafiyet listelenmiş olur.
+
+> **Tarihsel göç notu.** Bu tabloda bir zamanlar
+> `src/features/pdf/ui/hooks/usePdfPlugins.ts:69` için "`@react-pdf-viewer`
+> plugin factory'leri HER render'da koşulsuz çağrılmalıdır" istisnası vardı.
+> PDF.js göçinin son fazında (Phase 8B) o dosya `@react-pdf-viewer` ile birlikte
+> silindiği için istisna da kaldırıldı; §6'daki kural (mimari zorunluluğu
+> koşullulaştırmak yerine kalıcı yorumla belgelemek) ise kendi örneğiyle duruyor.
 
 Bu istisnalar dışındaki tüm ihlaller PR review'da geri çevrilir.

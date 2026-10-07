@@ -122,22 +122,22 @@ diagnostics:
 
 ## Tech Stack
 
-| Area             | Choice                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| Desktop runtime  | Electron 42                                                                           |
-| UI               | React 19, no router (custom state-driven workspace)                                   |
-| Language         | TypeScript 5.9                                                                        |
-| Build            | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (packaging)       |
-| PDF engine       | `pdfjs-dist` 3.11 with `@react-pdf-viewer` 3.12 (core, page-navigation, search, zoom) |
-| Styling          | Tailwind CSS 4 (`@theme` tokens), plus a small number of CSS modules                  |
-| State            | Zustand 5 for cross-component state, TanStack React Query 5 for IPC-backed reads      |
-| UI primitives    | Radix UI, Headless UI, shadcn/ui, Lucide icons                                        |
-| Motion / effects | Motion, tsParticles, Inter Variable (Fontsource)                                      |
-| i18n             | i18next + react-i18next                                                               |
-| Tests            | Vitest 4 + Testing Library                                                            |
-| Lint / format    | ESLint 10, Prettier, Stylelint, cspell, dependency-cruiser                            |
-| Security tooling | Electronegativity, Semgrep, `npm audit`                                               |
-| Packaging        | electron-builder 26 — NSIS (Windows), dmg/zip (macOS), AppImage/deb (Linux)           |
+| Area             | Choice                                                                             |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| Desktop runtime  | Electron 42                                                                        |
+| UI               | React 19, no router (custom state-driven workspace)                                |
+| Language         | TypeScript 5.9                                                                     |
+| Build            | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (packaging)    |
+| PDF engine       | `pdfjs-dist@6.4.299` with QuizLab's own native viewer, worker `pdf.worker.min.mjs` |
+| Styling          | Tailwind CSS 4 (`@theme` tokens), plus a small number of CSS modules               |
+| State            | Zustand 5 for cross-component state, TanStack React Query 5 for IPC-backed reads   |
+| UI primitives    | Radix UI, Headless UI, shadcn/ui, Lucide icons                                     |
+| Motion / effects | Motion, tsParticles, Inter Variable (Fontsource)                                   |
+| i18n             | i18next + react-i18next                                                            |
+| Tests            | Vitest 4 + Testing Library                                                         |
+| Lint / format    | ESLint 10, Prettier, Stylelint, cspell, dependency-cruiser                         |
+| Security tooling | Electronegativity, Semgrep, `npm audit`                                            |
+| Packaging        | electron-builder 26 — NSIS (Windows), dmg/zip (macOS), AppImage/deb (Linux)        |
 
 ## Requirements
 

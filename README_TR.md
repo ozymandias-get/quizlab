@@ -131,7 +131,7 @@ ve tanılama araçları:
 | Arayüz                  | React 19; yönlendirici yok (özel durum tabanlı çalışma alanı)                             |
 | Dil                     | TypeScript 5.9                                                                            |
 | Derleme                 | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (paketleme)           |
-| PDF motoru              | `pdfjs-dist` 3.11 + `@react-pdf-viewer` 3.12 (core, page-navigation, search, zoom)        |
+| PDF motoru              | `pdfjs-dist@6.4.299` + uygulamaya ait native görüntüleyici, worker `pdf.worker.min.mjs`   |
 | Stil                    | Tailwind CSS 4 (`@theme` token'ları) ve az sayıda CSS modülü                              |
 | Durum                   | Bileşenler arası durum için Zustand 5, IPC üzerinden okumalar için TanStack React Query 5 |
 | Arayüz primitifleri     | Radix UI, Headless UI, shadcn/ui, Lucide ikonlar                                          |
