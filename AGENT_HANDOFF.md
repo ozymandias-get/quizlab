@@ -12,22 +12,26 @@ migration plan.
 
 ## Current State
 
-| Field                | Value                                                                        |
-| -------------------- | ---------------------------------------------------------------------------- |
-| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                              |
-| Current phase        | **Phase 8B complete — the PDF migration is finished**                        |
-| Last completed phase | Phase 8B — legacy RPV removal + collapse to a single PDF.js 6 runtime        |
-| Current HEAD         | run `git rev-parse HEAD`                                                     |
-| Working tree         | clean at last commit                                                         |
-| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                   |
-| Readiness            | **single runtime, sole renderer, all static gates and targeted tests green** |
+| Field                | Value                                                                            |
+| -------------------- | -------------------------------------------------------------------------------- |
+| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                  |
+| Current phase        | **Phase 9 — general cleanup, in progress**                                       |
+| Last completed phase | Phase 8B — legacy RPV removal + collapse to a single PDF.js 6 runtime            |
+| Current HEAD         | run `git rev-parse HEAD`                                                         |
+| Working tree         | **dirty** — Phase 9 is in flight and several agents hold it                      |
+| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                       |
+| Readiness            | single runtime, sole renderer, no feature flag; Phase 9 gates **not yet re-run** |
 
-**The PDF viewer migration is complete.** There is one PDF.js in the tree, one
-worker, one viewer, and no feature flag. `@react-pdf-viewer` is gone.
+**The PDF viewer migration is complete and Phase 9 is not migration work.** There is
+one PDF.js in the tree, one worker, one viewer, and no feature flag.
+`@react-pdf-viewer` is gone. Phase 9 is post-migration cleanup — comment and
+terminology accuracy, dead code, stale documentation — and it must not change what the
+app does. The migration's own exit criterion (Phase 8B) was met before it began.
 
 Phase 4's manual smoke was resolved by user validation in the real application.
 The Phase 5, 6, 7, 8A and 8B interactive lists are **still outstanding** — see
-_Interactive Smoke State_. They are the only thing Phase 8B could not verify.
+_Interactive Smoke State_. They are the only thing Phase 8B could not verify, and
+Phase 9 does not touch them.
 
 ## Current Goal
 
@@ -149,20 +153,22 @@ still live, so **it was deliberately left alone** and is Phase 9's business.
 `src/features/pdf/engine/` — React-free, DOM-free, viewer-free, asserted by test.
 Direction is `UI → engine → pdfjs-dist`; the reverse is forbidden.
 
-| File                    | Responsibility                                                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `pdfWorker.ts`          | publishes `GlobalWorkerOptions.workerSrc` once — the **only** assignment in the codebase                           |
-| `pdfDocumentOptions.ts` | the single authoritative `getDocument` parameter builder: scripting + asset policy                                 |
-| `documentManager.ts`    | owns the `PDFLoadingTask`; load / reload / getDocument / getPage / destroy, generation-based stale-load protection |
-| `pageCache.ts`          | page number → `PDFPageProxy`; clearable, rejected lookups not cached                                               |
-| `pageRenderer.ts`       | `PDFPageProxy` → viewport → canvas → `RenderTask`, supersede-cancel, typed cancellation                            |
-| `captureDocument.ts`    | the engine's public **capture/document adapter**: handle creation + the temporary isolated load                    |
-| `index.ts`              | barrel; the only entry point consumers should use                                                                  |
+| File                    | Responsibility                                                                                                                                        |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pdfWorker.ts`          | publishes `GlobalWorkerOptions.workerSrc` once — the **only** assignment in the codebase                                                              |
+| `pdfDocumentOptions.ts` | the single authoritative `getDocument` parameter builder: scripting + asset policy                                                                    |
+| `documentManager.ts`    | owns the `PDFLoadingTask`; load / reload / getDocument / getPage / destroy, generation-based stale-load protection                                    |
+| `pageCache.ts`          | page number → `PDFPageProxy`; clearable, rejected lookups not cached                                                                                  |
+| `pageRenderer.ts`       | `PDFPageProxy` → viewport → canvas → `RenderTask`, supersede-cancel, typed cancellation                                                               |
+| `captureDocument.ts`    | the engine's public **capture/document adapter**: handle creation + the temporary isolated load                                                       |
+| `index.ts`              | barrel: exactly `createPdfDocumentManager`, `createPageRenderer`, `isRenderCancelled` and their types — the entry point for everything except capture |
 
 `captureDocument.ts` is the one deliberate addition to a pure engine, and it earns its
 place: capture needs a PDF.js document, the engine is the only place allowed to import
 one, and it is what makes "capture cannot introduce a security-posture divergence" a
-structural property rather than a review item.
+structural property rather than a review item. It is the engine's second entry point and
+is reached by deep import (`@features/pdf/engine/captureDocument`), which is why the
+barrel does not re-export it.
 
 Still absent: form editing (`renderForms: false`). Search lives in the viewer boundary,
 not the engine.
@@ -224,8 +230,12 @@ single slot, **most recent registration wins**.
 
 ## Viewer Boundary
 
-Everything that imports `@features/pdf/engine` lives in `features/pdf/native/`, plus
-`ui/components/NativePdfViewer.tsx` and `lib/renderPageToImage.ts`. Asserted by
+Exactly four files import `@features/pdf/engine`, and all four are inside
+`features/pdf/`: `native/useNativePdfEngine.ts` and `native/useNativePdfRender.ts` (via
+the barrel), plus `native/useNativePdfCaptureDocument.ts` and `lib/renderPageToImage.ts`
+(both narrowly, for the capture adapter). `ui/components/NativePdfViewer.tsx` does not
+import the engine at all — it reaches it only through those hooks — and `native/` has no
+barrel of its own since `native/index.ts` was deleted in Phase 9. Asserted by
 `architecture/pdfjs-single-runtime.test.ts`, together with the inverse: no
 `@react-pdf-viewer` import and no `rpv-*` string in that boundary.
 
@@ -339,8 +349,10 @@ only while a PDF panel existed.
 2. `pdfjs-dist@6.4.299` is pinned exactly, and it is the only PDF.js. Engine and worker
    are the same dependency, so a range could hand the engine a worker from another major.
 3. `engine/pdfWorker.ts` is the only place that assigns `GlobalWorkerOptions.workerSrc`.
-4. Only `features/pdf/native/**` + `NativePdfViewer.tsx` + `lib/renderPageToImage.ts` may
-   import `@features/pdf/engine`.
+4. Only `features/pdf/native/**` + `lib/renderPageToImage.ts` may import
+   `@features/pdf/engine`. `NativePdfViewer.tsx` reaches the engine only through those
+   hooks; adding a direct import there would put a UI component on the wrong side of the
+   boundary.
 5. The engine contains no React / UI / zustand / viewer dependencies.
 6. No PDF.js web-viewer import (`pdfjs-dist/web/**`) anywhere — QuizLab supplies its own
    page view, and importing it would pull a second viewer in behind the one.
@@ -398,6 +410,12 @@ Targeted:      src/__tests__/features/pdf + src/__tests__/architecture
 Blast radius:  + app, components/layout, platform
                118 files · 1235 passed · 0 failed
 ```
+
+> **These counts predate Phase 9 and are stale as file counts.** Phase 9 removed
+> vacuous and duplicate test files and deleted `src/features/pdf/native/index.ts`, so
+> the file counts above are known to be too high. The pass/fail figures are the last
+> measured truth; nobody has re-run the suite for Phase 9 yet. Whoever closes Phase 9
+> must re-measure and replace both blocks rather than leave a plausible-looking number.
 
 > **The full `npm test` run was not executed** — it is intentionally skipped unless a
 > targeted failure indicates broader validation is necessary. The repository-wide count is
@@ -458,8 +476,11 @@ has.
    re-checks is not strictly behaviour-preserving. **Not fixed by Phase 8B.**
 2. **The `anchorNode.isConnected` guard in `usePdfTextActions.ts` is nearly dead code** —
    observable only for a non-collapsed range with empty text.
-3. **`scrollbar-gutter-stable`** is applied in `PdfViewerDocument.tsx` but has no
-   definition anywhere. Dead class.
+3. **`scrollbar-gutter-stable`** looks undefined in the repository but is **not** — it is
+   a Tailwind 4.3.1 built-in utility, so the class on `PdfViewerDocument.tsx` compiles to
+   `scrollbar-gutter: stable` and reserves the gutter on the `overflow: hidden` container.
+   Do not "clean it up" on the grounds that no CSS file defines it; verify against
+   `node_modules/tailwindcss` first.
 4. **Native canvas is not DPR-aware** — 1:1 with CSS pixels on HiDPI. Cosmetic: capture is
    unaffected, because it renders at scale 4 into its own canvas.
 5. **Native path renders once at scale 1 before the fit commits** (one frame, cancelled
@@ -470,17 +491,26 @@ has.
 8. **Named link actions are inert** (`NextPage`, `PrevPage`, …).
 9. **`executeSetOCGState` is a no-op.**
 10. **Embedded-file attachments cannot be opened.**
-11. **A destination's implied zoom is ignored**, matching the legacy path.
+11. **A destination's implied zoom is ignored**, matching the legacy path. Historical note:
+    that parity target was `@react-pdf-viewer`, deleted in Phase 8B, so this is now a
+    standing decision to revisit rather than parity to maintain.
 12. **Native search has no match count, no next/previous match and no page jump.**
 13. **Native search scope is the rendered page.**
-14. **`nativeSearchGeometry.ts` is a declared fake layout**, and the honest limit of the
-    Phase 7 test suite.
-15. **A padded keyword matches literally and finds nothing.** Parity with the legacy
-    plugin, and pinned.
+14. **`src/__tests__/features/pdf/native/nativeSearchGeometry.ts` is a declared fake
+    layout**, and the honest limit of the Phase 7 test suite. It is a _test helper_, not
+    production code: the real geometry comes from `Range.getClientRects()` in
+    `nativePdfSearch.ts`, and jsdom implements neither it nor `getBoundingClientRect()`,
+    so the helper supplies stand-in boxes. It proves the arithmetic and the lifecycle; it
+    cannot prove that a rectangle covers the glyphs it should.
+15. **A padded keyword matches literally and finds nothing.** Parity with the
+    `@react-pdf-viewer/search` plugin that Phase 8B deleted, and pinned by test. Historical
+    note: there is no longer a second implementation to diverge from, so this is a standing
+    choice to revisit rather than an ongoing parity obligation.
 16. **The area/crop screenshot carries no capture metadata of its own.** It hands the main
     process a screen rectangle; if the window is partially occluded the captured region is
-    whatever is visible at that position. Pre-existing on both paths, and the one capture
-    path with no renderer-independent correctness story.
+    whatever is visible at that position. Pre-existing on both the legacy and the native
+    path, so Phase 8B changed nothing here, and it is the one capture path with no
+    renderer-independent correctness story.
 17. **`usePdfViewerZoomIpc` duplicates a small amount of zoom policy.** The controller
     already has `zoomIn`/`zoomOut`/`fit`, but the hook takes the numeric channel so it can
     keep its own arithmetic tests and stay renderer-agnostic. Deliberate; worth revisiting
@@ -575,7 +605,8 @@ explicitly requested.
   `src/features/pdf/interaction/**`
 - `src/features/pdf/text/normalizePdfText.ts`, `text/usePdfTextActions.ts`, `text/types.ts`
 - `src/features/pdf/store/**` and
-  `hooks/{readingHistoryRepository,useReadingProgressPersistence,usePdfNavigation,usePdfViewerEffects}.ts`
+  `hooks/{readingHistoryRepository,useReadingProgressPersistence,usePdfViewerEffects}.ts`
+  (`usePdfNavigation.ts` was deleted in Phase 8B; only these three remain)
 - `src/features/pdf/native/**` and `features/pdf/engine/**` — the migration's output; the
   naming is settled, the behaviour is not
 - `src/shared/styles/**` (the native layers have their own stylesheets)
@@ -590,7 +621,7 @@ explicitly requested.
 ```
 Branch: refactor/native-pdfjs-viewer  (tracks origin, fast-forward only)
 Base:   master
-Ahead of master: 27 behind 0
+Ahead of master: run `git rev-list --left-right --count master...HEAD` (stale as of writing)
 ```
 
 Phase commits, oldest first:
@@ -603,7 +634,7 @@ aef4bb8 chore(pdf): add isolated pdfjs 6 migration runtime
 f3d68c6 feat(pdf): add native pdfjs engine foundation
 d04e8a3 test(pdf): enforce dual-runtime isolation
 fd886b4 docs(agent): add repository handoff context
-+ Phases 4 – 8B — see `git log --oneline master..HEAD`
++ Phases 4 – 8B and the post-8B polish commits — see `git log --oneline master..HEAD`
 ```
 
 `master` remains a working RPV + pdfjs 3.x build, so rollback is "stop shipping the
@@ -611,19 +642,26 @@ branch". Do not merge to master, tag, release or bump the version.
 
 ## Next Phase
 
-**Phase 9 — general cleanup, or the merge decision.** Neither is authorised yet.
+**Phase 9 — general cleanup: in progress.** The merge decision still needs its own
+authorisation and is not part of Phase 9.
 
-If cleanup proceeds, the identified candidates are:
+Phase 9 is cleanup of the finished migration: dead code, stale comments and
+documentation, vacuous tests. It must not change what the app does, and it does not
+retire the interactive smoke list — see below for the items that are still open.
+
+Open candidates:
 
 1. `npm run analyze:deadcode` / `analyze:knip` / `analyze:prune` — several modules were
    left deliberately reachable during the migration and may now be orphans.
 2. Remove `.npmrc`'s `legacy-peer-deps=true` once the eslint peer conflict that still needs
-   it is resolved.
-3. Nothing else in the PDF feature. It is done.
+   it is resolved. Deliberately untouched so far; the flag is real, not stale.
+3. Re-measure and replace the Regression Baseline counts, which predate this phase.
+4. Nothing else in the PDF feature. It is done.
 
-**The interactive smoke list should run first**, for the same reason it should have run
-before Phase 8B: jsdom cannot see layout, so geometry, real selection, link hitboxes,
-highlight alignment, capture fidelity and keyboard zoom are all unproven.
+**The interactive smoke list is still outstanding** and is not a Phase 9 deliverable:
+jsdom cannot see layout, so geometry, real selection, link hitboxes, highlight alignment,
+capture fidelity and keyboard zoom are all unproven. A later phase — or the merge
+decision — has to own it.
 
 ## Do Not Do Yet
 
