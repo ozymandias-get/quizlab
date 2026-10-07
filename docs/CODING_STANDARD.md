@@ -286,7 +286,7 @@ Proje, Tailwind v4 `@theme` ile tanımlanmış merkezi bir token sistemine sahip
 
 - Vitest (`npm test`) ana test runner'ıdır. `src/__tests__/**` jsdom'da, `electron/__tests__/**` Node ortamında çalışır; seçim `vitest.config.mts` içindeki `environmentMatchGlobs` ile yapılır. Global kurulum `src/__tests__/setup.ts` (jest-dom, i18n, `ResizeObserver`/`matchMedia` stub'ları, `electron` mock'u, `afterEach` içinde `vi.restoreAllMocks()`).
 - Konum: `src/__tests__/...` (paylaşılan test kodu) ve `<source>/__tests__/...` (kolokasyon). Testler kaynak dosyaya bitişik tutulur.
-- Paylaşılan test kodu `src/__tests__/helpers/` altındadır: `factories.ts` (veri fabrikaları) ve `test-utils.tsx` (olay yardımcıları). Yeni paylaşılan yardımcı bu iki dosyadan birine eklenir; ayrı bir "her şeyi re-export eden" tek giriş noktası dosyası yoktur ve eklenmemelidir.
+- Paylaşılan test kodu, üreticisiyle aynı klasörde durur: `src/__tests__/features/pdf/native/nativeViewerHarness.tsx` ve `src/__tests__/features/ai/selectorRepair/repairStore.test-helpers.ts` gibi `-harness`, `-double`, `.test-helpers` veya `mockState.ts` adlı dosyalar kabul edilir. Merkezî bir `helpers/` klasörü yoktur ve eklenmemelidir: tek kullanıcısı olan bir yardımcıyı merkezileştirmek, onu okuyan testin yerine bir indirme adımı koyar. Yardımcı gerçekten en az üç test dosyası tarafından paylaşılıyorsa ve alan özeliyse o klasörde tutulur.
 - `useElectronQuery`/`useElectronMutation` testlerinde Electron API mock'u, testin kendi `__mocks__`/`mockState` dosyasından veya `src/__tests__/setup.ts` içindeki `electron` mock'undan sağlanır.
 - Coverage threshold'ları `vitest.config.mts` içinde tanımlıdır. Sıra: lines / statements / branches / functions. Global taban `50/48/41/47`; kapsam bazlı override'lar `electron/features/gemini-web-session 60/59/56/46`, `**/features/pdf 59/55/50/50`, `electron/features/automation 57/57/55/45`, `electron/core 43/41/37/48`, `electron/features/ai/apiChatHandlers 21/22/31/24`. Bu eşikler bilinçli olarak aşağı çekilmez; yeni feature için eşik eklenir.
 - IPC contract testi (`electron/__tests__/core/ipcContract.test.ts`) **tip düzeyinde** sözleşmeyi doğrular; yeni IPC kanalı eklenirken bu teste de karşılık düşen vaka eklenir.
@@ -316,13 +316,20 @@ describe('useLocalStorage Hooks', () => {
 
 ### Test Yardımcıları
 
-Paylaşılan yardımcılar `src/__tests__/helpers/` altından import edilir:
+Yardımcı, üreticisiyle aynı klasörde yaşar ve konudan konuya gider — tek bir
+`testHelpers.ts` çöp yığını olmaz:
 
 ```ts
-// ✅ Doğru
-import { fireStorageEvent, fireLocalStorageSyncEvent } from '../helpers/test-utils'
-import { createAiConfig } from '../helpers/factories'
+// ✅ Doğru: PDF viewer testleri üç klasörde de aynı harness'i kullanır
+import { NativeViewerHarness, createFakeDocument } from './nativeViewerHarness'
+
+// ✅ Doğru: yalnızca bu klasördeki üç test kullanır
+import { mockState } from './mockState'
 ```
+
+Tek kullanıcısı olan bir yardımcıyı ayrı bir dosyaya taşımak, onu okuyan testin
+yerine bir indirme adımı koyar ve dosya sayısını artırır; bu yüzden `helpers/`
+klasörü yoktur.
 
 Alan özelinde mock'lar testin kendi yanında tutulur; örnekler için
 `src/__tests__/app/providers/AppToolContext/mockState.ts`,

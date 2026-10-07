@@ -78,6 +78,12 @@ describe('DEFAULT_PROMPTS - language pairing', () => {
 })
 
 describe('DEFAULT_PROMPTS - content sanity', () => {
+  it('leads with the default explain prompt', () => {
+    // The composer's one-tap prompt is the first entry; reordering the list
+    // would silently change what a single click asks the model.
+    expect(DEFAULT_PROMPTS[0].id).toBe('edu_explain_simple_tr')
+  })
+
   it('texts do not contain placeholder syntax that is never interpolated', () => {
     // The app uses {variable} syntax for substitution; if a prompt has
     // unmatched braces it would render literally. Allow { } in natural

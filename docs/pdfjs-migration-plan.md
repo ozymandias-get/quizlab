@@ -741,30 +741,37 @@ Re-verification required, not necessarily edits:
 
 # Part III — Test coverage
 
+> **This table is a Phase-2 audit snapshot, not current coverage.** It records
+> what was protected when the migration started, which is what made the later
+> phases safe to run. Read it as history. Current coverage is whatever
+> `src/__tests__/features/pdf/` and `src/__tests__/architecture/` contain at the
+> commit you are looking at; several rows below were closed later and one has
+> been corrected in place.
+
 40 test files under `src/__tests__/features/pdf/` (~317 `it(`/`test(`), plus
 `src/__tests__/architecture/pdfjs-engine-worker-coupling.test.ts` (6 tests) and
 `src/__tests__/platform/electron/api/usePdfApi.test.tsx`.
 
-| Bucket                                                     | Verdict                                                                                                                                                     |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Text extraction (page DOM text)                            | TESTED                                                                                                                                                      |
-| Text selection (drag → AI)                                 | PARTIAL — `extractSelectedText` + `normalizePdfText` TESTED; `usePdfTextActions` listener wiring UNTESTED                                                   |
-| Capture / screenshot                                       | TESTED                                                                                                                                                      |
-| Page → high-DPI image                                      | **UNTESTED** — `renderPageToImage` is only `vi.mock`ed; `usePdfScreenshot.test.tsx` passes no `pdfUrl`, so neither high-DPI branch executes                 |
-| Search                                                     | PARTIAL — bar + store + shortcut TESTED; highlight execution UNTESTED                                                                                       |
-| Navigation                                                 | TESTED (16 tests across 3 files)                                                                                                                            |
-| Zoom                                                       | PARTIAL — constants, IPC, coalescing, layout, refit TESTED; `usePdfCtrlWheelZoom`, `PdfZoomControls`, `PdfPageNav`, `usePdfViewerZoomOrchestrator` UNTESTED |
-| Progress persistence / resume                              | TESTED                                                                                                                                                      |
-| PDF tabs                                                   | PARTIAL — store TESTED (28 tests); `PdfTabStrip`, `PdfTabItem`, `TabContextMenu`, `pdfTabStripUtils`, `useTabEditing`, roving UNTESTED                      |
-| Pan                                                        | PARTIAL — helpers + toolbar toggle TESTED; `usePdfPanTool` drag UNTESTED                                                                                    |
-| Context menu                                               | TESTED                                                                                                                                                      |
-| GPU / canvas cleanup                                       | TESTED                                                                                                                                                      |
-| Error handling                                             | TESTED (guard); `renderError` / `renderLoader` UI UNTESTED                                                                                                  |
-| Worker coupling / engine pinning                           | TESTED (architecture)                                                                                                                                       |
-| View mode / single page                                    | TESTED (asserted prop only) — scroll mode, theme, reload key, registry wiring UNTESTED                                                                      |
-| Links / annotations                                        | UNTESTED (no app code)                                                                                                                                      |
-| Search next/prev match                                     | absent from the product                                                                                                                                     |
-| Google Drive tab, toolbar quick bar, open/drop, focus mode | TESTED / PARTIAL                                                                                                                                            |
+| Bucket                                                     | Verdict                                                                                                                                                                                                                        |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Text extraction (page DOM text)                            | TESTED                                                                                                                                                                                                                         |
+| Text selection (drag → AI)                                 | PARTIAL — `extractSelectedText` + `normalizePdfText` TESTED; `usePdfTextActions` listener wiring UNTESTED                                                                                                                      |
+| Capture / screenshot                                       | TESTED                                                                                                                                                                                                                         |
+| Page → high-DPI image                                      | TESTED — `features/pdf/capture/usePdfCaptureActions.test.ts` drives rung 1 end to end and pins `scale: 4.0` / `maxPixels: 20_000_000`; `lib/renderPageToImage.test.ts` covers the 20 MP cap and the borrowed-vs-owned teardown |
+| Search                                                     | PARTIAL — bar + store + shortcut TESTED; highlight execution UNTESTED                                                                                                                                                          |
+| Navigation                                                 | TESTED (16 tests across 3 files)                                                                                                                                                                                               |
+| Zoom                                                       | PARTIAL — constants, IPC, coalescing, layout, refit TESTED; `usePdfCtrlWheelZoom`, `PdfZoomControls`, `PdfPageNav`, `usePdfViewerZoomOrchestrator` UNTESTED                                                                    |
+| Progress persistence / resume                              | TESTED                                                                                                                                                                                                                         |
+| PDF tabs                                                   | PARTIAL — store TESTED (28 tests); `PdfTabStrip`, `PdfTabItem`, `TabContextMenu`, `pdfTabStripUtils`, `useTabEditing`, roving UNTESTED                                                                                         |
+| Pan                                                        | PARTIAL — helpers + toolbar toggle TESTED; `usePdfPanTool` drag UNTESTED                                                                                                                                                       |
+| Context menu                                               | TESTED                                                                                                                                                                                                                         |
+| GPU / canvas cleanup                                       | TESTED                                                                                                                                                                                                                         |
+| Error handling                                             | TESTED (guard); `renderError` / `renderLoader` UI UNTESTED                                                                                                                                                                     |
+| Worker coupling / engine pinning                           | TESTED (architecture)                                                                                                                                                                                                          |
+| View mode / single page                                    | TESTED (asserted prop only) — scroll mode, theme, reload key, registry wiring UNTESTED                                                                                                                                         |
+| Links / annotations                                        | UNTESTED (no app code)                                                                                                                                                                                                         |
+| Search next/prev match                                     | absent from the product                                                                                                                                                                                                        |
+| Google Drive tab, toolbar quick bar, open/drop, focus mode | TESTED / PARTIAL                                                                                                                                                                                                               |
 
 **Four tests mock `@react-pdf-viewer/core`; none mock `pdfjs-dist`.** Every mock
 will need rewriting or deleting with the viewer.

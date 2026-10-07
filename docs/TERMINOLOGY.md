@@ -141,7 +141,7 @@ Rules:
   new features; existing dotted keys are grandfathered and will be migrated
   gradually.
 - The prefix identifies the owning domain (`api_chat_*`, `gws_*`, `pdf_*`,
-  `toast_*`, `error_*`, `selectors_*`, …) so `src/__tests__/i18nQuality.test.ts`
+  `toast_*`, `error_*`, `selectors_*`, …) so `src/__tests__/i18n.test.ts`
   and simple `rg` searches reliably find missing translations.
 - Keep the flat JSON structure — one file per domain (`ai-chat.json`,
   `errors.json`, `gws.json`, …) already groups keys; nesting inside the JSON is

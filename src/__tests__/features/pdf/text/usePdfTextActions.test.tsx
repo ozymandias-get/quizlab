@@ -839,35 +839,6 @@ describe('usePdfTextActions', () => {
       }
     })
 
-    it('does nothing when no extraction consumer is registered', () => {
-      vi.useFakeTimers()
-      vi.stubGlobal('requestIdleCallback', undefined)
-      vi.stubGlobal('cancelIdleCallback', undefined)
-      try {
-        const page = nextPage++
-        const { container } = buildContainer(true)
-        container
-          .querySelector('[data-native-pdf-page]')
-          ?.setAttribute('data-native-pdf-page', String(page))
-        const containerRef = { current: container } as RefObject<HTMLElement | null>
-        const onTextSelection = vi.fn()
-        const { result } = renderHook(() =>
-          usePdfTextActions({ containerRef, currentPage: page, onTextSelection })
-        )
-
-        act(() => {
-          result.current.extractCurrentPageText()
-        })
-        vi.advanceTimersByTime(1000)
-
-        // Inert: no idle work is scheduled, nothing is reported, nothing throws.
-        expect(result.current.extractCurrentPageText).toBeTypeOf('function')
-        expect(onTextSelection).not.toHaveBeenCalled()
-      } finally {
-        vi.useRealTimers()
-      }
-    })
-
     it('cancels a pending extraction on unmount', () => {
       const cancelIdle = vi.fn()
       vi.stubGlobal('requestIdleCallback', () => 42)

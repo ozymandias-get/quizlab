@@ -45,7 +45,9 @@ describe('AI platform config shape', () => {
   })
 
   it.each(entries)('%s carries a usable url, partition, icon and colour', (_id, platform) => {
-    expect(platform.url).toMatch(/^https?:\/\//)
+    // Every one of these loads remote content into a managed view, so plain http
+    // is not a valid configuration for any of them.
+    expect(platform.url).toMatch(/^https:\/\//)
     expect(platform.partition).toMatch(/^persist:/)
     expect(platform.icon).toBeTypeOf('string')
     expect(platform.color).toMatch(/^#[\da-f]{6}$/i)
