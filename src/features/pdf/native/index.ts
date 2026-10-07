@@ -25,6 +25,9 @@
  *  - `useNativePdfEngine` — one document manager + one page renderer per mount
  *  - `useNativePdfDocument` — `(pdfUrl, reloadKey)` → ready document
  *  - `useNativePdfPageState` — 1-based page state, clamped
+ *  - `useNativePdfPageTransition` — presents a page turn; no second page state
+ *  - `nativePdfPageTransition` — the turn's direction, keyframes and timing
+ *  - `nativePdfReducedMotion` — the shared `prefers-reduced-motion` reader
  *  - `useNativePdfScaleState` — numeric scale state, fit on document identity
  *  - `useNativePdfRender` — one page, one canvas, supersede-cancel
  *  - `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`, supersede-cancel

@@ -9,6 +9,7 @@
  * | instances    | `useNativePdfEngine` — one manager + one renderer per mount                      |
  * | document     | `useNativePdfDocument` — `(pdfUrl, reloadKey)` → ready document                   |
  * | page         | `useNativePdfPageState` — 1-based, clamped                                      |
+ * | transition   | `useNativePdfPageTransition` — presentation only, no second page state               |
  * | scale        | `useNativePdfScaleState` — numeric, clamped, fit on identity                     |
  * | render       | `useNativePdfRender` — one page, one canvas, supersede-cancel                    |
  * | text layer   | `useNativePdfTextLayer` — one page, one PDF.js `TextLayer`                       |
@@ -26,6 +27,18 @@
  * torn down and rebuilt in the order they are painted — and, for search, so the
  * text layer's synchronous cleanup empties the runs the search is about to
  * measure.
+ *
+ * ## Where the page transition sits in that order
+ *
+ * `useNativePdfPageTransition` is declared between the page state and the render,
+ * and that is a fourth load-bearing ordering rather than a stylistic one: within a
+ * commit, its effect has to see the page change *before* the render effect starts,
+ * because the transition is only *presented* when that render reports its commit. In
+ * the other order the direction would always be one page behind.
+ *
+ * It adds no page state and gates nothing. `currentPage` from `useNativePdfPageState`
+ * is still the only page the viewer has, and no render, layer or navigation waits on
+ * it.
  *
  * ## What is reused from the legacy path, unchanged
  *
@@ -70,6 +83,7 @@ import {
   useNativePdfEngine
 } from '@features/pdf/native/useNativePdfEngine'
 import { useNativePdfPageState } from '@features/pdf/native/useNativePdfPageState'
+import { useNativePdfPageTransition } from '@features/pdf/native/useNativePdfPageTransition'
 import { useNativePdfRender } from '@features/pdf/native/useNativePdfRender'
 import { useNativePdfScaleState } from '@features/pdf/native/useNativePdfScaleState'
 import {
@@ -218,6 +232,25 @@ export function useNativePdfController({
     onReadingProgressChange
   })
 
+  // The same viewport identity the canvas and the document hooks use: a reload of the
+  // same file is a different document, and the text-content cache that hangs off it has
+  // to agree. Declared here rather than beside the render because the page transition
+  // reads it too, and it needs it *before* the render hook — the transition's effect has
+  // to have seen the page change before the render that will report its commit.
+  const documentKey = `${pdfUrl}::${reloadKey}`
+
+  // Presentation only. `currentPage` remains the single source of truth, this adds no
+  // second page state, and nothing here can delay, gate or reorder a render — the
+  // transition is presented when a render commits, never awaited by one.
+  const { onRenderCommitted } = useNativePdfPageTransition({
+    enabled,
+    ready: status === 'ready',
+    documentKey,
+    currentPage,
+    totalPages,
+    containerRef
+  })
+
   // The shared fit calculation, fed the native path's own page size. The viewer
   // starts at `SpecialZoomLevel.PageWidth`; here that keyword is replaced by the
   // number it stands for.
@@ -279,13 +312,9 @@ export function useNativePdfController({
     status,
     canvasRef,
     currentPage,
-    scale
+    scale,
+    onRenderCommitted
   })
-
-  // The same viewport identity the canvas and the document hooks use: a reload of
-  // the same file is a different document, and the text-content cache that hangs
-  // off it has to agree.
-  const documentKey = `${pdfUrl}::${reloadKey}`
 
   const { textLayerError, textLayerReady } = useNativePdfTextLayer({
     enabled,

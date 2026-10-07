@@ -64,10 +64,12 @@
  * rather than cached in a module-level variable. A search run measures it a handful
  * of times per query, so a module-level cache would buy nothing and would be a
  * stale-read hazard: the user can change the setting between two queries, and a
- * cached answer would silently keep the old one.
+ * cached answer would silently keep the old one. The reader itself now lives in
+ * `nativePdfReducedMotion.ts`, shared with the page transition rather than copied.
  */
 import { type RefObject, useCallback, useEffect, useState } from 'react'
 
+import { prefersReducedMotion } from './nativePdfReducedMotion'
 import {
   findNativePdfSearchHighlights,
   findNativeSearchPageBox,
@@ -97,21 +99,12 @@ function toSearchErrorMessage(error: unknown): string {
 }
 
 /**
- * Read the motion preference at the moment it is needed.
+ * Where the motion preference is read from.
  *
- * Uncached on purpose — see the module note. `matchMedia` is feature-detected because a
- * non-browser host (and jsdom without a stub) has no `window.matchMedia`, and a missing
- * API means "no preference", not a crash.
+ * `prefersReducedMotion` is shared with the page transition — see
+ * `nativePdfReducedMotion.ts`, which also explains why it is read fresh every time
+ * instead of being cached at module scope.
  */
-function prefersReducedMotion(): boolean {
-  try {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  } catch {
-    return false
-  }
-}
-
 interface UseNativePdfSearchOptions {
   /** The feature flag. `false` keeps the overlay empty and the keyword unmeasured. */
   enabled: boolean
