@@ -388,6 +388,40 @@ describe('native page transition — the whole page stack moves as one', () => {
       fill: 'none'
     })
   })
+
+  it('moves every layer, not just the one that has finished painting', async () => {
+    const { container, control } = await mountViewer()
+
+    act(() => control.current?.goToNextPage())
+    await waitForFrames(() => expect(turns).toHaveLength(1))
+
+    // One transform on the page box is the whole synchronisation story: the canvas, the text
+    // runs, the link hitboxes and the highlight rectangles are all descendants of it, so
+    // they cannot drift apart no matter what order their own async renders complete in.
+    const page = pageBoxOf(container)
+    expect(turns[0].element).toBe(page)
+    const layers = page?.children ?? []
+    expect(layers).toHaveLength(4)
+    for (let index = 0; index < layers.length; index += 1) {
+      const layer = layers[index]
+      expect(layer.parentElement, layer.getAttribute('class') ?? layer.tagName).toBe(page)
+    }
+  })
+
+  it('presents a shallow opacity ramp, so a layer that arrives late is not a flicker', async () => {
+    const { control } = await mountViewer()
+
+    act(() => control.current?.goToNextPage())
+    await waitForFrames(() => expect(turns).toHaveLength(1))
+
+    // The canvas commits before the text layer and the annotation layer, so for a moment the
+    // page box holds a canvas with no words on it. A deep ramp turns that interim state into
+    // a visible blink; a shallow one makes it imperceptible. The travel carries the direction
+    // instead, which is why 8px still matters.
+    const [first] = turns[0].keyframes
+    expect(first.opacity).toBeGreaterThan(0.9)
+    expect(first.opacity).toBeLessThan(1)
+  })
 })
 
 /* ------------------------------------------- presentation vs the render path */
@@ -480,6 +514,64 @@ describe('native page transition — the render never waits for the presentation
     expect(document.page(2).renderCalls).toHaveLength(1)
     expect(document.page(1).renderCalls).toHaveLength(outgoingRenders)
     expect(document.renderCallsForAllPages).toHaveLength(outgoingRenders + 1)
+  })
+
+  it('does not blank the canvas between the navigation and the new page', async () => {
+    // The regression this pins is invisible to jsdom's pixels but not to jsdom's canvas:
+    // sizing the canvas resets its backing store, so an unguarded assignment emptied it at
+    // navigation time, before the new page had painted anything, and the gap was white
+    // because PDF.js fills the page background before it draws. Counting the assignments is
+    // how a jsdom test can see it.
+    const { document: pdf, container, control } = await mountViewer({ settleRenders: false })
+
+    const canvas = container.querySelector<HTMLCanvasElement>('[data-native-pdf-canvas]')!
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'width')!
+    let resets = 0
+    Object.defineProperty(canvas, 'width', {
+      configurable: true,
+      get: () => descriptor.get!.call(canvas),
+      set: (value: number) => {
+        resets += 1
+        descriptor.set!.call(canvas, value)
+      }
+    })
+
+    await act(async () => {
+      pdf.page(1).settleLastRender()
+      await settle()
+    })
+
+    act(() => control.current?.goToNextPage())
+    await waitForFrames(() => expect(pdf.page(2).renderCalls.length).toBeGreaterThan(0))
+
+    // The canvas was not emptied between the two renders. Same document, same scale, so
+    // the new page needs the same box and there was nothing to reset.
+    expect(resets).toBe(0)
+
+    await act(async () => {
+      pdf.page(2).settleLastRender()
+      await settle()
+    })
+    expect(turns).toHaveLength(1)
+  })
+
+  it('does resize the canvas when a zoom needs a different box', async () => {
+    // The other half of the guard: skipping a *redundant* resize is not the same as
+    // skipping resizes. A zoom genuinely changes the page box, and the layout - the
+    // centering `m-auto` and the scrollable overflow - follows from it.
+    const { container, control } = await mountViewer()
+
+    const canvas = container.querySelector<HTMLCanvasElement>('[data-native-pdf-canvas]')!
+    // The harness's fit scale lands at 1.67, so 1 is a different box - and it is inside the
+    // product's zoom range, so nothing clamps it back to the fit scale.
+    expect(canvas.width).toBeGreaterThan(400)
+
+    act(() => control.current?.zoomTo(1))
+    await waitForFrames(() => expect(control.current?.scale).toBe(1))
+    await waitForFrames(() => expect(canvas.width).toBe(400))
+
+    // The canvas followed the zoom rather than keeping a stale box.
+    expect(canvas.width).toBe(400)
   })
 })
 

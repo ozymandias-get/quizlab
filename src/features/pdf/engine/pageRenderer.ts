@@ -14,6 +14,17 @@
  * has to catch errors from anywhere in the app, including sources that never name
  * the exception type.
  *
+ * ## The canvas is never cleared here
+ *
+ * Sizing is the one thing this module does to the canvas, and only when the size
+ * actually changes: assigning `canvas.width`/`canvas.height` resets the backing
+ * store unconditionally, so an unconditional assignment empties the canvas at
+ * navigation time on every same-size page turn and hands the reader a white frame
+ * — white because PDF.js's `beginDrawing` fills the page background before it
+ * paints. Nothing else clears it, and nothing needs to: PDF.js fills the whole
+ * canvas at the start of every render, so a size change overwrites the old page on
+ * its own.
+ *
  * ## Scope
  *
  * The canvas is supplied by the caller. This module neither creates DOM elements
@@ -72,8 +83,27 @@ export function createPageRenderer(): PdfPageRenderer {
       const viewport = page.getViewport({ scale: options.scale, rotation: options.rotation })
       const width = Math.max(1, Math.floor(viewport.width))
       const height = Math.max(1, Math.floor(viewport.height))
-      target.width = width
-      target.height = height
+      // Assigning `canvas.width`/`canvas.height` resets the backing store *unconditionally*
+      // — the assignment is the reset, whether or not the value differs. So on a same-size
+      // page turn (the common case: one A4 document at one scale) an unguarded assignment
+      // blanked the canvas synchronously, at navigation time, before PDF.js had painted a
+      // single operator of the new page. The reader got a white frame, and PDF.js's own
+      // `beginDrawing` fills the page background `#ffffff` before it draws, so the blank
+      // frame was white rather than merely empty.
+      //
+      // Guarding it means the outgoing page stays on screen for the whole interval between
+      // the navigation and the new page's first paint, which is both a better-looking
+      // answer to that interval and the same pixels `useNativePdfRender` relies on to know
+      // whether the new page has committed. It is also a layout win: the canvas's intrinsic
+      // size is its layout size, so skipping a redundant assignment skips a resize of the
+      // page box and of the auto margins that centre it.
+      //
+      // When the size genuinely changes — a zoom, a refit, a differently shaped page — the
+      // assignment happens and the reset is required: the new pixels are laid out for a
+      // different box, and PDF.js's `beginDrawing` fills the whole canvas before painting,
+      // so it overwrites whatever the old page left behind. Nothing needs clearing here.
+      if (target.width !== width) target.width = width
+      if (target.height !== height) target.height = height
 
       const task = page.render({ canvas: target, viewport })
       currentTask = task

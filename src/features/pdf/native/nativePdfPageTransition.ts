@@ -10,13 +10,17 @@
  *
  * ## Deliberately small
  *
- * Eight pixels and 140 ms. The bar was "the page change feels more considered", not
- * "the page change is an event", because this is a working PDF reader: a reader who is
- * on page 400 of a textbook is turning pages faster than any transition can be
- * appreciated, and anything slower taxes the render that is happening at the same time.
+ * Eight pixels, 5 % of opacity and 140 ms. The bar was "the page change feels more
+ * considered", not "the page change is an event", because this is a working PDF reader: a
+ * reader who is on page 400 of a textbook is turning pages faster than any transition can
+ * be appreciated, and anything slower taxes the render that is happening at the same time.
  * There is no scale, no blur, no shadow animation, no rotation, no perspective, no
  * overshoot and no spring — each of those was rejected for making text briefly harder to
  * read, which is the one thing a reader cannot afford.
+ *
+ * The opacity ramp is the smallest of the three on purpose, and the reason is structural
+ * rather than aesthetic: the four layers do not finish together. See
+ * `NATIVE_PAGE_TRANSITION_START_OPACITY`.
  *
  * ## Why `transform` and `opacity`, and nothing else
  *
@@ -71,13 +75,28 @@ export const NATIVE_PAGE_TRANSITION_OFFSET_PX = 8
 /**
  * Where the opacity ramp starts.
  *
- * A floor rather than zero for two reasons. At zero the first composited frame of a turn
- * is a black rectangle, which is the blank-frame flash the single-canvas architecture
- * otherwise avoids. And a full ramp would dim the outgoing pixels if the ramp began
- * before the new page was painted — see `useNativePdfPageTransition`, which starts the
- * animation only once the new page has actually committed.
+ * A *shallow* ramp, and the reason is layer skew rather than taste.
+ *
+ * The canvas commits first: `useNativePdfRender` fires `onRenderCommitted` as soon as
+ * the pixels are in the canvas, while the text layer and the annotation layer are still
+ * one to three async steps behind it (their own `getPage`, `getTextContent()`,
+ * `getAnnotations()`, then their own render). The page box is the parent of all four, so
+ * a deep opacity ramp does not fade the page in as a unit — it fades in a canvas alone
+ * and then lets the words arrive onto an already-dimmed page. That is the flicker this
+ * constant exists to prevent, and it is why the floor is 0.95 rather than something
+ * halfway: at 5 % the missing text layer is imperceptible and the ramp is read as the
+ * page settling, whereas at 0.55 the interim state is plainly visible and reads as a
+ * blink.
+ *
+ * It is a floor and not 1 either, because a transition that only translates reads as a
+ * scroll glitch rather than a page turn. The two together — 8 px of travel and a 5 %
+ * dim — carry the direction without ever making body text unreadable.
+ *
+ * Note that this is *not* the same as animating the outgoing pixels: the animation only
+ * starts once the new page has committed (see `useNativePdfPageTransition`), so the
+ * outgoing pixels are never dimmed.
  */
-export const NATIVE_PAGE_TRANSITION_START_OPACITY = 0.55
+export const NATIVE_PAGE_TRANSITION_START_OPACITY = 0.95
 
 /**
  * `--duration-normal`, the same 140 ms the dialogs, menus and search bar use.

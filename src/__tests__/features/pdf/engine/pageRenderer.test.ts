@@ -82,6 +82,80 @@ describe('createPageRenderer', () => {
     expect(canvas.height).toBe(600)
   })
 
+  describe('the backing store is not reset for nothing', () => {
+    /**
+     * Count the resets, not the sizes.
+     *
+     * `canvas.width` is a value property whose *assignment* resets the backing store, so
+     * asserting `canvas.width === 400` passes whether or not the canvas was emptied — which
+     * is the exact property under test. jsdom implements the setter, so a counter installed
+     * over it observes the reset directly.
+     */
+    function countCanvasResets(target: HTMLCanvasElement): () => number {
+      const proto = HTMLCanvasElement.prototype
+      let resets = 0
+      for (const dimension of ['width', 'height'] as const) {
+        const descriptor = Object.getOwnPropertyDescriptor(proto, dimension)!
+        Object.defineProperty(target, dimension, {
+          configurable: true,
+          get: () => descriptor.get!.call(target),
+          set: (value: number) => {
+            resets += 1
+            descriptor.set!.call(target, value)
+          }
+        })
+      }
+      return () => resets
+    }
+
+    it('does not clear the canvas when the new page is the same size', async () => {
+      // The shape of an ordinary page turn: one document at one scale, page N followed by
+      // page N+1. An unguarded `canvas.width = width` blanks the canvas here — at
+      // navigation time, before PDF.js has painted a single operator of the new page. And
+      // because PDF.js's `beginDrawing` fills the page background white before it draws,
+      // that blank frame is white rather than merely empty. This is the flash.
+      canvas.width = 400
+      canvas.height = 600
+      const resets = countCanvasResets(canvas)
+      const renderer = createPageRenderer()
+
+      await renderer.renderPage(asPage(page), canvas, { scale: 2 })
+
+      // The canvas still ends up the right size...
+      expect(canvas.width).toBe(400)
+      expect(canvas.height).toBe(600)
+      // ...without having been emptied to get there.
+      expect(resets()).toBe(0)
+    })
+
+    it('resizes the canvas when a zoom genuinely changes the page size', async () => {
+      const renderer = createPageRenderer()
+      await renderer.renderPage(asPage(page), canvas, { scale: 2 })
+      expect(canvas.width).toBe(400)
+
+      const resets = countCanvasResets(canvas)
+      await renderer.renderPage(asPage(page), canvas, { scale: 3 })
+
+      // A zoom really does need a different box, and the reset is required there: the new
+      // pixels are laid out for it, and PDF.js fills the whole canvas before painting.
+      expect(canvas.width).toBe(600)
+      expect(resets()).toBeGreaterThan(0)
+    })
+
+    it('leaves a re-render that lands on the same size alone', async () => {
+      // A second fit render, or a refit that resolves to the same scale, re-renders the
+      // page already on screen at an identical size. That is a commit, but it is not a page
+      // change, and it must not blank the canvas either.
+      const renderer = createPageRenderer()
+      await renderer.renderPage(asPage(page), canvas, { scale: 2 })
+
+      const resets = countCanvasResets(canvas)
+      await renderer.renderPage(asPage(page), canvas, { scale: 2 })
+
+      expect(resets()).toBe(0)
+    })
+  })
+
   it('passes the rotation through when given', async () => {
     const renderer = createPageRenderer()
 
