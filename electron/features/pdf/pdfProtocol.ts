@@ -230,23 +230,6 @@ export function registerPdfProtocolHandlers() {
   }
 
   registerIpcHandler(
-    IPC_CHANNELS.SELECT_FOLDER,
-    async (_event, options = {}) => {
-      const { canceled, filePaths } = await dialog.showOpenDialog({
-        properties: ['openDirectory'],
-        title: options.title || 'Select Folder',
-        defaultPath: options.defaultPath
-      })
-
-      if (canceled || filePaths.length === 0) return success(null)
-
-      return success({ path: filePaths[0] })
-    },
-    requireTrustedIpcSender,
-    failure('unauthorized', 'Not authorized')
-  )
-
-  registerIpcHandler(
     IPC_CHANNELS.SELECT_PDF,
     async (_event, options = {}) => {
       const filterName = options.filterName || 'PDF Documents'

@@ -102,10 +102,6 @@ export interface ElectronApi {
     generatePickerScript: (translations: Record<string, string>) => Promise<string | null>
   }
   selectPdf: (options?: PdfSelectOptions) => Promise<PdfSelection | null>
-  selectFolder: (options?: {
-    title?: string
-    defaultPath?: string
-  }) => Promise<{ path: string } | null>
   getPdfStreamUrl: (filePath: string) => Promise<PdfStreamResult | null>
   registerPdfPath: (filePath: string) => Promise<PdfSelection | null>
   /** Explorer sağ-tık ile açılan PDF yolu için dinleyici (Windows). */

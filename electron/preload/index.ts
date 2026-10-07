@@ -51,7 +51,6 @@ const electronApi: ElectronApi = {
   },
 
   selectPdf: (options?) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SELECT_PDF, options)),
-  selectFolder: (options?) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SELECT_FOLDER, options)),
   getPdfStreamUrl: (filePath) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_PDF_STREAM_URL, filePath)),
   registerPdfPath: (filePath) =>
