@@ -217,4 +217,15 @@ describe('resolveConfigForHostname', () => {
   it('should return null for empty hostname', () => {
     expect(resolveConfigForHostname(configMap, '')).toBeNull()
   })
+
+  it('does not leak selectors from a sibling subdomain that shares canonical hostname', () => {
+    const multiMap = {
+      'aistudio.google.com': {
+        input: '#aistudio',
+        button: '#aibtn',
+        canonicalHostname: 'google.com'
+      } as any
+    }
+    expect(resolveConfigForHostname(multiMap, 'gemini.google.com')).toBeNull()
+  })
 })
