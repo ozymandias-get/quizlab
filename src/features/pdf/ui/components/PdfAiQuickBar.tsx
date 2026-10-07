@@ -97,7 +97,7 @@ function PdfAiQuickBar({
           >
             <RefreshCw className="size-3.5 shrink-0" aria-hidden="true" />
             <span className="text-ql-12 hidden max-w-[110px] truncate font-medium sm:inline xl:max-w-none">
-              {t('ctx_quick_reload')}
+              {t('ctx_reload')}
             </span>
           </Button>
         </WithTooltip>

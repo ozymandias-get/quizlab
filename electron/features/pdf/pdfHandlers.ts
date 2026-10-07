@@ -32,6 +32,11 @@ export function registerPdfHandlers() {
       // Using the captured sender ensures zoom/screenshot signals reach
       // the PDF viewer frame, not the main app UI.
       const targetContents = event.sender
+      const safeSend = (channel: string, ...args: unknown[]) => {
+        if (typeof targetContents?.isDestroyed !== 'function' || !targetContents.isDestroyed()) {
+          targetContents.send(channel, ...args)
+        }
+      }
 
       const menu = new Menu()
       menu.append(
@@ -42,14 +47,14 @@ export function registerPdfHandlers() {
           // causing the app to take screenshots when the user intended to save.
           // Using CmdOrCtrl+Alt+S instead (non-standard, no OS conflict).
           accelerator: 'CmdOrCtrl+Alt+S',
-          click: () => targetContents.send(IPC_CHANNELS.TRIGGER_SCREENSHOT, SCREENSHOT_TYPES.FULL)
+          click: () => safeSend(IPC_CHANNELS.TRIGGER_SCREENSHOT, SCREENSHOT_TYPES.FULL)
         })
       )
       menu.append(
         new MenuItem({
           label: labels.crop_screenshot || 'Crop Screenshot',
           accelerator: 'CmdOrCtrl+Shift+S',
-          click: () => targetContents.send(IPC_CHANNELS.TRIGGER_SCREENSHOT, SCREENSHOT_TYPES.CROP)
+          click: () => safeSend(IPC_CHANNELS.TRIGGER_SCREENSHOT, SCREENSHOT_TYPES.CROP)
         })
       )
       menu.append(new MenuItem({ type: 'separator' }))
@@ -57,21 +62,21 @@ export function registerPdfHandlers() {
         new MenuItem({
           label: labels.zoom_in || 'Zoom In',
           accelerator: 'CmdOrCtrl+Plus',
-          click: () => targetContents.send(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
+          click: () => safeSend(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
         })
       )
       menu.append(
         new MenuItem({
           label: labels.zoom_out || 'Zoom Out',
           accelerator: 'CmdOrCtrl+-',
-          click: () => targetContents.send(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'out')
+          click: () => safeSend(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'out')
         })
       )
       menu.append(
         new MenuItem({
           label: labels.reset_zoom || 'Reset Zoom',
           accelerator: 'CmdOrCtrl+0',
-          click: () => targetContents.send(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'reset')
+          click: () => safeSend(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'reset')
         })
       )
       menu.append(new MenuItem({ type: 'separator' }))
