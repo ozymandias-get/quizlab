@@ -1,11 +1,11 @@
 /**
  * Extracts text content from a specific PDF page's DOM layer.
  *
- * Selectors are resolved by `./pdfTextLayerSource`, which knows the native
- * viewer's `data-native-pdf-*` markup and the legacy viewer's `rpv-core__*`
- * markup and reports which span selector matches that renderer's text runs. The
- * ordering, the normalization and the fast/slow path below are shared by both and
- * are unchanged behaviour.
+ * Selectors are resolved by `./pdfTextLayerSource`, which pairs the native
+ * viewer's `data-native-pdf-*` markup with the selector that reads that marker's
+ * individual text runs, and reports whether a page carries a text layer at all.
+ * The ordering, the normalization and the fast/slow path below are unchanged
+ * behaviour.
  *
  * Cache ownership: `PAGE_LAYER_CACHE` is keyed by page number and every hit is
  * re-checked with `isConnected`, so a page layer that pdf.js detached (page
@@ -48,10 +48,10 @@ function getPageLayer(pageNumber: number): HTMLElement | null {
  * U+02C6 in Sami orthographies, U+02DC in Turkic transliteration).
  *
  * This is only a trigger for the innerText retry below, NOT a known pdf.js
- * corruption detector. Neither pdfjs-dist@3.11.174 nor @react-pdf-viewer@3.12.0
- * contains any ::before/beforeCSS text-layer mechanism -- the spans come straight
- * from getTextContent()'s item.str -- so there is no rendering-time fix-up for
- * this to recover, and nothing here attempts to rewrite the characters.
+ * corruption detector. `pdfjs-dist` (6.4.299, and the 3.x it replaced) contains
+ * no ::before/beforeCSS text-layer mechanism -- the spans come straight from
+ * getTextContent()'s item.str -- so there is no rendering-time fix-up for this to
+ * recover, and nothing here attempts to rewrite the characters.
  */
 const SUSPICIOUS_GLYPH_RUN = /[¸ˆ˜]/
 
@@ -75,7 +75,7 @@ interface TextItem {
  * `spanSelector` is the renderer's own marker for one text run — see
  * `./pdfTextLayerSource` for why it is not simply `span` everywhere.
  */
-function collectTextItems(layer: HTMLElement, spanSelector = 'span'): TextItem[] {
+function collectTextItems(layer: HTMLElement, spanSelector: string): TextItem[] {
   const items: TextItem[] = []
   const spans = layer.querySelectorAll<HTMLElement>(spanSelector)
   for (const span of spans) {

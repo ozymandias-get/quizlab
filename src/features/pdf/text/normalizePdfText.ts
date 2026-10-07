@@ -18,10 +18,10 @@
  *   - No fixture, no captured sample, no issue and no test. The mapping arrived
  *     fully formed in the root snapshot commit and the literal characters appear
  *     in zero test files.
- *   - The stated recovery mechanism does not exist. Both pdfjs-dist@3.11.174 and
- *     @react-pdf-viewer/core@3.12.0 contain no ::before/beforeCSS text-layer
- *     code, and the text layer's span content comes straight from
- *     getTextContent()'s item.str, so no rendering-time fix-up was available.
+ *   - The stated recovery mechanism does not exist. `pdfjs-dist` 6.4.299 — and
+ *     the 3.x it replaced — contain no ::before/beforeCSS text-layer code, and the
+ *     text layer's span content comes straight from getTextContent()'s item.str,
+ *     so no rendering-time fix-up was available.
  *   - The guard could not contain the damage. `looksLikeTurkish` matched ö and ü
  *     themselves, so a single stray cedilla in a French, Catalan, Spanish or
  *     German document was enough to rewrite every artifact on the page.

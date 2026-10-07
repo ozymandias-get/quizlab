@@ -15,9 +15,9 @@
  * Rapid zoom sources (toolbar buttons, Ctrl+wheel, resize refit, the initial
  * fit) can fire several times inside one frame. Each committed zoom change
  * supersedes the previous page render, which is the primary source of
- * `RenderingCancelledException` races in single-page mode — the same defence the
- * legacy viewer relies on. Only the latest pending value survives ("latest
- * wins"), so intermediate values never reach the render at all.
+ * `RenderingCancelledException` races in single-page mode. Only the latest pending
+ * value survives ("latest wins"), so intermediate values never reach the render at
+ * all.
  *
  * The pending frame is cancelled on unmount so a queued zoom cannot commit into
  * a torn-down engine.

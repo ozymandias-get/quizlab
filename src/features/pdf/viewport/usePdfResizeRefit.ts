@@ -1,6 +1,6 @@
 /**
  * ResizeObserver-based refit: debounces container resize events and
- * fits to PageWidth when resize settles. Prevents refit spam during
+ * fits to the fit scale when resize settles. Prevents refit spam during
  * panel resizing and uses a cooldown to avoid flood.
  */
 import { PDF_RESIZE_REFIT_DEBOUNCE_MS } from '@features/pdf/constants/pdfZoom'
@@ -16,11 +16,10 @@ const NAVIGATION_REFIT_LOCK_MS = 500
  * Scale to refit to when the container has settled but no fit scale is known.
  *
  * Only reachable if the container resizes before the first page has been measured
- * — behind the loading state in practice. It used to be `@react-pdf-viewer`'s
- * `SpecialZoomLevel.PageWidth` keyword, which is a viewer API rather than a scale:
- * only RPV's own `zoomTo` could interpret it. With one numeric runtime there is
- * exactly one number this can mean, and the caller passes its own so the value is
- * never a guess.
+ * — behind the loading state in practice. It is a plain number because the scale
+ * domain is numeric: there is no `SpecialZoomLevel.PageWidth`-style keyword on this
+ * runtime to ask for a fit by name, so a refit either uses the measured fit scale
+ * or this one, and the caller passes its own so the value is never a guess.
  */
 const DEFAULT_FALLBACK_SCALE = 1
 
@@ -123,7 +122,7 @@ export function usePdfResizeRefit(
     // initial size, but on the first paint the container is often still
     // settling (focus overlays animate in, async layout, etc.) so the
     // observer's first reading can be stale or zero. Forcing a refit
-    // here guarantees PageWidth kicks in even if the observer's initial
+    // here guarantees the fit scale kicks in even if the observer's initial
     // callback never lands.
     if (!wasEnabled) {
       scheduleRefit()

@@ -3,11 +3,10 @@
  * put under the cursor.
  *
  * The viewport selector comes from `../native/nativePdfDom`, the single owner of
- * the native viewer's markup. It used to come from `../lib/pdfViewerDom`, which
- * named `@react-pdf-viewer`'s private inner container; that viewer is gone, and a
- * selector for markup that no longer exists is not a fallback — it is a
- * `querySelector` that can never match, which is why the pan drag silently did
- * nothing on a page that did not overflow.
+ * the native viewer's markup. It must resolve to markup that actually exists: a
+ * selector naming a container no longer emitted is not a fallback, it is a
+ * `querySelector` that can never match, which makes the pan drag silently do
+ * nothing on a page that does not overflow.
  */
 import { NATIVE_SCROLL_SELECTOR } from '../native/nativePdfDom'
 

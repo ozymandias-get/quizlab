@@ -10,8 +10,8 @@
  * `markedContent` nesting a tagged PDF implies. PDF.js implements all of it in
  * `TextLayer`, and the browser's own selection + `Ctrl+C` copy only produce
  * correct results if that geometry is real. Re-implementing it would be a
- * rewrite, not a migration, so this phase ports QuizLab's *selection behaviour*
- * onto PDF.js's renderer instead — the same shape as Phase 4's canvas.
+ * rewrite, so QuizLab renders its own *selection behaviour* around PDF.js's
+ * renderer — the same division of labour the canvas path uses.
  *
  * ## The API that actually exists in 6.x
  *
@@ -24,8 +24,8 @@
  * TextLayer#update({ viewport }): void
  * ```
  *
- * `renderTextLayer(...)` — the pre-4.x function RPV still calls, and the reason
- * Phase 3 was blocked — does not exist here. `container` must be an
+ * `renderTextLayer(...)` is the pre-4.x function and does not exist in 6.x;
+ * `TextLayer` replaced it as a class. `container` must be an
  * `HTMLElement`, which is why `TextLayer` lives in the native viewer boundary and
  * *not* in `features/pdf/engine`: the engine stays React- and DOM-free.
  *
@@ -42,7 +42,7 @@
  * `update()` exists for a cheaper zoom — relayout the existing runs instead of
  * rebuilding them — and is deliberately not used yet. It is a second code path
  * whose correctness across the same three races would need its own proof, and
- * Phase 5 is about parity, not throughput. A full rebuild per scale change
+ * parity matters more here than throughput. A full rebuild per scale change
  * satisfies the supersede contract exactly like the canvas does.
  *
  * ## Supersede, don't race
@@ -59,7 +59,7 @@
  * ## A generation signal for anything that reads the runs
  *
  * `textLayerReady` is `false` from the moment a rebuild starts and `true` only after the
- * new layer has drained its stream. Phase 7's search needs exactly that: it measures the
+ * new layer has drained its stream. Search needs exactly that: it measures the
  * runs in the DOM, so it has to be able to tell "these are the runs on screen" from "a
  * layer existed at some point". No other capability reads it — the extractors resolve the
  * layer when they are called — so publishing it adds no coupling to the selection path.
@@ -114,7 +114,7 @@ export interface NativePdfTextLayerHandle {
    *
    * A generation signal rather than a boolean flag with a different name: it goes false
    * the moment a rebuild starts and true again only after the new `TextLayer` has
-   * finished `render()`. Phase 7's search depends on it, and a boolean "there was a
+   * finished `render()`. Search depends on it, and a boolean "there was a
    * layer at some point" could not tell it that the runs it is about to measure are the
    * runs on screen.
    */
@@ -175,7 +175,7 @@ export function useNativePdfTextLayer({
     container.replaceChildren()
     setTextLayerError(null)
     // Down before the first await: from here until `render()` resolves there are no runs
-    // in the DOM, and anything that measures them — Phase 7's search — has to see that
+    // in the DOM, and anything that measures them — search — has to see that
     // rather than the previous page's geometry.
     setTextLayerReady(false)
 

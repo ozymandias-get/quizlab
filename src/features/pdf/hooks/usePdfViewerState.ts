@@ -23,19 +23,14 @@ const CONTAINER_INSET_PX = 24
 /**
  * The shared viewer state for one mounted PDF surface.
  *
- * ## What this owns now that there is one renderer
+ * ## What this owns
  *
- * This used to be a *legacy* state hook: it owned the plugin channel, the
- * navigation state machine that reported whatever `@react-pdf-viewer` happened to
- * be showing, and the scale bookkeeping fed by the viewer's `onZoom`. The native
- * viewer replaced all of that with state it owns outright
- * (`useNativePdfController`), which left this hook holding a second, inert copy of
- * the page and the scale.
- *
- * So the composition is inverted: the controller is created *here*, and the shared
- * consumers — capture, pan, text actions, the context menu, the Electron
- * screenshot bridge — read its live page directly instead of a value that lagged
- * it by a render. `PdfViewerDocument` is now pure JSX over what this returns.
+ * The page and scale state belongs to `useNativePdfController`, which owns it
+ * outright. The composition is therefore inverted: the controller is created
+ * *here*, and the shared consumers — capture, pan, text actions, the context
+ * menu, the Electron screenshot bridge — read its live page directly instead of a
+ * value that lagged it by a render. `PdfViewerDocument` is pure JSX over what this
+ * returns.
  *
  * ## What deliberately did not move
  *

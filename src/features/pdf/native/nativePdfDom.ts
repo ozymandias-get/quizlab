@@ -1,19 +1,16 @@
 /**
  * The one place that knows the native viewer's own DOM.
  *
- * ## Why this is the mirror of `lib/pdfViewerDom.ts`
+ * ## Why the selectors live here
  *
- * The legacy viewer exposes no API for "give me the element for page N" or "give
- * me the text layer", so `lib/pdfViewerDom.ts` declares everything the app needs
- * from *its* private markup. The native viewer does not need a viewer, but it
- * does need the same one-way door for a different reason: once QuizLab owns the
- * text layer, the text extractors have to be able to find it, and the *producer*
- * of that markup should own its selectors rather than the consumers.
+ * Once QuizLab owns the text layer, the text extractors have to be able to find
+ * it — and a *consumer* of that markup should not be the thing that knows its
+ * selector strings. So the producer owns them and everyone else asks here.
  *
- * The two files are deliberately separate. `lib/pdfViewerDom.ts` knows
- * `rpv-core__*`; this file knows nothing about them and emits nothing that would
- * match the legacy stylesheet. A future reader can tell which DOM belongs to
- * which runtime from the file alone.
+ * Every selector in this file is QuizLab's own vocabulary. Nothing here reuses a
+ * third-party viewer's class names, and the native layer's stylesheets match
+ * `data-native-pdf-*` only, so what the viewer emits and what the CSS styles
+ * cannot drift apart behind a foreign naming scheme.
  *
  * ## The markup contract
  *
@@ -49,8 +46,8 @@
  *
  * `data-native-pdf-text-page` on the text layer and
  * `data-native-pdf-annotation-page` on the annotation layer carry the same identity,
- * which is what makes "the text of page N" or "the links of page N" a single
- * attribute selector instead of a structural walk. It also gives the races a
+ * which is what makes "the text of page N" a single attribute selector instead of a
+ * structural walk. It also gives the races a
  * testable outcome: when a superseded layer is late, the DOM still names the page
  * that is actually on screen.
  *
@@ -59,8 +56,8 @@
  * Inside the layer the markup is PDF.js's, not QuizLab's: `section[data-annotation-id]`
  * per annotation, `.linkAnnotation` for links, and `data-internal-link` on the
  * container of a link whose target is *inside* the document. Those three are the
- * installed library's contract rather than a structural detail of our CSS, so the
- * link selectors below are written against them — while the layer itself stays
+ * installed library's contract rather than a structural detail of our CSS, so
+ * `nativePdfAnnotationLayer.css` is written against them — while the layer itself stays
  * reachable through our own attribute.
  *
  * ## The span selector, and why it is not just `span`
@@ -74,11 +71,11 @@
  *
  * `role="presentation"` is set by PDF.js on the text runs and on the `<br>`
  * elements that end a line, and **not** on the `markedContent` wrappers, so it
- * selects exactly the leaves. That is the marker that makes the native layer
- * readable by the same geometry-based collector the legacy path uses.
+ * selects exactly the leaves. That is the marker the geometry-based text
+ * collector reads, so a word is counted once rather than twice.
  *
- * No RPV class name is faked here. The native layer carries its own semantic
- * attributes and its own CSS.
+ * No third-party class name is faked here. The native layer carries its own
+ * semantic attributes and its own CSS.
  */
 
 /** The element wrapping one rendered page: canvas plus text layer. */
@@ -90,18 +87,16 @@ export const NATIVE_PAGE_SELECTOR = '[data-native-pdf-page]'
  * `usePdfPanTool` needs this as a fallback: it first walks up from the pointer
  * looking for a scrollable ancestor, and only asks for this when the page does not
  * currently overflow — in which case nothing on the page is a scrollable element
- * and the walk comes back empty. On the legacy path that fallback named the
- * viewer's own inner container; this is the native equivalent, and it is the same
- * element `usePdfCtrlWheelZoom` and `usePdfWheelNavigation` attach to via the
- * shared container's capture phase.
+ * and the walk comes back empty. It is also the same element `usePdfCtrlWheelZoom`
+ * and `usePdfWheelNavigation` attach to via the shared container's capture phase.
  */
 export const NATIVE_SCROLL_SELECTOR = '[data-native-pdf-scroll]'
 
 /** The single page canvas. */
-export const NATIVE_CANVAS_SELECTOR = '[data-native-pdf-canvas]'
+const NATIVE_CANVAS_SELECTOR = '[data-native-pdf-canvas]'
 
 /** The PDF.js text layer mounted over the canvas. */
-export const NATIVE_TEXT_LAYER_SELECTOR = '[data-native-pdf-text-layer]'
+const NATIVE_TEXT_LAYER_SELECTOR = '[data-native-pdf-text-layer]'
 
 /**
  * The individual positioned text runs inside a native text layer.
@@ -111,58 +106,22 @@ export const NATIVE_TEXT_LAYER_SELECTOR = '[data-native-pdf-text-layer]'
  */
 export const NATIVE_TEXT_SPAN_SELECTOR = `${NATIVE_TEXT_LAYER_SELECTOR} span[role="presentation"]`
 
-/** The PDF.js annotation layer mounted over the canvas and the text layer. */
-export const NATIVE_ANNOTATION_LAYER_SELECTOR = '[data-native-pdf-annotation-layer]'
-
-/**
- * Every anchor PDF.js generated inside the annotation layer.
- *
- * PDF.js builds one `<section data-annotation-id>` per annotation and puts a single
- * `<a>` inside the link ones, so this is "the links on this page" without depending
- * on the class names our own stylesheet happens to use.
+/*
+ * The annotation layer and the search overlay have no selector constant here, and
+ * that is deliberate: neither is ever looked up by query. Both are written by React
+ * and reached through the refs the controller holds, which the search hook passes
+ * straight into `nativePdfSearch.ts#findNativeSearchPageBox`. A constant nothing
+ * queries would only be a second place to keep in sync.
  */
-export const NATIVE_ANNOTATION_LINK_SELECTOR = `${NATIVE_ANNOTATION_LAYER_SELECTOR} a`
-
-/**
- * Only the anchors PDF.js marked as pointing *inside* the document.
- *
- * `LinkAnnotationElement#_bindLink` sets `data-internal-link` on the container only
- * when the destination resolves to something the viewer must handle itself, which is
- * exactly the internal-vs-external distinction a test needs.
- */
-export const NATIVE_INTERNAL_LINK_SELECTOR = `${NATIVE_ANNOTATION_LAYER_SELECTOR} [data-internal-link] a`
-
-/**
- * QuizLab's own search highlight overlay, inside the page box.
- *
- * Always present while the native viewer renders — one overlay, emptied and refilled —
- * so the DOM contract does not change shape between "no search" and "no matches" and
- * "many matches". The legacy plugin renders a parallel `rpv-search__highlights` element
- * per page; the name is not reused.
- */
-export const NATIVE_SEARCH_LAYER_SELECTOR = '[data-native-pdf-search-layer]'
-
-/** One measured match rectangle inside the overlay. */
-export const NATIVE_SEARCH_HIGHLIGHT_SELECTOR = `${NATIVE_SEARCH_LAYER_SELECTOR} [data-native-pdf-search-highlight]`
 
 /** The page selector narrowed to one page (1-based). */
-export function nativePageSelector(pageNumber: number): string {
+function nativePageSelector(pageNumber: number): string {
   return `[data-native-pdf-page="${pageNumber}"]`
 }
 
 /** The text-layer selector narrowed to one page (1-based). */
-export function nativeTextLayerSelectorForPage(pageNumber: number): string {
+function nativeTextLayerSelectorForPage(pageNumber: number): string {
   return `${NATIVE_TEXT_LAYER_SELECTOR}[data-native-pdf-text-page="${pageNumber}"]`
-}
-
-/** The annotation-layer selector narrowed to one page (1-based). */
-export function nativeAnnotationLayerSelectorForPage(pageNumber: number): string {
-  return `${NATIVE_ANNOTATION_LAYER_SELECTOR}[data-native-pdf-annotation-page="${pageNumber}"]`
-}
-
-/** The search-layer selector narrowed to one page (1-based). */
-export function nativeSearchLayerSelectorForPage(pageNumber: number): string {
-  return `${NATIVE_SEARCH_LAYER_SELECTOR}[data-native-pdf-search-page="${pageNumber}"]`
 }
 
 /** The page element for `pageNumber` (1-based), or `null`. */
@@ -180,8 +139,8 @@ export function findNativePageElement(root: ParentNode, pageNumber: number): HTM
  * wrong-page match. Asking for a page that is not on screen answers `null` rather
  * than handing back the current page's pixels under the wrong label.
  *
- * The zero-size check mirrors the legacy adapter: `useCanvasGpuCleanup` releases a
- * canvas by zeroing it, and a released canvas is not capturable.
+ * The zero-size check exists because `useCanvasGpuCleanup` releases a canvas by
+ * zeroing it, and a released canvas is not capturable.
  */
 export function findNativePageCanvas(
   root: ParentNode,
@@ -202,48 +161,14 @@ export function findNativeTextLayerForPage(
   return root.querySelector<HTMLElement>(nativeTextLayerSelectorForPage(pageNumber))
 }
 
-/** The text layer under `root`, whatever page it holds. `null` on the legacy path. */
+/**
+ * The text layer under `root`, whatever page it holds. `null` when none is mounted.
+ *
+ * This is the selection-scope check's only entry point: a browser selection is PDF
+ * text only if it actually lands on the text layer, so a selection in the toolbar,
+ * the AI panel or any other UI sharing the panel is not mistaken for PDF text.
+ * `text/extractSelectedText.ts#selectionBelongsToTextLayer` is the caller.
+ */
 export function findNativeTextLayer(root: ParentNode): HTMLElement | null {
   return root.querySelector<HTMLElement>(NATIVE_TEXT_LAYER_SELECTOR)
-}
-
-/** The annotation layer under `root`, whatever page it holds. `null` on the legacy path. */
-export function findNativeAnnotationLayer(root: ParentNode): HTMLElement | null {
-  return root.querySelector<HTMLElement>(NATIVE_ANNOTATION_LAYER_SELECTOR)
-}
-
-/** The annotation layer for `pageNumber` (1-based), or `null`. */
-export function findNativeAnnotationLayerForPage(
-  root: ParentNode,
-  pageNumber: number
-): HTMLElement | null {
-  return root.querySelector<HTMLElement>(nativeAnnotationLayerSelectorForPage(pageNumber))
-}
-
-/** The search overlay under `root`, whatever page it belongs to. `null` on the legacy path. */
-export function findNativeSearchLayer(root: ParentNode): HTMLElement | null {
-  return root.querySelector<HTMLElement>(NATIVE_SEARCH_LAYER_SELECTOR)
-}
-
-/** The search overlay for `pageNumber` (1-based), or `null`. */
-export function findNativeSearchLayerForPage(
-  root: ParentNode,
-  pageNumber: number
-): HTMLElement | null {
-  return root.querySelector<HTMLElement>(nativeSearchLayerSelectorForPage(pageNumber))
-}
-
-/**
- * True when `node` is inside a native text layer that is inside `root`.
- *
- * This is the native half of the selection-scope check: a browser selection is
- * only PDF text if it actually lands on the text layer, so a selection in the
- * toolbar, the AI panel or any other UI is not mistaken for PDF text. The legacy
- * path never consults it, because there the RPV markup is the text layer by
- * construction.
- */
-export function isInsideNativeTextLayer(node: Node | null, root: ParentNode): boolean {
-  if (!node) return false
-  const layer = findNativeTextLayer(root)
-  return layer ? layer.contains(node) : false
 }

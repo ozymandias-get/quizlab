@@ -1,6 +1,6 @@
 /**
  * The native viewer's controller: document + page + scale + render, and the
- * toolbar contract the legacy toolbar binds to.
+ * toolbar contract the shared toolbar binds to.
  *
  * ## What this owns
  *
@@ -40,20 +40,20 @@
  * is still the only page the viewer has, and no render, layer or navigation waits on
  * it.
  *
- * ## What is reused from the legacy path, unchanged
+ * ## What is shared with the rest of the feature, unchanged
  *
  * `useFitScale`, `useLastNavigationTime`, `usePdfCtrlWheelZoom`,
  * `usePdfWheelNavigation`, `usePdfResizeRefit` and `usePdfTextActions` are the
- * same functions the legacy viewer uses. Reuse rather than re-implementation is
- * deliberate: the zoom clamps, the 40 ms Ctrl+wheel throttle, the 150 ms resize
- * debounce, the 1 %-granularity fit quantization and the whole selection
- * lifecycle — capture-phase listeners, the 150 ms scroll freeze, rAF coalescing,
- * `pdf-selection-active`, `requestIdleCallback` with its 500 ms fallback — are
- * Phase 2-pinned behaviour, and a second copy of any of them would be free to
- * drift away from the tests that guard it. Two of the shared hooks needed one
- * type-level change to be reachable from a numeric-only caller
- * (`usePdfCtrlWheelZoom`), plus one additive optional argument
- * (`usePdfResizeRefit`'s numeric fallback); no behaviour changed.
+ * same functions the viewport and selection layers outside `native/` use.
+ * Reuse rather than re-implementation is deliberate: the zoom clamps, the 40 ms
+ * Ctrl+wheel throttle, the 150 ms resize debounce, the 1 %-granularity fit
+ * quantization and the whole selection lifecycle — capture-phase listeners, the
+ * 150 ms scroll freeze, rAF coalescing, `pdf-selection-active`,
+ * `requestIdleCallback` with its 500 ms fallback — are all pinned by their own
+ * tests, and a second copy of any of them would be free to drift away from the
+ * tests that guard it. Two of the shared hooks needed one type-level change to be
+ * reachable from a numeric-only caller (`usePdfCtrlWheelZoom`), plus one additive
+ * optional argument (`usePdfResizeRefit`'s numeric fallback); no behaviour changed.
  *
  * `usePdfTextActions` needs nothing native at all: it talks to the shared viewer
  * container and to the extractors, and both now resolve whichever text layer is
@@ -62,13 +62,13 @@
  * ## What is deliberately not here
  *
  * `usePdfContextMenu` itself is renderer-agnostic — it listens on the shared
- * container and renders one `ContextMenu` for both paths — and its capture items
+ * container and renders one `ContextMenu` — and its capture items
  * reach the real backend now that the document is published to the registry, so
  * neither the hook nor the menu needed a native branch.
  *
  * `PdfSearchBar` and `usePdfSearchStore` are not native code and do not appear here:
- * the search bar is one component for both renderers, and it only ever calls
- * `highlight` / `clearHighlights`, which this controller now implements.
+ * the search bar is one component, and it only ever calls `highlight` /
+ * `clearHighlights`, which this controller implements.
  */
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import { clampPdfPage } from '@features/pdf/native/nativePdfBounds'
@@ -111,9 +111,9 @@ import { useNativeZoomControls } from './nativeZoomControls'
 /**
  * Fallback scale for `usePdfResizeRefit` when no fit scale is known yet.
  *
- * Numeric by construction: the native path has no `SpecialZoomLevel`, and this
- * only becomes visible if the container resizes before the first page has been
- * measured — behind the loading state in practice.
+ * Numeric by construction: the scale domain is numeric, so there is no fit-by-keyword
+ * to ask for. This only becomes visible if the container resizes before the first page
+ * has been measured — behind the loading state in practice.
  */
 const NATIVE_FIT_FALLBACK_SCALE = 1
 
@@ -159,8 +159,7 @@ export interface NativePdfController {
   /**
    * Highlight every match of `keyword` on the rendered page.
    *
-   * The same two calls the legacy search plugin exposes, so `PdfToolbar` binds whichever
-   * renderer is live without a branch in its search UI.
+   * The two calls `PdfToolbar` binds for search, so its search UI needs no branch.
    */
   highlight: NativePdfSearchHandle['highlight']
   /** Drop the search query and empty the overlay. */
@@ -179,7 +178,7 @@ export interface NativePdfController {
   zoomIn: () => void
   zoomOut: () => void
   fit: () => void
-  /** Render-prop components shaped like the legacy toolbar's zoom controls. */
+  /** Render-prop components shaped like the toolbar's zoom controls. */
   zoomControls: {
     ZoomIn: ZoomComponent
     ZoomOut: ZoomComponent
@@ -214,10 +213,9 @@ export function useNativePdfController({
 
   // Declared right after the document hook because it publishes that document:
   // capture borrows the mounted document through the registry instead of
-  // re-decoding the file, so this is the native equivalent of the one
-  // `onDocumentLoad` call the legacy viewer makes. Withdrawing is token-scoped,
-  // so of two mounted viewers (LeftPanel + FocusOverlay) only the one unmounting
-  // clears the slot.
+  // re-decoding the file, so one registration is all the door capture needs.
+  // Withdrawing is token-scoped, so of two mounted viewers (LeftPanel +
+  // FocusOverlay) only the one unmounting clears the slot.
   useNativePdfCaptureDocument({ enabled, engine, status, pdfUrl, reloadKey })
 
   const isReady = enabled && status === 'ready'
@@ -251,9 +249,9 @@ export function useNativePdfController({
     containerRef
   })
 
-  // The shared fit calculation, fed the native path's own page size. The viewer
-  // starts at `SpecialZoomLevel.PageWidth`; here that keyword is replaced by the
-  // number it stands for.
+  // The shared fit calculation, fed the native path's own page size. Fit is a
+  // number computed from the page box and the container box, so this is the same
+  // value the scale state applies as an ordinary scale.
   const fitScale = useFitScale(pageDimensions, adjustedContainerSize)
 
   const { scale, zoomTo, zoomIn, zoomOut, fit } = useNativePdfScaleState({
@@ -273,22 +271,19 @@ export function useNativePdfController({
   // reach this controller's own rAF-coalesced channel, and `reset` lands on the
   // same numeric fit scale `useNativePdfScaleState#fit` applies. Declared here
   // rather than in the shared state hook so the subscription lives and dies with
-  // the native viewer: while `enabled` is false it is inert, and once the native
-  // viewer is the only renderer it is the only such subscription in the app.
+  // the native viewer: while `enabled` is false it is inert, and it is the only
+  // such subscription in the app.
   usePdfViewerZoomIpc(zoomTo, scale, fitScale, isReady)
 
-  // RPV's `zoomPlugin({ enableShortcuts: true })` owned Ctrl/Cmd + `-` / `=` / `0`
-  // inside the viewer slot; deleting the plugin deletes the binding, so the native
-  // viewer owns it. All three actions go through the same coalesced channel as
-  // every other zoom source.
+  // Ctrl/Cmd + `-` / `=` / `0` are owned here, not by a viewer plugin. All three
+  // actions go through the same coalesced channel as every other zoom source.
   usePdfZoomShortcuts({ zoomIn, zoomOut, fit, enabled: isReady })
 
-  // `usePdfResizeRefit` is shared with the legacy viewer, whose scale domain
-  // includes `@react-pdf-viewer`'s `SpecialZoomLevel` keywords — which the native
-  // path neither has nor wants. Taking the parameter as `unknown` rather than
-  // importing that type keeps the native boundary free of `@react-pdf-viewer`
-  // while still running the shared debounce / cooldown / navigation-lock rules
-  // verbatim. A number is always passed (`fitScale`, or the numeric fallback
+  // `usePdfResizeRefit` is shared with the rest of the feature and is typed
+  // numeric, so its debounce / cooldown / navigation-lock rules are what this
+  // viewer relies on. The parameter is taken as `unknown` and narrowed rather
+  // than passed straight through, so a non-numeric request can never reach the
+  // scale channel. A number is always passed (`fitScale`, or the numeric fallback
   // below), so the guard is defensive rather than lossy.
   const refitZoomTo = useCallback(
     (value: unknown) => {

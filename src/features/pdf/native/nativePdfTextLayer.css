@@ -12,20 +12,27 @@
  *
  * These rules are transcribed from PDF.js 6's own `web/pdf_viewer.css`
  * (`.textLayer`), reduced to the parts a read-only text layer needs. Search
- * highlights, `role="img"` spans, selection rendering mode and
- * `--text-scale-factor`-driven annotation outlines are omitted because those
- * features are not migrated in this phase.
+ * highlights live in `nativePdfSearchLayer.css`, and the annotation layer has its
+ * own stylesheet in `nativePdfAnnotationLayer.css`.
+ * Selection presentation below is QuizLab's rather than PDF.js's — see the note
+ * above it.
  *
  * ## Scope
  *
- * Every selector is keyed on `data-native-pdf-text-layer` / `data-native-pdf-page`,
- * attributes only the native viewer emits. Nothing here can match the legacy
- * `@react-pdf-viewer` markup, nothing here redefines a class the legacy stylesheet
- * owns, and no `rpv-*` name is reused. There is no global leakage: a rule only
- * applies inside a native page.
+ * Nothing here can match anything but this viewer's own DOM. Each rule is keyed
+ * on `data-native-pdf-text-layer` / `data-native-pdf-page` — attributes only
+ * `NativePdfViewer` and `useNativePdfTextLayer` emit — with one deliberate
+ * exception: the two state rules at the foot of the file hang off the shared
+ * `.pdf-viewer-container` instead, qualified by `pdf-pan-mode-active` /
+ * `pdf-selection-active`. Those classes are toggled on that container by
+ * `PdfViewerDocument` and `usePdfTextActions`, so keying on them is the only way
+ * CSS can see the switch at all. Every other rule applies inside a native page
+ * only, so there is no global leakage.
  *
- * `src/shared/styles/**` is deliberately untouched — the native text layer is a
- * separate rendering surface, not a restyle of the legacy one.
+ * The split with `src/shared/styles/**` is by surface, not by duplication: the
+ * shared sheet owns the viewer *shell* (container, scrollbar, GPU containment)
+ * and this file owns the layer *inside* one page box. Nothing here restates a
+ * shared declaration, which is what keeps the two sheets from drifting.
  *
  * ## Selection presentation
  *
@@ -255,12 +262,17 @@
   background: transparent;
 }
 
-/* `span[role="img"]` is PDF.js's marker for a run that stands in for an image or
-   a drawing rather than text. It has no glyph on the canvas to tint and no text
-   to read, so selecting it would paint a colour block over artwork. PDF.js
-   already makes these unselectable; this transcription does the same so the
-   highlight only ever covers something the reader can read. It is presentation
-   only — the attribute and its DOM are PDF.js's, untouched. */
+/* `span[role="img"]` — a run that stands in for an image or a drawing rather than
+   text. It has no glyph on the canvas to tint and no text to read, so selecting it
+   would paint a colour block over artwork; making it unselectable keeps the
+   highlight covering only something the reader can read.
+
+   PDF.js 6 does write `role="img"` (an annotation layer's stamp container and its
+   canvas factory both set it), and its own text-layer event code tests for
+   `role="img"` targets inside the layer. The `TextLayerImages` helper that would
+   populate this slot is part of the package's public API and takes image
+   placeholders inside the text layer. Presentation only either way: no attribute
+   is written here. */
 
 [data-native-pdf-text-layer] span[role='img'] {
   -webkit-user-select: none;
@@ -268,9 +280,10 @@
   cursor: default;
 }
 
-/* Pan mode is a drag surface, not a text surface. The legacy path does the same
-   thing by dropping `user-select` on its text layer; the DOM stays mounted so a
-   pan → text switch needs no reload. */
+/* Pan mode is a drag surface, not a text surface: a drag that starts on a run has
+   to pan, not begin a selection, so `user-select: none` goes on the layer and on
+   its runs. It is a *style* switch rather than a teardown — the DOM stays mounted,
+   so leaving pan mode restores selection with no re-render and no reload. */
 
 .pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer],
 .pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer] :is(span, br) {
@@ -280,18 +293,17 @@
 }
 
 /* `pdf-selection-active` is toggled on the viewer container by the shared
-   `usePdfTextActions`, and is not touched by this change — it is the state
-   signal, and its timing is part of the selection behaviour.
+   `usePdfTextActions`. It is the state signal — its timing is part of the
+   selection behaviour — so this rule decides only how an active selection looks.
    Deliberately no `transition`: transitioning `filter` re-rasterizes the whole
    layer on every text-layer update.
 
-   The glow itself is now a whisper rather than a halo. It used to be
-   `--selection-color-glow` at 0.48 alpha and a 0.4 rem blur, which is the second
-   half of the "highlighter pen" look: a saturated fill *plus* a coloured bloom
-   around it. At the new translucent tint that bloom is redundant — the tint is
-   already visible on any page — and a glow wide enough to see competes with the
-   glyph contrast it is supposed to be sitting behind. Same derivation as the
-   fill, so the colour is still the user's. */
+   The glow is a whisper, not a halo: a 0.15rem, 18% drop-shadow of the user's
+   colour. A wide bloom is the second half of the "highlighter pen" look — a
+   saturated fill *plus* a coloured halo around it — but the fill here is already
+   a translucent tint that reads on any page, so the bloom is redundant; and a
+   glow wide enough to see competes with the very glyph contrast it is supposed to
+   be sitting behind. Same derivation as the fill, so the colour is the user's. */
 
 .pdf-viewer-container.pdf-selection-active [data-native-pdf-text-layer] {
   filter: drop-shadow(

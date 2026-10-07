@@ -4,10 +4,10 @@
  *
  * ## What is the document identity
  *
- * `(pdfUrl, reloadKey)` — the same pair the legacy `<Viewer key={...}>` uses to
- * decide it must remount. A different file is a different identity, and so is
- * Reload of the *same* file: the URL is unchanged but the user asked for a fresh
- * document, so it must go through a new load rather than reuse the live one.
+ * `(pdfUrl, reloadKey)`, the identity every layer keys on. A different file is a
+ * different identity, and so is Reload of the *same* file: the URL is unchanged
+ * but the user asked for a fresh document, so it must go through a new load
+ * rather than reuse the live one.
  *
  * ## Stale work cannot publish
  *
@@ -35,7 +35,7 @@ import { useEffect, useState } from 'react'
 /** `idle` = no document requested (flag off, or no URL); `ready` = a page can be fetched. */
 export type NativePdfDocumentStatus = 'idle' | 'loading' | 'ready' | 'error'
 
-export interface NativePdfPageDimensions {
+interface NativePdfPageDimensions {
   width: number
   height: number
 }
@@ -51,7 +51,7 @@ interface UseNativePdfDocumentOptions {
 interface UseNativePdfDocumentResult {
   status: NativePdfDocumentStatus
   totalPages: number
-  /** First page at scale 1 — the fit-scale input, matching the legacy path. */
+  /** First page at scale 1 — the input to the shared fit-scale calculation. */
   pageDimensions: NativePdfPageDimensions | null
   /** Human-readable load failure, already reduced to a safe message. */
   loadError: string | null

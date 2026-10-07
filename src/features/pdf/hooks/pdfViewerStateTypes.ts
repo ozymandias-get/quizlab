@@ -33,13 +33,9 @@ export interface PdfViewerDocumentProps {
 }
 
 /**
- * No RPV types and no `usePdfPlugins` return types appear here any more.
- *
- * The six fields that used to be typed as `ReturnType<typeof usePdfPlugins>[…]`
- * were the plugin's own `Plugin[]`, `CurrentScale`, `ZoomIn`, `ZoomOut`,
- * `highlight` and `clearHighlights`. The zoom and search fields are now the native
- * controller's, and `plugins` has no successor because there is no plugin array:
- * the renderer owns its own layers.
+ * Zoom and search arrive as one field, `nativeViewer`: the renderer owns its own
+ * layers, so there is no plugin array and no per-plugin zoom or highlight surface
+ * to hand back separately.
  */
 export interface UsePdfViewerStateReturn {
   containerRef: React.RefObject<HTMLDivElement | null>

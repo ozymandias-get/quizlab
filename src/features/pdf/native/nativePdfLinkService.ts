@@ -102,7 +102,7 @@ const DEFAULT_LINK_REL = 'noopener noreferrer nofollow'
  * A PDF destination as `getAnnotations` reports it: a named destination, or the
  * explicit `[pageRefOrIndex, { name }, …]` array.
  */
-export type NativePdfDestination = string | unknown[]
+type NativePdfDestination = string | unknown[]
 
 /**
  * The `href` an internal destination gets.
@@ -295,9 +295,10 @@ export function createNativePdfLinkService({
 
     executeNamedAction() {
       // `NextPage`/`PrevPage`/`FirstPage`/`LastPage` and the history actions. They
-      // are inert here rather than half-implemented: the legacy viewer drives its own
-      // navigation plugins, and a named action is not a destination. Recorded as
-      // deferred work rather than guessed at.
+      // are inert here rather than half-implemented: named actions are not
+      // destinations, so the only correct resolution is none, and a half-guessed one
+      // would move the reader somewhere they did not choose. Recorded as deferred
+      // work rather than guessed at.
     },
 
     async executeSetOCGState() {
@@ -306,8 +307,9 @@ export function createNativePdfLinkService({
     },
 
     async getAttachmentContent() {
-      // File attachments are deliberately unsupported: Phase 6 is not a launcher for
-      // embedded local files. Returning `null` leaves the anchor clickable and inert.
+      // File attachments are deliberately unsupported: no `downloadManager` is passed
+      // and there is no path by which an embedded local file could be handed to the
+      // OS. Returning `null` leaves the anchor clickable and inert.
       return null
     },
 
