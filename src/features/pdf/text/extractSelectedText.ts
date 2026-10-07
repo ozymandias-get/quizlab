@@ -2,13 +2,10 @@
  * Extracts selected text from the DOM and computes its screen position.
  * Replaces the inline selection logic in usePdfTextSelection.
  *
- * ## Two renderers, one selection contract
- *
  * The geometry, the reading order, the fallback to `selection.toString()`, the
- * pill placement and the out-of-container bail-out below are unchanged and are
- * pinned by the Phase 2 suite. What Phase 5 adds is that the *lookup* works on
- * both markups (`./pdfTextLayerSource`), and that a selection is only accepted as
- * PDF text when it actually lands on the live text layer — see
+ * pill placement and the out-of-container bail-out below are unchanged. The
+ * *lookup* goes through `./pdfTextLayerSource`, and a selection is only accepted
+ * as PDF text when it actually lands on the live text layer — see
  * `selectionBelongsToTextLayer`.
  */
 import { findNativeTextLayer } from '../native/nativePdfDom'
@@ -44,17 +41,13 @@ interface SelectionExtractResult {
  * The container-level check below already rejects the toolbar, the AI panel and
  * everything else outside the viewer. What it cannot reject on its own is a
  * selection *inside* the viewer that did not come from the page text — the
- * canvas, the page box, or (once the native viewer mounts one) anything that
- * shares the panel with it.
+ * canvas, the page box, or anything else that shares the panel with it.
  *
  * The text layer is a real, addressable element, so the selection has to touch
  * it: one of the range's endpoints or its common ancestor inside the layer. A
  * selection that lands anywhere else — the toolbar, the AI panel, any other UI
- * sharing the document — is not PDF text.
- *
- * While the legacy viewer was still shipped this had a bypass for the case where
- * no native layer was mounted, because the legacy markup *was* the text layer by
- * construction. There is one renderer now, so the check is unconditional.
+ * sharing the document — is not PDF text. The check is unconditional: with no
+ * text layer mounted there is no PDF text to select.
  */
 function selectionBelongsToTextLayer(
   range: Range,

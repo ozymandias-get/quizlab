@@ -26,11 +26,9 @@ interface MenuItemsOutput {
 /**
  * The context-menu items and the two handlers the toolbar also uses.
  *
- * `handleZoom` and `handleJumpToPage` used to live here as the `@react-pdf-viewer`
- * adapters — the first clamped whatever scale the viewer's `onZoom` reported, the
- * second forwarded to the navigation hook's jump. Both were removed with the
- * viewer: the native controller owns its scale outright and owns `jumpToPage`, so
- * the toolbar binds them directly and there is nothing left to clamp.
+ * Zoom and page-jump are absent from this list on purpose: the native controller
+ * owns its scale outright and owns `jumpToPage`, so the toolbar binds them
+ * directly and there is no clamp for an adapter to apply.
  */
 export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
   const {

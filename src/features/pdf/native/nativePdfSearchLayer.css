@@ -7,17 +7,20 @@
  * positioned from geometry the browser measured, so without `position: absolute` on both
  * the layer and its highlights every match would stack in the top-left corner of the
  * page. The fade-in itself is *not* here: `pdf-highlight-fadein` stays defined once, in
- * the global stylesheet, and is only referenced from the inline style — the same split
- * the legacy highlight uses.
+ * the global stylesheet, and is only referenced from the inline style
+ * `nativePdfSearch.ts` writes, because an animation defined in two sheets is an
+ * animation that drifts.
  *
- * ## Why the legacy class is not reused
+ * ## Why the highlight looks the way it does
  *
- * `@react-pdf-viewer/search` ships `.rpv-search__highlight` for its own markup. Emitting
- * that class from the native viewer would let the plugin's stylesheet style a layer it
- * knows nothing about, and would make the two markups indistinguishable to a reader. So
- * the native overlay is keyed on `data-native-pdf-search-*` attributes only and
- * re-declares the two visual properties it inherits from that plugin stylesheet: the
- * translucent yellow and the corner radius. `src/shared/styles/**` stays untouched.
+ * The overlay is keyed on `data-native-pdf-search-*` attributes and nothing else, and
+ * the two visual properties below are declared here rather than inherited: a find
+ * result is yellow because yellow is what a find result looks like, and the radius is
+ * what keeps a match from reading as a block of solid paint on top of the glyphs. Both
+ * are pinned by `nativeSelectionPresentation.test.ts` so a later "improve the
+ * highlight" edit cannot quietly turn a find result into the user's selection colour.
+ * `src/shared/styles/**` stays out of it — that sheet owns the viewer shell, this file
+ * owns the overlay inside one page box.
  *
  * ## Layer order and pointer behaviour
  *
@@ -45,9 +48,9 @@
 
 [data-native-pdf-search-highlight] {
   position: absolute;
-  /* The colour and radius `@react-pdf-viewer/search` gives `.rpv-search__highlight`,
-     re-declared under a native attribute: a search result has to look the same on both
-     renderers. */
+  /* A find result is translucent yellow with a soft corner, so it reads as a tint over
+     the glyphs the canvas painted rather than as opaque paint on top of them. Both
+     values are this surface's own declaration, not an inherited one. */
   background-color: rgb(255 255 0 / 0.4);
   border-radius: 0.25rem;
   pointer-events: none;

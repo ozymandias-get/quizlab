@@ -10,8 +10,7 @@
  *
  * Deliberately absent. It was removed in pdf.js 4.x — zero occurrences in
  * `build/pdf.mjs`, `build/pdf.worker.mjs` and `types/` of 6.4.299 — so the
- * option no longer exists to be set. The legacy `pdfjs-dist@3.11.174` call
- * sites still pass it and must keep doing so until the viewer is gone.
+ * option no longer exists to be set on the one `getDocument` call site there is.
  *
  * ## enableScripting
  *
@@ -89,7 +88,7 @@ export type PdfjsAssetSubdir = (typeof PDFJS_ASSET_SUBDIRS)[number]
  *
  * No absolute or machine-specific path is ever embedded.
  */
-export function pdfAssetBaseUrl(): string {
+function pdfAssetBaseUrl(): string {
   return import.meta.env.BASE_URL
 }
 

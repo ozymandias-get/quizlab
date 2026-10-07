@@ -3,18 +3,16 @@
  *
  * ## Why the scale domain is numeric
  *
- * This hook used to reset to `@react-pdf-viewer`'s `SpecialZoomLevel.PageWidth`
- * keyword. That keyword is a viewer API, not a scale: only RPV's own `zoomTo`
- * could interpret it. With the native viewer as the sole renderer there is no
- * `SpecialZoomLevel` left to pass, so reset takes the **numeric** fit scale the
- * product already computes everywhere else — the same `useFitScale` number that
- * `usePdfResizeRefit` refits to and that `useNativePdfScaleState#fit` applies.
- * One fit number, one meaning, whichever renderer is live.
+ * Reset cannot use a `SpecialZoomLevel.PageWidth` keyword. That keyword is a
+ * viewer API, not a scale: only a viewer's own `zoomTo` could interpret it. There
+ * is no such keyword on the numeric runtime, so reset takes the **numeric** fit
+ * scale the product already computes everywhere else — the same `useFitScale`
+ * number that `usePdfResizeRefit` refits to and that `useNativePdfScaleState#fit`
+ * applies. One fit number, one meaning.
  *
- * Making the contract numeric is also what keeps this hook renderer-agnostic: it
- * imports no viewer package, so the same three actions reach the legacy coalesced
- * channel and the native rAF-coalesced one without either side learning about
- * the other.
+ * Keeping the contract numeric is also what keeps this hook viewer-agnostic: it
+ * imports no viewer package, so the three actions land on whatever coalesced
+ * channel the caller hands in without this side learning where it goes.
  *
  * ## Subscription shape
  *

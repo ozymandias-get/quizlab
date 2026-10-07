@@ -35,7 +35,7 @@ import {
 
 import { useCallback, useEffect, useRef } from 'react'
 
-export interface NativePdfEngine {
+interface NativePdfEngine {
   manager: PdfDocumentManager
   renderer: PdfPageRenderer
 }

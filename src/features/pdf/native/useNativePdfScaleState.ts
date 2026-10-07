@@ -3,18 +3,17 @@
  *
  * ## Why the native path owns its own scale
  *
- * The legacy viewer's scale lives inside `@react-pdf-viewer` and is reached
- * through `zoomTo`, which accepts `SpecialZoomLevel` strings as well as numbers.
- * The native viewer has no viewer to ask, so it holds the number itself.
+ * The scale domain is numeric: `zoomTo` is `NumericZoomTo`, `(scale: number) =>
+ * void`, and "fit the page" is the number `useFitScale` computed rather than a
+ * keyword. The hook therefore holds the number itself rather than asking a
+ * viewer package for it.
  *
- * ## `PageWidth` becomes a real number here
+ * ## Fit is a computation, not a keyword
  *
- * The legacy viewer starts at `SpecialZoomLevel.PageWidth`. There is no such
- * thing as a numeric scale that means "fit the page" to PDF.js — the fit is a
- * computation from the page size and the container size. So the native path
- * computes that number (`fitScale`, from the shared `useFitScale`) and applies it
- * as an ordinary scale. `SpecialZoomLevel` never crosses into the native engine
- * or its hooks.
+ * There is no such thing as a numeric scale that means "fit the page" to PDF.js —
+ * fit is derived from the page size and the container size. So this hook computes
+ * that number (`fitScale`, from the shared `useFitScale`) and applies it as an
+ * ordinary scale. No scale keyword crosses into the native engine or its hooks.
  *
  * ## The initial fit runs once per document identity
  *

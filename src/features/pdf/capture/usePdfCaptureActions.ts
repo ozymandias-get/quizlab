@@ -14,13 +14,14 @@
  * loses its screenshot. The crop screenshot is a different path entirely: it never
  * touches PDF.js, because the main process crops the window.
  *
- * ## One page source, two renderers
+ * ## One page source
  *
- * Both actions label their result with a page number, and both must read it from
- * whichever renderer is live — see `capturePageRef`. The rest of this hook is
- * renderer-agnostic on purpose: `renderPageToImageFallback` borrows the mounted
- * document and `findPageCanvas` resolves whichever canvas is on screen, so this
- * file needed no native branch and its supersession contract is shared.
+ * Both actions label their result with a page number, and both read it from
+ * `capturePageRef`, which the viewer writes as the current page changes. The rest
+ * of this hook is renderer-agnostic on purpose: `renderPageToImageFallback`
+ * borrows the mounted document and `findPageCanvas` resolves whichever canvas is
+ * on screen, so this file needed no native branch and its supersession contract
+ * is shared.
  *
  * ## Supersession
  *

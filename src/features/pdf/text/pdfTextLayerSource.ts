@@ -1,17 +1,10 @@
 /**
  * Where the text extractors find a page's text.
  *
- * ## Why this file still exists
- *
- * `extractPageTextFromDom` and `extractSelectedText` read the DOM, and for six
- * years that DOM belonged to `@react-pdf-viewer`. While the native viewer was
- * being built, this module resolved *two* markups so both extractors stayed
- * renderer-agnostic and neither grew a branch. There is one renderer now, so the
- * indirection has a single answer left.
- *
- * It is kept rather than deleted because it is still the one place that pairs a
- * layer element with the selector that reads its individual text runs — knowledge
- * the extractors would otherwise each have to know. That pairing is not obvious:
+ * `extractPageTextFromDom` and `extractSelectedText` both read the DOM, and both
+ * need the same two answers: which element holds the text, and which selector
+ * picks out one text run inside it. That pairing lives here so neither extractor
+ * has to know it. It is not obvious:
  *
  *  - PDF.js 6 nests its text runs inside `span.markedContent` wrappers on a
  *    tagged PDF, so a blanket `span` query would count every word twice — once on
@@ -21,7 +14,7 @@
  *    legitimately have no text layer at all (an image-only page, or one whose
  *    layer is still being built).
  *
- * All of it is the native markup's own vocabulary, owned by
+ * The markup this reads is the native viewer's own vocabulary, owned by
  * `native/nativePdfDom.ts`.
  */
 import {

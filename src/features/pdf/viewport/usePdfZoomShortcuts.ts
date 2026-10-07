@@ -1,25 +1,21 @@
 /**
  * Ctrl/Cmd + `-` / `=` / `0` zoom shortcuts for the PDF viewer.
  *
- * ## What this replaces
+ * ## The binding this hook owns
  *
- * `@react-pdf-viewer`'s `zoomPlugin({ enableShortcuts: true })` injected a
- * `ShortcutHandler` into the viewer slot, which bound those three keys. Removing
- * RPV removes the binding, so the native viewer owns it.
+ * These three keys are bound here, not by the viewer. The key set (`-`, `=`, `0`),
+ * the modifier (Cmd on macOS, Ctrl elsewhere), rejection of `shiftKey` /
+ * `altKey`, a `document`-level listener, and — the important one —
+ * `preventDefault()` **only** when the shortcut actually changes something, so an
+ * unrelated default keeps working when the viewer is not in a state to handle it.
  *
- * ## What is preserved from RPV, and the one deliberate divergence
+ * ## Scope, and why there is no focus check
  *
- * Preserved: the key set (`-`, `=`, `0`), the modifier (Cmd on macOS, Ctrl
- * elsewhere), rejection of `shiftKey` / `altKey`, a `document`-level listener,
- * and — the important one — `preventDefault()` **only** when the shortcut
- * actually changes something, so an unrelated default keeps working when the
- * viewer is not in a state to handle it.
- *
- * Divergence: RPV additionally required
- * `containerRef.current.contains(document.activeElement)` before acting. QuizLab
- * never moves DOM focus into the PDF surface — the shared viewer container is
- * not focusable and neither the canvas nor the text layer takes focus — so that
- * check made the shortcuts unreachable, and the toolbar advertises `+ / −`
+ * There is deliberately no `containerRef.current.contains(document.activeElement)`
+ * guard: QuizLab never moves DOM focus into the PDF surface — the shared viewer
+ * container is not focusable and neither the canvas nor the text layer takes
+ * focus — such a check would make the shortcuts unreachable, and the toolbar
+ * advertises `+ / −`
  * unconditionally (`PdfZoomControls`, `common.json#zoom_hint`). Scope is
  * therefore expressed as: a PDF document is open and ready (`enabled`), and the
  * key was not pressed in a field that owns its own typing.

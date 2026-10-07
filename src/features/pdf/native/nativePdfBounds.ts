@@ -9,10 +9,10 @@
  *
  * QuizLab's public page state is **1-based** (`currentPage` in `1..totalPages`,
  * which is what the toolbar renders and what reading progress persists). PDF.js
- * `getPage()` is 1-based too. The only 0-based value in the system is
- * `@react-pdf-viewer`'s `onPageChange` callback, which the legacy navigation
- * hook converts; the native path has no such callback and therefore never has a
- * 0-based number to reconcile.
+ * `getPage()` is 1-based too, so nothing on the page path converts: there is no
+ * 0-based number to reconcile. The only 0-based value that reaches the viewer
+ * arrives by link destination resolution, which converts explicitly before
+ * calling `jumpToPage` — see `nativePdfLinkService`.
  */
 import { PDF_ZOOM_MAX_SCALE, PDF_ZOOM_MIN_SCALE } from '@features/pdf/constants/pdfZoom'
 

@@ -77,7 +77,7 @@ import {
   renderNativePdfSearchHighlights
 } from './nativePdfSearch'
 
-/** The whole search surface, and the whole of it the legacy plugin exposes too. */
+/** The whole search surface the toolbar drives. */
 export interface NativePdfSearchHandle {
   /** Highlight every match of `keyword` on the rendered page. */
   highlight: (keyword: string) => void

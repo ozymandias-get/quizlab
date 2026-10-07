@@ -9,8 +9,8 @@
  * the annotation's own `noRotate`/`rotation`, builds the widget's DOM (a real
  * `<textarea>` for a multiline text field, a `<select>` for a choice), draws border
  * styles, honours hidden and optional-content entries, and turns a link annotation
- * into an anchor wired to a link service. Re-implementing any of that is a rewrite,
- * not a migration — so, exactly as with `TextLayer`, QuizLab renders the *behaviour
+ * into an anchor wired to a link service. Re-implementing any of that would be a
+ * rewrite, so — exactly as with `TextLayer` — QuizLab renders the *behaviour
  * around* the layer and lets PDF.js render the geometry.
  *
  * ## The API that actually exists in 6.x
@@ -48,7 +48,7 @@
  * - `renderForms: false` means a widget with a baked-in appearance is **not**
  *   re-created as an input. The canvas already shows what the form looked like when
  *   the file was authored, so the page reads correctly and cannot be edited. That is
- *   the honest Phase 6 position: display, not form editing. Form state, focus,
+ *   the honest position here: display, not form editing. Form state, focus,
  *   `annotationStorage` writes and saving are all out of scope.
  * - `enableScripting: false` matches the document-level `enableScripting: false` in
  *   `pdfDocumentOptions.ts`. It is what keeps `LinkAnnotationElement` from binding a

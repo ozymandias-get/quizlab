@@ -8,11 +8,9 @@
  * `PDFDocumentProxy` had its own `destroy()`, but in 6.4.299 the proxy exposes
  * only `cleanup()`, and `PDFDocumentLoadingTask.destroy()` is the call that
  * "aborts all network requests and destroys the worker". So everything in this
- * module tears down through the **loading task**, never through a document.
- *
- * (The legacy `pdfjs-dist@3.11.174` capture path still calls `destroy()` on the
- * document, which is correct for that version and must keep doing so until the
- * viewer is gone.)
+ * module tears down through the **loading task**, never through a document. That
+ * includes capture: `captureDocument.ts` loads its isolated document through this
+ * same manager, so there is no second document-lifecycle path left in the app.
  *
  * ## Superseding a load
  *

@@ -10,34 +10,32 @@
  * pages it discovers through `PDFPageView`; it publishes matches by dispatching
  * `updatetextlayermatches` for a viewer to route back into page views. So it needs the
  * web viewer: page views, history, sidebar, thumbnails, the scripting manager. This
- * viewer is single-page and owns its own lifecycle, exactly as Phase 6 found when it
- * declined `PDFLinkService` for the same module. Importing it would put 320 kB of
+ * viewer is single-page and owns its own lifecycle — the same reason
+ * `nativePdfLinkService` declines `PDFLinkService`. Importing it would put 320 kB of
  * unused viewer into the renderer for a find bar this app does not render.
  *
- * **The legacy path does not use it either.** `@react-pdf-viewer/search` never reaches
- * for `PDFFindController`; its `Highlights` component walks the *DOM* text layer,
- * concatenates the runs, scans with one escaped case-insensitive regexp and measures
- * each match with `document.createRange()`. So that DOM algorithm — not the controller
- * — is the behaviour this module ports. `AGENT_HANDOFF.md` records the same conclusion.
+ * The algorithm implemented here is the DOM-walking one, not the controller's:
+ * concatenate the text layer's runs, scan that string, and measure each match with
+ * `document.createRange()`. `AGENT_HANDOFF.md` records the same conclusion.
  *
- * ## What was carried over, deliberately
+ * ## What search must guarantee
  *
- * - **Scope: the rendered page.** The legacy viewer runs `ViewMode.SinglePage`, so the
- *   plugin's per-page `highlightAll` only ever sees the current page, and the stored
- *   keyword makes it recompute when the next page's text layer renders. Same here: one
- *   page, query kept across page changes, geometry redrawn from the new page's runs.
- * - **Literal, case-insensitive.** The plugin escapes the keyword and matches it with
- *   `gi`. Here it is scanned directly, so a keyword is never a pattern — no regex
- *   injection surface and no escaping to get wrong.
+ * - **Scope: the rendered page.** One page at a time, so a search only ever sees the
+ *   current page, and the stored keyword makes it recompute when the next page's text
+ *   layer renders: one page, query kept across page changes, geometry redrawn from
+ *   the new page's runs.
+ * - **Literal, case-insensitive.** The keyword is scanned directly rather than
+ *   compiled into a pattern, so a keyword is never a regex — no injection surface
+ *   and no escaping to get wrong.
  * - **Runs are concatenated with no separator**, which is what makes a match span two
  *   text runs, two words in two runs, or two lines. The classic cases — a keyword split
  *   across a style change, or across a line break — fall out of that rather than being
  *   special-cased.
  * - **One rectangle per run, not one per match.** A match that crosses a run boundary
- *   is highlighted once per run it touches, exactly as the plugin's per-span grouping
- *   does, so a rectangle never covers text the keyword did not match.
+ *   is highlighted once per run it touches, so a rectangle never covers text the
+ *   keyword did not match.
  * - **A run covered by a single space draws nothing.** That run is the gap between two
- *   words or two lines; the plugin skips it and so does this.
+ *   words or two lines, and drawing it would put a visible rectangle over blank space.
  * - **Reading order of the overlay**: top, then left.
  *
  * ## Why offsets are never taken from a case-folded copy of the page
@@ -97,12 +95,12 @@ import {
 const TEXT_NODE = 3
 
 /**
- * The fade-in the legacy highlight defers by `--duration-deliberate`.
+ * The highlight fade-in, deferred by `--duration-deliberate`.
  *
  * The animation itself (`pdf-highlight-fadein`) stays defined once, in the global
- * stylesheet, and is only *referenced* here — exactly as `safeRenderHighlights` does.
- * The delay is deliberate product behaviour, not an artefact: dozens of highlight divs
- * must not compete with page rasterization, so they fade in after the page settles.
+ * stylesheet, and is only *referenced* here. The delay is deliberate product behaviour,
+ * not an artefact: dozens of highlight divs must not compete with page rasterization,
+ * so they fade in after the page settles.
  */
 const HIGHLIGHT_FADE_ANIMATION =
   'pdf-highlight-fadein var(--duration-normal) ease var(--duration-deliberate) forwards'
@@ -123,7 +121,7 @@ export interface NativePdfSearchMatch {
 }
 
 /** A page-relative highlight rectangle, in CSS pixels. */
-export interface NativePdfSearchRect {
+interface NativePdfSearchRect {
   top: number
   left: number
   width: number
@@ -195,8 +193,8 @@ function unitsMatch(haystackUnit: string, needleUnit: string): boolean {
  * Every occurrence of `keyword` in the page text, in order, non-overlapping.
  *
  * Literal and case-insensitive, and nothing else: no word boundaries, no diacritic
- * folding, no whole-words mode. A whitespace-only keyword is not a search, which is the
- * one guard the legacy path applies before it starts matching.
+ * folding, no whole-words mode. A whitespace-only keyword is not a search, so it
+ * yields no matches instead of matching every run boundary.
  */
 export function findNativePdfSearchMatches(
   pageText: NativePdfSearchPageText,
@@ -221,8 +219,7 @@ export function findNativePdfSearchMatches(
       }
     }
     matches.push({ pageNumber, start: index, end: index + needleLength, keyword })
-    // Past the whole match, so two occurrences never overlap — the same result the
-    // legacy path gets from a `g`-flagged regexp's `lastIndex`.
+    // Past the whole match, so two occurrences never overlap.
     index += needleLength
   }
   return matches
@@ -241,9 +238,8 @@ function groupMatchByRun(
     const start = Math.max(match.start, run.offset)
     const end = Math.min(match.end, runEnd)
     if (end <= start) continue
-    // A single whitespace code unit is the gap between two words or two lines. The
-    // legacy renderer draws nothing for it, and a rectangle over blank space would be
-    // a visible difference on every multi-run match.
+    // A single whitespace code unit is the gap between two words or two lines, and a
+    // rectangle over blank space would be a visible artefact on every multi-run match.
     if (end - start === 1 && pageText.text.charAt(start).trim() === '') continue
     groups.push({ run, start: start - run.offset, end: end - run.offset })
   }
@@ -281,7 +277,7 @@ function toPageRelativeRect(rect: DOMRect, pageBox: DOMRect): NativePdfSearchRec
   return { top, left, width, height }
 }
 
-/** Reading order for the overlay: top, then left — the legacy sort, unchanged. */
+/** Reading order for the overlay: top, then left. */
 function compareHighlightPosition(
   a: NativePdfSearchHighlight,
   b: NativePdfSearchHighlight
@@ -361,7 +357,7 @@ export function findNativePdfSearchHighlights(options: {
 
 /** How a highlight element is painted: geometry always, motion per the preference. */
 export interface NativePdfSearchHighlightOptions {
-  /** Becomes the element's `title`, trimmed — the legacy `area.keywordStr.trim()`. */
+  /** Becomes the element's `title`, trimmed. */
   keyword: string
   reducedMotion: boolean
 }
@@ -373,8 +369,8 @@ export interface NativePdfSearchHighlightOptions {
  * their containers: a superseded overlay has to be gone before the next one is measured,
  * not after. The element contract is
  * `data-native-pdf-search-highlight` + `data-native-pdf-search-index` (this rectangle)
- * + `data-native-pdf-search-match` (the logical match it belongs to) — QuizLab's own
- * attributes, never the legacy plugin's class name.
+ * + `data-native-pdf-search-match` (the logical match it belongs to) — all QuizLab's
+ * own attributes, so the overlay depends on no viewer package's class names.
  */
 export function renderNativePdfSearchHighlights(
   layer: HTMLElement,

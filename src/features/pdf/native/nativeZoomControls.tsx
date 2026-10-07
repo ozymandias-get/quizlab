@@ -4,10 +4,9 @@
  * ## Why an adapter instead of a toolbar rewrite
  *
  * `PdfToolbar` takes its zoom controls as render-prop components
- * (`ZoomComponent` / `CurrentScaleComponent`) so `@react-pdf-viewer`'s `zoomPlugin`
- * can supply them. Native state has no plugin, but the *shape* is just
- * "call my onClick" and "tell me my scale", so the native path supplies the same
- * shape and the toolbar — plus its three buttons, the percentage readout and
+ * (`ZoomComponent` / `CurrentScaleComponent`). The *shape* is just
+ * "call my onClick" and "tell me my scale", so this supplies that shape and the
+ * toolbar — plus its three buttons, the percentage readout and
  * their tooltips — is reused untouched.
  *
  * The alternative, giving `PdfToolbar` a second native-specific branch for zoom,
@@ -49,10 +48,9 @@ export function createNativeZoomControls({
   zoomIn,
   zoomOut
 }: NativeZoomControlsSource): NativeZoomControls {
-  // RPV stamped `aria-keyshortcuts` on its ZoomIn/ZoomOut buttons
-  // (`Meta+=` on macOS, `Control+=` elsewhere); the native path keeps the same
-  // representation so assistive technology advertises the same shortcut the
-  // viewer actually handles in `usePdfZoomShortcuts`.
+  // `aria-keyshortcuts` names the modifier as the platform spells it
+  // (`Meta+=` on macOS, `Control+=` elsewhere) so assistive technology advertises
+  // the same shortcut the viewer actually handles in `usePdfZoomShortcuts`.
   const isMac = isMacPlatform()
   const modifier = isMac ? 'Meta' : 'Control'
 

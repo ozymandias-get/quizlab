@@ -21,26 +21,4 @@
  * document and the engine is the only place allowed to import one.
  */
 export { createPdfDocumentManager, type PdfDocumentManager } from './documentManager'
-export { createPageCache, type PageSource, type PdfPageCache } from './pageCache'
-export {
-  createPageRenderer,
-  isRenderCancelled,
-  type PdfPageRenderer,
-  type RenderedPage,
-  type RenderPageOptions
-} from './pageRenderer'
-export {
-  createPdfDocumentOptions,
-  pdfAssetBaseUrl,
-  pdfAssetUrl,
-  type PdfDocumentSource,
-  PDFJS_ASSET_DIR,
-  PDFJS_ASSET_SUBDIRS,
-  type PdfjsAssetSubdir,
-  type SecureDocumentInitParameters
-} from './pdfDocumentOptions'
-export {
-  initializeNativePdfWorker,
-  nativeWorkerUrl,
-  resetNativePdfWorkerForTests
-} from './pdfWorker'
+export { createPageRenderer, isRenderCancelled, type PdfPageRenderer } from './pageRenderer'

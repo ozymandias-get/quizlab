@@ -9,9 +9,10 @@
  * keeps the current task and cancels it before starting the next one.
  *
  * Cancellation is detected with the typed `RenderingCancelledException` that
- * PDF.js 6 exports, not by matching message strings — the legacy
- * `features/pdf/errors/pdfRenderErrors.ts` guard exists precisely because string
- * matching was the only option on the 3.x surface.
+ * PDF.js 6 exports, not by matching message strings — the global
+ * `features/pdf/errors/pdfRenderErrors.ts` guard does string matching, because it
+ * has to catch errors from anywhere in the app, including sources that never name
+ * the exception type.
  *
  * ## Scope
  *
@@ -22,12 +23,12 @@
 import type { PDFPageProxy, RenderTask } from 'pdfjs-dist'
 import { RenderingCancelledException } from 'pdfjs-dist'
 
-export interface RenderPageOptions {
+interface RenderPageOptions {
   scale: number
   rotation?: number
 }
 
-export interface RenderedPage {
+interface RenderedPage {
   width: number
   height: number
 }

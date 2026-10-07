@@ -3,12 +3,13 @@
  *
  * ## Why the state machine here is a plain setter
  *
- * `usePdfNavigation` needs a target/acknowledge/settle machine because it does
- * not own the page: `@react-pdf-viewer` reports the page it is currently on, and
- * a programmatic jump can emit a late callback for the page being torn down, so
- * the hook installs a target that only the matching callback may acknowledge.
+ * A navigation hook that does not own the page needs a
+ * target/acknowledge/settle machine: an external reporter states the page it is
+ * currently on, and a programmatic jump can emit a late callback for the page
+ * being torn down, so a target is installed that only the matching callback may
+ * acknowledge.
  *
- * The native viewer owns the page outright — there is no external reporter that
+ * This viewer owns the page outright — there is no external reporter that
  * can disagree — so the machine would be inert. Rapid navigation is instead made
  * safe where it actually happens: the render effect supersedes the previous
  * page's render, and a settled-but-stale render is dropped by its own guard.
@@ -17,22 +18,20 @@
  *
  * `initialPage` mirrors persisted reading progress and therefore changes on every
  * page turn. Consuming it on every change would reset the viewer to the saved
- * page mid-read, so it is applied once per `(pdfUrl, reloadKey)` identity — the
- * same rule the legacy resume flow uses.
+ * page mid-read, so it is applied once per `(pdfUrl, reloadKey)` identity.
  *
  * ## Reading progress
  *
- * The native path reports progress through the existing
- * `onReadingProgressChange` callback with the same shape the legacy navigation
- * hook emits. The persistence pipeline itself is untouched; this only keeps the
- * feature working on the native path.
+ * Progress is reported through the existing `onReadingProgressChange` callback,
+ * with the shape the persistence pipeline already expects. The pipeline itself is
+ * untouched.
  */
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import { clampPdfPage } from '@features/pdf/native/nativePdfBounds'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-/** Mirrors the legacy debounce so progress writes stay off the render path. */
+/** Debounce so progress writes stay off the render path. */
 const PROGRESS_DEBOUNCE_MS = 300
 
 interface UseNativePdfPageStateOptions {

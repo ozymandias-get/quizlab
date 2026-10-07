@@ -5,12 +5,10 @@
  *
  * A high-DPI capture wants the already-decoded document: re-fetching and
  * re-decoding a 400-page textbook for one screenshot is the difference between
- * instant and unusable. `@react-pdf-viewer` made that reachable by handing its
- * `PDFDocumentProxy` to `activePdfDocumentRegistry` on document load. The native
- * viewer renders exactly one page onto one canvas and holds its document inside
- * `PdfDocumentManager`, so nothing about it is reachable from a context-menu
- * handler or a toolbar click — hence this hook, which is the native equivalent of
- * that one `onDocumentLoad` call.
+ * instant and unusable. The viewer renders exactly one page onto one canvas and
+ * holds its document inside `PdfDocumentManager`, so nothing about it is reachable
+ * from a context-menu handler or a toolbar click — hence this hook, which publishes
+ * that document to `activePdfDocumentRegistry` once it is ready.
  *
  * ## What it publishes
  *

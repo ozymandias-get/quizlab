@@ -13,19 +13,21 @@
  * These rules are transcribed from PDF.js 6's own `web/pdf_viewer.css`
  * (`.annotationLayer`), reduced to what a display-only annotation layer needs. The
  * AcroForm widget chrome, the comment-button rules, the annotation *editor* layer and
- * the free-text/highlight editor styles are omitted because those features are not
- * migrated in this phase.
+ * the free-text/highlight editor styles are absent because the layer cannot emit that
+ * markup: `useNativePdfAnnotationLayer` calls `render()` with `renderForms: false` and
+ * a null comment / annotation-editor manager, so a widget the document already painted
+ * keeps the canvas's appearance and is never rebuilt as an input.
  *
  * ## Scope
  *
- * Every selector is keyed on `data-native-pdf-annotation-layer` (or on the page box
- * that owns `--total-scale-factor`), attributes only the native viewer emits. Nothing
- * here can match the legacy `@react-pdf-viewer` markup, no `rpv-*` name is reused, and
- * the whole stylesheet is imported by the native viewer component for its side effect,
- * so it ships in the viewer chunk rather than the global sheet.
- *
- * `src/shared/styles/**` is deliberately untouched — this is a separate rendering
- * surface, not a restyle of the legacy one.
+ * Nothing here can match anything but this viewer's own DOM: every selector is
+ * rooted at `data-native-pdf-annotation-layer`, the attribute only
+ * `NativePdfViewer` and `useNativePdfAnnotationLayer` emit, and the classes and
+ * `data-main-rotation` values below it are PDF.js's own annotation markup. The
+ * whole stylesheet is imported by `NativePdfViewer` for its side effect, so it
+ * ships in the viewer chunk rather than the global sheet, and
+ * `src/shared/styles/**` stays out of it: the shared sheet owns the viewer shell,
+ * this file owns one layer inside a page box.
  *
  * ## Layer order
  *

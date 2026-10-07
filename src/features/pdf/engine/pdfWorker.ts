@@ -34,7 +34,7 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 /**
  * The worker asset URL as resolved by the bundler. Exported so tests can assert
- * the worker is pointed at the 6.x `.mjs` build rather than the legacy `.js` one.
+ * `GlobalWorkerOptions.workerSrc` points at the 6.x `.mjs` build.
  */
 export const nativeWorkerUrl: string = workerUrl
 
