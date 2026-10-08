@@ -103,10 +103,11 @@ export function useClearSessionMutation() {
       const prev = currentSessions(queryClient)
       const updated = clearSessionMessages(prev, sessionId)
       persistSessions(updated)
-      return updated
+      return { sessionId, allSessions: updated }
     },
-    onSuccess: (updated) => {
-      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, updated)
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, data.allSessions)
+      queryClient.setQueryData(QUERY_KEYS.AI.MESSAGES(data.sessionId), [])
     }
   })
 }

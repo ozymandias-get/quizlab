@@ -19,7 +19,6 @@ export function useAiSendComposerClickOutside(
   isSubmitting: boolean,
   itemsLength: number,
   asideRef: React.RefObject<HTMLElement | null>,
-  clearNote: () => void,
   onClearAll: () => void
 ) {
   useEffect(() => {
@@ -40,13 +39,12 @@ export function useAiSendComposerClickOutside(
         )
           return
       }
-      clearNote()
       onClearAll()
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isSubmitting, itemsLength, clearNote, onClearAll, asideRef])
+  }, [isSubmitting, itemsLength, onClearAll, asideRef])
 }
 
 export function useAiSendComposerFeedbackReset(

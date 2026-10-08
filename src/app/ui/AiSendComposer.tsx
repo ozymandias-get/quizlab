@@ -130,7 +130,7 @@ function AiSendComposer({
   // Route outside-clicks through the same guarded clear as the UI button so
   // an accidental click (e.g. starting a PDF text selection) cannot silently
   // wipe a multi-item draft queue.
-  useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, clearNote, handleClearAll)
+  useAiSendComposerClickOutside(isSubmitting, items.length, asideRef, handleClearAll)
   useAiSendComposerFeedbackReset(items.length, isSubmitting, setSendFeedback, setLastError)
 
   const { portalStyle, panelStyle } = useAiSendComposerStyles(isExpanded, layout)
