@@ -291,6 +291,36 @@ describe('useClearSessionMutation', () => {
     })
   })
 
+  it('clears a hydrated active transcript across remount without changing another session', async () => {
+    const target = mockSession({
+      id: 's1',
+      messages: [{ id: 'm1', role: 'user', content: 'Clear me', timestamp: 1 }]
+    })
+    const other = mockSession({
+      id: 's2',
+      messages: [{ id: 'm2', role: 'user', content: 'Keep me', timestamp: 2 }]
+    })
+    queryClient.setQueryData(['ai', 'sessions'], [target, other])
+    queryClient.setQueryData(['ai', 'messages', 's1'], target.messages)
+    queryClient.setQueryData(['ai', 'messages', 's2'], other.messages)
+    const wrapper = createWrapper(queryClient)
+    const active = renderHook(() => useMessagesQuery('s1'), { wrapper })
+    const unaffected = renderHook(() => useMessagesQuery('s2'), { wrapper })
+    const mutation = renderHook(() => useClearSessionMutation(), { wrapper })
+    expect(active.result.current.data).toEqual(target.messages)
+
+    await act(async () => {
+      await mutation.result.current.mutateAsync('s1')
+    })
+
+    await waitFor(() => expect(active.result.current.data).toEqual([]))
+    expect(unaffected.result.current.data).toEqual(other.messages)
+    expect(queryClient.getQueryData<ChatSession[]>(['ai', 'sessions'])?.[1]).toEqual(other)
+    active.unmount()
+    const remounted = renderHook(() => useMessagesQuery('s1'), { wrapper })
+    expect(remounted.result.current.data).toEqual([])
+  })
+
   it('clears messages and resets title for a session', async () => {
     const session = mockSession({
       id: 's1',

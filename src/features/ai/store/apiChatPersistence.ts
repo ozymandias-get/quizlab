@@ -106,7 +106,15 @@ function mergeSessionsWithStored(incoming: ChatSession[]): ChatSession[] {
     const other = inc.updatedAt >= prev.updatedAt ? prev : inc
     const msgById = new Map(other.messages.map((m) => [m.id, m]))
     for (const m of base.messages) msgById.set(m.id, m)
-    const messages = [...msgById.values()].sort((a, b) => a.timestamp - b.timestamp)
+    // A clear is not an append. The union below is what stops two tabs from
+    // losing each other's appended messages, but it would also resurrect every
+    // message a clear just deleted — `updatedAt` makes the emptied copy `base`,
+    // and the union seeds from `other`. "Clear this conversation" has to mean
+    // the transcript is gone, including in storage, or it comes back on restart.
+    const messages =
+      inc.messages.length === 0 && prev.messages.length > 0
+        ? []
+        : [...msgById.values()].sort((a, b) => a.timestamp - b.timestamp)
     merged.push({ ...base, messages, updatedAt: Math.max(inc.updatedAt, prev.updatedAt) })
     storedById.delete(id)
   }
