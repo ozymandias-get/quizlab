@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useSyncExternalStore } from 'react'
+import { type RefObject, useEffect, useRef, useSyncExternalStore } from 'react'
 
 interface UseDialogBehaviorOptions {
   isOpen: boolean
@@ -20,6 +20,8 @@ const FOCUSABLE_SELECTOR =
  * view reads {@link useIsAnyDialogOpen} and steps out of the way.
  */
 let openDialogCount = 0
+const openDialogs: symbol[] = []
+let originalBodyOverflow = ''
 const openDialogListeners = new Set<() => void>()
 
 function emitOpenDialogChange(): void {
@@ -50,19 +52,28 @@ export function useDialogBehavior({
   dialogRef,
   initialFocusRef
 }: UseDialogBehaviorOptions) {
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const initialFocusRefRef = useRef(initialFocusRef)
+  initialFocusRefRef.current = initialFocusRef
   useEffect(() => {
     if (!isOpen) return
+    const token = Symbol('dialog')
+    openDialogs.push(token)
+    if (openDialogCount === 0) originalBodyOverflow = document.body.style.overflow
     openDialogCount += 1
     emitOpenDialogChange()
 
-    const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (openDialogs.at(-1) !== token || e.defaultPrevented) return
       if (e.key === 'Escape') {
-        onClose()
+        e.preventDefault()
+        e.stopPropagation()
+        onCloseRef.current()
         return
       }
       // Focus trap: keep Tab/Shift+Tab cycling inside the dialog panel.
@@ -73,7 +84,10 @@ export function useDialogBehavior({
       if (focusable.length === 0) return
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
+      if (!dialogEl.contains(document.activeElement)) {
+        e.preventDefault()
+        ;(e.shiftKey ? last : first).focus()
+      } else if (e.shiftKey && document.activeElement === first) {
         e.preventDefault()
         last.focus()
       } else if (!e.shiftKey && document.activeElement === last) {
@@ -82,15 +96,26 @@ export function useDialogBehavior({
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown, true)
     // Move focus into the dialog (after layout settles).
-    requestAnimationFrame(() => initialFocusRef?.current?.focus())
+    const focusFrame = requestAnimationFrame(() => {
+      if (openDialogs.at(-1) !== token) return
+      const dialogEl = dialogRef.current
+      const target =
+        initialFocusRefRef.current?.current ??
+        dialogEl?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+      target?.focus()
+    })
     return () => {
+      cancelAnimationFrame(focusFrame)
+      const wasTopmost = openDialogs.at(-1) === token
+      const index = openDialogs.indexOf(token)
+      if (index !== -1) openDialogs.splice(index, 1)
       openDialogCount = Math.max(0, openDialogCount - 1)
       emitOpenDialogChange()
-      document.body.style.overflow = prevOverflow
-      window.removeEventListener('keydown', handleKeyDown)
-      previouslyFocused?.focus()
+      if (openDialogCount === 0) document.body.style.overflow = originalBodyOverflow
+      window.removeEventListener('keydown', handleKeyDown, true)
+      if (wasTopmost && previouslyFocused?.isConnected) previouslyFocused.focus()
     }
-  }, [isOpen, onClose, dialogRef, initialFocusRef])
+  }, [isOpen, dialogRef])
 }
