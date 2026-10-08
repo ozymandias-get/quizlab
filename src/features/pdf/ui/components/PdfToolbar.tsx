@@ -79,6 +79,14 @@ function PdfToolbar({
   useEffect(() => {
     if (pdfFile?.path !== filePathRef.current) {
       filePathRef.current = pdfFile?.path
+      // A pending debounce carries a keyword typed for the *previous* file, so it
+      // has to go with the rest of that file's query state. Clearing only the
+      // overlay would let it fire 300 ms later and highlight the old document's
+      // term on the new document's page.
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = null
+      }
       closeSearch()
       setSearchKeyword('')
       clearHighlights()
@@ -101,10 +109,17 @@ function PdfToolbar({
       searchDebounceRef.current = setTimeout(() => {
         if (keyword.trim()) {
           highlight(keyword)
+        } else {
+          // The search bar's inline clear button empties the input through the same
+          // callback as typing, so without this the previous query's rectangles stay
+          // painted under an empty box. `highlight('')` would not do it: the search
+          // hook drops the query on an emptied keyword, so `clearHighlights()` is the
+          // one call that reaches the overlay.
+          clearHighlights()
         }
       }, 300)
     },
-    [highlight]
+    [clearHighlights, highlight]
   )
 
   const handleSearch = useCallback(() => {

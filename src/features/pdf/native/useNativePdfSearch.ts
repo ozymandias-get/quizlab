@@ -99,11 +99,12 @@ function toSearchErrorMessage(error: unknown): string {
 }
 
 /**
- * Where the motion preference is read from.
+ * Everything the search reads off the page it is measuring.
  *
- * `prefersReducedMotion` is shared with the page transition — see
- * `nativePdfReducedMotion.ts`, which also explains why it is read fresh every time
- * instead of being cached at module scope.
+ * `prefersReducedMotion` is deliberately not one of them: it is read inside the
+ * effect, per search run, and it is shared with the page transition through
+ * `nativePdfReducedMotion.ts`, which explains why it is read fresh every time
+ * instead of being cached at module scope. See the module note.
  */
 interface UseNativePdfSearchOptions {
   /** The feature flag. `false` keeps the overlay empty and the keyword unmeasured. */

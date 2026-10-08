@@ -42,7 +42,10 @@
  * their own attributes, so "the page element" is never ambiguous.
  *
  * It is also what makes a capture safe: `findNativePageCanvas` reads it to confirm
- * the single mounted canvas really holds the page being asked for.
+ * the single mounted canvas really holds the page being asked for. On its own it is
+ * only half the answer, though — it is React *state*, the page the viewer wants to
+ * show — so `data-native-pdf-canvas-page` carries the other half and a capture needs
+ * both to agree (see the attribute's own note below).
  *
  * `data-native-pdf-text-page` on the text layer carries the same identity, which is what
  * makes "the text of page N" a single attribute selector instead of a structural walk.
@@ -94,6 +97,25 @@ export const NATIVE_SCROLL_SELECTOR = '[data-native-pdf-scroll]'
 /** The single page canvas. */
 const NATIVE_CANVAS_SELECTOR = '[data-native-pdf-canvas]'
 
+/**
+ * The page the canvas is actually *holding*, as opposed to the page the viewer wants
+ * to show.
+ *
+ * `pageRenderer` never clears the canvas — deliberately, see `AGENT_HANDOFF.md`
+ * Known Issue 22 — so a same-size page turn keeps the outgoing page's pixels on
+ * screen until the incoming render commits, and a zoom keeps the outgoing page's
+ * pixels while the backing store has already been resized. Meanwhile
+ * `data-native-pdf-page` has already flipped to the new page: it is React state, so
+ * it changes on commit while the pixels do not.
+ *
+ * That interval is the whole reason this attribute exists. `useNativePdfRender`
+ * removes it when a render starts and writes it back only once the render commits,
+ * so `findNativePageCanvas` can tell "the page box says N" from "the canvas holds N"
+ * and refuse the answer in between. Without it, a capture taken during a page turn
+ * sends the previous page's image labelled with the new page's number.
+ */
+export const NATIVE_CANVAS_PAGE_ATTRIBUTE = 'data-native-pdf-canvas-page'
+
 /** The PDF.js text layer mounted over the canvas. */
 const NATIVE_TEXT_LAYER_SELECTOR = '[data-native-pdf-text-layer]'
 
@@ -138,8 +160,18 @@ export function findNativePageElement(root: ParentNode, pageNumber: number): HTM
  * wrong-page match. Asking for a page that is not on screen answers `null` rather
  * than handing back the current page's pixels under the wrong label.
  *
- * The zero-size check exists because `useCanvasGpuCleanup` releases a canvas by
- * zeroing it, and a released canvas is not capturable.
+ * Two content-independent checks, and both of them have to hold:
+ *
+ *  - **size** — `useCanvasGpuCleanup` releases a canvas by zeroing it, and a
+ *    released canvas is not capturable.
+ *  - **committed page** — the page box names the page the viewer is asking for,
+ *    while the canvas has to confirm it is *holding* it. A canvas whose render has
+ *    not committed yet still shows the previous page, so handing it back would
+ *    label the previous page's image with the new page's number. See
+ *    `NATIVE_CANVAS_PAGE_ATTRIBUTE`.
+ *
+ * `null` is a legitimate answer on both counts: the caller falls back to rendering
+ * the page from the document itself.
  */
 export function findNativePageCanvas(
   root: ParentNode,
@@ -149,6 +181,7 @@ export function findNativePageCanvas(
   if (!page) return null
   const canvas = page.querySelector<HTMLCanvasElement>(NATIVE_CANVAS_SELECTOR)
   if (!canvas || canvas.width <= 0 || canvas.height <= 0) return null
+  if (canvas.getAttribute(NATIVE_CANVAS_PAGE_ATTRIBUTE) !== String(pageNumber)) return null
   return canvas
 }
 

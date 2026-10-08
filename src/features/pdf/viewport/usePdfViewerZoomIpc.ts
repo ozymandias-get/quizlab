@@ -25,7 +25,11 @@
  */
 import type { PdfViewerZoomAction } from '@shared-core/types'
 
-import { PDF_ZOOM_MIN_SCALE, PDF_ZOOM_STEP } from '@features/pdf/constants/pdfZoom'
+import {
+  PDF_ZOOM_MAX_SCALE,
+  PDF_ZOOM_MIN_SCALE,
+  PDF_ZOOM_STEP
+} from '@features/pdf/constants/pdfZoom'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
@@ -69,8 +73,12 @@ export function usePdfViewerZoomIpc(
         zoomToRef.current(fit)
         return
       }
+      // Both steps are clamped here as well as on the channel: this hook is
+      // renderer-agnostic and hands the caller an arbitrary `zoomTo`, so an
+      // out-of-range scale must not be something a future channel has to remember to
+      // absorb. One direction clamping and the other not was an asymmetry, not a policy.
       if (action === 'in') {
-        zoomToRef.current(scaleRef.current + PDF_ZOOM_STEP)
+        zoomToRef.current(Math.min(PDF_ZOOM_MAX_SCALE, scaleRef.current + PDF_ZOOM_STEP))
         return
       }
       if (action === 'out') {

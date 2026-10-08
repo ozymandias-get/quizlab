@@ -1,5 +1,13 @@
 # Moving off pdfjs-dist 3.x
 
+> **Status: this is the Phase-1 planning record, and the migration it plans is complete.**
+> Everything below describes what a move _would_ require from `master`'s
+> `pdfjs-dist@3.11.174` + `@react-pdf-viewer@3.12.0` tree. Those versions, the
+> `isEvalSupported: false` mitigation, the `CVE-2024-4367` exception entry and the
+> "open blockers" framing are the **Phase-1 baseline, not the shipped tree**.
+> `AGENT_HANDOFF.md` holds the current state; this document is the reasoning behind it
+> and is kept for that reason. Sections that were superseded carry a banner saying so.
+
 Planning document. No upgrade has been performed; this records what a move would
 require and what currently blocks it, so the decision can be made deliberately
 instead of discovered during an install.
@@ -456,10 +464,17 @@ file change → useEffect → clearHighlights() + closeSearch()   [PdfToolbar.ts
 
 **Single zoom channel.** Every programmatic zoom source
 (`usePdfResizeRefit`, `usePdfViewerZoomIpc`, `usePdfCtrlWheelZoom`, the fit-scale
-effect, the resume flow) funnels through `useCoalescedZoom(zoomTo)` → one
+effect, the resume flow) funnels through `useCoalescedZoom(zoomTo)` — now
+`useNativeCoalescedScale(zoomTo)` after Phase 8B deleted the RPV-era name — → one
 `zoomTo` per animation frame. This is a load-bearing invariant.
 
 ## 13. Security baseline (current — do not change in this phase)
+
+> **Superseded.** Every row below describes `master`'s 3.x + RPV tree, not the shipped
+> one. The current state is `AGENT_HANDOFF.md` § Security State: `enableScripting: false`
+> on every `getDocument` path _and_ on the annotation layer, `hasJSActions: false`,
+> `renderForms: false`, no `isEvalSupported` at all, and **zero** audit exceptions. The
+> rows are left as written because they are the Phase-1 baseline this plan reasons from.
 
 | Knob                                                                        | Current state                                                                                                                                                                                                                                                                                                   |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2393,6 +2408,13 @@ With nothing to borrow, `renderPageToImage` loads one isolated document through
 - **one teardown** — `release()` is `manager.destroy()`, i.e.
   `PDFDocumentLoadingTask#destroy()`. No page `cleanup()`, no document `destroy()`.
 
+A load that **rejects** never reaches the caller, so `release()` is unreachable for it and
+the adapter has to destroy the manager itself; otherwise the loading task's dedicated
+worker thread outlives the capture. This matters more than it looks: the temporary path
+exists precisely for the moments there is nothing to borrow, and those are exactly the
+moments a load tends to fail. Added after the post-Phase-10 audit — see
+`AGENT_HANDOFF.md` _Post-Phase-10 Stabilization_ #3.
+
 This is why `renderPageToImage.ts` no longer imports `pdfjs-dist`: it imports **no**
 PDF.js runtime at all. The legacy viewer is now the only 3.x `getDocument` call site,
 which is why `isEvalSupported: false` survives there and nowhere else — and why the
@@ -2406,6 +2428,11 @@ its prose, is unchanged and still justified.
 > legacy adapter, then make `setActivePdfDocument` take handles only.
 
 ### `findPageCanvas`
+
+> **Superseded in part — see the closing paragraph of this subsection.** The "native first
+> then legacy" framing is obsolete (Phase 8B deleted the legacy branch, so `findPageCanvas`
+> is native-only), and the single-marker validation described below was correct when
+> written but is no longer sufficient on its own.
 
 Renderer-agnostic, native first then legacy, with the cache unchanged (keyed on the page
 and dropped as soon as the canvas leaves the DOM, which also distinguishes the two
@@ -2421,6 +2448,28 @@ only thing that can tell a valid lookup from a wrong-page match. Asking for a pa
 is not on screen answers `null` rather than returning the current page's pixels under the
 wrong label. The zero-size check is shared with the legacy branch, because
 `useCanvasGpuCleanup` releases canvases by zeroing them.
+
+**Closing note (post-Phase-10 stabilization).** This check was the strongest one available
+when it was written, and it was correct — but it turned out to be necessary rather than
+sufficient. `data-native-pdf-page` is React _state_: it names the page the viewer is
+**asking for**, and it flips on commit. `pageRenderer` deliberately never clears the canvas
+(so a page turn does not flash white), which means that between a same-size page turn and
+its render commit — and for the whole of a zoom re-render — the page box already says N
+while the canvas still holds N−1's pixels. A capture in that window passed this check and
+sent the previous page's image labelled N.
+
+So the lookup now requires **two** markers to agree:
+
+```
+[data-native-pdf-page="N"] canvas[data-native-pdf-canvas][data-native-pdf-canvas-page="N"]
+```
+
+The second is written only by `useNativePdfRender`, removed before its first `await` and
+set back after `renderPage()` resolves past the `cancelled` guard, so it answers "which
+page is the canvas _holding_". `findPageCanvas`'s cache re-validates against exactly the
+conditions the lookup enforces, so it cannot serve a canvas the lookup would refuse. See
+`AGENT_HANDOFF.md` _Post-Phase-10 Stabilization_ #1, Critical Invariant 19 and Known
+Issue 25.
 
 ### The page number, and why capture needed a ref
 
@@ -2598,9 +2647,21 @@ comparison ("both PDF paths side by side") and with it the flag-off path**, so t
 6, 7 and 8A lists are now the only interactive verification this viewer has. They remain
 user-owned and outstanding.
 
+**Since then:** the user has exercised the viewer in the development environment more than
+once and reported no issue, most recently on the post-Phase-10 stabilization tree. Those
+were **manual sessions in a real window — not automated smoke or E2E runs, and not a
+per-item walk of any list**, so every line above stays open. The wording here matches
+`AGENT_HANDOFF.md` § Interactive Smoke State deliberately.
+
 ---
 
 # Part IV — Performance baseline (must survive)
+
+> **Written in Phase 1; the "Where" column is not current.** Several rows name components
+> Phase 8B deleted (`PdfWorkerHost`, `useCoalescedZoom`, the `rpv-*` rules in
+> `_pdf-viewer.css`). The _mechanisms_ all survived, under the names in
+> `AGENT_HANDOFF.md`. The row bodies are the baseline this plan measures against, so they
+> are left as written.
 
 | Mechanism                                       | Where                                                                                    | Notes                                                                                                                                              |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |

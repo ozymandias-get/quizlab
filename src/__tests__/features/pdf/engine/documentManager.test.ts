@@ -125,6 +125,61 @@ describe('createPdfDocumentManager', () => {
     expect(manager.getDocument()).toBeNull()
   })
 
+  it('destroys the loading task a failed load leaves behind', async () => {
+    // A rejected `task.promise` releases nothing: PDF.js leaves the task holding its
+    // own worker thread and transport, and `PDFDocumentLoadingTask#destroy()` is the
+    // only thing that terminates them. Nothing else in the app holds a reference, so
+    // every failed load is one orphaned worker unless the manager tears it down.
+    const task = makeTask()
+    mocks.getDocument.mockReturnValue(task)
+    const manager = createPdfDocumentManager()
+
+    const pending = manager.load('local-pdf://broken')
+    task.reject(new Error('InvalidPDFException'))
+    await expect(pending).rejects.toThrow('InvalidPDFException')
+
+    expect(task.destroy).toHaveBeenCalledTimes(1)
+
+    // And a retry must not destroy it a second time: the failed task is gone from
+    // the slot, so the next load's teardown has nothing left to reach.
+    const retry = makeTask()
+    mocks.getDocument.mockReturnValue(retry)
+    const retried = manager.load('local-pdf://broken')
+    retry.reject(new Error('InvalidPDFException'))
+    await expect(retried).rejects.toThrow('InvalidPDFException')
+
+    expect(task.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not destroy a failed task twice when a newer load already superseded it', async () => {
+    // The superseding `load()` disposes the in-flight task through
+    // `disposeActiveDocument()`, which nulls the slot first. The older load's
+    // rejection therefore finds no slot to claim and must not tear down again.
+    const failing = makeTask(undefined, { abortOnDestroy: false })
+    mocks.getDocument.mockReturnValueOnce(failing)
+    const manager = createPdfDocumentManager()
+
+    const first = manager.load('local-pdf://broken')
+    failing.reject(new Error('boom'))
+    await expect(first).rejects.toThrow('boom')
+    expect(failing.destroy).toHaveBeenCalledTimes(1)
+
+    // A load whose promise settles *after* being superseded resolves to `null`
+    // rather than publishing, and the teardown it already had stays at one call.
+    const late = makeTask(undefined, { abortOnDestroy: false })
+    mocks.getDocument.mockReturnValueOnce(late)
+    const second = manager.load('local-pdf://late')
+    const third = makeTask()
+    mocks.getDocument.mockReturnValueOnce(third)
+    const current = manager.load('local-pdf://current')
+    late.resolve(makeDocument())
+    third.resolve(makeDocument())
+    await expect(second).resolves.toBeNull()
+    await expect(current).resolves.not.toBeNull()
+
+    expect(late.destroy).toHaveBeenCalledTimes(1)
+  })
+
   it('clears the slot on failure so a later load can retry', async () => {
     const failing = makeTask()
     mocks.getDocument.mockReturnValueOnce(failing)

@@ -125,6 +125,20 @@ describe('usePdfCaptureActions fallback ladder', () => {
   let dataUrlCalls: { mime: string | undefined; quality: unknown }[]
   let createObjectURL: ReturnType<typeof vi.fn>
 
+  /**
+   * Drain enough of the queue for a capture to reach its next await.
+   *
+   * `renderPageToImageFallback` is behind a dynamic `import()`, so this needs more
+   * than a microtask tick or two.
+   */
+  async function settle(): Promise<void> {
+    await act(async () => {
+      for (let i = 0; i < 5; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+    })
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     dataUrlCalls = []
@@ -486,6 +500,51 @@ describe('usePdfCaptureActions fallback ladder', () => {
       expect(queueImageForAi).not.toHaveBeenCalled()
       expect(createObjectURL).not.toHaveBeenCalled()
       expect(mocks.showError).toHaveBeenCalledWith('toast_capture_failed')
+    })
+
+    it('stays silent when a superseded request fails after a newer one took over', async () => {
+      // Supersession has to cover the failure toast, not just the queue: a
+      // double-clicked capture whose blob serializer reports failure on the way out
+      // would otherwise raise "capture failed" next to the image its successor just
+      // queued. Only the current request may complain.
+      mocks.renderPageToImageFallback.mockResolvedValue(null)
+      mocks.findPageCanvas.mockImplementation(() => makeCanvas())
+      Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
+        configurable: true,
+        writable: true,
+        value: () => 'data:,'
+      })
+      // Held, not answered, so the first request is still in flight when the second
+      // one starts and supersedes it.
+      const blobCallbacks: BlobCallback[] = []
+      Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+        configurable: true,
+        writable: true,
+        value: (callback: BlobCallback) => {
+          blobCallbacks.push(callback)
+        }
+      })
+      const { result } = mountHook()
+
+      let first!: Promise<unknown>
+      await act(async () => {
+        first = result.current.handleFullPageScreenshot()
+        await settle()
+      })
+      expect(blobCallbacks).toHaveLength(1)
+
+      await act(async () => {
+        const second = result.current.handleFullPageScreenshot()
+        await settle()
+        // The successor succeeds; the superseded one then fails.
+        blobCallbacks[1](new Blob(['ok'], { type: 'image/png' }))
+        await second
+        blobCallbacks[0](null)
+        await first
+      })
+
+      expect(queueImageForAi).toHaveBeenCalledTimes(1)
+      expect(mocks.showError).not.toHaveBeenCalled()
     })
   })
 

@@ -26,6 +26,7 @@ import { FakeAnnotationLayer } from './nativeAnnotationLayerDouble'
 import { FakeTextLayer } from './nativeTextLayerDouble'
 
 import { act, render, screen } from '@testing-library/react'
+import type { NativePdfController } from '@features/pdf/native/useNativePdfController'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -254,6 +255,39 @@ describe('NativePdfViewer — document lifecycle', () => {
     expect(page?.querySelector('[data-native-pdf-text-layer]')).not.toBe(null)
     expect(page?.querySelector('[data-native-pdf-annotation-layer]')).not.toBe(null)
     expect(page?.querySelector('[data-native-pdf-search-layer]')).not.toBe(null)
+  })
+
+  it('folds the page /UserUnit into the scale factor the layers share', async () => {
+    // `PageViewport` does `scale *= userUnit` before it sizes the page, so a document
+    // declaring `/UserUnit 2` is painted at `2 × scale`. Publishing the bare scale
+    // would lay every text run and every annotation hitbox out at half the canvas's
+    // size in its top-left quadrant — which is exactly what PDF.js's own viewer avoids
+    // with `--total-scale-factor: calc(var(--scale-factor) * var(--user-unit))`.
+    const document = createFakeDocument({ numPages: 4, userUnit: 2 })
+    serveDocument(document)
+    let controller: NativePdfController | null = null
+
+    const { container } = render(
+      <NativeViewerHarness
+        onController={(c) => {
+          controller = c
+        }}
+      />
+    )
+
+    await waitForFrames(() =>
+      expect(container.querySelector('[data-native-pdf-annotation-layer]')).not.toBe(null)
+    )
+
+    const page = container.querySelector<HTMLElement>('[data-native-pdf-page]')
+    const scaleFactor = Number(page?.style.getPropertyValue('--total-scale-factor'))
+    expect(controller!.pageUserUnit).toBe(2)
+    expect(scaleFactor).toBeCloseTo(controller!.scale * 2, 5)
+
+    // And the canvas really is that many times larger, so the two agree.
+    const canvas = canvasOf(container)!
+    expect(canvas.width).toBe(Math.floor(400 * scaleFactor))
+    expect(canvas.height).toBe(Math.floor(600 * scaleFactor))
   })
 
   it('does not treat a degraded annotation layer as a failed page', async () => {
@@ -797,6 +831,120 @@ describe('NativePdfViewer — render lifecycle', () => {
     const error = container.querySelector('[data-native-pdf-error]')
     expect(error).toBeInTheDocument()
     expect(error).toHaveTextContent('cannot parse content stream')
+  })
+
+  it.each(['reload', 'switch', 'page', 'zoom'] as const)(
+    'recovers from a render failure after %s',
+    async (action) => {
+      const failed = createFakeDocument({ numPages: 12, settleRenders: false })
+      serveDocument(failed)
+      const control: { current: NativePdfController | null } = { current: null }
+      const { container, rerender } = render(
+        <NativeViewerHarness
+          pdfUrl="local-pdf://failed"
+          onController={(next) => (control.current = next)}
+        />
+      )
+      await waitForFrames(() => expect(liveRender(failed.page(1))).toBeDefined())
+      await act(async () => {
+        failed.page(1).failLastRender('transient render failure')
+        await settle()
+      })
+      expect(container.querySelector('[data-native-pdf-error]')).toBeInTheDocument()
+      if (action === 'page' || action === 'zoom') {
+        const page = action === 'page' ? 2 : 1
+        const previousRenderCount = failed.page(page).renderCalls.length
+        act(() => {
+          if (action === 'page') control.current?.goToNextPage()
+          else control.current?.zoomTo(2)
+        })
+        await waitForFrames(() =>
+          expect(failed.page(page).renderCalls.length).toBeGreaterThan(previousRenderCount)
+        )
+        await act(async () => {
+          failed.page(page).settleLastRender()
+          await settle()
+        })
+        expect(canvasOf(container)).toBeInTheDocument()
+        expect(container.querySelector('[data-native-pdf-error]')).toBeNull()
+        return
+      }
+      const replacement = createFakeDocument({ numPages: 12 })
+      serveDocument(replacement)
+      rerender(
+        <NativeViewerHarness
+          pdfUrl={action === 'switch' ? 'local-pdf://replacement' : 'local-pdf://failed'}
+          reloadKey={action === 'reload' ? 1 : 0}
+        />
+      )
+      await waitForFrames(() =>
+        expect(replacement.renderCallsForAllPages.length).toBeGreaterThan(0)
+      )
+      expect(canvasOf(container)).toBeInTheDocument()
+      expect(container.querySelector('[data-native-pdf-error]')).toBeNull()
+    }
+  )
+
+  it('clears the previous document count when a replacement fails to load', async () => {
+    serveDocument(createFakeDocument({ numPages: 2 }))
+    const control: { current: NativePdfController | null } = { current: null }
+    const { container, rerender } = render(
+      <NativeViewerHarness
+        pdfUrl="local-pdf://short"
+        onController={(next) => (control.current = next)}
+      />
+    )
+    await waitForFrames(() => expect(control.current?.totalPages).toBe(2))
+    const staged = stageDocument()
+    rerender(
+      <NativeViewerHarness
+        pdfUrl="local-pdf://invalid"
+        initialPage={12}
+        onController={(next) => (control.current = next)}
+      />
+    )
+    await act(async () => staged.task.reject(new Error('invalid document')))
+    expect(container.querySelector('[data-native-pdf-error]')).toBeInTheDocument()
+    expect(control.current?.totalPages).toBe(0)
+    serveDocument(createFakeDocument({ numPages: 20 }))
+    rerender(
+      <NativeViewerHarness
+        pdfUrl="local-pdf://invalid"
+        initialPage={12}
+        reloadKey={1}
+        onController={(next) => (control.current = next)}
+      />
+    )
+    await waitForFrames(() =>
+      expect(pageOf(container)).toHaveAttribute('data-native-pdf-page', '12')
+    )
+    expect(container.querySelector('[data-native-pdf-error]')).toBeNull()
+  })
+
+  it('resumes and fits a larger document using its own metadata after a switch', async () => {
+    serveDocument(createFakeDocument({ numPages: 2, width: 400, height: 600 }))
+    let controller: NativePdfController | null = null
+    const { container, rerender } = render(
+      <NativeViewerHarness
+        pdfUrl="local-pdf://short"
+        onController={(next) => (controller = next)}
+      />
+    )
+    await waitForFrames(() => expect(controller?.scale).toBe(1.67))
+    const replacement = createFakeDocument({ numPages: 20, width: 800, height: 1200 })
+    serveDocument(replacement)
+    rerender(
+      <NativeViewerHarness
+        pdfUrl="local-pdf://long"
+        initialPage={12}
+        onController={(next) => (controller = next)}
+      />
+    )
+    await waitForFrames(() => {
+      expect(pageOf(container)).toHaveAttribute('data-native-pdf-page', '12')
+      expect(controller?.scale).toBe(0.83)
+      expect(replacement.page(12).renderCalls.length).toBeGreaterThan(0)
+    })
   })
 
   it('falls back to the unknown-error copy when a failure carries no message', async () => {

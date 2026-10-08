@@ -42,7 +42,7 @@ const engineDir = join(pdfFeatureDir, 'engine')
 /** The one runtime the whole app is allowed to have. */
 const PDFJS_VERSION = '6.4.299'
 
-/** Everything under `src/`, for the "no production import" sweeps. */
+/** Source and styles under `src/`, for the production sweeps. */
 function productionFiles(dir: string): string[] {
   const out: string[] = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -52,7 +52,7 @@ function productionFiles(dir: string): string[] {
       out.push(...productionFiles(full))
       continue
     }
-    if (/\.(ts|tsx)$/.test(entry.name)) out.push(full)
+    if (/\.(ts|tsx|css)$/.test(entry.name)) out.push(full)
   }
   return out
 }
@@ -74,7 +74,7 @@ const codeOf = (absolutePath: string): string =>
     .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('//'))
     .join('\n')
 
-/** All production `.ts`/`.tsx` under `src/features/pdf`. */
+/** All production source and styles under `src/features/pdf`. */
 const pdfProductionFiles = productionFiles(pdfFeatureDir)
 
 /** The only files permitted to import the engine. */
@@ -181,9 +181,12 @@ describe('single runtime: no legacy import survives in production code', () => {
     const stylesheets = [
       ...productionFiles(join(repoRoot, 'src/shared/styles')),
       ...pdfProductionFiles
-    ]
+    ].filter((file) => /\.css$/.test(file))
+    // Assert the walk reaches real CSS before trusting a negative sweep.
+    expect(stylesheets).toContain(repoPath('src/shared/styles/modules/_pdf-viewer.css'))
+    expect(stylesheets).toContain(repoPath('src/features/pdf/native/nativePdfTextLayer.css'))
     const offenders = stylesheets
-      .filter((file) => /\.css$/.test(file) && /\.rpv-/.test(readFileSync(file, 'utf-8')))
+      .filter((file) => /\.rpv-/.test(readFileSync(file, 'utf-8')))
       .map((file) => relative(repoRoot, file))
     expect(offenders).toEqual([])
   })

@@ -38,7 +38,9 @@
  * `release()` calls `manager.destroy()` — the same single teardown call the viewer
  * uses, which reaches `PDFDocumentLoadingTask#destroy()` and aborts the worker-side
  * work with it. Nothing else is needed: no page `cleanup()`, no document
- * `destroy()`, because the loading task owns all of it.
+ * `destroy()`, because the loading task owns all of it. A load that *rejects* never
+ * reaches the caller, so nothing can call `release()` for it: the adapter destroys
+ * the manager itself, which disposes whatever task `load()` left behind.
  *
  * A borrowed handle from a mounted viewer has no `release()` at all. Capture
  * cannot end that document's life even by accident, which is the invariant the
@@ -126,17 +128,28 @@ export interface TemporaryCaptureDocument {
  */
 export async function loadTemporaryCaptureDocument(url: string): Promise<TemporaryCaptureDocument> {
   const manager = createPdfDocumentManager()
-  const document = await manager.load(url)
-  if (!document) {
-    // Only reachable if something destroyed the manager between the two calls,
-    // which cannot happen for a local instance — but leaving a loading task
-    // behind would be a leak, so the failure path still tears it down.
-    manager.destroy()
-    throw new Error('Capture document load was superseded before it resolved')
-  }
+  try {
+    const document = await manager.load(url)
+    if (!document) {
+      // Only reachable if something destroyed the manager between the two calls,
+      // which cannot happen for a local instance — but leaving a loading task
+      // behind would be a leak, so the failure path still tears it down.
+      throw new Error('Capture document load was superseded before it resolved')
+    }
 
-  return {
-    handle: createHandle(manager, () => true),
-    release: () => manager.destroy()
+    return {
+      handle: createHandle(manager, () => true),
+      release: () => manager.destroy()
+    }
+  } catch (error) {
+    // The caller can only reach `release()` once this resolves, so a load that
+    // rejects has nobody left to tear the task down — and a rejected load is the
+    // common case here, since the temporary path exists precisely for the moments
+    // there is nothing to borrow. `load()` has already disposed its own task and
+    // emptied the slot, so this reaches nothing twice; `destroy()` is idempotent
+    // in any case, and it also marks the manager dead so a late resolution could
+    // not publish.
+    manager.destroy()
+    throw error
   }
 }

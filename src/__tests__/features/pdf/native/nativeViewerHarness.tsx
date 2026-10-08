@@ -116,6 +116,13 @@ export interface FakePage {
     height: number
     rotation: number
     scale: number
+    /**
+     * PDF.js's `PageViewport#userUnit`. `1` unless the document declares
+     * `/UserUnit`, and `PageViewport` multiplies the requested scale by it before
+     * sizing — so the fake has to report it for the canvas-vs-layer alignment to
+     * mean anything.
+     */
+    userUnit: number
   }
   render: (params: {
     canvas: HTMLCanvasElement
@@ -180,6 +187,11 @@ export interface CreateDocumentOptions {
   height?: number
   /** Page rotation in degrees, so the viewport's rotation can be asserted. */
   rotation?: number
+  /**
+   * The page's `/UserUnit`. `PageViewport` scales the viewport by it, so a document
+   * declaring `2` is painted — and has to have its layers laid out — twice as large.
+   */
+  userUnit?: number
   /** Settle renders on a microtask (default) or leave them to the test. */
   settleRenders?: boolean
   /** Settle `getTextContent()` on a microtask (default) or leave it to the test. */
@@ -209,6 +221,7 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
   const width = options.width ?? 400
   const height = options.height ?? 600
   const rotation = options.rotation ?? 0
+  const userUnit = options.userUnit ?? 1
   const settleRenders = options.settleRenders ?? true
   const settleTextContent = options.settleTextContent ?? true
   const settleAnnotations = options.settleAnnotations ?? true
@@ -240,11 +253,15 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
       pageNumber,
       getViewport: ({ scale }) => {
         const swap = Math.abs(rotation % 180) === 90
+        // `PageViewport` does `scale *= userUnit` before it computes the size, so a
+        // `/UserUnit 2` page really is twice as large as the raw points suggest.
+        const effectiveScale = scale * userUnit
         return {
-          width: (swap ? height : width) * scale,
-          height: (swap ? width : height) * scale,
+          width: (swap ? height : width) * effectiveScale,
+          height: (swap ? width : height) * effectiveScale,
           rotation,
-          scale
+          scale,
+          userUnit
         }
       },
       render: (params) => {

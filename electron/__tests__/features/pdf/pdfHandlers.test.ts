@@ -206,4 +206,46 @@ describe('pdfHandlers', () => {
     eventHandler?.({ sender: webContents }, {})
     expect(append).not.toHaveBeenCalled()
   })
+
+  it('drops menu clicks once the sender frame is gone', async () => {
+    // The menu outlives the frame that asked for it: a user can open it and then
+    // close the panel before clicking an item. `webContents.send()` on a destroyed
+    // WebContents throws inside a native menu callback, so the captured sender is
+    // re-checked at click time rather than only when the menu was built. Every other
+    // case here mocks a sender without `isDestroyed`, so this is the one that
+    // exercises the guard itself.
+    let destroyed = false
+    const webContents = {
+      getURL: vi.fn(() => 'http://localhost:5173'),
+      isDestroyed: () => destroyed,
+      send: (channel: string, payload: unknown) => {
+        if (destroyed) throw new Error('Object has been destroyed')
+        sentMessages.push([channel, payload])
+      }
+    }
+    const win = { isDestroyed: () => false, webContents }
+    fromWebContents.mockReturnValue(win)
+    getMainWindow.mockReturnValue({ webContents })
+
+    const { registerPdfHandlers } = await import('../../../features/pdf/pdfHandlers.js')
+    registerPdfHandlers()
+
+    const eventHandler = ipcOn.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU
+    )?.[1]
+    eventHandler?.({ sender: webContents }, {})
+
+    const items = append.mock.calls.map(([item]) => item) as Array<{
+      click?: () => void
+      label?: string
+    }>
+    const fullPageItem = items.find((item) => item.label === 'Full Page Screenshot')
+    const zoomInItem = items.find((item) => item.label === 'Zoom In')
+
+    destroyed = true
+
+    expect(() => fullPageItem?.click?.()).not.toThrow()
+    expect(() => zoomInItem?.click?.()).not.toThrow()
+    expect(sentMessages).toHaveLength(0)
+  })
 })

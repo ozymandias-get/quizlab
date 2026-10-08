@@ -211,10 +211,22 @@ export function createNativePdfLinkService({
     pdfDocument: PDFDocumentProxy,
     destination: NativePdfDestination
   ): Promise<number | null> {
-    const explicitDestination =
-      typeof destination === 'string'
-        ? await pdfDocument.getDestination(destination)
-        : await destination
+    let explicitDestination: unknown
+    try {
+      explicitDestination =
+        typeof destination === 'string'
+          ? await pdfDocument.getDestination(destination)
+          : await destination
+    } catch {
+      // Both awaits can reject: a corrupt `/Dests` name tree makes the worker throw
+      // out of `Catalog#getDestination`, and tearing the loading task down rejects
+      // everything the worker still owes us. PDF.js calls `goToDestination` from a
+      // link's `onclick` without awaiting it, so a rejection here does not stay
+      // local — it surfaces as an unhandled rejection and an error toast over a link
+      // the reader simply clicked. A destination that cannot be read is a destination
+      // that does not exist, which is the `null` below.
+      return null
+    }
 
     if (!Array.isArray(explicitDestination)) return null
 

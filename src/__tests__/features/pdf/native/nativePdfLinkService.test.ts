@@ -36,18 +36,26 @@ interface FakeDocumentOptions {
   pageRefs?: Map<unknown, number | null>
   /** Page numbers the page cache already holds, so `cachedPageNumber` can answer. */
   cachedPages?: number[]
+  /**
+   * A rejection from the named-destination lookup, modelling a corrupt `/Dests`
+   * tree or a loading task torn down while the worker still owes an answer.
+   */
+  destinationError?: Error
 }
 
 function createFakePdfDocument({
   numPages,
   destinations = {},
   pageRefs = new Map(),
-  cachedPages = []
+  cachedPages = [],
+  destinationError
 }: FakeDocumentOptions): PDFDocumentProxy {
   return {
     numPages,
-    getDestination: async (id: string) =>
-      Object.hasOwn(destinations, id) ? destinations[id] : null,
+    getDestination: async (id: string) => {
+      if (destinationError) throw destinationError
+      return Object.hasOwn(destinations, id) ? destinations[id] : null
+    },
     getPageIndex: async (ref: unknown) => {
       const index = pageRefs.get(ref)
       if (index === undefined || index === null) {
@@ -262,6 +270,23 @@ describe('native link service — destinations that do not resolve', () => {
     })
 
     await expect(service.goToDestination([0, { name: 'XYZ' }])).resolves.toBeUndefined()
+    expect(jumpToPage).not.toHaveBeenCalled()
+  })
+
+  it('survives a named-destination lookup that rejects', async () => {
+    // `getDestination` reaches the worker, which throws out of
+    // `Catalog#getDestination` for a corrupt `/Dests` or `/Names` tree — and rejects
+    // outright when the loading task is destroyed while it still owes an answer.
+    // PDF.js wires `goToDestination` into a link's `onclick` without awaiting it, so
+    // a rejection here would leave the promise unhandled and surface as an error
+    // toast over a link the reader merely clicked. A destination that cannot be read
+    // is a destination that does not exist.
+    const { service, jumpToPage } = createHarness({
+      numPages: 12,
+      destinationError: new Error('InvalidPDFException: broken name tree')
+    })
+
+    await expect(service.goToDestination('chapterTwo')).resolves.toBeUndefined()
     expect(jumpToPage).not.toHaveBeenCalled()
   })
 })
