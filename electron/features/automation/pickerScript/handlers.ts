@@ -20,6 +20,45 @@ export function buildPickerHandlersBlock(): string {
             pendingTimers.clear();
         };
 
+        // Inline feedback belongs to the picker: restore the site's values
+        // both when a flash expires and when teardown cancels its timer.
+        const activeFlashes = new Map();
+        const restoreFlash = (target) => {
+            const flash = activeFlashes.get(target);
+            if (!flash) return;
+            clearTimeout(flash.timer);
+            pendingTimers.delete(flash.timer);
+            for (const property of ['transition', 'box-shadow']) {
+                const original = flash.properties[property];
+                if (original.value) target.style.setProperty(property, original.value, original.priority);
+                else target.style.removeProperty(property);
+            }
+            activeFlashes.delete(target);
+        };
+        const flashTarget = (target, transition, shadow, duration) => {
+            let flash = activeFlashes.get(target);
+            if (flash) {
+                clearTimeout(flash.timer);
+                pendingTimers.delete(flash.timer);
+            } else {
+                const properties = {};
+                for (const property of ['transition', 'box-shadow']) {
+                    properties[property] = {
+                        value: target.style.getPropertyValue(property),
+                        priority: target.style.getPropertyPriority(property)
+                    };
+                }
+                flash = { properties, timer: null };
+                activeFlashes.set(target, flash);
+            }
+            target.style.setProperty('transition', transition);
+            target.style.setProperty('box-shadow', shadow);
+            flash.timer = scheduleTimer(() => restoreFlash(target), duration);
+        };
+        const restoreAllFlashes = () => {
+            for (const target of activeFlashes.keys()) restoreFlash(target);
+        };
+
         // S10: per-element info memoization. \`getElementInfo\` is called
         // twice per hover (once for category, once for label) and again
         // on click — cache by element identity so a stationary hover
@@ -149,11 +188,7 @@ export function buildPickerHandlersBlock(): string {
                     // S7: wrong target visual feedback — flash the rejected
                     // node red so the user understands why nothing happened.
                     try {
-                        target.style.transition = 'all 0.2s ease';
-                        target.style.boxShadow = '0 0 25px #ef4444';
-                        scheduleTimer(() => {
-                            if (target) target.style.boxShadow = '';
-                        }, 200);
+                        flashTarget(target, 'all 0.2s ease', '0 0 25px #ef4444', 200);
                     } catch (err) { safePickerLog('click.wrongFlash', err); }
                     return;
                 }
@@ -177,12 +212,7 @@ export function buildPickerHandlersBlock(): string {
             // the selected class, leaving a stale box-shadow on the host.
             try {
                 const flashColor = step === 'input' ? '#60a5fa' : '#4ade80';
-                target.style.transition = 'all 0.3s ease';
-                target.style.boxShadow = '0 0 30px ' + flashColor;
-
-                scheduleTimer(() => {
-                    if (target) target.style.boxShadow = '';
-                }, 300);
+                flashTarget(target, 'all 0.3s ease', '0 0 30px ' + flashColor, 300);
             } catch (err) {
                 safePickerLog('click.flash', err);
             }

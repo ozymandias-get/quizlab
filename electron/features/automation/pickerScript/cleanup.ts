@@ -42,6 +42,7 @@ export function buildPickerCleanupBlock(): string {
                 // post-save callback cannot mutate the DOM or the class
                 // list after teardown.
                 try { cancelPendingTimers(); } catch (e) { safePickerLog('cleanup.cancelTimers', e); }
+                try { restoreAllFlashes(); } catch (e) { safePickerLog('cleanup.restoreFlashes', e); }
                 if (lastHovered) {
                     try {
                         lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
