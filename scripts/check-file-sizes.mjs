@@ -1,8 +1,9 @@
 /**
  * File size limit checker.
- * Enforces:
- *   - 400 lines max for general files
- *   - 250 lines max for hooks (use*.ts) and components (*.tsx)
+ * Enforces (see GENERAL_LIMIT / COMPONENT_HOOK_LIMIT below, and the limits
+ * documented in docs/CODING_STANDARD.md):
+ *   - 700 lines max for general files
+ *   - 650 lines max for hooks (use*.ts) and components (*.tsx)
  *
  * Usage: node scripts/check-file-sizes.mjs
  */

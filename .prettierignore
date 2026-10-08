@@ -4,4 +4,9 @@ build
 coverage
 release
 .cache
+reports
+artifacts
+.playwright-mcp
+patches
+.husky/_
 *.log
