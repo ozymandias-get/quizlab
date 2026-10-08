@@ -1,12 +1,16 @@
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 import { Kbd } from '@app/components/ui/kbd'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import { SEARCH_INPUT_FOCUS_MS } from '@shared/constants/timingConstants'
 import { DURATION } from '@shared/lib/motion'
 import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
+import {
+  Button,
+  IconButton,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@shared/ui/components/primitives'
 
 import { FileText, Search, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'

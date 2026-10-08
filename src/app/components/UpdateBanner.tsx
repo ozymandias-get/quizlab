@@ -1,13 +1,11 @@
 import { useOpenExternal } from '@platform/electron/api/useSystemApi'
 
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
 import type { UpdateInfo } from '@app/providers'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
+import { Button, IconButton } from '@shared/ui/components/primitives'
+import { CloseIcon, DownloadIcon, UpdateIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
-
-import { CloseIcon, DownloadIcon, UpdateIcon } from './Icons'
 
 interface UpdateBannerProps {
   updateAvailable: boolean

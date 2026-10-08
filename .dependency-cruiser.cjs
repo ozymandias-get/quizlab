@@ -79,6 +79,18 @@ module.exports = {
       }
     },
     {
+      name: 'shared-no-app',
+      severity: 'error',
+      comment:
+        'src/shared app katmanına bağımlı olamaz (App → Features → Shared). Bağımlılığı option olarak al veya modülü aşağı taşı.',
+      from: {
+        path: '^src/shared/'
+      },
+      to: {
+        path: '^src/app/'
+      }
+    },
+    {
       name: 'shared-core-no-electron',
       severity: 'error',
       comment: 'shared-core Electron import etmemeli',
@@ -128,7 +140,13 @@ module.exports = {
   ],
   allowed: [],
   options: {
-    tsPreCompilationDeps: false,
+    // `false` would drop every pre-compilation-only edge, which is to say every
+    // `import type` — and a cycle made only of type imports is invisible without
+    // them. This graph held two: `shared/types/index.ts -> ipcContract.ts ->
+    // electronApi.ts` and `src/shared/hooks/index.ts -> useConfirmDialog.ts ->
+    // confirm-dialog.tsx -> dialog.tsx`. Turning it on grows the graph from 1131
+    // to 1138 modules / 3548 to 4200 edges and keeps it green.
+    tsPreCompilationDeps: true,
     tsConfig: {
       fileName: 'tsconfig.json'
     },

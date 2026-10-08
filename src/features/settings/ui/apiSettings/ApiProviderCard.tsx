@@ -1,12 +1,10 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
 import { Badge } from '@app/components/ui/badge'
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
 import { Label } from '@app/components/ui/label'
-import { WithTooltip } from '@app/components/ui/tooltip'
+import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Eye, EyeOff, KeyRound, Search, Sparkles, Trash2 } from 'lucide-react'
 import { memo, useId, useState } from 'react'

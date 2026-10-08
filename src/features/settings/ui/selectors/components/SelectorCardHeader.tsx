@@ -1,5 +1,4 @@
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
+import { Button, IconButton } from '@shared/ui/components/primitives'
 import { CheckIcon, ChevronRightIcon, ExternalLinkIcon, GlobeIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'

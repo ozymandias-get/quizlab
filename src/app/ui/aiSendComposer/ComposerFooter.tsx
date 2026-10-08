@@ -1,5 +1,5 @@
-import { Button } from '@app/components/ui/button'
 import { cn } from '@shared/lib/uiUtils'
+import { Button } from '@shared/ui/components/primitives'
 
 import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Send } from 'lucide-react'
 import { memo } from 'react'

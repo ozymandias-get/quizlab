@@ -1,10 +1,14 @@
 import type { PdfTab } from '@features/pdf/hooks/types'
 
-import { IconButton } from '@app/components/ui/icon-button'
 import { MenuSurface } from '@app/components/ui/menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import { DURATION } from '@shared/lib/motion'
-import { ToolbarButton } from '@shared/ui/components/primitives'
+import {
+  IconButton,
+  ToolbarButton,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@shared/ui/components/primitives'
 
 import { MoreHorizontal, X } from 'lucide-react'
 import { motion } from 'motion/react'

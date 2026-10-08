@@ -1,10 +1,9 @@
 import { usePrompts } from '@features/ai'
 
-import { Button } from '@app/components/ui/button'
 import { Label } from '@app/components/ui/label'
 import { Textarea } from '@app/components/ui/textarea'
 import { useToastActions } from '@app/providers'
-import { EmptyState } from '@shared/ui/components/primitives'
+import { Button, EmptyState } from '@shared/ui/components/primitives'
 
 import { ChevronDown, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'

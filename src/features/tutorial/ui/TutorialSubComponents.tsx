@@ -1,7 +1,5 @@
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { DURATION } from '@shared/lib/motion'
+import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 import { MagicWandIcon } from '@ui/components/Icons'
 
 import type { TFunction } from 'i18next'

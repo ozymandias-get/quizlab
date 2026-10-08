@@ -1,5 +1,4 @@
-import { IconButton } from '@app/components/ui/icon-button'
-import { WithTooltip } from '@app/components/ui/tooltip'
+import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Check, Trash2 } from 'lucide-react'
 import { memo, type MouseEvent } from 'react'

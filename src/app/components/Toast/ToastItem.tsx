@@ -1,8 +1,7 @@
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
 import type { Toast } from '@app/providers'
 import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
+import { Button, IconButton } from '@shared/ui/components/primitives'
 
 import { AlertTriangle, Check, Info, X, XCircle } from 'lucide-react'
 import { motion } from 'motion/react'

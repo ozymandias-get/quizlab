@@ -1,10 +1,8 @@
-import { Button } from '@app/components/ui/button'
 import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
-import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { FOCUS_DEFER_MS } from '@shared/constants/timingConstants'
 import { useConfirmDialog } from '@shared/hooks'
+import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { MessageSquare, Pencil, Trash2 } from 'lucide-react'
 import { memo, useEffect, useRef } from 'react'

@@ -10,15 +10,15 @@ import { createBrowserElectronApi } from '@platform/electron/createBrowserElectr
 import { installPdfRenderErrorGuard, resetReadingProgressStore } from '@features/pdf'
 
 import App from '@app/App'
+import BrowserFallback from '@app/components/BrowserFallback'
+import { hydrateSettingsFromMain, installSettingsSync } from '@app/lib/settingsSync'
 import { AppProviders } from '@app/providers'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { getStorageItem } from '@shared/hooks/localStorageUtils'
 import { hasElectronApi } from '@shared/lib/electronApi'
 import { installGlobalErrorHandlers } from '@shared/lib/globalErrorHandlers'
-import { hydrateSettingsFromMain, installSettingsSync } from '@shared/lib/settingsSync'
 import { hydratePreferenceStores } from '@shared/stores/hydratePreferenceStores'
 import { useLanguageInit } from '@shared/stores/languageStore'
-import BrowserFallback from '@ui/components/BrowserFallback'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 
 import i18next from 'i18next'

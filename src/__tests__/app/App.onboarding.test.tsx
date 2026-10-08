@@ -38,7 +38,7 @@ vi.mock('@features/tutorial', () => ({
     selector({ activeTutorialId: null, closeTutorial: vi.fn() }),
   getTutorialEntry: () => null
 }))
-vi.mock('@ui/components/UpdateBanner', () => ({ default: () => null }))
+vi.mock('@app/components/UpdateBanner', () => ({ default: () => null }))
 vi.mock('@app/ui/AiSendComposer', () => ({ default: () => null }))
 vi.mock('@app/hooks/useCacheThresholdWarning', () => ({
   useCacheThresholdWarning: () => {}
@@ -77,9 +77,9 @@ vi.mock('@app/providers', () => ({
 }))
 vi.mock('@features/tutorial/store/tutorialStore', () => ({ useTutorialStore: () => ({}) }))
 vi.mock('@features/tutorial/tutorialRegistry', () => ({ getTutorialEntry: () => null }))
-vi.mock('@ui/components/Toast/ToastContainer', () => ({ default: () => null }))
-vi.mock('@ui/layout/AppBackground', () => ({ default: () => null }))
-vi.mock('@ui/layout/BottomBar', () => ({ default: () => null }))
+vi.mock('@app/components/Toast/ToastContainer', () => ({ default: () => null }))
+vi.mock('@app/ui/AppBackground', () => ({ default: () => null }))
+vi.mock('@app/ui/BottomBar', () => ({ default: () => null }))
 
 // Imported after the mocks, as `vi.mock` is hoisted above every import anyway.
 import App from '@app/App'

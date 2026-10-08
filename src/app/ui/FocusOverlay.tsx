@@ -1,15 +1,15 @@
 import type { AiViewSurfaceState } from '@features/ai/viewState'
 
-import { OVERLAY_FOCUS_TRANSFER_MS } from '@shared/constants/timingConstants'
-import { InlineSpinner } from '@shared/ui/components/primitives'
-import AestheticLoader from '@ui/components/AestheticLoader'
-import ErrorBoundary from '@ui/components/ErrorBoundary'
 import {
   focusBackdropReducedVariants,
   focusBackdropVariants,
   focusContentReducedVariants,
   focusContentVariants
-} from '@ui/layout/BottomBar/animations'
+} from '@app/ui/BottomBar/animations'
+import { OVERLAY_FOCUS_TRANSFER_MS } from '@shared/constants/timingConstants'
+import { InlineSpinner } from '@shared/ui/components/primitives'
+import AestheticLoader from '@ui/components/AestheticLoader'
+import ErrorBoundary from '@ui/components/ErrorBoundary'
 
 import { motion, useReducedMotion, type Variants } from 'motion/react'
 import {

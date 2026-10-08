@@ -1,4 +1,4 @@
-import { Button } from '@app/components/ui/button'
+import { Button } from '@shared/ui/components/primitives'
 
 import { BookOpen, CheckCircle2, Clock, Play } from 'lucide-react'
 import { motion } from 'motion/react'

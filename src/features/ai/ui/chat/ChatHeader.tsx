@@ -1,5 +1,4 @@
-import { Button } from '@app/components/ui/button'
-import { WithTooltip } from '@app/components/ui/tooltip'
+import { Button, WithTooltip } from '@shared/ui/components/primitives'
 import { AiIcon } from '@ui/components/icons/AiIcon'
 
 import { Clock, Plus } from 'lucide-react'

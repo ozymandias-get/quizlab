@@ -1,9 +1,12 @@
-import { IconButton, type IconButtonSize } from '@app/components/ui/icon-button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
+// Leaf imports, not the barrel: `index.ts` re-exports this module, so going
+// through it would close a cycle inside the primitives folder.
 import { cn } from '@shared/lib/uiUtils'
 
 import { motion } from 'motion/react'
 import { type ElementType, forwardRef } from 'react'
+
+import { IconButton, type IconButtonSize } from './icon-button'
+import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip'
 
 interface ToolbarButtonProps {
   onClick?: () => void

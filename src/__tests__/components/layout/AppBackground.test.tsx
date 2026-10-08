@@ -1,4 +1,4 @@
-import AppBackground from '@ui/layout/AppBackground'
+import AppBackground from '@app/ui/AppBackground'
 
 import { render } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

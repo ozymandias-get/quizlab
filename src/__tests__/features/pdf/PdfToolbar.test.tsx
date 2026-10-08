@@ -1,7 +1,7 @@
 import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
 import { usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 

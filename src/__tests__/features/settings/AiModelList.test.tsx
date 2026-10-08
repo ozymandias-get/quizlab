@@ -1,7 +1,7 @@
 import type { AiPlatform } from '@shared-core/types'
 
 import AiModelList from '@features/settings/ui/models/AiModelList'
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ComponentProps, ReactNode } from 'react'

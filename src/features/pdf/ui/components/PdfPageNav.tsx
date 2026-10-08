@@ -1,8 +1,13 @@
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
-import { ToolbarGroup, ToolbarSeparator } from '@shared/ui/components/primitives'
+import {
+  Button,
+  IconButton,
+  ToolbarGroup,
+  ToolbarSeparator,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@shared/ui/components/primitives'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { memo, useCallback, useRef, useState } from 'react'

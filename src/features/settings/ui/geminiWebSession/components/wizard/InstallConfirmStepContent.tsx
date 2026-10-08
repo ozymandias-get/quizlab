@@ -1,4 +1,4 @@
-import { Button } from '@app/components/ui/button'
+import { Button } from '@shared/ui/components/primitives'
 
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'

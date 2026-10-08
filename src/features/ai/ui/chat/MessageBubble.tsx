@@ -2,10 +2,8 @@ import type { ApiChatMessage } from '@shared-core/types'
 
 import MessageContent from '@features/ai/lib/parseMessageContent'
 
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
 import { Textarea } from '@app/components/ui/textarea'
-import { WithTooltip } from '@app/components/ui/tooltip'
+import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Pencil, RefreshCw } from 'lucide-react'
 import { memo, useEffect, useRef, useState } from 'react'

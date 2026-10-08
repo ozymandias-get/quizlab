@@ -1,4 +1,4 @@
-import BottomBar from '@ui/layout/BottomBar/index'
+import BottomBar from '@app/ui/BottomBar/index'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -40,7 +40,7 @@ vi.mock('@features/pdf', () => ({
     selector({ pdfTabs: [], activePdfTabId: null })
 }))
 
-vi.mock('@ui/layout/BottomBar/SettingsModalPortal', () => ({
+vi.mock('@app/ui/BottomBar/SettingsModalPortal', () => ({
   default: ({ isOpen, onClose, initialTab }: any) =>
     isOpen ? (
       <div data-testid="settings-modal">

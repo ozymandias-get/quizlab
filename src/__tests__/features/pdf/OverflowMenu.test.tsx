@@ -1,6 +1,6 @@
 import OverflowMenu from '@features/pdf/ui/components/OverflowMenu'
 import type { PdfTab } from '@features/pdf/hooks/types'
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { FileText } from 'lucide-react'

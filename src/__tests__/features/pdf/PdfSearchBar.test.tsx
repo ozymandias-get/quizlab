@@ -1,6 +1,6 @@
 import PdfSearchBar from '@features/pdf/ui/components/PdfSearchBar'
 
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 

@@ -3,9 +3,8 @@
  * smart clean and a manual refresh — plus the read-out of when the cache was
  * last cleaned.
  */
-import { Button } from '@app/components/ui/button'
 import { formatBytes } from '@shared/lib/formatUtils'
-import { SettingsSection } from '@shared/ui/components/primitives'
+import { Button, SettingsSection } from '@shared/ui/components/primitives'
 
 import type { TFunction } from 'i18next'
 import { Check, Loader2, RotateCcw, Sparkles, Trash2 } from 'lucide-react'

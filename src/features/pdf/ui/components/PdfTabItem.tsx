@@ -1,13 +1,15 @@
 import type { PdfTab } from '@features/pdf/hooks/types'
 
-import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import {
+  IconButton,
   TabPill,
   TabPillContainer,
   TabPillIcon,
-  TabPillLabel
+  TabPillLabel,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
 } from '@shared/ui/components/primitives'
 
 import { X } from 'lucide-react'

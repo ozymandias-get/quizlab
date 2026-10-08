@@ -1,6 +1,7 @@
-import { Button } from '@app/components/ui/button'
+import { useToastActions } from '@app/providers'
 import { useIsAnyDialogOpen } from '@shared/hooks'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
+import { Button } from '@shared/ui/components/primitives'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
@@ -33,8 +34,10 @@ function GoogleDrivePanel({
 }: GoogleDrivePanelProps) {
   const viewId = `gdrive:${tabId}`
   const isDialogOpen = useIsAnyDialogOpen()
+  const { showWarning } = useToastActions()
   const { setHostElement, reload } = useManagedContentView({
     viewId,
+    showWarning,
     source: { kind: 'google-web-app', appId: 'gdrive' },
     restoredUrl: webviewUrl,
     modelId: 'gdrive',

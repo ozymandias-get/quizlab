@@ -1,5 +1,5 @@
-import { Button } from '@app/components/ui/button'
 import { useClipboard } from '@shared/hooks/useClipboard'
+import { Button } from '@shared/ui/components/primitives'
 
 import { useCallback } from 'react'
 

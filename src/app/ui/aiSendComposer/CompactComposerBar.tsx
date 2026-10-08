@@ -1,9 +1,7 @@
 import { useQuickAiPresets } from '@features/ai'
 
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { cn } from '@shared/lib/uiUtils'
+import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Loader2, Pencil, Send, Sparkles, X } from 'lucide-react'
 import { memo, type PointerEventHandler, useCallback } from 'react'

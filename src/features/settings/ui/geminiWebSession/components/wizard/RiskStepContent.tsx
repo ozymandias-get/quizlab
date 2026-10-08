@@ -1,4 +1,4 @@
-import { Button } from '@app/components/ui/button'
+import { Button } from '@shared/ui/components/primitives'
 
 import { AlertTriangle, Check } from 'lucide-react'
 import { memo } from 'react'

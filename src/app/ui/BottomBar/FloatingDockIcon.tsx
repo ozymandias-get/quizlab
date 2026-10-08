@@ -3,7 +3,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
-} from '@app/components/ui/tooltip'
+} from '@shared/ui/components/primitives'
 
 import { motion, useSpring } from 'motion/react'
 import type { CSSProperties } from 'react'

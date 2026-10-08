@@ -1,5 +1,4 @@
-import { Button } from '@app/components/ui/button'
-import { IconBadge } from '@shared/ui/components/primitives'
+import { Button, IconBadge } from '@shared/ui/components/primitives'
 
 import { Trash2 } from 'lucide-react'
 import { memo } from 'react'

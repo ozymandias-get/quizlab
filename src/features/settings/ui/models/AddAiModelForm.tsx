@@ -1,13 +1,12 @@
 import { useAddCustomAi } from '@platform/electron/api/useSettingsAiApi'
 
-import { Button } from '@app/components/ui/button'
 import { Input } from '@app/components/ui/input'
 import { Label } from '@app/components/ui/label'
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
 import { DURATION } from '@shared/lib/motion'
 import { parseHttpUrl, validateHttpUrl } from '@shared/lib/urlUtils'
-import { SettingsSection } from '@shared/ui/components/primitives'
+import { Button, SettingsSection } from '@shared/ui/components/primitives'
 
 import { Loader2, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'

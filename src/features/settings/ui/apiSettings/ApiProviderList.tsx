@@ -1,7 +1,6 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
-import { Button } from '@app/components/ui/button'
-import { EmptyState, SettingsSection } from '@shared/ui/components/primitives'
+import { Button, EmptyState, SettingsSection } from '@shared/ui/components/primitives'
 
 import { Plus, Server } from 'lucide-react'
 import { memo } from 'react'

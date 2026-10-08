@@ -1,6 +1,6 @@
 import { useQuickAiPresets } from '@features/ai'
 
-import { Button } from '@app/components/ui/button'
+import { Button } from '@shared/ui/components/primitives'
 
 import { memo } from 'react'
 

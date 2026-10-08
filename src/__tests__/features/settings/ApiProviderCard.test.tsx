@@ -1,6 +1,6 @@
 import type { ApiProviderConfig } from '@shared-core/types'
 
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 import ApiProviderCard from '@features/settings/ui/apiSettings/ApiProviderCard'
 
 import { fireEvent, render, screen } from '@testing-library/react'

@@ -6,11 +6,10 @@ import {
   useSaveApiChatConfigMutation
 } from '@platform/electron/api/useApiChatApi'
 
-import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { AiIcon } from '@shared/ui/components/icons/AiIcon'
-import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
+import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 
 import { Loader2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'

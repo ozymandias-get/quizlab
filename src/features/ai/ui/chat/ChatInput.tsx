@@ -3,9 +3,8 @@ import type { ApiConfig } from '@shared-core/types'
 import { isVisionCapable } from '@features/ai/lib/apiChatUtils'
 
 import { Badge } from '@app/components/ui/badge'
-import { IconButton } from '@app/components/ui/icon-button'
 import { Textarea } from '@app/components/ui/textarea'
-import { WithTooltip } from '@app/components/ui/tooltip'
+import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Image as ImageIcon, Send, Square, Trash2, X } from 'lucide-react'
 import { memo, useCallback } from 'react'

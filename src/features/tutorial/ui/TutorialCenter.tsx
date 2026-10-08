@@ -1,5 +1,4 @@
-import { Button } from '@app/components/ui/button'
-import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
+import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 
 import { BookOpenIcon, RotateCcw } from 'lucide-react'
 import { motion } from 'motion/react'

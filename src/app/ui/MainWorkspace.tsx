@@ -1,8 +1,8 @@
 import type { AiViewSurfaceState } from '@features/ai/viewState'
 
 import AuroraBackground from '@app/components/ui/aurora-background'
+import BottomBar from '@app/ui/BottomBar'
 import AestheticLoader from '@ui/components/AestheticLoader'
-import BottomBar from '@ui/layout/BottomBar'
 import LeftPanel from '@ui/layout/LeftPanel'
 
 import { motion, type Variants } from 'motion/react'

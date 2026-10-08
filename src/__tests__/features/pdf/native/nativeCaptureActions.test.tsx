@@ -25,7 +25,7 @@ import {
   getActivePdfDocument
 } from '@features/pdf/lib/activePdfDocumentRegistry'
 
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
