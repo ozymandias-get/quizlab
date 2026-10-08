@@ -7,7 +7,7 @@ if (import.meta.env.DEV) {
 
 import { createBrowserElectronApi } from '@platform/electron/createBrowserElectronApi'
 
-import { installPdfRenderErrorGuard } from '@features/pdf'
+import { installPdfRenderErrorGuard, resetReadingProgressStore } from '@features/pdf'
 
 import App from '@app/App'
 import { AppProviders } from '@app/providers'
@@ -16,6 +16,7 @@ import { getStorageItem } from '@shared/hooks/localStorageUtils'
 import { hasElectronApi } from '@shared/lib/electronApi'
 import { installGlobalErrorHandlers } from '@shared/lib/globalErrorHandlers'
 import { hydrateSettingsFromMain, installSettingsSync } from '@shared/lib/settingsSync'
+import { hydratePreferenceStores } from '@shared/stores/hydratePreferenceStores'
 import { useLanguageInit } from '@shared/stores/languageStore'
 import BrowserFallback from '@ui/components/BrowserFallback'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
@@ -44,6 +45,15 @@ async function bootstrap() {
   // pick up the saved values (theme, prompts, selector settings, ...).
   if (isElectron) {
     await hydrateSettingsFromMain()
+    await hydratePreferenceStores()
+    // The reading-progress store is the third module-init snapshot of a synced
+    // key, and `hydratePreferenceStores` cannot reach it: a feature store is not
+    // a shared store, and importing it from `src/shared` would invert the
+    // dependency direction. Called from here instead, where the bootstrap
+    // ordering already lives. Skipping it does not merely hide the recent list —
+    // the first progress write persists that empty list back over the real
+    // history, in both localStorage and the main process store.
+    resetReadingProgressStore()
   }
 
   // Mirror whitelisted localStorage writes back to the main process store so

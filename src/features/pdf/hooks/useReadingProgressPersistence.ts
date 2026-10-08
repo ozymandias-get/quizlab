@@ -142,7 +142,16 @@ const getRecentReadingInfo = (): LastReadingInfo[] => {
 
 /**
  * Resets the reading progress store and re-reads the persisted history
- * from disk. Test-only helper.
+ * from disk.
+ *
+ * Two callers, both outside this module. Tests use it to get a clean store.
+ * Application boot uses it because the store is created by a static import and
+ * therefore snapshots `readReadingHistory()` **before** `hydrateSettingsFromMain()`
+ * writes the main process' copy of `STORAGE_KEYS.LAST_PDF_READING` into
+ * localStorage — the same module-init ordering trap `hydratePreferenceStores()`
+ * exists to correct for the appearance and language stores. Without this the
+ * session starts with an empty recent list and the first progress write persists
+ * that one-entry list back over the real history.
  */
 export const resetReadingProgressStore = (): void => {
   clearDebounce()

@@ -51,7 +51,10 @@ export { installPdfRenderErrorGuard } from './errors/pdfRenderErrors'
 export { useDriveViewRetirement } from './hooks/useDriveViewRetirement'
 export { usePdfOpenActions } from './hooks/usePdfOpenActions'
 export { usePdfSelection } from './hooks/usePdfSelection'
-export { useReadingProgressPersistence } from './hooks/useReadingProgressPersistence'
+export {
+  resetReadingProgressStore,
+  useReadingProgressPersistence
+} from './hooks/useReadingProgressPersistence'
 export { useShellOpenPdf } from './hooks/useShellOpenPdf'
 export { usePdfTabStore } from './store/usePdfTabStore'
 export type { ReadingProgressUpdate, ResumePdfResult } from './types'

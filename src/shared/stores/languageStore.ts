@@ -44,7 +44,7 @@ interface LanguageState {
   completeOnboarding: () => void
 }
 
-const getInitialLanguage = (): string => {
+export const getInitialLanguage = (): string => {
   const saved = getStorageItem(STORAGE_KEYS.APP_LANGUAGE)
   return saved && VALID_LANGUAGES.includes(saved) ? saved : DEFAULT_LANGUAGE
 }
