@@ -103,7 +103,7 @@ export function usePdfWorkspaceState({
         })
         // The history dedupes by path, so the old-path entry would remain
         // as a ghost next to the relinked one — drop it explicitly.
-        clearLastReading(target.path)
+        if (target.path !== result.path) clearLastReading(target.path)
 
         openPdfInTab({
           ...result,

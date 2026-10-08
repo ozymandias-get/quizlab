@@ -81,12 +81,9 @@ export function usePdfPlaceholderState({
           next.delete(item.path)
           return next
         })
-        if (onRestoreResumePdf) {
-          onRestoreResumePdf({ ...item, page: 1, totalPages: 0 }, item.originalIndex)
-        }
       }
     },
-    [onRelinkPdf, onRestoreResumePdf]
+    [onRelinkPdf]
   )
 
   const handleRemove = useCallback(
